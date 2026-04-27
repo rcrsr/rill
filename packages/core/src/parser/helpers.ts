@@ -13,6 +13,7 @@ import type {
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { type ParserState, check, peek, expect, current } from './state.js';
 import { VALID_TYPE_NAMES } from '../constants.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // ============================================================
 // VALID TYPE NAMES
@@ -295,7 +296,7 @@ export function parseTypeName<T extends string>(
   const typeToken = expect(state, TOKEN_TYPES.IDENTIFIER, 'Expected type name');
   if (!validTypes.includes(typeToken.value as T)) {
     throw new ParseError(
-      'RILL-P003',
+      ERROR_IDS.RILL_P003,
       `Invalid type: ${typeToken.value} (expected: ${validTypes.join(', ')})`,
       typeToken.span.start
     );
@@ -366,7 +367,7 @@ export function parseBareHostCall(
 
     if (!isIdentifierOrKeyword(token)) {
       throw new ParseError(
-        'RILL-P001',
+        ERROR_IDS.RILL_P001,
         'Expected identifier or keyword after ::',
         token.span.start
       );

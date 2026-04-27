@@ -25,6 +25,7 @@ import { inferElementType } from '../../types/operations.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * ListDispatchMixin implementation.
@@ -60,7 +61,7 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateListLiteralDispatch',
           },
-          'RILL_R041',
+          ERROR_ATOMS[ERROR_IDS.RILL_R041],
           'list index must be an integer',
           { index: input }
         );
@@ -74,7 +75,7 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateListLiteralDispatch',
           },
-          'RILL_R041',
+          ERROR_ATOMS[ERROR_IDS.RILL_R041],
           'list index must be an integer',
           { index: input }
         );
@@ -101,7 +102,7 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateListLiteralDispatch',
           },
-          'RILL_R042',
+          ERROR_ATOMS[ERROR_IDS.RILL_R042],
           `list index ${index} out of range (length: ${elements.length})`,
           { n: index, m: elements.length }
         );
@@ -114,26 +115,25 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate list literal elements, expanding any ...spread nodes inline.
      */
     private async evaluateListLiteralElements(
-      rawElements: ExpressionNode[]
+      rawElements: (ExpressionNode | ListSpreadNode)[]
     ): Promise<RillValue[]> {
       const result: RillValue[] = [];
       for (const elem of rawElements) {
-        if ((elem as unknown as { type: string }).type === 'ListSpread') {
+        if (elem.type === 'ListSpread') {
           // Spread: ...$other — expand collection inline
-          const spreadNode = elem as unknown as ListSpreadNode;
           const spreadValue = await (
             this as unknown as EvaluatorInterface
-          ).evaluateExpression(spreadNode.expression);
+          ).evaluateExpression(elem.expression);
           if (Array.isArray(spreadValue)) {
             result.push(...spreadValue);
           } else {
             throwCatchableHostHalt(
               {
-                location: spreadNode.span?.start,
+                location: elem.span?.start,
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateListLiteralElements',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `Spread in list literal requires list, got ${typeof spreadValue}`,
               { got: typeof spreadValue }
             );

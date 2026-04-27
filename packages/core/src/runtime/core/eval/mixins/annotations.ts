@@ -29,6 +29,7 @@ import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /** Default maximum loop iterations */
 const DEFAULT_MAX_ITERATIONS = 10000;
@@ -148,7 +149,7 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateAnnotations',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               'Annotation spread requires dict with named keys, got list'
             );
           } else {
@@ -158,7 +159,7 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateAnnotations',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `Annotation spread requires dict, got ${typeof spreadValue}`
             );
           }

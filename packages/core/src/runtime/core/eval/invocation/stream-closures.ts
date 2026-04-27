@@ -43,6 +43,7 @@ import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { getEvaluator } from '../evaluator.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
 // STREAM CHANNEL INTERNALS
@@ -266,7 +267,7 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             }
             throwFatalHostHalt(
               { sourceId: this.ctx.sourceId, fn: 'disposeStreams' },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               err instanceof Error ? err.message : String(err)
             );
           }

@@ -25,6 +25,7 @@ import {
   skipNewlines,
   makeSpan,
 } from './state.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 const RESERVED_ANNOTATION_KEYS: readonly string[] = ['type', 'input', 'output'];
 
@@ -81,7 +82,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
             err instanceof ParseError
               ? err
               : new ParseError(
-                  'RILL-P001',
+                  ERROR_IDS.RILL_P001,
                   err.message.replace(/ at line \d+, column \d+$/, ''),
                   err.location
                 );
@@ -167,7 +168,7 @@ Parser.prototype.parseFrontmatter = function (this: Parser): FrontmatterNode {
     this.state,
     TOKEN_TYPES.FRONTMATTER_DELIM,
     'Expected closing ---',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   return {
@@ -257,7 +258,7 @@ Parser.prototype.parseAnnotatedStatement = function (
 
   const annotations = this.parseAnnotationArgs();
 
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
   skipNewlines(this.state);
 
   // Parse the inner statement (which could also be annotated)
@@ -331,7 +332,7 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
   );
   if (RESERVED_ANNOTATION_KEYS.includes(nameToken.value)) {
     throw new ParseError(
-      'RILL-P001',
+      ERROR_IDS.RILL_P001,
       `Annotation key "${nameToken.value}" is reserved`,
       nameToken.span.start
     );

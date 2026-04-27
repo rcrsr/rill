@@ -30,6 +30,7 @@ import { isDict } from '../../callable.js';
 import { getVariable } from '../../context.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * ExtractionMixin implementation.
@@ -86,7 +87,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateDestructure',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Key destructure requires dict, got ${isList ? 'list' : typeof input}`
           );
         }
@@ -101,7 +102,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateDestructure',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               'Nested destructure not supported in dict patterns'
             );
           }
@@ -117,7 +118,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateDestructure',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               'Dict destructure requires key: $var patterns'
             );
           }
@@ -130,7 +131,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateDestructure',
               },
-              'RILL_R009',
+              ERROR_ATOMS[ERROR_IDS.RILL_R009],
               `Key '${elem.key}' not found in dict`,
               { key: elem.key, availableKeys: Object.keys(dictInput) }
             );
@@ -144,7 +145,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateDestructure',
               },
-              'RILL_R009',
+              ERROR_ATOMS[ERROR_IDS.RILL_R009],
               `Key '${elem.key}' has undefined value`
             );
           }
@@ -174,7 +175,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateDestructure',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Positional destructure requires list, got ${isDictInput ? 'dict' : typeof input}`
           );
         }
@@ -187,7 +188,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateDestructure',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Destructure pattern has ${node.elements.length} elements, list has ${listInput.length}`
           );
         }
@@ -214,7 +215,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateDestructure',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               'Invalid destructure element'
             );
           }
@@ -264,7 +265,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateSlice',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Slice requires list or string, got ${isDict(input) ? 'dict' : typeof input}`
         );
       }
@@ -308,7 +309,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (bound === null) {
         throwCatchableHostHalt(
           { location, sourceId: this.ctx.sourceId, fn: 'evaluateSliceBound' },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Slice bound is null'
         );
       }
@@ -330,7 +331,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateSliceBound',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `Slice bound must be number, got ${typeof value}`
             );
           }
@@ -350,7 +351,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateSliceBound',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `Slice bound must be number, got ${typeof value}`
             );
           }
@@ -375,7 +376,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (actualStep === 0) {
         throwCatchableHostHalt(
           { sourceId: this.ctx.sourceId, fn: 'applySlice' },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Slice step cannot be zero'
         );
       }
@@ -499,25 +500,24 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Spread: ...$other expands the referenced collection into the result.
      */
     protected async evaluateListLiteralElements(
-      rawElements: ExpressionNode[]
+      rawElements: (ExpressionNode | ListSpreadNode)[]
     ): Promise<RillValue[]> {
       const result: RillValue[] = [];
       for (const elem of rawElements) {
-        if ((elem as unknown as { type: string }).type === 'ListSpread') {
-          const spreadNode = elem as unknown as ListSpreadNode;
+        if (elem.type === 'ListSpread') {
           const spreadValue = await (
             this as unknown as EvaluatorInterface
-          ).evaluateExpression(spreadNode.expression);
+          ).evaluateExpression(elem.expression);
           if (Array.isArray(spreadValue)) {
             result.push(...spreadValue);
           } else {
             throwCatchableHostHalt(
               {
-                location: spreadNode.span?.start,
+                location: elem.span?.start,
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateListLiteralElements',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `Spread in list literal requires list, got ${typeof spreadValue}`,
               { got: typeof spreadValue }
             );
@@ -624,6 +624,6 @@ export type ExtractionMixinCapability = {
       | OrderedLiteralNode
   ): Promise<RillValue>;
   evaluateListLiteralElements(
-    rawElements: ExpressionNode[]
+    rawElements: (ExpressionNode | ListSpreadNode)[]
   ): Promise<RillValue[]>;
 };

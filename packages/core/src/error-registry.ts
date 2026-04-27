@@ -24,10 +24,145 @@ export interface ErrorExample {
   readonly code: string;
 }
 
+// ============================================================
+// ERROR ID REGISTRY (single source of truth)
+// ============================================================
+
+/**
+ * Canonical hyphen-form error IDs. Used as registry keys and surfaced in
+ * formatted error messages. Keys are the underscore "atom" form.
+ *
+ * Conversion:
+ *  - Hyphen form  (registry key, user-facing): `ERROR_IDS.RILL_R003 === 'RILL-R003'`
+ *  - Atom form    (rill atom code, e.g. `:rill_r003`): `ERROR_ATOMS[ERROR_IDS.RILL_R003] === 'RILL_R003'`
+ *
+ * Add a new ID by adding a key here AND a corresponding entry in
+ * `ERROR_DEFINITIONS`. Both sides are validated at module load.
+ */
+export const ERROR_IDS = {
+  RILL_L001: 'RILL-L001',
+  RILL_L002: 'RILL-L002',
+  RILL_L003: 'RILL-L003',
+  RILL_L004: 'RILL-L004',
+  RILL_L005: 'RILL-L005',
+  RILL_P001: 'RILL-P001',
+  RILL_P002: 'RILL-P002',
+  RILL_P003: 'RILL-P003',
+  RILL_P004: 'RILL-P004',
+  RILL_P005: 'RILL-P005',
+  RILL_P006: 'RILL-P006',
+  RILL_P007: 'RILL-P007',
+  RILL_P008: 'RILL-P008',
+  RILL_P009: 'RILL-P009',
+  RILL_P010: 'RILL-P010',
+  RILL_P011: 'RILL-P011',
+  RILL_P012: 'RILL-P012',
+  RILL_P014: 'RILL-P014',
+  RILL_P020: 'RILL-P020',
+  RILL_P021: 'RILL-P021',
+  RILL_P022: 'RILL-P022',
+  RILL_R001: 'RILL-R001',
+  RILL_R002: 'RILL-R002',
+  RILL_R003: 'RILL-R003',
+  RILL_R005: 'RILL-R005',
+  RILL_R006: 'RILL-R006',
+  RILL_R007: 'RILL-R007',
+  RILL_R008: 'RILL-R008',
+  RILL_R009: 'RILL-R009',
+  RILL_R010: 'RILL-R010',
+  RILL_R011: 'RILL-R011',
+  RILL_R012: 'RILL-R012',
+  RILL_R013: 'RILL-R013',
+  RILL_R014: 'RILL-R014',
+  RILL_R015: 'RILL-R015',
+  RILL_R016: 'RILL-R016',
+  RILL_R017: 'RILL-R017',
+  RILL_R018: 'RILL-R018',
+  RILL_R019: 'RILL-R019',
+  RILL_R020: 'RILL-R020',
+  RILL_R021: 'RILL-R021',
+  RILL_R022: 'RILL-R022',
+  RILL_R023: 'RILL-R023',
+  RILL_R024: 'RILL-R024',
+  RILL_R025: 'RILL-R025',
+  RILL_R026: 'RILL-R026',
+  RILL_R027: 'RILL-R027',
+  RILL_R028: 'RILL-R028',
+  RILL_R029: 'RILL-R029',
+  RILL_R030: 'RILL-R030',
+  RILL_R031: 'RILL-R031',
+  RILL_R032: 'RILL-R032',
+  RILL_R033: 'RILL-R033',
+  RILL_R034: 'RILL-R034',
+  RILL_R035: 'RILL-R035',
+  RILL_R036: 'RILL-R036',
+  RILL_R037: 'RILL-R037',
+  RILL_R038: 'RILL-R038',
+  RILL_R039: 'RILL-R039',
+  RILL_R040: 'RILL-R040',
+  RILL_R041: 'RILL-R041',
+  RILL_R042: 'RILL-R042',
+  RILL_R043: 'RILL-R043',
+  RILL_R044: 'RILL-R044',
+  RILL_R045: 'RILL-R045',
+  RILL_R050: 'RILL-R050',
+  RILL_R051: 'RILL-R051',
+  RILL_R052: 'RILL-R052',
+  RILL_R053: 'RILL-R053',
+  RILL_R054: 'RILL-R054',
+  RILL_R055: 'RILL-R055',
+  RILL_R056: 'RILL-R056',
+  RILL_R057: 'RILL-R057',
+  RILL_R058: 'RILL-R058',
+  RILL_R059: 'RILL-R059',
+  RILL_R060: 'RILL-R060',
+  RILL_R061: 'RILL-R061',
+  RILL_R062: 'RILL-R062',
+  RILL_R063: 'RILL-R063',
+  RILL_R064: 'RILL-R064',
+  RILL_R065: 'RILL-R065',
+  RILL_R066: 'RILL-R066',
+  RILL_R067: 'RILL-R067',
+  RILL_R068: 'RILL-R068',
+  RILL_R069: 'RILL-R069',
+  RILL_R070: 'RILL-R070',
+  RILL_R071: 'RILL-R071',
+  RILL_R072: 'RILL-R072',
+  RILL_R073: 'RILL-R073',
+  RILL_R074: 'RILL-R074',
+  RILL_R075: 'RILL-R075',
+  RILL_R076: 'RILL-R076',
+  RILL_R077: 'RILL-R077',
+  RILL_R078: 'RILL-R078',
+  RILL_R079: 'RILL-R079',
+  RILL_R080: 'RILL-R080',
+  RILL_R081: 'RILL-R081',
+  RILL_C001: 'RILL-C001',
+  RILL_C002: 'RILL-C002',
+  RILL_C003: 'RILL-C003',
+  RILL_C004: 'RILL-C004',
+} as const;
+
+/** Hyphen-form error ID (e.g. `'RILL-R003'`). */
+export type ErrorId = (typeof ERROR_IDS)[keyof typeof ERROR_IDS];
+
+/** Underscore atom-form error code (e.g. `'RILL_R003'`). */
+export type ErrorAtom = keyof typeof ERROR_IDS;
+
+/** Hyphen-form -> underscore atom-form map (`ERROR_ATOMS[ERROR_IDS.RILL_R003] === 'RILL_R003'`). */
+export const ERROR_ATOMS: Readonly<Record<ErrorId, ErrorAtom>> = Object.freeze(
+  Object.fromEntries(
+    (Object.entries(ERROR_IDS) as [ErrorAtom, ErrorId][]).map(([k, v]) => [
+      v,
+      k,
+    ])
+  )
+) as Readonly<Record<ErrorId, ErrorAtom>>;
+
 /** Error registry entry containing all metadata for a single error condition */
 export interface ErrorDefinition {
   /** Format: RILL-{category}{3-digit} (e.g., RILL-R001) */
-  readonly errorId: string;
+  readonly errorId: ErrorId;
   /** Error category (determines ID prefix) */
   readonly category: ErrorCategory;
   /** Severity level (defaults to 'error' when omitted) */
@@ -93,7 +228,7 @@ class ErrorRegistryImpl implements ErrorRegistry {
 const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Lexer Errors (RILL-L0xx)
   {
-    errorId: 'RILL-L001',
+    errorId: ERROR_IDS.RILL_L001,
     category: 'lexer',
     description: 'Unterminated string literal',
     messageTemplate: 'Unterminated string literal at {location}',
@@ -113,7 +248,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-L002',
+    errorId: ERROR_IDS.RILL_L002,
     category: 'lexer',
     description: 'Invalid character',
     messageTemplate: 'Invalid character {char} at {location}',
@@ -132,7 +267,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-L003',
+    errorId: ERROR_IDS.RILL_L003,
     category: 'lexer',
     description: 'Invalid number format',
     messageTemplate: 'Invalid number format: {value}',
@@ -156,7 +291,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-L004',
+    errorId: ERROR_IDS.RILL_L004,
     category: 'lexer',
     description: 'Unterminated multiline string',
     messageTemplate: 'Unterminated multiline string starting at {location}',
@@ -175,7 +310,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-L005',
+    errorId: ERROR_IDS.RILL_L005,
     category: 'lexer',
     description: 'Invalid escape sequence',
     messageTemplate: 'Invalid escape sequence {sequence} at {location}',
@@ -196,7 +331,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Parse Errors (RILL-P0xx)
   {
-    errorId: 'RILL-P001',
+    errorId: ERROR_IDS.RILL_P001,
     category: 'parse',
     description: 'Unexpected token',
     messageTemplate: 'Unexpected token {token}, expected {expected}',
@@ -219,7 +354,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P002',
+    errorId: ERROR_IDS.RILL_P002,
     category: 'parse',
     description: 'Unexpected end of input',
     messageTemplate: 'Unexpected end of input, expected {expected}',
@@ -243,7 +378,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P003',
+    errorId: ERROR_IDS.RILL_P003,
     category: 'parse',
     description: 'Invalid type annotation',
     messageTemplate: 'Invalid type annotation: {type}',
@@ -267,7 +402,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P004',
+    errorId: ERROR_IDS.RILL_P004,
     category: 'parse',
     description: 'Invalid expression',
     messageTemplate: 'Invalid expression: {details}',
@@ -287,7 +422,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P005',
+    errorId: ERROR_IDS.RILL_P005,
     category: 'parse',
     description: 'Missing delimiter',
     messageTemplate: 'Missing {delimiter}, found {found}',
@@ -311,7 +446,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P006',
+    errorId: ERROR_IDS.RILL_P006,
     category: 'parse',
     description: 'Invalid syntax in context',
     messageTemplate: '{message}',
@@ -330,7 +465,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P007',
+    errorId: ERROR_IDS.RILL_P007,
     category: 'parse',
     description: 'Keyword and bracket not adjacent',
     messageTemplate:
@@ -351,7 +486,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P008',
+    errorId: ERROR_IDS.RILL_P008,
     category: 'parse',
     description: 'Bare bracket at expression start',
     messageTemplate:
@@ -372,7 +507,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P009',
+    errorId: ERROR_IDS.RILL_P009,
     category: 'parse',
     description: 'Removed sigil syntax',
     messageTemplate: 'Sigil syntax {sigil} was removed; {resolution}',
@@ -396,7 +531,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P010',
+    errorId: ERROR_IDS.RILL_P010,
     category: 'parse',
     description: 'Invalid AT expression syntax',
     messageTemplate:
@@ -417,7 +552,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P011',
+    errorId: ERROR_IDS.RILL_P011,
     category: 'parse',
     description: 'Expected type name after pipe',
     messageTemplate: "Expected type name after '|'",
@@ -433,7 +568,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P012',
+    errorId: ERROR_IDS.RILL_P012,
     category: 'parse',
     description: 'Removed syntax used',
     messageTemplate: 'Syntax removed: {details}',
@@ -451,7 +586,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P014',
+    errorId: ERROR_IDS.RILL_P014,
     category: 'parse',
     description: 'Malformed type argument list',
     messageTemplate: '{details}',
@@ -471,7 +606,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P020',
+    errorId: ERROR_IDS.RILL_P020,
     category: 'parse',
     description: "Missing ':' in use<> static form",
     messageTemplate: "Expected ':' after scheme in use<>",
@@ -487,7 +622,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P021',
+    errorId: ERROR_IDS.RILL_P021,
     category: 'parse',
     description: 'Empty resource after colon in use<>',
     messageTemplate: "Expected resource identifier after ':' in use<>",
@@ -503,7 +638,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-P022',
+    errorId: ERROR_IDS.RILL_P022,
     category: 'parse',
     description: "Missing '>' to close use<>",
     messageTemplate: "Expected '>' to close use<>",
@@ -519,7 +654,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Runtime Errors (RILL-R0xx)
   {
-    errorId: 'RILL-R001',
+    errorId: ERROR_IDS.RILL_R001,
     category: 'runtime',
     description: 'Parameter type mismatch',
     messageTemplate:
@@ -540,7 +675,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R002',
+    errorId: ERROR_IDS.RILL_R002,
     category: 'runtime',
     description: 'Operator type mismatch',
     messageTemplate:
@@ -565,7 +700,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R003',
+    errorId: ERROR_IDS.RILL_R003,
     category: 'runtime',
     description: 'Method receiver type mismatch',
     messageTemplate: 'Method {method} cannot be called on {type}',
@@ -585,7 +720,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R005',
+    errorId: ERROR_IDS.RILL_R005,
     category: 'runtime',
     description: 'Undefined variable',
     messageTemplate: 'Variable {name} is not defined',
@@ -609,7 +744,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R006',
+    errorId: ERROR_IDS.RILL_R006,
     category: 'runtime',
     description: 'Undefined function',
     messageTemplate: 'Function {name} is not defined',
@@ -629,7 +764,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R007',
+    errorId: ERROR_IDS.RILL_R007,
     category: 'runtime',
     description: 'Undefined method',
     messageTemplate: 'Method {method} is not defined on {type}',
@@ -649,7 +784,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R008',
+    errorId: ERROR_IDS.RILL_R008,
     category: 'runtime',
     description: 'Undefined annotation',
     messageTemplate: 'Annotation {key} is not defined',
@@ -664,7 +799,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R009',
+    errorId: ERROR_IDS.RILL_R009,
     category: 'runtime',
     description: 'Property not found',
     messageTemplate: 'Property {property} not found on {type}',
@@ -687,7 +822,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R010',
+    errorId: ERROR_IDS.RILL_R010,
     category: 'runtime',
     description: 'Iteration limit exceeded',
     messageTemplate: 'Iteration limit of {limit} exceeded',
@@ -707,7 +842,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R011',
+    errorId: ERROR_IDS.RILL_R011,
     category: 'runtime',
     description: 'Invalid regex pattern',
     messageTemplate: 'Invalid regex pattern: {pattern}',
@@ -727,7 +862,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R012',
+    errorId: ERROR_IDS.RILL_R012,
     category: 'runtime',
     description: 'Operation timeout',
     messageTemplate: 'Operation timed out after {timeout}ms',
@@ -746,7 +881,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R013',
+    errorId: ERROR_IDS.RILL_R013,
     category: 'runtime',
     description: 'Execution aborted',
     messageTemplate: 'Execution aborted by signal',
@@ -761,7 +896,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R014',
+    errorId: ERROR_IDS.RILL_R014,
     category: 'runtime',
     description: 'Auto-exception triggered',
     messageTemplate: 'Auto-exception triggered: pattern {pattern} matched',
@@ -777,7 +912,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R015',
+    errorId: ERROR_IDS.RILL_R015,
     category: 'runtime',
     description: 'Assertion failed',
     messageTemplate: 'Assertion failed: {condition}',
@@ -796,7 +931,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R016',
+    errorId: ERROR_IDS.RILL_R016,
     category: 'runtime',
     description: 'Error statement executed',
     messageTemplate: 'Error raised: {message}',
@@ -815,7 +950,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R017',
+    errorId: ERROR_IDS.RILL_R017,
     category: 'runtime',
     description: 'fs extension: unknown mount',
     messageTemplate: 'mount "{mountName}" not configured',
@@ -835,7 +970,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R018',
+    errorId: ERROR_IDS.RILL_R018,
     category: 'runtime',
     description: 'fs extension: path escapes mount boundary',
     messageTemplate: 'path escapes mount boundary',
@@ -855,7 +990,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R019',
+    errorId: ERROR_IDS.RILL_R019,
     category: 'runtime',
     description: 'fs extension: file type not permitted in mount',
     messageTemplate: 'file type not permitted in mount "{mountName}"',
@@ -875,7 +1010,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R020',
+    errorId: ERROR_IDS.RILL_R020,
     category: 'runtime',
     description: 'fs extension: mount does not permit operation',
     messageTemplate: 'mount "{mountName}" does not permit {operation}',
@@ -895,7 +1030,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R021',
+    errorId: ERROR_IDS.RILL_R021,
     category: 'runtime',
     description: 'fs extension: permission denied or file not found',
     messageTemplate: 'permission denied: {path}',
@@ -915,7 +1050,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R022',
+    errorId: ERROR_IDS.RILL_R022,
     category: 'runtime',
     description: 'fetch extension: HTTP 4xx client error',
     messageTemplate: '{namespace}: HTTP {status} — {body}',
@@ -934,7 +1069,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R023',
+    errorId: ERROR_IDS.RILL_R023,
     category: 'runtime',
     description: 'fetch extension: HTTP 5xx after retries',
     messageTemplate: '{namespace}: HTTP {status} after {retries} retries',
@@ -949,7 +1084,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R024',
+    errorId: ERROR_IDS.RILL_R024,
     category: 'runtime',
     description: 'fetch extension: request timeout',
     messageTemplate: '{namespace}: request timeout ({timeoutMs}ms)',
@@ -964,7 +1099,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R025',
+    errorId: ERROR_IDS.RILL_R025,
     category: 'runtime',
     description: 'fetch extension: network error',
     messageTemplate: '{namespace}: network error — {message}',
@@ -980,7 +1115,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R026',
+    errorId: ERROR_IDS.RILL_R026,
     category: 'runtime',
     description: 'fetch extension: invalid JSON response',
     messageTemplate: '{namespace}: invalid JSON response',
@@ -997,7 +1132,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // AHI Extension Errors (RILL-R027–RILL-R034)
   {
-    errorId: 'RILL-R027',
+    errorId: ERROR_IDS.RILL_R027,
     category: 'runtime',
     description: 'ahi extension: validation failed (HTTP 400)',
     messageTemplate: '{message}',
@@ -1011,7 +1146,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R028',
+    errorId: ERROR_IDS.RILL_R028,
     category: 'runtime',
     description: 'ahi extension: agent unreachable (HTTP 404)',
     messageTemplate: '{message}',
@@ -1025,7 +1160,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R029',
+    errorId: ERROR_IDS.RILL_R029,
     category: 'runtime',
     description: 'ahi extension: downstream exec failed',
     messageTemplate: '{message}',
@@ -1039,7 +1174,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R030',
+    errorId: ERROR_IDS.RILL_R030,
     category: 'runtime',
     description: 'ahi extension: timeout exceeded',
     messageTemplate: '{message}',
@@ -1054,7 +1189,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R031',
+    errorId: ERROR_IDS.RILL_R031,
     category: 'runtime',
     description: 'ahi extension: connection refused',
     messageTemplate: '{message}',
@@ -1070,7 +1205,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R032',
+    errorId: ERROR_IDS.RILL_R032,
     category: 'runtime',
     description: 'ahi extension: rate limited (HTTP 429)',
     messageTemplate: '{message}',
@@ -1085,7 +1220,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R033',
+    errorId: ERROR_IDS.RILL_R033,
     category: 'runtime',
     description: 'ahi extension: extension disposed',
     messageTemplate: '{message}',
@@ -1100,7 +1235,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R034',
+    errorId: ERROR_IDS.RILL_R034,
     category: 'runtime',
     description: 'ahi extension: downstream HTTP error',
     messageTemplate: '{message}',
@@ -1115,7 +1250,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R035',
+    errorId: ERROR_IDS.RILL_R035,
     category: 'runtime',
     description: 'ahi extension: agent unresolvable',
     messageTemplate: '{message}',
@@ -1133,7 +1268,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Collection literal, conversion, chain, and list dispatch errors (RILL-R036–RILL-R042)
   {
-    errorId: 'RILL-R036',
+    errorId: ERROR_IDS.RILL_R036,
     category: 'runtime',
     description: 'Incompatible convert source/target',
     messageTemplate: 'cannot convert {source} to {target}',
@@ -1149,7 +1284,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R037',
+    errorId: ERROR_IDS.RILL_R037,
     category: 'runtime',
     description: 'dict -> ordered without structural signature',
     messageTemplate:
@@ -1166,7 +1301,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R038',
+    errorId: ERROR_IDS.RILL_R038,
     category: 'runtime',
     description: 'Non-parseable string to number',
     messageTemplate: 'cannot convert string "{value}" to number',
@@ -1181,7 +1316,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R039',
+    errorId: ERROR_IDS.RILL_R039,
     category: 'runtime',
     description: 'Retired: type-value variable dispatch (`:>` form)',
     messageTemplate: 'expected type value, got {actual}',
@@ -1198,7 +1333,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R040',
+    errorId: ERROR_IDS.RILL_R040,
     category: 'runtime',
     description: 'chain() non-closure argument',
     messageTemplate: 'chain() argument must be a closure or list of closures',
@@ -1213,7 +1348,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R041',
+    errorId: ERROR_IDS.RILL_R041,
     category: 'runtime',
     description: 'List dispatch non-integer index',
     messageTemplate: 'list index must be an integer',
@@ -1228,7 +1363,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R042',
+    errorId: ERROR_IDS.RILL_R042,
     category: 'runtime',
     description: 'List dispatch index out of range',
     messageTemplate: 'list index {n} out of range (length: {m})',
@@ -1243,7 +1378,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R043',
+    errorId: ERROR_IDS.RILL_R043,
     category: 'runtime',
     description: 'Non-producing closure body or script',
     messageTemplate: '{context} produced no value',
@@ -1263,7 +1398,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R044',
+    errorId: ERROR_IDS.RILL_R044,
     category: 'runtime',
     description: 'Missing required member in conversion',
     messageTemplate:
@@ -1285,7 +1420,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   },
 
   {
-    errorId: 'RILL-R045',
+    errorId: ERROR_IDS.RILL_R045,
     category: 'runtime',
     description: 'Too many arguments passed to callable',
     messageTemplate: 'Expected {expected} args, got {actual}',
@@ -1303,7 +1438,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Resolver errors (RILL-R050–RILL-R059)
   {
-    errorId: 'RILL-R050',
+    errorId: ERROR_IDS.RILL_R050,
     category: 'runtime',
     description: 'Module not found in resolver config',
     messageTemplate: "Module '{resource}' not found in resolver config",
@@ -1318,7 +1453,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R051',
+    errorId: ERROR_IDS.RILL_R051,
     category: 'runtime',
     description: 'Module file read failure',
     messageTemplate: "Failed to read module '{resource}': {reason}",
@@ -1333,7 +1468,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R052',
+    errorId: ERROR_IDS.RILL_R052,
     category: 'runtime',
     description: 'Extension not found in resolver config',
     messageTemplate: "Extension '{name}' not found in resolver config",
@@ -1348,7 +1483,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R053',
+    errorId: ERROR_IDS.RILL_R053,
     category: 'runtime',
     description: 'Member path not found in extension',
     messageTemplate: "Member '{path}' not found in extension '{name}'",
@@ -1363,7 +1498,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R054',
+    errorId: ERROR_IDS.RILL_R054,
     category: 'runtime',
     description: 'No resolver registered for scheme',
     messageTemplate: "No resolver registered for scheme '{scheme}'",
@@ -1379,7 +1514,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R055',
+    errorId: ERROR_IDS.RILL_R055,
     category: 'runtime',
     description: 'Circular resolution detected',
     messageTemplate:
@@ -1396,7 +1531,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R056',
+    errorId: ERROR_IDS.RILL_R056,
     category: 'runtime',
     description: 'Resolver callback threw an error',
     messageTemplate: "Resolver error for '{scheme}:{resource}': {message}",
@@ -1412,7 +1547,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R057',
+    errorId: ERROR_IDS.RILL_R057,
     category: 'runtime',
     description: 'use<> identifier must resolve to string',
     messageTemplate: 'use<> identifier must resolve to string, got {type}',
@@ -1428,7 +1563,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R058',
+    errorId: ERROR_IDS.RILL_R058,
     category: 'runtime',
     description: "use<> identifier must contain ':' scheme separator",
     messageTemplate: "use<> identifier must contain ':' scheme separator",
@@ -1444,7 +1579,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-R059',
+    errorId: ERROR_IDS.RILL_R059,
     category: 'runtime',
     description: 'moduleResolver config is not a plain object',
     messageTemplate: 'moduleResolver config must be a plain object',
@@ -1461,7 +1596,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Legacy syntax removal errors (RILL-R060)
   {
-    errorId: 'RILL-R060',
+    errorId: ERROR_IDS.RILL_R060,
     category: 'runtime',
     description: 'Removed frontmatter key used',
     messageTemplate: 'Frontmatter key removed: {details}',
@@ -1482,7 +1617,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // parseSource not configured (RILL-R061)
   {
-    errorId: 'RILL-R061',
+    errorId: ERROR_IDS.RILL_R061,
     category: 'runtime',
     description: 'parseSource not configured in RuntimeContext',
     messageTemplate:
@@ -1501,7 +1636,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Context key not found (RILL-R062)
   {
-    errorId: 'RILL-R062',
+    errorId: ERROR_IDS.RILL_R062,
     category: 'runtime',
     description: 'Context key not found',
     messageTemplate: "Context key '{key}' not found",
@@ -1518,7 +1653,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Context path segment not a dict (RILL-R063)
   {
-    errorId: 'RILL-R063',
+    errorId: ERROR_IDS.RILL_R063,
     category: 'runtime',
     description: 'Context path segment is not a dict',
     messageTemplate: "Context path '{path}': '{segment}' is not a dict",
@@ -1536,7 +1671,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Type conversion: string to number (RILL-R064)
   {
-    errorId: 'RILL-R064',
+    errorId: ERROR_IDS.RILL_R064,
     category: 'runtime',
     description: 'Cannot convert string to number',
     messageTemplate: 'Cannot convert string "{value}" to number',
@@ -1554,7 +1689,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Type conversion: string to bool (RILL-R065)
   {
-    errorId: 'RILL-R065',
+    errorId: ERROR_IDS.RILL_R065,
     category: 'runtime',
     description: 'Cannot convert string to bool',
     messageTemplate: 'Cannot convert string "{value}" to bool',
@@ -1570,7 +1705,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Type conversion: number to bool (RILL-R066)
   {
-    errorId: 'RILL-R066',
+    errorId: ERROR_IDS.RILL_R066,
     category: 'runtime',
     description: 'Cannot convert number to bool',
     messageTemplate: 'Cannot convert number {value} to bool',
@@ -1587,7 +1722,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // JSON serialization: value not serializable (RILL-R067)
   {
-    errorId: 'RILL-R067',
+    errorId: ERROR_IDS.RILL_R067,
     category: 'runtime',
     description: 'Value is not JSON-serializable',
     messageTemplate: '{typeName} are not JSON-serializable',
@@ -1605,7 +1740,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Method registration: frozen type registration (RILL-R068)
   {
-    errorId: 'RILL-R068',
+    errorId: ERROR_IDS.RILL_R068,
     category: 'runtime',
     description: 'Type registration is frozen',
     messageTemplate:
@@ -1624,7 +1759,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Context validation: function missing description (RILL-R069)
   {
-    errorId: 'RILL-R069',
+    errorId: ERROR_IDS.RILL_R069,
     category: 'runtime',
     description: 'Function missing required description',
     messageTemplate:
@@ -1643,7 +1778,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Context validation: parameter missing description (RILL-R070)
   {
-    errorId: 'RILL-R070',
+    errorId: ERROR_IDS.RILL_R070,
     category: 'runtime',
     description: 'Parameter missing required description',
     messageTemplate:
@@ -1662,7 +1797,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Context validation: duplicate type registration (RILL-R071)
   {
-    errorId: 'RILL-R071',
+    errorId: ERROR_IDS.RILL_R071,
     category: 'runtime',
     description: 'Duplicate type registration',
     messageTemplate: "Duplicate type registration '{typeName}'",
@@ -1679,7 +1814,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Context validation: missing format protocol (RILL-R072)
   {
-    errorId: 'RILL-R072',
+    errorId: ERROR_IDS.RILL_R072,
     category: 'runtime',
     description: 'Type missing format protocol',
     messageTemplate: "Type '{typeName}' missing required format protocol",
@@ -1696,7 +1831,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Context validation: duplicate method on type (RILL-R073)
   {
-    errorId: 'RILL-R073',
+    errorId: ERROR_IDS.RILL_R073,
     category: 'runtime',
     description: 'Duplicate method on type',
     messageTemplate: "Duplicate method '{methodName}' on type '{typeName}'",
@@ -1713,7 +1848,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Value validation: empty vector (RILL-R074)
   {
-    errorId: 'RILL-R074',
+    errorId: ERROR_IDS.RILL_R074,
     category: 'runtime',
     description: 'Vector requires at least one dimension',
     messageTemplate: 'Vector data must have at least one dimension',
@@ -1730,7 +1865,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Extension validation: missing event field (RILL-R075)
   {
-    errorId: 'RILL-R075',
+    errorId: ERROR_IDS.RILL_R075,
     category: 'runtime',
     description: 'Event missing event field',
     messageTemplate: 'Event must include non-empty event field',
@@ -1747,7 +1882,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Module resolution: unknown module (RILL-R076)
   {
-    errorId: 'RILL-R076',
+    errorId: ERROR_IDS.RILL_R076,
     category: 'runtime',
     description: 'Unknown module resource',
     messageTemplate: "Unknown module '{resource}'",
@@ -1765,7 +1900,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Callable validation: invalid default value (RILL-R077)
   {
-    errorId: 'RILL-R077',
+    errorId: ERROR_IDS.RILL_R077,
     category: 'runtime',
     description: 'Invalid parameter default value',
     messageTemplate:
@@ -1784,7 +1919,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Legacy :> conversion syntax (RILL-R078)
   // Registered for documentation; parser emission wired in Phase 3 task 3.1.
   {
-    errorId: 'RILL-R078',
+    errorId: ERROR_IDS.RILL_R078,
     category: 'parse',
     description: 'Legacy :> conversion syntax',
     messageTemplate:
@@ -1807,7 +1942,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Legacy loop syntax: pre-loop @ (RILL-R079)
   {
-    errorId: 'RILL-R079',
+    errorId: ERROR_IDS.RILL_R079,
     category: 'parse',
     description: 'Legacy pre-loop @ syntax',
     messageTemplate: 'Migration error: use `while (cond) do { body }`',
@@ -1829,7 +1964,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Legacy loop syntax: post-loop @ (RILL-R080)
   {
-    errorId: 'RILL-R080',
+    errorId: ERROR_IDS.RILL_R080,
     category: 'parse',
     description: 'Legacy post-loop @ syntax',
     messageTemplate: 'Migration error: use `do { body } while (cond)`',
@@ -1851,7 +1986,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Legacy loop syntax: bare ^(limit:) annotation (RILL-R081)
   {
-    errorId: 'RILL-R081',
+    errorId: ERROR_IDS.RILL_R081,
     category: 'parse',
     description: 'Legacy ^(limit:) loop annotation syntax',
     messageTemplate: 'Migration error: use `do<limit: N> { body }`',
@@ -1873,7 +2008,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
 
   // Check Errors (RILL-C0xx)
   {
-    errorId: 'RILL-C001',
+    errorId: ERROR_IDS.RILL_C001,
     category: 'check',
     description: 'File not found',
     messageTemplate: 'File not found: {path}',
@@ -1892,7 +2027,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-C002',
+    errorId: ERROR_IDS.RILL_C002,
     category: 'check',
     description: 'File unreadable',
     messageTemplate: 'File unreadable: {path}',
@@ -1907,7 +2042,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-C003',
+    errorId: ERROR_IDS.RILL_C003,
     category: 'check',
     description: 'Invalid configuration',
     messageTemplate: 'Invalid configuration: {details}',
@@ -1926,7 +2061,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: 'RILL-C004',
+    errorId: ERROR_IDS.RILL_C004,
     category: 'check',
     description: 'Fix collision detected',
     messageTemplate: 'Fix collision detected for {location}',

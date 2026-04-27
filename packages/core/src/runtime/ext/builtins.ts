@@ -43,6 +43,7 @@ import { BreakSignal } from '../core/signals.js';
 import { createChildContext } from '../core/context.js';
 
 import { getIterableElements } from '../core/eval/mixins/collections.js';
+import { ERROR_IDS } from '../../error-registry.js';
 
 /** Internal type alias for built-in method implementations. */
 type RillMethod = (
@@ -254,7 +255,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       if (step === 0) {
         throw new RuntimeError(
-          'RILL-R001',
+          ERROR_IDS.RILL_R001,
           'range step cannot be zero',
           location
         );
@@ -307,7 +308,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       if (count < 0) {
         throw new RuntimeError(
-          'RILL-R001',
+          ERROR_IDS.RILL_R001,
           'repeat count cannot be negative',
           location
         );
@@ -375,7 +376,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         for (const item of arg) {
           if (!isCallable(item)) {
             throw new RuntimeError(
-              'RILL-R040',
+              ERROR_IDS.RILL_R040,
               `chain: list element must be a closure, got ${inferType(item)}`,
               location
             );
@@ -396,7 +397,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       }
 
       throw new RuntimeError(
-        'RILL-R040',
+        ERROR_IDS.RILL_R040,
         `chain: second argument must be a closure or list of closures, got ${inferType(arg)}`,
         location
       );
@@ -425,7 +426,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       if (!isCallable(body)) {
         throw new RuntimeError(
-          'RILL-R040',
+          ERROR_IDS.RILL_R040,
           `seq: body must be a closure, got ${inferType(body)}`,
           location
         );
@@ -449,7 +450,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
           iterCount++;
           if (iterCount > MAX_ITER) {
             throw new RuntimeError(
-              'RILL-R010',
+              ERROR_IDS.RILL_R010,
               `seq: iteration exceeded ${MAX_ITER} iterations`,
               location,
               { limit: MAX_ITER, iterations: iterCount }
@@ -509,7 +510,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       if (!isCallable(body)) {
         throw new RuntimeError(
-          'RILL-R040',
+          ERROR_IDS.RILL_R040,
           `fan: body must be a closure, got ${inferType(body)}`,
           location
         );
@@ -520,7 +521,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       if (options !== null && options !== undefined) {
         if (!isDict(options)) {
           throw new RuntimeError(
-            'RILL-R001',
+            ERROR_IDS.RILL_R001,
             `fan: options must be a dict, got ${inferType(options)}`,
             location
           );
@@ -531,14 +532,14 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         if (concurrencyOpt !== undefined && concurrencyOpt !== null) {
           if (typeof concurrencyOpt !== 'number') {
             throw new RuntimeError(
-              'RILL-R001',
+              ERROR_IDS.RILL_R001,
               `fan: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`,
               location
             );
           }
           if (!Number.isFinite(concurrencyOpt) || concurrencyOpt <= 0) {
             throw new RuntimeError(
-              'RILL-R001',
+              ERROR_IDS.RILL_R001,
               `fan: options.concurrency must be a positive number, got ${concurrencyOpt}`,
               location
             );
@@ -616,7 +617,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       if (!isCallable(body)) {
         throw new RuntimeError(
-          'RILL-R040',
+          ERROR_IDS.RILL_R040,
           `acc: body must be a closure, got ${inferType(body)}`,
           location
         );
@@ -640,7 +641,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
           iterCount++;
           if (iterCount > MAX_ITER) {
             throw new RuntimeError(
-              'RILL-R010',
+              ERROR_IDS.RILL_R010,
               `acc: iteration exceeded ${MAX_ITER} iterations`,
               location,
               { limit: MAX_ITER, iterations: iterCount }
@@ -710,7 +711,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       if (!isCallable(body)) {
         throw new RuntimeError(
-          'RILL-R040',
+          ERROR_IDS.RILL_R040,
           `fold: body must be a closure, got ${inferType(body)}`,
           location
         );
@@ -732,7 +733,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         iterCount++;
         if (iterCount > MAX_ITER) {
           throw new RuntimeError(
-            'RILL-R010',
+            ERROR_IDS.RILL_R010,
             `fold: iteration exceeded ${MAX_ITER} iterations`,
             location,
             { limit: MAX_ITER, iterations: iterCount }
@@ -798,7 +799,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
 
       if (!isCallable(body)) {
         throw new RuntimeError(
-          'RILL-R040',
+          ERROR_IDS.RILL_R040,
           `filter: body must be a closure, got ${inferType(body)}`,
           location
         );
@@ -809,7 +810,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       if (options !== null && options !== undefined) {
         if (!isDict(options)) {
           throw new RuntimeError(
-            'RILL-R001',
+            ERROR_IDS.RILL_R001,
             `filter: options must be a dict, got ${inferType(options)}`,
             location
           );
@@ -820,14 +821,14 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         if (concurrencyOpt !== undefined && concurrencyOpt !== null) {
           if (typeof concurrencyOpt !== 'number') {
             throw new RuntimeError(
-              'RILL-R001',
+              ERROR_IDS.RILL_R001,
               `filter: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`,
               location
             );
           }
           if (!Number.isFinite(concurrencyOpt) || concurrencyOpt <= 0) {
             throw new RuntimeError(
-              'RILL-R001',
+              ERROR_IDS.RILL_R001,
               `filter: options.concurrency must be a positive number, got ${concurrencyOpt}`,
               location
             );
@@ -861,7 +862,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         );
         if (typeof result !== 'boolean') {
           throw new RuntimeError(
-            'RILL-R001',
+            ERROR_IDS.RILL_R001,
             `filter: predicate must return bool, got ${inferType(result)}`,
             location
           );
@@ -1601,7 +1602,7 @@ const mDtAdd: RillMethod = (receiver, args, _ctx, location) => {
   const dur = args[0] ?? null;
   if (!isDuration(dur)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'datetime.add() requires a duration argument',
       location
     );
@@ -1650,7 +1651,7 @@ const mDtDiff: RillMethod = (receiver, args, _ctx, location) => {
   const other = args[0] ?? null;
   if (!isDatetime(other)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'datetime.diff() requires a datetime argument',
       location
     );
@@ -1761,7 +1762,7 @@ const mDurTotalMs: RillMethod = (receiver, _args, _ctx, location) => {
   const dur = receiver as unknown as RillDuration;
   if (dur.months > 0) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'total_ms is not defined for calendar durations',
       location
     );
@@ -1817,7 +1818,7 @@ const mDurAdd: RillMethod = (receiver, args, _ctx, location) => {
   const other = args[0] ?? null;
   if (!isDuration(other)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'duration.add() requires a duration argument',
       location
     );
@@ -1836,7 +1837,7 @@ const mDurSubtract: RillMethod = (receiver, args, _ctx, location) => {
   const other = args[0] ?? null;
   if (!isDuration(other)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'duration.subtract() requires a duration argument',
       location
     );
@@ -1846,7 +1847,7 @@ const mDurSubtract: RillMethod = (receiver, args, _ctx, location) => {
   const resultMs = dur.ms - otherDur.ms;
   if (resultMonths < 0 || resultMs < 0) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'duration.subtract() would produce negative result',
       location
     );
@@ -1864,14 +1865,14 @@ const mDurMultiply: RillMethod = (receiver, args, _ctx, location) => {
   const n = args[0] ?? null;
   if (typeof n !== 'number') {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'duration.multiply() requires a number argument',
       location
     );
   }
   if (n < 0) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'duration.multiply() requires non-negative number',
       location
     );
@@ -1917,7 +1918,7 @@ function buildMethodEntry(
     fn: (args, ctx, location) => {
       if (!('receiver' in args)) {
         throw new RuntimeError(
-          'RILL-R044',
+          ERROR_IDS.RILL_R044,
           "Missing required parameter 'receiver'",
           location
         );
@@ -1987,7 +1988,7 @@ const mHead: RillMethod = (receiver, _args, _ctx, location) => {
   if (Array.isArray(receiver)) {
     if (receiver.length === 0) {
       throw new RuntimeError(
-        'RILL-R002',
+        ERROR_IDS.RILL_R002,
         'Cannot get head of empty list',
         location
       );
@@ -1997,7 +1998,7 @@ const mHead: RillMethod = (receiver, _args, _ctx, location) => {
   if (typeof receiver === 'string') {
     if (receiver.length === 0) {
       throw new RuntimeError(
-        'RILL-R002',
+        ERROR_IDS.RILL_R002,
         'Cannot get head of empty string',
         location
       );
@@ -2005,7 +2006,7 @@ const mHead: RillMethod = (receiver, _args, _ctx, location) => {
     return receiver[0]!;
   }
   throw new RuntimeError(
-    'RILL-R003',
+    ERROR_IDS.RILL_R003,
     `head requires list or string, got ${inferType(receiver)}`,
     location
   );
@@ -2016,7 +2017,7 @@ const mTail: RillMethod = (receiver, _args, _ctx, location) => {
   if (Array.isArray(receiver)) {
     if (receiver.length === 0) {
       throw new RuntimeError(
-        'RILL-R002',
+        ERROR_IDS.RILL_R002,
         'Cannot get tail of empty list',
         location
       );
@@ -2026,7 +2027,7 @@ const mTail: RillMethod = (receiver, _args, _ctx, location) => {
   if (typeof receiver === 'string') {
     if (receiver.length === 0) {
       throw new RuntimeError(
-        'RILL-R002',
+        ERROR_IDS.RILL_R002,
         'Cannot get tail of empty string',
         location
       );
@@ -2034,7 +2035,7 @@ const mTail: RillMethod = (receiver, _args, _ctx, location) => {
     return receiver[receiver.length - 1]!;
   }
   throw new RuntimeError(
-    'RILL-R003',
+    ERROR_IDS.RILL_R003,
     `tail requires list or string, got ${inferType(receiver)}`,
     location
   );
@@ -2048,7 +2049,7 @@ const mFirst: RillMethod = (receiver, _args, _ctx, location) => {
   if (isDict(receiver))
     return makeDictIterator(receiver as Record<string, RillValue>, 0);
   throw new RuntimeError(
-    'RILL-R003',
+    ERROR_IDS.RILL_R003,
     `first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
     location
   );
@@ -2060,7 +2061,7 @@ const mAt: RillMethod = (receiver, args, _ctx, location) => {
   if (Array.isArray(receiver)) {
     if (idx < 0 || idx >= receiver.length) {
       throw new RuntimeError(
-        'RILL-R002',
+        ERROR_IDS.RILL_R002,
         `List index out of bounds: ${idx}`,
         location
       );
@@ -2070,7 +2071,7 @@ const mAt: RillMethod = (receiver, args, _ctx, location) => {
   if (typeof receiver === 'string') {
     if (idx < 0 || idx >= receiver.length) {
       throw new RuntimeError(
-        'RILL-R002',
+        ERROR_IDS.RILL_R002,
         `String index out of bounds: ${idx}`,
         location
       );
@@ -2078,7 +2079,7 @@ const mAt: RillMethod = (receiver, args, _ctx, location) => {
     return receiver[idx]!;
   }
   throw new RuntimeError(
-    'RILL-R003',
+    ERROR_IDS.RILL_R003,
     `Cannot call .at() on ${typeof receiver}`,
     location
   );
@@ -2253,14 +2254,14 @@ const mEntries: RillMethod = (receiver) =>
 const mHas: RillMethod = (receiver, args, _ctx, location) => {
   if (!Array.isArray(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `has() requires list receiver, got ${inferType(receiver)}`,
       location
     );
   }
   if (args.length !== 1) {
     throw new RuntimeError(
-      'RILL-R001',
+      ERROR_IDS.RILL_R001,
       `has() expects 1 argument, got ${args.length}`,
       location
     );
@@ -2276,14 +2277,14 @@ const mHas: RillMethod = (receiver, args, _ctx, location) => {
 const mHasAny: RillMethod = (receiver, args, _ctx, location) => {
   if (!Array.isArray(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `has_any() requires list receiver, got ${inferType(receiver)}`,
       location
     );
   }
   if (args.length !== 1) {
     throw new RuntimeError(
-      'RILL-R001',
+      ERROR_IDS.RILL_R001,
       `has_any() expects 1 argument, got ${args.length}`,
       location
     );
@@ -2291,7 +2292,7 @@ const mHasAny: RillMethod = (receiver, args, _ctx, location) => {
   const candidates = args[0] ?? null;
   if (!Array.isArray(candidates)) {
     throw new RuntimeError(
-      'RILL-R001',
+      ERROR_IDS.RILL_R001,
       `has_any() expects list argument, got ${inferType(candidates)}`,
       location
     );
@@ -2308,14 +2309,14 @@ const mHasAny: RillMethod = (receiver, args, _ctx, location) => {
 const mHasAll: RillMethod = (receiver, args, _ctx, location) => {
   if (!Array.isArray(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `has_all() requires list receiver, got ${inferType(receiver)}`,
       location
     );
   }
   if (args.length !== 1) {
     throw new RuntimeError(
-      'RILL-R001',
+      ERROR_IDS.RILL_R001,
       `has_all() expects 1 argument, got ${args.length}`,
       location
     );
@@ -2323,7 +2324,7 @@ const mHasAll: RillMethod = (receiver, args, _ctx, location) => {
   const candidates = args[0] ?? null;
   if (!Array.isArray(candidates)) {
     throw new RuntimeError(
-      'RILL-R001',
+      ERROR_IDS.RILL_R001,
       `has_all() expects list argument, got ${inferType(candidates)}`,
       location
     );
@@ -2345,7 +2346,7 @@ const mHasAll: RillMethod = (receiver, args, _ctx, location) => {
 const mDimensions: RillMethod = (receiver, _args, _ctx, location) => {
   if (!isVector(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `dimensions requires vector receiver, got ${inferType(receiver)}`,
       location
     );
@@ -2357,7 +2358,7 @@ const mDimensions: RillMethod = (receiver, _args, _ctx, location) => {
 const mModel: RillMethod = (receiver, _args, _ctx, location) => {
   if (!isVector(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `model requires vector receiver, got ${inferType(receiver)}`,
       location
     );
@@ -2369,7 +2370,7 @@ const mModel: RillMethod = (receiver, _args, _ctx, location) => {
 const mSimilarity: RillMethod = (receiver, args, _ctx, location) => {
   if (!isVector(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `similarity requires vector receiver, got ${inferType(receiver)}`,
       location
     );
@@ -2377,14 +2378,14 @@ const mSimilarity: RillMethod = (receiver, args, _ctx, location) => {
   const other = args[0] ?? null;
   if (!isVector(other)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `expected vector, got ${inferType(other)}`,
       location
     );
   }
   if (receiver.data.length !== other.data.length) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
       location
     );
@@ -2408,7 +2409,7 @@ const mSimilarity: RillMethod = (receiver, args, _ctx, location) => {
 const mDot: RillMethod = (receiver, args, _ctx, location) => {
   if (!isVector(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `dot requires vector receiver, got ${inferType(receiver)}`,
       location
     );
@@ -2416,14 +2417,14 @@ const mDot: RillMethod = (receiver, args, _ctx, location) => {
   const other = args[0] ?? null;
   if (!isVector(other)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `expected vector, got ${inferType(other)}`,
       location
     );
   }
   if (receiver.data.length !== other.data.length) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
       location
     );
@@ -2439,7 +2440,7 @@ const mDot: RillMethod = (receiver, args, _ctx, location) => {
 const mDistance: RillMethod = (receiver, args, _ctx, location) => {
   if (!isVector(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `distance requires vector receiver, got ${inferType(receiver)}`,
       location
     );
@@ -2447,14 +2448,14 @@ const mDistance: RillMethod = (receiver, args, _ctx, location) => {
   const other = args[0] ?? null;
   if (!isVector(other)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `expected vector, got ${inferType(other)}`,
       location
     );
   }
   if (receiver.data.length !== other.data.length) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
       location
     );
@@ -2471,7 +2472,7 @@ const mDistance: RillMethod = (receiver, args, _ctx, location) => {
 const mNorm: RillMethod = (receiver, _args, _ctx, location) => {
   if (!isVector(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `norm requires vector receiver, got ${inferType(receiver)}`,
       location
     );
@@ -2488,7 +2489,7 @@ const mNorm: RillMethod = (receiver, _args, _ctx, location) => {
 const mNormalize: RillMethod = (receiver, _args, _ctx, location) => {
   if (!isVector(receiver)) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       `normalize requires vector receiver, got ${inferType(receiver)}`,
       location
     );

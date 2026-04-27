@@ -35,7 +35,12 @@ import type {
   UseExprNode,
   VariableNode,
 } from '../types.js';
-import { type TokenType, ParseError, TOKEN_TYPES } from '../types.js';
+import {
+  type TokenType,
+  BINARY_OPS,
+  ParseError,
+  TOKEN_TYPES,
+} from '../types.js';
 import {
   check,
   advance,
@@ -62,6 +67,7 @@ import {
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 /** Constructs valid as both primary expressions and pipe targets */
 type CommonConstruct =
@@ -156,7 +162,7 @@ Parser.prototype.parseCommonConstruct = function (
       )
     ) {
       throw new ParseError(
-        'RILL-P004',
+        ERROR_IDS.RILL_P004,
         'Negation operator requires an operand. Use prefix syntax: !expr or (!expr)',
         start
       );
@@ -213,7 +219,7 @@ Parser.prototype.parseCommonConstruct = function (
     const nextType = peek(this.state, 1).type;
     if (nextType === TOKEN_TYPES.LBRACKET || nextType === TOKEN_TYPES.DOLLAR) {
       throw new ParseError(
-        'RILL-P010',
+        ERROR_IDS.RILL_P010,
         `'@${nextType === TOKEN_TYPES.LBRACKET ? '[' : '$'}...' is not a valid expression; use chain(...) to chain collections`,
         current(this.state).span.start
       );
@@ -221,14 +227,14 @@ Parser.prototype.parseCommonConstruct = function (
     // Legacy bounded post-loop: @ ^(limit: N) { body } ? (cond) — RILL-R080
     if (peek(this.state, 1).type === TOKEN_TYPES.CARET) {
       throw new ParseError(
-        'RILL-R080',
+        ERROR_IDS.RILL_R080,
         'Migration error: use `do<limit: N> { body } while (cond)`',
         current(this.state).span.start
       );
     }
     // Legacy post-loop: @ { body } ? (cond) — RILL-R080 at @
     throw new ParseError(
-      'RILL-R080',
+      ERROR_IDS.RILL_R080,
       'Migration error: use `do { body } while (cond)`',
       current(this.state).span.start
     );
@@ -251,7 +257,7 @@ Parser.prototype.parseCommonConstruct = function (
     if (check(this.state, TOKEN_TYPES.AT)) {
       // Legacy post-loop: { body } @ ? (cond) — RILL-R080 at @
       throw new ParseError(
-        'RILL-R080',
+        ERROR_IDS.RILL_R080,
         'Migration error: use `do { body } while (cond)`',
         current(this.state).span.start
       );
@@ -275,7 +281,7 @@ Parser.prototype.parseCommonConstruct = function (
     if (check(this.state, TOKEN_TYPES.AT)) {
       // Legacy pre-loop: (cond) @ { body } — RILL-R079 at @
       throw new ParseError(
-        'RILL-R079',
+        ERROR_IDS.RILL_R079,
         'Migration error: use `while (cond) do { body }`',
         current(this.state).span.start
       );
@@ -357,7 +363,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
   if (check(this.state, TOKEN_TYPES.YIELD)) {
     if (this.closureDepth === 0) {
       throw new ParseError(
-        'RILL-P006',
+        ERROR_IDS.RILL_P006,
         "'yield' is only valid inside a stream closure",
         current(this.state).span.start
       );
@@ -414,7 +420,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
   if (check(this.state, TOKEN_TYPES.AT)) {
     // Legacy seeded loop: expr @ { body } ? (cond) — RILL-R080 at @
     throw new ParseError(
-      'RILL-R080',
+      ERROR_IDS.RILL_R080,
       'Migration error: use `do { body } while (cond)`',
       current(this.state).span.start
     );
@@ -512,7 +518,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     if (check(this.state, TOKEN_TYPES.YIELD)) {
       if (this.closureDepth === 0) {
         throw new ParseError(
-          'RILL-P006',
+          ERROR_IDS.RILL_P006,
           "'yield' is only valid inside a stream closure",
           current(this.state).span.start
         );
@@ -528,7 +534,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       current(this.state).value === 'export'
     ) {
       throw new ParseError(
-        'RILL-P012',
+        ERROR_IDS.RILL_P012,
         'Syntax removed: -> export syntax removed; use last-expression result instead',
         current(this.state).span.start
       );
@@ -758,7 +764,7 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
     this.state,
     TOKEN_TYPES.RPAREN,
     'Expected )',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   return {
@@ -779,7 +785,7 @@ function parseInvokeArg(
   if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
     if (hasSpread) {
       throw new ParseError(
-        'RILL-P007',
+        ERROR_IDS.RILL_P007,
         'Only one spread argument (...) is allowed per argument list',
         current(parser.state).span.start
       );
@@ -893,7 +899,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     peek(this.state, 2).value === 'limit'
   ) {
     throw new ParseError(
-      'RILL-R081',
+      ERROR_IDS.RILL_R081,
       'Migration error: use `do<limit: N> { body }`',
       current(this.state).span.start
     );
@@ -908,7 +914,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     advance(this.state); // consume ^
     advance(this.state); // consume (
     const annotations = this.parseAnnotationArgs();
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
     const expression = this.parsePrimary();
     return {
       type: 'AnnotatedExpr',
@@ -963,7 +969,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
       nextTokType === TOKEN_TYPES.LBRACKET
     ) {
       throw new ParseError(
-        'RILL-P007',
+        ERROR_IDS.RILL_P007,
         "keyword and bracket must be adjacent; found whitespace before '['",
         current(this.state).span.start
       );
@@ -973,7 +979,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
       nextTokType === TOKEN_TYPES.LT
     ) {
       throw new ParseError(
-        'RILL-P007',
+        ERROR_IDS.RILL_P007,
         "keyword and bracket must be adjacent; found whitespace before '<'",
         current(this.state).span.start
       );
@@ -986,14 +992,14 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     const nextTokType = peek(this.state, 1).type;
     if (nextTokType === TOKEN_TYPES.LBRACKET) {
       throw new ParseError(
-        'RILL-P009',
+        ERROR_IDS.RILL_P009,
         'Sigil syntax *[ was removed; use tuple[...] or ordered[...]',
         current(this.state).span.start
       );
     }
     if (nextTokType === TOKEN_TYPES.LT) {
       throw new ParseError(
-        'RILL-P009',
+        ERROR_IDS.RILL_P009,
         'Sigil syntax *< was removed; use destruct<...>',
         current(this.state).span.start
       );
@@ -1003,7 +1009,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     const nextTokType = peek(this.state, 1).type;
     if (nextTokType === TOKEN_TYPES.LT) {
       throw new ParseError(
-        'RILL-P009',
+        ERROR_IDS.RILL_P009,
         'Sigil syntax /< was removed; use slice<...>',
         current(this.state).span.start
       );
@@ -1100,7 +1106,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
   // Yield keyword in expression position (not valid as identifier)
   if (check(this.state, TOKEN_TYPES.YIELD)) {
     throw new ParseError(
-      'RILL-P001',
+      ERROR_IDS.RILL_P001,
       "Unexpected keyword 'yield'",
       current(this.state).span.start
     );
@@ -1113,14 +1119,14 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     peek(this.state, 1).type === TOKEN_TYPES.LT
   ) {
     throw new ParseError(
-      'RILL-P001',
+      ERROR_IDS.RILL_P001,
       `Unexpected token: ${token.value}. Hint: Heredoc syntax (<<EOF) was removed, use triple-quote strings (""") instead`,
       token.span.start
     );
   }
 
   throw new ParseError(
-    'RILL-P001',
+    ERROR_IDS.RILL_P001,
     `Unexpected token: ${token.value}`,
     token.span.start
   );
@@ -1347,7 +1353,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     peek(this.state, 1).type === TOKEN_TYPES.GT
   ) {
     throw new ParseError(
-      'RILL-R078',
+      ERROR_IDS.RILL_R078,
       "Legacy ':>' conversion syntax removed; use '-> type' instead",
       current(this.state).span.start
     );
@@ -1435,7 +1441,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   }
 
   throw new ParseError(
-    'RILL-P001',
+    ERROR_IDS.RILL_P001,
     `Expected pipe target, got: ${current(this.state).value}`,
     current(this.state).span.start
   );
@@ -1481,7 +1487,7 @@ Parser.prototype.parseGrouped = function (this: Parser): GroupedExprNode {
     this.state,
     TOKEN_TYPES.RPAREN,
     'Expected )',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
   return {
     type: 'GroupedExpr',
@@ -1512,17 +1518,17 @@ Parser.prototype.tokenToComparisonOp = function (
 ): '==' | '!=' | '<' | '>' | '<=' | '>=' {
   switch (tokenType) {
     case TOKEN_TYPES.EQ:
-      return '==';
+      return BINARY_OPS.EQ;
     case TOKEN_TYPES.NE:
-      return '!=';
+      return BINARY_OPS.NE;
     case TOKEN_TYPES.LT:
-      return '<';
+      return BINARY_OPS.LT;
     case TOKEN_TYPES.GT:
-      return '>';
+      return BINARY_OPS.GT;
     case TOKEN_TYPES.LE:
-      return '<=';
+      return BINARY_OPS.LE;
     default:
-      return '>=';
+      return BINARY_OPS.GE;
   }
 };
 
@@ -1592,7 +1598,7 @@ Parser.prototype.parseBinaryExprChain = function (
 
 const LOGICAL_OR_OP_TOKENS: TokenType[] = [TOKEN_TYPES.OR];
 const LOGICAL_OR_OP_MAP = new Map<TokenType, BinaryOp>([
-  [TOKEN_TYPES.OR, '||'],
+  [TOKEN_TYPES.OR, BINARY_OPS.OR],
 ]);
 
 Parser.prototype.parseLogicalOr = function (this: Parser): ArithHead {
@@ -1605,7 +1611,7 @@ Parser.prototype.parseLogicalOr = function (this: Parser): ArithHead {
 
 const LOGICAL_AND_OP_TOKENS: TokenType[] = [TOKEN_TYPES.AND];
 const LOGICAL_AND_OP_MAP = new Map<TokenType, BinaryOp>([
-  [TOKEN_TYPES.AND, '&&'],
+  [TOKEN_TYPES.AND, BINARY_OPS.AND],
 ]);
 
 Parser.prototype.parseLogicalAnd = function (this: Parser): ArithHead {
@@ -1639,8 +1645,8 @@ Parser.prototype.parseComparison = function (this: Parser): ArithHead {
 
 const ADDITIVE_OP_TOKENS: TokenType[] = [TOKEN_TYPES.PLUS, TOKEN_TYPES.MINUS];
 const ADDITIVE_OP_MAP = new Map<TokenType, BinaryOp>([
-  [TOKEN_TYPES.PLUS, '+'],
-  [TOKEN_TYPES.MINUS, '-'],
+  [TOKEN_TYPES.PLUS, BINARY_OPS.ADD],
+  [TOKEN_TYPES.MINUS, BINARY_OPS.SUB],
 ]);
 
 Parser.prototype.parseAdditive = function (this: Parser): ArithHead {
@@ -1657,9 +1663,9 @@ const MULTIPLICATIVE_OP_TOKENS: TokenType[] = [
   TOKEN_TYPES.PERCENT,
 ];
 const MULTIPLICATIVE_OP_MAP = new Map<TokenType, BinaryOp>([
-  [TOKEN_TYPES.STAR, '*'],
-  [TOKEN_TYPES.SLASH, '/'],
-  [TOKEN_TYPES.PERCENT, '%'],
+  [TOKEN_TYPES.STAR, BINARY_OPS.MUL],
+  [TOKEN_TYPES.SLASH, BINARY_OPS.DIV],
+  [TOKEN_TYPES.PERCENT, BINARY_OPS.MOD],
 ]);
 
 Parser.prototype.parseMultiplicative = function (this: Parser): ArithHead {
@@ -1732,7 +1738,7 @@ Parser.prototype.parseClosureSigLiteral = function (
   }
 
   // Consume closing |
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
 
   // Consume : before return type
   expect(

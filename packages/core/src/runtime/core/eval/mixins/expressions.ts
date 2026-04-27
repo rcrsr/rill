@@ -36,6 +36,7 @@ import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import { haltSlowPath } from './access.js';
 import { STATUS_SYM, type RillStatus } from '../../types/status.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * Find the type registration for a value by type name.
@@ -185,7 +186,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateArithmetic',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Arithmetic requires number, got ${inferType(resolvedLeft)}`
         );
       }
@@ -216,7 +217,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateArithmetic',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Arithmetic requires number, got ${inferType(resolvedRight)}`
         );
       }
@@ -237,7 +238,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateArithmetic',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               'Division by zero'
             );
           }
@@ -250,7 +251,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateArithmetic',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               'Modulo by zero'
             );
           }
@@ -284,7 +285,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateBinaryComparison',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Cannot compare ${typeName} using ${op}`
           );
         }
@@ -301,7 +302,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateBinaryComparison',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Cannot compare ${typeName} with ${rightTypeName} using ${op}`
         );
       }
@@ -333,7 +334,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateUnaryExpr',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Negation operator (!) requires boolean operand, got ${inferType(value)}`
           );
         }
@@ -351,7 +352,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateUnaryExpr',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Arithmetic requires number, got ${inferType(inner)}`
           );
         }
@@ -366,7 +367,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateUnaryExpr',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Arithmetic requires number, got ${inferType(value)}`
         );
       }

@@ -53,6 +53,7 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import { accessHaltGateFast } from './access.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * VariablesMixin implementation.
@@ -99,7 +100,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const expectedLabel = formatStructure(explicitType);
             throwCatchableHostHalt(
               { location, sourceId: this.ctx.sourceId, fn: 'setVariable' },
-              'RILL_R001',
+              ERROR_ATOMS[ERROR_IDS.RILL_R001],
               `Type mismatch: cannot assign ${valueType} to $${name}:${expectedLabel}`,
               {
                 variableName: name,
@@ -112,7 +113,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // String (RillTypeName) type check
           throwCatchableHostHalt(
             { location, sourceId: this.ctx.sourceId, fn: 'setVariable' },
-            'RILL_R001',
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
             `Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
             {
               variableName: name,
@@ -132,7 +133,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       ) {
         throwCatchableHostHalt(
           { location, sourceId: this.ctx.sourceId, fn: 'setVariable' },
-          'RILL_R001',
+          ERROR_ATOMS[ERROR_IDS.RILL_R001],
           `Cannot reassign outer variable $${name} from child scope`,
           { variableName: name }
         );
@@ -146,7 +147,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             const expectedLabel = formatStructure(lockedType);
             throwCatchableHostHalt(
               { location, sourceId: this.ctx.sourceId, fn: 'setVariable' },
-              'RILL_R001',
+              ERROR_ATOMS[ERROR_IDS.RILL_R001],
               `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${expectedLabel})`,
               {
                 variableName: name,
@@ -158,7 +159,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         } else if (lockedType !== valueType) {
           throwCatchableHostHalt(
             { location, sourceId: this.ctx.sourceId, fn: 'setVariable' },
-            'RILL_R001',
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
             `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${lockedType})`,
             {
               variableName: name,
@@ -199,7 +200,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateVariable',
             },
-            'RILL_R005',
+            ERROR_ATOMS[ERROR_IDS.RILL_R005],
             'Undefined variable: $',
             { variable: '$' }
           );
@@ -217,7 +218,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateVariable',
             },
-            'RILL_R005',
+            ERROR_ATOMS[ERROR_IDS.RILL_R005],
             `Undefined variable: $${node.name}`,
             { variable: node.name }
           );
@@ -232,7 +233,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           sourceId: this.ctx.sourceId,
           fn: 'evaluateVariable',
         },
-        'RILL_R005',
+        ERROR_ATOMS[ERROR_IDS.RILL_R005],
         'Invalid variable node'
       );
     }
@@ -258,7 +259,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
-            'RILL_R005',
+            ERROR_ATOMS[ERROR_IDS.RILL_R005],
             'Undefined variable: $',
             { variable: '$' }
           );
@@ -274,7 +275,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
-            'RILL_R005',
+            ERROR_ATOMS[ERROR_IDS.RILL_R005],
             `Undefined variable: $${node.name}`,
             { variable: node.name }
           );
@@ -287,7 +288,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateVariableAsync',
           },
-          'RILL_R005',
+          ERROR_ATOMS[ERROR_IDS.RILL_R005],
           'Invalid variable node'
         );
       }
@@ -311,7 +312,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateVariableAsync',
               },
-              'RILL_R009',
+              ERROR_ATOMS[ERROR_IDS.RILL_R009],
               `Cannot access property on null`
             );
           }
@@ -340,7 +341,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   sourceId: this.ctx.sourceId,
                   fn: 'evaluateVariableAsync',
                 },
-                'RILL_R002',
+                ERROR_ATOMS[ERROR_IDS.RILL_R002],
                 `List index must be number, got ${inferType(indexValue)}`
               );
             }
@@ -357,7 +358,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   sourceId: this.ctx.sourceId,
                   fn: 'evaluateVariableAsync',
                 },
-                'RILL_R009',
+                ERROR_ATOMS[ERROR_IDS.RILL_R009],
                 `List index out of bounds: ${indexValue}`
               );
             }
@@ -370,7 +371,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   sourceId: this.ctx.sourceId,
                   fn: 'evaluateVariableAsync',
                 },
-                'RILL_R002',
+                ERROR_ATOMS[ERROR_IDS.RILL_R002],
                 `Dict key must be string, got ${inferType(indexValue)}`
               );
             }
@@ -382,7 +383,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   sourceId: this.ctx.sourceId,
                   fn: 'evaluateVariableAsync',
                 },
-                'RILL_R009',
+                ERROR_ATOMS[ERROR_IDS.RILL_R009],
                 `Undefined dict key: ${indexValue}`
               );
             }
@@ -394,7 +395,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateVariableAsync',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `Cannot index ${inferType(value)}`
             );
           }
@@ -421,7 +422,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                     sourceId: this.ctx.sourceId,
                     fn: 'evaluateVariableAsync',
                   },
-                  'RILL_R003',
+                  ERROR_ATOMS[ERROR_IDS.RILL_R003],
                   `Cannot access .params on ${inferType(value)}`,
                   { actualType: inferType(value) }
                 );
@@ -455,7 +456,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   sourceId: this.ctx.sourceId,
                   fn: 'evaluateVariableAsync',
                 },
-                'RILL_R003',
+                ERROR_ATOMS[ERROR_IDS.RILL_R003],
                 `Type value has no property "${field}"`
               );
             }
@@ -499,9 +500,11 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             // throws RuntimeHaltSignal with atom RILL_R008 instead of RuntimeError.
             // Both forms are accepted so ?? coalescing works in variable access chains.
             const isR008 =
-              (e instanceof RuntimeError && e.errorId === 'RILL-R008') ||
+              (e instanceof RuntimeError &&
+                e.errorId === ERROR_IDS.RILL_R008) ||
               (e instanceof RuntimeHaltSignal &&
-                atomName(getStatus(e.value).code) === 'RILL_R008');
+                atomName(getStatus(e.value).code) ===
+                  ERROR_ATOMS[ERROR_IDS.RILL_R008]);
             if (isR008 && node.defaultValue !== null) {
               // Convert missing annotation to null for ?? coalescing
               value = null;
@@ -518,7 +521,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Field access kind '${access.kind}' not yet supported`
           );
         }
@@ -579,7 +582,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateExistenceCheck',
               },
-              'RILL_R005',
+              ERROR_ATOMS[ERROR_IDS.RILL_R005],
               `Variable '${varName}' is undefined`
             );
           }
@@ -594,7 +597,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   sourceId: this.ctx.sourceId,
                   fn: 'evaluateExistenceCheck',
                 },
-                'RILL_R002',
+                ERROR_ATOMS[ERROR_IDS.RILL_R002],
                 `Existence check key must be string, got ${inferType(keyValue)}`
               );
             }
@@ -635,7 +638,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateExistenceCheck',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               `Existence check key evaluated to ${inferType(keyValue)}, expected string`
             );
           }
@@ -663,7 +666,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateExistenceCheck',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Existence check not yet supported for ${finalAccess.kind} access`
         );
       }
@@ -732,7 +735,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateFieldAccessVariable',
             },
-            'RILL_R005',
+            ERROR_ATOMS[ERROR_IDS.RILL_R005],
             `Pipe variable '$' is undefined`
           );
         }
@@ -746,7 +749,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateFieldAccessVariable',
             },
-            'RILL_R005',
+            ERROR_ATOMS[ERROR_IDS.RILL_R005],
             `Variable '${access.variableName}' is undefined`
           );
         }
@@ -760,7 +763,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateFieldAccessVariable',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Key must be string or number, got bool`
         );
       }
@@ -771,7 +774,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateFieldAccessVariable',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Key must be string or number, got list`
         );
       }
@@ -812,7 +815,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           sourceId: this.ctx.sourceId,
           fn: 'evaluateFieldAccessVariable',
         },
-        'RILL_R002',
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
         `Key must be string or number, got ${inferType(keyValue)}`
       );
     }
@@ -848,7 +851,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateFieldAccessComputed',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Computed key evaluated to closure, expected string or number`
         );
       }
@@ -861,7 +864,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateFieldAccessComputed',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Computed key evaluated to dict, expected string or number`
         );
       }
@@ -874,7 +877,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateFieldAccessComputed',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Computed key evaluated to bool, expected string or number`
         );
       }
@@ -885,7 +888,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateFieldAccessComputed',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Computed key evaluated to list, expected string or number`
         );
       }
@@ -926,7 +929,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           sourceId: this.ctx.sourceId,
           fn: 'evaluateFieldAccessComputed',
         },
-        'RILL_R002',
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
         `Computed key evaluated to unexpected type`
       );
     }
@@ -957,7 +960,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateFieldAccessAlternatives',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Alternative access requires dict, got ${inferType(value)}`
         );
       }

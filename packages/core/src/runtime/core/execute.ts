@@ -56,6 +56,7 @@ import { atomName, registerErrorCode } from './types/atom-registry.js';
 import { RuntimeHaltSignal, throwFatalHostHalt } from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
 import { formatAccessSite } from './eval/mixins/access.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 
 // ============================================================
 // HALT-ATOM REGISTRATIONS (IC-6, Phase 2)
@@ -68,17 +69,17 @@ import { formatAccessSite } from './eval/mixins/access.js';
 //
 // Idempotent: re-registering with the same kind is a no-op. Re-registering
 // with a different kind throws, which would surface at module load.
-registerErrorCode('RILL_R043', 'runtime');
-registerErrorCode('RILL_R060', 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R043], 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R060], 'runtime');
 // IC-5: closures.ts halt-builder migration atoms.
-registerErrorCode('RILL_R001', 'runtime');
-registerErrorCode('RILL_R005', 'runtime');
-registerErrorCode('RILL_R006', 'runtime');
-registerErrorCode('RILL_R007', 'runtime');
-registerErrorCode('RILL_R008', 'runtime');
-registerErrorCode('RILL_R009', 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R001], 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R005], 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R006], 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R007], 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R008], 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R009], 'runtime');
 // IC-3: control-flow.ts assert halt site.
-registerErrorCode('RILL_R015', 'runtime');
+registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R015], 'runtime');
 
 /**
  * Execute a parsed Rill script.
@@ -102,7 +103,7 @@ export async function execute(
             sourceId: context.sourceId,
             fn: 'execute',
           },
-          'RILL_R060',
+          ERROR_ATOMS[ERROR_IDS.RILL_R060],
           'Frontmatter key removed: use: frontmatter removed; use use<module:...> instead'
         );
       }
@@ -113,7 +114,7 @@ export async function execute(
             sourceId: context.sourceId,
             fn: 'execute',
           },
-          'RILL_R060',
+          ERROR_ATOMS[ERROR_IDS.RILL_R060],
           'Frontmatter key removed: export: frontmatter removed; use last-expression result instead'
         );
       }
@@ -359,7 +360,7 @@ export function createStepper(
         if (context.pipeValue === null) {
           throwFatalHostHalt(
             { sourceId: context.sourceId, fn: 'execute' },
-            'RILL_R043',
+            ERROR_ATOMS[ERROR_IDS.RILL_R043],
             'Script produced no value'
           );
         }
@@ -503,43 +504,43 @@ function getInnerStatement(
  *
  * Halt atom names use underscore form (ATOM_NAME_REGEX); host-facing
  * error IDs use hyphen form. The IR-5 migration replaces
- * `RuntimeError.fromNode('RILL-R016', ...)` with a `RuntimeHaltSignal`
+ * `RuntimeError.fromNode(ERROR_IDS.RILL_R016, ...)` with a `RuntimeHaltSignal`
  * carrying atom `RILL_R016`. When such a halt escapes guard/retry, we
  * rematerialise the old RuntimeError shape here so existing language
  * tests asserting `err.errorId` keep working.
  */
 const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
-  RILL_R016: 'RILL-R016',
+  RILL_R016: ERROR_IDS.RILL_R016,
   // IC-4: collections.ts halt-builder migration mappings.
-  RILL_R002: 'RILL-R002',
-  RILL_R003: 'RILL-R003',
-  RILL_R010: 'RILL-R010',
+  RILL_R002: ERROR_IDS.RILL_R002,
+  RILL_R003: ERROR_IDS.RILL_R003,
+  RILL_R010: ERROR_IDS.RILL_R010,
   // IC-6: execute.ts frontmatter-validation and script-no-value halt sites.
-  RILL_R043: 'RILL-R043',
-  RILL_R060: 'RILL-R060',
+  RILL_R043: ERROR_IDS.RILL_R043,
+  RILL_R060: ERROR_IDS.RILL_R060,
   // Phase 2 migrations: closures.ts halt sites (IC-5).
-  RILL_R001: 'RILL-R001',
-  RILL_R005: 'RILL-R005',
-  RILL_R006: 'RILL-R006',
-  RILL_R007: 'RILL-R007',
-  RILL_R008: 'RILL-R008',
-  RILL_R009: 'RILL-R009',
+  RILL_R001: ERROR_IDS.RILL_R001,
+  RILL_R005: ERROR_IDS.RILL_R005,
+  RILL_R006: ERROR_IDS.RILL_R006,
+  RILL_R007: ERROR_IDS.RILL_R007,
+  RILL_R008: ERROR_IDS.RILL_R008,
+  RILL_R009: ERROR_IDS.RILL_R009,
   // Phase 2 migrations: control-flow.ts assert site (IC-3).
-  RILL_R015: 'RILL-R015',
+  RILL_R015: ERROR_IDS.RILL_R015,
   // Evaluator-mixin migration: type-conversion and list-dispatch.
-  RILL_R036: 'RILL-R036',
-  RILL_R037: 'RILL-R037',
-  RILL_R038: 'RILL-R038',
-  RILL_R041: 'RILL-R041',
-  RILL_R042: 'RILL-R042',
-  RILL_R044: 'RILL-R044',
+  RILL_R036: ERROR_IDS.RILL_R036,
+  RILL_R037: ERROR_IDS.RILL_R037,
+  RILL_R038: ERROR_IDS.RILL_R038,
+  RILL_R041: ERROR_IDS.RILL_R041,
+  RILL_R042: ERROR_IDS.RILL_R042,
+  RILL_R044: ERROR_IDS.RILL_R044,
   // use.ts resolver migration.
-  RILL_R054: 'RILL-R054',
-  RILL_R055: 'RILL-R055',
-  RILL_R056: 'RILL-R056',
-  RILL_R057: 'RILL-R057',
-  RILL_R058: 'RILL-R058',
-  RILL_R061: 'RILL-R061',
+  RILL_R054: ERROR_IDS.RILL_R054,
+  RILL_R055: ERROR_IDS.RILL_R055,
+  RILL_R056: ERROR_IDS.RILL_R056,
+  RILL_R057: ERROR_IDS.RILL_R057,
+  RILL_R058: ERROR_IDS.RILL_R058,
+  RILL_R061: ERROR_IDS.RILL_R061,
 };
 
 /**

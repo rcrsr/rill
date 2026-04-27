@@ -75,6 +75,7 @@ import {
   RuntimeHaltSignal,
 } from '../../types/halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * Format a source location into `file:line:col` form for trace frame `site`.
@@ -344,7 +345,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'validateParamType',
           },
-          'RILL_R001',
+          ERROR_ATOMS[ERROR_IDS.RILL_R001],
           `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
           { paramName: param.name, expectedType, actualType }
         );
@@ -457,7 +458,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'invokeRegularScriptCallable',
           },
-          'RILL_R043',
+          ERROR_ATOMS[ERROR_IDS.RILL_R043],
           'Closure body produced no value',
           { context: 'Closure body' }
         );
@@ -524,7 +525,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       if (typeof resolveFn !== 'function') {
         throwFatalHostHalt(
           { sourceId: this.ctx.sourceId, fn: 'invokeStream' },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Stream has no resolve function'
         );
       }
@@ -561,7 +562,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateHostCall',
           },
-          'RILL_R006',
+          ERROR_ATOMS[ERROR_IDS.RILL_R006],
           `Unknown function: ${node.name}`,
           { functionName: node.name }
         );
@@ -579,7 +580,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateHostCall',
             },
-            'RILL_R001',
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
             `Spread not supported for built-in function '${node.name}'`,
             { functionName: node.name }
           );
@@ -673,7 +674,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateHostRef',
           },
-          'RILL_R006',
+          ERROR_ATOMS[ERROR_IDS.RILL_R006],
           `Function "${node.name}" not found`,
           { functionName: node.name }
         );
@@ -728,7 +729,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateClosureCallWithPipe',
           },
-          'RILL_R005',
+          ERROR_ATOMS[ERROR_IDS.RILL_R005],
           `Unknown variable: $${node.name}`,
           { variableName: node.name }
         );
@@ -743,7 +744,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateClosureCallWithPipe',
             },
-            'RILL_R009',
+            ERROR_ATOMS[ERROR_IDS.RILL_R009],
             `Cannot access property '${prop}' on null`
           );
         }
@@ -756,7 +757,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateClosureCallWithPipe',
               },
-              'RILL_R009',
+              ERROR_ATOMS[ERROR_IDS.RILL_R009],
               `Dict has no field '${prop}'`
             );
           }
@@ -767,7 +768,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateClosureCallWithPipe',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Cannot access property on non-dict value at '${fullPath}'`
           );
         }
@@ -783,7 +784,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateClosureCallWithPipe',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `'${fullPath}' is not callable`,
           { path: fullPath, actualType: inferType(value) }
         );
@@ -798,7 +799,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateClosureCallWithPipe',
             },
-            'RILL_R001',
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
             `Spread not supported for built-in callable at '${fullPath}'`
           );
         }
@@ -850,7 +851,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluatePipePropertyAccess',
             },
-            'RILL_R009',
+            ERROR_ATOMS[ERROR_IDS.RILL_R009],
             'Cannot access property on null'
           );
         }
@@ -862,7 +863,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluatePipePropertyAccess',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             'Bracket access not supported in this context'
           );
         }
@@ -881,7 +882,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluatePipePropertyAccess',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Field access kind '${(access as { kind: string }).kind}' not supported in this context`
           );
         }
@@ -906,7 +907,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           sourceId: this.ctx.sourceId,
           fn: 'evaluateVariableInvoke',
         },
-        'RILL_R002',
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
         'evaluateVariableInvoke is a placeholder - use evaluateVariableAsync from VariablesMixin'
       );
     }
@@ -923,7 +924,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluatePipeInvoke',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Cannot invoke non-closure value (got ${typeof input})`
         );
       }
@@ -967,7 +968,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateMethod',
           },
-          'RILL_R003',
+          ERROR_ATOMS[ERROR_IDS.RILL_R003],
           `Method .${node.name} not available on callable (invoke with -> $() first)`,
           { methodName: node.name, receiverType: 'callable' }
         );
@@ -1047,7 +1048,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateMethod',
           },
-          'RILL_R009',
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
           `Property '${node.name}' not found on type value (available: name, signature)`,
           { property: node.name, type: 'type value' }
         );
@@ -1066,7 +1067,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateMethod',
             },
-            'RILL_R003',
+            ERROR_ATOMS[ERROR_IDS.RILL_R003],
             `Method '${node.name}' not supported on ${typeName}; supported: ${supportedTypes.join(', ')}`,
             { methodName: node.name, receiverType: typeName }
           );
@@ -1117,7 +1118,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           sourceId: this.ctx.sourceId,
           fn: 'evaluateMethod',
         },
-        'RILL_R007',
+        ERROR_ATOMS[ERROR_IDS.RILL_R007],
         `Unknown method: ${node.name} on type ${typeName}`,
         { methodName: node.name, typeName }
       );
@@ -1138,7 +1139,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateInvoke',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Cannot invoke non-callable value (got ${inferType(receiver)})`,
           { actualType: inferType(receiver) }
         );
@@ -1152,7 +1153,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateInvoke',
             },
-            'RILL_R001',
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
             'Spread not supported for built-in callable'
           );
         }
@@ -1195,7 +1196,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateAnnotationAccess',
           },
-          'RILL_R008',
+          ERROR_ATOMS[ERROR_IDS.RILL_R008],
           'Annotation access not supported on type values',
           { annotationKey: key }
         );
@@ -1222,7 +1223,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateAnnotationAccess',
           },
-          'RILL_R003',
+          ERROR_ATOMS[ERROR_IDS.RILL_R003],
           `annotation not found: ^${key}`,
           { actualType: 'stream' }
         );
@@ -1235,7 +1236,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateAnnotationAccess',
           },
-          'RILL_R003',
+          ERROR_ATOMS[ERROR_IDS.RILL_R003],
           `annotation not found: ^${key}`,
           { actualType: inferType(value) }
         );
@@ -1270,7 +1271,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateAnnotationAccess',
           },
-          'RILL_R008',
+          ERROR_ATOMS[ERROR_IDS.RILL_R008],
           `Annotation '${key}' not found`,
           { annotationKey: key }
         );
@@ -1291,7 +1292,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateParamsProperty',
           },
-          'RILL_R003',
+          ERROR_ATOMS[ERROR_IDS.RILL_R003],
           `Cannot access .params on ${inferType(callable)}`,
           { actualType: inferType(callable) }
         );

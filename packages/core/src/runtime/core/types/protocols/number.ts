@@ -9,6 +9,7 @@
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { RuntimeError } from '../../../../types.js';
+import { ERROR_IDS } from '../../../../error-registry.js';
 
 // ============================================================
 // FORMAT
@@ -44,7 +45,10 @@ const numberConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const n = v as number;
     if (n === 0) return false;
     if (n === 1) return true;
-    throw new RuntimeError('RILL-R066', `cannot convert number ${n} to bool`);
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R066,
+      `cannot convert number ${n} to bool`
+    );
   },
 };
 

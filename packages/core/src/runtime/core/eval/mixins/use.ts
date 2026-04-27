@@ -31,6 +31,7 @@ import { execute } from '../../execute.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * UseMixin implementation.
@@ -87,7 +88,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateUseExpr',
             },
-            'RILL_R057',
+            ERROR_ATOMS[ERROR_IDS.RILL_R057],
             `use<> identifier must resolve to string, got ${typeof varValue}`
           );
         }
@@ -111,7 +112,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateUseExpr',
             },
-            'RILL_R057',
+            ERROR_ATOMS[ERROR_IDS.RILL_R057],
             `use<> identifier must resolve to string, got ${typeof exprValue}`
           );
         }
@@ -134,7 +135,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateUseExpr',
           },
-          'RILL_R054',
+          ERROR_ATOMS[ERROR_IDS.RILL_R054],
           `No resolver registered for scheme '${scheme}'`
         );
       }
@@ -148,7 +149,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateUseExpr',
           },
-          'RILL_R055',
+          ERROR_ATOMS[ERROR_IDS.RILL_R055],
           `Circular resolution detected: ${key} is already being resolved`
         );
       }
@@ -170,7 +171,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateUseExpr',
             },
-            'RILL_R056',
+            ERROR_ATOMS[ERROR_IDS.RILL_R056],
             `Resolver error for '${key}': ${message}`
           );
         }
@@ -189,7 +190,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateUseExpr',
             },
-            'RILL_R061',
+            ERROR_ATOMS[ERROR_IDS.RILL_R061],
             `Resolver error for '${key}': parseSource is not configured on RuntimeContext — provide parseSource in RuntimeOptions to use source resolvers`
           );
         }
@@ -209,13 +210,13 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           const wrapped =
             parseLocation !== undefined
               ? new RuntimeError(
-                  'RILL-R056',
+                  ERROR_IDS.RILL_R056,
                   `Resolver error for '${key}': ${message.replace(/ at \d+:\d+$/, '')}`,
                   parseLocation,
                   { sourceId: key }
                 )
               : RuntimeError.fromNode(
-                  'RILL-R056',
+                  ERROR_IDS.RILL_R056,
                   `Resolver error for '${key}': ${message}`,
                   node,
                   { sourceId: key }
@@ -264,7 +265,7 @@ function parseSchemeString(
   if (colonIndex === -1) {
     throwCatchableHostHalt(
       { location, sourceId, fn: 'parseSchemeString' },
-      'RILL_R058',
+      ERROR_ATOMS[ERROR_IDS.RILL_R058],
       `use<> identifier must contain ':' scheme separator`
     );
   }

@@ -28,6 +28,7 @@
 import type {
   StringLiteralNode,
   ListLiteralNode,
+  ListSpreadNode,
   DictNode,
   ClosureNode,
   BlockNode,
@@ -60,6 +61,7 @@ import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { getVariable } from '../../context.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * Capture annotation context at closure creation time.
@@ -128,13 +130,13 @@ async function evaluateAnnotations(
         // Tuple/list: not valid for annotations (need named keys)
         throwCatchableHostHalt(
           { location: spreadArg.span.start, fn: 'evaluateAnnotations' },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Annotation spread requires dict with named keys, got list'
         );
       } else {
         throwCatchableHostHalt(
           { location: spreadArg.span.start, fn: 'evaluateAnnotations' },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Annotation spread requires dict, got ${typeof spreadValue}`
         );
       }
@@ -184,7 +186,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluatePass',
           },
-          'RILL_R005',
+          ERROR_ATOMS[ERROR_IDS.RILL_R005],
           "Variable '$' not defined",
           { variable: '$' }
         );
@@ -229,7 +231,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluateString',
               },
-              'RILL_R003',
+              ERROR_ATOMS[ERROR_IDS.RILL_R003],
               'cannot coerce vector to string'
             );
           }
@@ -250,9 +252,32 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     protected async evaluateTuple(node: ListLiteralNode): Promise<RillValue[]> {
       const elements: RillValue[] = [];
       for (const elem of node.elements) {
-        elements.push(
-          await (this as unknown as EvaluatorInterface).evaluateExpression(elem)
-        );
+        if (elem.type === 'ListSpread') {
+          const spreadNode = elem as ListSpreadNode;
+          const spreadValue = await (
+            this as unknown as EvaluatorInterface
+          ).evaluateExpression(spreadNode.expression);
+          if (Array.isArray(spreadValue)) {
+            elements.push(...spreadValue);
+          } else {
+            throwCatchableHostHalt(
+              {
+                location: spreadNode.span?.start,
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateTuple',
+              },
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
+              `Spread in list literal requires list, got ${typeof spreadValue}`,
+              { got: typeof spreadValue }
+            );
+          }
+        } else {
+          elements.push(
+            await (this as unknown as EvaluatorInterface).evaluateExpression(
+              elem
+            )
+          );
+        }
       }
       // Validate homogeneity: all elements must share the same structural type [C-1]
       inferElementType(elements);
@@ -279,7 +304,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateDictMultiKeyFromList',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Multi-key dict entry requires non-empty list'
         );
       }
@@ -298,7 +323,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateDictMultiKeyFromList',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Dict key must be string, number, or boolean, got ${keyType}`,
             { got: keyType }
           );
@@ -362,7 +387,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                     sourceId: this.ctx.sourceId,
                     fn: 'evaluateDict',
                   },
-                  'RILL_R005',
+                  ERROR_ATOMS[ERROR_IDS.RILL_R005],
                   `Variable '${keyObj.variableName}' is undefined`
                 );
               }
@@ -375,7 +400,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                     sourceId: this.ctx.sourceId,
                     fn: 'evaluateDict',
                   },
-                  'RILL_R002',
+                  ERROR_ATOMS[ERROR_IDS.RILL_R002],
                   `Dict key must be string, got ${typeof varValue}`
                 );
               }
@@ -390,7 +415,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                     sourceId: this.ctx.sourceId,
                     fn: 'evaluateDict',
                   },
-                  'RILL_R002',
+                  ERROR_ATOMS[ERROR_IDS.RILL_R002],
                   `Cannot use reserved method name '${stringKey}' as dict key`,
                   {
                     key: stringKey,
@@ -433,7 +458,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                     sourceId: this.ctx.sourceId,
                     fn: 'evaluateDict',
                   },
-                  'RILL_R002',
+                  ERROR_ATOMS[ERROR_IDS.RILL_R002],
                   `Dict key evaluated to ${typeof computedValue}, expected string`
                 );
               }
@@ -448,7 +473,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                     sourceId: this.ctx.sourceId,
                     fn: 'evaluateDict',
                   },
-                  'RILL_R002',
+                  ERROR_ATOMS[ERROR_IDS.RILL_R002],
                   `Cannot use reserved method name '${stringKey}' as dict key`,
                   {
                     key: stringKey,
@@ -490,7 +515,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                   sourceId: this.ctx.sourceId,
                   fn: 'evaluateDict',
                 },
-                'RILL_R002',
+                ERROR_ATOMS[ERROR_IDS.RILL_R002],
                 `Cannot use reserved method name '${stringKey}' as dict key`,
                 {
                   key: stringKey,
@@ -517,7 +542,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluateDict',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Cannot use reserved method name '${stringKey}' as dict key`,
             { key: stringKey, reservedMethods: ['keys', 'values', 'entries'] }
           );
@@ -638,7 +663,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const location = node.span?.start;
       throwCatchableHostHalt(
         { location, sourceId: this.ctx.sourceId, fn: 'evaluateDictDispatch' },
-        'RILL_R009',
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
         `Dict dispatch: key '${formatValue(input)}' not found`,
         { key: input }
       );
@@ -667,7 +692,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateListDispatch',
           },
-          'RILL_R041',
+          ERROR_ATOMS[ERROR_IDS.RILL_R041],
           `List dispatch requires integer index, got ${typeof input !== 'number' ? typeof input : 'non-integer number'}`,
           { input, expectedType: 'integer' }
         );
@@ -697,7 +722,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'evaluateListDispatch',
           },
-          'RILL_R042',
+          ERROR_ATOMS[ERROR_IDS.RILL_R042],
           `List dispatch: index ${index} out of range (length: ${elements.length})`,
           { index, listLength: elements.length }
         );
@@ -731,7 +756,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'resolveDispatchValue',
               },
-              'RILL_R002',
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
               'Dispatch does not provide arguments for parameterized closure'
             );
           }
@@ -812,7 +837,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       const loc = location.span?.start;
       throwCatchableHostHalt(
         { location: loc, sourceId: this.ctx.sourceId, fn: 'dispatchToDict' },
-        'RILL_R009',
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
         `Dict dispatch: key '${formatValue(input)}' not found`,
         { key: input }
       );
@@ -845,7 +870,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'dispatchToList',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `List dispatch requires number index, got ${typeof input}`,
           { input, expectedType: 'number' }
         );
@@ -873,7 +898,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             sourceId: this.ctx.sourceId,
             fn: 'dispatchToList',
           },
-          'RILL_R009',
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
           `List dispatch: index '${index}' not found`,
           { index, listLength: list.length }
         );

@@ -51,6 +51,7 @@ import {
   emptyForType,
 } from './types/constructors.js';
 import { anyTypeValue, hasCollectionFields } from './values.js';
+import { ERROR_IDS } from '../../error-registry.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -340,7 +341,7 @@ export function validateDefaultValueType(
     const actualType = inferType(param.defaultValue);
     const expectedType = formatStructure(param.type);
     throw new RuntimeError(
-      'RILL-R077',
+      ERROR_IDS.RILL_R077,
       `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
     );
   }
@@ -511,7 +512,7 @@ export function marshalArgs(
   // Stage 1: Excess args check
   if (args.length > params.length) {
     throw new RuntimeError(
-      'RILL-R045',
+      ERROR_IDS.RILL_R045,
       `Function expects ${params.length} arguments, got ${args.length}`,
       location,
       {
@@ -542,7 +543,7 @@ export function marshalArgs(
       } else {
         // Stage 2: Missing required parameter
         throw new RuntimeError(
-          'RILL-R044',
+          ERROR_IDS.RILL_R044,
           `Missing argument for parameter '${param.name}'`,
           location,
           {
@@ -564,7 +565,7 @@ export function marshalArgs(
         const expectedType = formatStructure(param.type);
         const actualType = inferType(value);
         throw new RuntimeError(
-          'RILL-R001',
+          ERROR_IDS.RILL_R001,
           `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
           location,
           {

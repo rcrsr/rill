@@ -46,6 +46,7 @@ import {
   throwTypeHalt,
   RuntimeHaltSignal,
 } from '../../types/halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
 // ERROR-ID MATCHER (Fix A: ??)
@@ -258,8 +259,16 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // RILL-R008 / RILL_R008: annotation key not found (evaluateAnnotationAccess).
         if (expr.defaultValue !== null) {
           if (
-            matchesErrorId(error, 'RILL-R007', 'RILL_R007') ||
-            matchesErrorId(error, 'RILL-R008', 'RILL_R008')
+            matchesErrorId(
+              error,
+              ERROR_IDS.RILL_R007,
+              ERROR_ATOMS[ERROR_IDS.RILL_R007]
+            ) ||
+            matchesErrorId(
+              error,
+              ERROR_IDS.RILL_R008,
+              ERROR_ATOMS[ERROR_IDS.RILL_R008]
+            )
           ) {
             return (this as unknown as EvaluatorInterface).evaluateBody(
               expr.defaultValue
@@ -280,6 +289,12 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Function calls
      * - Control flow constructs
      * - Grouped expressions
+     *
+     * Extension: to add a new PrimaryNode type, (1) add the node to the AST
+     * union in ast-nodes.ts and ast-unions.ts, (2) add an evaluation method
+     * to the appropriate mixin and declare it on EvaluatorInterface, (3) add a
+     * case here delegating to that method.  The default branch surfaces any
+     * unhandled type at runtime so TypeScript exhaustiveness remains in force.
      */
     protected async evaluatePrimary(primary: PrimaryNode): Promise<RillValue> {
       switch (primary.type) {
@@ -353,7 +368,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
                 sourceId: this.ctx.sourceId,
                 fn: 'evaluatePrimaryExpression',
               },
-              'RILL_R005',
+              ERROR_ATOMS[ERROR_IDS.RILL_R005],
               'Undefined variable: $',
               { variable: '$' }
             );
@@ -841,7 +856,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'evaluatePipeChain',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             `Cannot dispatch to ${valueType}`
           );
         }
@@ -979,7 +994,13 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // halt-builder migration, traversePathStep throws RuntimeHaltSignal with
         // atom RILL_R009 instead of RuntimeError directly; matchesErrorId handles
         // both the legacy and migrated forms.
-        if (matchesErrorId(error, 'RILL-R009', 'RILL_R009')) {
+        if (
+          matchesErrorId(
+            error,
+            ERROR_IDS.RILL_R009,
+            ERROR_ATOMS[ERROR_IDS.RILL_R009]
+          )
+        ) {
           if (defaultExpr) {
             return await (
               this as unknown as EvaluatorInterface
@@ -1094,7 +1115,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           sourceId: this.ctx.sourceId,
           fn: 'hierarchicalDispatch',
         },
-        'RILL_R002',
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
         `Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
         { currentType, keyType, key }
       );
@@ -1133,7 +1154,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'resolveIntermediateClosure',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             'Cannot invoke parameterized closure at intermediate path position'
           );
         }
@@ -1185,7 +1206,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               sourceId: this.ctx.sourceId,
               fn: 'resolveTerminalValue',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             'Dispatch does not provide arguments for parameterized closure'
           );
         }

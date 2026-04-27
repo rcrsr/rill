@@ -35,6 +35,7 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import { getEvaluator } from '../evaluator.js';
 import type { EvaluatorInterface } from '../interface.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
  * Default maximum iteration count for iterators.
@@ -71,7 +72,7 @@ export async function getIterableElements(
         sourceId: ctx.sourceId,
         fn: 'getIterableElements',
       },
-      'RILL_R003',
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
       'Collection operators require list, string, dict, iterator, or stream, got vector'
     );
   }
@@ -84,7 +85,7 @@ export async function getIterableElements(
         sourceId: ctx.sourceId,
         fn: 'getIterableElements',
       },
-      'RILL_R002',
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
       `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
     );
   }
@@ -118,7 +119,7 @@ export async function getIterableElements(
       sourceId: ctx.sourceId,
       fn: 'getIterableElements',
     },
-    'RILL_R002',
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
     `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
   );
 }
@@ -160,7 +161,7 @@ async function expandIterator(
           sourceId: evaluator.ctx.sourceId,
           fn: 'expandIterator',
         },
-        'RILL_R002',
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
         'Iterator .next must be a closure'
       );
     }
@@ -178,7 +179,7 @@ async function expandIterator(
           sourceId: evaluator.ctx.sourceId,
           fn: 'expandIterator',
         },
-        'RILL_R002',
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
         'Iterator .next must return iterator'
       );
     }
@@ -193,7 +194,7 @@ async function expandIterator(
         sourceId: evaluator.ctx.sourceId,
         fn: 'expandIterator',
       },
-      'RILL_R010',
+      ERROR_ATOMS[ERROR_IDS.RILL_R010],
       `Iterator expansion exceeded ${limit} iterations`,
       { limit, iterations: count }
     );
@@ -261,7 +262,7 @@ async function expandStream(
             sourceId: evaluator.ctx.sourceId,
             fn: 'expandStream',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Stream .next must be a closure'
         );
       }
@@ -279,7 +280,7 @@ async function expandStream(
             sourceId: evaluator.ctx.sourceId,
             fn: 'expandStream',
           },
-          'RILL_R002',
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Stream .next must return a stream step'
         );
       }
@@ -302,7 +303,7 @@ async function expandStream(
               sourceId: evaluator.ctx.sourceId,
               fn: 'expandStream',
             },
-            'RILL_R002',
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
             disposeErr instanceof Error
               ? disposeErr.message
               : String(disposeErr)
@@ -322,7 +323,7 @@ async function expandStream(
         sourceId: evaluator.ctx.sourceId,
         fn: 'expandStream',
       },
-      'RILL_R010',
+      ERROR_ATOMS[ERROR_IDS.RILL_R010],
       `Stream expansion exceeded ${limit} iterations`,
       { limit, iterations: count }
     );

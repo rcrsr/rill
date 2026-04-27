@@ -20,6 +20,7 @@ import {
   type LexerState,
   peek,
 } from './state.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // ============================================================
 // COMPOUND KEYWORD TOKENIZATION
@@ -103,7 +104,7 @@ function processEscape(state: LexerState): string {
       return '"';
     default:
       throw new LexerError(
-        'RILL-L005',
+        ERROR_IDS.RILL_L005,
         `Invalid escape sequence: \\${escaped}`,
         currentLocation(state)
       );
@@ -135,7 +136,11 @@ export function readString(state: LexerState): Token {
         }
       }
     } else if (peek(state) === '\n') {
-      throw new LexerError('RILL-L001', 'Unterminated string literal', start);
+      throw new LexerError(
+        ERROR_IDS.RILL_L001,
+        'Unterminated string literal',
+        start
+      );
     } else {
       value += advance(state);
     }
@@ -197,7 +202,7 @@ export function readTripleQuoteString(state: LexerState): Token {
           peek(state, 2) === '"'
         ) {
           throw new LexerError(
-            'RILL-L005',
+            ERROR_IDS.RILL_L005,
             'Triple-quotes not allowed in interpolation',
             currentLocation(state)
           );
@@ -230,7 +235,7 @@ export function readTripleQuoteString(state: LexerState): Token {
   }
 
   // If we reach here, EOF was reached before closing """
-  throw new LexerError('RILL-L004', 'Unterminated string', start);
+  throw new LexerError(ERROR_IDS.RILL_L004, 'Unterminated string', start);
 }
 
 export function readNumber(state: LexerState): Token {

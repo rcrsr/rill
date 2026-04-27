@@ -28,6 +28,7 @@ import {
 } from './guards.js';
 import { callable } from '../callable.js';
 import { RuntimeError } from '../../../types.js';
+import { ERROR_IDS } from '../../../error-registry.js';
 
 /**
  * Create ordered from entries array (named, preserves insertion order).
@@ -52,7 +53,7 @@ export function createTuple(entries: RillValue[]): RillTuple {
 export function createVector(data: Float32Array, model: string): RillVector {
   if (data.length === 0) {
     throw new RuntimeError(
-      'RILL-R074',
+      ERROR_IDS.RILL_R074,
       'Vector data must have at least one dimension'
     );
   }
@@ -98,7 +99,7 @@ export function createRillStream(options: {
       'function'
   ) {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'createRillStream requires AsyncIterable chunks'
     );
   }
@@ -106,7 +107,7 @@ export function createRillStream(options: {
   // Validate resolve is a function
   if (typeof resolve !== 'function') {
     throw new RuntimeError(
-      'RILL-R003',
+      ERROR_IDS.RILL_R003,
       'createRillStream requires resolve function'
     );
   }
@@ -141,7 +142,7 @@ export function createRillStream(options: {
           // would convert to #R999.
           if (err instanceof RuntimeError) throw err;
           throw new RuntimeError(
-            'RILL-R002',
+            ERROR_IDS.RILL_R002,
             err instanceof Error ? err.message : String(err)
           );
         }
@@ -151,7 +152,7 @@ export function createRillStream(options: {
         done: true,
         next: callable(() => {
           throw new RuntimeError(
-            'RILL-R002',
+            ERROR_IDS.RILL_R002,
             'Stream already consumed; cannot re-iterate'
           );
         }),
@@ -166,13 +167,13 @@ export function createRillStream(options: {
       next: callable(async () => {
         if (stale) {
           throw new RuntimeError(
-            'RILL-R002',
+            ERROR_IDS.RILL_R002,
             'Stream already consumed; cannot re-iterate'
           );
         }
         if (exhausted) {
           throw new RuntimeError(
-            'RILL-R002',
+            ERROR_IDS.RILL_R002,
             'Stream already consumed; cannot re-iterate'
           );
         }
@@ -193,7 +194,7 @@ export function createRillStream(options: {
     next: callable(async () => {
       if (initialized) {
         throw new RuntimeError(
-          'RILL-R002',
+          ERROR_IDS.RILL_R002,
           'Stream already consumed; cannot re-iterate'
         );
       }

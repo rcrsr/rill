@@ -13,6 +13,7 @@ import type {
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { check, advance, expect, current, makeSpan, peek } from './state.js';
 import { parseTypeRef } from './parser-types.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -67,7 +68,7 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
 
     if (!check(this.state, TOKEN_TYPES.COLON)) {
       throw new ParseError(
-        'RILL-P020',
+        ERROR_IDS.RILL_P020,
         "Expected ':' after scheme in use<>",
         current(this.state).span.start
       );
@@ -76,7 +77,7 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
 
     if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
       throw new ParseError(
-        'RILL-P021',
+        ERROR_IDS.RILL_P021,
         "Expected resource identifier after ':' in use<>",
         current(this.state).span.start
       );
@@ -89,7 +90,7 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
       if (!check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
         const token = current(this.state);
         throw new ParseError(
-          'RILL-P001',
+          ERROR_IDS.RILL_P001,
           'Expected identifier after . in use<>',
           token.span.start
         );
@@ -104,7 +105,7 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
     this.state,
     TOKEN_TYPES.GT,
     "Expected '>' to close use<>",
-    'RILL-P022'
+    ERROR_IDS.RILL_P022
   );
 
   let typeRef: TypeRef | null = null;
@@ -163,7 +164,7 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
           advance(this.state); // consume ,
         } else if (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
           throw new ParseError(
-            'RILL-P001',
+            ERROR_IDS.RILL_P001,
             'Expected , or | after parameter type in closure annotation',
             current(this.state).span.start
           );

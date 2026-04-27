@@ -27,6 +27,7 @@ import {
   isIterator,
   isStream,
 } from '../guards.js';
+import { ERROR_IDS } from '../../../../error-registry.js';
 
 // ============================================================
 // LATE-BINDING: formatNested
@@ -139,25 +140,40 @@ export function serializeListElement(v: RillValue): unknown {
   if (typeof v === 'boolean') return v;
   if (Array.isArray(v)) return v.map(serializeListElement);
   if (isCallable(v))
-    throw new RuntimeError('RILL-R067', 'closures are not JSON-serializable');
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R067,
+      'closures are not JSON-serializable'
+    );
   if (isTuple(v))
-    throw new RuntimeError('RILL-R067', 'tuples are not JSON-serializable');
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R067,
+      'tuples are not JSON-serializable'
+    );
   if (isOrdered(v))
     throw new RuntimeError(
-      'RILL-R067',
+      ERROR_IDS.RILL_R067,
       'ordered values are not JSON-serializable'
     );
   if (isVector(v))
-    throw new RuntimeError('RILL-R067', 'vectors are not JSON-serializable');
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R067,
+      'vectors are not JSON-serializable'
+    );
   if (isTypeValue(v))
     throw new RuntimeError(
-      'RILL-R067',
+      ERROR_IDS.RILL_R067,
       'type values are not JSON-serializable'
     );
   if (isIterator(v))
-    throw new RuntimeError('RILL-R067', 'iterators are not JSON-serializable');
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R067,
+      'iterators are not JSON-serializable'
+    );
   if (isStream(v))
-    throw new RuntimeError('RILL-R067', 'streams are not JSON-serializable');
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R067,
+      'streams are not JSON-serializable'
+    );
   // Plain dict
   const dict = v as Record<string, RillValue>;
   const result: Record<string, unknown> = {};
@@ -180,7 +196,7 @@ export function throwNotSerializable(
 ): (v: RillValue) => never {
   return (_v: RillValue): never => {
     throw new RuntimeError(
-      'RILL-R067',
+      ERROR_IDS.RILL_R067,
       `${typeName}s are not JSON-serializable`
     );
   };

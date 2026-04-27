@@ -13,6 +13,7 @@ import type { TypeDefinition } from './types.js';
 import { isDuration } from '../guards.js';
 import { throwTypeHalt } from '../halt.js';
 import { RuntimeError } from '../../../../types.js';
+import { ERROR_IDS } from '../../../../error-registry.js';
 
 // ============================================================
 // FORMAT
@@ -79,7 +80,7 @@ function compareDuration(a: RillValue, b: RillValue): number {
   const db = b as unknown as RillDuration;
   if (da.months !== db.months) {
     throw new RuntimeError(
-      'RILL-R002',
+      ERROR_IDS.RILL_R002,
       'Cannot order durations with different calendar components'
     );
   }

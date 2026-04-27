@@ -38,8 +38,10 @@ import {
   skipNewlines,
   skipNewlinesIfFollowedBy,
   makeSpan,
+  reportError,
 } from './state.js';
 import { ATOM_NAME_SHAPE } from './helpers.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -148,7 +150,7 @@ function parseConstructOptions(
   // Require an identifier as the option name.
   if (!check(parser.state, TOKEN_TYPES.IDENTIFIER)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       `Parse error: unknown option \`${current(parser.state).value}\` for \`do\` construct (only \`limit\` accepted)`,
       current(parser.state).span.start
     );
@@ -157,7 +159,7 @@ function parseConstructOptions(
   const optionToken = advance(parser.state);
   if (optionToken.value !== 'limit') {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       `Parse error: unknown option \`${optionToken.value}\` for \`do\` construct (only \`limit\` accepted)`,
       optionToken.span.start
     );
@@ -168,7 +170,7 @@ function parseConstructOptions(
 
   if (!check(parser.state, TOKEN_TYPES.NUMBER)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Validation error: `limit` must be a positive integer',
       current(parser.state).span.start
     );
@@ -179,7 +181,7 @@ function parseConstructOptions(
 
   if (!Number.isInteger(limitValue) || limitValue < 1) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Validation error: `limit` must be a positive integer',
       numToken.span.start
     );
@@ -190,7 +192,7 @@ function parseConstructOptions(
     parser.state,
     TOKEN_TYPES.GT,
     'Parse error: expected `>` to close `do` construct options',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   // Synthesise a NamedArgNode for `limit: N` matching the shape produced by
@@ -250,7 +252,7 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
   skipNewlines(this.state);
   if (!check(this.state, TOKEN_TYPES.WHILE)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Parse error: `do { body }` requires trailing `while (cond)` in post-loop form',
       current(this.state).span.start
     );
@@ -259,14 +261,14 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
 
   if (!check(this.state, TOKEN_TYPES.LPAREN)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Parse error: `while` requires `(condition)` before `do`',
       current(this.state).span.start
     );
   }
   advance(this.state); // consume `(`
   const condition = this.parseExpression();
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
 
   return {
     type: 'DoWhileLoop',
@@ -295,14 +297,14 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
   // Require `( cond )` — EC-1.
   if (!check(this.state, TOKEN_TYPES.LPAREN)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Parse error: `while` requires `(condition)` before `do`',
       current(this.state).span.start
     );
   }
   advance(this.state); // consume `(`
   const condition: ExpressionNode = this.parseExpression();
-  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+  expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
 
   skipNewlines(this.state);
 
@@ -312,7 +314,7 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
     !check(this.state, TOKEN_TYPES.DO_LANGLE)
   ) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Parse error: expected `do` after `while (cond)`',
       current(this.state).span.start
     );
@@ -450,7 +452,11 @@ Parser.prototype.parseBlock = function (
   }
 
   if (statements.length === 0 && !allowEmpty) {
-    throw new ParseError('RILL-P004', 'Empty blocks are not allowed', start);
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      'Empty blocks are not allowed',
+      start
+    );
   }
 
   const rbrace = expect(this.state, TOKEN_TYPES.RBRACE, 'Expected }');
@@ -554,14 +560,14 @@ Parser.prototype.parseError = function (
     if (!atBoundary) {
       // Non-string, non-delimiter token after error - invalid token type
       throw new ParseError(
-        'RILL-P004',
+        ERROR_IDS.RILL_P004,
         'error statement requires string message',
         current(this.state).span.start
       );
     } else if (requireMessage) {
       // At boundary but message required (statement form, not pipe target)
       throw new ParseError(
-        'RILL-P002',
+        ERROR_IDS.RILL_P002,
         'Unexpected end of input, expected string',
         start
       );
@@ -602,7 +608,7 @@ function parseOnOptionList(
     current(parser.state).value !== 'on'
   ) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       "Expected 'on:' inside guard/retry option list",
       current(parser.state).span.start
     );
@@ -616,7 +622,7 @@ function parseOnOptionList(
   // `list[#X, ...]`.
   if (!check(parser.state, TOKEN_TYPES.LIST_LBRACKET)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       "Expected 'list[' in on: option list",
       current(parser.state).span.start
     );
@@ -632,14 +638,14 @@ function parseOnOptionList(
   while (!check(parser.state, TOKEN_TYPES.RBRACKET)) {
     if (check(parser.state, TOKEN_TYPES.EOF)) {
       throw new ParseError(
-        'RILL-P005',
+        ERROR_IDS.RILL_P005,
         "Expected ']' to close on: option list",
         current(parser.state).span.start
       );
     }
     if (!check(parser.state, TOKEN_TYPES.ATOM)) {
       throw new ParseError(
-        'RILL-P004',
+        ERROR_IDS.RILL_P004,
         'on: option list entries must be atom literals (e.g. #NAME)',
         current(parser.state).span.start
       );
@@ -668,7 +674,7 @@ function parseOnOptionList(
     parser.state,
     TOKEN_TYPES.RBRACKET,
     "Expected ']' to close on: option list",
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   skipNewlines(parser.state);
@@ -676,7 +682,7 @@ function parseOnOptionList(
     parser.state,
     TOKEN_TYPES.GT,
     "Expected '>' to close option list",
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   if (hadInvalid) {
@@ -686,9 +692,7 @@ function parseOnOptionList(
     // (EC-14). Without this push, parser.errors remains empty and the
     // caller incorrectly reports a successful parse despite a
     // RecoveryErrorNode in the AST.
-    parser.state.errors.push(
-      new ParseError('RILL-P004', invalidMessage, start)
-    );
+    reportError(parser.state, ERROR_IDS.RILL_P004, invalidMessage, start);
     return {
       kind: 'invalid',
       node: {
@@ -747,7 +751,7 @@ Parser.prototype.parseGuardBlock = function (
   // Form 2b: `guard<...> { body }` — bare GUARD keyword then `<on: ...>`.
   if (!check(this.state, TOKEN_TYPES.LT)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       "Expected '<on: list[#X, ...]> { body }' or 'guard { body }'",
       current(this.state).span.start
     );
@@ -791,7 +795,7 @@ Parser.prototype.parseRetryBlock = function (
     expect(this.state, TOKEN_TYPES.RETRY, "Expected 'retry'");
     if (!check(this.state, TOKEN_TYPES.LT)) {
       throw new ParseError(
-        'RILL-P004',
+        ERROR_IDS.RILL_P004,
         "Expected 'retry<N> { body }' or 'retry<N, on: list[#X]> { body }'",
         current(this.state).span.start
       );
@@ -803,7 +807,7 @@ Parser.prototype.parseRetryBlock = function (
   // Parse integer attempts.
   if (!check(this.state, TOKEN_TYPES.NUMBER)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       "Expected integer attempt count inside 'retry<N>'",
       current(this.state).span.start
     );
@@ -812,7 +816,7 @@ Parser.prototype.parseRetryBlock = function (
   const attempts = Number(attemptsToken.value);
   if (!Number.isInteger(attempts) || attempts < 1) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       `retry<N> attempt count must be a positive integer; got ${attemptsToken.value}`,
       attemptsToken.span.start
     );
@@ -837,7 +841,7 @@ Parser.prototype.parseRetryBlock = function (
       this.state,
       TOKEN_TYPES.GT,
       "Expected '>' to close retry attempt list",
-      'RILL-P005'
+      ERROR_IDS.RILL_P005
     );
   }
 
@@ -862,7 +866,7 @@ function parseGuardOrRetryBody(
 ): BlockNode {
   if (!check(parser.state, TOKEN_TYPES.LBRACE)) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Expected { to start guard/retry body',
       current(parser.state).span.start
     );

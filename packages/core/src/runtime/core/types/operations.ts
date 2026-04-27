@@ -32,6 +32,7 @@ import {
   deepEquals as registryDeepEquals,
 } from './registrations.js';
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
+import { ERROR_IDS } from '../../../error-registry.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker) */
 const isCallable = _isCallableGuard as (
@@ -767,7 +768,7 @@ export function inferElementType(elements: RillValue[]): TypeStructure {
     const merged = commonType(accType, elemType);
     if (merged === null) {
       throw new RuntimeError(
-        'RILL-R002',
+        ERROR_IDS.RILL_R002,
         `List elements must be the same type: expected ${formatStructure(accType)}, got ${formatStructure(elemType)} at index ${i}`
       );
     }

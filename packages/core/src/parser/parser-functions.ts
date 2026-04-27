@@ -31,6 +31,7 @@ import {
 } from './state.js';
 import { isIdentifierOrKeyword } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -87,14 +88,14 @@ function parseOneArg(
   if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
     if (!allowSpread) {
       throw new ParseError(
-        'RILL-P006',
+        ERROR_IDS.RILL_P006,
         'Spread not supported in method call argument lists',
         current(parser.state).span.start
       );
     }
     if (hasSpread) {
       throw new ParseError(
-        'RILL-P007',
+        ERROR_IDS.RILL_P007,
         'Only one spread argument (...) is allowed per argument list',
         current(parser.state).span.start
       );
@@ -168,7 +169,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
 
     if (!isIdentifierOrKeyword(token)) {
       throw new ParseError(
-        'RILL-P001',
+        ERROR_IDS.RILL_P001,
         'Expected identifier or keyword after ::',
         token.span.start
       );
@@ -181,7 +182,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
   // AC-13: app:: syntax was removed; use use<host:...> instead
   if (name === 'app' || name.startsWith('app::')) {
     throw new ParseError(
-      'RILL-P012',
+      ERROR_IDS.RILL_P012,
       'Syntax removed: app:: direct-call syntax removed; use use<host:...>',
       firstToken.span.start
     );
@@ -193,7 +194,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
     this.state,
     TOKEN_TYPES.RPAREN,
     'Expected )',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   return {
@@ -230,7 +231,7 @@ Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
     this.state,
     TOKEN_TYPES.RPAREN,
     'Expected )',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   return {
@@ -251,7 +252,7 @@ Parser.prototype.parsePipeInvoke = function (this: Parser): PipeInvokeNode {
     this.state,
     TOKEN_TYPES.RPAREN,
     'Expected )',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   return {
@@ -273,7 +274,11 @@ Parser.prototype.parseMethodCall = function (
   expect(this.state, TOKEN_TYPES.DOT, 'Expected .');
   if (!check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
     const token = current(this.state);
-    throw new ParseError('RILL-P001', 'Expected method name', token.span.start);
+    throw new ParseError(
+      ERROR_IDS.RILL_P001,
+      'Expected method name',
+      token.span.start
+    );
   }
   const nameToken = advance(this.state);
 
@@ -287,7 +292,7 @@ Parser.prototype.parseMethodCall = function (
       this.state,
       TOKEN_TYPES.RPAREN,
       'Expected )',
-      'RILL-P005'
+      ERROR_IDS.RILL_P005
     );
     endLoc = rparen.span.end;
   }

@@ -12,6 +12,7 @@ import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { resolveAtom } from '../atom-registry.js';
 import { RuntimeError } from '../../../../types.js';
+import { ERROR_IDS } from '../../../../error-registry.js';
 
 // ============================================================
 // FORMAT
@@ -52,7 +53,7 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const parsed = Number(str);
     if (isNaN(parsed) || str.trim() === '') {
       throw new RuntimeError(
-        'RILL-R064',
+        ERROR_IDS.RILL_R064,
         `cannot convert string "${str}" to number`
       );
     }
@@ -62,7 +63,10 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const s = v as string;
     if (s === 'true') return true;
     if (s === 'false') return false;
-    throw new RuntimeError('RILL-R065', `cannot convert string "${s}" to bool`);
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R065,
+      `cannot convert string "${s}" to bool`
+    );
   },
   atom: (v: RillValue): RillValue => {
     const atom = resolveAtom(v as string);

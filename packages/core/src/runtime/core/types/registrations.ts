@@ -24,6 +24,7 @@ import {
   listType,
   dictType,
 } from './protocols/index.js';
+import { ERROR_IDS } from '../../../error-registry.js';
 
 export type { TypeProtocol, TypeDefinition } from './protocols/types.js';
 
@@ -76,17 +77,30 @@ export function formatValue(value: RillValue): string {
 }
 initFormatNested(formatValue);
 
+let _deepEqualsVisited: WeakSet<object> | null = null;
+
 /** Deep equality. Short-circuits on reference equality (EC-3, AC-18, AC-20). */
 export function deepEquals(a: RillValue, b: RillValue): boolean {
   if (a === b) return true;
-  return dispatchByIdentity(
-    a,
-    (reg) => {
-      if (!reg.protocol.eq) return false;
-      return reg.protocol.eq(a, b);
-    },
-    false
-  );
+  const isRoot = _deepEqualsVisited === null;
+  if (isRoot) _deepEqualsVisited = new WeakSet<object>();
+  const visited = _deepEqualsVisited!;
+  if (typeof a === 'object' && a !== null) {
+    if (visited.has(a)) return true;
+    visited.add(a);
+  }
+  try {
+    return dispatchByIdentity(
+      a,
+      (reg) => {
+        if (!reg.protocol.eq) return false;
+        return reg.protocol.eq(a, b);
+      },
+      false
+    );
+  } finally {
+    if (isRoot) _deepEqualsVisited = null;
+  }
 }
 initDeepEquals(deepEquals);
 
@@ -150,7 +164,7 @@ export function populateBuiltinMethods(
     if (reg === undefined) continue;
     if (Object.isFrozen(reg)) {
       throw new RuntimeError(
-        'RILL-R068',
+        ERROR_IDS.RILL_R068,
         `populateBuiltinMethods: registration '${reg.name}' is frozen; cannot assign methods`
       );
     }

@@ -46,6 +46,7 @@ import {
   VALID_TYPE_NAMES,
 } from './helpers.js';
 import { parseTypeRef, parseFieldArgList } from './parser-types.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -159,7 +160,7 @@ Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
     hint = '. Hint: Unexpected end of input';
   }
   throw new ParseError(
-    'RILL-P001',
+    ERROR_IDS.RILL_P001,
     `Expected literal, got: ${token.value}${hint}`,
     token.span.start
   );
@@ -227,7 +228,7 @@ Parser.prototype.parseStringParts = function (
 
       if (depth !== 0) {
         throw new ParseError(
-          'RILL-P005',
+          ERROR_IDS.RILL_P005,
           'Unterminated string interpolation',
           baseLocation
         );
@@ -236,7 +237,7 @@ Parser.prototype.parseStringParts = function (
       const exprSource = raw.slice(exprStart, i - 1);
       if (!exprSource.trim()) {
         throw new ParseError(
-          'RILL-P004',
+          ERROR_IDS.RILL_P004,
           'Empty string interpolation',
           baseLocation
         );
@@ -322,7 +323,7 @@ Parser.prototype.parseInterpolationExpr = function (
 
   if (filtered.length === 0 || filtered[0]?.type === TOKEN_TYPES.EOF) {
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Empty string interpolation',
       baseLocation
     );
@@ -333,7 +334,7 @@ Parser.prototype.parseInterpolationExpr = function (
 
   if (subParser.state.tokens[subParser.state.pos]?.type !== TOKEN_TYPES.EOF) {
     throw new ParseError(
-      'RILL-P001',
+      ERROR_IDS.RILL_P001,
       `Unexpected token in interpolation: ${subParser.state.tokens[subParser.state.pos]?.value}`,
       baseLocation
     );
@@ -370,11 +371,11 @@ Parser.prototype.parseTuple = function (
     this.state,
     TOKEN_TYPES.RBRACKET,
     'Expected ]',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
   return {
     type: 'ListLiteral',
-    elements: elements as ExpressionNode[],
+    elements,
     defaultValue: null,
     span: makeSpan(start, rbracket.span.end),
   } satisfies ListLiteralNode;
@@ -436,7 +437,7 @@ Parser.prototype.parseTupleElement = function (
       check(this.state, TOKEN_TYPES.EOF)
     ) {
       throw new ParseError(
-        'RILL-P004',
+        ERROR_IDS.RILL_P004,
         "Expected expression after '...'",
         current(this.state).span.start
       );
@@ -475,7 +476,7 @@ Parser.prototype.parseDict = function (
     this.state,
     TOKEN_TYPES.RBRACKET,
     'Expected ]',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
   return {
     type: 'Dict',
@@ -502,7 +503,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     advance(this.state); // consume $
     if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
       throw new ParseError(
-        'RILL-P001',
+        ERROR_IDS.RILL_P001,
         'Expected variable name after $',
         current(this.state).span.start
       );
@@ -515,7 +516,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else if (check(this.state, TOKEN_TYPES.PIPE_VAR)) {
     // Standalone $ without identifier - error
     throw new ParseError(
-      'RILL-P001',
+      ERROR_IDS.RILL_P001,
       'Expected variable name after $',
       current(this.state).span.start
     );
@@ -525,7 +526,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     const expression = this.parsePipeChain();
     if (!check(this.state, TOKEN_TYPES.RPAREN)) {
       throw new ParseError(
-        'RILL-P005',
+        ERROR_IDS.RILL_P005,
         'Expected ) after computed key expression',
         current(this.state).span.start
       );
@@ -559,7 +560,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
     // dict[...] is not a valid key — reject with clear error
     throw new ParseError(
-      'RILL-P004',
+      ERROR_IDS.RILL_P004,
       'Dict entry key must be identifier or list, not dict',
       current(this.state).span.start
     );
@@ -591,7 +592,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else {
     // Invalid token at key position
     throw new ParseError(
-      'RILL-P001',
+      ERROR_IDS.RILL_P001,
       'Dict key must be identifier, string, number, boolean, variable, or expression',
       current(this.state).span.start
     );
@@ -628,7 +629,7 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
 
   if (!check(parser.state, TOKEN_TYPES.LPAREN)) {
     throw new ParseError(
-      'RILL-P006',
+      ERROR_IDS.RILL_P006,
       'Expected type name in stream constructor',
       current(parser.state).span.start
     );
@@ -642,7 +643,7 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
     parser.state,
     TOKEN_TYPES.RPAREN,
     'Expected )',
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   // Check for resolution type: stream(T):R
@@ -653,7 +654,7 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
     // Guard: resolution type must start with a valid type name
     if (!check(parser.state, TOKEN_TYPES.IDENTIFIER)) {
       throw new ParseError(
-        'RILL-P006',
+        ERROR_IDS.RILL_P006,
         "Expected type name after ':' in stream type",
         current(parser.state).span.start
       );
@@ -731,7 +732,7 @@ function validateYieldInClosure(
 
   if (!isStream) {
     throw new ParseError(
-      'RILL-P006',
+      ERROR_IDS.RILL_P006,
       "'yield' is only valid inside a stream closure",
       closureStart
     );
@@ -770,15 +771,26 @@ function parseClosureReturnTypeTarget(
   return parseTypeRef(parser.state);
 }
 
+/**
+ * Increment closureDepth, call fn(), decrement in finally.
+ * Guards against depth counter leaks when parseBody throws.
+ */
+function withClosureDepth<T>(parser: Parser, fn: () => T): T {
+  parser.closureDepth++;
+  try {
+    return fn();
+  } finally {
+    parser.closureDepth--;
+  }
+}
+
 Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
   const start = current(this.state).span.start;
 
   if (check(this.state, TOKEN_TYPES.OR)) {
     advance(this.state);
     skipNewlines(this.state);
-    this.closureDepth++;
-    const body = this.parseBody(true);
-    this.closureDepth--;
+    const body = withClosureDepth(this, () => this.parseBody(true));
     const returnTypeTarget = parseClosureReturnTypeTarget(this);
     validateYieldInClosure(body, returnTypeTarget, start);
     return {
@@ -901,11 +913,14 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       const secondTypeRef = parseTypeRef(this.state, {
         allowTrailingPipe: true,
       });
-      expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+      expect(
+        this.state,
+        TOKEN_TYPES.PIPE_BAR,
+        'Expected |',
+        ERROR_IDS.RILL_P005
+      );
       skipNewlines(this.state);
-      this.closureDepth++;
-      const body = this.parseBody(true);
-      this.closureDepth--;
+      const body = withClosureDepth(this, () => this.parseBody(true));
       const returnTypeTarget = parseClosureReturnTypeTarget(this);
       validateYieldInClosure(body, returnTypeTarget, start);
       const firstParam: ClosureParamNode = {
@@ -936,11 +951,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
 
     // Single-type anonymous closure: |type|{ body }
     // Synthesizes one param named '$' with the declared type.
-    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
     skipNewlines(this.state);
-    this.closureDepth++;
-    const body = this.parseBody(true);
-    this.closureDepth--;
+    const body = withClosureDepth(this, () => this.parseBody(true));
     const returnTypeTarget = parseClosureReturnTypeTarget(this);
     validateYieldInClosure(body, returnTypeTarget, start);
     const param: ClosureParamNode = {
@@ -972,12 +985,10 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     }
   }
 
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', 'RILL-P005');
+  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
   skipNewlines(this.state);
 
-  this.closureDepth++;
-  const body = this.parseBody(true);
-  this.closureDepth--;
+  const body = withClosureDepth(this, () => this.parseBody(true));
   const returnTypeTarget = parseClosureReturnTypeTarget(this);
   validateYieldInClosure(body, returnTypeTarget, start);
 
@@ -1026,7 +1037,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     advance(this.state); // consume ^
     expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
     annotations = this.parseAnnotationArgs();
-    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', 'RILL-P005');
+    expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
   }
 
   const nameToken = expect(
@@ -1041,7 +1052,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     )
   ) {
     throw new ParseError(
-      'RILL-P003',
+      ERROR_IDS.RILL_P003,
       `Reserved type keyword cannot be used as parameter name: ${nameToken.value}`,
       nameToken.span.start
     );
@@ -1128,12 +1139,12 @@ Parser.prototype.parseCollectionLiteral = function (
 
   if (isValueOnly) {
     // list[ ... ] or tuple[ ... ]
-    const elements: ExpressionNode[] = [];
+    const elements: (ExpressionNode | ListSpreadNode)[] = [];
 
     while (!check(this.state, TOKEN_TYPES.RBRACKET)) {
       if (check(this.state, TOKEN_TYPES.EOF)) {
         throw new ParseError(
-          'RILL-P005',
+          ERROR_IDS.RILL_P005,
           `expected ']' to close ${collectionType} literal`,
           current(this.state).span.start
         );
@@ -1150,7 +1161,7 @@ Parser.prototype.parseCollectionLiteral = function (
           check(this.state, TOKEN_TYPES.EOF)
         ) {
           throw new ParseError(
-            'RILL-P004',
+            ERROR_IDS.RILL_P004,
             "Expected expression after '...'",
             current(this.state).span.start
           );
@@ -1160,7 +1171,7 @@ Parser.prototype.parseCollectionLiteral = function (
           type: 'ListSpread',
           expression: spreadExpr,
           span: makeSpan(spreadStart, spreadExpr.span.end),
-        } as unknown as ExpressionNode);
+        });
         skipNewlines(this.state);
       } else {
         // Check for key: value pair — not allowed in list/tuple
@@ -1172,7 +1183,7 @@ Parser.prototype.parseCollectionLiteral = function (
           this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.COLON
         ) {
           throw new ParseError(
-            'RILL-P004',
+            ERROR_IDS.RILL_P004,
             `unexpected key-value pair in ${collectionType} literal`,
             current(this.state).span.start
           );
@@ -1194,7 +1205,7 @@ Parser.prototype.parseCollectionLiteral = function (
       this.state,
       TOKEN_TYPES.RBRACKET,
       `expected ']' to close ${collectionType} literal`,
-      'RILL-P005'
+      ERROR_IDS.RILL_P005
     );
 
     const span = makeSpan(start, rbracket.span.end);
@@ -1217,7 +1228,7 @@ Parser.prototype.parseCollectionLiteral = function (
   while (!check(this.state, TOKEN_TYPES.RBRACKET)) {
     if (check(this.state, TOKEN_TYPES.EOF)) {
       throw new ParseError(
-        'RILL-P005',
+        ERROR_IDS.RILL_P005,
         `expected ']' to close ${collectionType} literal`,
         current(this.state).span.start
       );
@@ -1234,7 +1245,7 @@ Parser.prototype.parseCollectionLiteral = function (
         check(this.state, TOKEN_TYPES.EOF)
       ) {
         throw new ParseError(
-          'RILL-P004',
+          ERROR_IDS.RILL_P004,
           "Expected expression after '...'",
           current(this.state).span.start
         );
@@ -1245,7 +1256,7 @@ Parser.prototype.parseCollectionLiteral = function (
         key: '...',
         value: spreadExpr,
         span: makeSpan(spreadStart, spreadExpr.span.end),
-      } as unknown as DictEntryNode);
+      });
       skipNewlines(this.state);
     } else {
       // Require key: value pair
@@ -1262,7 +1273,7 @@ Parser.prototype.parseCollectionLiteral = function (
         !check(this.state, TOKEN_TYPES.DICT_LBRACKET)
       ) {
         throw new ParseError(
-          'RILL-P004',
+          ERROR_IDS.RILL_P004,
           `expected 'key: value' pair in ${collectionType} literal`,
           entryStart
         );
@@ -1272,7 +1283,7 @@ Parser.prototype.parseCollectionLiteral = function (
       const keyStr = keyToString(entry.key);
       if (seenKeys.has(keyStr)) {
         throw new ParseError(
-          'RILL-P004',
+          ERROR_IDS.RILL_P004,
           `duplicate key '${keyStr}' in ${collectionType} literal`,
           entryStart
         );
@@ -1294,7 +1305,7 @@ Parser.prototype.parseCollectionLiteral = function (
     this.state,
     TOKEN_TYPES.RBRACKET,
     `expected ']' to close ${collectionType} literal`,
-    'RILL-P005'
+    ERROR_IDS.RILL_P005
   );
 
   const span = makeSpan(start, rbracket.span.end);

@@ -5,6 +5,7 @@
 
 import type { SourceLocation, SourceSpan, Token } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
+import { ERROR_IDS } from '../error-registry.js';
 
 // ============================================================
 // PARSER STATE
@@ -86,13 +87,27 @@ export function expect(
   state: ParserState,
   type: string,
   message: string,
-  errorId: string = 'RILL-P001'
+  errorId: string = ERROR_IDS.RILL_P001
 ): Token {
   if (check(state, type)) return advance(state);
   const token = current(state);
   const hint = generateHint(type, token);
   const fullMessage = hint ? `${message}. ${hint}` : message;
   throw new ParseError(errorId, fullMessage, token.span.start);
+}
+
+/** @internal */
+export function reportError(
+  state: ParserState,
+  errorId: string,
+  message: string,
+  loc: SourceLocation
+): void {
+  if (state.recoveryMode) {
+    state.errors.push(new ParseError(errorId, message, loc));
+  } else {
+    throw new ParseError(errorId, message, loc);
+  }
 }
 
 /** @internal */
