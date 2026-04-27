@@ -201,7 +201,28 @@ class ErrorRegistryImpl implements ErrorRegistry {
     const idMap = new Map<string, ErrorDefinition>();
 
     for (const def of definitions) {
+      if (idMap.has(def.errorId)) {
+        throw new Error(
+          `ErrorRegistry: duplicate definition for ${def.errorId}`
+        );
+      }
       idMap.set(def.errorId, def);
+    }
+
+    const declared = new Set(Object.values(ERROR_IDS) as string[]);
+    const defined = new Set(idMap.keys());
+    const missingDefs = [...declared].filter((id) => !defined.has(id));
+    const orphanDefs = [...defined].filter((id) => !declared.has(id));
+    if (missingDefs.length > 0 || orphanDefs.length > 0) {
+      throw new Error(
+        `ErrorRegistry: ERROR_IDS and ERROR_DEFINITIONS diverge` +
+          (missingDefs.length > 0
+            ? ` (missing definitions: ${missingDefs.join(', ')})`
+            : '') +
+          (orphanDefs.length > 0
+            ? ` (orphan definitions: ${orphanDefs.join(', ')})`
+            : '')
+      );
     }
 
     this.byId = idMap;

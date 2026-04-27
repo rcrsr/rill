@@ -77,17 +77,28 @@ export function formatValue(value: RillValue): string {
 }
 initFormatNested(formatValue);
 
-let _deepEqualsVisited: WeakSet<object> | null = null;
+// Cycle-detection for deepEquals. Tracks visited pairs (a, b) so that
+// shared references on one side don't cause false positives when paired
+// with different subtrees on the other. Only object pairs are tracked;
+// primitives short-circuit on === above.
+let _deepEqualsVisited: WeakMap<object, WeakSet<object>> | null = null;
 
 /** Deep equality. Short-circuits on reference equality (EC-3, AC-18, AC-20). */
 export function deepEquals(a: RillValue, b: RillValue): boolean {
   if (a === b) return true;
   const isRoot = _deepEqualsVisited === null;
-  if (isRoot) _deepEqualsVisited = new WeakSet<object>();
+  if (isRoot) _deepEqualsVisited = new WeakMap<object, WeakSet<object>>();
   const visited = _deepEqualsVisited!;
-  if (typeof a === 'object' && a !== null) {
-    if (visited.has(a)) return true;
-    visited.add(a);
+  const aObj = typeof a === 'object' && a !== null ? (a as object) : null;
+  const bObj = typeof b === 'object' && b !== null ? (b as object) : null;
+  if (aObj !== null && bObj !== null) {
+    let partners = visited.get(aObj);
+    if (partners?.has(bObj)) return true;
+    if (!partners) {
+      partners = new WeakSet<object>();
+      visited.set(aObj, partners);
+    }
+    partners.add(bObj);
   }
   try {
     return dispatchByIdentity(
