@@ -46,6 +46,8 @@ function eqDict(a: RillValue, b: RillValue): boolean {
     if (!(key in bDict)) return false;
     const aVal = aDict[key];
     const bVal = bDict[key];
+    // undefined here means "key present but no value" (e.g. from deserialization);
+    // treat as a comparable sentinel rather than "no entry" — two absent values are equal.
     if (aVal === undefined || bVal === undefined) {
       if (aVal !== bVal) return false;
     } else if (!compareByDeepEquals(aVal, bVal)) {

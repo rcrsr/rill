@@ -543,7 +543,8 @@ function sliceEquals(a: SliceNode, b: SliceNode): boolean {
 function listLiteralEquals(a: ListLiteralNode, b: ListLiteralNode): boolean {
   if (a.elements.length !== b.elements.length) return false;
   for (let i = 0; i < a.elements.length; i++) {
-    if (!expressionEquals(a.elements[i]!, b.elements[i]!)) return false;
+    if (!astEquals(a.elements[i]! as ASTNode, b.elements[i]! as ASTNode))
+      return false;
   }
   return true;
 }
@@ -559,7 +560,8 @@ function dictLiteralEquals(a: DictLiteralNode, b: DictLiteralNode): boolean {
 function tupleLiteralEquals(a: TupleLiteralNode, b: TupleLiteralNode): boolean {
   if (a.elements.length !== b.elements.length) return false;
   for (let i = 0; i < a.elements.length; i++) {
-    if (!expressionEquals(a.elements[i]!, b.elements[i]!)) return false;
+    if (!astEquals(a.elements[i]! as ASTNode, b.elements[i]! as ASTNode))
+      return false;
   }
   return true;
 }
