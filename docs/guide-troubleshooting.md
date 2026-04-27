@@ -408,7 +408,7 @@ $result.! ? "invalid" ! "valid"
 # Result: "valid"
 ```
 
-Pre-registered atoms: `#TIMEOUT`, `#AUTH`, `#RATE_LIMIT`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#DISPOSED`, `#R001`, `#R999`. Note: `#ok` is a runtime sentinel, not a script-level atom literal — the lexer does not emit it.
+Pre-registered atoms: `#TIMEOUT`, `#AUTH`, `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`, `#DISPOSED`, `#TYPE_MISMATCH`, `#R001`, `#R999`. Note: `#ok` is a runtime sentinel, not a script-level atom literal — the lexer does not emit it.
 
 To convert a registered atom to its string name:
 

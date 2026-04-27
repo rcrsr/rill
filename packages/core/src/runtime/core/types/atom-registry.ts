@@ -8,8 +8,18 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
  * same reference. Unknown names resolve to the pre-registered `#R001`
  * fallback instead of throwing.
  *
- * Core pre-registers 14 generic atoms at module load, before any script
- * parses. Extensions register additional atoms via
+ * Core pre-registers a fixed set of atoms at module load, before any
+ * script parses. The set covers four kinds:
+ *  - `status` — the `#ok` sentinel (1)
+ *  - `registry` — atom-registry fallbacks `#R001` and `#R999` (2)
+ *  - `generic` — host-extension taxonomy (12: `#TIMEOUT`, `#AUTH`,
+ *    `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`,
+ *    `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`,
+ *    `#DISPOSED`, `#TYPE_MISMATCH`)
+ *  - `runtime` — internal halt-builder atoms paired with `RILL-Rxxx`
+ *    error IDs (a fixed list maintained alongside error-registry.ts)
+ *
+ * Extensions register additional atoms via
  * `registerErrorCode(name, kind)` at factory init time. Double
  * registration with a different kind is a hard failure.
  */
@@ -156,7 +166,12 @@ export function atomName(atom: RillAtom): string {
 // ============================================================
 
 /**
- * Core pre-registers 14 generic atoms at module load.
+ * Pre-registration list executed at module load.
+ *
+ * Composition: 1 `status` (`#ok`), 2 `registry` (`#R001`, `#R999`),
+ * 12 `generic` host-extension taxonomy atoms, and one `runtime` atom
+ * per `RILL-Rxxx` halt-builder paired below. See module header for the
+ * full generic list.
  *
  * Order matters: `#ok` and `#R001` register first so that
  * - valid-status singletons can reference `#ok`, and
