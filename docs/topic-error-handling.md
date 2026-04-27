@@ -128,13 +128,17 @@ These atoms are available in every rill runtime without registration:
 | `#R001` | registry | Unknown atom at parse or link time; default fallback |
 | `#R999` | registry | Unhandled extension throw reshaped at the extension boundary |
 | `#TIMEOUT` | generic | Operation exceeded its time limit |
-| `#AUTH` | generic | Authentication or authorization failure |
-| `#RATE_LIMIT` | generic | Rate limit exceeded |
+| `#AUTH` | generic | Authentication failure (HTTP 401) |
+| `#FORBIDDEN` | generic | Authorization failure after authentication (HTTP 403, scope mismatch, content-filter block) |
+| `#RATE_LIMIT` | generic | Temporal throttling (HTTP 429); recover via retry-after |
+| `#QUOTA_EXCEEDED` | generic | Account-level resource exhaustion (billing credits, plan limit) |
 | `#UNAVAILABLE` | generic | Service or resource not available |
 | `#NOT_FOUND` | generic | Requested resource does not exist |
 | `#CONFLICT` | generic | State conflict (e.g. duplicate write) |
 | `#INVALID_INPUT` | generic | Input failed validation |
+| `#PROTOCOL` | generic | Response shape violates documented contract (parse failure, schema mismatch) |
 | `#DISPOSED` | generic | Extension was called after disposal |
+| `#TYPE_MISMATCH` | generic | Failed `:type` assertion or conversion |
 
 `#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts cannot produce `#ok` as an error code.
 
