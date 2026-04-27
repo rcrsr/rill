@@ -118,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`ctx.signal`** — `AbortSignal | undefined` on `RuntimeContext`, threaded from `runOptions`. Allows host functions to detect cancellation. (On `ExtensionFactoryCtx`, `signal` is the non-optional `AbortSignal` scoped to the extension's lifetime.)
 - **`ExtensionFactoryCtx` type** — New type exported from `@rcrsr/rill`. Provides `registerErrorCode` and `signal` to extension factories
 - **`dispose()` method** — Extensions return an optional `dispose()` function in `ExtensionFactoryResult`. Called when the runtime tears down the extension instance
+- **Three new generic atoms pre-registered in core** — `#FORBIDDEN` (HTTP 403, OAuth scope mismatch, content-filter block; distinct from `#AUTH`), `#QUOTA_EXCEEDED` (account-level resource exhaustion; distinct from `#RATE_LIMIT`), and `#PROTOCOL` (response shape violates documented contract; distinct from `#UNAVAILABLE`). Available without explicit `ctx.registerErrorCode` registration; lets extensions emit a portable taxonomy that host scripts can match with `guard #FORBIDDEN`/`#QUOTA_EXCEEDED`/`#PROTOCOL` instead of per-extension atom names.
 
 ### Changed
 

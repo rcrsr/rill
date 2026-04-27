@@ -8,7 +8,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
  * same reference. Unknown names resolve to the pre-registered `#R001`
  * fallback instead of throwing.
  *
- * Core pre-registers 11 generic atoms at module load, before any script
+ * Core pre-registers 14 generic atoms at module load, before any script
  * parses. Extensions register additional atoms via
  * `registerErrorCode(name, kind)` at factory init time. Double
  * registration with a different kind is a hard failure.
@@ -156,7 +156,7 @@ export function atomName(atom: RillAtom): string {
 // ============================================================
 
 /**
- * Core pre-registers 11 generic atoms at module load.
+ * Core pre-registers 14 generic atoms at module load.
  *
  * Order matters: `#ok` and `#R001` register first so that
  * - valid-status singletons can reference `#ok`, and
@@ -172,11 +172,14 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   // Remaining generic atoms.
   ['TIMEOUT', 'generic'],
   ['AUTH', 'generic'],
+  ['FORBIDDEN', 'generic'],
   ['RATE_LIMIT', 'generic'],
+  ['QUOTA_EXCEEDED', 'generic'],
   ['UNAVAILABLE', 'generic'],
   ['NOT_FOUND', 'generic'],
   ['CONFLICT', 'generic'],
   ['INVALID_INPUT', 'generic'],
+  ['PROTOCOL', 'generic'],
   ['DISPOSED', 'generic'],
   ['R999', 'registry'],
   // FR-ERR-17 taxonomy: typed atom for type-assertion / conversion

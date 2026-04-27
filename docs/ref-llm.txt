@@ -257,8 +257,9 @@ Pre-registered atoms (available everywhere):
     #ok                             # sentinel on valid values (never appears as error)
     #R001                           # unknown atom name
     #R999                           # unhandled extension throw
-    #TIMEOUT  #AUTH  #RATE_LIMIT  #UNAVAILABLE
-    #NOT_FOUND  #CONFLICT  #INVALID_INPUT  #DISPOSED
+    #TIMEOUT  #AUTH  #FORBIDDEN  #RATE_LIMIT  #QUOTA_EXCEEDED
+    #UNAVAILABLE  #NOT_FOUND  #CONFLICT  #INVALID_INPUT
+    #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                  # produced by failed `:type` assertion
 
 Extensions register additional atoms at init time.
