@@ -147,7 +147,7 @@ export const ERROR_IDS = {
 export type ErrorId = (typeof ERROR_IDS)[keyof typeof ERROR_IDS];
 
 /** Underscore atom-form error code (e.g. `'RILL_R003'`). */
-export type ErrorAtom = keyof typeof ERROR_IDS;
+type ErrorAtom = keyof typeof ERROR_IDS;
 
 /** Hyphen-form -> underscore atom-form map (`ERROR_ATOMS[ERROR_IDS.RILL_R003] === 'RILL_R003'`). */
 export const ERROR_ATOMS: Readonly<Record<ErrorId, ErrorAtom>> = Object.freeze(

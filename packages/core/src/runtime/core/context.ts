@@ -284,7 +284,6 @@ function deriveUnvalidatedMethodReceivers(
 // Module-level caches: parse signatures once at load time, not per context creation.
 // Contract: BUILTIN_FUNCTIONS is treated as frozen after module initialization.
 // Mutating BUILTIN_FUNCTIONS after load produces stale cache entries.
-// Call resetBuiltinCaches() in test contexts that add entries post-load.
 
 type BuiltinFnEntry = {
   appCallable: import('./callable.js').ApplicationCallable;
@@ -309,16 +308,6 @@ function initBuiltinCaches(): void {
 
 // Initialise once at module load.
 initBuiltinCaches();
-
-/**
- * Rebuild the builtin-function cache from the current state of BUILTIN_FUNCTIONS.
- * Call this in test contexts that extend BUILTIN_FUNCTIONS after module load.
- * @internal
- */
-export function resetBuiltinCaches(): void {
-  BUILTIN_FN_CACHE.clear();
-  initBuiltinCaches();
-}
 
 const defaultCallbacks: RuntimeCallbacks = {
   onLog: (message) => {
