@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { isInvalid } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('Default Value Operator (??)', () => {
@@ -344,6 +345,14 @@ describe('Default Value Operator (??)', () => {
     // Error-handling phase 1 (task 1.4) removes the .?/?? mutual-exclusion.
     // Composing existence check with default value is now permitted; the
     // vacant-then-default semantics are owned by FR-ERR-4 in phase 2.
+  });
+
+  describe('Vacancy trigger on invalid LHS', () => {
+    it('?? falls back when bare LHS is an invalid value from guard', async () => {
+      const result = await run('guard { "a" -> number } ?? "fb"');
+      expect(result).toBe('fb');
+      expect(isInvalid(result as never)).toBe(false);
+    });
   });
 
   describe('Composition with existence check (.?)', () => {

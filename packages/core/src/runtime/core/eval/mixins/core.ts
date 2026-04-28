@@ -31,7 +31,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
-import { isTuple, isTypeValue } from '../../types/guards.js';
+import { isInvalid, isTuple, isTypeValue } from '../../types/guards.js';
 import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
@@ -227,6 +227,8 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - If method chain throws RUNTIME_UNDEFINED_METHOD and expr.defaultValue exists,
      *   evaluates and returns defaultValue instead of propagating error.
      * - RUNTIME_UNDEFINED_METHOD is thrown when accessing a missing field via .field syntax.
+     * - If the primary+method-chain produces an invalid RillValue (e.g. from `guard`/`retry`
+     *   recovery) and expr.defaultValue exists, the default expression is evaluated and returned.
      * - All other errors propagate normally.
      */
     protected async evaluatePostfixExpr(
@@ -245,6 +247,12 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
               this as unknown as EvaluatorInterface
             ).evaluateMethod(method, value);
           }
+        }
+
+        if (expr.defaultValue !== null && isInvalid(value)) {
+          return (this as unknown as EvaluatorInterface).evaluateBody(
+            expr.defaultValue
+          );
         }
 
         return value;
