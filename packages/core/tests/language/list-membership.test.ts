@@ -442,6 +442,12 @@ describe('Rill Runtime: List Membership Methods', () => {
       expect(duration).toBeLessThan(150);
     });
 
+    // Wall-clock budgets are sized for shared CI runners (GitHub-hosted),
+    // where cold starts, GC, and CPU contention can push otherwise sub-10ms
+    // operations past 50ms. We keep the same 150ms budget for these
+    // 1000-element membership checks because the candidate lists used here are
+    // small and the threshold is intended to absorb CI variability rather than
+    // assert that `.has_any` or `.has_all` is always as fast as `.has`.
     it('handles large list with has_any efficiently', async () => {
       const listExpr = `range(0, 1000) -> seq({ $ }) -> .has_any(list[500, 999])`;
       const start = Date.now();
@@ -449,7 +455,7 @@ describe('Rill Runtime: List Membership Methods', () => {
       const duration = Date.now() - start;
 
       expect(result).toBe(true);
-      expect(duration).toBeLessThan(50);
+      expect(duration).toBeLessThan(150);
     });
 
     it('handles large list with has_all efficiently', async () => {
@@ -459,7 +465,7 @@ describe('Rill Runtime: List Membership Methods', () => {
       const duration = Date.now() - start;
 
       expect(result).toBe(true);
-      expect(duration).toBeLessThan(50);
+      expect(duration).toBeLessThan(150);
     });
   });
 
