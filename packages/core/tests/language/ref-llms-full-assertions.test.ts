@@ -1,6 +1,6 @@
 /**
- * ref-llm.txt Assertion Tests
- * Verifies every code example and claim in docs/ref-llm.txt against the runtime.
+ * ref-llms-full.txt Assertion Tests
+ * Verifies every code example and claim in docs/ref-llms-full.txt against the runtime.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -11,7 +11,7 @@ import { run, runWithContext } from '../helpers/runtime.js';
 // § Essentials
 // ============================================================
 
-describe('ref-llm: Essentials', () => {
+describe('ref-llms-full: Essentials', () => {
   it('variables use $ prefix: 5 => $x', async () => {
     expect(await run('5 => $x\n$x')).toBe(5);
   });
@@ -36,7 +36,7 @@ describe('ref-llm: Essentials', () => {
 // § Critical Differences — No Assignment
 // ============================================================
 
-describe('ref-llm: No Assignment Operator', () => {
+describe('ref-llms-full: No Assignment Operator', () => {
   it('5 => $x captures value', async () => {
     expect(await run('5 => $x\n$x')).toBe(5);
   });
@@ -53,7 +53,7 @@ describe('ref-llm: No Assignment Operator', () => {
 // § Critical Differences — No Null/Undefined
 // ============================================================
 
-describe('ref-llm: No Null/Undefined', () => {
+describe('ref-llms-full: No Null/Undefined', () => {
   it('?? provides defaults', async () => {
     expect(await run('dict[a: 1] => $d\n$d.b ?? "default"')).toBe('default');
   });
@@ -67,7 +67,7 @@ describe('ref-llm: No Null/Undefined', () => {
 // § Critical Differences — No Truthiness
 // ============================================================
 
-describe('ref-llm: No Truthiness', () => {
+describe('ref-llms-full: No Truthiness', () => {
   it('"" -> .empty ? "yes" ! "no" works', async () => {
     expect(await run('"" -> .empty ? "yes" ! "no"')).toBe('yes');
   });
@@ -101,7 +101,7 @@ describe('ref-llm: No Truthiness', () => {
 // § Critical Differences — Type Locking
 // ============================================================
 
-describe('ref-llm: Variables Lock to First Type', () => {
+describe('ref-llms-full: Variables Lock to First Type', () => {
   it('"hello" => $x then 42 => $x errors', async () => {
     await expect(run('"hello" => $x\n42 => $x')).rejects.toThrow();
   });
@@ -111,7 +111,7 @@ describe('ref-llm: Variables Lock to First Type', () => {
 // § Critical Differences — No Variable Shadowing
 // ============================================================
 
-describe('ref-llm: No Variable Shadowing', () => {
+describe('ref-llms-full: No Variable Shadowing', () => {
   it('outer var reassignment from child scope errors', async () => {
     await expect(
       run('0 => $count\nlist[1, 2, 3] -> seq({ $count + 1 => $count })\n$count')
@@ -131,7 +131,7 @@ describe('ref-llm: No Variable Shadowing', () => {
 // § Critical Differences — Value Semantics
 // ============================================================
 
-describe('ref-llm: Value Semantics', () => {
+describe('ref-llms-full: Value Semantics', () => {
   it('list equality by value', async () => {
     expect(await run('list[1, 2, 3] == list[1, 2, 3]')).toBe(true);
   });
@@ -146,7 +146,7 @@ describe('ref-llm: Value Semantics', () => {
 // § Grammar Patterns
 // ============================================================
 
-describe('ref-llm: Grammar Patterns', () => {
+describe('ref-llms-full: Grammar Patterns', () => {
   it('list[1, 2, 3] creates a list', async () => {
     expect(await run('list[1, 2, 3]')).toEqual([1, 2, 3]);
   });
@@ -187,7 +187,7 @@ describe('ref-llm: Grammar Patterns', () => {
 // § Callable Types
 // ============================================================
 
-describe('ref-llm: Callable Types', () => {
+describe('ref-llms-full: Callable Types', () => {
   it('name() calls built-in function', async () => {
     expect(await run('"hello" -> log')).toBe('hello');
   });
@@ -205,7 +205,7 @@ describe('ref-llm: Callable Types', () => {
 // § Syntax Quick Reference
 // ============================================================
 
-describe('ref-llm: Syntax Quick Reference', () => {
+describe('ref-llms-full: Syntax Quick Reference', () => {
   it('string interpolation', async () => {
     expect(await run('"world" => $var\n"hello {$var}"')).toBe('hello world');
   });
@@ -277,7 +277,7 @@ describe('ref-llm: Syntax Quick Reference', () => {
 // § Pipes and $ Binding
 // ============================================================
 
-describe('ref-llm: Pipes and $ Binding', () => {
+describe('ref-llms-full: Pipes and $ Binding', () => {
   it('$ is piped value in block', async () => {
     expect(await run('5 -> { $ + 1 }')).toBe(6);
   });
@@ -299,7 +299,7 @@ describe('ref-llm: Pipes and $ Binding', () => {
 // § Control Flow
 // ============================================================
 
-describe('ref-llm: Control Flow', () => {
+describe('ref-llms-full: Control Flow', () => {
   it('cond ? then ! else', async () => {
     expect(await run('true ? "yes" ! "no"')).toBe('yes');
     expect(await run('false ? "yes" ! "no"')).toBe('no');
@@ -398,7 +398,7 @@ describe('ref-llm: Control Flow', () => {
 // § Collection Operators
 // ============================================================
 
-describe('ref-llm: Collection Operators', () => {
+describe('ref-llms-full: Collection Operators', () => {
   it('each returns all body results', async () => {
     expect(await run('list[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
   });
@@ -494,7 +494,7 @@ describe('ref-llm: Collection Operators', () => {
 // § Closures
 // ============================================================
 
-describe('ref-llm: Closures', () => {
+describe('ref-llms-full: Closures', () => {
   it('block-closure: { $ + 1 } => $inc', async () => {
     expect(await run('{ $ + 1 } => $inc\n$inc(5)')).toBe(6);
   });
@@ -576,7 +576,7 @@ describe('ref-llm: Closures', () => {
 // § Property Access
 // ============================================================
 
-describe('ref-llm: Property Access', () => {
+describe('ref-llms-full: Property Access', () => {
   it('dict field access', async () => {
     expect(await run('dict[a: 1] => $d\n$d.a')).toBe(1);
   });
@@ -618,7 +618,7 @@ describe('ref-llm: Property Access', () => {
 // § Dispatch Operators
 // ============================================================
 
-describe('ref-llm: Dispatch Operators', () => {
+describe('ref-llms-full: Dispatch Operators', () => {
   it('dict dispatch: single key match', async () => {
     expect(await run('"apple" -> dict[apple: "fruit", carrot: "veg"]')).toBe(
       'fruit'
@@ -690,7 +690,7 @@ describe('ref-llm: Dispatch Operators', () => {
 // § Type Operations
 // ============================================================
 
-describe('ref-llm: Type Operations', () => {
+describe('ref-llms-full: Type Operations', () => {
   it(':type asserts type (pass)', async () => {
     expect(await run('42:number')).toBe(42);
   });
@@ -717,7 +717,7 @@ describe('ref-llm: Type Operations', () => {
 // § Extraction Operators
 // ============================================================
 
-describe('ref-llm: Extraction Operators', () => {
+describe('ref-llms-full: Extraction Operators', () => {
   it('destruct list', async () => {
     const r = await runWithContext(
       'list[1, 2, 3] -> destruct<$a, $b, $c>\nlist[$a, $b, $c]'
@@ -762,7 +762,7 @@ describe('ref-llm: Extraction Operators', () => {
 // § List Spread
 // ============================================================
 
-describe('ref-llm: List Spread', () => {
+describe('ref-llms-full: List Spread', () => {
   it('spread into new list', async () => {
     expect(await run('list[1, 2] => $a\nlist[...$a, 3]')).toEqual([1, 2, 3]);
   });
@@ -784,7 +784,7 @@ describe('ref-llm: List Spread', () => {
 // § Tuples and Ordered
 // ============================================================
 
-describe('ref-llm: Tuples and Ordered', () => {
+describe('ref-llms-full: Tuples and Ordered', () => {
   it('tuple positional spread', async () => {
     expect(
       await run('|a, b, c|($a + $b + $c) => $fn\ntuple[1, 2, 3] -> $fn(...)')
@@ -802,7 +802,7 @@ describe('ref-llm: Tuples and Ordered', () => {
 // § String Methods
 // ============================================================
 
-describe('ref-llm: String Methods', () => {
+describe('ref-llms-full: String Methods', () => {
   it('.len', async () => {
     expect(await run('"hello" -> .len')).toBe(5);
   });
@@ -910,7 +910,7 @@ describe('ref-llm: String Methods', () => {
 // § List/Dict Methods
 // ============================================================
 
-describe('ref-llm: List/Dict Methods', () => {
+describe('ref-llms-full: List/Dict Methods', () => {
   it('.len (list)', async () => {
     expect(await run('list[1, 2, 3] -> .len')).toBe(3);
   });
@@ -965,7 +965,7 @@ describe('ref-llm: List/Dict Methods', () => {
 // § Built-in Functions
 // ============================================================
 
-describe('ref-llm: Built-in Functions', () => {
+describe('ref-llms-full: Built-in Functions', () => {
   it('type checks via :?type', async () => {
     expect(await run('42:?number')).toBe(true);
     expect(await run('"hello":?string')).toBe(true);
@@ -1011,7 +1011,7 @@ describe('ref-llm: Built-in Functions', () => {
 // § Iterators
 // ============================================================
 
-describe('ref-llm: Iterators', () => {
+describe('ref-llms-full: Iterators', () => {
   it('range with each', async () => {
     expect(await run('range(0, 5) -> seq({ $ * 2 })')).toEqual([0, 2, 4, 6, 8]);
   });
@@ -1043,7 +1043,7 @@ describe('ref-llm: Iterators', () => {
 // § Iteration Limits
 // ============================================================
 
-describe('ref-llm: Iteration Limits', () => {
+describe('ref-llms-full: Iteration Limits', () => {
   it('do<limit: N> overrides default', async () => {
     expect(await run('0 -> while ($ < 50) do<limit: 100> { $ + 1 }')).toBe(50);
   });
@@ -1053,7 +1053,7 @@ describe('ref-llm: Iteration Limits', () => {
 // § Script Return Values
 // ============================================================
 
-describe('ref-llm: Script Return Values', () => {
+describe('ref-llms-full: Script Return Values', () => {
   it('true returns truthy', async () => {
     expect(await run('true')).toBe(true);
   });
@@ -1075,7 +1075,7 @@ describe('ref-llm: Script Return Values', () => {
 // § Implicit $ Shorthand
 // ============================================================
 
-describe('ref-llm: Implicit $ Shorthand', () => {
+describe('ref-llms-full: Implicit $ Shorthand', () => {
   it('.method shorthand: "x" -> .upper', async () => {
     expect(await run('"x" -> .upper')).toBe('X');
   });
@@ -1093,7 +1093,7 @@ describe('ref-llm: Implicit $ Shorthand', () => {
 // § Operator Precedence
 // ============================================================
 
-describe('ref-llm: Operator Precedence', () => {
+describe('ref-llms-full: Operator Precedence', () => {
   it('parentheses override: (2 + 3) * 4', async () => {
     expect(await run('(2 + 3) * 4')).toBe(20);
   });

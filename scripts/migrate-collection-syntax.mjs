@@ -30,7 +30,7 @@ import { resolve } from 'path';
 const FILES = [
   'packages/core/tests/language/streams.test.ts',
   'packages/core/tests/language/iterators.test.ts',
-  'packages/core/tests/language/ref-llm-assertions.test.ts',
+  'packages/core/tests/language/ref-llms-full-assertions.test.ts',
   'packages/core/tests/language/spread.test.ts',
   'packages/core/tests/language/block-scoping.test.ts',
   'packages/core/tests/language/closure-hoist-validation.test.ts',
@@ -63,11 +63,15 @@ const ROOT = resolve(process.cwd());
 
 /** Find matching closing brace. `start` points to `{`. Returns index of `}`. */
 function findMatchingBrace(src, start) {
-  let depth = 0, i = start;
+  let depth = 0,
+    i = start;
   while (i < src.length) {
     const ch = src[i];
     if (ch === '{') depth++;
-    else if (ch === '}') { depth--; if (depth === 0) return i; }
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) return i;
+    }
     i++;
   }
   return -1;
@@ -75,11 +79,15 @@ function findMatchingBrace(src, start) {
 
 /** Find matching closing paren. `start` points to `(`. Returns index of `)`. */
 function findMatchingParen(src, start) {
-  let depth = 0, i = start;
+  let depth = 0,
+    i = start;
   while (i < src.length) {
     const ch = src[i];
     if (ch === '(') depth++;
-    else if (ch === ')') { depth--; if (depth === 0) return i; }
+    else if (ch === ')') {
+      depth--;
+      if (depth === 0) return i;
+    }
     i++;
   }
   return -1;
@@ -232,17 +240,25 @@ function bodyToArg(body) {
  * Pass 1: Transform `-> fold(SEED) { BODY }` to `-> fold(SEED, { BODY })`.
  */
 function pass1FoldArityFix(src) {
-  let result = '', i = 0;
+  let result = '',
+    i = 0;
 
   while (i < src.length) {
     const foldIdx = src.indexOf('-> fold(', i);
-    if (foldIdx === -1) { result += src.slice(i); break; }
+    if (foldIdx === -1) {
+      result += src.slice(i);
+      break;
+    }
 
     result += src.slice(i, foldIdx);
 
     const openParen = foldIdx + '-> fold'.length; // points to `(`
     const closeParen = findMatchingParen(src, openParen);
-    if (closeParen === -1) { result += src.slice(foldIdx); i = src.length; break; }
+    if (closeParen === -1) {
+      result += src.slice(foldIdx);
+      i = src.length;
+      break;
+    }
 
     const afterParen = closeParen + 1;
     const wsMatch = src.slice(afterParen).match(/^(\s*)/);
@@ -252,7 +268,11 @@ function pass1FoldArityFix(src) {
     if (src[afterWs] === '{') {
       // `-> fold(SEED) { BODY }` → `-> fold(SEED, { BODY })`
       const braceEnd = findMatchingBrace(src, afterWs);
-      if (braceEnd === -1) { result += src.slice(foldIdx); i = src.length; break; }
+      if (braceEnd === -1) {
+        result += src.slice(foldIdx);
+        i = src.length;
+        break;
+      }
       const seed = src.slice(openParen + 1, closeParen);
       const body = src.slice(afterWs, braceEnd + 1);
       result += `-> fold(${seed}, ${body})`;
@@ -286,13 +306,18 @@ function pass1FoldArityFix(src) {
  * Returns [transformed_string, replacement_count].
  */
 function transformKeyword(src, keyword, newFn, accFn) {
-  let result = '', i = 0, count = 0;
+  let result = '',
+    i = 0,
+    count = 0;
   const pattern = `-> ${keyword}`;
   const prefixLen = pattern.length;
 
   while (i < src.length) {
     const idx = src.indexOf(pattern, i);
-    if (idx === -1) { result += src.slice(i); break; }
+    if (idx === -1) {
+      result += src.slice(i);
+      break;
+    }
 
     const afterKeyword = idx + prefixLen;
     const followChar = src[afterKeyword];
@@ -314,7 +339,11 @@ function transformKeyword(src, keyword, newFn, accFn) {
     if (nextCh === '(' && accFn) {
       const openParen = afterWs;
       const closeParen = findMatchingParen(src, openParen);
-      if (closeParen === -1) { result += src.slice(i, afterWs); i = afterWs; continue; }
+      if (closeParen === -1) {
+        result += src.slice(i, afterWs);
+        i = afterWs;
+        continue;
+      }
 
       const afterClose = closeParen + 1;
       const ws2Match = src.slice(afterClose).match(/^(\s*)/);
@@ -325,7 +354,11 @@ function transformKeyword(src, keyword, newFn, accFn) {
         // `-> each(SEED) { BODY }` → `-> acc(SEED, { BODY })`
         const seed = src.slice(openParen + 1, closeParen);
         const braceEnd = findMatchingBrace(src, afterWs2);
-        if (braceEnd === -1) { result += src.slice(i); i = src.length; break; }
+        if (braceEnd === -1) {
+          result += src.slice(i);
+          i = src.length;
+          break;
+        }
         const body = src.slice(afterWs2, braceEnd + 1);
         result += src.slice(i, idx) + `-> ${accFn}(${seed}, ${body})`;
         i = braceEnd + 1;
@@ -361,7 +394,11 @@ function transformKeyword(src, keyword, newFn, accFn) {
     if (src[afterWs] === '(' && ws.length > 0 && !accFn) {
       // Only for keywords without accFn (map, filter) since each's case is handled above
       const groupedEnd = findMatchingParen(src, afterWs);
-      if (groupedEnd === -1) { result += src.slice(i, afterWs); i = afterWs; continue; }
+      if (groupedEnd === -1) {
+        result += src.slice(i, afterWs);
+        i = afterWs;
+        continue;
+      }
       const inner = src.slice(afterWs + 1, groupedEnd).trim();
       result += src.slice(i, idx) + `-> ${newFn}({ ${inner} })`;
       i = groupedEnd + 1;
@@ -401,15 +438,18 @@ function pass2KeywordRename(src) {
 
     // each → seq (plain), each(seed) → acc
     [result, count] = transformKeyword(current, 'each', 'seq', 'acc');
-    current = result; totalReplaced += count;
+    current = result;
+    totalReplaced += count;
 
     // map → fan
     [result, count] = transformKeyword(current, 'map', 'fan', null);
-    current = result; totalReplaced += count;
+    current = result;
+    totalReplaced += count;
 
     // filter → filter (same name)
     [result, count] = transformKeyword(current, 'filter', 'filter', null);
-    current = result; totalReplaced += count;
+    current = result;
+    totalReplaced += count;
   }
 
   return current;
@@ -439,7 +479,8 @@ function migrateFile(relPath) {
 }
 
 console.log('Running collection operator syntax migration...\n');
-let changedCount = 0, errorCount = 0;
+let changedCount = 0,
+  errorCount = 0;
 
 for (const file of FILES) {
   const { changed, error } = migrateFile(file);
