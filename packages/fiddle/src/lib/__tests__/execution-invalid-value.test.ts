@@ -115,8 +115,8 @@ describe('executeRill invalid-value detection', () => {
       expect(guardFrame?.fn).toBe('guard');
     });
 
-    it('retry<3> exhausted trace has exactly 3 guard-caught frames', async () => {
-      const state = await executeRill('retry<3> { "x" -> :number }');
+    it('retry<limit: 3> exhausted trace has exactly 3 guard-caught frames', async () => {
+      const state = await executeRill('retry<limit: 3> { "x" -> :number }');
 
       const trace = state.error?.statusTrace ?? [];
       const guardCaught = trace.filter((f) => f.kind === 'guard-caught');

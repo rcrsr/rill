@@ -6,7 +6,7 @@
 
 rill has no exceptions and no try/catch. Errors are values.
 
-When a computation fails, the result becomes an **invalid value**. Invalid values carry a status sidecar with an error code, message, and trace. Any access on an invalid value halts execution. Recovery requires explicit `guard` or `retry<N>` blocks.
+When a computation fails, the result becomes an **invalid value**. Invalid values carry a status sidecar with an error code, message, and trace. Any access on an invalid value halts execution. Recovery requires explicit `guard` or `retry<limit: N>` blocks.
 
 | Concept | Syntax | Purpose |
 |---------|--------|---------|
@@ -14,7 +14,7 @@ When a computation fails, the result becomes an **invalid value**. Invalid value
 | Status field | `$x.!code` | Read the error atom from the sidecar |
 | Guard recovery | `guard { body }` | Catch a halt; return the invalid value |
 | Filtered guard | `guard<on: list[#AUTH]> { body }` | Catch only specific error atoms |
-| Retry | `retry<3> { body }` | Re-enter the body up to N times |
+| Retry | `retry<limit: 3> { body }` | Re-enter the body up to N times |
 | Vacancy default | `$x ?? fallback` | Replace a vacant or missing value |
 | Presence check | `$x.?field` | Test field existence without halting |
 
@@ -71,9 +71,9 @@ Not all operations behave the same when applied to an invalid value. The access 
 | Status probe | `$x.!` |
 | Presence check | `$x.?field` |
 | Default operator | `$x ?? fallback` |
-| `guard` / `retry<N>` wrapping | `guard { $x.name }` |
+| `guard` / `retry<limit: N>` wrapping | `guard { $x.name }` |
 
-Access halts are **catchable** by `guard` and `retry<N>`. Halts from `error` and `assert` are **non-catchable** and propagate through any recovery block.
+Access halts are **catchable** by `guard` and `retry<limit: N>`. Halts from `error` and `assert` are **non-catchable** and propagate through any recovery block.
 
 ```rill
 "valid" => $v
@@ -196,10 +196,10 @@ guard { error "fatal" }
 
 ## Retry
 
-`retry<N>` re-enters its body up to N times. Each failed attempt appends a `guard-caught` trace frame. On success, the body result is returned. If all N attempts fail, the final invalid value is returned with N trace frames.
+`retry<limit: N>` re-enters its body up to N times. Each failed attempt appends a `guard-caught` trace frame. On success, the body result is returned. If all N attempts fail, the final invalid value is returned with N trace frames.
 
 ```text
-retry<3> {
+retry<limit: 3> {
   app::fetch("https://api.example.com")
 }
 ```
@@ -209,12 +209,12 @@ Attempt count rules:
 | N | Behavior |
 |---|----------|
 | `>= 1` | Body runs up to N times |
-| `0` | Parse error: `retry<0>` is rejected by the parser |
+| `0` | Parse error: `retry<limit: 0>` is rejected by the parser |
 
-`retry<N>` with a filtered `on:` list behaves like `guard`: non-matching halts propagate immediately.
+`retry<limit: N>` with a filtered `on:` list behaves like `guard`: non-matching halts propagate immediately.
 
 ```text
-retry<3, on: list[#UNAVAILABLE]> {
+retry<limit: 3, on: list[#UNAVAILABLE]> {
   app::fetch("https://api.example.com")
 }
 ```
@@ -222,7 +222,7 @@ retry<3, on: list[#UNAVAILABLE]> {
 After all attempts fail, read the trace to see how many attempts ran:
 
 ```text
-retry<3> {
+retry<limit: 3> {
   app::fetch("https://api.example.com")
 } => $result
 $result.!trace -> .len      # up to 3 guard-caught frames
@@ -280,7 +280,7 @@ $user.?age ? ($user.age) ! ($user.name ?? "no name")
 
 ## Trace Model
 
-Every access on an invalid value appends an `access` frame to the sidecar trace. `guard` and `retry<N>` append a `guard-caught` frame when they intercept a halt.
+Every access on an invalid value appends an `access` frame to the sidecar trace. `guard` and `retry<limit: N>` append a `guard-caught` frame when they intercept a halt.
 
 Frames accumulate in append order. Prior frames are never copied; only the new frame is added (O(1) per append).
 
@@ -300,7 +300,7 @@ Frame kinds:
 | `host` | Extension calls `ctx.invalidate`. First frame on a new invalid value. |
 | `type` | A type assertion or conversion fails. |
 | `access` | An invalid value is accessed (pipe, method, arithmetic, etc.). |
-| `guard-caught` | A `guard` or `retry<N>` block catches a halt. |
+| `guard-caught` | A `guard` or `retry<limit: N>` block catches a halt. |
 | `guard-rethrow` | A caught invalid value is re-accessed and halts again. |
 | `wrap` | `error "..."` wraps an invalid value; `wrapped` carries the prior status. |
 
@@ -313,7 +313,7 @@ $result.!trace -> seq({
 })
 ```
 
-A trace with 3 frames from `retry<3>` exhaustion looks like:
+A trace with 3 frames from `retry<limit: 3>` exhaustion looks like:
 
 ```text
 [
@@ -324,7 +324,7 @@ A trace with 3 frames from `retry<3>` exhaustion looks like:
 ]
 ```
 
-Each `retry<N>` exhaustion adds one `guard-caught` frame per attempt.
+Each `retry<limit: N>` exhaustion adds one `guard-caught` frame per attempt.
 
 ---
 
@@ -353,10 +353,10 @@ $out.! ? "failed: {$out.!message}" ! $out
 
 ### Retry With Fallback
 
-Combine `retry<N>` and `??` for resilient access:
+Combine `retry<limit: N>` and `??` for resilient access:
 
 ```text
-retry<3> {
+retry<limit: 3> {
   app::fetch("https://api.example.com")
 } => $result
 $result ?? "fallback response"

@@ -3,21 +3,21 @@
  *
  * Covers:
  * - AC-4  : `guard { body }` returns body result when body completes.
- * - AC-5  : `retry<3> { body }` returns on second attempt; body ran twice.
+ * - AC-5  : `retry<limit: 3> { body }` returns on second attempt; body ran twice.
  * - AC-B1 : Empty-valued guard body returns the valid empty value.
- * - AC-B2 : `retry<0>` (engineer-consistent choice). Source-level parser
- *           rejects `retry<0>` with RILL-P004, so we verify that rejection
+ * - AC-B2 : `retry<limit: 0>` (engineer-consistent choice). Source-level parser
+ *           rejects `retry<limit: 0>` with RILL-P004, so we verify that rejection
  *           AND exercise the runtime `RETRY_MIN_ATTEMPTS` fallback via a
  *           direct evaluator call to the RetryBlock path. The runtime
  *           fallback produces an invalid `#R001`.
- * - AC-B3 : `retry<1>` runs the body exactly once.
+ * - AC-B3 : `retry<limit: 1>` runs the body exactly once.
  * - AC-B4 : Nested guards append N `guard-caught` frames without stack
  *           overflow (100 deep; see ASSUMPTION below).
  * - AC-E2 : `guard { error "..." }` does NOT catch (EC-8).
  * - AC-E3 : `guard { assert false ... }` does NOT catch (EC-9).
  * - AC-E7 : `guard<on: list[#AUTH]> { halt_other }` propagates a halt
  *           whose code does not match the filter.
- * - AC-E8 : `retry<3> { halt }` exhausted -> invalid with 3 guard-caught
+ * - AC-E8 : `retry<limit: 3> { halt }` exhausted -> invalid with 3 guard-caught
  *           frames.
  * - EC-14 : `guard<on: list[#X_bad]>` (shape-invalid atom) emits a
  *           RecoveryErrorNode whose runtime materialisation is `#R001`.
@@ -89,20 +89,20 @@ describe('Guard block (AC-4)', () => {
 });
 
 describe('Retry block (AC-5, AC-B3)', () => {
-  it('AC-B3: `retry<1>` runs the body exactly once on success', async () => {
+  it('AC-B3: `retry<limit: 1>` runs the body exactly once on success', async () => {
     // The body has no halt, so a single execution suffices.
-    const result = await run('retry<1> { "ok" }');
+    const result = await run('retry<limit: 1> { "ok" }');
     expect(result).toBe('ok');
   });
 
-  it('AC-5: `retry<3>` halting once then succeeding returns after 2 executions', async () => {
+  it('AC-5: `retry<limit: 3>` halting once then succeeding returns after 2 executions', async () => {
     // First invocation throws a catchable RuntimeHaltSignal directly;
     // second invocation returns "ok". The retry mixin catches the halt
     // on attempt 1, retries, and returns the success on attempt 2.
     let callCount = 0;
     const result = await run(
       `
-      retry<3> {
+      retry<limit: 3> {
         try_twice()
       }
     `,
@@ -160,20 +160,20 @@ describe('Guard empty-valued body (AC-B1)', () => {
 });
 
 describe('Retry zero / negative attempts (AC-B2)', () => {
-  it('AC-B2 (parser): `retry<0>` is a parse error (RILL-P004)', () => {
-    // The parser enforces attempts >= 1 at source level, so `retry<0>`
+  it('AC-B2 (parser): `retry<limit: 0>` is a parse error (RILL-P004)', () => {
+    // The parser enforces attempts >= 1 at source level, so `retry<limit: 0>`
     // never reaches the runtime. This is the engineer-consistent choice
     // encoded at two levels: parser rejects at the surface; runtime
     // `RETRY_MIN_ATTEMPTS` guards the AST-construction path for hosts
     // that synthesise RetryBlock nodes directly. See next case.
-    expect(() => parse('retry<0> { "x" }')).toThrow(/positive integer/);
+    expect(() => parse('retry<limit: 0> { "x" }')).toThrow(/positive integer/);
   });
 
   it('AC-B2 (runtime): a synthesised RetryBlock with attempts=0 yields invalid #R001', async () => {
     // Bypass the parser's positive-integer guard by constructing a
     // RetryBlock AST directly. This exercises the runtime
     // `RETRY_MIN_ATTEMPTS` fallback path in recovery.ts.
-    const ast = parse('retry<1> { "placeholder" }');
+    const ast = parse('retry<limit: 1> { "placeholder" }');
     // Mutate the parsed retry block's attempts to 0 to simulate a
     // direct-AST host that bypassed parser validation.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -238,7 +238,9 @@ describe('Non-catchable halts: `error` and `assert` (AC-E2, AC-E3)', () => {
   });
 
   it('AC-E2: retry does not swallow a non-catchable error either', async () => {
-    await expect(run('retry<3> { error "boom" }')).rejects.toThrow('boom');
+    await expect(run('retry<limit: 3> { error "boom" }')).rejects.toThrow(
+      'boom'
+    );
   });
 });
 
@@ -275,12 +277,12 @@ describe('Guard `<on:>` filter (AC-E7)', () => {
 });
 
 describe('Retry exhaustion (AC-E8)', () => {
-  it('AC-E8: `retry<3> { halt }` returns invalid with 3 guard-caught frames', async () => {
+  it('AC-E8: `retry<limit: 3> { halt }` returns invalid with 3 guard-caught frames', async () => {
     // Each failed attempt adds ONE guard-caught frame plus one access
     // frame (from the `.foo` access that produced the halt).
     const src = `
       #AB0x => $x
-      retry<3> { $x.foo }
+      retry<limit: 3> { $x.foo }
     `;
     const result = await runRecovered(src);
     expect(isInvalid(result as never)).toBe(true);

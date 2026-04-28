@@ -3,7 +3,7 @@
  *
  * Provides evaluator methods for the three recovery-related AST nodes:
  * - `GuardBlock` (`guard { body }` / `guard<on: [...]> { body }`)
- * - `RetryBlock` (`retry<N> { body }` / `retry<N, on: [...]> { body }`)
+ * - `RetryBlock` (`retry<limit: N> { body }` / `retry<limit: N, on: [...]> { body }`)
  * - `StatusProbe` (`$x.!`, `$x.!code`, `$x.!message`, ...)
  *
  * Interface requirements (from spec §Architecture Overview Data Flow,
@@ -11,7 +11,7 @@
  * - Guard catches `RuntimeHaltSignal` at block boundary, appends a
  *   `guard-caught` trace frame, returns the invalid value as block
  *   result.
- * - Retry<N> re-enters its body on caught halt up to N attempts;
+ * - Retry<limit: N> re-enters its body on caught halt up to N attempts;
  *   appends one `guard-caught` frame per failed attempt.
  * - `<on: list[#X, ...]>` filter: non-matching halts propagate (NOT
  *   caught).
@@ -52,7 +52,7 @@ import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 // ============================================================
 
 /**
- * Minimum retry attempts. `retry<0>` executes zero times and returns an
+ * Minimum retry attempts. `retry<limit: 0>` executes zero times and returns an
  * invalid `#R001` per AC-B2 (plan task 2.3). Values `<= 0` short-circuit
  * to the fallback invalid without entering the body.
  */
@@ -154,7 +154,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * attempt. On success, returns the body's result. If every attempt
      * halts, returns the final invalid value with all N frames.
      *
-     * AC-B2: `retry<N>` with `N <= 0` executes zero times and returns
+     * AC-B2: `retry<limit: N>` with `N <= 0` executes zero times and returns
      * an invalid `#R001` (programmer error); the body never runs.
      */
     protected async evaluateRetryBlock(
@@ -162,7 +162,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     ): Promise<RillValue> {
       const onCodes = resolveOnCodes(node.onCodes);
 
-      // AC-B2: `retry<N>` with `N <= 0` executes zero times and yields
+      // AC-B2: `retry<limit: N>` with `N <= 0` executes zero times and yields
       // an invalid `#R001` fallback. The body never runs; the returned
       // value carries a single `guard-caught` frame so traces still
       // reflect that recovery was attempted and no body ran.

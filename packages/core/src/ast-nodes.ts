@@ -741,7 +741,7 @@ export interface GuardBlockNode extends BaseNode {
 }
 
 /**
- * Retry block: retry<N> { body } or retry<N, on: list[#X, ...]> { body }
+ * Retry block: retry<limit: N> { body } or retry<limit: N, on: list[#X, ...]> { body }
  * Runs the body up to N times. On error matching `onCodes` (or any error when
  * onCodes is absent), the body is re-executed. The last attempt's error
  * propagates if all attempts fail.
@@ -751,7 +751,7 @@ export interface GuardBlockNode extends BaseNode {
  */
 export interface RetryBlockNode extends BaseNode {
   readonly type: 'RetryBlock';
-  /** Maximum number of attempts, derived from the N in `retry<N>`. */
+  /** Maximum number of attempts, derived from the N in `retry<limit: N>`. */
   readonly attempts: number;
   readonly body: BlockNode;
   /** Optional list of atom codes that trigger retry; absent = any error. */
