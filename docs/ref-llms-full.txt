@@ -2,6 +2,8 @@
 
 > Scripting language designed for machine-generated code. LLMs generate rill scripts; humans review and debug. Data flows through pipes (`->`), not assignment. Variables use `$` prefix. No null, no exceptions, no truthiness.
 
+For progressive disclosure, see [ref-llms.txt](ref-llms.txt) (index) and [llm/*.txt](llm/) fragments. This file is the full single-source bundle.
+
 ## Critical Differences from Mainstream Languages
 
 ### 1. No Assignment Operator
