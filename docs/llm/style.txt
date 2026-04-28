@@ -1,0 +1,106 @@
+# rill style
+
+Naming, spacing, line continuations, and idiomatic patterns.
+
+## Naming: snake_case
+
+    $user_name, $item_list, $is_valid             # variables
+    $double_value, $cleanup_text                  # closures
+    dict[first_name: "x", last_name: "y"]         # dict keys
+
+## Spacing rules
+
+| Element | Rule | Example |
+|---|---|---|
+| Operators | space both sides | `5 + 3`, `$x -> .upper`, `"a" => $b` |
+| Parentheses | no inner space | `($x + 1)`, `($ > 3) ? "yes"` |
+| Braces | space inside | `{ $x + 1 }`, `seq({ $ * 2 })` |
+| Brackets | no inner space | `$list[0]`, `$dict.items[1]` |
+| Literals | space after `,` and `:` | `list[1, 2, 3]`, `dict[name: "x", age: 30]` |
+| Keyword + `[` | NO space between | `list[1, 2]` (not `list [1, 2]` — RILL-P007) |
+| Closures | space after params | `\|x\| ($x * 2)`, `\|a, b\| { $a + $b }` |
+| Methods | no space before `.` or `(` | `$str.upper()`, `$list.join(", ")` |
+| Pipes | space both sides | `"x" -> .upper -> .len` |
+| Continuations | indent 2 spaces | see below |
+
+## Line continuations
+
+Line-start continuations (begin a new line):
+
+    ->  =>  ?  !  .  .?
+
+Trailing continuations (must end the previous line):
+
+    +  -  *  /  %  ==  !=  <  >  <=  >=  &&  ||
+
+Open delimiters (`(`, `[`, `{`, `|`, `||`) continue across newlines until closed.
+
+Valid:
+
+    $items
+      -> filter({ $.active })
+      -> fan({ $.name })
+
+    condition
+      ? "yes"
+      ! "no"
+
+    $.?name&string &&
+      !$.name -> .empty
+
+Invalid (RILL-P001 — `&&` cannot start a line):
+
+    $.?name&string
+      && !$.name -> .empty
+
+## Idiomatic patterns
+
+### Validate and transform input
+
+    $input -> assert $:?string "Expected string input"
+    $input
+      -> .trim
+      -> assert !.empty "Input cannot be empty"
+      -> .split(",")
+      -> fan({ $.trim })
+      -> filter({ !.empty })
+
+### Retry an extension call with fallback
+
+    retry<limit: 3, on: list[#UNAVAILABLE, #TIMEOUT]> { $app.fetch($url) } => $res
+    $res ?? "fallback"
+
+### Reduce with running state
+
+    list[10, 25, 5, 40, 15]
+      -> acc(dict[sum: 0, max: 0], {
+        $@.sum + $ => $new_sum
+        ($ > $@.max) ? $ ! $@.max => $new_max
+        dict[sum: $new_sum, max: $new_max]
+      })
+    # acc emits the running state at each step; last element is final
+
+### Branch on error atom
+
+    guard { $app.fetch($url) } => $result
+    ($result.!code == #TIMEOUT) ? "timed out"
+      ! ($result.!code == #AUTH) ? "auth failed"
+      ! $result.! ? "error: {$result.!message}"
+      ! $result
+
+## Implicit `$` shorthand
+
+Always prefer the shorter form.
+
+    $.method()  ->  .method            "x" -> .upper          (not $.upper())
+    func($)     ->  func               "x" -> log             (not log($))
+    $fn($)      ->  $fn                5 -> $double           (not $double($))
+
+Don't capture just to continue a chain. Use line continuation. Capture only when the variable is reused.
+
+## When to use `( expr )` vs `{ body }`
+
+| Form | Semantics | Example |
+|---|---|---|
+| `( expr )` | eager — evaluates immediately | `( 5 + 1 ) => $x` (stores 6) |
+| `{ body }` | deferred — stores a closure | `{ $ + 1 } => $fn` (stores closure) |

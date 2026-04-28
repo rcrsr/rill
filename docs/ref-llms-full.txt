@@ -2,6 +2,8 @@
 
 > Scripting language designed for machine-generated code. LLMs generate rill scripts; humans review and debug. Data flows through pipes (`->`), not assignment. Variables use `$` prefix. No null, no exceptions, no truthiness.
 
+For progressive disclosure, see [ref-llms.txt](ref-llms.txt) (index) and [llm/*.txt](llm/) fragments. This file is the full single-source bundle.
+
 ## Critical Differences from Mainstream Languages
 
 ### 1. No Assignment Operator
@@ -252,15 +254,16 @@ Atoms are interned identifiers used for error codes. Atom type name is `atom`.
     "BOGUS" -> atom                 # #R001 (unknown names fallback)
     #TIMEOUT:?atom                  # true
 
-Pre-registered atoms (available everywhere):
+Pre-registered atom literals (must start with uppercase letter):
 
-    #ok                             # sentinel on valid values (never appears as error)
     #R001                           # unknown atom name
     #R999                           # unhandled extension throw
     #TIMEOUT  #AUTH  #FORBIDDEN  #RATE_LIMIT  #QUOTA_EXCEEDED
     #UNAVAILABLE  #NOT_FOUND  #CONFLICT  #INVALID_INPUT
     #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                  # produced by failed `:type` assertion
+
+`.!code` reports `#ok` on valid values, but `#ok` is a runtime-only sentinel and is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.
 
 Extensions register additional atoms at init time.
 
@@ -523,7 +526,7 @@ Use in closure params to validate input structure:
 | `.head` | first character |
 | `.tail` | last character |
 | `.at(i)` | character at index |
-| `.first` | iterator at first character |
+| `.first()` | iterator at first character |
 | `.split(sep)` | split into list (default: newline) |
 | `.lines` | split on newlines |
 | `.contains(s)` | substring check |
@@ -551,7 +554,7 @@ replace vs replace_all:
 | `.empty` | is empty |
 | `.head` | first element |
 | `.tail` | last element |
-| `.first` | iterator at first element |
+| `.first()` | iterator at first element |
 | `.at(i)` | element at index |
 | `.join(sep)` | join elements with separator |
 | `.has(val)` | contains value (deep equality) |
@@ -564,7 +567,7 @@ replace vs replace_all:
 |---|---|
 | `.len` | number of entries |
 | `.empty` | is empty |
-| `.first` | iterator at first entry |
+| `.first()` | iterator at first entry |
 | `.keys` | keys as list |
 | `.values` | values as list |
 | `.entries` | list of `tuple[k, v]` pairs |

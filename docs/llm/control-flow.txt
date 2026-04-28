@@ -1,0 +1,138 @@
+# rill control flow
+
+Conditionals, loops, branching, and the collection-operator picker.
+
+## Conditional
+
+    cond ? then_expr ! else_expr
+    cond ? then_expr                   # without else: returns current $ when false
+
+Piped form (`$` becomes condition):
+
+    value -> ? then_expr ! else_expr
+
+Multi-line (`?` and `!` start continuation lines):
+
+    condition
+      ? "yes"
+      ! "no"
+
+    $val -> .eq("A") ? "a"
+      ! .eq("B") ? "b"
+      ! "c"
+
+## Loops
+
+Pre-condition (`while ... do`):
+
+    init -> while ($ < 10) do { $ + 1 }   # $ is the accumulator
+
+Post-condition (`do ... while`, body runs at least once):
+
+    init -> do { $ + 1 } while ($ < 10)
+
+Iteration limit (default 10,000):
+
+    0 -> while ($ < 50) do<limit: 100> { $ + 1 }
+    $items -> fan({ slow($) }, dict[concurrency: 3])
+
+## Break and return
+
+`break` exits a loop or `seq`/`acc` body, returning collected results so far:
+
+    list[1,2,3,4,5] -> seq({
+      ($ == 3) ? break
+      $
+    })                                   # list[1, 2]
+
+`return` exits a block or the script:
+
+    5 => $x
+    ($x > 3) ? ("big" -> return)
+    "small"                              # returns "big"
+
+    "done" -> return                     # exits script with "done"
+
+## Pass
+
+`pass` returns `$` unchanged. Requires pipe context.
+
+    cond ? pass ! "fallback"             # preserve $ when cond is true
+    cond ? "value" ! pass                # preserve $ when cond is false
+    "data" -> { dict[status: pass] }     # dict[status: "data"]
+    list[1, -2, 3] -> fan({ ($ > 0) ? pass ! 0 })   # list[1, 0, 3]
+
+## Collection operator picker
+
+| Goal | Operator |
+|---|---|
+| Transform each item, sequential | `-> seq({ })` |
+| Transform each item, parallel | `-> fan({ })` |
+| Filter items | `-> filter({ })` |
+| Single result from list | `-> fold(init, { $@ + $ })` |
+| Results plus running accumulator | `-> acc(init, { $@ + $ })` |
+| Loop with state | `-> while (cond) do { }` |
+
+| Operator | Execution | Returns | Catches `break`? |
+|---|---|---|---|
+| `seq` | sequential | all body results | yes |
+| `acc(init, ...)` | sequential | list of accumulator at each step | yes |
+| `fan` | parallel | all body results | no |
+| `filter` | parallel | matching elements only | no |
+| `fold(init, ...)` | sequential | final accumulator only | no |
+
+`$@` is the accumulator in `fold` and `acc`.
+
+## Body forms
+
+All operators accept any callable as the body argument:
+
+    -> seq({ $ * 2 })           # block, $ is current element
+    -> seq(|x| ($x * 2))        # inline closure
+    -> seq($double)             # variable closure
+    -> seq(log)                 # built-in function
+
+## Iterating dicts and strings
+
+Dict iteration binds `$.key` and `$.value`:
+
+    dict[a: 1, b: 2] -> seq({ "{$.key}={$.value}" })   # list["a=1", "b=2"]
+    dict[a: 1, b: 5] -> filter({ $.value > 2 })
+
+String iteration binds `$` to each character:
+
+    "abc" -> seq({ "{$}!" })    # list["a!", "b!", "c!"]
+    "hello" -> filter({ $ != "l" })
+
+## Loop with multi-field state
+
+Use `while ... do` with `$` as a state dict:
+
+    dict[iter: 0, max: 3, text: $input, done: false]
+      -> while (!$.done && $.iter < $.max) do {
+        $.iter + 1 => $i
+        process($.text) => $result
+        $result.finished
+          ? dict[iter: $i, max: $.max, text: $.text, done: true]
+          ! dict[iter: $i, max: $.max, text: $result.text, done: false]
+      }
+
+## Iterators
+
+Lazy sequences. All collection operators auto-expand iterators.
+
+    range(0, 5) -> seq({ $ * 2 })      # list[0, 2, 4, 6, 8]
+    repeat("x", 3) -> seq({ $ })       # list["x", "x", "x"]
+
+`.first()` returns an iterator for any collection:
+
+    list[1, 2, 3] -> .first()          # iterator at 1
+    "abc" -> .first()                  # iterator at "a"
+
+Iterator protocol (dict with `value`, `done`, `next`):
+
+    $it.done                           # bool: exhausted?
+    $it.value                          # current element
+    $it.next()                         # iterator at next position
+
+See `errors` for `assert`, `error`, `guard`, `retry`. See `callables` for closure forms.

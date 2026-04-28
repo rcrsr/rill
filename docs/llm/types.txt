@@ -1,0 +1,132 @@
+# rill types
+
+Type names, assertions, conversion, parameterized types, dict shapes, type inspection.
+
+## Type names
+
+    string   number   bool     list     dict     ordered
+    tuple    closure  vector   iterator any      type
+    atom     datetime duration
+
+## Type assertion `:type`
+
+Halts with `#TYPE_MISMATCH` if value does not match.
+
+    42:number                       # passes
+    "x":number                      # halts
+    $val:list(string)               # parameterized
+    $val -> :number                 # pipe form
+
+## Type check `:?type`
+
+Returns boolean. Never halts.
+
+    42:?number                      # true
+    "x":?number                     # false
+    $val -> :?number                # pipe form
+
+## Union types
+
+    42 -> :string|number            # passes
+    42:?string|number               # true
+    "hello" => $x:string|number     # capture with union
+
+## Parameterized constructors
+
+Structural types with field/element constraints.
+
+    list(string)                    # list of strings
+    dict(name: string, age: number) # exact-shape dict
+    tuple(number, string)           # positional tuple
+    ordered(x: number, y: number)   # named ordered args
+
+## Asserting dict shapes
+
+    $data -> :dict(name: string, age: number)
+    $data:?dict(name: string, age: number)
+
+In closure params (validates input structure):
+
+    |d: dict(name: string, age: number)| {
+      "{$d.name} is {$d.age}"
+    } => $format_person
+
+## Property access with type guards
+
+    $data.field                     # dict field
+    $data[0], $data[-1]             # list index (negative from end)
+    $data.$key                      # variable as key
+    $data.($i + 1)                  # computed key
+    $data.(a || b)                  # try keys left to right
+    $data.field ?? "default"        # vacant fallback
+    $data.?field                    # boolean: does field exist?
+    $data.?field&string             # exists AND is string
+    $data.?$key&number              # variable existence + type check
+    $data.?($expr)&list             # computed existence + type check
+
+Built-in methods take priority over dict keys:
+
+    dict[len: "fake"].len           # returns dict length, not "fake"
+    dict[len: "fake"]["len"]        # bracket access returns "fake"
+
+## Type conversion `-> type`
+
+Explicit conversion between compatible types. Halts with `RILL-R036` on invalid pairs.
+
+    42 -> string                    # "42"
+    "3.14" -> number                # 3.14
+    list[1, 2] -> tuple             # tuple[1, 2]
+    tuple[1, 2] -> list             # list[1, 2]
+    ordered[a: 1] -> dict           # dict[a: 1]
+
+### Conversion matrix
+
+    Source   | -> list | -> dict | -> tuple | -> ordered(sig) | -> number | -> string | -> bool
+    ---------|---------|---------|----------|-----------------|-----------|-----------|--------
+    list     | no-op   | error   | valid    | error           | error     | valid¹    | error
+    dict     | error   | no-op   | error    | valid           | error     | valid¹    | error
+    tuple    | valid   | error   | no-op    | error           | error     | valid¹    | error
+    ordered  | error   | valid   | error    | no-op           | error     | valid¹    | error
+    string   | error   | error   | error    | error           | valid²    | no-op     | valid³
+    number   | error   | error   | error    | error           | no-op     | valid¹    | valid⁵
+    bool     | error   | error   | error    | error           | valid⁴    | valid¹    | no-op
+
+    ¹ formatValue semantics
+    ² parseable strings only; halts with RILL-R038 on failure
+    ³ accepts only "true" and "false"; halts with RILL-R036 otherwise
+    ⁴ true → 1, false → 0
+    ⁵ 0 → false, 1 → true; all other values halt with RILL-R036
+
+## Default values in type constructors
+
+    dict(a: string, b: string = "x")
+    ordered(x: number, y: number = 0)
+    tuple(string, number = 0)
+
+    dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
+
+Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults. Nested fields recurse.
+
+## Datetime and duration
+
+Constructed with function-call syntax.
+
+    datetime("2024-01-15T00:00:00Z") -> .year         # 2024
+    datetime(...dict[year: 2024, month: 1, day: 15])  # named components via spread
+    now()                                              # current datetime
+    duration(0, 0, 0, 25) -> .days                     # (years, months, days, hours): 1.04
+    duration(1) -> .months                             # 12
+
+## Type inspection `^type`
+
+Returns a type value for runtime inspection.
+
+    42.^type                        # type value for number
+    42.^type.name                   # "number"
+    list[1, 2].^type.name           # "list"
+    list[1, 2].^type.signature      # "list(number)"
+
+Equality:
+
+    $val.^type == list(number)      # true if $val is list(number)
+    $val.^type == $other.^type      # compare structural types

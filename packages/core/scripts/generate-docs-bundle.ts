@@ -2,7 +2,7 @@
 /**
  * Generate bundled language reference for runtime introspection
  *
- * Reads docs/ref-llm.txt and generates src/generated/introspection-data.ts
+ * Reads docs/ref-llms-full.txt and generates src/generated/introspection-data.ts
  * with exported constant for getLanguageReference() implementation.
  *
  * Usage:
@@ -12,7 +12,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const SOURCE_FILE = 'docs/ref-llm.txt';
+const SOURCE_FILE = 'docs/ref-llms-full.txt';
 const OUTPUT_FILE = 'src/generated/introspection-data.ts';
 
 function main(): void {

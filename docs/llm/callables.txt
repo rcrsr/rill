@@ -1,0 +1,159 @@
+# rill callables
+
+Closures, late binding, typed closures, reflection, dispatch operators, extraction, spread, modules.
+
+## Closure forms
+
+Block-closures (`{ body }`, implicit `$` parameter):
+
+    { $ + 1 } => $inc
+    $inc(5)                            # 6
+    5 -> $inc                          # 6 (pipe invocation)
+    dict[x: { $ * 2 }]                 # dict value is a closure
+
+Explicit closures (`|params| body`):
+
+    |x| ($x + 1) => $inc               # named parameter
+    |a, b| ($a + $b) => $add           # multiple params
+    |x = 0| ($x + 1) => $inc_or_one    # default value
+    |x: number| ($x + 1) => $typed     # type annotation
+
+`{ body }` is deferred (closure). `( expr )` is eager.
+
+    { $ + 1 } => $fn                   # closure stored
+    ( 5 + 1 ) => $x                    # 6 stored
+
+## Late binding
+
+Closures capture scope, not values. Variables resolve at call time.
+
+`$` vs named params:
+- Use `$` in inline pipes and loops: `"hello" -> { .upper }`
+- Use named params in stored closures: `|x| ($x * 2) => $double`
+- `$` is undefined when a stored closure is called later. Always use named params for reusable closures.
+
+## Zero-param dict closures (methods)
+
+`$` binds to the containing dict.
+
+    dict[count: 3, double: ||{ $.count * 2 }] => $obj
+    $obj.double                        # 6
+
+## Typed closures
+
+Anonymous typed closure (`|type|{ body }`, type keyword as param, `$` is type-checked input):
+
+    "hello" -> |string|{ $ -> .upper }      # $ is string, checked at call
+    5 -> |number|{ $ * 2 }                  # 10
+    |number|{ $ * 2 }:number => $double     # stored with return type
+    5 -> $double                             # 10
+    "hi" -> $double                          # RILL-R001: parameter type mismatch
+
+Any type from `types` works. Parameterized:
+
+    |list(number)|{ $ -> seq({ $ * 2 }) }
+
+Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
+
+    |x: number| { "{$x}" }:string => $fn   # asserts string return
+    $fn(42)                                # "42" (passes)
+
+    |x: number| { $x * 2 }:string => $fn   # mismatch halts at call
+    $fn(5)                                 # halts: return type mismatch
+
+## Callable reflection
+
+`.^input` and `.^output` work on every callable type.
+
+    |x: number, y: string| ($x) => $fn
+    $fn.^input                             # ordered(x: number, y: string)
+    $fn.^output                            # any (no return type declared)
+
+    |x: number|{ $x * 2 }:number => $fn2
+    $fn2.^output                           # number
+
+`.^input` returns ordered dict mapping param names to type values. `.^output` returns the declared return type (`any` if undeclared). Works on script closures, built-ins, host functions.
+
+Description shorthand (bare string in `^(...)` expands to `description: <string>`):
+
+    ^("Get weather for city") |city: string| ($city) => $weather
+    $weather.^description                  # "Get weather for city"
+
+    ^("Fetch profile", cache: true) |id| ($id) => $get_user
+    $get_user.^description                 # "Fetch profile"
+    $get_user.^cache                       # true
+
+## Dispatch operators
+
+### Dict dispatch (single key)
+
+Pipe a value to a dict to match keys:
+
+    $val -> dict[apple: "fruit", carrot: "veg"]                 # "fruit" if $val is "apple"
+    $val -> dict[apple: "fruit"] ?? "not found"                  # default if no match
+    $method -> dict[list["GET","HEAD"]: "safe", list["POST","PUT"]: "unsafe"]   # multi-key
+
+Type-aware (key matched by value AND type):
+
+    1 -> dict[1: "number", "1": "string"]              # "number"
+    "1" -> dict[1: "number", "1": "string"]            # "string"
+
+### List dispatch (index)
+
+    0 -> list["first", "second"]                       # "first"
+    -1 -> list["first", "second"]                      # "second"
+    5 -> list["a", "b"] ?? "not found"                 # OOB fallback
+
+### Hierarchical dispatch (path)
+
+Pipe a list of keys/indexes:
+
+    list["name", "first"] -> dict[name: dict[first: "Alice"]]  # "Alice"
+    list[0, 1] -> list[list[1,2,3], list[4,5,6]]               # 2
+    list[] -> dict[a: 1]                                       # dict[a: 1] (empty path = unchanged)
+    list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"   # "default"
+
+Lists require same-type elements. For mixed paths, use property access:
+
+    dict[users: list[dict[name: "Alice"]]] => $d
+    $d.users[0].name                                            # "Alice"
+
+## Extraction operators
+
+Destructure (`destruct<>`):
+
+    list[1, 2, 3] -> destruct<$a, $b, $c>          # $a=1, $b=2, $c=3
+    dict[x: 1, y: 2] -> destruct<x: $a, y: $b>     # $a=1, $b=2
+    list[1, 2, 3] -> destruct<$first, _, $third>   # _ skips
+
+Slice (`slice<start:stop:step>`):
+
+    list[0,1,2,3,4] -> slice<1:3>      # list[1, 2]
+    list[0,1,2,3,4] -> slice<-2:>      # list[3, 4]
+    list[0,1,2,3,4] -> slice<::-1>     # list[4,3,2,1,0]
+    "hello" -> slice<1:4>              # "ell"
+
+## List spread
+
+    list[1, 2] => $a
+    list[...$a, 3]                     # list[1, 2, 3]
+    list[...$a, ...$b]                 # concatenate
+    list[...($nums -> fan({ $ * 2 }))] # spread expression result
+
+## Argument unpacking
+
+    tuple[1, 2, 3] -> $fn(...)         # positional spread: $fn(1, 2, 3)
+    ordered[a: 10, b: 2] -> $fn(...)   # named spread: keys must match param order
+    tuple[...$list, 3] -> $fn(...)     # spread in tuple then into call
+
+## Modules
+
+`use<scheme:resource>` resolves through a host-registered scheme resolver.
+
+    use<module:greetings> => $g        # load module
+    $g.hello("World")                  # call module member
+    use<ext:qdrant.search>             # load extension member
+
+`use<>` returns the resolved value (dict, closure, or any rill type). Hosts register resolvers; scripts cannot.
+
+See `control-flow` for iterators and lazy sequences.

@@ -1,0 +1,44 @@
+# rill
+
+> Scripting language designed for machine-generated code. LLMs generate rill scripts; humans review and debug. Data flows through pipes (`->`), not assignment. Variables use `$` prefix. No null, no exceptions, no truthiness.
+
+## How to use this index
+
+Load fragments progressively. The cheatsheet alone is enough for most short scripts. Pull additional fragments when the task requires their topic. Load `ref-llms-full.txt` only when you need the entire reference at once.
+
+## Fragments (load on demand)
+
+| Fragment | Load when |
+|---|---|
+| [cheatsheet](llm/cheatsheet.txt) | Always. The 7 critical differences, syntax, `$` binding, callable types. Default starting context. |
+| [anti-patterns](llm/anti-patterns.txt) | Generating fresh code. Wrong/Right pairs targeting TypeScript and Python reflexes. |
+| [control-flow](llm/control-flow.txt) | Writing conditionals, loops, branching, or transforming collections. Includes the operator picker and iterators. |
+| [errors](llm/errors.txt) | Adding `assert`, `error`, `guard`, `retry`, `??`, or inspecting `.!` sidecars. |
+| [types](llm/types.txt) | Asserting types, converting between types, validating dict shapes, or reading `^type`. |
+| [callables](llm/callables.txt) | Defining closures, typed closures, dispatch tables, or using `.^input` / `.^output` reflection. |
+| [stdlib](llm/stdlib.txt) | Calling string, list, or dict methods. Includes built-in functions (`log`, `range`, `enumerate`). |
+| [style](llm/style.txt) | Formatting output. Naming, spacing, line continuations, and idiomatic patterns. |
+
+## Full bundle
+
+[Full bundle](/llms-full.txt) — every fragment concatenated. Use when context budget is unconstrained or when piping the reference into a long-running session.
+
+## Adjacent references
+
+| Resource | Purpose |
+|---|---|
+| [Language reference](/docs/reference/language/) | Human-readable spec with prose explanations |
+| [EBNF grammar](/ref-grammar.ebnf) | Formal grammar |
+| [Error reference](/docs/reference/errors/) | Every error code with cause and resolution |
+| [Host API](/docs/reference/host-api/) | TypeScript embedding API |
+| [Cookbook](/docs/guide/cookbook/) | Reusable design patterns |
+
+## Rules an LLM must internalize
+
+1. **Pipe (`->`) flows data; capture (`=>`) stores it.** No `=` operator. Statement order is left-to-right through the chain.
+2. **Conditions must be boolean.** No truthiness. `"" ? a ! b` is an error. Use `.empty`, `.eq()`, comparison operators.
+3. **Errors halt by default. Resolve to valid via `??`.**
+4. **All variables start with `$`.** `$name` references a variable. Bare `name` is a dict key, a built-in, or a host function.
+5. **Script-defined names live in variables, even callables.** A closure becomes a `$` variable: `|x|($x*2) => $double` then `5 -> $double`. Only built-in and host functions stay bare.
+
+Read the cheatsheet next.

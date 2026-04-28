@@ -1,0 +1,132 @@
+# rill error handling
+
+Atoms, status sidecars, `guard`, `retry`, vacancy, and recovery patterns.
+
+## Two failure modes
+
+| Failure | Caused by | Caught by |
+|---|---|---|
+| Runtime error (uncatchable) | `error`, `assert`, divide-by-zero, OOB index, missing field, failed conversion, parameter type mismatch | nothing — propagates |
+| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion or extension `ctx.invalidate`) | `guard { }`, `retry<limit: N> { }` |
+
+## Assert and error
+
+    5 -> assert ($ > 0)                    # returns 5
+    -1 -> assert ($ > 0)                   # halts: Assertion failed
+    "" -> assert !.empty "Input required"  # halts with custom message
+    $val -> assert $:?list "Expected list"
+
+    error "Something went wrong"           # halt with message
+    "Operation failed" -> error            # piped form (must be string)
+    error "Status: {$code}"                # interpolation works
+
+## Status sidecar
+
+Every value carries a status sidecar. Read with `.!`:
+
+| Probe | Returns |
+|---|---|
+| `$v.!` | bool: is this an invalid value? |
+| `$v.!code` | atom: error code (`#ok` on valid values) |
+| `$v.!message` | string: human-readable description |
+| `$v.!provider` | string: component that produced the error |
+| `$v.!trace` | list: trace frames |
+
+`.!` NEVER halts, even on invalid values. Safe to inspect.
+
+## Atoms
+
+Interned identifiers. Type name is `atom`.
+
+    #TIMEOUT                       # atom literal
+    #TIMEOUT == #TIMEOUT           # true (identity)
+    #TIMEOUT -> string             # "TIMEOUT" (no # sigil)
+    "TIMEOUT" -> atom              # #TIMEOUT
+    "BOGUS" -> atom                # #R001 (unknown names fallback)
+    #TIMEOUT:?atom                 # true
+
+Pre-registered atom literals (must start with uppercase letter):
+
+    #R001                          # unknown atom name
+    #R999                          # unhandled extension throw
+    #TIMEOUT  #AUTH  #FORBIDDEN  #RATE_LIMIT  #QUOTA_EXCEEDED
+    #UNAVAILABLE  #NOT_FOUND  #CONFLICT  #INVALID_INPUT
+    #PROTOCOL  #DISPOSED
+    #TYPE_MISMATCH                 # produced by failed `:type` assertion
+
+`.!code` reports `#ok` on valid values, but `#ok` is a runtime-only sentinel and is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.
+
+Extensions register additional atoms at init.
+
+## Guard
+
+Runs the body once. If body halts with a catchable signal, returns the invalid value instead.
+
+    "ok" => $v
+    guard { $v.upper }              # "OK"
+
+    guard { "x":number } => $out    # catches access halt
+    $out.!                          # true
+    $out.!code -> string            # "TYPE_MISMATCH"
+    $out.!message                   # "Type assertion failed: expected number, got string"
+
+Filtered form (catches only matching atoms):
+
+    guard<on: list[#TIMEOUT, #UNAVAILABLE]> {
+      $app.fetch($url)
+    }
+
+`guard` does NOT catch halts from `error`, `assert`, or runtime errors (divide-by-zero, OOB, missing field, failed conversion). Those propagate.
+
+## Retry
+
+Re-enters body up to N times. `limit:` is required and must be a positive integer.
+
+    retry<limit: 3> {
+      $app.fetch($url)
+    } => $result
+
+    retry<limit: 3, on: list[#UNAVAILABLE]> {
+      $app.fetch($url)
+    }
+
+Each failed attempt appends a `guard-caught` trace frame. Bare `retry<3>` is a parse error.
+
+## Vacancy and `??`
+
+A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or invalid. `??` returns the fallback when the left side is vacant:
+
+    dict[a: 1] => $d
+    $d.missing ?? "default"         # "default"
+    $d.a ?? "default"               # 1
+
+    guard { "x":number } => $out
+    $out ?? "fallback"              # "fallback" (invalid is vacant)
+
+## Existence check without halting
+
+`.?field` returns a boolean; never halts. See `types` for type-combined checks like `.?field&string`.
+
+## Recovery patterns
+
+Check before access:
+
+    $v.! ? "invalid" ! $v.upper
+
+Guard then inspect:
+
+    guard { $v.upper } => $out
+    $out.! ? "failed: {$out.!message}" ! $out
+
+Retry with fallback:
+
+    retry<limit: 3> { $app.fetch($url) } => $result
+    $result ?? "fallback"
+
+Branch on error atom (flat chain, each comparison parenthesized):
+
+    guard { $app.fetch($url) } => $result
+    ($result.!code == #TIMEOUT) ? "timed out"
+      ! ($result.!code == #AUTH) ? "auth failed"
+      ! $result.! ? "error: {$result.!message}"
+      ! $result
