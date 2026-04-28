@@ -2,12 +2,11 @@ baseURL: https://rill.run/
 title: rill
 languageCode: en-us
 
-# Generate /llms.txt from site content (llms-full.txt is static)
+# /llms.txt and /llms-full.txt are served from static/ (see scripts/sync-docs.sh)
 outputs:
   home:
     - html
     - rss
-    - llms
 
 # Theme via Hugo module
 module:
@@ -44,7 +43,7 @@ menu:
         icon: github
 
 params:
-  description: "Scripting language designed for machine-generated code. LLMs author rill scripts; humans review and debug."
+  description: 'Scripting language designed for machine-generated code. LLMs author rill scripts; humans review and debug.'
 
   theme:
     default: dark

@@ -1,7 +1,9 @@
 content/docs/
 data/version.json
 static/fiddle/
+static/llms.txt
 static/llms-full.txt
+static/llm/
 public/
 resources/
 _vendor/

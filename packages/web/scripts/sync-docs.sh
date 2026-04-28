@@ -6,6 +6,7 @@ set -euo pipefail
 
 DOCS_DIR="$(cd "$(dirname "$0")/../../../docs" && pwd)"
 CONTENT_DIR="$(cd "$(dirname "$0")/.." && pwd)/content/docs"
+WEB_STATIC="$(cd "$(dirname "$0")/.." && pwd)/static"
 
 # Wipe and recreate content/docs/ from scratch
 rm -rf "$CONTENT_DIR"
@@ -266,7 +267,10 @@ for section_dir in "$CONTENT_DIR"/*/; do
 done
 
 # Copy static assets
-cp "$DOCS_DIR/ref-grammar.ebnf" "$(cd "$(dirname "$0")/.." && pwd)/static/ref-grammar.ebnf" 2>/dev/null || true
-cp "$DOCS_DIR/ref-llm.txt" "$(cd "$(dirname "$0")/.." && pwd)/static/llms-full.txt" 2>/dev/null || true
+cp "$DOCS_DIR/ref-grammar.ebnf"  "$WEB_STATIC/ref-grammar.ebnf"  2>/dev/null || true
+cp "$DOCS_DIR/ref-llms.txt"      "$WEB_STATIC/llms.txt"          2>/dev/null || true
+cp "$DOCS_DIR/ref-llms-full.txt" "$WEB_STATIC/llms-full.txt"     2>/dev/null || true
+mkdir -p "$WEB_STATIC/llm"
+cp "$DOCS_DIR/llm/"*.txt "$WEB_STATIC/llm/" 2>/dev/null || true
 
 echo "Done: $(find "$CONTENT_DIR" -name '*.md' ! -name '_index.md' | wc -l) docs synced"
