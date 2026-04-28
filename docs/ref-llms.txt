@@ -33,10 +33,12 @@ Load fragments progressively. The cheatsheet alone is enough for most short scri
 | [ref-host-api.md](ref-host-api.md) | TypeScript embedding API |
 | [cookbook.md](cookbook.md) | Reusable design patterns |
 
-## Three rules an LLM must internalize
+## Rules an LLM must internalize
 
 1. **Pipe (`->`) flows data; capture (`=>`) stores it.** No `=` operator. Statement order is left-to-right through the chain.
 2. **Conditions must be boolean.** No truthiness. `"" ? a ! b` is an error. Use `.empty`, `.eq()`, comparison operators.
-3. **Errors halt by default.** Recover access halts with `guard { }` or `retry<limit: N> { }`. Inspect via `.!`, `.!code`, `.!message`.
+3. **Errors halt by default. Resolve to valid via `??`.**
+4. **All variables start with `$`.** `$name` references a variable. Bare `name` is a dict key, a built-in, or a host function.
+5. **Script-defined names live in variables, even callables.** A closure becomes a `$` variable: `|x|($x*2) => $double` then `5 -> $double`. Only built-in and host functions stay bare.
 
 Read the cheatsheet next.
