@@ -63,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`:atom` literal syntax (`#NAME`)** — Uppercase-named atoms produce `:atom` values directly in source (`#NOT_FOUND`, `#TIMEOUT`). Composes with `guard`, `retry`, and `.!`.
 - **`guard { body }`** — Catches operational halts inside `body`, substituting an invalid value with a `guard-caught` trace frame. Does not catch `error "..."` or `assert`.
-- **`retry<N> { body }`** — Executes `body` up to N times, retrying on operational halt. Returns the first success or an invalid value with N `guard-caught` frames when exhausted.
+- **`retry<limit: N> { body }`** — Executes `body` up to N times, retrying on operational halt. Returns the first success or an invalid value with N `guard-caught` frames when exhausted.
 - **Status probe operator `.!`** — `.!` returns `false` for valid values and `true` for invalid values without halting. `.!code` reads the atom code from the status sidecar (e.g., `#TIMEOUT`, `#ok`). See [Error Handling](docs/topic-error-handling.md).
 - **Presence check operator `.?field`** — `$x.?field` returns `true` if the field exists, `false` otherwise, without halting. Composes with `??` for fallback values.
 - **Three new generic atoms pre-registered in core** — `#FORBIDDEN` (HTTP 403, OAuth scope mismatch, content-filter block; distinct from `#AUTH`), `#QUOTA_EXCEEDED` (account-level resource exhaustion; distinct from `#RATE_LIMIT`), and `#PROTOCOL` (response shape violates documented contract; distinct from `#UNAVAILABLE`). Available without explicit `ctx.registerErrorCode` registration; host scripts match via filtered guard (`guard<on: list[#FORBIDDEN]> { ... }`) or by branching on `$result.!code`.
