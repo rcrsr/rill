@@ -69,7 +69,7 @@ RIGHT — use `while (cond) do { }` with `$` as state dict for multiple values:
 
 ### 6. Errors Halt — Recover With `guard`
 
-No try/catch. Failures either throw runtime errors (halt) or produce **invalid values** that halt on access. Recover access halts with `guard { body }` or `retry<N> { body }`. Inspect with `.!`, `.!code`, `.!message`. See § Error Handling.
+No try/catch. Failures either throw runtime errors (halt) or produce **invalid values** that halt on access. Recover access halts with `guard { body }` or `retry<limit: N> { body }`. Inspect with `.!`, `.!code`, `.!message`. See § Error Handling.
 
 ### 7. Value Semantics (No References)
 
@@ -215,7 +215,7 @@ Two failure modes, two recovery tools:
 | Failure | Caused by | Caught by |
 |---|---|---|
 | Runtime error (uncatchable) | `error`, `assert`, division by zero, OOB index, missing field, failed conversion, parameter type mismatch | nothing — propagates |
-| Access halt (catchable) | Accessing an **invalid value** (one with a populated status sidecar, e.g. from a failed `:type` assertion or `ctx.invalidate` in an extension) | `guard { }`, `retry<N> { }` |
+| Access halt (catchable) | Accessing an **invalid value** (one with a populated status sidecar, e.g. from a failed `:type` assertion or `ctx.invalidate` in an extension) | `guard { }`, `retry<limit: N> { }` |
 
 ### Assert and Error (non-catchable halts)
 
@@ -286,13 +286,13 @@ Filtered form catches only matching atoms:
 
 ### Retry
 
-`retry<N> { body }` re-enters body up to N times. Each failed attempt appends a `guard-caught` trace frame. N must be >= 1.
+`retry<limit: N> { body }` re-enters body up to N times. Each failed attempt appends a `guard-caught` trace frame. `limit:` is a REQUIRED named argument; bare `retry<N>` is a parse error. N must be a positive integer.
 
-    retry<3> {
+    retry<limit: 3> {
       $app.fetch($url)
     } => $result
 
-    retry<3, on: list[#UNAVAILABLE]> {
+    retry<limit: 3, on: list[#UNAVAILABLE]> {
       $app.fetch($url)
     }
 
@@ -319,7 +319,7 @@ A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or inv
     $out.! ? "failed: {$out.!message}" ! $out
 
     # Retry with fallback
-    retry<3> { $app.fetch($url) } => $result
+    retry<limit: 3> { $app.fetch($url) } => $result
     $result ?? "fallback"
 
     # Branch on error atom (flat chain; each comparison parenthesized)
@@ -494,9 +494,9 @@ Use in closure params to validate input structure:
       -> fan({ $.trim })
       -> filter({ !.empty })
 
-**Retry an extension call with fallback** (prefer `retry<N>` over manual while loops):
+**Retry an extension call with fallback** (prefer `retry<limit: N>` over manual while loops):
 
-    retry<3, on: list[#UNAVAILABLE, #TIMEOUT]> { $app.fetch($url) } => $res
+    retry<limit: 3, on: list[#UNAVAILABLE, #TIMEOUT]> { $app.fetch($url) } => $res
     $res ?? "fallback"
 
 **Reduce with running state:**
