@@ -100,7 +100,7 @@ Four tenets drive every design decision:
 | **Host Authority over Ambient Capability** | Scripts start with zero capabilities. The host grants exactly what it intends. |
 | **Halt over Recover** | No try/catch. Scripts return a complete result or an error, never partial state. |
 
-Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llm.txt). Zero dependencies. [Embeds](docs/integration-host.md) in Node, Bun, Deno, or the browser.
+Ships with [EBNF grammar](docs/ref-grammar.ebnf) and [LLM reference](docs/ref-llms-full.txt) (with [index](docs/ref-llms.txt) and [progressive fragments](docs/llm/)). Zero dependencies. [Embeds](docs/integration-host.md) in Node, Bun, Deno, or the browser.
 
 ## Who Is This For?
 
