@@ -224,11 +224,16 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluates primary, then applies each method in sequence.
      *
      * Default value handling:
-     * - If method chain throws RUNTIME_UNDEFINED_METHOD and expr.defaultValue exists,
-     *   evaluates and returns defaultValue instead of propagating error.
-     * - RUNTIME_UNDEFINED_METHOD is thrown when accessing a missing field via .field syntax.
-     * - If the primary+method-chain produces an invalid RillValue (e.g. from `guard`/`retry`
-     *   recovery) and expr.defaultValue exists, the default expression is evaluated and returned.
+     * - If the method chain throws a recoverable missing-member error and
+     *   expr.defaultValue exists, evaluates and returns defaultValue instead
+     *   of propagating the error.
+     * - Recoverable missing-member errors are matched by error id: RILL_R007
+     *   (missing method or field on a value) and RILL_R008 (annotation key
+     *   not found). Both legacy RuntimeError and migrated RuntimeHaltSignal
+     *   forms are recognised via `matchesErrorId`.
+     * - If the primary+method-chain produces an invalid RillValue (e.g. from
+     *   `guard`/`retry` recovery) and expr.defaultValue exists, the default
+     *   expression is evaluated and returned.
      * - All other errors propagate normally.
      */
     protected async evaluatePostfixExpr(
