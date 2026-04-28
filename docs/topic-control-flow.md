@@ -18,7 +18,7 @@ rill provides singular control flow with no exceptions and no try/catch. Errors 
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
-| `retry<limit: N> { body }` | Retry body up to N times on invalid result |
+| `retry<limit: N> { body }` | Retry body up to N times on caught halt |
 
 ---
 
@@ -754,7 +754,7 @@ See [Error Handling](topic-error-handling.md) for full patterns and [Error Refer
 
 ## Bounded Retry with `retry<limit: N>`
 
-`retry<limit: N> { body }` runs its body up to N times. Each attempt that returns an invalid value triggers the next attempt. The result is the first valid value, or the final invalid value when all attempts fail.
+`retry<limit: N> { body }` runs its body up to N times. Each attempt that raises a catchable halt triggers the next attempt. The result is the first successful value, or the final invalid value when all attempts halt.
 
 ```text
 use<ext:app> => $app
@@ -762,7 +762,7 @@ use<ext:app> => $app
 retry<limit: 3> { $app.fetch("https://api.example.com/data") } => $result
 ```
 
-`retry` is strictly bounded; N must be a literal integer. Use `guard` inside `retry` to convert halts to invalid values that `retry` can detect.
+`retry` is strictly bounded; N must be a literal integer. `retry` catches the same catchable halts as `guard`; non-catchable halts (`error`, `assert`) propagate without retry.
 
 ```text
 use<ext:app> => $app
@@ -798,7 +798,7 @@ See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
 | `error "msg"` | Any | Always halt with error message |
 | `$val -> error` | Any | Always halt with piped error message (must be string) |
 | `guard { body }` | Any | Replace halt with invalid value |
-| `retry<limit: N> { body }` | Any | Retry up to N times on invalid result |
+| `retry<limit: N> { body }` | Any | Retry up to N times on caught halt |
 
 ---
 

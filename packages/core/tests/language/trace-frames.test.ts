@@ -107,7 +107,7 @@ describe('FR-ERR-12: Append-only, never rewrite prior frames', () => {
     expect(caughtFrames.length).toBe(2);
   });
 
-  it('retry exhaustion retains every attempt`s guard-caught frame', async () => {
+  it("retry exhaustion retains every attempt's guard-caught frame", async () => {
     const src = `
       #AB0x => $x
       retry<limit: 3> { $x.a }

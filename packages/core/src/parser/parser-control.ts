@@ -817,7 +817,12 @@ Parser.prototype.parseRetryBlock = function (
     );
   }
   advance(this.state); // consume 'limit'
-  expect(this.state, TOKEN_TYPES.COLON, "Expected ':' after 'limit'");
+  expect(
+    this.state,
+    TOKEN_TYPES.COLON,
+    "Expected ':' after 'limit'",
+    ERROR_IDS.RILL_P004
+  );
   skipNewlines(this.state);
   // Parse integer attempts.
   if (!check(this.state, TOKEN_TYPES.NUMBER)) {
