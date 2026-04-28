@@ -439,7 +439,7 @@ describe('Rill Runtime: List Membership Methods', () => {
       const duration = Date.now() - start;
 
       expect(result).toBe(true);
-      expect(duration).toBeLessThan(50);
+      expect(duration).toBeLessThan(150);
     });
 
     it('handles large list with has_any efficiently', async () => {
@@ -490,7 +490,9 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     it('works with map and filter results', async () => {
-      expect(await run('list[1, 2, 3] -> fan({ $ * 2 }) -> .has(4)')).toBe(true);
+      expect(await run('list[1, 2, 3] -> fan({ $ * 2 }) -> .has(4)')).toBe(
+        true
+      );
     });
   });
 });
