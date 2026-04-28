@@ -21,17 +21,17 @@ Load fragments progressively. The cheatsheet alone is enough for most short scri
 
 ## Full bundle
 
-[ref-llms-full.txt](ref-llms-full.txt) — every fragment concatenated. Use when context budget is unconstrained or when piping the reference into a long-running session.
+[Full bundle](/llms-full.txt) — every fragment concatenated. Use when context budget is unconstrained or when piping the reference into a long-running session.
 
 ## Adjacent references
 
 | Resource | Purpose |
 |---|---|
-| [ref-language.md](ref-language.md) | Human-readable spec with prose explanations |
-| [ref-grammar.ebnf](ref-grammar.ebnf) | Formal EBNF grammar |
-| [ref-errors.md](ref-errors.md) | Every error code with cause and resolution |
-| [ref-host-api.md](ref-host-api.md) | TypeScript embedding API |
-| [cookbook.md](cookbook.md) | Reusable design patterns |
+| [Language reference](/docs/reference/language/) | Human-readable spec with prose explanations |
+| [EBNF grammar](/ref-grammar.ebnf) | Formal grammar |
+| [Error reference](/docs/reference/errors/) | Every error code with cause and resolution |
+| [Host API](/docs/reference/host-api/) | TypeScript embedding API |
+| [Cookbook](/docs/guide/cookbook/) | Reusable design patterns |
 
 ## Rules an LLM must internalize
 

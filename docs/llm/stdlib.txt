@@ -14,7 +14,7 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.head` | first character |
 | `.tail` | last character |
 | `.at(i)` | character at index |
-| `.first` | iterator at first character |
+| `.first()` | iterator at first character |
 | `.split(sep)` | split into list (default sep: newline) |
 | `.lines` | split on newlines |
 | `.contains(s)` | substring check |
@@ -42,7 +42,7 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.empty` | is empty |
 | `.head` | first element |
 | `.tail` | last element |
-| `.first` | iterator at first element |
+| `.first()` | iterator at first element |
 | `.at(i)` | element at index |
 | `.join(sep)` | join elements with separator |
 | `.has(val)` | contains value (deep equality) |
@@ -55,7 +55,7 @@ String, list, dict methods, comparison helpers, and built-in functions.
 |---|---|
 | `.len` | number of entries |
 | `.empty` | is empty |
-| `.first` | iterator at first entry |
+| `.first()` | iterator at first entry |
 | `.keys` | keys as list |
 | `.values` | values as list |
 | `.entries` | list of `tuple[k, v]` pairs |

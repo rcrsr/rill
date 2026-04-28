@@ -63,7 +63,7 @@ All copies are deep. All comparisons are by value. No object identity.
                   """multiline"""        # also interpolates
     Numbers:      42, 3.14, -7
     Booleans:     true, false
-    Atoms:        #TIMEOUT, #ok         # interned identifiers
+    Atoms:        #TIMEOUT              # interned identifiers (must start uppercase)
     Lists:        list[1, 2, 3]
                   list[...$xs, 4]       # spread
     Dicts:        dict[name: "alice", age: 30]
