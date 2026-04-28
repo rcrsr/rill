@@ -286,7 +286,7 @@ Filtered form catches only matching atoms:
 
 ### Retry
 
-`retry<limit: N> { body }` re-enters body up to N times. Each failed attempt appends a `guard-caught` trace frame. `limit:` is a REQUIRED named argument; bare `retry<N>` is a parse error. N must be a positive integer literal.
+`retry<limit: N> { body }` re-enters body up to N times. Each failed attempt appends a `guard-caught` trace frame. `limit:` is a REQUIRED named argument; bare `retry<N>` is a parse error. N must be a positive integer.
 
     retry<limit: 3> {
       $app.fetch($url)
