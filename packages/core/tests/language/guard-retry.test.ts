@@ -321,3 +321,87 @@ describe('Guard with shape-invalid on-codes (EC-14)', () => {
     expect(getStatus(result as never).code).toBe(resolveAtom('R001'));
   });
 });
+
+describe('Recovery composed with default operator (??)', () => {
+  it('guard catching type-coercion halt falls back via ??', async () => {
+    const result = await run('guard { "a" -> number } ?? 0');
+    expect(result).toBe(0);
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('guard fallback to string default', async () => {
+    const result = await run('guard { "a" -> number } ?? "fallback"');
+    expect(result).toBe('fallback');
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('retry exhaustion falls back via ??', async () => {
+    const result = await run('retry<limit: 2> { "a" -> number } ?? 0');
+    expect(result).toBe(0);
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('retry exhaustion falls back to string', async () => {
+    const result = await run('retry<limit: 3> { "a" -> number } ?? "x"');
+    expect(result).toBe('x');
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('filtered guard catches matching code and falls back', async () => {
+    const result = await run(
+      'guard<on: list[#RILL_R038]> { "a" -> number } ?? 0'
+    );
+    expect(result).toBe(0);
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('successful guard body bypasses ??', async () => {
+    const result = await run('guard { "ok" } ?? "fb"');
+    expect(result).toBe('ok');
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('successful retry body bypasses ??', async () => {
+    const result = await run('retry<limit: 1> { 42 } ?? 0');
+    expect(result).toBe(42);
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('guard body with method chain succeeds and bypasses ??', async () => {
+    const result = await run('guard { "hello" -> .upper } ?? "fb"');
+    expect(result).toBe('HELLO');
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('?? default can be a computed expression', async () => {
+    const result = await run('guard { "a" -> number } ?? (1 + 2)');
+    expect(result).toBe(3);
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('?? default can be a list', async () => {
+    const result = await run('guard { "a" -> number } ?? list[1, 2]');
+    expect(result).toEqual([1, 2]);
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('?? default can reference a variable', async () => {
+    const result = await run(`
+      "backup" => $d
+      guard { "a" -> number } ?? $d
+    `);
+    expect(result).toBe('backup');
+    expect(isInvalid(result as never)).toBe(false);
+  });
+  it('?? does not swallow error from guard body', async () => {
+    await expect(run('guard { error "boom" } ?? "fb"')).rejects.toThrow('boom');
+  });
+  it('?? does not swallow non-matching halt from filtered guard', async () => {
+    const src = `
+      #AB0x => $x
+      guard<on: list[#AUTH]> { $x.foo } ?? "fb"
+    `;
+    await expect(
+      (async () => {
+        const parsed = parseWithRecovery(src);
+        const ctx = createRuntimeContext({});
+        return (await execute(parsed.ast, ctx)).result;
+      })()
+    ).rejects.toBeInstanceOf(RuntimeHaltSignal);
+  });
+  it('?? fallback value is chainable', async () => {
+    const result = await run('(guard { "a" -> number } ?? "fb") -> .upper');
+    expect(result).toBe('FB');
+    expect(isInvalid(result as never)).toBe(false);
+  });
+});
