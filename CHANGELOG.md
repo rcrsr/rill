@@ -7,20 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-04-26
+
 ### Breaking Changes
 
 - **`retry` syntax now requires `limit:` named argument** — `retry<N>` is a parse error; use `retry<limit: N>`. Likewise `retry<N, on: list[...]>` becomes `retry<limit: N, on: list[...]>`.
 
-- **`ExtensionFactory<TConfig>` signature change** — The factory function signature changed from `(config: TConfig) => ExtensionFactoryResult` to `(config: TConfig, ctx: ExtensionFactoryCtx) => ExtensionFactoryResult`. All existing extension factories must add the `ctx` parameter.
+- **Collection operators are callables, not keywords** — `each`, `map`, `fold`, `filter` are no longer reserved keywords. Five callable builtins replace them; scripts using the keyword forms must migrate.
 
-  **Before:**
-  ```typescript
-  const factory: ExtensionFactory<MyConfig> = (config) => ({
-    value: buildValue(config),
-  });
+  | Old keyword form | New callable form | Behaviour |
+  |---|---|---|
+  | `list -> each { body }` | `list -> seq({ body })` | Sequential; catches `break`; returns partial list |
+  | `list -> map { body }` | `list -> fan({ body }, [concurrency: N])` | Parallel; does not catch `break`; returns all results |
+  | `list -> fold(init) { body }` | `list -> fold(init, { body })` | Sequential reduction; returns final accumulator |
+  | `list -> filter { body }` | `list -> filter({ body }, [concurrency: N])` | Parallel predicate filter; returns matching elements |
+  | `list -> each(init) { body }` | `list -> acc(init, { body })` | Sequential scan; catches `break`; returns intermediate accumulators |
+
+  Host integrators: `EachExprNode`, `MapExprNode`, `FoldExprNode`, `FilterExprNode` are removed from the AST union; `EACH`, `MAP`, `FOLD`, `FILTER` are removed from the token type set; `packages/core/src/parser/parser-collect.ts` is deleted.
+
+- **Loop syntax unified under `while`/`do`** — The `@` loop operator is removed.
+
+  | Old form | New form |
+  |---|---|
+  | `(cond) @ { body }` | `while (cond) do { body }` |
+  | `@ { body } ? (cond)` | `do { body } while (cond)` |
+  | `^(limit: N) @ { body }` | `do<limit: N> { body }` |
+
+  RILL-R079 (`@` pre-loop), RILL-R080 (`@` post-loop), and RILL-R081 (`^(limit: N)` outside loop) report the exact source location and required replacement at parse time.
+
+- **Two-type anonymous closure syntax** — `|type1, type2|{ body }` synthesizes `$` (bound to `type1`) and `$@` (bound to `type2`). Used by `fold` and `acc` to receive accumulator and element:
+
+  ```rill
+  list -> fold(0, |number, string|{ $ + $@->number })
   ```
 
-  **After:**
+- **`:code` primitive renamed to `:atom`** — Scripts using `:code` annotations must migrate to `:atom`. Host API exports renamed: `RillCode` → `RillAtom`, `RillCodeValue` → `RillAtomValue`, `isCode` → `isAtom`. Sidecar field access (`.!code`) is unchanged.
+
+- **Type conversion uses `->`, `:>` removed** — Conversions now use the pipe form (`"42" -> number`, `dict -> ordered(name: string)`). Type values bound to variables work with pipes: `number => $t; "42" -> $t`.
+
+- **Halt errors surface as `RuntimeHaltSignal` only** — Code catching `AbortError` or `AutoExceptionError` must migrate to `instanceof RuntimeHaltSignal` with `getStatus()` or `atomName()` for differentiation.
+
+- **`ExtensionFactory<TConfig>` takes a context parameter** — Signature changes from `(config) => ExtensionFactoryResult` to `(config, ctx: ExtensionFactoryCtx) => ExtensionFactoryResult`. Factories that don't use `ctx` must still accept the parameter.
+
   ```typescript
   const factory: ExtensionFactory<MyConfig> = (config, ctx) => {
     const client = createClient(config, { signal: ctx.signal });
@@ -31,105 +59,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   };
   ```
 
-  If your factory does not use `ctx`, add the parameter and ignore it. §RILL.3.3, §RILL.4.3.
-
-- **Error signal unification** — Public API surfaces halt errors as `RuntimeHaltSignal` only. Code catching legacy `AbortError` or `AutoExceptionError` must migrate to `instanceof RuntimeHaltSignal` with `getStatus()` or `atomName()` checks for differentiation
-
-- **Collection operators migrated from keyword syntax to callable builtins** — `each`, `map`, `fold`, `filter` are no longer reserved keywords. Five callable builtins replace them. Scripts using the old keyword forms must migrate to the pipe-call forms.
-
-  **Removed keyword forms (no longer valid):**
-  ```text
-  list -> each { body }
-  list -> map { body }
-  list -> fold(init) { body }
-  list -> filter { body }
-  list -> each(init) { body }
-  ```
-
-  **New callable forms (registered in `BUILTIN_FUNCTIONS`):**
-  ```rill
-  list -> seq({ body })
-  list -> fan({ body })
-  list -> fold(init, { body })
-  list -> filter({ body })
-  list -> acc(init, { body })
-  ```
-
-  Call shapes:
-
-  | Builtin | Signature | Behaviour |
-  |---------|-----------|-----------|
-  | `seq` | `input -> seq({ body })` | Sequential iteration; catches `break`; returns partial list |
-  | `fan` | `input -> fan({ body }, [concurrency: N])` | Parallel iteration; does not catch `break`; returns all results |
-  | `fold` | `input -> fold(seed, { body })` | Sequential reduction; returns final accumulator (scalar) |
-  | `filter` | `input -> filter({ body }, [concurrency: N])` | Parallel predicate filter; returns matching elements |
-  | `acc` | `input -> acc(seed, { body })` | Sequential scan; catches `break`; returns list of intermediate accumulators |
-
-  **Migration cheat sheet:**
-
-  | Old form | New form |
-  |----------|----------|
-  | `list -> each { body }` | `list -> seq({ body })` |
-  | `list -> map { body }` | `list -> fan({ body })` |
-  | `list -> fold(init) { body }` | `list -> fold(init, { body })` |
-  | `list -> filter { body }` | `list -> filter({ body })` |
-  | `list -> each(init) { body }` | `list -> acc(init, { body })` |
-
-- **Loop syntax unified under `while`/`do` keywords** — The `@` loop operator is removed. Scripts using the old `@`-based loop forms must migrate to the keyword forms.
-
-  **Before (no longer valid):**
-  ```text
-  (cond) @ { body }           # pre-loop: condition first
-  @ { body } ? (cond)         # post-loop: condition after
-  ^(limit: N) @ { body }      # limit annotation on loop
-  ```
-
-  **After:**
-  ```text
-  while (cond) do { body }        # pre-loop
-  do { body } while (cond)        # post-loop
-  do<limit: N> { body }           # loop with iteration limit
-  ```
-
-  Migration errors RILL-R079 (`@` used as pre-loop), RILL-R080 (`@` used as post-loop), and RILL-R081 (`^(limit: N)` in non-loop context) report the exact source location and required replacement at parse time.
-
-- **Two-type anonymous closure syntax** — `|type1, type2|{ body }` synthesizes `$` (bound to `type1`) and `$@` (bound to `type2`) closure parameters. Used by `fold` and `acc` closures to receive both the accumulator and the current element.
-
-  ```rill
-  list -> fold(0, |number, string|{ $ + $@->number })
-  ```
-
-- **Removed AST nodes** — `EachExprNode`, `MapExprNode`, `FoldExprNode`, `FilterExprNode` are removed from the AST type union. Host code inspecting raw AST node types must migrate.
-
-- **Removed token types** — `EACH`, `MAP`, `FOLD`, `FILTER` are removed from the token type set. Lexer consumers testing for these token types must migrate.
-
-- **Removed parser module** — `packages/core/src/parser/parser-collect.ts` is removed. The collection operators are now evaluated as standard host-call builtins with no dedicated parser module.
-
 ### Added
 
-- **Control-flow signal discrimination** — Host code catching control-flow exceptions can now distinguish between break/return/yield signals and halt errors via `instanceof` checks on unified `ControlSignal` base
-- **Status probe operator (`.!`)** — `.!` returns `false` for valid values and `true` for invalid values without halting execution. `.!code` returns the atom code (e.g., `#TIMEOUT`, `#ok`) from the status sidecar. See [Error Handling](docs/topic-error-handling.md)
-- **Presence check operator (`.?field`)** — `$x.?field` returns `true` if the field exists, `false` otherwise, without halting. Composable with `??` for fallback values
-- **`guard` keyword** — `guard { body }` catches operational halts raised inside `body` and substitutes an invalid value with a `guard-caught` trace frame. Does not catch `error "..."` or `assert` halts
-- **`retry` keyword** — `retry<N> { body }` executes `body` up to N times, retrying on operational halt. Returns the first successful result or an invalid value with N `guard-caught` frames when exhausted
-- **`:atom` primitive type** — New first-class primitive for representing typed error codes. Atom literals in the form `#NAME` produce `:atom` values (e.g., `#NOT_FOUND`, `#TIMEOUT`)
-- **Atom literal syntax (`#NAME`)** — Uppercase-named atoms produce `:atom` values directly in source. Use with `guard`, `retry`, and `.!` for structured error handling
-- **`ctx.invalidate(error, meta)`** — Host API method on `RuntimeContext`. Wraps a JavaScript `Error` (or non-Error throwable) as a rill invalid value carrying the provided atom code and metadata. Used by host functions to return invalid values instead of throwing
-- **`ctx.catch<T>(thunk, detector)`** — Host API method on `RuntimeContext`. Executes a thunk, running a detector callback on any thrown value to map it to a `RillValue` invalid result. Unmapped throws produce `#R999` with `raw.original = String(thrown)`
-- **`ctx.registerErrorCode(name, kind)`** — Host API method on `ExtensionFactoryCtx`. Registers a new atom at factory-init time. Throws `RuntimeError` on duplicate with different kind or on regex validation failure
-- **`ctx.signal`** — `AbortSignal | undefined` on `RuntimeContext`, threaded from `runOptions`. Allows host functions to detect cancellation. (On `ExtensionFactoryCtx`, `signal` is the non-optional `AbortSignal` scoped to the extension's lifetime.)
-- **`ExtensionFactoryCtx` type** — New type exported from `@rcrsr/rill`. Provides `registerErrorCode` and `signal` to extension factories
-- **`dispose()` method** — Extensions return an optional `dispose()` function in `ExtensionFactoryResult`. Called when the runtime tears down the extension instance
-- **Three new generic atoms pre-registered in core** — `#FORBIDDEN` (HTTP 403, OAuth scope mismatch, content-filter block; distinct from `#AUTH`), `#QUOTA_EXCEEDED` (account-level resource exhaustion; distinct from `#RATE_LIMIT`), and `#PROTOCOL` (response shape violates documented contract; distinct from `#UNAVAILABLE`). Available without explicit `ctx.registerErrorCode` registration; lets extensions emit a portable taxonomy that host scripts can match via filtered guard (`guard<on: list[#FORBIDDEN]> { ... }`) or by branching on `$result.!code` instead of per-extension atom names.
+- **`:atom` literal syntax (`#NAME`)** — Uppercase-named atoms produce `:atom` values directly in source (`#NOT_FOUND`, `#TIMEOUT`). Composes with `guard`, `retry`, and `.!`.
+- **`guard { body }`** — Catches operational halts inside `body`, substituting an invalid value with a `guard-caught` trace frame. Does not catch `error "..."` or `assert`.
+- **`retry<limit: N> { body }`** — Executes `body` up to N times, retrying on operational halt. Returns the first success or an invalid value with N `guard-caught` frames when exhausted.
+- **Status probe operator `.!`** — `.!` returns `false` for valid values and `true` for invalid values without halting. `.!code` reads the atom code from the status sidecar (e.g., `#TIMEOUT`, `#ok`). See [Error Handling](docs/topic-error-handling.md).
+- **Presence check operator `.?field`** — `$x.?field` returns `true` if the field exists, `false` otherwise, without halting. Composes with `??` for fallback values.
+- **Three new generic atoms pre-registered in core** — `#FORBIDDEN` (HTTP 403, OAuth scope mismatch, content-filter block; distinct from `#AUTH`), `#QUOTA_EXCEEDED` (account-level resource exhaustion; distinct from `#RATE_LIMIT`), and `#PROTOCOL` (response shape violates documented contract; distinct from `#UNAVAILABLE`). Available without explicit `ctx.registerErrorCode` registration; host scripts match via filtered guard (`guard<on: list[#FORBIDDEN]> { ... }`) or by branching on `$result.!code`.
+- **Host API: error and lifecycle hooks**
+  - `ctx.invalidate(error, meta)` — wraps a thrown JavaScript value as a rill invalid carrying an atom code and metadata
+  - `ctx.catch<T>(thunk, detector)` — runs `thunk`, mapping any throw via `detector` to a `RillValue` invalid; unmapped throws produce `#R999` with `raw.original`
+  - `ctx.registerErrorCode(name, kind)` on `ExtensionFactoryCtx` — registers atoms at factory-init time; throws on duplicate-with-different-kind or regex failure
+  - `ctx.signal` — `AbortSignal | undefined` on `RuntimeContext` (threaded from `runOptions`); non-optional on `ExtensionFactoryCtx`, scoped to the extension's lifetime
+  - `ExtensionFactoryCtx` type — exported from `@rcrsr/rill`, provides `registerErrorCode` and `signal`
+  - `dispose()` — optional cleanup function returned in `ExtensionFactoryResult`, invoked when the runtime tears down the extension
+- **`ControlSignal` base class** — Break/return/yield signals share a base distinct from halt errors, so host catches can differentiate via `instanceof`.
 
 ### Changed
 
-- **Parser expression dispatch** — Expression parsing now uses structured dispatch tables instead of inline branching, improving clarity and maintainability
-- **Evaluator type safety improvements** — Core evaluator now enforces typed dispatch across mixins, reducing the likelihood of type errors in the runtime layer
-- **RuntimeContext API decomposition** — Context consumers now type-narrow against focused API slices, improving type safety and reducing coupling between host functions
-- **Atom type rename** — The `:code` primitive type is now spelled `:atom`. Host API exports are renamed: `RillCode` → `RillAtom`, `RillCodeValue` → `RillAtomValue`, `isCode` → `isAtom`. Scripts using `:code` type annotations must migrate to `:atom`; sidecar field access (`.!code`) is unaffected
-- **Error message interpolation preservation** — `error "..."` statements with string interpolation now attach wrap trace frames preserving the evaluated message content at runtime
-- **Type conversion syntax unified** — The `:>` type-conversion operator is removed. Type conversions now use the unified `->` pipe form (e.g., `"42" -> number`, `dict -> ordered(name: string)`). Type values bound to variables work with pipes too: `number => $t; "42" -> $t`
+- **`RuntimeContext` partitioned into six facade interfaces** — Host functions can type-narrow to the slice they need (scope, dispatch, lifecycle, control flow, resolver, metadata) instead of accepting the full context.
+- **Cross-mixin evaluator dispatch is typed** — Mixins call peers through a generated `EvaluatorInterface`, eliminating `(this as any).method(...)` at hot paths.
+- **`parser-expr.ts` precedence helpers extracted** — Five precedence functions share a `parseBinaryExprChain(nextParser, opTokens, opMap)` helper; collection/closure-start detection moved to dispatch tables.
+- **Error registry has a single source of truth** — `ERROR_IDS` (hyphen form) and `ERROR_ATOMS` (underscore atom form) replace ~559 inline magic-string error-id literals across the runtime; `BinaryOp` characters lift to `BINARY_OPS`.
+- **`error "..."` preserves interpolated content** — Wrap trace frames now carry the evaluated message string at runtime.
 
 ## [0.18.6] - 2026-04-17
 
