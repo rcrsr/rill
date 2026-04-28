@@ -1,0 +1,101 @@
+# rill stdlib
+
+String, list, dict methods, comparison helpers, and built-in functions.
+
+## String methods
+
+| Method | Description |
+|---|---|
+| `.len` | length |
+| `.empty` | is empty string |
+| `.trim` | remove whitespace |
+| `.upper` | uppercase |
+| `.lower` | lowercase |
+| `.head` | first character |
+| `.tail` | last character |
+| `.at(i)` | character at index |
+| `.first` | iterator at first character |
+| `.split(sep)` | split into list (default sep: newline) |
+| `.lines` | split on newlines |
+| `.contains(s)` | substring check |
+| `.starts_with(s)` | prefix check |
+| `.ends_with(s)` | suffix check |
+| `.index_of(s)` | first match position (-1 if none) |
+| `.replace(p, r)` | replace first regex match only |
+| `.replace_all(p, r)` | replace all regex matches |
+| `.match(regex)` | first match info: dict with `matched`, `index`, `groups` |
+| `.is_match(regex)` | boolean regex check |
+| `.repeat(n)` | repeat n times |
+| `.pad_start(n, f)` | pad start |
+| `.pad_end(n, f)` | pad end |
+
+`replace` vs `replace_all`:
+
+    "a.b.c" -> .replace("\\.", "-")        # "a-b.c" (first only)
+    "a.b.c" -> .replace_all("\\.", "-")    # "a-b-c" (all)
+
+## List methods
+
+| Method | Description |
+|---|---|
+| `.len` | length |
+| `.empty` | is empty |
+| `.head` | first element |
+| `.tail` | last element |
+| `.first` | iterator at first element |
+| `.at(i)` | element at index |
+| `.join(sep)` | join elements with separator |
+| `.has(val)` | contains value (deep equality) |
+| `.has_any(list)` | contains any value from candidates |
+| `.has_all(list)` | contains all values from candidates |
+
+## Dict methods
+
+| Method | Description |
+|---|---|
+| `.len` | number of entries |
+| `.empty` | is empty |
+| `.first` | iterator at first entry |
+| `.keys` | keys as list |
+| `.values` | values as list |
+| `.entries` | list of `tuple[k, v]` pairs |
+
+## Comparison methods
+
+Method form mirrors operators. Use when piping.
+
+    .eq(val) ==   .ne(val) !=   .lt(val) <   .gt(val) >   .le(val) <=   .ge(val) >=
+
+Example:
+
+    $age -> .ge(18) ? "adult" ! "minor"
+
+## Built-in functions
+
+| Function | Description |
+|---|---|
+| `log(val)` | print and pass through |
+| `json(val)` | convert to JSON string |
+| `identity(val)` | returns input unchanged |
+| `range(start, end, step?)` | number sequence (iterator) |
+| `repeat(val, count)` | repeat value n times (iterator) |
+| `enumerate(coll)` | lists: `list[dict[index, value]]`; dicts: `list[dict[index, key, value]]` |
+| `chain($fn)` | apply single closure; `chain(val, list[$f, $g])` applies in sequence |
+| `now()` | current datetime |
+| `datetime(...)` | construct datetime (ISO string or named components) |
+| `duration(y, m, d, h)` | construct duration |
+| `atom(name)` | string to atom |
+
+Built-ins are called bare (no `$`):
+
+    log("hello")                       # not $log("hello")
+    range(0, 5) -> seq({ $ * 2 })
+
+## enumerate example
+
+    list["a", "b"] -> enumerate -> seq({ "{$.index}: {$.value}" })
+    # list["0: a", "1: b"]
+
+## chain example
+
+    chain(5, list[{ $ * 2 }, { $ + 1 }])   # 5 -> 10 -> 11

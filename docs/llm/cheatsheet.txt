@@ -1,0 +1,144 @@
+# rill cheatsheet
+
+Default context for any rill task. Covers the 7 critical differences, syntax, `$` binding, and callable types. Read first.
+
+## The 7 critical differences
+
+### 1. No assignment operator
+
+    Wrong: x = 5         Mainstream: x = value
+    Right: 5 => $x       rill:       value => $x
+
+`->` pipes a value to the next operation. `=>` captures a value AND continues the chain.
+
+    "hello" => $x -> .upper => $y    # $x="hello", $y="HELLO"
+
+### 2. No null or undefined
+
+Empty values (`""`, `0`, `false`, `list[]`, `dict[]`) exist. "No value" cannot be represented.
+
+    $dict.field ?? "default"          # default if vacant
+    $str -> .empty ? "was empty"      # explicit check
+
+### 3. No truthiness
+
+Conditions must be boolean. No coercion. Negation also requires boolean.
+
+    Wrong: "" ? "yes" ! "no"          Right: "" -> .empty ? "yes" ! "no"
+    Wrong: 0 ? "yes" ! "no"           Right: (0 == 0) ? "yes" ! "no"
+    Wrong: !"hello"                   Right: "hello" -> .empty -> (!$)
+
+### 4. Variables lock to first type
+
+    "hello" => $x
+    42 => $x        # ERROR: cannot assign number to string variable
+
+### 5. No variable shadowing
+
+Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodies cannot mutate outer state.
+
+    Wrong: 0 => $count
+           list[1, 2, 3] -> seq({ $count + 1 => $count })   # runtime error
+
+    Right: list[1, 2, 3] -> fold(0, { $@ + $ })             # 6
+
+`for` does not exist. Use `seq`, `fan`, `fold`, `acc`, `filter`, or `while`.
+
+### 6. Errors halt — recover with `guard`
+
+No try/catch. Failures throw runtime errors (uncatchable) or produce **invalid values** that halt on access. Recover access halts with `guard { }` or `retry<limit: N> { }`. Inspect with `.!`, `.!code`, `.!message`.
+
+### 7. Value semantics
+
+All copies are deep. All comparisons are by value. No object identity.
+
+    list[1, 2, 3] == list[1, 2, 3]   # true
+    list[1, 2] => $a
+    $a => $b                          # $b is an independent deep copy
+
+## Syntax quick reference
+
+    Variables:    $name (always prefixed with $)
+    Strings:      "hello {$var}"        # interpolation with {}
+                  """multiline"""        # also interpolates
+    Numbers:      42, 3.14, -7
+    Booleans:     true, false
+    Atoms:        #TIMEOUT, #ok         # interned identifiers
+    Lists:        list[1, 2, 3]
+                  list[...$xs, 4]       # spread
+    Dicts:        dict[name: "alice", age: 30]
+                  dict[$keyVar: value]  # variable key
+    Tuples:       tuple[1, 2, 3]
+    Ordered:      ordered[a: 1, b: 2]   # named-arg unpacking
+    Closures:     |x| ($x + 1)          # explicit
+                  { $ + 1 }             # block, implicit $
+    Type annot:   "hi" => $x:string
+    Modules:      use<module:greet> => $g
+    Extensions:   use<ext:llm> => $llm
+    Comments:     # single line only
+    Frontmatter:  ---\nkey: value\n---  # YAML at top of script
+
+CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.
+
+## Pipes and `$` binding
+
+`$` is the current piped value. Its meaning depends on context:
+
+| Context | `$` contains |
+|---|---|
+| `-> { body }` | piped value |
+| `-> seq({ })` / `fan({ })` / `filter({ })` | current item |
+| `-> fold(i, { })` / `acc(i, { })` | current item (`$@` = accumulator) |
+| `while (cond) do { }` | accumulated value |
+| `cond ? { } ! { }` | tested value |
+| `\|\|{ $.field }` in dict | the containing dict |
+
+Implied `$`: bare `.method` means `$ -> .method`. `"hello" -> .upper` is `"hello" -> $.upper`.
+
+Always prefer implicit `$`:
+
+    .method        # over $.method
+    func           # over func($)
+    $fn            # over $fn($)
+
+Don't capture just to continue a chain. Use line continuation. Capture only when reused.
+
+## Callable types
+
+| Type | Source | Examples |
+|---|---|---|
+| Closure | Script-defined | `\|x\| { $x * 2 }`, `{ $ + 1 }` |
+| Built-in | Shipped with runtime | `log`, `json`, `range`, `repeat`, `chain` |
+| Host | Registered by host | `$app.fetch()` (hoisted via `use<ext:app> => $app`) |
+
+The `$` prefix disambiguates:
+
+    name()    -> built-in or host call
+    $name()   -> closure invocation
+    $name     -> variable reference
+    name      -> dict key literal
+
+## Operator precedence (highest to lowest)
+
+1. Member access: `.field`, `[index]`
+2. Type operators: `:type`, `:?type`
+3. Unary: `-`, `!`
+4. `*` `/` `%`
+5. `+` `-`
+6. Comparison: `==` `!=` `<` `>` `<=` `>=`
+7. `&&`
+8. `||`
+9. `??`
+10. `->`
+11. `=>`
+
+Use parentheses to override.
+
+## Script return values
+
+| Return value | Exit code |
+|---|---|
+| `true` / non-empty string | 0 |
+| `false` / empty string | 1 |
+| `list[0, "message"]` | 0 with message |
+| `list[1, "message"]` | 1 with message |

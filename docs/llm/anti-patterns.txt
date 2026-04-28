@@ -1,0 +1,137 @@
+# rill anti-patterns
+
+Wrong/Right pairs aimed at TypeScript and Python reflexes. Load when generating fresh code.
+
+## Assignment
+
+    Wrong: x = 5
+    Right: 5 => $x
+
+    Wrong: let user = "alice"
+    Right: "alice" => $user
+
+    Wrong: const PI = 3.14
+    Right: 3.14 => $pi
+
+## Variable references
+
+    Wrong: x.upper
+    Right: $x -> .upper
+
+    Wrong: print(name)
+    Right: log($name)            # or $name -> log
+
+## Truthy conditions
+
+    Wrong: $name ? "have name" ! "no name"
+    Right: $name -> .empty ? "no name" ! "have name"
+
+    Wrong: $count ? "some" ! "none"
+    Right: ($count > 0) ? "some" ! "none"
+
+    Wrong: $list ? "items" ! "empty"
+    Right: $list -> .empty ? "empty" ! "items"
+
+    Wrong: !$value
+    Right: $value -> .empty       # for strings/lists/dicts
+    Right: ($value == 0)          # for numbers
+    Right: !$bool                 # only on actual booleans
+
+## Loops
+
+    Wrong: for item in list { ... }
+    Right: $list -> seq({ ... })           # sequential, returns all results
+    Right: $list -> fan({ ... })           # parallel, returns all results
+
+    Wrong: for (let i = 0; i < n; i++) { ... }
+    Right: range(0, $n) -> seq({ ... })
+
+    Wrong: let total = 0
+           for x in list { total += x }
+    Right: $list -> fold(0, { $@ + $ })    # 6 for list[1,2,3]
+
+    Wrong: while (x < 10) { x = x + 1 }
+    Right: 0 -> while ($ < 10) do { $ + 1 }
+
+## Reassignment inside loops
+
+    Wrong: 0 => $sum
+           $items -> seq({ $sum + $.price => $sum })   # halts: outer var reassigned
+
+    Right: $items -> fold(0, { $@ + $.price })          # 0 + p1 + p2 + ...
+    Right: $items -> acc(0, { $@ + $.price })           # list of running totals
+
+## Try/catch
+
+    Wrong: try { fetch(url) } catch (e) { fallback }
+    Right: retry<limit: 3> { $app.fetch($url) } => $r
+           $r ?? "fallback"
+
+    Wrong: try { JSON.parse(s) } catch { null }
+    Right: guard { $s -> :dict } => $out
+           $out.! ? "parse failed" ! $out
+
+## Null and undefined
+
+    Wrong: x === null
+    Right: $x.!                            # is this an invalid value?
+    Right: $x -> .empty                    # is this an empty container?
+
+    Wrong: x ?? default                    # JS nullish coalescing
+    Right: $x ?? "default"                 # rill: vacant (empty OR invalid) coalescing
+
+    Wrong: dict[a: undefined]
+    Right: dict[a: ""]                     # explicit empty
+
+## String operations
+
+    Wrong: "Hello " + name
+    Right: "Hello {$name}"                 # interpolation
+    Right: "Hello " -> { $ + $name }       # if you really need + (number-string ERROR)
+
+    Wrong: name.toUpperCase()
+    Right: $name -> .upper
+
+    Wrong: arr.length
+    Right: $arr.len                        # property, not method call
+
+## Array methods
+
+    Wrong: arr.map(x => x * 2)
+    Right: $arr -> fan({ $ * 2 })          # parallel
+    Right: $arr -> seq({ $ * 2 })          # sequential
+
+    Wrong: arr.filter(x => x > 0)
+    Right: $arr -> filter({ $ > 0 })
+
+    Wrong: arr.reduce((acc, x) => acc + x, 0)
+    Right: $arr -> fold(0, { $@ + $ })
+
+    Wrong: arr[arr.length - 1]
+    Right: $arr[-1]                        # negative index from end
+
+## Object access
+
+    Wrong: obj.missing                     # undefined or error
+    Right: $obj.missing ?? "default"       # vacant fallback
+    Right: $obj.?missing                   # boolean: does field exist?
+
+    Wrong: obj["computed-" + key]
+    Right: $obj.("{$prefix}-{$key}")       # computed key
+
+## Function calls vs closures
+
+    Wrong: $double(5)                      # if $double is a built-in or host fn
+    Right: double(5)                       # no $ for built-in/host calls
+
+    Wrong: log($x)                         # if log was assigned to $log
+    Right: $log($x)                        # script closures need $
+
+    Wrong: |x| ($x * 2) => double          # capture name needs $
+    Right: |x| ($x * 2) => $double
+
+## Whitespace traps
+
+    list [1, 2, 3]    # ERROR (RILL-P007): no space before keyword `[`
+    $obj. field       # ERROR: no space after `.`
+    $x->.upper        # invalid: pipe needs spaces both sides
