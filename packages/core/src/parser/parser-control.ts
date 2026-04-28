@@ -776,9 +776,10 @@ Parser.prototype.parseGuardBlock = function (
 };
 
 /**
- * Parse a retry block: `retry<N> { body }` or `retry<N, on: list[#X]> { body }`.
+ * Parse a retry block: `retry<limit: N> { body }` or `retry<limit: N, on: list[#X]> { body }`.
  *
  * Enters with current token being RETRY_LANGLE (compound) or RETRY (bare).
+ * The `limit:` named argument is required; bare `retry<N>` is a parse error.
  * Returns a RecoveryErrorNode when an atom in the on: list fails the strict
  * shape check (EC-14).
  */
@@ -796,7 +797,7 @@ Parser.prototype.parseRetryBlock = function (
     if (!check(this.state, TOKEN_TYPES.LT)) {
       throw new ParseError(
         ERROR_IDS.RILL_P004,
-        "Expected 'retry<N> { body }' or 'retry<N, on: list[#X]> { body }'",
+        "Expected 'retry<limit: N> { body }' or 'retry<limit: N, on: list[#X]> { body }'",
         current(this.state).span.start
       );
     }
@@ -804,11 +805,30 @@ Parser.prototype.parseRetryBlock = function (
   }
 
   skipNewlines(this.state);
+  // Require the `limit:` named argument before the integer attempt count.
+  if (
+    !check(this.state, TOKEN_TYPES.IDENTIFIER) ||
+    current(this.state).value !== 'limit'
+  ) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "Expected 'limit:' inside 'retry<...>'",
+      current(this.state).span.start
+    );
+  }
+  advance(this.state); // consume 'limit'
+  expect(
+    this.state,
+    TOKEN_TYPES.COLON,
+    "Expected ':' after 'limit'",
+    ERROR_IDS.RILL_P004
+  );
+  skipNewlines(this.state);
   // Parse integer attempts.
   if (!check(this.state, TOKEN_TYPES.NUMBER)) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
-      "Expected integer attempt count inside 'retry<N>'",
+      "Expected integer attempt count inside 'retry<limit: N>'",
       current(this.state).span.start
     );
   }
@@ -817,7 +837,7 @@ Parser.prototype.parseRetryBlock = function (
   if (!Number.isInteger(attempts) || attempts < 1) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
-      `retry<N> attempt count must be a positive integer; got ${attemptsToken.value}`,
+      `retry<limit: N> attempt count must be a positive integer; got ${attemptsToken.value}`,
       attemptsToken.span.start
     );
   }

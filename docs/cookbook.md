@@ -759,21 +759,21 @@ Retry a failing operation up to N times, then coerce the result to a default:
 ```text
 use<ext:app> => $app
 
-retry<3> {
+retry<limit: 3> {
   $app.fetch("https://api.example.com/data")
 } => $result
 
 $result.! ? "unavailable" ! $result
 ```
 
-`retry<3>` re-enters the body up to 3 times. If all attempts fail, the final invalid value is returned. The `??` operator replaces it with a safe default.
+`retry<limit: 3>` re-enters the body up to 3 times. If all attempts fail, the final invalid value is returned. The `??` operator replaces it with a safe default.
 
 Combine with `??` for a one-liner fallback:
 
 ```text
 use<ext:app> => $app
 
-retry<3> { $app.fetch("https://api.example.com/data") } ?? "unavailable"
+retry<limit: 3> { $app.fetch("https://api.example.com/data") } ?? "unavailable"
 ```
 
 ### Nested Guard and Retry
@@ -783,7 +783,7 @@ Wrap an inner `guard` with an outer retry to re-execute on partial failure:
 ```text
 use<ext:app> => $app
 
-retry<3, on: list[#UNAVAILABLE]> {
+retry<limit: 3, on: list[#UNAVAILABLE]> {
   guard<on: list[#NOT_FOUND]> {
     $app.fetch("https://api.example.com/resource")
   } => $inner
@@ -793,7 +793,7 @@ retry<3, on: list[#UNAVAILABLE]> {
 $result.! ? "all retries failed: {$result.!message}" ! $result
 ```
 
-`guard<on: list[#NOT_FOUND]>` catches only `#NOT_FOUND` halts and surfaces them as values. The inline `error` re-escalates them as non-catchable halts. `retry<3, on: list[#UNAVAILABLE]>` retries only on service unavailability.
+`guard<on: list[#NOT_FOUND]>` catches only `#NOT_FOUND` halts and surfaces them as values. The inline `error` re-escalates them as non-catchable halts. `retry<limit: 3, on: list[#UNAVAILABLE]>` retries only on service unavailability.
 
 ### Per-Item Collection Recovery
 

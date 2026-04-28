@@ -1,8 +1,8 @@
 # Nested guard + retry: outer guard catches retry-exhausted invalid
 #
-# retry<2> runs the type-assertion body twice, then produces an invalid
+# retry<limit: 2> runs the type-assertion body twice, then produces an invalid
 # value with 2 guard-caught frames. The outer guard catches the
 # re-propagated halt and appends its own guard-caught frame.
 # Final invalid carries 3 total frames (2 retry + 1 guard-caught outer).
 
-guard { retry<2> { "x" -> :number } }
+guard { retry<limit: 2> { "x" -> :number } }

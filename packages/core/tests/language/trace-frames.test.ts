@@ -77,7 +77,7 @@ describe('Trace frame ordering (SM6)', () => {
     // retry from guard at frame creation).
     const src = `
       #AB0x => $x
-      retry<2> { $x.a }
+      retry<limit: 2> { $x.a }
     `;
     const result = await runRecovered(src);
     const frames = getStatus(result as never).trace;
@@ -107,10 +107,10 @@ describe('FR-ERR-12: Append-only, never rewrite prior frames', () => {
     expect(caughtFrames.length).toBe(2);
   });
 
-  it('retry exhaustion retains every attempt`s guard-caught frame', async () => {
+  it("retry exhaustion retains every attempt's guard-caught frame", async () => {
     const src = `
       #AB0x => $x
-      retry<3> { $x.a }
+      retry<limit: 3> { $x.a }
     `;
     const result = await runRecovered(src);
     const frames = getStatus(result as never).trace;

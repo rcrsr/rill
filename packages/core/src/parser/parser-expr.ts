@@ -1021,7 +1021,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return this.parseGuardBlock();
   }
 
-  // Compound-token guard: RETRY_LANGLE → retry<N> { body }.
+  // Compound-token retry: RETRY_LANGLE → retry<limit: N> { body }.
   if (check(this.state, TOKEN_TYPES.RETRY_LANGLE)) {
     return this.parseRetryBlock();
   }

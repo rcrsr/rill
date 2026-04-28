@@ -968,7 +968,7 @@ This pattern fetches a URL, retries on failure, and falls back to cached data:
 use<ext:app> => $app
 
 # Attempt fetch with retry
-retry<3> {
+retry<limit: 3> {
   $app.fetch("https://api.example.com/data")
 } => $result
 
@@ -983,7 +983,7 @@ $result.! ? {
 }
 ```
 
-`retry<3>` re-enters the body up to 3 times. After all attempts fail, `.!` is `true`. The `!` branch reads `.!code` to log which error occurred before falling back to `$cache`.
+`retry<limit: 3>` re-enters the body up to 3 times. After all attempts fail, `.!` is `true`. The `!` branch reads `.!code` to log which error occurred before falling back to `$cache`.
 
 ### Read the Error Atom
 

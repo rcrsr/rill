@@ -62,7 +62,7 @@ See [Operators](topic-operators.md) for detailed documentation.
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
-| `retry<N> { body }` | Retry body up to N times on invalid result |
+| `retry<limit: N> { body }` | Retry body up to N times on caught halt |
 
 See [Control Flow](topic-control-flow.md) for detailed documentation. Script-level exit functions must be host-provided.
 
