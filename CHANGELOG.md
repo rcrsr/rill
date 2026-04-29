@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2026-04-28
+
 ### Added
 
 - **Pipe operator refinement** — Pipe now places values at explicit `$` positions when present, falling back to auto-prepend for traditional left-to-right flows
