@@ -59,6 +59,7 @@ const COMPOUND_KEYWORD_MAP: Record<
   use: { bracket: '<', tokenType: TOKEN_TYPES.USE_LANGLE },
   retry: { bracket: '<', tokenType: TOKEN_TYPES.RETRY_LANGLE },
   do: { bracket: '<', tokenType: TOKEN_TYPES.DO_LANGLE },
+  pass: { bracket: '<', tokenType: TOKEN_TYPES.PASS_LANGLE },
   guard: { bracket: '{', tokenType: TOKEN_TYPES.GUARD_LBRACE },
 };
 

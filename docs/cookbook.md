@@ -873,11 +873,109 @@ $result.! ? "wrapped: {$result.!message}" ! $result
 
 ---
 
+## Stream Slicing Patterns
+
+Recipes for chunking, gating, and restructuring streams using the slicing operators.
+
+### Batch Processing
+
+Process a list in fixed-size chunks, applying an operation to each batch:
+
+```rill
+range(1, 11) -> batch(3) -> seq({ log($) })
+# Result: [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
+```
+
+`batch(3)` groups the 10-element range into chunks of 3. The trailing chunk `[10]` is kept because `drop_partial` defaults to `false`. Each chunk arrives as a list inside `seq`.
+
+To discard the trailing short chunk, pass `drop_partial: true`:
+
+```rill
+range(1, 11) -> batch(3, [drop_partial: true]) -> seq({ $ })
+# Result: [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+```
+
+---
+
+### Bounded Cycling
+
+Repeat a pattern a fixed number of times by combining `cycle` with `take`:
+
+```rill
+[1, 2, 3] -> cycle -> take(6)
+# Result: [1, 2, 3, 1, 2, 3]
+```
+
+`cycle` turns the list into an infinite iterator. `take(6)` extracts 6 elements before stopping. The source list length does not need to divide evenly into the count.
+
+Use this to fill fixed-length slots with a repeating value set:
+
+```rill
+["a", "b"] -> cycle -> take(5)
+# Result: ["a", "b", "a", "b", "a"]
+```
+
+---
+
+### Predicate-Gated Streams
+
+Start or stop iteration based on a runtime condition using `start_when` and `stop_when`.
+
+Gate a stream to begin after a threshold:
+
+```rill
+range(1, 8) -> start_when(|x| ($x > 3))
+# Result: [4, 5, 6, 7]
+```
+
+Gate a stream to stop at a threshold (the matching element is included):
+
+```rill
+range(1, 8) -> stop_when(|x| ($x > 3))
+# Result: [1, 2, 3, 4]
+```
+
+Combine both to extract a bounded window from a larger stream:
+
+```rill
+range(1, 20) -> start_when(|x| ($x >= 5)) -> stop_when(|x| ($x >= 10))
+# Result: [5, 6, 7, 8, 9, 10]
+```
+
+`start_when` discards elements before the first match. `stop_when` stops after the first match. Chaining them gives a precise range gate.
+
+---
+
+### Non-Halting Audit Logging
+
+Use `pass<on_error: #IGNORE>` to log a side effect without risking a halt that breaks the pipe:
+
+```rill
+5 -> pass<on_error: #IGNORE> { log($) }
+# Result: 5
+```
+
+The pipe value `5` flows through unchanged. `log($)` executes as a side effect. If `log` raises a catchable halt, `on_error: #IGNORE` suppresses it and the pipe continues.
+
+This pattern is useful when audit or observability calls must not interrupt the main pipeline:
+
+```rill
+range(1, 4) -> seq({
+  $ -> pass<on_error: #IGNORE> { log($) }
+})
+# Result: [1, 2, 3]
+```
+
+Each element is logged, then passed through to `seq`'s result list. A logging failure on any element does not abort the iteration.
+
+---
+
 ## See Also
 
 - [Examples](guide-examples.md) — Language feature demonstrations
 - [Reference](ref-language.md) — Complete language specification
 - [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc` details
+- [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass<>` details
 - [Closures](topic-closures.md) — Function patterns and binding
 - [Host Integration](integration-host.md) — Embedding API
 - [Error Handling](topic-error-handling.md) — guard, retry, status probes

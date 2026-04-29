@@ -48,6 +48,14 @@ export async function expectHalt(
   expect(caught).toBeInstanceOf(RuntimeHaltSignal);
   const signal = caught as RuntimeHaltSignal;
   const status = getStatus(signal.value);
+  if (
+    expected.code !== 'R001' &&
+    resolveAtom(expected.code) === resolveAtom('R001')
+  ) {
+    throw new Error(
+      `expectHalt: atom '${expected.code}' is not registered in CORE_ATOM_REGISTRATIONS — resolveAtom returned the #R001 fallback. Register the atom or check the code name.`
+    );
+  }
   expect(status.code).toBe(resolveAtom(expected.code));
   if (expected.messagePattern !== undefined) {
     if (expected.messagePattern instanceof RegExp) {
@@ -124,6 +132,14 @@ export function expectHaltSync(
   expect(caught).toBeInstanceOf(RuntimeHaltSignal);
   const signal = caught as RuntimeHaltSignal;
   const status = getStatus(signal.value);
+  if (
+    expected.code !== 'R001' &&
+    resolveAtom(expected.code) === resolveAtom('R001')
+  ) {
+    throw new Error(
+      `expectHalt: atom '${expected.code}' is not registered in CORE_ATOM_REGISTRATIONS — resolveAtom returned the #R001 fallback. Register the atom or check the code name.`
+    );
+  }
   expect(status.code).toBe(resolveAtom(expected.code));
   if (expected.messagePattern !== undefined) {
     if (expected.messagePattern instanceof RegExp) {

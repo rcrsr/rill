@@ -39,6 +39,7 @@ export type NodeType =
   | 'Return'
   | 'Yield'
   | 'Pass'
+  | 'PassBlock'
   | 'Assert'
   | 'BinaryExpr'
   | 'UnaryExpr'

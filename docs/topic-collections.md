@@ -1,10 +1,10 @@
 # rill Collection Operators
 
-*Sequential and parallel iteration with seq, fan, filter, fold, acc, and sort*
+*Six core iteration operators: seq, fan, filter, fold, acc, and sort (slicing and restructuring live in a companion file)*
 
 ## Overview
 
-rill provides six collection operators for transforming, filtering, reducing, and ordering data:
+rill provides six core collection operators for transforming, filtering, reducing, and ordering data. Slicing, batching, windowing, and gating operators live in [Collection Slicing and Restructuring Operators](topic-collection-slicing.md).
 
 | Operator | Execution | Accumulator | Returns | Catches break? |
 |----------|-----------|-------------|---------|----------------|
@@ -852,6 +852,7 @@ Process nested structures with nested operators.
 
 ## See Also
 
+- [Collection Slicing and Restructuring Operators](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass<>` body form
 - [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `.first()`
 - [Reference](ref-language.md) — Complete language specification
 - [Closures](topic-closures.md) — Closure semantics and patterns

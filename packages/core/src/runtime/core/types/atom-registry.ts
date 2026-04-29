@@ -214,6 +214,8 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   [ERROR_ATOMS[ERROR_IDS.RILL_R036], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R037], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R038], 'runtime'],
+  // builtins.ts collection-operator atoms.
+  [ERROR_ATOMS[ERROR_IDS.RILL_R040], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R041], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R042], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R044], 'runtime'],

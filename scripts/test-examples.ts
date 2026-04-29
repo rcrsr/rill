@@ -809,7 +809,7 @@ function createMockFunctions(): Record<string, RillFunction> {
       params: [{ name: 'cmd', type: { type: 'string' } }],
       fn: () => 'output',
     },
-    skip: {
+    'app::skip': {
       params: [{ name: 'reason', type: { type: 'string' } }],
       fn: () => null,
     },

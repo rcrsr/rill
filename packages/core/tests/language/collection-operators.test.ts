@@ -15,12 +15,14 @@ import {
   createRillStream,
   createVector,
   parse,
+  RuntimeHaltSignal,
   TOKEN_TYPES,
   type RillStream,
   type TypeStructure,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 // Helper: host function returning a RillStream over provided values
@@ -496,6 +498,290 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       );
       expect(withExplicitDollar).toEqual(withAutoPrepend);
       expect(withExplicitDollar).toEqual([6, 7, 8]);
+    });
+  });
+
+  // ── Phase 1: take, skip, cycle, pass<> ───────────────────────────────────
+
+  describe('Phase 1 slicing operators and pass<> body', () => {
+    // ── take ────────────────────────────────────────────────────────────────
+
+    it('AC-TAKE-1: range(1,101) -> take(5) yields [1,2,3,4,5]', async () => {
+      expect(await run('range(1, 101) -> take(5)')).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('AC-TAKE-2: list[1,2,3] -> take(5) yields [1,2,3] (n > length)', async () => {
+      expect(await run('list[1, 2, 3] -> take(5)')).toEqual([1, 2, 3]);
+    });
+
+    it('AC-TAKE-3: list[1,2,3] -> take(0) yields [] (list input -> empty list)', async () => {
+      expect(await run('list[1, 2, 3] -> take(0)')).toEqual([]);
+    });
+
+    it('AC-TAKE-4: stream input take(0) yields [] (materialized as empty list)', async () => {
+      // Convention: collection operators materialise stream inputs to lists.
+      const result = await run('make_stream() -> take(0)', {
+        functions: { make_stream: makeStreamFn([1, 2, 3]) },
+      });
+      expect(result).toEqual([]);
+    });
+
+    // ── skip ────────────────────────────────────────────────────────────────
+
+    it('AC-SKIP-1: range(1,11) -> skip(3) yields [4,5,6,7,8,9,10]', async () => {
+      expect(await run('range(1, 11) -> skip(3)')).toEqual([
+        4, 5, 6, 7, 8, 9, 10,
+      ]);
+    });
+
+    it('AC-SKIP-2: list[1,2,3] -> skip(0) yields [1,2,3]', async () => {
+      expect(await run('list[1, 2, 3] -> skip(0)')).toEqual([1, 2, 3]);
+    });
+
+    it('AC-SKIP-3: list[1,2,3] -> skip(5) yields [] (n > length)', async () => {
+      expect(await run('list[1, 2, 3] -> skip(5)')).toEqual([]);
+    });
+
+    // ── cycle ───────────────────────────────────────────────────────────────
+
+    it('AC-CYCLE-1: list[1,2,3] -> cycle -> take(6) yields [1,2,3,1,2,3]', async () => {
+      expect(await run('list[1, 2, 3] -> cycle -> take(6)')).toEqual([
+        1, 2, 3, 1, 2, 3,
+      ]);
+    });
+
+    it('AC-CYCLE-2: list[] -> cycle -> take(5) yields []', async () => {
+      expect(await run('list[] -> cycle -> take(5)')).toEqual([]);
+    });
+
+    // ── pass<> body ──────────────────────────────────────────────────────────
+
+    it('AC-PASSBODY-1: pass<on_error: #IGNORE> body executes; pipe value unchanged', async () => {
+      // Inject a log function that captures its argument. The pass<> body
+      // invokes log($) (host call), which records the pipe value, then the
+      // pipe value (5) is returned unchanged by pass<>.
+      const captured: RillValue[] = [];
+      const log_fn = {
+        params: [
+          {
+            name: 'value',
+            type: { kind: 'any' as const },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        returnType: anyTypeValue,
+        fn: (args: Record<string, RillValue>): null => {
+          captured.push(args['value'] ?? null);
+          return null;
+        },
+      };
+      const result = await run('5 -> pass<on_error: #IGNORE> { log($) }', {
+        functions: { log: log_fn },
+      });
+      expect(result).toBe(5);
+      expect(captured).toEqual([5]);
+    });
+
+    // ── Error cases ─────────────────────────────────────────────────────────
+
+    it('AC-ERR-1: take(-1) raises #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> take(-1)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('AC-ERR-2: skip(-1) raises #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> skip(-1)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('AC-ERR-10: pass<on_error: #IGNORE> suppresses catchable halt; pipe value preserved', async () => {
+      // A type assertion failure (e.g. :number on a string) produces a
+      // catchable RuntimeHaltSignal. With on_error: #IGNORE the halt is
+      // swallowed and the pipe value before the block (5) is returned.
+      const result = await run(
+        '5 -> pass<on_error: #IGNORE> { "not_a_number":number }'
+      );
+      expect(result).toBe(5);
+    });
+
+    // ── Boundary cases ──────────────────────────────────────────────────────
+
+    it('AC-BND-1: take(n) on empty stream yields []', async () => {
+      const result = await run('make_stream() -> take(3)', {
+        functions: { make_stream: makeStreamFn([]) },
+      });
+      expect(result).toEqual([]);
+    });
+
+    it('AC-BND-2: skip(n) on empty stream yields []', async () => {
+      const result = await run('make_stream() -> skip(3)', {
+        functions: { make_stream: makeStreamFn([]) },
+      });
+      expect(result).toEqual([]);
+    });
+
+    it('AC-BND-5: take(n) with n > MAX_ITER clamps to 10000', async () => {
+      // Host-inject a list of 15000 items to bypass getIterableElements limits.
+      // take(20000) clamps to MAX_ITER (10000) and slices the list.
+      const bigList: number[] = Array.from({ length: 15000 }, (_, i) => i + 1);
+      const result = (await run('$big -> take(20000)', {
+        variables: { big: bigList },
+      })) as number[];
+      expect(result).toHaveLength(10000);
+      expect(result[0]).toBe(1);
+      expect(result[9999]).toBe(10000);
+    });
+
+    it('AC-BND-6: pass<on_error: #IGNORE> re-throws non-catchable halt', async () => {
+      // A host function that throws a RuntimeHaltSignal with catchable:false
+      // simulates a #DISPOSED-style non-catchable halt. The pass<> block must
+      // not suppress it even when on_error: #IGNORE is set.
+      const throw_noncatchable = {
+        params: [] as { name: string; type: TypeStructure }[],
+        returnType: anyTypeValue,
+        fn: (): never => {
+          throw new RuntimeHaltSignal(null, false);
+        },
+      };
+      await expect(
+        run('5 -> pass<on_error: #IGNORE> { throw_noncatchable() }', {
+          functions: { throw_noncatchable },
+        })
+      ).rejects.toBeInstanceOf(RuntimeHaltSignal);
+    });
+
+    it('AC-BND-7: bare pass keyword in conditional position parses to PassNode unchanged', async () => {
+      // Bare `pass` (no `<` after) must parse to PassNode and return the
+      // pipe value unchanged. Rill ternary requires a parenthesised pipe
+      // expression as the condition: ($ < 0) ? then ! else
+      // First case: condition is false, else branch (pass) returns pipe value 42.
+      expect(await run('42 -> ($ < 0) ? "wrong" ! pass')).toBe(42);
+      // Second case: condition is true, then branch (pass) returns pipe value 42.
+      expect(await run('42 -> ($ > 0) ? pass ! "wrong"')).toBe(42);
+    });
+  });
+
+  // ── Phase 2: batch, window, start_when, stop_when ───────────────────────
+
+  describe('Phase 2 slicing operators: batch, window, start_when, stop_when', () => {
+    // ── batch ────────────────────────────────────────────────────────────────
+
+    it('AC-BATCH-1: range(1,11) -> batch(3) yields four chunks including trailing partial', async () => {
+      expect(await run('range(1, 11) -> batch(3)')).toEqual([
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+        [10],
+      ]);
+    });
+
+    it('AC-BATCH-2: batch(3, dict[drop_partial: true]) drops the trailing partial chunk', async () => {
+      expect(
+        await run('range(1, 11) -> batch(3, dict[drop_partial: true])')
+      ).toEqual([
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+      ]);
+    });
+
+    it('AC-ERR-3: batch(0) raises #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> batch(0)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('AC-ERR-4: batch(-1) raises #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> batch(-1)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('AC-BND-3: batch(n) on empty stream yields empty list', async () => {
+      const result = await run('make_stream() -> batch(3)', {
+        functions: { make_stream: makeStreamFn([]) },
+      });
+      expect(result).toEqual([]);
+    });
+
+    // ── window ───────────────────────────────────────────────────────────────
+
+    it('AC-WINDOW-1: range(1,7) -> window(3) yields non-overlapping windows of 3', async () => {
+      expect(await run('range(1, 7) -> window(3)')).toEqual([
+        [1, 2, 3],
+        [4, 5, 6],
+      ]);
+    });
+
+    it('AC-WINDOW-2: range(1,7) -> window(3, 2) yields overlapping windows with partial tail', async () => {
+      expect(await run('range(1, 7) -> window(3, 2)')).toEqual([
+        [1, 2, 3],
+        [3, 4, 5],
+        [5, 6],
+      ]);
+    });
+
+    it('AC-ERR-5: window(0) raises #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> window(0)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('AC-ERR-6: window(3, -1) raises #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> window(3, -1)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('AC-ERR-7: window(3, 0) raises #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> window(3, 0)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('AC-BND-4: window(2, 4) on range(1,7) produces gap between windows (step > n)', async () => {
+      // step=4 > n=2: windows at indices 0 and 4, leaving items 3-4 in the gap.
+      expect(await run('range(1, 7) -> window(2, 4)')).toEqual([
+        [1, 2],
+        [5, 6],
+      ]);
+    });
+
+    // ── start_when ───────────────────────────────────────────────────────────
+
+    it('AC-STARTWHEN-1: start_when matching item 3 yields items 3-5 inclusive', async () => {
+      expect(
+        await run('list[1, 2, 3, 4, 5] -> start_when({ $ -> .eq(3) })')
+      ).toEqual([3, 4, 5]);
+    });
+
+    it('AC-ERR-8: start_when predicate returning non-bool raises #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> start_when({ "string" })'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('AC-ERR-11: start_when(42) with non-callable predicate raises #RILL_R040', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> start_when(42)'), {
+        code: 'RILL_R040',
+      });
+    });
+
+    // ── stop_when ────────────────────────────────────────────────────────────
+
+    it('AC-STOPWHEN-1: stop_when matching item 3 yields items 1-3 inclusive', async () => {
+      expect(
+        await run('list[1, 2, 3, 4, 5] -> stop_when({ $ -> .eq(3) })')
+      ).toEqual([1, 2, 3]);
+    });
+
+    it('AC-ERR-9: stop_when predicate returning non-bool raises #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> stop_when({ 42 })'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
   });
 
