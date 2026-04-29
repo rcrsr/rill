@@ -125,7 +125,7 @@ initDeepEquals(deepEquals);
  * type and that type defines a compare protocol. Returns undefined when the
  * types differ or the type has no compare protocol.
  */
-export function compareValue(a: RillValue, b: RillValue): number | undefined {
+function compareValue(a: RillValue, b: RillValue): number | undefined {
   const typeName = inferType(a);
   const rightTypeName = inferType(b);
   if (typeName !== rightTypeName) return undefined;
