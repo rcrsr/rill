@@ -85,6 +85,8 @@ Example:
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration(y, m, d, h)` | construct duration |
 | `atom(name)` | string to atom |
+| `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
+| `sort(dict, key_fn?)` | stable ascending sort of dict entries; returns `ordered[[key, value]]` |
 
 Built-ins are called bare (no `$`):
 
@@ -99,3 +101,35 @@ Built-ins are called bare (no `$`):
 ## chain example
 
     chain(5, list[{ $ * 2 }, { $ + 1 }])   # 5 -> 10 -> 11
+
+## sort
+
+Stable ascending sort. List sort returns `list`. Dict sort returns `ordered` because rill dicts have no insertion order, so a sorted dict is materialized as `ordered` key-value entries.
+
+    list[3, 1, 2] -> sort                          # list[1, 2, 3]
+    list["banana", "fig", "apple"] -> sort({ $ -> .len })   # list["fig", "apple", "banana"]
+
+    dict[c: 3, a: 1, b: 2] -> sort                 # ordered[a: 1, b: 2, c: 3]
+    dict[c: 3, a: 1, b: 2] -> sort({ $.value })    # ordered[a: 1, b: 2, c: 3]
+
+Multi-key sort uses `tuple[...]` projection. Tuples compare lexicographically left to right.
+
+    list[dict[name: "alice", score: 90], dict[name: "bob", score: 85], dict[name: "carol", score: 90]]
+      -> sort({ tuple[$.score, $.name] })
+    # list[bob/85, alice/90, carol/90]
+
+Descending order: pipe through `.reverse` after sort. `.reverse` is list-only; dict sort returns `ordered` and does not support `.reverse`.
+
+    list[3, 1, 2] -> sort -> .reverse              # list[3, 2, 1]
+
+Iterators are dicts structurally. `range(0, 5) -> sort` takes the dict path. Materialize first if you want list semantics.
+
+    range(0, 5) -> seq({ $ }) -> sort              # list[0, 1, 2, 3, 4]
+
+Errors:
+
+| Atom | Cause |
+|---|---|
+| `#TYPE_MISMATCH` | key extractor returns mixed types across elements |
+| `#TYPE_MISMATCH` | `key_fn` argument is not callable |
+| `#INVALID_INPUT` | key extractor returns a vacant value |

@@ -158,8 +158,10 @@ unary         = [ "-" | "!" ] , postfix-expr ;
 
 comparison-op = "==" | "!=" | "<" | ">" | "<=" | ">=" ;
 
-chain-terminator = "break" | "return" ;
-              (* Note: capture can appear mid-chain or at end; handled in pipe-chain *)
+chain-terminator = "break" | "return" | "yield" ;
+              (* Note: capture can appear mid-chain or at end; handled in pipe-chain.
+                 "yield" is only valid inside a closure declared with a stream return type
+                 (e.g. |x| { ... }:stream(T):R). RILL-P006 raised on misuse. *)
 
 assert-statement = "assert" , expression , [ string ] ;
               (* Assert statement: validates boolean expression, halts on false.
@@ -168,11 +170,39 @@ assert-statement = "assert" , expression , [ string ] ;
 
 error-statement = "error" , string ;
 
-postfix-expr  = primary , { ( "." , method-name , [ "(" , [ arguments ] , ")" ] )
-                              | annotation-access } ;
+postfix-expr  = primary , [ postfix-type-op ]
+                        , { ( "." , method-name , [ "(" , [ arguments ] , ")" ] )
+                          | annotation-access
+                          | invoke
+                          | status-probe } ;
+              (* invoke: trailing "(" args ")" applied to a primary that is callable
+                 (e.g. host-name(...) is parsed via host-call; bare invocation chains
+                 like (closure-expr)(args) attach an InvokeNode in the postfix loop).
+                 postfix-type-op: ":type" assertion or ":?type" check applied directly
+                 after a primary expression (see type-assertion / type-check). The
+                 parser admits AT MOST ONE postfix-type-op, and only immediately after
+                 the primary (before any other postfix is collected). It cannot appear
+                 between or after method calls / invokes / status probes. *)
+
+(* Status probe: ".!" reads outcome metadata from a host call or value.
+   - Bare ".!" returns a bool: false when the value is valid, true when invalid.
+     Use it as a guard: `result.! ? recover(...) ! result`.
+   - ".!field" projects one piece of metadata. Recognised projections:
+       .!code       -- :atom (e.g. #OK, #FORBIDDEN, #QUOTA_EXCEEDED)
+       .!message    -- string
+       .!provider   -- string
+       .!trace      -- list of trace frames
+       .!<raw-key>  -- pulls a raw-status field set by the host
+   The probe target is the primary plus any preceding methods accumulated so
+   far; subsequent method calls chain on the probe's result.
+   Examples:
+     fetch("url").!                -- bool: true when invalid, false when valid
+     fetch("url").!code            -- atom: #OK, #FORBIDDEN, ... *)
+status-probe  = ".!" , [ identifier ] ;
 
 primary       = literal
-              | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T), dict(T), tuple(T), ordered(T) *)
+              | atom-literal        (* #NAME — symbolic constant, e.g. #FORBIDDEN, #QUOTA_EXCEEDED *)
+              | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T), stream(T):R *)
               | closure-sig-lit     (* |p: T| -> R — closure signature type expression *)
               | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
               | variable
@@ -180,11 +210,34 @@ primary       = literal
               | host-call
               | conditional
               | loop
+              | guard-block         (* guard { body } / guard<on: list[#X]> { body } *)
+              | retry-block         (* retry<limit: N> { body } / retry<limit: N, on: list[#X]> { body } *)
               | block
               | grouped-expr
               | spread              (* ...$dict-expr — convert dict to ordered for arg unpacking *)
               | annotated-expr      (* ^(key: val) expr — annotation on expression *)
               | pass ;
+
+(* Atom literal: a symbolic constant introduced with "#".
+   Names use STRICT shape [A-Z][A-Z0-9_]* — uppercase letter followed by
+   uppercase letters, digits, or underscores.
+   Lexer disambiguation:
+     - "#" followed by an UPPERCASE letter starts an atom token.
+     - "#" followed by anything else (lowercase, whitespace, digit, ...) is
+       tokenised as a LINE COMMENT and consumed up to end-of-line. Such input
+       never produces a parse error on its own; it is simply discarded.
+   Atom-shape errors (uppercase-leading but otherwise invalid, e.g. #Foo,
+   #X_bad with a lowercase tail) emit a RecoveryErrorNode (EC-14) when an
+   atom token is required (e.g. inside an `on:` list). Outside atom-required
+   positions, malformed atom tokens still surface via parse recovery.
+   Examples:
+     #OK                          -- well-formed atom
+     #QUOTA_EXCEEDED              -- well-formed atom
+     #FORBIDDEN                   -- pre-registered runtime atom
+     #Foo                         -- atom-shape error (uppercase head, lowercase tail) -> EC-14
+     #foo                         -- LINE COMMENT (not an atom; consumed by lexer)
+   Use atoms with guard/retry on: list and as resolution-type tags. *)
+atom-literal  = "#" , uppercase-letter , { uppercase-letter | digit | "_" } ;
 
 (* Pass: returns current pipe value ($) unchanged.
    Used for explicit identity pass-through in conditionals and dict values.
@@ -273,7 +326,8 @@ param-type    = type-ref ;  (* type-ref here supports defaults in field-args:
                                 |a: dict(b: number = 5)| fills b when caller omits it *)
 body   = block | grouped-expr | postfix-expr ;
 closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":" , type-target ]
-              | "|" , type-name , "|" , body , [ ":" , type-target ] ;
+              | "|" , type-name , "|" , body , [ ":" , type-target ]
+              | "|" , type-name , "," , type-name , "|" , body , [ ":" , type-target ] ;
               (* Return type assertion — enforced at runtime (RILL-R004 on mismatch).
                  |x: number| { "{$x}" }:string  -- asserts string return type
                  Whitespace and newlines allowed between "}" and ":".
@@ -285,12 +339,21 @@ closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":"
                  declared type is enforced at pipe invocation (RILL-R001 on mismatch).
                  Example: "hello" -> |string|{ $ -> .upper }
 
-                 Disambiguation rule: the 11 reserved type keywords trigger anonymous typed
+                 Disambiguation rule: the reserved type keywords trigger anonymous typed
                  parsing when they appear as the sole token between | ... |. These keywords
-                 are: string, number, bool, closure, list, dict, tuple, ordered, vector, any, type.
+                 are: string, number, bool, closure, list, dict, tuple, ordered, vector,
+                 iterator, stream, datetime, duration, atom, any, type.
                  Any other identifier between | ... | is parsed as a named parameter.
                  Using a reserved type keyword as a named parameter name (e.g., |string: string|)
                  raises a parse error (RILL-P003).
+
+                 Two-type anonymous closure: |T1, T2| body — the parser synthesizes two
+                 implicit parameters: "$" (current element, declared type T1) and "@"
+                 (accumulator, declared type T2). The accumulator is referenced in
+                 surface syntax as `$@`; the lexer recognises `$@` as a variable token
+                 and the runtime resolves it to the parameter named "@". Used by
+                 reduce-style operators (fold, acc) where $ is the current element and
+                 $@ is the accumulator. Example: |number, number|{ $@ + $ }
 
                  Bare block desugar: { body } desugars to |any|{ body }:any — an anonymous
                  typed closure that accepts any piped value without type enforcement. *)
@@ -681,8 +744,16 @@ type-assertion = ":" , type-target ;
    $val -> :?list ? process()      -- conditional on type *)
 type-check    = ":" , "?" , type-target ;
 
-type-name     = "string" | "number" | "bool" | "closure" | "list" | "dict" | "tuple" | "ordered" | "vector" | "any" | "type" ;
-              (* "ordered" added: container produced by ...dict spread, preserves insertion order.
+type-name     = "string" | "number" | "bool" | "closure"
+              | "list" | "dict" | "tuple" | "ordered"
+              | "vector" | "iterator" | "stream"
+              | "datetime" | "duration" | "atom"
+              | "any" | "type" ;
+              (* "ordered" — container produced by ...dict spread, preserves insertion order.
+                 "iterator" — lazy sequence produced by range(), repeat(), .first().
+                 "stream"   — async iterator with chunk + resolution types: stream(T):R.
+                 "atom"     — symbolic constant type (#NAME values).
+                 "datetime", "duration" — temporal primitives.
                  "shape" and "field" removed: shape system replaced by structural type constructors. *)
 
 (* type-ref: a type reference used in assertion, param, and capture positions.
@@ -766,7 +837,15 @@ field-arg        = [ annotation ] , identifier , ":" , type-ref , [ "=" , litera
 
    These values are used with ^type for structural type inspection. *)
 
-type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg-list ] , ")" ;
+type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg-list ] , ")"
+                 | "stream" , "(" , [ field-arg-list ] , ")" , [ ":" , type-ref ] ;
+              (* Stream form: stream(ChunkType):ResolutionType
+                 - stream()                    -- chunk type defaults to any, no resolution
+                 - stream(string)              -- chunk type only
+                 - stream(string):number       -- chunk type + resolution type
+                 - stream():number             -- any-chunked stream resolving to number
+                 The resolution type is the value produced when the stream completes;
+                 chunks are produced by `yield` inside the closure body. *)
 
 (* Closure signature literal: a type expression for closure type inspection.
    Syntax mirrors closure definition but uses "|" delimiters and ": return".
@@ -841,7 +920,47 @@ construct_options = "<" , option , ">" ;
                  Example: do<limit: 100> — sets iteration ceiling to 100
                  Constraints: N must be a positive integer literal (RILL-P004). *)
 
-option        = identifier , ":" , number ;
+option        = identifier , ":" , positive-integer ;
+              (* "limit" requires a positive integer literal; decimals and
+                 negative numbers are parse errors (RILL-P004). The
+                 positive-integer nonterminal is defined alongside retry-block. *)
+
+(* ============================================================ *)
+(* ERROR HANDLING: GUARD AND RETRY                              *)
+(* ============================================================ *)
+
+(* guard / retry blocks scope error handling around a body. They are
+   primary expressions, so they participate in pipe chains:
+
+     fetch("url") -> guard { .! }            -- inspect outcome regardless of failure
+     fetch("url") -> retry<limit: 3> { pass } -- re-run on transient failures
+
+   Guard:
+   - guard { body }                  -- catch every error; body runs once
+   - guard<on: list[#X, #Y]> { body } -- catch only the listed atoms; rethrow others
+
+   Retry:
+   - retry<limit: N> { body }                       -- retry up to N attempts on any error
+   - retry<limit: N, on: list[#X]> { body }          -- retry only when error code in list
+   - "limit:" is a REQUIRED named argument; bare retry<N> is a parse error (RILL-P004).
+   - N must be a positive integer literal.
+
+   The on: option list rejects atoms that fail the strict shape [A-Z][A-Z0-9_]*.
+   Invalid atoms become RecoveryErrorNode (EC-14). *)
+
+guard-block   = "guard" , [ on-clause ] , block ;
+retry-block   = "retry" , "<" , "limit" , ":" , positive-integer , [ "," , on-clause ] , ">" , block ;
+
+positive-integer = digit , { digit } ;
+              (* `limit:` accepts only positive integer literals. Decimals
+                 (e.g. retry<limit: 1.5>) and negative numbers are parse errors. *)
+
+on-clause     = "<" , "on" , ":" , "list[" , atom-literal , { "," , atom-literal } , "]" , ">" ;
+              (* Lexer note: "list[" is a single compound token. The lexer requires
+                 NO whitespace between "list" and "[" — `list [ ... ]` is rejected.
+                 Likewise, "guard{" and "retry<" are compound tokens when no
+                 whitespace separates the keyword from the bracket; the bare
+                 "guard" / "retry" forms are also accepted when whitespace is present. *)
 
 (* ============================================================ *)
 (* COLLECTION OPERATORS                                         *)
@@ -956,10 +1075,11 @@ identifier    = ( letter | "_" ) , { letter | digit | "_" } ;
                  Variables: $user_name, $total_count, $api_response
                  Methods: .starts_with, .ends_with, .index_of *)
 
-letter        = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
-              | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z"
-              | "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
-              | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
+letter           = uppercase-letter | lowercase-letter ;
+uppercase-letter = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "K" | "L" | "M"
+                 | "N" | "O" | "P" | "Q" | "R" | "S" | "T" | "U" | "V" | "W" | "X" | "Y" | "Z" ;
+lowercase-letter = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
+                 | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
 digit         = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 newline       = "\n" | "\r\n" ;
 
@@ -969,4 +1089,10 @@ newline       = "\n" | "\r\n" ;
 
 (* Spaces and tabs between tokens are always insignificant.
    Newlines are statement terminators except inside syntactic continuations
-   (see NEWLINE RULE above). Comments start with "#" and extend to end of line. *)
+   (see NEWLINE RULE above).
+
+   Comments start with "#" and extend to end of line, with one exception:
+   "#" immediately followed by an uppercase letter introduces an atom literal
+   (e.g. #OK). The lexer disambiguates on the character after "#":
+     # followed by uppercase letter  -> atom literal
+     # followed by anything else     -> line comment *)

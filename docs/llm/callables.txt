@@ -2,6 +2,30 @@
 
 Closures, late binding, typed closures, reflection, dispatch operators, extraction, spread, modules.
 
+## Pipe binding rules
+
+When `->` targets a callable, the runtime decides how to bind the piped value. Two rules, checked in order:
+
+1. **Explicit `$` (manual placement).** If the immediate argument list contains at least one top-level `$`, every occurrence resolves to the piped value. No auto-prepend.
+2. **Auto-prepend.** If no top-level `$` is found, the piped value is prepended as the first argument.
+
+Closures stop the scan. A `$` inside a closure literal (`{ ... }`) is late-bound when the closure runs per-element. It does NOT count as a top-level `$`. Sub-expressions ARE scanned, so `$` inside `g($)` does count.
+
+**Zero-parameter callables.** When auto-prepend is selected but the callable declares zero parameters, the piped value is silently dropped. The callable runs with no arguments. Execution does not halt.
+
+| Call form | Effective call | Notes |
+|---|---|---|
+| `$val -> fn` | `fn($val)` | Auto-prepend |
+| `$val -> fn(1, 2)` | `fn($val, 1, 2)` | Auto-prepend |
+| `$val -> fn($)` | `fn($val)` | Explicit |
+| `$val -> fn(1, $, 0)` | `fn(1, $val, 0)` | Explicit, middle position |
+| `$val -> fn(1, $, $)` | `fn(1, $val, $val)` | Both `$` resolve to piped value |
+| `$val -> fn(g($))` | `fn(g($val))` | Sub-expr `$` counts |
+| `$list -> filter({ $.active })` | `filter($list, { $.active })` | Closure `$` is late-bound |
+| `$val -> zero_param_fn` | `zero_param_fn()` | Piped value silently dropped |
+
+This is why `[1,2,3] -> fold(0, { $@ + $ })` works: the list auto-prepends because no top-level `$` appears in `(0, { $@ + $ })`. The `$` inside the closure body is late-bound per element.
+
 ## Closure forms
 
 Block-closures (`{ body }`, implicit `$` parameter):

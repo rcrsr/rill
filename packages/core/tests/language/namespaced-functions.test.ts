@@ -231,12 +231,19 @@ describe('Rill Runtime: Namespaced Functions', () => {
       expect(result).toBe('a, b, c');
     });
 
-    it('passes pipe value via context', async () => {
-      // Pipe value is available via ctx.pipeValue, not prepended to args
+    it('auto-prepends pipe value as first arg', async () => {
+      // IR-8: pipe value auto-prepends at position 0 when no bare $ is in args.
+      // str::pad receives ("hello", 10, "-") matching (str, len, char).
       const result = await run('"hello" -> str::pad(10, "-")', {
         functions: {
           'str::pad': {
             params: [
+              {
+                name: 'str',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
               {
                 name: 'len',
                 type: { kind: 'number' },
@@ -250,8 +257,8 @@ describe('Rill Runtime: Namespaced Functions', () => {
                 annotations: {},
               },
             ],
-            fn: (args, ctx) => {
-              const str = String(ctx.pipeValue);
+            fn: (args) => {
+              const str = String(args['str']);
               const len = args['len'] as number;
               const char = String(args['char'] ?? ' ');
               return str.padEnd(len, char);

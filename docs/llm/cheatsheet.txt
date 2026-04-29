@@ -42,7 +42,7 @@ Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodie
 
     Right: list[1, 2, 3] -> fold(0, { $@ + $ })             # 6
 
-`for` does not exist. Use `seq`, `fan`, `fold`, `acc`, `filter`, or `while`.
+`for` does not exist. Use `seq`, `fan`, `fold`, `acc`, `filter`, `sort`, or `while`.
 
 ### 6. Errors halt — recover with `guard`
 
@@ -94,6 +94,12 @@ CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.
 | `\|\|{ $.field }` in dict | the containing dict |
 
 Implied `$`: bare `.method` means `$ -> .method`. `"hello" -> .upper` is `"hello" -> $.upper`.
+
+**Pipe binding when `->` targets a callable.** If no top-level `$` appears in the argument list, the piped value is auto-prepended. If any top-level `$` appears, every `$` resolves to the piped value (no auto-prepend). Closure boundaries (`{ ... }`) hide their inner `$` from the scan. See `callables` for the full table.
+
+    $list -> filter({ $.active })       # filter($list, { ... }); closure $ is late-bound
+    [1,2,3] -> fold(0, { $@ + $ })      # fold([1,2,3], 0, ...) — list auto-prepended
+    10 -> $fmt(1, $, 0)                 # $fmt(1, 10, 0) — explicit placement
 
 Always prefer implicit `$`:
 

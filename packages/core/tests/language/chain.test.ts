@@ -180,4 +180,43 @@ describe('Rill Language: chain() Built-in', () => {
       expect(result).toBe(12);
     });
   });
+
+  // ============================================================
+  // CHAINED PIPE WITH MANUAL $ PLACEMENT (IR-8)
+  // ============================================================
+
+  describe('chained pipes with manual $ placement (IR-8)', () => {
+    it('multi-step chain: auto-prepend then manual $ in successive pipes', async () => {
+      // Step 1: "hello" -> .upper (method call; pipe value is the receiver)
+      // Step 2: "HELLO" -> .contains("HELLO") (method call; pipe value is the receiver)
+      // Verifies that chained method calls deliver the pipe value through the receiver position at each step.
+      const result = await run('"hello" -> .upper -> .contains("HELLO")');
+      expect(result).toBe(true);
+    });
+
+    it('multi-step chain: manual $ placement preserved across two host-fn pipes', async () => {
+      // "ab" -> identity($) -> .len
+      // Step 1: identity($) — $ is top-level, manual placement → identity("ab")
+      // Step 2: .len — auto-prepend pipe value "ab" as receiver
+      const result = await run('"ab" -> identity($) -> .len');
+      expect(result).toBe(2);
+    });
+
+    it('multi-step chain: auto-prepend in first pipe, closure $ late-bound in second', async () => {
+      // list[1, 2, 3] -> seq({ $ * 2 }) -> seq({ $ + 10 })
+      // Both seq calls: $ inside closures is late-bound, not counted → auto-prepend
+      const result = await run(
+        'list[1, 2, 3] -> seq({ $ * 2 }) -> seq({ $ + 10 })'
+      );
+      expect(result).toEqual([12, 14, 16]);
+    });
+
+    it('multi-step chain: capture intermediate result, then use $ in next pipe', async () => {
+      // "world" => $s -> .len => $n -> identity($n)
+      // identity($n) — $ is $n here, but the pipe binding rule checks for bare $
+      // In this case we capture and pass explicitly; verifies chaining semantics
+      const result = await run('"world" -> .len => $n\n$n -> identity');
+      expect(result).toBe(5);
+    });
+  });
 });

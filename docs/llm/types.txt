@@ -69,6 +69,18 @@ Built-in methods take priority over dict keys:
     dict[len: "fake"].len           # returns dict length, not "fake"
     dict[len: "fake"]["len"]        # bracket access returns "fake"
 
+## Tuple lexicographic comparison
+
+Tuples support `<`, `>`, `<=`, `>=`, `==`, `!=`. Comparison walks elements left to right; the first differing position decides. Each element compares using its own type's protocol. Empty `tuple[]` equals `tuple[]`.
+
+    tuple[1, 2] < tuple[1, 3]              # true
+    tuple[2, 1] > tuple[1, 9]              # true
+    tuple[1, 2] == tuple[1, 2]             # true
+
+Dicts have NO comparison protocol. Use tuples for multi-key ordering, including with `sort({ tuple[$.a, $.b] })`.
+
+**Errors:** different-length tuples or differently-typed corresponding elements halt with `#TYPE_MISMATCH`.
+
 ## Type conversion `-> type`
 
 Explicit conversion between compatible types. Halts with `RILL-R036` on invalid pairs.

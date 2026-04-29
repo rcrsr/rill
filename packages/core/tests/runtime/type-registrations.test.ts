@@ -314,10 +314,10 @@ describe('type-registrations', () => {
       expect(listReg!.protocol.compare).toBeUndefined();
     });
 
-    it('tuple registration has no protocol.compare', () => {
+    it('tuple registration has protocol.compare (IR-10)', () => {
       const tupleReg = BUILT_IN_TYPES.find((t) => t.name === 'tuple');
       expect(tupleReg).toBeDefined();
-      expect(tupleReg!.protocol.compare).toBeUndefined();
+      expect(tupleReg!.protocol.compare).toBeTypeOf('function');
     });
   });
 

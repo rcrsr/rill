@@ -351,7 +351,7 @@ dict(^("A person's name") name: string, ^("Age in years") age: number)
 
 ## Ordered
 
-`ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order.
+`ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order. When `sort` is applied to a dict, it returns `ordered[[key, value]]` — an ordered collection of key-value entry tuples.
 
 ```rill
 ordered[a: 1, b: "hello"] => $o
@@ -393,6 +393,38 @@ ordered(^("X coordinate") x: number, ^("Y coordinate") y: number)
 ## Tuples
 
 Tuples are positional containers created with `tuple[...]` syntax.
+
+### Lexicographic Comparison
+
+Tuples support all six comparison operators (`<`, `>`, `<=`, `>=`, `==`, `!=`). Comparison is element-wise from left to right. The first differing position determines the result.
+
+```rill
+tuple[1, 2] < tuple[1, 3]
+# Result: true
+```
+
+```rill
+tuple[2, 1] > tuple[1, 9]
+# Result: true
+```
+
+```rill
+tuple[1, 2] <= tuple[1, 2]
+# Result: true
+```
+
+```rill
+tuple[1, 2] >= tuple[1, 2]
+# Result: true
+```
+
+Each element compares using the protocol of its own type. An empty `tuple[]` compares equal to another empty `tuple[]`.
+
+**Error cases:** Tuples of different lengths or tuples whose corresponding elements have different types halt with `#TYPE_MISMATCH`.
+
+**Dict comparison exclusion:** Dicts have no comparison protocol. `[a: 1] < [b: 2]` halts with `RILL-R002`. Use tuples for multi-key ordering instead.
+
+For multi-key sort using tuple projections, see [Collections](topic-collections.md#sort--stable-ordering).
 
 ### Using Ordered for Named Unpacking
 

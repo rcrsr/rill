@@ -64,6 +64,110 @@ Bare `.method()` implies `$` as receiver:
 }
 ```
 
+### Pipe Binding Rule
+
+When `->` targets a callable, the runtime decides how to bind the piped value to arguments. Two rules apply, checked in order:
+
+**Rule 1 — Explicit `$` (manual placement).** The runtime scans the immediate argument list for `$`. If at least one top-level `$` is found, every occurrence resolves to the piped value. No auto-prepend occurs.
+
+**Rule 2 — Auto-prepend.** If no top-level `$` is found in the argument list, the piped value is prepended as the first argument automatically.
+
+**Zero-parameter callables.** When auto-prepend is selected but the callable declares zero parameters, the piped value is silently dropped. The callable runs with no arguments. Execution does not halt.
+
+**Closures stop the scan.** The scanner walks the immediate argument list but stops at closure boundaries (`{`). References to `$` inside a closure literal are not counted — they are late-bound when the callable invokes the closure per element. Only top-level `$` in the argument list triggers explicit placement.
+
+**Sub-expressions are scanned.** The scanner descends into non-closure sub-expressions. `fn(g($))` contains a top-level `$` inside `g(...)`, so explicit placement is used.
+
+#### Worked Examples
+
+| Call form | `$` in top-level args? | Effective call | Notes |
+|-----------|------------------------|---------------|-------|
+| `$val -> fn` | n/a (no args) | `fn($val)` | Auto-prepend |
+| `$val -> fn()` | n/a (empty args) | `fn($val)` | Auto-prepend |
+| `$val -> fn` (fn takes 0 params) | n/a | `fn()` | `$val` silently dropped |
+| `$val -> fn(1, 2)` | no | `fn($val, 1, 2)` | Auto-prepend |
+| `$val -> fn($)` | yes | `fn($val)` | Explicit: single `$` |
+| `$val -> fn(1, $, 0)` | yes | `fn(1, $val, 0)` | Explicit: middle position |
+| `$val -> fn(1, $, $)` | yes | `fn(1, $val, $val)` | Explicit: both resolve to piped value |
+| `$val -> fn(g($))` | yes (inside sub-expr) | `fn(g($val))` | Sub-expr `$` counts as top-level |
+| `$list -> filter({ $.active })` | no (closure boundary stops scan) | `filter($list, { $.active })` | Closure `$` is late-bound per element |
+| `$matrix -> seq({ $ -> seq({ $ * 2 }) })` | no (outer closure stops scan) | `seq($matrix, { $ -> seq({ $ * 2 }) })` | Nested closures; outer and inner `$` both late-bound |
+
+#### Auto-prepend — no args
+
+When a callable is called with no arguments, the piped value is prepended automatically.
+
+```rill
+|x|($x * 2) => $double
+5 -> $double
+# Result: 10
+```
+
+#### Auto-prepend — host function with existing args
+
+When a host function is called with existing args and no top-level `$`, the piped value is prepended as the first argument. The existing args shift right. This applies to built-in and host-provided functions in pipe-target position.
+
+```rill
+[1, 2, 3] -> fold(0, { $@ + $ })
+# fold([1, 2, 3], 0, { $@ + $ }) — list auto-prepended
+# Result: 6
+```
+
+#### Explicit placement with `$`
+
+```rill
+|a, b, c|"{$a},{$b},{$c}" => $fmt
+10 -> $fmt(1, $, 0)
+# Result: "1,10,0"
+```
+
+#### Duplicate `$` — both resolve to piped value
+
+```rill
+|a, b, c|"{$a},{$b},{$c}" => $fmt
+10 -> $fmt(1, $, $)
+# Result: "1,10,10"
+```
+
+#### Sub-expression `$` counts as top-level
+
+```rill
+|x|($x * 2) => $double
+|n|($n + 1) => $inc
+5 -> $double($inc($))
+# Result: 12
+```
+
+The `$` inside `$inc($)` is a top-level `$` in the argument list of `$double`, so explicit placement is used. The piped value `5` goes to `$inc`, producing `6`, which becomes the single argument to `$double`.
+
+#### Closure `$` is late-bound — not counted by the scanner
+
+```rill
+[[active: true, name: "a"], [active: false, name: "b"], [active: true, name: "c"]] -> filter({ $.active })
+# Result: [[active: true, name: "a"], [active: true, name: "c"]]
+```
+
+The `$` inside `{ $.active }` is inside a closure boundary. The scanner stops there and finds no top-level `$`. Auto-prepend activates: the list is prepended as the first argument to `filter`, and the closure is passed as the second argument. Inside the closure body, `$` is late-bound to each element during iteration.
+
+#### Nested closures — all closure `$` are late-bound
+
+```rill
+[[1, 2, 3], [4, 5, 6]] -> seq({ $ -> seq({ $ * 2 }) })
+# Result: [[2, 4, 6], [8, 10, 12]]
+```
+
+Both the outer `{ $ -> ... }` and the inner `{ $ * 2 }` use late-bound `$`. Neither counts toward the pipe-site scan for the top-level `seq` call. Auto-prepend places the list as the first argument.
+
+#### Zero-parameter callable — piped value silently dropped
+
+```rill
+||("constant") => $zero
+42 -> $zero()
+# Result: "constant"
+```
+
+`$zero` takes zero parameters. The piped value `42` is silently discarded. `$zero` runs and returns `"constant"`. Execution does not halt.
+
 ---
 
 ## Capture Operator `=>`

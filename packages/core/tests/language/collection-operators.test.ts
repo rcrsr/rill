@@ -424,6 +424,81 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
   });
 
+  // ── Explicit list param — three-forms equivalence (IR-3..IR-7) ──────────
+
+  describe('Explicit list param — three-forms equivalence (IR-3..IR-7)', () => {
+    it('AC-COL-1: seq — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2, 3] -> seq({ $ * 2 })');
+      const explicitDollar = await run(
+        'list[1, 2, 3] => $xs\n$xs -> seq($, { $ * 2 })'
+      );
+      const directCall = await run('seq(list[1, 2, 3], { $ * 2 })');
+      expect(autoPrepend).toEqual([2, 4, 6]);
+      expect(explicitDollar).toEqual([2, 4, 6]);
+      expect(directCall).toEqual([2, 4, 6]);
+    });
+
+    it('AC-COL-2: fan — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2] -> fan({ [$, $] })');
+      const explicitDollar = await run(
+        'list[1, 2] => $xs\n$xs -> fan($, { [$, $] })'
+      );
+      const directCall = await run('fan(list[1, 2], { [$, $] })');
+      expect(autoPrepend).toEqual(explicitDollar);
+      expect(directCall).toEqual(explicitDollar);
+    });
+
+    it('AC-COL-3: filter — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2, 3, 4] -> filter({ $ > 2 })');
+      const explicitDollar = await run(
+        'list[1, 2, 3, 4] => $xs\n$xs -> filter($, { $ > 2 })'
+      );
+      const directCall = await run('filter(list[1, 2, 3, 4], { $ > 2 })');
+      expect(autoPrepend).toEqual([3, 4]);
+      expect(explicitDollar).toEqual([3, 4]);
+      expect(directCall).toEqual([3, 4]);
+    });
+
+    it('AC-COL-4: fold — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2, 3] -> fold(0, { $@ + $ })');
+      const explicitDollar = await run(
+        'list[1, 2, 3] => $xs\n$xs -> fold($, 0, { $@ + $ })'
+      );
+      const directCall = await run('fold(list[1, 2, 3], 0, { $@ + $ })');
+      expect(autoPrepend).toBe(6);
+      expect(explicitDollar).toBe(6);
+      expect(directCall).toBe(6);
+    });
+
+    it('AC-COL-5: acc — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2, 3] -> acc(0, { $@ + $ })');
+      const explicitDollar = await run(
+        'list[1, 2, 3] => $xs\n$xs -> acc($, 0, { $@ + $ })'
+      );
+      const directCall = await run('acc(list[1, 2, 3], 0, { $@ + $ })');
+      expect(autoPrepend).toEqual([1, 3, 6]);
+      expect(explicitDollar).toEqual([1, 3, 6]);
+      expect(directCall).toEqual([1, 3, 6]);
+    });
+
+    it('AC-COL-6: direct-call without pipe reads args[list] (spot-check no ctx.pipeValue dependency)', async () => {
+      // Called with no piped value at all — operator must read from args['list']
+      const result = await run('seq(list[10, 20, 30], { $ * 3 })');
+      expect(result).toEqual([30, 60, 90]);
+    });
+
+    it('AC-COL-7: explicit $ targets the list slot — $xs -> seq($, body) equals $xs -> seq(body)', async () => {
+      const withExplicitDollar = await run(
+        'list[5, 6, 7] => $xs\n$xs -> seq($, { $ + 1 })'
+      );
+      const withAutoPrepend = await run(
+        'list[5, 6, 7] => $xs\n$xs -> seq({ $ + 1 })'
+      );
+      expect(withExplicitDollar).toEqual(withAutoPrepend);
+      expect(withExplicitDollar).toEqual([6, 7, 8]);
+    });
+  });
+
   // ── Infrastructure Assertions ─────────────────────────────────────────────
 
   describe('Infrastructure Assertions', () => {

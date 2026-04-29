@@ -71,6 +71,7 @@ Iteration limit (default 10,000):
 | Filter items | `-> filter({ })` |
 | Single result from list | `-> fold(init, { $@ + $ })` |
 | Results plus running accumulator | `-> acc(init, { $@ + $ })` |
+| Stable ascending sort | `-> sort` or `-> sort({ key })` |
 | Loop with state | `-> while (cond) do { }` |
 
 | Operator | Execution | Returns | Catches `break`? |
@@ -80,8 +81,9 @@ Iteration limit (default 10,000):
 | `fan` | parallel | all body results | no |
 | `filter` | parallel | matching elements only | no |
 | `fold(init, ...)` | sequential | final accumulator only | no |
+| `sort` | eager | sorted list, or `ordered` for dict input | no |
 
-`$@` is the accumulator in `fold` and `acc`.
+`$@` is the accumulator in `fold` and `acc`. See `stdlib` for `sort` details (key extractor, multi-key tuple projection, descending via `.reverse`).
 
 ## Body forms
 

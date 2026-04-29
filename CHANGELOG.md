@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pipe operator refinement** — Pipe now places values at explicit `$` positions when present, falling back to auto-prepend for traditional left-to-right flows
+- **`sort` built-in for data ordering** — Provides stable ordering for lists and dicts with optional key-extractor closure
+- **Tuple lexicographic comparison** — Tuples support comparison operators for ordering tuples by element sequence
+- **List `.reverse` method** — Reverses list order for descending-value patterns and collection manipulation
+
 ## [0.19.0] - 2026-04-26
 
 ### Breaking Changes

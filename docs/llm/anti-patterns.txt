@@ -107,6 +107,12 @@ Wrong/Right pairs aimed at TypeScript and Python reflexes. Load when generating 
     Wrong: arr.reduce((acc, x) => acc + x, 0)
     Right: $arr -> fold(0, { $@ + $ })
 
+    Wrong: arr.sort()
+    Right: $arr -> sort                     # stable ascending
+    Right: $arr -> sort -> .reverse         # descending
+    Right: $arr -> sort({ $.score })        # sort by extracted key
+    Right: $arr -> sort({ tuple[$.a, $.b] })  # multi-key
+
     Wrong: arr[arr.length - 1]
     Right: $arr[-1]                        # negative index from end
 

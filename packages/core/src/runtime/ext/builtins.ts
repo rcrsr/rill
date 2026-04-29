@@ -30,6 +30,8 @@ import {
   inferType,
   serializeValue,
 } from '../core/types/registrations.js';
+import { createOrdered } from '../core/types/constructors.js';
+import { resolvedCompareValue } from '../core/types/protocols/shared.js';
 import {
   isDatetime,
   isDuration,
@@ -115,6 +117,24 @@ function makeDictIterator(
  */
 
 const MAX_ITER = 10000;
+
+/**
+ * Default key extractor for sort(dict, ...).
+ * Receives a { key, value } entry dict and returns the key string.
+ * Constructed once at module load; not re-allocated per call.
+ */
+const DICT_DEFAULT_KEY_FN = callable((args) => {
+  const entry = (args as unknown as RillValue[])[0] ?? null;
+  if (
+    entry !== null &&
+    typeof entry === 'object' &&
+    !Array.isArray(entry) &&
+    'key' in (entry as Record<string, unknown>)
+  ) {
+    return (entry as Record<string, RillValue>)['key'] ?? null;
+  }
+  return null;
+});
 
 export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   /** Identity function - returns its argument */
@@ -413,6 +433,12 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   seq: {
     params: [
       {
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
         name: 'body',
         type: { kind: 'any' },
         defaultValue: undefined,
@@ -421,7 +447,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: async (args, ctx, location) => {
-      const input = (ctx as RuntimeContext).pipeValue ?? null;
+      const input = args['list'] ?? null;
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
@@ -490,6 +516,12 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   fan: {
     params: [
       {
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
         name: 'body',
         type: { kind: 'any' },
         defaultValue: undefined,
@@ -504,7 +536,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: async (args, ctx, location) => {
-      const input = (ctx as RuntimeContext).pipeValue ?? null;
+      const input = args['list'] ?? null;
       const body = args['body'] ?? null;
       const options = args['options'] ?? null;
 
@@ -597,7 +629,13 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   acc: {
     params: [
       {
-        name: 'seed',
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'init',
         type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
@@ -611,8 +649,8 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: async (args, ctx, location) => {
-      const input = (ctx as RuntimeContext).pipeValue ?? null;
-      const seed = args['seed'] ?? null;
+      const input = args['list'] ?? null;
+      const seed = args['init'] ?? null;
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
@@ -691,7 +729,13 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   fold: {
     params: [
       {
-        name: 'seed',
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'init',
         type: { kind: 'any' },
         defaultValue: undefined,
         annotations: {},
@@ -705,8 +749,8 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: async (args, ctx, location) => {
-      const input = (ctx as RuntimeContext).pipeValue ?? null;
-      const seed = args['seed'] ?? null;
+      const input = args['list'] ?? null;
+      const seed = args['init'] ?? null;
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
@@ -779,6 +823,12 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   filter: {
     params: [
       {
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
         name: 'body',
         type: { kind: 'any' },
         defaultValue: undefined,
@@ -793,7 +843,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: async (args, ctx, location) => {
-      const input = (ctx as RuntimeContext).pipeValue ?? null;
+      const input = args['list'] ?? null;
       const body = args['body'] ?? null;
       const options = args['options'] ?? null;
 
@@ -1043,6 +1093,177 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
     returnType: structureToTypeValue({ kind: 'duration' }),
     fn: (args, _ctx, location) => {
       return constructDuration(args, location);
+    },
+  },
+
+  /**
+   * Sort a list or dict by an optional key extractor closure.
+   *
+   * List form: sort(list) -> list[T] sorted ascending by element value.
+   *            sort(list, key_fn) -> list[T] sorted by key_fn(element).
+   * Dict form:  sort(dict) -> ordered[[key, value]] sorted by key.
+   *             sort(dict, key_fn) -> ordered[[key, value]] sorted by key_fn({key, value}).
+   *
+   * Error conditions:
+   *   EC-1 TYPE_MISMATCH  — mixed-type keys produced by extractor
+   *   EC-2 INVALID_INPUT  — extractor returns null (vacant)
+   *   EC-3 propagated     — extractor itself halts (no wrapping)
+   *   EC-5 TYPE_MISMATCH  — key_fn argument is not a callable
+   *   EC-6 RILL_R010      — iteration cap (propagated from getIterableElements)
+   */
+  sort: {
+    params: [
+      {
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'key_fn',
+        type: { kind: 'any' },
+        defaultValue: null,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = args['list'] ?? null;
+      const keyFnArg = args['key_fn'];
+
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'sort',
+      };
+
+      // EC-5: validate key_fn if supplied
+      if (
+        keyFnArg !== undefined &&
+        keyFnArg !== null &&
+        !isCallable(keyFnArg)
+      ) {
+        throwTypeHalt(
+          site,
+          'TYPE_MISMATCH',
+          `sort: key_fn must be a closure, got ${inferType(keyFnArg)}`,
+          'runtime'
+        );
+      }
+
+      // ── Dict path ─────────────────────────────────────────────────────────
+      if (isDict(input)) {
+        const dictInput = input as Record<string, RillValue>;
+        const entries = Object.entries(dictInput) as [string, RillValue][];
+        const keyFn = keyFnArg ?? DICT_DEFAULT_KEY_FN;
+
+        // Pre-extract sort keys asynchronously (EC-2, EC-3 propagate naturally).
+        const keyed = await Promise.all(
+          entries.map(async ([k, v]) => {
+            const entry: RillValue = { key: k, value: v };
+            const childCtx = createChildContext(ctx as RuntimeContext);
+            childCtx.pipeValue = entry;
+            const key = await invokeCallable(
+              keyFn as Parameters<typeof invokeCallable>[0],
+              [entry],
+              childCtx,
+              location
+            );
+            if (key === null) {
+              throwTypeHalt(
+                site,
+                'INVALID_INPUT',
+                'sort: key extractor returned vacant value',
+                'runtime'
+              );
+            }
+            return { pair: [k, v] as [string, RillValue], key };
+          })
+        );
+
+        // Synchronous stable sort on pre-extracted keys (EC-1).
+        keyed.sort((a, b) => {
+          const cmp = resolvedCompareValue(a.key, b.key);
+          if (cmp === undefined) {
+            throwTypeHalt(
+              site,
+              'TYPE_MISMATCH',
+              `sort: cannot compare ${inferType(a.key)} with ${inferType(b.key)}`,
+              'runtime'
+            );
+          }
+          return cmp;
+        });
+
+        return createOrdered(keyed.map(({ pair }) => pair));
+      }
+
+      // ── List path ─────────────────────────────────────────────────────────
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      if (!keyFnArg) {
+        // Default identity: compare elements directly (EC-1 via resolvedCompareValue).
+        const keyed = elements.map((el) => ({ el, key: el }));
+        keyed.sort((a, b) => {
+          const cmp = resolvedCompareValue(a.key, b.key);
+          if (cmp === undefined) {
+            throwTypeHalt(
+              site,
+              'TYPE_MISMATCH',
+              `sort: cannot compare ${inferType(a.key)} with ${inferType(b.key)}`,
+              'runtime'
+            );
+          }
+          return cmp;
+        });
+        return keyed.map(({ el }) => el);
+      }
+
+      // With key_fn: pre-extract sort keys asynchronously (EC-2, EC-3 propagate naturally).
+      const keyed = await Promise.all(
+        elements.map(async (el) => {
+          const childCtx = createChildContext(ctx as RuntimeContext);
+          childCtx.pipeValue = el;
+          const key = await invokeCallable(
+            keyFnArg as Parameters<typeof invokeCallable>[0],
+            [el],
+            childCtx,
+            location
+          );
+          if (key === null) {
+            throwTypeHalt(
+              site,
+              'INVALID_INPUT',
+              'sort: key extractor returned vacant value',
+              'runtime'
+            );
+          }
+          return { el, key };
+        })
+      );
+
+      // Synchronous stable sort on pre-extracted keys (EC-1).
+      keyed.sort((a, b) => {
+        const cmp = resolvedCompareValue(a.key, b.key);
+        if (cmp === undefined) {
+          throwTypeHalt(
+            site,
+            'TYPE_MISMATCH',
+            `sort: cannot compare ${inferType(a.key)} with ${inferType(b.key)}`,
+            'runtime'
+          );
+        }
+        return cmp;
+      });
+
+      return keyed.map(({ el }) => el);
     },
   },
 };
@@ -2342,6 +2563,18 @@ const mHasAll: RillMethod = (receiver, args, _ctx, location) => {
   return true;
 };
 
+/** Return a new list with elements in reversed order */
+const mReverse: RillMethod = (receiver, _args, _ctx, location) => {
+  if (!Array.isArray(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `reverse() requires list receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  return [...receiver].reverse();
+};
+
 /** Get number of dimensions in vector */
 const mDimensions: RillMethod = (receiver, _args, _ctx, location) => {
   if (!isVector(receiver)) {
@@ -2607,6 +2840,7 @@ BUILTIN_METHODS.list = Object.freeze({
     mHasAll,
     true
   ),
+  reverse: buildMethodEntry('reverse', '||:list', mReverse),
 });
 
 BUILTIN_METHODS.dict = Object.freeze({
