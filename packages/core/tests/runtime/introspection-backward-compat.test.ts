@@ -296,6 +296,8 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
     });
 
     it('handles mix of old and new style function definitions', async () => {
+      // IR-8: pipe value auto-prepends as first arg when no bare $ is in args.
+      // new("y") in pipe position receives (pipeIn, "y") where pipeIn = result of old("x").
       const result = await run('old("x") -> new("y")', {
         functions: {
           old: {
@@ -313,6 +315,12 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
           },
           new: {
             params: [
+              {
+                name: 'pipeIn',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
               {
                 name: 'input',
                 type: { kind: 'string' },
@@ -345,6 +353,12 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
           },
           new: {
             params: [
+              {
+                name: 'pipeIn',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
               {
                 name: 'input',
                 type: { kind: 'string' },

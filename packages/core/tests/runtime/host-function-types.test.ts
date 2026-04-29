@@ -1806,6 +1806,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('handles context with only typed functions', async () => {
+        // IR-8: pipe value auto-prepends as first arg when no bare $ is in args.
+        // b receives (pipeIn, "test") where pipeIn=1 is the result of a(1).
         const result = await run('a(1) -> b("test")', {
           functions: {
             a: {
@@ -1821,6 +1823,12 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
             b: {
               params: [
+                {
+                  name: 'pipeIn',
+                  type: { kind: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
                 {
                   name: 'y',
                   type: { kind: 'string' },

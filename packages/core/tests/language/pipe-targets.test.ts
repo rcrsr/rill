@@ -185,9 +185,9 @@ list[1, 2, 3] -> seq({ $double() })`;
       expect(await run('"piped" -> identity')).toBe('piped');
     });
 
-    it('function call with () after pipe ignores pipe value', async () => {
-      // identity() with explicit empty args doesn't use pipe value
-      expect(await run('"ignored" -> identity("used")')).toBe('used');
+    it('auto-prepends piped value when no bare `$` is present', async () => {
+      // IR-8: when no top-level $ appears in args, pipe value auto-prepends at position 0
+      expect(await run('"ignored" -> identity()')).toBe('ignored');
     });
   });
 
@@ -314,6 +314,154 @@ $val -> |x| { $x -> .len }`;
     it('complex nested pipe chain', async () => {
       const script = `"a,b,c" -> .split(",") -> seq({ "{$}!" }) -> .join("-")`;
       expect(await run(script)).toBe('a!-b!-c!');
+    });
+  });
+
+  // ============================================================
+  // PIPE BINDING RULE (IR-8)
+  // ============================================================
+
+  describe('Pipe Binding Rule (IR-8)', () => {
+    // Helper: 3-param host function that returns its args as a list
+    const makeCollect3: () => RillFunction = () => ({
+      params: [
+        {
+          name: 'a',
+          type: { kind: 'any' as const },
+          defaultValue: undefined,
+          annotations: {},
+        },
+        {
+          name: 'b',
+          type: { kind: 'any' as const },
+          defaultValue: undefined,
+          annotations: {},
+        },
+        {
+          name: 'c',
+          type: { kind: 'any' as const },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ],
+      fn: (args: Record<string, RillValue>): RillValue[] =>
+        [args['a'], args['b'], args['c']] as RillValue[],
+    });
+
+    // Helper: 2-param host function that returns its args as a list
+    const makeCollect2: () => RillFunction = () => ({
+      params: [
+        {
+          name: 'a',
+          type: { kind: 'any' as const },
+          defaultValue: undefined,
+          annotations: {},
+        },
+        {
+          name: 'b',
+          type: { kind: 'any' as const },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ],
+      fn: (args: Record<string, RillValue>): RillValue[] =>
+        [args['a'], args['b']] as RillValue[],
+    });
+
+    // Helper: zero-param host function that returns a fixed value
+    const makeZeroParam: () => RillFunction = () => ({
+      params: [],
+      fn: (): RillValue => 'zero-param-result',
+    });
+
+    it('AC-PIPE-1: no $ in args — auto-prepends pipe value as first arg (≥3-param fn)', async () => {
+      // $val -> fn(1, 2) with no $ becomes fn($val, 1, 2)
+      const collect3 = makeCollect3();
+      const result = await run('"piped" -> collect3(1, 2)', {
+        functions: { collect3 },
+      });
+      expect(result).toEqual(['piped', 1, 2]);
+    });
+
+    it('AC-PIPE-2: explicit $ as first arg — manual placement, no auto-prepend', async () => {
+      // $val -> fn($, 1) becomes fn($val, 1)
+      const collect2 = makeCollect2();
+      const result = await run('"piped" -> collect2($, 1)', {
+        functions: { collect2 },
+      });
+      expect(result).toEqual(['piped', 1]);
+    });
+
+    it('AC-PIPE-3: explicit $ in middle — placed at position 1, no auto-prepend', async () => {
+      // $val -> fn(1, $, 0) becomes fn(1, $val, 0)
+      const collect3 = makeCollect3();
+      const result = await run('"piped" -> collect3(1, $, 0)', {
+        functions: { collect3 },
+      });
+      expect(result).toEqual([1, 'piped', 0]);
+    });
+
+    it('AC-PIPE-4: multiple $ occurrences — all resolve to same piped value', async () => {
+      // $val -> fn(1, $, $) becomes fn(1, $val, $val)
+      const collect3 = makeCollect3();
+      const result = await run('"piped" -> collect3(1, $, $)', {
+        functions: { collect3 },
+      });
+      expect(result).toEqual([1, 'piped', 'piped']);
+    });
+
+    it('AC-PIPE-6: $ inside closure body is late-bound, not counted — auto-prepends pipe value', async () => {
+      // $list -> filter({ $.active }) — $ inside { } is closure-bound, not top-level
+      // so pipe value auto-prepends as the list arg to filter
+      const script = `list[dict[active: true, name: "a"], dict[active: false, name: "b"]] -> filter({ $.active })`;
+      const result = await run(script);
+      expect(result).toEqual([{ active: true, name: 'a' }]);
+    });
+
+    it('AC-PIPE-7: nested closures — inner and outer $ both late-bound, not counted', async () => {
+      // $matrix -> seq({ $ -> seq({ $ * 2 }) }) — both $ refs are inside closure bodies
+      // so filter auto-prepends (no top-level $); inner $ also late-bound
+      const result = await run(
+        'list[list[1, 2], list[3, 4]] -> seq({ $ -> seq({ $ * 2 }) })'
+      );
+      expect(result).toEqual([
+        [2, 4],
+        [6, 8],
+      ]);
+    });
+
+    it('AC-PIPE-8: zero-param callable — pipe value silently dropped, fn runs normally', async () => {
+      // $val -> fn where fn takes 0 params runs fn(); no halt
+      const zeroParam = makeZeroParam();
+      const result = await run('"dropped" -> zeroParam', {
+        functions: { zeroParam },
+      });
+      expect(result).toBe('zero-param-result');
+    });
+
+    it('AC-BOUND-4: zero-param callable with explicit $ — arity error (manual places 1 arg, fn accepts 0)', async () => {
+      // $val -> fn($) — manual placement supplies 1 arg; callable accepts 0 → arity error
+      const zeroParam = makeZeroParam();
+      await expect(
+        run('"val" -> zeroParam($)', { functions: { zeroParam } })
+      ).rejects.toThrow(/expects 0 arguments, got 1/i);
+    });
+
+    it('AC-BOUND-5: 3-param fn with explicit $ — manual placement, no auto-prepend (exactly 3 args supplied)', async () => {
+      // $val -> fn(1, $, 0) — explicit $ suppresses auto-prepend; fn gets (1, $val, 0)
+      const collect3 = makeCollect3();
+      const result = await run('42 -> collect3(1, $, 0)', {
+        functions: { collect3 },
+      });
+      expect(result).toEqual([1, 42, 0]);
+    });
+
+    it('EC-7: arg-evaluation error during pipe propagates as halt', async () => {
+      // Runtime error evaluating an arg inside a pipe target propagates outward
+      const collect2 = makeCollect2();
+      await expect(
+        run('"val" -> collect2($undefinedVar, 1)', { functions: { collect2 } })
+      ).rejects.toThrow();
     });
   });
 });

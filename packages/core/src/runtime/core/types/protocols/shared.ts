@@ -87,6 +87,38 @@ export function resolvedDeepEquals(a: RillValue, b: RillValue): boolean {
 }
 
 // ============================================================
+// LATE-BINDING: compareValue
+// ============================================================
+
+/**
+ * Late-bound dispatcher for per-value comparison.
+ * Wired by initCompareValue(compareValue) after registrations.ts builds the
+ * compareValue dispatcher. Returns undefined when the type has no compare
+ * protocol or when the two values have incompatible types.
+ */
+let _compareValue:
+  | ((a: RillValue, b: RillValue) => number | undefined)
+  | undefined;
+
+export function initCompareValue(
+  fn: (a: RillValue, b: RillValue) => number | undefined
+): void {
+  _compareValue = fn;
+}
+
+export function resolvedCompareValue(
+  a: RillValue,
+  b: RillValue
+): number | undefined {
+  if (_compareValue === undefined) {
+    throw new Error(
+      'compareValue called before initCompareValue: bootstrap order violation'
+    );
+  }
+  return _compareValue(a, b);
+}
+
+// ============================================================
 // COMPARISON UTILITIES
 // ============================================================
 

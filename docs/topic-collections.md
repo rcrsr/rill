@@ -1,10 +1,10 @@
 # rill Collection Operators
 
-*Sequential and parallel iteration with seq, fan, filter, fold, and acc*
+*Sequential and parallel iteration with seq, fan, filter, fold, acc, and sort*
 
 ## Overview
 
-rill provides five collection operators for transforming, filtering, and reducing data:
+rill provides six collection operators for transforming, filtering, reducing, and ordering data:
 
 | Operator | Execution | Accumulator | Returns | Catches break? |
 |----------|-----------|-------------|---------|----------------|
@@ -13,8 +13,9 @@ rill provides five collection operators for transforming, filtering, and reducin
 | `filter` | Parallel | No | Elements where predicate is true | No |
 | `fold` | Sequential | Required | Final result only | No |
 | `acc` | Sequential | Required | List of all intermediate results | Yes |
+| `sort` | Eager | No | Sorted list or ordered | No |
 
-All five operators are host-callable functions. They share similar invocation patterns but differ in execution model and output.
+All six operators are host-callable functions. They share similar invocation patterns but differ in execution model and output.
 
 > **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](topic-variables.md)). Use `fold` or `acc` with accumulators instead.
 
@@ -44,13 +45,25 @@ All five operators are host-callable functions. They share similar invocation pa
 
 ## seq — Sequential Iteration
 
+**Signature:** `seq(list: list[T], body: (item: T) => U): list[U]`
+
 `seq` iterates over a collection in order. Each iteration completes before the next begins. Returns a list of all body results.
 
+**Invocation forms:** Both produce identical results. The pipe form auto-prepends the piped value as the first argument.
+
 ```rill
-# Double each number
+# Auto-prepend form (pipe supplies the list)
 [1, 2, 3] -> seq({ $ * 2 })
 # Result: [2, 4, 6]
 
+# Explicit form (list slot filled explicitly)
+seq([1, 2, 3], { $ * 2 })
+# Result: [2, 4, 6]
+```
+
+> **Backward compatibility:** Existing `$list -> seq({...})` forms continue to work via auto-prepend. No migration needed.
+
+```rill
 # Transform strings
 ["a", "b", "c"] -> seq({ "{$}!" })
 # Result: ["a!", "b!", "c!"]
@@ -119,13 +132,25 @@ An empty stream returns `[]` without executing the body.
 
 ## fan — Parallel Iteration
 
+**Signature:** `fan(list: list[T], body: (item: T) => list[U], options?: dict): list[U]`
+
 `fan` iterates concurrently. Order is preserved despite parallel execution. Does not catch `break`.
 
+> **Backward compatibility:** Existing `$list -> fan({...})` forms continue to work via auto-prepend. No migration needed.
+
+**Invocation forms:** Both produce identical results. The pipe form auto-prepends the piped value as the first argument.
+
 ```rill
-# Map with closure parameter
+# Auto-prepend form (pipe supplies the list)
 ["a", "b", "c"] -> fan({ "{$}!" })
 # Result: ["a!", "b!", "c!"]
 
+# Explicit form (list slot filled explicitly)
+fan(["a", "b", "c"], { "{$}!" })
+# Result: ["a!", "b!", "c!"]
+```
+
+```rill
 # Block expression (implicit $)
 [1, 2, 3] -> fan({ $ * 2 })
 # Result: [2, 4, 6]
@@ -184,7 +209,23 @@ An empty stream returns `[]`.
 
 ## filter — Parallel Filtering
 
+**Signature:** `filter(list: list[T], body: (item: T) => bool, options?: dict): list[T]`
+
 `filter` keeps elements where the predicate returns `true`. Predicates must return boolean values. Executes concurrently. Does not catch `break`.
+
+> **Backward compatibility:** Existing `$list -> filter({...})` forms continue to work via auto-prepend. No migration needed.
+
+**Invocation forms:** Both produce identical results. The pipe form auto-prepends the piped value as the first argument.
+
+```rill
+# Auto-prepend form (pipe supplies the list)
+[1, 2, 3, 4, 5] -> filter({ $ > 2 })
+# Result: [3, 4, 5]
+
+# Explicit form (list slot filled explicitly)
+filter([1, 2, 3, 4, 5], { $ > 2 })
+# Result: [3, 4, 5]
+```
 
 ```rill
 # Keep numbers greater than 2
@@ -272,7 +313,23 @@ An empty stream returns `[]`.
 
 ## fold — Sequential Reduction
 
+**Signature:** `fold(list: list[T], init: U, body: (acc: U, item: T) => U): U`
+
 `fold` reduces a collection to a single value. Requires a seed and a body callable. Does not catch `break`.
+
+> **Backward compatibility:** Existing `$list -> fold(init, {...})` forms continue to work via auto-prepend. No migration needed.
+
+**Invocation forms:** Both produce identical results. The pipe form auto-prepends the piped value as the first argument.
+
+```rill
+# Auto-prepend form (pipe supplies the list)
+[1, 2, 3] -> fold(0, { $@ + $ })
+# Result: 6
+
+# Explicit form (list slot filled explicitly)
+fold([1, 2, 3], 0, { $@ + $ })
+# Result: 6
+```
 
 ```rill
 # Sum numbers
@@ -384,7 +441,23 @@ An empty stream returns the initial value without executing the body.
 
 ## acc — Sequential Scan
 
+**Signature:** `acc(list: list[T], init: U, body: (acc: U, item: T) => U): list[U]`
+
 `acc` iterates sequentially with a running accumulator. Unlike `fold`, it returns a list of all intermediate accumulator values, not just the final one. Catches `break`.
+
+> **Backward compatibility:** Existing `$list -> acc(init, {...})` forms continue to work via auto-prepend. No migration needed.
+
+**Invocation forms:** Both produce identical results. The pipe form auto-prepends the piped value as the first argument.
+
+```rill
+# Auto-prepend form (pipe supplies the list)
+[1, 2, 3] -> acc(0, { $@ + $ })
+# Result: [1, 3, 6]
+
+# Explicit form (list slot filled explicitly)
+acc([1, 2, 3], 0, { $@ + $ })
+# Result: [1, 3, 6]
+```
 
 ```rill
 # Running sum (scan pattern)
@@ -437,6 +510,97 @@ $app.stream_numbers() -> acc(0, { $@ + $ })
 ```
 
 An empty stream returns `[]`.
+
+---
+
+## sort — Stable Ordering
+
+**List signature:** `sort(list: list[T], key_fn?: (item: T) => Comparable) -> list[T]`
+
+**Dict signature:** `sort(dict: dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable) -> ordered[[key: K, value: V]]`
+
+`sort` orders a list or dict using a stable sort (`Array.prototype.sort`, ES2019+). Equal elements preserve their original relative order. Iterators are eagerly materialized before sorting.
+
+### List Form
+
+```rill
+# Default: sort ascending by element value
+[3, 1, 2] -> sort
+# Result: [1, 2, 3]
+
+# With key extractor: sort strings by length
+["banana", "fig", "apple"] -> sort({ $ -> .len })
+# Result: ["fig", "apple", "banana"]
+```
+
+### Dict Form
+
+Dict sort returns an `ordered` collection. The default key is the entry key string.
+
+```rill
+# Default: sort by key (alphabetical)
+[c: 3, a: 1, b: 2] -> sort
+# Result: ordered[a: 1, b: 2, c: 3]
+
+# Explicit key_fn: sort entries by their numeric value
+[c: 3, a: 1, b: 2] -> sort({ $.value })
+# Result: ordered[a: 1, b: 2, c: 3]
+```
+
+### Multi-Key Sorting
+
+Use a `tuple[...]` projection to sort by multiple keys. Tuple comparison is lexicographic left to right.
+
+```rill
+# Sort by score ascending, then name ascending as tiebreaker
+list[dict[name: "alice", score: 90], dict[name: "bob", score: 85], dict[name: "carol", score: 90]] -> sort({ tuple[$.score, $.name] })
+# Result: list[dict[name: "bob", score: 85], dict[name: "alice", score: 90], dict[name: "carol", score: 90]]
+```
+
+### Stability
+
+Equal keys preserve original relative order.
+
+```rill
+# alice and carol share score 90; original order alice then carol is preserved
+list[dict[name: "alice", score: 90], dict[name: "carol", score: 90], dict[name: "bob", score: 85]] -> sort({ $.score })
+# Result: list[dict[name: "bob", score: 85], dict[name: "alice", score: 90], dict[name: "carol", score: 90]]
+```
+
+### Descending Order
+
+Pipe through `.reverse` after sorting to get descending order. `.reverse` is a zero-parameter, pure list method. Dict sort returns `ordered`, which does not support `.reverse`.
+
+```rill
+[3, 1, 2] -> sort -> .reverse
+# Result: [3, 2, 1]
+```
+
+### Iterator Materialization
+
+`range(...)` iterators are structurally dicts in rill. A direct `range -> sort` takes the dict path. Use `seq({ $ })` to materialize as a list first.
+
+```rill
+range(0, 5) -> seq({ $ }) -> sort
+# Result: [0, 1, 2, 3, 4]
+```
+
+### Empty Input
+
+Empty list returns `[]`. Empty dict returns an empty `ordered`.
+
+```rill
+[] -> sort
+# Result: []
+```
+
+### Error Cases
+
+| Error | Cause | Reference |
+|-------|-------|-----------|
+| `#TYPE_MISMATCH` | Key extractor returns mixed types (e.g., number and string) | See [Error Handling](topic-error-handling.md) |
+| `#INVALID_INPUT` | Key extractor returns a vacant value | See [Error Handling](topic-error-handling.md) |
+| `#TYPE_MISMATCH` | `key_fn` argument is not callable | See [Error Handling](topic-error-handling.md) |
 
 ---
 

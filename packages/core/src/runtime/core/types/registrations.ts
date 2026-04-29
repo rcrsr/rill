@@ -4,7 +4,11 @@ import type { RillValue } from './structures.js';
 import type { RillFunction } from '../callable.js';
 import { RuntimeError } from '../../../types.js';
 import { throwTypeHalt } from './halt.js';
-import { initFormatNested, initDeepEquals } from './protocols/shared.js';
+import {
+  initFormatNested,
+  initDeepEquals,
+  initCompareValue,
+} from './protocols/shared.js';
 import type { TypeDefinition } from './protocols/types.js';
 import {
   stringType,
@@ -114,6 +118,24 @@ export function deepEquals(a: RillValue, b: RillValue): boolean {
   }
 }
 initDeepEquals(deepEquals);
+
+/**
+ * Compare two Rill values using their type protocol.
+ * Returns a number (negative/zero/positive) when both values share the same
+ * type and that type defines a compare protocol. Returns undefined when the
+ * types differ or the type has no compare protocol.
+ */
+function compareValue(a: RillValue, b: RillValue): number | undefined {
+  const typeName = inferType(a);
+  const rightTypeName = inferType(b);
+  if (typeName !== rightTypeName) return undefined;
+  return dispatchByIdentity(
+    a,
+    (reg) => (reg.protocol.compare ? reg.protocol.compare(a, b) : undefined),
+    undefined
+  );
+}
+initCompareValue(compareValue);
 
 /** Serialize a Rill value for JSON transport. */
 export function serializeValue(value: RillValue): unknown {

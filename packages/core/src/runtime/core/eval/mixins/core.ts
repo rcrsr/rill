@@ -589,8 +589,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
       switch (target.type) {
         case 'HostCall':
+          // Pass inPipeTarget=true so the IR-8 unified pipe-binding rule
+          // applies: auto-prepend fires when no top-level `$` is in args.
           return (this as unknown as EvaluatorInterface).evaluateHostCall(
-            target
+            target,
+            true
           );
 
         case 'HostRef':

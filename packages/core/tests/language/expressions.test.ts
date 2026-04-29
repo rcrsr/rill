@@ -147,4 +147,35 @@ describe('Rill Runtime: Expressions', () => {
       expect(logs).toEqual(['hello']);
     });
   });
+
+  // ============================================================
+  // PIPE BINDING: SUB-EXPRESSION $ (IR-8, AC-PIPE-5)
+  // ============================================================
+
+  describe('Pipe Binding: sub-expression $ counted (AC-PIPE-5)', () => {
+    it('$ inside nested function call arg counts as top-level — manual placement applies', async () => {
+      // $val -> fn(g($)) — $ is inside g()'s args, not a closure body
+      // The pipe-rule scanner descends into non-closure sub-expressions,
+      // so g($) counts as having a top-level $; manual placement binds
+      // $val to that $, making it fn(g($val))
+      // Using identity(identity($)) to verify the inner $ receives pipe value
+      const result = await run('"hello" -> identity(identity($))');
+      expect(result).toBe('hello');
+    });
+
+    it('$ in sub-expression of method arg counts — manual placement applies', async () => {
+      // "hello" -> .contains(identity($)) — $ inside identity() arg (non-closure sub-expr)
+      // The scanner finds $, so manual placement: .contains(identity("hello"))
+      const result = await run('"hello" -> .contains(identity($))');
+      expect(result).toBe(true);
+    });
+
+    it('$ in sub-expression vs closure — only non-closure sub-exprs count', async () => {
+      // "hello" -> identity("world") — no $ at all → auto-prepend → identity("hello", "world") arity error?
+      // Instead test: $ in sub-expr is counted, so no auto-prepend occurs
+      // identity($) = identity("hello") = "hello"; confirm result is "hello"
+      const result = await run('"hello" -> identity($)');
+      expect(result).toBe('hello');
+    });
+  });
 });

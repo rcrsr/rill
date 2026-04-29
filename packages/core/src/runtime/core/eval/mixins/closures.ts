@@ -77,6 +77,73 @@ import {
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
+// ============================================================
+// IR-8: CLOSURE-SKIPPING PIPE-RULE SCANNER
+// ============================================================
+
+/**
+ * Returns true when any bare `$` pipe placeholder (VariableNode with
+ * isPipeVar === true) exists in the argument list, NOT counting occurrences
+ * inside ClosureNode bodies (`|params| body`).
+ *
+ * The scanner descends into all sub-expressions but stops at `Closure`
+ * node boundaries, because references to `$` inside closure literals are
+ * late-bound and do not affect the outer pipe-binding decision.
+ *
+ * Implements the IR-8 pipe-rule scanner.
+ *
+ * SCOPE: HostCall only — PipeInvoke and MethodCall are intentionally excluded.
+ *
+ *   - PipeInvoke (`$fn -> $arg`): the `input` parameter IS the piped value.
+ *     The callable is invoked with the piped value bound to its first
+ *     parameter directly; there is no args array ambiguity, so the scanner
+ *     adds no value.
+ *
+ *   - MethodCall (`value.method(args)`): the receiver IS the piped value.
+ *     The method target already binds the piped value as the implicit
+ *     receiver; scanning the argument list for `$` would be incorrect.
+ *
+ * Deferral is intentional. A spec amendment is required before applying
+ * scanner logic to PipeInvoke or MethodCall node types.
+ */
+function hasTopLevelDollarInAST(
+  args: readonly (ExpressionNode | SpreadArgNode)[]
+): boolean {
+  for (const arg of args) {
+    if (containsDollar(arg)) return true;
+  }
+  return false;
+}
+
+/**
+ * Recursive descent helper for hasTopLevelDollarInAST.
+ * Visits all AST node properties, stops at Closure and Block boundaries
+ * because `$` inside either is late-bound and not a pipe placeholder.
+ */
+function containsDollar(node: unknown): boolean {
+  if (node === null || typeof node !== 'object' || Array.isArray(node))
+    return false;
+  const n = node as Record<string, unknown>;
+
+  // Stop at closure / block boundaries — `$` inside is late-bound
+  if (n['type'] === 'Closure' || n['type'] === 'Block') return false;
+
+  // Bare `$` pipe placeholder
+  if (n['type'] === 'Variable' && n['isPipeVar'] === true) return true;
+
+  // Recurse into child properties
+  for (const value of Object.values(n)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (containsDollar(item)) return true;
+      }
+    } else if (typeof value === 'object' && value !== null) {
+      if (containsDollar(value)) return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Format a source location into `file:line:col` form for trace frame `site`.
  * Mirrors the internal `formatSite` logic from `types/halt.ts`.
@@ -550,8 +617,18 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       return resolveFn();
     }
 
-    /** Evaluate host function call: functionName(args). */
-    protected async evaluateHostCall(node: HostCallNode): Promise<RillValue> {
+    /** Evaluate host function call: functionName(args).
+     *
+     * When `inPipeTarget` is true the IR-8 unified pipe-binding rule applies:
+     * auto-prepend fires when no top-level `$` appears in the argument list.
+     * When false (primary-expression context) the legacy guard is used instead
+     * (`args.length === 0`), preserving existing behaviour for calls inside
+     * blocks, conditionals, and other non-direct-pipe-target positions.
+     */
+    protected async evaluateHostCall(
+      node: HostCallNode,
+      inPipeTarget = false
+    ): Promise<RillValue> {
       this.checkAborted(node);
 
       const fn = this.ctx.functions.get(node.name);
@@ -621,12 +698,18 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         isApplicationCallable(fn) &&
         fn.params !== undefined &&
         fn.params.length === 0;
-      if (
-        args.length === 0 &&
-        this.ctx.pipeValue !== null &&
-        !isTypedZeroParam
-      ) {
-        args.push(this.ctx.pipeValue);
+      // IR-8: pipe-binding rule.
+      // In pipe-target position: auto-prepend when no top-level `$` in args.
+      // In primary-expression position: preserve legacy guard (args.length === 0)
+      // so that host calls inside blocks/conditionals are not affected.
+      const shouldPrepend = inPipeTarget
+        ? !hasTopLevelDollarInAST(node.args)
+        : args.length === 0;
+      if (shouldPrepend && this.ctx.pipeValue !== null && !isTypedZeroParam) {
+        // unshift inserts at position 0 so the piped value is the first arg.
+        // push was sufficient for the legacy empty-args path but is wrong
+        // when existing args are present (new IR-8 rule).
+        args.unshift(this.ctx.pipeValue);
       }
       this.ctx.observability.onHostCall?.({ name: node.name, args });
       const startTime = performance.now();
@@ -1336,7 +1419,10 @@ export type ClosuresMixinCapability = {
     functionName?: string,
     internal?: boolean
   ): Promise<RillValue>;
-  evaluateHostCall(node: HostCallNode): Promise<RillValue>;
+  evaluateHostCall(
+    node: HostCallNode,
+    inPipeTarget?: boolean
+  ): Promise<RillValue>;
   evaluateHostRef(node: HostRefNode): Promise<RillValue>;
   evaluateClosureCall(node: ClosureCallNode): Promise<RillValue>;
   evaluateClosureCallWithPipe(

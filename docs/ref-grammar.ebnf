@@ -951,9 +951,10 @@ option        = identifier , ":" , positive-integer ;
 guard-block   = "guard" , [ on-clause ] , block ;
 retry-block   = "retry" , "<" , "limit" , ":" , positive-integer , [ "," , on-clause ] , ">" , block ;
 
-positive-integer = digit , { digit } ;
-              (* `limit:` accepts only positive integer literals. Decimals
-                 (e.g. retry<limit: 1.5>) and negative numbers are parse errors. *)
+positive-integer = nonzero-digit , { digit } ;
+              (* `limit:` accepts only positive integer literals (>= 1).
+                 Zero, decimals (e.g. retry<limit: 1.5>), and negative numbers
+                 are parse errors. *)
 
 on-clause     = "<" , "on" , ":" , "list[" , atom-literal , { "," , atom-literal } , "]" , ">" ;
               (* Lexer note: "list[" is a single compound token. The lexer requires
@@ -1081,6 +1082,7 @@ uppercase-letter = "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J" | "
 lowercase-letter = "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j" | "k" | "l" | "m"
                  | "n" | "o" | "p" | "q" | "r" | "s" | "t" | "u" | "v" | "w" | "x" | "y" | "z" ;
 digit         = "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
+nonzero-digit = "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 newline       = "\n" | "\r\n" ;
 
 (* ============================================================ *)

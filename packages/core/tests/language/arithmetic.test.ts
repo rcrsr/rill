@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Arithmetic', () => {
@@ -181,6 +182,36 @@ describe('Rill Runtime: Arithmetic', () => {
       expect(
         await run('list[1, 2, 3] -> seq({ ($ * 2) }) => $result\n$result')
       ).toEqual([2, 4, 6]);
+    });
+  });
+
+  describe('Tuple Comparison Operators (IR-10)', () => {
+    it('AC-TUP-1: tuple[1, 2] < tuple[1, 3] returns true', async () => {
+      expect(await run('tuple[1, 2] < tuple[1, 3]')).toBe(true);
+    });
+
+    it('AC-TUP-2: tuple[2, 1] > tuple[1, 9] returns true', async () => {
+      expect(await run('tuple[2, 1] > tuple[1, 9]')).toBe(true);
+    });
+
+    it('AC-TUP-3: tuple[1, 2] <= tuple[1, 2] returns true', async () => {
+      expect(await run('tuple[1, 2] <= tuple[1, 2]')).toBe(true);
+    });
+
+    it('AC-TUP-4: tuple[1, 2] >= tuple[1, 2] returns true', async () => {
+      expect(await run('tuple[1, 2] >= tuple[1, 2]')).toBe(true);
+    });
+
+    it('AC-ERR-3: dict comparison with < raises RILL-R002 (dicts are unorderable)', async () => {
+      await expect(run('[a: 1] < [b: 2]')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('AC-ERR-5 / EC-4: different-length tuples compared with < halt #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('tuple[1, 2] < tuple[1, 2, 3]'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
   });
 });

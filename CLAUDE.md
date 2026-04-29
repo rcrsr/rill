@@ -139,6 +139,8 @@ Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 
 Start at @docs/index.md for full navigation.
 
+For writing rill code, load @docs/ref-llms.txt — a progressive LLM-optimized index that points to topic fragments under `docs/llm/` (cheatsheet, anti-patterns, control-flow, errors, types, callables, stdlib, style). Pull fragments on demand instead of reading the full reference.
+
 ### Web Docs (packages/web)
 
 The `docs/` directory is the source of truth. `packages/web/content/docs/` pages are generated.

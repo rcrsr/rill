@@ -33,7 +33,7 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Comparison | `==`, `!=`, `<`, `>`, `<=`, `>=` |
 | Comparison | `.eq`, `.ne`, `.lt`, `.gt`, `.le`, `.ge` methods |
 | Logical | `!` (unary), `&&`, `\|\|` |
-| Pipe | `->` |
+| Pipe | `->` — auto-fill rule: no `$` in args → piped value prepended; explicit `$` rule: `$` in args → manual placement, no auto-prepend; zero-parameter callable → piped value silently dropped |
 | Capture | `=>` |
 | Spread | `...` (list/tuple spread), `ordered[...]` spread |
 | Extraction | `destruct<>` (destructure), `slice<>` (slice) |
@@ -393,8 +393,12 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `datetime` | `input\|year, month, day, ...\|unix` | `datetime` | Construct datetime from ISO string, named components, or unix ms |
 | `duration` | `years?, months?, days?, hours?, minutes?, seconds?, ms?` | `duration` | Construct duration from named unit parameters |
 | `now` | (none) | `datetime` | Current UTC instant |
+| `sort` | `list[T], key_fn?: (item: T) => Comparable` | `list[T]` | Sort list; stable, ascending by default |
+| `sort` | `dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable` | `ordered[[key: K, value: V]]` | Sort dict entries; returns ordered key-value pairs |
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
+
+See [Collections](topic-collections.md#sort--stable-ordering) for detailed `sort` documentation including multi-key tuple projection and error contracts.
 
 ---
 

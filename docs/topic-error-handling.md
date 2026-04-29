@@ -135,10 +135,10 @@ These atoms are available in every rill runtime without registration:
 | `#UNAVAILABLE` | generic | Service or resource not available |
 | `#NOT_FOUND` | generic | Requested resource does not exist |
 | `#CONFLICT` | generic | State conflict (e.g. duplicate write) |
-| `#INVALID_INPUT` | generic | Input failed validation |
+| `#INVALID_INPUT` | generic | Input failed validation; also: `sort` key extractor returns a vacant value |
 | `#PROTOCOL` | generic | Response shape violates documented contract (parse failure, schema mismatch) |
 | `#DISPOSED` | generic | Extension was called after disposal |
-| `#TYPE_MISMATCH` | generic | Failed `:type` assertion or conversion |
+| `#TYPE_MISMATCH` | generic | Failed `:type` assertion or conversion; also: `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, or tuple comparison receives different-length or differently-typed tuples |
 
 `#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts cannot produce `#ok` as an error code.
 
