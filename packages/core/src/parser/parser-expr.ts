@@ -1896,6 +1896,7 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
     entries.push({
       type: 'DictEntry',
       key: keyToken.value,
+      keyForm: 'identifier',
       value,
       span: makeSpan(entryStart, current(this.state).span.end),
     } satisfies DictEntryNode);

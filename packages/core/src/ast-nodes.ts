@@ -384,6 +384,13 @@ export interface DictEntryNode extends BaseNode {
     | DictKeyVariable
     | DictKeyComputed;
   readonly value: ExpressionNode;
+  /**
+   * Set only when `key` is a `string`. Reflects the syntactic form used at the call site:
+   * `'identifier'` for bare-identifier keys (`{name: "x"}`) and `'string'` for quoted-string
+   * keys (`{"name": "x"}`). This is metadata for downstream tools and does not affect runtime
+   * semantics.
+   */
+  readonly keyForm?: 'identifier' | 'string';
 }
 
 /**

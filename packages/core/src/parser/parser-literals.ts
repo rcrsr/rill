@@ -497,6 +497,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     | ListLiteralNode
     | DictKeyVariable
     | DictKeyComputed;
+  let keyForm: 'identifier' | 'string' | undefined = undefined;
 
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     // Parse variable key: $variableName
@@ -568,6 +569,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     // Parse string literal as key
     const keyToken = advance(this.state);
     key = keyToken.value;
+    keyForm = 'string';
   } else if (isNegativeNumber(this.state)) {
     // Parse negative number as key: -NUMBER
     advance(this.state); // consume MINUS
@@ -589,6 +591,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     // Parse identifier as string key
     const keyToken = advance(this.state);
     key = keyToken.value;
+    keyForm = 'identifier';
   } else {
     // Invalid token at key position
     throw new ParseError(
@@ -605,6 +608,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     type: 'DictEntry',
     key,
     value,
+    ...(keyForm !== undefined ? { keyForm } : {}),
     span: makeSpan(start, current(this.state).span.end),
   };
 };
