@@ -499,6 +499,100 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(withExplicitDollar).toEqual(withAutoPrepend);
       expect(withExplicitDollar).toEqual([6, 7, 8]);
     });
+
+    it('AC-COL-8: take — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2, 3, 4, 5] -> take(3)');
+      const explicitDollar = await run(
+        'list[1, 2, 3, 4, 5] => $xs\n$xs -> take($, 3)'
+      );
+      const directCall = await run('take(list[1, 2, 3, 4, 5], 3)');
+      expect(autoPrepend).toEqual([1, 2, 3]);
+      expect(explicitDollar).toEqual([1, 2, 3]);
+      expect(directCall).toEqual([1, 2, 3]);
+    });
+
+    it('AC-COL-9: skip — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2, 3, 4, 5] -> skip(2)');
+      const explicitDollar = await run(
+        'list[1, 2, 3, 4, 5] => $xs\n$xs -> skip($, 2)'
+      );
+      const directCall = await run('skip(list[1, 2, 3, 4, 5], 2)');
+      expect(autoPrepend).toEqual([3, 4, 5]);
+      expect(explicitDollar).toEqual([3, 4, 5]);
+      expect(directCall).toEqual([3, 4, 5]);
+    });
+
+    it('AC-COL-10: cycle — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2] -> cycle() -> take(4)');
+      const explicitDollar = await run(
+        'list[1, 2] => $xs\n$xs -> cycle($) -> take(4)'
+      );
+      const directCall = await run('cycle(list[1, 2]) -> take(4)');
+      expect(autoPrepend).toEqual([1, 2, 1, 2]);
+      expect(explicitDollar).toEqual([1, 2, 1, 2]);
+      expect(directCall).toEqual([1, 2, 1, 2]);
+    });
+
+    it('AC-COL-11: batch — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2, 3, 4, 5] -> batch(2)');
+      const explicitDollar = await run(
+        'list[1, 2, 3, 4, 5] => $xs\n$xs -> batch($, 2)'
+      );
+      const directCall = await run('batch(list[1, 2, 3, 4, 5], 2)');
+      expect(autoPrepend).toEqual([[1, 2], [3, 4], [5]]);
+      expect(explicitDollar).toEqual([[1, 2], [3, 4], [5]]);
+      expect(directCall).toEqual([[1, 2], [3, 4], [5]]);
+    });
+
+    it('AC-COL-12: window — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run('list[1, 2, 3, 4, 5] -> window(3)');
+      const explicitDollar = await run(
+        'list[1, 2, 3, 4, 5] => $xs\n$xs -> window($, 3)'
+      );
+      const directCall = await run('window(list[1, 2, 3, 4, 5], 3)');
+      expect(autoPrepend).toEqual([
+        [1, 2, 3],
+        [4, 5],
+      ]);
+      expect(explicitDollar).toEqual([
+        [1, 2, 3],
+        [4, 5],
+      ]);
+      expect(directCall).toEqual([
+        [1, 2, 3],
+        [4, 5],
+      ]);
+    });
+
+    it('AC-COL-13: start_when — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run(
+        'list[1, 2, 3, 4, 5] -> start_when({ $ -> .eq(3) })'
+      );
+      const explicitDollar = await run(
+        'list[1, 2, 3, 4, 5] => $xs\n$xs -> start_when($, { $ -> .eq(3) })'
+      );
+      const directCall = await run(
+        'start_when(list[1, 2, 3, 4, 5], { $ -> .eq(3) })'
+      );
+      expect(autoPrepend).toEqual([3, 4, 5]);
+      expect(explicitDollar).toEqual([3, 4, 5]);
+      expect(directCall).toEqual([3, 4, 5]);
+    });
+
+    it('AC-COL-14: stop_when — auto-prepend, explicit $, and direct-call produce identical results', async () => {
+      const autoPrepend = await run(
+        'list[1, 2, 3, 4, 5] -> stop_when({ $ -> .eq(3) })'
+      );
+      const explicitDollar = await run(
+        'list[1, 2, 3, 4, 5] => $xs\n$xs -> stop_when($, { $ -> .eq(3) })'
+      );
+      const directCall = await run(
+        'stop_when(list[1, 2, 3, 4, 5], { $ -> .eq(3) })'
+      );
+      expect(autoPrepend).toEqual([1, 2, 3]);
+      expect(explicitDollar).toEqual([1, 2, 3]);
+      expect(directCall).toEqual([1, 2, 3]);
+    });
   });
 
   // ── Phase 1: take, skip, cycle, pass<> ───────────────────────────────────
