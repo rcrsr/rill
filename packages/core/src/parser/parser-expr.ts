@@ -936,6 +936,24 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
   // Pass keyword: pass
   if (check(this.state, TOKEN_TYPES.PASS)) {
     const token = advance(this.state);
+
+    // Bracketless body form: pass { body }
+    if (check(this.state, TOKEN_TYPES.LBRACE)) {
+      const emptyOptions: DictNode = {
+        type: 'Dict',
+        entries: [],
+        defaultValue: null,
+        span: makeSpan(token.span.end, token.span.end),
+      };
+      const body = this.parseBlock(true);
+      return {
+        type: 'PassBlock',
+        options: emptyOptions,
+        body,
+        span: makeSpan(token.span.start, body.span.end),
+      } satisfies PassBlockNode;
+    }
+
     return {
       type: 'Pass',
       span: token.span,
@@ -1329,6 +1347,30 @@ const pipeTargetDispatchTable: Record<
   },
   [TOKEN_TYPES.PASS_LANGLE]: function (this: Parser) {
     return this.parsePassBlock();
+  },
+  [TOKEN_TYPES.PASS]: function (this: Parser) {
+    const token = advance(this.state);
+    // Bracketless body form: -> pass { body }
+    if (check(this.state, TOKEN_TYPES.LBRACE)) {
+      const emptyOptions: DictNode = {
+        type: 'Dict',
+        entries: [],
+        defaultValue: null,
+        span: makeSpan(token.span.end, token.span.end),
+      };
+      const body = this.parseBlock(true);
+      return {
+        type: 'PassBlock',
+        options: emptyOptions,
+        body,
+        span: makeSpan(token.span.start, body.span.end),
+      } satisfies PassBlockNode;
+    }
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "'pass' as a pipe target requires a body block; use 'pass { body }' or 'pass<on_error: #IGNORE> { body }'",
+      token.span.start
+    );
   },
   [TOKEN_TYPES.DOT]: Parser.prototype.parsePipeTargetDot,
   [TOKEN_TYPES.STRING]: function (this: Parser) {
@@ -1806,6 +1848,14 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
     }
     const keyToken = advance(this.state);
 
+    if (keyToken.value !== 'on_error') {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        `Unknown option '${keyToken.value}' inside 'pass<...>'; only 'on_error' is recognized`,
+        keyToken.span.start
+      );
+    }
+
     expect(
       this.state,
       TOKEN_TYPES.COLON,
@@ -1818,6 +1868,15 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
     // so that `>` after the value is not consumed as a comparison operator.
     // Wrap in PostfixExprNode + PipeChainNode to satisfy ExpressionNode type.
     const primaryNode = this.parsePrimary();
+
+    if (primaryNode.type !== 'AtomLiteral' || primaryNode.name !== 'IGNORE') {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        "'on_error' option requires value '#IGNORE'",
+        primaryNode.span.start
+      );
+    }
+
     const primarySpan = primaryNode.span;
     const postfixNode: PostfixExprNode = {
       type: 'PostfixExpr',
@@ -1846,6 +1905,14 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
       advance(this.state);
       skipNewlines(this.state);
     }
+  }
+
+  if (entries.length === 0) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "'pass<>' requires at least one option (use 'pass { body }' for the no-options form, or 'pass<on_error: #IGNORE> { body }' for suppression)",
+      dictStart
+    );
   }
 
   const gt = expect(

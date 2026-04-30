@@ -15,7 +15,9 @@ rill provides eight operators for slicing, restructuring, and gating sequences. 
 | `window(n, step?)` | stream of `list[T]` | Sliding windows of size n |
 | `start_when(pred)` | stream of `T` | Elements from first match onward |
 | `stop_when(pred)` | stream of `T` | Elements up to and including first match |
-| `pass<on_error: #IGNORE> { }` | pipe value unchanged | Side-effect block with suppressed errors |
+| `pass` | pipe value unchanged | Reference current piped value `$` |
+| `pass { body }` | pipe value unchanged | Side-effect block, no suppression |
+| `pass<on_error: #IGNORE> { body }` | pipe value unchanged | Side-effect block with suppressed errors |
 
 All operators chain with `->`. Error contracts apply identically to list and stream inputs.
 
@@ -382,31 +384,42 @@ range(1, 11) -> stop_when($atFive)
 
 ---
 
-## pass<> body form
+## pass body forms
 
-**Syntax:** `value -> pass<on_error: #IGNORE> { body }`
+`pass` has three distinct forms:
 
-The `pass<>` body form executes a block as a side effect. The piped value passes through unchanged. The `<on_error: #IGNORE>` annotation suppresses catchable halts that occur inside the body.
+| Form | Syntax | Behavior |
+|------|--------|----------|
+| Bare `pass` | `pass` | References current pipe value `$`; halts `RILL_R005` if unbound |
+| Body form | `pass { body }` | Runs body for side effects; returns pipe value unchanged; does NOT suppress halts |
+| Body form with suppression | `pass<on_error: #IGNORE> { body }` | Runs body; suppresses catchable halts in body; returns pipe value unchanged |
+
+Both body forms discard the body's result. The value before `pass` continues down the pipe.
 
 ```rill
-5 -> pass<on_error: #IGNORE> { log($) }
+5 -> pass { log($) }
 # Result: 5
 ```
 
-The result of the body is discarded. The value before `pass<>` continues down the pipe.
-
 ```rill
-range(1, 4) -> seq({ $ * 10 }) -> pass<on_error: #IGNORE> { log($) }
+range(1, 4) -> seq({ $ * 10 }) -> pass { log($) }
 # Result: [10, 20, 30]
 ```
 
 ### Error Suppression
 
-Catchable errors inside the body are suppressed. The pipe value still propagates.
+Use `pass<on_error: #IGNORE> { body }` when the body may produce catchable errors that should not halt the pipeline.
 
 ```rill
 10 -> pass<on_error: #IGNORE> { 1 / 0 }
 # Result: 10
+```
+
+Without `on_error: #IGNORE`, a catchable halt in the body propagates normally:
+
+```rill
+5 -> pass { log($) }
+# Result: 5
 ```
 
 ### What Is Not Suppressed
@@ -418,9 +431,13 @@ Catchable errors inside the body are suppressed. The pipe value still propagates
 | Non-catchable halts (`catchable: false`) | Re-thrown; execution halts |
 | `ControlSignal` instances (`break`, `return`) | Re-thrown; propagate to enclosing construct |
 
-### Bare pass vs pass<> body form
+### Bare pass vs pass body forms
 
-Bare `pass` (no `<>`, no body) is a distinct keyword that references the current piped value in expression context. It appears inside blocks and conditions, not as a standalone pipe stage. The `pass<on_error: #IGNORE> { body }` form is specifically for side-effect blocks with error suppression.
+These are three distinct constructs:
+
+- **Bare `pass`** — an expression that references the current piped value `$`. Appears inside blocks and conditions, not as a standalone pipe stage. Halts `RILL_R005` if `$` is unbound.
+- **`pass { body }`** — a pipe stage that runs the body for side effects and returns the pipe value unchanged. Does not suppress halts.
+- **`pass<on_error: #IGNORE> { body }`** — same as `pass { body }` but suppresses catchable halts that occur inside the body.
 
 ```rill
 # Bare pass in expression — references the piped value inside a conditional
@@ -429,23 +446,44 @@ Bare `pass` (no `<>`, no body) is a distinct keyword that references the current
 ```
 
 ```rill
-# pass<> body form — executes side effect, suppresses errors in body
+# pass { body } — side effect only, no suppression
+5 -> pass { log($) }
+# Result: 5
+```
+
+```rill
+# pass<on_error: #IGNORE> { body } — side effect with catchable-halt suppression
 5 -> pass<on_error: #IGNORE> { log($) }
 # Result: 5
 ```
 
 ### Use in Pipelines
 
-`pass<>` is useful for inserting logging or diagnostics into a pipeline without changing the data flow.
+`pass` body forms are useful for inserting logging or diagnostics into a pipeline without changing the data flow.
 
 ```rill
-range(1, 6) -> filter({ ($ % 2) == 0 }) -> pass<on_error: #IGNORE> { log($) } -> seq({ $ * 100 })
+range(1, 6) -> filter({ ($ % 2) == 0 }) -> pass { log($) } -> seq({ $ * 100 })
 # Result: [200, 400]
 ```
 
 ### Error Contracts
 
-The `on_error` option currently recognizes only `#IGNORE` as triggering suppression. Other keys and values parse without error but produce no suppression behavior.
+The `on_error` option accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and `on_error` values other than `#IGNORE` are parse errors (`RILL-P004`). Use `pass { body }` for the no-options form.
+
+```text
+# Error: RILL-P004 — empty pass<> is a parse error; use pass { body }
+pass<> { log($) }
+```
+
+```text
+# Error: RILL-P004 — unknown option key
+pass<on_warn: #IGNORE> { log($) }
+```
+
+```text
+# Error: RILL-P004 — on_error value must be #IGNORE
+pass<on_error: #SKIP> { log($) }
+```
 
 ---
 
@@ -453,4 +491,4 @@ The `on_error` option currently recognizes only `#IGNORE` as triggering suppress
 
 - [Collection Operators](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc`, `sort` with stream iteration
 - [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `.first()`; iterator vs stream comparison
-- [Error Handling](topic-error-handling.md) — `.!`, `.?`, `guard`, `retry`, and error recovery patterns (relevant for `pass<>` suppression semantics)
+- [Error Handling](topic-error-handling.md) — `.!`, `.?`, `guard`, `retry`, and error recovery patterns (relevant for `pass` body form suppression semantics)
