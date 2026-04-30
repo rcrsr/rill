@@ -196,6 +196,10 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   ['INVALID_INPUT', 'generic'],
   ['PROTOCOL', 'generic'],
   ['DISPOSED', 'generic'],
+  // `pass<on_error: #IGNORE>` body form: option value used to opt into
+  // catchable-halt suppression. Pre-registered so the option literal does
+  // not collapse to the `#R001` fallback.
+  ['IGNORE', 'generic'],
   ['R999', 'registry'],
   // FR-ERR-17 taxonomy: typed atom for type-assertion / conversion
   // failures. Registered here so mixins and type-layer helpers can

@@ -445,7 +445,7 @@ range(1, 6) -> filter({ ($ % 2) == 0 }) -> pass<on_error: #IGNORE> { log($) } ->
 
 ### Error Contracts
 
-The `on_error` option currently accepts only `#IGNORE`. Any other value is a parse error.
+The `on_error` option currently recognizes only `#IGNORE` as triggering suppression. Other keys and values parse without error but produce no suppression behavior.
 
 ---
 

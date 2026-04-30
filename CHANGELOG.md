@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Stream slicing and restructuring** — Seven new collection operators (`take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`) slice, repeat, and resegment streams with declarative control
-- **`pass<>` body form** — Pipe-optional side-effect blocks for logging, metrics, or notifications with optional error suppression via `pass<suppress>`
+- **`pass<>` body form** — Pipe-optional side-effect blocks for logging, metrics, or notifications with optional error suppression via `pass<on_error: #IGNORE>`
 
 ## [0.19.1] - 2026-04-28
 
