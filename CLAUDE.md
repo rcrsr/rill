@@ -141,6 +141,8 @@ Start at @docs/index.md for full navigation.
 
 For writing rill code, load @docs/ref-llms.txt — a progressive LLM-optimized index that points to topic fragments under `docs/llm/` (cheatsheet, anti-patterns, control-flow, errors, types, callables, stdlib, style). Pull fragments on demand instead of reading the full reference.
 
+Before writing any rill code, also load @docs/llm/anti-patterns.txt — Wrong/Right pairs that catch TypeScript and Python reflexes (assignment, truthiness, loops, try/catch, null, string concatenation, array methods).
+
 ### Web Docs (packages/web)
 
 The `docs/` directory is the source of truth. `packages/web/content/docs/` pages are generated.

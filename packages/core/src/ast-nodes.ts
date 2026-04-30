@@ -384,6 +384,17 @@ export interface DictEntryNode extends BaseNode {
     | DictKeyVariable
     | DictKeyComputed;
   readonly value: ExpressionNode;
+  /**
+   * Present only for string keys that came directly from source syntax as either an
+   * IDENTIFIER token or a quoted STRING token. Reflects the syntactic form used at the call
+   * site: `'identifier'` for bare-identifier keys (`[name: "x"]`) and `'string'` for
+   * quoted-string keys (`["name": "x"]` or `dict["name": "x"]`).
+   *
+   * Not all string-valued keys have `keyForm`; some internal or synthesized string keys
+   * intentionally omit it (for example the `'...'` key used to encode spread entries). This
+   * is metadata for downstream tools and does not affect runtime semantics.
+   */
+  readonly keyForm?: 'identifier' | 'string';
 }
 
 /**
