@@ -15,6 +15,7 @@ import {
   createRillStream,
   createVector,
   parse,
+  ParseError,
   RuntimeHaltSignal,
   TOKEN_TYPES,
   type RillStream,
@@ -677,6 +678,37 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(captured).toEqual([5]);
     });
 
+    it('AC-PASSBODY-2: pass { body } (no options) executes body; pipe value unchanged', async () => {
+      const captured: RillValue[] = [];
+      const log_fn = {
+        params: [
+          {
+            name: 'value',
+            type: { kind: 'any' as const },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        returnType: anyTypeValue,
+        fn: (args: Record<string, RillValue>): null => {
+          captured.push(args['value'] ?? null);
+          return null;
+        },
+      };
+      const result = await run('5 -> pass { log($) }', {
+        functions: { log: log_fn },
+      });
+      expect(result).toBe(5);
+      expect(captured).toEqual([5]);
+    });
+
+    it('AC-PASSBODY-3: pass { body } (no options) does NOT suppress catchable halts', async () => {
+      // No on_error: #IGNORE → catchable halt in body should propagate
+      await expectHalt(() => run('5 -> pass { "not_a_number":number }'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
     // ── Error cases ─────────────────────────────────────────────────────────
 
     it('AC-ERR-1: take(-1) raises #INVALID_INPUT', async () => {
@@ -755,6 +787,44 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(await run('42 -> ($ < 0) ? "wrong" ! pass')).toBe(42);
       // Second case: condition is true, then branch (pass) returns pipe value 42.
       expect(await run('42 -> ($ > 0) ? pass ! "wrong"')).toBe(42);
+    });
+  });
+
+  // ── pass<...> parser validation ──────────────────────────────────────────
+
+  describe('pass<...> parser validation (RILL_P004)', () => {
+    it('AC-PASSPARSE-1: pass<> with empty options is a parse error (RILL-P004)', async () => {
+      try {
+        await run('5 -> pass<> { log($) }', { functions: { log: () => null } });
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        expect((err as ParseError).errorId).toBe('RILL-P004');
+      }
+    });
+
+    it('AC-PASSPARSE-2: pass<unknown_key: #IGNORE> rejects unknown option key', async () => {
+      await expect(
+        run('5 -> pass<bad_key: #IGNORE> { log($) }', {
+          functions: { log: () => null },
+        })
+      ).rejects.toBeInstanceOf(ParseError);
+    });
+
+    it('AC-PASSPARSE-3: pass<on_error: 42> rejects non-atom value', async () => {
+      await expect(
+        run('5 -> pass<on_error: 42> { log($) }', {
+          functions: { log: () => null },
+        })
+      ).rejects.toBeInstanceOf(ParseError);
+    });
+
+    it('AC-PASSPARSE-4: pass<on_error: #INVALID_INPUT> rejects atom other than #IGNORE', async () => {
+      await expect(
+        run('5 -> pass<on_error: #INVALID_INPUT> { log($) }', {
+          functions: { log: () => null },
+        })
+      ).rejects.toBeInstanceOf(ParseError);
     });
   });
 
