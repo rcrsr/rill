@@ -21,6 +21,28 @@ Wrong/Right pairs aimed at TypeScript and Python reflexes. Load when generating 
     Wrong: print(name)
     Right: log($name)            # or $name -> log
 
+## Curly braces (dict literals)
+
+In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict literal. Dicts use `dict[...]`.
+
+    Wrong: {name: "alice"}
+    Right: dict[name: "alice"]
+
+    Wrong: {}                                  # empty block, not an empty dict
+    Right: dict[]
+
+    Wrong: {name: "alice", age: 30}
+    Right: dict[name: "alice", age: 30]
+
+    Wrong: {user: {name: "alice"}}
+    Right: dict[user: dict[name: "alice"]]
+
+    Wrong: list[{a: 1}, {a: 2}]
+    Right: list[dict[a: 1], dict[a: 2]]
+
+    Wrong: dict[user-id: 1]                    # bare identifiers must be snake_case
+    Right: dict["user-id": 1]                  # quote the key for non-identifier names
+
 ## Truthy conditions
 
     Wrong: $name ? "have name" ! "no name"
