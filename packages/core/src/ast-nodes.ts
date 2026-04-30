@@ -179,6 +179,22 @@ export interface PassNode extends BaseNode {
 }
 
 /**
+ * PassBlock: non-halting side-effect block.
+ * Syntax: pass<on_error: #IGNORE> { body }
+ *
+ * Lexer emits PASS_LANGLE when `pass` is followed immediately by `<`.
+ * The body executes in the surrounding scope. In Phase 1, only
+ * `on_error: #IGNORE` is recognized in the options dict.
+ */
+export interface PassBlockNode extends BaseNode {
+  readonly type: 'PassBlock';
+  /** Raw dict parsed from the angle-bracket head, e.g. `<on_error: #IGNORE>`. */
+  readonly options: DictNode;
+  /** Block body sharing the surrounding scope. */
+  readonly body: BlockNode;
+}
+
+/**
  * Assert: halt execution if condition is false.
  * Syntax: assert condition
  * Or: assert condition "custom error message"
@@ -254,6 +270,7 @@ export type PrimaryNode =
   | AssertNode
   | ErrorNode
   | PassNode
+  | PassBlockNode
   | GroupedExprNode
   | TypeAssertionNode
   | TypeCheckNode
@@ -294,7 +311,8 @@ export type PipeTargetNode =
   | ListLiteralNode
   | TypeNameExprNode
   | TypeConstructorNode
-  | UseExprNode;
+  | UseExprNode
+  | PassBlockNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
@@ -1093,5 +1111,6 @@ export type ASTNode =
   | UseExprNode
   | GuardBlockNode
   | RetryBlockNode
+  | PassBlockNode
   | AtomLiteralNode
   | StatusProbeNode;

@@ -216,6 +216,7 @@ primary       = literal
               | grouped-expr
               | spread              (* ...$dict-expr — convert dict to ordered for arg unpacking *)
               | annotated-expr      (* ^(key: val) expr — annotation on expression *)
+              | pass-block          (* pass<on_error: #IGNORE> { body } — non-halting side-effect *)
               | pass ;
 
 (* Atom literal: a symbolic constant introduced with "#".
@@ -251,6 +252,30 @@ atom-literal  = "#" , uppercase-letter , { uppercase-letter | digit | "_" } ;
    Semantic: pass requires pipe context. Using pass without $ bound
    throws RUNTIME_UNDEFINED_VARIABLE: Variable '$' not defined *)
 pass          = "pass" ;
+
+(* Pass with options: non-halting side-effect block.
+   Pipe value ($) flows through unchanged regardless of body outcome.
+   Only recognized option key: on_error: #IGNORE (suppresses catchable halts in body).
+   Unknown option keys produce a parse error (RILL-P004).
+
+   Syntax:
+     expr -> pass<on_error: #IGNORE> { body }   -- execute body, propagate $ if body errors
+
+   Semantic: body executes with $ bound to the pipe value. When on_error: #IGNORE is set,
+   catchable halts inside body are silently discarded. The pipe value always propagates.
+
+   Disambiguation: pass<> (with angle brackets) is distinct from bare "pass". The lexer
+   distinguishes on the character following "pass": "<" starts pass_block, anything else
+   starts the bare pass production. *)
+
+pass-block    = "pass" , "<" , pass-option-list , ">" , block ;
+              (* pass-block is a primary expression. It participates in pipe chains:
+                 value -> pass<on_error: #IGNORE> { log($) } -> next-step *)
+
+pass-option-list = pass-option , { "," , pass-option } ;
+pass-option      = identifier , ":" , ( atom-literal | literal ) ;
+              (* Currently only "on_error: #IGNORE" is defined.
+                 Unknown keys are rejected at parse time. *)
 
 (* Annotated expression: attach metadata to any primary expression.
    ^(key: value, ...) expression
@@ -530,6 +555,19 @@ host-name = identifier , { "::" , identifier } ;
                  - range(start, end, step?) -- iterator from start (inclusive) to end (exclusive)
                  - repeat(value, count) -- iterator repeating value count times
                  - chain($fn) or chain([$f, $g]) -- compose closures left-to-right
+
+                 Collection slicing and restructuring built-ins:
+                 - take(list, n: int) -> list     -- first n elements
+                 - skip(list, n: int) -> list     -- drop first n elements
+                 - cycle(list) -> iterator        -- repeat list indefinitely as iterator
+                 - batch(list, n: int, options?) -> stream(list)
+                                                  -- chunks of n; options: dict[drop_partial: bool]
+                 - window(list, n: int, step: int = n) -> stream(list)
+                                                  -- sliding windows of size n, advancing by step
+                 - start_when(list, predicate: closure) -> stream
+                                                  -- yield from first matching element onward
+                 - stop_when(list, predicate: closure) -> stream
+                                                  -- yield through first matching element (inclusive)
 
                  All other functions are registered by the host via RuntimeContext.functions. *)
 

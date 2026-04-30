@@ -140,6 +140,25 @@ The `$` prefix disambiguates:
 
 Use parentheses to override.
 
+## Collection operators
+
+| Operator | Signature | Semantics |
+|---|---|---|
+| `seq` | `seq(list, closure)` | Transform each item sequentially; returns all body results |
+| `fan` | `fan(list, closure)` | Transform each item in parallel; returns all body results |
+| `filter` | `filter(list, closure)` | Keep items where body returns `true` |
+| `fold` | `fold(list, init, closure)` | Reduce to single value; `$@` = accumulator |
+| `acc` | `acc(list, init, closure)` | Like `fold` but emits accumulator at each step |
+| `sort` | `sort(list, key_fn?)` | Stable ascending sort; dict input returns `ordered` |
+| `take` | `take(list, n: int) -> list[T]` | First n elements; `n < 0` halts `#INVALID_INPUT`; `n > MAX_ITER` clamps |
+| `skip` | `skip(list, n: int) -> list[T]` | Drop first n elements; `n < 0` halts `#INVALID_INPUT`; n past length → empty |
+| `cycle` | `cycle(list) -> iterator[T]` | Repeat input indefinitely as iterator; empty input → empty; bound at consumer |
+| `batch` | `batch(list, n: int, options?) -> stream[list[T]]` | Chunks of n; `drop_partial: true` discards trailing short chunk |
+| `window` | `window(list, n: int, step: int = n) -> stream[list[T]]` | Sliding windows of n; default step=n (non-overlapping); `step > n` makes gaps |
+| `start_when` | `start_when(list, predicate: closure) -> stream[T]` | Yield from first match onward; predicate must return `bool` |
+| `stop_when` | `stop_when(list, predicate: closure) -> stream[T]` | Yield through first match (inclusive); predicate must return `bool` |
+| `pass<>` body | `pass<options: dict> { body }` | Non-halting side-effect block; `on_error: #IGNORE` suppresses catchable halts in body; pipe value propagates unchanged |
+
 ## Script return values
 
 | Return value | Exit code |

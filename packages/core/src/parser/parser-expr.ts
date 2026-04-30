@@ -20,6 +20,9 @@ import type {
   GroupedExprNode,
   InvokeNode,
   MethodCallNode,
+  PassBlockNode,
+  DictNode,
+  DictEntryNode,
   PipeChainNode,
   PipeTargetNode,
   PostfixExprNode,
@@ -137,6 +140,7 @@ declare module './parser.js' {
       loopState: PostfixLoopState,
       start: SourceLocation
     ): void;
+    parsePassBlock(): PassBlockNode;
   }
 }
 
@@ -924,6 +928,11 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     } satisfies AnnotatedExprNode;
   }
 
+  // Pass block: pass< options > { body }
+  if (check(this.state, TOKEN_TYPES.PASS_LANGLE)) {
+    return this.parsePassBlock();
+  }
+
   // Pass keyword: pass
   if (check(this.state, TOKEN_TYPES.PASS)) {
     const token = advance(this.state);
@@ -1317,6 +1326,9 @@ const pipeTargetDispatchTable: Record<
   },
   [TOKEN_TYPES.USE_LANGLE]: function (this: Parser) {
     return this.parseUseExpr();
+  },
+  [TOKEN_TYPES.PASS_LANGLE]: function (this: Parser) {
+    return this.parsePassBlock();
   },
   [TOKEN_TYPES.DOT]: Parser.prototype.parsePipeTargetDot,
   [TOKEN_TYPES.STRING]: function (this: Parser) {
@@ -1756,4 +1768,116 @@ Parser.prototype.parseClosureSigLiteral = function (
     returnType,
     span: makeSpan(start, current(this.state).span.end),
   };
+};
+
+// ============================================================
+// PASS BLOCK PARSER
+// ============================================================
+
+/**
+ * Parse a pass block: `pass<on_error: #IGNORE> { body }`.
+ *
+ * Enters with current token being PASS_LANGLE (compound `pass<`).
+ * Parses key:value pairs separated by commas until `>`, then parses
+ * a block body. The options are synthesised into a DictNode so the
+ * evaluator can use the standard dict evaluation path to read them.
+ */
+Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
+  const start = current(this.state).span.start;
+  advance(this.state); // consume pass<
+
+  const dictStart = current(this.state).span.start;
+  const entries: DictEntryNode[] = [];
+
+  skipNewlines(this.state);
+
+  while (
+    !check(this.state, TOKEN_TYPES.GT) &&
+    !check(this.state, TOKEN_TYPES.EOF)
+  ) {
+    const entryStart = current(this.state).span.start;
+
+    if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        "Expected option key (identifier) inside 'pass<...>'",
+        current(this.state).span.start
+      );
+    }
+    const keyToken = advance(this.state);
+
+    expect(
+      this.state,
+      TOKEN_TYPES.COLON,
+      "Expected ':' after option key inside 'pass<...>'",
+      ERROR_IDS.RILL_P004
+    );
+    skipNewlines(this.state);
+
+    // Parse only a primary expression (atom literal, string, number, etc.)
+    // so that `>` after the value is not consumed as a comparison operator.
+    // Wrap in PostfixExprNode + PipeChainNode to satisfy ExpressionNode type.
+    const primaryNode = this.parsePrimary();
+    const primarySpan = primaryNode.span;
+    const postfixNode: PostfixExprNode = {
+      type: 'PostfixExpr',
+      primary: primaryNode,
+      methods: [],
+      defaultValue: null,
+      span: primarySpan,
+    };
+    const value: PipeChainNode = {
+      type: 'PipeChain',
+      head: postfixNode,
+      pipes: [],
+      terminator: null,
+      span: primarySpan,
+    };
+
+    entries.push({
+      type: 'DictEntry',
+      key: keyToken.value,
+      value,
+      span: makeSpan(entryStart, current(this.state).span.end),
+    } satisfies DictEntryNode);
+
+    skipNewlines(this.state);
+    if (check(this.state, TOKEN_TYPES.COMMA)) {
+      advance(this.state);
+      skipNewlines(this.state);
+    }
+  }
+
+  const gt = expect(
+    this.state,
+    TOKEN_TYPES.GT,
+    "Expected '>' to close 'pass<...>'",
+    ERROR_IDS.RILL_P005
+  );
+
+  const options: DictNode = {
+    type: 'Dict',
+    entries,
+    defaultValue: null,
+    span: makeSpan(dictStart, gt.span.end),
+  };
+
+  skipNewlines(this.state);
+
+  if (!check(this.state, TOKEN_TYPES.LBRACE)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "Expected '{ body }' after 'pass<...>'",
+      current(this.state).span.start
+    );
+  }
+
+  const body = this.parseBlock(true);
+
+  return {
+    type: 'PassBlock',
+    options,
+    body,
+    span: makeSpan(start, body.span.end),
+  } satisfies PassBlockNode;
 };

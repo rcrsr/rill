@@ -85,6 +85,7 @@ export const TOKEN_TYPES = {
   GUARD_LBRACE: 'GUARD_LBRACE', // guard{
   RETRY_LANGLE: 'RETRY_LANGLE', // retry<
   DO_LANGLE: 'DO_LANGLE', // do<
+  PASS_LANGLE: 'PASS_LANGLE', // pass<
 
   // Keywords
   BREAK: 'BREAK',

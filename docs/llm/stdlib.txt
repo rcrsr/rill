@@ -133,3 +133,75 @@ Errors:
 | `#TYPE_MISMATCH` | key extractor returns mixed types across elements |
 | `#TYPE_MISMATCH` | `key_fn` argument is not callable |
 | `#INVALID_INPUT` | key extractor returns a vacant value |
+
+## take
+
+`take(list, n: int) -> list[T]`
+
+Returns the first `n` elements. `n < 0` halts with `#INVALID_INPUT`. `n > MAX_ITER` is clamped to `MAX_ITER`. The `list` argument is auto-prepended when piping.
+
+    range(1, 11) -> take(5)    # list[1, 2, 3, 4, 5]
+    list["a", "b", "c"] -> take(2)   # list["a", "b"]
+
+## skip
+
+`skip(list, n: int) -> list[T]`
+
+Drops the first `n` elements and returns the remainder. `n < 0` halts with `#INVALID_INPUT`. `n` past the list length returns an empty list. The `list` argument is auto-prepended when piping.
+
+    range(1, 6) -> skip(2)    # list[3, 4, 5]
+    list["a", "b"] -> skip(5)    # list[]
+
+## cycle
+
+`cycle(list) -> iterator[T]`
+
+Returns an infinite iterator that repeats the input indefinitely. Empty input yields an empty iterator. The bound is enforced at the consumer (e.g., via `take`). The `list` argument is auto-prepended when piping.
+
+    [1, 2, 3] -> cycle -> take(6)    # list[1, 2, 3, 1, 2, 3]
+
+## batch
+
+`batch(list, n: int, options: dict[drop_partial: bool] = dict[drop_partial: false]) -> stream[list[T]]`
+
+Groups elements into chunks of `n`. The last chunk may be shorter than `n` unless `drop_partial: true` is set, in which case the trailing short chunk is discarded. The `list` argument is auto-prepended when piping.
+
+    range(1, 11) -> batch(3)    # stream[[1,2,3],[4,5,6],[7,8,9],[10]]
+    range(1, 11) -> batch(3, dict[drop_partial: true])    # stream[[1,2,3],[4,5,6],[7,8,9]]
+
+## window
+
+`window(list, n: int, step: int = n) -> stream[list[T]]`
+
+Produces sliding windows of `n` elements. The default `step` equals `n`, giving non-overlapping windows. `step < n` creates overlapping windows. `step > n` leaves gaps between windows. The `list` argument is auto-prepended when piping.
+
+    range(1, 6) -> window(3)           # stream[[1,2,3],[4,5]]
+    range(1, 6) -> window(3, 1)        # stream[[1,2,3],[2,3,4],[3,4,5]]
+
+## start_when
+
+`start_when(list, predicate: closure) -> stream[T]`
+
+Yields elements starting from the first element where `predicate` returns `true`, then passes all remaining elements through regardless of the predicate. The element that triggers the predicate is included. The `list` argument is auto-prepended when piping.
+
+Predicate must return `bool`. Non-callable predicate halts with `#RILL_R040`. Non-bool return halts with `#TYPE_MISMATCH`.
+
+    list[1, 2, 5, 3, 4] -> start_when({ $ > 3 })   # stream[5, 3, 4]
+
+## stop_when
+
+`stop_when(list, predicate: closure) -> stream[T]`
+
+Yields elements up to and including the first element where `predicate` returns `true`, then stops. Inclusive of the matching element. The `list` argument is auto-prepended when piping.
+
+Predicate must return `bool`. Non-callable predicate halts with `#RILL_R040`. Non-bool return halts with `#TYPE_MISMATCH`.
+
+    list[1, 2, 5, 3, 4] -> stop_when({ $ > 3 })    # stream[1, 2, 5]
+
+## pass<> body
+
+`pass<options: dict> { body }` — non-halting side-effect block.
+
+Runs `body` for side effects only. The pipe value before `pass<>` flows through unchanged after `pass<>`. `on_error: #IGNORE` is the only recognized option in Phase 1; it suppresses catchable halts that occur inside `body`. Non-catchable halts and `ControlSignal` (`break`, `return`) still propagate.
+
+    5 -> pass<on_error: #IGNORE> { log($) }   # logs 5, yields 5

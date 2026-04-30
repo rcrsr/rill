@@ -137,4 +137,53 @@ Iterator protocol (dict with `value`, `done`, `next`):
     $it.value                          # current element
     $it.next()                         # iterator at next position
 
+## Predicate-gated stream operators: `start_when` / `stop_when`
+
+Use `start_when` and `stop_when` to slice a stream based on a predicate result rather than a fixed index.
+
+| Goal | Operator |
+|---|---|
+| Drop elements until predicate first returns `true`, then yield all remaining | `-> start_when({ cond })` |
+| Yield elements including the first where predicate returns `true`, then stop | `-> stop_when({ cond })` |
+| Keep only elements matching a condition | `-> filter({ cond })` |
+| First n elements by position | `-> take(n)` |
+
+`start_when` vs `filter`: `filter` tests every element independently. `start_when` triggers once and then passes all subsequent elements through, regardless of the predicate.
+
+`stop_when` is inclusive: the element that satisfies the predicate is included in the output.
+
+Error contracts (both operators):
+
+| Error | Cause |
+|---|---|
+| `#RILL_R040` | Predicate argument is not callable |
+| `#TYPE_MISMATCH` | Predicate returns a non-`bool` value |
+
+Example:
+
+    list[1, 2, 5, 3, 4] -> start_when({ $ > 3 })   # stream[5, 3, 4]
+    list[1, 2, 5, 3, 4] -> stop_when({ $ > 3 })    # stream[1, 2, 5]
+
+## `pass<>` body block
+
+`pass<options> { body }` is a non-halting side-effect block. It runs `body` for its side effects and then passes the pipe value through unchanged.
+
+Distinguish from bare `pass`:
+
+| Form | Purpose |
+|---|---|
+| `pass` (bare) | Returns `$` unchanged in a conditional branch |
+| `pass<> { body }` | Runs body as a side effect; suppresses catchable halts in body |
+
+`on_error: #IGNORE` is the only recognized option in Phase 1. It suppresses catchable halts that occur inside the body. Non-catchable halts and `ControlSignal` (e.g., `break`, `return`) still propagate out of the body.
+
+The surrounding chain is not affected by body errors when `on_error: #IGNORE` is set. The pipe value before `pass<>` is the pipe value after `pass<>`.
+
+Example:
+
+    5 -> pass<on_error: #IGNORE> { log($) }   # logs 5, yields 5
+    "data" -> pass<on_error: #IGNORE> { audit($) } -> .upper   # "DATA"
+
+Do NOT use `pass<>` when you need the body result — the body result is always discarded.
+
 See `errors` for `assert`, `error`, `guard`, `retry`. See `callables` for closure forms.

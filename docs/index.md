@@ -30,7 +30,8 @@
 
 | Topic | Description |
 |-------|-------------|
-| [Collections](topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc` operators and stream iteration |
+| [Collections](topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort` operators and stream iteration |
+| [Collection Slicing](topic-collection-slicing.md) | `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass<>` — slicing and restructuring streams |
 | [Iterators](topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()`; iterator vs stream comparison |
 
 ## Reference
@@ -80,7 +81,7 @@
 4. **Something not working?** Check [Troubleshooting](guide-troubleshooting.md)
 5. **Learn the language:** Read [Types](topic-types.md), [Control Flow](topic-control-flow.md), [Closures](topic-closures.md)
 6. **Handle errors:** Study [Error Handling](topic-error-handling.md) for `.!`, `guard`, `retry`, and recovery operators
-7. **Go deeper:** Explore [Operators](topic-operators.md), [Collections](topic-collections.md), [Type System](topic-type-system.md)
+7. **Go deeper:** Explore [Operators](topic-operators.md), [Collections](topic-collections.md), [Collection Slicing](topic-collection-slicing.md), [Type System](topic-type-system.md)
 8. **Design patterns:** Study the [Cookbook](cookbook.md)
 9. **Look up syntax:** Use the [Reference](ref-language.md) and [Error Reference](ref-errors.md)
 10. **Embed rill:** Read [Host Integration](integration-host.md) and [CLI Tools](integration-cli.md)

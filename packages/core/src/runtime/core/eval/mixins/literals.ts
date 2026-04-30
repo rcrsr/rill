@@ -43,6 +43,7 @@ import type {
   DictKeyVariable,
   DictKeyComputed,
   PassNode,
+  PassBlockNode,
   TypeRef,
 } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
@@ -55,7 +56,14 @@ import {
   type ScriptCallable,
   type RillParam,
 } from '../../callable.js';
-import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwTypeHalt,
+  RuntimeHaltSignal,
+} from '../../types/halt.js';
+import { ControlSignal } from '../../signals.js';
+import { resolveAtom } from '../../types/atom-registry.js';
+import { isAtom } from '../../types/guards.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
@@ -192,6 +200,58 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         );
       }
       return this.ctx.pipeValue;
+    }
+
+    /**
+     * Evaluate pass block node — non-halting side-effect [IR-8].
+     *
+     * Runs `body` in the current context. Reads `on_error` from `options`;
+     * when it equals `#IGNORE`, catchable halts from the body are suppressed
+     * and the original pipe value is returned unchanged [EC-8].
+     *
+     * Non-catchable halts (`catchable: false`) and `ControlSignal` instances
+     * are always re-thrown per §NOD.10.4 [EC-9].
+     *
+     * @param node - PassBlockNode from AST
+     * @returns Original pipe value (ctx.pipeValue at entry), unchanged
+     */
+    protected async evaluatePassBlock(node: PassBlockNode): Promise<RillValue> {
+      // Capture pipe value at entry — returned unchanged regardless of body outcome.
+      const pipeBefore = this.ctx.pipeValue;
+
+      // Evaluate options dict to determine suppression mode.
+      const opts = await (this as unknown as EvaluatorInterface).evaluateDict(
+        node.options
+      );
+
+      const onErrorValue = opts['on_error'];
+      const suppress =
+        onErrorValue !== undefined &&
+        isAtom(onErrorValue) &&
+        onErrorValue.atom === resolveAtom('IGNORE');
+
+      try {
+        await (this as unknown as EvaluatorInterface).evaluateBody(node.body);
+      } catch (e) {
+        // §NOD.10.4: ControlSignal always re-throws (break/return/yield must unwind).
+        if (e instanceof ControlSignal) throw e;
+        // Non-catchable halts always re-throw (e.g. #DISPOSED) [EC-9].
+        if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
+        // Catchable halt: suppress only when on_error: #IGNORE [EC-8].
+        if (e instanceof RuntimeHaltSignal && suppress) {
+          // Suppressed — fall through and return original pipe value.
+        } else {
+          throw e;
+        }
+      }
+
+      // Restore pipe value (body execution may have mutated ctx.pipeValue).
+      this.ctx.pipeValue = pipeBefore;
+      // pipe-optional semantics: pass<> treats an unbound pipe (null) as ''.
+      // This intentionally deviates from evaluatePass (bare `pass`), which throws
+      // RILL_R005 when $ is not bound. pass<> is designed for use outside a pipe
+      // chain, so returning '' is the correct fallback rather than halting.
+      return pipeBefore ?? '';
     }
 
     /**
@@ -1159,6 +1219,7 @@ export type LiteralsMixinCapability = {
   createClosure(node: ClosureNode): Promise<ScriptCallable>;
   createBlockClosure(node: BlockNode): ScriptCallable;
   evaluatePass(node: PassNode): Promise<RillValue>;
+  evaluatePassBlock(node: PassBlockNode): Promise<RillValue>;
   evaluateDictDispatch(node: DictNode, input: RillValue): Promise<RillValue>;
   dispatchToDict(
     dict: Record<string, RillValue>,
