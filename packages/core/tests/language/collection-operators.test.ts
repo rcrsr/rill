@@ -793,12 +793,14 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   // ── pass<...> parser validation ──────────────────────────────────────────
 
   describe('pass<...> parser validation (RILL_P004)', () => {
-    it('AC-PASSPARSE-1: pass<> with empty options is a parse error', async () => {
-      await expect(
-        run('5 -> pass<> { log($) }', {
-          functions: { log: () => null },
-        })
-      ).rejects.toBeInstanceOf(ParseError);
+    it('AC-PASSPARSE-1: pass<> with empty options is a parse error (RILL-P004)', async () => {
+      try {
+        await run('5 -> pass<> { log($) }', { functions: { log: () => null } });
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        expect((err as ParseError).errorId).toBe('RILL-P004');
+      }
     });
 
     it('AC-PASSPARSE-2: pass<unknown_key: #IGNORE> rejects unknown option key', async () => {

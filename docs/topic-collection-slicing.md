@@ -390,7 +390,7 @@ range(1, 11) -> stop_when($atFive)
 
 | Form | Syntax | Behavior |
 |------|--------|----------|
-| Bare `pass` | `pass` | References current pipe value `$`; halts `RILL_R005` if unbound |
+| Bare `pass` | `pass` | References current pipe value `$`; halts `#RILL_R005` if unbound |
 | Body form | `pass { body }` | Runs body for side effects; returns pipe value unchanged; does NOT suppress halts |
 | Body form with suppression | `pass<on_error: #IGNORE> { body }` | Runs body; suppresses catchable halts in body; returns pipe value unchanged |
 
@@ -417,9 +417,9 @@ Use `pass<on_error: #IGNORE> { body }` when the body may produce catchable error
 
 Without `on_error: #IGNORE`, a catchable halt in the body propagates normally:
 
-```rill
-5 -> pass { log($) }
-# Result: 5
+```text
+# Error: #RILL_R002 — body halt propagates
+10 -> pass { 1 / 0 }
 ```
 
 ### What Is Not Suppressed

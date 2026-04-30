@@ -168,11 +168,11 @@ Example:
 
 `pass` runs a side-effect block and returns the pipe value unchanged. The body form has two surfaces: with and without `<...>` options. Suppression of catchable halts requires `on_error: #IGNORE` explicitly; a bare `pass { body }` does NOT suppress halts.
 
-Note: `pass<>` (empty angle brackets) is a parse error (RILL_P004). Always use `pass { body }` or `pass<on_error: #IGNORE> { body }`.
+Note: `pass<>` (empty angle brackets) is a parse error (RILL-P004). Always use `pass { body }` or `pass<on_error: #IGNORE> { body }`.
 
 | Form | Purpose |
 |---|---|
-| `pass` | References current piped value `$`; halts RILL_R005 if unbound |
+| `pass` | References current piped value `$`; halts #RILL_R005 if unbound |
 | `pass { body }` | Runs body for side effects; pipe value unchanged; does NOT suppress catchable halts |
 | `pass<on_error: #IGNORE> { body }` | Runs body for side effects; pipe value unchanged; suppresses catchable halts in body |
 
