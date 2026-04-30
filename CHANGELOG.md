@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Stream slicing and restructuring** — Seven new collection operators (`take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`) slice, repeat, and resegment streams with declarative control
 - **`pass<>` body form** — Pipe-optional side-effect blocks for logging, metrics, or notifications with optional error suppression via `pass<on_error: #IGNORE>`
-- **`DictEntryNode.keyForm` AST metadata** — Optional `'identifier' | 'string'` field distinguishes bare-identifier keys (`{name: ...}`) from quoted-string keys (`{"name": ...}`) at the AST level so downstream lint and analysis tools can treat quotes as an intentional escape for foreign API keys; runtime semantics are unchanged and `{a:1}` and `{"a":1}` remain equal
+- **`DictEntryNode.keyForm` AST metadata** — Optional `'identifier' | 'string'` field distinguishes bare-identifier keys (`dict[name: ...]`) from quoted-string keys (`dict["name": ...]`) at the AST level so downstream lint and analysis tools can treat quotes as an intentional escape for foreign API keys; runtime semantics are unchanged and `dict[a: 1]` and `dict["a": 1]` remain equal
 
 ## [0.19.1] - 2026-04-28
 
