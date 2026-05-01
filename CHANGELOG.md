@@ -7,11 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.2] - 2026-04-30
+
 ### Added
 
 - **Stream slicing and restructuring** — Seven new collection operators (`take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`) slice, repeat, and resegment streams with declarative control
-- **`pass<>` body form** — Pipe-optional side-effect blocks for logging, metrics, or notifications with optional error suppression via `pass<on_error: #IGNORE>`
+- **`pass` body forms** — `pass { body }` runs a body for side effects and propagates the pipe value unchanged; `pass<on_error: #IGNORE> { body }` additionally suppresses catchable halts in the body. Empty `pass<>`, unknown option keys, and any `on_error` value other than `#IGNORE` raise `RILL-P004` at parse time
+- **`#IGNORE` atom** — Pre-registered sentinel atom; the only valid value for `pass<on_error: …>`
 - **`DictEntryNode.keyForm` AST metadata** — Optional `'identifier' | 'string'` field distinguishes bare-identifier keys (`dict[name: ...]`) from quoted-string keys (`dict["name": ...]`) at the AST level so downstream lint and analysis tools can treat quotes as an intentional escape for foreign API keys; runtime semantics are unchanged and `dict[a: 1]` and `dict["a": 1]` remain equal
+
+### Fixed
+
+- **Documentation alignment** — Reference and topic docs now cover the slicing operators, `pass` body forms, `#IGNORE`, and `DictEntryNode.keyForm`. Corrected the atom-registry export surface in `ref-host-api.md` and `ref-host-api-types.md` (`resolveAtom` and `atomName` are top-level exports; `registerErrorCode` is a method on `ExtensionFactoryCtx`)
 
 ## [0.19.1] - 2026-04-28
 
