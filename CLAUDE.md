@@ -80,26 +80,22 @@ Only `@rcrsr/rill` (packages/core) is published from this monorepo. Private pack
 
 ## Release Process
 
-rill uses a manual release process via `scripts/release.sh`. The script:
-
-1. Verifies clean working directory and main branch
-2. Builds all packages (`pnpm run -r build`)
-3. Runs all tests (`pnpm run -r test`)
-4. Creates a git tag (`v0.18.x`) from root version
-5. Pushes tag to trigger CI (CI publishes `@rcrsr/rill`)
+rill is released by tagging a release commit on `main`. CI publishes `@rcrsr/rill` when a `v*` tag is pushed.
 
 ### Release Checklist
 
-Before running `./scripts/release.sh`:
+1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json`
+2. Run `pnpm check-versions` to verify alignment
+3. Move the relevant `[Unreleased]` entries under a new `[x.y.z] - YYYY-MM-DD` section in `CHANGELOG.md`
+4. Commit with `chore: release vx.y.z`, open a PR, merge to `main`
+5. From a clean `main` at the merge commit:
 
-- [ ] Bump patch in root `package.json`
-- [ ] Bump patch in `packages/core/package.json`
-- [ ] Run `pnpm check-versions` to verify alignment
-- [ ] Update CHANGELOG.md with release notes under root version
-- [ ] Commit version changes: `git commit -m "chore: release vx.y.z"`
-- [ ] Ensure working directory is clean
-- [ ] Ensure on main branch
-- [ ] Run `./scripts/release.sh` and follow prompts
+   ```bash
+   git tag -a vx.y.z -m "Release vx.y.z"
+   git push origin vx.y.z
+   ```
+
+CI takes over from the tag push and publishes `@rcrsr/rill`.
 
 ### Dry Run Testing
 
