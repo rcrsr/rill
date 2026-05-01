@@ -717,7 +717,33 @@ $cond ? do_something() ! pass
 | `[key: pass]` | Dict with `$` as value | Dict construction |
 | `-> { pass }` | `$` | Block body |
 
-**Note:** `pass` requires pipe context. Using `pass` without `$` bound throws an error.
+**Note:** `pass` requires pipe context. Using `pass` without `$` bound throws an error (`RILL-R005`).
+
+### Pass Body Forms
+
+The body forms run a block for side effects, then pass the original pipe value through unchanged. The block's result is always discarded.
+
+| Form | Suppresses catchable halts? |
+|------|----------------------------|
+| `pass { body }` | No — halts in `body` propagate normally |
+| `pass<on_error: #IGNORE> { body }` | Yes — catchable halts in `body` are suppressed; the pipe value flows through |
+
+```rill
+5 -> pass { log($) }
+# Logs 5; result is 5
+```
+
+```rill
+range(1, 4) -> seq({ $ * 10 }) -> pass { log($) }
+# Logs the list; result is [10, 20, 30]
+```
+
+```rill
+10 -> pass<on_error: #IGNORE> { 1 / 0 }
+# Result: 10 (body halt suppressed)
+```
+
+`on_error` accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and any other `on_error` value raise `RILL-P004` at parse time. Non-catchable halts (`error`, `assert`) and `ControlSignal` (`break`, `return`) always propagate out of either body form. See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the full reference.
 
 ---
 
@@ -793,6 +819,8 @@ See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
 | `return` | Block/Script | Exit block or script with current `$` |
 | `$val -> return` | Block/Script | Exit block or script with value |
 | `pass` | Any | Returns current `$` unchanged |
+| `pass { body }` | Pipe stage | Run `body` for side effects; pipe value unchanged; halts propagate |
+| `pass<on_error: #IGNORE> { body }` | Pipe stage | Run `body`; suppresses catchable halts in body; pipe value unchanged |
 | `assert cond` | Any | Halt if condition false, pass through on success |
 | `assert cond "msg"` | Any | Halt with custom message if condition false |
 | `error "msg"` | Any | Always halt with error message |

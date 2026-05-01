@@ -129,13 +129,15 @@ export {
 };
 
 // Error atom registry
-export { registerErrorCode, resolveAtom, atomName };
+export { resolveAtom, atomName };
 export type { RillAtom, RillStatus, InvalidateMeta, InvalidMeta, TraceFrame };
 export type { ExtensionFactoryCtx };
 
 // Halt formatting
 export { formatHalt };
 ```
+
+> Atom registration is **not** a top-level export. Extensions register atoms via `ctx.registerErrorCode(name, kind)` on `ExtensionFactoryCtx` at factory init time. See [`ExtensionFactoryCtx`](#extensionfactoryctx) below and [Error Handling](topic-error-handling.md#extension-authoring) for details.
 
 ### `inferStructure`
 
@@ -552,6 +554,41 @@ const dateProtocol: TypeProtocol = {
   deserialize: (data) => new Date(data as string),
 };
 ```
+
+---
+
+## AST Node Types
+
+AST node types are exported from `@rcrsr/rill` for tools that walk parsed scripts (linters, analyzers, codegen). The full list of node names ships in `index.ts`; this section documents nodes whose shape includes metadata not obvious from their name.
+
+### `DictEntryNode`
+
+```typescript
+interface DictEntryNode {
+  readonly type: 'DictEntry';
+  readonly key:
+    | string
+    | number
+    | boolean
+    | ListLiteralNode
+    | DictKeyVariable
+    | DictKeyComputed;
+  readonly value: ExpressionNode;
+  readonly keyForm?: 'identifier' | 'string';
+  // ...standard BaseNode span/location fields
+}
+```
+
+`keyForm` records how a string key appeared in source:
+
+| Source form | `keyForm` |
+|-------------|-----------|
+| `dict[name: 1]` (bare identifier) | `'identifier'` |
+| `dict["name": 1]` (quoted string) | `'string'` |
+| Number, boolean, computed, variable, or list keys | `undefined` |
+| Internal `'...'` spread sentinel | `undefined` |
+
+`keyForm` is parser metadata only. Runtime semantics are unchanged: `dict[a: 1]` and `dict["a": 1]` are AST- and value-equal. Use `keyForm` in linting and analysis tools that want to treat quoted keys as an intentional escape for foreign API names (for example a `snake_case` rule that allows `dict["maxResults": ...]` while flagging `dict[maxResults: ...]`).
 
 ---
 

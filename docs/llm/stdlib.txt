@@ -198,10 +198,18 @@ Predicate must return `bool`. Non-callable predicate halts with `#RILL_R040`. No
 
     list[1, 2, 5, 3, 4] -> stop_when({ $ > 3 })    # stream[1, 2, 5]
 
-## pass<> body
+## pass body forms
 
-`pass<options: dict> { body }` — non-halting side-effect block.
+Three distinct surfaces:
 
-Runs `body` for side effects only. The pipe value before `pass<>` flows through unchanged after `pass<>`. `on_error: #IGNORE` is the only recognized option in Phase 1; it suppresses catchable halts that occur inside `body`. Non-catchable halts and `ControlSignal` (`break`, `return`) still propagate.
+`pass` — bare reference to current `$` in expression position. Halts `#RILL_R005` if `$` is unbound.
 
-    5 -> pass<on_error: #IGNORE> { log($) }   # logs 5, yields 5
+`pass { body }` — pipe stage that runs `body` for side effects. Pipe value flows through unchanged. Halts in `body` propagate.
+
+`pass<on_error: #IGNORE> { body }` — same as `pass { body }` but suppresses catchable halts that occur inside `body`. Non-catchable halts (`error`, `assert`) and `ControlSignal` (`break`, `return`) still propagate.
+
+`on_error: #IGNORE` is the only recognized option. Empty `pass<>`, unknown option keys, and any other `on_error` value raise `RILL-P004` at parse time.
+
+    5 -> pass { log($) }                        # logs 5, yields 5; halts in body propagate
+    5 -> pass<on_error: #IGNORE> { log($) }     # logs 5, yields 5; body halts suppressed
+    10 -> pass<on_error: #IGNORE> { 1 / 0 }     # yields 10; body halt suppressed

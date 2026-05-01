@@ -345,10 +345,21 @@ Iterators are expanded eagerly when passed to collection operators. A default li
 $inf(0) -> seq({ $ })    # ERROR: Iterator exceeded 10000 elements
 ```
 
+Bound an infinite iterator with `take(n)` or `break` to stay within the ceiling:
+
+```text
+$inf(0) -> take(5)    # list[0, 1, 2, 3, 4]
+
+[1, 2, 3] -> cycle -> take(6)    # list[1, 2, 3, 1, 2, 3]
+```
+
+See [Collection Slicing](topic-collection-slicing.md) for `take`, `skip`, `cycle`, and other slicing operators.
+
 ---
 
 ## See Also
 
-- [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc` operators
+- [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc`, `sort` operators
+- [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`
 - [Closures](topic-closures.md) — Closure semantics for custom iterators
 - [Reference](ref-language.md) — Complete language specification

@@ -207,12 +207,14 @@ export type { ExtensionFactoryCtx };
 // Extension utilities
 export { toCallable, createTestContext, emitExtensionEvent };
 
-// Error registry (atom registration)
-export { registerCoreAtom };
+// Atom registry (read-only access at top level)
+export { resolveAtom, atomName };
 export type { RillAtom, RillStatus, InvalidMeta, TraceFrame };
 export { formatHalt };
 
 ```
+
+> Atom registration happens through `ctx.registerErrorCode(name, kind)` on `ExtensionFactoryCtx` at extension factory init time, not at the top-level export surface.
 
 > **Migration note:** `KvExtensionContract` and `FsExtensionContract` types moved to
 > [`@rcrsr/rill-ext-kv`](https://github.com/rcrsr/rill-ext) and
