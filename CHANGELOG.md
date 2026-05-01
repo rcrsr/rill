@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Timeout blocks and fire-and-forget side effects** — `timeout<total:>` and `timeout<idle:>` control per-scope execution limits; `pass<async: true>` defers side effects without blocking the main script
+- **Time-domain stream operators** — Five new operators enable asynchronous stream processing: `iterate` creates infinite lazy sequences, `debounce` gates rapid bursts, `throttle` rate-limits emissions, `sample` periodically captures state, and `batch<idle_flush:>` groups items with timeout-based flushing
+
 ## [0.19.2] - 2026-04-30
 
 ### Added

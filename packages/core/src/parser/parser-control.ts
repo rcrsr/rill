@@ -24,6 +24,7 @@ import type {
   RecoveryErrorNode,
   RetryBlockNode,
   StringLiteralNode,
+  TimeoutBlockNode,
   WhileLoopNode,
   BodyNode,
   StatementNode,
@@ -60,6 +61,7 @@ declare module './parser.js' {
     parseError(requireMessage?: boolean): ErrorNode;
     parseGuardBlock(): GuardBlockNode | RecoveryErrorNode;
     parseRetryBlock(): RetryBlockNode | RecoveryErrorNode;
+    parseTimeoutBlock(): TimeoutBlockNode;
   }
 }
 
@@ -894,3 +896,120 @@ function parseGuardOrRetryBody(
   void start;
   return parser.parseBlock(false);
 }
+
+// ============================================================
+// TIMEOUT BLOCK (task 1.2)
+// ============================================================
+
+/**
+ * Parse a timeout block:
+ *   timeout<total: duration> { body }
+ *   timeout<idle: duration>  { body }
+ *
+ * Enters with current token being TIMEOUT_LANGLE (compound `timeout<`).
+ * Exactly one of `total:` or `idle:` must appear — both together is a
+ * compile-time parse error (EC-4). The duration is parsed as a primary
+ * expression so that `>` is not consumed as a comparison operator.
+ */
+Parser.prototype.parseTimeoutBlock = function (this: Parser): TimeoutBlockNode {
+  const start = current(this.state).span.start;
+  advance(this.state); // consume timeout<
+
+  skipNewlines(this.state);
+
+  // Parse exactly one kind key: `total` or `idle`.
+  if (
+    !check(this.state, TOKEN_TYPES.IDENTIFIER) ||
+    (current(this.state).value !== 'total' &&
+      current(this.state).value !== 'idle')
+  ) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "Expected 'total:' or 'idle:' inside 'timeout<...>'",
+      current(this.state).span.start
+    );
+  }
+
+  const kindToken = advance(this.state);
+  const kind = kindToken.value as 'total' | 'idle';
+
+  expect(
+    this.state,
+    TOKEN_TYPES.COLON,
+    `Expected ':' after '${kind}' inside 'timeout<...>'`,
+    ERROR_IDS.RILL_P004
+  );
+  skipNewlines(this.state);
+
+  // Parse the duration as a primary expression to avoid consuming `>`.
+  const durationPrimary = this.parsePrimary();
+
+  // Wrap in PostfixExprNode + PipeChainNode to produce a full ExpressionNode.
+  const primarySpan = durationPrimary.span;
+  const postfixNode = {
+    type: 'PostfixExpr' as const,
+    primary: durationPrimary,
+    methods: [],
+    defaultValue: null,
+    span: primarySpan,
+  };
+  const duration: ExpressionNode = {
+    type: 'PipeChain' as const,
+    head: postfixNode,
+    pipes: [],
+    terminator: null,
+    span: primarySpan,
+  };
+
+  skipNewlines(this.state);
+
+  // EC-4: reject second kind key before the closing `>`.
+  if (check(this.state, TOKEN_TYPES.COMMA)) {
+    advance(this.state); // consume `,`
+    skipNewlines(this.state);
+    if (
+      check(this.state, TOKEN_TYPES.IDENTIFIER) &&
+      (current(this.state).value === 'total' ||
+        current(this.state).value === 'idle')
+    ) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        "timeout<> accepts exactly one kind key; found both 'total' and 'idle'",
+        current(this.state).span.start
+      );
+    }
+    // Any other trailing content is also an error.
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "timeout<> accepts exactly one option ('total' or 'idle')",
+      current(this.state).span.start
+    );
+  }
+
+  expect(
+    this.state,
+    TOKEN_TYPES.GT,
+    "Expected '>' to close 'timeout<...>'",
+    ERROR_IDS.RILL_P005
+  );
+
+  skipNewlines(this.state);
+
+  if (!check(this.state, TOKEN_TYPES.LBRACE)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "Expected '{ body }' after 'timeout<...>'",
+      current(this.state).span.start
+    );
+  }
+
+  const body = this.parseBlock(false);
+
+  return {
+    type: 'TimeoutBlock',
+    kind,
+    duration,
+    body,
+    span: makeSpan(start, body.span.end),
+  } satisfies TimeoutBlockNode;
+};

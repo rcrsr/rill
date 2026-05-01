@@ -12,6 +12,7 @@ Iterators provide lazy sequence generation in rill. They produce values on deman
 |----------|-------------|
 | `range(start, end, step?)` | Generate number sequence |
 | `repeat(value, count)` | Repeat value n times |
+| `iterate(seed, closure)` | Infinite stream: apply closure to produce next value |
 | `.first()` | Get iterator for any collection |
 
 **Key characteristics:**
@@ -108,6 +109,84 @@ true
 ```rill
 repeat("x", 0)        # empty
 repeat("x", -1)       # ERROR: count cannot be negative
+```
+
+---
+
+## iterate: Infinite Source Stream
+
+**Signature:** `iterate(seed, closure): stream of T`
+
+`iterate` produces an unbounded stream. It starts with `seed` as the first emitted value. After each emission, it calls `closure` with the current value in `$` to produce the next value, which becomes both the next emission and the next seed.
+
+The stream is always infinite. You must bound it externally with `take(n)`, or accept that the iteration ceiling (`RILL_R010`) will halt execution.
+
+### Pipe form
+
+When piped, the piped value becomes `seed` automatically:
+
+```rill
+0 -> iterate({ $ + 1 }) -> take(5)
+# Result: [0, 1, 2, 3, 4]
+```
+
+### Explicit form
+
+```rill
+iterate(0, { $ + 1 }) -> take(5)
+# Result: [0, 1, 2, 3, 4]
+```
+
+### Bounding the stream
+
+Use `take(n)` to collect a fixed count:
+
+```rill
+iterate(1, { $ * 2 }) -> take(6)
+# Result: [1, 2, 4, 8, 16, 32]
+```
+
+Use `stop_when` to bound by a content condition. Because `iterate` produces an infinite stream, you must combine `stop_when` with `take` as a safety bound:
+
+```text
+# stop_when without take exhausts the iteration ceiling on an infinite stream
+# Use take first to cap the search range:
+iterate(1, { $ + 1 }) -> take(20) -> stop_when({ $ >= 5 })
+# Result: [1, 2, 3, 4, 5]
+```
+
+### Fibonacci sequence
+
+Use a dict pair as the seed to carry two values between steps. The closure advances the pair; `seq` extracts the `a` field from each step.
+
+```rill
+iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
+# Result: [0, 1, 1, 2, 3, 5, 8, 13]
+```
+
+### Iteration ceiling
+
+Consuming more than 10,000 chunks without bounding halts execution with `RILL_R010`. The halt fires at the materializing consumer, such as `seq`:
+
+```text
+# Error: RILL_R010 — iteration ceiling exceeded
+iterate(0, { $ + 1 }) -> seq({ $ })
+```
+
+`take(n)` clamps silently to MAX_ITER (10,000) without itself halting. The ceiling fires only when the downstream consumer forces iteration past 10,000 elements.
+
+### Error contracts
+
+| Condition | Error |
+|-----------|-------|
+| Closure is missing or not invocable | Catchable halt: `RILL_R006` (EC-17) |
+| Closure produces a catchable halt | Propagates as catchable (EC-14) |
+| Closure produces a non-catchable halt | Propagates as non-catchable (EC-15) |
+| Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` (EC-16) |
+
+```text
+# Error: RILL_R006 — closure is required
+iterate(0)
 ```
 
 ---
@@ -360,6 +439,6 @@ See [Collection Slicing](topic-collection-slicing.md) for `take`, `skip`, `cycle
 ## See Also
 
 - [Collections](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc`, `sort` operators
-- [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`
+- [Collection Slicing](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `debounce`, `throttle`, `sample`
 - [Closures](topic-closures.md) — Closure semantics for custom iterators
 - [Reference](ref-language.md) — Complete language specification

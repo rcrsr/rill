@@ -44,6 +44,7 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['RETRY_LANGLE', 'keyword'],
     ['DO_LANGLE', 'keyword'],
     ['PASS_LANGLE', 'keyword'],
+    ['TIMEOUT_LANGLE', 'keyword'],
 
     // Keywords
     ['BREAK', 'keyword'],

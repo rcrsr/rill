@@ -86,6 +86,7 @@ export const TOKEN_TYPES = {
   RETRY_LANGLE: 'RETRY_LANGLE', // retry<
   DO_LANGLE: 'DO_LANGLE', // do<
   PASS_LANGLE: 'PASS_LANGLE', // pass<
+  TIMEOUT_LANGLE: 'TIMEOUT_LANGLE', // timeout<
 
   // Keywords
   BREAK: 'BREAK',

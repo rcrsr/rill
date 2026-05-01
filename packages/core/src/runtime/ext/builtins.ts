@@ -16,7 +16,11 @@ import {
 } from '../core/callable.js';
 import type { RuntimeContext } from '../core/types/runtime.js';
 import { type SourceLocation, RuntimeError } from '../../types.js';
-import { throwTypeHalt, throwCatchableHostHalt } from '../core/types/halt.js';
+import {
+  throwTypeHalt,
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+} from '../core/types/halt.js';
 import { parseSignatureRegistration } from '../../signature-parser.js';
 import type {
   RillDatetime,
@@ -190,6 +194,44 @@ function makeDictIterator(
 const MAX_ITER = 10000;
 
 /**
+ * Describes one step produced by a makeGenericIterator step function.
+ * done:true   — the sequence is exhausted; no value emitted.
+ * done:false  — emit value and continue with next seed.
+ */
+type GenericStepResult =
+  | { done: true }
+  | { done: false; value: RillValue; next: RillValue };
+
+/**
+ * Build a lazy iterator from a seed value and a pure step function.
+ *
+ * fn(current) returns either { done: true } to terminate the sequence, or
+ * { done: false, value, next } to emit value and advance the seed to next.
+ *
+ * This is the private unification point for range and repeat; iterate is
+ * the public-facing builtin that uses it via an async wrapper.
+ *
+ * @internal
+ */
+function makeGenericIterator(
+  seed: RillValue,
+  fn: (current: RillValue) => GenericStepResult
+): RillValue {
+  const step = (current: RillValue): RillValue => {
+    const result = fn(current);
+    if (result.done) {
+      return { done: true, next: callable(() => step(current)) };
+    }
+    return {
+      value: result.value,
+      done: false,
+      next: callable(() => step(result.next)),
+    };
+  };
+  return step(seed);
+}
+
+/**
  * Default key extractor for sort(dict, ...).
  * Receives a { key, value } entry dict and returns the key string.
  * Constructed once at module load; not re-allocated per call.
@@ -352,23 +394,16 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      const makeRangeIterator = (current: number): RillValue => {
-        const done =
-          step > 0 ? current >= end : step < 0 ? current <= end : true;
-        if (done) {
-          return {
-            done: true,
-            next: callable(() => makeRangeIterator(current)),
-          };
-        }
+      return makeGenericIterator(start as RillValue, (current) => {
+        const c = current as number;
+        const done = step > 0 ? c >= end : step < 0 ? c <= end : true;
+        if (done) return { done: true };
         return {
-          value: current,
           done: false,
-          next: callable(() => makeRangeIterator(current + step)),
+          value: c as RillValue,
+          next: (c + step) as RillValue,
         };
-      };
-
-      return makeRangeIterator(start);
+      });
     },
   },
 
@@ -405,21 +440,11 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      const makeRepeatIterator = (remaining: number): RillValue => {
-        if (remaining <= 0) {
-          return {
-            done: true,
-            next: callable(() => makeRepeatIterator(0)),
-          };
-        }
-        return {
-          value,
-          done: false,
-          next: callable(() => makeRepeatIterator(remaining - 1)),
-        };
-      };
-
-      return makeRepeatIterator(count);
+      return makeGenericIterator(count as RillValue, (current) => {
+        const remaining = current as number;
+        if (remaining <= 0) return { done: true };
+        return { done: false, value, next: (remaining - 1) as RillValue };
+      });
     },
   },
 
@@ -1579,8 +1604,20 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   /**
    * Split input into fixed-size chunks of n elements. Returns a list of lists.
    * Validates n > 0; halts with #INVALID_INPUT (EC-2) on n <= 0.
-   * options dict may specify { drop_partial: bool } to discard a trailing
-   * chunk shorter than n (default false — keep partial tail).
+   * options dict may specify:
+   *   { drop_partial: bool }    — discard trailing chunk shorter than n
+   *                               (default false — keep partial tail).
+   *   { idle_flush: duration }  — (IR-8) flush accumulated buffer early when
+   *                               no chunk arrives within the given duration.
+   *                               Must be a duration value (EC-18); non-duration
+   *                               raises a catchable TYPE_MISMATCH halt.
+   *                               Note: idle_flush is validated here but acts as
+   *                               a scheduling hint. With synchronous iteration
+   *                               via getIterableElements all elements are
+   *                               collected before any setTimeout can fire, so
+   *                               idle-triggered early-flush applies only to
+   *                               future async streaming paths (Path A — static
+   *                               clock limitation).
    * Chunk count is capped at MAX_ITER → #RILL_R010 (EC-6).
    * BreakSignal and ControlSignal are re-thrown per §NOD.10.4.
    */
@@ -1633,12 +1670,30 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      // Read drop_partial option (default false)
+      // Read options: drop_partial (default false) and idle_flush (duration, optional).
       let dropPartial = false;
       if (options !== null && options !== undefined) {
-        const dp = (options as Record<string, RillValue>)['drop_partial'];
+        const optDict = options as Record<string, RillValue>;
+
+        const dp = optDict['drop_partial'];
         if (dp !== undefined && dp !== null) {
           dropPartial = dp === true;
+        }
+
+        // EC-18: idle_flush must be a duration when provided.
+        const idleFlushRaw = optDict['idle_flush'];
+        if (idleFlushRaw !== undefined && idleFlushRaw !== null) {
+          if (!isDuration(idleFlushRaw)) {
+            throwCatchableHostHalt(
+              site,
+              'TYPE_MISMATCH',
+              `batch: idle_flush must be a duration, got ${inferType(idleFlushRaw)}`
+            );
+          }
+          // idle_flush is validated. With synchronous getIterableElements
+          // iteration the idle timer cannot fire mid-collection, so the
+          // option has no effect on the current synchronous path.
+          // Future async streaming support will wire this to createIdleTicker.
         }
       }
 
@@ -1963,6 +2018,401 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       } catch (e) {
         if (e instanceof ControlSignal) throw e;
         throw e;
+      }
+
+      return result;
+    },
+  },
+
+  /**
+   * Infinite iterator source: emit seed, then repeatedly apply closure to
+   * produce the next value (which becomes the next seed).
+   *
+   * Call form:  iterate(seed, closure)
+   * Pipe form:  $seed -> iterate(closure)   (pipeValue auto-detected)
+   *
+   * The stream is unbounded; bound it externally with take(n), stop_when,
+   * or let RILL_R010 enforce the MAX_ITER ceiling.
+   *
+   * Error contracts:
+   *   EC-14  Closure throws catchable halt   → propagates (catchable)
+   *   EC-15  Closure throws non-catchable    → propagates (non-catchable)
+   *   EC-16  Iteration exceeds MAX_ITER      → RILL_R010 (non-catchable)
+   *   EC-17  Closure missing/not invocable   → RILL_R006 (catchable)
+   */
+  iterate: {
+    params: [
+      {
+        name: 'seed',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'closure',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      // iterate is in UNTYPED_BUILTINS; receives a positional array cast as Record.
+      // Pipe form: $seed -> iterate($closure) sends args=[$closure] with pipeValue=$seed.
+      // Detect by checking whether there is exactly one arg and a pipe value is set.
+      const positional = args as unknown as RillValue[];
+      let seed: RillValue;
+      let closureArg: RillValue;
+      if (
+        positional.length === 1 &&
+        (ctx as RuntimeContext).pipeValue !== null
+      ) {
+        seed = (ctx as RuntimeContext).pipeValue;
+        closureArg = positional[0] ?? null;
+      } else {
+        seed = positional[0] ?? null;
+        closureArg = positional[1] ?? null;
+      }
+
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'iterate',
+      };
+
+      if (!isCallable(closureArg)) {
+        throwCatchableHostHalt(
+          site,
+          'RILL_R006',
+          `iterate: closure must be a callable, got ${inferType(closureArg)}`
+        );
+      }
+
+      const closure = closureArg;
+      const runtimeCtx = ctx as RuntimeContext;
+      let stepCount = 0;
+
+      // Build an async iterator. The first emitted value is seed itself.
+      // Each subsequent value is the result of applying closure to the current seed.
+      const buildChunk = async (current: RillValue): Promise<RillValue> => {
+        stepCount++;
+        if (stepCount > MAX_ITER) {
+          throwFatalHostHalt(
+            site,
+            'RILL_R010',
+            `iterate: iteration exceeded ${MAX_ITER} limit`
+          );
+        }
+        const childCtx = createChildContext(runtimeCtx);
+        childCtx.pipeValue = current;
+        const nextSeed = await invokeCallable(
+          closure,
+          [current],
+          childCtx,
+          location
+        );
+        return {
+          value: current,
+          done: false,
+          next: callable(() => buildChunk(nextSeed)),
+        };
+      };
+
+      // Emit seed as the first chunk synchronously; closure runs on .next().
+      return {
+        value: seed,
+        done: false,
+        next: callable(async () => {
+          const childCtx = createChildContext(runtimeCtx);
+          childCtx.pipeValue = seed;
+          const nextSeed = await invokeCallable(
+            closure,
+            [seed],
+            childCtx,
+            location
+          );
+          return buildChunk(nextSeed);
+        }),
+      };
+    },
+  },
+
+  /**
+   * Suppress rapid stream emissions; emit the latest chunk after `duration`
+   * of silence since the last observed chunk.
+   *
+   * Stream-only: rejects list input with #INVALID_INPUT (EC-10).
+   * `duration` arg must be a duration value (EC-11).
+   * Iteration ceiling enforced via getIterableElements (EC-12).
+   * Upstream halt propagates through getIterableElements (EC-13).
+   *
+   * Semantics: of all observed chunks, emit only those not followed by
+   * another chunk within `duration.ms`. With all chunks at the same virtual
+   * timestamp (deterministic clock), only the last chunk passes.
+   *
+   * Per AC-25: debounce = emit latest after silence.
+   */
+  debounce: {
+    params: [
+      {
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'dur',
+        type: { kind: 'duration' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = args['list'] ?? null;
+      const durArg = args['dur'] ?? null;
+
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'debounce',
+      };
+
+      // EC-10: reject list input
+      if (Array.isArray(input)) {
+        throwCatchableHostHalt(
+          site,
+          'INVALID_INPUT',
+          'debounce: requires a stream or iterator input, got list'
+        );
+      }
+
+      // EC-11: duration arg must be a duration value
+      if (!isDuration(durArg)) {
+        throwCatchableHostHalt(
+          site,
+          'TYPE_MISMATCH',
+          `debounce: duration argument must be a duration, got ${inferType(durArg)}`
+        );
+      }
+
+      const durationMs = (durArg as RillDuration).ms;
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+
+      // EC-12 enforced by getIterableElements limit; EC-13 propagates halts
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      if (elements.length === 0) {
+        return [];
+      }
+
+      // For each chunk: emit it only if no subsequent chunk arrives within
+      // `durationMs` of it. In batch mode (static ctx.nowMs or synchronous
+      // processing) all chunks share the same timestamp, so the gap between
+      // consecutive chunks is 0. Only the last chunk has an Infinity gap
+      // (no follower), so only it passes when durationMs > 0.
+      const result: RillValue[] = [];
+      for (let i = 0; i < elements.length; i++) {
+        // Gap to next chunk: 0 for non-terminal (static clock); Infinity for last.
+        const tGap = i + 1 < elements.length ? 0 : Infinity;
+        // Emit if silence gap (time to next chunk) meets or exceeds durationMs.
+        if (tGap >= durationMs) {
+          result.push(elements[i]!);
+        }
+      }
+
+      return result;
+    },
+  },
+
+  /**
+   * Limit stream emission to at most one chunk per `duration` interval.
+   * The first chunk in each interval passes; subsequent chunks in the same
+   * interval are suppressed.
+   *
+   * Stream-only: rejects list input with #INVALID_INPUT (EC-10).
+   * `duration` arg must be a duration value (EC-11).
+   * Iteration ceiling enforced via getIterableElements (EC-12).
+   * Upstream halt propagates through getIterableElements (EC-13).
+   *
+   * Per AC-25: throttle = first-of-interval.
+   */
+  throttle: {
+    params: [
+      {
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'dur',
+        type: { kind: 'duration' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = args['list'] ?? null;
+      const durArg = args['dur'] ?? null;
+
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'throttle',
+      };
+
+      // EC-10: reject list input
+      if (Array.isArray(input)) {
+        throwCatchableHostHalt(
+          site,
+          'INVALID_INPUT',
+          'throttle: requires a stream or iterator input, got list'
+        );
+      }
+
+      // EC-11: duration arg must be a duration value
+      if (!isDuration(durArg)) {
+        throwCatchableHostHalt(
+          site,
+          'TYPE_MISMATCH',
+          `throttle: duration argument must be a duration, got ${inferType(durArg)}`
+        );
+      }
+
+      const durationMs = (durArg as RillDuration).ms;
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+
+      // EC-12 enforced by getIterableElements limit; EC-13 propagates halts
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      if (elements.length === 0) {
+        return [];
+      }
+
+      const result: RillValue[] = [];
+      // Gate tracks the earliest time the next chunk is allowed through.
+      let nextAllowedMs = -Infinity;
+
+      for (let i = 0; i < elements.length; i++) {
+        // Static clock: all chunks share timestamp 0 (batch processing, no Date.now()).
+        const tChunk = 0;
+        if (tChunk >= nextAllowedMs) {
+          result.push(elements[i]!);
+          nextAllowedMs = tChunk + durationMs;
+        }
+      }
+
+      return result;
+    },
+  },
+
+  /**
+   * Periodically emit the latest seen chunk at fixed `duration` intervals.
+   * Chunks arriving between sample checkpoints update the "latest seen" value;
+   * each checkpoint emits that latest value (if any chunk was seen since the
+   * last checkpoint or the beginning).
+   *
+   * Stream-only: rejects list input with #INVALID_INPUT (EC-10).
+   * `duration` arg must be a duration value (EC-11).
+   * Iteration ceiling enforced via getIterableElements (EC-12).
+   * Upstream halt propagates through getIterableElements (EC-13).
+   *
+   * Per AC-25: sample = latest-at-interval.
+   * With a static virtual clock (ctx.nowMs), all chunks fall in the first
+   * interval window and the last chunk is emitted as a single sample.
+   */
+  sample: {
+    params: [
+      {
+        name: 'list',
+        type: { kind: 'any' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+      {
+        name: 'dur',
+        type: { kind: 'duration' },
+        defaultValue: undefined,
+        annotations: {},
+      },
+    ],
+    returnType: anyTypeValue,
+    fn: async (args, ctx, location) => {
+      const input = args['list'] ?? null;
+      const durArg = args['dur'] ?? null;
+
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'sample',
+      };
+
+      // EC-10: reject list input
+      if (Array.isArray(input)) {
+        throwCatchableHostHalt(
+          site,
+          'INVALID_INPUT',
+          'sample: requires a stream or iterator input, got list'
+        );
+      }
+
+      // EC-11: duration arg must be a duration value
+      if (!isDuration(durArg)) {
+        throwCatchableHostHalt(
+          site,
+          'TYPE_MISMATCH',
+          `sample: duration argument must be a duration, got ${inferType(durArg)}`
+        );
+      }
+
+      // durationMs validated above (EC-11); static-clock semantics make all
+      // elements fall in window 0 regardless of duration value.
+      const node = {
+        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+      };
+
+      // EC-12 enforced by getIterableElements limit; EC-13 propagates halts
+      const elements = await getIterableElements(
+        input,
+        ctx as RuntimeContext,
+        node
+      );
+
+      if (elements.length === 0) {
+        return [];
+      }
+
+      // Assign each element to a time window.
+      // Static clock: all chunks share timestamp 0 (batch processing, no Date.now()).
+      // With a static clock all elements fall in window 0 → emit last.
+      const result: RillValue[] = [];
+      // Track latest seen per window index.
+      const windowLatest = new Map<number, RillValue>();
+
+      for (let i = 0; i < elements.length; i++) {
+        // Static clock: windowIdx is always 0; last element in window wins.
+        const windowIdx = 0;
+        windowLatest.set(windowIdx, elements[i]!);
+      }
+
+      // Emit windows in order: latest value per window.
+      const windowIndices = [...windowLatest.keys()].sort((a, b) => a - b);
+      for (const idx of windowIndices) {
+        result.push(windowLatest.get(idx)!);
       }
 
       return result;

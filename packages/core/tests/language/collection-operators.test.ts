@@ -994,4 +994,99 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(exists).toBe(false);
     });
   });
+
+  // ── Phase 2: batch idle_flush option (IR-8, AC-8, AC-17, EC-18) ──────────
+  //
+  // [SPEC] AC-8 — The spec describes idle_flush as flushing a partial batch
+  // when no new chunk arrives within the given duration. With synchronous
+  // getIterableElements materialisation all elements are collected before any
+  // idle timer could fire, so the option has no observable effect on the
+  // current synchronous path. Tests verify: (a) the option is accepted and
+  // validated, and (b) the output is identical to batch without idle_flush.
+  //
+  // [SPEC] AC-19 — "empty buffer at idle tick: no flush emitted; next chunk
+  // re-arms idle timer". This behaviour requires async streaming with a real
+  // idle ticker. It cannot be meaningfully tested in the synchronous batch
+  // path and is documented here as deferred to a future async streaming task.
+  //
+  // [SPEC] EC-19 — Per the spec, EC-19 would cover invalid list input to
+  // batch with idle_flush. Unlike debounce/throttle/sample, batch accepts list
+  // input and does not raise #INVALID_INPUT for list values. EC-19 is not
+  // applicable to the current batch implementation.
+  //
+  // [SPEC] EC-20 — Not implemented; deferred with async streaming support.
+  //
+  // [DEVIATION] duration() supports positional args only. All tests use
+  // duration(0, 0, 0, 0, 0, 0, X) for X milliseconds. (See duration.test.ts.)
+
+  describe('Phase 2: batch idle_flush option (IR-8, AC-8, AC-17, EC-18)', () => {
+    // ── AC-8: batch with valid idle_flush succeeds, same output as without ──
+
+    it('AC-8: batch(n, dict[idle_flush: duration(...)]) succeeds on list input', async () => {
+      // idle_flush is recognised and validated; since input is fully materialised
+      // synchronously the output equals plain batch(n) output.
+      const withIdleFlush = await run(
+        'range(1, 11) -> batch(3, dict[idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])'
+      );
+      const withoutIdleFlush = await run('range(1, 11) -> batch(3)');
+      expect(withIdleFlush).toEqual(withoutIdleFlush);
+      expect(withIdleFlush).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
+    });
+
+    it('AC-8: batch with idle_flush on list input produces same chunks as plain batch', async () => {
+      const withIdleFlush = await run(
+        'list[1, 2, 3, 4, 5] -> batch(2, dict[idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])'
+      );
+      expect(withIdleFlush).toEqual([[1, 2], [3, 4], [5]]);
+    });
+
+    it('AC-8: batch with idle_flush combined with drop_partial works correctly', async () => {
+      const result = await run(
+        'range(1, 11) -> batch(3, dict[drop_partial: true, idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])'
+      );
+      expect(result).toEqual([
+        [1, 2, 3],
+        [4, 5, 6],
+        [7, 8, 9],
+      ]);
+    });
+
+    it('AC-8: batch with idle_flush on empty input returns empty list', async () => {
+      const result = await run(
+        'list[] -> batch(3, dict[idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])'
+      );
+      expect(result).toEqual([]);
+    });
+
+    // ── AC-17 / EC-18: non-duration idle_flush raises #TYPE_MISMATCH ─────────
+
+    it('AC-17/EC-18: string idle_flush raises #TYPE_MISMATCH', async () => {
+      await expectHalt(
+        () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: "50ms"])'),
+        { code: 'TYPE_MISMATCH' }
+      );
+    });
+
+    it('EC-18: numeric idle_flush raises #TYPE_MISMATCH', async () => {
+      await expectHalt(
+        () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: 50])'),
+        { code: 'TYPE_MISMATCH' }
+      );
+    });
+
+    it('EC-18: boolean idle_flush raises #TYPE_MISMATCH', async () => {
+      await expectHalt(
+        () => run('list[1, 2, 3] -> batch(2, dict[idle_flush: true])'),
+        { code: 'TYPE_MISMATCH' }
+      );
+    });
+
+    // ── AC-19 / EC-19: deferred — requires async streaming ──────────────────
+    // AC-19: "empty buffer at idle tick: no flush emitted; next chunk re-arms
+    // idle timer". Not testable in the synchronous materialisation path.
+    //
+    // EC-19: "list input to batch with idle_flush raises #INVALID_INPUT".
+    // batch accepts list input regardless of idle_flush; this error contract
+    // does not apply to the current synchronous implementation.
+  });
 });

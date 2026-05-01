@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-R078)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R077)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R083)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -1844,6 +1844,56 @@ use<module:unknown>  # Error: unknown module
 ```text
 # Type mismatch in default
 # param { name: "x", type: "number", defaultValue: "hello" }
+```
+
+---
+
+### rill-r082
+
+**Description:** Total wall-time timeout exceeded
+
+**Cause:** The `timeout<total: duration>` block body did not complete within the configured wall-time bound.
+
+**Resolution:** Wrap the block in `guard` to catch expiry as an invalid value. Increase the duration or optimize the body.
+
+**Example:**
+
+```text
+# Body runs past the total wall-time limit
+timeout<total: duration(...dict[ms: 100])> {
+  $app.slow_operation()
+}
+# Halts with #RILL_R082
+
+# Recovery pattern
+guard {
+  timeout<total: duration(...dict[ms: 500])> {
+    $app.slow_operation()
+  }
+} ?? "timed out"
+```
+
+---
+
+### rill-r083
+
+**Description:** Idle inactivity timeout exceeded
+
+**Cause:** The `timeout<idle: duration>` block body produced no stream chunk within the configured idle window.
+
+**Resolution:** Wrap the block in `guard` to catch expiry as an invalid value. Reduce the idle duration or ensure the body emits chunks more frequently.
+
+**Example:**
+
+```text
+# Stream stops emitting; idle window expires
+$slow_stream -> timeout<idle: duration(...dict[ms: 200])> { pass }
+# Halts with #RILL_R083
+
+# Recovery pattern
+guard {
+  $slow_stream -> timeout<idle: duration(...dict[ms: 500])> { pass }
+} ?? "stream went idle"
 ```
 
 ---

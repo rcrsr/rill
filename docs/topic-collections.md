@@ -4,7 +4,7 @@
 
 ## Overview
 
-rill provides six core collection operators for transforming, filtering, reducing, and ordering data. Slicing, batching, windowing, and gating operators live in [Collection Slicing and Restructuring Operators](topic-collection-slicing.md).
+rill provides six core collection operators for transforming, filtering, reducing, and ordering data. Slicing, batching, windowing, and gating operators live in [Collection Slicing and Restructuring Operators](topic-collection-slicing.md). Source iterators (`range`, `repeat`, and the infinite-stream `iterate`) are documented in [Iterators](topic-iterators.md).
 
 | Operator | Execution | Accumulator | Returns | Catches break? |
 |----------|-----------|-------------|---------|----------------|
@@ -852,8 +852,8 @@ Process nested structures with nested operators.
 
 ## See Also
 
-- [Collection Slicing and Restructuring Operators](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass<>` body form
-- [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `.first()`
+- [Collection Slicing and Restructuring Operators](topic-collection-slicing.md) — `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `debounce`, `throttle`, `sample`, `pass<>` body form
+- [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `iterate` (infinite source stream), `.first()`
 - [Reference](ref-language.md) — Complete language specification
 - [Closures](topic-closures.md) — Closure semantics and patterns
 - [Guide](guide-getting-started.md) — Beginner introduction

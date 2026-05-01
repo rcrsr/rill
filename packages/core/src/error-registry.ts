@@ -137,6 +137,8 @@ export const ERROR_IDS = {
   RILL_R079: 'RILL-R079',
   RILL_R080: 'RILL-R080',
   RILL_R081: 'RILL-R081',
+  RILL_R082: 'RILL-R082',
+  RILL_R083: 'RILL-R083',
   RILL_C001: 'RILL-C001',
   RILL_C002: 'RILL-C002',
   RILL_C003: 'RILL-C003',
@@ -2023,6 +2025,40 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'After (current syntax)',
         code: '0 -> do<limit: 10> { $ + 1 } while ($ < 3)',
+      },
+    ],
+  },
+
+  // Timeout block errors (RILL-R082, RILL-R083)
+  {
+    errorId: ERROR_IDS.RILL_R082,
+    category: 'runtime',
+    description: 'Total wall-time timeout exceeded',
+    messageTemplate: 'timeout<total:> exceeded after {durationMs}ms',
+    cause:
+      'The timeout<total: duration> block body did not complete within the wall-time bound.',
+    resolution:
+      'Recover via guard { timeout<total: d> { body } } or ?? fallback. Increase duration or optimize body.',
+    examples: [
+      {
+        description: 'Total timeout with guard recovery',
+        code: 'guard { timeout<total: 500ms> { $app.slow() } }',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_R083,
+    category: 'runtime',
+    description: 'Idle inactivity timeout exceeded',
+    messageTemplate: 'timeout<idle:> exceeded: no activity for {durationMs}ms',
+    cause:
+      'The timeout<idle: duration> block body produced no output chunk within the idle bound.',
+    resolution:
+      'Recover via guard { timeout<idle: d> { body } } or ?? fallback. Reduce idle duration or ensure body emits chunks.',
+    examples: [
+      {
+        description: 'Idle timeout with guard recovery',
+        code: 'guard { timeout<idle: 200ms> { $stream } }',
       },
     ],
   },

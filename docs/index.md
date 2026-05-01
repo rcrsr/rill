@@ -9,6 +9,7 @@
 | [Introduction](guide-intro.md) | What rill is, who it's for, and why it works this way |
 | [Guide](guide-getting-started.md) | Beginner-friendly introduction to rill |
 | [Examples](guide-examples.md) | Language features demonstrated with working code |
+| [Stream and Time-Domain Examples](guide-examples-streams.md) | Stream consumption, error recovery, and time-domain operators |
 | [Troubleshooting](guide-troubleshooting.md) | Common mistakes and how to fix them |
 | [Reference](ref-language.md) | Core language specification |
 

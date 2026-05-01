@@ -212,11 +212,12 @@ primary       = literal
               | loop
               | guard-block         (* guard { body } / guard<on: list[#X]> { body } *)
               | retry-block         (* retry<limit: N> { body } / retry<limit: N, on: list[#X]> { body } *)
+              | timeout-block       (* timeout<total: duration> { body } / timeout<idle: duration> { body } *)
               | block
               | grouped-expr
               | spread              (* ...$dict-expr — convert dict to ordered for arg unpacking *)
               | annotated-expr      (* ^(key: val) expr — annotation on expression *)
-              | pass-block          (* pass<on_error: #IGNORE> { body } — non-halting side-effect *)
+              | pass-block          (* pass<on_error: #IGNORE> { body } / pass<async: bool> { body } *)
               | pass ;
 
 (* Atom literal: a symbolic constant introduced with "#".
@@ -274,8 +275,45 @@ pass-block    = "pass" , "<" , pass-option-list , ">" , block ;
 
 pass-option-list = pass-option , { "," , pass-option } ;
 pass-option      = identifier , ":" , ( atom-literal | literal ) ;
-              (* Currently only "on_error: #IGNORE" is defined.
-                 Unknown keys are rejected at parse time. *)
+              (* Recognized option keys:
+                 "on_error: #IGNORE"  — suppress catchable halts in body.
+                 "async: true"        — fire-and-forget: dispatch body without blocking;
+                                        pipe value flows through immediately; body return
+                                        value is discarded. Body promise is tracked via
+                                        trackInflight.
+                 "async" and "on_error" may appear together in any order.
+                 Unknown keys are rejected at parse time (RILL-P004). *)
+
+(* Timeout block: scoped wall-time or idle-inactivity limit.
+   Exactly ONE of "total" or "idle" must be present; both together is a parse error (RILL-P004).
+
+   timeout<total: duration> { body }
+     - Starts a countdown from block entry.
+     - When the countdown expires before the body completes, halts with #RILL_R082.
+     - The halt is catchable: wrap with guard or use ?? to recover.
+
+   timeout<idle: duration> { body }
+     - Resets the timer each time a stream chunk is emitted inside body.
+     - When no chunk arrives within the idle window, halts with #RILL_R083.
+     - The halt is catchable: wrap with guard or use ?? to recover.
+
+   Nesting: timeout blocks may be nested. Each creates a scoped AbortController
+   chained to ctx.signal. The innermost expiry fires first; the outer block
+   continues only if the inner block's body completes before the outer timer.
+
+   Examples:
+     timeout<total: duration(...dict[ms: 500])> { $app.slow() }
+     guard { timeout<total: duration(...dict[ms: 500])> { $app.slow() } } ?? "timed out"
+     timeout<idle: duration(...dict[ms: 200])> { $stream -> seq({ $ }) } *)
+
+timeout-block = "timeout" , "<" , timeout-option , ">" , block ;
+timeout-option = ( "total" | "idle" ) , ":" , expression ;
+              (* "total" and "idle" are mutually exclusive; both in one timeout<> is RILL-P004.
+                 The expression must evaluate to a duration value at runtime; a non-duration
+                 value produces a type-mismatch halt.
+                 Examples:
+                   timeout<total: duration(...dict[ms: 500])>
+                   timeout<idle: duration(...dict[ms: 200])> *)
 
 (* Annotated expression: attach metadata to any primary expression.
    ^(key: value, ...) expression
@@ -561,13 +599,29 @@ host-name = identifier , { "::" , identifier } ;
                  - skip(list, n: int) -> list     -- drop first n elements
                  - cycle(list) -> iterator        -- repeat list indefinitely as iterator
                  - batch(list, n: int, options?) -> stream(list)
-                                                  -- chunks of n; options: dict[drop_partial: bool]
+                                                  -- chunks of n; options: dict[idle_flush: duration, drop_partial: bool]
+                                                  -- idle_flush: flush buffer early after duration of inactivity
+                                                  -- drop_partial: discard final incomplete batch when stream ends
                  - window(list, n: int, step: int = n) -> stream(list)
                                                   -- sliding windows of size n, advancing by step
                  - start_when(list, predicate: closure) -> stream
                                                   -- yield from first matching element onward
                  - stop_when(list, predicate: closure) -> stream
                                                   -- yield through first matching element (inclusive)
+                 - iterate(seed, closure) -> stream
+                                                  -- infinite source stream: emit seed, call closure to produce next;
+                                                  -- pipe form: seed -> iterate(closure) auto-prepends piped value;
+                                                  -- closure receives $ = current value, returns next value;
+                                                  -- stream-only; combine with take/stop_when to bound output
+                 - debounce(stream, duration) -> stream
+                                                  -- suppress rapid emissions; emit latest chunk after duration of silence;
+                                                  -- stream-only (list input halts with #INVALID_INPUT)
+                 - throttle(stream, duration) -> stream
+                                                  -- emit first chunk per duration interval, discard subsequent chunks;
+                                                  -- stream-only (list input halts with #INVALID_INPUT)
+                 - sample(stream, duration) -> stream
+                                                  -- emit latest chunk seen at each fixed duration interval;
+                                                  -- stream-only (list input halts with #INVALID_INPUT)
 
                  All other functions are registered by the host via RuntimeContext.functions. *)
 

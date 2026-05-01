@@ -209,6 +209,12 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * when it equals `#IGNORE`, catchable halts from the body are suppressed
      * and the original pipe value is returned unchanged [EC-8].
      *
+     * When `async: true` is present in options, the body is dispatched via
+     * `trackInflight` without awaiting (fire-and-forget). The pipe-entry value
+     * flows downstream immediately; the body return value is discarded [IR-3].
+     * `on_error: #IGNORE` composes with `async: true`: the registered promise
+     * suppresses catchable body halts when both options are set [EC-8].
+     *
      * Non-catchable halts (`catchable: false`) and `ControlSignal` instances
      * are always re-thrown per §NOD.10.4 [EC-9].
      *
@@ -219,7 +225,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Capture pipe value at entry — returned unchanged regardless of body outcome.
       const pipeBefore = this.ctx.pipeValue;
 
-      // Evaluate options dict to determine suppression mode.
+      // Evaluate options dict to determine suppression and async dispatch mode.
       const opts = await (this as unknown as EvaluatorInterface).evaluateDict(
         node.options
       );
@@ -230,20 +236,53 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         isAtom(onErrorValue) &&
         onErrorValue.atom === resolveAtom('IGNORE');
 
-      try {
-        await (this as unknown as EvaluatorInterface).evaluateBody(node.body);
-      } catch (e) {
-        // §NOD.10.4: ControlSignal always re-throws (break/return/yield must unwind).
-        if (e instanceof ControlSignal) throw e;
-        // Non-catchable halts always re-throw (e.g. #DISPOSED) [EC-9].
-        if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
-        // Catchable halt: suppress only when on_error: #IGNORE [EC-8].
-        if (e instanceof RuntimeHaltSignal && suppress) {
-          // Suppressed — fall through and return original pipe value.
-        } else {
-          throw e;
-        }
+      // Read async option [IR-3]. Parser enforces BoolLiteral; runtime defends
+      // against non-bool at evaluation time [EC-6 → RILL_R003].
+      const asyncValue = opts['async'];
+      if (asyncValue !== undefined && typeof asyncValue !== 'boolean') {
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluatePassBlock',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R003],
+          `pass<async:> value must be a bool, got ${typeof asyncValue}`
+        );
       }
+      const isAsync = asyncValue === true;
+
+      // Body execution logic shared between sync and async paths.
+      // Returns a promise that resolves on body completion or rejects with a
+      // re-throwable signal. Catchable halts are suppressed when suppress is
+      // true; non-catchable halts and ControlSignals always propagate.
+      const runBody = (): Promise<void> =>
+        (this as unknown as EvaluatorInterface)
+          .evaluateBody(node.body)
+          .then(() => undefined)
+          .catch((e: unknown) => {
+            // §NOD.10.4: ControlSignal always re-throws.
+            if (e instanceof ControlSignal) throw e;
+            // Non-catchable halts always re-throw [EC-9].
+            if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
+            // Catchable halt: suppress only when on_error: #IGNORE [EC-8].
+            if (e instanceof RuntimeHaltSignal && suppress) {
+              // Suppressed — body error discarded.
+              return;
+            }
+            throw e;
+          });
+
+      if (isAsync) {
+        // Async path [IR-3]: register body promise with trackInflight and return
+        // control immediately. Body return value is intentionally discarded.
+        // Pipe-entry value flows downstream unchanged.
+        this.ctx.trackInflight(runBody());
+        return pipeBefore ?? '';
+      }
+
+      // Synchronous path: await body completion before returning.
+      await runBody();
 
       // Restore pipe value (body execution may have mutated ctx.pipeValue).
       this.ctx.pipeValue = pipeBefore;
