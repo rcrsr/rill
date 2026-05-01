@@ -225,14 +225,21 @@ Return (exits block or script with value):
 
 Assert / Error / Guard / Retry: see § Error Handling.
 
-Pass (returns `$` unchanged, explicit no-op):
+Pass (three forms):
 
+    # Bare pass — returns current $ unchanged
     cond ? pass ! "fallback"               # preserve $ when condition true
     cond ? "value" ! pass                  # preserve $ when condition false
     "data" -> { dict[status: pass] }              # include $ in dict: dict[status: "data"]
     list[1, -2, 3] -> fan({ ($ > 0) ? pass ! 0 })  # list[1, 0, 3]
 
-Note: `pass` requires pipe context. Using `pass` without `$` throws error.
+    # Body form — side effects only; pipe value flows through; halts in body propagate
+    5 -> pass { log($) }                                # logs 5; result is 5
+
+    # Body form with suppression — catchable halts in body are suppressed
+    10 -> pass<on_error: #IGNORE> { 1 / 0 }            # result: 10
+
+`on_error: #IGNORE` is the only valid option. Empty `pass<>`, unknown option keys, or other `on_error` values raise `RILL-P004` at parse time. Bare `pass` without `$` bound halts `RILL-R005`.
 
 ## Error Handling
 
@@ -285,12 +292,17 @@ Pre-registered atom literals (must start with uppercase letter):
     #TIMEOUT  #AUTH  #FORBIDDEN  #RATE_LIMIT  #QUOTA_EXCEEDED
     #UNAVAILABLE  #NOT_FOUND  #CONFLICT
     #INVALID_INPUT                  # input failed validation;
-                                    # also: `sort` key extractor returned vacant
+                                    # also: `sort` key extractor returned vacant;
+                                    #       negative n for take/skip;
+                                    #       n <= 0 for batch/window;
+                                    #       step <= 0 for window
     #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                  # failed `:type` assertion;
                                     # also: `sort` key extractor mixed types,
                                     #       `sort` `key_fn` not callable,
-                                    #       tuple comparison length/type mismatch
+                                    #       tuple comparison length/type mismatch,
+                                    #       start_when/stop_when predicate non-bool
+    #IGNORE                         # sentinel for `pass<on_error: #IGNORE> { body }`
 
 `.!code` reports `#ok` on valid values, but `#ok` is a runtime-only sentinel and is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.
 
@@ -434,6 +446,33 @@ String iteration (iterates over characters):
 
     "abc" -> seq({ "{$}!" })            # list["a!", "b!", "c!"]
     "hello" -> filter({ $ != "l" })     # list["h", "e", "o"]
+
+## Slicing and Restructuring
+
+Seven operators slice, batch, window, and gate streams and iterators. They complement the core six.
+
+| Operator | Returns | Behavior |
+|---|---|---|
+| `-> take(n)` | `list[T]` | First `n` elements; negative `n` halts `#INVALID_INPUT`; `n > MAX_ITER` clamps |
+| `-> skip(n)` | `list[T]` | All elements after the first `n`; negative `n` halts `#INVALID_INPUT` |
+| `-> cycle` | `iterator[T]` | Repeats input indefinitely; bound at consumer (`take`, `break`) |
+| `-> batch(n, options?)` | stream of `list[T]` | Non-overlapping chunks of `n`; `dict[drop_partial: true]` discards trailing short chunk |
+| `-> window(n, step?)` | stream of `list[T]` | Sliding windows; `step` defaults to `n`; `step < n` overlaps; `step > n` skips |
+| `-> start_when({ pred })` | stream of `T` | Yields from first match onward; non-callable `#RILL_R040`, non-bool `#TYPE_MISMATCH` |
+| `-> stop_when({ pred })` | stream of `T` | Yields through first match (inclusive); same predicate contract |
+
+Examples:
+
+    range(1, 11) -> take(5)                              # list[1, 2, 3, 4, 5]
+    range(1, 11) -> skip(3)                              # list[4..10]
+    list[1, 2, 3] -> cycle -> take(6)                    # list[1, 2, 3, 1, 2, 3]
+    range(1, 11) -> batch(3)                             # stream[[1,2,3],[4,5,6],[7,8,9],[10]]
+    range(1, 11) -> batch(3, dict[drop_partial: true])   # stream[[1,2,3],[4,5,6],[7,8,9]]
+    range(1, 7) -> window(3, 2)                          # stream[[1,2,3],[3,4,5],[5,6]]
+    range(1, 8) -> start_when({ $ > 4 })                 # stream[5, 6, 7]
+    range(1, 11) -> stop_when({ $ >= 5 })                # stream[1, 2, 3, 4, 5]
+
+`cycle` is bounded by the consumer. Pair with `take(n)` or a body containing `break` to stay within the iteration ceiling (`#RILL_R010` after 10,000 elements).
 
 ## Property Access
 

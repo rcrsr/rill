@@ -157,7 +157,8 @@ Use parentheses to override.
 | `window` | `window(list, n: int, step: int = n) -> stream[list[T]]` | Sliding windows of n; default step=n (non-overlapping); `step > n` makes gaps |
 | `start_when` | `start_when(list, predicate: closure) -> stream[T]` | Yield from first match onward; predicate must return `bool` |
 | `stop_when` | `stop_when(list, predicate: closure) -> stream[T]` | Yield through first match (inclusive); predicate must return `bool` |
-| `pass<>` body | `pass<options: dict> { body }` | Non-halting side-effect block; `on_error: #IGNORE` suppresses catchable halts in body; pipe value propagates unchanged |
+| `pass { body }` | `pass { body }` | Side-effect block; pipe value flows through unchanged; halts in body propagate |
+| `pass<on_error: #IGNORE>` | `pass<on_error: #IGNORE> { body }` | Side-effect block; suppresses catchable halts in body; `on_error: #IGNORE` is the only valid option (else RILL-P004) |
 
 ## Script return values
 

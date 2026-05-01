@@ -135,10 +135,11 @@ These atoms are available in every rill runtime without registration:
 | `#UNAVAILABLE` | generic | Service or resource not available |
 | `#NOT_FOUND` | generic | Requested resource does not exist |
 | `#CONFLICT` | generic | State conflict (e.g. duplicate write) |
-| `#INVALID_INPUT` | generic | Input failed validation; also: `sort` key extractor returns a vacant value |
+| `#INVALID_INPUT` | generic | Input failed validation; also: `sort` key extractor returns a vacant value; negative `n` for `take`/`skip`; `n <= 0` for `batch`/`window`; `step <= 0` for `window` |
 | `#PROTOCOL` | generic | Response shape violates documented contract (parse failure, schema mismatch) |
 | `#DISPOSED` | generic | Extension was called after disposal |
-| `#TYPE_MISMATCH` | generic | Failed `:type` assertion or conversion; also: `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, or tuple comparison receives different-length or differently-typed tuples |
+| `#TYPE_MISMATCH` | generic | Failed `:type` assertion or conversion; also: `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, tuple comparison receives different-length or differently-typed tuples, or `start_when`/`stop_when` predicate returns a non-bool value |
+| `#IGNORE` | sentinel | Marker for `pass<on_error: #IGNORE> { body }` to suppress catchable halts in the body |
 
 `#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts cannot produce `#ok` as an error code.
 
@@ -191,6 +192,45 @@ Without a filter, `guard` catches every catchable halt.
 # Error: non-catchable — 'error' propagates through guard
 guard { error "fatal" }
 ```
+
+---
+
+## Side-Effect Suppression with `pass<on_error: #IGNORE>`
+
+The `pass` keyword has three distinct forms. Two of them, the body forms, interact with halts.
+
+| Form | Suppresses catchable halts? |
+|------|----------------------------|
+| Bare `pass` | N/A — references current `$`; halts `#RILL_R005` if `$` is unbound |
+| `pass { body }` | No — runs body for side effects; pipe value flows through; halts in body propagate |
+| `pass<on_error: #IGNORE> { body }` | Yes — runs body; suppresses catchable halts in body; pipe value flows through |
+
+Use `pass<on_error: #IGNORE>` when a side-effect block (logging, metrics, audit calls) may halt and you do not want the halt to break the surrounding pipeline:
+
+```rill
+10 -> pass<on_error: #IGNORE> { 1 / 0 }
+# Result: 10 (the body halt is suppressed; pipe value is unchanged)
+```
+
+Without `on_error: #IGNORE`, halts in the body propagate normally:
+
+```text
+# Error: #RILL_R002 — body halt propagates
+10 -> pass { 1 / 0 }
+```
+
+`on_error` accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and any other `on_error` value are parse errors (`RILL-P004`).
+
+### What Is and Is Not Suppressed
+
+`pass<on_error: #IGNORE>` matches `guard`'s catchable-halt rule. Two categories always propagate out of the body:
+
+| Signal | Behavior |
+|--------|----------|
+| Non-catchable halts (`error "..."`, `assert`) | Propagate; the pipeline halts |
+| `ControlSignal` (`break`, `return`) | Propagate to the enclosing construct |
+
+See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the full reference of all three `pass` forms.
 
 ---
 

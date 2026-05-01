@@ -59,6 +59,8 @@ See [Operators](topic-operators.md) for detailed documentation.
 | `break` / `$val -> break` | Exit loop |
 | `return` / `$val -> return` | Exit block or script |
 | `pass` | Returns current `$` unchanged (use in conditionals, dicts) |
+| `pass { body }` | Run body for side effects; pipe value flows through unchanged; halts propagate |
+| `pass<on_error: #IGNORE> { body }` | Same as `pass { body }` but suppresses catchable halts in the body |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
@@ -75,8 +77,23 @@ See [Control Flow](topic-control-flow.md) for detailed documentation. Script-lev
 | `-> fan({ body })` | Parallel iteration, all results |
 | `-> filter({ cond })` | Parallel filter, matching elements |
 | `-> fold(init, { body })` | Sequential reduction, final result |
+| `-> sort` / `-> sort({ key })` | Stable ordering, optional key extractor |
 
-See [Collections](topic-collections.md) for detailed documentation. All five operators (`seq`, `acc`, `fan`, `filter`, `fold`) work on streams, consuming chunks as they arrive and returning collected results when the stream closes. See [Collections](topic-collections.md) for stream operator behavior.
+See [Collections](topic-collections.md) for detailed documentation. All six operators (`seq`, `acc`, `fan`, `filter`, `fold`, `sort`) work on streams, consuming chunks as they arrive and returning collected results when the stream closes. See [Collections](topic-collections.md) for stream operator behavior.
+
+### Slicing and Restructuring Operators
+
+| Syntax | Description |
+|--------|-------------|
+| `-> take(n)` | First `n` elements as a list |
+| `-> skip(n)` | All elements after the first `n` as a list |
+| `-> cycle` | Iterator that repeats input indefinitely (bound at consumer) |
+| `-> batch(n, options?)` | Stream of non-overlapping chunks of size `n` |
+| `-> window(n, step?)` | Stream of sliding windows; `step` defaults to `n` |
+| `-> start_when({ pred })` | Stream of elements from first predicate match onward |
+| `-> stop_when({ pred })` | Stream of elements through first predicate match (inclusive) |
+
+See [Collection Slicing](topic-collection-slicing.md) for detailed documentation, edge cases, and error contracts.
 
 ### Types
 
@@ -115,6 +132,7 @@ Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a nam
 |------|---------|----------|
 | `#NAME` | `#TIMEOUT` | `:atom` value |
 | `#NAME` in invalid value | `#NOT_FOUND` | status code on invalid result |
+| `#IGNORE` sentinel | `pass<on_error: #IGNORE> { body }` | Marks `pass` body for catchable-halt suppression |
 
 `#TIMEOUT -> string` converts a `:atom` value to its string name. `"TIMEOUT" -> atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Error Reference](ref-errors.md) for pre-registered atoms.
 
@@ -944,7 +962,8 @@ For detailed documentation on specific topics:
 - [Control Flow](topic-control-flow.md): Conditionals, loops
 - [Operators](topic-operators.md): All operators
 - [Closures](topic-closures.md): Late binding, dict closures
-- [Collections](topic-collections.md): `seq`, `fan`, `filter`, `fold`, `acc`
+- [Collections](topic-collections.md): `seq`, `fan`, `filter`, `fold`, `acc`, `sort`
+- [Collection Slicing](topic-collection-slicing.md): `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `pass` body forms
 - [Iterators](topic-iterators.md): `range`, `repeat`, `.first()`
 - [Strings](topic-strings.md): String methods
 - [Host Integration](integration-host.md): Embedding API

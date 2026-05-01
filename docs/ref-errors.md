@@ -208,7 +208,7 @@ $x => list<string>  # Use list(string) for typed lists
 
 **Cause:** Expression structure violates grammar rules or contains unsupported constructs.
 
-**Resolution:** Check expression syntax. Common causes: invalid operator combinations, malformed literals, or unsupported language features.
+**Resolution:** Check expression syntax. Common causes: invalid operator combinations, malformed literals, unsupported language features, or invalid `pass<>` option lists.
 
 **Example:**
 
@@ -218,6 +218,15 @@ $x + + $y
 
 # Assignment operator (not supported)
 $x = 5  # Use "5 => $x" instead
+
+# Empty pass<> options — use the bracketless body form instead
+pass<> { log($) }    # Use: pass { log($) }
+
+# Unknown option key in pass<>
+pass<on_warn: #IGNORE> { log($) }    # only on_error is recognized
+
+# on_error value other than #IGNORE
+pass<on_error: #SKIP> { log($) }     # only #IGNORE is accepted
 ```
 
 ---
@@ -552,9 +561,9 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Description:** Undefined variable
 
-**Cause:** Variable referenced before assignment, or variable name misspelled.
+**Cause:** Variable referenced before assignment, variable name misspelled, or bare `pass` evaluated where `$` is unbound.
 
-**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference.
+**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference. Use bare `pass` only inside a pipe stage or block where `$` is bound.
 
 **Example:**
 
@@ -569,6 +578,9 @@ $message  # Typo: mesage vs message
 # Variable out of scope
 { "local" => $x }
 $x  # $x only exists inside block
+
+# Bare pass without a bound $
+pass  # No pipe context; halts #RILL_R005
 ```
 
 ---
@@ -670,6 +682,9 @@ while (true) do { "looping" }  # Never terminates
 
 # Large collection with default limit
 range(0, 1000000) -> seq(|x| $x)  # May exceed default limit
+
+# cycle without a consumer bound — halts on the 10,001st element
+[1, 2, 3] -> cycle -> seq({ $ })  # Use take(n) or break to stay within bounds
 ```
 
 ---
@@ -1231,17 +1246,21 @@ $dict -> ordered  # Ambiguous field order
 
 ### rill-r040
 
-**Description:** chain() non-closure argument
+**Description:** Predicate or chain argument is not callable
 
-**Cause:** The chain() built-in received a value that is neither a closure nor a list of closures.
+**Cause:** A built-in expecting a closure (e.g., `chain`, `start_when`, `stop_when`) received a value that is neither a closure nor, where applicable, a list of closures.
 
-**Resolution:** Pass a single closure or a list of closures to chain().
+**Resolution:** Pass a closure (or a list of closures for `chain`).
 
 **Example:**
 
 ```text
 # Passing a number to chain()
 5 -> chain(42)  # 42 is not a closure
+
+# Passing a non-callable predicate to start_when / stop_when
+[1, 2, 3] -> start_when(42)   # 42 is not a closure
+[1, 2, 3] -> stop_when("done") # string is not a closure
 ```
 
 ---
