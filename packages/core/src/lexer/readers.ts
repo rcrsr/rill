@@ -60,6 +60,7 @@ const COMPOUND_KEYWORD_MAP: Record<
   retry: { bracket: '<', tokenType: TOKEN_TYPES.RETRY_LANGLE },
   do: { bracket: '<', tokenType: TOKEN_TYPES.DO_LANGLE },
   pass: { bracket: '<', tokenType: TOKEN_TYPES.PASS_LANGLE },
+  timeout: { bracket: '<', tokenType: TOKEN_TYPES.TIMEOUT_LANGLE },
   guard: { bracket: '{', tokenType: TOKEN_TYPES.GUARD_LBRACE },
 };
 

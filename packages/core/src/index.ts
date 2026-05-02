@@ -368,6 +368,7 @@ export type {
   StatementNode,
   StatusProbeNode,
   StringLiteralNode,
+  TimeoutBlockNode,
   TupleLiteralNode,
   TypeAssertionNode,
   TypeCheckNode,

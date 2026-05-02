@@ -255,7 +255,8 @@ function logDisposeTimeout(state: LifecycleState): void {
 // Built-in functions that are genuinely variadic and must skip arg validation.
 // log: tests call log("msg", extraValue) — extra args are silently ignored.
 // chain: pipe form sends 1 arg when signature declares 2 (pipeValue is the first).
-const UNTYPED_BUILTINS = new Set(['log', 'chain']);
+// iterate: pipe form sends 1 arg when signature declares 2 (pipeValue is the seed).
+const UNTYPED_BUILTINS = new Set(['log', 'chain', 'iterate']);
 
 // Built-in methods that do their own internal arg validation with specific error
 // messages expected by protected language tests. Generic marshalArgs
@@ -585,6 +586,7 @@ export function createRuntimeContext(
     parseSource: options.parseSource,
     timezone: options.timezone,
     nowMs: options.nowMs,
+    scheduler: options.scheduler,
   };
 
   bindLifecycleMethods(ctx, lifecycle);

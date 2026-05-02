@@ -432,6 +432,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             primary
           );
 
+        case 'TimeoutBlock':
+          return (this as unknown as EvaluatorInterface).evaluateTimeoutBlock(
+            primary
+          );
+
         case 'TypeAssertion': {
           // Postfix type assertion: the operand is already evaluated
           if (!primary.operand) {
@@ -947,6 +952,11 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           // the original pipe value unchanged (suppressing catchable halts per
           // on_error option).
           return (this as unknown as EvaluatorInterface).evaluatePassBlock(
+            target
+          );
+
+        case 'TimeoutBlock':
+          return (this as unknown as EvaluatorInterface).evaluateTimeoutBlock(
             target
           );
 

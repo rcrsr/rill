@@ -696,6 +696,47 @@ Abort is checked at:
 - Before each loop iteration
 - In the stepper's `step()` method
 
+### Cancellation Contract for Host Functions
+
+Host functions receive a `ctx.signal` (`AbortSignal | undefined`). Cooperative cancellation requires that each host function observes this signal and stops work when it fires.
+
+```typescript
+functions: {
+  fetchData: {
+    params: [{ name: 'url', type: { kind: 'string' } }],
+    fn: async (args, ctx) => {
+      const response = await fetch(args[0] as string, {
+        signal: ctx.signal,  // propagate abort to the fetch
+      });
+      return await response.text();
+    },
+  },
+}
+```
+
+**Required contract:** Host functions must check `ctx.signal.aborted` or pass `ctx.signal` to any awaitable they call. Functions that ignore the signal will run to completion even after the runtime aborts, because rill uses cooperative (not forced) termination.
+
+`timeout<total:>` and `timeout<idle:>` blocks in scripts create a scoped `AbortController` and chain its signal to `ctx.signal` via `AbortSignal.any`. When a timeout fires:
+
+1. The scoped controller aborts.
+2. `ctx.signal` becomes aborted for the duration of that body.
+3. Host functions that observe `ctx.signal` halt naturally.
+4. Host functions that do not observe `ctx.signal` complete normally.
+
+The host-supplied `signal` from `RuntimeOptions` and the runtime's internal scoped signals both chain together. Aborting the host controller aborts the entire execution; a scoped timeout abort affects only the body of that timeout block.
+
+### Virtual Clock Injection (`nowMs`)
+
+The `RuntimeOptions.nowMs` field supplies a fixed millisecond timestamp for deterministic `Date.now()` behavior inside scripts and built-in datetime functions:
+
+```typescript
+const ctx = createRuntimeContext({
+  nowMs: 1704067200000,  // 2024-01-01T00:00:00.000Z
+});
+```
+
+When `nowMs` is set, calls to `now()` inside the script return a datetime constructed from that fixed timestamp instead of reading the system clock. Set `nowMs` in tests to produce deterministic `now()` output; the idle ticker's `setTimeout` scheduling uses the real system clock regardless of `nowMs`.
+
 ## Observability
 
 Monitor execution with observability callbacks:

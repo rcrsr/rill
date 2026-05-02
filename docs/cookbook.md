@@ -968,7 +968,25 @@ range(1, 4) -> seq({
 
 Each element is logged, then passed through to `seq`'s result list. A logging failure on any element does not abort the iteration.
 
----
+## Time-Domain Patterns
+### Fibonacci via iterate
+```rill
+iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
+# Result: [0, 1, 1, 2, 3, 5, 8, 13]
+```
+The closure advances the Fibonacci pair at each step; `seq` extracts `$.a` from each emitted state.
+### Timeout Recovery via `??`
+```text
+guard { timeout<total: duration(0,0,0,0,0,0,500)> { app::fetch("https://api.example.com") } } ?? "cached"
+```
+Expiry emits `#RILL_R082`. `guard` catches the halt; `??` replaces it with the fallback.
+### Debounce, Throttle, and Sample
+```text
+$stream -> debounce(duration(0,0,0,0,0,0,200))   # latest chunk after 200ms silence
+$stream -> throttle(duration(0,0,0,0,0,0,100))   # first chunk per 100ms window
+$stream -> sample(duration(0,0,0,0,0,0,250))     # latest chunk at 250ms intervals
+```
+All three are stream-only; passing a list halts with `#INVALID_INPUT`. Under synchronous batch execution, debounce and sample return the last element; throttle returns the first.
 
 ## See Also
 

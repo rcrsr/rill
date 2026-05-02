@@ -19,6 +19,8 @@ rill provides singular control flow with no exceptions and no try/catch. Errors 
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
 | `retry<limit: N> { body }` | Retry body up to N times on caught halt |
+| `timeout<total: duration> { body }` | Bound body to a wall-time limit; expiry → `#RILL_R082` |
+| `timeout<idle: duration> { body }` | Bound body to an inactivity limit; expiry → `#RILL_R083` |
 
 ---
 
@@ -810,6 +812,98 @@ See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
 
 ---
 
+## Timeout Blocks
+
+Timeout blocks bound the execution time of a body. On expiry, the body is cancelled and the block raises a catchable halt. Wrap with `guard` to convert the halt into an invalid value, then use `??` for a fallback.
+
+Two forms are available:
+
+| Form | Bounds | Expiry atom |
+|------|--------|-------------|
+| `timeout<total: duration> { body }` | Wall-time from block entry | `#RILL_R082` |
+| `timeout<idle: duration> { body }` | Inactivity: time since last stream chunk | `#RILL_R083` |
+
+`total` and `idle` are mutually exclusive. Specifying both in one head is a parse error.
+
+### Wall-Time Bound (`total`)
+
+```text
+timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
+  app::fetch("https://api.example.com/data")
+}
+```
+
+The body must finish within 500 ms. If it does not, the block aborts the body and raises a catchable halt carrying `#RILL_R082`. Wrap with `guard` (see below) to convert it into an invalid value.
+
+### Inactivity Bound (`idle`)
+
+```text
+timeout<idle: duration(0, 0, 0, 0, 0, 0, 200)> {
+  $stream -> seq({ $ })
+}
+```
+
+The idle timer resets each time the body emits a stream chunk. If no chunk arrives within 200 ms, the block aborts and raises a catchable halt carrying `#RILL_R083`. Wrap with `guard` to surface the halt as an invalid value.
+
+For non-streaming bodies, `idle` behaves like `total`: the timer fires if the body does not complete within the idle window.
+
+### Duration Argument
+
+The duration expression must evaluate to a `duration` value. A non-duration argument halts with `#INVALID_INPUT`:
+
+```text
+# Error: #INVALID_INPUT — duration must be a duration value
+timeout<total: 500> { "x" }
+```
+
+Construct a duration using the `duration()` built-in:
+
+```text
+# 500 ms: duration(years, months, weeks, days, hours, minutes, ms)
+duration(0, 0, 0, 0, 0, 0, 500) => $d_500ms
+```
+
+### Recovery via `guard`
+
+Wrap the timeout block with `guard` to catch expiry as an invalid value:
+
+```text
+guard {
+  timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
+    app::fetch("https://api.example.com/slow")
+  }
+} => $result
+$result.! ? "timed out" ! $result
+```
+
+Use `??` after the `guard` expression for a simple fallback:
+
+```text
+guard {
+  timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
+    app::fetch("https://api.example.com/slow")
+  }
+} ?? "fallback response"
+```
+
+`timeout` without `guard` still produces a catchable halt. Direct use of `??` on a `timeout<>` expression does not intercept expiry halts. Always wrap with `guard` first.
+
+### Nesting
+
+Timeout blocks may be nested. The outer timer fires independently of the inner timer:
+
+```text
+timeout<total: duration(0, 0, 0, 0, 0, 0, 1000)> {
+  timeout<total: duration(0, 0, 0, 0, 0, 0, 200)> {
+    app::fetch("https://api.example.com/fast")
+  }
+}
+```
+
+When the outer timer fires before the inner body completes, the outer expiry takes precedence. The inner expiry is confined to the inner block's scope. Each `timeout` block creates a scoped `AbortController` that chains to `ctx.signal`; when the timer fires the controller aborts, halting cooperating host functions. The `RILL_R010` iteration ceiling (10,000 elements) applies inside timeout bodies regardless of timeout state.
+
+---
+
 ## Control Flow Summary
 
 | Statement | Scope | Effect |
@@ -827,6 +921,8 @@ See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
 | `$val -> error` | Any | Always halt with piped error message (must be string) |
 | `guard { body }` | Any | Replace halt with invalid value |
 | `retry<limit: N> { body }` | Any | Retry up to N times on caught halt |
+| `timeout<total: duration> { body }` | Block | Abort body on wall-time expiry; catchable halt `#RILL_R082` (use `guard` to recover) |
+| `timeout<idle: duration> { body }` | Block | Abort body on inactivity; catchable halt `#RILL_R083` (use `guard` to recover) |
 
 ---
 
@@ -899,4 +995,5 @@ See [CHANGELOG.md](../CHANGELOG.md) for the full change history.
 - [Variables](topic-variables.md): Scope rules and `$` binding
 - [Collections](topic-collections.md): `seq`, `fan`, `filter`, `fold`, `acc` iteration
 - [Operators](topic-operators.md): Comparison and logical operators
+- [Error Handling](topic-error-handling.md): `#RILL_R082` and `#RILL_R083` recovery patterns; `guard`, `??`, and atom inspection
 - [Reference](ref-language.md): Quick reference tables

@@ -1,10 +1,11 @@
 /**
- * RecoveryMixin: Guard / Retry Blocks and Status Probes
+ * RecoveryMixin: Guard / Retry Blocks, Status Probes, and Timeout Blocks
  *
- * Provides evaluator methods for the three recovery-related AST nodes:
+ * Provides evaluator methods for the four recovery-related AST nodes:
  * - `GuardBlock` (`guard { body }` / `guard<on: [...]> { body }`)
  * - `RetryBlock` (`retry<limit: N> { body }` / `retry<limit: N, on: [...]> { body }`)
  * - `StatusProbe` (`$x.!`, `$x.!code`, `$x.!message`, ...)
+ * - `TimeoutBlock` (`timeout<total: d> { body }` / `timeout<idle: d> { body }`)
  *
  * Interface requirements (from spec §Architecture Overview Data Flow,
  * IC-1, EC-7, EC-8, EC-9):
@@ -19,9 +20,10 @@
  *   directly.
  * - `error "..."` and `assert` raise non-catchable halts: guard /
  *   retry re-throw them unconditionally (FR-ERR-10, FR-ERR-11).
- *
- * Wiring into the evaluator base (node-type dispatch) is owned by task
- * 2.2; this task only publishes the mixin.
+ * - TimeoutBlock creates a fresh AbortController, chains it to ctx.signal,
+ *   arms a wall-time (total) or idle-tick (idle) timer, and on expiry
+ *   aborts the controller and throws a catchable halt carrying
+ *   #TIMEOUT_TOTAL or #TIMEOUT_IDLE. [IR-1, IR-2, EC-1, EC-2]
  *
  * @internal
  */
@@ -31,8 +33,10 @@ import type {
   GuardBlockNode,
   RetryBlockNode,
   StatusProbeNode,
+  TimeoutBlockNode,
 } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
+import type { RillDuration } from '../../types/structures.js';
 import {
   getStatus,
   appendTraceFrame,
@@ -46,6 +50,12 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
+import { isDuration } from '../../types/guards.js';
+import { inferType } from '../../types/registrations.js';
+import { throwCatchableHostHalt } from '../../types/halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import type { RuntimeContext, TimeoutScheduler } from '../../types/runtime.js';
+import { ControlSignal } from '../../signals.js';
 
 // ============================================================
 // AC-B2: Minimum retry attempts (engineer-consistent choice)
@@ -289,8 +299,254 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
       }
     }
+
+    /**
+     * Evaluate a timeout block.
+     *
+     * Validates that `node.duration` evaluates to a `duration` value [EC-3].
+     * Creates a fresh `AbortController` for the timeout scope, chains it to
+     * `ctx.signal` via `AbortSignal.any` so either side can cancel. Arms a
+     * `setTimeout` (total) or idle-tick (idle) timer via `ctx.scheduler` when
+     * injected, falling back to the global scheduler [IR-1, IR-2].
+     *
+     * On expiry: the chained controller is aborted and a catchable
+     * `RuntimeHaltSignal` carrying `#TIMEOUT_TOTAL` or `#TIMEOUT_IDLE` is
+     * thrown [EC-1, EC-2]. The host body runs under the chained signal so
+     * cooperative host functions observing `ctx.signal` halt naturally.
+     *
+     * Non-catchable halts (RILL_R010, error, assert) and ControlSignal
+     * subclasses propagate through unchanged [EC-5, §NOD.10.4].
+     */
+    protected async evaluateTimeoutBlock(
+      node: TimeoutBlockNode
+    ): Promise<RillValue> {
+      // Evaluate the duration expression and validate its type [EC-3].
+      const durationValue = await (
+        this as unknown as EvaluatorInterface
+      ).evaluateExpression(node.duration);
+
+      if (!isDuration(durationValue)) {
+        throwCatchableHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'timeout',
+          },
+          'INVALID_INPUT',
+          `timeout<${node.kind}:> duration must be a duration value, got ${inferType(durationValue)}`
+        );
+      }
+
+      // Extract millisecond value from the validated duration.
+      const dur = durationValue as RillDuration;
+      const durationMs = dur.ms;
+
+      // Build a fresh controller for this timeout scope; chain it to the
+      // parent signal (if present) so either side can terminate the body.
+      const controller = new AbortController();
+      const parentSignal = this.ctx.signal;
+      const signalsToChain: AbortSignal[] = parentSignal
+        ? [controller.signal, parentSignal]
+        : [controller.signal];
+      const chainedSignal = AbortSignal.any(signalsToChain);
+
+      // Save ctx.signal and replace it with the chained signal for the body
+      // execution so host functions observing ctx.signal see abort correctly.
+      const savedSignal = this.ctx.signal;
+      (this.ctx as { signal: AbortSignal | undefined }).signal = chainedSignal;
+
+      const site = {
+        location: this.getNodeLocation(node),
+        sourceId: this.ctx.sourceId,
+        fn: 'timeout',
+      };
+
+      const sched = this.ctx.scheduler ?? globalScheduler;
+      let timerHandle: ReturnType<typeof setTimeout> | undefined;
+      let idleTicker: { reset(): void; cancel(): void } | undefined;
+      let expired = false;
+
+      // Callback that fires on expiry; produces the halt signal.
+      const onExpire = (): void => {
+        expired = true;
+        controller.abort();
+      };
+
+      try {
+        if (node.kind === 'total') {
+          // Wall-time bound: single setTimeout for the full duration.
+          timerHandle = sched.setTimeout(onExpire, durationMs);
+        } else {
+          // Idle bound: idle-tick helper resets on each body chunk.
+          // The idle ticker is created here; the body must call
+          // ticker.reset() on each yielded chunk (future task 2.3
+          // wires the stream path). For non-stream bodies the timer
+          // fires if the body does not complete within idleMs.
+          idleTicker = createIdleTicker({
+            ctx: this.ctx,
+            idleMs: durationMs,
+            onIdle: onExpire,
+          });
+        }
+
+        const result = await (
+          this as unknown as EvaluatorInterface
+        ).evaluateBody(node.body);
+
+        // The body may complete after the timer fires (e.g. host code
+        // ignores ctx.signal). Surface the timeout halt rather than the
+        // late result so expiry is enforced consistently.
+        if (expired) {
+          const atomCode =
+            node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
+          throwCatchableHostHalt(
+            site,
+            atomCode,
+            `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
+            { durationMs }
+          );
+        }
+
+        return result;
+      } catch (e) {
+        // Re-throw ControlSignal subclasses (break/return/yield) and
+        // non-catchable RuntimeHaltSignals unconditionally [§NOD.10.4].
+        if (e instanceof ControlSignal) throw e;
+        if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
+
+        // If the controller was aborted due to our timer, produce the
+        // timeout invalid value. If the parent signal aborted (not us),
+        // re-throw the original error to preserve abort semantics.
+        if (expired) {
+          const atomCode =
+            node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
+          throwCatchableHostHalt(
+            site,
+            atomCode,
+            `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
+            { durationMs }
+          );
+        }
+
+        // Otherwise re-throw (e.g. catchable halt from body, or parent abort).
+        throw e;
+      } finally {
+        // Always restore the original signal and clean up timers.
+        (this.ctx as { signal: AbortSignal | undefined }).signal = savedSignal;
+        sched.clearTimeout(timerHandle);
+        idleTicker?.cancel();
+      }
+    }
   };
 }
+
+// ============================================================
+// SCHEDULER
+// ============================================================
+
+const globalScheduler: TimeoutScheduler = {
+  setTimeout(fn, ms) {
+    return setTimeout(fn, ms);
+  },
+  clearTimeout(handle) {
+    clearTimeout(handle);
+  },
+};
+
+// ============================================================
+// IDLE-TICK HELPER
+// ============================================================
+
+/**
+ * Creates an idle-tick scheduler that fires a callback when no activity
+ * occurs within `idleMs` milliseconds.
+ *
+ * Uses `ctx.scheduler` when injected (enables fake-timer test determinism),
+ * falling back to the global scheduler. Lifetime is chained to `ctx.signal`:
+ * if the parent signal aborts, the idle timer is cancelled automatically.
+ *
+ * Usage pattern:
+ * 1. Call `createIdleTicker` to arm the initial idle timer.
+ * 2. Call `ticker.reset()` whenever an activity chunk arrives to restart
+ *    the idle window.
+ * 3. Call `ticker.cancel()` when the body completes successfully to
+ *    prevent the callback from firing after the fact.
+ *
+ * @param args.ctx       RuntimeContext supplying `signal` and optionally `scheduler`.
+ * @param args.idleMs    Idle window in milliseconds.
+ * @param args.onIdle    Callback invoked once when the idle window expires.
+ * @returns `{ reset, cancel }` control handle.
+ */
+function createIdleTicker(args: {
+  ctx: Pick<RuntimeContext, 'signal' | 'scheduler'>;
+  idleMs: number;
+  onIdle: () => void;
+}): { reset(): void; cancel(): void } {
+  const { ctx, idleMs, onIdle } = args;
+  const sched = ctx.scheduler ?? globalScheduler;
+
+  let handle: ReturnType<typeof setTimeout> | undefined;
+  let cancelled = false;
+  let abortListener: (() => void) | undefined;
+
+  function arm(): void {
+    handle = sched.setTimeout(() => {
+      if (!cancelled && !ctx.signal?.aborted) {
+        onIdle();
+      }
+    }, idleMs);
+  }
+
+  function detachAbortListener(): void {
+    if (abortListener && ctx.signal) {
+      ctx.signal.removeEventListener('abort', abortListener);
+      abortListener = undefined;
+    }
+  }
+
+  // Abort the idle timer when the parent signal fires. Capture the listener
+  // so cancel() can detach it; otherwise long-lived signals (e.g. shared
+  // across many timeout blocks) accumulate one listener per ticker.
+  if (ctx.signal && !ctx.signal.aborted) {
+    abortListener = (): void => {
+      cancelled = true;
+      sched.clearTimeout(handle);
+      detachAbortListener();
+    };
+    ctx.signal.addEventListener('abort', abortListener, { once: true });
+  }
+
+  arm();
+
+  return {
+    reset(): void {
+      if (cancelled) return;
+      sched.clearTimeout(handle);
+      arm();
+    },
+    cancel(): void {
+      cancelled = true;
+      sched.clearTimeout(handle);
+      detachAbortListener();
+    },
+  };
+}
+
+// ============================================================
+// TIMEOUT BLOCK EVALUATOR
+// ============================================================
+
+/**
+ * Atom name for total wall-time timeout (underscore form for resolveAtom).
+ * Paired with RILL-R082 in error-registry.ts.
+ */
+const TIMEOUT_TOTAL_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R082];
+
+/**
+ * Atom name for idle inactivity timeout (underscore form for resolveAtom).
+ * Paired with RILL-R083 in error-registry.ts.
+ */
+const TIMEOUT_IDLE_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R083];
 
 // Export with type assertion to work around TS4094 limitation.
 // TypeScript cannot generate declarations for functions returning
@@ -307,4 +563,5 @@ export type RecoveryMixinCapability = {
   evaluateGuardBlock(node: GuardBlockNode): Promise<RillValue>;
   evaluateRetryBlock(node: RetryBlockNode): Promise<RillValue>;
   evaluateStatusProbe(node: StatusProbeNode): Promise<RillValue>;
+  evaluateTimeoutBlock(node: TimeoutBlockNode): Promise<RillValue>;
 };

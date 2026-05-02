@@ -128,6 +128,8 @@ These atoms are available in every rill runtime without registration:
 | `#R001` | registry | Unknown atom at parse or link time; default fallback |
 | `#R999` | registry | Unhandled extension throw reshaped at the extension boundary |
 | `#TIMEOUT` | generic | Operation exceeded its time limit |
+| `#RILL_R082` | runtime | `timeout<total:>` wall-time bound exceeded; recover via `guard`/`??` |
+| `#RILL_R083` | runtime | `timeout<idle:>` inactivity bound exceeded; recover via `guard`/`??` |
 | `#AUTH` | generic | Authentication failure (HTTP 401) |
 | `#FORBIDDEN` | generic | Authorization failure after authentication (HTTP 403, scope mismatch, content-filter block) |
 | `#RATE_LIMIT` | generic | Temporal throttling (HTTP 429); recover via retry-after |
@@ -231,6 +233,45 @@ Without `on_error: #IGNORE`, halts in the body propagate normally:
 | `ControlSignal` (`break`, `return`) | Propagate to the enclosing construct |
 
 See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the full reference of all three `pass` forms.
+
+---
+
+## Timeout Recovery
+
+`timeout<total:>` and `timeout<idle:>` blocks produce catchable halts on expiry. The expiry halt propagates like any other catchable halt: it must be caught by `guard` before `??` can supply a fallback.
+
+| Timeout kind | Expiry atom | Recovery pattern |
+|-------------|-------------|-----------------|
+| `timeout<total: duration>` | `#RILL_R082` | `guard { timeout<total: d> { body } }` |
+| `timeout<idle: duration>` | `#RILL_R083` | `guard { timeout<idle: d> { body } }` |
+
+Wrap the timeout block in `guard` to prevent the halt from stopping execution:
+
+```text
+guard {
+  timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
+    app::fetch("https://api.example.com/slow")
+  }
+} ?? "fallback"
+```
+
+The `??` operator after `guard` supplies the fallback when guard catches the expiry.
+
+Branch on the specific atom to handle timeout distinctly from other errors:
+
+```text
+guard {
+  timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
+    app::fetch("https://api.example.com/slow")
+  }
+} => $result
+$result.! ? {
+  ($result.!code -> .eq(#RILL_R082)) ? "timed out"
+  ! "other error: {$result.!message}"
+} ! $result
+```
+
+See [Control Flow](topic-control-flow.md#timeout-blocks) for the full timeout block reference, including nesting semantics and cancellation behavior.
 
 ---
 

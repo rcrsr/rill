@@ -4,8 +4,6 @@
 
 > **Note:** These examples hoist a host extension with `use<ext:app> => $app` and call methods via dotted access (`$app.prompt()`, `$app.fetch()`, etc.). Built-in functions (`log`, `range`, `json`) need no prefix. Frontmatter is opaque to rill; the host parses it and provides named variables to the script context.
 
-## Pure Language Examples
-
 ## Extraction Operators
 
 Demonstrates destructuring, slicing, and enumeration.
@@ -254,7 +252,6 @@ args: requirements: string
 
 use<ext:app> => $app
 
-# Phase 1: Validate requirements
 """
 Review the requirements document at {$requirements}.
 Check for completeness and clarity.
@@ -265,7 +262,6 @@ $validation -> .contains("READY") -> !$ ? {
   error "Requirements incomplete: {$validation}"
 }
 
-# Phase 2: Create specification
 """
 Create a technical specification from {$requirements}.
 Include API design, data models, and component structure.
@@ -273,7 +269,6 @@ Include API design, data models, and component structure.
 
 "Specification created" -> log
 
-# Phase 3: Review loop - iterate until approved
 $spec -> while (.contains("REVISION")) do {
   """
 Review this specification for issues:
@@ -284,7 +279,6 @@ Output APPROVED if ready, or REVISION REQUIRED with feedback.
 
   $review -> ?(.contains("APPROVED")) { break }
 
-  # Apply feedback and continue
   """
 Update the specification based on this feedback:
 {$review}
@@ -294,7 +288,6 @@ Original spec:
   """ -> $app.prompt()
 } => $approved_spec
 
-# Phase 4: Implementation
 """
 Implement the approved specification:
 {$approved_spec}
@@ -302,7 +295,6 @@ Implement the approved specification:
 Create the necessary files and tests.
 """ -> $app.prompt() => $implementation
 
-# Phase 5: Verify
 $app.prompt("Run tests and verify implementation") => $verification
 
 $verification -> ?(.contains("PASS")) {
@@ -382,10 +374,8 @@ args: file: string
 
 use<ext:app> => $app
 
-# Get file summary
 $app.prompt("Read and summarize {$file}") => $summary
 
-# Security check
 """
 Evaluate for SECURITY issues:
 {$summary}
@@ -393,7 +383,6 @@ Evaluate for SECURITY issues:
 Output PASS, WARN, or FAIL with explanation.
 """ -> $app.prompt() => $security
 
-# Performance check
 """
 Evaluate for PERFORMANCE issues:
 {$summary}
@@ -401,7 +390,6 @@ Evaluate for PERFORMANCE issues:
 Output PASS, WARN, or FAIL with explanation.
 """ -> $app.prompt() => $performance
 
-# Check results
 $security -> .contains("FAIL") -> ? {
   error "Security review failed: {$security}"
 }
@@ -834,170 +822,12 @@ $anthropic.tool_loop(
 $loop_result.content
 ```
 
-## Stream Examples
-
-Stream host functions are unavailable in the test harness, so all stream examples use `text` fences.
-See [Types](topic-types.md) for stream type documentation and [Collections](topic-collections.md) for operator behavior.
-
-### Stream Consumption with `seq` (Token Processing)
-
-Consume a host-provided token stream one chunk at a time:
-
-```text
-use<ext:app> => $app
-
-# Process each token from an LLM stream
-$app.llm_stream("Explain rill in 3 sentences") => $tokens
-
-$tokens -> seq({
-  $ -> log
-})
-# logs each token string as it arrives
-```
-
-Each iteration body receives one chunk as `$`. The host disposes the stream when all chunks are consumed.
-
-### Stream Resolution with `$s()`
-
-Iterate chunks and then read the resolution value:
-
-```text
-use<ext:app> => $app
-
-# Consume chunks, then get the final token usage
-$app.llm_stream("Summarize this document") => $s
-
-$s -> seq({ $ -> log })
-
-# Resolution value is available after the stream closes
-$s()
-# Returns the resolution value (e.g., token count or finish reason)
-```
-
-`$s()` is safe to call after the stream closes. The resolution is cached and returns the same value on every call.
-
-### Stream with `fold` (Accumulation)
-
-Accumulate all chunks into a single string:
-
-```text
-use<ext:app> => $app
-
-# Fold all tokens into a complete response string
-$app.llm_stream("Write a haiku") => $s
-
-$s -> fold("", { $@ ++ $ }) => $full_response
-
-"Complete response: {$full_response}" -> log
-```
-
-`fold` reduces every chunk using `$@` as the accumulator. The initial value is the empty string `""`.
-
-### Parallel Resolution with `fan { $() }`
-
-Resolve multiple streams in parallel using `fan`:
-
-```text
-use<ext:app> => $app
-
-# Create streams from a list of prompts
-["Summarize A", "Summarize B", "Summarize C"] -> fan({
-  $app.llm_stream($)
-}) => $streams
-
-# Consume all streams in parallel, collecting resolution values
-$streams -> fan({ $() })
-# Returns list of resolution values, one per stream
-```
-
-`fan` runs each `$()` concurrently. Results preserve input order despite parallel execution.
-
-### Script Stream Production with `:stream(T):R`
-
-Define a stream closure that emits chunks from a script:
-
-```text
-# Stream closure: emit processed lines, resolve with line count
-|input: string| {
-  $input -> .split("\n") -> seq({
-    $ -> .trim -> .empty -> !$ ? { $ -> yield }
-  })
-  return $input -> .split("\n") -> .len
-}:stream(string):number => $line_stream
-
-$line_stream("line one\nline two\nline three") => $s
-$s -> seq({ $ -> log })
-$s()
-# Returns 3 (total line count)
-```
-
-`yield` emits the piped value as a chunk. `return` sets the resolution value and closes the stream.
-
-## Recovering from Failures
-
-rill has no try/catch. Failed operations produce **invalid values**. Use `guard` and `.!` to recover.
-
-### Detect an Invalid Result
-
-```rill
-"hello" => $val
-guard { $val.upper } => $out
-$out.!
-# Result: false
-```
-
-`.!` returns `false` when `guard` caught nothing. A `true` result means the body halted.
-
-### Coerce to a Default
-
-Replace an invalid result with a safe default using `??`:
-
-```rill
-guard { "hello" -> .upper } => $out
-$out ?? "fallback"
-# Result: "HELLO"
-```
-
-`??` returns the fallback when the left-hand side is vacant or invalid. No halt occurs.
-
-### End-to-End: Fetch with Fallback
-
-This pattern fetches a URL, retries on failure, and falls back to cached data:
-
-```text
-use<ext:app> => $app
-
-# Attempt fetch with retry
-retry<limit: 3> {
-  $app.fetch("https://api.example.com/data")
-} => $result
-
-# Branch on success or failure
-$result.! ? {
-  # Log the error code and use cached data
-  "fetch failed ({$result.!code}), using cache" -> log
-  $cache
-} ! {
-  # Parse and use the live response
-  $result -> json -> .items
-}
-```
-
-`retry<limit: 3>` re-enters the body up to 3 times. After all attempts fail, `.!` is `true`. The `!` branch reads `.!code` to log which error occurred before falling back to `$cache`.
-
-### Read the Error Atom
-
-```rill
-"ok".!code
-# Result: #ok
-```
-
-`.!code` returns `#ok` on valid values. On invalid values it returns the error atom (e.g. `#TIMEOUT`, `#AUTH`). Use `==` to compare atoms.
-
 ## See Also
 
-- [Guide](guide-getting-started.md) — Getting started tutorial
-- [Cookbook](cookbook.md) — Reusable design patterns (state machines, dispatch, accumulators)
-- [Troubleshooting](guide-troubleshooting.md) — Common mistakes and fixes
-- [Reference](ref-language.md) — Language specification
-- [Error Handling](topic-error-handling.md) — guard, retry, `.!`, and status probes
+| Document | Description |
+|----------|-------------|
+| [Stream and Time-Domain Examples](guide-examples-streams.md) | Stream consumption, error recovery, and time-domain operators |
+| [Guide](guide-getting-started.md) | Getting started tutorial |
+| [Cookbook](cookbook.md) | Reusable design patterns (state machines, dispatch, accumulators) |
+| [Troubleshooting](guide-troubleshooting.md) | Common mistakes and fixes |
+| [Reference](ref-language.md) | Language specification |

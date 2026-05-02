@@ -4,7 +4,7 @@
  * Specification Mapping:
  * - AC-E1: All RuntimeContext fields present; omission causes tsc failure at destructuring.
  * - AC-E2: Standalone getVariable/hasVariable exports exist; removal causes tsc failure.
- * - AC-E3: Object.keys order matches hardcoded 33-field baseline; field count === 33.
+ * - AC-E3: Object.keys order matches hardcoded 34-field baseline; field count === 34.
  * - AC-E4: Object.getOwnPropertyNames matches Object.keys (no non-enumerable own props,
  *          no hidden class divergence beyond the flat literal).
  * - AC-E9: RuntimeContext equals intersection of the 6 named facade interfaces; a 7th
@@ -42,7 +42,7 @@ import {
 // Derived by reading createRuntimeContext (lines 541-585) and
 // createChildContext (lines 633-683) in context.ts.
 //
-// ROOT ends in: timezone, nowMs  (MetadataContext optional fields set in root)
+// ROOT ends in: timezone, nowMs, scheduler  (MetadataContext optional fields set in root)
 // CHILD ends in: sourceId, sourceText  (sourceId/sourceText set via overrides)
 //
 // These literals are frozen — any future reorder fails the assertion.
@@ -56,7 +56,7 @@ const ROOT_BASELINE =
   'maxCallStackDepth,annotationStack,callStack,' +
   'metadata,hostContext,immediateAnnotation,' +
   'resolvers,resolverConfigs,resolvingSchemes,parseSource,' +
-  'timezone,nowMs';
+  'timezone,nowMs,scheduler';
 
 const CHILD_BASELINE =
   'parent,variables,variableTypes,getVariable,hasVariable,' +
@@ -68,7 +68,8 @@ const CHILD_BASELINE =
   'resolvers,resolverConfigs,resolvingSchemes,parseSource,' +
   'sourceId,sourceText';
 
-const EXPECTED_FIELD_COUNT = 33;
+const ROOT_FIELD_COUNT = 34;
+const CHILD_FIELD_COUNT = 33;
 
 // ============================================================
 // AC-E1: compile-time field-presence guard
@@ -112,6 +113,7 @@ function _acE1FieldPresence(ctx: RuntimeContext): void {
     parseSource,
     timezone,
     nowMs,
+    scheduler,
     sourceId,
     sourceText,
   } = ctx;
@@ -149,6 +151,7 @@ function _acE1FieldPresence(ctx: RuntimeContext): void {
   void parseSource;
   void timezone;
   void nowMs;
+  void scheduler;
   void sourceId;
   void sourceText;
 }
@@ -216,9 +219,9 @@ describe('V8 hidden-class shape regression', () => {
       expect(Object.keys(ctx).join(',')).toBe(ROOT_BASELINE);
     });
 
-    it('field count is 33', () => {
+    it('field count is 34', () => {
       const ctx = createRuntimeContext({});
-      expect(Object.keys(ctx).length).toBe(EXPECTED_FIELD_COUNT);
+      expect(Object.keys(ctx).length).toBe(ROOT_FIELD_COUNT);
     });
   });
 
@@ -232,7 +235,7 @@ describe('V8 hidden-class shape regression', () => {
     it('field count is 33', () => {
       const parent = createRuntimeContext({});
       const child = createChildContext(parent);
-      expect(Object.keys(child).length).toBe(EXPECTED_FIELD_COUNT);
+      expect(Object.keys(child).length).toBe(CHILD_FIELD_COUNT);
     });
   });
 
@@ -254,9 +257,9 @@ describe('V8 hidden-class shape regression', () => {
       expect(ownProps.join(',')).toBe(enumKeys.join(','));
     });
 
-    it('root: getOwnPropertyNames length is 33', () => {
+    it('root: getOwnPropertyNames length is 34', () => {
       const ctx = createRuntimeContext({});
-      expect(Object.getOwnPropertyNames(ctx).length).toBe(EXPECTED_FIELD_COUNT);
+      expect(Object.getOwnPropertyNames(ctx).length).toBe(ROOT_FIELD_COUNT);
     });
 
     it('child: getOwnPropertyNames length equals Object.keys length', () => {
@@ -278,9 +281,7 @@ describe('V8 hidden-class shape regression', () => {
     it('child: getOwnPropertyNames length is 33', () => {
       const parent = createRuntimeContext({});
       const child = createChildContext(parent);
-      expect(Object.getOwnPropertyNames(child).length).toBe(
-        EXPECTED_FIELD_COUNT
-      );
+      expect(Object.getOwnPropertyNames(child).length).toBe(CHILD_FIELD_COUNT);
     });
   });
 });

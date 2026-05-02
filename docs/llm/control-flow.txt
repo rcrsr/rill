@@ -73,6 +73,12 @@ Iteration limit (default 10,000):
 | Results plus running accumulator | `-> acc(init, { $@ + $ })` |
 | Stable ascending sort | `-> sort` or `-> sort({ key })` |
 | Loop with state | `-> while (cond) do { }` |
+| Infinite source stream | `iterate(seed, { next })` or `seed -> iterate({ next })` |
+| Suppress rapid stream emissions | `-> debounce(duration)` |
+| Limit to one per interval | `-> throttle(duration)` |
+| Latest at fixed interval | `-> sample(duration)` |
+| Bound body to wall-time limit | `timeout<total: duration> { body }` |
+| Bound body to inactivity limit | `timeout<idle: duration> { body }` |
 
 | Operator | Execution | Returns | Catches `break`? |
 |---|---|---|---|
@@ -164,6 +170,24 @@ Example:
     list[1, 2, 5, 3, 4] -> start_when({ $ > 3 })   # stream[5, 3, 4]
     list[1, 2, 5, 3, 4] -> stop_when({ $ > 3 })    # stream[1, 2, 5]
 
+## `timeout<>` blocks
+
+Bound a body to a time limit. On expiry, the block produces an invalid value carrying a timeout atom.
+
+| Form | Expiry atom | Trigger |
+|---|---|---|
+| `timeout<total: duration> { body }` | `#RILL_R082` | Wall-time from block entry |
+| `timeout<idle: duration> { body }` | `#RILL_R083` | Inactivity: no stream chunk within duration |
+
+`total` and `idle` are mutually exclusive. The duration must be a `duration` value; non-duration halts with `#INVALID_INPUT`.
+
+Expiry produces a catchable halt. Always wrap in `guard` to catch it:
+
+    guard { timeout<total: duration(0,0,0,0,0,0,500)> { $app.fetch($url) } } => $r
+    $r ?? "cached"                                    # one-liner fallback
+
+Direct `??` on a bare `timeout<>` does NOT catch expiry. Both `total` and `idle` work with `guard`.
+
 ## `pass` body forms
 
 `pass` runs a side-effect block and returns the pipe value unchanged. The body form has two surfaces: with and without `<...>` options. Suppression of catchable halts requires `on_error: #IGNORE` explicitly; a bare `pass { body }` does NOT suppress halts.
@@ -175,16 +199,19 @@ Note: `pass<>` (empty angle brackets) is a parse error (RILL-P004). Always use `
 | `pass` | References current piped value `$`; halts #RILL_R005 if unbound |
 | `pass { body }` | Runs body for side effects; pipe value unchanged; does NOT suppress catchable halts |
 | `pass<on_error: #IGNORE> { body }` | Runs body for side effects; pipe value unchanged; suppresses catchable halts in body |
+| `pass<async: true> { body }` | Fire-and-forget; body dispatched without blocking; pipe value returned immediately |
+| `pass<async: true, on_error: #IGNORE> { body }` | Fire-and-forget; body halt suppressed |
 
-`on_error: #IGNORE` is the only recognized option in Phase 1. It suppresses catchable halts that occur inside the body. Non-catchable halts and `ControlSignal` (e.g., `break`, `return`) still propagate out of the body.
+`on_error: #IGNORE` suppresses catchable halts inside the body. Non-catchable halts (`error`, `assert`) and `ControlSignal` (`break`, `return`) still propagate.
 
-The surrounding chain is not affected by body errors when `on_error: #IGNORE` is set. The pipe value before `pass` is the pipe value after `pass`.
+`pass<async: true>` bodies may complete after downstream operators run. Scripts must not depend on body completion order relative to downstream execution.
 
 Example:
 
-    5 -> pass { log($) }                                        # logs 5, yields 5
-    5 -> pass<on_error: #IGNORE> { log($) }                    # logs 5, yields 5; body halts suppressed
-    "data" -> pass<on_error: #IGNORE> { audit($) } -> .upper   # "DATA"
+    5 -> pass { log($) }                                          # logs 5, yields 5
+    5 -> pass<on_error: #IGNORE> { log($) }                      # logs 5, yields 5; body halts suppressed
+    "data" -> pass<on_error: #IGNORE> { audit($) } -> .upper     # "DATA"
+    42 -> pass<async: true, on_error: #IGNORE> { app::log($) }   # fire-and-forget; yields 42
 
 Do NOT use `pass { body }` when you need the body result — the body result is always discarded.
 

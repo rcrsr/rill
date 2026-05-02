@@ -111,6 +111,20 @@ A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or inv
 
 `.?field` returns a boolean; never halts. See `types` for type-combined checks like `.?field&string`.
 
+## Timeout error atoms
+
+| Atom | Cause | Recovery |
+|---|---|---|
+| `#RILL_R082` | `timeout<total:>` wall-time expired | `guard { timeout<total:...> { ... } } ?? fallback` |
+| `#RILL_R083` | `timeout<idle:>` inactivity window expired | `guard { timeout<idle:...> { ... } } ?? fallback` |
+
+Expiry produces a catchable halt. Wrap `timeout<>` in `guard` to catch it as an invalid value; use `??` for a one-liner fallback. Direct `??` on a bare `timeout<>` expression does NOT intercept expiry halts.
+
+    guard { timeout<total: duration(0,0,0,0,0,0,500)> { $app.fetch($url) } } => $r
+    $r ?? "cached"
+
+    ($r.!code == #RILL_R082) ? "timed out" ! $r
+
 ## Recovery patterns
 
 Check before access:
@@ -132,5 +146,7 @@ Branch on error atom (flat chain, each comparison parenthesized):
     guard { $app.fetch($url) } => $result
     ($result.!code == #TIMEOUT) ? "timed out"
       ! ($result.!code == #AUTH) ? "auth failed"
+      ! ($result.!code == #RILL_R082) ? "total timeout"
+      ! ($result.!code == #RILL_R083) ? "idle timeout"
       ! $result.! ? "error: {$result.!message}"
       ! $result

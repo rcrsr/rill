@@ -134,6 +134,24 @@ Errors:
 | `#TYPE_MISMATCH` | `key_fn` argument is not callable |
 | `#INVALID_INPUT` | key extractor returns a vacant value |
 
+## iterate
+
+`iterate(seed, closure): stream of T`
+
+Produces an infinite source stream. Emits `seed` first, then calls `closure` with the current value in `$` to produce the next value. The stream never terminates on its own; bound it externally with `take(n)`, or the iteration ceiling (`RILL_R010`) will halt execution.
+
+Pipe form: when piped, the piped value becomes `seed`:
+
+    0 -> iterate({ $ + 1 }) -> take(5)              # stream[0, 1, 2, 3, 4]
+    iterate(0, { $ + 1 }) -> take(5)                 # same
+
+Fibonacci using dict pair as seed:
+
+    iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
+    # list[0, 1, 1, 2, 3, 5, 8, 13]
+
+Consuming >10,000 chunks without bounding halts with `RILL_R010` (non-catchable) at the materializing consumer (e.g., `seq`). `take(n)` clamps silently to MAX_ITER without halting.
+
 ## take
 
 `take(list, n: int) -> list[T]`
@@ -162,12 +180,59 @@ Returns an infinite iterator that repeats the input indefinitely. Empty input yi
 
 ## batch
 
-`batch(list, n: int, options: dict[drop_partial: bool] = dict[drop_partial: false]) -> stream[list[T]]`
+`batch(list, n: int, options: dict[drop_partial: bool, idle_flush: duration] = dict[drop_partial: false]) -> stream[list[T]]`
 
-Groups elements into chunks of `n`. The last chunk may be shorter than `n` unless `drop_partial: true` is set, in which case the trailing short chunk is discarded. The `list` argument is auto-prepended when piping.
+Groups elements into chunks of `n`. The last chunk may be shorter than `n` unless `drop_partial: true`. Pass `idle_flush: duration` to flush the partial buffer early when no new chunk arrives within the given duration.
 
-    range(1, 11) -> batch(3)    # stream[[1,2,3],[4,5,6],[7,8,9],[10]]
-    range(1, 11) -> batch(3, dict[drop_partial: true])    # stream[[1,2,3],[4,5,6],[7,8,9]]
+    range(1, 11) -> batch(3)                               # stream[[1,2,3],[4,5,6],[7,8,9],[10]]
+    range(1, 11) -> batch(3, dict[drop_partial: true])     # stream[[1,2,3],[4,5,6],[7,8,9]]
+    $stream -> batch(10, dict[idle_flush: duration(0,0,0,0,0,0,500)])   # flush after 500ms idle
+
+`idle_flush` must be a `duration` value; a non-duration value halts with `#TYPE_MISMATCH`. Under synchronous batch execution, `idle_flush` is type-validated but produces no early-flush emissions (async-streaming wire-up deferred).
+
+## debounce
+
+`debounce(stream, duration): stream of T`
+
+Stream-only. Suppresses rapid emissions and emits only the latest chunk after a silence window equal to `duration`. When a new chunk arrives before the window expires, the previous candidate is discarded and the timer resets.
+
+Passing a list halts with `#INVALID_INPUT`.
+
+Under synchronous batch semantics, `debounce` returns the last element (static-clock, all chunks in the same window).
+
+    $event_stream -> debounce(duration(0,0,0,0,0,0,200))   # latest after 200ms silence
+
+## throttle
+
+`throttle(stream, duration): stream of T`
+
+Stream-only. Limits output to at most one chunk per `duration` interval. The first chunk in each interval passes through; subsequent chunks within that interval are discarded.
+
+Passing a list halts with `#INVALID_INPUT`.
+
+Under synchronous batch semantics, `throttle` returns the first element.
+
+    $event_stream -> throttle(duration(0,0,0,0,0,0,100))   # first per 100ms window
+
+## sample
+
+`sample(stream, duration): stream of T`
+
+Stream-only. Emits the latest chunk seen at each fixed `duration` interval. Unlike `debounce`, `sample` emits on a fixed clock. Unlike `throttle`, `sample` emits the most recent chunk rather than the first.
+
+Passing a list halts with `#INVALID_INPUT`.
+
+Under synchronous batch semantics, `sample` returns the last element.
+
+    $sensor_stream -> sample(duration(0,0,0,0,0,0,250))    # latest at 250ms intervals
+
+Comparison:
+
+| Operator | Strategy | Trigger |
+|---|---|---|
+| `debounce` | Last of a burst | After `duration` silence |
+| `throttle` | First of an interval | Start of each interval |
+| `sample` | Latest seen | End of each interval |
 
 ## window
 

@@ -283,6 +283,12 @@ export interface ResolverContext {
     | undefined;
 }
 
+/** Injectable setTimeout/clearTimeout abstraction for deterministic timeout scheduling. */
+export interface TimeoutScheduler {
+  setTimeout(fn: () => void, ms: number): ReturnType<typeof setTimeout>;
+  clearTimeout(handle: ReturnType<typeof setTimeout> | undefined): void;
+}
+
 /** Metadata facade: I/O callbacks, observability, host context, and source identity */
 export interface MetadataContext {
   /** I/O callbacks */
@@ -301,6 +307,8 @@ export interface MetadataContext {
   readonly timezone?: number | undefined;
   /** Fixed millisecond timestamp for deterministic Date.now() (undefined = live Date.now()) */
   readonly nowMs?: number | undefined;
+  /** Injectable scheduler for deterministic setTimeout/clearTimeout (undefined = global). */
+  readonly scheduler?: TimeoutScheduler | undefined;
 }
 
 /** Runtime context with variables, functions, and callbacks */
@@ -350,6 +358,8 @@ export interface RuntimeOptions {
   timezone?: number;
   /** Fixed millisecond timestamp for deterministic Date.now() (undefined = live Date.now()) */
   nowMs?: number;
+  /** Injectable scheduler for deterministic setTimeout/clearTimeout (undefined = global). */
+  scheduler?: TimeoutScheduler;
 }
 
 /** Result of script execution */

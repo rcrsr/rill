@@ -21,6 +21,7 @@ import type {
   InvokeNode,
   MethodCallNode,
   PassBlockNode,
+  TimeoutBlockNode,
   DictNode,
   DictEntryNode,
   PipeChainNode,
@@ -141,6 +142,7 @@ declare module './parser.js' {
       start: SourceLocation
     ): void;
     parsePassBlock(): PassBlockNode;
+    parseTimeoutBlock(): TimeoutBlockNode;
   }
 }
 
@@ -933,6 +935,11 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     return this.parsePassBlock();
   }
 
+  // Timeout block: timeout< options > { body }
+  if (check(this.state, TOKEN_TYPES.TIMEOUT_LANGLE)) {
+    return this.parseTimeoutBlock();
+  }
+
   // Pass keyword: pass
   if (check(this.state, TOKEN_TYPES.PASS)) {
     const token = advance(this.state);
@@ -1347,6 +1354,9 @@ const pipeTargetDispatchTable: Record<
   },
   [TOKEN_TYPES.PASS_LANGLE]: function (this: Parser) {
     return this.parsePassBlock();
+  },
+  [TOKEN_TYPES.TIMEOUT_LANGLE]: function (this: Parser) {
+    return this.parseTimeoutBlock();
   },
   [TOKEN_TYPES.PASS]: function (this: Parser) {
     const token = advance(this.state);
@@ -1848,10 +1858,10 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
     }
     const keyToken = advance(this.state);
 
-    if (keyToken.value !== 'on_error') {
+    if (keyToken.value !== 'on_error' && keyToken.value !== 'async') {
       throw new ParseError(
         ERROR_IDS.RILL_P004,
-        `Unknown option '${keyToken.value}' inside 'pass<...>'; only 'on_error' is recognized`,
+        `Unknown option '${keyToken.value}' inside 'pass<...>'; recognized options are 'on_error' and 'async'`,
         keyToken.span.start
       );
     }
@@ -1869,12 +1879,23 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
     // Wrap in PostfixExprNode + PipeChainNode to satisfy ExpressionNode type.
     const primaryNode = this.parsePrimary();
 
-    if (primaryNode.type !== 'AtomLiteral' || primaryNode.name !== 'IGNORE') {
-      throw new ParseError(
-        ERROR_IDS.RILL_P004,
-        "'on_error' option requires value '#IGNORE'",
-        primaryNode.span.start
-      );
+    if (keyToken.value === 'on_error') {
+      if (primaryNode.type !== 'AtomLiteral' || primaryNode.name !== 'IGNORE') {
+        throw new ParseError(
+          ERROR_IDS.RILL_P004,
+          "'on_error' option requires value '#IGNORE'",
+          primaryNode.span.start
+        );
+      }
+    } else {
+      // async key: requires a boolean literal (true or false)
+      if (primaryNode.type !== 'BoolLiteral') {
+        throw new ParseError(
+          ERROR_IDS.RILL_P004,
+          "'async' option requires a boolean literal ('true' or 'false')",
+          primaryNode.span.start
+        );
+      }
     }
 
     const primarySpan = primaryNode.span;
@@ -1911,7 +1932,7 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
   if (entries.length === 0) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
-      "'pass<>' requires at least one option (use 'pass { body }' for the no-options form, or 'pass<on_error: #IGNORE> { body }' for suppression)",
+      "'pass<>' requires at least one option (use 'pass { body }' for the no-options form, 'pass<on_error: #IGNORE> { body }' for suppression, or 'pass<async: true> { body }' for async execution)",
       dictStart
     );
   }

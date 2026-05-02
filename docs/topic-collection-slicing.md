@@ -4,7 +4,7 @@
 
 ## Overview
 
-rill provides eight operators for slicing, restructuring, and gating sequences. These complement the six core iteration operators in [Collection Operators](topic-collections.md).
+rill provides operators for slicing, restructuring, gating, and time-domain filtering of sequences. These complement the six core iteration operators in [Collection Operators](topic-collections.md).
 
 | Operator | Returns | Primary Use |
 |----------|---------|-------------|
@@ -15,9 +15,13 @@ rill provides eight operators for slicing, restructuring, and gating sequences. 
 | `window(n, step?)` | stream of `list[T]` | Sliding windows of size n |
 | `start_when(pred)` | stream of `T` | Elements from first match onward |
 | `stop_when(pred)` | stream of `T` | Elements up to and including first match |
+| `debounce(duration)` | stream of `T` | Suppress rapid emissions; emit latest after silence |
+| `throttle(duration)` | stream of `T` | Limit to at most 1 chunk per duration interval |
+| `sample(duration)` | stream of `T` | Emit latest chunk at fixed duration intervals |
 | `pass` | pipe value unchanged | Reference current piped value `$` |
 | `pass { body }` | pipe value unchanged | Side-effect block, no suppression |
 | `pass<on_error: #IGNORE> { body }` | pipe value unchanged | Side-effect block with suppressed errors |
+| `pass<async: true> { body }` | pipe value unchanged | Fire-and-forget side-effect block; body return value discarded |
 
 All operators chain with `->`. Error contracts apply identically to list and stream inputs.
 
@@ -199,6 +203,24 @@ range(1, 10) -> batch(3) -> seq({ $ -> fold(0, { $@ + $ }) })
 # Result: [6, 15, 24]
 ```
 
+### Idle Flush (`idle_flush: duration`)
+
+Pass `idle_flush` in the options dict to flush the accumulated buffer early when no new chunk arrives within the given duration.
+
+```text
+# Conceptual example: flush early if no chunk arrives within 500 ms
+$stream -> batch(10, dict[idle_flush: duration(...dict[ms: 500])])
+```
+
+When the idle timer expires and the buffer is non-empty, the partial batch flushes immediately without waiting for `n` elements. When the buffer is empty at idle expiry, no flush is emitted. The timer resets after each chunk or flush.
+
+**Current limitation:** Under the synchronous batch path, `idle_flush` is type-validated (EC-18) but produces no early-flush emissions. All elements are collected before any timer can fire. Async-streaming wire-up is deferred.
+
+```text
+# Error: #TYPE_MISMATCH - idle_flush must be a duration value
+# [1, 2, 3] -> batch(2, dict[idle_flush: "500ms"])
+```
+
 ### Edge Cases and Errors
 
 | Condition | Behavior |
@@ -207,6 +229,7 @@ range(1, 10) -> batch(3) -> seq({ $ -> fold(0, { $@ + $ }) })
 | Input length is an exact multiple of `n` | No partial chunk; `drop_partial` has no effect |
 | Empty input | Returns `[]` (no chunks produced) |
 | `n` is 0 or negative | Halts with `#INVALID_INPUT` |
+| `idle_flush` is not a duration | Catchable halt: `TYPE_MISMATCH` (EC-18) |
 
 ```rill
 [] -> batch(3)
@@ -384,17 +407,149 @@ range(1, 11) -> stop_when($atFive)
 
 ---
 
+## debounce
+
+**Signature:** `debounce(duration: duration): stream of T`
+
+`debounce` suppresses rapid emissions and emits only the latest chunk after a period of silence equal to `duration`. When a new chunk arrives before the silence window expires, the previous candidate is discarded and the timer resets.
+
+`debounce` is stream-only. Passing a list halts with `#INVALID_INPUT`.
+
+```text
+# Conceptual: only the last chunk in a rapid burst passes
+$event_stream -> debounce(duration(...dict[ms: 200]))
+# Only the final chunk emits after 200 ms of silence
+```
+
+**Sampling strategy:** debounce = latest chunk. The runtime suppresses all but the final emission from each burst.
+
+### Static-clock behavior
+
+The current implementation uses synchronous batch materialization via `getIterableElements`. Because `ctx.nowMs` does not advance between chunks, all chunks share the same virtual timestamp and fall within the same silence window. The result is the last chunk of the input.
+
+```text
+# Under sync-batch semantics: debounce returns the last element
+# Async wire-up (true silence detection) is deferred
+```
+
+### Error Contracts
+
+| Condition | Error |
+|-----------|-------|
+| Input is a list | Catchable halt: `#INVALID_INPUT` |
+| `duration` argument is not a duration | Catchable halt: `RILL-R001` type mismatch |
+| Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
+
+```text
+# Error: #INVALID_INPUT — list input rejected
+[1, 2, 3] -> debounce(duration(...dict[ms: 100]))
+```
+
+```text
+# Error: #RILL_R001 - duration must be a duration value
+$stream -> debounce(500)
+```
+
+---
+
+## throttle
+
+**Signature:** `throttle(duration: duration): stream of T`
+
+`throttle` limits output to at most one chunk per `duration` interval. The first chunk in each interval passes through. Subsequent chunks that arrive within the same interval are discarded.
+
+`throttle` is stream-only. Passing a list halts with `#INVALID_INPUT`.
+
+```text
+# Conceptual: at most one chunk per 100 ms interval
+$event_stream -> throttle(duration(...dict[ms: 100]))
+```
+
+**Sampling strategy:** throttle = first chunk. The runtime passes the first emission of each interval and drops the rest until the interval expires.
+
+### Static-clock behavior
+
+Under the synchronous batch path, `ctx.nowMs` does not advance between chunks. All chunks fall within the first interval window. The result is the first chunk of the input.
+
+```text
+# Under sync-batch semantics: throttle returns the first element
+# Async wire-up (true interval tracking) is deferred
+```
+
+### Error Contracts
+
+| Condition | Error |
+|-----------|-------|
+| Input is a list | Catchable halt: `#INVALID_INPUT` |
+| `duration` argument is not a duration | Catchable halt: `RILL-R001` type mismatch |
+| Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
+
+```text
+# Error: #INVALID_INPUT — list input rejected
+[1, 2, 3] -> throttle(duration(...dict[ms: 100]))
+```
+
+---
+
+## sample
+
+**Signature:** `sample(duration: duration): stream of T`
+
+`sample` emits the latest chunk seen at each fixed `duration` interval. Chunks arriving between checkpoints update the "latest seen" value. Each checkpoint emits that latest value if any chunk arrived since the last checkpoint.
+
+`sample` is stream-only. Passing a list halts with `#INVALID_INPUT`.
+
+```text
+# Conceptual: emit latest chunk every 250 ms
+$sensor_stream -> sample(duration(...dict[ms: 250]))
+```
+
+**Sampling strategy:** sample = latest at interval. Unlike `debounce`, `sample` emits on a fixed clock rather than after a silence window. Unlike `throttle`, `sample` emits the most recent chunk rather than the first.
+
+### Static-clock behavior
+
+Under the synchronous batch path, `ctx.nowMs` does not advance between chunks. All chunks fall in the first interval window and the last chunk is emitted as a single sample.
+
+```text
+# Under sync-batch semantics: sample returns the last element
+# Async wire-up (true periodic emission) is deferred
+```
+
+### Comparing the Three Time Operators
+
+| Operator | Emits | When |
+|----------|-------|------|
+| `debounce` | Last chunk of a burst | After `duration` of silence |
+| `throttle` | First chunk of an interval | At the start of each interval |
+| `sample` | Latest chunk seen | At the end of each interval |
+
+### Error Contracts
+
+| Condition | Error |
+|-----------|-------|
+| Input is a list | Catchable halt: `#INVALID_INPUT` |
+| `duration` argument is not a duration | Catchable halt: `RILL-R001` type mismatch |
+| Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
+
+```text
+# Error: #INVALID_INPUT — list input rejected
+[1, 2, 3] -> sample(duration(...dict[ms: 100]))
+```
+
+---
+
 ## pass body forms
 
-`pass` has three distinct forms:
+`pass` has four distinct forms:
 
 | Form | Syntax | Behavior |
 |------|--------|----------|
 | Bare `pass` | `pass` | References current pipe value `$`; halts `#RILL_R005` if unbound |
 | Body form | `pass { body }` | Runs body for side effects; returns pipe value unchanged; does NOT suppress halts |
 | Body form with suppression | `pass<on_error: #IGNORE> { body }` | Runs body; suppresses catchable halts in body; returns pipe value unchanged |
+| Async body form | `pass<async: true> { body }` | Dispatches body as fire-and-forget; returns pipe value immediately; body return value discarded |
 
-Both body forms discard the body's result. The value before `pass` continues down the pipe.
+All body forms discard the body's result. The value before `pass` continues down the pipe.
 
 ```rill
 5 -> pass { log($) }
@@ -466,6 +621,55 @@ range(1, 6) -> filter({ ($ % 2) == 0 }) -> pass { log($) } -> seq({ $ * 100 })
 # Result: [200, 400]
 ```
 
+### Async Fire-and-Forget (`pass<async: true>`)
+
+`pass<async: true> { body }` dispatches the body without blocking. The runtime registers the body's promise via `trackInflight` and returns control immediately. The pipe-entry value flows downstream unchanged.
+
+```rill
+42 -> pass<async: true> { $ }
+# Result: 42
+```
+
+The body's return value is always discarded. Downstream operators never see it:
+
+```rill
+10 -> pass<async: true> { $ * 100 }
+# Result: 10
+```
+
+Downstream operators chain on the original pipe value, not the body result:
+
+```rill
+5 -> pass<async: true> { $ + 1 } -> { $ * 2 }
+# Result: 10
+```
+
+#### Body completion order is unobservable
+
+`pass<async: true>` bodies may complete after downstream operators run. Scripts must not depend on body completion order relative to downstream execution.
+
+#### Compose `async` with `on_error`
+
+`async: true` and `on_error: #IGNORE` are independent options that compose:
+
+```rill
+"data" -> pass<async: true, on_error: #IGNORE> { 1 / 0 }
+# Result: "data"
+```
+
+With both options, the runtime dispatches the body asynchronously and suppresses any catchable halt the body produces. Without `on_error: #IGNORE`, a catchable halt in the async body surfaces at disposal time.
+
+#### Shutdown behavior
+
+`dispose()` awaits all in-flight `trackInflight` promises with a 5000 ms ceiling before completing. Bodies still running at the ceiling boundary are abandoned; a warning is logged via the `onLog` callback.
+
+#### `async` accepts only `bool`
+
+```text
+# Error: catchable halt — async value must be a bool
+pass<async: 1> { log($) }
+```
+
 ### Error Contracts
 
 The `on_error` option accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and `on_error` values other than `#IGNORE` are parse errors (`RILL-P004`). Use `pass { body }` for the no-options form.
@@ -490,5 +694,6 @@ pass<on_error: #SKIP> { log($) }
 ## See Also
 
 - [Collection Operators](topic-collections.md) — `seq`, `fan`, `filter`, `fold`, `acc`, `sort` with stream iteration
-- [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `.first()`; iterator vs stream comparison
+- [Iterators](topic-iterators.md) — Lazy sequences with `range`, `repeat`, `iterate`, `.first()`; iterator vs stream comparison
+- [Types](topic-types.md) — `duration` construction and properties
 - [Error Handling](topic-error-handling.md) — `.!`, `.?`, `guard`, `retry`, and error recovery patterns (relevant for `pass` body form suppression semantics)

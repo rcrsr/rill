@@ -195,6 +195,25 @@ export interface PassBlockNode extends BaseNode {
 }
 
 /**
+ * TimeoutBlock: wall-time or inactivity bound wrapping a body.
+ * Syntax: timeout<total: duration> { body }
+ *         timeout<idle: duration> { body }
+ *
+ * Lexer emits TIMEOUT_LANGLE when `timeout` is followed immediately by `<`.
+ * On expiry, produces an invalid value carrying #TIMEOUT_TOTAL (kind: 'total')
+ * or #TIMEOUT_IDLE (kind: 'idle'). Recovery is via guard/??
+ */
+export interface TimeoutBlockNode extends BaseNode {
+  readonly type: 'TimeoutBlock';
+  /** Which bound applies: 'total' for wall-time, 'idle' for inactivity. */
+  readonly kind: 'total' | 'idle';
+  /** Duration expression evaluated at runtime. Must resolve to a duration value. */
+  readonly duration: ExpressionNode;
+  /** Non-empty body block to execute under the timeout. */
+  readonly body: BlockNode;
+}
+
+/**
  * Assert: halt execution if condition is false.
  * Syntax: assert condition
  * Or: assert condition "custom error message"
@@ -271,6 +290,7 @@ export type PrimaryNode =
   | ErrorNode
   | PassNode
   | PassBlockNode
+  | TimeoutBlockNode
   | GroupedExprNode
   | TypeAssertionNode
   | TypeCheckNode
@@ -312,7 +332,8 @@ export type PipeTargetNode =
   | TypeNameExprNode
   | TypeConstructorNode
   | UseExprNode
-  | PassBlockNode;
+  | PassBlockNode
+  | TimeoutBlockNode;
 
 /** Invoke pipe value as a closure: -> $() or -> $(arg1, arg2) */
 export interface PipeInvokeNode extends BaseNode {
@@ -1123,5 +1144,6 @@ export type ASTNode =
   | GuardBlockNode
   | RetryBlockNode
   | PassBlockNode
+  | TimeoutBlockNode
   | AtomLiteralNode
   | StatusProbeNode;

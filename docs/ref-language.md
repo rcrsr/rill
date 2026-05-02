@@ -61,6 +61,10 @@ See [Operators](topic-operators.md) for detailed documentation.
 | `pass` | Returns current `$` unchanged (use in conditionals, dicts) |
 | `pass { body }` | Run body for side effects; pipe value flows through unchanged; halts propagate |
 | `pass<on_error: #IGNORE> { body }` | Same as `pass { body }` but suppresses catchable halts in the body |
+| `pass<async: true> { body }` | Fire-and-forget: dispatches body without blocking; pipe value flows through immediately |
+| `pass<async: true, on_error: #IGNORE> { body }` | Fire-and-forget with error suppression in the body |
+| `timeout<total: duration> { body }` | Bound body to wall-time limit; expiry halts with `#RILL_R082` (catchable) |
+| `timeout<idle: duration> { body }` | Bound body to inactivity limit; expiry halts with `#RILL_R083` (catchable) |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
@@ -88,10 +92,19 @@ See [Collections](topic-collections.md) for detailed documentation. All six oper
 | `-> take(n)` | First `n` elements as a list |
 | `-> skip(n)` | All elements after the first `n` as a list |
 | `-> cycle` | Iterator that repeats input indefinitely (bound at consumer) |
-| `-> batch(n, options?)` | Stream of non-overlapping chunks of size `n` |
+| `-> batch(n, options?)` | Stream of non-overlapping chunks of size `n`; `options` is `dict[idle_flush: duration, drop_partial: bool]` |
 | `-> window(n, step?)` | Stream of sliding windows; `step` defaults to `n` |
 | `-> start_when({ pred })` | Stream of elements from first predicate match onward |
 | `-> stop_when({ pred })` | Stream of elements through first predicate match (inclusive) |
+| `iterate(seed, closure)` | Infinite source stream: emit `seed`, then call `closure` with `$` to produce each next value |
+| `$seed -> iterate(closure)` | Pipe form: `seed` is the piped value; `closure` produces next values |
+| `-> debounce(duration)` | Suppress rapid emissions; emit latest chunk after `duration` of silence |
+| `-> throttle(duration)` | Emit first chunk per `duration` interval; discard subsequent chunks in that interval |
+| `-> sample(duration)` | Emit latest chunk seen at each fixed `duration` interval |
+
+`iterate` is stream-only and produces an unbounded stream. Combine with `take` or `batch` to bound output. `debounce`, `throttle`, and `sample` are stream-only operators; passing a list halts with `#INVALID_INPUT`.
+
+The `batch` option `idle_flush: duration` flushes the current buffer early when no chunk arrives within the given duration. The `drop_partial: bool` option discards the final incomplete batch when the stream ends.
 
 See [Collection Slicing](topic-collection-slicing.md) for detailed documentation, edge cases, and error contracts.
 
