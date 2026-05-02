@@ -2092,48 +2092,36 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       const runtimeCtx = ctx as RuntimeContext;
       let stepCount = 0;
 
-      // Build an async iterator. The first emitted value is seed itself.
-      // Each subsequent value is the result of applying closure to the current seed.
-      const buildChunk = async (current: RillValue): Promise<RillValue> => {
-        stepCount++;
-        if (stepCount > MAX_ITER) {
-          throwFatalHostHalt(
-            site,
-            'RILL_R010',
-            `iterate: iteration exceeded ${MAX_ITER} limit`
-          );
-        }
-        const childCtx = createChildContext(runtimeCtx);
-        childCtx.pipeValue = current;
-        const nextSeed = await invokeCallable(
-          closure,
-          [current],
-          childCtx,
-          location
-        );
+      // Build a chunk lazily: emit `current` now, defer closure invocation
+      // until the consumer pulls .next(). This avoids running the step
+      // closure (and its side effects) one element ahead of consumption.
+      const buildChunk = (current: RillValue): RillValue => {
         return {
           value: current,
           done: false,
-          next: callable(() => buildChunk(nextSeed)),
+          next: callable(async () => {
+            stepCount++;
+            if (stepCount > MAX_ITER) {
+              throwFatalHostHalt(
+                site,
+                'RILL_R010',
+                `iterate: iteration exceeded ${MAX_ITER} limit`
+              );
+            }
+            const childCtx = createChildContext(runtimeCtx);
+            childCtx.pipeValue = current;
+            const nextSeed = await invokeCallable(
+              closure,
+              [current],
+              childCtx,
+              location
+            );
+            return buildChunk(nextSeed);
+          }),
         };
       };
 
-      // Emit seed as the first chunk synchronously; closure runs on .next().
-      return {
-        value: seed,
-        done: false,
-        next: callable(async () => {
-          const childCtx = createChildContext(runtimeCtx);
-          childCtx.pipeValue = seed;
-          const nextSeed = await invokeCallable(
-            closure,
-            [seed],
-            childCtx,
-            location
-          );
-          return buildChunk(nextSeed);
-        }),
-      };
+      return buildChunk(seed);
     },
   },
 

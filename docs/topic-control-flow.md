@@ -814,7 +814,7 @@ See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
 
 ## Timeout Blocks
 
-Timeout blocks bound the execution time of a body. On expiry, the body is cancelled and the block produces an invalid value. Recovery uses `guard` or `??`.
+Timeout blocks bound the execution time of a body. On expiry, the body is cancelled and the block raises a catchable halt. Wrap with `guard` to convert the halt into an invalid value, then use `??` for a fallback.
 
 Two forms are available:
 
@@ -833,7 +833,7 @@ timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
 }
 ```
 
-The body must finish within 500 ms. If it does not, the block aborts the body and produces an invalid value carrying `#RILL_R082`.
+The body must finish within 500 ms. If it does not, the block aborts the body and raises a catchable halt carrying `#RILL_R082`. Wrap with `guard` (see below) to convert it into an invalid value.
 
 ### Inactivity Bound (`idle`)
 
@@ -843,7 +843,7 @@ timeout<idle: duration(0, 0, 0, 0, 0, 0, 200)> {
 }
 ```
 
-The idle timer resets each time the body emits a stream chunk. If no chunk arrives within 200 ms, the block aborts and produces an invalid value carrying `#RILL_R083`.
+The idle timer resets each time the body emits a stream chunk. If no chunk arrives within 200 ms, the block aborts and raises a catchable halt carrying `#RILL_R083`. Wrap with `guard` to surface the halt as an invalid value.
 
 For non-streaming bodies, `idle` behaves like `total`: the timer fires if the body does not complete within the idle window.
 
@@ -921,8 +921,8 @@ When the outer timer fires before the inner body completes, the outer expiry tak
 | `$val -> error` | Any | Always halt with piped error message (must be string) |
 | `guard { body }` | Any | Replace halt with invalid value |
 | `retry<limit: N> { body }` | Any | Retry up to N times on caught halt |
-| `timeout<total: duration> { body }` | Block | Abort body on wall-time expiry; invalid `#RILL_R082` on timeout |
-| `timeout<idle: duration> { body }` | Block | Abort body on inactivity; invalid `#RILL_R083` on timeout |
+| `timeout<total: duration> { body }` | Block | Abort body on wall-time expiry; catchable halt `#RILL_R082` (use `guard` to recover) |
+| `timeout<idle: duration> { body }` | Block | Abort body on inactivity; catchable halt `#RILL_R083` (use `guard` to recover) |
 
 ---
 

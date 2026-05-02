@@ -51,6 +51,7 @@ import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
+import { inferType } from '../../types/registrations.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { RuntimeContext, TimeoutScheduler } from '../../types/runtime.js';
@@ -332,7 +333,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
             fn: 'timeout',
           },
           'INVALID_INPUT',
-          `timeout<${node.kind}:> duration must be a duration value, got ${typeof durationValue}`
+          `timeout<${node.kind}:> duration must be a duration value, got ${inferType(durationValue)}`
         );
       }
 
@@ -392,7 +393,20 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           this as unknown as EvaluatorInterface
         ).evaluateBody(node.body);
 
-        // Body completed successfully before expiry.
+        // The body may complete after the timer fires (e.g. host code
+        // ignores ctx.signal). Surface the timeout halt rather than the
+        // late result so expiry is enforced consistently.
+        if (expired) {
+          const atomCode =
+            node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
+          throwCatchableHostHalt(
+            site,
+            atomCode,
+            `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
+            { durationMs }
+          );
+        }
+
         return result;
       } catch (e) {
         // Re-throw ControlSignal subclasses (break/return/yield) and
@@ -463,7 +477,7 @@ const globalScheduler: TimeoutScheduler = {
  * @param args.onIdle    Callback invoked once when the idle window expires.
  * @returns `{ reset, cancel }` control handle.
  */
-export function createIdleTicker(args: {
+function createIdleTicker(args: {
   ctx: Pick<RuntimeContext, 'signal' | 'scheduler'>;
   idleMs: number;
   onIdle: () => void;
@@ -473,6 +487,7 @@ export function createIdleTicker(args: {
 
   let handle: ReturnType<typeof setTimeout> | undefined;
   let cancelled = false;
+  let abortListener: (() => void) | undefined;
 
   function arm(): void {
     handle = sched.setTimeout(() => {
@@ -482,12 +497,23 @@ export function createIdleTicker(args: {
     }, idleMs);
   }
 
-  // Abort the idle timer when the parent signal fires.
+  function detachAbortListener(): void {
+    if (abortListener && ctx.signal) {
+      ctx.signal.removeEventListener('abort', abortListener);
+      abortListener = undefined;
+    }
+  }
+
+  // Abort the idle timer when the parent signal fires. Capture the listener
+  // so cancel() can detach it; otherwise long-lived signals (e.g. shared
+  // across many timeout blocks) accumulate one listener per ticker.
   if (ctx.signal && !ctx.signal.aborted) {
-    ctx.signal.addEventListener('abort', () => {
+    abortListener = (): void => {
       cancelled = true;
       sched.clearTimeout(handle);
-    });
+      detachAbortListener();
+    };
+    ctx.signal.addEventListener('abort', abortListener, { once: true });
   }
 
   arm();
@@ -501,6 +527,7 @@ export function createIdleTicker(args: {
     cancel(): void {
       cancelled = true;
       sched.clearTimeout(handle);
+      detachAbortListener();
     },
   };
 }

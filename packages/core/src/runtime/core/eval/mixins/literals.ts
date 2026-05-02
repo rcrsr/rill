@@ -68,7 +68,8 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
 import type { RuntimeContext } from '../../types/runtime.js';
-import { getVariable } from '../../context.js';
+import { createChildContext, getVariable } from '../../context.js';
+import { getEvaluator } from '../evaluator.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
@@ -256,8 +257,8 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Returns a promise that resolves on body completion or rejects with a
       // re-throwable signal. Catchable halts are suppressed when suppress is
       // true; non-catchable halts and ControlSignals always propagate.
-      const runBody = (): Promise<void> =>
-        (this as unknown as EvaluatorInterface)
+      const runBody = (evaluator: EvaluatorInterface): Promise<void> =>
+        evaluator
           .evaluateBody(node.body)
           .then(() => undefined)
           .catch((e: unknown) => {
@@ -277,12 +278,24 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         // Async path [IR-3]: register body promise with trackInflight and return
         // control immediately. Body return value is intentionally discarded.
         // Pipe-entry value flows downstream unchanged.
-        this.ctx.trackInflight(runBody());
+        //
+        // Run the body in a dedicated child context/evaluator so that
+        // pipeValue and other mutable evaluator state are isolated from the
+        // main pipeline. Without this, the body's await callbacks could
+        // mutate `this.ctx.pipeValue` while downstream operators run,
+        // producing races between fire-and-forget side effects and the
+        // synchronous pipe.
+        const asyncCtx = createChildContext(this.ctx);
+        asyncCtx.pipeValue = pipeBefore;
+        const asyncEvaluator = getEvaluator(
+          asyncCtx
+        ) as unknown as EvaluatorInterface;
+        this.ctx.trackInflight(runBody(asyncEvaluator));
         return pipeBefore ?? '';
       }
 
       // Synchronous path: await body completion before returning.
-      await runBody();
+      await runBody(this as unknown as EvaluatorInterface);
 
       // Restore pipe value (body execution may have mutated ctx.pipeValue).
       this.ctx.pipeValue = pipeBefore;

@@ -230,7 +230,6 @@ When the idle timer expires and the buffer is non-empty, the partial batch flush
 | Empty input | Returns `[]` (no chunks produced) |
 | `n` is 0 or negative | Halts with `#INVALID_INPUT` |
 | `idle_flush` is not a duration | Catchable halt: `TYPE_MISMATCH` (EC-18) |
-| Applied to a list | Catchable halt: `#INVALID_INPUT` (EC-19) |
 
 ```rill
 [] -> batch(3)

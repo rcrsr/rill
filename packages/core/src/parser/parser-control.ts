@@ -909,7 +909,10 @@ function parseGuardOrRetryBody(
  * Enters with current token being TIMEOUT_LANGLE (compound `timeout<`).
  * Exactly one of `total:` or `idle:` must appear — both together is a
  * compile-time parse error (EC-4). The duration is parsed as a primary
- * expression so that `>` is not consumed as a comparison operator.
+ * expression so that `>` is not consumed as a comparison operator. To use
+ * a richer expression (e.g. a method chain or arithmetic), wrap it in
+ * parentheses — `parsePrimary` accepts `(expression)` as a grouped primary,
+ * so `timeout<total: ($d -> .multiply(2))> { ... }` parses as expected.
  */
 Parser.prototype.parseTimeoutBlock = function (this: Parser): TimeoutBlockNode {
   const start = current(this.state).span.start;

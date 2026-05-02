@@ -310,7 +310,7 @@ timeout-block = "timeout" , "<" , timeout-option , ">" , block ;
 timeout-option = ( "total" | "idle" ) , ":" , expression ;
               (* "total" and "idle" are mutually exclusive; both in one timeout<> is RILL-P004.
                  The expression must evaluate to a duration value at runtime; a non-duration
-                 value produces a type-mismatch halt.
+                 value produces a catchable `#INVALID_INPUT` halt.
                  Examples:
                    timeout<total: duration(...dict[ms: 500])>
                    timeout<idle: duration(...dict[ms: 200])> *)
