@@ -616,6 +616,199 @@
     }
   }
 
+  /* ---- Three Ways to Start ---- */
+
+  .start {
+    padding: 4rem 1.5rem 1rem;
+    max-width: 960px;
+    margin: 0 auto;
+    text-align: center;
+  }
+
+  .start-heading {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(1.2rem, 2.5vw, 1.5rem);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-primary);
+    margin: 0 0 0.5rem;
+  }
+
+  .start-desc {
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin: 0 0 2.5rem;
+  }
+
+  .start-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.25rem;
+    text-align: left;
+  }
+
+  .start-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: var(--void-card);
+    border: 1px solid var(--void-border);
+    border-radius: 12px;
+    padding: 1.75rem 1.5rem 1.5rem;
+    text-decoration: none;
+    color: inherit;
+    overflow: hidden;
+    transition: border-color 300ms ease, box-shadow 300ms ease, transform 300ms ease;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: card-reveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-play-state: paused;
+  }
+
+  .start-card-make {
+    animation-delay: 0s;
+  }
+
+  .start-card-cli {
+    animation-delay: 0.08s;
+  }
+
+  .start-card-embed {
+    animation-delay: 0.16s;
+  }
+
+  .start-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    opacity: 0;
+    transition: opacity 300ms ease;
+  }
+
+  .start-card:hover::before {
+    opacity: 0.7;
+  }
+
+  .start-card-make::before {
+    background: var(--neon-purple);
+  }
+
+  .start-card-cli::before {
+    background: var(--neon-cyan);
+  }
+
+  .start-card-embed::before {
+    background: var(--neon-green);
+  }
+
+  .start-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  .start-card-make:hover {
+    border-color: rgba(167, 139, 250, 0.3);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(167, 139, 250, 0.06);
+  }
+
+  .start-card-cli:hover {
+    border-color: var(--cyan-a30);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3), 0 0 30px var(--cyan-a06);
+  }
+
+  .start-card-embed:hover {
+    border-color: rgba(74, 222, 128, 0.3);
+    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3), 0 0 30px rgba(74, 222, 128, 0.06);
+  }
+
+  .start-card-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
+  }
+
+  .start-card-label-num {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+  }
+
+  .start-card-label-text {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    opacity: 0.7;
+  }
+
+  .start-card-make .start-card-label-text {
+    color: var(--neon-purple);
+  }
+
+  .start-card-cli .start-card-label-text {
+    color: var(--neon-cyan);
+  }
+
+  .start-card-embed .start-card-label-text {
+    color: var(--neon-green);
+  }
+
+  .start-card-title {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0 0 0.6rem;
+  }
+
+  .start-card-desc {
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 1.25rem;
+    flex: 1;
+  }
+
+  .start-card-arrow {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    align-self: flex-end;
+    color: var(--text-dim);
+    transition: color 300ms ease, transform 300ms ease;
+  }
+
+  .start-card-make:hover .start-card-arrow {
+    color: var(--neon-purple);
+    transform: translateX(3px);
+  }
+
+  .start-card-cli:hover .start-card-arrow {
+    color: var(--neon-cyan);
+    transform: translateX(3px);
+  }
+
+  .start-card-embed:hover .start-card-arrow {
+    color: var(--neon-green);
+    transform: translateX(3px);
+  }
+
+  /* Stack on narrow viewports */
+  @media (max-width: 760px) {
+    .start-cards {
+      grid-template-columns: 1fr;
+    }
+  }
+
   /* ---- Integrations ---- */
 
   .integrations {
@@ -1196,6 +1389,12 @@
     }
 
     .integration-category {
+      animation: none;
+      opacity: 1;
+      transform: none;
+    }
+
+    .start-card {
       animation: none;
       opacity: 1;
       transform: none;

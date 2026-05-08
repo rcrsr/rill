@@ -112,6 +112,42 @@ rill powers [Claude Code Runner](https://github.com/rcrsr/claude-code-runner), a
 
 ## Quick Start
 
+Three entry points, in order of commitment.
+
+### 1. Easy Button: Generate a Package with Claude Code
+
+[`rill-make`](https://github.com/rcrsr/rill-make) is a Claude Code plugin that authors complete rill packages from a description. Install it from the `rcrsr/claude-plugins` marketplace:
+
+```text
+/plugin marketplace add rcrsr/claude-plugins
+/plugin install rill-make@claude-plugins
+/reload-plugins
+```
+
+Then run `/rill-make:create-rill-package` and describe what you want. The skill walks an 8-phase workflow: doc fetch, requirements gathering, clarifying questions, extension identification, data-flow design, custom-extension design, implementation, and validation. It emits a complete rill package with `rill-config.json`, scripts, and any custom TypeScript extensions. Subagents `rill-architect`, `rill-engineer`, and `rill-reviewer` own design, implementation, and validation.
+
+See the [`rill-make` README](https://github.com/rcrsr/rill-make) for end-to-end usage.
+
+### 2. CLI: Bootstrap and Run from the Shell
+
+[`@rcrsr/rill-cli`](https://github.com/rcrsr/rill-cli) bootstraps, manages, validates, builds, and runs rill packages from the command line.
+
+```bash
+npm install -g @rcrsr/rill-cli
+
+rill bootstrap                              # initialize project + .rill/npm/
+rill install @rcrsr/rill-ext-anthropic      # mount an extension
+rill run                                    # execute the project entry
+```
+
+Additional subcommands: `rill exec` (run a `.rill` file or stdin), `rill eval` (evaluate a single expression), `rill check` (lint and typecheck), `rill build` (bundle for production), `rill describe` (print callable contracts as JSON).
+
+See the [`rill-cli` README](https://github.com/rcrsr/rill-cli) for the full subcommand reference.
+
+### 3. Embed: Use `@rcrsr/rill` Directly
+
+When you need to embed rill inside a Node, Bun, Deno, or browser host, import the runtime and drive it yourself.
+
 ```typescript
 import { parse, execute, createRuntimeContext, extResolver } from '@rcrsr/rill';
 import { createOpenAIExtension } from '@rcrsr/rill-ext-openai';
@@ -139,7 +175,7 @@ const result = await execute(parse(`
 await ext.dispose?.();
 ```
 
-Switch providers by changing one line — `createAnthropicExtension` or `createGeminiExtension`. Scripts stay identical.
+Switch providers by changing one line, `createAnthropicExtension` or `createGeminiExtension`. Scripts stay identical. See [rill-ext](https://github.com/rcrsr/rill-ext) for the full extension catalog.
 
 ## Extensions
 
@@ -151,10 +187,11 @@ See [Bundled Extensions](docs/bundled-extensions.md) for core extension docs and
 
 | Repository | Description |
 |------------|-------------|
-| [rill-ext](https://github.com/rcrsr/rill-ext) | Vendor extensions — LLM providers, vector databases, storage backends, MCP |
-| [rill-agent](https://github.com/rcrsr/rill-agent) | Agent framework — harness, bundle, proxy, build, run CLIs |
-| [rill-cli](https://github.com/rcrsr/rill-cli) | CLI tools — rill-exec, rill-eval, rill-check, rill-run |
-| [rill-config](https://github.com/rcrsr/rill-config) | Config library — project resolution, extension mounting |
+| [rill-make](https://github.com/rcrsr/rill-make) | Claude Code plugin that authors complete rill packages from a spec |
+| [rill-cli](https://github.com/rcrsr/rill-cli) | CLI tools, bootstrap, install, build, run, exec, eval, check, describe |
+| [rill-ext](https://github.com/rcrsr/rill-ext) | Vendor extensions, LLM providers, vector databases, storage backends, MCP |
+| [rill-agent](https://github.com/rcrsr/rill-agent) | Agent framework, harness, bundle, proxy, build, run |
+| [rill-config](https://github.com/rcrsr/rill-config) | Config library, project resolution, extension mounting |
 
 ## Language Overview
 
