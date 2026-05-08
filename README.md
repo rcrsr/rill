@@ -124,7 +124,7 @@ Three entry points, in order of commitment.
 /reload-plugins
 ```
 
-Then run `/rill-make:create-rill-package` and describe what you want. The skill walks an 8-phase workflow (requirements, extension selection, data-flow design, implementation, validation) and emits a complete rill package with `rill-config.json`, scripts, and any custom TypeScript extensions. Subagents `rill-architect`, `rill-engineer`, and `rill-reviewer` own design, implementation, and validation.
+Then run `/rill-make:create-rill-package` and describe what you want. The skill walks an 8-phase workflow: doc fetch, requirements gathering, clarifying questions, extension identification, data-flow design, custom-extension design, implementation, and validation. It emits a complete rill package with `rill-config.json`, scripts, and any custom TypeScript extensions. Subagents `rill-architect`, `rill-engineer`, and `rill-reviewer` own design, implementation, and validation.
 
 See the [`rill-make` README](https://github.com/rcrsr/rill-make) for end-to-end usage.
 
