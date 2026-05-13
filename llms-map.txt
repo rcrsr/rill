@@ -1,6 +1,6 @@
 # rill ecosystem map
 
-> Canonical manifest for the rill stack. Start here, then load the specific docs for what you need to do. Every link below either lives in this repo or is a stable GitHub URL under github.com/rcrsr.
+> Canonical manifest for the rill stack. Start here, then load the specific docs for what you need to do. Links resolve to one of: a path inside this repo, a sibling repository at github.com/rcrsr, or a stable hosted URL on rill.run.
 
 ## What rill is
 
@@ -77,6 +77,12 @@ You are scaffolding an agent that combines a rill script, extensions, and a runt
 | [docs/ref-language.md](docs/ref-language.md) | Complete syntax and semantics |
 | [docs/ref-grammar.ebnf](docs/ref-grammar.ebnf) | Formal EBNF grammar |
 | [docs/ref-errors.md](docs/ref-errors.md) | Every error code with cause and resolution |
+| [docs/ref-host-api.md](docs/ref-host-api.md) | Complete TypeScript exports from `@rcrsr/rill` |
+| [docs/ref-host-api-types.md](docs/ref-host-api-types.md) | `TypeStructure`, `TypeDefinition`, `TypeProtocol` exports |
+| [docs/ref-config.md](docs/ref-config.md) | `rill-config.json` format consumed by `rill-run` |
+| [docs/ref-config-api.md](docs/ref-config-api.md) | TypeScript API for `@rcrsr/rill-config` |
+| [docs/ref-llms.txt](docs/ref-llms.txt) | Progressive LLM-optimized index for fragment loading |
+| [docs/ref-llms-full.txt](docs/ref-llms-full.txt) | Full LLM reference concatenated |
 | [docs/topic-types.md](docs/topic-types.md) | Primitives, tuples, dicts, collections |
 | [docs/topic-type-system.md](docs/topic-type-system.md) | Structural types, assertions, unions, type-locked variables |
 | [docs/topic-variables.md](docs/topic-variables.md) | Declaration, scope rules, `$` binding |
