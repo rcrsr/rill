@@ -407,9 +407,9 @@ export interface HandlerMetadataStatic {
 /**
  * Convert a TypeRef to a human-readable type string. Parameterized types are
  * rendered as `name(arg, arg, ...)` with each named arg as `name: <type>`,
- * matching the source grammar. The serialized form is what consumers of
- * `describe()` and `introspectHandlerFromAST()` get for parameter and return
- * type annotations.
+ * matching the source grammar. The serialized form is what
+ * `introspectHandlerFromAST()` emits for parameter `type` strings and the
+ * `returnType` field on `HandlerMetadataStatic`.
  */
 function typeRefToString(ref: TypeRef | null): string {
   if (ref === null) return 'any';

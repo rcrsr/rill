@@ -159,14 +159,14 @@ describe('introspectHandlerFromAST', () => {
   });
 
   describe('returnType field', () => {
-    it('emits returnType for a plain TypeRef annotation', () => {
+    it('emits returnType for a scalar TypeRef annotation', () => {
       const ast = parse('|name: string| { $name } :string => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
       expect(result!.returnType).toBe('string');
     });
 
-    it('emits returnType for a non-stream TypeConstructorNode annotation', () => {
+    it('emits returnType for a parameterized TypeRef annotation', () => {
       const ast = parse('|items: list| { $items } :list(string) => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
