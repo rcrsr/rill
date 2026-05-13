@@ -1,0 +1,118 @@
+# rill ecosystem map
+
+> Canonical manifest for the rill stack. Start here, then load the specific docs for what you need to do. Every link below either lives in this repo or is a stable GitHub URL under github.com/rcrsr.
+
+## What rill is
+
+rill is a scripting language designed for machine-generated code. LLMs author rill scripts; humans review and debug. Data flows through pipes (`->`), not assignment. Variables use `$` prefix. There is no null, no exceptions, and no truthiness.
+
+## Ecosystem at a glance
+
+| Repository | NPM | Role |
+|------------|-----|------|
+| [rcrsr/rill](https://github.com/rcrsr/rill) | `@rcrsr/rill` | Core runtime, parser, type system, embedding API |
+| [rcrsr/rill-cli](https://github.com/rcrsr/rill-cli) | `@rcrsr/rill-cli` | Command-line tools: `rill-exec`, `rill-eval`, `rill-check`, `rill-run` |
+| [rcrsr/rill-ext](https://github.com/rcrsr/rill-ext) | `@rcrsr/rill-ext-*` | Extension packages: fs, fetch, exec, kv, crypto, LLM providers, vector DBs, MCP |
+| [rcrsr/rill-agent](https://github.com/rcrsr/rill-agent) | `@rcrsr/rill-agent-*` | Agent framework, scaffolder (`rill-agent-bundle init`), runtime harness, proxy |
+| [rcrsr/rill-config](https://github.com/rcrsr/rill-config) | `@rcrsr/rill-config` | `rill-config.json` schema and TypeScript config API |
+
+## Pick your task
+
+Each entry below is an ordered load list for an LLM that needs to act, not just read.
+
+### 1. Writing rill scripts
+
+You are generating `.rill` source code.
+
+1. [docs/llm/cheatsheet.txt](docs/llm/cheatsheet.txt) — always load first. The 7 critical differences from TypeScript and Python.
+2. [docs/llm/anti-patterns.txt](docs/llm/anti-patterns.txt) — load before generating fresh code. Wrong/Right pairs.
+3. [docs/ref-llms.txt](docs/ref-llms.txt) — progressive index. Pull `control-flow`, `errors`, `types`, `callables`, `stdlib`, `style` fragments on demand.
+4. [docs/ref-llms-full.txt](docs/ref-llms-full.txt) — entire reference concatenated. Load only when context budget is large.
+
+Hosted equivalents: [rill.run/llms.txt](https://rill.run/llms.txt), [rill.run/llms-full.txt](https://rill.run/llms-full.txt).
+
+### 2. Running, linting, and bundling rill scripts
+
+You are using a CLI to execute a script, validate it, or drive a config-based project.
+
+1. [docs/integration-cli.md](docs/integration-cli.md) — tool reference for `rill-exec`, `rill-eval`, `rill-check`, `rill-run`.
+2. [rcrsr/rill-cli](https://github.com/rcrsr/rill-cli) — install instructions, release notes, source.
+3. [docs/ref-config.md](docs/ref-config.md) — `rill-config.json` format consumed by `rill-run`.
+4. [docs/ref-config-api.md](docs/ref-config-api.md) — TypeScript API for the config library.
+
+### 3. Embedding rill in a host application
+
+You are building a Node, Bun, Deno, or browser application that runs rill as a guest language.
+
+1. [docs/integration-host.md](docs/integration-host.md) — parse, execute, capability injection.
+2. [docs/ref-host-api.md](docs/ref-host-api.md) — complete TypeScript exports from `@rcrsr/rill`.
+3. [docs/ref-host-api-types.md](docs/ref-host-api-types.md) — `TypeStructure`, `TypeDefinition`, `TypeProtocol`.
+4. [docs/integration-resolvers.md](docs/integration-resolvers.md) — `use<scheme:resource>` resolver registration.
+5. [docs/integration-backends.md](docs/integration-backends.md) — storage backend selection.
+6. [docs/integration-modules.md](docs/integration-modules.md) — module system convention.
+
+### 4. Writing an extension
+
+You are authoring a package that exposes new capabilities (network, filesystem, domain functions) to rill scripts.
+
+1. [docs/integration-extensions.md](docs/integration-extensions.md) — extension contract, types, lifecycle hooks.
+2. [docs/bundled-extensions.md](docs/bundled-extensions.md) — inventory of shipped extensions.
+3. [rcrsr/rill-ext](https://github.com/rcrsr/rill-ext) — reference implementations: fs, fetch, exec, kv, crypto, LLM providers, vector DBs, MCP.
+4. [docs/ref-host-api.md](docs/ref-host-api.md) — `toCallable`, `TypeStructure`, host wiring.
+
+### 5. Building a deployable rill agent
+
+You are scaffolding an agent that combines a rill script, extensions, and a runtime harness.
+
+1. [docs/guide-make.md](docs/guide-make.md) — the 4-phase build workflow with mandatory user-approval gates.
+2. [rcrsr/rill-agent](https://github.com/rcrsr/rill-agent) — bundle, scaffolder, proxy, runtime harness.
+3. Scaffold command: `npx @rcrsr/rill-agent-bundle init <name> --extensions <list>`. Never hand-write `package.json`, `host.ts`, or `run.ts`.
+
+## Direct-link reference (versioned with `@rcrsr/rill`)
+
+### Language reference
+
+| File | Purpose |
+|------|---------|
+| [docs/ref-language.md](docs/ref-language.md) | Complete syntax and semantics |
+| [docs/ref-grammar.ebnf](docs/ref-grammar.ebnf) | Formal EBNF grammar |
+| [docs/ref-errors.md](docs/ref-errors.md) | Every error code with cause and resolution |
+| [docs/topic-types.md](docs/topic-types.md) | Primitives, tuples, dicts, collections |
+| [docs/topic-type-system.md](docs/topic-type-system.md) | Structural types, assertions, unions, type-locked variables |
+| [docs/topic-variables.md](docs/topic-variables.md) | Declaration, scope rules, `$` binding |
+| [docs/topic-control-flow.md](docs/topic-control-flow.md) | Conditionals, loops, break, return |
+| [docs/topic-operators.md](docs/topic-operators.md) | Arithmetic, comparison, spread, extraction |
+| [docs/topic-closures.md](docs/topic-closures.md) | Late binding, dict-bound closures |
+| [docs/topic-closure-annotations.md](docs/topic-closure-annotations.md) | Parameter metadata and reflection |
+| [docs/topic-error-handling.md](docs/topic-error-handling.md) | `.!`, `.?`, `guard`, `retry`, recovery |
+| [docs/topic-collections.md](docs/topic-collections.md) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort` |
+| [docs/topic-collection-slicing.md](docs/topic-collection-slicing.md) | `take`, `skip`, `cycle`, `batch`, `window`, `pass<>` |
+| [docs/topic-iterators.md](docs/topic-iterators.md) | Lazy sequences with `range`, `repeat`, `.first()` |
+| [docs/topic-strings.md](docs/topic-strings.md) | String methods |
+| [docs/topic-architecture.md](docs/topic-architecture.md) | How source text becomes a result |
+| [docs/topic-design-principles.md](docs/topic-design-principles.md) | What "rillistic" means and habits to unlearn |
+
+### Guides
+
+| File | Purpose |
+|------|---------|
+| [docs/guide-intro.md](docs/guide-intro.md) | What rill is, who it is for, why it works this way |
+| [docs/guide-getting-started.md](docs/guide-getting-started.md) | Beginner-friendly introduction |
+| [docs/guide-examples.md](docs/guide-examples.md) | Language features as working code |
+| [docs/guide-examples-streams.md](docs/guide-examples-streams.md) | Stream consumption, error recovery, time-domain operators |
+| [docs/guide-troubleshooting.md](docs/guide-troubleshooting.md) | Common mistakes and fixes |
+| [docs/guide-conventions.md](docs/guide-conventions.md) | Naming, idioms, best practices |
+| [docs/cookbook.md](docs/cookbook.md) | Reusable design patterns for agent scripting |
+| [docs/guide-make.md](docs/guide-make.md) | Agent build workflow |
+
+## Rules an LLM must internalize before generating rill code
+
+1. Pipe (`->`) flows data; capture (`=>`) stores it. There is no `=` operator.
+2. Conditions must be boolean. No truthiness. Use `.empty`, `.eq()`, and comparison operators.
+3. Errors halt by default. Resolve to a valid value with `??`.
+4. All script variables start with `$`. Bare names are dict keys, built-ins, or host functions.
+5. Script-defined names, including closures, live in `$` variables. Only built-in and host functions stay bare.
+6. Strings use double quotes only. Single quotes are a parse error.
+7. `+` is arithmetic-only. Use interpolation (`"{$a}{$b}"`) or `.join()` for strings.
+
+For the expanded rules and worked examples, load [docs/llm/cheatsheet.txt](docs/llm/cheatsheet.txt).
