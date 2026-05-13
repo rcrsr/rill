@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.3] - 2026-05-12
+
 ### Added
 
 - **Timeout blocks and fire-and-forget side effects** — `timeout<total:>` and `timeout<idle:>` control per-scope execution limits; `pass<async: true>` defers side effects without blocking the main script
