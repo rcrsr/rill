@@ -157,4 +157,44 @@ describe('introspectHandlerFromAST', () => {
       expect(result!.params).toHaveLength(0);
     });
   });
+
+  describe('returnType field', () => {
+    it('emits returnType for a scalar TypeRef annotation', () => {
+      const ast = parse('|name: string| { $name } :string => $run');
+      const result = introspectHandlerFromAST(ast, 'run');
+      expect(result).not.toBeNull();
+      expect(result!.returnType).toBe('string');
+    });
+
+    it('emits returnType for a parameterized TypeRef annotation', () => {
+      const ast = parse('|items: list| { $items } :list(string) => $run');
+      const result = introspectHandlerFromAST(ast, 'run');
+      expect(result).not.toBeNull();
+      expect(result!.returnType).toBe('list(string)');
+    });
+
+    it('emits returnType for a stream annotation with chunk type only', () => {
+      const ast = parse('|| { "hello" -> yield } :stream(string) => $run');
+      const result = introspectHandlerFromAST(ast, 'run');
+      expect(result).not.toBeNull();
+      expect(result!.returnType).toBe('stream(string)');
+    });
+
+    it('emits returnType for a stream annotation with chunk and resolution types', () => {
+      const ast = parse(
+        '|| { "hello" -> yield\n42 } :stream(string):number => $run'
+      );
+      const result = introspectHandlerFromAST(ast, 'run');
+      expect(result).not.toBeNull();
+      expect(result!.returnType).toBe('stream(string):number');
+    });
+
+    it('omits returnType when no return type annotation is present', () => {
+      const ast = parse('|name: string| { $name } => $run');
+      const result = introspectHandlerFromAST(ast, 'run');
+      expect(result).not.toBeNull();
+      expect(result!.returnType).toBeUndefined();
+      expect('returnType' in result!).toBe(false);
+    });
+  });
 });
