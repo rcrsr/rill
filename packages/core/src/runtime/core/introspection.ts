@@ -29,6 +29,7 @@ import type {
   ScriptNode,
   StatementNode,
   StringLiteralNode,
+  TypeConstructorNode,
 } from '../../types.js';
 import type { TypeRef } from '../../value-types.js';
 
@@ -394,19 +395,82 @@ export interface HandlerMetadataStatic {
   readonly description?: string;
   /** Parameter metadata in declaration order */
   readonly params: ReadonlyArray<HandlerParamStatic>;
+  /**
+   * Closure return type annotation, formatted with the same grammar as
+   * parameter type strings. `undefined` when the closure has no `:T` suffix.
+   * Stream returns are rendered as `stream(<chunk>):<ret>` (omitting the
+   * trailing `:<ret>` when no resolution type is declared).
+   */
+  readonly returnType?: string;
 }
 
-/** Convert a TypeRef to a human-readable type string. */
+/**
+ * Convert a TypeRef to a human-readable type string. Parameterized types are
+ * rendered as `name(arg, arg, ...)` with each named arg as `name: <type>`,
+ * matching the source grammar. The serialized form is what consumers of
+ * `describe()` and `introspectHandlerFromAST()` get for parameter and return
+ * type annotations.
+ */
 function typeRefToString(ref: TypeRef | null): string {
   if (ref === null) return 'any';
   switch (ref.kind) {
-    case 'static':
-      return ref.typeName;
+    case 'static': {
+      if (ref.args === undefined || ref.args.length === 0) {
+        return ref.typeName;
+      }
+      const args = ref.args
+        .map((arg) => {
+          const valueStr = typeRefToString(arg.value);
+          return arg.name !== undefined ? `${arg.name}: ${valueStr}` : valueStr;
+        })
+        .join(', ');
+      return `${ref.typeName}(${args})`;
+    }
     case 'dynamic':
       return 'any';
     case 'union':
       return ref.members.map(typeRefToString).join(' | ');
   }
+}
+
+/**
+ * Convert a TypeConstructorNode (`list(...)`, `dict(...)`, `stream(...)`, etc.)
+ * to its source-grammar display form. Stream constructors render as
+ * `stream(<chunk>):<ret>` to match the `:stream(T):R` annotation, falling back
+ * to `stream(<chunk>)` when no resolution arg is present.
+ */
+function typeConstructorToString(node: TypeConstructorNode): string {
+  if (node.constructorName === 'stream') {
+    const chunkArg = node.args[0];
+    const retArg = node.args[1];
+    const chunkStr =
+      chunkArg !== undefined ? typeRefToString(chunkArg.value) : 'any';
+    const retSuffix =
+      retArg !== undefined ? `:${typeRefToString(retArg.value)}` : '';
+    return `stream(${chunkStr})${retSuffix}`;
+  }
+  const args = node.args
+    .map((arg) => {
+      const valueStr = typeRefToString(arg.value);
+      return arg.name !== undefined ? `${arg.name}: ${valueStr}` : valueStr;
+    })
+    .join(', ');
+  return `${node.constructorName}(${args})`;
+}
+
+/**
+ * Format a closure's return-type target (the value parsed from `:T` after the
+ * closure body). Returns undefined when no annotation is present so callers
+ * can omit the field from the emitted metadata.
+ */
+function formatReturnTypeTarget(
+  target: TypeRef | TypeConstructorNode | undefined
+): string | undefined {
+  if (target === undefined) return undefined;
+  if ('type' in target && target.type === 'TypeConstructor') {
+    return typeConstructorToString(target);
+  }
+  return typeRefToString(target as TypeRef);
 }
 
 /** Extract a primitive value from a literal AST node. Returns undefined for complex literals. */
@@ -552,8 +616,13 @@ export function introspectHandlerFromAST(
 
     // Extract closure-level description from AnnotatedStatementNode
     const description = extractDescription(closureAnnotations);
+    const returnType = formatReturnTypeTarget(closure.returnTypeTarget);
 
-    return description !== undefined ? { params, description } : { params };
+    return {
+      params,
+      ...(description !== undefined && { description }),
+      ...(returnType !== undefined && { returnType }),
+    };
   }
 
   return null;
