@@ -1,0 +1,197 @@
+# =============================================================================
+# THE RILL ISSUE TAXONOMY, in one place. Four axes; one is a label set.
+#
+#   1. AREA (where) -- `area:*` labels, the glob map below. Path-derivable, so
+#      PRs get them automatically (actions/labeler via
+#      .github/workflows/pr-labels.yml). On issues the filer sets them.
+#      Pick ONE primary area, the one that owns the work, and add a second only
+#      when the work is genuinely co-owned. The PR labeler is additive and
+#      mechanical, so cross-cutting PRs collect one label per touched path. The
+#      minimize rule governs what humans and skills apply, not the labeler.
+#      Nine areas, mapped to rill's pipeline (Source -> Lexer -> Parser -> AST
+#      -> Runtime -> Result) plus the three publishable and support surfaces:
+#        area:lexer    packages/core/src/lexer -- tokenizer, token types, the
+#                      syntax-highlight map.
+#        area:parser   packages/core/src/parser -- parser, AST nodes/unions,
+#                      signature parser, source locations, the ext-parse
+#                      bridge, and the EBNF grammar.
+#        area:runtime  packages/core/src/runtime/core -- the evaluator,
+#                      callables, context, signals, execution, and the package
+#                      entry point (index.ts).
+#        area:types    the type system -- runtime/core/types, value-types.ts,
+#                      types.ts. rill's structural types, assertions, unions,
+#                      type-locked variables.
+#        area:stdlib   packages/core/src/runtime/ext -- built-in functions and
+#                      the host extension surface (operators like seq/fan/fold,
+#                      string and dict methods, `use<>` resolvers).
+#        area:errors   the error subsystem -- error-registry, error-formatter,
+#                      error-patterns, error-classes, and the error reference.
+#                      A new error ID or a message-format change lives here.
+#        area:fiddle   packages/fiddle -- the browser playground (private).
+#        area:docs     documentation -- docs/**, the web site (packages/web),
+#                      README, CHANGELOG. Overlap with area:errors and
+#                      area:parser on ref-errors.md / ref-grammar.ebnf is
+#                      intentional: those files are both docs and subsystem
+#                      reference.
+#        area:dx       CI, toolchain, lint rules, test harness, and root config.
+#                      Anything no consumer of `@rcrsr/rill` sees. A root deps
+#                      bump or an oxlint-config change touches none of the
+#                      source globs above, so it would otherwise get no area.
+#
+#   2. STATUS (why not now) -- the `on-hold` label, issues-only, optional.
+#      The one state GitHub has no native home for (unprefixed, matching
+#      needs-triage):
+#        on-hold       valid, shaped work deliberately parked ("not until the
+#                      parser rewrite settles"). Not low priority (that is
+#                      Priority Low, how urgent, not why parked) and not
+#                      blocked-on-a-specific-issue.
+#      Blocked on a SPECIFIC issue: use the native issue dependency ("Mark as
+#      blocked by" in the sidebar; query is:blocked) and NO label. Never
+#      duplicate a native relationship as a label. Deliberate park with no
+#      single blocker: on-hold. Both: both. An unshaped idea is NOT a status,
+#      it is Type Idea (see axis 3).
+#      Anti-rot ritual: periodically sweep `is:open label:on-hold` (has the
+#      prerequisite landed?) and `is:open type:Idea` (promote or close).
+#
+#   3. TYPE (what kind) -- native org-level Issue Type, NOT a label, issues-only:
+#        Bug . Feature . Chore . Security . Idea
+#      Feature = net-new capability a user of the language or tools can see: a
+#      new operator, a new type, a fiddle capability. Chore = robustness work
+#      on existing machinery: debt, refactors, test suites, perf, parser or
+#      runtime internals with no visible surface change. Decision rule: "would
+#      a rill user notice it in a release note? Feature. Otherwise Chore."
+#      Bug = existing behavior is wrong: a parse that should succeed halts, an
+#      operator returns the wrong value, an error message misleads.
+#      Security takes precedence over Bug/Feature/Chore when the issue is
+#      fundamentally about executing machine-generated or untrusted scripts
+#      safely: sandbox escapes, resolver (`use<>`) access scope, host API
+#      surface hardening, resource-exhaustion halts. `type:Security` is the
+#      one-shot hardening sweep. An issue ABOUT tightening the resolver
+#      allowlist is Security, not Chore.
+#      Idea = captured but not yet shaped into implementable work, the type an
+#      issue is born with when nobody has decided what it will become. Still
+#      carries >=1 area: (best guess); Priority stays unset. Promotion = change
+#      the Type to what it turned out to be, refine area, set Priority.
+#      Documentation work is NOT a type: it is `area:docs` on a Bug (docs are
+#      wrong), Feature (new guide), or Chore (restructure). The one-shot docs
+#      query is `label:area:docs`.
+#
+#   4. PRIORITY (how urgent) -- native org-level Priority Issue Field, NOT a
+#      label, issues-only, optional: High = the queue (next 1-2 weeks, keep
+#      <=5) . Medium = this cycle . Low = someday. Unset = not yet triaged.
+#      Urgent exists as a GitHub default option; by convention we never set it.
+#
+# TITLES: issues are titled `[<primary-area>] <title>`, lowercase, bare area
+# name without the `area:` prefix: "[parser] postfix default arg misparses",
+# "[stdlib] add batch<> window overlap". Exactly one bracket, the primary area.
+# PR titles do NOT take the bracket: they become main's squash-commit subjects
+# and keep conventional-commit format (`feat(parser): ...`), where the scope
+# already names the primary area.
+#
+# COLORS: one signal per axis, label text is the load-bearing distinction
+# (WCAG 1.4.1, color reinforces, never the only signal). area:* uniform blue
+# #1d76db; on-hold gray #d2dae1 (the parked convention); needs-triage yellow
+# #fbca04 (the pending convention). Create them with
+# .github/scripts/sync-labels.sh.
+#
+# Rule (enforced advisorily by .github/workflows/issue-labels.yml): every open
+# issue carries >=1 area: label + exactly one Type; Priority is set at triage;
+# on-hold is optional and never satisfies the area requirement. Issue forms
+# (.github/ISSUE_TEMPLATE/) pre-set the Type when filing from the web UI. PRs
+# carry only area labels; the linked issue holds Type/Priority/on-hold.
+# Since gh 2.94 the CLI sets Type natively (--type); Priority is GraphQL-only.
+# The rcrsr org must have Issue Types (Bug/Feature/Chore/Security/Idea) and the
+# Priority field enabled for the native axes to apply.
+# This file doubles as the one-stop taxonomy doc; there is no separate
+# CONTRIBUTING section to keep in sync.
+# =============================================================================
+
+'area:lexer':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/core/src/lexer/**'
+          - 'packages/core/src/token-types.ts'
+          - 'packages/core/src/highlight-map.ts'
+
+'area:parser':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/core/src/parser/**'
+          - 'packages/core/src/ast-nodes.ts'
+          - 'packages/core/src/ast-unions.ts'
+          - 'packages/core/src/signature-parser.ts'
+          - 'packages/core/src/source-location.ts'
+          - 'packages/core/src/ext-parse-bridge.ts'
+          - 'packages/core/src/generated/**'
+          - 'packages/core/tests/parser/**'
+          - 'docs/ref-grammar.ebnf'
+
+'area:runtime':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/core/src/runtime/core/*.ts'
+          - 'packages/core/src/runtime/core/eval/**'
+          - 'packages/core/src/constants.ts'
+          - 'packages/core/src/index.ts'
+          - 'packages/core/tests/runtime/**'
+          - 'tests/runtime/**'
+
+'area:types':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/core/src/runtime/core/types/**'
+          - 'packages/core/src/value-types.ts'
+          - 'packages/core/src/types.ts'
+
+'area:stdlib':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/core/src/runtime/ext/**'
+
+'area:errors':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'packages/core/src/error-classes.ts'
+          - 'packages/core/src/error-formatter.ts'
+          - 'packages/core/src/error-patterns.ts'
+          - 'packages/core/src/error-registry.ts'
+          - 'docs/ref-errors.md'
+
+'area:fiddle':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/fiddle/**'
+
+'area:docs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - 'packages/web/**'
+          - 'README.md'
+          - 'CHANGELOG.md'
+
+'area:dx':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/**'
+          - 'scripts/**'
+          - 'lint-rules/**'
+          - 'packages/core/scripts/**'
+          - 'tests/workflow/**'
+          - 'tests/workspace/**'
+          - '.claude/**'
+          # Root and workspace toolchain inputs. A root-only deps or
+          # interpreter-pin bump touches none of the source globs above, so it
+          # would otherwise get no area at all.
+          - 'package.json'
+          - 'pnpm-lock.yaml'
+          - 'pnpm-workspace.yaml'
+          - 'tsconfig*.json'
+          - 'vitest.config.ts'
+          - 'vitest.workspace.ts'
+          - '.oxlintrc.json'
+          - '.oxfmtrc.json'
+          - 'knip.json'
+          - 'lefthook.yml'
+          - 'netlify.toml'
+          - '.node-version'
+          - '.nvmrc'
