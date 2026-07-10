@@ -49,14 +49,14 @@
   },
   "devDependencies": {
     "@rcrsr/rill": "workspace:*",
-    "@types/node": "^25.6.0",
-    "knip": "^6.6.1",
-    "lefthook": "^2.1.6",
+    "@types/node": "^26.1.1",
+    "knip": "^6.25.0",
+    "lefthook": "^2.1.10",
     "oxfmt": "^0.58.0",
     "oxlint": "^1.73.0",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.0",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.5",
-    "yaml": "^2.8.3"
+    "vitest": "^4.1.10",
+    "yaml": "^2.9.0"
   }
 }

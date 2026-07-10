@@ -15,8 +15,6 @@ import type { CallableMarker, FieldDescriptorMarker } from './markers.js';
 import type { RillAtom } from './atom-registry.js';
 import type { RillStatus } from './status.js';
 
-export type { RillStatus } from './status.js';
-
 /**
  * Field definition - describes a single field in a structural type.
  * Used by dict, tuple, ordered, and closure type descriptors.
