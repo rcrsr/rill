@@ -46,6 +46,12 @@
         "rill/no-duplicate-error-id": "error",
         "rill/no-cross-mixin-any": "error"
       }
+    },
+    {
+      "files": ["**/lint-rules/**/*.cjs"],
+      "rules": {
+        "typescript/no-require-imports": "off"
+      }
     }
   ]
 }

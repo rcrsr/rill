@@ -269,7 +269,7 @@ describe('Toolbar', () => {
       const select = container.querySelector(
         '[aria-label="Select code example"]'
       );
-      expect(select).toBeDefined();
+      expect(select).not.toBeNull();
     });
 
     it('renders all required examples', () => {

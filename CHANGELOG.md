@@ -5,13 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## Unreleased
 
 ### Changed
 
 - **TypeScript 7 toolchain:** Upgraded to TypeScript 7 and migrated linting from eslint to oxlint and formatting from prettier to oxfmt. ([#102](https://github.com/rcrsr/rill/pull/102))
 
-## [0.19.3] - 2026-05-12
+## 0.19.3 - 2026-05-12
 
 ### Added
 
@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Time-domain stream operators** — Five new operators enable asynchronous stream processing: `iterate` creates infinite lazy sequences, `debounce` gates rapid bursts, `throttle` rate-limits emissions, `sample` periodically captures state, and `batch<idle_flush:>` groups items with timeout-based flushing
 - **Handler return type in static introspection** — `HandlerMetadataStatic` now carries an optional `returnType` string populated by `introspectHandlerFromAST()` from a closure's `:T` annotation. Parameterized types render with their args (`list(string)`, `dict(key: string, value: number)`), and stream returns render as `stream(<chunk>)` or `stream(<chunk>):<ret>` to match the source grammar. The field is omitted when the closure carries no return annotation
 
-## [0.19.2] - 2026-04-30
+## 0.19.2 - 2026-04-30
 
 ### Added
 
@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Documentation alignment** — Reference and topic docs now cover the slicing operators, `pass` body forms, `#IGNORE`, and `DictEntryNode.keyForm`. Corrected the atom-registry export surface in `ref-host-api.md` and `ref-host-api-types.md` (`resolveAtom` and `atomName` are top-level exports; `registerErrorCode` is a method on `ExtensionFactoryCtx`)
 
-## [0.19.1] - 2026-04-28
+## 0.19.1 - 2026-04-28
 
 ### Added
 
@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tuple lexicographic comparison** — Tuples support comparison operators for ordering tuples by element sequence
 - **List `.reverse` method** — Reverses list order for descending-value patterns and collection manipulation
 
-## [0.19.0] - 2026-04-26
+## 0.19.0 - 2026-04-26
 
 ### Breaking Changes
 
@@ -118,7 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error registry has a single source of truth** — `ERROR_IDS` (hyphen form) and `ERROR_ATOMS` (underscore atom form) replace ~559 inline magic-string error-id literals across the runtime; `BinaryOp` characters lift to `BINARY_OPS`.
 - **`error "..."` preserves interpolated content** — Wrap trace frames now carry the evaluated message string at runtime.
 
-## [0.18.6] - 2026-04-17
+## 0.18.6 - 2026-04-17
 
 ### Added
 
@@ -129,7 +129,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Datetime and duration parameter matching** — `structureMatches` now handles `{ kind: 'datetime' }` and `{ kind: 'duration' }` type descriptors. Previously both fell through to `return false`, causing host-declared datetime/duration params (e.g. in `@rcrsr/rill-ext-datetime`) to always fail with the paradoxical "expects datetime, got datetime" error
 
-## [0.18.5] - 2026-04-06
+## 0.18.5 - 2026-04-06
 
 ### Added
 
@@ -139,7 +139,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **String interpolation sub-highlighting** — Expressions inside `{...}` within strings get syntax-colored tokens (variables, operators, numbers) instead of flat green
 - **Method name highlighting** — Identifiers after `.` and `.?` render as purple (#a78bfa) via new `METHOD_NAME` token type and `functionName` highlight category
 
-## [0.18.4] - 2026-04-05
+## 0.18.4 - 2026-04-05
 
 ### Removed
 
@@ -157,7 +157,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tailwind CSS 4.2.2** — Upgraded tailwindcss and @tailwindcss/vite from 4.2.1
 - **Patch updates** — @types/node 25.5.2, happy-dom 20.8.9, yaml 2.8.3
 
-## [0.18.3] - 2026-04-04
+## 0.18.3 - 2026-04-04
 
 ### Added
 
@@ -168,7 +168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bundled extensions** — `fs`, `fetch`, `exec`, `kv`, and `crypto` extensions removed from `@rcrsr/rill` sub-path exports. Install from [rill-ext](https://github.com/rcrsr/rill-ext) packages instead
 
 
-## [0.18.2] - 2026-04-04
+## 0.18.2 - 2026-04-04
 
 ### Added
 
@@ -179,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **rill-run: handler mode drops positional args** — Handler mode set args as pipeValue but passed empty positional args to `invokeCallable`. Closures with explicit params nullify pipeValue, causing RILL-R044. Args now map to positional params in order, preserving optional param defaults
 - **rill-check: CLOSURE_BARE_DOLLAR false positive on nested pipe scopes** — The rule flagged `$` references inside `filter`, `map`, `each` blocks and nested closures within stored closures. Now tracks scope depth across all pipe-rebinding node types
 
-## [0.18.1] - 2026-04-03
+## 0.18.1 - 2026-04-03
 
 ### Fixed
 
@@ -191,7 +191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **rill-check: PREFER_MAP false positive on each loops with side effects** — The rule suggested `map` for all `each` without accumulators. Now detects host calls (`log`) and closure calls (`$fn()`) as side effects
 - **rill-run: handler mode drops non-string results** — Handler mode only printed strings, silently dropping dicts, lists, and numbers. Now uses `formatOutput` for consistent output across handler and module modes
 
-## [0.18.0] - 2026-03-17
+## 0.18.0 - 2026-03-17
 
 ### Added
 
@@ -216,7 +216,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renamed-exports) for the full symbol mapping table and update instructions.
 
-## [0.17.0] - 2026-03-16
+## 0.17.0 - 2026-03-16
 
 ### Breaking Changes
 
@@ -242,7 +242,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Type dispatch via registration protocol** — Type operations use a registration-based protocol system
 - **Extension factories mount arbitrary values** — Extensions mount dicts, scalars, and lists instead of only flat function maps
 
-## [0.16.0] - 2026-03-14
+## 0.16.0 - 2026-03-14
 
 ### Added
 
@@ -280,7 +280,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Tuple parameter defaults hydrated before host invocation** — Tuple parameters with default values are hydrated before the host function is called, matching dict and ordered behavior
 - **Nested tuple defaults hydrated in `:>` conversion** — Nested tuple field defaults are hydrated during `:>` conversion, matching nested dict field behavior
 
-## [0.15.0] - 2026-03-13
+## 0.15.0 - 2026-03-13
 
 ### Breaking Changes
 
@@ -298,7 +298,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **`.^input` reflection** — Returns a `RillOrdered` value directly for all callable kinds, simplifying type introspection
 
-## [0.14.0] - 2026-03-12
+## 0.14.0 - 2026-03-12
 
 ### Breaking Changes
 
@@ -320,14 +320,14 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Fiddle call stack display** — Error output in the playground shows call stack frames with source snippets and caret indicators.
 - **`sourceId` and `sourceText` on RuntimeContext** — Child contexts track their originating source file for cross-module error attribution.
 
-## [0.13.3] - 2026-03-11
+## 0.13.3 - 2026-03-11
 
 ### Changed
 
 - **`rill-run` uses config `main` field** — Removed `.rill` file positional argument. Script path comes from `main` in `rill-config.json`. Optional positional arg specifies a root directory containing the config.
 - **Independent package versioning** — Packages share `major.minor` but increment patch independently. `sync-versions` syncs major.minor only. `check-versions` validates major.minor alignment.
 
-## [0.13.2] - 2026-03-11
+## 0.13.2 - 2026-03-11
 
 ### Changed
 
@@ -337,7 +337,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **`pretest` regenerates `version-data.ts`** — Running `pnpm test` without a prior build no longer fails version tests due to stale generated version data.
 
-## [0.13.1] - 2026-03-11
+## 0.13.1 - 2026-03-11
 
 ### Changed
 
@@ -348,7 +348,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **`prefixFunctions` preserves `suspend` and `restore` hooks** — Lifecycle hooks are skipped during namespace prefixing and preserved on the result, matching existing `dispose` handling.
 
-## [0.13.0] - 2026-03-11
+## 0.13.0 - 2026-03-11
 
 ### Changed
 
@@ -368,7 +368,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **`rill-config` README** — Package README with API reference, error classes, and documentation links.
 
-## [0.12.0] - 2026-03-11
+## 0.12.0 - 2026-03-11
 
 ### Added
 
@@ -385,7 +385,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Closure signature annotations on `use<>`** — `use<scheme:fn>:|param: type, ...|` parses and records parameter signatures on the AST node (no runtime behavior change)
 - **Module resolution error sourceId** — Errors thrown from `use<>` module resolution now include `sourceId` for accurate error location reporting
 
-## [0.11.0] - 2026-03-10
+## 0.11.0 - 2026-03-10
 
 ### Added
 
@@ -398,7 +398,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Function manifest export** — `generateManifest()` exports complete function metadata for host applications, extensions, and CLI help systems
 - **Conversion operator expansion** — `:>` operator now covers all type routes (string, number, boolean, list, dict, tuple, ordered). Removed `.str` and `.num` methods. `:>number` throws on non-numeric strings
 
-## [0.10.0] - 2026-03-07
+## 0.10.0 - 2026-03-07
 
 ### Breaking Changes
 
@@ -431,7 +431,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **Structural type discriminator** — Type inspection returns flat `type` field for all runtime values. Direct shape access replaces previous wrapper variants
 
-## [0.9.0] - 2026-03-06
+## 0.9.0 - 2026-03-06
 
 ### Restructure
 
@@ -465,7 +465,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Node 22** required (updated from Node 20)
 - **eslint** 9.39.2 → 10.0.2, **tailwindcss** 4.1.18 → 4.2.1
 
-## [0.8.6] - 2026-02-15
+## 0.8.6 - 2026-02-15
 
 ### Added
 
@@ -485,7 +485,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **ext-llm-shared build failure** — Added default case to `jsonSchemaType` switch in `tool-loop.ts` to fix TS2454 uninitialized variable error (BUG-1)
 
-## [0.8.5] - 2026-02-12
+## 0.8.5 - 2026-02-12
 
 ### Fixed
 
@@ -505,7 +505,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **Agent instructions extension return types** — Extension Function Reference expanded with return types, data shapes, and usage examples for all 7 extensions (LLM, vector DB, fs, fetch, exec, kv, crypto). Agents no longer need to search source code for response shapes
 
-## [0.8.4] - 2026-02-12
+## 0.8.4 - 2026-02-12
 
 ### Changed
 
@@ -513,7 +513,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **Extension build config strictness** — `tsconfig.build.json` for all 6 bundled extensions includes `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, and `verbatimModuleSyntax`, matching `tsconfig.base.json`
 
-## [0.8.3] - 2026-02-11
+## 0.8.3 - 2026-02-11
 
 ### Fixed
 
@@ -527,7 +527,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **Agent instructions data gathering** — `docs/guide-make.md` Phase 2.3 restructured from passive "determine configuration" to explicit per-extension interview checklist. Phase 3.3 collects project name, package manager, and description before scaffold command
 
-## [0.8.2] - 2026-02-11
+## 0.8.2 - 2026-02-11
 
 ### Fixed
 
@@ -539,7 +539,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **Flaky retry backoff test** — Added 2ms timer jitter tolerance to exponential backoff assertions in `fetch-request.test.ts`
 
-## [0.8.1] - 2026-02-11
+## 0.8.1 - 2026-02-11
 
 ### Added
 
@@ -555,7 +555,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **rill-create-agent added to release pipeline** — `packages/create-agent` included in publish loop and git tag creation
 
-## [0.8.0] - 2026-02-10
+## 0.8.0 - 2026-02-10
 
 ### Added
 
@@ -581,19 +581,19 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **Release infrastructure** — Workflow and `release.sh` use dynamic package discovery instead of hardcoded lists. Adding a new extension requires zero release config changes
 
-## [0.7.2] - 2026-02-08
+## 0.7.2 - 2026-02-08
 
 ### Fixed
 
 - **Conditional block postfix parsing** — `(cond) ? { block }` followed by `(expr)` on the next line no longer parses `(expr)` as a postfix invocation of the conditional result. Broadens the v0.7.0 terminator guard to all block then-branches.
 
-## [0.7.1] - 2026-02-08
+## 0.7.1 - 2026-02-08
 
 ### Fixed
 
 - **Zero-param closure pipe injection** — `$c()` with explicit empty parens inside loop bodies no longer receives the loop accumulator as an implicit argument. Mirrors the existing guard for host functions.
 
-## [0.7.0] - 2026-02-08
+## 0.7.0 - 2026-02-08
 
 ### Removed
 
@@ -626,13 +626,13 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Mobile navbar** — removed empty hamburger menu; nav links (Docs, Fiddle, Search, GitHub) always visible
 - **Mobile code blocks** — added `overflow-x: auto` to prevent code from overflowing the viewport
 
-## [0.6.2] - 2026-02-07
+## 0.6.2 - 2026-02-07
 
 ### Fixed
 
 - **Package metadata** — Added missing `"license": "MIT"` field to core, cli, and claude-code package.json
 
-## [0.6.1] - 2026-02-07
+## 0.6.1 - 2026-02-07
 
 ### Changed
 
@@ -647,7 +647,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Version lockstep test** — New test asserts `core`, `cli`, and `fiddle` share the same version
 - **Tag count assertion** — Fixed pre-existing bug expecting 4 tags instead of 3
 
-## [0.6.0] - 2026-02-07
+## 0.6.0 - 2026-02-07
 
 ### Breaking
 
@@ -680,7 +680,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 - **Error system** — Unified `errorId` replaces legacy `code` field; 80% error coverage
 - **Code deduplication** — 3 extractions (`isIdentifierOrKeyword`, `detectHelpVersionFlag`, `isValidSpan`)
 
-## [0.5.0] - 2026-02-03
+## 0.5.0 - 2026-02-03
 
 ### Added
 
@@ -738,7 +738,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - Directory excluded from version control via `.gitignore`
   - Generator scripts updated to write to new location
 
-## [0.4.5] - 2026-02-02
+## 0.4.5 - 2026-02-02
 
 ### Added
 
@@ -774,7 +774,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - After: Access chain completes and returns boolean indicating field existence
   - Properly handles existence check as terminal operation in access chains
 
-## [0.4.4] - 2026-02-02
+## 0.4.4 - 2026-02-02
 
 ### Added
 
@@ -804,7 +804,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - LOOP_OUTER_CAPTURE and AVOID_REASSIGNMENT now properly track closure scope boundaries
   - Variables in sibling closures are correctly identified as independent locals
 
-## [0.4.3] - 2026-02-01
+## 0.4.3 - 2026-02-01
 
 ### Fixed
 
@@ -817,7 +817,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **Documentation** — Updated grammar version to 0.4.2 and refined index links
 
-## [0.4.2] - 2026-02-01
+## 0.4.2 - 2026-02-01
 
 ### Added
 
@@ -840,7 +840,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - `docs/19_cookbook.md`: Advanced patterns for multi-step workflows
   - Updated README with refined LLM feedback quotes
 
-## [0.4.1] - 2026-02-01
+## 0.4.1 - 2026-02-01
 
 ### Added
 
@@ -861,7 +861,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - Removed skipped test for unreachable code path
   - Parser test coverage already exists in `parser-syntax-errors.test.ts`
 
-## [0.4.0] - 2026-01-31
+## 0.4.0 - 2026-01-31
 
 ### Added
 
@@ -893,7 +893,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - `docs/15_grammar.ebnf`: Dispatch semantics comment after pipe-target section
   - `docs/99_llm-reference.txt`: Complete dispatch operators section (dict, list, hierarchical)
 
-## [0.3.0] - 2026-01-30
+## 0.3.0 - 2026-01-30
 
 ### Breaking
 
@@ -940,7 +940,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - `docs/15_grammar.ebnf`: Added block expression semantics comments
   - `docs/99_llm-reference.txt`: Added block-closure vs explicit closure section
 
-## [0.2.4] - 2026-01-28
+## 0.2.4 - 2026-01-28
 
 ### Breaking
 
@@ -995,7 +995,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - After: Skips host calls that have an immediate `:type` assertion
 - **Type Safety in Check Rules** — Replaced `as any` casts with proper AST node types across 6 files
 
-## [0.2.3] - 2026-01-27
+## 0.2.3 - 2026-01-27
 
 ### Fixed
 
@@ -1006,7 +1006,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - Before: Pointed at the opening `{` line
   - After: Points at the closing `}` line
 
-## [0.2.2] - 2026-01-27
+## 0.2.2 - 2026-01-27
 
 ### Fixed
 
@@ -1016,7 +1016,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - Applies to both `cond @ block` (while) and `@ block ? cond` (do-while) forms
   - Message now names the specific variables: `$x captured in loop body but referenced in condition`
 
-## [0.2.1] - 2026-01-27
+## 0.2.1 - 2026-01-27
 
 ### Fixed
 
@@ -1042,7 +1042,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - Before: `rill-check` had hardcoded `"0.1.0"`; `rill-exec` had fallback `"0.1.0"`
   - After: Shared `readVersion()` in `cli-shared.ts` used by all CLI tools
 
-## [0.2.0] - 2026-01-26
+## 0.2.0 - 2026-01-26
 
 ### Breaking
 
@@ -1149,7 +1149,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
 
 - **Test updates** — Replaced `heredoc` references with triple-quote strings in frontmatter and content-parser tests
 
-## [0.1.0] - 2026-01-23
+## 0.1.0 - 2026-01-23
 
 ### Breaking
 
@@ -1215,7 +1215,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - New test suites: `evaluator-base`, `evaluator-composition`, `*-mixin` tests
   - No user-facing changes
 
-## [0.0.5] - 2026-01-21
+## 0.0.5 - 2026-01-21
 
 ### Changed
 
@@ -1231,7 +1231,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - Now imports from `callable.ts` where canonical definitions live
   - No user-facing changes
 
-## [0.0.4] - 2026-01-21
+## 0.0.4 - 2026-01-21
 
 ### Added
 
@@ -1267,7 +1267,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - `[[1,2], [3,4]] -> each $[0]` returns `[1, 3]`
   - `[{a:1}, {a:2}] -> each $.a` returns `[1, 2]`
 
-## [0.0.3] - 2026-01-21
+## 0.0.3 - 2026-01-21
 
 ### Fixed
 
@@ -1277,7 +1277,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - Chained access: `[a: [b: 1]] -> .a.b` returns `1`
 - **Type Errors** — Added `PostfixExprNode` to `PipeTargetNode` union for chained method pipe targets
 
-## [0.0.2] - 2026-01-21
+## 0.0.2 - 2026-01-21
 
 ### Added
 
@@ -1347,7 +1347,7 @@ See the [0.18.0 migration guide](docs/ref-host-api-types.md#migration-0180-renam
   - Attempting `[1, 2, 3] @ { body }` throws error requiring boolean condition
   - Migration: Use `[1, 2, 3] -> each { body }` for iteration
 
-## [0.0.1] - 2025-01-20
+## 0.0.1 - 2025-01-20
 
 Initial release.
 
