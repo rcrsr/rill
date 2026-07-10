@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **TypeScript 7 toolchain:** Upgraded to TypeScript 7 and migrated linting from eslint to oxlint and formatting from prettier to oxfmt. ([#102](https://github.com/rcrsr/rill/pull/102))
+
 ## [0.19.3] - 2026-05-12
 
 ### Added
