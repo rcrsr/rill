@@ -19,7 +19,7 @@
  * slow outliers, because OS scheduler jitter (GC pauses, CPU contention on
  * shared CI runners) produces occasional late deliveries that are not bugs. A
  * systematic regression still fails the test: it shifts the median past its
- * ±40ms guard and pushes the outlier count over budget.
+ * ±50ms guard and pushes the outlier count over budget.
  *
  * [DEVIATION] duration() only supports positional args (not named).
  * duration(0, 0, 0, 0, 0, 0, X) specifies X milliseconds.

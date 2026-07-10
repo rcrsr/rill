@@ -49,3 +49,6 @@ jobs:
 
       - name: Run knip
         run: pnpm check:deps
+
+      - name: Check formatting
+        run: pnpm check:format

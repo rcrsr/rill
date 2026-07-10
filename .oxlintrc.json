@@ -24,7 +24,7 @@
       }
     },
     {
-      "files": ["**/runtime/**/*.ts"],
+      "files": ["**/src/runtime/**/*.ts"],
       "rules": {
         "rill/no-duplicate-error-id": "error",
         "rill/no-cross-mixin-any": "error"

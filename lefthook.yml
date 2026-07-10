@@ -8,7 +8,7 @@ pre-commit:
   commands:
     oxfmt:
       priority: 1
-      glob: '*.{ts,tsx,js,mjs,cjs,json}'
+      glob: '*.{ts,tsx,js,mjs,cjs,json,yaml,yml}'
       run: pnpm exec oxfmt {staged_files}
       stage_fixed: true
     oxlint:
