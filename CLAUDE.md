@@ -74,8 +74,8 @@ Only `@rcrsr/rill` (packages/core) is published from this monorepo. Private pack
 | Root `package.json` | Increments patch on every release |
 | `packages/core` | Increments patch when core changes |
 
-- `pnpm sync-versions` — Syncs major.minor from root to packages/core
-- `pnpm check-versions` — Verifies packages/core shares root major.minor
+- `pnpm fix:versions` — Syncs major.minor from root to packages/core
+- `pnpm check:versions` — Verifies packages/core shares root major.minor
 - CHANGELOG entries use the root version
 
 ## Release Process
@@ -85,7 +85,7 @@ rill is released by tagging a release commit on `main`. CI publishes `@rcrsr/ril
 ### Release Checklist
 
 1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json`
-2. Run `pnpm check-versions` to verify alignment
+2. Run `pnpm check:versions` to verify alignment
 3. Move the relevant `[Unreleased]` entries under a new `[x.y.z] - YYYY-MM-DD` section in `CHANGELOG.md`
 4. Commit with `chore: release vx.y.z`, open a PR, merge to `main`
 5. From a clean `main` at the merge commit:

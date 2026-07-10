@@ -104,7 +104,9 @@ describe('Rill Runtime: Iterators', () => {
     });
 
     it('works with map', async () => {
-      expect(await run('repeat(1, 3) -> fan({ $ + 10 })')).toEqual([11, 11, 11]);
+      expect(await run('repeat(1, 3) -> fan({ $ + 10 })')).toEqual([
+        11, 11, 11,
+      ]);
     });
 
     it('works with fold', async () => {

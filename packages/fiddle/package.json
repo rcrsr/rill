@@ -9,7 +9,7 @@
     "build:embedded": "FIDDLE_BASE_PATH=/fiddle/ vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --config ../../eslint.config.js src/",
+    "lint": "oxlint --config ../../.oxlintrc.json src/",
     "check": "pnpm run build && pnpm run test && pnpm run lint",
     "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run --passWithNoTests"
   },
@@ -32,7 +32,7 @@
     "@vitest/coverage-v8": "^4.1.5",
     "happy-dom": "^20.9.0",
     "tailwindcss": "^4.2.4",
-    "typescript": "^6.0.3",
+    "typescript": "^7.0.2",
     "vite": "^8.0.9",
     "vitest": "^4.1.5"
   }

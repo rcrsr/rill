@@ -1,0 +1,34 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "typescript/no-explicit-any": "warn",
+    "typescript/explicit-function-return-type": "off"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/*.d.ts",
+    "**/generated/**"
+  ],
+  "jsPlugins": ["./lint-rules/oxlint-plugin.js"],
+  "overrides": [
+    {
+      "files": ["**/generated/introspection-data.ts"],
+      "rules": {
+        "no-useless-escape": "off"
+      }
+    },
+    {
+      "files": ["**/runtime/**/*.ts"],
+      "rules": {
+        "rill/no-duplicate-error-id": "error",
+        "rill/no-cross-mixin-any": "error"
+      }
+    }
+  ]
+}
