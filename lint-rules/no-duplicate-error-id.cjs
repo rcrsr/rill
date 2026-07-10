@@ -99,9 +99,8 @@ module.exports = {
      * Reports violation and provides auto-fix.
      * @param {object} node - CallExpression or NewExpression node
      * @param {string} errorId - Error ID string
-     * @param {string} messageText - Full message text
      */
-    function reportViolation(node, errorId, messageText) {
+    function reportViolation(node, errorId) {
       const secondArg = node.arguments[1];
 
       context.report({
@@ -113,9 +112,6 @@ module.exports = {
         fix(fixer) {
           const sourceCode = context.sourceCode || context.getSourceCode();
           const originalText = sourceCode.getText(secondArg);
-
-          // Compute the prefix to remove
-          const prefix = `${errorId}: `;
 
           // Handle string literals
           if (secondArg.type === 'Literal') {
@@ -162,7 +158,7 @@ module.exports = {
       // Check if message starts with "errorId: "
       const expectedPrefix = `${errorId}: `;
       if (messageText.startsWith(expectedPrefix)) {
-        reportViolation(node, errorId, messageText);
+        reportViolation(node, errorId);
       }
     }
 

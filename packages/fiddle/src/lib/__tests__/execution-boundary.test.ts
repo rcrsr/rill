@@ -414,8 +414,12 @@ describe('executeRill', () => {
       expect(result.error?.category).toBe('parse');
       expect(result.error?.errorId).toBe('RILL-R079');
       // UXT-LOOP-1: core message prefix passed through verbatim; RillError appends ' at line:col'
-      expect(result.error?.message).toContain('Migration error: use `while (cond) do { body }`');
-      expect(result.error?.message).toMatch(/^Migration error: use `while \(cond\) do \{ body \}`/);
+      expect(result.error?.message).toContain(
+        'Migration error: use `while (cond) do { body }`'
+      );
+      expect(result.error?.message).toMatch(
+        /^Migration error: use `while \(cond\) do \{ body \}`/
+      );
     });
   });
 });

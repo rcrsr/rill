@@ -1,0 +1,56 @@
+# Pre-sets the native Issue Type so issues filed from the web UI land correctly
+# typed without scripts (gh CLI can set types since 2.94; forms also can).
+# Taxonomy: .github/labeler.yml header.
+name: Bug report
+description: A parse, evaluation, or output behaves wrongly or returns an incorrect value
+type: Bug
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: >-
+        What you observed vs. what you expected, the symptom, not a guess at the
+        cause or the fix. If it is about executing untrusted or machine-generated
+        scripts safely (sandbox scope, resolver access, resource halts), file it
+        as a Security issue instead. Security wins over Bug.
+      placeholder: Include the failing rill snippet, the actual result, and the expected result.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: A minimal rill script that triggers it, the rill version, and how you run it (fiddle, host embed, CLI).
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Supporting context
+      description: >-
+        Optional. Error IDs (RILL-*), stack traces, related issues (#N), and
+        pointers to relevant source. Do not propose a fix: the codebase changes
+        and a solution in the ticket ages.
+    validations:
+      required: false
+  - type: dropdown
+    id: areas
+    attributes:
+      label: Area(s)
+      description: >-
+        Where in the codebase the work lives, becomes the area:* labels at
+        triage (forms cannot apply per-answer labels).
+      multiple: true
+      options:
+        - lexer
+        - parser
+        - runtime
+        - types
+        - stdlib
+        - errors
+        - fiddle
+        - docs
+        - dx
+    validations:
+      required: true

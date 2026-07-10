@@ -3,7 +3,7 @@
   "version": "0.19.3",
   "description": "Scripting designed for machine-generated code",
   "private": true,
-  "packageManager": "pnpm@10.33.1+sha512.05ba3c1d5d1c18f68df06470d74055e62d41fc110a0c660db1b2dfb2785327f04cf0f68345d4609bc52089e7fa0343c31593b2f9594e2c5d5da426230acc9820",
+  "packageManager": "pnpm@11.11.0+sha512.4463f65fd80ed80d69bc1d4bf163ee94f605c7380fc318bb5b2ebe15f8cd12d49c51a4d59e951b401e764d3b6ca751cbf51bc50ed7001a6bcb4935e684c34882",
   "type": "module",
   "repository": {
     "type": "git",
@@ -22,15 +22,16 @@
     "build:dev": "pnpm -r --if-present run build:dev",
     "test": "pnpm -r run test",
     "test:watch": "vitest",
-    "typecheck": "pnpm -r run typecheck",
-    "lint": "pnpm -r run lint",
-    "lint:fix": "eslint --fix .",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "check": "pnpm -r run check",
-    "check:deps": "knip",
     "test:examples": "pnpm --filter @rcrsr/rill run test:examples",
-    "sync-versions": "bash scripts/sync-versions.sh",
-    "check-versions": "bash scripts/check-versions.sh"
+    "check": "pnpm -r run check",
+    "check:types": "pnpm -r run typecheck",
+    "check:lint": "pnpm -r run lint",
+    "check:format": "oxfmt --check",
+    "check:deps": "knip",
+    "check:versions": "bash scripts/check-versions.sh",
+    "fix:lint": "oxlint --fix",
+    "fix:format": "oxfmt",
+    "fix:versions": "bash scripts/sync-versions.sh"
   },
   "keywords": [
     "rill",
@@ -46,25 +47,16 @@
   "engines": {
     "node": ">=22.16.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "lefthook"
-    ]
-  },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
     "@rcrsr/rill": "workspace:*",
-    "@types/node": "^25.6.0",
-    "@typescript-eslint/eslint-plugin": "^8.59.0",
-    "@typescript-eslint/parser": "^8.59.0",
-    "eslint": "^10.2.1",
-    "globals": "^17.5.0",
-    "knip": "^6.6.1",
-    "lefthook": "^2.1.6",
-    "prettier": "^3.8.3",
-    "tsx": "^4.21.0",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.5",
-    "yaml": "^2.8.3"
+    "@types/node": "^26.1.1",
+    "knip": "^6.25.0",
+    "lefthook": "^2.1.10",
+    "oxfmt": "^0.58.0",
+    "oxlint": "^1.73.0",
+    "tsx": "^4.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10",
+    "yaml": "^2.9.0"
   }
 }

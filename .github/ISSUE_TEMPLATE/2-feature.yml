@@ -1,0 +1,54 @@
+# Pre-sets the native Issue Type. Decision rule vs Chore: "would a rill user
+# notice it in a release note?" Yes -> Feature. Taxonomy: .github/labeler.yml.
+name: Feature
+description: 'Net-new capability a rill user can see: a new operator, type, error mode, or fiddle capability'
+type: Feature
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: >-
+        What cannot be expressed or done today, and who hits it (script author,
+        host integrator, agent generating rill)? Show the script you wish you
+        could write.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: >-
+        What does done look like as an observable behavior, not the
+        implementation. Include the new syntax or API surface and how it fails
+        when misused (rill halts, no exceptions). Keep it scoped; link related
+        issues with #N.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Supporting context
+      description: >-
+        Optional. Prior art in other languages, related issues (#N), and
+        pointers to relevant source. What to look at, not the solution to build.
+    validations:
+      required: false
+  - type: dropdown
+    id: areas
+    attributes:
+      label: Area(s)
+      description: Where in the codebase, becomes the area:* labels at triage.
+      multiple: true
+      options:
+        - lexer
+        - parser
+        - runtime
+        - types
+        - stdlib
+        - errors
+        - fiddle
+        - docs
+        - dx
+    validations:
+      required: true

@@ -1,0 +1,57 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "typescript/no-explicit-any": "warn",
+    "typescript/explicit-function-return-type": "off",
+    "typescript/no-namespace": "error",
+    "typescript/no-this-alias": "error",
+    "typescript/ban-ts-comment": "error",
+    "typescript/prefer-as-const": "error",
+    "typescript/no-non-null-asserted-optional-chain": "error",
+    "typescript/no-empty-object-type": "error",
+    "typescript/no-require-imports": "error",
+    "typescript/no-unsafe-declaration-merging": "error",
+    "typescript/no-misused-new": "error",
+    "typescript/no-extra-non-null-assertion": "error",
+    "typescript/no-unnecessary-type-constraint": "error",
+    "typescript/prefer-namespace-keyword": "error",
+    "typescript/triple-slash-reference": "error",
+    "typescript/no-duplicate-enum-values": "error",
+    "typescript/no-unsafe-function-type": "error",
+    "typescript/no-wrapper-object-types": "error",
+    "typescript/no-array-constructor": "error"
+  },
+  "ignorePatterns": [
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/*.d.ts",
+    "**/generated/**"
+  ],
+  "jsPlugins": ["./lint-rules/oxlint-plugin.js"],
+  "overrides": [
+    {
+      "files": ["**/generated/introspection-data.ts"],
+      "rules": {
+        "no-useless-escape": "off"
+      }
+    },
+    {
+      "files": ["**/src/runtime/**/*.ts"],
+      "rules": {
+        "rill/no-duplicate-error-id": "error",
+        "rill/no-cross-mixin-any": "error"
+      }
+    },
+    {
+      "files": ["**/lint-rules/**/*.cjs"],
+      "rules": {
+        "typescript/no-require-imports": "off"
+      }
+    }
+  ]
+}

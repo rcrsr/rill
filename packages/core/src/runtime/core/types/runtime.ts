@@ -19,8 +19,6 @@ export type { NativeArray, NativePlainObject, NativeValue } from '../values.js';
  */
 export type InvalidMeta = InvalidateMeta;
 
-export type { InvalidateMeta } from './status.js';
-
 /** I/O callbacks for runtime operations */
 export interface RuntimeCallbacks {
   /** Called when .log is invoked */

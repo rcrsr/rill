@@ -1,0 +1,59 @@
+# Pre-sets the native Issue Type. Security WINS over Bug/Feature/Chore when the
+# issue is fundamentally about executing machine-generated or untrusted scripts
+# safely: sandbox escapes, resolver (`use<>`) access scope, host API surface
+# hardening, resource-exhaustion halts. `type:Security` is the org-wide
+# hardening sweep query. rill executes LLM-generated scripts, so this is a
+# first-class concern.
+name: Security
+description: Sandbox scope, resolver access, host API surface, resource exhaustion
+type: Security
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        **Do not post working exploit payloads against a live host embed.**
+        Describe the class of issue and a minimal reproduction. If this is a
+        disclosed vulnerability in a published `@rcrsr/rill` release, prefer
+        private disclosure over a public issue.
+  - type: textarea
+    id: concern
+    attributes:
+      label: The concern
+      description: What a script or resolver can reach that it should not, and the execution path involved.
+    validations:
+      required: true
+  - type: textarea
+    id: surface
+    attributes:
+      label: Threat surface
+      description: Which boundary is at stake (host-provided function surface, `use<scheme:resource>` resolver, resource/time limits, parser input handling)?
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Supporting context
+      description: >-
+        Optional. Related issues (#N) and pointers to the execution path /
+        relevant source. What to look at. Do not post the fix here: the codebase
+        changes and a solution in the ticket ages.
+    validations:
+      required: false
+  - type: dropdown
+    id: areas
+    attributes:
+      label: Area(s)
+      description: Where in the codebase, becomes the area:* labels at triage.
+      multiple: true
+      options:
+        - lexer
+        - parser
+        - runtime
+        - types
+        - stdlib
+        - errors
+        - fiddle
+        - docs
+        - dx
+    validations:
+      required: true

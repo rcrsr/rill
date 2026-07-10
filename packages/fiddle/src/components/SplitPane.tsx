@@ -11,10 +11,7 @@
 
 import type React from 'react';
 import { type JSX, useEffect, useRef, useState } from 'react';
-import {
-  MIN_PANEL_SIZE,
-  DEFAULT_BREAKPOINT,
-} from '../lib/constants.js';
+import { MIN_PANEL_SIZE, DEFAULT_BREAKPOINT } from '../lib/constants.js';
 
 // ============================================================
 // TYPE DEFINITIONS

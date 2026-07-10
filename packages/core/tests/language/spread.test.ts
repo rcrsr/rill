@@ -133,9 +133,9 @@ describe('Rill Runtime: Collection Operators', () => {
 
     describe('Error cases', () => {
       it('throws on undefined predicate variable', async () => {
-        await expect(run('list[1, 2, 3] -> filter($undefined)')).rejects.toThrow(
-          /Undefined variable/
-        );
+        await expect(
+          run('list[1, 2, 3] -> filter($undefined)')
+        ).rejects.toThrow(/Undefined variable/);
       });
     });
   });

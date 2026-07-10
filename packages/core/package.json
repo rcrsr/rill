@@ -32,10 +32,11 @@
     "test": "vitest run",
     "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --config ../../eslint.config.js src/",
-    "lint:self-test": "node ../../eslint-rules/lint-glob-self-test.cjs",
+    "lint": "oxlint --config ../../.oxlintrc.json src/",
+    "lint:self-test": "node ../../lint-rules/lint-glob-self-test.cjs",
+    "test:rules": "node ../../lint-rules/rule-unit-test.cjs",
     "docs:errors": "tsx scripts/generate-error-docs.ts",
-    "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run lint:self-test && pnpm run lint"
+    "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run test:rules && pnpm run lint:self-test && pnpm run lint"
   },
   "repository": {
     "type": "git",

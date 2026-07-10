@@ -5,7 +5,7 @@
   "workspaces": {
     ".": {
       "entry": ["scripts/*.{ts,mjs,js,sh}"],
-      "project": ["scripts/**/*.{ts,mjs,js}", "eslint-rules/**/*.{js,cjs,ts}"],
+      "project": ["scripts/**/*.{ts,mjs,js}", "lint-rules/**/*.{js,cjs,ts}"],
       "vitest": ["vitest.config.ts"]
     },
     "packages/core": {

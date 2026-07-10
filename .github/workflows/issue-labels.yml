@@ -1,0 +1,133 @@
+name: Issue taxonomy
+
+# Enforces the issue taxonomy documented in .github/labeler.yml's header: every
+# OPEN issue must carry at least one `area:*` label (WHERE in the monorepo) and
+# exactly one native Issue Type (WHAT kind of work: Bug, Feature, Chore,
+# Security, Idea; org-level GitHub Issue Types, not labels). Missing either, the
+# issue gets `needs-triage` and a one-time guidance comment. Once both axes are
+# present, `needs-triage` is removed automatically. Priority (the org-level
+# Priority Issue Field) is deliberately NOT enforced: it is a triage decision,
+# set when an issue is prioritised, not a precondition for filing. The
+# `needs-triage` label is enforcer-managed only; never hand-apply it.
+#
+# Why type is a native Issue Type, not a label: Issue Types are org-wide,
+# single-select (one per issue, enforced by GitHub), and groupable in Projects
+# board views, exactly what a "what kind" axis wants. `area:*` stays a label
+# because it is path-derivable (auto-applied to PRs by the labeler) and types
+# are issues-only.
+#
+# Deliberately advisory, not blocking. It labels and nudges rather than failing
+# a check, because issue triage is a human decision and a red X on an issue
+# helps no one. The PR gate that matters is CI (.github/workflows/ci.yml).
+#
+# Self-contained: uses only the first-party actions/github-script (no external
+# labeler action to pin or audit).
+
+on:
+  issues:
+    # opened/reopened: comment if under-labeled. labeled/unlabeled and
+    # typed/untyped: silently re-sync `needs-triage` as the maintainer adds or
+    # removes an area label or sets/clears the issue type. `edited` is
+    # deliberately absent: title/body edits cannot change taxonomy compliance.
+    types: [opened, reopened, labeled, unlabeled, typed, untyped]
+
+# Least privilege: only the Issues API (labels + one comment). No `contents`
+# scope; this workflow never checks out or reads repository code.
+permissions:
+  issues: write
+
+concurrency:
+  # Serialize per-issue so the label add/remove this job performs (which itself
+  # re-triggers the workflow via labeled/unlabeled) cannot race its own re-run.
+  group: issue-labels-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const TRIAGE = 'needs-triage';
+            // Hidden marker so we comment at most once per issue (idempotent
+            // across the many labeled/unlabeled re-runs this job generates).
+            const MARKER = '<!-- label-enforcer -->';
+
+            const issue = context.payload.issue;
+            const { owner, repo } = context.repo;
+            const number = issue.number;
+
+            // Closed issues are out of scope: label deletions fire `unlabeled`
+            // on closed issues too, and flagging a closed issue helps no one.
+            if (issue.state === 'closed') return;
+
+            // Area is a label (path-derivable, multi-valued). The prefix check
+            // means the optional `on-hold` label can never satisfy the area
+            // requirement, by design.
+            const names = (issue.labels || []).map(l => l.name);
+            const hasArea = names.some(n => n.startsWith('area:'));
+
+            // Type is a native org-level Issue Type, not a label. The webhook
+            // payload usually carries it; fall back to a GraphQL read so we are
+            // correct even when it does not (e.g. a labeled event that fires
+            // before the type is set).
+            let typeName = issue.type?.name ?? null;
+            if (typeName === null) {
+              const res = await github.graphql(
+                `query($owner:String!,$repo:String!,$n:Int!){
+                   repository(owner:$owner,name:$repo){ issue(number:$n){ issueType{ name } } } }`,
+                { owner, repo, n: number,
+                  headers: { 'GraphQL-Features': 'issue_types' } },
+              );
+              typeName = res.repository.issue.issueType?.name ?? null;
+            }
+            const hasType = typeName !== null;
+            const ok = hasArea && hasType;
+            const hasTriage = names.includes(TRIAGE);
+
+            if (ok) {
+              // Fully triaged: drop the flag if present, say nothing.
+              if (hasTriage) {
+                await github.rest.issues.removeLabel({
+                  owner, repo, issue_number: number, name: TRIAGE,
+                }).catch(() => {}); // tolerate concurrent removal
+              }
+              return;
+            }
+
+            // Not conformant: ensure the flag is on.
+            if (!hasTriage) {
+              await github.rest.issues.addLabels({
+                owner, repo, issue_number: number, labels: [TRIAGE],
+              });
+            }
+
+            // Comment only on the human-facing events, and only once ever.
+            if (!['opened', 'reopened'].includes(context.payload.action)) return;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: number, per_page: 100,
+            });
+            if (comments.some(c => c.body.includes(MARKER))) return;
+
+            // One bullet per distinct problem: missing area, or missing type.
+            const problems = [
+              !hasArea && 'Add an **`area:*`** label (where in the codebase: `area:lexer`, `area:parser`, `area:runtime`, `area:types`, `area:stdlib`, `area:errors`, `area:fiddle`, `area:docs`, `area:dx`). Pick the one primary area; add a second only when genuinely co-owned.',
+              !hasType && 'Set the **Issue Type** (the *Type* field in the sidebar) to one of **Bug . Feature . Chore . Security . Idea** -- Feature = net-new capability a rill user can see, Chore = robustness/debt/perf on existing machinery, Idea = captured but not yet shaped (promote by changing the Type). `Security` wins over `Bug`/`Feature`/`Chore` when the issue is fundamentally about executing machine-generated or untrusted scripts safely.',
+            ].filter(Boolean);
+
+            const body = [
+              MARKER,
+              "Thanks for the issue! Its metadata needs a quick fix so it is filterable in the tracker:",
+              '',
+              ...problems.map(p => `- ${p}`),
+              '',
+              'The rule: **>=1 `area:` label** + **exactly one native Issue Type**. `needs-triage` clears automatically once that holds. _(Priority is optional; set it when you triage.)_',
+              '',
+              `Full guidance: [\`.github/labeler.yml\`](https://github.com/${owner}/${repo}/blob/main/.github/labeler.yml) (the one-stop taxonomy doc).`,
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              owner, repo, issue_number: number, body,
+            });
