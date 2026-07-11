@@ -8,6 +8,17 @@ DOCS_DIR="$(cd "$(dirname "$0")/../../../docs" && pwd)"
 CONTENT_DIR="$(cd "$(dirname "$0")/.." && pwd)/content/docs"
 WEB_STATIC="$(cd "$(dirname "$0")/.." && pwd)/static"
 
+# Portable in-place sed: GNU sed accepts `-i` without a suffix, BSD/macOS sed
+# does not (it consumes the script as the suffix and parses the file path as
+# the script). Write to a temp file and move it over instead.
+# Sed scripts built below join commands with newlines, not `;` — BSD sed
+# truncates each script line at 4 KiB, and the link-rewrite scripts exceed it.
+sed_inplace() {
+  local script="$1" file="$2"
+  sed "$script" "$file" > "$file.tmp"
+  mv "$file.tmp" "$file"
+}
+
 # Wipe and recreate content/docs/ from scratch
 rm -rf "$CONTENT_DIR"
 mkdir -p "$CONTENT_DIR"
@@ -159,10 +170,10 @@ BEOF
   for link_src in "${!LINK_MAP[@]}"; do
     link_target="${LINK_MAP[$link_src]}"
     escaped_src="${link_src//./\\.}"
-    sed_script+="s|(${escaped_src})|(${link_target})|g;"
-    sed_script+="s|(${escaped_src}#|(${link_target}#|g;"
+    sed_script+="s|(${escaped_src})|(${link_target})|g"$'\n'
+    sed_script+="s|(${escaped_src}#|(${link_target}#|g"$'\n'
   done
-  sed -i "$sed_script" "$ext_index"
+  sed_inplace "$sed_script" "$ext_index"
   echo "  bundled-extensions → extensions/_index.md (promoted)"
 fi
 
@@ -176,10 +187,10 @@ if [[ -f "$make_src" ]]; then
   for link_src in "${!LINK_MAP[@]}"; do
     link_target="${LINK_MAP[$link_src]}"
     escaped_src="${link_src//./\\.}"
-    sed_script+="s|(${escaped_src})|(https://rill.run${link_target})|g;"
-    sed_script+="s|(${escaped_src}#|(https://rill.run${link_target}#|g;"
+    sed_script+="s|(${escaped_src})|(https://rill.run${link_target})|g"$'\n'
+    sed_script+="s|(${escaped_src}#|(https://rill.run${link_target}#|g"$'\n'
   done
-  sed -i "$sed_script" "$make_dir/index.html"
+  sed_inplace "$sed_script" "$make_dir/index.html"
   echo "  guide-make → /make (plain text)"
 fi
 
@@ -226,10 +237,10 @@ process_file() {
   for link_src in "${!LINK_MAP[@]}"; do
     local link_target="${LINK_MAP[$link_src]}"
     local escaped_src="${link_src//./\\.}"
-    sed_script+="s|(${escaped_src})|(${link_target})|g;"
-    sed_script+="s|(${escaped_src}#|(${link_target}#|g;"
+    sed_script+="s|(${escaped_src})|(${link_target})|g"$'\n'
+    sed_script+="s|(${escaped_src}#|(${link_target}#|g"$'\n'
   done
-  sed -i "$sed_script" "$target_file"
+  sed_inplace "$sed_script" "$target_file"
 
   echo "  $basename → $target_path"
 }
