@@ -13,8 +13,9 @@ rill is a scripting language designed for machine-generated code. LLMs author ri
 | [rcrsr/rill](https://github.com/rcrsr/rill) | `@rcrsr/rill` | Core runtime, parser, type system, embedding API |
 | [rcrsr/rill-cli](https://github.com/rcrsr/rill-cli) | `@rcrsr/rill-cli` | Command-line tools: `rill-exec`, `rill-eval`, `rill-check`, `rill-run` |
 | [rcrsr/rill-ext](https://github.com/rcrsr/rill-ext) | `@rcrsr/rill-ext-*` | Extension packages: fs, fetch, exec, kv, crypto, LLM providers, vector DBs, MCP |
-| [rcrsr/rill-agent](https://github.com/rcrsr/rill-agent) | `@rcrsr/rill-agent-*` | Agent framework, scaffolder (`rill-agent-bundle init`), runtime harness, proxy |
+| [rcrsr/rill-agent](https://github.com/rcrsr/rill-agent) | `@rcrsr/rill-agent`, `rill-agent-ext-ahi`, `rill-agent-http`, `rill-agent-foundry` | Manifest loader, agent router, HTTP harness, Azure Foundry harness |
 | [rcrsr/rill-config](https://github.com/rcrsr/rill-config) | `@rcrsr/rill-config` | `rill-config.json` schema and TypeScript config API |
+| [rcrsr/rill-make](https://github.com/rcrsr/rill-make) | (Claude Code plugin) | Author a rill package from a single prompt |
 
 ## Pick your task
 
@@ -65,8 +66,9 @@ You are authoring a package that exposes new capabilities (network, filesystem, 
 You are scaffolding an agent that combines a rill script, extensions, and a runtime harness.
 
 1. [docs/guide-make.md](docs/guide-make.md) — the 4-phase build workflow with mandatory user-approval gates.
-2. [rcrsr/rill-agent](https://github.com/rcrsr/rill-agent) — bundle, scaffolder, proxy, runtime harness.
-3. Scaffold command: `npx @rcrsr/rill-agent-bundle init <name> --extensions <list>`. Never hand-write `package.json`, `host.ts`, or `run.ts`.
+2. [rcrsr/rill-cli](https://github.com/rcrsr/rill-cli) — `rill init` scaffolds a single-package project; `rill init bundle [name]` scaffolds a multi-package bundle (`rill-bundle.json`); `rill init package <name>` adds a package to a bundle. Use `rill install <pkg>` to mount extensions.
+3. [rcrsr/rill-agent](https://github.com/rcrsr/rill-agent) — runtime: `@rcrsr/rill-agent` loads manifests and builds the router; `rill-agent-http` serves the router over HTTP; `rill-agent-foundry` serves via Azure Foundry; `rill-agent-ext-ahi` provides agent-to-agent invocation.
+4. [rcrsr/rill-make](https://github.com/rcrsr/rill-make) — Claude Code plugin that authors a rill package end-to-end from a single prompt. Use this instead of hand-writing package contents.
 
 ## Direct-link reference (versioned with `@rcrsr/rill`)
 
