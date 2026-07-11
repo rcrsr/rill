@@ -37,8 +37,14 @@ declare module './parser.js' {
       accessChain: PropertyAccess[];
       existenceCheck: ExistenceCheck | null;
     };
-    parseFieldAccessElement(isExistenceCheck?: boolean): FieldAccess | null;
-    parseComputedOrAlternatives(isExistenceCheck?: boolean): FieldAccess;
+    parseFieldAccessElement(
+      isExistenceCheck: boolean | undefined,
+      dotStart: SourceLocation
+    ): FieldAccess | null;
+    parseComputedOrAlternatives(
+      isExistenceCheck: boolean | undefined,
+      dotStart: SourceLocation
+    ): FieldAccess;
     tryParseAlternatives(): string[] | null;
     parseDefaultValue(): BodyNode;
   }
@@ -152,8 +158,11 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
     }
 
     if (check(this.state, TOKEN_TYPES.DOT_QUESTION)) {
-      advance(this.state);
-      const finalAccess = this.parseFieldAccessElement(true);
+      const dotToken = advance(this.state);
+      const finalAccess = this.parseFieldAccessElement(
+        true,
+        dotToken.span.start
+      );
       if (!finalAccess) {
         break;
       }
@@ -168,9 +177,9 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
       break;
     }
 
-    advance(this.state);
+    const dotToken = advance(this.state);
 
-    const access = this.parseFieldAccessElement();
+    const access = this.parseFieldAccessElement(false, dotToken.span.start);
     if (!access) {
       break;
     }
@@ -185,7 +194,8 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
 
 Parser.prototype.parseFieldAccessElement = function (
   this: Parser,
-  isExistenceCheck = false
+  isExistenceCheck: boolean | undefined,
+  dotStart: SourceLocation
 ): FieldAccess | null {
   // Handle .$variable (variable key access)
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
@@ -194,13 +204,21 @@ Parser.prototype.parseFieldAccessElement = function (
       ? 'Expected variable name after .?$'
       : 'Expected variable name after .$';
     const nameToken = expect(this.state, TOKEN_TYPES.IDENTIFIER, errorMsg);
-    return { kind: 'variable', variableName: nameToken.value };
+    return {
+      kind: 'variable',
+      variableName: nameToken.value,
+      span: makeSpan(dotStart, nameToken.span.end),
+    };
   }
 
   // Handle .$ (pipe variable as key)
   if (check(this.state, TOKEN_TYPES.PIPE_VAR)) {
-    advance(this.state);
-    return { kind: 'variable', variableName: null };
+    const pipeVarToken = advance(this.state);
+    return {
+      kind: 'variable',
+      variableName: null,
+      span: makeSpan(dotStart, pipeVarToken.span.end),
+    };
   }
 
   if (check(this.state, TOKEN_TYPES.CARET)) {
@@ -214,7 +232,7 @@ Parser.prototype.parseFieldAccessElement = function (
   }
 
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
-    return this.parseComputedOrAlternatives(isExistenceCheck);
+    return this.parseComputedOrAlternatives(isExistenceCheck, dotStart);
   }
 
   if (check(this.state, TOKEN_TYPES.LBRACE)) {
@@ -223,7 +241,12 @@ Parser.prototype.parseFieldAccessElement = function (
   }
 
   if (check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
-    return { kind: 'literal', field: advance(this.state).value };
+    const fieldToken = advance(this.state);
+    return {
+      kind: 'literal',
+      field: fieldToken.value,
+      span: makeSpan(dotStart, fieldToken.span.end),
+    };
   }
 
   return null;
@@ -231,7 +254,8 @@ Parser.prototype.parseFieldAccessElement = function (
 
 Parser.prototype.parseComputedOrAlternatives = function (
   this: Parser,
-  isExistenceCheck = false
+  isExistenceCheck: boolean | undefined,
+  dotStart: SourceLocation
 ): FieldAccess {
   advance(this.state);
 
@@ -250,13 +274,17 @@ Parser.prototype.parseComputedOrAlternatives = function (
   }
 
   const expression = this.parsePipeChain();
-  expect(
+  const closeParen = expect(
     this.state,
     TOKEN_TYPES.RPAREN,
     'Expected ) after expression',
     ERROR_IDS.RILL_P005
   );
-  return { kind: 'computed', expression };
+  return {
+    kind: 'computed',
+    expression,
+    span: makeSpan(dotStart, closeParen.span.end),
+  };
 };
 
 Parser.prototype.tryParseAlternatives = function (

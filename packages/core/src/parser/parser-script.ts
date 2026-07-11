@@ -7,14 +7,16 @@ import { Parser } from './parser.js';
 import type {
   AnnotatedStatementNode,
   AnnotationArg,
+  ExpressionNode,
   RecoveryErrorNode,
   FrontmatterNode,
   NamedArgNode,
+  PartialExpressionNode,
   ScriptNode,
   SpreadArgNode,
   StatementNode,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES } from '../types.js';
+import { ParseError, TOKEN_TYPES, isPipeChainNode } from '../types.js';
 import { LexerError } from '../lexer/index.js';
 import {
   check,
@@ -28,6 +30,33 @@ import {
 import { ERROR_IDS } from '../error-registry.js';
 
 const RESERVED_ANNOTATION_KEYS: readonly string[] = ['type', 'input', 'output'];
+
+// Tokens that open a nested construct tracked by recoverToNextStatement's
+// type-matched resync. Angle-bracket forms (destruct<, slice<, use<, retry<,
+// do<, pass<, timeout<) are out of scope for v1 and are treated as ordinary
+// tokens during resync.
+//
+// Maps each opening token to the closing token type it expects. Resync
+// pushes the expected closer onto a stack on each opening token and pops it
+// only when a closer matching the stack top is seen; a closer that doesn't
+// match the top is skipped without popping, so a mismatched bracket cannot
+// prematurely close the enclosing construct.
+const RECOVERY_OPENER_TO_CLOSER: ReadonlyMap<string, string> = new Map([
+  [TOKEN_TYPES.LPAREN, TOKEN_TYPES.RPAREN],
+  [TOKEN_TYPES.LBRACE, TOKEN_TYPES.RBRACE],
+  [TOKEN_TYPES.GUARD_LBRACE, TOKEN_TYPES.RBRACE],
+  [TOKEN_TYPES.LBRACKET, TOKEN_TYPES.RBRACKET],
+  [TOKEN_TYPES.LIST_LBRACKET, TOKEN_TYPES.RBRACKET],
+  [TOKEN_TYPES.DICT_LBRACKET, TOKEN_TYPES.RBRACKET],
+  [TOKEN_TYPES.TUPLE_LBRACKET, TOKEN_TYPES.RBRACKET],
+  [TOKEN_TYPES.ORDERED_LBRACKET, TOKEN_TYPES.RBRACKET],
+]);
+
+const RECOVERY_CLOSING_TOKENS: ReadonlySet<string> = new Set([
+  TOKEN_TYPES.RPAREN,
+  TOKEN_TYPES.RBRACE,
+  TOKEN_TYPES.RBRACKET,
+]);
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -56,7 +85,32 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
   // Optional frontmatter
   let frontmatter: FrontmatterNode | null = null;
   if (check(this.state, TOKEN_TYPES.FRONTMATTER_DELIM)) {
-    frontmatter = this.parseFrontmatter();
+    if (this.state.recoveryMode) {
+      // Recovery mode: catch errors from unclosed frontmatter and continue
+      // with a null frontmatter rather than throwing. The frontmatter scan
+      // already consumes to EOF on an unclosed `---`, so no resync is needed.
+      try {
+        frontmatter = this.parseFrontmatter();
+      } catch (err) {
+        if (err instanceof ParseError || err instanceof LexerError) {
+          const parseError =
+            err instanceof ParseError
+              ? err
+              : new ParseError(
+                  ERROR_IDS.RILL_P001,
+                  err.message.replace(/ at \d+:\d+$/, ''),
+                  err.location
+                );
+          this.state.errors.push(parseError);
+          frontmatter = null;
+        } else {
+          throw err; // Re-throw non-parse errors
+        }
+      }
+    } else {
+      // Normal mode: let errors propagate
+      frontmatter = this.parseFrontmatter();
+    }
   }
   skipNewlines(this.state);
 
@@ -65,6 +119,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
     | StatementNode
     | AnnotatedStatementNode
     | RecoveryErrorNode
+    | PartialExpressionNode
   )[] = [];
   while (!isAtEnd(this.state)) {
     skipNewlines(this.state);
@@ -73,6 +128,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
     if (this.state.recoveryMode) {
       // Recovery mode: catch errors and create RecoveryErrorNode
       const stmtStart = current(this.state).span.start;
+      const posBeforeError = this.state.pos;
       try {
         statements.push(this.parseStatement());
       } catch (err) {
@@ -83,7 +139,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
               ? err
               : new ParseError(
                   ERROR_IDS.RILL_P001,
-                  err.message.replace(/ at line \d+, column \d+$/, ''),
+                  err.message.replace(/ at \d+:\d+$/, ''),
                   err.location
                 );
           this.state.errors.push(parseError);
@@ -92,7 +148,16 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
             stmtStart,
             parseError.message
           );
-          statements.push(errorNode);
+          const boundaryPos = this.state.pos;
+          // Attempt to salvage typed sub-expressions from the skipped span
+          // before falling back to the opaque RecoveryErrorNode.
+          const partialNode = trySalvagePartialExpression(
+            this,
+            posBeforeError,
+            boundaryPos,
+            parseError.message
+          );
+          statements.push(partialNode ?? errorNode);
         } else {
           throw err; // Re-throw non-parse errors
         }
@@ -117,25 +182,129 @@ Parser.prototype.recoverToNextStatement = function (
   startLocation: { line: number; column: number; offset: number },
   message: string
 ): RecoveryErrorNode {
-  const startOffset = startLocation.offset;
-  let endOffset = startOffset;
+  // Type-matched resync: at an empty stack, a NEWLINE remains the statement
+  // boundary. Inside an open {}/()/[] construct, NEWLINE is skipped so
+  // recovery advances to the matching closing token instead of stopping
+  // at the first interior newline. Bounded by EOF: a construct left
+  // unclosed at EOF resyncs there (the loop simply runs out of tokens).
+  //
+  // A stack of expected closer token types replaces the old shared depth
+  // counter: each opening token pushes the closer type it expects, and only
+  // a closer matching the stack top pops it. A closer that doesn't match
+  // the top is skipped without popping, so e.g. an interior `]` inside an
+  // unmatched `(` cannot prematurely close the outer paren.
+  const expectedClosers: string[] = [];
 
-  // Skip tokens until we hit a newline or EOF (statement boundary)
-  while (!isAtEnd(this.state) && !check(this.state, TOKEN_TYPES.NEWLINE)) {
-    endOffset = current(this.state).span.end.offset;
+  while (!isAtEnd(this.state)) {
+    if (expectedClosers.length === 0 && check(this.state, TOKEN_TYPES.NEWLINE))
+      break;
+
+    const tokenType = current(this.state).type;
+    const expectedCloser = RECOVERY_OPENER_TO_CLOSER.get(tokenType);
+    const isClosing = RECOVERY_CLOSING_TOKENS.has(tokenType);
+    const matchesTop =
+      isClosing &&
+      expectedClosers.length > 0 &&
+      expectedClosers[expectedClosers.length - 1] === tokenType;
+
+    if (expectedCloser !== undefined) {
+      expectedClosers.push(expectedCloser);
+    } else if (matchesTop) {
+      expectedClosers.pop();
+    }
+    // A closer that doesn't match the stack top is skipped without popping.
+
     advance(this.state);
+
+    // Stop once a matching closer has emptied the stack.
+    if (matchesTop && expectedClosers.length === 0) break;
   }
 
-  // Extract the skipped text from source
-  const text = this.state.source.slice(startOffset, endOffset);
+  // The boundary is the start of the token the scan stopped on (the
+  // statement-ending NEWLINE, or EOF), not the end of the last consumed
+  // token. This preserves inter-token whitespace skipped by the lexer
+  // between the last consumed token and the boundary, while still
+  // excluding the boundary token itself. `current()` always returns a
+  // valid token (the EOF token at end of input), so no separate EOF
+  // fallback is needed.
+  const boundaryStart = current(this.state).span.start;
+
+  // `text` is derived from the same offset used for `span`'s end so the
+  // two always agree: source.slice(span.start.offset, span.end.offset) === text.
+  const text = this.state.source.slice(
+    startLocation.offset,
+    boundaryStart.offset
+  );
 
   return {
     type: 'RecoveryError',
     message,
     text,
-    span: makeSpan(startLocation, current(this.state).span.start),
+    span: makeSpan(startLocation, boundaryStart),
   };
 };
+
+/**
+ * Attempt to salvage typed sub-expressions from the span skipped by
+ * recovery. Re-parses expressions starting at `fromPos`, snapshotting and
+ * restoring parser state so the attempt never disturbs the resync boundary
+ * already established by recoverToNextStatement. Returns null when no
+ * typed child could be parsed, in which case the caller falls back to the
+ * opaque RecoveryErrorNode.
+ */
+function trySalvagePartialExpression(
+  parser: Parser,
+  fromPos: number,
+  boundaryPos: number,
+  message: string
+): PartialExpressionNode | null {
+  if (boundaryPos <= fromPos) return null;
+
+  const state = parser.state;
+  const errorsBefore = state.errors.length;
+  // The progress guard below (state.pos <= before) is what actually bounds
+  // this loop; MAX_CHILDREN is only a defensive ceiling against pathological
+  // inputs that keep advancing pos without ever reaching boundaryPos.
+  const MAX_CHILDREN = 16;
+  const children: ExpressionNode[] = [];
+
+  state.pos = fromPos;
+  while (state.pos < boundaryPos && children.length < MAX_CHILDREN) {
+    const before = state.pos;
+    let child: ExpressionNode;
+    try {
+      child = parser.parseExpression();
+    } catch {
+      break;
+    }
+    if (state.pos <= before || state.pos > boundaryPos) {
+      // No progress, or the salvage attempt overshot the resync boundary:
+      // discard and stop rather than risk desynchronizing from the
+      // boundary recoverToNextStatement already established.
+      break;
+    }
+    children.push(child);
+  }
+
+  // Discard any parse errors recorded during the salvage attempt; only the
+  // original error (already pushed by the caller) should surface.
+  state.errors.length = errorsBefore;
+  // Always resync to the boundary recoverToNextStatement established,
+  // regardless of how far the salvage attempt progressed.
+  state.pos = boundaryPos;
+
+  if (children.length === 0) return null;
+
+  return {
+    type: 'PartialExpression',
+    message,
+    children,
+    span: makeSpan(
+      children[0]!.span.start,
+      children[children.length - 1]!.span.end
+    ),
+  };
+}
 
 // ============================================================
 // FRONTMATTER PARSING
@@ -236,7 +405,17 @@ Parser.prototype.parseStatement = function (
     };
   }
 
+  // parseExpression() itself only ever produces PipeChainNode on a
+  // successful parse; PartialExpressionNode is only emitted by the
+  // statement-level recovery salvage in parseScript(), never from here.
   const expression = this.parseExpression();
+  if (!isPipeChainNode(expression)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      'Parse error: expected a complete expression in statement',
+      start
+    );
+  }
 
   return {
     type: 'Statement',

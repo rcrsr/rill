@@ -63,3 +63,12 @@ export const KEYWORDS: Record<string, TokenType> = {
   while: TOKEN_TYPES.WHILE,
   do: TOKEN_TYPES.DO,
 };
+
+/**
+ * Read-only view of the reserved keyword names.
+ * Derived from the keys of the internal {@link KEYWORDS} record and frozen at
+ * module load so consumers cannot mutate it at runtime.
+ */
+export const KEYWORD_NAMES: readonly string[] = Object.freeze(
+  Object.keys(KEYWORDS)
+);

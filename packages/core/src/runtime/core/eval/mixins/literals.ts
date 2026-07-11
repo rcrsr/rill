@@ -32,7 +32,6 @@ import type {
   DictNode,
   ClosureNode,
   BlockNode,
-  PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
   BodyNode,
@@ -46,6 +45,7 @@ import type {
   PassBlockNode,
   TypeRef,
 } from '../../../../types.js';
+import { isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
 import { deepEquals, formatValue } from '../../types/registrations.js';
 import { isTypeValue, isVector } from '../../types/guards.js';
@@ -58,6 +58,7 @@ import {
 } from '../../callable.js';
 import {
   throwCatchableHostHalt,
+  throwFatalHostHalt,
   throwTypeHalt,
   RuntimeHaltSignal,
 } from '../../types/halt.js';
@@ -153,6 +154,32 @@ async function evaluateAnnotations(
   }
 
   return result;
+}
+
+/**
+ * Narrows a dict-entry value expression to its PipeChainNode head.
+ *
+ * Bare-closure and bare-block dict entries are parsed inline while building
+ * a live dict literal (never via the statement-level recovery path), so
+ * `expr` only ever holds a PipeChainNode here; PartialExpressionNode is
+ * reserved for parser error recovery. The check below is a defensive
+ * narrowing that is unreachable in normal execution.
+ *
+ * @internal
+ */
+function requirePipeChainHead(
+  expr: ExpressionNode,
+  ctx: RuntimeContext,
+  fn: string
+): PostfixExprNode {
+  if (!isPipeChainNode(expr)) {
+    throwFatalHostHalt(
+      { sourceId: ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Expected a PipeChain node with PostfixExpr head'
+    );
+  }
+  return expr.head as PostfixExprNode;
 }
 
 /**
@@ -445,11 +472,19 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate value once
       let evaluatedValue: RillValue;
       if (this.isBlockExpr(value)) {
-        const head = value.head as PostfixExprNode;
+        const head = requirePipeChainHead(
+          value,
+          this.ctx,
+          'evaluateDictMultiKeyFromList'
+        );
         const blockNode = head.primary as BlockNode;
         evaluatedValue = this.createBlockClosure(blockNode);
       } else if (this.isClosureExpr(value)) {
-        const head = value.head as PostfixExprNode;
+        const head = requirePipeChainHead(
+          value,
+          this.ctx,
+          'evaluateDictMultiKeyFromList'
+        );
         const fnLit = head.primary as ClosureNode;
         evaluatedValue = await this.createClosure(fnLit);
       } else {
@@ -538,12 +573,20 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
               // Evaluate value and store with resolved key
               if (this.isBlockExpr(entry.value)) {
-                const head = entry.value.head as PostfixExprNode;
+                const head = requirePipeChainHead(
+                  entry.value,
+                  this.ctx,
+                  'evaluateDict'
+                );
                 const blockNode = head.primary as BlockNode;
                 const closure = this.createBlockClosure(blockNode);
                 result[stringKey] = closure;
               } else if (this.isClosureExpr(entry.value)) {
-                const head = entry.value.head as PostfixExprNode;
+                const head = requirePipeChainHead(
+                  entry.value,
+                  this.ctx,
+                  'evaluateDict'
+                );
                 const fnLit = head.primary as ClosureNode;
                 const closure = await this.createClosure(fnLit);
                 result[stringKey] = closure;
@@ -558,6 +601,21 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
             // Handle DictKeyComputed: evaluate expression and validate string type
             if (keyObj.kind === 'computed') {
+              // Computed dict keys are parsed inline while building a live
+              // dict literal (never via the statement-level recovery
+              // path), so they only ever hold PipeChainNode;
+              // PartialExpressionNode is reserved for parser error recovery.
+              if (!isPipeChainNode(keyObj.expression)) {
+                throwFatalHostHalt(
+                  {
+                    location: entry.span.start,
+                    sourceId: this.ctx.sourceId,
+                    fn: 'evaluateDict',
+                  },
+                  ERROR_ATOMS[ERROR_IDS.RILL_R002],
+                  'Computed dict key expression must be a pipe chain'
+                );
+              }
               const computedValue = await (
                 this as unknown as EvaluatorInterface
               ).evaluatePipeChain(keyObj.expression);
@@ -596,12 +654,20 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
               // Evaluate value and store with resolved key
               if (this.isBlockExpr(entry.value)) {
-                const head = entry.value.head as PostfixExprNode;
+                const head = requirePipeChainHead(
+                  entry.value,
+                  this.ctx,
+                  'evaluateDict'
+                );
                 const blockNode = head.primary as BlockNode;
                 const closure = this.createBlockClosure(blockNode);
                 result[stringKey] = closure;
               } else if (this.isClosureExpr(entry.value)) {
-                const head = entry.value.head as PostfixExprNode;
+                const head = requirePipeChainHead(
+                  entry.value,
+                  this.ctx,
+                  'evaluateDict'
+                );
                 const fnLit = head.primary as ClosureNode;
                 const closure = await this.createClosure(fnLit);
                 result[stringKey] = closure;
@@ -661,14 +727,20 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         if (this.isBlockExpr(entry.value)) {
-          // Safe cast: isBlockExpr ensures head is PostfixExpr with Block primary
-          const head = entry.value.head as PostfixExprNode;
+          const head = requirePipeChainHead(
+            entry.value,
+            this.ctx,
+            'evaluateDict'
+          );
           const blockNode = head.primary as BlockNode;
           const closure = this.createBlockClosure(blockNode);
           result[stringKey] = closure;
         } else if (this.isClosureExpr(entry.value)) {
-          // Safe cast: isClosureExpr ensures head is PostfixExpr with Closure primary
-          const head = entry.value.head as PostfixExprNode;
+          const head = requirePipeChainHead(
+            entry.value,
+            this.ctx,
+            'evaluateDict'
+          );
           const fnLit = head.primary as ClosureNode;
           const closure = await this.createClosure(fnLit);
           result[stringKey] = closure;
@@ -1229,11 +1301,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Used to detect dict entries that should be treated as closures.
      */
     private isClosureExpr(expr: ExpressionNode): boolean {
-      if (expr.type !== 'PipeChain') return false;
-      const chain = expr as PipeChainNode;
-      if (chain.pipes.length > 0) return false;
-      if (chain.head.type !== 'PostfixExpr') return false;
-      const head = chain.head as PostfixExprNode;
+      if (!isPipeChainNode(expr)) return false;
+      if (expr.pipes.length > 0) return false;
+      if (expr.head.type !== 'PostfixExpr') return false;
+      const head = expr.head as PostfixExprNode;
       if (head.methods.length > 0) return false;
       return head.primary.type === 'Closure';
     }
@@ -1243,11 +1314,10 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Used to detect dict entries that should be treated as block closures.
      */
     private isBlockExpr(expr: ExpressionNode): boolean {
-      if (expr.type !== 'PipeChain') return false;
-      const chain = expr as PipeChainNode;
-      if (chain.pipes.length > 0) return false;
-      if (chain.head.type !== 'PostfixExpr') return false;
-      const head = chain.head as PostfixExprNode;
+      if (!isPipeChainNode(expr)) return false;
+      if (expr.pipes.length > 0) return false;
+      if (expr.head.type !== 'PostfixExpr') return false;
+      const head = expr.head as PostfixExprNode;
       if (head.methods.length > 0) return false;
       return head.primary.type === 'Block';
     }

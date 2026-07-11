@@ -513,6 +513,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     key = {
       kind: 'variable',
       variableName: varToken.value,
+      span: makeSpan(start, varToken.span.end),
     };
   } else if (check(this.state, TOKEN_TYPES.PIPE_VAR)) {
     // Standalone $ without identifier - error
@@ -532,10 +533,11 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
         current(this.state).span.start
       );
     }
-    advance(this.state); // consume )
+    const closeParen = advance(this.state); // consume )
     key = {
       kind: 'computed',
       expression,
+      span: makeSpan(start, closeParen.span.end),
     };
   } else if (check(this.state, TOKEN_TYPES.LBRACKET)) {
     // Parse bare [a, b] or [] as multi-key
