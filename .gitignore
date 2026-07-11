@@ -56,5 +56,6 @@ conduct
 .serena/
 .codanna/
 .fastembed_cache
+.fresh/
 
 /examples

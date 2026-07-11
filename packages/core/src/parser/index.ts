@@ -66,7 +66,8 @@ export function parseWithRecovery(source: string): ParseResult {
   try {
     tokens = tokenize(source);
   } catch (err) {
-    // Handle lexer errors by converting to ParseError and returning empty AST
+    // Handle lexer errors by converting to ParseError and returning a
+    // partial AST built from the tokens recognized before the failure.
     if (err instanceof Error && err.name === 'LexerError') {
       const lexerErr = err as {
         location?: { line: number; column: number; offset: number };
@@ -78,23 +79,22 @@ export function parseWithRecovery(source: string): ParseResult {
       };
       const parseError = new ParseError(
         ERROR_IDS.RILL_P001,
-        err.message.replace(/ at line \d+, column \d+$/, ''),
+        err.message.replace(/ at \d+:\d+$/, ''),
         location
       );
 
-      // Return minimal AST with single error
-      const emptyScript: ScriptNode = {
-        type: 'Script',
-        frontmatter: null,
-        statements: [],
-        span: {
-          start: { line: 1, column: 1, offset: 0 },
-          end: { line: 1, column: 1, offset: 0 },
-        },
-      };
+      const ast = parsePartialScript(source, location.offset);
 
+      // The tokenize failure is treated as the single authoritative
+      // diagnostic for this parse. All errors collected while parsing
+      // the pre-failure prefix are discarded to guarantee one
+      // diagnostic per root cause. This conservatively suppresses any
+      // independent earlier syntax error in the prefix until the
+      // tokenize failure is resolved. That is a known, accepted
+      // tradeoff, not a claim that discarded errors are only
+      // truncation artifacts.
       return {
-        ast: emptyScript,
+        ast,
         errors: [parseError],
         success: false,
       };
@@ -103,12 +103,68 @@ export function parseWithRecovery(source: string): ParseResult {
   }
 
   const parser = new Parser(tokens, { recoveryMode: true, source });
-  const ast = parser.parse();
+  try {
+    const ast = parser.parse();
+    return {
+      ast,
+      errors: parser.errors,
+      success: parser.errors.length === 0,
+    };
+  } catch (err) {
+    // Recovery mode itself only ever catches ParseError/LexerError per
+    // statement; anything else (e.g. a RangeError from stack-depth-limited
+    // expression descent on deeply nested input) escapes parser.parse()
+    // uncaught. Convert it to a ParseResult here so parseWithRecovery keeps
+    // its non-throwing contract for every failure class, matching the
+    // tokenize-failure handling above.
+    const message = err instanceof Error ? err.message : String(err);
+    const parseError = new ParseError(ERROR_IDS.RILL_P001, message, {
+      line: 1,
+      column: 1,
+      offset: 0,
+    });
+    return {
+      ast: createEmptyScript(),
+      errors: [...parser.errors, parseError],
+      success: false,
+    };
+  }
+}
 
+/**
+ * Build a partial AST from the source recognized before a tokenize
+ * failure. Since a live tokenizer offers no way to recover tokens
+ * accumulated before it throws, this re-tokenizes the known-clean
+ * prefix (everything before the failure offset) and parses it in
+ * recovery mode. Falls back to an empty script if the prefix itself
+ * fails to tokenize.
+ */
+function parsePartialScript(source: string, failureOffset: number): ScriptNode {
+  if (failureOffset <= 0) return createEmptyScript();
+
+  const prefix = source.slice(0, failureOffset);
+  try {
+    const partialTokens = tokenize(prefix);
+    const partialParser = new Parser(partialTokens, {
+      recoveryMode: true,
+      source,
+    });
+    return partialParser.parse();
+  } catch {
+    return createEmptyScript();
+  }
+}
+
+/** Builds an empty ScriptNode fallback for parse failures with no salvageable AST. */
+function createEmptyScript(): ScriptNode {
   return {
-    ast,
-    errors: parser.errors,
-    success: parser.errors.length === 0,
+    type: 'Script',
+    frontmatter: null,
+    statements: [],
+    span: {
+      start: { line: 1, column: 1, offset: 0 },
+      end: { line: 1, column: 1, offset: 0 },
+    },
   };
 }
 

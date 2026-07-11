@@ -29,7 +29,7 @@ import type {
   BodyNode,
   StatementNode,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES } from '../types.js';
+import { ParseError, TOKEN_TYPES, isPipeChainNode } from '../types.js';
 import {
   check,
   advance,
@@ -272,6 +272,17 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
   const condition = this.parseExpression();
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
 
+  // parseExpression() itself only ever produces PipeChainNode on a
+  // successful parse; PartialExpressionNode is only emitted by the
+  // statement-level recovery salvage in parseScript(), never from here.
+  if (!isPipeChainNode(condition)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      'Parse error: expected a complete expression in `while` condition',
+      current(this.state).span.start
+    );
+  }
+
   return {
     type: 'DoWhileLoop',
     input: null,
@@ -357,16 +368,25 @@ Parser.prototype.parseLoopWithInput = function (
   if (check(this.state, TOKEN_TYPES.WHILE)) {
     const node = this.parseWhileLoop();
 
-    // IR-5: Thread seed into WhileLoopNode.condition as the pipe head.
+    // Thread seed into WhileLoopNode.condition as the pipe head.
     // Wrap the existing condition in a GroupedExprNode so it can serve as a
     // PipeTargetNode (GroupedExprNode is in the PipeTargetNode union).
+    // parseWhileLoop() currently only produces a PipeChainNode condition;
+    // PartialExpressionNode is reserved for parser error recovery.
+    if (!isPipeChainNode(node.condition)) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P004,
+        'Parse error: expected a complete expression in `while` condition',
+        node.condition.span.start
+      );
+    }
     const wrappedCondition: GroupedExprNode = {
       type: 'GroupedExpr',
       expression: node.condition,
       span: node.condition.span,
     };
 
-    let newCondition: ExpressionNode;
+    let newCondition: PipeChainNode;
     if (seed.type === 'PipeChain') {
       // Seed is already a PipeChainNode — use its head directly and append
       // the wrapped condition as the next pipe stage.

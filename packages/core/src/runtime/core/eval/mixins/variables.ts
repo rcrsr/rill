@@ -39,7 +39,7 @@ import type {
   ExpressionNode,
   MethodCallNode,
 } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
+import { RuntimeError, isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isTypeValue } from '../../types/guards.js';
@@ -48,7 +48,11 @@ import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
 import { isVacant, isInvalid, getStatus } from '../../types/status.js';
 import { atomName } from '../../types/atom-registry.js';
-import { RuntimeHaltSignal, throwCatchableHostHalt } from '../../types/halt.js';
+import {
+  RuntimeHaltSignal,
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+} from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvaluatorInterface } from '../interface.js';
@@ -328,7 +332,21 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // Check if this is a bracket access
         if ('accessKind' in access) {
-          // Bracket access: [expr]
+          // Bracket access: [expr]. This expression is parsed inline while
+          // building a live access chain (never via the statement-level
+          // recovery path), so it only ever holds a PipeChainNode;
+          // PartialExpressionNode is reserved for parser error recovery.
+          if (!isPipeChainNode(access.expression)) {
+            throwFatalHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateVariableAsync',
+              },
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
+              'Bracket access expression must be a pipe chain'
+            );
+          }
           const indexValue = await (
             this as unknown as EvaluatorInterface
           ).evaluatePipeChain(access.expression);
@@ -625,7 +643,21 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         if (finalAccess.kind === 'computed') {
-          // Evaluate the computed expression (EC-11)
+          // Evaluate the computed expression. Parsed inline while
+          // building a live access chain (never via the statement-level
+          // recovery path), so it only ever holds a PipeChainNode;
+          // PartialExpressionNode is reserved for parser error recovery.
+          if (!isPipeChainNode(finalAccess.expression)) {
+            throwFatalHostHalt(
+              {
+                location: this.getNodeLocation(node),
+                sourceId: this.ctx.sourceId,
+                fn: 'evaluateExistenceCheck',
+              },
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
+              'Existence check computed key expression must be a pipe chain'
+            );
+          }
           const keyValue = await (
             this as unknown as EvaluatorInterface
           ).evaluatePipeChain(finalAccess.expression);
@@ -838,7 +870,21 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       value: RillValue,
       node: VariableNode
     ): Promise<RillValue> {
-      // Evaluate the expression to get the key
+      // Evaluate the expression to get the key. Parsed inline while
+      // building a live access chain (never via the statement-level
+      // recovery path), so it only ever holds a PipeChainNode;
+      // PartialExpressionNode is reserved for parser error recovery.
+      if (!isPipeChainNode(access.expression)) {
+        throwFatalHostHalt(
+          {
+            location: this.getNodeLocation(node),
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateFieldAccessComputed',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          'Computed field access expression must be a pipe chain'
+        );
+      }
       const keyValue = await (
         this as unknown as EvaluatorInterface
       ).evaluatePipeChain(access.expression);

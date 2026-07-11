@@ -33,11 +33,13 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   PropertyAccess,
+  RecoveryErrorNode,
   BodyNode,
   SliceNode,
   StatementNode,
   StringLiteralNode,
   ListSpreadNode,
+  PartialExpressionNode,
   UnaryExprNode,
   ClosureCallNode,
   VariableNode,
@@ -52,6 +54,9 @@ import type {
   LiteralNode,
   BoolLiteralNode,
 } from '../../types.js';
+import { isPipeChainNode } from '../../types.js';
+import { throwFatalHostHalt } from './types/halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 
 /**
  * Compare two AST nodes for structural equality.
@@ -82,8 +87,20 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'AnnotatedStatement':
       return annotatedStatementEquals(a, b as AnnotatedStatementNode);
 
-    case 'PipeChain':
-      return pipeChainEquals(a, b as PipeChainNode);
+    case 'PipeChain': {
+      const bNode = b as ExpressionNode;
+      // `a.type === b.type` was already checked above, so `bNode` is
+      // guaranteed to be a PipeChainNode here. This check is a defensive
+      // narrowing that is unreachable in normal execution.
+      if (!isPipeChainNode(bNode)) {
+        throwFatalHostHalt(
+          { fn: 'astEquals' },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          'Expected matching PipeChain node for equality comparison'
+        );
+      }
+      return pipeChainEquals(a, bNode);
+    }
 
     case 'PostfixExpr':
       return postfixExprEquals(a, b as PostfixExprNode);
@@ -206,6 +223,12 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
         (b as InterpolationNode).expression
       );
 
+    case 'PartialExpression':
+      return partialExpressionEquals(a, b as PartialExpressionNode);
+
+    case 'RecoveryError':
+      return recoveryErrorEquals(a, b as RecoveryErrorNode);
+
     default:
       // For any unhandled node types, fall back to false
       return false;
@@ -259,7 +282,40 @@ function annotationArgEquals(a: AnnotationArg, b: AnnotationArg): boolean {
 }
 
 function expressionEquals(a: ExpressionNode, b: ExpressionNode): boolean {
+  if (a.type !== b.type) return false;
+  if (a.type === 'PartialExpression') {
+    return partialExpressionEquals(a, b as PartialExpressionNode);
+  }
+  // `a.type === b.type` was already checked above, so `b` is guaranteed to
+  // be a PipeChainNode here. This check is a defensive narrowing that is
+  // unreachable in normal execution.
+  if (!isPipeChainNode(b)) {
+    throwFatalHostHalt(
+      { fn: 'expressionEquals' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Expected matching PipeChain node for equality comparison'
+    );
+  }
   return pipeChainEquals(a, b);
+}
+
+function partialExpressionEquals(
+  a: PartialExpressionNode,
+  b: PartialExpressionNode
+): boolean {
+  if (a.message !== b.message) return false;
+  if (a.children.length !== b.children.length) return false;
+  for (let i = 0; i < a.children.length; i++) {
+    if (!expressionEquals(a.children[i]!, b.children[i]!)) return false;
+  }
+  return true;
+}
+
+function recoveryErrorEquals(
+  a: RecoveryErrorNode,
+  b: RecoveryErrorNode
+): boolean {
+  return a.message === b.message && a.text === b.text;
 }
 
 function pipeChainEquals(a: PipeChainNode, b: PipeChainNode): boolean {
