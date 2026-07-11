@@ -12,11 +12,15 @@ interface BaseNode {
 export interface ScriptNode extends BaseNode {
   readonly type: 'Script';
   readonly frontmatter: FrontmatterNode | null;
-  /** Statements in the script. May include RecoveryErrorNode when parsed with recoveryMode. */
+  /**
+   * Statements in the script. May include RecoveryErrorNode or
+   * PartialExpressionNode when parsed with recoveryMode.
+   */
   readonly statements: (
     | StatementNode
     | AnnotatedStatementNode
     | RecoveryErrorNode
+    | PartialExpressionNode
   )[];
 }
 
@@ -78,6 +82,9 @@ export interface StatementNode extends BaseNode {
  * Recovery error node for parse error recovery mode.
  * Represents unparseable content that was skipped during error recovery.
  * Only appears in ASTs when parsing with `recoveryMode: true`.
+ *
+ * Text/span fidelity contract: `text` must equal the exact source slice
+ * covered by `span`, i.e. `source.slice(span.start.offset, span.end.offset) === text`.
  */
 export interface RecoveryErrorNode extends BaseNode {
   readonly type: 'RecoveryError';
@@ -238,7 +245,23 @@ export interface ErrorNode extends BaseNode {
 // EXPRESSIONS
 // ============================================================
 
-export type ExpressionNode = PipeChainNode;
+export type ExpressionNode = PipeChainNode | PartialExpressionNode;
+
+/**
+ * Partial expression node for parser error recovery.
+ * Represents a partially-typed (half-recognized) expression: a structured
+ * fragment with at least one typed child, kept distinct from
+ * `RecoveryErrorNode` (opaque skipped text) so the two recovery shapes
+ * never collide in downstream visitors.
+ * Only appears in ASTs produced during error recovery.
+ */
+export interface PartialExpressionNode extends BaseNode {
+  readonly type: 'PartialExpression';
+  /** Human-readable description of what was expected */
+  readonly message: string;
+  /** Typed child nodes recognized within the partial fragment (at least one) */
+  readonly children: readonly ExpressionNode[];
+}
 
 /** Chain terminator: capture, break, return, or yield */
 export type ChainTerminator = CaptureNode | BreakNode | ReturnNode | YieldNode;
@@ -388,11 +411,15 @@ export interface DictNode extends BaseNode {
 export interface DictKeyVariable {
   readonly kind: 'variable';
   readonly variableName: string;
+  /** Source span from the opening key delimiter through the closing delimiter */
+  readonly span: SourceSpan;
 }
 
 export interface DictKeyComputed {
   readonly kind: 'computed';
   readonly expression: ExpressionNode;
+  /** Source span from the opening key delimiter through the closing delimiter */
+  readonly span: SourceSpan;
 }
 
 export interface DictEntryNode extends BaseNode {
@@ -605,18 +632,24 @@ export type FieldAccess =
 export interface FieldAccessLiteral {
   readonly kind: 'literal';
   readonly field: string;
+  /** Source span from the . token through the field-name token */
+  readonly span: SourceSpan;
 }
 
 /** Variable as key: .$var or .$ (pipe variable) */
 export interface FieldAccessVariable {
   readonly kind: 'variable';
   readonly variableName: string | null; // null for pipe variable ($)
+  /** Source span from the . token through the variable-name token */
+  readonly span: SourceSpan;
 }
 
 /** Computed expression: .(expr) */
 export interface FieldAccessComputed {
   readonly kind: 'computed';
   readonly expression: ExpressionNode;
+  /** Source span from the . token through the closing ) token */
+  readonly span: SourceSpan;
 }
 
 /** Block returning key: .{block} */
@@ -1133,6 +1166,7 @@ export type ASTNode =
   | NamedArgNode
   | SpreadArgNode
   | RecoveryErrorNode
+  | PartialExpressionNode
   | ErrorNode
   | TypeNameExprNode
   | ListLiteralNode

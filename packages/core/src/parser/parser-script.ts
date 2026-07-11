@@ -7,9 +7,12 @@ import { Parser } from './parser.js';
 import type {
   AnnotatedStatementNode,
   AnnotationArg,
+  ExpressionNode,
   RecoveryErrorNode,
   FrontmatterNode,
   NamedArgNode,
+  PartialExpressionNode,
+  PipeChainNode,
   ScriptNode,
   SpreadArgNode,
   StatementNode,
@@ -28,6 +31,31 @@ import {
 import { ERROR_IDS } from '../error-registry.js';
 
 const RESERVED_ANNOTATION_KEYS: readonly string[] = ['type', 'input', 'output'];
+
+// Tokens that open a nested construct tracked by recoverToNextStatement's
+// depth-aware resync. Angle-bracket forms (destruct<, slice<, use<, retry<,
+// do<, pass<, timeout<) are out of scope for v1 and are treated as ordinary
+// tokens during resync.
+const RECOVERY_OPENING_TOKENS: ReadonlySet<string> = new Set([
+  TOKEN_TYPES.LPAREN,
+  TOKEN_TYPES.LBRACE,
+  TOKEN_TYPES.LBRACKET,
+  TOKEN_TYPES.LIST_LBRACKET,
+  TOKEN_TYPES.DICT_LBRACKET,
+  TOKEN_TYPES.TUPLE_LBRACKET,
+  TOKEN_TYPES.ORDERED_LBRACKET,
+  TOKEN_TYPES.GUARD_LBRACE,
+]);
+
+// Tokens that close a nested construct. A single depth counter is used
+// rather than a type-matched stack: recovery scanning only needs to skip
+// past nested content, not validate bracket-type pairing (the real parser
+// already enforces that on the successful-parse path).
+const RECOVERY_CLOSING_TOKENS: ReadonlySet<string> = new Set([
+  TOKEN_TYPES.RPAREN,
+  TOKEN_TYPES.RBRACE,
+  TOKEN_TYPES.RBRACKET,
+]);
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -65,6 +93,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
     | StatementNode
     | AnnotatedStatementNode
     | RecoveryErrorNode
+    | PartialExpressionNode
   )[] = [];
   while (!isAtEnd(this.state)) {
     skipNewlines(this.state);
@@ -73,6 +102,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
     if (this.state.recoveryMode) {
       // Recovery mode: catch errors and create RecoveryErrorNode
       const stmtStart = current(this.state).span.start;
+      const posBeforeError = this.state.pos;
       try {
         statements.push(this.parseStatement());
       } catch (err) {
@@ -83,7 +113,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
               ? err
               : new ParseError(
                   ERROR_IDS.RILL_P001,
-                  err.message.replace(/ at line \d+, column \d+$/, ''),
+                  err.message.replace(/ at \d+:\d+$/, ''),
                   err.location
                 );
           this.state.errors.push(parseError);
@@ -92,7 +122,16 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
             stmtStart,
             parseError.message
           );
-          statements.push(errorNode);
+          const boundaryPos = this.state.pos;
+          // Attempt to salvage typed sub-expressions from the skipped span
+          // before falling back to the opaque RecoveryErrorNode.
+          const partialNode = trySalvagePartialExpression(
+            this,
+            posBeforeError,
+            boundaryPos,
+            parseError.message
+          );
+          statements.push(partialNode ?? errorNode);
         } else {
           throw err; // Re-throw non-parse errors
         }
@@ -117,25 +156,105 @@ Parser.prototype.recoverToNextStatement = function (
   startLocation: { line: number; column: number; offset: number },
   message: string
 ): RecoveryErrorNode {
-  const startOffset = startLocation.offset;
-  let endOffset = startOffset;
+  // Depth-aware resync: at depth 0, a NEWLINE remains the statement
+  // boundary. Inside an open {}/()/[] construct, NEWLINE is skipped so
+  // recovery advances to the matching closing token instead of stopping
+  // at the first interior newline. Bounded by EOF: a construct left
+  // unclosed at EOF resyncs there (the loop simply runs out of tokens).
+  let depth = 0;
+  let lastEnd = startLocation;
 
-  // Skip tokens until we hit a newline or EOF (statement boundary)
-  while (!isAtEnd(this.state) && !check(this.state, TOKEN_TYPES.NEWLINE)) {
-    endOffset = current(this.state).span.end.offset;
-    advance(this.state);
+  while (!isAtEnd(this.state)) {
+    if (depth === 0 && check(this.state, TOKEN_TYPES.NEWLINE)) break;
+
+    const tokenType = current(this.state).type;
+    const isClosing = RECOVERY_CLOSING_TOKENS.has(tokenType);
+    if (RECOVERY_OPENING_TOKENS.has(tokenType)) {
+      depth++;
+    } else if (isClosing && depth > 0) {
+      depth--;
+    }
+
+    const token = advance(this.state);
+    lastEnd = token.span.end;
+
+    // Stop once the matching closing boundary has been consumed.
+    if (isClosing && depth === 0) break;
   }
 
-  // Extract the skipped text from source
-  const text = this.state.source.slice(startOffset, endOffset);
+  // `text` is derived from the same offset used for `span`'s end so the
+  // two always agree: source.slice(span.start.offset, span.end.offset) === text.
+  const text = this.state.source.slice(startLocation.offset, lastEnd.offset);
 
   return {
     type: 'RecoveryError',
     message,
     text,
-    span: makeSpan(startLocation, current(this.state).span.start),
+    span: makeSpan(startLocation, lastEnd),
   };
 };
+
+/**
+ * Attempt to salvage typed sub-expressions from the span skipped by
+ * recovery. Re-parses expressions starting at `fromPos`, snapshotting and
+ * restoring parser state so the attempt never disturbs the resync boundary
+ * already established by recoverToNextStatement. Returns null when no
+ * typed child could be parsed, in which case the caller falls back to the
+ * opaque RecoveryErrorNode.
+ */
+function trySalvagePartialExpression(
+  parser: Parser,
+  fromPos: number,
+  boundaryPos: number,
+  message: string
+): PartialExpressionNode | null {
+  if (boundaryPos <= fromPos) return null;
+
+  const state = parser.state;
+  const errorsBefore = state.errors.length;
+  // The progress guard below (state.pos <= before) is what actually bounds
+  // this loop; MAX_CHILDREN is only a defensive ceiling against pathological
+  // inputs that keep advancing pos without ever reaching boundaryPos.
+  const MAX_CHILDREN = 16;
+  const children: ExpressionNode[] = [];
+
+  state.pos = fromPos;
+  while (state.pos < boundaryPos && children.length < MAX_CHILDREN) {
+    const before = state.pos;
+    let child: ExpressionNode;
+    try {
+      child = parser.parseExpression();
+    } catch {
+      break;
+    }
+    if (state.pos <= before || state.pos > boundaryPos) {
+      // No progress, or the salvage attempt overshot the resync boundary:
+      // discard and stop rather than risk desynchronizing from the
+      // boundary recoverToNextStatement already established.
+      break;
+    }
+    children.push(child);
+  }
+
+  // Discard any parse errors recorded during the salvage attempt; only the
+  // original error (already pushed by the caller) should surface.
+  state.errors.length = errorsBefore;
+  // Always resync to the boundary recoverToNextStatement established,
+  // regardless of how far the salvage attempt progressed.
+  state.pos = boundaryPos;
+
+  if (children.length === 0) return null;
+
+  return {
+    type: 'PartialExpression',
+    message,
+    children,
+    span: makeSpan(
+      children[0]!.span.start,
+      children[children.length - 1]!.span.end
+    ),
+  };
+}
 
 // ============================================================
 // FRONTMATTER PARSING
@@ -236,7 +355,10 @@ Parser.prototype.parseStatement = function (
     };
   }
 
-  const expression = this.parseExpression();
+  // parseExpression() itself only ever produces PipeChainNode on a
+  // successful parse; PartialExpressionNode is only emitted by the
+  // statement-level recovery salvage in parseScript(), never from here.
+  const expression = this.parseExpression() as PipeChainNode;
 
   return {
     type: 'Statement',

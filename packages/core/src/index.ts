@@ -4,6 +4,7 @@
  */
 
 export { LexerError, tokenize } from './lexer/index.js';
+export { KEYWORD_NAMES as KEYWORDS } from './lexer/index.js';
 export {
   parse,
   parseWithRecovery,
@@ -230,6 +231,7 @@ export { invokeCallable } from './runtime/core/eval/index.js';
 // ============================================================
 
 export { BUILTIN_METHODS } from './runtime/ext/builtins.js';
+export { BUILTIN_FUNCTION_NAMES as BUILTIN_FUNCTIONS } from './runtime/ext/builtins.js';
 
 // ============================================================
 // INTROSPECTION API
@@ -351,6 +353,7 @@ export type {
   NamedArgNode,
   NumberLiteralNode,
   OrderedLiteralNode,
+  PartialExpressionNode,
   PassNode,
   PipeChainNode,
   PipeInvokeNode,

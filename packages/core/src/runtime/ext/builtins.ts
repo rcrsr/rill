@@ -2408,6 +2408,15 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
   },
 };
 
+/**
+ * Read-only view of the built-in function names.
+ * Derived from the keys of the internal {@link BUILTIN_FUNCTIONS} record and
+ * frozen at module load so consumers cannot mutate it at runtime.
+ */
+export const BUILTIN_FUNCTION_NAMES: readonly string[] = Object.freeze(
+  Object.keys(BUILTIN_FUNCTIONS)
+);
+
 // ============================================================
 // DATETIME CONSTRUCTION HELPERS
 // ============================================================

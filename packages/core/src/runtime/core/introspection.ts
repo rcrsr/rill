@@ -564,7 +564,8 @@ export function introspectHandlerFromAST(
   handlerName: string
 ): HandlerMetadataStatic | null {
   for (const stmt of ast.statements) {
-    if (stmt.type === 'RecoveryError') continue;
+    if (stmt.type === 'RecoveryError' || stmt.type === 'PartialExpression')
+      continue;
 
     // Unwrap AnnotatedStatementNode to get the inner statement and annotations
     let innerStatement: StatementNode;

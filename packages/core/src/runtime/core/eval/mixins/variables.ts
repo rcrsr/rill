@@ -38,6 +38,7 @@ import type {
   SourceLocation,
   ExpressionNode,
   MethodCallNode,
+  PipeChainNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
@@ -328,10 +329,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         // Check if this is a bracket access
         if ('accessKind' in access) {
-          // Bracket access: [expr]
+          // Bracket access: [expr]. This expression is parsed inline while
+          // building a live access chain (never via the statement-level
+          // recovery path), so it only ever holds a PipeChainNode;
+          // PartialExpressionNode is reserved for parser error recovery.
           const indexValue = await (
             this as unknown as EvaluatorInterface
-          ).evaluatePipeChain(access.expression);
+          ).evaluatePipeChain(access.expression as PipeChainNode);
 
           if (Array.isArray(value)) {
             if (typeof indexValue !== 'number') {
@@ -625,10 +629,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
         }
 
         if (finalAccess.kind === 'computed') {
-          // Evaluate the computed expression (EC-11)
+          // Evaluate the computed expression. Parsed inline while
+          // building a live access chain (never via the statement-level
+          // recovery path), so it only ever holds a PipeChainNode;
+          // PartialExpressionNode is reserved for parser error recovery.
           const keyValue = await (
             this as unknown as EvaluatorInterface
-          ).evaluatePipeChain(finalAccess.expression);
+          ).evaluatePipeChain(finalAccess.expression as PipeChainNode);
 
           // EC-11: Computed key non-string
           if (typeof keyValue !== 'string') {
@@ -838,10 +845,13 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       value: RillValue,
       node: VariableNode
     ): Promise<RillValue> {
-      // Evaluate the expression to get the key
+      // Evaluate the expression to get the key. Parsed inline while
+      // building a live access chain (never via the statement-level
+      // recovery path), so it only ever holds a PipeChainNode;
+      // PartialExpressionNode is reserved for parser error recovery.
       const keyValue = await (
         this as unknown as EvaluatorInterface
-      ).evaluatePipeChain(access.expression);
+      ).evaluatePipeChain(access.expression as PipeChainNode);
 
       // EC-4: Expression result is closure
       if (isCallable(keyValue)) {

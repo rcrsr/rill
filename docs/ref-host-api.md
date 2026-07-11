@@ -200,6 +200,9 @@ export type { HighlightCategory };
 // Error registry
 export { ERROR_REGISTRY };
 
+// Language and tooling metadata
+export { BUILTIN_FUNCTIONS, KEYWORDS };
+
 // Extension types
 export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, ExtensionManifest, ExtensionConfigSchema };
 export type { ExtensionFactoryCtx };
@@ -376,6 +379,32 @@ console.log(entry?.helpUrl);      // "https://rill.run/docs/reference/errors/#ri
 Note: `RILL-P006` (deprecated capture arrow syntax) was removed. `RILL-P007` through `RILL-P010` cover explicit-literal-syntax violations.
 
 See [Error Reference](ref-errors.md) for full error descriptions and resolution strategies.
+
+## BUILTIN_FUNCTIONS
+
+`BUILTIN_FUNCTIONS` is a `readonly string[]` listing every built-in function name. Use this to drive editor completion lists for rill scripts.
+
+```typescript
+import { BUILTIN_FUNCTIONS } from '@rcrsr/rill';
+
+const completions = BUILTIN_FUNCTIONS.map((name) => ({ label: name }));
+registerCompletionProvider(completions);
+```
+
+Editor tooling (LSP completion, syntax highlighting) reads this list instead of vendoring a separate copy. The array is frozen at module load; `BUILTIN_FUNCTIONS.push(...)` throws.
+
+## KEYWORDS
+
+`KEYWORDS` is a `readonly string[]` listing every language keyword. Use this alongside `BUILTIN_FUNCTIONS` to build completion and highlighting name lists.
+
+```typescript
+import { KEYWORDS } from '@rcrsr/rill';
+
+const keywordSet = new Set(KEYWORDS);
+const isKeyword = (token: string) => keywordSet.has(token);
+```
+
+Editor tooling (LSP completion, syntax highlighting) reads this list instead of vendoring a separate copy. The array is frozen at module load; `KEYWORDS.push(...)` throws.
 
 ## RillParam
 

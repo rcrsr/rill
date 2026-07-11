@@ -276,7 +276,10 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
     type: 'DoWhileLoop',
     input: null,
     body,
-    condition,
+    // parseExpression() itself only ever produces PipeChainNode on a
+    // successful parse; PartialExpressionNode is only emitted by the
+    // statement-level recovery salvage in parseScript(), never from here.
+    condition: condition as PipeChainNode,
     annotations,
     span: makeSpan(start, current(this.state).span.end),
   };
@@ -357,16 +360,18 @@ Parser.prototype.parseLoopWithInput = function (
   if (check(this.state, TOKEN_TYPES.WHILE)) {
     const node = this.parseWhileLoop();
 
-    // IR-5: Thread seed into WhileLoopNode.condition as the pipe head.
+    // Thread seed into WhileLoopNode.condition as the pipe head.
     // Wrap the existing condition in a GroupedExprNode so it can serve as a
     // PipeTargetNode (GroupedExprNode is in the PipeTargetNode union).
+    // parseWhileLoop() currently only produces a PipeChainNode condition;
+    // PartialExpressionNode is reserved for parser error recovery.
     const wrappedCondition: GroupedExprNode = {
       type: 'GroupedExpr',
-      expression: node.condition,
+      expression: node.condition as PipeChainNode,
       span: node.condition.span,
     };
 
-    let newCondition: ExpressionNode;
+    let newCondition: PipeChainNode;
     if (seed.type === 'PipeChain') {
       // Seed is already a PipeChainNode — use its head directly and append
       // the wrapped condition as the next pipe stage.

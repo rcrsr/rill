@@ -590,6 +590,75 @@ interface DictEntryNode {
 
 `keyForm` is parser metadata only. Runtime semantics are unchanged: `dict[a: 1]` and `dict["a": 1]` are AST- and value-equal. Use `keyForm` in linting and analysis tools that want to treat quoted keys as an intentional escape for foreign API names (for example a `snake_case` rule that allows `dict["maxResults": ...]` while flagging `dict[maxResults: ...]`).
 
+### `PartialExpressionNode`
+
+```typescript
+interface PartialExpressionNode {
+  readonly type: 'PartialExpression';
+  readonly span: SourceSpan;
+  readonly message: string;
+  readonly children: readonly ExpressionNode[];
+}
+```
+
+`PartialExpressionNode` represents a partially-typed expression captured during parser error recovery. It is a structured fragment where at least one child parsed successfully, even though the overall expression did not. It is a member of the `ExpressionNode` and script `statements` unions, so existing AST walkers reach it without additional type-narrowing.
+
+| Field | Purpose |
+|-------|---------|
+| `span` | Covers the partial fragment's token range; non-empty |
+| `message` | Human-readable description of what the parser expected |
+| `children` | Typed child nodes recognized within the fragment; always at least one entry, each with its own non-empty `span` |
+
+`PartialExpressionNode` is kept distinct from `RecoveryErrorNode` so the two recovery shapes never collide in downstream visitors. `RecoveryErrorNode` covers opaque skipped text with no internal structure. `PartialExpressionNode` preserves the child nodes the parser did recognize. Both node types only appear in ASTs produced by parsing with `recoveryMode: true`.
+
+### Field access and dict key spans
+
+`FieldAccessLiteral`, `FieldAccessVariable`, `FieldAccessComputed`, `DictKeyVariable`, and `DictKeyComputed` each carry a `readonly span: SourceSpan` field, following the same inline-span pattern as `BracketAccess`. These interfaces are segments within a larger node (a property access chain or a dict key) rather than standalone `BaseNode` subtypes, so `span` covers only that segment.
+
+```typescript
+interface FieldAccessLiteral {
+  readonly kind: 'literal';
+  readonly field: string;
+  readonly span: SourceSpan;
+}
+
+interface FieldAccessVariable {
+  readonly kind: 'variable';
+  readonly variableName: string | null;
+  readonly span: SourceSpan;
+}
+
+interface FieldAccessComputed {
+  readonly kind: 'computed';
+  readonly expression: ExpressionNode;
+  readonly span: SourceSpan;
+}
+
+interface DictKeyVariable {
+  readonly kind: 'variable';
+  readonly variableName: string;
+  readonly span: SourceSpan;
+}
+
+interface DictKeyComputed {
+  readonly kind: 'computed';
+  readonly expression: ExpressionNode;
+  readonly span: SourceSpan;
+}
+```
+
+| Interface | `span` boundary |
+|-----------|-----------------|
+| `FieldAccessLiteral` | From the `.` token through the field-name token, e.g. `.name` |
+| `FieldAccessVariable` | From the `.` token through the variable-name token, e.g. `.$var` |
+| `FieldAccessComputed` | From the `.` token through the closing `)` token, e.g. `.(expr)` |
+| `DictKeyVariable` | From the opening key delimiter through the closing delimiter |
+| `DictKeyComputed` | From the opening key delimiter through the closing delimiter |
+
+Each `span` covers only its own segment, not the containing expression's full range. For `$data.name`, the `FieldAccessLiteral` span covers `.name`, not `$data.name`. Use these spans for precise error highlighting or source-map generation on individual access segments within a chain.
+
+Per §RILL.3.3, this AST-surface documentation gates the patch releases that ship `PartialExpressionNode` and the five `span`-bearing segment interfaces. The `BUILTIN_FUNCTIONS` and `KEYWORDS` export documentation gates the release that ships those exports, the same way.
+
 ---
 
 ## See Also

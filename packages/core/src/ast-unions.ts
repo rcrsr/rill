@@ -55,6 +55,7 @@ export type NodeType =
   | 'NamedArg'
   | 'SpreadArg'
   | 'RecoveryError'
+  | 'PartialExpression'
   | 'Error'
   | 'TypeNameExpr'
   | 'TypeConstructor'

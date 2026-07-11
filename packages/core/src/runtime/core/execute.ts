@@ -7,6 +7,7 @@
 
 import type {
   AnnotatedStatementNode,
+  PartialExpressionNode,
   RecoveryErrorNode,
   ScriptNode,
   StatementNode,
@@ -208,7 +209,7 @@ export function createStepper(
         // invalid value with `.!code == #R001` (FR-ERR-4). Parse-recovery
         // emitted the node; runtime surfaces it as an invalid value so
         // guard / retry downstream can observe and recover.
-        if (isRecoveryErrorNode(stmt)) {
+        if (isRecoveryErrorNode(stmt) || isPartialExpressionNode(stmt)) {
           const site = formatAccessSite(stmt.span.start, context.sourceId);
           const value = invalidate(
             {},
@@ -376,9 +377,30 @@ export function createStepper(
  * @internal
  */
 function isRecoveryErrorNode(
-  stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode
+  stmt:
+    | StatementNode
+    | AnnotatedStatementNode
+    | RecoveryErrorNode
+    | PartialExpressionNode
 ): stmt is RecoveryErrorNode {
   return stmt.type === 'RecoveryError';
+}
+
+/**
+ * Type guard to check if a statement is a PartialExpressionNode from
+ * recovery mode parsing. Handled the same way as RecoveryErrorNode at the
+ * statement boundary: its typed children are not evaluated at this level,
+ * it simply surfaces as an invalid value carrying its recovery message.
+ * @internal
+ */
+function isPartialExpressionNode(
+  stmt:
+    | StatementNode
+    | AnnotatedStatementNode
+    | RecoveryErrorNode
+    | PartialExpressionNode
+): stmt is PartialExpressionNode {
+  return stmt.type === 'PartialExpression';
 }
 
 /**
@@ -402,7 +424,11 @@ function isRecoveryErrorNode(
  */
 function reshapeUnhandledThrow(
   error: unknown,
-  stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode,
+  stmt:
+    | StatementNode
+    | AnnotatedStatementNode
+    | RecoveryErrorNode
+    | PartialExpressionNode,
   ctx: RuntimeContext
 ): RillValue | undefined {
   // Preserve control-flow signals and halt signals: these are legitimate
@@ -478,7 +504,11 @@ function sanitizeErrorMessage(message: string): string {
  */
 function makeBoundaryInvalid(
   meta: { code: string; provider: string; raw: Record<string, unknown> },
-  stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode,
+  stmt:
+    | StatementNode
+    | AnnotatedStatementNode
+    | RecoveryErrorNode
+    | PartialExpressionNode,
   ctx: RuntimeContext
 ): RillValue {
   const site = formatAccessSite(stmt.span.start, ctx.sourceId);
@@ -589,7 +619,11 @@ function parseSourceIdFromSite(site: string): string | undefined {
 
 function convertHaltToRuntimeError(
   signal: RuntimeHaltSignal,
-  stmt: StatementNode | AnnotatedStatementNode | RecoveryErrorNode
+  stmt:
+    | StatementNode
+    | AnnotatedStatementNode
+    | RecoveryErrorNode
+    | PartialExpressionNode
 ): RuntimeError | undefined {
   const status = getStatus(signal.value);
   const code = atomName(status.code);

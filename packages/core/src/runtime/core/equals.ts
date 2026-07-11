@@ -38,6 +38,7 @@ import type {
   StatementNode,
   StringLiteralNode,
   ListSpreadNode,
+  PartialExpressionNode,
   UnaryExprNode,
   ClosureCallNode,
   VariableNode,
@@ -259,7 +260,23 @@ function annotationArgEquals(a: AnnotationArg, b: AnnotationArg): boolean {
 }
 
 function expressionEquals(a: ExpressionNode, b: ExpressionNode): boolean {
-  return pipeChainEquals(a, b);
+  if (a.type !== b.type) return false;
+  if (a.type === 'PartialExpression') {
+    return partialExpressionEquals(a, b as PartialExpressionNode);
+  }
+  return pipeChainEquals(a, b as PipeChainNode);
+}
+
+function partialExpressionEquals(
+  a: PartialExpressionNode,
+  b: PartialExpressionNode
+): boolean {
+  if (a.message !== b.message) return false;
+  if (a.children.length !== b.children.length) return false;
+  for (let i = 0; i < a.children.length; i++) {
+    if (!expressionEquals(a.children[i]!, b.children[i]!)) return false;
+  }
+  return true;
 }
 
 function pipeChainEquals(a: PipeChainNode, b: PipeChainNode): boolean {

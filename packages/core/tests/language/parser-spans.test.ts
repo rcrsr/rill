@@ -5,6 +5,37 @@
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '@rcrsr/rill';
+import type { VariableNode, PropertyAccess } from '@rcrsr/rill';
+
+function findVariable(node: unknown, name: string): VariableNode | null {
+  if (!node || typeof node !== 'object') return null;
+  if (
+    'type' in node &&
+    node.type === 'Variable' &&
+    (node as VariableNode).name === name
+  ) {
+    return node as VariableNode;
+  }
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findVariable(item, name);
+        if (found) return found;
+      }
+    } else {
+      const found = findVariable(value, name);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function sliceSpan(
+  source: string,
+  span: { start: { offset: number }; end: { offset: number } }
+): string {
+  return source.slice(span.start.offset, span.end.offset);
+}
 
 describe('Parser Spans', () => {
   describe('Block spans', () => {
@@ -244,6 +275,96 @@ describe('Parser Spans', () => {
         innerSpan.end.offset
       );
       expect(innerContent).toBe('{ 1 }');
+    });
+  });
+
+  describe('Field-access segment spans', () => {
+    it('literal segment span covers exactly the dot and field name, not the whole chain', () => {
+      const source = '$foo.bar.baz';
+      const ast = parse(source);
+
+      const variable = findVariable(ast, 'foo');
+      expect(variable).toBeTruthy();
+      expect(variable!.accessChain.length).toBe(2);
+
+      const [barAccess, bazAccess] = variable!.accessChain as PropertyAccess[];
+
+      expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
+      expect(sliceSpan(source, bazAccess!.span)).toBe('.baz');
+    });
+
+    it('single-segment chain span is correct', () => {
+      const source = '$foo.bar';
+      const ast = parse(source);
+
+      const variable = findVariable(ast, 'foo');
+      expect(variable).toBeTruthy();
+      expect(variable!.accessChain.length).toBe(1);
+
+      const [barAccess] = variable!.accessChain as PropertyAccess[];
+      expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
+    });
+
+    it('chain of length three or more resolves each segment span independently', () => {
+      const source = '$foo.bar.baz.qux';
+      const ast = parse(source);
+
+      const variable = findVariable(ast, 'foo');
+      expect(variable).toBeTruthy();
+      expect(variable!.accessChain.length).toBe(3);
+
+      const [barAccess, bazAccess, quxAccess] = variable!
+        .accessChain as PropertyAccess[];
+
+      expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
+      expect(sliceSpan(source, bazAccess!.span)).toBe('.baz');
+      expect(sliceSpan(source, quxAccess!.span)).toBe('.qux');
+    });
+
+    it('variable-key segment span covers the dot through the variable name', () => {
+      const source = '$foo.$key.bar';
+      const ast = parse(source);
+
+      const variable = findVariable(ast, 'foo');
+      expect(variable).toBeTruthy();
+      expect(variable!.accessChain.length).toBe(2);
+
+      const [keyAccess, barAccess] = variable!.accessChain as PropertyAccess[];
+
+      expect(keyAccess).toHaveProperty('kind', 'variable');
+      expect(sliceSpan(source, keyAccess!.span)).toBe('.$key');
+      expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
+    });
+
+    it('computed segment span covers the dot through the closing parenthesis', () => {
+      const source = '$foo.($x -> .upper).bar';
+      const ast = parse(source);
+
+      const variable = findVariable(ast, 'foo');
+      expect(variable).toBeTruthy();
+      expect(variable!.accessChain.length).toBe(2);
+
+      const [computedAccess, barAccess] = variable!
+        .accessChain as PropertyAccess[];
+
+      expect(computedAccess).toHaveProperty('kind', 'computed');
+      expect(sliceSpan(source, computedAccess!.span)).toBe('.($x -> .upper)');
+      expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
+    });
+
+    it('every field-access segment span is non-empty and bounded by the token range', () => {
+      const source = '$foo.bar.$key.($x)';
+      const ast = parse(source);
+
+      const variable = findVariable(ast, 'foo');
+      expect(variable).toBeTruthy();
+
+      for (const access of variable!.accessChain as PropertyAccess[]) {
+        expect(access.span.start.offset).toBeLessThan(access.span.end.offset);
+        const text = sliceSpan(source, access.span);
+        expect(text.length).toBeGreaterThan(0);
+        expect(text.startsWith('.')).toBe(true);
+      }
     });
   });
 });

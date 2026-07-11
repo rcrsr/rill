@@ -110,6 +110,21 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       expr: ExpressionNode
     ): Promise<RillValue> {
       this.checkAborted();
+      // PartialExpressionNode is produced by parser error recovery for a
+      // partially-typed expression fragment. It has no `.head`, so it
+      // cannot flow into evaluatePipeChain's switch; surface it as a
+      // catchable halt here instead of letting a raw TypeError escape.
+      if (expr.type === 'PartialExpression') {
+        throwCatchableHostHalt(
+          {
+            location: expr.span.start,
+            sourceId: this.ctx.sourceId,
+            fn: 'evaluateExpression',
+          },
+          'R001',
+          expr.message
+        );
+      }
       return this.evaluatePipeChain(expr);
     }
 

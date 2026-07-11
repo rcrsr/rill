@@ -445,11 +445,11 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // Evaluate value once
       let evaluatedValue: RillValue;
       if (this.isBlockExpr(value)) {
-        const head = value.head as PostfixExprNode;
+        const head = (value as PipeChainNode).head as PostfixExprNode;
         const blockNode = head.primary as BlockNode;
         evaluatedValue = this.createBlockClosure(blockNode);
       } else if (this.isClosureExpr(value)) {
-        const head = value.head as PostfixExprNode;
+        const head = (value as PipeChainNode).head as PostfixExprNode;
         const fnLit = head.primary as ClosureNode;
         evaluatedValue = await this.createClosure(fnLit);
       } else {
@@ -538,12 +538,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
               // Evaluate value and store with resolved key
               if (this.isBlockExpr(entry.value)) {
-                const head = entry.value.head as PostfixExprNode;
+                const head = (entry.value as PipeChainNode)
+                  .head as PostfixExprNode;
                 const blockNode = head.primary as BlockNode;
                 const closure = this.createBlockClosure(blockNode);
                 result[stringKey] = closure;
               } else if (this.isClosureExpr(entry.value)) {
-                const head = entry.value.head as PostfixExprNode;
+                const head = (entry.value as PipeChainNode)
+                  .head as PostfixExprNode;
                 const fnLit = head.primary as ClosureNode;
                 const closure = await this.createClosure(fnLit);
                 result[stringKey] = closure;
@@ -558,9 +560,13 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
             // Handle DictKeyComputed: evaluate expression and validate string type
             if (keyObj.kind === 'computed') {
+              // Computed dict keys are parsed inline while building a live
+              // dict literal (never via the statement-level recovery
+              // path), so they only ever hold PipeChainNode;
+              // PartialExpressionNode is reserved for parser error recovery.
               const computedValue = await (
                 this as unknown as EvaluatorInterface
-              ).evaluatePipeChain(keyObj.expression);
+              ).evaluatePipeChain(keyObj.expression as PipeChainNode);
 
               // EC-8: Computed key must evaluate to string
               if (typeof computedValue !== 'string') {
@@ -596,12 +602,14 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
               // Evaluate value and store with resolved key
               if (this.isBlockExpr(entry.value)) {
-                const head = entry.value.head as PostfixExprNode;
+                const head = (entry.value as PipeChainNode)
+                  .head as PostfixExprNode;
                 const blockNode = head.primary as BlockNode;
                 const closure = this.createBlockClosure(blockNode);
                 result[stringKey] = closure;
               } else if (this.isClosureExpr(entry.value)) {
-                const head = entry.value.head as PostfixExprNode;
+                const head = (entry.value as PipeChainNode)
+                  .head as PostfixExprNode;
                 const fnLit = head.primary as ClosureNode;
                 const closure = await this.createClosure(fnLit);
                 result[stringKey] = closure;
@@ -662,13 +670,13 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
 
         if (this.isBlockExpr(entry.value)) {
           // Safe cast: isBlockExpr ensures head is PostfixExpr with Block primary
-          const head = entry.value.head as PostfixExprNode;
+          const head = (entry.value as PipeChainNode).head as PostfixExprNode;
           const blockNode = head.primary as BlockNode;
           const closure = this.createBlockClosure(blockNode);
           result[stringKey] = closure;
         } else if (this.isClosureExpr(entry.value)) {
           // Safe cast: isClosureExpr ensures head is PostfixExpr with Closure primary
-          const head = entry.value.head as PostfixExprNode;
+          const head = (entry.value as PipeChainNode).head as PostfixExprNode;
           const fnLit = head.primary as ClosureNode;
           const closure = await this.createClosure(fnLit);
           result[stringKey] = closure;

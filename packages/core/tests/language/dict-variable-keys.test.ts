@@ -111,6 +111,71 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
     });
   });
 
+  describe('Segment spans', () => {
+    it('variable key span covers exactly the $ token through the variable name', () => {
+      const source = 'dict[static: 0, $key: "value"]';
+      const ast = parse(source);
+
+      const stmt = ast.statements[0]!;
+      const pipeChain = stmt.expression!;
+      const expr = (pipeChain as any).head.primary;
+      expect(expr.type).toBe('Dict');
+
+      const entry = expr.entries[1] as DictEntryNode;
+      const key = entry.key as DictKeyVariable;
+      expect(key.kind).toBe('variable');
+
+      const spanText = source.slice(key.span.start.offset, key.span.end.offset);
+      expect(spanText).toBe('$key');
+    });
+
+    it('computed key span covers exactly the opening paren through the closing paren', () => {
+      const source = 'dict[static: 0, ($x -> .upper): "value"]';
+      const ast = parse(source);
+
+      const stmt = ast.statements[0]!;
+      const pipeChain = stmt.expression!;
+      const expr = (pipeChain as any).head.primary;
+      expect(expr.type).toBe('Dict');
+
+      const entry = expr.entries[1] as DictEntryNode;
+      const key = entry.key as DictKeyComputed;
+      expect(key.kind).toBe('computed');
+
+      const spanText = source.slice(key.span.start.offset, key.span.end.offset);
+      expect(spanText).toBe('($x -> .upper)');
+    });
+
+    it('every variable and computed dict-key segment carries a non-empty bounded span', () => {
+      const source =
+        'dict[static: 0, $shortKey: 1, ($x -> .upper -> .trim): 2]';
+      const ast = parse(source);
+
+      const stmt = ast.statements[0]!;
+      const pipeChain = stmt.expression!;
+      const expr = (pipeChain as any).head.primary;
+      expect(expr.type).toBe('Dict');
+
+      const variableEntry = expr.entries[1] as DictEntryNode;
+      const variableKey = variableEntry.key as DictKeyVariable;
+      expect(variableKey.span.start.offset).toBeLessThan(
+        variableKey.span.end.offset
+      );
+      expect(
+        source.slice(variableKey.span.start.offset, variableKey.span.end.offset)
+      ).toBe('$shortKey');
+
+      const computedEntry = expr.entries[2] as DictEntryNode;
+      const computedKey = computedEntry.key as DictKeyComputed;
+      expect(computedKey.span.start.offset).toBeLessThan(
+        computedKey.span.end.offset
+      );
+      expect(
+        source.slice(computedKey.span.start.offset, computedKey.span.end.offset)
+      ).toBe('($x -> .upper -> .trim)');
+    });
+  });
+
   describe('Error Cases', () => {
     // EC-1: $ without identifier
     it('throws when $ has space after it instead of identifier', () => {
