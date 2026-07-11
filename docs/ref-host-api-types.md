@@ -590,6 +590,25 @@ interface DictEntryNode {
 
 `keyForm` is parser metadata only. Runtime semantics are unchanged: `dict[a: 1]` and `dict["a": 1]` are AST- and value-equal. Use `keyForm` in linting and analysis tools that want to treat quoted keys as an intentional escape for foreign API names (for example a `snake_case` rule that allows `dict["maxResults": ...]` while flagging `dict[maxResults: ...]`).
 
+### `RecoveryErrorNode`
+
+```typescript
+interface RecoveryErrorNode {
+  readonly type: 'RecoveryError';
+  readonly span: SourceSpan;
+  readonly message: string;
+  readonly text: string;
+}
+```
+
+`RecoveryErrorNode` represents an opaque span of source text the parser could not interpret during error recovery. It carries no internal structure, only the raw text and a description of the failure. It only appears in ASTs produced by parsing with `recoveryMode: true`.
+
+| Field | Purpose |
+|-------|---------|
+| `span` | Covers the skipped text's token range; non-empty |
+| `message` | Human-readable description of what went wrong |
+| `text` | The raw source text that could not be parsed |
+
 ### `PartialExpressionNode`
 
 ```typescript
@@ -656,8 +675,6 @@ interface DictKeyComputed {
 | `DictKeyComputed` | From the opening key delimiter through the closing delimiter |
 
 Each `span` covers only its own segment, not the containing expression's full range. For `$data.name`, the `FieldAccessLiteral` span covers `.name`, not `$data.name`. Use these spans for precise error highlighting or source-map generation on individual access segments within a chain.
-
-Per §RILL.3.3, this AST-surface documentation gates the patch releases that ship `PartialExpressionNode` and the five `span`-bearing segment interfaces. The `BUILTIN_FUNCTIONS` and `KEYWORDS` export documentation gates the release that ships those exports, the same way.
 
 ---
 

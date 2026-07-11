@@ -1,122 +1,74 @@
 /**
  * Rill Parser Tests: parseWithRecovery Performance Regression
  *
- * Measures parseWithRecovery() wall-clock time across the full rill source
- * corpus embedded in tests/language/*.test.ts, following the same
- * baseline+threshold+warmup pattern as performance.test.ts.
+ * The previous version of this test measured wall-clock time over the
+ * tests/language corpus (mostly-valid short snippets) against a fixed
+ * millisecond ceiling. That corpus rarely drives recoverToNextStatement's
+ * resync loop or trySalvagePartialExpression's re-parse through worst-case
+ * shapes, and an absolute ceiling flakes under CI runner variance.
  *
- * The corpus mixes complete scripts with deliberately malformed fragments
- * used elsewhere to test error handling; a handful of those fragments hit
- * a fatal (non-recoverable) parse path rather than returning a ParseResult.
- * Correctness of individual parses is out of scope here — only wall-clock
- * time is asserted — so each call is isolated in a try/catch.
+ * This version instead exercises the recovery path directly with a
+ * synthetic input sized to trigger it repeatedly, and asserts near-linear
+ * scaling: quadrupling the input size should not multiply parse time by
+ * more than a safe constant. Recovery is linear in input size, so this
+ * holds with margin while still catching an accidental quadratic
+ * regression.
+ *
+ * A deeply-nested-unclosed-bracket variant was also tried (to exercise
+ * recoverToNextStatement's opener-stack walk specifically) but was dropped:
+ * the only depths that reach recoverToNextStatement at all sit within ~50
+ * tokens of V8's default call-stack limit for this grammar (parseExpression
+ * recurses per open paren before recovery ever runs), so any depth large
+ * enough to time meaningfully risks a `RangeError` instead of exercising
+ * the resync loop, and the margin is too thin to be reliable across Node
+ * versions/CI runners with different stack sizes. The repeated-`error()`
+ * case below reaches recoverToNextStatement on every one of its statements
+ * without approaching that limit, so it is the sole timed case here.
  */
 
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { parseWithRecovery } from '@rcrsr/rill';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const LANGUAGE_TESTS_DIR = join(__dirname, '..', 'language');
-
-// Matches rill source strings passed as the first argument to the test
-// helpers used throughout tests/language/*.test.ts (single, double, or
-// template-quoted). The raw text between the delimiters is used as-is;
-// it does not need to be JS-unescaped to remain valid rill source.
-const SOURCE_CALL_PATTERN =
-  /\b(?:run|runFull|runWithContext)\(\s*(`(?:\\.|[^`\\])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;
-
-// Many tests bind rill source to a local variable before passing it to
-// run/runFull/runWithContext (e.g. `const script = \`...\`;`), rather than
-// inlining the literal at the call site. Capturing every such declaration
-// (regardless of variable name) pulls those scripts into the corpus too,
-// without needing to trace each identifier back to its call site. This
-// deliberately errs toward over-inclusion: extra parseable snippets only
-// strengthen a parse-time benchmark.
-const SOURCE_DECLARATION_PATTERN =
-  /\bconst\s+[A-Za-z_$][\w$]*(?:\s*:\s*[^=]+)?\s*=\s*(`(?:\\.|[^`\\])*`|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/g;
+// Scaling-tolerance constant: quadrupling the input must not more than
+// quintuple the parse time. Linear scaling would produce a ratio near 4;
+// this leaves generous margin for measurement noise while still catching a
+// quadratic (ratio ~16) or worse regression.
+const MAX_SCALING_RATIO = 5;
 
 /**
- * Runs parseWithRecovery for its wall-clock cost only. A small number of
- * corpus entries are deliberately malformed fragments (used elsewhere to
- * exercise fatal, non-recoverable parse paths) that throw rather than
- * return a ParseResult; those throws are swallowed here since only timing
- * is under test.
+ * Builds a script of `count` back-to-back malformed statements, each of
+ * which fails to parse as an `error` statement (message required) and
+ * drives one full pass through recoverToNextStatement per statement.
  */
-function parseForTiming(source: string): void {
-  try {
+function buildMalformedStatementCorpus(count: number): string {
+  return 'error()\n'.repeat(count);
+}
+
+/** Runs parseWithRecovery over `source` `iterations` times, timing only. */
+function timeParse(source: string, iterations: number): number {
+  const start = performance.now();
+  for (let i = 0; i < iterations; i++) {
     parseWithRecovery(source);
-  } catch {
-    // Timing only; parse correctness is covered by tests/language/.
   }
+  return performance.now() - start;
 }
 
-/** Extracts every embedded rill source snippet from the language test corpus. */
-function loadLanguageCorpus(): string[] {
-  const files = readdirSync(LANGUAGE_TESTS_DIR).filter((f) =>
-    f.endsWith('.test.ts')
-  );
+describe('parseWithRecovery recovery-path performance scaling', () => {
+  it('scales near-linearly with input size over repeated malformed statements', () => {
+    const small = buildMalformedStatementCorpus(2500);
+    const large = buildMalformedStatementCorpus(10000);
+    const iterations = 5;
 
-  const sources = new Set<string>();
-  for (const file of files) {
-    const content = readFileSync(join(LANGUAGE_TESTS_DIR, file), 'utf8');
-    for (const match of content.matchAll(SOURCE_CALL_PATTERN)) {
-      const literal = match[1];
-      if (literal === undefined) continue;
-      sources.add(literal.slice(1, -1));
-    }
-    for (const match of content.matchAll(SOURCE_DECLARATION_PATTERN)) {
-      const literal = match[1];
-      if (literal === undefined) continue;
-      sources.add(literal.slice(1, -1));
-    }
-  }
-  return [...sources];
-}
-
-// Performance threshold: 5% regression tolerance, matching the ceiling
-// specified for parse-time regression detection.
-const REGRESSION_THRESHOLD = 0.05;
-
-// Baseline execution time (ms) per full-corpus pass. Measured locally
-// (isolated run) across several repetitions of the full parseWithRecovery
-// sweep below (observed range: ~52ms-77ms per pass across 4 local runs).
-// The constant is set at roughly 2x the highest local observation to
-// absorb CI runner variance without becoming tautological.
-const BASELINE_MS = 150;
-
-describe('parseWithRecovery parse-time regression', () => {
-  it('parses the full language test corpus within the performance budget', () => {
-    const corpus = loadLanguageCorpus();
-    // Floor set comfortably below the true extracted count but well above
-    // the inline-call-only count (2894), so a regression that silently
-    // drops the variable-bound declaration extraction is caught here
-    // instead of only showing up as a smaller-than-expected timing shift.
-    expect(corpus.length).toBeGreaterThan(3000);
-
-    const iterations = 20;
-
-    // Warmup: let the JIT optimize before measuring.
+    // Warmup: let the JIT optimize before measuring either size.
     for (let i = 0; i < 3; i++) {
-      for (const source of corpus) {
-        parseForTiming(source);
-      }
+      parseWithRecovery(small);
+      parseWithRecovery(large);
     }
 
-    const start = performance.now();
+    const smallMs = timeParse(small, iterations);
+    const largeMs = timeParse(large, iterations);
 
-    for (let i = 0; i < iterations; i++) {
-      for (const source of corpus) {
-        parseForTiming(source);
-      }
-    }
-
-    const duration = performance.now() - start;
-    const avgMs = duration / iterations;
-
-    const maxAllowed = BASELINE_MS * (1 + REGRESSION_THRESHOLD);
-    expect(avgMs).toBeLessThanOrEqual(maxAllowed);
+    const ratio = largeMs / smallMs;
+    expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
   }, 60000);
 });

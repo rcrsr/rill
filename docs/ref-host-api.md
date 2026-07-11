@@ -380,6 +380,32 @@ Note: `RILL-P006` (deprecated capture arrow syntax) was removed. `RILL-P007` thr
 
 See [Error Reference](ref-errors.md) for full error descriptions and resolution strategies.
 
+## parseWithRecovery
+
+`parseWithRecovery(source: string): ParseResult` parses rill source for IDE and tooling scenarios. Use this instead of `parse()` when you need diagnostics for incomplete or invalid source, such as while a user is still typing.
+
+```typescript
+import { parseWithRecovery } from '@rcrsr/rill';
+
+const result = parseWithRecovery(source);
+if (!result.success) {
+  console.log('Errors:', result.errors);
+}
+// result.ast may contain RecoveryErrorNode or PartialExpressionNode entries
+```
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `ast` | `ScriptNode` | The parsed AST, possibly containing `RecoveryErrorNode` or `PartialExpressionNode` entries |
+| `errors` | `ParseError[]` | Parse errors collected during recovery; empty when `success` is `true` |
+| `success` | `boolean` | `true` when parsing completed without errors |
+
+`parseWithRecovery` never throws. Malformed or pathological input, including deeply nested brackets that would otherwise exceed stack-depth limits, returns `{ ast, errors, success: false }` instead of raising an exception. Callers do not need a `try`/`catch` around this function.
+
+See [RecoveryErrorNode](ref-host-api-types.md) and [PartialExpressionNode](ref-host-api-types.md) for the recovery-specific AST node shapes.
+
+---
+
 ## BUILTIN_FUNCTIONS
 
 `BUILTIN_FUNCTIONS` is a `readonly string[]` listing every built-in function name. Use this to drive editor completion lists for rill scripts.

@@ -103,13 +103,32 @@ export function parseWithRecovery(source: string): ParseResult {
   }
 
   const parser = new Parser(tokens, { recoveryMode: true, source });
-  const ast = parser.parse();
-
-  return {
-    ast,
-    errors: parser.errors,
-    success: parser.errors.length === 0,
-  };
+  try {
+    const ast = parser.parse();
+    return {
+      ast,
+      errors: parser.errors,
+      success: parser.errors.length === 0,
+    };
+  } catch (err) {
+    // Recovery mode itself only ever catches ParseError/LexerError per
+    // statement; anything else (e.g. a RangeError from stack-depth-limited
+    // expression descent on deeply nested input) escapes parser.parse()
+    // uncaught. Convert it to a ParseResult here so parseWithRecovery keeps
+    // its non-throwing contract for every failure class, matching the
+    // tokenize-failure handling above.
+    const message = err instanceof Error ? err.message : String(err);
+    const parseError = new ParseError(ERROR_IDS.RILL_P001, message, {
+      line: 1,
+      column: 1,
+      offset: 0,
+    });
+    return {
+      ast: createEmptyScript(),
+      errors: [...parser.errors, parseError],
+      success: false,
+    };
+  }
 }
 
 /**
@@ -121,17 +140,7 @@ export function parseWithRecovery(source: string): ParseResult {
  * fails to tokenize.
  */
 function parsePartialScript(source: string, failureOffset: number): ScriptNode {
-  const emptyScript: ScriptNode = {
-    type: 'Script',
-    frontmatter: null,
-    statements: [],
-    span: {
-      start: { line: 1, column: 1, offset: 0 },
-      end: { line: 1, column: 1, offset: 0 },
-    },
-  };
-
-  if (failureOffset <= 0) return emptyScript;
+  if (failureOffset <= 0) return createEmptyScript();
 
   const prefix = source.slice(0, failureOffset);
   try {
@@ -142,8 +151,21 @@ function parsePartialScript(source: string, failureOffset: number): ScriptNode {
     });
     return partialParser.parse();
   } catch {
-    return emptyScript;
+    return createEmptyScript();
   }
+}
+
+/** Builds an empty ScriptNode fallback for parse failures with no salvageable AST. */
+function createEmptyScript(): ScriptNode {
+  return {
+    type: 'Script',
+    frontmatter: null,
+    statements: [],
+    span: {
+      start: { line: 1, column: 1, offset: 0 },
+      end: { line: 1, column: 1, offset: 0 },
+    },
+  };
 }
 
 // ============================================================

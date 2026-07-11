@@ -16,8 +16,7 @@ import type {
   SpreadArgNode,
   StatementNode,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES } from '../types.js';
-import { isPipeChainNode } from '../ast-nodes.js';
+import { ParseError, TOKEN_TYPES, isPipeChainNode } from '../types.js';
 import { LexerError } from '../lexer/index.js';
 import {
   check,
@@ -195,7 +194,6 @@ Parser.prototype.recoverToNextStatement = function (
   // the top is skipped without popping, so e.g. an interior `]` inside an
   // unmatched `(` cannot prematurely close the outer paren.
   const expectedClosers: string[] = [];
-  let lastEnd = startLocation;
 
   while (!isAtEnd(this.state)) {
     if (expectedClosers.length === 0 && check(this.state, TOKEN_TYPES.NEWLINE))
@@ -216,22 +214,33 @@ Parser.prototype.recoverToNextStatement = function (
     }
     // A closer that doesn't match the stack top is skipped without popping.
 
-    const token = advance(this.state);
-    lastEnd = token.span.end;
+    advance(this.state);
 
     // Stop once a matching closer has emptied the stack.
     if (matchesTop && expectedClosers.length === 0) break;
   }
 
+  // The boundary is the start of the token the scan stopped on (the
+  // statement-ending NEWLINE, or EOF), not the end of the last consumed
+  // token. This preserves inter-token whitespace skipped by the lexer
+  // between the last consumed token and the boundary, while still
+  // excluding the boundary token itself. `current()` always returns a
+  // valid token (the EOF token at end of input), so no separate EOF
+  // fallback is needed.
+  const boundaryStart = current(this.state).span.start;
+
   // `text` is derived from the same offset used for `span`'s end so the
   // two always agree: source.slice(span.start.offset, span.end.offset) === text.
-  const text = this.state.source.slice(startLocation.offset, lastEnd.offset);
+  const text = this.state.source.slice(
+    startLocation.offset,
+    boundaryStart.offset
+  );
 
   return {
     type: 'RecoveryError',
     message,
     text,
-    span: makeSpan(startLocation, lastEnd),
+    span: makeSpan(startLocation, boundaryStart),
   };
 };
 

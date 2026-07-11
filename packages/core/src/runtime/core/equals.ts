@@ -33,6 +33,7 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   PropertyAccess,
+  RecoveryErrorNode,
   BodyNode,
   SliceNode,
   StatementNode,
@@ -88,6 +89,9 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
 
     case 'PipeChain': {
       const bNode = b as ExpressionNode;
+      // `a.type === b.type` was already checked above, so `bNode` is
+      // guaranteed to be a PipeChainNode here. This check is a defensive
+      // narrowing that is unreachable in normal execution.
       if (!isPipeChainNode(bNode)) {
         throwFatalHostHalt(
           { fn: 'astEquals' },
@@ -219,6 +223,12 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
         (b as InterpolationNode).expression
       );
 
+    case 'PartialExpression':
+      return partialExpressionEquals(a, b as PartialExpressionNode);
+
+    case 'RecoveryError':
+      return recoveryErrorEquals(a, b as RecoveryErrorNode);
+
     default:
       // For any unhandled node types, fall back to false
       return false;
@@ -276,6 +286,9 @@ function expressionEquals(a: ExpressionNode, b: ExpressionNode): boolean {
   if (a.type === 'PartialExpression') {
     return partialExpressionEquals(a, b as PartialExpressionNode);
   }
+  // `a.type === b.type` was already checked above, so `b` is guaranteed to
+  // be a PipeChainNode here. This check is a defensive narrowing that is
+  // unreachable in normal execution.
   if (!isPipeChainNode(b)) {
     throwFatalHostHalt(
       { fn: 'expressionEquals' },
@@ -296,6 +309,13 @@ function partialExpressionEquals(
     if (!expressionEquals(a.children[i]!, b.children[i]!)) return false;
   }
   return true;
+}
+
+function recoveryErrorEquals(
+  a: RecoveryErrorNode,
+  b: RecoveryErrorNode
+): boolean {
+  return a.message === b.message && a.text === b.text;
 }
 
 function pipeChainEquals(a: PipeChainNode, b: PipeChainNode): boolean {

@@ -29,8 +29,7 @@ import type {
   BodyNode,
   StatementNode,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES } from '../types.js';
-import { isPipeChainNode } from '../ast-nodes.js';
+import { ParseError, TOKEN_TYPES, isPipeChainNode } from '../types.js';
 import {
   check,
   advance,
