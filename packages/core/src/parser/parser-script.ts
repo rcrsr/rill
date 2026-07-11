@@ -12,12 +12,12 @@ import type {
   FrontmatterNode,
   NamedArgNode,
   PartialExpressionNode,
-  PipeChainNode,
   ScriptNode,
   SpreadArgNode,
   StatementNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
+import { isPipeChainNode } from '../ast-nodes.js';
 import { LexerError } from '../lexer/index.js';
 import {
   check,
@@ -33,24 +33,26 @@ import { ERROR_IDS } from '../error-registry.js';
 const RESERVED_ANNOTATION_KEYS: readonly string[] = ['type', 'input', 'output'];
 
 // Tokens that open a nested construct tracked by recoverToNextStatement's
-// depth-aware resync. Angle-bracket forms (destruct<, slice<, use<, retry<,
+// type-matched resync. Angle-bracket forms (destruct<, slice<, use<, retry<,
 // do<, pass<, timeout<) are out of scope for v1 and are treated as ordinary
 // tokens during resync.
-const RECOVERY_OPENING_TOKENS: ReadonlySet<string> = new Set([
-  TOKEN_TYPES.LPAREN,
-  TOKEN_TYPES.LBRACE,
-  TOKEN_TYPES.LBRACKET,
-  TOKEN_TYPES.LIST_LBRACKET,
-  TOKEN_TYPES.DICT_LBRACKET,
-  TOKEN_TYPES.TUPLE_LBRACKET,
-  TOKEN_TYPES.ORDERED_LBRACKET,
-  TOKEN_TYPES.GUARD_LBRACE,
+//
+// Maps each opening token to the closing token type it expects. Resync
+// pushes the expected closer onto a stack on each opening token and pops it
+// only when a closer matching the stack top is seen; a closer that doesn't
+// match the top is skipped without popping, so a mismatched bracket cannot
+// prematurely close the enclosing construct.
+const RECOVERY_OPENER_TO_CLOSER: ReadonlyMap<string, string> = new Map([
+  [TOKEN_TYPES.LPAREN, TOKEN_TYPES.RPAREN],
+  [TOKEN_TYPES.LBRACE, TOKEN_TYPES.RBRACE],
+  [TOKEN_TYPES.GUARD_LBRACE, TOKEN_TYPES.RBRACE],
+  [TOKEN_TYPES.LBRACKET, TOKEN_TYPES.RBRACKET],
+  [TOKEN_TYPES.LIST_LBRACKET, TOKEN_TYPES.RBRACKET],
+  [TOKEN_TYPES.DICT_LBRACKET, TOKEN_TYPES.RBRACKET],
+  [TOKEN_TYPES.TUPLE_LBRACKET, TOKEN_TYPES.RBRACKET],
+  [TOKEN_TYPES.ORDERED_LBRACKET, TOKEN_TYPES.RBRACKET],
 ]);
 
-// Tokens that close a nested construct. A single depth counter is used
-// rather than a type-matched stack: recovery scanning only needs to skip
-// past nested content, not validate bracket-type pairing (the real parser
-// already enforces that on the successful-parse path).
 const RECOVERY_CLOSING_TOKENS: ReadonlySet<string> = new Set([
   TOKEN_TYPES.RPAREN,
   TOKEN_TYPES.RBRACE,
@@ -84,7 +86,32 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
   // Optional frontmatter
   let frontmatter: FrontmatterNode | null = null;
   if (check(this.state, TOKEN_TYPES.FRONTMATTER_DELIM)) {
-    frontmatter = this.parseFrontmatter();
+    if (this.state.recoveryMode) {
+      // Recovery mode: catch errors from unclosed frontmatter and continue
+      // with a null frontmatter rather than throwing. The frontmatter scan
+      // already consumes to EOF on an unclosed `---`, so no resync is needed.
+      try {
+        frontmatter = this.parseFrontmatter();
+      } catch (err) {
+        if (err instanceof ParseError || err instanceof LexerError) {
+          const parseError =
+            err instanceof ParseError
+              ? err
+              : new ParseError(
+                  ERROR_IDS.RILL_P001,
+                  err.message.replace(/ at \d+:\d+$/, ''),
+                  err.location
+                );
+          this.state.errors.push(parseError);
+          frontmatter = null;
+        } else {
+          throw err; // Re-throw non-parse errors
+        }
+      }
+    } else {
+      // Normal mode: let errors propagate
+      frontmatter = this.parseFrontmatter();
+    }
   }
   skipNewlines(this.state);
 
@@ -156,30 +183,44 @@ Parser.prototype.recoverToNextStatement = function (
   startLocation: { line: number; column: number; offset: number },
   message: string
 ): RecoveryErrorNode {
-  // Depth-aware resync: at depth 0, a NEWLINE remains the statement
+  // Type-matched resync: at an empty stack, a NEWLINE remains the statement
   // boundary. Inside an open {}/()/[] construct, NEWLINE is skipped so
   // recovery advances to the matching closing token instead of stopping
   // at the first interior newline. Bounded by EOF: a construct left
   // unclosed at EOF resyncs there (the loop simply runs out of tokens).
-  let depth = 0;
+  //
+  // A stack of expected closer token types replaces the old shared depth
+  // counter: each opening token pushes the closer type it expects, and only
+  // a closer matching the stack top pops it. A closer that doesn't match
+  // the top is skipped without popping, so e.g. an interior `]` inside an
+  // unmatched `(` cannot prematurely close the outer paren.
+  const expectedClosers: string[] = [];
   let lastEnd = startLocation;
 
   while (!isAtEnd(this.state)) {
-    if (depth === 0 && check(this.state, TOKEN_TYPES.NEWLINE)) break;
+    if (expectedClosers.length === 0 && check(this.state, TOKEN_TYPES.NEWLINE))
+      break;
 
     const tokenType = current(this.state).type;
+    const expectedCloser = RECOVERY_OPENER_TO_CLOSER.get(tokenType);
     const isClosing = RECOVERY_CLOSING_TOKENS.has(tokenType);
-    if (RECOVERY_OPENING_TOKENS.has(tokenType)) {
-      depth++;
-    } else if (isClosing && depth > 0) {
-      depth--;
+    const matchesTop =
+      isClosing &&
+      expectedClosers.length > 0 &&
+      expectedClosers[expectedClosers.length - 1] === tokenType;
+
+    if (expectedCloser !== undefined) {
+      expectedClosers.push(expectedCloser);
+    } else if (matchesTop) {
+      expectedClosers.pop();
     }
+    // A closer that doesn't match the stack top is skipped without popping.
 
     const token = advance(this.state);
     lastEnd = token.span.end;
 
-    // Stop once the matching closing boundary has been consumed.
-    if (isClosing && depth === 0) break;
+    // Stop once a matching closer has emptied the stack.
+    if (matchesTop && expectedClosers.length === 0) break;
   }
 
   // `text` is derived from the same offset used for `span`'s end so the
@@ -358,7 +399,14 @@ Parser.prototype.parseStatement = function (
   // parseExpression() itself only ever produces PipeChainNode on a
   // successful parse; PartialExpressionNode is only emitted by the
   // statement-level recovery salvage in parseScript(), never from here.
-  const expression = this.parseExpression() as PipeChainNode;
+  const expression = this.parseExpression();
+  if (!isPipeChainNode(expression)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      'Parse error: expected a complete expression in statement',
+      start
+    );
+  }
 
   return {
     type: 'Statement',

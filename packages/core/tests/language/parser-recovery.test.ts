@@ -4,7 +4,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ParseError, parseWithRecovery } from '@rcrsr/rill';
+import { parse, ParseError, parseWithRecovery } from '@rcrsr/rill';
 import { ERROR_IDS } from '../../src/error-registry.js';
 
 /**
@@ -278,6 +278,36 @@ interpolation"""`;
       expect(recoveryText).toBe('error({\n1 +\n})');
     });
 
+    it('skips a mismatched closing bracket instead of prematurely closing the enclosing paren', () => {
+      // The interior `]` does not match the open `(`, so a type-matched
+      // stack must skip over it without popping and continue scanning for
+      // the real matching `)`. A blind depth counter would treat any
+      // closing token as decrementing depth and would wrongly stop at the
+      // interior `]`, truncating the recovered span before the real
+      // boundary and leaving the following `)` to be parsed as its own
+      // (invalid) statement.
+      const source = `error(1, 2]
+)
+"after"`;
+      const result = parseWithRecovery(source);
+
+      expect(result.success).toBe(false);
+      expect(result.ast.statements.length).toBe(2);
+      const [first, second] = result.ast.statements;
+      expect(first?.type).toBe('RecoveryError');
+      expect(second?.type).toBe('Statement');
+      const recoveryText = (first as { text: string }).text;
+      expect(recoveryText).toBe('error(1, 2]\n)');
+      const span = (
+        first as {
+          span: { start: { offset: number }; end: { offset: number } };
+        }
+      ).span;
+      expect(source.slice(span.start.offset, span.end.offset)).toBe(
+        recoveryText
+      );
+    });
+
     it('resyncs deeply nested unclosed brackets once at the outermost boundary, without a cascade of spurious diagnostics', () => {
       const source = `error(list[list[list[
 "unterminated`;
@@ -473,6 +503,27 @@ interpolation"""`;
         expect(e).toBe(original);
         expect(e).not.toBeInstanceOf(ParseError);
       }
+    });
+  });
+
+  describe('Unclosed frontmatter', () => {
+    it('recovers from an unclosed frontmatter delimiter, without throwing', () => {
+      const source = `---\ntitle: test\n`;
+
+      let result: ReturnType<typeof parseWithRecovery>;
+      expect(() => {
+        result = parseWithRecovery(source);
+      }).not.toThrow();
+
+      expect(result!.success).toBe(false);
+      expect(result!.errors[0]?.errorId).toBe(ERROR_IDS.RILL_P005);
+      expect(result!.ast.frontmatter).toBe(null);
+    });
+
+    it('still throws for unclosed frontmatter in normal (non-recovery) parse mode', () => {
+      const source = `---\ntitle: test\n`;
+
+      expect(() => parse(source)).toThrow(ParseError);
     });
   });
 

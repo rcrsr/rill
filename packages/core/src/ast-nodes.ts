@@ -286,6 +286,14 @@ export interface PipeChainNode extends BaseNode {
   readonly terminator: ChainTerminator | null;
 }
 
+/**
+ * Type guard to check if an expression node is a PipeChainNode (as opposed
+ * to a PartialExpressionNode produced by parser error recovery).
+ */
+export function isPipeChainNode(node: ExpressionNode): node is PipeChainNode {
+  return node.type === 'PipeChain';
+}
+
 export interface PostfixExprNode extends BaseNode {
   readonly type: 'PostfixExpr';
   readonly primary: PrimaryNode;

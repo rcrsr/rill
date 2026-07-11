@@ -298,6 +298,7 @@ export {
 // ============================================================
 
 // --- from ./ast-nodes.js ---
+export { isPipeChainNode } from './ast-nodes.js';
 export type {
   AnnotatedExprNode,
   AnnotatedStatementNode,

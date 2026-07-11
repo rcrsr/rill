@@ -31,6 +31,7 @@ import type {
   StringLiteralNode,
   TypeConstructorNode,
 } from '../../types.js';
+import { isPipeChainNode } from '../../types.js';
 import type { TypeRef } from '../../value-types.js';
 
 /**
@@ -507,8 +508,8 @@ function extractDescription(
     if (named.name !== 'description' && named.name !== 'doc') continue;
 
     // Navigate: value → PipeChainNode.head → PostfixExprNode.primary → StringLiteralNode
-    const chain = named.value as PipeChainNode;
-    if (chain.type !== 'PipeChain') continue;
+    if (!isPipeChainNode(named.value)) continue;
+    const chain = named.value;
 
     const head = chain.head as PostfixExprNode;
     if (head.type !== 'PostfixExpr') continue;

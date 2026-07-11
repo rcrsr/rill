@@ -53,6 +53,9 @@ import type {
   LiteralNode,
   BoolLiteralNode,
 } from '../../types.js';
+import { isPipeChainNode } from '../../types.js';
+import { throwFatalHostHalt } from './types/halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 
 /**
  * Compare two AST nodes for structural equality.
@@ -83,8 +86,17 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
     case 'AnnotatedStatement':
       return annotatedStatementEquals(a, b as AnnotatedStatementNode);
 
-    case 'PipeChain':
-      return pipeChainEquals(a, b as PipeChainNode);
+    case 'PipeChain': {
+      const bNode = b as ExpressionNode;
+      if (!isPipeChainNode(bNode)) {
+        throwFatalHostHalt(
+          { fn: 'astEquals' },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          'Expected matching PipeChain node for equality comparison'
+        );
+      }
+      return pipeChainEquals(a, bNode);
+    }
 
     case 'PostfixExpr':
       return postfixExprEquals(a, b as PostfixExprNode);
@@ -264,7 +276,14 @@ function expressionEquals(a: ExpressionNode, b: ExpressionNode): boolean {
   if (a.type === 'PartialExpression') {
     return partialExpressionEquals(a, b as PartialExpressionNode);
   }
-  return pipeChainEquals(a, b as PipeChainNode);
+  if (!isPipeChainNode(b)) {
+    throwFatalHostHalt(
+      { fn: 'expressionEquals' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Expected matching PipeChain node for equality comparison'
+    );
+  }
+  return pipeChainEquals(a, b);
 }
 
 function partialExpressionEquals(
