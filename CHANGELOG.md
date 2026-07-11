@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **Language-service surface:** Non-throwing parser recovery, field-level source spans, and frozen function/keyword name sets for editor tooling. ([#105](https://github.com/rcrsr/rill/pull/105))
+
 ### Changed
 
 - **TypeScript 7 toolchain:** Upgraded to TypeScript 7 and migrated linting from eslint to oxlint and formatting from prettier to oxfmt. ([#102](https://github.com/rcrsr/rill/pull/102))
