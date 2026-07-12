@@ -424,3 +424,9 @@ export type { FieldArg, RillTypeName, TypeRef } from './value-types.js';
 // CONSTANTS
 // ============================================================
 export { VALID_TYPE_NAMES } from './constants.js';
+
+// ============================================================
+// AST TRAVERSAL
+// ============================================================
+
+export { nodeAtPosition, walkAst } from './ast-walk.js';

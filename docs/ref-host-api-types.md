@@ -630,6 +630,22 @@ interface PartialExpressionNode {
 
 `PartialExpressionNode` is kept distinct from `RecoveryErrorNode` so the two recovery shapes never collide in downstream visitors. `RecoveryErrorNode` covers opaque skipped text with no internal structure. `PartialExpressionNode` preserves the child nodes the parser did recognize. Both node types only appear in ASTs produced by parsing with `recoveryMode: true`.
 
+### AST visitor callback shape
+
+```typescript
+type AstVisitor = (node: ASTNode) => void;
+
+function walkAst(root: ASTNode, visit: AstVisitor): void;
+```
+
+| Field | Behavior |
+|-------|----------|
+| `node` | Each `ASTNode` union member reachable from `root`, in pre-order |
+| Call order | Parent nodes are visited before their children |
+| Coverage | Every union member, including `RecoveryErrorNode` and `PartialExpressionNode` |
+
+Every member of the `ASTNode` union has a defined child set: a fixed, exhaustively-checked list of the ASTNodes nested directly inside it. `walkAst` uses this per-node-type contract to reach every reachable node, so a visitor callback never skips a branch of the tree. Field-access and dict-key segments are not `ASTNode` union members; see [Field access and dict key spans](#field-access-and-dict-key-spans) for how their nested nodes are reached instead.
+
 ### Field access and dict key spans
 
 `FieldAccessLiteral`, `FieldAccessVariable`, `FieldAccessComputed`, `DictKeyVariable`, and `DictKeyComputed` each carry a `readonly span: SourceSpan` field, following the same inline-span pattern as `BracketAccess`. These interfaces are segments within a larger node (a property access chain or a dict key) rather than standalone `BaseNode` subtypes, so `span` covers only that segment.
