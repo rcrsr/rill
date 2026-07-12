@@ -404,6 +404,53 @@ if (!result.success) {
 
 See [RecoveryErrorNode](ref-host-api-types.md) and [PartialExpressionNode](ref-host-api-types.md) for the recovery-specific AST node shapes.
 
+## nodeAtPosition
+
+`nodeAtPosition(root: ASTNode, offset: number): ASTNode | null` finds the deepest AST node at a source offset. Use this to build hover, go-to-definition, or completion tooling.
+
+```typescript
+import { nodeAtPosition, parse } from '@rcrsr/rill';
+
+const { ast } = parse(source);
+const node = nodeAtPosition(ast, 42);
+if (node !== null) {
+  console.log('Node at offset 42:', node.type);
+}
+```
+
+| Parameter/Return | Type | Description |
+|-------------------|------|--------------|
+| `root` | `ASTNode` | Subtree to search, typically a `ScriptNode` from `parse()` |
+| `offset` | `number` | 0-based absolute character offset, matching `SourceLocation.offset` |
+| Returns | `ASTNode \| null` | The deepest node whose span contains `offset`, or `null` if none does |
+
+`nodeAtPosition` uses half-open span containment: `offset === span.start.offset` is inside, `offset === span.end.offset` is not. An out-of-range `offset` returns `null`. The search descends through span-less field-access and dict-key segments to reach their AST node children, so a match can surface a node nested inside those segments rather than the segment itself. A `VariableNode` span covers only the leading `$name` token. `nodeAtPosition` still returns it when `offset` falls on an access-chain segment like `.field` or `[0]`.
+
+See [Field access and dict key spans](ref-host-api-types.md#field-access-and-dict-key-spans) for the span rules governing those segments.
+
+## walkAst
+
+`walkAst(root: ASTNode, visit: (node: ASTNode) => void): void` performs a pre-order depth-first traversal of an AST, calling `visit` once per node. Use this to build linters, analyzers, or codegen tools that need to inspect every node.
+
+```typescript
+import { walkAst, parse } from '@rcrsr/rill';
+
+const { ast } = parse(source);
+const types: string[] = [];
+walkAst(ast, (node) => {
+  types.push(node.type);
+});
+```
+
+| Parameter | Type | Description |
+|-----------|------|--------------|
+| `root` | `ASTNode` | Subtree to traverse, typically a `ScriptNode` from `parse()` |
+| `visit` | `(node: ASTNode) => void` | Callback invoked once for every node, including recovery nodes |
+
+`walkAst` visits every reachable `ASTNode`, including `RecoveryErrorNode` and `PartialExpressionNode` entries. Span-less field-access and dict-key segments are descended through but never passed to `visit` directly.
+
+See [AST Node Types](ref-host-api-types.md#ast-node-types) for the full set of node shapes `visit` may receive.
+
 ---
 
 ## BUILTIN_FUNCTIONS
