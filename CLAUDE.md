@@ -16,6 +16,7 @@ rill uses pnpm workspaces with the following package organization:
 | Package | NPM Name | Purpose |
 |---------|----------|---------|
 | `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
+| `packages/service` | `@rcrsr/rill-language-service` | Published language service |
 | `packages/fiddle` | `@rcrsr/rill-fiddle` (private) | Browser-based rill playground |
 | `packages/web` | `@rcrsr/rill-web` (private) | Documentation website |
 
@@ -67,15 +68,16 @@ Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
 ## Versioning
 
-Only `@rcrsr/rill` (packages/core) is published from this monorepo. Private packages (fiddle, web) track the same version but are not published.
+`@rcrsr/rill` (packages/core) and `@rcrsr/rill-language-service` (packages/service) are published from this monorepo. Private packages (fiddle, web) track the same version but are not published.
 
 | Scope | Rule |
 |-------|------|
 | Root `package.json` | Increments patch on every release |
 | `packages/core` | Increments patch when core changes |
+| `packages/service` | Held exactly equal to `packages/core` version, character-for-character |
 
-- `pnpm fix:versions` — Syncs major.minor from root to packages/core
-- `pnpm check:versions` — Verifies packages/core shares root major.minor
+- `pnpm fix:versions` — Syncs major.minor from root to packages/core, then syncs packages/service to packages/core's full version
+- `pnpm check:versions` — Verifies packages/core shares root major.minor and packages/service exactly equals packages/core's version
 - CHANGELOG entries use the root version
 
 ## Release Process

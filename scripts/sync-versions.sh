@@ -9,7 +9,7 @@ ROOT_VERSION=$(node -p "require('./package.json').version")
 ROOT_MAJOR_MINOR=$(echo "$ROOT_VERSION" | sed 's/\.[0-9]*$//')
 UPDATED=0
 
-for pkg in packages/core; do
+for pkg in packages/core packages/service; do
   pkg="${pkg%/}"
   [ -f "$pkg/package.json" ] || continue
 
@@ -36,4 +36,18 @@ if [ "$UPDATED" -eq 0 ]; then
   echo "All packages already at ${ROOT_MAJOR_MINOR}.x"
 else
   echo "Updated $UPDATED package(s) to ${ROOT_MAJOR_MINOR}.x"
+fi
+
+# Service version is held exactly equal to core (not just major.minor).
+CORE_VERSION=$(node -p "require('./packages/core/package.json').version")
+SERVICE_CURRENT=$(node -p "require('./packages/service/package.json').version")
+if [ "$SERVICE_CURRENT" != "$CORE_VERSION" ]; then
+  node -e "
+    const fs = require('fs');
+    const path = './packages/service/package.json';
+    const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+    pkg.version = '$CORE_VERSION';
+    fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+  "
+  echo "  @rcrsr/rill-language-service: $SERVICE_CURRENT -> $CORE_VERSION"
 fi

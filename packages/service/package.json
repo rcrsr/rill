@@ -1,0 +1,49 @@
+{
+  "name": "@rcrsr/rill-language-service",
+  "version": "0.19.5",
+  "description": "Language service tooling for rill",
+  "license": "MIT",
+  "author": "Andre Bremer",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "keywords": [
+    "rill",
+    "language-service",
+    "tooling"
+  ],
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --config ../../.oxlintrc.json src/",
+    "check": "pnpm run build && pnpm run test && pnpm run typecheck && pnpm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/service"
+  },
+  "homepage": "https://rill.run",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
+  },
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "dependencies": {
+    "@rcrsr/rill": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -10,7 +10,7 @@ ROOT_VERSION=$(node -p "require('./package.json').version")
 ROOT_MAJOR_MINOR=$(echo "$ROOT_VERSION" | sed 's/\.[0-9]*$//')
 ERRORS=0
 
-for pkg in packages/core; do
+for pkg in packages/core packages/service; do
   pkg="${pkg%/}"
   [ -f "$pkg/package.json" ] || continue
 
@@ -23,6 +23,13 @@ for pkg in packages/core; do
     ERRORS=$((ERRORS + 1))
   fi
 done
+
+CORE_VERSION=$(node -p "require('./packages/core/package.json').version")
+SERVICE_VERSION=$(node -p "require('./packages/service/package.json').version")
+if [ "$SERVICE_VERSION" != "$CORE_VERSION" ]; then
+  echo "MISMATCH: service $SERVICE_VERSION != core $CORE_VERSION (exact-equality required)" >&2
+  ERRORS=$((ERRORS + 1))
+fi
 
 if [ "$ERRORS" -gt 0 ]; then
   echo "Found $ERRORS version mismatch(es). Root major.minor: $ROOT_MAJOR_MINOR" >&2
