@@ -269,7 +269,9 @@ function astChildren(node: ASTNode): ASTNode[] {
       return [node.target];
     default: {
       const exhaustive: never = node;
-      return exhaustive;
+      throw new Error(
+        `astChildren: unrecognized ASTNode type: ${String((exhaustive as ASTNode).type)}`
+      );
     }
   }
 }
@@ -306,7 +308,9 @@ function typeRefChildren(ref: TypeRef): ASTNode[] {
       return ref.args === undefined ? [] : fieldArgsChildren(ref.args);
     default: {
       const exhaustive: never = ref;
-      return exhaustive;
+      throw new Error(
+        `typeRefChildren: unrecognized TypeRef kind: ${String((exhaustive as TypeRef).kind)}`
+      );
     }
   }
 }
@@ -335,7 +339,9 @@ function propertyAccessChildren(access: PropertyAccess): ASTNode[] {
       return [];
     default: {
       const exhaustive: never = access;
-      return exhaustive;
+      throw new Error(
+        `propertyAccessChildren: unrecognized PropertyAccess kind: ${String((exhaustive as { kind: string }).kind)}`
+      );
     }
   }
 }
@@ -370,11 +376,23 @@ function dictKeyChildren(key: DictEntryNode['key']): ASTNode[] {
  * PartialExpressionNode. Span-less segments (FieldAccess/BracketAccess
  * variants, DictEntryNode.key variants) are descended through to reach
  * their ASTNode children but are never themselves passed to `visit`.
+ *
+ * Implemented as an explicit-stack iterative walk (rather than recursion)
+ * so that deeply nested ASTs do not risk a `RangeError: Maximum call stack
+ * size exceeded`. Children are pushed onto the stack in reverse order so
+ * they pop, and are visited, in source (left-to-right) order — preserving
+ * the same parent-before-children, left-to-right visit order as the
+ * recursive form.
  */
 export function walkAst(root: ASTNode, visit: (node: ASTNode) => void): void {
-  visit(root);
-  for (const child of astChildren(root)) {
-    walkAst(child, visit);
+  const stack: ASTNode[] = [root];
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    visit(node);
+    const children = astChildren(node);
+    for (let i = children.length - 1; i >= 0; i--) {
+      stack.push(children[i]!);
+    }
   }
 }
 
@@ -382,8 +400,13 @@ export function walkAst(root: ASTNode, visit: (node: ASTNode) => void): void {
  * Returns true if `offset` falls within `span` using half-open
  * containment: `span.start.offset <= offset && offset < span.end.offset`.
  * An empty span (`start.offset === end.offset`) contains nothing.
+ *
+ * Guards against a missing/undefined `span` (reachable for malformed or
+ * hand-constructed ASTNodes from external tooling) by returning `false`
+ * rather than throwing on `span.start`.
  */
-function spanContains(span: SourceSpan, offset: number): boolean {
+function spanContains(span: SourceSpan | undefined, offset: number): boolean {
+  if (span === undefined) return false;
   return span.start.offset <= offset && offset < span.end.offset;
 }
 
@@ -396,14 +419,16 @@ function spanContains(span: SourceSpan, offset: number): boolean {
  * access chain that follows it (e.g. `.field`, `[0]`) — a pre-existing
  * parser characteristic (see `parser-variables.ts`), not something this
  * module changes. Segments that themselves carry a `span`
- * (`FieldAccessLiteral`, `FieldAccessVariable`, `BracketAccess`) are
- * checked here so that an offset landing on one of those span-less-child
- * segments still resolves to the owning `VariableNode` rather than
- * falling through to an outer ancestor. `FieldAccessComputed` and
- * `FieldAccessBlock` are not re-checked here: their ASTNode children are
- * already tried first via `astChildren`. `FieldAccessAlternatives` and
- * `FieldAccessAnnotation` carry no span of their own and are not
- * resolvable this way.
+ * (`FieldAccessLiteral`, `FieldAccessVariable`, `FieldAccessComputed`,
+ * `BracketAccess`) are checked here so that an offset landing on one of
+ * those segments — including `FieldAccessComputed`'s own delimiters
+ * (the `.` through the closing `)`, outside its inner expression's span)
+ * — still resolves to the owning `VariableNode` rather than falling
+ * through to an outer ancestor. For offsets inside `FieldAccessComputed`'s
+ * inner expression, `astChildren` reaches the same result first via its
+ * ASTNode children. `FieldAccessBlock`'s ASTNode children are reached only
+ * via `astChildren`. `FieldAccessAlternatives` and `FieldAccessAnnotation`
+ * carry no span of their own and are not resolvable this way.
  */
 function ownsOffset(node: ASTNode, offset: number): boolean {
   if (spanContains(node.span, offset)) return true;
@@ -424,7 +449,11 @@ function accessSegmentContains(
   offset: number
 ): boolean {
   if ('accessKind' in access) return spanContains(access.span, offset);
-  if (access.kind === 'literal' || access.kind === 'variable') {
+  if (
+    access.kind === 'literal' ||
+    access.kind === 'variable' ||
+    access.kind === 'computed'
+  ) {
     return spanContains(access.span, offset);
   }
   return false;
@@ -443,12 +472,53 @@ function accessSegmentContains(
  * can be reachable even when `root`'s own span does not contain `offset`.
  * For ordinary well-nested spans this yields the same result as gating on
  * `root` first.
+ *
+ * Implemented as an explicit-stack iterative depth-first walk (rather than
+ * recursion) to avoid stack overflow on deeply nested ASTs, while
+ * preserving the exact child-first (deepest-node) return semantics of the
+ * recursive form: a matching descendant is always returned before its
+ * ancestor is even checked.
+ *
+ * Span-based pruning: before descending into a child, `spanContains` is
+ * checked against the child's own span, so subtrees whose span cannot
+ * possibly contain `offset` are skipped entirely — this keeps lookup
+ * latency proportional to cursor nesting depth rather than total node
+ * count. The one exception is `VariableNode`: per `ownsOffset`, its own
+ * `span` covers only the leading `$name` token while its access-chain
+ * children (`FieldAccessComputed`/`FieldAccessBlock` inner expressions)
+ * can extend further, so a `VariableNode` child is always descended into
+ * unconditionally, without a span pre-check.
  */
 export function nodeAtPosition(root: ASTNode, offset: number): ASTNode | null {
-  for (const child of astChildren(root)) {
-    const found = nodeAtPosition(child, offset);
-    if (found !== null) return found;
+  interface Frame {
+    readonly node: ASTNode;
+    readonly children: ASTNode[];
+    childIndex: number;
   }
 
-  return ownsOffset(root, offset) ? root : null;
+  const stack: Frame[] = [
+    { node: root, children: astChildren(root), childIndex: 0 },
+  ];
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!;
+
+    if (frame.childIndex < frame.children.length) {
+      const child = frame.children[frame.childIndex]!;
+      frame.childIndex++;
+      if (child.type === 'Variable' || spanContains(child.span, offset)) {
+        stack.push({
+          node: child,
+          children: astChildren(child),
+          childIndex: 0,
+        });
+      }
+      continue;
+    }
+
+    stack.pop();
+    if (ownsOffset(frame.node, offset)) return frame.node;
+  }
+
+  return null;
 }

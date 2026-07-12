@@ -4,80 +4,87 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ASTNode } from '@rcrsr/rill';
+import type { ASTNode, NodeType } from '@rcrsr/rill';
 import { nodeAtPosition, parse, parseWithRecovery, walkAst } from '@rcrsr/rill';
 
 /**
- * Full set of NodeType string literals, mirrored from ast-unions.ts, used
- * as the membership oracle for the reflective deep-scan below. Keeping
- * this list independent of astChildren() is the point: it lets the test
- * catch a missing astChildren() arm rather than agreeing with it by
- * construction.
+ * Full set of NodeType string literals, used as the membership oracle for
+ * the reflective deep-scan below. Built from a `satisfies Record<NodeType,
+ * true>` object literal so that a `NodeType` union member missing from this
+ * list is a compile-time (`pnpm typecheck`) error, not a silently-passing
+ * gap.
+ *
+ * Keeping this list independent of astChildren() is still the point: it
+ * lets the test catch a missing astChildren() arm rather than agreeing
+ * with it by construction. The compile-time guard only protects against
+ * this list itself drifting from the NodeType union it mirrors.
  */
-const KNOWN_NODE_TYPES = new Set([
-  'Script',
-  'Frontmatter',
-  'Closure',
-  'ClosureParam',
-  'Statement',
-  'PipeChain',
-  'PostfixExpr',
-  'MethodCall',
-  'Invoke',
-  'AnnotationAccess',
-  'HostCall',
-  'HostRef',
-  'ClosureCall',
-  'PipeInvoke',
-  'Variable',
-  'Capture',
-  'Conditional',
-  'WhileLoop',
-  'DoWhileLoop',
-  'Block',
-  'StringLiteral',
-  'Interpolation',
-  'NumberLiteral',
-  'BoolLiteral',
-  'ListSpread',
-  'Dict',
-  'DictEntry',
-  'Break',
-  'Return',
-  'Yield',
-  'Pass',
-  'PassBlock',
-  'TimeoutBlock',
-  'Assert',
-  'BinaryExpr',
-  'UnaryExpr',
-  'GroupedExpr',
-  'Destructure',
-  'DestructPattern',
-  'Slice',
-  'TypeAssertion',
-  'TypeCheck',
-  'AnnotatedStatement',
-  'AnnotatedExpr',
-  'NamedArg',
-  'SpreadArg',
-  'RecoveryError',
-  'PartialExpression',
-  'Error',
-  'TypeNameExpr',
-  'TypeConstructor',
-  'ClosureSigLiteral',
-  'ListLiteral',
-  'DictLiteral',
-  'TupleLiteral',
-  'OrderedLiteral',
-  'Destruct',
-  'UseExpr',
-  'GuardBlock',
-  'RetryBlock',
-  'AtomLiteral',
-  'StatusProbe',
-]);
+const KNOWN_NODE_TYPES_RECORD = {
+  Script: true,
+  Frontmatter: true,
+  Closure: true,
+  ClosureParam: true,
+  Statement: true,
+  PipeChain: true,
+  PostfixExpr: true,
+  MethodCall: true,
+  Invoke: true,
+  AnnotationAccess: true,
+  HostCall: true,
+  HostRef: true,
+  ClosureCall: true,
+  PipeInvoke: true,
+  Variable: true,
+  Capture: true,
+  Conditional: true,
+  WhileLoop: true,
+  DoWhileLoop: true,
+  Block: true,
+  StringLiteral: true,
+  Interpolation: true,
+  NumberLiteral: true,
+  BoolLiteral: true,
+  ListSpread: true,
+  Dict: true,
+  DictEntry: true,
+  Break: true,
+  Return: true,
+  Yield: true,
+  Pass: true,
+  PassBlock: true,
+  TimeoutBlock: true,
+  Assert: true,
+  BinaryExpr: true,
+  UnaryExpr: true,
+  GroupedExpr: true,
+  Destructure: true,
+  DestructPattern: true,
+  Slice: true,
+  TypeAssertion: true,
+  TypeCheck: true,
+  AnnotatedStatement: true,
+  AnnotatedExpr: true,
+  NamedArg: true,
+  SpreadArg: true,
+  RecoveryError: true,
+  PartialExpression: true,
+  Error: true,
+  TypeNameExpr: true,
+  TypeConstructor: true,
+  ClosureSigLiteral: true,
+  ListLiteral: true,
+  DictLiteral: true,
+  TupleLiteral: true,
+  OrderedLiteral: true,
+  Destruct: true,
+  UseExpr: true,
+  GuardBlock: true,
+  RetryBlock: true,
+  AtomLiteral: true,
+  StatusProbe: true,
+} satisfies Record<NodeType, true>;
+
+const KNOWN_NODE_TYPES = new Set<string>(Object.keys(KNOWN_NODE_TYPES_RECORD));
 
 /**
  * Reflective oracle: walks every enumerable property of `root` (arrays and
@@ -284,6 +291,25 @@ describe('nodeAtPosition', () => {
     expect(found).not.toBeNull();
     expect(found!.type).toBe('NumberLiteral');
     expect(found).not.toBe(postfixExpr);
+  });
+
+  it('returns the enclosing Variable for an offset on a computed field-access delimiter', () => {
+    // Regression: FieldAccessComputed carries its own span (the `.` token
+    // through the closing `)`), which is wider than its inner expression's
+    // span. An offset on the delimiter itself (here the opening `.(`) is
+    // inside FieldAccessComputed.span but outside the inner expression's
+    // span, and must still resolve to the owning VariableNode rather than
+    // falling through to an outer ancestor.
+    const source = `$data.(1 + 1)`;
+    const ast = parse(source);
+
+    const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
+    const variableNode = oracle.find((node) => node.type === 'Variable');
+    expect(variableNode).toBeDefined();
+
+    const delimiterOffset = source.indexOf('.(');
+    const found = nodeAtPosition(ast, delimiterOffset);
+    expect(found).toBe(variableNode);
   });
 
   it('descends through block field access to find a node inside the block', () => {

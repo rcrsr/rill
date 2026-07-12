@@ -411,7 +411,7 @@ See [RecoveryErrorNode](ref-host-api-types.md) and [PartialExpressionNode](ref-h
 ```typescript
 import { nodeAtPosition, parse } from '@rcrsr/rill';
 
-const { ast } = parse(source);
+const ast = parse(source);
 const node = nodeAtPosition(ast, 42);
 if (node !== null) {
   console.log('Node at offset 42:', node.type);
@@ -435,7 +435,7 @@ See [Field access and dict key spans](ref-host-api-types.md#field-access-and-dic
 ```typescript
 import { walkAst, parse } from '@rcrsr/rill';
 
-const { ast } = parse(source);
+const ast = parse(source);
 const types: string[] = [];
 walkAst(ast, (node) => {
   types.push(node.type);
