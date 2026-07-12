@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.19.5 - 2026-07-11
+
 ### Added
 
 - **AST traversal primitives:** `walkAst` and `nodeAtPosition` give language-service tooling a way to walk parsed scripts and resolve source offsets to nodes, for linters, analyzers, and codegen. ([#107](https://github.com/rcrsr/rill/pull/107))
