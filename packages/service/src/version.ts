@@ -1,2 +1,2 @@
-// Keep this value equal to package.json.version character-for-character.
-export const version: string = '0.19.5';
+// Re-exported from a generated file kept in sync with package.json.version.
+export { VERSION as version } from './generated/version-data.js';

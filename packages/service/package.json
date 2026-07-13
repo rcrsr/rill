@@ -22,7 +22,8 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc --build",
+    "build": "tsx scripts/generate-version.ts && tsc --build",
+    "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --config ../../.oxlintrc.json src/",

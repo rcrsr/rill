@@ -93,7 +93,7 @@
 
 ## Related Packages
 
-`@rcrsr/rill` is the core language runtime and parser documented above. `@rcrsr/rill-language-service` is the second published package from this monorepo. Its current surface is a skeleton exposing only a `version` export. Scope-resolver, rule-engine, and syntactic-query API documentation lands in follow-on phases.
+`@rcrsr/rill` is the core language runtime and parser documented above. `@rcrsr/rill-language-service` is the second published package from this monorepo. Its current surface is a skeleton exposing only a `version` export. Scope-resolver, rule-engine, and syntactic-query APIs land in follow-on releases.
 
 ## Changelog
 

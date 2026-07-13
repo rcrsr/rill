@@ -4,7 +4,7 @@ The `conduct/` directory and its initiatives, specifications, plans, and require
 
 - PR titles or descriptions
 - Commit messages on `main` or release branches
-- Any user-facing documentation under `docs/` or `packages/web/`
+- Any user-facing documentation under `docs/` or `packages/web/`, or root-level published files such as `CHANGELOG.md`
 
 Write PR and commit summaries as concrete descriptions of the code and API changes. Refer to source files, exported APIs, and doc pages that ship in the package instead.
 
