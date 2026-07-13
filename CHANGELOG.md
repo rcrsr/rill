@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`@rcrsr/rill-language-service` package debut:** New published package at `packages/service`, exporting a `version` constant. Scope-resolver, rule-engine, and syntactic-query APIs land in follow-on releases.
+- **`@rcrsr/rill-language-service` package debut:** New published package at `packages/service`, exporting a `version` constant. Scope-resolver, rule-engine, and syntactic-query APIs land in follow-on releases. ([#109](https://github.com/rcrsr/rill/pull/109))
 
 ## 0.19.5 - 2026-07-11
 
