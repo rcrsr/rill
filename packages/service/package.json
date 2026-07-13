@@ -11,6 +11,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./scope": {
+      "types": "./dist/scope/index.d.ts",
+      "default": "./dist/scope/index.js"
+    },
+    "./rules": {
+      "types": "./dist/rules/index.d.ts",
+      "default": "./dist/rules/index.js"
     }
   },
   "keywords": [
@@ -22,7 +30,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsx scripts/generate-version.ts && tsc --build",
+    "build": "tsx scripts/generate-version.ts && tsc --build tsconfig.build.json",
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
