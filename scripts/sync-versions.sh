@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Sync major.minor from root package.json to all workspace packages.
+# Sync major.minor from root package.json to publishable packages (core, service).
 # Preserves each package's patch version.
 # Usage: ./scripts/sync-versions.sh
 
