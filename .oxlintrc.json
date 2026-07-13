@@ -48,6 +48,79 @@
       }
     },
     {
+      "files": ["**/src/lexer/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/parser/**", "**/runtime/**"],
+                "message": "Layer violation: lexer is the bottom layer and must not import parser or runtime.",
+                "allowTypeImports": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["**/src/parser/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/runtime/**"],
+                "message": "Layer violation: parser must not import runtime. Runtime consumes the AST; the parser never sees the runtime.",
+                "allowTypeImports": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["**/src/runtime/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/lexer/**", "**/parser/**"],
+                "message": "Layer violation: runtime must not import lexer or parser directly. Use the top-level bridge modules (signature-parser.ts, ext-parse-bridge.ts).",
+                "allowTypeImports": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["**/src/runtime/core/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["**/lexer/**", "**/parser/**"],
+                "message": "Layer violation: runtime must not import lexer or parser directly. Use the top-level bridge modules (signature-parser.ts, ext-parse-bridge.ts).",
+                "allowTypeImports": true
+              },
+              {
+                "group": ["**/ext/**"],
+                "message": "Layer violation: runtime/core must not import runtime/ext. Ext sits above core; inject registries via the runtime context instead.",
+                "allowTypeImports": true
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["**/lint-rules/**/*.cjs"],
       "rules": {
         "typescript/no-require-imports": "off"

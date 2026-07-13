@@ -6,7 +6,7 @@
  */
 
 import { RuntimeError } from '../../types.js';
-import { BUILTIN_FUNCTIONS } from '../ext/builtins.js';
+import { getBuiltinFunctionCache } from './builtin-registry.js';
 import { BUILT_IN_TYPES } from './types/registrations.js';
 import type {
   RuntimeCallbacks,
@@ -24,7 +24,6 @@ import {
 } from './types/status.js';
 import { createTraceFrame } from './types/trace.js';
 import {
-  callable,
   validateDefaultValueType,
   type ApplicationCallable,
   type RillParam,
@@ -252,12 +251,6 @@ function logDisposeTimeout(state: LifecycleState): void {
   );
 }
 
-// Built-in functions that are genuinely variadic and must skip arg validation.
-// log: tests call log("msg", extraValue) — extra args are silently ignored.
-// chain: pipe form sends 1 arg when signature declares 2 (pipeValue is the first).
-// iterate: pipe form sends 1 arg when signature declares 2 (pipeValue is the seed).
-const UNTYPED_BUILTINS = new Set(['log', 'chain', 'iterate']);
-
 // Built-in methods that do their own internal arg validation with specific error
 // messages expected by protected language tests. Generic marshalArgs
 // must not fire before the method body's own check.
@@ -281,34 +274,6 @@ function deriveUnvalidatedMethodReceivers(
   }
   return Object.freeze(bypass);
 }
-
-// Module-level caches: parse signatures once at load time, not per context creation.
-// Contract: BUILTIN_FUNCTIONS is treated as frozen after module initialization.
-// Mutating BUILTIN_FUNCTIONS after load produces stale cache entries.
-
-type BuiltinFnEntry = {
-  appCallable: import('./callable.js').ApplicationCallable;
-};
-const BUILTIN_FN_CACHE = new Map<string, BuiltinFnEntry>();
-
-function initBuiltinCaches(): void {
-  for (const [name, entry] of Object.entries(BUILTIN_FUNCTIONS)) {
-    if (UNTYPED_BUILTINS.has(name)) {
-      BUILTIN_FN_CACHE.set(name, { appCallable: callable(entry.fn, false) });
-      continue;
-    }
-    const appCallable = callable(entry.fn, false);
-    const typedCallable: import('./callable.js').ApplicationCallable = {
-      ...appCallable,
-      params: entry.params as RillParam[],
-      returnType: entry.returnType,
-    };
-    BUILTIN_FN_CACHE.set(name, { appCallable: typedCallable });
-  }
-}
-
-// Initialise once at module load.
-initBuiltinCaches();
 
 const defaultCallbacks: RuntimeCallbacks = {
   onLog: (message) => {
@@ -347,9 +312,9 @@ export function createRuntimeContext(
     }
   }
 
-  // Set built-in functions from module-level cache (parsed once at load time).
-  for (const [name, cached] of BUILTIN_FN_CACHE) {
-    functions.set(name, cached.appCallable);
+  // Set built-in functions from the registry cache (parsed once at registration).
+  for (const [name, appCallable] of getBuiltinFunctionCache()) {
+    functions.set(name, appCallable);
   }
 
   // Set custom functions (can override built-ins)

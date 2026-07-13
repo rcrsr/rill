@@ -48,6 +48,7 @@ import { invokeCallable } from '../core/eval/index.js';
 import { populateBuiltinMethods } from '../core/types/registrations.js';
 import { BreakSignal, ControlSignal } from '../core/signals.js';
 import { createChildContext } from '../core/context.js';
+import { registerBuiltinFunctions } from '../core/builtin-registry.js';
 
 import { getIterableElements } from '../core/eval/mixins/collections.js';
 import { getEvaluator } from '../core/eval/evaluator.js';
@@ -4121,3 +4122,14 @@ BUILTIN_METHODS.duration = Object.freeze({
 // Populate registration methods from BUILTIN_METHODS at module load time.
 // No circular dependency: type-registrations.ts does not import builtins.ts.
 populateBuiltinMethods(BUILTIN_METHODS);
+
+// Built-in functions that are genuinely variadic and must skip arg validation.
+// log: tests call log("msg", extraValue) — extra args are silently ignored.
+// chain: pipe form sends 1 arg when signature declares 2 (pipeValue is the first).
+// iterate: pipe form sends 1 arg when signature declares 2 (pipeValue is the seed).
+const UNTYPED_BUILTINS = new Set(['log', 'chain', 'iterate']);
+
+// Register the function table with core at module load time. Core cannot
+// import this module (layer rule: core must not depend on ext), so the
+// dependency is inverted through the registry.
+registerBuiltinFunctions(BUILTIN_FUNCTIONS, UNTYPED_BUILTINS);

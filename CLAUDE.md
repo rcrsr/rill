@@ -4,8 +4,7 @@ The `conduct/` directory and its initiatives, specifications, plans, and require
 
 - PR titles or descriptions
 - Commit messages on `main` or release branches
-- CHANGELOG.md entries
-- Any user-facing documentation under `docs/` or `packages/web/`
+- Any user-facing documentation under `docs/` or `packages/web/`, or root-level published files such as `CHANGELOG.md`
 
 Write PR and commit summaries as concrete descriptions of the code and API changes. Refer to source files, exported APIs, and doc pages that ship in the package instead.
 
@@ -16,6 +15,7 @@ rill uses pnpm workspaces with the following package organization:
 | Package | NPM Name | Purpose |
 |---------|----------|---------|
 | `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
+| `packages/service` | `@rcrsr/rill-language-service` | Published language service |
 | `packages/fiddle` | `@rcrsr/rill-fiddle` (private) | Browser-based rill playground |
 | `packages/web` | `@rcrsr/rill-web` (private) | Documentation website |
 
@@ -67,42 +67,43 @@ Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
 ## Versioning
 
-Only `@rcrsr/rill` (packages/core) is published from this monorepo. Private packages (fiddle, web) track the same version but are not published.
+`@rcrsr/rill` (packages/core) and `@rcrsr/rill-language-service` (packages/service) are published from this monorepo. Private packages (fiddle, web) are not published and hold a fixed placeholder version of 0.1.0.
 
 | Scope | Rule |
 |-------|------|
 | Root `package.json` | Increments patch on every release |
 | `packages/core` | Increments patch when core changes |
+| `packages/service` | Held exactly equal to `packages/core` version, character-for-character |
 
-- `pnpm fix:versions` — Syncs major.minor from root to packages/core
-- `pnpm check:versions` — Verifies packages/core shares root major.minor
-- CHANGELOG entries use the root version
+- `pnpm fix:versions` — Syncs major.minor from root to packages/core, then syncs packages/service to packages/core's full version
+- `pnpm check:versions` — Verifies packages/core shares root major.minor and packages/service exactly equals packages/core's version
 
 ## Release Process
 
-rill is released by tagging a release commit on `main`. CI publishes `@rcrsr/rill` when a `v*` tag is pushed.
+rill is released by tagging a release commit on `main`. When a `v*` tag is pushed, `.github/workflows/release.yml` iterates over `packages/core` and `packages/service` and publishes each non-private package whose current version is not yet on npm. The job skips any package already published at that version, so `@rcrsr/rill` and `@rcrsr/rill-language-service` publish together only when both carry a new version.
+
+Before publishing, CI enforces a version-consistency gate: `./scripts/check-versions.sh` verifies `packages/core` shares the root major.minor and `packages/service` exactly equals `packages/core`'s version.
 
 ### Release Checklist
 
-1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json`
+1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json` (run `pnpm fix:versions` to sync `packages/service` to `packages/core`)
 2. Run `pnpm check:versions` to verify alignment
-3. Move the relevant `[Unreleased]` entries under a new `[x.y.z] - YYYY-MM-DD` section in `CHANGELOG.md`
-4. Commit with `chore: release vx.y.z`, open a PR, merge to `main`
-5. From a clean `main` at the merge commit:
+3. Commit with `chore: release vx.y.z`, open a PR, merge to `main`
+4. From a clean `main` at the merge commit:
 
    ```bash
    git tag -a vx.y.z -m "Release vx.y.z"
    git push origin vx.y.z
    ```
 
-CI takes over from the tag push and publishes `@rcrsr/rill`.
+CI takes over from the tag push, publishes each package with a new version, and creates a GitHub Release for the tag.
 
 ### Dry Run Testing
 
 Test publish without releasing:
 
 ```bash
-cd packages/core
+cd packages/core     # or packages/service
 pnpm publish --dry-run --access public
 ```
 

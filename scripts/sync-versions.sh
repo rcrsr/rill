@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Sync major.minor from root package.json to all workspace packages.
+# Sync major.minor from root package.json to publishable packages (core, service).
 # Preserves each package's patch version.
 # Usage: ./scripts/sync-versions.sh
 
@@ -9,7 +9,7 @@ ROOT_VERSION=$(node -p "require('./package.json').version")
 ROOT_MAJOR_MINOR=$(echo "$ROOT_VERSION" | sed 's/\.[0-9]*$//')
 UPDATED=0
 
-for pkg in packages/core; do
+for pkg in packages/core packages/service; do
   pkg="${pkg%/}"
   [ -f "$pkg/package.json" ] || continue
 
@@ -19,11 +19,11 @@ for pkg in packages/core; do
 
   if [ "$CURRENT_MAJOR_MINOR" != "$ROOT_MAJOR_MINOR" ]; then
     NEW_VERSION="${ROOT_MAJOR_MINOR}.${CURRENT_PATCH}"
-    node -e "
+    NEW_VERSION="$NEW_VERSION" PKG_PATH="./$pkg/package.json" node -e "
       const fs = require('fs');
-      const path = './$pkg/package.json';
+      const path = process.env.PKG_PATH;
       const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
-      pkg.version = '$NEW_VERSION';
+      pkg.version = process.env.NEW_VERSION;
       fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
     "
     NAME=$(node -p "require('./$pkg/package.json').name")
@@ -31,6 +31,21 @@ for pkg in packages/core; do
     UPDATED=$((UPDATED + 1))
   fi
 done
+
+# Service version is held exactly equal to core (not just major.minor).
+CORE_VERSION=$(node -p "require('./packages/core/package.json').version")
+SERVICE_CURRENT=$(node -p "require('./packages/service/package.json').version")
+if [ "$SERVICE_CURRENT" != "$CORE_VERSION" ]; then
+  CORE_VERSION="$CORE_VERSION" PKG_PATH="./packages/service/package.json" node -e "
+    const fs = require('fs');
+    const path = process.env.PKG_PATH;
+    const pkg = JSON.parse(fs.readFileSync(path, 'utf8'));
+    pkg.version = process.env.CORE_VERSION;
+    fs.writeFileSync(path, JSON.stringify(pkg, null, 2) + '\n');
+  "
+  echo "  @rcrsr/rill-language-service: $SERVICE_CURRENT -> $CORE_VERSION"
+  UPDATED=$((UPDATED + 1))
+fi
 
 if [ "$UPDATED" -eq 0 ]; then
   echo "All packages already at ${ROOT_MAJOR_MINOR}.x"

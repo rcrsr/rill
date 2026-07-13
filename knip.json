@@ -13,6 +13,9 @@
     },
     "packages/fiddle": {
       "entry": ["tests/**/*.test.{ts,tsx}"]
+    },
+    "packages/service": {
+      "entry": ["tests/**/*.test.ts"]
     }
   }
 }

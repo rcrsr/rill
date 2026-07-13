@@ -36,6 +36,29 @@ jobs:
       - name: Verify version consistency
         run: ./scripts/check-versions.sh
 
+      - name: Verify debut CHANGELOG entry
+        run: |
+          NAME="@rcrsr/rill-language-service"
+          if npm view "$NAME" version &>/dev/null; then
+            echo "$NAME already published; skipping debut CHANGELOG check."
+            exit 0
+          fi
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          # The debut entry may sit under "## Unreleased" (not yet dated) or
+          # under the freshly-dated header for the version being released.
+          SECTION=$(awk -v version="$VERSION" '
+            /^## Unreleased/ { flag=1; next }
+            $0 ~ "^## " version "( |$)" { flag=1; next }
+            /^## / { flag=0 }
+            flag
+          ' CHANGELOG.md)
+          if ! grep -q "$NAME" <<< "$SECTION"; then
+            echo "Debut release detected for $NAME, but neither the Unreleased section nor the ${VERSION} section of CHANGELOG.md mentions it." >&2
+            exit 1
+          fi
+          echo "Debut CHANGELOG entry for $NAME verified."
+
       - name: Build all packages
         run: pnpm -r run build
 
@@ -46,7 +69,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for dir in packages/core; do
+          for dir in packages/core packages/service; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")

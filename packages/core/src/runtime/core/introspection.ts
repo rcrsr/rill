@@ -16,7 +16,7 @@ import {
 } from './callable.js';
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
-import { BUILTIN_FUNCTIONS } from '../ext/builtins.js';
+import { isBuiltinFunctionName } from './builtin-registry.js';
 import type {
   AnnotationArg,
   CaptureNode,
@@ -247,7 +247,7 @@ function serializeClosureSignature(
  * string-keyed closure type signatures followed by `-> export`.
  *
  * Only `ApplicationCallable` entries with `params !== undefined` are included.
- * `RuntimeCallable` entries are excluded. Built-in functions (by name in `BUILTIN_FUNCTIONS`) are excluded.
+ * `RuntimeCallable` entries are excluded. Built-in functions (by registered builtin name) are excluded.
  * `ApplicationCallable` entries with `params: undefined` are skipped silently.
  *
  * Empty function map produces `[:]` followed by `-> export`.
@@ -262,7 +262,7 @@ export function generateManifest(ctx: RuntimeContext): string {
     const callable = fn as RillValue;
 
     // Exclude RuntimeCallable entries and built-in functions by name
-    if (isRuntimeCallable(callable) || name in BUILTIN_FUNCTIONS) {
+    if (isRuntimeCallable(callable) || isBuiltinFunctionName(name)) {
       continue;
     }
 
