@@ -167,6 +167,27 @@ describe('documentSymbols', () => {
     expect(functions[0]?.selectionRange.end.character).toBe(23);
   });
 
+  it('nests a dict entry inside its enclosing dict entry', () => {
+    const parsed = parseWithRecovery(
+      'dict[user: dict[name: "alice", age: 30]] => $config'
+    );
+
+    const symbols = documentSymbols(parsed);
+
+    expect(symbols.map((symbol) => symbol.name)).toEqual(['user', 'config']);
+
+    const user = symbols.find((symbol) => symbol.name === 'user');
+    expect(user?.kind).toBe('field');
+    expect(user?.children?.map((child) => child.name)).toEqual(['name', 'age']);
+    for (const child of user?.children ?? []) {
+      expect(child.kind).toBe('field');
+      expect(child.children).toBeUndefined();
+    }
+
+    const config = symbols.find((symbol) => symbol.name === 'config');
+    expect(config?.children).toBeUndefined();
+  });
+
   it('never returns a symbol with an empty or whitespace name', () => {
     const source = `
 list[1, 2, 3] -> fan({ $ * 2 }) => $doubled

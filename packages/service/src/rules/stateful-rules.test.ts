@@ -161,4 +161,56 @@ describe('VALIDATE_EXTERNAL', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('does not fire for names with no I/O verb in the leading or trailing segment', () => {
+    const source = 'thread_pool()\ndownload()\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [validateExternal]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('fires on noun_verb host-call names (verb in the trailing segment)', () => {
+    const source = 'api_fetch()\nhttp_get()\ndb_query()\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [validateExternal]);
+
+    expect(result.map((d) => d.message)).toEqual([
+      'Consider validating external input with type assertion: api_fetch():type',
+      'Consider validating external input with type assertion: http_get():type',
+      'Consider validating external input with type assertion: db_query():type',
+    ]);
+  });
+
+  it('fires on query/open/post verb_noun names not previously recognized', () => {
+    const source = 'query_db()\nopen_socket()\npost_data()\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [validateExternal]);
+
+    expect(result.map((d) => d.message)).toEqual([
+      'Consider validating external input with type assertion: query_db():type',
+      'Consider validating external input with type assertion: open_socket():type',
+      'Consider validating external input with type assertion: post_data():type',
+    ]);
+  });
+
+  it('KNOWN LIMITATION: fires on already_read despite reading as a completed-state check', () => {
+    // already_read's trailing segment is the verb "read" - the same shape
+    // as genuine noun_verb I/O calls like db_query/http_get, which must
+    // fire. A purely lexical, position-based rule cannot tell these two
+    // shapes apart; see the KNOWN LIMITATION comment on
+    // EXTERNAL_IO_VERBS in validate-external.ts.
+    const source = 'already_read()\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [validateExternal]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.message).toBe(
+      'Consider validating external input with type assertion: already_read():type'
+    );
+  });
 });

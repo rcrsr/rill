@@ -48,6 +48,18 @@ describe('CAPTURE_BEFORE_BRANCH', () => {
 
     expect(result).toEqual([]);
   });
+
+  it("does not fire when a branch's bare $ belongs to a nested closure scope", () => {
+    const source =
+      '$x -> .contains("ok") ? (list[1, 2] -> fan({ $ * 2 })) ! "Failed: {$}"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [
+      captureBeforeBranch,
+    ]);
+
+    expect(result).toEqual([]);
+  });
 });
 
 describe('USE_DEFAULT_OPERATOR', () => {

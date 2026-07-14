@@ -12,6 +12,53 @@ import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
+/**
+ * Verbs identifying an external-I/O host call. rill host functions follow
+ * either a verb_noun (`fetch_data`, `open_socket`) or a noun_verb
+ * (`api_fetch`, `db_query`, `http_get`) snake_case convention, so a match
+ * requires the LEADING or TRAILING `_`-delimited segment - not any
+ * substring, and not an arbitrary middle segment - to equal one of these
+ * verbs. `download` (single segment, not equal to "load") does not match a
+ * raw substring the old check would have hit, and `thread_pool` (neither
+ * segment is a verb) does not match either.
+ *
+ * KNOWN LIMITATION: `already_read`'s trailing segment is the verb "read",
+ * so it matches under this rule even though "already_read" reads as a
+ * completed-state check, not an I/O call. Distinguishing this from a
+ * genuine noun_verb call site (`db_read`, `cache_read`) is not possible
+ * with a purely lexical, position-based rule - both have the identical
+ * shape noun_verb with "read" trailing. Genuine noun_verb I/O names
+ * (`db_query`, `http_get`) must fire, so the trailing-segment match is
+ * kept and this one false positive is accepted rather than narrowing the
+ * rule until real noun_verb I/O calls silently stop being flagged.
+ */
+const EXTERNAL_IO_VERBS = new Set([
+  'fetch',
+  'read',
+  'load',
+  'query',
+  'open',
+  'post',
+  'get',
+]);
+
+/**
+ * True when `functionName`'s leading OR trailing snake_case segment is a
+ * known external-I/O verb. Word-boundaried on `_` rather than a raw
+ * substring match, and restricted to the two positional segments most
+ * likely to carry the verb (verb_noun or noun_verb), not an arbitrary
+ * middle segment. See the KNOWN LIMITATION note on `EXTERNAL_IO_VERBS`.
+ */
+function isExternalDataFunction(functionName: string): boolean {
+  const segments = functionName.split('_');
+  const leadingSegment = segments[0];
+  const trailingSegment = segments[segments.length - 1];
+  return (
+    (leadingSegment !== undefined && EXTERNAL_IO_VERBS.has(leadingSegment)) ||
+    (trailingSegment !== undefined && EXTERNAL_IO_VERBS.has(trailingSegment))
+  );
+}
+
 export const validateExternal: Rule = {
   code: 'VALIDATE_EXTERNAL',
   nodeTypes: ['HostCall'],
@@ -27,12 +74,7 @@ export const validateExternal: Rule = {
     }
 
     // Check if this is a parsing or external data function.
-    const isExternalDataFunction =
-      functionName.includes('fetch') ||
-      functionName.includes('read') ||
-      functionName.includes('load');
-
-    if (!isExternalDataFunction) {
+    if (!isExternalDataFunction(functionName)) {
       return [];
     }
 

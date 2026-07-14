@@ -1,8 +1,8 @@
 # rill Language Service API
 
-*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, completion, and a 40-rule static checker*
+*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a 37-rule static checker*
 
-`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, completion, and a 40-rule static checker) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
+`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 37 active rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
 ## Subpath Exports
 
@@ -13,6 +13,8 @@ The package splits its surface across three entry points so consumers importing 
 | `@rcrsr/rill-language-service` | `documentSymbols`, `semanticTokens`, `formatDocument`, `spanToRange`, `version`, plus `Position`, `Range`, `DocumentSymbol`, `SymbolKind`, `SemanticToken`, `ServiceTokenType`, `TextEdit` |
 | `@rcrsr/rill-language-service/scope` | `resolveScopeAt`, `findDefinition`, `getHover`, `getCompletions`, plus `Binding`, `BindingKind`, `HoverInfo`, `CompletionItem`, `CompletionKind` |
 | `@rcrsr/rill-language-service/rules` | `createDefaultConfig`, `validateConfig`, `validateRuleCodes`, `runRules`, `RULES`, plus `CheckConfig`, `Diagnostic`, `DiagnosticFix`, `DiagnosticSeverity`, `Rule`, `RuleContext`, `RuleState`, `ValidationError` |
+
+---
 
 ## Root Exports
 
@@ -103,6 +105,8 @@ const version: string
 
 The package's version string, held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
+---
+
 ## `/scope` Exports
 
 ### `resolveScopeAt`
@@ -168,6 +172,8 @@ interface CompletionItem {
 type CompletionKind = 'variable' | 'function' | 'keyword';
 ```
 
+---
+
 ## `/rules` Exports
 
 ### `createDefaultConfig`
@@ -192,7 +198,7 @@ Pure function. Validates a `CheckConfig` and returns an array of `ValidationErro
 function validateRuleCodes(codes: readonly string[]): ValidationError[] | null
 ```
 
-Pure function. Validates each code in `codes` against the 40 codes in `RULES`, returning a `ValidationError` with `code: 'UNKNOWN_RULE_CODE'` for each unrecognized entry, or `null` when every code is known.
+Pure function. Validates each code in `codes` against the 40 codes in `RULES`. Returns a `ValidationError` with `code: 'UNKNOWN_RULE_CODE'` for each unrecognized entry, or `null` when every code is known.
 
 ```typescript
 interface ValidationError {
@@ -213,7 +219,7 @@ function runRules(
 ): Diagnostic[]
 ```
 
-Runs the 40-rule static checker over `parsed.ast` in two linear passes: a bottom-up fact-collection pass, then a top-down rule-dispatch pass. Total node visits equal 2n, independent of nesting depth, and no rule re-walks a subtree. `source` is required because formatting rules, the naming-convention fix, and diagnostic context lines all read the raw source text. The optional fourth `rules` parameter defaults to the shared `RULES` registry; pass a subset for testing or a custom rule set. The fact-collection pass populates a capture tracker and the `assertedHostCalls` set once, shared across every rule in the dispatch pass. Diagnostics are returned sorted by line, then column. `runRules` owns final severity resolution, applying each rule's `on`/`off`/`warn` state and then `config.severity` as a global override. Tolerates recovery nodes without throwing. A single rule that throws is isolated: its contribution is skipped and every other rule still reports. Measures a p95 near 42 milliseconds on a flat 2,000-line document on typical developer hardware, roughly 6x the single-pass providers. It runs 40 rules across two passes, not a separate walk per rule. On flat input the two-pass engine costs about 20% more than the per-rule sub-walks it replaced, because a shallow subtree is cheap to re-walk. On deeply nested input it is 153x faster, because nothing re-walks a subtree at all. The wider 350 ms ceiling in `latency.test.ts` is a shared-CI-runner flake guard, not a latency claim.
+Runs the static checker's 40 registered rules over `parsed.ast` in two linear passes. First a bottom-up fact-collection pass, then a top-down rule-dispatch pass. 37 of the 40 are active; 3 are reserved stubs. Total node visits equal 2n, independent of nesting depth, and no rule re-walks a subtree. `source` is required because formatting rules, the naming-convention fix, and diagnostic context lines all read the raw source text. The optional fourth `rules` parameter defaults to the shared `RULES` registry; pass a subset for testing or a custom rule set. The fact-collection pass populates a capture tracker and the `assertedHostCalls` set once, shared across every rule in the dispatch pass. Diagnostics are returned sorted by line, then column. `runRules` owns final severity resolution, applying each rule's `on`/`off`/`warn` state and then `config.severity` as a global override. Tolerates recovery nodes without throwing. A single rule that throws is isolated: its contribution is skipped and every other rule still reports. Measures a p95 near 42 milliseconds on a flat 2,000-line document on typical developer hardware, roughly 6x the single-pass providers. It runs 40 rules across two passes, not a separate walk per rule. On flat input the two-pass engine costs about 20% more than the per-rule sub-walks it replaced, because a shallow subtree is cheap to re-walk. On deeply nested input it is 153x faster, because nothing re-walks a subtree at all. The wider 350 ms ceiling in `latency.test.ts` is a shared-CI-runner flake guard, not a latency claim.
 
 ```typescript
 interface Diagnostic {
@@ -255,11 +261,15 @@ const RULES: readonly Rule[]
 
 Frozen registry of all 40 built-in rules. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
 
+Of the 40 registered codes, 37 are active and 3 are reserved stubs. `CONDITION_TYPE`, `FOLD_INTERMEDIATES`, and `THROWAWAY_CAPTURE` each have a `validate` that unconditionally returns `[]`. Stub codes stay registered and configurable for forward compatibility, but they never emit a diagnostic today.
+
 ```typescript
 interface Rule {
   readonly code: string;
   readonly nodeTypes: readonly NodeType[];
   readonly defaultSeverity: DiagnosticSeverity;
+  /** True for a reserved code with no diagnostic implementation yet; validate() always returns []. */
+  readonly stub?: boolean | undefined;
   validate(node: ASTNode, context: RuleContext): Diagnostic[];
 }
 ```
@@ -276,6 +286,8 @@ interface RuleContext {
   readonly checkerMode?: 'strict' | 'permissive' | undefined;
 }
 ```
+
+---
 
 ## See Also
 

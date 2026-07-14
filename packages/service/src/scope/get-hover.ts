@@ -19,7 +19,7 @@ import type {
 
 import { spanToRange } from '../span-to-range.js';
 import { locateTarget } from './locate-target.js';
-import { resolveScopeAt } from './resolve-scope.js';
+import { findVisibleBinding } from './resolve-scope.js';
 import { typeRefToString } from './type-rendering.js';
 import type { HoverInfo } from './types.js';
 
@@ -92,9 +92,8 @@ function hoverForVariable(
   const closureHover = hoverForClosureCall(parsed, name, span);
   if (closureHover !== null) return closureHover;
 
-  const bindings = resolveScopeAt(parsed, offset);
-  const binding = [...bindings].reverse().find((b) => b.name === name);
-  if (binding === undefined) return null;
+  const binding = findVisibleBinding(parsed, offset, name);
+  if (binding === null) return null;
 
   const declaredType = findDeclaredTypeRef(parsed.ast, binding.bindingSite);
   const type =

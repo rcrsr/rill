@@ -61,6 +61,10 @@ export interface SubtreeFacts {
   readonly hasExplicitCapture: boolean;
   /** True if a StatusProbe (`.!`) appears in this subtree. Never masked. */
   readonly hasStatusProbe: boolean;
+  /** True if a `.len` literal field access appears in this subtree, masked under Closure and any collection-op HostCall. */
+  readonly hasLenFieldAccess: boolean;
+  /** True if a bracket-index access (`[n]`) appears in this subtree, masked under Closure and any collection-op HostCall. */
+  readonly hasBracketAccess: boolean;
 }
 
 /** Script-wide facts collected alongside the per-subtree walk. */
@@ -169,6 +173,23 @@ function isBreakBoundary(node: ASTNode): boolean {
   );
 }
 
+/** True for a Variable node whose access chain contains a literal `.len` field access. */
+function hasLenFieldAccessSelf(node: ASTNode): boolean {
+  if (node.type !== 'Variable') return false;
+  return node.accessChain.some(
+    (access) =>
+      'kind' in access && access.kind === 'literal' && access.field === 'len'
+  );
+}
+
+/** True for a Variable node whose access chain contains a bracket-index access. */
+function hasBracketAccessSelf(node: ASTNode): boolean {
+  if (node.type !== 'Variable') return false;
+  return node.accessChain.some(
+    (access) => 'accessKind' in access && access.accessKind === 'bracket'
+  );
+}
+
 // ============================================================
 // FACT COLLECTION
 // ============================================================
@@ -183,6 +204,8 @@ interface Accumulator {
   hasClosure: boolean;
   hasExplicitCapture: boolean;
   hasStatusProbe: boolean;
+  hasLenFieldAccess: boolean;
+  hasBracketAccess: boolean;
 }
 
 /**
@@ -211,6 +234,8 @@ export function collectFacts(root: ASTNode): AstFacts {
         hasClosure: node.type === 'Closure',
         hasExplicitCapture: isExplicitCapturePipeChain(node),
         hasStatusProbe: node.type === 'StatusProbe',
+        hasLenFieldAccess: hasLenFieldAccessSelf(node),
+        hasBracketAccess: hasBracketAccessSelf(node),
       });
 
       if (node.type === 'Closure') {
@@ -272,6 +297,8 @@ export function collectFacts(root: ASTNode): AstFacts {
         hasClosure: acc.hasClosure,
         hasExplicitCapture: acc.hasExplicitCapture,
         hasStatusProbe: acc.hasStatusProbe,
+        hasLenFieldAccess: acc.hasLenFieldAccess,
+        hasBracketAccess: acc.hasBracketAccess,
       };
       bySubtree.set(node, facts);
 
@@ -285,6 +312,13 @@ export function collectFacts(root: ASTNode): AstFacts {
       const maskSideEffect = isClosureBarrier;
       const maskBareDollar = isClosureBarrier || isCollectionOp;
       const maskExplicitCapture = isClosureBarrier;
+      // A `.len`/bracket access inside a nested closure literal or a nested
+      // collection-op body (bare-block form: `seq({ ... })` parses to a
+      // Block, not a Closure, so isCollectionOp must be checked alongside
+      // isClosureBarrier here too) belongs to that inner scope's own
+      // iteration/shape, not to the loop being classified - same boundary as
+      // hasBareDollar.
+      const maskLenAndBracket = isClosureBarrier || isCollectionOp;
 
       parent.hasBreak ||= maskBreak ? false : facts.hasBreak;
       parent.hasSideEffect ||= maskSideEffect ? false : facts.hasSideEffect;
@@ -294,6 +328,12 @@ export function collectFacts(root: ASTNode): AstFacts {
         ? false
         : facts.hasExplicitCapture;
       parent.hasStatusProbe ||= facts.hasStatusProbe;
+      parent.hasLenFieldAccess ||= maskLenAndBracket
+        ? false
+        : facts.hasLenFieldAccess;
+      parent.hasBracketAccess ||= maskLenAndBracket
+        ? false
+        : facts.hasBracketAccess;
     },
   });
 

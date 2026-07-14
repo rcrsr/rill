@@ -175,4 +175,38 @@ $a -> log
 
     expect(getHover(parsed, source.length + 1000)).toBeNull();
   });
+
+  it('resolves a same-type reassignment read to the nearest preceding capture, not a later one', () => {
+    // The first capture carries a `:string` annotation; the reassignment
+    // does not (same-type reassignments need not repeat it). A last-wins
+    // resolver would match the read to the untyped reassignment and report
+    // no declared type; the nearest-preceding fix reports `string`.
+    const source = `"hello" => $name: string
+$name -> log
+"world" => $name
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('$name -> log') + 1;
+    const hover = getHover(parsed, offset);
+
+    expect(hover).not.toBeNull();
+    expect(hover?.type).toBe('string');
+  });
+
+  it('does not hover a `$name` reference onto an unrelated dict key of the same name', () => {
+    const source = `"x" => $user
+dict[user: "Alice"] => $d
+$user -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.lastIndexOf('$user') + 1;
+    const hover = getHover(parsed, offset);
+
+    expect(hover).not.toBeNull();
+    expect(hover?.contents).toBe('variable `user`');
+  });
 });

@@ -134,4 +134,35 @@ $a -> log
 
     expect(findDefinition(parsed, source.length + 1000)).toBeNull();
   });
+
+  it('resolves a same-type reassignment read to the nearest preceding capture, not the last one', () => {
+    const source = `"hello" => $name
+$name -> log
+"world" => $name
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('$name -> log') + 1;
+    const span = findDefinition(parsed, offset);
+
+    expect(span).not.toBeNull();
+    expect(span?.start.offset).toBe(source.indexOf('$name'));
+    expect(span?.start.offset).not.toBe(source.lastIndexOf('$name'));
+  });
+
+  it('does not resolve a `$name` reference to an unrelated dict key of the same name', () => {
+    const source = `"x" => $user
+dict[user: "Alice"] => $d
+$user -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.lastIndexOf('$user') + 1;
+    const span = findDefinition(parsed, offset);
+
+    expect(span).not.toBeNull();
+    expect(span?.start.offset).toBe(source.indexOf('$user'));
+  });
 });

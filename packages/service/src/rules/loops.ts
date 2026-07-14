@@ -11,70 +11,11 @@ import type {
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
+import { capturesInSubtree } from './facts.js';
 
 // ============================================================
 // HELPER FUNCTIONS
 // ============================================================
-
-/** Collect all variable captures (=> $name) in the given AST node. */
-function collectCaptures(node: ASTNode, names: string[]): void {
-  switch (node.type) {
-    case 'Capture':
-      names.push(`$${node.name}`);
-      return;
-
-    case 'Block':
-      node.statements.forEach((stmt) => collectCaptures(stmt, names));
-      return;
-
-    case 'Statement':
-      collectCaptures(node.expression, names);
-      return;
-
-    case 'AnnotatedStatement':
-      collectCaptures(node.statement, names);
-      return;
-
-    case 'PipeChain':
-      node.pipes.forEach((pipe) => collectCaptures(pipe as ASTNode, names));
-      if (node.terminator && node.terminator.type === 'Capture')
-        collectCaptures(node.terminator, names);
-      return;
-
-    case 'PostfixExpr':
-      collectCaptures(node.primary, names);
-      node.methods.forEach((method) => collectCaptures(method, names));
-      return;
-
-    case 'BinaryExpr':
-      collectCaptures(node.left, names);
-      collectCaptures(node.right, names);
-      return;
-
-    case 'UnaryExpr':
-      collectCaptures(node.operand, names);
-      return;
-
-    case 'GroupedExpr':
-      collectCaptures(node.expression, names);
-      return;
-
-    case 'Conditional':
-      if (node.input) collectCaptures(node.input, names);
-      if (node.condition) collectCaptures(node.condition, names);
-      collectCaptures(node.thenBranch, names);
-      if (node.elseBranch) collectCaptures(node.elseBranch, names);
-      return;
-
-    case 'WhileLoop':
-    case 'DoWhileLoop':
-      collectCaptures(node.body, names);
-      return;
-
-    default:
-      return;
-  }
-}
 
 /** Collect all variable references ($name) in the given AST node. */
 function collectVariableReferences(node: ASTNode, names: string[]): void {
@@ -184,8 +125,9 @@ export const loopAccumulator: Rule = {
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const loop = node as WhileLoopNode | DoWhileLoopNode;
 
-    const capturedNames: string[] = [];
-    collectCaptures(loop.body, capturedNames);
+    const capturedNames = capturesInSubtree(context.facts, loop.body).map(
+      (capture) => `$${capture.name}`
+    );
 
     if (capturedNames.length === 0) {
       return [];
@@ -257,11 +199,10 @@ export const useEach: Rule = {
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const loop = node as WhileLoopNode;
 
-    const conditionStr = JSON.stringify(loop.condition);
-    const bodyStr = JSON.stringify(loop.body);
-
-    const hasLenCheck = conditionStr.includes('"field":"len"');
-    const hasBracketAccess = bodyStr.includes('"accessKind":"bracket"');
+    const hasLenCheck =
+      context.facts.bySubtree.get(loop.condition)?.hasLenFieldAccess ?? false;
+    const hasBracketAccess =
+      context.facts.bySubtree.get(loop.body)?.hasBracketAccess ?? false;
 
     if (hasLenCheck || hasBracketAccess) {
       return [

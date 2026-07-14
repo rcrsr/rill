@@ -69,4 +69,21 @@ $outer ->
       items.some((item) => item.label === 'outer' && item.kind === 'variable')
     ).toBe(true);
   });
+
+  it('excludes dict keys from variable completions', () => {
+    const source = `dict[user: "Alice"] => $d
+$d ->
+`;
+    const parsed = parseWithRecovery(source);
+
+    const offset = source.lastIndexOf('$d') + 1;
+    const items = getCompletions(parsed, offset);
+
+    expect(
+      items.some((item) => item.label === 'user' && item.kind === 'variable')
+    ).toBe(false);
+    expect(
+      items.some((item) => item.label === 'd' && item.kind === 'variable')
+    ).toBe(true);
+  });
 });

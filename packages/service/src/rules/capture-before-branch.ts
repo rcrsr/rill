@@ -21,20 +21,19 @@ import { registeredRules } from './rules-registry.js';
 // ============================================================
 
 /**
- * Check if a node contains a variable reference.
- * For $ (pipe variable), checks for isPipeVar: true. For named variables,
- * checks for the variable name. This is a heuristic string-scan over the
- * serialized subtree, not a regex, so it stays linear in subtree size.
+ * Check if a branch body references the bare pipe-variable `$`, reading the
+ * precomputed `hasBareDollar` subtree fact rather than re-walking. This
+ * fact is scoped to the branch's own body: a `$` nested inside a closure
+ * literal or a collection-op body within the branch refers to that inner
+ * scope's own iteration variable, not the piped value being classified
+ * here, and is masked out accordingly (see facts.ts).
  */
-function referencesVariable(node: BodyNode | null, varName: string): boolean {
+function referencesBareDollar(
+  context: RuleContext,
+  node: BodyNode | null
+): boolean {
   if (!node) return false;
-
-  const nodeStr = JSON.stringify(node);
-
-  if (varName === '$') {
-    return nodeStr.includes('"isPipeVar":true');
-  }
-  return nodeStr.includes(`"name":"${varName}"`);
+  return context.facts.bySubtree.get(node)?.hasBareDollar ?? false;
 }
 
 /**
@@ -82,11 +81,14 @@ export const captureBeforeBranch: Rule = {
       }
     }
 
-    const thenReferences = referencesVariable(conditional.thenBranch, '$');
+    const thenReferences = referencesBareDollar(
+      context,
+      conditional.thenBranch
+    );
     const elseBranch = conditional.elseBranch;
     const elseReferences =
       elseBranch && elseBranch.type !== 'Conditional'
-        ? referencesVariable(elseBranch, '$')
+        ? referencesBareDollar(context, elseBranch)
         : false;
 
     if (thenReferences && elseReferences) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { parseWithRecovery } from '@rcrsr/rill';
-import { resolveScopeAt } from './resolve-scope.js';
+import { findVisibleBinding, resolveScopeAt } from './resolve-scope.js';
 
 describe('resolveScopeAt', () => {
   it('resolves a name captured after a closure body reads it (late binding, not a definition-time snapshot)', () => {
@@ -128,5 +128,61 @@ $a -> { $ * 2 } => $b
     const parsed = parseWithRecovery(source);
 
     expect(resolveScopeAt(parsed, source.length + 1000)).toEqual([]);
+  });
+});
+
+describe('findVisibleBinding', () => {
+  it('resolves a same-type reassignment read to the nearest preceding capture, not the last one', () => {
+    const source = `"hello" => $name
+$name -> log
+"world" => $name
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('$name -> log') + 1;
+    const binding = findVisibleBinding(parsed, offset, 'name');
+
+    expect(binding).not.toBeNull();
+    expect(binding?.bindingSite.start.offset).toBe(source.indexOf('$name'));
+  });
+
+  it('resolves a read inside a closure body to the LAST same-named binding (late binding)', () => {
+    const source = `1 => $y
+|x| ($x + $y) => $double
+2 => $y
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('$x + $y') + '$x + '.length + 1;
+    const binding = findVisibleBinding(parsed, offset, 'y');
+
+    expect(binding).not.toBeNull();
+    expect(binding?.bindingSite.start.offset).toBe(source.lastIndexOf('$y'));
+  });
+
+  it('never resolves a `$name` read to a same-named dictKey binding', () => {
+    const source = `"x" => $user
+dict[user: "Alice"] => $d
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('$d') + 1;
+    const binding = findVisibleBinding(parsed, offset, 'user');
+
+    expect(binding).not.toBeNull();
+    expect(binding?.kind).toBe('capture');
+    expect(binding?.bindingSite.start.offset).toBe(source.indexOf('$user'));
+  });
+
+  it('returns null when no non-dictKey binding of the name is visible', () => {
+    const source = `dict[user: "Alice"] => $d\n`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('$d') + 1;
+    expect(findVisibleBinding(parsed, offset, 'user')).toBeNull();
   });
 });

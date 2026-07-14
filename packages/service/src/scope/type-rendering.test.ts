@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TypeRef } from '@rcrsr/rill';
-import { extractDescription, typeRefToString } from './type-rendering.js';
+import { typeRefToString } from './type-rendering.js';
 
 describe('typeRefToString', () => {
   it('renders "any" for a null ref', () => {
@@ -30,12 +30,5 @@ describe('typeRefToString', () => {
       ],
     };
     expect(typeRefToString(ref)).toBe('string | number');
-  });
-});
-
-describe('extractDescription', () => {
-  it('returns undefined for an empty annotation list', () => {
-    expect(extractDescription(undefined)).toBeUndefined();
-    expect(extractDescription([])).toBeUndefined();
   });
 });

@@ -6,7 +6,7 @@
 import type { ParseResult, SourceSpan } from '@rcrsr/rill';
 
 import { locateTarget } from './locate-target.js';
-import { resolveScopeAt } from './resolve-scope.js';
+import { findVisibleBinding } from './resolve-scope.js';
 
 /**
  * Resolves the binding-introducing span for the identifier at 0-based
@@ -36,7 +36,9 @@ export function findDefinition(
       return target.span;
     case 'variableName':
     case 'closureCall':
-      return findBindingSite(parsed, offset, target.name);
+      return (
+        findVisibleBinding(parsed, offset, target.name)?.bindingSite ?? null
+      );
     case 'hostCall':
     case 'methodCall':
     case 'keyword':
@@ -44,17 +46,4 @@ export function findDefinition(
     case 'none':
       return null;
   }
-}
-
-function findBindingSite(
-  parsed: ParseResult,
-  offset: number,
-  name: string
-): SourceSpan | null {
-  const bindings = resolveScopeAt(parsed, offset);
-  for (let i = bindings.length - 1; i >= 0; i--) {
-    const binding = bindings[i]!;
-    if (binding.name === name) return binding.bindingSite;
-  }
-  return null;
 }

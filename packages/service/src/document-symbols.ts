@@ -1,16 +1,89 @@
 /**
  * Hierarchical document outline: one `DocumentSymbol` per top-level capture
  * (`=> $name`), closure literal (`|params| body`), and dict entry key.
+ * A symbol whose range fully contains another symbol's range (e.g. a dict
+ * entry whose value is itself a dict) nests the contained symbol under
+ * `children` instead of surfacing it as a flat sibling.
  */
 
 import { walkAst } from '@rcrsr/rill';
 import type { ASTNode, ParseResult, SourceSpan } from '@rcrsr/rill';
 import { dictKeyName, dictKeySpan } from './dict-key.js';
 import { spanToRange } from './span-to-range.js';
-import type { DocumentSymbol } from './types.js';
+import type { DocumentSymbol, Position, Range } from './types.js';
+
+// ============================================================
+// HIERARCHY BUILDING
+// ============================================================
+
+/** Compares two 0-based positions: negative if `a` precedes `b`. */
+function comparePosition(a: Position, b: Position): number {
+  if (a.line !== b.line) return a.line - b.line;
+  return a.character - b.character;
+}
+
+/** True when `outer` fully contains `inner` (inclusive of equal bounds). */
+function rangeContains(outer: Range, inner: Range): boolean {
+  return (
+    comparePosition(outer.start, inner.start) <= 0 &&
+    comparePosition(outer.end, inner.end) >= 0
+  );
+}
 
 /**
- * Builds a flat outline of a parsed rill document.
+ * Nests a flat, visitation-order list of symbols into a tree using range
+ * containment: a symbol whose range contains a later symbol's range becomes
+ * that symbol's parent. Symbols are visited in source order (`walkAst` is
+ * parent-before-children), but a containing symbol is not always emitted
+ * before its contents - captures happen only when their AST is visited -
+ * so containment is resolved by sorting on range rather than relying on
+ * emission order.
+ */
+function buildSymbolTree(flat: readonly DocumentSymbol[]): DocumentSymbol[] {
+  const sorted = [...flat].sort(
+    (a, b) =>
+      comparePosition(a.range.start, b.range.start) ||
+      comparePosition(b.range.end, a.range.end)
+  );
+
+  interface Frame {
+    readonly symbol: DocumentSymbol;
+    readonly children: DocumentSymbol[];
+  }
+
+  const roots: DocumentSymbol[] = [];
+  const stack: Frame[] = [];
+
+  function finish(frame: Frame): void {
+    const built: DocumentSymbol =
+      frame.children.length > 0
+        ? { ...frame.symbol, children: frame.children }
+        : frame.symbol;
+    const parent = stack[stack.length - 1];
+    if (parent) {
+      parent.children.push(built);
+    } else {
+      roots.push(built);
+    }
+  }
+
+  for (const symbol of sorted) {
+    while (stack.length > 0) {
+      const top = stack[stack.length - 1]!;
+      if (rangeContains(top.symbol.range, symbol.range)) break;
+      finish(stack.pop()!);
+    }
+    stack.push({ symbol, children: [] });
+  }
+  while (stack.length > 0) {
+    finish(stack.pop()!);
+  }
+
+  return roots;
+}
+
+/**
+ * Builds a hierarchical outline of a parsed rill document.
  *
  * Traverses the AST via core `walkAst`, which visits every node
  * (`RecoveryErrorNode`/`PartialExpressionNode` included) without throwing,
@@ -117,5 +190,5 @@ export function documentSymbols(parsed: ParseResult): DocumentSymbol[] {
     }
   });
 
-  return symbols;
+  return buildSymbolTree(symbols);
 }

@@ -18,14 +18,18 @@ import type { Binding, CompletionItem } from './types.js';
  * even on an empty document with no bindings. Recovery regions simply
  * contribute whatever bindings survive parsing; this function never
  * throws.
+ *
+ * `dictKey` bindings are excluded: dict keys are not `$name` variables and
+ * completing them here would suggest `$name` references that resolve to
+ * nothing.
  */
 export function getCompletions(
   parsed: ParseResult,
   offset: number
 ): CompletionItem[] {
-  const bindingItems = resolveScopeAt(parsed, offset).map(
-    bindingToCompletionItem
-  );
+  const bindingItems = resolveScopeAt(parsed, offset)
+    .filter((binding) => binding.kind !== 'dictKey')
+    .map(bindingToCompletionItem);
   return [
     ...bindingItems,
     ...getBuiltinFunctionCompletions(),

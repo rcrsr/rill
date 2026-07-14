@@ -17,6 +17,8 @@ import type {
   VariableNode,
 } from '@rcrsr/rill';
 
+import { spanContainsOffset } from './span-helpers.js';
+
 /** Node types that correspond 1:1 with a reserved keyword token. */
 const KEYWORD_NODE_WORDS: Readonly<Record<string, string>> = {
   Break: 'break',
@@ -271,8 +273,4 @@ function accessDescription(access: PropertyAccess): string {
 
 function isBracketAccess(access: PropertyAccess): access is BracketAccess {
   return 'accessKind' in access;
-}
-
-function spanContainsOffset(span: SourceSpan, offset: number): boolean {
-  return span.start.offset <= offset && offset < span.end.offset;
 }

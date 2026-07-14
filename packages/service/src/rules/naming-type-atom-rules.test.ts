@@ -98,6 +98,20 @@ describe('LOOP_ACCUMULATOR', () => {
       []
     );
   });
+
+  it('fires when the loop-body capture is nested inside a host-call argument', () => {
+    const source = 'while ($x < 5) do { log(1 => $x) }\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [loopAccumulator]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'LOOP_ACCUMULATOR',
+      message:
+        '$x captured in loop body but referenced in condition; loop body variables reset each iteration',
+    });
+  });
 });
 
 describe('PREFER_DO_WHILE', () => {
@@ -144,6 +158,22 @@ describe('USE_EACH', () => {
 
   it('does not fire for a plain counter loop', () => {
     const source = 'while ($x < 5) do { $x + 1 }\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [useEach])).toEqual([]);
+  });
+
+  it('does not fire when a bracket access belongs to a nested collection-op body', () => {
+    const source =
+      'while ($x < 5) do { $items -> seq({ $list[0] })\n$x + 1 }\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [useEach])).toEqual([]);
+  });
+
+  it('does not fire when a .len check belongs to a nested collection-op body in the condition', () => {
+    const source =
+      'while (($items -> filter({ $.len > 0 })).empty) do { $x + 1 }\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [useEach])).toEqual([]);

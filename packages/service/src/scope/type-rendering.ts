@@ -1,22 +1,15 @@
 /**
- * Type-node and description rendering for hover output.
+ * Type-node rendering for hover output.
  *
- * Reimplemented from core's `runtime/core/introspection.ts` private helpers
- * (`typeRefToString`, `extractDescription`) rather than imported: those helpers are not part of
- * the `@rcrsr/rill` public barrel, and importing a core-internal module path
- * would violate the service/core layer boundary. Fidelity to the originals'
+ * Reimplemented from core's `runtime/core/introspection.ts` private helper
+ * `typeRefToString` rather than imported: that helper is not part of the
+ * `@rcrsr/rill` public barrel, and importing a core-internal module path
+ * would violate the service/core layer boundary. Fidelity to the original's
  * rendering behavior is intentional so hover text matches what
  * `introspectHandlerFromAST` would have produced for the same shape.
  */
 
-import { isPipeChainNode } from '@rcrsr/rill';
-import type {
-  AnnotationArg,
-  NamedArgNode,
-  PostfixExprNode,
-  StringLiteralNode,
-  TypeRef,
-} from '@rcrsr/rill';
+import type { TypeRef } from '@rcrsr/rill';
 
 /**
  * Converts a `TypeRef` to a human-readable type string. Parameterized types
@@ -43,39 +36,4 @@ export function typeRefToString(ref: TypeRef | null): string {
     case 'union':
       return ref.members.map(typeRefToString).join(' | ');
   }
-}
-
-/**
- * Extracts a description string from an annotation array. Prefers a
- * `NamedArgNode` with name `description`, falling back to `doc`, when the
- * value is a plain (non-interpolated) string literal.
- */
-export function extractDescription(
-  annotations: AnnotationArg[] | undefined
-): string | undefined {
-  if (!annotations) return undefined;
-  let docFallback: string | undefined;
-  for (const arg of annotations) {
-    if (arg.type !== 'NamedArg') continue;
-    const named = arg as NamedArgNode;
-    if (named.name !== 'description' && named.name !== 'doc') continue;
-
-    // Navigate: value -> PipeChainNode.head -> PostfixExprNode.primary -> StringLiteralNode
-    if (!isPipeChainNode(named.value)) continue;
-    const chain = named.value;
-
-    const head = chain.head as PostfixExprNode;
-    if (head.type !== 'PostfixExpr') continue;
-
-    const primary = head.primary;
-    if (primary.type !== 'StringLiteral') continue;
-
-    const strNode = primary as StringLiteralNode;
-    if (strNode.parts.some((p) => typeof p !== 'string')) continue;
-
-    const value = strNode.parts.join('');
-    if (named.name === 'description') return value;
-    docFallback = value;
-  }
-  return docFallback;
 }

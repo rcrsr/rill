@@ -15,6 +15,7 @@ export const foldIntermediates: Rule = {
   code: 'FOLD_INTERMEDIATES',
   nodeTypes: ['HostCall'],
   defaultSeverity: 'info',
+  stub: true,
 
   validate(_node: ASTNode, _context: RuleContext): Diagnostic[] {
     // Reserved for future flow-analysis on seq/fold/acc.

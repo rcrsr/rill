@@ -15,6 +15,7 @@ export const conditionType: Rule = {
   code: 'CONDITION_TYPE',
   nodeTypes: ['Conditional'],
   defaultSeverity: 'warning',
+  stub: true,
 
   validate(_node: ASTNode, _context: RuleContext): Diagnostic[] {
     return [];

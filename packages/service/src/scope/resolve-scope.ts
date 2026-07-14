@@ -8,6 +8,7 @@ import type { ASTNode, BlockNode, ParseResult } from '@rcrsr/rill';
 import type { SourceSpan } from '@rcrsr/rill';
 
 import { dictKeyName, dictKeySpan } from '../dict-key.js';
+import { spanContainsOffset } from './span-helpers.js';
 import type { Binding, BindingKind } from './types.js';
 
 /** An open scope discovered while walking the AST, holding its own bindings. */
@@ -123,15 +124,6 @@ function opensScope(node: ASTNode, passBlockBodies: Set<BlockNode>): boolean {
   return false;
 }
 
-/**
- * Returns true if `offset` falls within `span`, using the same half-open
- * containment convention as core's AST position lookups:
- * `span.start.offset <= offset && offset < span.end.offset`.
- */
-function spanContainsOffset(span: SourceSpan, offset: number): boolean {
-  return span.start.offset <= offset && offset < span.end.offset;
-}
-
 function createBinding(
   name: string,
   kind: BindingKind,
@@ -139,4 +131,64 @@ function createBinding(
   bindingSite: SourceSpan
 ): Binding {
   return { name, kind, declarationSpan, bindingSite };
+}
+
+/**
+ * Resolves the single binding a `$name` read at 0-based `offset` refers to,
+ * or `null` when no non-dict-key binding of that name is visible.
+ *
+ * `dictKey` bindings never satisfy a `$name` reference — dict keys and
+ * variables are separate namespaces — so this always filters them out
+ * before selecting a binding.
+ *
+ * For a read inside a closure body, the LAST same-named binding in scope
+ * wins: a closure's outer references are mutable-outer, late-bound at call
+ * time, so the binding captured latest in source is the one that will
+ * actually be visible when the closure runs.
+ *
+ * For every other read, the NEAREST same-named binding whose site starts
+ * at or before `offset` wins, matching same-type reassignment semantics
+ * (`docs/topic-variables.md`): a read sees whichever capture textually
+ * precedes it, not a later one. Falls back to the earliest binding when
+ * none precede `offset` (e.g. a read before any binding is captured).
+ */
+export function findVisibleBinding(
+  parsed: ParseResult,
+  offset: number,
+  name: string
+): Binding | null {
+  const candidates = resolveScopeAt(parsed, offset).filter(
+    (b) => b.kind !== 'dictKey' && b.name === name
+  );
+  if (candidates.length === 0) return null;
+
+  if (isInsideClosureBody(parsed.ast, offset)) {
+    return candidates[candidates.length - 1]!;
+  }
+
+  let nearest: Binding | null = null;
+  for (const candidate of candidates) {
+    if (candidate.bindingSite.start.offset > offset) continue;
+    if (
+      nearest === null ||
+      candidate.bindingSite.start.offset > nearest.bindingSite.start.offset
+    ) {
+      nearest = candidate;
+    }
+  }
+  return nearest ?? candidates[0]!;
+}
+
+/**
+ * Returns true when `offset` falls within the body span of some enclosing
+ * `Closure` node — i.e. the read this offset belongs to is late-bound
+ * rather than textually ordered against its outer scope.
+ */
+function isInsideClosureBody(root: ASTNode, offset: number): boolean {
+  let found = false;
+  walkAst(root, (node) => {
+    if (found || node.type !== 'Closure') return;
+    if (spanContainsOffset(node.body.span, offset)) found = true;
+  });
+  return found;
 }
