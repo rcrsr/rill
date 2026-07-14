@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`@rcrsr/rill-language-service` package debut:** New published package at `packages/service`, exporting a `version` constant. Scope-resolver, rule-engine, and syntactic-query APIs land in follow-on releases. ([#109](https://github.com/rcrsr/rill/pull/109))
+- **`@rcrsr/rill-language-service` package debut:** The package ships outline, semantic tokens, formatting, scope, hover, go-to-definition, completion, and 40-rule checker. ([#109](https://github.com/rcrsr/rill/pull/109)) ([#110](https://github.com/rcrsr/rill/pull/110))
 
 ## 0.19.5 - 2026-07-11
 
