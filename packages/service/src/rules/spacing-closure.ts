@@ -43,6 +43,14 @@ export const spacingClosure: Rule = {
     // Check for missing space after params (only if params exist).
     // This branch is an explicit no-op in the ported source: it locates the
     // pipe/brace boundary but never emits a diagnostic.
+    // DEBT (drift tracking): this after-pipe branch is dead code, kept only
+    // to mirror the rill-cli source shape byte-for-byte. Assumption: the
+    // closing-pipe-to-body boundary can only be found via text scanning
+    // (`text.indexOf('{')` / `'('`), never via a typed body span. Re-review
+    // this branch if a future @rcrsr/rill core change alters
+    // ClosureNode span semantics (e.g. exposes a params-end position or a
+    // typed body-start boundary) that would let this branch be completed
+    // without breaking rill-cli diagnostic parity.
     if (closureNode.params.length > 0) {
       const afterPipeIdx = text.lastIndexOf(
         '|',

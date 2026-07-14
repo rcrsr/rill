@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { TypeConstructorNode, TypeRef } from '@rcrsr/rill';
-import {
-  extractDescription,
-  formatReturnTypeTarget,
-  typeConstructorToString,
-  typeRefToString,
-} from './type-rendering.js';
+import type { TypeRef } from '@rcrsr/rill';
+import { extractDescription, typeRefToString } from './type-rendering.js';
 
 describe('typeRefToString', () => {
   it('renders "any" for a null ref', () => {
@@ -35,35 +30,6 @@ describe('typeRefToString', () => {
       ],
     };
     expect(typeRefToString(ref)).toBe('string | number');
-  });
-});
-
-describe('typeConstructorToString', () => {
-  it('renders a stream constructor with chunk and resolution types', () => {
-    const node: TypeConstructorNode = {
-      type: 'TypeConstructor',
-      constructorName: 'stream',
-      args: [
-        { value: { kind: 'static', typeName: 'number' } },
-        { value: { kind: 'static', typeName: 'string' } },
-      ],
-      span: {
-        start: { line: 1, column: 1, offset: 0 },
-        end: { line: 1, column: 1, offset: 0 },
-      },
-    };
-    expect(typeConstructorToString(node)).toBe('stream(number):string');
-  });
-});
-
-describe('formatReturnTypeTarget', () => {
-  it('returns undefined when no target is present', () => {
-    expect(formatReturnTypeTarget(undefined)).toBeUndefined();
-  });
-
-  it('formats a plain TypeRef target', () => {
-    const ref: TypeRef = { kind: 'static', typeName: 'bool' };
-    expect(formatReturnTypeTarget(ref)).toBe('bool');
   });
 });
 

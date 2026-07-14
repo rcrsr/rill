@@ -61,6 +61,27 @@ $items[0] -> log
     expect(span?.end.offset).toBe(bracketSegmentStart + '[0]'.length);
   });
 
+  it('resolves go-to-def on the base `$x` of a `.upper` chain to the `$x` binding site', () => {
+    const source = `"hi" => $x
+$x.upper -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const chainStart = source.lastIndexOf('$x.upper');
+    const offset = chainStart + 1; // inside "$x"
+
+    const span = findDefinition(parsed, offset);
+
+    expect(span).not.toBeNull();
+    // The binding site is the declaring `$x` right after `=>`, not the
+    // whole `$x.upper` chain at the usage site.
+    expect(span?.start.offset).toBe(source.indexOf('$x'));
+    expect(source.slice(span?.start.offset, span?.end.offset).trimEnd()).toBe(
+      '$x'
+    );
+  });
+
   it('returns null for a built-in function name', () => {
     const source = `log(1)
 `;

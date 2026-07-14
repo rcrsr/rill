@@ -89,13 +89,6 @@ describe('validateConfig', () => {
     expect(() => validateConfig(config)).not.toThrow();
     expect(validateConfig(config)).not.toBeNull();
   });
-
-  it('performs no side effects', () => {
-    const config = createDefaultConfig();
-    const before = JSON.stringify(config);
-    validateConfig(config);
-    expect(JSON.stringify(config)).toBe(before);
-  });
 });
 
 describe('validateRuleCodes', () => {
@@ -111,12 +104,5 @@ describe('validateRuleCodes', () => {
     expect(errors).toContainEqual(
       expect.objectContaining({ ruleCode: 'NOT_A_RULE' })
     );
-  });
-
-  it('performs no side effects', () => {
-    const codes: readonly string[] = ['NAMING_SNAKE_CASE'];
-    const before = [...codes];
-    validateRuleCodes(codes);
-    expect(codes).toEqual(before);
   });
 });

@@ -118,4 +118,69 @@ describe('documentSymbols', () => {
 
     expect(fields.map((symbol) => symbol.name)).toEqual(['name', 'age']);
   });
+
+  it('omits an inline-argument closure from the outline', () => {
+    const parsed = parseWithRecovery(
+      'list[1, 2, 3] -> fan({ $ * 2 }) => $doubled'
+    );
+
+    const symbols = documentSymbols(parsed);
+    const functions = symbols.filter((symbol) => symbol.kind === 'function');
+
+    expect(functions).toHaveLength(0);
+    expect(symbols.map((symbol) => symbol.name)).toEqual(['doubled']);
+  });
+
+  it('emits only the outer symbol for a closure nested inside a captured closure', () => {
+    const source = '|x| ($x -> fan({ $ * 2 })) => $double';
+    const parsed = parseWithRecovery(source);
+
+    const symbols = documentSymbols(parsed);
+    const functions = symbols.filter((symbol) => symbol.kind === 'function');
+
+    expect(functions).toHaveLength(1);
+    expect(functions[0]?.name).toBe('double');
+  });
+
+  it('omits an uncaptured top-level closure literal from the outline', () => {
+    const parsed = parseWithRecovery('|x| ($x * 2)');
+
+    const symbols = documentSymbols(parsed);
+
+    expect(symbols.filter((symbol) => symbol.kind === 'function')).toHaveLength(
+      0
+    );
+  });
+
+  it('still emits one symbol for a directly-captured closure', () => {
+    const parsed = parseWithRecovery('|x| ($x * 2) => $double');
+
+    const symbols = documentSymbols(parsed);
+    const functions = symbols.filter((symbol) => symbol.kind === 'function');
+
+    expect(functions).toHaveLength(1);
+    expect(functions[0]?.name).toBe('double');
+    // selectionRange narrows to the capture's `$double` token, distinct from
+    // the full closure literal's range.
+    expect(functions[0]?.selectionRange).not.toEqual(functions[0]?.range);
+    expect(functions[0]?.selectionRange.start.character).toBe(16);
+    expect(functions[0]?.selectionRange.end.character).toBe(23);
+  });
+
+  it('never returns a symbol with an empty or whitespace name', () => {
+    const source = `
+list[1, 2, 3] -> fan({ $ * 2 }) => $doubled
+|x| ($x -> fan({ $ * 2 })) => $double
+|x| ($x * 2)
+dict[name: "Alice"] => $person
+`;
+    const parsed = parseWithRecovery(source);
+
+    const symbols = documentSymbols(parsed);
+
+    expect(symbols.length).toBeGreaterThan(0);
+    for (const symbol of symbols) {
+      expect(symbol.name.trim().length).toBeGreaterThan(0);
+    }
+  });
 });

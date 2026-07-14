@@ -4,14 +4,10 @@
  */
 
 import { walkAst } from '@rcrsr/rill';
-import type {
-  ASTNode,
-  BlockNode,
-  DictEntryNode,
-  ParseResult,
-} from '@rcrsr/rill';
+import type { ASTNode, BlockNode, ParseResult } from '@rcrsr/rill';
 import type { SourceSpan } from '@rcrsr/rill';
 
+import { dictKeyName, dictKeySpan } from '../dict-key.js';
 import type { Binding, BindingKind } from './types.js';
 
 /** An open scope discovered while walking the AST, holding its own bindings. */
@@ -143,27 +139,4 @@ function createBinding(
   bindingSite: SourceSpan
 ): Binding {
   return { name, kind, declarationSpan, bindingSite };
-}
-
-/**
- * Resolves a static name for a dict entry key, or `null` when the key has
- * no static name (a computed expression or a list-literal key). Mirrors the
- * equivalent helper in `document-symbols.ts`.
- */
-function dictKeyName(key: DictEntryNode['key']): string | null {
-  if (typeof key === 'string') return key;
-  if (typeof key === 'number' || typeof key === 'boolean') return String(key);
-  if (typeof key === 'object' && 'kind' in key) {
-    return key.kind === 'variable' ? key.variableName : null;
-  }
-  return null;
-}
-
-/**
- * Resolves the key's own span when it carries one (`$var` / computed keys).
- * Mirrors the equivalent helper in `document-symbols.ts`.
- */
-function dictKeySpan(key: DictEntryNode['key']): SourceSpan | undefined {
-  if (typeof key === 'object' && 'kind' in key) return key.span;
-  return undefined;
 }

@@ -163,7 +163,31 @@ function classifyVariable(
     };
   }
   if (variable.name === null) return { kind: 'none' };
-  return { kind: 'variableName', name: variable.name, span: fallbackSpan };
+  return {
+    kind: 'variableName',
+    name: variable.name,
+    span: nameOnlySpan(fallbackSpan, variable.name),
+  };
+}
+
+/**
+ * Derives a name-only span covering just `$` + the variable name, anchored
+ * at `fallbackSpan.start` (the `$` offset shared by both `VariableNode.span`
+ * and the enclosing `PostfixExprNode.span`). `fallbackSpan` itself may cover
+ * a whole access chain (e.g. `$x.upper`), so this trims it down to the bare
+ * `$name` token for hover/go-to-def targeting.
+ */
+function nameOnlySpan(fallbackSpan: SourceSpan, name: string): SourceSpan {
+  const width = 1 + name.length;
+  const { start } = fallbackSpan;
+  return {
+    start,
+    end: {
+      line: start.line,
+      column: start.column + width,
+      offset: start.offset + width,
+    },
+  };
 }
 
 interface AccessSegmentMatch {

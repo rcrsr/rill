@@ -40,6 +40,17 @@ export const spacingBraces: Rule = {
     // For Closure nodes with return type annotations, span.end extends past
     // } to include the type annotation. Use body.span.end to find the
     // actual }.
+    // DEBT (drift tracking): this assumes `(node as ClosureNode).body` is
+    // always a Block node whose span.end lands just past a literal `}`.
+    // Ported verbatim from rill-cli, where closure bodies were always
+    // block-shaped. In the current @rcrsr/rill core, a closure body can
+    // also be a GroupedExprNode (e.g. `|x| ($x * 2)`), whose span.end lands
+    // past a `)`, not a `}`. For such closures, closeEnd.column - 3 reads
+    // the character before `)` rather than before `}`, so this rule may
+    // over-fire (or mis-locate) on grouped-body closures relative to
+    // rill-cli parity. Re-review if a future @rcrsr/rill core change alters
+    // closure-body node shape (e.g. normalizes grouped bodies into Block)
+    // or ClosureNode span semantics.
     const closeSpan =
       node.type === 'Closure' ? (node as ClosureNode).body.span : span;
     const closeEnd = closeSpan.end;

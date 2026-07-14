@@ -4,12 +4,8 @@
  */
 
 import { walkAst } from '@rcrsr/rill';
-import type {
-  ASTNode,
-  DictEntryNode,
-  ParseResult,
-  SourceSpan,
-} from '@rcrsr/rill';
+import type { ASTNode, ParseResult, SourceSpan } from '@rcrsr/rill';
+import { dictKeyName, dictKeySpan } from './dict-key.js';
 import { spanToRange } from './span-to-range.js';
 import type { DocumentSymbol } from './types.js';
 
@@ -84,9 +80,11 @@ export function documentSymbols(parsed: ParseResult): DocumentSymbol[] {
         break;
       }
       case 'Closure': {
+        const name = closureName.get(node);
+        if (name === undefined) break;
         const nameSpan = closureCaptureSpan.get(node);
         symbols.push({
-          name: closureName.get(node) ?? '',
+          name,
           kind: 'function',
           range: spanToRange(node.span),
           // Prefer the capturing CaptureNode's span for selectionRange since
@@ -120,23 +118,4 @@ export function documentSymbols(parsed: ParseResult): DocumentSymbol[] {
   });
 
   return symbols;
-}
-
-/**
- * Resolves a static display name for a dict entry key, or `null` when the
- * key has no static name (a computed expression or a list-literal key).
- */
-function dictKeyName(key: DictEntryNode['key']): string | null {
-  if (typeof key === 'string') return key;
-  if (typeof key === 'number' || typeof key === 'boolean') return String(key);
-  if (typeof key === 'object' && 'kind' in key) {
-    return key.kind === 'variable' ? key.variableName : null;
-  }
-  return null;
-}
-
-/** Resolves the key's own span when it carries one (`$var` / computed keys). */
-function dictKeySpan(key: DictEntryNode['key']): SourceSpan | undefined {
-  if (typeof key === 'object' && 'kind' in key) return key.span;
-  return undefined;
 }

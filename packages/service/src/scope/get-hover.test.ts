@@ -60,6 +60,48 @@ $items[0] -> log
     expect(hover?.range?.start.character).not.toBe(0);
   });
 
+  it('hovers a bare variable base of a `.method()` chain on just `$name`, not the whole chain', () => {
+    const source = `"hi" => $x
+$x.upper() -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const chainStart = source.lastIndexOf('$x.upper()');
+    const offset = chainStart + 1; // inside "$x"
+
+    const hover = getHover(parsed, offset);
+
+    expect(hover).not.toBeNull();
+    // The range covers only `$x` (2 characters), not the trailing
+    // `.upper()` method call.
+    const line = source.split('\n')[1]!;
+    expect(hover?.range?.start.character).toBe(0);
+    expect(
+      line.slice(hover!.range!.start.character, hover!.range!.end.character)
+    ).toBe('$x');
+  });
+
+  it('hovers the base `$person` of `$person.name` on just `$person`, not the whole chain', () => {
+    const source = `dict[name: "Alice"] => $person
+$person.name -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const chainStart = source.lastIndexOf('$person.name');
+    const offset = chainStart + 1; // inside "$person"
+
+    const hover = getHover(parsed, offset);
+
+    expect(hover).not.toBeNull();
+    const line = source.split('\n')[1]!;
+    expect(hover?.range?.start.character).toBe(0);
+    expect(
+      line.slice(hover!.range!.start.character, hover!.range!.end.character)
+    ).toBe('$person');
+  });
+
   it('returns a static description for a built-in function', () => {
     const source = `log(1)
 `;

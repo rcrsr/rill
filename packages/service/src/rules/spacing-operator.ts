@@ -97,6 +97,16 @@ export const spacingOperator: Rule = {
     if (node.type === 'Capture') {
       const captureNode = node as CaptureNode;
 
+      // DEBT (drift tracking): this branch never fires. Assumption carried
+      // over from the ported rill-cli source: CaptureNode.span spans the
+      // `=>` operator itself, so checkCaptureSpacing's `\S=>` / `=>\S`
+      // patterns could match adjacent-source whitespace violations. In the
+      // current @rcrsr/rill core, CaptureNode.span no longer spans `=>`
+      // (it covers the captured expression/target only), so the extracted
+      // span text never contains the operator and the regexes cannot match.
+      // Kept as a faithful, inert port to preserve rill-cli diagnostic
+      // parity. Re-review if a future @rcrsr/rill core change alters
+      // CaptureNode.span to include the `=>` token again.
       if (checkCaptureSpacing(captureNode.span, context.source)) {
         diagnostics.push({
           code: 'SPACING_OPERATOR',
