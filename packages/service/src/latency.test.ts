@@ -54,6 +54,13 @@ const RUN_RULES_P95_BUDGET_MS = 250;
 const SAMPLE_COUNT = 100;
 const WARMUP_COUNT = 5;
 const TARGET_LINE_COUNT = 2000;
+// Each case below runs its provider SAMPLE_COUNT + WARMUP_COUNT times, so
+// wall-clock is roughly 105x the provider's own latency: on the CI runner
+// that is ~19s for runRules and ~5s for semanticTokens, both over vitest's
+// 5s default. The p95 assertions above are the latency guard; the test
+// timeout must not be, or a slow runner fails the suite for the wrong
+// reason and reports it as a timeout rather than as a budget breach.
+const LATENCY_TEST_TIMEOUT_MS = 120_000;
 
 /**
  * Generates a rill script of roughly `targetLines` lines, repeating a block
@@ -123,68 +130,104 @@ describe('provider latency on a 2,000-line script', () => {
   const config = createDefaultConfig();
   const sampleSpan = parsed.ast.statements[0]!.span;
 
-  it('documentSymbols stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      documentSymbols(parsed);
-    });
-    expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
-  });
+  it(
+    'documentSymbols stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        documentSymbols(parsed);
+      });
+      expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 
-  it('semanticTokens stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      semanticTokens(parsed, tokens, source);
-    });
-    expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
-  });
+  it(
+    'semanticTokens stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        semanticTokens(parsed, tokens, source);
+      });
+      expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 
-  it('formatDocument stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      formatDocument(parsed, source);
-    });
-    expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
-  });
+  it(
+    'formatDocument stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        formatDocument(parsed, source);
+      });
+      expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 
-  it('spanToRange stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      spanToRange(sampleSpan);
-    });
-    expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
-  });
+  it(
+    'spanToRange stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        spanToRange(sampleSpan);
+      });
+      expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 
-  it('resolveScopeAt stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      resolveScopeAt(parsed, midOffset);
-    });
-    expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
-  });
+  it(
+    'resolveScopeAt stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        resolveScopeAt(parsed, midOffset);
+      });
+      expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 
-  it('findDefinition stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      findDefinition(parsed, midOffset);
-    });
-    expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
-  });
+  it(
+    'findDefinition stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        findDefinition(parsed, midOffset);
+      });
+      expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 
-  it('getHover stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      getHover(parsed, midOffset);
-    });
-    expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
-  });
+  it(
+    'getHover stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        getHover(parsed, midOffset);
+      });
+      expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 
-  it('getCompletions stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      getCompletions(parsed, midOffset);
-    });
-    expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
-  });
+  it(
+    'getCompletions stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        getCompletions(parsed, midOffset);
+      });
+      expect(p95).toBeLessThanOrEqual(P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 
-  it('runRules stays at or under the p95 budget', () => {
-    const p95 = measureP95(() => {
-      runRules(parsed, source, config);
-    });
-    expect(p95).toBeLessThanOrEqual(RUN_RULES_P95_BUDGET_MS);
-  });
+  it(
+    'runRules stays at or under the p95 budget',
+    () => {
+      const p95 = measureP95(() => {
+        runRules(parsed, source, config);
+      });
+      expect(p95).toBeLessThanOrEqual(RUN_RULES_P95_BUDGET_MS);
+    },
+    LATENCY_TEST_TIMEOUT_MS
+  );
 });
 
 describe('provider termination on a recovery/partial AST', () => {
