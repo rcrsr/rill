@@ -104,6 +104,40 @@ describe('runRules', () => {
     });
   });
 
+  describe('rule isolation', () => {
+    it('skips a throwing rule and still returns diagnostics from the other rules', () => {
+      const source = '1 => $a\n2 => $b\n';
+      const parsed = toParseResult(source);
+
+      const throwingRule: Rule = {
+        code: 'THROWING_RULE',
+        nodeTypes: ['Capture'],
+        defaultSeverity: 'error',
+        validate(): Diagnostic[] {
+          throw new Error('unexpected shape');
+        },
+      };
+      const survivingDiagnostic = makeDiagnostic({ code: 'SURVIVING_RULE' });
+      const survivingRule = makeFakeRule(
+        'SURVIVING_RULE',
+        ['Capture'],
+        survivingDiagnostic
+      );
+
+      let result: Diagnostic[] = [];
+      expect(() => {
+        result = runRules(parsed, source, makeConfig(), [
+          throwingRule,
+          survivingRule,
+        ]);
+      }).not.toThrow();
+
+      // Two Capture nodes ($a, $b) each produce one surviving diagnostic.
+      expect(result).toHaveLength(2);
+      expect(result.every((d) => d.code === 'SURVIVING_RULE')).toBe(true);
+    });
+  });
+
   describe('severity resolution', () => {
     it('keeps the emitted severity when the rule state is "on"', () => {
       const source = '1 => $a\n';

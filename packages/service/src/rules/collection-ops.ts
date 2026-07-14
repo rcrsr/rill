@@ -20,7 +20,7 @@ import { traverseForRules } from './traversal.js';
 // COLLECTION-OP NAME SET
 // ============================================================
 
-export const COLLECTION_OP_NAMES = new Set([
+const COLLECTION_OP_NAMES = new Set([
   'seq',
   'fan',
   'fold',
@@ -93,40 +93,81 @@ export function resolveOpBody(node: HostCallNode): BodyNode | null {
 // ============================================================
 
 /**
- * Check if an AST subtree contains a Break node.
- * Uses traverseForRules for full AST traversal.
+ * True for HostCall nodes that establish their own `break` boundary:
+ * nested `seq`/`acc` catch `break` locally (see docs/topic-collections.md),
+ * so a `break` inside one does not propagate to an enclosing operator.
+ */
+function isBreakBoundary(node: ASTNode): boolean {
+  return (
+    node.type === 'HostCall' && (node.name === 'seq' || node.name === 'acc')
+  );
+}
+
+/**
+ * Check if an AST subtree contains a Break node, ignoring any `Break`
+ * nested inside a `seq`/`acc` call or a `Closure` - both catch/scope
+ * `break` locally, so a nested one is not visible to an enclosing parallel
+ * operator being checked. Mirrors the boundary-tracking style of
+ * `scope-helpers.findCapturesInBody`, which stops counting captures inside
+ * a `Closure` the same way.
  */
 export function containsBreak(node: ASTNode): boolean {
   let found = false;
+  let boundaryDepth = 0;
+
   traverseForRules(node, {
     enter(n: ASTNode) {
-      if (n.type === 'Break') {
+      if (n.type === 'Closure' || isBreakBoundary(n)) {
+        boundaryDepth++;
+        return;
+      }
+      if (n.type === 'Break' && boundaryDepth === 0) {
         found = true;
       }
     },
-    exit() {
-      // no-op
+    exit(n: ASTNode) {
+      if (n.type === 'Closure' || isBreakBoundary(n)) {
+        boundaryDepth--;
+      }
     },
   });
+
   return found;
 }
 
 /**
  * Check if an AST subtree contains side-effecting operations.
- * Detects HostCall (log, host functions) and ClosureCall ($fn(), $obj.method()).
+ * Detects HostCall (log, host functions) and ClosureCall ($fn(), $obj.method()),
+ * ignoring any found inside a nested `Closure` - a closure body evaluates
+ * in its own scope, so a side effect inside one is not a side effect of
+ * the enclosing body being classified (e.g. defining `|x|(log($x))` as a
+ * value has no side effect until the closure is invoked). Mirrors the
+ * boundary-tracking style of `scope-helpers.findCapturesInBody`.
  */
 export function containsSideEffects(node: ASTNode): boolean {
   let found = false;
+  let closureDepth = 0;
+
   traverseForRules(node, {
     enter(n: ASTNode) {
-      if (n.type === 'HostCall' || n.type === 'ClosureCall') {
+      if (n.type === 'Closure') {
+        closureDepth++;
+        return;
+      }
+      if (
+        closureDepth === 0 &&
+        (n.type === 'HostCall' || n.type === 'ClosureCall')
+      ) {
         found = true;
       }
     },
-    exit() {
-      // no-op
+    exit(n: ASTNode) {
+      if (n.type === 'Closure') {
+        closureDepth--;
+      }
     },
   });
+
   return found;
 }
 
@@ -135,7 +176,7 @@ export function containsSideEffects(node: ASTNode): boolean {
  * Collection-op bodies are always wrapped in `{...}`, so a literal `.empty`
  * arrives as Block -> Statement -> PipeChain -> PostfixExpr.
  */
-export function unwrapBlockToHead(body: BodyNode): ASTNode | null {
+function unwrapBlockToHead(body: BodyNode): ASTNode | null {
   if (body.type !== 'Block') return body;
   if (body.statements.length !== 1) return null;
   const stmt = body.statements[0];

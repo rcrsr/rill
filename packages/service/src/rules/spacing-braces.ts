@@ -40,17 +40,10 @@ export const spacingBraces: Rule = {
     // For Closure nodes with return type annotations, span.end extends past
     // } to include the type annotation. Use body.span.end to find the
     // actual }.
-    // DEBT (drift tracking): this assumes `(node as ClosureNode).body` is
-    // always a Block node whose span.end lands just past a literal `}`.
-    // Ported verbatim from rill-cli, where closure bodies were always
-    // block-shaped. In the current @rcrsr/rill core, a closure body can
-    // also be a GroupedExprNode (e.g. `|x| ($x * 2)`), whose span.end lands
-    // past a `)`, not a `}`. For such closures, closeEnd.column - 3 reads
-    // the character before `)` rather than before `}`, so this rule may
-    // over-fire (or mis-locate) on grouped-body closures relative to
-    // rill-cli parity. Re-review if a future @rcrsr/rill core change alters
-    // closure-body node shape (e.g. normalizes grouped bodies into Block)
-    // or ClosureNode span semantics.
+    // A closure body is not always a Block whose span.end lands just past a
+    // literal `}`: it can also be a GroupedExprNode (e.g. `|x| ($x * 2)`),
+    // whose span.end lands past a `)`. The `closeChar === '}'` guard below
+    // is what keeps those out of this check.
     const closeSpan =
       node.type === 'Closure' ? (node as ClosureNode).body.span : span;
     const closeEnd = closeSpan.end;
@@ -58,17 +51,27 @@ export const spacingBraces: Rule = {
     // closeEnd.column is 1-indexed and points AFTER the }, so:
     // - } is at 0-index: closeEnd.column - 2
     // - Character before } is at 0-index: closeEnd.column - 3
+    const closeChar = closeLineActual[closeEnd.column - 2];
     const charBeforeClose = closeLineActual[closeEnd.column - 3];
     const isCloseOnOwnLine = /^\s*$/.test(
       closeLineActual.substring(0, closeEnd.column - 2)
     );
-    if (charBeforeClose && !/\s/.test(charBeforeClose) && !isCloseOnOwnLine) {
+    // Only fire when the body span actually ends at a literal `}`. Grouped
+    // closure bodies (e.g. `|x| ($x * 2)`) end at `)`, and closure return
+    // type annotations push `span.end` past the annotation, neither of
+    // which is a closing brace to space-check.
+    if (
+      closeChar === '}' &&
+      charBeforeClose &&
+      !/\s/.test(charBeforeClose) &&
+      !isCloseOnOwnLine
+    ) {
       diagnostics.push({
         code: 'SPACING_BRACES',
         message: 'Space required before closing brace }',
         severity: 'info',
-        location: span.end,
-        context: extractContextLine(span.end.line, context.source),
+        location: closeEnd,
+        context: extractContextLine(closeEnd.line, context.source),
         fix: null,
       });
     }

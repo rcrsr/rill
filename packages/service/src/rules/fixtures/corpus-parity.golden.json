@@ -470,92 +470,27 @@
   {
     "index": 52,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 27,
-          "offset": 26
-        },
-        "context": "^(doc: \"test\") |x|($x * 2) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 53,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 28,
-          "offset": 27
-        },
-        "context": "^(timeout: 10 + 20) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 54,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 36,
-          "offset": 35
-        },
-        "context": "^(doc: \"test\", timeout: 30) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 55,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 23,
-          "offset": 36
-        },
-        "context": "^(max: $limit) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 56,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 8,
-          "offset": 7
-        },
-        "context": "|x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 57,
@@ -655,18 +590,6 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 17,
-          "offset": 16
-        },
-        "context": "|x: number| ($x) => $fn",
-        "fix": null
-      },
-      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
@@ -684,18 +607,6 @@
     "index": 74,
     "file": "annotations.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 9,
-          "offset": 8
-        },
-        "context": "|x| ($x) => $fn",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
@@ -814,55 +725,17 @@
   {
     "index": 90,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 38,
-          "offset": 38
-        },
-        "context": "^(min: 0, max: 100) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 91,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 38,
-          "offset": 38
-        },
-        "context": "^(min: 0, max: 100) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 92,
     "file": "annotations.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 18,
-          "offset": 18
-        },
-        "context": "|x|($x) => $fn",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
@@ -881,18 +754,6 @@
     "index": 93,
     "file": "annotations.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 18,
-          "offset": 18
-        },
-        "context": "|x|($x) => $fn",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
@@ -928,38 +789,12 @@
   {
     "index": 95,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 74,
-          "offset": 74
-        },
-        "context": "^(config: dict[timeout: 30, endpoints: list[\"a\", \"b\"]]) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 96,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 74,
-          "offset": 74
-        },
-        "context": "^(config: dict[timeout: 30, endpoints: list[\"a\", \"b\"]]) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 97,
@@ -1092,18 +927,6 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 39,
-          "offset": 39
-        },
-        "context": "^(label: \"test\") |x|($x * 2) => $fn",
-        "fix": null
-      },
-      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $alias -> ...' instead of separate statements",
         "severity": "info",
@@ -1120,20 +943,7 @@
   {
     "index": 105,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 39,
-          "offset": 61
-        },
-        "context": "^(limit: $base * 10) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 106,
@@ -1431,56 +1241,17 @@
   {
     "index": 123,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 28,
-          "offset": 28
-        },
-        "context": "^(\"text\") |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 124,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 41,
-          "offset": 41
-        },
-        "context": "^(\"text\", cache: true) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 125,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 41,
-          "offset": 41
-        },
-        "context": "^(\"text\", cache: true) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 126,
@@ -1495,55 +1266,17 @@
   {
     "index": 128,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 47,
-          "offset": 47
-        },
-        "context": "^(config: dict[timeout: 30]) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 129,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(label: \"test\") |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 130,
     "file": "annotations.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 18,
-          "offset": 18
-        },
-        "context": "|x|($x) => $fn",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
@@ -1561,38 +1294,12 @@
   {
     "index": 131,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(name: \"HELLO\") |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 132,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(enabled: true) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 133,
@@ -1617,37 +1324,12 @@
   {
     "index": 137,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(label: \"test\") |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 138,
     "file": "annotations.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 53,
-          "offset": 53
-        },
-        "context": "^(doc: \"original\", version: 1) |x|($x * 2) => $fn",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $alias1 -> ...' instead of separate statements",
@@ -1670,20 +1352,7 @@
   {
     "index": 140,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 34,
-          "offset": 33
-        },
-        "context": "^(config: $undefined_var) |x|($x)",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 141,
@@ -1705,18 +1374,6 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 34,
-          "offset": 34
-        },
-        "context": "^(version: 2) |x|($x * 2) => $fn",
-        "fix": null
-      },
-      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $inner -> ...' instead of separate statements",
         "severity": "info",
@@ -1733,38 +1390,12 @@
   {
     "index": 145,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 41,
-          "offset": 41
-        },
-        "context": "^(first: 1) ^(second: 2) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 146,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 41,
-          "offset": 41
-        },
-        "context": "^(first: 1) ^(second: 2) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 147,
@@ -1788,18 +1419,6 @@
     "index": 148,
     "file": "annotations.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 30,
-          "offset": 30
-        },
-        "context": "^(version: 2) |x|($x) => $outer",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $inner -> ...' instead of separate statements",
@@ -4234,20 +3853,7 @@
   {
     "index": 227,
     "file": "anonymous-typed-closure.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 22,
-          "offset": 64
-        },
-        "context": "$apply(|| 42)",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 228,
@@ -5747,18 +5353,6 @@
         },
         "context": "||(\"closure\" => $x) => $fn",
         "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 28,
-          "offset": 50
-        },
-        "context": "||(\"closure\" => $x) => $fn",
-        "fix": null
       }
     ]
   },
@@ -5766,18 +5360,6 @@
     "index": 420,
     "file": "block-scoping.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 19,
-          "offset": 36
-        },
-        "context": "||($x + 5) => $fn",
-        "fix": null
-      },
       {
         "code": "AVOID_REASSIGNMENT",
         "message": "Variable reassignment detected: '$x' first defined at line 2. Prefer new variable or functional style.",
@@ -7099,20 +6681,7 @@
   {
     "index": 602,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x > 0) => $pos",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 603,
@@ -7140,73 +6709,22 @@
   {
     "index": 605,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x * 2) => $double",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 606,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x - 3) => $sub",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 607,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x * 3) => $triple",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 608,
     "file": "closure-auto-invoke.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x + 2) => $addTwo",
-        "fix": null
-      },
       {
         "location": {
           "line": 2,
@@ -7240,37 +6758,12 @@
   {
     "index": 609,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x * 4) => $quadruple",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 610,
     "file": "closure-auto-invoke.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 25,
-          "offset": 25
-        },
-        "context": "|| { |x|($x + 1) } => $outer",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $inner -> ...' instead of separate statements",
@@ -7288,62 +6781,12 @@
   {
     "index": 611,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x > 0) => $a",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 21,
-          "offset": 47
-        },
-        "context": "|x|($x < 10) => $b",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 612,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 21,
-          "offset": 21
-        },
-        "context": "|x|($x > 10) => $a",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 20,
-          "offset": 47
-        },
-        "context": "|x|($x < 0) => $b",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 613,
@@ -7378,37 +6821,12 @@
   {
     "index": 614,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x > 5) => $test",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 615,
     "file": "closure-auto-invoke.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x + 5) => $addFive",
-        "fix": null
-      },
       {
         "location": {
           "line": 2,
@@ -7444,30 +6862,6 @@
     "file": "closure-auto-invoke.test.ts",
     "diagnostics": [
       {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x * 2) => $double",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 20,
-          "offset": 51
-        },
-        "context": "|x|($x + 3) => $addThree",
-        "fix": null
-      },
-      {
         "location": {
           "line": 3,
           "column": 24,
@@ -7500,37 +6894,12 @@
   {
     "index": 617,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x + 1) => $add",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 618,
     "file": "closure-auto-invoke.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 26,
-          "offset": 26
-        },
-        "context": "|x|($x -> string) => $toStr",
-        "fix": null
-      },
       {
         "location": {
           "line": 2,
@@ -7582,91 +6951,27 @@
   {
     "index": 620,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 24,
-          "offset": 24
-        },
-        "context": "|a, b|($a + $b) => $add",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 621,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|(\"text\") => $str",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 622,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|(\"text\") => $str",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 623,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 29,
-          "offset": 29
-        },
-        "context": "|x|($x + $undefined) => $bad",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 624,
     "file": "closure-auto-invoke.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x + 1) => $add",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $add -> ...' instead of separate statements",
@@ -7696,37 +7001,12 @@
   {
     "index": 625,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x + 1) => $add",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 626,
     "file": "closure-auto-invoke.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x + 1) => $add",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $add -> ...' instead of separate statements",
@@ -7744,73 +7024,22 @@
   {
     "index": 627,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 16,
-          "offset": 16
-        },
-        "context": "|x|($x) => $id",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 628,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x > 0) => $positive",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 629,
     "file": "closure-auto-invoke.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x * 2) => $double",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 630,
     "file": "closure-auto-invoke.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 20,
-          "offset": 20
-        },
-        "context": "|x|($x + 5) => $addFive",
-        "fix": null
-      },
       {
         "location": {
           "line": 2,
@@ -7838,18 +7067,6 @@
           },
           "replacement": "$add_five\n"
         }
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 20,
-          "offset": 52
-        },
-        "context": "|x|($x * 2) => $double",
-        "fix": null
       }
     ]
   },
@@ -7910,18 +7127,6 @@
         "fix": null
       },
       {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 37,
-          "offset": 37
-        },
-        "context": "|x| (while (true) do { $x }) => $a",
-        "fix": null
-      },
-      {
         "code": "CLOSURE_BRACES",
         "message": "Use braces for complex closure bodies (conditionals, loops)",
         "severity": "info",
@@ -7929,18 +7134,6 @@
           "line": 3,
           "column": 9,
           "offset": 52
-        },
-        "context": "|x| (while (true) do { $x }) => $b",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 37,
-          "offset": 80
         },
         "context": "|x| (while (true) do { $x }) => $b",
         "fix": null
@@ -8058,20 +7251,7 @@
   {
     "index": 654,
     "file": "closure-hoist-validation.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 52,
-          "offset": 78
-        },
-        "context": "list[1, 2, 3] -> fan(|x| ($x * $multiplier))",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 655,
@@ -8085,18 +7265,6 @@
           "line": 3,
           "column": 26,
           "offset": 52
-        },
-        "context": "list[1, 2, 3] -> seq(|x| ($x * $multiplier))",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 52,
-          "offset": 78
         },
         "context": "list[1, 2, 3] -> seq(|x| ($x * $multiplier))",
         "fix": null
@@ -8152,92 +7320,27 @@
   {
     "index": 660,
     "file": "closure-hoist-validation.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(min: 5, max: 99) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 661,
     "file": "closure-hoist-validation.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(min: 5, max: 99) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 662,
     "file": "closure-hoist-validation.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(min: 5, max: 99) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 663,
     "file": "closure-hoist-validation.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(min: 5, max: 99) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 664,
     "file": "closure-hoist-validation.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 35,
-          "offset": 35
-        },
-        "context": "^(min: 5, max: 99) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 665,
@@ -8425,122 +7528,22 @@
   {
     "index": 684,
     "file": "closure-semantics.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 32,
-          "offset": 31
-        },
-        "context": "list[|a: number, b: string|($a), |a: number, b: string|($b)].^type.signature",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 60,
-          "offset": 59
-        },
-        "context": "list[|a: number, b: string|($a), |a: number, b: string|($b)].^type.signature",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 685,
     "file": "closure-semantics.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 13,
-          "offset": 12
-        },
-        "context": "list[|x|($x), |a, b|($a)].^type.signature",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 25,
-          "offset": 24
-        },
-        "context": "list[|x|($x), |a, b|($a)].^type.signature",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 686,
     "file": "closure-semantics.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 25,
-          "offset": 24
-        },
-        "context": "list[|x: number|($x + 1), |y: number|($y + 1)].^type.signature",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 46,
-          "offset": 45
-        },
-        "context": "list[|x: number|($x + 1), |y: number|($y + 1)].^type.signature",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 687,
     "file": "closure-semantics.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 21,
-          "offset": 20
-        },
-        "context": "list[|x: number|($x), |x: string|($x)].^type.signature",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 38,
-          "offset": 37
-        },
-        "context": "list[|x: number|($x), |x: string|($x)].^type.signature",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 688,
@@ -9239,20 +8242,7 @@
   {
     "index": 775,
     "file": "collection-operators.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 44,
-          "offset": 43
-        },
-        "context": "list[1, 2, 3] -> fold(0, |item|($@ + $item))",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 776,
@@ -9643,20 +8633,7 @@
   {
     "index": 807,
     "file": "collection-operators.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 49,
-          "offset": 48
-        },
-        "context": "list[1, 2, 3] -> fold(0, |a, b, c|($a + $b + $c))",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 808,
@@ -9670,18 +8647,6 @@
           "line": 1,
           "column": 18,
           "offset": 17
-        },
-        "context": "list[1, 2, 3] -> seq(|a, b| ($a + $b))",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 38,
-          "offset": 37
         },
         "context": "list[1, 2, 3] -> seq(|a, b| ($a + $b))",
         "fix": null
@@ -10633,20 +9598,7 @@
   {
     "index": 909,
     "file": "collection-operators.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 22,
-          "offset": 22
-        },
-        "context": "|x| ($x * 10) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 910,
@@ -11550,20 +10502,7 @@
   {
     "index": 1069,
     "file": "conversion.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "||(42) -> string",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1070,
@@ -14341,18 +13280,6 @@
     "index": 1385,
     "file": "dynamic-field-access.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 22,
-          "offset": 22
-        },
-        "context": "|x|($x + 1) => $fn",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $data -> ...' instead of separate statements",
@@ -17426,50 +16353,12 @@
   {
     "index": 1720,
     "file": "hierarchical-dispatch.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 57,
-          "offset": 56
-        },
-        "context": "list[\"get\", \"name\"] -> dict[get: ||(dict[name: \"Alice\"])]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1721,
     "file": "hierarchical-dispatch.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 80,
-          "offset": 79
-        },
-        "context": "list[\"fn1\", \"fn2\", \"value\"] -> dict[fn1: ||(dict[fn2: ||(dict[value: \"result\"])])]",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 82,
-          "offset": 81
-        },
-        "context": "list[\"fn1\", \"fn2\", \"value\"] -> dict[fn1: ||(dict[fn2: ||(dict[value: \"result\"])])]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1722,
@@ -17580,20 +16469,7 @@
   {
     "index": 1738,
     "file": "hierarchical-dispatch.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 35,
-          "offset": 34
-        },
-        "context": "list[\"fn\"] -> dict[fn: ||(\"value\")]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1739,
@@ -17608,20 +16484,7 @@
   {
     "index": 1741,
     "file": "hierarchical-dispatch.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 35,
-          "offset": 34
-        },
-        "context": "list[\"fn\"] -> dict[fn: |x|($x * 2)]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1742,
@@ -17706,20 +16569,7 @@
   {
     "index": 1758,
     "file": "iterate.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 19,
-          "offset": 19
-        },
-        "context": "|x| ($x * 2) => $double",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1759,
@@ -18425,18 +17275,6 @@
         "fix": null
       },
       {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 6,
-          "column": 13,
-          "offset": 137
-        },
-        "context": "] => $countdown",
-        "fix": null
-      },
-      {
         "code": "PREFER_MAP",
         "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
         "severity": "info",
@@ -18465,18 +17303,6 @@
         },
         "context": "next: || { $counter($.value + 1) }",
         "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 6,
-          "column": 13,
-          "offset": 135
-        },
-        "context": "] => $counter",
-        "fix": null
       }
     ]
   },
@@ -18494,18 +17320,6 @@
           "offset": 94
         },
         "context": "next: || { $counter($.value + 1) }",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 6,
-          "column": 13,
-          "offset": 135
-        },
-        "context": "] => $counter",
         "fix": null
       }
     ]
@@ -18699,18 +17513,6 @@
         },
         "context": "next: || { $counter($.value + 1) }",
         "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 6,
-          "column": 13,
-          "offset": 135
-        },
-        "context": "] => $counter",
-        "fix": null
       }
     ]
   },
@@ -18718,18 +17520,6 @@
     "index": 1828,
     "file": "iterators.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 59,
-          "offset": 59
-        },
-        "context": "|n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter",
-        "fix": null
-      },
       {
         "location": {
           "line": 2,
@@ -18776,18 +17566,6 @@
     "index": 1829,
     "file": "iterators.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 59,
-          "offset": 59
-        },
-        "context": "|n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter",
-        "fix": null
-      },
       {
         "location": {
           "line": 2,
@@ -22130,32 +20908,7 @@
   {
     "index": 2295,
     "file": "parser-syntax-errors.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 15,
-          "offset": 14
-        },
-        "context": "true -> !false",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 15,
-          "offset": 14
-        },
-        "context": "true -> !false",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2296,
@@ -23464,20 +22217,7 @@
   {
     "index": 2469,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "|x|($x + 1) => $inc",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2470,
@@ -23570,20 +22310,7 @@
   {
     "index": 2485,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "|x|($x + 1) => $f",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2486,
@@ -23883,38 +22610,13 @@
         },
         "context": "list[1, 2] -> seq(|x| ($x * 2))",
         "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 31,
-          "offset": 30
-        },
-        "context": "list[1, 2] -> seq(|x| ($x * 2))",
-        "fix": null
       }
     ]
   },
   {
     "index": 2523,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "|x|($x * 2) => $double",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2524,
@@ -24021,74 +22723,22 @@
   {
     "index": 2534,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "|x|($x + 1) => $inc",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2535,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 16,
-          "offset": 15
-        },
-        "context": "|a, b|($a + $b) => $add",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2536,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 16,
-          "offset": 15
-        },
-        "context": "|x = 0|($x + 1) => $inc",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2537,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 20,
-          "offset": 19
-        },
-        "context": "|x: number|($x + 1) => $typed",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2538,
@@ -24103,38 +22753,12 @@
   {
     "index": 2540,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 48,
-          "offset": 47
-        },
-        "context": "^(\"Get weather for city\") |city: string|($city) => $weather",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2541,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 42,
-          "offset": 41
-        },
-        "context": "^(\"Fetch profile\", cache: true) |id|($id) => $get_user",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2542,
@@ -24584,38 +23208,12 @@
   {
     "index": 2584,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 24,
-          "offset": 23
-        },
-        "context": "|a, b, c|($a + $b + $c) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2585,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 16,
-          "offset": 15
-        },
-        "context": "|a, b|($a - $b) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2586,
@@ -24919,32 +23517,7 @@
   {
     "index": 2638,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "|x|($x + 1) => $inc",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 12,
-          "offset": 31
-        },
-        "context": "|x|($x * 2) => $double",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2639,
@@ -25110,20 +23683,7 @@
   {
     "index": 2653,
     "file": "ref-llms-full-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "|x|($x * 2) => $double",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2654,
@@ -25431,20 +23991,7 @@
   {
     "index": 2699,
     "file": "spread.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 34,
-          "offset": 33
-        },
-        "context": "list[1, 2, 3] -> fan(|x| ($x * 2))",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2700,
@@ -25557,20 +24104,7 @@
   {
     "index": 2710,
     "file": "spread.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 43,
-          "offset": 42
-        },
-        "context": "list[1, 2, 3, 4, 5] -> filter(|x| ($x > 2))",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2711,
@@ -26451,38 +24985,12 @@
   {
     "index": 2803,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 20,
-          "offset": 19
-        },
-        "context": "|x| yield :stream()",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2804,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 28,
-          "offset": 27
-        },
-        "context": "|x| ($x -> yield) :stream()",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2805,
@@ -26501,18 +25009,6 @@
           "line": 1,
           "column": 1,
           "offset": 0
-        },
-        "context": "|| yield :stream()",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 19,
-          "offset": 18
         },
         "context": "|| yield :stream()",
         "fix": null
@@ -26552,92 +25048,27 @@
   {
     "index": 2813,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 20,
-          "offset": 19
-        },
-        "context": "|x| yield :stream()",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2814,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 26,
-          "offset": 25
-        },
-        "context": "|x| yield :stream(number)",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2815,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 26,
-          "offset": 25
-        },
-        "context": "|x| yield :stream(string)",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2816,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 33,
-          "offset": 32
-        },
-        "context": "|x| yield :stream(number):string",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2817,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 27,
-          "offset": 26
-        },
-        "context": "|x| yield :stream():number",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2818,
@@ -26666,18 +25097,6 @@
           "line": 1,
           "column": 1,
           "offset": 0
-        },
-        "context": "|| yield :stream()",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 19,
-          "offset": 18
         },
         "context": "|| yield :stream()",
         "fix": null
@@ -26715,38 +25134,13 @@
           },
           "replacement": "string| yield :stream(number)"
         }
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 31,
-          "offset": 30
-        },
-        "context": "|string| yield :stream(number)",
-        "fix": null
       }
     ]
   },
   {
     "index": 2823,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 39,
-          "offset": 38
-        },
-        "context": "|x: string| yield :stream(number):bool",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2824,
@@ -26756,20 +25150,7 @@
   {
     "index": 2825,
     "file": "stream-type-parsing.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 11,
-          "offset": 10
-        },
-        "context": "|x| return",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2826,
@@ -26915,18 +25296,6 @@
     "file": "streams.test.ts",
     "diagnostics": [
       {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 51,
-          "offset": 51
-        },
-        "context": "|| (\"hello\" -> yield) :stream(string) => $gen",
-        "fix": null
-      },
-      {
         "location": {
           "line": 3,
           "column": 11,
@@ -26987,18 +25356,6 @@
     "file": "streams.test.ts",
     "diagnostics": [
       {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 45,
-          "offset": 45
-        },
-        "context": "|| (\"hello\" -> yield) :stream() => $gen",
-        "fix": null
-      },
-      {
         "location": {
           "line": 3,
           "column": 11,
@@ -27028,18 +25385,6 @@
     "index": 2839,
     "file": "streams.test.ts",
     "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 45,
-          "offset": 45
-        },
-        "context": "|| (\"hello\" -> yield) :stream() => $gen",
-        "fix": null
-      },
       {
         "location": {
           "line": 3,
@@ -27286,18 +25631,6 @@
           "line": 2,
           "column": 22,
           "offset": 22
-        },
-        "context": "|s| ($s -> seq({ $ * 2 })) => $consume",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 37,
-          "offset": 37
         },
         "context": "|s| ($s -> seq({ $ * 2 })) => $consume",
         "fix": null
@@ -28469,32 +26802,7 @@
   {
     "index": 2969,
     "file": "strings.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 13,
-          "offset": 12
-        },
-        "context": "|x| ($x * 2) => $double",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 13,
-          "offset": 36
-        },
-        "context": "|x| ($x + 1) => $inc",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2970,
@@ -30382,20 +28690,7 @@
   {
     "index": 3227,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 10,
-          "offset": 9
-        },
-        "context": "|| \"x\" -> :closure -> $()",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3228,
@@ -30475,20 +28770,7 @@
   {
     "index": 3243,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 10,
-          "offset": 9
-        },
-        "context": "|| \"x\" -> :?closure",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3244,
@@ -30609,32 +28891,7 @@
   {
     "index": 3262,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 21,
-          "offset": 20
-        },
-        "context": "42 -> :?string -> !$",
-        "fix": null
-      },
-      {
-        "code": "SPACING_BRACES",
-        "message": "Space required before closing brace }",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 21,
-          "offset": 20
-        },
-        "context": "42 -> :?string -> !$",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3263,

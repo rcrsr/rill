@@ -13,7 +13,12 @@ import type {
   SourceSpan,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { escapeRegex, extractContextLine, extractSpanText } from './helpers.js';
+import {
+  escapeRegex,
+  extractContextLine,
+  extractSpanText,
+  maskStringLiterals,
+} from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
@@ -26,7 +31,7 @@ function checkOperatorSpacing(
   span: SourceSpan,
   source: string
 ): boolean {
-  const text = extractSpanText(span, source);
+  const text = maskStringLiterals(extractSpanText(span, source));
 
   const patterns = [
     new RegExp(`\\S${escapeRegex(operator)}`), // No space before
@@ -38,13 +43,13 @@ function checkOperatorSpacing(
 
 /** Check pipe operator spacing. */
 function checkPipeSpacing(span: SourceSpan, source: string): boolean {
-  const text = extractSpanText(span, source);
-  return /\S->/.test(text) || /->[\S&&[^\s]]/.test(text);
+  const text = maskStringLiterals(extractSpanText(span, source));
+  return /\S->/.test(text) || /->\S/.test(text);
 }
 
 /** Check capture operator spacing. */
 function checkCaptureSpacing(span: SourceSpan, source: string): boolean {
-  const text = extractSpanText(span, source);
+  const text = maskStringLiterals(extractSpanText(span, source));
   return /\S=>/.test(text) || /=>\S/.test(text);
 }
 

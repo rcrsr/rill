@@ -43,6 +43,27 @@ describe('BREAK_IN_PARALLEL', () => {
       []
     );
   });
+
+  it('does not fire when break appears inside a seq nested within a fan body', () => {
+    // `seq` catches `break` locally; the outer `fan` never sees it.
+    const source = 'list[1, 2] -> fan({ $ -> seq({ ($ > 5) ? break ! $ }) })\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [breakInParallel])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire when break appears inside a closure nested within a fan body', () => {
+    // A closure body has its own scope; a `break` defined inside one is
+    // not a `break` of the enclosing `fan` body.
+    const source = 'list[1, 2] -> fan({ |x|($x -> break) => $f })\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [breakInParallel])).toEqual(
+      []
+    );
+  });
 });
 
 describe('PREFER_MAP', () => {
@@ -67,6 +88,19 @@ describe('PREFER_MAP', () => {
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [preferMap])).toEqual([]);
+  });
+
+  it('fires on a seq body whose only host call is inside a nested closure definition', () => {
+    // Defining `|x|(log($x))` as a value has no side effect at the outer
+    // seq body's level until the closure is invoked; the host call lives
+    // in the closure's own scope, so PREFER_MAP should still fire here.
+    const source = 'list[1, 2] -> seq({ |x|(log($x)) => $f })\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [preferMap]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.code).toBe('PREFER_MAP');
   });
 });
 

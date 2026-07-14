@@ -56,7 +56,12 @@ function renderFormattedSource(ast: ASTNode, source: string): string {
   let result = '';
   let cursor = 0;
   for (const region of malformedRegions) {
-    result += normalizeWhitespace(source.slice(cursor, region.startOffset));
+    // A gap immediately preceding a malformed region does not end at a real
+    // line boundary when it lacks a trailing `\n` (the malformed region
+    // continues the same line). Trimming that gap's last "line" would strip
+    // inline separator whitespace and fuse the gap to the malformed region.
+    const gap = source.slice(cursor, region.startOffset);
+    result += normalizeWhitespace(gap, gap.endsWith('\n'));
     result += source.slice(region.startOffset, region.endOffset);
     cursor = region.endOffset;
   }
@@ -112,12 +117,19 @@ function collectMalformedRegions(ast: ASTNode): MalformedRegion[] {
  * trailing spaces/tabs are trimmed from every line. Idempotent by
  * construction: neither transformation produces output that the other
  * pass would further change.
+ *
+ * When `trimLastLine` is `false`, the final line is left untouched. This is
+ * used for gaps that end mid-line right before a malformed region: that
+ * "line" isn't a real line boundary, so its trailing whitespace is inline
+ * separator whitespace, not end-of-line whitespace, and must be preserved.
  */
-function normalizeWhitespace(text: string): string {
-  return text
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((line) => line.replace(/[ \t]+$/, ''))
+function normalizeWhitespace(text: string, trimLastLine = true): string {
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
+  const lastIndex = lines.length - 1;
+  return lines
+    .map((line, index) =>
+      index < lastIndex || trimLastLine ? line.replace(/[ \t]+$/, '') : line
+    )
     .join('\n');
 }
 

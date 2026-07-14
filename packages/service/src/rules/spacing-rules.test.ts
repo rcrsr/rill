@@ -78,6 +78,39 @@ describe('SPACING_OPERATOR', () => {
       []
     );
   });
+
+  it('fires when a $var is followed directly by -> with no space', () => {
+    const source = '$x ->log\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingOperator]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_OPERATOR',
+      severity: 'info',
+      message: "Pipe operator '->' should have spaces on both sides",
+      fix: null,
+    });
+  });
+
+  it('does not fire when a correctly-spaced + appears inside a string literal', () => {
+    const source = '"1+2" + 3\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingOperator])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire when a correctly-spaced pipe follows an expression containing "->" inside a string literal', () => {
+    const source = '"a->b" -> log\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingOperator])).toEqual(
+      []
+    );
+  });
 });
 
 describe('SPACING_BRACES', () => {
@@ -108,6 +141,13 @@ describe('SPACING_BRACES', () => {
 
     expect(runRules(parsed, source, makeConfig(), [spacingBraces])).toEqual([]);
   });
+
+  it('does not fire the closing-brace check on a grouped-expression closure body', () => {
+    const source = '|x| ($x * 2)\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingBraces])).toEqual([]);
+  });
 });
 
 describe('SPACING_BRACKETS', () => {
@@ -128,6 +168,15 @@ describe('SPACING_BRACKETS', () => {
 
   it('does not fire on tight bracket access', () => {
     const source = '$x[0]\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingBrackets])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire on a quoted computed key containing bracket-adjacent characters', () => {
+    const source = '$dict["a[ b"]\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingBrackets])).toEqual(
@@ -178,6 +227,15 @@ describe('INDENT_CONTINUATION', () => {
 
   it('does not fire on a single-line chain', () => {
     const source = '"hello" -> .upper -> .len\n';
+    const parsed = toParseResult(source);
+
+    expect(
+      runRules(parsed, source, makeConfig(), [indentContinuation])
+    ).toEqual([]);
+  });
+
+  it('does not fire when the continuation is indented by a tab', () => {
+    const source = '$x\n\t-> log\n';
     const parsed = toParseResult(source);
 
     expect(

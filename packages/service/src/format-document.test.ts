@@ -87,6 +87,20 @@ describe('formatDocument', () => {
       expect(newText).not.toContain('"after"  \n');
     });
 
+    it('preserves inline separator whitespace before a mid-line malformed region', () => {
+      const source = '"before"   error(1 + 2))\n"after"\n';
+      const parsed = parseWithRecovery(source);
+      expect(parsed.success).toBe(false);
+
+      const [edit] = formatDocument(parsed, source);
+      const newText = edit?.newText ?? '';
+
+      // The three spaces separating "before" from the malformed call must
+      // survive; they are not end-of-line whitespace.
+      expect(newText.startsWith('"before"   error(1 + 2))\n')).toBe(true);
+      expect(newText).toContain('"after"\n');
+    });
+
     it('is idempotent over malformed input: format(format(x)) equals format(x)', () => {
       const source = 'error(1 + 2))  \n"after"  \n';
       const parsed = parseWithRecovery(source);

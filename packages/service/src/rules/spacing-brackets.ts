@@ -16,7 +16,12 @@ import type {
   VariableNode,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { extractContextLine, extractSpanText, isValidSpan } from './helpers.js';
+import {
+  extractContextLine,
+  extractSpanText,
+  isValidSpan,
+  maskStringLiterals,
+} from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 export const spacingBrackets: Rule = {
@@ -47,9 +52,10 @@ export const spacingBrackets: Rule = {
       }
 
       const text = extractSpanText(bracketAccess.span, context.source);
+      const maskedText = maskStringLiterals(text);
 
-      const hasSpaceAfterOpen = /\[\s/.test(text);
-      const hasSpaceBeforeClose = /\s\]/.test(text);
+      const hasSpaceAfterOpen = /\[\s/.test(maskedText);
+      const hasSpaceBeforeClose = /\s\]/.test(maskedText);
 
       if (hasSpaceAfterOpen || hasSpaceBeforeClose) {
         const content = text.substring(1, text.length - 1).trim();

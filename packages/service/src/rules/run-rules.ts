@@ -88,7 +88,10 @@ function sortDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
  * whose configured state is not 'off'. Never throws: malformed regions
  * (RecoveryErrorNode, PartialExpressionNode) are traversed like any other
  * node and simply produce no rule matches unless a rule explicitly targets
- * them.
+ * them. A rule whose own `validate` throws (e.g. on an unexpected partial
+ * shape) is isolated: its contribution for that node is skipped and every
+ * other rule still runs, so one misbehaving rule cannot blank out
+ * diagnostics for the whole document.
  */
 export function runRules(
   parsed: ParseResult,
@@ -131,7 +134,14 @@ export function runRules(
         continue;
       }
 
-      const ruleDiagnostics = rule.validate(node, ruleContext);
+      let ruleDiagnostics: Diagnostic[];
+      try {
+        ruleDiagnostics = rule.validate(node, ruleContext);
+      } catch {
+        // Isolate a throwing rule: skip its contribution for this node,
+        // remaining rules keep running.
+        continue;
+      }
       for (const diagnostic of ruleDiagnostics) {
         diagnostics.push({
           ...diagnostic,

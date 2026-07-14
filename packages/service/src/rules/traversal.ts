@@ -1,9 +1,20 @@
 /**
  * AST traversal for the rules engine.
- * Recursive enter/exit visitor mirroring the AST shape defined in
- * @rcrsr/rill's `ast-unions.ts` NodeType union. Recovery/partial nodes
+ * Enter/exit visitor mirroring the AST shape defined in @rcrsr/rill's
+ * `ast-unions.ts` NodeType union. Recovery/partial nodes
  * (RecoveryErrorNode, PartialExpressionNode) are traversed without special
  * casing so a malformed region never aborts the walk.
+ *
+ * Implemented as an explicit-stack iterative walk (mirroring
+ * `@rcrsr/rill`'s `walkAst` in `ast-walk.ts`) rather than recursion, so
+ * that deeply nested but syntactically valid ASTs - which rill, targeting
+ * machine-generated code, will see - do not risk a `RangeError: Maximum
+ * call stack size exceeded`. `getChildren` below returns the direct
+ * children of a node in source (left-to-right) order; the walk pushes a
+ * frame per node and calls `visitor.enter` the first time a frame is
+ * visited, then pushes its children, then calls `visitor.exit` once all
+ * children have been popped - preserving the same parent-before-children,
+ * left-to-right, post-order-exit semantics as the original recursive walk.
  *
  * This is not a byte-for-byte port of rill-cli's visitor.ts. It diverges
  * in three places, all required by the current core AST schema:
@@ -38,364 +49,242 @@ export interface AstVisitor {
 // ============================================================
 
 /**
- * Recursively visit every node reachable from `node`, calling
- * `visitor.enter` before descending into children and `visitor.exit`
- * after. Traversal order matches source (left-to-right, pre-order).
+ * Returns the direct children of `node`, in source (left-to-right) order.
+ * Implemented as an exhaustive switch over `node.type` so that adding a
+ * new member to the ASTNode union breaks `pnpm typecheck` until a
+ * corresponding arm is added here - see the `never`-typed exhaustiveness
+ * check in the `default` arm.
  */
-export function traverseForRules(node: ASTNode, visitor: AstVisitor): void {
-  visitor.enter(node);
-
+function getChildren(node: ASTNode): ASTNode[] {
   switch (node.type) {
-    case 'Script':
-      if (node.frontmatter) {
-        traverseForRules(node.frontmatter, visitor);
-      }
-      for (const stmt of node.statements) {
-        traverseForRules(stmt, visitor);
-      }
-      break;
+    case 'Script': {
+      const children: ASTNode[] = [];
+      if (node.frontmatter) children.push(node.frontmatter);
+      children.push(...node.statements);
+      return children;
+    }
 
     case 'Frontmatter':
-      break;
+      return [];
 
     case 'Statement':
-      traverseForRules(node.expression, visitor);
-      break;
+      return [node.expression];
 
     case 'AnnotatedStatement':
-      for (const arg of node.annotations) {
-        traverseForRules(arg, visitor);
-      }
-      traverseForRules(node.statement, visitor);
-      break;
+      return [...node.annotations, node.statement];
 
     case 'NamedArg':
-      traverseForRules(node.value, visitor);
-      break;
+      return [node.value];
 
     case 'SpreadArg':
-      traverseForRules(node.expression, visitor);
-      break;
+      return [node.expression];
 
-    case 'PipeChain':
-      traverseForRules(node.head, visitor);
-      for (const pipe of node.pipes) {
-        traverseForRules(pipe, visitor);
-      }
-      if (node.terminator) {
-        traverseForRules(node.terminator, visitor);
-      }
-      break;
+    case 'PipeChain': {
+      const children: ASTNode[] = [node.head, ...node.pipes];
+      if (node.terminator) children.push(node.terminator);
+      return children;
+    }
 
-    case 'PostfixExpr':
-      traverseForRules(node.primary, visitor);
-      for (const method of node.methods) {
-        traverseForRules(method, visitor);
-      }
-      if (node.defaultValue) {
-        traverseForRules(node.defaultValue, visitor);
-      }
-      break;
+    case 'PostfixExpr': {
+      const children: ASTNode[] = [node.primary, ...node.methods];
+      if (node.defaultValue) children.push(node.defaultValue);
+      return children;
+    }
 
     case 'BinaryExpr':
-      traverseForRules(node.left, visitor);
-      traverseForRules(node.right, visitor);
-      break;
+      return [node.left, node.right];
 
     case 'UnaryExpr':
-      traverseForRules(node.operand, visitor);
-      break;
+      return [node.operand];
 
     case 'GroupedExpr':
-      traverseForRules(node.expression, visitor);
-      break;
+      return [node.expression];
 
     case 'StringLiteral':
-      for (const part of node.parts) {
-        if (typeof part !== 'string') {
-          traverseForRules(part, visitor);
-        }
-      }
-      break;
+      return node.parts.filter(
+        (part): part is Exclude<(typeof node.parts)[number], string> =>
+          typeof part !== 'string'
+      );
 
     case 'Interpolation':
-      traverseForRules(node.expression, visitor);
-      break;
+      return [node.expression];
 
     case 'NumberLiteral':
     case 'BoolLiteral':
-      break;
+      return [];
 
     case 'TupleLiteral':
-      for (const element of node.elements) {
-        traverseForRules(element, visitor);
-      }
-      break;
+      return [...node.elements];
 
-    case 'ListLiteral':
-      for (const element of node.elements) {
-        traverseForRules(element, visitor);
-      }
-      if (node.defaultValue) {
-        traverseForRules(node.defaultValue, visitor);
-      }
-      break;
+    case 'ListLiteral': {
+      const children: ASTNode[] = [...node.elements];
+      if (node.defaultValue) children.push(node.defaultValue);
+      return children;
+    }
 
     case 'DictLiteral':
-      for (const entry of node.entries) {
-        traverseForRules(entry, visitor);
-      }
-      break;
+      return [...node.entries];
 
     case 'OrderedLiteral':
-      for (const entry of node.entries) {
-        traverseForRules(entry, visitor);
-      }
-      break;
+      return [...node.entries];
 
     case 'ListSpread':
-      traverseForRules(node.expression, visitor);
-      break;
+      return [node.expression];
 
-    case 'Dict':
-      for (const entry of node.entries) {
-        traverseForRules(entry, visitor);
-      }
-      if (node.defaultValue) {
-        traverseForRules(node.defaultValue, visitor);
-      }
-      break;
+    case 'Dict': {
+      const children: ASTNode[] = [...node.entries];
+      if (node.defaultValue) children.push(node.defaultValue);
+      return children;
+    }
 
     case 'DictEntry':
-      traverseForRules(node.value, visitor);
-      break;
+      return [node.value];
 
     case 'Closure':
-      for (const param of node.params) {
-        traverseForRules(param, visitor);
-      }
-      traverseForRules(node.body, visitor);
-      break;
+      return [...node.params, node.body];
 
     case 'ClosureParam':
-      if (node.defaultValue) {
-        traverseForRules(node.defaultValue, visitor);
-      }
-      break;
+      return node.defaultValue ? [node.defaultValue] : [];
 
     case 'Variable':
-      if (node.defaultValue) {
-        traverseForRules(node.defaultValue, visitor);
-      }
-      break;
+      return node.defaultValue ? [node.defaultValue] : [];
 
     case 'HostCall':
-      for (const arg of node.args) {
-        traverseForRules(arg, visitor);
-      }
-      break;
+      return [...node.args];
 
     case 'ClosureCall':
-      for (const arg of node.args) {
-        traverseForRules(arg, visitor);
-      }
-      break;
+      return [...node.args];
 
     case 'MethodCall':
-      for (const arg of node.args) {
-        traverseForRules(arg, visitor);
-      }
-      break;
+      return [...node.args];
 
     case 'Invoke':
-      for (const arg of node.args) {
-        traverseForRules(arg, visitor);
-      }
-      break;
+      return [...node.args];
 
     case 'AnnotationAccess':
-      break;
+      return [];
 
     case 'PipeInvoke':
-      for (const arg of node.args) {
-        traverseForRules(arg, visitor);
-      }
-      break;
+      return [...node.args];
 
-    case 'Conditional':
-      if (node.input) {
-        traverseForRules(node.input, visitor);
-      }
-      if (node.condition) {
-        traverseForRules(node.condition, visitor);
-      }
-      traverseForRules(node.thenBranch, visitor);
-      if (node.elseBranch) {
-        traverseForRules(node.elseBranch, visitor);
-      }
-      break;
+    case 'Conditional': {
+      const children: ASTNode[] = [];
+      if (node.input) children.push(node.input);
+      if (node.condition) children.push(node.condition);
+      children.push(node.thenBranch);
+      if (node.elseBranch) children.push(node.elseBranch);
+      return children;
+    }
 
     case 'WhileLoop':
-      traverseForRules(node.condition, visitor);
-      traverseForRules(node.body, visitor);
-      break;
+      return [node.condition, node.body];
 
-    case 'DoWhileLoop':
-      if (node.input) {
-        traverseForRules(node.input, visitor);
-      }
-      traverseForRules(node.body, visitor);
-      traverseForRules(node.condition, visitor);
-      break;
+    case 'DoWhileLoop': {
+      const children: ASTNode[] = [];
+      if (node.input) children.push(node.input);
+      children.push(node.body, node.condition);
+      return children;
+    }
 
     case 'Block':
-      for (const stmt of node.statements) {
-        traverseForRules(stmt, visitor);
-      }
-      break;
+      return [...node.statements];
 
-    case 'GuardBlock':
-      traverseForRules(node.body, visitor);
-      if (node.onCodes) {
-        for (const code of node.onCodes) {
-          traverseForRules(code, visitor);
-        }
-      }
-      break;
+    case 'GuardBlock': {
+      const children: ASTNode[] = [node.body];
+      if (node.onCodes) children.push(...node.onCodes);
+      return children;
+    }
 
-    case 'RetryBlock':
-      traverseForRules(node.body, visitor);
-      if (node.onCodes) {
-        for (const code of node.onCodes) {
-          traverseForRules(code, visitor);
-        }
-      }
-      break;
+    case 'RetryBlock': {
+      const children: ASTNode[] = [node.body];
+      if (node.onCodes) children.push(...node.onCodes);
+      return children;
+    }
 
     case 'AtomLiteral':
-      break;
+      return [];
 
     case 'StatusProbe':
-      traverseForRules(node.target, visitor);
-      break;
+      return [node.target];
 
     case 'Destructure':
-      for (const element of node.elements) {
-        traverseForRules(element, visitor);
-      }
-      break;
+      return [...node.elements];
 
     case 'DestructPattern':
-      if (node.nested) {
-        traverseForRules(node.nested, visitor);
-      }
-      break;
+      return node.nested ? [node.nested] : [];
 
-    case 'Slice':
-      if (node.start) {
-        traverseForRules(node.start, visitor);
-      }
-      if (node.stop) {
-        traverseForRules(node.stop, visitor);
-      }
-      if (node.step) {
-        traverseForRules(node.step, visitor);
-      }
-      break;
+    case 'Slice': {
+      const children: ASTNode[] = [];
+      if (node.start) children.push(node.start);
+      if (node.stop) children.push(node.stop);
+      if (node.step) children.push(node.step);
+      return children;
+    }
 
     case 'Destruct':
-      for (const element of node.elements) {
-        traverseForRules(element, visitor);
-      }
-      break;
+      return [...node.elements];
 
     case 'TypeAssertion':
-      if (node.operand) {
-        traverseForRules(node.operand, visitor);
-      }
-      break;
+      return node.operand ? [node.operand] : [];
 
     case 'TypeCheck':
-      if (node.operand) {
-        traverseForRules(node.operand, visitor);
-      }
-      break;
+      return node.operand ? [node.operand] : [];
 
-    case 'Assert':
-      traverseForRules(node.condition, visitor);
-      if (node.message) {
-        traverseForRules(node.message, visitor);
-      }
-      break;
+    case 'Assert': {
+      const children: ASTNode[] = [node.condition];
+      if (node.message) children.push(node.message);
+      return children;
+    }
 
     case 'Capture':
     case 'Break':
     case 'Return':
     case 'Pass':
     case 'Yield':
-      break;
+      return [];
 
     case 'RecoveryError':
       // Recovery error node: opaque skipped text, no children to visit.
-      break;
+      return [];
 
     case 'Error':
-      if (node.message) {
-        traverseForRules(node.message, visitor);
-      }
-      break;
+      return node.message ? [node.message] : [];
 
     case 'TypeNameExpr':
     case 'HostRef':
-      break;
+      return [];
 
     case 'AnnotatedExpr':
-      for (const arg of node.annotations) {
-        traverseForRules(arg, visitor);
-      }
-      traverseForRules(node.expression, visitor);
-      break;
+      return [...node.annotations, node.expression];
 
-    case 'TypeConstructor':
+    case 'TypeConstructor': {
+      const children: ASTNode[] = [];
       for (const arg of node.args) {
         // arg.value is a TypeRef (not an ASTNode) - skip it.
-        if (arg.defaultValue) {
-          traverseForRules(arg.defaultValue, visitor);
-        }
+        if (arg.defaultValue) children.push(arg.defaultValue);
       }
-      break;
+      return children;
+    }
 
     case 'ClosureSigLiteral':
-      for (const param of node.params) {
-        traverseForRules(param.typeExpr, visitor);
-      }
-      traverseForRules(node.returnType, visitor);
-      break;
+      return [...node.params.map((param) => param.typeExpr), node.returnType];
 
     case 'UseExpr':
       // Visit computed expression if present; typeRef is not an ASTNode.
-      if (node.identifier.kind === 'computed') {
-        traverseForRules(node.identifier.expression, visitor);
-      }
-      break;
+      return node.identifier.kind === 'computed'
+        ? [node.identifier.expression]
+        : [];
 
     case 'PassBlock':
-      traverseForRules(node.options, visitor);
-      traverseForRules(node.body, visitor);
-      break;
+      return [node.options, node.body];
 
     case 'TimeoutBlock':
-      traverseForRules(node.duration, visitor);
-      traverseForRules(node.body, visitor);
-      break;
+      return [node.duration, node.body];
 
     case 'PartialExpression':
       // Partial expression node: only the typed children recognized during
       // recovery are visited; the surrounding gap is opaque.
-      for (const child of node.children) {
-        traverseForRules(child, visitor);
-      }
-      break;
+      return [...node.children];
 
     default: {
       // Exhaustive check: if we reach here, a node type is missing.
@@ -405,8 +294,40 @@ export function traverseForRules(node: ASTNode, visitor: AstVisitor): void {
       );
     }
   }
+}
 
-  visitor.exit(node);
+/**
+ * Visit every node reachable from `node`, calling `visitor.enter` before
+ * descending into children and `visitor.exit` after. Traversal order
+ * matches source (left-to-right, pre-order enter / post-order exit).
+ *
+ * Implemented as an explicit-stack iterative walk rather than recursion -
+ * see the module comment for rationale.
+ */
+export function traverseForRules(node: ASTNode, visitor: AstVisitor): void {
+  interface Frame {
+    readonly node: ASTNode;
+    childrenPushed: boolean;
+  }
+
+  const stack: Frame[] = [{ node, childrenPushed: false }];
+
+  while (stack.length > 0) {
+    const frame = stack[stack.length - 1]!;
+
+    if (!frame.childrenPushed) {
+      visitor.enter(frame.node);
+      frame.childrenPushed = true;
+      const children = getChildren(frame.node);
+      for (let i = children.length - 1; i >= 0; i--) {
+        stack.push({ node: children[i]!, childrenPushed: false });
+      }
+      continue;
+    }
+
+    visitor.exit(frame.node);
+    stack.pop();
+  }
 }
 
 // ============================================================

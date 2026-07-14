@@ -24,6 +24,22 @@ import type {
  * large documents. Caching the most recently split source keeps repeated
  * calls O(1); the cache invalidates via value equality (`!==`) on the
  * source string whenever a different `source` is passed in.
+ *
+ * Precondition: this module-level cache is safe only under the current
+ * invariant that `runRules` executes fully synchronously with no
+ * interleaving - a single call walks one document's AST to completion
+ * before returning, and no other `runRules` call (same or different
+ * document) runs concurrently with it. If a future change makes any rule
+ * or `runRules` itself async, or allows overlapping calls (e.g. a
+ * concurrent multi-document mode), two documents could thrash this
+ * single-slot cache: correctness still holds (the `!==` check always
+ * re-splits when the cached source no longer matches), but every call
+ * silently degrades to an O(document length) re-split instead of the O(1)
+ * this comment advertises, with no visible signal that the fast path was
+ * lost. If that invariant is ever broken, scope this cache to
+ * `RuleContext` instead (populate the split lines once in `runRules` and
+ * thread them through the context) rather than reinstating shared module
+ * state.
  */
 let cachedSplitSource: string | null = null;
 let cachedSplitLines: string[] = [];
@@ -174,4 +190,26 @@ export function extractSpanText(span: SourceSpan, source: string): string {
  */
 export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ============================================================
+// STRING LITERAL MASKING
+// ============================================================
+
+/**
+ * Replaces the interior of every double-quoted string literal in `text`
+ * with spaces, preserving the surrounding quote characters, all other
+ * characters, and offsets. Spacing rules test operator/bracket regexes
+ * against a node's raw span text; without masking, an operator character
+ * that happens to appear inside a string literal (e.g. `"1+2" + 3` or
+ * `$dict["a[ b"]`) produces a false-positive diagnostic. Preserving the
+ * quote characters themselves (rather than blanking the whole literal)
+ * keeps bracket-adjacency checks (`\[\s`, `\s\]`) from misreading a quote
+ * that sits directly against `[` or `]` as a space.
+ */
+export function maskStringLiterals(text: string): string {
+  return text.replace(
+    /"((?:\\.|[^"\\])*)"/g,
+    (_match, contents: string) => `"${' '.repeat(contents.length)}"`
+  );
 }
