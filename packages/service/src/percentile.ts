@@ -9,12 +9,12 @@
  */
 
 /** Warmup iterations run (and discarded) before timed sampling begins. */
-export const PERCENTILE_WARMUP_COUNT = 5;
+const PERCENTILE_WARMUP_COUNT = 5;
 /** Number of timed samples collected per `measureP95` call. */
-export const PERCENTILE_SAMPLE_COUNT = 100;
+const PERCENTILE_SAMPLE_COUNT = 100;
 
 /** Sorts `samples` ascending and returns the p95 value (index 94 of 100). */
-export function computeP95(samples: number[]): number {
+function computeP95(samples: number[]): number {
   const sorted = [...samples].sort((a, b) => a - b);
   const index = Math.min(
     sorted.length - 1,

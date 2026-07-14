@@ -109,14 +109,22 @@ const NESTING_DEPTH = 3000;
 // different O(depth^2) source (capturesInSubtree's window scan) unrelated
 // to the AST-walk cost this suite is proving is gone.
 const CAPTURE_LEVELS = 5;
-// Post-refactor p95 on this fixture measures ~119.21ms; pre-refactor
-// measures ~18227.58ms (see header comment). 700ms sits >20x below the
-// pre-refactor figure (18227.58 / 700 ~= 26.0x) - a quadratic re-walk per
-// level would blow through it by an order of magnitude more than that -
-// while leaving ~5.9x headroom over the observed linear p95 to absorb
-// runner variance without masking a genuine regression back toward
-// quadratic behavior.
-const RUN_RULES_DEPTH_P95_BUDGET_MS = 700;
+// Post-refactor p95 on this fixture measures ~119.21ms locally; pre-refactor
+// measures ~18227.58ms locally (see header comment).
+//
+// The budget must clear the CI runner, not just this machine. An initial
+// 700ms budget failed CI at 883.07ms p95 - a ~7.4x local-to-CI factor, in
+// line with the ~5-7x factor latency.test.ts already documents for every
+// other provider on the same shared runner, and NOT a sign of surviving
+// quadratic behavior. (A quadratic re-walk at depth 3000 costs seconds, not
+// hundreds of milliseconds: the pre-refactor path takes ~18s here.)
+//
+// 3000ms clears the observed 883.07ms CI figure by ~3.4x, absorbing runner
+// contention, while still sitting 6.1x below the pre-refactor local figure
+// (18227.58 / 3000). Reintroducing a per-level subtree re-walk therefore
+// still fails this gate by a wide margin, on CI and locally alike, which is
+// the property that matters.
+const RUN_RULES_DEPTH_P95_BUDGET_MS = 3000;
 // Mirrors latency.test.ts: SAMPLE_COUNT + WARMUP_COUNT runs of a fixture
 // this deep can take a while on a slow/contended runner. The budget
 // assertion above is the actual latency guard; this timeout only prevents

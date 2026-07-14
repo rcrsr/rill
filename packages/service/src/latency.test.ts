@@ -33,25 +33,35 @@ import { measureP95 } from './percentile.js';
 // without masking a genuine regression, which would overshoot by far more
 // than this margin.
 const P95_BUDGET_MS = 60;
-// runRules aggregates every bundled rule (~40 passes) over the script, so it
+// runRules aggregates every bundled rule (~40 rules) over the script, so it
 // does proportionately more work than the single-pass providers and gets a
-// wider ceiling. Local p95 on this fixture measures ~32-35ms; a CI run
-// against the previous 150ms budget measured 182.47ms p95.
+// wider ceiling.
 //
-// That gap is the runner, not the algorithm. On the same CI run,
-// semanticTokens - a single pass with no sub-walks - went from ~7ms local to
-// 50.07ms, a 7.1x factor, while runRules went from ~33ms to 182ms, only
-// 5.5x. An algorithmic cost that CI exposed would make runRules degrade
-// *worse* than semanticTokens, not better. Both simply scale by the ~5-7x
-// the shared GitHub runner is slower, with the workspace's other package
-// suites running concurrently against the same cores.
+// This fixture is FLAT (no deeply nested collection-op bodies), and on flat
+// input the two-pass rules engine is measurably slower than the sub-walk
+// engine it replaced. Local p95 on this fixture: 34.62ms before the
+// facts-pass refactor, 41.64ms after, a ~20% regression. The cause is not a
+// surprise: a shallow subtree is cheap to re-walk, so the sub-walks the
+// refactor deleted were nearly free here, and collectFacts adds a second
+// full traversal plus one fact record per node that flat input never
+// amortizes. Deeply nested input pays the opposite way and wins 153x (see
+// rules/nesting-scale.test.ts). Trading a bounded ~20% on shallow scripts
+// for the removal of an unbounded quadratic on nested ones is the intended
+// deal, not an accident.
 //
-// 250ms gives ~37% headroom over the observed 182.47ms to absorb that
-// variance. It is deliberately loose in absolute terms (~7.6x local p95):
-// on a contended shared runner an absolute budget can either be a tight
-// regression guard or be flake-free, not both, and this one is the latter.
-// Treat the local number as the real latency signal.
-const RUN_RULES_P95_BUDGET_MS = 250;
+// The CI figure is dominated by the runner, not the algorithm. A CI run
+// against the previous 250ms budget measured 269.43ms p95. On earlier runs
+// semanticTokens - a single pass with no sub-walks - went from ~7ms local
+// to 50.07ms, a 7.1x factor; runRules scales by the same ~5-7x the shared
+// GitHub runner is slower, with the workspace's other package suites
+// running concurrently against the same cores.
+//
+// 350ms gives ~30% headroom over the observed 269.43ms. It is deliberately
+// loose in absolute terms (~8.4x local p95): on a contended shared runner an
+// absolute budget can either be a tight regression guard or be flake-free,
+// not both, and this one is the latter. Treat the local number as the real
+// latency signal.
+const RUN_RULES_P95_BUDGET_MS = 350;
 const TARGET_LINE_COUNT = 2000;
 // Each case below runs its provider SAMPLE_COUNT + WARMUP_COUNT times, so
 // wall-clock is roughly 105x the provider's own latency: on the CI runner
