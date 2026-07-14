@@ -26,6 +26,17 @@ export {
 export { runRules } from './run-rules.js';
 
 // ============================================================
+// AST FACTS
+// ============================================================
+export { capturesInSubtree } from './facts.js';
+export type {
+  AstFacts,
+  CaptureEntry,
+  ScriptFacts,
+  SubtreeFacts,
+} from './facts.js';
+
+// ============================================================
 // RULE TYPES
 // ============================================================
 export type {

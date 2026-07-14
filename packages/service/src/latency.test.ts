@@ -23,6 +23,7 @@ import {
   resolveScopeAt,
 } from './scope/index.js';
 import { createDefaultConfig, runRules } from './rules/index.js';
+import { measureP95 } from './percentile.js';
 
 // Local p95 for the single-pass providers on this fixture measures ~6-7ms.
 // A CI run against the previous 50ms budget measured 50.07ms p95 for
@@ -51,8 +52,6 @@ const P95_BUDGET_MS = 60;
 // regression guard or be flake-free, not both, and this one is the latter.
 // Treat the local number as the real latency signal.
 const RUN_RULES_P95_BUDGET_MS = 250;
-const SAMPLE_COUNT = 100;
-const WARMUP_COUNT = 5;
 const TARGET_LINE_COUNT = 2000;
 // Each case below runs its provider SAMPLE_COUNT + WARMUP_COUNT times, so
 // wall-clock is roughly 105x the provider's own latency: on the CI runner
@@ -91,31 +90,6 @@ function generateFixtureScript(targetLines: number): string {
     }
   }
   return lines.join('\n') + '\n';
-}
-
-/** Sorts `samples` ascending and returns the p95 value (index 94 of 100). */
-function computeP95(samples: number[]): number {
-  const sorted = [...samples].sort((a, b) => a - b);
-  const index = Math.min(
-    sorted.length - 1,
-    Math.ceil(sorted.length * 0.95) - 1
-  );
-  return sorted[index]!;
-}
-
-/** Runs `fn` for warmup iterations, then measures `SAMPLE_COUNT` timed samples and returns the p95 in ms. */
-function measureP95(fn: () => void): number {
-  for (let i = 0; i < WARMUP_COUNT; i++) {
-    fn();
-  }
-
-  const samples: number[] = [];
-  for (let i = 0; i < SAMPLE_COUNT; i++) {
-    const start = performance.now();
-    fn();
-    samples.push(performance.now() - start);
-  }
-  return computeP95(samples);
 }
 
 describe('provider latency on a 2,000-line script', () => {

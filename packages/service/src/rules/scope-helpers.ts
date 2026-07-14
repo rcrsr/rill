@@ -3,8 +3,7 @@
  * capture location relative to the engine-owned scope stack.
  */
 
-import type { ASTNode, CaptureNode } from '@rcrsr/rill';
-import { traverseForRules } from './traversal.js';
+import type { ASTNode } from '@rcrsr/rill';
 
 // ============================================================
 // PARENT-SCOPE CHECK
@@ -55,37 +54,4 @@ export function isVariableInParentScope(
 
   // Variable is outer if it appears before current scope in stack (ancestor)
   return variableIndex < currentIndex;
-}
-
-// ============================================================
-// CAPTURE COLLECTION
-// ============================================================
-
-/**
- * Find all Capture nodes in a loop/collection-op body, excluding captures
- * nested inside closures (they have their own scope). Reuses the shared
- * AST traversal so descent mirrors the engine-owned walk exactly.
- */
-export function findCapturesInBody(node: ASTNode): CaptureNode[] {
-  const captures: CaptureNode[] = [];
-  let closureDepth = 0;
-
-  traverseForRules(node, {
-    enter(n: ASTNode) {
-      if (n.type === 'Closure') {
-        closureDepth++;
-        return;
-      }
-      if (n.type === 'Capture' && closureDepth === 0) {
-        captures.push(n);
-      }
-    },
-    exit(n: ASTNode) {
-      if (n.type === 'Closure') {
-        closureDepth--;
-      }
-    },
-  });
-
-  return captures;
 }

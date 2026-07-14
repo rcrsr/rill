@@ -27,6 +27,12 @@
  * - `Dict.defaultValue`: also descended into, for the same reason as
  *   `PostfixExpr.defaultValue` above (absent from rill-cli's `Dict` case,
  *   present on the current `DictNode` shape).
+ *
+ * `traverseForRules` has exactly two production callers: `run-rules.ts`
+ * (the dispatch pass) and `facts.ts` (the fact-collection pass). Rules
+ * must never call it directly; each rule receives facts and node
+ * visits through the dispatch pass instead. `no-subwalks.test.ts`
+ * enforces this by asserting no rule module imports `traverseForRules`.
  */
 
 import type { ASTNode, TypeAssertionNode } from '@rcrsr/rill';

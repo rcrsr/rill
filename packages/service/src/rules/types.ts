@@ -10,6 +10,7 @@ import type {
   SourceLocation,
   SourceSpan,
 } from '@rcrsr/rill';
+import type { AstFacts } from './facts.js';
 
 // ============================================================
 // SEVERITY AND RULE STATE
@@ -114,6 +115,8 @@ export interface RuleContext {
   readonly assertedHostCalls: Set<ASTNode>;
   /** Resolved type checker mode; undefined is treated as permissive. */
   readonly checkerMode?: 'strict' | 'permissive' | undefined;
+  /** Precomputed single-pass AST facts (subtree booleans, capture log, stream maps). */
+  readonly facts: AstFacts;
 }
 
 // ============================================================

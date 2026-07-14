@@ -25,10 +25,8 @@ import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 import { isCollectionOpCall, getCollectionOpBody } from './collection-ops.js';
-import {
-  findCapturesInBody,
-  isVariableInParentScope,
-} from './scope-helpers.js';
+import { isVariableInParentScope } from './scope-helpers.js';
+import { capturesInSubtree } from './facts.js';
 
 export const loopOuterCapture: Rule = {
   code: 'LOOP_OUTER_CAPTURE',
@@ -57,7 +55,7 @@ export const loopOuterCapture: Rule = {
     if (!body) return diagnostics;
 
     // Find all captures in the body.
-    const captures = findCapturesInBody(body);
+    const captures = capturesInSubtree(context.facts, body);
 
     // Get the current closure scope (if we're inside a closure).
     const currentClosureScope =

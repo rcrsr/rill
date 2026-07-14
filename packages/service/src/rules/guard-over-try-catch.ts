@@ -9,23 +9,6 @@ import type { ASTNode, ConditionalNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
-import { traverseForRules } from './traversal.js';
-
-// ============================================================
-// HELPERS
-// ============================================================
-
-/** Walk a subtree to detect any StatusProbe node. */
-function subtreeContainsStatusProbe(root: ASTNode): boolean {
-  let found = false;
-  traverseForRules(root, {
-    enter(n: ASTNode) {
-      if (n.type === 'StatusProbe') found = true;
-    },
-    exit() {},
-  });
-  return found;
-}
 
 // ============================================================
 // RULE
@@ -39,7 +22,8 @@ export const guardOverTryCatch: Rule = {
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const cond = node as ConditionalNode;
     if (!cond.condition) return [];
-    if (!subtreeContainsStatusProbe(cond.condition)) return [];
+    if (context.facts.bySubtree.get(cond.condition)?.hasStatusProbe !== true)
+      return [];
 
     return [
       {

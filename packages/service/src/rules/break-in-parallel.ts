@@ -10,7 +10,6 @@
 import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import {
-  containsBreak,
   isCollectionOpCall,
   isParallelOp,
   resolveOpBody,
@@ -30,7 +29,7 @@ export const breakInParallel: Rule = {
     const body = resolveOpBody(node);
     if (!body) return [];
 
-    if (containsBreak(body)) {
+    if (context.facts.bySubtree.get(body)?.hasBreak === true) {
       return [
         {
           code: 'BREAK_IN_PARALLEL',

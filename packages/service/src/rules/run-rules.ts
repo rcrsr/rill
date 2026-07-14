@@ -1,10 +1,13 @@
 /**
  * Rules engine orchestrator.
- * Runs a single AST traversal that populates the engine-owned capture
- * tracker and the asserted-host-call set, dispatches every visited node to
- * the rules registered in `rules-registry.ts`, resolves final diagnostic
- * severity from per-rule config state and any global override, and
- * returns diagnostics sorted by location.
+ * Runs two linear AST passes: a bottom-up fact-collection pass (`facts.ts`)
+ * that computes every subtree fact the rules need, then a top-down dispatch
+ * pass that invokes each rule on `enter`. No rule re-walks a subtree; total
+ * node visits are 2n, independent of nesting depth.
+ * Dispatches every visited node to the rules registered in
+ * `rules-registry.ts`, resolves final diagnostic severity from per-rule
+ * config state and any global override, and returns diagnostics sorted by
+ * location.
  */
 
 import type { ASTNode, ParseResult } from '@rcrsr/rill';
@@ -18,6 +21,7 @@ import type {
 } from './types.js';
 import { RULES } from './rules.js';
 import { traverseForRules, typeAssertedHostCall } from './traversal.js';
+import { collectFacts } from './facts.js';
 
 // ============================================================
 // SEVERITY RESOLUTION
@@ -99,6 +103,8 @@ export function runRules(
   config: CheckConfig,
   rules: readonly Rule[] = RULES
 ): Diagnostic[] {
+  const facts = collectFacts(parsed.ast);
+
   const ruleContext: RuleContext = {
     source,
     variables: new Map(),
@@ -106,6 +112,7 @@ export function runRules(
     scopeStack: [],
     assertedHostCalls: new Set(),
     checkerMode: config.checkerMode,
+    facts,
   };
 
   const diagnostics: Diagnostic[] = [];

@@ -9,78 +9,11 @@
  * are less common there.)
  */
 
-import type {
-  ASTNode,
-  ClosureNode,
-  HostCallNode,
-  PipeChainNode,
-  PostfixExprNode,
-  VariableNode,
-} from '@rcrsr/rill';
+import type { ASTNode, ClosureNode, HostCallNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
-import { traverseForRules } from './traversal.js';
 import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
-
-// ============================================================
-// HELPERS
-// ============================================================
-
-/** Check if a node contains a closure creation (Closure node). */
-function containsClosureCreation(node: ASTNode): boolean {
-  let found = false;
-  traverseForRules(node, {
-    enter(n: ASTNode) {
-      if (n.type === 'Closure') {
-        found = true;
-      }
-    },
-    exit() {},
-  });
-  return found;
-}
-
-/**
- * Check if a Block node contains an explicit capture statement ($ => $name)
- * at the top level (closureDepth === 0). Captures inside nested closures
- * are scoped to that closure and do not fix late binding for the body.
- */
-function containsExplicitCapture(node: ASTNode): boolean {
-  if (node.type !== 'Block') {
-    return false;
-  }
-
-  let found = false;
-  let closureDepth = 0;
-  traverseForRules(node, {
-    enter(n: ASTNode) {
-      if (n.type === 'Closure') {
-        closureDepth++;
-        return;
-      }
-      if (closureDepth > 0) return;
-      if (n.type !== 'PipeChain') return;
-      const chain = n as PipeChainNode;
-      const head = chain.head;
-      if (!head || head.type !== 'PostfixExpr') return;
-      const postfix = head as PostfixExprNode;
-      if (!postfix.primary || postfix.primary.type !== 'Variable') return;
-      if (!(postfix.primary as VariableNode).isPipeVar) return;
-      for (const pipe of chain.pipes) {
-        if (pipe.type === 'Capture') {
-          found = true;
-        }
-      }
-    },
-    exit(n: ASTNode) {
-      if (n.type === 'Closure') {
-        closureDepth--;
-      }
-    },
-  });
-  return found;
-}
 
 // ============================================================
 // RULE
@@ -101,10 +34,13 @@ export const closureLateBinding: Rule = {
 
     const innerBody = arg.type === 'Closure' ? (arg as ClosureNode).body : arg;
 
-    const hasClosureCreation = containsClosureCreation(innerBody);
+    const hasClosureCreation =
+      context.facts.bySubtree.get(innerBody)?.hasClosure === true;
     if (!hasClosureCreation) return [];
 
-    const hasExplicitCapture = containsExplicitCapture(innerBody);
+    const hasExplicitCapture =
+      innerBody.type === 'Block' &&
+      context.facts.bySubtree.get(innerBody)?.hasExplicitCapture === true;
     if (hasExplicitCapture) return [];
 
     return [

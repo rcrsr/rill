@@ -10,11 +10,7 @@
 
 import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import {
-  containsSideEffects,
-  isCollectionOpCall,
-  resolveOpBody,
-} from './collection-ops.js';
+import { isCollectionOpCall, resolveOpBody } from './collection-ops.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
@@ -30,7 +26,7 @@ export const preferMap: Rule = {
     const body = resolveOpBody(node);
     if (!body) return [];
 
-    if (containsSideEffects(body)) {
+    if (context.facts.bySubtree.get(body)?.hasSideEffect === true) {
       return [];
     }
 
