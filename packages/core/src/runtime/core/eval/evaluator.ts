@@ -140,6 +140,7 @@ import { ConversionMixin } from './mixins/conversion.js';
 import { UseMixin } from './mixins/use.js';
 import { RecoveryMixin } from './mixins/recovery.js';
 import type { RuntimeContext } from '../types/runtime.js';
+import type { EvaluatorInterface } from './interface.js';
 
 /**
  * Complete Evaluator class composed from all mixins.
@@ -176,6 +177,11 @@ export const Evaluator = AnnotationsMixin(
 
 // eslint-disable-next-line no-redeclare
 export type Evaluator = InstanceType<typeof Evaluator>;
+
+type _Conforms =
+  InstanceType<typeof Evaluator> extends EvaluatorInterface ? true : never;
+const _check: _Conforms = true;
+void _check;
 
 /**
  * WeakMap cache for evaluator instances.
