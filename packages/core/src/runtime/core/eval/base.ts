@@ -28,13 +28,13 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
  * All internal methods are protected to enable mixin access.
  */
 export class EvaluatorBase {
-  constructor(protected ctx: RuntimeContext) {}
+  constructor(public ctx: RuntimeContext) {}
 
   /**
    * Get source location from an AST node.
    * Used for error reporting with precise location information.
    */
-  protected getNodeLocation(node?: ASTNode): SourceLocation | undefined {
+  getNodeLocation(node?: ASTNode): SourceLocation | undefined {
     return node?.span.start;
   }
 
@@ -43,7 +43,7 @@ export class EvaluatorBase {
    * Throws a non-catchable RuntimeHaltSignal via throwAbortHalt (IR-1)
    * when the signal is aborted.
    */
-  protected checkAborted(node?: ASTNode): void {
+  checkAborted(node?: ASTNode): void {
     if (this.ctx.signal?.aborted) {
       const site: TypeHaltSite = {
         location: this.getNodeLocation(node),
@@ -59,7 +59,7 @@ export class EvaluatorBase {
    * Only checks string values. Throws a non-catchable RuntimeHaltSignal
    * via throwAutoExceptionHalt (IR-2) on match.
    */
-  protected checkAutoExceptions(value: RillValue, node?: ASTNode): void {
+  checkAutoExceptions(value: RillValue, node?: ASTNode): void {
     if (typeof value !== 'string' || this.ctx.autoExceptions.length === 0) {
       return;
     }
@@ -80,7 +80,7 @@ export class EvaluatorBase {
    * Wrap a promise with a timeout.
    * Returns original promise if no timeout configured.
    */
-  protected withTimeout<T>(
+  withTimeout<T>(
     promise: Promise<T>,
     timeoutMs: number | undefined,
     functionName: string,
@@ -114,7 +114,7 @@ export class EvaluatorBase {
    * This method will only be called after full mixin composition in Phase 4.
    * Phase 1-3 use the functional evaluator which has its own handleCapture.
    */
-  protected handleCapture(
+  handleCapture(
     _capture: CaptureNode | null,
     _value: RillValue
   ): Promise<{ name: string; value: RillValue } | undefined> {
@@ -136,7 +136,7 @@ export class EvaluatorBase {
    * @returns The field value
    * @throws RuntimeError if value is not a dict or field is missing (unless allowMissing)
    */
-  protected async accessDictField(
+  async accessDictField(
     value: RillValue,
     field: string,
     location?: SourceLocation,

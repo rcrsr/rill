@@ -122,7 +122,9 @@ function shouldCatch(
  * - evaluateRetryBlock(node) -> Promise<RillValue>
  * - evaluateStatusProbe(node) -> Promise<RillValue>
  */
-function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function RecoveryMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class RecoveryEvaluator extends Base {
     /**
      * Evaluate a guard block.
@@ -132,9 +134,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * and returns the invalid value as the block result. Non-matching
      * halts and non-catchable halts (error / assert) propagate.
      */
-    protected async evaluateGuardBlock(
-      node: GuardBlockNode
-    ): Promise<RillValue> {
+    async evaluateGuardBlock(node: GuardBlockNode): Promise<RillValue> {
       const onCodes = resolveOnCodes(node.onCodes);
       try {
         return await (this as unknown as EvaluatorInterface).evaluateBody(
@@ -169,9 +169,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * host-synthesised AST; the parser rejects `limit: N` for N < 1) executes
      * zero times and returns an invalid `#R001` (programmer error).
      */
-    protected async evaluateRetryBlock(
-      node: RetryBlockNode
-    ): Promise<RillValue> {
+    async evaluateRetryBlock(node: RetryBlockNode): Promise<RillValue> {
       const onCodes = resolveOnCodes(node.onCodes);
 
       // AC-B2: a synthesised RetryBlock with attempts <= 0 executes zero times and yields
@@ -250,9 +248,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - `.!trace`         -> list of trace-frame dicts.
      * - `.!<other>`       -> lookup in `status.raw`; missing key yields `""`.
      */
-    protected async evaluateStatusProbe(
-      node: StatusProbeNode
-    ): Promise<RillValue> {
+    async evaluateStatusProbe(node: StatusProbeNode): Promise<RillValue> {
       const target = await (
         this as unknown as EvaluatorInterface
       ).evaluateExpression(node.target);
@@ -317,9 +313,7 @@ function createRecoveryMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Non-catchable halts (RILL_R010, error, assert) and ControlSignal
      * subclasses propagate through unchanged [EC-5, §NOD.10.4].
      */
-    protected async evaluateTimeoutBlock(
-      node: TimeoutBlockNode
-    ): Promise<RillValue> {
+    async evaluateTimeoutBlock(node: TimeoutBlockNode): Promise<RillValue> {
       // Evaluate the duration expression and validate its type [EC-3].
       const durationValue = await (
         this as unknown as EvaluatorInterface
@@ -547,13 +541,6 @@ const TIMEOUT_TOTAL_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R082];
  * Paired with RILL-R083 in error-registry.ts.
  */
 const TIMEOUT_IDLE_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R083];
-
-// Export with type assertion to work around TS4094 limitation.
-// TypeScript cannot generate declarations for functions returning
-// classes with protected members; the cast matches the convention
-// established by AnnotationsMixin.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const RecoveryMixin = createRecoveryMixin as any;
 
 /**
  * Capability fragment: methods contributed by RecoveryMixin that are called

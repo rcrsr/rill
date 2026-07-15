@@ -49,7 +49,9 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * Methods added:
  * - evaluateUseExpr(node) -> Promise<RillValue>
  */
-function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function UseMixin<TBase extends EvaluatorConstructor<EvaluatorBase>>(
+  Base: TBase
+) {
   return class UseEvaluator extends Base {
     /**
      * Evaluate a use<> expression [IR-6].
@@ -57,7 +59,7 @@ function createUseMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Resolves the identifier to a scheme + resource string, calls the
      * registered resolver, and returns the result value (or executes source).
      */
-    protected async evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
+    async evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
       let scheme: string;
       let resource: string;
 
@@ -274,11 +276,6 @@ function parseSchemeString(
     resource: value.slice(colonIndex + 1),
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const UseMixin = createUseMixin as any;
 
 /**
  * Capability fragment: methods contributed by UseMixin that are called

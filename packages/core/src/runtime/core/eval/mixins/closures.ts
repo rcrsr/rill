@@ -159,21 +159,23 @@ function formatCallSite(
   return `${file}:${location.line}:${location.column}`;
 }
 
-function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function ClosuresMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class ClosuresEvaluator extends Base {
     /** Active stream channel; set during stream closure body execution. */
-    private activeStreamChannel:
+    activeStreamChannel:
       | (StreamChannel & { readonly resolution: RillValue })
       | null = null;
 
     /** Expected chunk type for the active stream closure; null when not streaming. */
-    private activeStreamChunkType: TypeStructure | null = null;
+    activeStreamChunkType: TypeStructure | null = null;
 
     /** Singleton argument binder; reused across calls. */
-    private readonly argumentsBinder = new ArgumentsBinder();
+    readonly argumentsBinder = new ArgumentsBinder();
 
     /** Invocation strategy; dispatches to invokeScriptCallable or invokeFnCallable. */
-    private readonly invocationStrategy: CallableInvocationStrategy =
+    readonly invocationStrategy: CallableInvocationStrategy =
       new CallableInvocationStrategy(
         () => this.ctx,
         this.argumentsBinder,
@@ -200,7 +202,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       );
 
     /** Evaluate argument expressions, preserving the current pipeValue. */
-    protected async evaluateArgs(
+    async evaluateArgs(
       argExprs: (ExpressionNode | SpreadArgNode)[]
     ): Promise<RillValue[]> {
       const savedPipeValue = this.ctx.pipeValue;
@@ -234,7 +236,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Invoke any callable; dispatches by kind. */
-    protected async invokeCallable(
+    async invokeCallable(
       callable: RillCallable,
       args: RillValue[],
       callLocation?: SourceLocation,
@@ -307,7 +309,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Invoke runtime or application callable (native function). */
-    protected async invokeFnCallable(
+    async invokeFnCallable(
       callable: RuntimeCallable | ApplicationCallable,
       args: RillValue[],
       callLocation?: SourceLocation,
@@ -376,7 +378,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Create closure execution context with defining scope as parent. */
-    protected createCallableContext(callable: ScriptCallable): RuntimeContext {
+    createCallableContext(callable: ScriptCallable): RuntimeContext {
       const hasExplicitParams =
         callable.params.length > 0 && callable.params[0]!.name !== '$';
 
@@ -397,7 +399,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Validate parameter type via structural matching; no-op for any-typed params. */
-    protected validateParamType(
+    validateParamType(
       param: RillParam,
       value: RillValue,
       callLocation?: SourceLocation
@@ -420,7 +422,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Push chunk to active stream channel, or throw YieldSignal if not streaming. */
-    protected evaluateYield(
+    evaluateYield(
       value: RillValue,
       location?: SourceLocation
     ): never | Promise<void> {
@@ -470,7 +472,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Invoke script callable; dispatches stream closures to StreamClosuresMixin. */
-    protected async invokeScriptCallable(
+    async invokeScriptCallable(
       callable: ScriptCallable,
       args: RillValue[],
       callLocation?: SourceLocation
@@ -485,7 +487,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       return this.invokeRegularScriptCallable(callable, args, callLocation);
     }
 
-    private async invokeRegularScriptCallable(
+    async invokeRegularScriptCallable(
       callable: ScriptCallable,
       args: RillValue[],
       callLocation?: SourceLocation
@@ -582,7 +584,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Drain stream and return its resolution value. */
-    private async invokeStream(stream: RillStream): Promise<RillValue> {
+    async invokeStream(stream: RillStream): Promise<RillValue> {
       const resolveFn = (
         stream as unknown as Record<
           string,
@@ -625,7 +627,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * (`args.length === 0`), preserving existing behaviour for calls inside
      * blocks, conditionals, and other non-direct-pipe-target positions.
      */
-    protected async evaluateHostCall(
+    async evaluateHostCall(
       node: HostCallNode,
       inPipeTarget = false
     ): Promise<RillValue> {
@@ -746,7 +748,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Evaluate host function reference: ns::name. Returns callable when pipeValue is null. */
-    protected async evaluateHostRef(node: HostRefNode): Promise<RillValue> {
+    async evaluateHostRef(node: HostRefNode): Promise<RillValue> {
       this.checkAborted(node);
 
       const fn = this.ctx.functions.get(node.name);
@@ -793,14 +795,12 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Evaluate closure call: $fn(args). */
-    protected async evaluateClosureCall(
-      node: ClosureCallNode
-    ): Promise<RillValue> {
+    async evaluateClosureCall(node: ClosureCallNode): Promise<RillValue> {
       return this.evaluateClosureCallWithPipe(node, this.ctx.pipeValue);
     }
 
     /** Evaluate closure call with pipe input; supports access chains like $math.double(args). */
-    protected async evaluateClosureCallWithPipe(
+    async evaluateClosureCallWithPipe(
       node: ClosureCallNode,
       pipeInput: RillValue
     ): Promise<RillValue> {
@@ -920,7 +920,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Evaluate $.field as property access on the pipe value. */
-    protected async evaluatePipePropertyAccess(
+    async evaluatePipePropertyAccess(
       node: VariableNode,
       pipeInput: RillValue
     ): Promise<RillValue> {
@@ -980,7 +980,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Placeholder; actual variable invoke logic is in VariablesMixin.evaluateVariableAsync. */
-    protected async evaluateVariableInvoke(
+    async evaluateVariableInvoke(
       node: PipeInvokeNode,
       _pipeInput: RillValue
     ): Promise<RillValue> {
@@ -996,7 +996,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Evaluate pipe invoke: value -> (args). */
-    protected async evaluatePipeInvoke(
+    async evaluatePipeInvoke(
       node: PipeInvokeNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -1035,7 +1035,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Evaluate method call on receiver: value.method(args). */
-    protected async evaluateMethod(
+    async evaluateMethod(
       node: MethodCallNode | InvokeNode,
       receiver: RillValue
     ): Promise<RillValue> {
@@ -1208,7 +1208,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Evaluate postfix invocation: expr(args). */
-    protected async evaluateInvoke(
+    async evaluateInvoke(
       node: InvokeNode,
       receiver: RillValue
     ): Promise<RillValue> {
@@ -1258,7 +1258,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Evaluate annotation reflection access: .^key on callables, type values, and streams. */
-    protected async evaluateAnnotationAccess(
+    async evaluateAnnotationAccess(
       value: RillValue,
       key: string,
       location: SourceLocation | undefined
@@ -1364,7 +1364,7 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
 
     /** Evaluate .params property access on callables; builds dict from parameter metadata. */
-    protected async evaluateParamsProperty(
+    async evaluateParamsProperty(
       callable: RillValue,
       location: SourceLocation | undefined
     ): Promise<Record<string, RillValue>> {
@@ -1397,9 +1397,6 @@ function createClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const ClosuresMixin = createClosuresMixin as any;
 
 /**
  * Capability fragment: methods contributed by ClosuresMixin that are called from

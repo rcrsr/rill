@@ -100,15 +100,15 @@ function matchesErrorId(
  * - evaluatePrimary(primary) -> Promise<RillValue>
  * - evaluatePipeTarget(target, input) -> Promise<RillValue>
  */
-function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function CoreMixin<TBase extends EvaluatorConstructor<EvaluatorBase>>(
+  Base: TBase
+) {
   return class CoreEvaluator extends Base {
     /**
      * Main expression evaluation entry point [IR-8].
      * Delegates to pipe chain evaluator.
      */
-    protected async evaluateExpression(
-      expr: ExpressionNode
-    ): Promise<RillValue> {
+    async evaluateExpression(expr: ExpressionNode): Promise<RillValue> {
       this.checkAborted();
       // PartialExpressionNode is produced by parser error recovery for a
       // partially-typed expression fragment. It has no `.head`, so it
@@ -139,9 +139,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Break: throws BreakSignal with value
      * - Return: throws ReturnSignal with value
      */
-    protected async evaluatePipeChain(
-      chain: PipeChainNode
-    ): Promise<RillValue> {
+    async evaluatePipeChain(chain: PipeChainNode): Promise<RillValue> {
       // Save parent's $ - chains don't leak $ modifications to parent scope
       const savedPipeValue = this.ctx.pipeValue;
 
@@ -251,9 +249,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *   expression is evaluated and returned.
      * - All other errors propagate normally.
      */
-    protected async evaluatePostfixExpr(
-      expr: PostfixExprNode
-    ): Promise<RillValue> {
+    async evaluatePostfixExpr(expr: PostfixExprNode): Promise<RillValue> {
       try {
         let value = await this.evaluatePrimary(expr.primary);
 
@@ -324,7 +320,7 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * case here delegating to that method.  The default branch surfaces any
      * unhandled type at runtime so TypeScript exhaustiveness remains in force.
      */
-    protected async evaluatePrimary(primary: PrimaryNode): Promise<RillValue> {
+    async evaluatePrimary(primary: PrimaryNode): Promise<RillValue> {
       switch (primary.type) {
         case 'StringLiteral': {
           const { value } = await (
@@ -1296,11 +1292,6 @@ function createCoreMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const CoreMixin = createCoreMixin as any;
 
 /**
  * Capability fragment: methods contributed by CoreMixin that are called from

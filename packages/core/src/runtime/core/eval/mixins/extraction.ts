@@ -59,7 +59,9 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * - EC-13: Destructure/slice on wrong types -> RuntimeError(RUNTIME_TYPE_ERROR)
  * - EC-14: List destructure size mismatch -> RuntimeError
  */
-function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function ExtractionMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class ExtractionEvaluator extends Base {
     /**
      * Evaluate destructure operator: destruct<$a, $b, $c>
@@ -68,7 +70,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * List destructure: [1, 2, 3] -> destruct<$a, $b, $c>  # $a=1, $b=2, $c=3
      * Dict destructure: [x: 1, y: 2] -> destruct<x: $a, y: $b>  # $a=1, $b=2
      */
-    protected async evaluateDestructure(
+    async evaluateDestructure(
       node: DestructureNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -251,10 +253,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * [0, 1, 2, 3, 4] -> /<::-1>   # [4, 3, 2, 1, 0]
      * "hello" -> /<1:4>             # "ell"
      */
-    protected async evaluateSlice(
-      node: SliceNode,
-      input: RillValue
-    ): Promise<RillValue> {
+    async evaluateSlice(node: SliceNode, input: RillValue): Promise<RillValue> {
       const isList = Array.isArray(input);
       const isString = typeof input === 'string';
 
@@ -302,7 +301,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate a slice bound expression (start, stop, or step).
      * Returns the numeric value of the bound.
      */
-    private async evaluateSliceBound(
+    async evaluateSliceBound(
       bound: SliceNode['start'],
       location?: SourceLocation
     ): Promise<number> {
@@ -364,7 +363,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Apply Python-style slice to a list or string.
      * Handles negative indices, step values, and edge cases.
      */
-    private applySlice<T extends RillValue[] | string>(
+    applySlice<T extends RillValue[] | string>(
       input: T,
       len: number,
       start: number | null,
@@ -430,7 +429,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Same semantics as evaluateDestructure but for the keyword-based syntax.
      * Delegates to evaluateDestructure since the pattern structure is identical.
      */
-    protected async evaluateDestruct(
+    async evaluateDestruct(
       node: DestructNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -455,7 +454,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - TupleLiteralNode -> RillTuple
      * - OrderedLiteralNode -> RillOrdered
      */
-    protected async evaluateCollectionLiteral(
+    async evaluateCollectionLiteral(
       node:
         | ListLiteralNode
         | DictLiteralNode
@@ -499,7 +498,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate list/tuple literal elements, expanding spread nodes inline.
      * Spread: ...$other expands the referenced collection into the result.
      */
-    protected async evaluateListLiteralElements(
+    async evaluateListLiteralElements(
       rawElements: (ExpressionNode | ListSpreadNode)[]
     ): Promise<RillValue[]> {
       const result: RillValue[] = [];
@@ -538,7 +537,7 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Keys are always strings (number/boolean keys are stringified).
      * Spread entries (...$other) expand inline (dict keys merged).
      */
-    private async evaluateDictLiteralEntries(
+    async evaluateDictLiteralEntries(
       entries: DictEntryNode[]
     ): Promise<[string, RillValue][]> {
       const result: [string, RillValue][] = [];
@@ -599,11 +598,6 @@ function createExtractionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const ExtractionMixin = createExtractionMixin as any;
 
 /**
  * Capability fragment: methods contributed by ExtractionMixin that are called

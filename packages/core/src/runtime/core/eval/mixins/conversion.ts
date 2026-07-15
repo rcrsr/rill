@@ -70,7 +70,9 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * - applyConstructorConversion(input, typeRef, node) -> Promise<RillValue>
  * - convertToOrderedWithSig / convertToDictWithSig / convertToTupleWithSig
  */
-function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function ConversionMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class ConversionEvaluator extends Base {
     /**
      * Apply conversion for a parameterized type constructor target
@@ -79,7 +81,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Handles the uniform vs structural dispatch and delegates to the
      * structural conversion helpers for dict/ordered/tuple with fields.
      */
-    protected async applyConstructorConversion(
+    async applyConstructorConversion(
       input: RillValue,
       typeRef: TypeConstructorNode,
       node: ASTNode
@@ -136,7 +138,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - String-to-number parse failure raises RILL-R038 (EC-12)
      * - Missing convertTo target raises RILL-R036 (EC-10)
      */
-    protected applyConversion(
+    applyConversion(
       input: RillValue,
       targetType: RillTypeName,
       node: ASTNode
@@ -237,7 +239,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Missing field without default: emits RILL-R044
      * - Extra keys not in signature: omitted from result
      */
-    private async convertToOrderedWithSig(
+    async convertToOrderedWithSig(
       input: RillValue,
       sigNode: TypeConstructorNode,
       node: ASTNode
@@ -322,7 +324,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Extra keys not in signature: omitted from result
      * - Recurses into nested dict-typed fields for nested hydration
      */
-    private async convertToDictWithSig(
+    async convertToDictWithSig(
       input: RillValue,
       sigNode: TypeConstructorNode,
       node: ASTNode
@@ -427,7 +429,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Missing element without default: emits RILL-R044 with position
      * - Extra elements beyond signature length: omitted from result
      */
-    private async convertToTupleWithSig(
+    async convertToTupleWithSig(
       input: RillValue,
       sigNode: TypeConstructorNode,
       node: ASTNode
@@ -511,7 +513,7 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Only applies when the field type has explicit fields/elements.
      * Returns the value unchanged if the type has no fields or the value type does not match.
      */
-    private hydrateNested(
+    hydrateNested(
       value: RillValue,
       fieldType: TypeStructure,
       node: ASTNode
@@ -665,10 +667,6 @@ function createConversionMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const ConversionMixin = createConversionMixin as any;
 
 /**
  * Capability fragment: methods contributed by ConversionMixin that are called

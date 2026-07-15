@@ -79,7 +79,9 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * - resolveTypeRef(typeRef, getVariable) -> Promise<RillTypeValue>
  * - buildCollectionType(name, args, resolveArg, evaluateDefault, location?) -> Promise<RillTypeValue>
  */
-function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function TypesMixin<TBase extends EvaluatorConstructor<EvaluatorBase>>(
+  Base: TBase
+) {
   return class TypesEvaluator extends Base {
     /**
      * Shared helper that partitions args, enforces validation, evaluates
@@ -97,7 +99,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - EC-B6: Default type mismatch -> TYPE_MISMATCH
      * - EC-B7: Tuple non-trailing default -> TYPE_MISMATCH
      */
-    protected async buildCollectionType(
+    async buildCollectionType(
       name: 'list' | 'dict' | 'tuple' | 'ordered',
       args: FieldArg[],
       resolveArg: (arg: FieldArg) => Promise<TypeStructure>,
@@ -429,7 +431,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * EC-9: Default evaluation failure -> propagated.
      * EC-10: Tuple non-trailing default -> TYPE_MISMATCH.
      */
-    protected async resolveTypeRef(
+    async resolveTypeRef(
       typeRef: TypeRef,
       getVariableFn: (name: string) => RillValue | undefined
     ): Promise<RillTypeValue> {
@@ -552,7 +554,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * dispatches to structureMatches for deep validation.
      * Exported for use by type assertion evaluation.
      */
-    protected assertType(
+    assertType(
       value: RillValue,
       expected: RillTypeName | TypeStructure,
       location?: SourceLocation
@@ -609,7 +611,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate type assertion: expr:type or :type (shorthand for $:type).
      * Returns the value if type matches, throws on mismatch.
      */
-    protected async evaluateTypeAssertion(
+    async evaluateTypeAssertion(
       node: TypeAssertionNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -631,7 +633,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate type check: expr:?type or :?type (shorthand for $:?type).
      * Returns true if type matches, false otherwise.
      */
-    protected async evaluateTypeCheck(
+    async evaluateTypeCheck(
       node: TypeCheckNode,
       input: RillValue
     ): Promise<boolean> {
@@ -720,7 +722,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Error contracts delegated to buildCollectionType.
      */
-    protected async evaluateTypeConstructor(
+    async evaluateTypeConstructor(
       node: TypeConstructorNode
     ): Promise<RillTypeValue> {
       const name = node.constructorName;
@@ -779,7 +781,7 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - EC-8: missing return type -> TYPE_MISMATCH (enforced at parse time; node always has returnType)
      * - EC-9: non-type in parameter position -> TYPE_MISMATCH
      */
-    protected async evaluateClosureSigLiteral(
+    async evaluateClosureSigLiteral(
       node: ClosureSigLiteralNode
     ): Promise<RillTypeValue> {
       const location = node.span.start;
@@ -851,11 +853,6 @@ function createTypesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const TypesMixin = createTypesMixin as any;
 
 /**
  * Capability fragment: methods contributed by TypesMixin that are called

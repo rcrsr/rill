@@ -76,7 +76,9 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * - evaluateVariableAsync(node) -> Promise<RillValue>
  * - evaluateCapture(node, input) -> RillValue
  */
-function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function VariablesMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class VariablesEvaluator extends Base {
     /**
      * Set a variable with type checking.
@@ -85,7 +87,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Explicit type annotation is validated against value type
      * - Cannot shadow outer scope variables (produces error)
      */
-    protected setVariable(
+    setVariable(
       name: string,
       value: RillValue,
       explicitType?: RillTypeName | TypeStructure,
@@ -194,7 +196,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Note: This is a simplified synchronous version. The full implementation
      * with property access chains is in evaluateVariableAsync.
      */
-    protected evaluateVariable(node: VariableNode): RillValue {
+    evaluateVariable(node: VariableNode): RillValue {
       // Handle pipe variable ($)
       if (node.isPipeVar && !node.name) {
         if (this.ctx.pipeValue === null) {
@@ -248,9 +250,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Handles property access chains and default values.
      */
-    protected async evaluateVariableAsync(
-      node: VariableNode
-    ): Promise<RillValue> {
+    async evaluateVariableAsync(node: VariableNode): Promise<RillValue> {
       // Get base value ($ or $name)
       let value: RillValue;
 
@@ -747,7 +747,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @returns The field/element value or null if missing
      * @throws RuntimeError if variable undefined or wrong type (EC-1, EC-2, EC-3)
      */
-    protected async evaluateFieldAccessVariable(
+    async evaluateFieldAccessVariable(
       access: {
         readonly kind: 'variable';
         readonly variableName: string | null;
@@ -862,7 +862,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @returns The field/element value or null if missing
      * @throws RuntimeError if expression result is wrong type (EC-4, EC-5)
      */
-    protected async evaluateFieldAccessComputed(
+    async evaluateFieldAccessComputed(
       access: {
         readonly kind: 'computed';
         readonly expression: ExpressionNode;
@@ -990,7 +990,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @returns The first found field value or null if all keys missing
      * @throws RuntimeError if target is not dict (EC-6)
      */
-    protected async evaluateFieldAccessAlternatives(
+    async evaluateFieldAccessAlternatives(
       access: {
         readonly kind: 'alternatives';
         readonly alternatives: string[];
@@ -1034,7 +1034,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Handles capture syntax which assigns the piped value to a variable.
      * Calls setVariable for type checking and fires observability callback.
      */
-    protected async evaluateCapture(
+    async evaluateCapture(
       node: CaptureNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -1059,7 +1059,7 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Returns capture info if a capture occurred.
      * This overrides the stub in EvaluatorBase.
      */
-    protected override async handleCapture(
+    override async handleCapture(
       capture: CaptureNode | null,
       value: RillValue
     ): Promise<{ name: string; value: RillValue } | undefined> {
@@ -1070,11 +1070,6 @@ function createVariablesMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const VariablesMixin = createVariablesMixin as any;
 
 /**
  * Capability fragment: methods contributed by VariablesMixin that are called

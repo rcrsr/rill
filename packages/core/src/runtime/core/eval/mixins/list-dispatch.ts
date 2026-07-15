@@ -40,7 +40,9 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * Methods added:
  * - evaluateListLiteralDispatch(node, input) -> Promise<RillValue>
  */
-function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function ListDispatchMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class ListDispatchEvaluator extends Base {
     /**
      * Evaluate list[...] as a pipe target [IR-11].
@@ -49,7 +51,7 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * the end (-1 is last). Non-integer indices throw EC-15. Out-of-bounds
      * without a default value throws EC-16.
      */
-    protected async evaluateListLiteralDispatch(
+    async evaluateListLiteralDispatch(
       node: ListLiteralNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -114,7 +116,7 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     /**
      * Evaluate list literal elements, expanding any ...spread nodes inline.
      */
-    private async evaluateListLiteralElements(
+    async evaluateListLiteralElements(
       rawElements: (ExpressionNode | ListSpreadNode)[]
     ): Promise<RillValue[]> {
       const result: RillValue[] = [];
@@ -152,10 +154,6 @@ function createListDispatchMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const ListDispatchMixin = createListDispatchMixin as any;
 
 /**
  * Capability fragment: methods contributed by ListDispatchMixin that are called

@@ -72,7 +72,9 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * - evaluateBodyExpression(node) -> Promise<RillValue>
  * - getIterationLimit() -> number (helper)
  */
-function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function ControlFlowMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class ControlFlowEvaluator extends Base {
     /**
      * Evaluate conditional expression (ternary if-else).
@@ -84,9 +86,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Condition must evaluate to boolean. Branches create child scopes.
      * ReturnSignal propagates up (not caught here).
      */
-    protected async evaluateConditional(
-      node: ConditionalNode
-    ): Promise<RillValue> {
+    async evaluateConditional(node: ConditionalNode): Promise<RillValue> {
       // Preserve pipe value before evaluating condition (condition may modify it)
       const savedPipeValue = this.ctx.pipeValue;
 
@@ -176,7 +176,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * BreakSignal exits loop and returns break value.
      * ReturnSignal propagates up to containing block.
      */
-    protected async evaluateWhileLoop(node: WhileLoopNode): Promise<RillValue> {
+    async evaluateWhileLoop(node: WhileLoopNode): Promise<RillValue> {
       // Save original pipe value before evaluating condition
       const originalPipeValue = this.ctx.pipeValue;
 
@@ -286,9 +286,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * BreakSignal exits loop and returns break value.
      * ReturnSignal propagates up to containing block.
      */
-    protected async evaluateDoWhileLoop(
-      node: DoWhileLoopNode
-    ): Promise<RillValue> {
+    async evaluateDoWhileLoop(node: DoWhileLoopNode): Promise<RillValue> {
       let value = this.ctx.pipeValue;
 
       // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
@@ -376,7 +374,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Returns value of last statement.
      * ReturnSignal NOT caught here - propagates up to evaluateBlockExpression.
      */
-    protected async evaluateBlock(node: BlockNode): Promise<RillValue> {
+    async evaluateBlock(node: BlockNode): Promise<RillValue> {
       // Create child scope for the block: reads from parent, writes to local only
       const blockCtx = createChildContext(this.ctx);
 
@@ -425,9 +423,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Catches ReturnSignal and returns its value.
      * Other signals (BreakSignal) and errors propagate up.
      */
-    protected async evaluateBlockExpression(
-      node: BlockNode
-    ): Promise<RillValue> {
+    async evaluateBlockExpression(node: BlockNode): Promise<RillValue> {
       try {
         return await this.evaluateBlock(node);
       } catch (e) {
@@ -450,7 +446,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @throws RuntimeError with RUNTIME_ASSERTION_FAILED on false condition
      * @throws RuntimeError with RUNTIME_TYPE_ERROR on non-boolean condition
      */
-    protected async evaluateAssert(
+    async evaluateAssert(
       node: AssertNode,
       input?: RillValue
     ): Promise<RillValue> {
@@ -526,10 +522,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @throws RuntimeError with RUNTIME_ERROR_RAISED using evaluated message
      * @throws RuntimeError with RUNTIME_TYPE_ERROR if message is not string
      */
-    protected async evaluateError(
-      node: ErrorNode,
-      input?: RillValue
-    ): Promise<never> {
+    async evaluateError(node: ErrorNode, input?: RillValue): Promise<never> {
       let messageValue: RillValue;
       let interpolated = false;
 
@@ -588,7 +581,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Does NOT catch ReturnSignal - it propagates up.
      * BreakSignal should be caught by the loop that called this.
      */
-    protected async evaluateBody(node: BodyNode): Promise<RillValue> {
+    async evaluateBody(node: BodyNode): Promise<RillValue> {
       switch (node.type) {
         case 'Block':
           return this.evaluateBlock(node);
@@ -616,7 +609,7 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Catches ReturnSignal and returns its value.
      * Other signals (BreakSignal) and errors propagate up.
      */
-    protected async evaluateBodyExpression(node: BodyNode): Promise<RillValue> {
+    async evaluateBodyExpression(node: BodyNode): Promise<RillValue> {
       try {
         return await this.evaluateBody(node);
       } catch (e) {
@@ -628,11 +621,6 @@ function createControlFlowMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const ControlFlowMixin = createControlFlowMixin as any;
 
 /**
  * Capability fragment: methods contributed by ControlFlowMixin that are called

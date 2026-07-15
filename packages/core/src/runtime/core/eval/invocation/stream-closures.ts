@@ -193,14 +193,16 @@ export const activeStreamContexts = new WeakMap<
 // MIXIN FACTORY
 // ============================================================
 
-function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function StreamClosuresMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class StreamClosuresEvaluator extends Base {
     /**
      * Stack of active stream lists for IR-14 scope exit cleanup.
      * Each entry represents a scope boundary. Streams are tracked in
      * creation order; disposed in reverse order on scope exit.
      */
-    private streamScopeStack: RillStream[][] = [];
+    streamScopeStack: RillStream[][] = [];
 
     /**
      * Override: push a stream scope, evaluate the block, then dispose any
@@ -209,7 +211,7 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Co-located with `streamScopeStack` to keep all stream-lifecycle state
      * and overrides inside this mixin.
      */
-    protected async evaluateBlock(node: BlockNode): Promise<RillValue> {
+    async evaluateBlock(node: BlockNode): Promise<RillValue> {
       this.streamScopeStack.push([]);
       try {
         // Base chain provides evaluateBlock via ControlFlowMixin; TypeScript
@@ -228,7 +230,7 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Track a stream in the current scope for cleanup on scope exit (IR-14).
      * Streams with dispose functions get cleaned up when their scope exits.
      */
-    protected trackStream(stream: RillStream): void {
+    trackStream(stream: RillStream): void {
       const current = this.streamScopeStack[this.streamScopeStack.length - 1];
       if (current) {
         current.push(stream);
@@ -246,7 +248,7 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Idempotent on empty arrays and repeated calls after stack drain.
      */
-    protected async disposeStreams(streams: RillStream[]): Promise<void> {
+    async disposeStreams(streams: RillStream[]): Promise<void> {
       for (let i = streams.length - 1; i >= 0; i--) {
         const stream = streams[i]!;
         // Only dispose streams that are not fully consumed
@@ -287,7 +289,7 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * - Resolution type mismatch → TYPE_MISMATCH
      * - Body RillError preserved with original code; dispose runs before re-throw (EC-8/AC-13)
      */
-    protected async invokeStreamClosure(
+    async invokeStreamClosure(
       callable: ScriptCallable,
       args: RillValue[],
       callLocation?: SourceLocation
@@ -333,11 +335,8 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
       // that call getEvaluator(callableCtx) receive the body evaluator (with
       // activeStreamChannel set) rather than a fresh one.
       const bodyEvaluator = getEvaluator(callableCtx);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (bodyEvaluator as any).activeStreamChannel = channel;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (bodyEvaluator as any).activeStreamChunkType =
-        streamStructure.chunk ?? null;
+      bodyEvaluator.activeStreamChannel = channel;
+      bodyEvaluator.activeStreamChunkType = streamStructure.chunk ?? null;
 
       // Start body execution asynchronously.
       // The body runs concurrently with consumption, blocking at each yield
@@ -352,8 +351,7 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
           chunkType: streamStructure.chunk ?? null,
         });
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const result = await (bodyEvaluator as any).evaluateBodyExpression(
+          const result = await bodyEvaluator.evaluateBodyExpression(
             callable.body
           );
           // Validate resolution type if declared
@@ -440,10 +438,6 @@ function createStreamClosuresMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const StreamClosuresMixin = createStreamClosuresMixin as any;
 
 /**
  * Capability fragment: methods contributed by StreamClosuresMixin that are

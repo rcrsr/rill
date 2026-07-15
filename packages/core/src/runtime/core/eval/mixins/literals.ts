@@ -202,7 +202,9 @@ function requirePipeChainHead(
  * - createClosure(node) -> Promise<ScriptCallable>
  * - createBlockClosure(node) -> ScriptCallable
  */
-function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function LiteralsMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class LiteralsEvaluator extends Base {
     /**
      * Evaluate pass node - returns current pipe value unchanged [IR-4].
@@ -214,7 +216,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @returns Current pipe value
      * @throws RuntimeError with RUNTIME_UNDEFINED_VARIABLE if $ not bound
      */
-    protected async evaluatePass(node: PassNode): Promise<RillValue> {
+    async evaluatePass(node: PassNode): Promise<RillValue> {
       if (this.ctx.pipeValue === null) {
         throwCatchableHostHalt(
           {
@@ -249,7 +251,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @param node - PassBlockNode from AST
      * @returns Original pipe value (ctx.pipeValue at entry), unchanged
      */
-    protected async evaluatePassBlock(node: PassBlockNode): Promise<RillValue> {
+    async evaluatePassBlock(node: PassBlockNode): Promise<RillValue> {
       // Capture pipe value at entry — returned unchanged regardless of body outcome.
       const pipeBefore = this.ctx.pipeValue;
 
@@ -344,7 +346,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * part is a non-literal (interpolation expression). This flag enables callers such as
      * `evaluateError` to decide whether to wrap frames with the original literal text.
      */
-    protected async evaluateString(
+    async evaluateString(
       node: StringLiteralNode
     ): Promise<{ value: string; interpolated: boolean }> {
       let result = '';
@@ -388,7 +390,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Errors from element evaluation propagate to caller.
      */
-    protected async evaluateTuple(node: ListLiteralNode): Promise<RillValue[]> {
+    async evaluateTuple(node: ListLiteralNode): Promise<RillValue[]> {
       const elements: RillValue[] = [];
       for (const elem of node.elements) {
         if (elem.type === 'ListSpread') {
@@ -426,7 +428,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     /**
      * Evaluate multi-key dict entry from a ListLiteralNode key.
      */
-    protected async evaluateDictMultiKeyFromList(
+    async evaluateDictMultiKeyFromList(
       keyList: ListLiteralNode,
       value: ExpressionNode
     ): Promise<Array<[string, RillValue]>> {
@@ -511,9 +513,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Multi-key entries (tuple keys) expand to multiple entries with shared value.
      * Errors from value evaluation propagate to caller.
      */
-    protected async evaluateDict(
-      node: DictNode
-    ): Promise<Record<string, RillValue>> {
+    async evaluateDict(node: DictNode): Promise<Record<string, RillValue>> {
       const result: Record<string, RillValue> = {};
       for (const entry of node.entries) {
         // Multi-key entries: expand to multiple key-value pairs
@@ -783,7 +783,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @returns Matched value (auto-invoked if closure)
      * @throws RuntimeError with RUNTIME_PROPERTY_NOT_FOUND if no match and no default [EC-4]
      */
-    protected async evaluateDictDispatch(
+    async evaluateDictDispatch(
       node: DictNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -864,7 +864,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @returns Element at index
      * @throws RuntimeError if input not number or index out of bounds
      */
-    protected async evaluateListDispatch(
+    async evaluateListDispatch(
       node: ListLiteralNode,
       input: RillValue
     ): Promise<RillValue> {
@@ -921,7 +921,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Zero-param closures (block-closures) are invoked with args = [] and pipeValue = input.
      * Parameterized closures (1+ params) throw error.
      */
-    private async resolveDispatchValue(
+    async resolveDispatchValue(
       value: RillValue,
       input: RillValue,
       node: DictNode
@@ -988,7 +988,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @param location - Source location for error reporting
      * @returns Matched value or default
      */
-    protected async dispatchToDict(
+    async dispatchToDict(
       dict: Record<string, RillValue>,
       input: RillValue,
       defaultValue: BodyNode | null,
@@ -1037,7 +1037,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * @param location - Source location for error reporting
      * @returns Element at index or default
      */
-    protected async dispatchToList(
+    async dispatchToList(
       list: RillValue[],
       input: RillValue,
       defaultValue: BodyNode | null,
@@ -1102,7 +1102,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Resolve dispatch value for runtime values: auto-invoke if closure.
      * Similar to resolveDispatchValue but works with runtime values.
      */
-    private async resolveDispatchValueRuntime(
+    async resolveDispatchValueRuntime(
       value: RillValue,
       input: RillValue,
       location: {
@@ -1148,7 +1148,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Default parameter values are evaluated immediately in the current context.
      * Property-style callables (zero params) are auto-invoked on dict access.
      */
-    protected async createClosure(node: ClosureNode): Promise<ScriptCallable> {
+    async createClosure(node: ClosureNode): Promise<ScriptCallable> {
       // Store reference to the defining scope for late-bound variable resolution
       const definingScope = this.ctx;
 
@@ -1265,7 +1265,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * No default parameter evaluation since the implicit $ has no default.
      * isProperty is always false (block-closures require $).
      */
-    protected createBlockClosure(node: BlockNode): ScriptCallable {
+    createBlockClosure(node: BlockNode): ScriptCallable {
       // Store reference to the defining scope for late-bound variable resolution
       const definingScope = this.ctx;
 
@@ -1300,7 +1300,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Helper: Check if expression is a bare closure (no pipes, no methods).
      * Used to detect dict entries that should be treated as closures.
      */
-    private isClosureExpr(expr: ExpressionNode): boolean {
+    isClosureExpr(expr: ExpressionNode): boolean {
       if (!isPipeChainNode(expr)) return false;
       if (expr.pipes.length > 0) return false;
       if (expr.head.type !== 'PostfixExpr') return false;
@@ -1313,7 +1313,7 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Helper: Check if expression is a bare block (no pipes, no methods).
      * Used to detect dict entries that should be treated as block closures.
      */
-    private isBlockExpr(expr: ExpressionNode): boolean {
+    isBlockExpr(expr: ExpressionNode): boolean {
       if (!isPipeChainNode(expr)) return false;
       if (expr.pipes.length > 0) return false;
       if (expr.head.type !== 'PostfixExpr') return false;
@@ -1323,11 +1323,6 @@ function createLiteralsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const LiteralsMixin = createLiteralsMixin as any;
 
 /**
  * Capability fragment: methods contributed by LiteralsMixin that are called

@@ -67,7 +67,9 @@ function findRegistration(typeName: string) {
  * - evaluateExprHead(node) -> Promise<RillValue> (helper)
  * - evaluateBinaryComparison(left, right, op, node) -> boolean (helper)
  */
-function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function ExpressionsMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class ExpressionsEvaluator extends Base {
     /**
      * Resolve expression value, auto-invoking closures when $ is bound.
@@ -88,9 +90,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Reference: variables.ts:720-733 (property-style auto-invoke)
      */
-    protected async resolveExpressionValue(
-      value: RillValue
-    ): Promise<RillValue> {
+    async resolveExpressionValue(value: RillValue): Promise<RillValue> {
       // Auto-invoke only when $ is bound (pipeValue set)
       if (!isCallable(value) || this.ctx.pipeValue === null) {
         return value;
@@ -268,7 +268,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * IR-5: Breaking change: bool ordering (e.g. true > false) raises RILL-R002
      * because the bool registration has no protocol.compare.
      */
-    protected evaluateBinaryComparison(
+    evaluateBinaryComparison(
       left: RillValue,
       right: RillValue,
       op: '==' | '!=' | '<' | '>' | '<=' | '>=',
@@ -378,7 +378,7 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Evaluate expression head, returning any RillValue.
      * Helper for binary and unary expression evaluation.
      */
-    protected async evaluateExprHead(node: ArithHead): Promise<RillValue> {
+    async evaluateExprHead(node: ArithHead): Promise<RillValue> {
       switch (node.type) {
         case 'BinaryExpr':
           return this.evaluateBinaryExpr(node);
@@ -410,11 +410,6 @@ function createExpressionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const ExpressionsMixin = createExpressionsMixin as any;
 
 /**
  * Capability fragment: methods contributed by ExpressionsMixin that are called

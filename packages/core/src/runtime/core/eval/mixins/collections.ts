@@ -343,13 +343,15 @@ async function expandStream(
  * - expandIterator(iterator, node, limit?) -> Promise<RillValue[]>
  * - expandStream(stream, node, limit?) -> Promise<RillValue[]>
  */
-function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function CollectionsMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class CollectionsEvaluator extends Base {
     /**
      * Get elements from an iterable value (list, string, dict, iterator, or stream).
      * Delegates to the exported `getIterableElements` helper (IC-3).
      */
-    protected async getIterableElements(
+    async getIterableElements(
       input: RillValue,
       node: { span: { start: SourceLocation } }
     ): Promise<RillValue[]> {
@@ -360,7 +362,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Expand an iterator to a list of values.
      * Delegates to the exported `expandIterator` helper (IC-3).
      */
-    protected async expandIterator(
+    async expandIterator(
       iterator: RillValue,
       node: { span: { start: SourceLocation } },
       limit: number = DEFAULT_MAX_ITERATIONS
@@ -377,7 +379,7 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      * Expand a stream to a list of chunk values.
      * Delegates to the exported `expandStream` helper (IC-3).
      */
-    protected async expandStream(
+    async expandStream(
       stream: RillStream,
       node: { span: { start: SourceLocation } },
       limit: number = DEFAULT_MAX_ITERATIONS
@@ -391,11 +393,6 @@ function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const CollectionsMixin = createCollectionsMixin as any;
 
 /**
  * Capability fragment: CollectionsMixin contributes only protected helpers

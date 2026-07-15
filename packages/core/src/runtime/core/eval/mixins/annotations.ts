@@ -49,7 +49,9 @@ const DEFAULT_MAX_ITERATIONS = 10000;
  * - getAnnotation(key) -> RillValue | undefined
  * - getIterationLimit() -> number
  */
-function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
+export function AnnotationsMixin<
+  TBase extends EvaluatorConstructor<EvaluatorBase>,
+>(Base: TBase) {
   return class AnnotationsEvaluator extends Base {
     /**
      * Execute statement with annotation handling [IR-53].
@@ -88,7 +90,7 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Errors during annotation evaluation or statement execution propagate.
      */
-    private async executeAnnotatedStatement(
+    async executeAnnotatedStatement(
       stmt: AnnotatedStatementNode
     ): Promise<RillValue> {
       // Evaluate annotation arguments to build annotation dict [EC-26]
@@ -116,7 +118,7 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
      *
      * Errors during evaluation propagate [EC-26].
      */
-    protected async evaluateAnnotations(
+    async evaluateAnnotations(
       annotations: AnnotationArg[]
     ): Promise<Record<string, RillValue>> {
       const result: Record<string, RillValue> = {};
@@ -196,11 +198,6 @@ function createAnnotationsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
     }
   };
 }
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const AnnotationsMixin = createAnnotationsMixin as any;
 
 /**
  * Capability fragment: methods contributed by AnnotationsMixin that are called
