@@ -54,6 +54,12 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { evaluateAnnotations } from './annotations.js';
+import {
+  evaluatePrimary,
+  evaluatePostfixExpr,
+  evaluateExpression,
+} from './core.js';
 
 /**
  * Shared helper that partitions args, enforces validation, evaluates
@@ -195,8 +201,10 @@ export async function buildCollectionType(
         // IR-2: Evaluate per-field annotations
         if (arg.annotations) {
           if (arg.annotations.length > 0) {
-            const annots: Record<string, RillValue> =
-              await s.evaluateAnnotations(arg.annotations);
+            const annots: Record<string, RillValue> = await evaluateAnnotations(
+              s,
+              arg.annotations
+            );
             fieldDef.annotations = annots;
           } else {
             // Empty ^() — attach empty annotations record
@@ -245,7 +253,8 @@ export async function buildCollectionType(
       // IR-2: Evaluate per-field annotations
       if (arg.annotations) {
         if (arg.annotations.length > 0) {
-          const annots: Record<string, RillValue> = await s.evaluateAnnotations(
+          const annots: Record<string, RillValue> = await evaluateAnnotations(
+            s,
             arg.annotations
           );
           fieldDef.annotations = annots;
@@ -343,7 +352,8 @@ export async function buildCollectionType(
     // IR-2: Evaluate per-field annotations
     if (arg.annotations) {
       if (arg.annotations.length > 0) {
-        const annots: Record<string, RillValue> = await s.evaluateAnnotations(
+        const annots: Record<string, RillValue> = await evaluateAnnotations(
+          s,
           arg.annotations
         );
         fieldDef.annotations = annots;
@@ -467,7 +477,7 @@ export async function resolveTypeRef(
         return resolved.structure;
       },
       async (node: LiteralNode): Promise<RillValue> => {
-        return s.evaluatePrimary(node);
+        return evaluatePrimary(s, node);
       }
     );
   }
@@ -587,7 +597,7 @@ export async function evaluateTypeAssertion(
   // If operand is null, use the input (pipe value)
   // Otherwise, evaluate the operand
   const value = node.operand
-    ? await s.evaluatePostfixExpr(node.operand)
+    ? await evaluatePostfixExpr(s, node.operand)
     : input;
 
   const resolved = await resolveTypeRef(s, node.typeRef, (name) =>
@@ -608,7 +618,7 @@ export async function evaluateTypeCheck(
   // If operand is null, use the input (pipe value)
   // Otherwise, evaluate the operand
   const value = node.operand
-    ? await s.evaluatePostfixExpr(node.operand)
+    ? await evaluatePostfixExpr(s, node.operand)
     : input;
 
   const resolved = await resolveTypeRef(s, node.typeRef, (name) =>
@@ -648,7 +658,7 @@ export async function evaluateTypeAssertionPrimary(
       'host'
     );
   }
-  const value = await s.evaluatePostfixExpr(node.operand);
+  const value = await evaluatePostfixExpr(s, node.operand);
   return evaluateTypeAssertion(s, node, value);
 }
 
@@ -674,7 +684,7 @@ export async function evaluateTypeCheckPrimary(
       'host'
     );
   }
-  const value = await s.evaluatePostfixExpr(node.operand);
+  const value = await evaluatePostfixExpr(s, node.operand);
   return evaluateTypeCheck(s, node, value);
 }
 
@@ -735,7 +745,7 @@ export async function evaluateTypeConstructor(
         : resolved.structure;
     },
     async (node: LiteralNode): Promise<RillValue> => {
-      return s.evaluatePrimary(node);
+      return evaluatePrimary(s, node);
     },
     location
   );
@@ -781,7 +791,7 @@ export async function evaluateClosureSigLiteral(
   // Evaluate parameter types
   const params: RillFieldDef[] = [];
   for (const param of node.params) {
-    const paramVal: RillValue = await s.evaluateExpression(param.typeExpr);
+    const paramVal: RillValue = await evaluateExpression(s, param.typeExpr);
     const paramType = await resolveTypeExpr(paramVal);
     params.push({ name: param.name, type: paramType });
   }
@@ -789,7 +799,7 @@ export async function evaluateClosureSigLiteral(
   // Evaluate return type (EC-8: required -- parser enforces this at parse time)
   // returnType is PostfixExprNode (stops before pipe operators) so the
   // return type annotation cannot accidentally consume a trailing pipe chain.
-  const retVal: RillValue = await s.evaluatePostfixExpr(node.returnType);
+  const retVal: RillValue = await evaluatePostfixExpr(s, node.returnType);
   if (!isTypeValue(retVal)) {
     throwTypeHalt(
       {
