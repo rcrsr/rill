@@ -52,3 +52,25 @@ jobs:
 
       - name: Check formatting
         run: pnpm check:format
+
+  test-parity:
+    name: Test parity lock
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run test parity lock
+        run: bash scripts/check-test-parity.sh

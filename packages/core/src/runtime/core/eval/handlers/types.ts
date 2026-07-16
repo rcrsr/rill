@@ -8,8 +8,6 @@
  * - assertType(value, expected, location?) -> RillValue
  * - evaluateTypeAssertion(node, input) -> Promise<RillValue>
  * - evaluateTypeCheck(node, input) -> Promise<boolean>
- * - evaluateTypeAssertionPrimary(node) -> Promise<RillValue>
- * - evaluateTypeCheckPrimary(node) -> Promise<boolean>
  * - evaluateTypeConstructor(node) -> Promise<RillTypeValue> [IR-7]
  * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue> [IR-8]
  * - resolveTypeRef(typeRef, getVariable) -> Promise<RillTypeValue> [IR-2]
@@ -75,7 +73,7 @@ import {
  * - EC-B6: Default type mismatch -> TYPE_MISMATCH
  * - EC-B7: Tuple non-trailing default -> TYPE_MISMATCH
  */
-export async function buildCollectionType(
+async function buildCollectionType(
   s: EvalState,
   name: 'list' | 'dict' | 'tuple' | 'ordered',
   args: FieldArg[],
@@ -632,58 +630,6 @@ export async function evaluateTypeCheck(
     return structureMatches(value, resolved.structure);
   }
   return checkType(value, resolved.typeName);
-}
-
-/**
- * Evaluate postfix type assertion: expr:type.
- * The operand is always present (not null) for postfix form.
- */
-export async function evaluateTypeAssertionPrimary(
-  s: EvalState,
-  node: TypeAssertionNode
-): Promise<RillValue> {
-  if (!node.operand) {
-    throwTypeHalt(
-      {
-        location: node.span.start,
-        sourceId: s.ctx.sourceId,
-        fn: ':',
-      },
-      'INVALID_INPUT',
-      'Postfix type assertion requires operand',
-      'runtime',
-      undefined,
-      'host'
-    );
-  }
-  const value = await evaluatePostfixExpr(s, node.operand);
-  return evaluateTypeAssertion(s, node, value);
-}
-
-/**
- * Evaluate postfix type check: expr:?type.
- * The operand is always present (not null) for postfix form.
- */
-export async function evaluateTypeCheckPrimary(
-  s: EvalState,
-  node: TypeCheckNode
-): Promise<boolean> {
-  if (!node.operand) {
-    throwTypeHalt(
-      {
-        location: node.span.start,
-        sourceId: s.ctx.sourceId,
-        fn: ':?',
-      },
-      'INVALID_INPUT',
-      'Postfix type check requires operand',
-      'runtime',
-      undefined,
-      'host'
-    );
-  }
-  const value = await evaluatePostfixExpr(s, node.operand);
-  return evaluateTypeCheck(s, node, value);
 }
 
 /**

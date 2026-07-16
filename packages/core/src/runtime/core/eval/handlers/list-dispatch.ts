@@ -99,7 +99,7 @@ export async function evaluateListLiteralDispatch(
 /**
  * Evaluate list literal elements, expanding any ...spread nodes inline.
  */
-export async function evaluateListLiteralElements(
+async function evaluateListLiteralElements(
   s: EvalState,
   rawElements: (ExpressionNode | ListSpreadNode)[]
 ): Promise<RillValue[]> {

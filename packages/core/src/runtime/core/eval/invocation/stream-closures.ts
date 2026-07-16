@@ -194,19 +194,24 @@ export const activeStreamContexts = new WeakMap<
 // ============================================================
 
 /**
- * Push a stream scope, run `body`, then dispose any unconsumed streams
- * created inside it (IR-14).
+ * Push a stream scope, run `body(s, arg)`, then dispose any unconsumed
+ * streams created inside it.
+ *
+ * `arg` is threaded through to `body` instead of captured in a closure, so
+ * callers on hot paths (e.g. `evaluateBlock`) can pass a plain function
+ * reference without allocating a per-call arrow function.
  *
  * Reads/writes the class-field `streamScopeStack` on `s`; never allocates
  * a fresh local stack (streamScopeStack is owned by StreamClosuresEvaluator).
  */
-export async function runInStreamScope<T>(
+export async function runInStreamScope<T, A>(
   s: EvalState,
-  body: () => Promise<T>
+  arg: A,
+  body: (s: EvalState, arg: A) => Promise<T>
 ): Promise<T> {
   s.streamScopeStack.push([]);
   try {
-    return await body();
+    return await body(s, arg);
   } finally {
     const streams = s.streamScopeStack.pop() ?? [];
     await disposeStreams(s, streams);
@@ -235,7 +240,7 @@ export function trackStream(s: EvalState, stream: RillStream): void {
  *
  * Idempotent on empty arrays and repeated calls after stack drain.
  */
-export async function disposeStreams(
+async function disposeStreams(
   s: EvalState,
   streams: RillStream[]
 ): Promise<void> {

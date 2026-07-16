@@ -721,7 +721,7 @@ export async function evaluateVariableAsync(
  * @returns The field/element value or null if missing
  * @throws RuntimeError if variable undefined or wrong type (EC-1, EC-2, EC-3)
  */
-export async function evaluateFieldAccessVariable(
+async function evaluateFieldAccessVariable(
   s: EvalState,
   access: {
     readonly kind: 'variable';
@@ -839,7 +839,7 @@ export async function evaluateFieldAccessVariable(
  * @returns The field/element value or null if missing
  * @throws RuntimeError if expression result is wrong type (EC-4, EC-5)
  */
-export async function evaluateFieldAccessComputed(
+async function evaluateFieldAccessComputed(
   s: EvalState,
   access: {
     readonly kind: 'computed';
@@ -968,7 +968,7 @@ export async function evaluateFieldAccessComputed(
  * @returns The first found field value or null if all keys missing
  * @throws RuntimeError if target is not dict (EC-6)
  */
-export async function evaluateFieldAccessAlternatives(
+async function evaluateFieldAccessAlternatives(
   s: EvalState,
   access: {
     readonly kind: 'alternatives';
@@ -994,7 +994,7 @@ export async function evaluateFieldAccessAlternatives(
   for (const key of access.alternatives) {
     const dictValue = (value as Record<string, RillValue>)[key];
     if (dictValue !== undefined && dictValue !== null) {
-      // Use base class method for consistent property-style callable handling
+      // Delegate to accessDictField (shared.ts) for consistent property-style callable handling
       return await accessDictField(
         s,
         value,
@@ -1014,7 +1014,7 @@ export async function evaluateFieldAccessAlternatives(
  * Handles capture syntax which assigns the piped value to a variable.
  * Calls setVariable for type checking and fires observability callback.
  */
-export async function evaluateCapture(
+async function evaluateCapture(
   s: EvalState,
   node: CaptureNode,
   input: RillValue

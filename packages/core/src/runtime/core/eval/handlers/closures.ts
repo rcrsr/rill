@@ -24,7 +24,6 @@ import type {
   ScriptCallable,
   RuntimeCallable,
   ApplicationCallable,
-  RillParam,
 } from '../../callable.js';
 import {
   isCallable,
@@ -177,37 +176,46 @@ function formatCallSite(
 const argumentsBinder = new ArgumentsBinder();
 
 /**
- * Build the invocation strategy for an evaluator state. Closes over `s`
- * (not `this`) so ctx is always read from the owning evaluator's current
+ * Get or create the cached invocation strategy for an EvalState. Closes over
+ * `s` (not `this`) so ctx is always read from the owning evaluator's current
  * state, including reassignment during nested script-callable execution.
+ * Cached on `s.invocationStrategy` to avoid reallocating the strategy plus
+ * its two closures on every call-site invocation.
  */
-function createInvocationStrategy(s: EvalState): CallableInvocationStrategy {
-  return new CallableInvocationStrategy(() => s.ctx, argumentsBinder, (async (
-    callable: RillCallable,
-    args: RillValue[],
-    location: SourceLocation | undefined,
-    functionName?: string
-  ) => {
-    if (callable.kind === 'script') {
-      return invokeScriptCallable(
+function getInvocationStrategy(s: EvalState): CallableInvocationStrategy {
+  if (s.invocationStrategy) return s.invocationStrategy;
+  const strategy = new CallableInvocationStrategy(
+    () => s.ctx,
+    argumentsBinder,
+    (async (
+      callable: RillCallable,
+      args: RillValue[],
+      location: SourceLocation | undefined,
+      functionName?: string
+    ) => {
+      if (callable.kind === 'script') {
+        return invokeScriptCallable(
+          s,
+          callable as ScriptCallable,
+          args,
+          location
+        );
+      }
+      return invokeFnCallable(
         s,
-        callable as ScriptCallable,
+        callable as RuntimeCallable | ApplicationCallable,
         args,
-        location
+        location,
+        functionName
       );
-    }
-    return invokeFnCallable(
-      s,
-      callable as RuntimeCallable | ApplicationCallable,
-      args,
-      location,
-      functionName
-    );
-  }) as InvocationCaller);
+    }) as InvocationCaller
+  );
+  s.invocationStrategy = strategy;
+  return strategy;
 }
 
 /** Evaluate argument expressions, preserving the current pipeValue. */
-export async function evaluateArgs(
+async function evaluateArgs(
   s: EvalState,
   argExprs: (ExpressionNode | SpreadArgNode)[]
 ): Promise<RillValue[]> {
@@ -269,7 +277,7 @@ export async function invokeCallable(
     const bound: BoundArguments = {
       params: new Map(args.map((v, i) => [String(i), v])),
     };
-    const result = await createInvocationStrategy(s).invoke(
+    const result = await getInvocationStrategy(s).invoke(
       callable,
       bound,
       callLocation,
@@ -301,7 +309,7 @@ export async function invokeCallable(
 }
 
 /** Invoke runtime or application callable (native function). */
-export async function invokeFnCallable(
+async function invokeFnCallable(
   s: EvalState,
   callable: RuntimeCallable | ApplicationCallable,
   args: RillValue[],
@@ -393,30 +401,6 @@ export function createCallableContext(
   return callableCtx;
 }
 
-/** Validate parameter type via structural matching; no-op for any-typed params. */
-export function validateParamType(
-  s: EvalState,
-  param: RillParam,
-  value: RillValue,
-  callLocation?: SourceLocation
-): void {
-  if (param.type === undefined) return;
-  if (!structureMatches(value, param.type)) {
-    const expectedType = formatStructure(param.type);
-    const actualType = inferType(value);
-    throwCatchableHostHalt(
-      {
-        location: callLocation,
-        sourceId: s.ctx.sourceId,
-        fn: 'validateParamType',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
-      { paramName: param.name, expectedType, actualType }
-    );
-  }
-}
-
 /** Push chunk to active stream channel, or throw YieldSignal if not streaming. */
 export function evaluateYield(
   s: EvalState,
@@ -469,7 +453,7 @@ export function evaluateYield(
 }
 
 /** Invoke script callable; dispatches stream closures to stream-closures.ts. */
-export async function invokeScriptCallable(
+async function invokeScriptCallable(
   s: EvalState,
   callable: ScriptCallable,
   args: RillValue[],
@@ -481,7 +465,7 @@ export async function invokeScriptCallable(
   return invokeRegularScriptCallable(s, callable, args, callLocation);
 }
 
-export async function invokeRegularScriptCallable(
+async function invokeRegularScriptCallable(
   s: EvalState,
   callable: ScriptCallable,
   args: RillValue[],
@@ -573,7 +557,7 @@ export async function invokeRegularScriptCallable(
 }
 
 /** Drain stream and return its resolution value. */
-export async function invokeStream(
+async function invokeStream(
   s: EvalState,
   stream: RillStream
 ): Promise<RillValue> {
@@ -878,7 +862,7 @@ export async function evaluateClosureCallWithPipe(
         `Spread not supported for built-in callable at '${fullPath}'`
       );
     }
-    const boundArgs = await createInvocationStrategy(s).bind(
+    const boundArgs = await getInvocationStrategy(s).bind(
       closure,
       node.args,
       pipeInput,
@@ -958,23 +942,6 @@ export async function evaluatePipePropertyAccess(
     value = await evaluateBodyExpression(s, node.defaultValue);
   }
   return value;
-}
-
-/** Placeholder; actual variable invoke logic is in variables.ts evaluateVariableAsync. */
-export async function evaluateVariableInvoke(
-  s: EvalState,
-  node: PipeInvokeNode,
-  _pipeInput: RillValue
-): Promise<RillValue> {
-  throwFatalHostHalt(
-    {
-      location: getNodeLocation(s, node),
-      sourceId: s.ctx.sourceId,
-      fn: 'evaluateVariableInvoke',
-    },
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    'evaluateVariableInvoke is a placeholder - use evaluateVariableAsync from variables.ts'
-  );
 }
 
 /** Evaluate pipe invoke: value -> (args). */
@@ -1191,7 +1158,7 @@ export async function evaluateMethod(
 }
 
 /** Evaluate postfix invocation: expr(args). */
-export async function evaluateInvoke(
+async function evaluateInvoke(
   s: EvalState,
   node: InvokeNode,
   receiver: RillValue

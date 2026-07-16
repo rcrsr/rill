@@ -5,6 +5,7 @@ import type {
   RillStream,
 } from '../types/structures.js';
 import type { StreamChannel } from './invocation/stream-closures.js';
+import type { CallableInvocationStrategy } from './invocation/callable-strategy.js';
 
 /**
  * EvalState — the shared evaluation state threaded through all module-level
@@ -20,6 +21,7 @@ export interface EvalState {
     | null;
   activeStreamChunkType: TypeStructure | null;
   streamScopeStack: RillStream[][];
+  invocationStrategy: CallableInvocationStrategy | undefined;
 }
 
 /**
@@ -52,6 +54,7 @@ export function getEvalState(ctx: RuntimeContext): EvalState {
       activeStreamChannel: null,
       activeStreamChunkType: null,
       streamScopeStack: [],
+      invocationStrategy: undefined,
     };
     evalStateCache.set(ctx, state);
   }

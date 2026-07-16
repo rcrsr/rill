@@ -74,7 +74,7 @@ export async function executeStatement(
  *
  * Errors during annotation evaluation or statement execution propagate.
  */
-export async function executeAnnotatedStatement(
+async function executeAnnotatedStatement(
   s: EvalState,
   stmt: AnnotatedStatementNode
 ): Promise<RillValue> {

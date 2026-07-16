@@ -69,7 +69,7 @@ fi
 echo "OK: packages/core/tests/language/ matches ${BASE_REF} (RuntimeHaltSignal import exemption only)"
 
 # 3. Full suite: everything passes, nothing skipped, count at or above baseline.
-SUITE_OUT=$(cd packages/core && npx vitest run 2>&1) || {
+SUITE_OUT=$(cd packages/core && pnpm vitest run 2>&1) || {
   echo "$SUITE_OUT" | tail -30
   echo "FAIL: test suite failed"
   exit 1

@@ -12,7 +12,6 @@
  * Interface requirements (from spec):
  * - evaluatePass(node) -> Promise<RillValue> [IR-4]
  * - evaluateString(node) -> Promise<{ value: string; interpolated: boolean }>
- * - evaluateTuple(node) -> Promise<RillValue[]>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
  * - createBlockClosure(node) -> ScriptCallable
@@ -28,7 +27,6 @@
 import type {
   StringLiteralNode,
   ListLiteralNode,
-  ListSpreadNode,
   DictNode,
   ClosureNode,
   BlockNode,
@@ -49,7 +47,6 @@ import { isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
 import { deepEquals, formatValue } from '../../types/registrations.js';
 import { isTypeValue, isVector } from '../../types/guards.js';
-import { inferElementType } from '../../types/operations.js';
 import { anyTypeValue, isReservedMethod } from '../../values.js';
 import {
   isCallable,
@@ -371,47 +368,9 @@ export async function evaluateString(
 }
 
 /**
- * Evaluate list literal elements into a flat array.
- * Elements are evaluated in order and collected into an array.
- *
- * Errors from element evaluation propagate to caller.
- */
-export async function evaluateTuple(
-  s: EvalState,
-  node: ListLiteralNode
-): Promise<RillValue[]> {
-  const elements: RillValue[] = [];
-  for (const elem of node.elements) {
-    if (elem.type === 'ListSpread') {
-      const spreadNode = elem as ListSpreadNode;
-      const spreadValue = await evaluateExpression(s, spreadNode.expression);
-      if (Array.isArray(spreadValue)) {
-        elements.push(...spreadValue);
-      } else {
-        throwCatchableHostHalt(
-          {
-            location: spreadNode.span?.start,
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateTuple',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Spread in list literal requires list, got ${typeof spreadValue}`,
-          { got: typeof spreadValue }
-        );
-      }
-    } else {
-      elements.push(await evaluateExpression(s, elem));
-    }
-  }
-  // Validate homogeneity: all elements must share the same structural type [C-1]
-  inferElementType(elements);
-  return elements;
-}
-
-/**
  * Evaluate multi-key dict entry from a ListLiteralNode key.
  */
-export async function evaluateDictMultiKeyFromList(
+async function evaluateDictMultiKeyFromList(
   s: EvalState,
   keyList: ListLiteralNode,
   value: ExpressionNode
@@ -818,74 +777,11 @@ export async function evaluateDictDispatch(
 }
 
 /**
- * Evaluate list literal as dispatch table when piped.
- *
- * Takes numeric index and returns element at that position.
- * Supports negative indices and default values.
- *
- * @param s - Evaluator state
- * @param node - ListLiteralNode representing list literal
- * @param input - Piped value to use as index (must be number)
- * @returns Element at index
- * @throws RuntimeError if input not number or index out of bounds
- */
-export async function evaluateListDispatch(
-  s: EvalState,
-  node: ListLiteralNode,
-  input: RillValue
-): Promise<RillValue> {
-  // Validate input is an integer (EC-15)
-  if (typeof input !== 'number' || !Number.isInteger(input)) {
-    throwCatchableHostHalt(
-      {
-        location: node.span?.start,
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateListDispatch',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R041],
-      `List dispatch requires integer index, got ${typeof input !== 'number' ? typeof input : 'non-integer number'}`,
-      { input, expectedType: 'integer' }
-    );
-  }
-
-  // Evaluate all elements to get the list
-  const elements = await evaluateTuple(s, node);
-
-  const index = input;
-
-  // Normalize negative indices
-  const normalizedIndex = index < 0 ? elements.length + index : index;
-
-  // Check bounds
-  if (normalizedIndex < 0 || normalizedIndex >= elements.length) {
-    // Check for default value
-    if (node.defaultValue) {
-      return await evaluateBodyExpression(s, node.defaultValue);
-    }
-
-    // No default - throw EC-16 out-of-bounds error
-    throwCatchableHostHalt(
-      {
-        location: node.span?.start,
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateListDispatch',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R042],
-      `List dispatch: index ${index} out of range (length: ${elements.length})`,
-      { index, listLength: elements.length }
-    );
-  }
-
-  // Return element at normalized index
-  return elements[normalizedIndex]!;
-}
-
-/**
  * Resolve dispatch value: auto-invoke if closure, otherwise return as-is.
  * Zero-param closures (block-closures) are invoked with args = [] and pipeValue = input.
  * Parameterized closures (1+ params) throw error.
  */
-export async function resolveDispatchValue(
+async function resolveDispatchValue(
   s: EvalState,
   value: RillValue,
   input: RillValue,
@@ -1061,7 +957,7 @@ export async function dispatchToList(
  * Resolve dispatch value for runtime values: auto-invoke if closure.
  * Similar to resolveDispatchValue but works with runtime values.
  */
-export async function resolveDispatchValueRuntime(
+async function resolveDispatchValueRuntime(
   s: EvalState,
   value: RillValue,
   input: RillValue,
@@ -1251,7 +1147,7 @@ export function createBlockClosure(
  * Helper: Check if expression is a bare closure (no pipes, no methods).
  * Used to detect dict entries that should be treated as closures.
  */
-export function isClosureExpr(expr: ExpressionNode): boolean {
+function isClosureExpr(expr: ExpressionNode): boolean {
   if (!isPipeChainNode(expr)) return false;
   if (expr.pipes.length > 0) return false;
   if (expr.head.type !== 'PostfixExpr') return false;
@@ -1264,7 +1160,7 @@ export function isClosureExpr(expr: ExpressionNode): boolean {
  * Helper: Check if expression is a bare block (no pipes, no methods).
  * Used to detect dict entries that should be treated as block closures.
  */
-export function isBlockExpr(expr: ExpressionNode): boolean {
+function isBlockExpr(expr: ExpressionNode): boolean {
   if (!isPipeChainNode(expr)) return false;
   if (expr.pipes.length > 0) return false;
   if (expr.head.type !== 'PostfixExpr') return false;

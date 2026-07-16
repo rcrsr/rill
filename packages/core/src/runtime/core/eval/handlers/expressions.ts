@@ -65,7 +65,7 @@ function findRegistration(typeName: string) {
  *
  * Reference: variables.ts:720-733 (property-style auto-invoke)
  */
-export async function resolveExpressionValue(
+async function resolveExpressionValue(
   s: EvalState,
   value: RillValue
 ): Promise<RillValue> {
@@ -240,7 +240,7 @@ export async function evaluateBinaryExpr(
  * IR-5: Breaking change: bool ordering (e.g. true > false) raises RILL-R002
  * because the bool registration has no protocol.compare.
  */
-export function evaluateBinaryComparison(
+function evaluateBinaryComparison(
   s: EvalState,
   left: RillValue,
   right: RillValue,
@@ -354,7 +354,7 @@ export async function evaluateUnaryExpr(
  * Evaluate expression head, returning any RillValue.
  * Helper for binary and unary expression evaluation.
  */
-export async function evaluateExprHead(
+async function evaluateExprHead(
   s: EvalState,
   node: ArithHead
 ): Promise<RillValue> {

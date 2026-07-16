@@ -20,7 +20,7 @@
  */
 
 import { expect } from 'vitest';
-import { RuntimeHaltSignal } from '../../src/runtime/core/eval/handlers/access.js';
+import { RuntimeHaltSignal } from '@rcrsr/rill';
 import { getStatus } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 

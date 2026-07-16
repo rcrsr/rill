@@ -576,7 +576,7 @@ export async function evaluatePrimary(
  * Pipe targets are expressions that can receive piped values.
  * Sets $ to the input value before evaluation.
  */
-export async function evaluatePipeTarget(
+async function evaluatePipeTarget(
   s: EvalState,
   target: PipeTargetNode,
   input: RillValue
@@ -875,7 +875,7 @@ export async function evaluatePipeTarget(
  * @param location - Source location for error reporting
  * @returns Final value at path
  */
-export async function evaluateHierarchicalDispatch(
+async function evaluateHierarchicalDispatch(
   s: EvalState,
   target: RillValue,
   path: RillValue[],
@@ -950,7 +950,7 @@ export async function evaluateHierarchicalDispatch(
  * @param location - Source location for error reporting
  * @returns Value at key/index
  */
-export async function traversePathStep(
+async function traversePathStep(
   s: EvalState,
   current: RillValue,
   key: RillValue,
@@ -1044,7 +1044,7 @@ export async function traversePathStep(
  * @returns Resolved value (invoked result or original value)
  * @throws RuntimeError with RUNTIME_TYPE_ERROR if parameterized closure
  */
-export async function resolveIntermediateClosure(
+async function resolveIntermediateClosure(
   s: EvalState,
   value: RillValue,
   location?: SourceLocation
@@ -1093,7 +1093,7 @@ export async function resolveIntermediateClosure(
  * @returns Resolved value (invoked or unchanged)
  * @throws RuntimeError with RUNTIME_TYPE_ERROR if parameterized closure
  */
-export async function resolveTerminalValue(
+async function resolveTerminalValue(
   s: EvalState,
   value: RillValue,
   finalKey: RillValue,

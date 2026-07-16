@@ -12,7 +12,6 @@
  * - evaluateConditional(node) -> Promise<RillValue>
  * - evaluateWhileLoop(node) -> Promise<RillValue>
  * - evaluateDoWhileLoop(node) -> Promise<RillValue>
- * - evaluateBlockExpression(node) -> Promise<RillValue>
  * - evaluateBody(node) -> Promise<RillValue>
  * - evaluateBodyExpression(node) -> Promise<RillValue>
  *
@@ -339,13 +338,13 @@ export async function evaluateDoWhileLoop(
  * to later siblings.
  *
  * Returns value of last statement.
- * ReturnSignal NOT caught here - propagates up to evaluateBlockExpression.
+ * ReturnSignal NOT caught here - propagates up to evaluateBodyExpression.
  */
-export async function evaluateBlock(
+async function evaluateBlock(
   s: EvalState,
   node: BlockNode
 ): Promise<RillValue> {
-  return runInStreamScope(s, () => evaluateBlockBody(s, node));
+  return runInStreamScope(s, node, evaluateBlockBody);
 }
 
 /**
@@ -392,29 +391,6 @@ async function evaluateBlockBody(
   }
 
   return lastValue; // Last sibling's result is block result
-}
-
-/**
- * Evaluate block expression: catches ReturnSignal.
- *
- * This is the entry point for blocks used as expressions
- * (e.g., in conditionals, as function bodies).
- *
- * Catches ReturnSignal and returns its value.
- * Other signals (BreakSignal) and errors propagate up.
- */
-export async function evaluateBlockExpression(
-  s: EvalState,
-  node: BlockNode
-): Promise<RillValue> {
-  try {
-    return await evaluateBlock(s, node);
-  } catch (e) {
-    if (e instanceof ReturnSignal) {
-      return e.value;
-    }
-    throw e;
-  }
 }
 
 /**

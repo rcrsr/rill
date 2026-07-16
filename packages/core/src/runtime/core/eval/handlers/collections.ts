@@ -129,7 +129,7 @@ export async function getIterableElements(
  * Respects iteration limits to prevent infinite loops.
  *
  * @param iterator - The iterator value ({ done, value, next })
- * @param evaluator - Evaluator instance used for abort checks and callable invocation
+ * @param evaluator - EvalState used for abort checks and callable invocation
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */
@@ -213,7 +213,7 @@ async function expandIterator(
  * before re-throwing (NFR-STREAM-2).
  *
  * @param stream - The stream value ({ __rill_stream, done, value, next })
- * @param evaluator - Evaluator instance used for abort checks, callable invocation, and sourceId
+ * @param evaluator - EvalState used for abort checks, callable invocation, and sourceId
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */

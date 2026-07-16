@@ -260,7 +260,7 @@ export async function evaluateSlice(
  * Evaluate a slice bound expression (start, stop, or step).
  * Returns the numeric value of the bound.
  */
-export async function evaluateSliceBound(
+async function evaluateSliceBound(
   s: EvalState,
   bound: SliceNode['start'],
   location?: SourceLocation
@@ -318,7 +318,7 @@ export async function evaluateSliceBound(
  * Apply Python-style slice to a list or string.
  * Handles negative indices, step values, and edge cases.
  */
-export function applySlice<T extends RillValue[] | string>(
+function applySlice<T extends RillValue[] | string>(
   s: EvalState,
   input: T,
   len: number,
@@ -490,7 +490,7 @@ export async function evaluateListLiteralElements(
  * Keys are always strings (number/boolean keys are stringified).
  * Spread entries (...$other) expand inline (dict keys merged).
  */
-export async function evaluateDictLiteralEntries(
+async function evaluateDictLiteralEntries(
   s: EvalState,
   entries: DictEntryNode[]
 ): Promise<[string, RillValue][]> {

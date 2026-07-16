@@ -6,7 +6,9 @@
  *   Phase 2 – bind: delegate to ArgumentsBinder for spread-aware binding
  *   Phase 3 – invoke: own the call-stack frame try/catch/finally
  *
- * Instantiated once per evaluation context (no per-call allocation).
+ * Cached on `EvalState.invocationStrategy` and lazily constructed on first
+ * use, so a given evaluation context allocates at most one strategy instance
+ * rather than reallocating it on every call-site invocation.
  *
  * Error codes:
  *   RILL-R001 – non-callable target [EC-4], argument binding failure [EC-5]

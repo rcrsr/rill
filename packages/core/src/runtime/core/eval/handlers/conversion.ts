@@ -216,7 +216,7 @@ export function applyConversion(
  * - Missing field without default: emits RILL-R044
  * - Extra keys not in signature: omitted from result
  */
-export async function convertToOrderedWithSig(
+async function convertToOrderedWithSig(
   s: EvalState,
   input: RillValue,
   sigNode: TypeConstructorNode,
@@ -300,7 +300,7 @@ export async function convertToOrderedWithSig(
  * - Extra keys not in signature: omitted from result
  * - Recurses into nested dict-typed fields for nested hydration
  */
-export async function convertToDictWithSig(
+async function convertToDictWithSig(
   s: EvalState,
   input: RillValue,
   sigNode: TypeConstructorNode,
@@ -402,7 +402,7 @@ export async function convertToDictWithSig(
  * - Missing element without default: emits RILL-R044 with position
  * - Extra elements beyond signature length: omitted from result
  */
-export async function convertToTupleWithSig(
+async function convertToTupleWithSig(
   s: EvalState,
   input: RillValue,
   sigNode: TypeConstructorNode,
@@ -481,7 +481,7 @@ export async function convertToTupleWithSig(
  * Only applies when the field type has explicit fields/elements.
  * Returns the value unchanged if the type has no fields or the value type does not match.
  */
-export function hydrateNested(
+function hydrateNested(
   s: EvalState,
   value: RillValue,
   fieldType: TypeStructure,
