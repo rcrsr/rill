@@ -352,8 +352,8 @@ export async function evaluateBlock(
 
 /**
  * Block body evaluation, wrapped by evaluateBlock in a stream scope so
- * unconsumed streams created inside the block are disposed on scope exit
- * (IR-14).
+ * unconsumed streams created inside the block are disposed when the
+ * block's scope exits.
  */
 async function evaluateBlockBody(
   s: EvalState,
