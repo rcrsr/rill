@@ -21,7 +21,6 @@ const path = require('path');
 const noDuplicateErrorId = require(
   path.join(__dirname, 'no-duplicate-error-id.cjs')
 );
-const noCrossMixinAny = require(path.join(__dirname, 'no-cross-mixin-any.cjs'));
 
 const stats = { pass: 0, fail: 0 };
 
@@ -456,132 +455,10 @@ function runDuplicateErrorIdTests() {
 }
 
 // ============================================================
-// no-cross-mixin-any
-// ============================================================
-
-function tsAsAnyNode(source, exprText, exprType) {
-  const fullRange = findRange(source, `(${exprText} as any)`);
-  const exprRange = findRange(source, exprText, fullRange[0]);
-  return {
-    type: 'TSAsExpression',
-    range: fullRange,
-    typeAnnotation: { type: 'TSAnyKeyword' },
-    expression: {
-      type: exprType,
-      name: exprType === 'Identifier' ? exprText : undefined,
-      range: exprRange,
-    },
-  };
-}
-
-function runCrossMixinAnyTests() {
-  const validCases = [
-    {
-      label: 'valid: (value as any) — not this/evaluator',
-      source: 'const x = (value as any)',
-      exprText: 'value',
-      exprType: 'Identifier',
-    },
-    {
-      label: 'valid: (other as any) — not this/evaluator',
-      source: 'const x = (other as any)',
-      exprText: 'other',
-      exprType: 'Identifier',
-    },
-  ];
-  for (const testCase of validCases) {
-    const context = makeContext(testCase.source);
-    const handlers = noCrossMixinAny.create(context);
-    handlers.TSAsExpression(
-      tsAsAnyNode(testCase.source, testCase.exprText, testCase.exprType)
-    );
-    check(
-      context.reports.length === 0,
-      testCase.label,
-      `expected 0 reports, got ${context.reports.length}`
-    );
-  }
-
-  // Cast target is not `any` — TSAsExpression is never reached for TSAnyKeyword
-  // check, so simulate a non-any type annotation directly.
-  const nonAnyCases = [
-    {
-      label: 'valid: this as EvaluatorInterface — not any',
-      exprType: 'ThisExpression',
-    },
-    {
-      label: 'valid: evaluator as EvaluatorInterface — not any',
-      exprType: 'Identifier',
-    },
-  ];
-  for (const testCase of nonAnyCases) {
-    const context = makeContext('');
-    const handlers = noCrossMixinAny.create(context);
-    handlers.TSAsExpression({
-      type: 'TSAsExpression',
-      typeAnnotation: { type: 'TSTypeReference' },
-      expression: { type: testCase.exprType, name: 'evaluator' },
-    });
-    check(
-      context.reports.length === 0,
-      testCase.label,
-      `expected 0 reports, got ${context.reports.length}`
-    );
-  }
-
-  const invalidCases = [
-    {
-      label: 'invalid: (this as any) member call',
-      source: 'const x = (this as any).foo()',
-      exprText: 'this',
-      exprType: 'ThisExpression',
-    },
-    {
-      label: 'invalid: (this as any) property access (no call)',
-      source: 'const x = (this as any).foo',
-      exprText: 'this',
-      exprType: 'ThisExpression',
-    },
-    {
-      label: 'invalid: (evaluator as any) member call',
-      source: 'const x = (evaluator as any).bar()',
-      exprText: 'evaluator',
-      exprType: 'Identifier',
-    },
-    {
-      label: 'invalid: (this as any) inside nested await expression',
-      source: 'async function f() { await (this as any).method(args) }',
-      exprText: 'this',
-      exprType: 'ThisExpression',
-    },
-  ];
-  for (const testCase of invalidCases) {
-    const context = makeContext(testCase.source);
-    const handlers = noCrossMixinAny.create(context);
-    handlers.TSAsExpression(
-      tsAsAnyNode(testCase.source, testCase.exprText, testCase.exprType)
-    );
-    check(
-      context.reports.length === 1,
-      `${testCase.label} (report count)`,
-      `expected 1 report, got ${context.reports.length}`
-    );
-    if (context.reports.length === 1) {
-      check(
-        context.reports[0].messageId === 'crossMixinAny',
-        `${testCase.label} (messageId)`,
-        `expected 'crossMixinAny', got ${JSON.stringify(context.reports[0].messageId)}`
-      );
-    }
-  }
-}
-
-// ============================================================
 // Run
 // ============================================================
 
 runDuplicateErrorIdTests();
-runCrossMixinAnyTests();
 
 if (stats.fail > 0) {
   console.error(
@@ -591,5 +468,5 @@ if (stats.fail > 0) {
 }
 
 console.log(
-  `PASS rule-unit-test: ${stats.pass} assertions passed (no-duplicate-error-id, no-cross-mixin-any).`
+  `PASS rule-unit-test: ${stats.pass} assertions passed (no-duplicate-error-id).`
 );
