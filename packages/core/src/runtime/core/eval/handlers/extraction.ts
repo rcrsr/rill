@@ -1,5 +1,5 @@
 /**
- * ExtractionMixin - Extraction Operators
+ * Extraction Operators
  *
  * Handles destructure, slice, and spread operations for extracting
  * values from lists and dicts.
@@ -119,8 +119,6 @@ export async function evaluateDestructure(
         );
       }
 
-      // Note: setVariable and resolveTypeRef will be available from VariablesMixin
-      // and TypesMixin which are applied before ExtractionMixin in the composition order
       const dictResolved =
         elem.typeRef !== null
           ? await resolveTypeRef(
@@ -191,8 +189,6 @@ export async function evaluateDestructure(
         );
       }
 
-      // Note: setVariable and resolveTypeRef will be available from VariablesMixin
-      // and TypesMixin which are applied before ExtractionMixin in the composition order
       const listResolved =
         elem.typeRef !== null
           ? await resolveTypeRef(
@@ -282,8 +278,6 @@ export async function evaluateSliceBound(
       return bound.value;
 
     case 'Variable': {
-      // Note: evaluateVariable will be available from VariablesMixin
-      // which is applied before ExtractionMixin in the composition order
       const value = evaluateVariable(s, bound);
       if (typeof value !== 'number') {
         throwCatchableHostHalt(
@@ -300,8 +294,6 @@ export async function evaluateSliceBound(
     }
 
     case 'GroupedExpr': {
-      // Note: evaluateGroupedExpr will be available from ExpressionsMixin
-      // which is applied after ExtractionMixin, so we need to call evaluateExpression
       const value = await evaluateExpression(
         s,
         (bound as GroupedExprNode).expression

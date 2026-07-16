@@ -1,5 +1,5 @@
 /**
- * TypesMixin: Type Assertions and Checks
+ * Type Assertions and Checks
  *
  * Handles type assertion (:type) and type check (:?type) operations.
  * Provides runtime type validation with error reporting.

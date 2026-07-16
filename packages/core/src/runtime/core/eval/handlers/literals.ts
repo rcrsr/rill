@@ -1,5 +1,5 @@
 /**
- * LiteralsMixin: String, Tuple, Dict, Closure, and Pass Evaluation
+ * String, Tuple, Dict, Closure, and Pass Evaluation
  *
  * Handles evaluation of literal values including:
  * - Pass keyword (returns current pipe value)

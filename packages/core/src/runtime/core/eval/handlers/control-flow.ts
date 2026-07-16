@@ -1,5 +1,5 @@
 /**
- * ControlFlowMixin: Conditionals, Loops, and Blocks
+ * Conditionals, Loops, and Blocks
  *
  * Handles control flow constructs:
  * - Conditionals (if-else)

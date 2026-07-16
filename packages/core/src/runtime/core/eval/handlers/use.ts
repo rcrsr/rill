@@ -1,5 +1,5 @@
 /**
- * UseMixin: Use Expression Evaluation
+ * Use Expression Evaluation
  *
  * Handles `use<scheme:resource>` expressions:
  * - Resolves identifiers (static, variable, computed) to scheme + resource

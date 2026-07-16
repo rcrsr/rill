@@ -1,5 +1,5 @@
 /**
- * AnnotationsMixin: Annotated Statement Execution
+ * Annotated Statement Execution
  *
  * Provides statement execution wrapper with annotation handling.
  * Annotations modify execution behavior (e.g., iteration limits).

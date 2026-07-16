@@ -1,5 +1,5 @@
 /**
- * StreamClosuresMixin: Stream creation, disposal, and inflight tracking
+ * Stream creation, disposal, and inflight tracking
  *
  * Owns the stream lifecycle for script-defined stream closures:
  * - Stream creation from a ScriptCallable with a stream return type
@@ -16,9 +16,9 @@
  * - streamScopeStack: RillStream[][] — per-instance stack; no cross-instance
  *   contamination (AC-17)
  *
- * Cross-mixin dependencies (resolved at runtime via composition):
- * - createCallableContext(callable) — provided by ClosuresMixin
- * - evaluateBodyExpression(body) — provided by ControlFlowMixin (on bodyEvaluator)
+ * Cross-module dependencies:
+ * - createCallableContext(callable) — provided by closures.ts
+ * - evaluateBodyExpression(body) — provided by control-flow.ts (on the body evaluator state)
  *
  * @internal
  */

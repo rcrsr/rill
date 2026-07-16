@@ -1,5 +1,5 @@
 /**
- * ExpressionsMixin: Binary and Unary Expressions
+ * Binary and Unary Expressions
  *
  * Handles arithmetic, comparison, and logical operators.
  * Provides evaluation for binary operations, unary operations, and grouped expressions.

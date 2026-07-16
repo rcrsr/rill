@@ -1,5 +1,5 @@
 /**
- * VariablesMixin: Variable Access and Mutation
+ * Variable Access and Mutation
  *
  * Handles variable access, mutation, and capture operations:
  * - Variable lookup with scope chain traversal
@@ -7,9 +7,9 @@
  * - Capture syntax (:> $name)
  *
  * LIMITATIONS:
- * - Property access chains ($data.field[0]) require AccessMixin
- * - Existence checks (.?field) require AccessMixin
- * - Default values ($data ?? default) require AccessMixin or ControlFlowMixin
+ * - Property access chains ($data.field[0]) require access.ts
+ * - Existence checks (.?field) require access.ts
+ * - Default values ($data ?? default) require access.ts or control-flow.ts
  *
  * Interface requirements (from spec):
  * - setVariable(name, value, explicitType?, location?) -> void
@@ -18,11 +18,11 @@
  * - evaluateCapture(node, input) -> RillValue
  *
  * Depends on:
- * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
+ * - EvalState: ctx; shared.ts: checkAborted(), getNodeLocation()
  * - context utilities: getVariable, hasVariable
  *
  * Extended by:
- * - AccessMixin: Will add property chain evaluation to evaluateVariableAsync
+ * - access.ts: adds property chain evaluation to evaluateVariableAsync
  *
  * Error Handling:
  * - Undefined variables throw RuntimeError(RUNTIME_UNDEFINED_VARIABLE) [EC-8]
@@ -483,7 +483,7 @@ export async function evaluateVariableAsync(
       value = await evaluateFieldAccessAlternatives(s, access, value, node);
     } else if (access.kind === 'annotation') {
       // Annotation reflection: .^key
-      // Delegates to evaluateAnnotationAccess from ClosuresMixin
+      // Delegates to evaluateAnnotationAccess from closures.ts
       // Convert RUNTIME_UNDEFINED_ANNOTATION to null ONLY if defaultValue exists (for ?? coalescing)
       try {
         value = await evaluateAnnotationAccess(
@@ -1037,7 +1037,6 @@ export async function evaluateCapture(
 /**
  * Handle statement capture (public API wrapper).
  * Returns capture info if a capture occurred.
- * This overrides the stub in EvaluatorBase.
  */
 export async function handleCapture(
   s: EvalState,

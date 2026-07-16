@@ -1,5 +1,5 @@
 /**
- * ConversionMixin: `-> type` conversion helpers
+ * `-> type` conversion helpers
  *
  * Converts the pipe value to a target type according to the compatibility
  * matrix. Used by `-> type` (bare type keyword), `-> type(...)` (parameterized

@@ -1,5 +1,5 @@
 /**
- * RecoveryMixin: Guard / Retry Blocks, Status Probes, and Timeout Blocks
+ * Guard / Retry Blocks, Status Probes, and Timeout Blocks
  *
  * Provides evaluator methods for the four recovery-related AST nodes:
  * - `GuardBlock` (`guard { body }` / `guard<on: [...]> { body }`)

@@ -1,5 +1,5 @@
 /**
- * CoreMixin: Main Expression Dispatch
+ * Main Expression Dispatch
  *
  * Provides the main entry points for expression evaluation and dispatches
  * to specialized evaluators based on AST node type.

@@ -1,5 +1,5 @@
 /**
- * ClosuresMixin: closure, host function, method, and invocation evaluation.
+ * Closure, host function, method, and invocation evaluation.
  * @internal
  */
 
@@ -468,7 +468,7 @@ export function evaluateYield(
   throw new YieldSignal(value);
 }
 
-/** Invoke script callable; dispatches stream closures to StreamClosuresMixin. */
+/** Invoke script callable; dispatches stream closures to stream-closures.ts. */
 export async function invokeScriptCallable(
   s: EvalState,
   callable: ScriptCallable,
@@ -960,7 +960,7 @@ export async function evaluatePipePropertyAccess(
   return value;
 }
 
-/** Placeholder; actual variable invoke logic is in VariablesMixin.evaluateVariableAsync. */
+/** Placeholder; actual variable invoke logic is in variables.ts evaluateVariableAsync. */
 export async function evaluateVariableInvoke(
   s: EvalState,
   node: PipeInvokeNode,
@@ -973,7 +973,7 @@ export async function evaluateVariableInvoke(
       fn: 'evaluateVariableInvoke',
     },
     ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    'evaluateVariableInvoke is a placeholder - use evaluateVariableAsync from VariablesMixin'
+    'evaluateVariableInvoke is a placeholder - use evaluateVariableAsync from variables.ts'
   );
 }
 

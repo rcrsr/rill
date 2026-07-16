@@ -1,14 +1,14 @@
 /**
  * Evaluator Shared Utilities
  *
- * Module-level functions extracted from EvaluatorBase. Each function takes
+ * Shared module-level evaluator utilities. Each function takes
  * the evaluator state as its first parameter, replacing `this` access with
  * an explicit `s` argument.
  *
  * @internal
  */
 
-import type { ASTNode, CaptureNode, SourceLocation } from '../../../types.js';
+import type { ASTNode, SourceLocation } from '../../../types.js';
 import { TimeoutError } from '../../../types.js';
 import { isCallable, isDict } from '../callable.js';
 import type { RillCallable } from '../callable.js';
@@ -104,28 +104,8 @@ export function withTimeout<T>(
 }
 
 /**
- * Handle statement capture: set variable and fire observability event.
- * Returns capture info if a capture occurred.
- *
- * NOTE: Stub implementation - actual implementation requires VariablesMixin.
- * This function will only be called after full mixin composition in Phase 4.
- * Phase 1-3 use the functional evaluator which has its own handleCapture.
- */
-export function handleCapture(
-  _s: EvalState,
-  _capture: CaptureNode | null,
-  _value: RillValue
-): Promise<{ name: string; value: RillValue } | undefined> {
-  // AC-13: Intentional raw throw - internal mixin guard, not user-reachable.
-  // This stub only runs if mixin composition is incomplete (programming error).
-  throw new Error(
-    'handleCapture requires full Evaluator composition with VariablesMixin'
-  );
-}
-
-/**
  * Access a field on a dict value with property-style callable auto-invocation.
- * Shared by ClosuresMixin and VariablesMixin for consistent property access.
+ * Shared by closures.ts and variables.ts for consistent property access.
  *
  * @param s - Evaluator state
  * @param value - The dict to access

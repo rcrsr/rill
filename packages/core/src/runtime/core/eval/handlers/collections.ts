@@ -1,12 +1,12 @@
 /**
- * CollectionsMixin: iterable helpers
+ * Iterable helpers
  *
  * Provides exported iterable helper functions:
  * - getIterableElements: expand any iterable to a flat list
  * - expandIterator: drive an iterator protocol to completion
  * - expandStream: drain an async stream to a list
  *
- * The CollectionsMixin class wraps these helpers for evaluator access.
+ * Module functions shared across the evaluator.
  * The evaluate* operator methods (each/map/fold/filter) are removed (IC-3/IC-4).
  *
  * @internal

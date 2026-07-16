@@ -1,5 +1,5 @@
 /**
- * ListDispatchMixin: list[...] Pipe Target Dispatch
+ * list[...] Pipe Target Dispatch
  *
  * Handles `index -> list[v0, v1, ...]` — evaluates the list literal elements,
  * then returns the element at the piped numeric index.

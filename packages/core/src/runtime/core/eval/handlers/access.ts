@@ -1,5 +1,5 @@
 /**
- * AccessMixin: Centralised Access-Halt Gate
+ * Centralised Access-Halt Gate
  *
  * Provides the gate helper that every invalid-value access site routes
  * through. When a RillValue carries a non-`#ok` status sidecar
