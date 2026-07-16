@@ -47,6 +47,67 @@ import {
   RuntimeHaltSignal,
 } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { getNodeLocation, checkAborted } from '../shared.js';
+import {
+  invokeCallable,
+  evaluateMethod,
+  evaluateAnnotationAccess,
+  evaluateHostRef,
+  evaluateHostCall,
+  evaluateYield,
+  evaluatePipePropertyAccess,
+  evaluatePipeInvoke,
+  evaluateClosureCallWithPipe,
+  evaluateClosureCall,
+} from './closures.js';
+import { handleCapture, evaluateVariableAsync } from './variables.js';
+import {
+  evaluateWhileLoop,
+  evaluateDoWhileLoop,
+  evaluateError,
+  evaluateConditional,
+  evaluateBody,
+  evaluateAssert,
+  evaluateBodyExpression,
+} from './control-flow.js';
+import { evaluateUseExpr } from './use.js';
+import {
+  evaluateTypeCheck,
+  evaluateTypeAssertion,
+  evaluateTypeConstructor,
+  evaluateClosureSigLiteral,
+} from './types.js';
+import {
+  evaluateTimeoutBlock,
+  evaluateStatusProbe,
+  evaluateRetryBlock,
+  evaluateGuardBlock,
+} from './recovery.js';
+import {
+  evaluateString,
+  evaluatePassBlock,
+  evaluateDict,
+  dispatchToList,
+  dispatchToDict,
+  createClosure,
+  createBlockClosure,
+  evaluatePass,
+  evaluateDictDispatch,
+} from './literals.js';
+import {
+  evaluateGroupedExpr,
+  evaluateUnaryExpr,
+  evaluateBinaryExpr,
+} from './expressions.js';
+import {
+  evaluateCollectionLiteral,
+  evaluateSlice,
+  evaluateDestructure,
+  evaluateDestruct,
+} from './extraction.js';
+import { applyConversion, applyConstructorConversion } from './conversion.js';
+import { evaluateListLiteralDispatch } from './list-dispatch.js';
+import { evaluateAnnotations } from './annotations.js';
 
 // ============================================================
 // ERROR-ID MATCHER (Fix A: ??)
@@ -84,7 +145,7 @@ export async function evaluateExpression(
   s: EvalState,
   expr: ExpressionNode
 ): Promise<RillValue> {
-  s.checkAborted();
+  checkAborted(s);
   // PartialExpressionNode is produced by parser error recovery for a
   // partially-typed expression fragment. It has no `.head`, so it
   // cannot flow into evaluatePipeChain's switch; surface it as a
@@ -100,7 +161,7 @@ export async function evaluateExpression(
       expr.message
     );
   }
-  return s.evaluatePipeChain(expr);
+  return evaluatePipeChain(s, expr);
 }
 
 /**
@@ -125,13 +186,13 @@ export async function evaluatePipeChain(
   let value: RillValue;
   switch (chain.head.type) {
     case 'BinaryExpr':
-      value = await s.evaluateBinaryExpr(chain.head);
+      value = await evaluateBinaryExpr(s, chain.head);
       break;
     case 'UnaryExpr':
-      value = await s.evaluateUnaryExpr(chain.head);
+      value = await evaluateUnaryExpr(s, chain.head);
       break;
     case 'PostfixExpr':
-      value = await s.evaluatePostfixExpr(chain.head);
+      value = await evaluatePostfixExpr(s, chain.head);
       break;
   }
   s.ctx.pipeValue = value; // OK: local to this chain evaluation
@@ -141,7 +202,7 @@ export async function evaluatePipeChain(
   for (const target of chain.pipes) {
     // Handle inline captures (act as identity: store and pass through)
     if (target.type === 'Capture') {
-      await s.handleCapture(target, value);
+      await handleCapture(s, target, value);
       // Value flows through unchanged
       continue;
     }
@@ -153,7 +214,7 @@ export async function evaluatePipeChain(
     value = accessHaltGateFast(
       value,
       '->',
-      () => s.getNodeLocation(target),
+      () => getNodeLocation(s, target),
       s.ctx.sourceId
     );
 
@@ -180,13 +241,13 @@ export async function evaluatePipeChain(
       // When inside a stream closure body, evaluateYield pushes to the
       // channel and blocks until the consumer pulls (returns Promise<void>).
       // When outside, it throws YieldSignal synchronously.
-      await s.evaluateYield(value, chain.terminator.span.start);
+      await evaluateYield(s, value, chain.terminator.span.start);
       // After yield resumes (stream channel case), restore pipe value
       // and return the yielded value as the chain result
       return value;
     }
     // Capture
-    await s.handleCapture(chain.terminator, value);
+    await handleCapture(s, chain.terminator, value);
   }
 
   // Restore parent's $ - chain result is returned, but $ doesn't leak
@@ -219,22 +280,23 @@ export async function evaluatePostfixExpr(
   expr: PostfixExprNode
 ): Promise<RillValue> {
   try {
-    let value = await s.evaluatePrimary(expr.primary);
+    let value = await evaluatePrimary(s, expr.primary);
 
     for (const method of expr.methods) {
       if (method.type === 'AnnotationAccess') {
-        value = await s.evaluateAnnotationAccess(
+        value = await evaluateAnnotationAccess(
+          s,
           value,
           method.key,
           method.span.start
         );
       } else {
-        value = await s.evaluateMethod(method, value);
+        value = await evaluateMethod(s, method, value);
       }
     }
 
     if (expr.defaultValue !== null && isInvalid(value)) {
-      return s.evaluateBody(expr.defaultValue);
+      return evaluateBody(s, expr.defaultValue);
     }
 
     return value;
@@ -260,7 +322,7 @@ export async function evaluatePostfixExpr(
           ERROR_ATOMS[ERROR_IDS.RILL_R008]
         )
       ) {
-        return s.evaluateBody(expr.defaultValue);
+        return evaluateBody(s, expr.defaultValue);
       }
     }
     // All other errors propagate
@@ -290,7 +352,7 @@ export async function evaluatePrimary(
 ): Promise<RillValue> {
   switch (primary.type) {
     case 'StringLiteral': {
-      const { value } = await s.evaluateString(primary);
+      const { value } = await evaluateString(s, primary);
       return value;
     }
 
@@ -301,27 +363,27 @@ export async function evaluatePrimary(
       return primary.value;
 
     case 'Dict':
-      return s.evaluateDict(primary);
+      return evaluateDict(s, primary);
 
     case 'Closure':
-      return await s.createClosure(primary);
+      return await createClosure(s, primary);
 
     case 'Variable':
-      return s.evaluateVariableAsync(primary);
+      return evaluateVariableAsync(s, primary);
 
     case 'HostCall':
-      return s.evaluateHostCall(primary);
+      return evaluateHostCall(s, primary);
 
     case 'HostRef':
-      return s.evaluateHostRef(primary);
+      return evaluateHostRef(s, primary);
 
     case 'AnnotatedExpr': {
       // Set immediateAnnotation before evaluating the inner primary so
       // createClosure() can consume it via captureClosureAnnotations [IR-5].
-      const annots = await s.evaluateAnnotations(primary.annotations);
+      const annots = await evaluateAnnotations(s, primary.annotations);
       s.ctx.immediateAnnotation = annots;
       try {
-        const innerResult = await s.evaluatePrimary(primary.expression);
+        const innerResult = await evaluatePrimary(s, primary.expression);
         if (!isScriptCallable(innerResult)) {
           // Non-closure: annotation silently ignored [EC-5]
           s.ctx.immediateAnnotation = undefined;
@@ -335,7 +397,7 @@ export async function evaluatePrimary(
     }
 
     case 'ClosureCall':
-      return s.evaluateClosureCall(primary);
+      return evaluateClosureCall(s, primary);
 
     case 'MethodCall':
       if (s.ctx.pipeValue === null) {
@@ -350,37 +412,37 @@ export async function evaluatePrimary(
           { variable: '$' }
         );
       }
-      return s.evaluateMethod(primary, s.ctx.pipeValue);
+      return evaluateMethod(s, primary, s.ctx.pipeValue);
 
     case 'Conditional':
-      return s.evaluateConditional(primary);
+      return evaluateConditional(s, primary);
 
     case 'WhileLoop':
-      return s.evaluateWhileLoop(primary);
+      return evaluateWhileLoop(s, primary);
 
     case 'DoWhileLoop':
-      return s.evaluateDoWhileLoop(primary);
+      return evaluateDoWhileLoop(s, primary);
 
     case 'Block':
-      return s.createBlockClosure(primary);
+      return createBlockClosure(s, primary);
 
     case 'GroupedExpr':
-      return s.evaluateGroupedExpr(primary);
+      return evaluateGroupedExpr(s, primary);
 
     case 'Assert':
-      return s.evaluateAssert(primary);
+      return evaluateAssert(s, primary);
 
     case 'Error':
-      return s.evaluateError(primary);
+      return evaluateError(s, primary);
 
     case 'Pass':
-      return s.evaluatePass(primary);
+      return evaluatePass(s, primary);
 
     case 'PassBlock':
-      return s.evaluatePassBlock(primary);
+      return evaluatePassBlock(s, primary);
 
     case 'TimeoutBlock':
-      return s.evaluateTimeoutBlock(primary);
+      return evaluateTimeoutBlock(s, primary);
 
     case 'TypeAssertion': {
       // Postfix type assertion: the operand is already evaluated
@@ -398,8 +460,8 @@ export async function evaluatePrimary(
           'host'
         );
       }
-      const assertValue = await s.evaluatePostfixExpr(primary.operand);
-      return s.evaluateTypeAssertion(primary, assertValue);
+      const assertValue = await evaluatePostfixExpr(s, primary.operand);
+      return evaluateTypeAssertion(s, primary, assertValue);
     }
 
     case 'TypeCheck': {
@@ -418,8 +480,8 @@ export async function evaluatePrimary(
           'host'
         );
       }
-      const checkValue = await s.evaluatePostfixExpr(primary.operand);
-      return s.evaluateTypeCheck(primary, checkValue);
+      const checkValue = await evaluatePostfixExpr(s, primary.operand);
+      return evaluateTypeCheck(s, primary, checkValue);
     }
 
     case 'TypeNameExpr':
@@ -443,28 +505,28 @@ export async function evaluatePrimary(
       });
 
     case 'TypeConstructor':
-      return s.evaluateTypeConstructor(primary);
+      return evaluateTypeConstructor(s, primary);
 
     case 'ClosureSigLiteral':
-      return s.evaluateClosureSigLiteral(primary);
+      return evaluateClosureSigLiteral(s, primary);
 
     case 'ListLiteral':
     case 'DictLiteral':
     case 'TupleLiteral':
     case 'OrderedLiteral':
-      return s.evaluateCollectionLiteral(primary);
+      return evaluateCollectionLiteral(s, primary);
 
     case 'UseExpr':
-      return s.evaluateUseExpr(primary);
+      return evaluateUseExpr(s, primary);
 
     case 'GuardBlock':
-      return s.evaluateGuardBlock(primary);
+      return evaluateGuardBlock(s, primary);
 
     case 'RetryBlock':
-      return s.evaluateRetryBlock(primary);
+      return evaluateRetryBlock(s, primary);
 
     case 'StatusProbe':
-      return s.evaluateStatusProbe(primary);
+      return evaluateStatusProbe(s, primary);
 
     case 'AtomLiteral':
       // Atom literals (`#NAME`) resolve via the atom registry. Unregistered
@@ -479,7 +541,10 @@ export async function evaluatePrimary(
       // EC-12 / EC-14: a RecoveryErrorNode reached runtime produces an
       // invalid value with code `#R001`. Parse-recovery emitted the node;
       // execution surfaces it as an invalid per FR-ERR-4.
-      const site = formatAccessSite(s.getNodeLocation(primary), s.ctx.sourceId);
+      const site = formatAccessSite(
+        getNodeLocation(s, primary),
+        s.ctx.sourceId
+      );
       return invalidate(
         {},
         {
@@ -494,7 +559,7 @@ export async function evaluatePrimary(
     default:
       throwTypeHalt(
         {
-          location: s.getNodeLocation(primary),
+          location: getNodeLocation(s, primary),
           sourceId: s.ctx.sourceId,
           fn: 'primary',
         },
@@ -524,51 +589,56 @@ export async function evaluatePipeTarget(
     case 'HostCall':
       // Pass inPipeTarget=true so the IR-8 unified pipe-binding rule
       // applies: auto-prepend fires when no top-level `$` is in args.
-      return s.evaluateHostCall(target, true);
+      return evaluateHostCall(s, target, true);
 
     case 'HostRef':
       // pipeValue is already set to input above; evaluateHostRef invokes
       // with it when pipeValue is non-null [IR-4].
-      return s.evaluateHostRef(target);
+      return evaluateHostRef(s, target);
 
     case 'ClosureCall':
-      return s.evaluateClosureCallWithPipe(target, input);
+      return evaluateClosureCallWithPipe(s, target, input);
 
     case 'PipeInvoke':
-      return s.evaluatePipeInvoke(target, input);
+      return evaluatePipeInvoke(s, target, input);
 
     case 'MethodCall':
-      return s.evaluateMethod(target, input);
+      return evaluateMethod(s, target, input);
 
     case 'Conditional':
-      return s.evaluateConditional(target);
+      return evaluateConditional(s, target);
 
     case 'WhileLoop':
-      return s.evaluateWhileLoop(target);
+      return evaluateWhileLoop(s, target);
 
     case 'DoWhileLoop':
-      return s.evaluateDoWhileLoop(target);
+      return evaluateDoWhileLoop(s, target);
 
     case 'Block': {
       // Create block-closure then invoke with input as $
-      const closure = s.createBlockClosure(target);
-      return s.invokeCallable(closure, [input], s.getNodeLocation(target));
+      const closure = createBlockClosure(s, target);
+      return invokeCallable(s, closure, [input], getNodeLocation(s, target));
     }
 
     case 'Closure': {
       // Inline closure: create and invoke
-      const closure = await s.createClosure(target);
+      const closure = await createClosure(s, target);
 
       // Per closure-semantics spec: check params.length to determine invocation style
       if (closure.params.length > 0) {
         // Has params: invoke with input as first argument
-        return s.invokeCallable(closure, [input], s.getNodeLocation(target));
+        return invokeCallable(s, closure, [input], getNodeLocation(s, target));
       } else {
         // Zero-param closure: invoke with args = [] and pipeValue = input
         const savedPipeValue = s.ctx.pipeValue;
         s.ctx.pipeValue = input;
         try {
-          return await s.invokeCallable(closure, [], s.getNodeLocation(target));
+          return await invokeCallable(
+            s,
+            closure,
+            [],
+            getNodeLocation(s, target)
+          );
         } finally {
           s.ctx.pipeValue = savedPipeValue;
         }
@@ -576,7 +646,7 @@ export async function evaluatePipeTarget(
     }
 
     case 'StringLiteral': {
-      const { value } = await s.evaluateString(target);
+      const { value } = await evaluateString(s, target);
       return value;
     }
 
@@ -584,60 +654,62 @@ export async function evaluatePipeTarget(
       // Hierarchical dispatch: detect list input (not tuple)
       if (Array.isArray(input) && !isTuple(input)) {
         // Evaluate dict literal first, then dispatch through path
-        const dictValue = await s.evaluateDict(target);
-        return await s.evaluateHierarchicalDispatch(
+        const dictValue = await evaluateDict(s, target);
+        return await evaluateHierarchicalDispatch(
+          s,
           dictValue,
           input,
           target.defaultValue ?? undefined,
-          s.getNodeLocation(target)
+          getNodeLocation(s, target)
         );
       }
       // Dict dispatch: lookup key matching piped value
-      return s.evaluateDictDispatch(target, input);
+      return evaluateDictDispatch(s, target, input);
     }
 
     case 'GroupedExpr':
-      return s.evaluateGroupedExpr(target);
+      return evaluateGroupedExpr(s, target);
 
     case 'Destructure':
-      return s.evaluateDestructure(target, input);
+      return evaluateDestructure(s, target, input);
 
     case 'Destruct':
       // Keyword-based destruct<$a, $b, ...> form [IR-26]
-      return s.evaluateDestruct(target, input);
+      return evaluateDestruct(s, target, input);
 
     case 'ListLiteral': {
       // Hierarchical dispatch: detect list input (not tuple)
       if (Array.isArray(input) && !isTuple(input)) {
         // Evaluate list literal first, then dispatch through path
-        const listValue = await s.evaluateCollectionLiteral(target);
-        return await s.evaluateHierarchicalDispatch(
+        const listValue = await evaluateCollectionLiteral(s, target);
+        return await evaluateHierarchicalDispatch(
+          s,
           listValue,
           input,
           target.defaultValue ?? undefined,
-          s.getNodeLocation(target)
+          getNodeLocation(s, target)
         );
       }
       // list[...] as pipe target: index-based dispatch [IR-11]
-      return s.evaluateListLiteralDispatch(target, input);
+      return evaluateListLiteralDispatch(s, target, input);
     }
 
     case 'Slice':
-      return s.evaluateSlice(target, input);
+      return evaluateSlice(s, target, input);
 
     case 'TypeAssertion':
-      return s.evaluateTypeAssertion(target, input);
+      return evaluateTypeAssertion(s, target, input);
 
     case 'TypeCheck':
-      return s.evaluateTypeCheck(target, input);
+      return evaluateTypeCheck(s, target, input);
 
     case 'Variable': {
       // $.field is property access on pipe value, not closure invocation
       if (target.isPipeVar && !target.name && target.accessChain.length > 0) {
-        return s.evaluatePipePropertyAccess(target, input);
+        return evaluatePipePropertyAccess(s, target, input);
       }
       // Variable in pipe chain: evaluate and invoke if callable
-      const value = await s.evaluateVariableAsync(target);
+      const value = await evaluateVariableAsync(s, target);
       // If value is callable, invoke it with the pipe input
       // Per closure-semantics spec: check params.length to determine invocation style
       if (isCallable(value)) {
@@ -650,16 +722,17 @@ export async function evaluatePipeTarget(
 
         if (hasParams) {
           // Block-closure: invoke with input as argument
-          return s.invokeCallable(value, [input], s.getNodeLocation(target));
+          return invokeCallable(s, value, [input], getNodeLocation(s, target));
         } else {
           // Zero-param closure: invoke with args = [] and pipeValue = input
           const savedPipeValue = s.ctx.pipeValue;
           s.ctx.pipeValue = input;
           try {
-            const result = await s.invokeCallable(
+            const result = await invokeCallable(
+              s,
               value,
               [],
-              s.getNodeLocation(target)
+              getNodeLocation(s, target)
             );
             return result;
           } finally {
@@ -674,7 +747,7 @@ export async function evaluatePipeTarget(
       // checks, since RillTypeValue is a plain object that isDict() would
       // otherwise match.
       if (isTypeValue(value)) {
-        return s.applyConversion(input, value.typeName, target);
+        return applyConversion(s, input, value.typeName, target);
       }
 
       // Variable dispatch: if value is dict or list, dispatch into it
@@ -682,23 +755,24 @@ export async function evaluatePipeTarget(
       const defaultVal: BodyNode | null = target.defaultValue;
       if (Array.isArray(input) && !isTuple(input)) {
         if (isDict(value) || (Array.isArray(value) && !isTuple(value))) {
-          return await s.evaluateHierarchicalDispatch(
+          return await evaluateHierarchicalDispatch(
+            s,
             value,
             input,
             defaultVal ?? undefined,
-            s.getNodeLocation(target)
+            getNodeLocation(s, target)
           );
         }
       }
 
       if (Array.isArray(value) && !isTuple(value)) {
         // List dispatch
-        return await s.dispatchToList(value, input, defaultVal, target);
+        return await dispatchToList(s, value, input, defaultVal, target);
       }
 
       if (isDict(value)) {
         // Dict dispatch
-        return await s.dispatchToDict(value, input, defaultVal, target);
+        return await dispatchToDict(s, value, input, defaultVal, target);
       }
 
       // Non-dispatchable type in pipe context - error
@@ -710,7 +784,7 @@ export async function evaluatePipeTarget(
           : typeof value;
       return throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(target),
+          location: getNodeLocation(s, target),
           sourceId: s.ctx.sourceId,
           fn: 'evaluatePipeChain',
         },
@@ -725,57 +799,58 @@ export async function evaluatePipeTarget(
       let value = input;
       for (const method of target.methods) {
         if (method.type === 'AnnotationAccess') {
-          value = await s.evaluateAnnotationAccess(
+          value = await evaluateAnnotationAccess(
+            s,
             value,
             method.key,
             method.span.start
           );
         } else {
-          value = await s.evaluateMethod(method, value);
+          value = await evaluateMethod(s, method, value);
         }
       }
       return value;
     }
 
     case 'AnnotationAccess':
-      return s.evaluateAnnotationAccess(input, target.key, target.span.start);
+      return evaluateAnnotationAccess(s, input, target.key, target.span.start);
 
     case 'Assert':
-      return s.evaluateAssert(target, input);
+      return evaluateAssert(s, target, input);
 
     case 'Error':
-      return s.evaluateError(target, input);
+      return evaluateError(s, target, input);
 
     case 'TypeNameExpr': {
       // Pipe target: `-> type` (bare type keyword). Delegate directly to
       // applyConversion, which enforces the full conversion compatibility
       // matrix (no-op short-circuits, RILL-R036, RILL-R037, etc.).
-      return s.applyConversion(input, target.typeName, target);
+      return applyConversion(s, input, target.typeName, target);
     }
 
     case 'TypeConstructor': {
       // Pipe target: `-> type(...)` (parameterized type constructor).
       // Delegate to applyConstructorConversion, which handles structural
       // signatures (dict/ordered/tuple with fields) and uniform types.
-      return s.applyConstructorConversion(input, target, target);
+      return applyConstructorConversion(s, input, target, target);
     }
 
     case 'UseExpr':
-      return s.evaluateUseExpr(target);
+      return evaluateUseExpr(s, target);
 
     case 'PassBlock':
       // pipeValue is already set to input above; evaluatePassBlock returns
       // the original pipe value unchanged (suppressing catchable halts per
       // on_error option).
-      return s.evaluatePassBlock(target);
+      return evaluatePassBlock(s, target);
 
     case 'TimeoutBlock':
-      return s.evaluateTimeoutBlock(target);
+      return evaluateTimeoutBlock(s, target);
 
     default:
       throwTypeHalt(
         {
-          location: s.getNodeLocation(target),
+          location: getNodeLocation(s, target),
           sourceId: s.ctx.sourceId,
           fn: '->',
         },
@@ -826,16 +901,16 @@ export async function evaluateHierarchicalDispatch(
     for (let i = 0; i < path.length - 1; i++) {
       // Bounds-checked loop: path[i] is always defined
       const key = path[i]!;
-      current = await s.traversePathStep(current, key, false, location);
+      current = await traversePathStep(s, current, key, false, location);
     }
 
     // Handle last element separately for terminal closure support
     // path.length > 0 is guaranteed above so this index is always valid
     lastKey = path[path.length - 1]!;
-    const result = await s.traversePathStep(current, lastKey, true, location);
+    const result = await traversePathStep(s, current, lastKey, true, location);
 
     // Resolve terminal value (handles terminal closures with $ = lastKey)
-    return await s.resolveTerminalValue(result, lastKey, location);
+    return await resolveTerminalValue(s, result, lastKey, location);
   } catch (error) {
     // Handle missing key/index errors with default value. After the Phase 2
     // halt-builder migration, traversePathStep throws RuntimeHaltSignal with
@@ -849,7 +924,7 @@ export async function evaluateHierarchicalDispatch(
       )
     ) {
       if (defaultExpr) {
-        return await s.evaluateBodyExpression(defaultExpr);
+        return await evaluateBodyExpression(s, defaultExpr);
       }
       // No default - re-throw original error
       throw error;
@@ -892,7 +967,8 @@ export async function traversePathStep(
       span?: { start: SourceLocation; end: SourceLocation };
     } = {};
     if (location) locObj.span = { start: location, end: location };
-    const result = await s.dispatchToDict(
+    const result = await dispatchToDict(
+      s,
       current,
       key,
       null, // No default value for intermediate steps
@@ -902,7 +978,7 @@ export async function traversePathStep(
 
     // Non-terminal closures must be resolved via resolveIntermediateClosure
     if (!isTerminal && isCallable(result)) {
-      return await s.resolveIntermediateClosure(result, location);
+      return await resolveIntermediateClosure(s, result, location);
     }
 
     // Terminal closures will be handled by evaluateHierarchicalDispatch
@@ -917,7 +993,8 @@ export async function traversePathStep(
       span?: { start: SourceLocation; end: SourceLocation };
     } = {};
     if (location) locObj.span = { start: location, end: location };
-    const result = await s.dispatchToList(
+    const result = await dispatchToList(
+      s,
       current,
       key,
       null, // No default value for intermediate steps
@@ -927,7 +1004,7 @@ export async function traversePathStep(
 
     // Non-terminal closures must be resolved via resolveIntermediateClosure
     if (!isTerminal && isCallable(result)) {
-      return await s.resolveIntermediateClosure(result, location);
+      return await resolveIntermediateClosure(s, result, location);
     }
 
     // Terminal closures will be handled by evaluateHierarchicalDispatch
@@ -998,7 +1075,7 @@ export async function resolveIntermediateClosure(
   }
 
   // Zero-param closure or block-closure: auto-invoke with args = []
-  return await s.invokeCallable(value, [], location);
+  return await invokeCallable(s, value, [], location);
 }
 
 /**
@@ -1056,13 +1133,13 @@ export async function resolveTerminalValue(
 
   if (hasParams) {
     // Block-closure or application callable with params: invoke with finalKey as argument
-    return await s.invokeCallable(value, [finalKey], location);
+    return await invokeCallable(s, value, [finalKey], location);
   } else {
     // Zero-param closure: invoke with pipeValue = finalKey
     const savedPipeValue = s.ctx.pipeValue;
     s.ctx.pipeValue = finalKey;
     try {
-      const result = await s.invokeCallable(value, [], location);
+      const result = await invokeCallable(s, value, [], location);
       return result;
     } finally {
       s.ctx.pipeValue = savedPipeValue;
