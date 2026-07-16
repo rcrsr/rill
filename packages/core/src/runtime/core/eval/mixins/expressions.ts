@@ -37,6 +37,8 @@ import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
 import { STATUS_SYM, type RillStatus } from '../../types/status.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { invokeCallable } from './closures.js';
+import { evaluatePostfixExpr, evaluatePipeChain } from './core.js';
 
 /**
  * Find the type registration for a value by type name.
@@ -82,7 +84,7 @@ export async function resolveExpressionValue(
       ? []
       : [s.ctx.pipeValue];
 
-  return await s.invokeCallable(value, args, undefined);
+  return await invokeCallable(s, value, args, undefined);
 }
 
 /**
@@ -364,7 +366,7 @@ export async function evaluateExprHead(
     case 'UnaryExpr':
       return evaluateUnaryExpr(s, node);
     case 'PostfixExpr':
-      return s.evaluatePostfixExpr(node);
+      return evaluatePostfixExpr(s, node);
   }
 }
 
@@ -381,7 +383,7 @@ export async function evaluateGroupedExpr(
   const savedCtx = s.ctx;
   s.ctx = childCtx;
   try {
-    return await s.evaluatePipeChain(node.expression);
+    return await evaluatePipeChain(s, node.expression);
   } finally {
     s.ctx = savedCtx;
   }
