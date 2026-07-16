@@ -56,6 +56,9 @@ import { throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { RuntimeContext, TimeoutScheduler } from '../../types/runtime.js';
 import { ControlSignal } from '../../signals.js';
+import { getNodeLocation } from '../shared.js';
+import { evaluateBody } from './control-flow.js';
+import { evaluateExpression } from './core.js';
 
 // ============================================================
 // AC-B2: Minimum retry attempts (engineer-consistent choice)
@@ -123,11 +126,11 @@ export async function evaluateGuardBlock(
 ): Promise<RillValue> {
   const onCodes = resolveOnCodes(node.onCodes);
   try {
-    return await s.evaluateBody(node.body);
+    return await evaluateBody(s, node.body);
   } catch (e) {
     if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
       const frame = createTraceFrame({
-        site: formatAccessSite(s.getNodeLocation(node), s.ctx.sourceId),
+        site: formatAccessSite(getNodeLocation(s, node), s.ctx.sourceId),
         kind: 'guard-caught',
         fn: 'guard',
       });
@@ -161,7 +164,7 @@ export async function evaluateRetryBlock(
   // value carries a single `guard-caught` frame so traces still
   // reflect that recovery was attempted and no body ran.
   if (node.attempts < RETRY_MIN_ATTEMPTS) {
-    const site = formatAccessSite(s.getNodeLocation(node), s.ctx.sourceId);
+    const site = formatAccessSite(getNodeLocation(s, node), s.ctx.sourceId);
     // Empty-dict base carries the sidecar; primitives cannot hold
     // status metadata (status.ts#attachStatus) so the invalid
     // fallback materialises as `{}` with an attached `#R001` status.
@@ -183,11 +186,11 @@ export async function evaluateRetryBlock(
   let lastInvalid: RillValue | undefined;
   for (let attempt = 0; attempt < node.attempts; attempt++) {
     try {
-      return await s.evaluateBody(node.body);
+      return await evaluateBody(s, node.body);
     } catch (e) {
       if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
         const frame = createTraceFrame({
-          site: formatAccessSite(s.getNodeLocation(node), s.ctx.sourceId),
+          site: formatAccessSite(getNodeLocation(s, node), s.ctx.sourceId),
           kind: 'guard-caught',
           fn: 'retry',
         });
@@ -228,7 +231,7 @@ export async function evaluateStatusProbe(
   s: EvalState,
   node: StatusProbeNode
 ): Promise<RillValue> {
-  const target = await s.evaluateExpression(node.target);
+  const target = await evaluateExpression(s, node.target);
   const status = getStatus(target);
 
   if (node.field === undefined) {
@@ -295,12 +298,12 @@ export async function evaluateTimeoutBlock(
   node: TimeoutBlockNode
 ): Promise<RillValue> {
   // Evaluate the duration expression and validate its type [EC-3].
-  const durationValue = await s.evaluateExpression(node.duration);
+  const durationValue = await evaluateExpression(s, node.duration);
 
   if (!isDuration(durationValue)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'timeout',
       },
@@ -328,7 +331,7 @@ export async function evaluateTimeoutBlock(
   (s.ctx as { signal: AbortSignal | undefined }).signal = chainedSignal;
 
   const site = {
-    location: s.getNodeLocation(node),
+    location: getNodeLocation(s, node),
     sourceId: s.ctx.sourceId,
     fn: 'timeout',
   };
@@ -361,7 +364,7 @@ export async function evaluateTimeoutBlock(
       });
     }
 
-    const result = await s.evaluateBody(node.body);
+    const result = await evaluateBody(s, node.body);
 
     // The body may complete after the timer fires (e.g. host code
     // ignores ctx.signal). Surface the timeout halt rather than the
