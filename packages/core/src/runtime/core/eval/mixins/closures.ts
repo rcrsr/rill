@@ -76,6 +76,19 @@ import {
 } from '../../types/halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import {
+  getNodeLocation,
+  checkAborted,
+  withTimeout,
+  accessDictField,
+} from '../shared.js';
+import { evaluateExpression } from './core.js';
+import { evaluateBodyExpression } from './control-flow.js';
+import { assertType } from './types.js';
+import {
+  trackStream,
+  invokeStreamClosure,
+} from '../invocation/stream-closures.js';
 
 // ============================================================
 // IR-8: CLOSURE-SKIPPING PIPE-RULE SCANNER
@@ -206,7 +219,7 @@ export async function evaluateArgs(
   for (const arg of argExprs) {
     const isSpread = arg.type === 'SpreadArg';
     const expr = isSpread ? arg.expression : arg;
-    const evaluated = await s.evaluateExpression(expr);
+    const evaluated = await evaluateExpression(s, expr);
     let gated: RillValue;
     if (
       evaluated !== null &&
@@ -232,7 +245,7 @@ export async function invokeCallable(
   functionName?: string,
   internal?: boolean
 ): Promise<RillValue> {
-  s.checkAborted();
+  checkAborted(s);
 
   if (internal === true) {
     let result: RillValue;
@@ -248,7 +261,7 @@ export async function invokeCallable(
       );
     }
     if (isStream(result)) {
-      s.trackStream(result as RillStream);
+      trackStream(s, result as RillStream);
     }
     return result;
   }
@@ -265,7 +278,7 @@ export async function invokeCallable(
       functionName
     );
     if (isStream(result)) {
-      s.trackStream(result as RillStream);
+      trackStream(s, result as RillStream);
     }
     return result;
   }
@@ -284,7 +297,7 @@ export async function invokeCallable(
     );
   }
   if (isStream(result)) {
-    s.trackStream(result as RillStream);
+    trackStream(s, result as RillStream);
   }
   return result;
 }
@@ -465,7 +478,7 @@ export async function invokeScriptCallable(
   callLocation?: SourceLocation
 ): Promise<RillValue> {
   if (callable.returnType.structure.kind === 'stream') {
-    return s.invokeStreamClosure(callable, args, callLocation);
+    return invokeStreamClosure(s, callable, args, callLocation);
   }
   return invokeRegularScriptCallable(s, callable, args, callLocation);
 }
@@ -519,9 +532,9 @@ export async function invokeRegularScriptCallable(
   const savedCtx = s.ctx;
   s.ctx = callableCtx;
   try {
-    const result = await s.evaluateBodyExpression(callable.body);
+    const result = await evaluateBodyExpression(s, callable.body);
     if (callable.returnType.typeName !== 'any') {
-      s.assertType(result, callable.returnType.structure, callLocation);
+      assertType(s, result, callable.returnType.structure, callLocation);
     }
     return result;
   } catch (e) {
@@ -610,13 +623,13 @@ export async function evaluateHostCall(
   node: HostCallNode,
   inPipeTarget = false
 ): Promise<RillValue> {
-  s.checkAborted(node);
+  checkAborted(s, node);
 
   const fn = s.ctx.functions.get(node.name);
   if (!fn) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateHostCall',
       },
@@ -634,7 +647,7 @@ export async function evaluateHostCall(
     if (isUntypedBuiltin) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateHostCall',
         },
@@ -647,7 +660,7 @@ export async function evaluateHostCall(
       node.args,
       fn,
       s.ctx.pipeValue ?? undefined,
-      (expr) => s.evaluateExpression(expr),
+      (expr) => evaluateExpression(s, expr),
       node.span.start
     );
     const orderedArgs = fn.params!.map((p) => boundArgs.params.get(p.name)!);
@@ -656,7 +669,8 @@ export async function evaluateHostCall(
       args: orderedArgs,
     });
     const startTime = performance.now();
-    const result = await s.withTimeout(
+    const result = await withTimeout(
+      s,
       invokeCallable(s, fn, orderedArgs, node.span.start, node.name),
       s.ctx.timeout,
       node.name,
@@ -710,7 +724,7 @@ export async function evaluateHostCall(
           node.name
         )
       : invokeCallable(s, fn, args, node.span.start, node.name);
-  const result = await s.withTimeout(invoke, s.ctx.timeout, node.name, node);
+  const result = await withTimeout(s, invoke, s.ctx.timeout, node.name, node);
   s.ctx.observability.onFunctionReturn?.({
     name: node.name,
     value: result,
@@ -724,13 +738,13 @@ export async function evaluateHostRef(
   s: EvalState,
   node: HostRefNode
 ): Promise<RillValue> {
-  s.checkAborted(node);
+  checkAborted(s, node);
 
   const fn = s.ctx.functions.get(node.name);
   if (!fn) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateHostRef',
       },
@@ -765,7 +779,7 @@ export async function evaluateHostRef(
     s,
     appCallable,
     args,
-    s.getNodeLocation(node),
+    getNodeLocation(s, node),
     node.name
   );
 }
@@ -788,7 +802,7 @@ export async function evaluateClosureCallWithPipe(
   if (value === undefined || value === null) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateClosureCallWithPipe',
       },
@@ -803,7 +817,7 @@ export async function evaluateClosureCallWithPipe(
     if (value === null) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateClosureCallWithPipe',
         },
@@ -816,7 +830,7 @@ export async function evaluateClosureCallWithPipe(
       if (value === undefined || value === null) {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateClosureCallWithPipe',
           },
@@ -827,7 +841,7 @@ export async function evaluateClosureCallWithPipe(
     } else {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateClosureCallWithPipe',
         },
@@ -843,7 +857,7 @@ export async function evaluateClosureCallWithPipe(
   if (!isCallable(value)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateClosureCallWithPipe',
       },
@@ -858,7 +872,7 @@ export async function evaluateClosureCallWithPipe(
     if (!isScriptCallable(closure) && !isApplicationCallable(closure)) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateClosureCallWithPipe',
         },
@@ -870,7 +884,7 @@ export async function evaluateClosureCallWithPipe(
       closure,
       node.args,
       pipeInput,
-      (expr) => s.evaluateExpression(expr),
+      (expr) => evaluateExpression(s, expr),
       node.span.start
     );
     const orderedArgs = closure.params!.map(
@@ -905,7 +919,7 @@ export async function evaluatePipePropertyAccess(
     if (value === null) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluatePipePropertyAccess',
         },
@@ -917,7 +931,7 @@ export async function evaluatePipePropertyAccess(
     if ('accessKind' in access) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluatePipePropertyAccess',
         },
@@ -928,11 +942,11 @@ export async function evaluatePipePropertyAccess(
 
     if (access.kind === 'literal') {
       const field = access.field;
-      value = await s.accessDictField(value, field, s.getNodeLocation(node));
+      value = await accessDictField(s, value, field, getNodeLocation(s, node));
     } else {
       throwFatalHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluatePipePropertyAccess',
         },
@@ -943,7 +957,7 @@ export async function evaluatePipePropertyAccess(
   }
 
   if (value === null && node.defaultValue) {
-    value = await s.evaluateBodyExpression(node.defaultValue);
+    value = await evaluateBodyExpression(s, node.defaultValue);
   }
   return value;
 }
@@ -956,7 +970,7 @@ export async function evaluateVariableInvoke(
 ): Promise<RillValue> {
   throwFatalHostHalt(
     {
-      location: s.getNodeLocation(node),
+      location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
       fn: 'evaluateVariableInvoke',
     },
@@ -974,7 +988,7 @@ export async function evaluatePipeInvoke(
   if (!isScriptCallable(input)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluatePipeInvoke',
       },
@@ -988,7 +1002,7 @@ export async function evaluatePipeInvoke(
       node.args,
       input,
       s.ctx.pipeValue ?? undefined,
-      (expr) => s.evaluateExpression(expr),
+      (expr) => evaluateExpression(s, expr),
       node.span.start
     );
     const orderedArgs = input.params.map((p) => boundArgs.params.get(p.name)!);
@@ -1009,7 +1023,7 @@ export async function evaluateMethod(
   node: MethodCallNode | InvokeNode,
   receiver: RillValue
 ): Promise<RillValue> {
-  s.checkAborted(node);
+  checkAborted(s, node);
 
   if (node.type === 'Invoke') {
     return evaluateInvoke(s, node, receiver);
@@ -1017,7 +1031,7 @@ export async function evaluateMethod(
   if (isCallable(receiver)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateMethod',
       },
@@ -1040,7 +1054,7 @@ export async function evaluateMethod(
   const typeDict = s.ctx.typeMethodDicts.get(typeName);
   const typeMethod = typeDict?.[node.name];
   if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
-    const callLocation = s.getNodeLocation(node);
+    const callLocation = getNodeLocation(s, node);
     const effectiveArgs = [receiver, ...args];
     let methodArgs: Record<string, RillValue>;
     if (typeMethod.params === undefined) {
@@ -1082,7 +1096,7 @@ export async function evaluateMethod(
         s,
         dictValue,
         args,
-        s.getNodeLocation(node),
+        getNodeLocation(s, node),
         node.name
       );
     }
@@ -1098,7 +1112,7 @@ export async function evaluateMethod(
   if (isTypeValue(receiver)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateMethod',
       },
@@ -1117,7 +1131,7 @@ export async function evaluateMethod(
     if (supportedTypes.length > 0) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateMethod',
         },
@@ -1144,12 +1158,12 @@ export async function evaluateMethod(
           const result = fallbackMethod.fn(
             fbMethodArgs,
             s.ctx,
-            s.getNodeLocation(node)
+            getNodeLocation(s, node)
           );
           return result instanceof Promise ? await result : result;
         } catch (e) {
           // Enrichment site 4: fallback-method boundary (IR-4, AC-NOD-4).
-          const callLocation = s.getNodeLocation(node);
+          const callLocation = getNodeLocation(s, node);
           if (e instanceof RuntimeHaltSignal) {
             const enriched = appendTraceFrame(
               e.value,
@@ -1168,7 +1182,7 @@ export async function evaluateMethod(
   }
   throwCatchableHostHalt(
     {
-      location: s.getNodeLocation(node),
+      location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
       fn: 'evaluateMethod',
     },
@@ -1190,7 +1204,7 @@ export async function evaluateInvoke(
   if (!isCallable(receiver)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateInvoke',
       },
@@ -1204,7 +1218,7 @@ export async function evaluateInvoke(
     if (!isScriptCallable(receiver) && !isApplicationCallable(receiver)) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateInvoke',
         },
@@ -1216,7 +1230,7 @@ export async function evaluateInvoke(
       node.args,
       receiver,
       s.ctx.pipeValue ?? undefined,
-      (expr) => s.evaluateExpression(expr),
+      (expr) => evaluateExpression(s, expr),
       node.span.start
     );
     const orderedArgs = receiver.params!.map(
@@ -1225,7 +1239,7 @@ export async function evaluateInvoke(
     return invokeCallable(s, receiver, orderedArgs, node.span.start);
   }
   const args = await evaluateArgs(s, node.args);
-  return invokeCallable(s, receiver, args, s.getNodeLocation(node));
+  return invokeCallable(s, receiver, args, getNodeLocation(s, node));
 }
 
 /** Evaluate annotation reflection access: .^key on callables, type values, and streams. */
