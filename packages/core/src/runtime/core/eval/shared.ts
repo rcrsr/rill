@@ -21,6 +21,7 @@ import {
 } from '../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 import type { EvalState } from './state.js';
+import { invokeCallable } from './mixins/closures.js';
 
 /**
  * Get source location from an AST node.
@@ -169,7 +170,7 @@ export async function accessDictField(
       // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
       // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
       const args = dictValue.kind === 'script' ? [] : [value];
-      return await s.invokeCallable(dictValue as RillCallable, args, location);
+      return await invokeCallable(s, dictValue as RillCallable, args, location);
     }
   }
 
