@@ -25,11 +25,39 @@ MERGE_BASE=$(git merge-base "$BASE_REF" HEAD)
 echo "Comparing tests against ${BASE_REF} (merge-base ${MERGE_BASE:0:7})"
 
 # 1. Tracked test files must be byte-identical to the base ref.
-if ! git diff --quiet "$MERGE_BASE" -- packages/core/tests/language/; then
+#
+# Documented exception (2026-07-15, Phase 6 of the evaluator migration):
+# three files imported RuntimeHaltSignal via eval/mixins/access.js, a path
+# retired by the mixins -> handlers rename. They are re-pointed at the
+# canonical types/halt.js. For these files ONLY that single import line may
+# differ from the base ref; any other change still fails.
+EXEMPT_FILES=(
+  packages/core/tests/language/guard-retry.test.ts
+  packages/core/tests/language/pass-async.test.ts
+  packages/core/tests/language/typed-atom-migration.test.ts
+)
+EXCLUDE_SPECS=()
+for f in "${EXEMPT_FILES[@]}"; do
+  EXCLUDE_SPECS+=(":(exclude)$f")
+done
+if ! git diff --quiet "$MERGE_BASE" -- packages/core/tests/language/ "${EXCLUDE_SPECS[@]}"; then
   echo "FAIL: test files differ from ${BASE_REF}:"
-  git diff --stat "$MERGE_BASE" -- packages/core/tests/language/
+  git diff --stat "$MERGE_BASE" -- packages/core/tests/language/ "${EXCLUDE_SPECS[@]}"
   exit 1
 fi
+for f in "${EXEMPT_FILES[@]}"; do
+  CHANGED=$(git diff -U0 "$MERGE_BASE" -- "$f" | grep -E '^[+-][^+-]' || true)
+  if [ -z "$CHANGED" ]; then
+    continue # file identical to base ref; exemption unused
+  fi
+  EXPECTED_REMOVED="-import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js';"
+  EXPECTED_ADDED="+import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';"
+  if [ "$CHANGED" != "$EXPECTED_REMOVED"$'\n'"$EXPECTED_ADDED" ]; then
+    echo "FAIL: $f diff exceeds the documented RuntimeHaltSignal import exemption:"
+    echo "$CHANGED"
+    exit 1
+  fi
+done
 
 # 2. No untracked files may appear inside the test tree.
 UNTRACKED=$(git ls-files --others --exclude-standard packages/core/tests/language/)
@@ -38,7 +66,7 @@ if [ -n "$UNTRACKED" ]; then
   echo "$UNTRACKED"
   exit 1
 fi
-echo "OK: packages/core/tests/language/ identical to ${BASE_REF}"
+echo "OK: packages/core/tests/language/ matches ${BASE_REF} (RuntimeHaltSignal import exemption only)"
 
 # 3. Full suite: everything passes, nothing skipped, count at or above baseline.
 SUITE_OUT=$(cd packages/core && npx vitest run 2>&1) || {
