@@ -58,6 +58,15 @@ import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { accessHaltGateFast } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { getNodeLocation, accessDictField } from '../shared.js';
+import { evaluateBody } from './control-flow.js';
+import { evaluatePipeChain } from './core.js';
+import {
+  evaluateParamsProperty,
+  evaluateMethod,
+  evaluateAnnotationAccess,
+} from './closures.js';
+import { resolveTypeRef } from './types.js';
 
 /**
  * Set a variable with type checking.
@@ -180,7 +189,7 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
     if (s.ctx.pipeValue === null) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateVariable',
         },
@@ -198,7 +207,7 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
     if (result === undefined) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateVariable',
         },
@@ -213,7 +222,7 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
   // Should not reach here - all variable nodes have either isPipeVar or name
   throwCatchableHostHalt(
     {
-      location: s.getNodeLocation(node),
+      location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
       fn: 'evaluateVariable',
     },
@@ -240,7 +249,7 @@ export async function evaluateVariableAsync(
     if (s.ctx.pipeValue === null) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateVariableAsync',
         },
@@ -256,7 +265,7 @@ export async function evaluateVariableAsync(
     if (result === undefined) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateVariableAsync',
         },
@@ -269,7 +278,7 @@ export async function evaluateVariableAsync(
   } else {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateVariableAsync',
       },
@@ -286,12 +295,12 @@ export async function evaluateVariableAsync(
     if (isVacant(value)) {
       // Use default value if available
       if (node.defaultValue) {
-        return s.evaluateBody(node.defaultValue);
+        return evaluateBody(s, node.defaultValue);
       }
       if (value === null) {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateVariableAsync',
           },
@@ -304,7 +313,7 @@ export async function evaluateVariableAsync(
       value = accessHaltGateFast(
         value,
         '.',
-        () => s.getNodeLocation(node),
+        () => getNodeLocation(s, node),
         s.ctx.sourceId
       );
     }
@@ -318,7 +327,7 @@ export async function evaluateVariableAsync(
       if (!isPipeChainNode(access.expression)) {
         throwFatalHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateVariableAsync',
           },
@@ -326,13 +335,13 @@ export async function evaluateVariableAsync(
           'Bracket access expression must be a pipe chain'
         );
       }
-      const indexValue = await s.evaluatePipeChain(access.expression);
+      const indexValue = await evaluatePipeChain(s, access.expression);
 
       if (Array.isArray(value)) {
         if (typeof indexValue !== 'number') {
           throwCatchableHostHalt(
             {
-              location: s.getNodeLocation(node),
+              location: getNodeLocation(s, node),
               sourceId: s.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
@@ -349,7 +358,7 @@ export async function evaluateVariableAsync(
         if (result === undefined) {
           throwCatchableHostHalt(
             {
-              location: s.getNodeLocation(node),
+              location: getNodeLocation(s, node),
               sourceId: s.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
@@ -362,7 +371,7 @@ export async function evaluateVariableAsync(
         if (typeof indexValue !== 'string') {
           throwCatchableHostHalt(
             {
-              location: s.getNodeLocation(node),
+              location: getNodeLocation(s, node),
               sourceId: s.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
@@ -374,7 +383,7 @@ export async function evaluateVariableAsync(
         if (result === undefined) {
           throwCatchableHostHalt(
             {
-              location: s.getNodeLocation(node),
+              location: getNodeLocation(s, node),
               sourceId: s.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
@@ -386,7 +395,7 @@ export async function evaluateVariableAsync(
       } else {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateVariableAsync',
           },
@@ -403,9 +412,10 @@ export async function evaluateVariableAsync(
       // Handle .params property on closures
       if (field === 'params') {
         if (isCallable(value)) {
-          value = await s.evaluateParamsProperty(
+          value = await evaluateParamsProperty(
+            s,
             value,
-            s.getNodeLocation(node)
+            getNodeLocation(s, node)
           );
         } else {
           // .params on non-callable: throw or return null based on default value
@@ -414,7 +424,7 @@ export async function evaluateVariableAsync(
           } else {
             throwCatchableHostHalt(
               {
-                location: s.getNodeLocation(node),
+                location: getNodeLocation(s, node),
                 sourceId: s.ctx.sourceId,
                 fn: 'evaluateVariableAsync',
               },
@@ -436,7 +446,7 @@ export async function evaluateVariableAsync(
           receiverSpan: null,
           span: node.span,
         };
-        value = await s.evaluateMethod(methodNode, value);
+        value = await evaluateMethod(s, methodNode, value);
       } else if (isTypeValue(value)) {
         if (field === 'name') {
           value = value.typeName;
@@ -445,7 +455,7 @@ export async function evaluateVariableAsync(
         } else {
           throwCatchableHostHalt(
             {
-              location: s.getNodeLocation(node),
+              location: getNodeLocation(s, node),
               sourceId: s.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
@@ -457,10 +467,11 @@ export async function evaluateVariableAsync(
         // Allow missing fields if there's a default value or existence check
         const allowMissing =
           node.defaultValue !== null || node.existenceCheck !== null;
-        value = await s.accessDictField(
+        value = await accessDictField(
+          s,
           value,
           field,
-          s.getNodeLocation(node),
+          getNodeLocation(s, node),
           allowMissing
         );
       } else {
@@ -477,10 +488,11 @@ export async function evaluateVariableAsync(
       // Delegates to evaluateAnnotationAccess from ClosuresMixin
       // Convert RUNTIME_UNDEFINED_ANNOTATION to null ONLY if defaultValue exists (for ?? coalescing)
       try {
-        value = await s.evaluateAnnotationAccess(
+        value = await evaluateAnnotationAccess(
+          s,
           value,
           access.key,
-          s.getNodeLocation(node)
+          getNodeLocation(s, node)
         );
       } catch (e) {
         // After the Phase 2 halt-builder migration, evaluateAnnotationAccess
@@ -503,7 +515,7 @@ export async function evaluateVariableAsync(
       // Other field access types (block)
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateVariableAsync',
         },
@@ -523,7 +535,8 @@ export async function evaluateVariableAsync(
     // Helper: check type match using structural resolution (EC-4: mismatch returns false)
     const matchesType = async (fieldValue: RillValue): Promise<boolean> => {
       if (typeRef === null) return true;
-      const resolved = await s.resolveTypeRef(
+      const resolved = await resolveTypeRef(
+        s,
         typeRef,
         (name: string) => getVariable(s.ctx, name) as RillValue
       );
@@ -562,7 +575,7 @@ export async function evaluateVariableAsync(
         const varName = finalAccess.variableName ?? '$';
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateExistenceCheck',
           },
@@ -577,7 +590,7 @@ export async function evaluateVariableAsync(
         if (typeof keyValue !== 'string') {
           throwCatchableHostHalt(
             {
-              location: s.getNodeLocation(node),
+              location: getNodeLocation(s, node),
               sourceId: s.ctx.sourceId,
               fn: 'evaluateExistenceCheck',
             },
@@ -616,7 +629,7 @@ export async function evaluateVariableAsync(
       if (!isPipeChainNode(finalAccess.expression)) {
         throwFatalHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateExistenceCheck',
           },
@@ -624,13 +637,13 @@ export async function evaluateVariableAsync(
           'Existence check computed key expression must be a pipe chain'
         );
       }
-      const keyValue = await s.evaluatePipeChain(finalAccess.expression);
+      const keyValue = await evaluatePipeChain(s, finalAccess.expression);
 
       // EC-11: Computed key non-string
       if (typeof keyValue !== 'string') {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateExistenceCheck',
           },
@@ -658,7 +671,7 @@ export async function evaluateVariableAsync(
     // For other access kinds (block, alternatives, annotation), not supported
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateExistenceCheck',
       },
@@ -692,7 +705,7 @@ export async function evaluateVariableAsync(
           ? value === null || isInvalid(value)
           : isVacant(value);
     if (trigger) {
-      return s.evaluateBody(node.defaultValue);
+      return evaluateBody(s, node.defaultValue);
     }
   }
 
@@ -727,7 +740,7 @@ export async function evaluateFieldAccessVariable(
     if (keyValue === undefined) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateFieldAccessVariable',
         },
@@ -741,7 +754,7 @@ export async function evaluateFieldAccessVariable(
     if (keyValue === undefined) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateFieldAccessVariable',
         },
@@ -755,7 +768,7 @@ export async function evaluateFieldAccessVariable(
   if (typeof keyValue === 'boolean') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateFieldAccessVariable',
       },
@@ -766,7 +779,7 @@ export async function evaluateFieldAccessVariable(
   if (Array.isArray(keyValue)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateFieldAccessVariable',
       },
@@ -779,10 +792,11 @@ export async function evaluateFieldAccessVariable(
   if (typeof keyValue === 'string') {
     if (isDict(value)) {
       // Allow missing fields to return null
-      return await s.accessDictField(
+      return await accessDictField(
+        s,
         value,
         keyValue,
-        s.getNodeLocation(node),
+        getNodeLocation(s, node),
         true
       );
     }
@@ -807,7 +821,7 @@ export async function evaluateFieldAccessVariable(
   // Other types (dict, closure) - fall through to type error
   throwCatchableHostHalt(
     {
-      location: s.getNodeLocation(node),
+      location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
       fn: 'evaluateFieldAccessVariable',
     },
@@ -843,7 +857,7 @@ export async function evaluateFieldAccessComputed(
   if (!isPipeChainNode(access.expression)) {
     throwFatalHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateFieldAccessComputed',
       },
@@ -851,13 +865,13 @@ export async function evaluateFieldAccessComputed(
       'Computed field access expression must be a pipe chain'
     );
   }
-  const keyValue = await s.evaluatePipeChain(access.expression);
+  const keyValue = await evaluatePipeChain(s, access.expression);
 
   // EC-4: Expression result is closure
   if (isCallable(keyValue)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateFieldAccessComputed',
       },
@@ -870,7 +884,7 @@ export async function evaluateFieldAccessComputed(
   if (isDict(keyValue)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateFieldAccessComputed',
       },
@@ -883,7 +897,7 @@ export async function evaluateFieldAccessComputed(
   if (typeof keyValue === 'boolean') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateFieldAccessComputed',
       },
@@ -894,7 +908,7 @@ export async function evaluateFieldAccessComputed(
   if (Array.isArray(keyValue)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateFieldAccessComputed',
       },
@@ -907,10 +921,11 @@ export async function evaluateFieldAccessComputed(
   if (typeof keyValue === 'string') {
     if (isDict(value)) {
       // Allow missing fields to return null
-      return await s.accessDictField(
+      return await accessDictField(
+        s,
         value,
         keyValue,
-        s.getNodeLocation(node),
+        getNodeLocation(s, node),
         true
       );
     }
@@ -935,7 +950,7 @@ export async function evaluateFieldAccessComputed(
   // Shouldn't reach here due to exhaustive type checks above
   throwCatchableHostHalt(
     {
-      location: s.getNodeLocation(node),
+      location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
       fn: 'evaluateFieldAccessComputed',
     },
@@ -968,7 +983,7 @@ export async function evaluateFieldAccessAlternatives(
   if (!isDict(value)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateFieldAccessAlternatives',
       },
@@ -982,7 +997,13 @@ export async function evaluateFieldAccessAlternatives(
     const dictValue = (value as Record<string, RillValue>)[key];
     if (dictValue !== undefined && dictValue !== null) {
       // Use base class method for consistent property-style callable handling
-      return await s.accessDictField(value, key, s.getNodeLocation(node), true);
+      return await accessDictField(
+        s,
+        value,
+        key,
+        getNodeLocation(s, node),
+        true
+      );
     }
   }
 
@@ -1002,7 +1023,8 @@ export async function evaluateCapture(
 ): Promise<RillValue> {
   if (node.typeRef !== null) {
     // Resolve TypeRef and validate against the declared type
-    const resolved = await s.resolveTypeRef(
+    const resolved = await resolveTypeRef(
+      s,
       node.typeRef,
       (name: string) => getVariable(s.ctx, name) as RillValue
     );
