@@ -72,6 +72,16 @@ import type { RuntimeContext } from '../../types/runtime.js';
 import { createChildContext, getVariable } from '../../context.js';
 import { getEvaluator } from '../evaluator.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { getNodeLocation } from '../shared.js';
+import {
+  evaluateExpression,
+  evaluatePipeChain,
+  evaluatePrimary,
+} from './core.js';
+import { evaluateBodyExpression } from './control-flow.js';
+import { invokeCallable } from './closures.js';
+import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
+import { evaluateListLiteralElements } from './extraction.js';
 
 /**
  * Capture annotation context at closure creation time.
@@ -240,7 +250,7 @@ export async function evaluatePassBlock(
   const pipeBefore = s.ctx.pipeValue;
 
   // Evaluate options dict to determine suppression and async dispatch mode.
-  const opts = await s.evaluateDict(node.options);
+  const opts = await evaluateDict(s, node.options);
 
   const onErrorValue = opts['on_error'];
   const suppress =
@@ -254,7 +264,7 @@ export async function evaluatePassBlock(
   if (asyncValue !== undefined && typeof asyncValue !== 'boolean') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluatePassBlock',
       },
@@ -342,12 +352,12 @@ export async function evaluateString(
       // InterpolationNode: evaluate the expression
       // Restore pipeValue before each interpolation so they all see the same value
       s.ctx.pipeValue = savedPipeValue;
-      const value = await s.evaluateExpression(part.expression);
+      const value = await evaluateExpression(s, part.expression);
       // Vector coercion guard [EC-31]
       if (isVector(value)) {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(part),
+            location: getNodeLocation(s, part),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateString',
           },
@@ -377,7 +387,7 @@ export async function evaluateTuple(
   for (const elem of node.elements) {
     if (elem.type === 'ListSpread') {
       const spreadNode = elem as ListSpreadNode;
-      const spreadValue = await s.evaluateExpression(spreadNode.expression);
+      const spreadValue = await evaluateExpression(s, spreadNode.expression);
       if (Array.isArray(spreadValue)) {
         elements.push(...spreadValue);
       } else {
@@ -393,7 +403,7 @@ export async function evaluateTuple(
         );
       }
     } else {
-      elements.push(await s.evaluateExpression(elem));
+      elements.push(await evaluateExpression(s, elem));
     }
   }
   // Validate homogeneity: all elements must share the same structural type [C-1]
@@ -410,7 +420,8 @@ export async function evaluateDictMultiKeyFromList(
   value: ExpressionNode
 ): Promise<Array<[string, RillValue]>> {
   // Evaluate list elements to get keys
-  const keys: RillValue[] = await s.evaluateListLiteralElements(
+  const keys: RillValue[] = await evaluateListLiteralElements(
+    s,
     keyList.elements
   );
 
@@ -453,7 +464,7 @@ export async function evaluateDictMultiKeyFromList(
       'evaluateDictMultiKeyFromList'
     );
     const blockNode = head.primary as BlockNode;
-    evaluatedValue = s.createBlockClosure(blockNode);
+    evaluatedValue = createBlockClosure(s, blockNode);
   } else if (isClosureExpr(value)) {
     const head = requirePipeChainHead(
       value,
@@ -461,9 +472,9 @@ export async function evaluateDictMultiKeyFromList(
       'evaluateDictMultiKeyFromList'
     );
     const fnLit = head.primary as ClosureNode;
-    evaluatedValue = await s.createClosure(fnLit);
+    evaluatedValue = await createClosure(s, fnLit);
   } else {
-    evaluatedValue = await s.evaluateExpression(value);
+    evaluatedValue = await evaluateExpression(s, value);
   }
 
   // Create entry for each key
@@ -553,7 +564,7 @@ export async function evaluateDict(
               'evaluateDict'
             );
             const blockNode = head.primary as BlockNode;
-            const closure = s.createBlockClosure(blockNode);
+            const closure = createBlockClosure(s, blockNode);
             result[stringKey] = closure;
           } else if (isClosureExpr(entry.value)) {
             const head = requirePipeChainHead(
@@ -562,10 +573,10 @@ export async function evaluateDict(
               'evaluateDict'
             );
             const fnLit = head.primary as ClosureNode;
-            const closure = await s.createClosure(fnLit);
+            const closure = await createClosure(s, fnLit);
             result[stringKey] = closure;
           } else {
-            result[stringKey] = await s.evaluateExpression(entry.value);
+            result[stringKey] = await evaluateExpression(s, entry.value);
           }
 
           continue;
@@ -588,7 +599,7 @@ export async function evaluateDict(
               'Computed dict key expression must be a pipe chain'
             );
           }
-          const computedValue = await s.evaluatePipeChain(keyObj.expression);
+          const computedValue = await evaluatePipeChain(s, keyObj.expression);
 
           // EC-8: Computed key must evaluate to string
           if (typeof computedValue !== 'string') {
@@ -630,7 +641,7 @@ export async function evaluateDict(
               'evaluateDict'
             );
             const blockNode = head.primary as BlockNode;
-            const closure = s.createBlockClosure(blockNode);
+            const closure = createBlockClosure(s, blockNode);
             result[stringKey] = closure;
           } else if (isClosureExpr(entry.value)) {
             const head = requirePipeChainHead(
@@ -639,10 +650,10 @@ export async function evaluateDict(
               'evaluateDict'
             );
             const fnLit = head.primary as ClosureNode;
-            const closure = await s.createClosure(fnLit);
+            const closure = await createClosure(s, fnLit);
             result[stringKey] = closure;
           } else {
-            result[stringKey] = await s.evaluateExpression(entry.value);
+            result[stringKey] = await evaluateExpression(s, entry.value);
           }
 
           continue;
@@ -698,15 +709,15 @@ export async function evaluateDict(
     if (isBlockExpr(entry.value)) {
       const head = requirePipeChainHead(entry.value, s.ctx, 'evaluateDict');
       const blockNode = head.primary as BlockNode;
-      const closure = s.createBlockClosure(blockNode);
+      const closure = createBlockClosure(s, blockNode);
       result[stringKey] = closure;
     } else if (isClosureExpr(entry.value)) {
       const head = requirePipeChainHead(entry.value, s.ctx, 'evaluateDict');
       const fnLit = head.primary as ClosureNode;
-      const closure = await s.createClosure(fnLit);
+      const closure = await createClosure(s, fnLit);
       result[stringKey] = closure;
     } else {
-      result[stringKey] = await s.evaluateExpression(entry.value);
+      result[stringKey] = await evaluateExpression(s, entry.value);
     }
   }
 
@@ -769,7 +780,8 @@ export async function evaluateDictDispatch(
         );
       }
       // ListLiteralNode key - evaluate to get list of candidates
-      const keyValue = await s.evaluateListLiteralElements(
+      const keyValue = await evaluateListLiteralElements(
+        s,
         (entry.key as ListLiteralNode).elements
       );
 
@@ -788,14 +800,14 @@ export async function evaluateDictDispatch(
 
     if (matchFound) {
       // Found match - evaluate and return the value
-      const matchedValue = await s.evaluateExpression(entry.value);
+      const matchedValue = await evaluateExpression(s, entry.value);
       return resolveDispatchValue(s, matchedValue, input, node);
     }
   }
 
   // No match found - check for default value
   if (node.defaultValue) {
-    return await s.evaluateBodyExpression(node.defaultValue);
+    return await evaluateBodyExpression(s, node.defaultValue);
   }
 
   // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND [EC-4]
@@ -851,7 +863,7 @@ export async function evaluateListDispatch(
   if (normalizedIndex < 0 || normalizedIndex >= elements.length) {
     // Check for default value
     if (node.defaultValue) {
-      return await s.evaluateBodyExpression(node.defaultValue);
+      return await evaluateBodyExpression(s, node.defaultValue);
     }
 
     // No default - throw EC-16 out-of-bounds error
@@ -912,13 +924,13 @@ export async function resolveDispatchValue(
     if (hasParams) {
       // Application callable with params: invoke with input as argument
       // Note: Script callables with params already threw error above
-      return await s.invokeCallable(value, [input], node.span?.start);
+      return await invokeCallable(s, value, [input], node.span?.start);
     } else {
       // Zero-param closure: invoke with args = [] and pipeValue = input
       const savedPipeValue = s.ctx.pipeValue;
       s.ctx.pipeValue = input;
       try {
-        const result = await s.invokeCallable(value, [], node.span?.start);
+        const result = await invokeCallable(s, value, [], node.span?.start);
         return result;
       } finally {
         s.ctx.pipeValue = savedPipeValue;
@@ -964,7 +976,7 @@ export async function dispatchToDict(
 
   // No match found - check for default value
   if (defaultValue) {
-    return await s.evaluateBodyExpression(defaultValue);
+    return await evaluateBodyExpression(s, defaultValue);
   }
 
   // No match and no default - throw error
@@ -1022,7 +1034,7 @@ export async function dispatchToList(
   if (normalizedIndex < 0 || normalizedIndex >= list.length) {
     // Check for default value
     if (defaultValue) {
-      return await s.evaluateBodyExpression(defaultValue);
+      return await evaluateBodyExpression(s, defaultValue);
     }
 
     // No default - throw error
@@ -1070,13 +1082,13 @@ export async function resolveDispatchValueRuntime(
 
     if (hasParams) {
       // Block-closure: invoke with input as argument
-      return await s.invokeCallable(value, [input], location.span?.start);
+      return await invokeCallable(s, value, [input], location.span?.start);
     } else {
       // Zero-param closure: invoke with args = [] and pipeValue = input
       const savedPipeValue = s.ctx.pipeValue;
       s.ctx.pipeValue = input;
       try {
-        const result = await s.invokeCallable(value, [], location.span?.start);
+        const result = await invokeCallable(s, value, [], location.span?.start);
         return result;
       } finally {
         s.ctx.pipeValue = savedPipeValue;
@@ -1107,7 +1119,7 @@ export async function createClosure(
   for (const param of node.params) {
     let defaultValue: RillValue | undefined = undefined;
     if (param.defaultValue) {
-      defaultValue = await s.evaluatePrimary(param.defaultValue);
+      defaultValue = await evaluatePrimary(s, param.defaultValue);
     }
 
     // Resolve typeRef at closure-creation time (AC-12).
@@ -1115,7 +1127,7 @@ export async function createClosure(
     // so the closure captures the concrete type, not the variable reference.
     let resolvedType: TypeStructure | undefined = undefined;
     if (param.typeRef !== null) {
-      const resolved = await s.resolveTypeRef(param.typeRef, (name: string) =>
+      const resolved = await resolveTypeRef(s, param.typeRef, (name: string) =>
         getVariable(s.ctx, name)
       );
       if (!isTypeValue(resolved)) {
@@ -1176,9 +1188,10 @@ export async function createClosure(
       'type' in node.returnTypeTarget &&
       node.returnTypeTarget.type === 'TypeConstructor'
     ) {
-      returnType = await s.evaluateTypeConstructor(node.returnTypeTarget);
+      returnType = await evaluateTypeConstructor(s, node.returnTypeTarget);
     } else {
-      returnType = await s.resolveTypeRef(
+      returnType = await resolveTypeRef(
+        s,
         node.returnTypeTarget as TypeRef,
         (name: string) => getVariable(s.ctx, name)
       );
