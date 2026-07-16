@@ -2,7 +2,9 @@
  * Shared Protocol Utilities
  *
  * Cross-type helpers used by per-type protocol modules.
- * Must NOT import from ../registrations.js to avoid circular dependencies (AC-4).
+ * Must NOT import from ../registrations.js to avoid circular dependencies (AC-4),
+ * nor from ../operations.js, which imports registrations.js and so closes the
+ * same cycle one hop out. String quoting comes from the ../format-string.js leaf.
  *
  * Late-binding initializers wire up dispatch functions after registrations.ts
  * builds its dispatcher. Call initFormatNested and initDeepEquals once during
@@ -17,7 +19,7 @@
 
 import type { RillValue } from '../structures.js';
 import { RuntimeError } from '../../../../types.js';
-import { formatRillLiteral } from '../operations.js';
+import { quoteRillString } from '../format-string.js';
 import {
   isCallable,
   isTuple,
@@ -35,7 +37,7 @@ import { ERROR_IDS } from '../../../../error-registry.js';
 
 /**
  * Late-bound dispatcher: formats a nested value inside a container.
- * Strings are quoted via formatRillLiteral; other values delegate to formatValue.
+ * Strings are quoted via quoteRillString; other values delegate to formatValue.
  *
  * Wired by initFormatNested(formatValue) after registrations.ts builds the
  * formatValue dispatcher. Until then, calling formatNested throws at runtime.
@@ -51,7 +53,7 @@ export function initFormatNested(fn: (v: RillValue) => string): void {
  * Mirrors the local formatNested behavior used in registrations.ts.
  */
 export function formatNested(v: RillValue): string {
-  if (typeof v === 'string') return formatRillLiteral(v);
+  if (typeof v === 'string') return quoteRillString(v);
   if (_formatNested === undefined) {
     throw new Error(
       'formatNested called before initFormatNested: bootstrap order violation'

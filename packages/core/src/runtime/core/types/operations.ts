@@ -32,6 +32,7 @@ import {
   deepEquals as registryDeepEquals,
 } from './registrations.js';
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
+import { quoteRillString } from './format-string.js';
 import { ERROR_IDS } from '../../../error-registry.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker) */
@@ -196,10 +197,7 @@ function normalizeStructure(ts: TypeStructure): TypeStructure {
 
 /** Format a RillValue as a rill literal for use in type signatures. */
 export function formatRillLiteral(value: RillValue): string {
-  if (typeof value === 'string') {
-    const escaped = value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `"${escaped}"`;
-  }
+  if (typeof value === 'string') return quoteRillString(value);
   if (typeof value === 'number') return String(value);
   if (typeof value === 'boolean') return value ? 'true' : 'false';
   if (value === null) return 'null';

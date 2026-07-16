@@ -6,7 +6,8 @@
  *
  * Import constraints:
  * - Imports from ./structures.js and ./guards.js
- * - No imports from values.ts or callable.ts
+ * - No imports from values.ts or callable.ts. The callable() factory comes from
+ *   ../callable-factory.js, a leaf, because callable.ts imports this module.
  */
 
 import type {
@@ -26,7 +27,7 @@ import {
   isTypeValue,
   isVector,
 } from './guards.js';
-import { callable } from '../callable.js';
+import { callable } from '../callable-factory.js';
 import { RuntimeError } from '../../../types.js';
 import { ERROR_IDS } from '../../../error-registry.js';
 
