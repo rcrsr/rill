@@ -56,7 +56,7 @@ import { getStatus, invalidate } from './types/status.js';
 import { atomName, registerErrorCode } from './types/atom-registry.js';
 import { RuntimeHaltSignal, throwFatalHostHalt } from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
-import { formatAccessSite } from './eval/mixins/access.js';
+import { formatAccessSite } from './eval/handlers/access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 
 // ============================================================

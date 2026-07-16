@@ -22,8 +22,8 @@ import {
   checkAborted as checkAbortedState,
   checkAutoExceptions as checkAutoExceptionsState,
 } from './shared.js';
-import { executeStatement as executeStatementState } from './mixins/annotations.js';
-import { invokeCallable as invokeCallableState } from './mixins/closures.js';
+import { executeStatement as executeStatementState } from './handlers/annotations.js';
+import { invokeCallable as invokeCallableState } from './handlers/closures.js';
 
 /**
  * Check if execution has been aborted via AbortSignal.

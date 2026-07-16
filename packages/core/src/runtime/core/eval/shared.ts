@@ -21,7 +21,7 @@ import {
 } from '../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 import type { EvalState } from './state.js';
-import { invokeCallable } from './mixins/closures.js';
+import { invokeCallable } from './handlers/closures.js';
 
 /**
  * Get source location from an AST node.

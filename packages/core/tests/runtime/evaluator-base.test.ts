@@ -427,7 +427,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('AC-10: halt trace frame includes a site string', async () => {
         const { RuntimeHaltSignal } =
-          await import('../../src/runtime/core/eval/mixins/access.js');
+          await import('../../src/runtime/core/eval/handlers/access.js');
         const { getStatus } =
           await import('../../src/runtime/core/types/status.js');
         let caught: unknown;

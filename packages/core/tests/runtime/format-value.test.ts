@@ -43,7 +43,7 @@ import {
 } from '@rcrsr/rill';
 import { run, runFull, createLogCollector } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
-import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js';
+import { RuntimeHaltSignal } from '../../src/runtime/core/eval/handlers/access.js';
 
 // ============================================================
 // Shared test fixtures

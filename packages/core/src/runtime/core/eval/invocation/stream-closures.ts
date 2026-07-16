@@ -41,8 +41,8 @@ import { ReturnSignal } from '../../signals.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { getEvalState } from '../state.js';
 import type { EvalState } from '../state.js';
-import { evaluateBodyExpression } from '../mixins/control-flow.js';
-import { createCallableContext } from '../mixins/closures.js';
+import { evaluateBodyExpression } from '../handlers/control-flow.js';
+import { createCallableContext } from '../handlers/closures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================

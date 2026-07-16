@@ -18,7 +18,7 @@ import { getEvalState } from '../../src/runtime/core/eval/state.js';
 import {
   getAnnotation,
   getIterationLimit,
-} from '../../src/runtime/core/eval/mixins/annotations.js';
+} from '../../src/runtime/core/eval/handlers/annotations.js';
 
 describe('getEvalState', () => {
   it('returns the same EvalState instance for the same context', () => {

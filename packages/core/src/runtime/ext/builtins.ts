@@ -50,11 +50,11 @@ import { BreakSignal, ControlSignal } from '../core/signals.js';
 import { createChildContext } from '../core/context.js';
 import { registerBuiltinFunctions } from '../core/builtin-registry.js';
 
-import { getIterableElements } from '../core/eval/mixins/collections.js';
+import { getIterableElements } from '../core/eval/handlers/collections.js';
 import { getEvalState } from '../core/eval/state.js';
 import type { EvalState } from '../core/eval/state.js';
 import { checkAborted } from '../core/eval/shared.js';
-import { invokeCallable as invokeCallableState } from '../core/eval/mixins/closures.js';
+import { invokeCallable as invokeCallableState } from '../core/eval/handlers/closures.js';
 import { ERROR_IDS } from '../../error-registry.js';
 
 /**
