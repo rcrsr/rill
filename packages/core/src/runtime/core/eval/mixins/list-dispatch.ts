@@ -26,6 +26,9 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { getNodeLocation } from '../shared.js';
+import { evaluateBody } from './control-flow.js';
+import { evaluateExpression } from './core.js';
 
 /**
  * Evaluate list[...] as a pipe target [IR-11].
@@ -43,7 +46,7 @@ export async function evaluateListLiteralDispatch(
   if (typeof input !== 'number') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateListLiteralDispatch',
       },
@@ -57,7 +60,7 @@ export async function evaluateListLiteralDispatch(
   if (!Number.isInteger(input)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateListLiteralDispatch',
       },
@@ -78,11 +81,11 @@ export async function evaluateListLiteralDispatch(
   if (normalizedIndex < 0 || normalizedIndex >= elements.length) {
     // Use default value if provided via ??
     if (node.defaultValue) {
-      return await s.evaluateBody(node.defaultValue);
+      return await evaluateBody(s, node.defaultValue);
     }
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateListLiteralDispatch',
       },
@@ -106,7 +109,7 @@ export async function evaluateListLiteralElements(
   for (const elem of rawElements) {
     if (elem.type === 'ListSpread') {
       // Spread: ...$other — expand collection inline
-      const spreadValue = await s.evaluateExpression(elem.expression);
+      const spreadValue = await evaluateExpression(s, elem.expression);
       if (Array.isArray(spreadValue)) {
         result.push(...spreadValue);
       } else {
@@ -122,7 +125,7 @@ export async function evaluateListLiteralElements(
         );
       }
     } else {
-      result.push(await s.evaluateExpression(elem));
+      result.push(await evaluateExpression(s, elem));
     }
   }
   // Validate homogeneity: all elements must share the same structural type
