@@ -61,16 +61,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Enable Corepack
-        run: corepack enable
-
-      - uses: actions/setup-node@v5
-        with:
-          node-version: '24'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
+      # --diff-only needs git only: it locks tests/language/ against the merge
+      # base. The suite itself is already covered by the check job above.
       - name: Run test parity lock
-        run: bash scripts/check-test-parity.sh
+        run: bash scripts/check-test-parity.sh --diff-only
