@@ -78,7 +78,9 @@ fi
 echo "OK: packages/core/tests/language/ matches ${BASE_REF} (RuntimeHaltSignal import exemption only)"
 
 # 3. Full suite: everything passes, nothing skipped, count at or above baseline.
-SUITE_OUT=$(cd packages/core && pnpm vitest run 2>&1) || {
+# `pnpm test` (not bare `pnpm vitest run`) so the pretest hook regenerates
+# src/generated/version-data.ts on a fresh checkout.
+SUITE_OUT=$(cd packages/core && pnpm test 2>&1) || {
   echo "$SUITE_OUT" | tail -30
   echo "FAIL: test suite failed"
   exit 1
