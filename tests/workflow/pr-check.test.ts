@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
+import type { WorkflowStep } from './workflow-types.js';
 
 const ROOT_DIR = join(__dirname, '..', '..');
 const WORKFLOW_FILE = join(ROOT_DIR, '.github', 'workflows', 'pr-check.yml');
@@ -45,7 +46,7 @@ describe('PR Check Workflow', () => {
       const steps = workflow?.jobs?.check?.steps;
       expect(steps).toBeDefined();
 
-      const corepackStep = steps?.find((step: any) =>
+      const corepackStep = steps?.find((step: WorkflowStep) =>
         step.run?.includes('corepack enable')
       );
 
@@ -57,7 +58,7 @@ describe('PR Check Workflow', () => {
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.check?.steps;
-      const setupNodeStep = steps?.find((step: any) =>
+      const setupNodeStep = steps?.find((step: WorkflowStep) =>
         step.uses?.startsWith('actions/setup-node@')
       );
 
@@ -95,7 +96,7 @@ describe('PR Check Workflow', () => {
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.check?.steps;
-      const setupNodeStep = steps?.find((step: any) =>
+      const setupNodeStep = steps?.find((step: WorkflowStep) =>
         step.uses?.startsWith('actions/setup-node@')
       );
 

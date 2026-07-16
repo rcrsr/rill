@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { parse as parseYaml } from 'yaml';
+import type { WorkflowStep } from './workflow-types.js';
 
 const ROOT_DIR = join(__dirname, '..', '..');
 const WORKFLOW_FILE = join(ROOT_DIR, '.github', 'workflows', 'release.yml');
@@ -51,7 +52,7 @@ describe('Release Workflow', () => {
       expect(steps).toBeDefined();
 
       const buildStep = steps?.find(
-        (step: any) =>
+        (step: WorkflowStep) =>
           step.name?.includes('Build') ||
           step.run?.includes('pnpm -r run build')
       );
@@ -68,7 +69,7 @@ describe('Release Workflow', () => {
       expect(steps).toBeDefined();
 
       const testStep = steps?.find(
-        (step: any) =>
+        (step: WorkflowStep) =>
           step.name?.includes('test') || step.run?.includes('pnpm -r run test')
       );
 
@@ -82,13 +83,13 @@ describe('Release Workflow', () => {
 
       const steps = workflow?.jobs?.release?.steps || [];
 
-      const buildStepIndex = steps.findIndex((step: any) =>
+      const buildStepIndex = steps.findIndex((step: WorkflowStep) =>
         step.run?.includes('pnpm -r run build')
       );
-      const testStepIndex = steps.findIndex((step: any) =>
+      const testStepIndex = steps.findIndex((step: WorkflowStep) =>
         step.run?.includes('pnpm -r run test')
       );
-      const publishStepIndex = steps.findIndex((step: any) =>
+      const publishStepIndex = steps.findIndex((step: WorkflowStep) =>
         step.run?.includes('pnpm publish')
       );
 
@@ -123,7 +124,7 @@ describe('Release Workflow', () => {
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.release?.steps || [];
-      const publishStep = steps.find((step: any) =>
+      const publishStep = steps.find((step: WorkflowStep) =>
         step.run?.includes('pnpm publish')
       );
 
@@ -136,7 +137,7 @@ describe('Release Workflow', () => {
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.release?.steps || [];
-      const publishStep = steps.find((step: any) =>
+      const publishStep = steps.find((step: WorkflowStep) =>
         step.run?.includes('pnpm publish')
       );
 
@@ -214,7 +215,7 @@ describe('Release Workflow', () => {
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.release?.steps;
-      const setupNodeStep = steps?.find((step: any) =>
+      const setupNodeStep = steps?.find((step: WorkflowStep) =>
         step.uses?.startsWith('actions/setup-node@')
       );
 
@@ -226,7 +227,7 @@ describe('Release Workflow', () => {
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.release?.steps;
-      const setupNodeStep = steps?.find((step: any) =>
+      const setupNodeStep = steps?.find((step: WorkflowStep) =>
         step.uses?.startsWith('actions/setup-node@')
       );
 
@@ -240,7 +241,7 @@ describe('Release Workflow', () => {
       const workflow = parseYaml(content);
 
       const steps = workflow?.jobs?.release?.steps;
-      const corepackStep = steps?.find((step: any) =>
+      const corepackStep = steps?.find((step: WorkflowStep) =>
         step.run?.includes('corepack enable')
       );
 
