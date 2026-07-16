@@ -31,6 +31,9 @@ import { getVariable } from '../../context.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { resolveTypeRef } from './types.js';
+import { setVariable, evaluateVariable } from './variables.js';
+import { evaluateExpression } from './core.js';
 
 /**
  * Evaluate destructure operator: destruct<$a, $b, $c>
@@ -122,12 +125,14 @@ export async function evaluateDestructure(
       // and TypesMixin which are applied before ExtractionMixin in the composition order
       const dictResolved =
         elem.typeRef !== null
-          ? await s.resolveTypeRef(
+          ? await resolveTypeRef(
+              s,
               elem.typeRef,
               (name: string) => getVariable(s.ctx, name) as RillValue
             )
           : undefined;
-      s.setVariable(
+      setVariable(
+        s,
         elem.name,
         dictValue,
         dictResolved?.structure,
@@ -192,12 +197,19 @@ export async function evaluateDestructure(
       // and TypesMixin which are applied before ExtractionMixin in the composition order
       const listResolved =
         elem.typeRef !== null
-          ? await s.resolveTypeRef(
+          ? await resolveTypeRef(
+              s,
               elem.typeRef,
               (name: string) => getVariable(s.ctx, name) as RillValue
             )
           : undefined;
-      s.setVariable(elem.name, value, listResolved?.structure, elem.span.start);
+      setVariable(
+        s,
+        elem.name,
+        value,
+        listResolved?.structure,
+        elem.span.start
+      );
     }
   }
 
@@ -274,7 +286,7 @@ export async function evaluateSliceBound(
     case 'Variable': {
       // Note: evaluateVariable will be available from VariablesMixin
       // which is applied before ExtractionMixin in the composition order
-      const value = s.evaluateVariable(bound);
+      const value = evaluateVariable(s, bound);
       if (typeof value !== 'number') {
         throwCatchableHostHalt(
           {
@@ -292,7 +304,8 @@ export async function evaluateSliceBound(
     case 'GroupedExpr': {
       // Note: evaluateGroupedExpr will be available from ExpressionsMixin
       // which is applied after ExtractionMixin, so we need to call evaluateExpression
-      const value = await s.evaluateExpression(
+      const value = await evaluateExpression(
+        s,
         (bound as GroupedExprNode).expression
       );
       if (typeof value !== 'number') {
@@ -460,7 +473,7 @@ export async function evaluateListLiteralElements(
   const result: RillValue[] = [];
   for (const elem of rawElements) {
     if (elem.type === 'ListSpread') {
-      const spreadValue = await s.evaluateExpression(elem.expression);
+      const spreadValue = await evaluateExpression(s, elem.expression);
       if (Array.isArray(spreadValue)) {
         result.push(...spreadValue);
       } else {
@@ -476,7 +489,7 @@ export async function evaluateListLiteralElements(
         );
       }
     } else {
-      result.push(await s.evaluateExpression(elem));
+      result.push(await evaluateExpression(s, elem));
     }
   }
   return result;
@@ -509,8 +522,8 @@ export async function evaluateDictLiteralEntries(
       // Object key (DictKeyVariable or DictKeyComputed) — evaluate like evaluateDict
       if ('kind' in key) {
         if (key.kind === 'variable') {
-          const varVal = s.evaluateVariable
-            ? s.evaluateVariable({
+          const varVal = evaluateVariable
+            ? evaluateVariable(s, {
                 type: 'Variable',
                 span: {
                   start: { line: 0, column: 0, offset: 0 },
@@ -529,7 +542,7 @@ export async function evaluateDictLiteralEntries(
               : String(varVal ?? key.variableName);
         } else {
           // computed: evaluate expression
-          const computed = await s.evaluateExpression(key.expression);
+          const computed = await evaluateExpression(s, key.expression);
           stringKey = String(computed);
         }
       } else {
@@ -537,7 +550,7 @@ export async function evaluateDictLiteralEntries(
       }
     }
 
-    const value = await s.evaluateExpression(entry.value);
+    const value = await evaluateExpression(s, entry.value);
     result.push([stringKey, value]);
   }
   return result;
