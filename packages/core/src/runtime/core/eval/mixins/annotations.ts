@@ -28,11 +28,163 @@ import type { RillValue } from '../../types/structures.js';
 import { isCallable } from '../../callable.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
-import type { EvaluatorInterface } from '../interface.js';
+import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /** Default maximum loop iterations */
 const DEFAULT_MAX_ITERATIONS = 10000;
+
+/**
+ * Execute statement with annotation handling [IR-53].
+ *
+ * Handles both regular and annotated statements.
+ * For annotated statements, evaluates annotations, pushes to stack,
+ * executes inner statement, and pops annotations.
+ *
+ * Special: this is the executeStatement entry point. Its class-level
+ * delegate stays a one-line call into this module function; it is never
+ * inlined into eval/index.ts.
+ */
+export async function executeStatement(
+  s: EvalState,
+  stmt: StatementNode | AnnotatedStatementNode
+): Promise<RillValue> {
+  // Handle annotated statements
+  if (stmt.type === 'AnnotatedStatement') {
+    return executeAnnotatedStatement(s, stmt);
+  }
+
+  // Regular statement: evaluate expression
+  const value = await s.evaluateExpression(stmt.expression);
+
+  // Note: Do NOT set ctx.pipeValue = value here.
+  // Statements don't propagate $ to siblings. $ flows only via explicit ->.
+  s.checkAutoExceptions(value, stmt);
+
+  // Terminator handling is now inside PipeChainNode evaluation
+  // (evaluatePipeChain handles capture/break/return terminators)
+
+  return value;
+}
+
+/**
+ * Execute an annotated statement.
+ * Evaluates annotations, pushes them to the stack, executes the inner statement,
+ * and pops the annotations.
+ *
+ * Errors during annotation evaluation or statement execution propagate.
+ */
+export async function executeAnnotatedStatement(
+  s: EvalState,
+  stmt: AnnotatedStatementNode
+): Promise<RillValue> {
+  // Evaluate annotation arguments to build annotation dict [EC-26]
+  const newAnnotations = await evaluateAnnotations(s, stmt.annotations);
+
+  // No inheritance: use only the annotations declared on this statement [IR-7]
+  const merged = newAnnotations;
+
+  // Set immediateAnnotation for closure capture before pushing to stack
+  s.ctx.immediateAnnotation = newAnnotations;
+
+  // Push annotations, execute inner statement, pop
+  s.ctx.annotationStack.push(merged);
+  try {
+    return await s.executeStatement(stmt.statement);
+  } finally {
+    s.ctx.annotationStack.pop();
+    s.ctx.immediateAnnotation = undefined;
+  }
+}
+
+/**
+ * Evaluate annotation arguments to a dict of key-value pairs.
+ * Handles both named arguments and spread arguments.
+ *
+ * Errors during evaluation propagate [EC-26].
+ */
+export async function evaluateAnnotations(
+  s: EvalState,
+  annotations: AnnotationArg[]
+): Promise<Record<string, RillValue>> {
+  const result: Record<string, RillValue> = {};
+
+  for (const arg of annotations) {
+    if (arg.type === 'NamedArg') {
+      const namedArg = arg as NamedArgNode;
+      result[namedArg.name] = await s.evaluateExpression(namedArg.value);
+    } else {
+      // SpreadArg: spread tuple/dict keys as annotations
+      const spreadArg = arg as SpreadArgNode;
+      const spreadValue = await s.evaluateExpression(spreadArg.expression);
+
+      if (
+        typeof spreadValue === 'object' &&
+        spreadValue !== null &&
+        !Array.isArray(spreadValue) &&
+        !isCallable(spreadValue)
+      ) {
+        // Dict: spread all key-value pairs
+        Object.assign(result, spreadValue);
+      } else if (Array.isArray(spreadValue)) {
+        // Tuple/list: not valid for annotations (need named keys)
+        throwCatchableHostHalt(
+          {
+            location: spreadArg.span.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateAnnotations',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          'Annotation spread requires dict with named keys, got list'
+        );
+      } else {
+        throwCatchableHostHalt(
+          {
+            location: spreadArg.span.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateAnnotations',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          `Annotation spread requires dict, got ${typeof spreadValue}`
+        );
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Get the current value of an annotation from the annotation stack [IR-54].
+ *
+ * Returns the value from the top of the annotation stack (innermost scope).
+ */
+export function getAnnotation(
+  s: EvalState,
+  key: string
+): RillValue | undefined {
+  return s.ctx.annotationStack.at(-1)?.[key];
+}
+
+/**
+ * Get the iteration limit for loops from operator-level annotations [IR-55, IR-6].
+ *
+ * Reads from the provided operator-level annotations dict when given.
+ * Falls back to DEFAULT_MAX_ITERATIONS when no valid positive number is found.
+ * Statement-level annotationStack is NOT consulted (EC-5).
+ *
+ * @param operatorAnnotations - Evaluated operator-level annotations (from node.annotations)
+ */
+export function getIterationLimit(
+  _s: EvalState,
+  operatorAnnotations?: Record<string, RillValue>
+): number {
+  const limit = operatorAnnotations?.['limit'];
+  if (typeof limit === 'number' && limit > 0) {
+    return Math.floor(limit);
+  }
+  return DEFAULT_MAX_ITERATIONS;
+}
 
 /**
  * AnnotationsMixin implementation.
@@ -60,27 +212,10 @@ export function AnnotationsMixin<
      * For annotated statements, evaluates annotations, pushes to stack,
      * executes inner statement, and pops annotations.
      */
-    async executeStatement(
+    executeStatement(
       stmt: StatementNode | AnnotatedStatementNode
     ): Promise<RillValue> {
-      // Handle annotated statements
-      if (stmt.type === 'AnnotatedStatement') {
-        return this.executeAnnotatedStatement(stmt);
-      }
-
-      // Regular statement: evaluate expression
-      const value = await (
-        this as unknown as EvaluatorInterface
-      ).evaluateExpression(stmt.expression);
-
-      // Note: Do NOT set ctx.pipeValue = value here.
-      // Statements don't propagate $ to siblings. $ flows only via explicit ->.
-      this.checkAutoExceptions(value, stmt);
-
-      // Terminator handling is now inside PipeChainNode evaluation
-      // (evaluatePipeChain handles capture/break/return terminators)
-
-      return value;
+      return executeStatement(this as unknown as EvalState, stmt);
     }
 
     /**
@@ -90,26 +225,10 @@ export function AnnotationsMixin<
      *
      * Errors during annotation evaluation or statement execution propagate.
      */
-    async executeAnnotatedStatement(
+    executeAnnotatedStatement(
       stmt: AnnotatedStatementNode
     ): Promise<RillValue> {
-      // Evaluate annotation arguments to build annotation dict [EC-26]
-      const newAnnotations = await this.evaluateAnnotations(stmt.annotations);
-
-      // No inheritance: use only the annotations declared on this statement [IR-7]
-      const merged = newAnnotations;
-
-      // Set immediateAnnotation for closure capture before pushing to stack
-      this.ctx.immediateAnnotation = newAnnotations;
-
-      // Push annotations, execute inner statement, pop
-      this.ctx.annotationStack.push(merged);
-      try {
-        return await this.executeStatement(stmt.statement);
-      } finally {
-        this.ctx.annotationStack.pop();
-        this.ctx.immediateAnnotation = undefined;
-      }
+      return executeAnnotatedStatement(this as unknown as EvalState, stmt);
     }
 
     /**
@@ -118,57 +237,10 @@ export function AnnotationsMixin<
      *
      * Errors during evaluation propagate [EC-26].
      */
-    async evaluateAnnotations(
+    evaluateAnnotations(
       annotations: AnnotationArg[]
     ): Promise<Record<string, RillValue>> {
-      const result: Record<string, RillValue> = {};
-      const self = this as unknown as EvaluatorInterface;
-
-      for (const arg of annotations) {
-        if (arg.type === 'NamedArg') {
-          const namedArg = arg as NamedArgNode;
-          result[namedArg.name] = await self.evaluateExpression(namedArg.value);
-        } else {
-          // SpreadArg: spread tuple/dict keys as annotations
-          const spreadArg = arg as SpreadArgNode;
-          const spreadValue = await self.evaluateExpression(
-            spreadArg.expression
-          );
-
-          if (
-            typeof spreadValue === 'object' &&
-            spreadValue !== null &&
-            !Array.isArray(spreadValue) &&
-            !isCallable(spreadValue)
-          ) {
-            // Dict: spread all key-value pairs
-            Object.assign(result, spreadValue);
-          } else if (Array.isArray(spreadValue)) {
-            // Tuple/list: not valid for annotations (need named keys)
-            throwCatchableHostHalt(
-              {
-                location: spreadArg.span.start,
-                sourceId: this.ctx.sourceId,
-                fn: 'evaluateAnnotations',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              'Annotation spread requires dict with named keys, got list'
-            );
-          } else {
-            throwCatchableHostHalt(
-              {
-                location: spreadArg.span.start,
-                sourceId: this.ctx.sourceId,
-                fn: 'evaluateAnnotations',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              `Annotation spread requires dict, got ${typeof spreadValue}`
-            );
-          }
-        }
-      }
-
-      return result;
+      return evaluateAnnotations(this as unknown as EvalState, annotations);
     }
 
     /**
@@ -177,7 +249,7 @@ export function AnnotationsMixin<
      * Returns the value from the top of the annotation stack (innermost scope).
      */
     getAnnotation(key: string): RillValue | undefined {
-      return this.ctx.annotationStack.at(-1)?.[key];
+      return getAnnotation(this as unknown as EvalState, key);
     }
 
     /**
@@ -190,11 +262,10 @@ export function AnnotationsMixin<
      * @param operatorAnnotations - Evaluated operator-level annotations (from node.annotations)
      */
     getIterationLimit(operatorAnnotations?: Record<string, RillValue>): number {
-      const limit = operatorAnnotations?.['limit'];
-      if (typeof limit === 'number' && limit > 0) {
-        return Math.floor(limit);
-      }
-      return DEFAULT_MAX_ITERATIONS;
+      return getIterationLimit(
+        this as unknown as EvalState,
+        operatorAnnotations
+      );
     }
   };
 }
