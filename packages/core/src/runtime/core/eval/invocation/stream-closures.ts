@@ -43,6 +43,7 @@ import { getEvaluator } from '../evaluator.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
+import { createCallableContext } from '../mixins/closures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
@@ -282,7 +283,7 @@ export async function invokeStreamClosure(
   args: RillValue[],
   callLocation?: SourceLocation
 ): Promise<RillValue> {
-  const callableCtx = s.createCallableContext(callable);
+  const callableCtx = createCallableContext(s, callable);
 
   // Marshal positional args to named record (IC-1).
   const record = marshalArgs(args, callable.params, {
