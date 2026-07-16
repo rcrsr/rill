@@ -53,15 +53,15 @@ jobs:
       - name: Check formatting
         run: pnpm check:format
 
-  test-parity:
-    name: Test parity lock
+  language-lock:
+    name: Language arbiter lock
     runs-on: ubuntu-latest
     steps:
+      # No fetch-depth: the lock compares against a committed snapshot, not a
+      # base ref, so it needs no history and behaves the same on main.
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
 
-      # --diff-only needs git only: it locks tests/language/ against the merge
-      # base. The suite itself is already covered by the check job above.
-      - name: Run test parity lock
-        run: bash scripts/check-test-parity.sh --diff-only
+      # Needs git, grep, and sha256sum only. The check job above already runs
+      # the suite on 22/24/25, so this never runs it a second time.
+      - name: Check language arbiter lock
+        run: bash scripts/check-test-lock.sh
