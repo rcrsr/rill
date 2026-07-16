@@ -30,6 +30,8 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { evaluateExpression } from './core.js';
+import { checkAutoExceptions } from '../shared.js';
 
 /** Default maximum loop iterations */
 const DEFAULT_MAX_ITERATIONS = 10000;
@@ -55,11 +57,11 @@ export async function executeStatement(
   }
 
   // Regular statement: evaluate expression
-  const value = await s.evaluateExpression(stmt.expression);
+  const value = await evaluateExpression(s, stmt.expression);
 
   // Note: Do NOT set ctx.pipeValue = value here.
   // Statements don't propagate $ to siblings. $ flows only via explicit ->.
-  s.checkAutoExceptions(value, stmt);
+  checkAutoExceptions(s, value, stmt);
 
   // Terminator handling is now inside PipeChainNode evaluation
   // (evaluatePipeChain handles capture/break/return terminators)
@@ -90,7 +92,7 @@ export async function executeAnnotatedStatement(
   // Push annotations, execute inner statement, pop
   s.ctx.annotationStack.push(merged);
   try {
-    return await s.executeStatement(stmt.statement);
+    return await executeStatement(s, stmt.statement);
   } finally {
     s.ctx.annotationStack.pop();
     s.ctx.immediateAnnotation = undefined;
@@ -112,11 +114,11 @@ export async function evaluateAnnotations(
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
       const namedArg = arg as NamedArgNode;
-      result[namedArg.name] = await s.evaluateExpression(namedArg.value);
+      result[namedArg.name] = await evaluateExpression(s, namedArg.value);
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
       const spreadArg = arg as SpreadArgNode;
-      const spreadValue = await s.evaluateExpression(spreadArg.expression);
+      const spreadValue = await evaluateExpression(s, spreadArg.expression);
 
       if (
         typeof spreadValue === 'object' &&
