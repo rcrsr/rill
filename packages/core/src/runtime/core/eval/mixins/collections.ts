@@ -33,8 +33,10 @@ import {
 } from '../../types/halt.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
-import { getEvaluator } from '../evaluator.js';
+import { getEvalState } from '../state.js';
 import type { EvalState } from '../state.js';
+import { checkAborted } from '../shared.js';
+import { invokeCallable } from './closures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
@@ -95,7 +97,7 @@ export async function getIterableElements(
   if (typeof input === 'string') {
     return [...input];
   }
-  const evaluator: EvalState = getEvaluator(ctx);
+  const evaluator: EvalState = getEvalState(ctx);
   // Check for stream BEFORE iterator (streams satisfy iterator shape)
   if (isStream(input)) {
     return expandStream(input, evaluator, node, limit);
@@ -144,7 +146,7 @@ async function expandIterator(
   let count = 0;
 
   while (!current['done'] && count < limit) {
-    evaluator.checkAborted();
+    checkAborted(evaluator);
     const val = current['value'];
     if (val !== undefined) {
       elements.push(val);
@@ -165,7 +167,8 @@ async function expandIterator(
         'Iterator .next must be a closure'
       );
     }
-    const nextIterator = await evaluator.invokeCallable(
+    const nextIterator = await invokeCallable(
+      evaluator,
       nextClosure,
       [],
       node.span.start,
@@ -229,7 +232,7 @@ async function expandStream(
 
   try {
     while (!current.done && count < limit) {
-      evaluator.checkAborted();
+      checkAborted(evaluator);
       const val = current['value'];
       if (val !== undefined) {
         const actualType = inferType(val);
@@ -266,7 +269,8 @@ async function expandStream(
           'Stream .next must be a closure'
         );
       }
-      const nextStep = await evaluator.invokeCallable(
+      const nextStep = await invokeCallable(
+        evaluator,
         nextClosure,
         [],
         node.span.start,

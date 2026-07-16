@@ -39,10 +39,11 @@ import { structureMatches, formatStructure } from '../../types/operations.js';
 import { createRillStream } from '../../types/constructors.js';
 import { ReturnSignal } from '../../signals.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
-import { getEvaluator } from '../evaluator.js';
+import { getEvalState } from '../state.js';
+import type { EvalState } from '../state.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
-import type { EvalState } from '../state.js';
+import { evaluateBodyExpression } from '../mixins/control-flow.js';
 import { createCallableContext } from '../mixins/closures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
@@ -178,7 +179,7 @@ function createStreamChannel(): StreamChannel {
 }
 
 /**
- * Allows child evaluators (e.g. created by seq via getEvaluator(callableCtx)) to locate
+ * Allows child EvalState (e.g. created by seq via getEvalState(callableCtx)) to locate
  * the active stream channel by walking the RuntimeContext parent chain.
  * Populated by invokeStreamClosure for the duration of the stream body execution.
  */
@@ -313,32 +314,32 @@ export async function invokeStreamClosure(
     readonly resolution: RillValue;
   };
 
-  // Create a dedicated evaluator for the stream body so that concurrent
+  // Create a dedicated EvalState for the stream body so that concurrent
   // execution of the body IIFE and the outer consumer (e.g. outer seq)
-  // never share mutable state (this.ctx, this.activeStreamChannel).
+  // never share mutable state (state.ctx, state.activeStreamChannel).
   //
-  // getEvaluator creates new Evaluator(callableCtx) and caches it under
-  // callableCtx — this is also the registration so inner builtins like seq
-  // that call getEvaluator(callableCtx) receive the body evaluator (with
+  // getEvalState creates a fresh EvalState and caches it under callableCtx —
+  // this is also the registration so inner builtins like seq that call
+  // getEvalState(callableCtx) receive the body state (with
   // activeStreamChannel set) rather than a fresh one.
-  const bodyEvaluator = getEvaluator(callableCtx);
+  const bodyEvaluator = getEvalState(callableCtx);
   bodyEvaluator.activeStreamChannel = channel;
   bodyEvaluator.activeStreamChunkType = streamStructure.chunk ?? null;
 
   // Start body execution asynchronously.
   // The body runs concurrently with consumption, blocking at each yield
   // until the consumer pulls the next chunk.
-  // bodyEvaluator.ctx is already callableCtx (set by its constructor).
+  // bodyEvaluator.ctx is already callableCtx (set at construction).
   // No mutations to this.ctx or this.activeStreamChannel are made here.
   const bodyPromise = (async () => {
     // activeStreamContexts allows rare nested cases where a host function
-    // creates a fresh evaluator via getEvaluator(someChildCtx) and yields.
+    // creates a fresh EvalState via getEvalState(someChildCtx) and yields.
     activeStreamContexts.set(callableCtx, {
       channel,
       chunkType: streamStructure.chunk ?? null,
     });
     try {
-      const result = await bodyEvaluator.evaluateBodyExpression(callable.body);
+      const result = await evaluateBodyExpression(bodyEvaluator, callable.body);
       // Validate resolution type if declared
       if (streamStructure.ret !== undefined) {
         if (!structureMatches(result, streamStructure.ret)) {

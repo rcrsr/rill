@@ -271,7 +271,7 @@ export async function invokeCallable(
     const bound: BoundArguments = {
       params: new Map(args.map((v, i) => [String(i), v])),
     };
-    const result = await s.invocationStrategy.invoke(
+    const result = await createInvocationStrategy(s).invoke(
       callable,
       bound,
       callLocation,
@@ -880,7 +880,7 @@ export async function evaluateClosureCallWithPipe(
         `Spread not supported for built-in callable at '${fullPath}'`
       );
     }
-    const boundArgs = await s.invocationStrategy.bind(
+    const boundArgs = await createInvocationStrategy(s).bind(
       closure,
       node.args,
       pipeInput,

@@ -70,7 +70,7 @@ import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { createChildContext, getVariable } from '../../context.js';
-import { getEvaluator } from '../evaluator.js';
+import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation } from '../shared.js';
 import {
@@ -78,7 +78,7 @@ import {
   evaluatePipeChain,
   evaluatePrimary,
 } from './core.js';
-import { evaluateBodyExpression } from './control-flow.js';
+import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { invokeCallable } from './closures.js';
 import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
@@ -279,8 +279,7 @@ export async function evaluatePassBlock(
   // re-throwable signal. Catchable halts are suppressed when suppress is
   // true; non-catchable halts and ControlSignals always propagate.
   const runBody = (evaluator: EvalState): Promise<void> =>
-    evaluator
-      .evaluateBody(node.body)
+    evaluateBody(evaluator, node.body)
       .then(() => undefined)
       .catch((e: unknown) => {
         // §NOD.10.4: ControlSignal always re-throws.
@@ -308,7 +307,7 @@ export async function evaluatePassBlock(
     // synchronous pipe.
     const asyncCtx = createChildContext(s.ctx);
     asyncCtx.pipeValue = pipeBefore;
-    const asyncEvaluator: EvalState = getEvaluator(asyncCtx);
+    const asyncEvaluator: EvalState = getEvalState(asyncCtx);
     s.ctx.trackInflight(runBody(asyncEvaluator));
     return pipeBefore ?? '';
   }
@@ -1162,9 +1161,8 @@ export async function createClosure(
     // Evaluate per-param annotations inline
     let paramAnnots: Record<string, RillValue> = {};
     if (param.annotations && param.annotations.length > 0) {
-      paramAnnots = await evaluateAnnotations(
-        param.annotations,
-        s.evaluateExpression.bind(s)
+      paramAnnots = await evaluateAnnotations(param.annotations, (expr) =>
+        evaluateExpression(s, expr)
       );
     }
 

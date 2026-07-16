@@ -60,6 +60,7 @@ import {
 } from './core.js';
 import { evaluateString } from './literals.js';
 import { evaluateGroupedExpr } from './expressions.js';
+import { runInStreamScope } from '../invocation/stream-closures.js';
 
 /**
  * Evaluate conditional expression (ternary if-else).
@@ -346,6 +347,18 @@ export async function evaluateBlock(
   s: EvalState,
   node: BlockNode
 ): Promise<RillValue> {
+  return runInStreamScope(s, () => evaluateBlockBody(s, node));
+}
+
+/**
+ * Block body evaluation, wrapped by evaluateBlock in a stream scope so
+ * unconsumed streams created inside the block are disposed on scope exit
+ * (IR-14).
+ */
+async function evaluateBlockBody(
+  s: EvalState,
+  node: BlockNode
+): Promise<RillValue> {
   // Create child scope for the block: reads from parent, writes to local only
   const blockCtx = createChildContext(s.ctx);
 
@@ -397,10 +410,7 @@ export async function evaluateBlockExpression(
   node: BlockNode
 ): Promise<RillValue> {
   try {
-    // Dispatch through s.evaluateBlock (not the bare sibling function) so
-    // StreamClosuresMixin's scope-exit stream-disposal override still fires
-    // for callers that reach blocks via this path.
-    return await s.evaluateBlock(node);
+    return await evaluateBlock(s, node);
   } catch (e) {
     if (e instanceof ReturnSignal) {
       return e.value;
@@ -566,10 +576,7 @@ export async function evaluateBody(
 ): Promise<RillValue> {
   switch (node.type) {
     case 'Block':
-      // Dispatch through s.evaluateBlock (not the bare sibling function) so
-      // StreamClosuresMixin's scope-exit stream-disposal override still
-      // fires.
-      return s.evaluateBlock(node);
+      return evaluateBlock(s, node);
     case 'GroupedExpr':
       return evaluateGroupedExpr(s, node);
     case 'PostfixExpr':

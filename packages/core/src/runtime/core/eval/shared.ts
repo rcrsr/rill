@@ -21,6 +21,7 @@ import {
 } from '../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 import type { EvalState } from './state.js';
+import { invokeCallable } from './mixins/closures.js';
 
 /**
  * Get source location from an AST node.
@@ -169,14 +170,7 @@ export async function accessDictField(
       // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
       // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
       const args = dictValue.kind === 'script' ? [] : [value];
-      // NOTE: intentionally left as s.invokeCallable(...) rather than a direct
-      // module import of invokeCallable from mixins/closures.js. shared.ts is
-      // imported transitively by every mixin via base.ts; a static import of
-      // invokeCallable here closes a real ESM cycle (shared -> closures ->
-      // invocation/index -> stream-closures -> evaluator -> base -> shared)
-      // that leaves EvaluatorBase undefined at composition time. See
-      // Implementation Notes for the reproduction.
-      return await s.invokeCallable(dictValue as RillCallable, args, location);
+      return await invokeCallable(s, dictValue as RillCallable, args, location);
     }
   }
 
