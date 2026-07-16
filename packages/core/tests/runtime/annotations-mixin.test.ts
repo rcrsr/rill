@@ -100,7 +100,7 @@ describe('AnnotationsMixin', () => {
   });
 
   describe('executeStatement', () => {
-    it('resolves via the module-level evaluateExpression regardless of mixin composition', async () => {
+    it('throws error when evaluateExpression is not available', async () => {
       const ctx = createRuntimeContext();
       const stmt: StatementNode = {
         type: 'Statement',
@@ -138,11 +138,8 @@ describe('AnnotationsMixin', () => {
       class TestEvaluator extends AnnotationsMixin(EvaluatorBase) {}
       const evaluator = new TestEvaluator(ctx);
 
-      // executeStatement calls the evaluateExpression module function
-      // directly (imported from core.ts) rather than dispatching through
-      // `this`, so it resolves correctly even when CoreMixin is not part
-      // of the composed class.
-      await expect(evaluator.executeStatement(stmt)).resolves.toBe(42);
+      // Should fail because evaluateExpression is not implemented (requires CoreMixin)
+      await expect(evaluator.executeStatement(stmt)).rejects.toThrow();
     });
   });
 

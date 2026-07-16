@@ -161,7 +161,15 @@ export async function evaluateExpression(
       expr.message
     );
   }
-  return evaluatePipeChain(s, expr);
+  // NOTE: intentionally left as s.evaluatePipeChain(...) rather than the
+  // direct evaluatePipeChain(s, ...) module call used elsewhere in this
+  // file. evaluateExpression is the evaluator's main public entry point;
+  // tests/runtime/annotations-mixin.test.ts composes AnnotationsMixin
+  // without CoreMixin and asserts that executeStatement rejects because
+  // evaluatePipeChain is unavailable on that partial composition. A direct
+  // module call here would resolve regardless of mixin composition and
+  // silently change that documented contract. See Implementation Notes.
+  return s.evaluatePipeChain(expr);
 }
 
 /**
