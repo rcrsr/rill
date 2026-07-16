@@ -385,8 +385,8 @@ export async function evaluateBlockExpression(
 ): Promise<RillValue> {
   try {
     // Dispatch through s.evaluateBlock (not the bare sibling function) so
-    // StreamClosuresMixin's evaluateBlock override (IR-14 scope-exit
-    // cleanup) still fires for callers that reach blocks via this path.
+    // StreamClosuresMixin's scope-exit stream-disposal override still fires
+    // for callers that reach blocks via this path.
     return await s.evaluateBlock(node);
   } catch (e) {
     if (e instanceof ReturnSignal) {
@@ -554,8 +554,8 @@ export async function evaluateBody(
   switch (node.type) {
     case 'Block':
       // Dispatch through s.evaluateBlock (not the bare sibling function) so
-      // StreamClosuresMixin's evaluateBlock override (IR-14 scope-exit
-      // cleanup) still fires.
+      // StreamClosuresMixin's scope-exit stream-disposal override still
+      // fires.
       return s.evaluateBlock(node);
     case 'GroupedExpr':
       return s.evaluateGroupedExpr(node);
