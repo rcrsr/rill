@@ -187,7 +187,7 @@ export function toCallable(
   def: RillFunction,
   isProperty = false
 ): ApplicationCallable {
-  if (def == null) {
+  if (def === null || def === undefined) {
     throw new TypeError('RillFunction cannot be null or undefined');
   }
   if (typeof def.fn !== 'function') {

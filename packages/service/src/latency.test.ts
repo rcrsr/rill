@@ -108,14 +108,18 @@ function generateFixtureScript(targetLines: number): string {
 describe('provider latency on a 2,000-line script', () => {
   const source = generateFixtureScript(TARGET_LINE_COUNT);
   const lineCount = source.split('\n').length;
-  expect(lineCount).toBeGreaterThanOrEqual(TARGET_LINE_COUNT);
-
   const parsed: ParseResult = parseWithRecovery(source);
-  expect(parsed.success).toBe(true);
   const tokens = tokenize(source);
   const midOffset = Math.floor(source.length / 2);
   const config = createDefaultConfig();
   const sampleSpan = parsed.ast.statements[0]!.span;
+
+  // Guards the fixture the latency budgets are measured against: every p95
+  // below is meaningless if the script is short or failed to parse.
+  it('generates a parseable script of at least the target length', () => {
+    expect(lineCount).toBeGreaterThanOrEqual(TARGET_LINE_COUNT);
+    expect(parsed.success).toBe(true);
+  });
 
   it(
     'documentSymbols stays at or under the p95 budget',

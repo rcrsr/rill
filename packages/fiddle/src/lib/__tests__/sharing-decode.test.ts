@@ -216,10 +216,8 @@ describe('copyLinkToClipboard', () => {
     expect(result.status).toBe('error');
   });
 
-  it('returns too-large for oversized source', async () => {
-    // Skip: gzip compression is so effective that it's impractical to create
-    // test data that exceeds 8192 chars after encoding. The size check logic
-    // is straightforward: encodeSource returns null if output > MAX_URL_CODE_LENGTH,
-    // and copyLinkToClipboard checks for null and returns {status: 'too-large'}.
-  });
+  // No test for the too-large path: gzip compression is so effective that it is
+  // impractical to build test data exceeding 8192 chars after encoding.
+  // encodeSource returns null when output > MAX_URL_CODE_LENGTH, and
+  // copyLinkToClipboard maps that null to {status: 'too-large'}.
 });

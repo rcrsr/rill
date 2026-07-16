@@ -1553,7 +1553,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           functions: {
             manyParams: {
               params,
-              fn: (args) => Object.keys(args).length,
+              fn: (callArgs) => Object.keys(callArgs).length,
             },
           },
         });
@@ -1610,7 +1610,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           functions: {
             manyParams: {
               params,
-              fn: (args) => Object.keys(args).length,
+              fn: (callArgs) => Object.keys(callArgs).length,
             },
           },
         });

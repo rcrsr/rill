@@ -68,11 +68,8 @@ describe('encodeSource', () => {
     expect(decoded).toBe(source);
   });
 
-  it('respects MAX_URL_CODE_LENGTH', async () => {
-    // Skip: gzip compression is so effective that it's impractical to create
-    // test data that exceeds 8192 chars after encoding without using truly
-    // random data (which requires crypto APIs). The length check logic is
-    // straightforward and tested in integration.
-    // The MAX_URL_CODE_LENGTH constant is exported and can be verified separately.
-  });
+  // No test for MAX_URL_CODE_LENGTH: gzip compression is so effective that it is
+  // impractical to build test data exceeding 8192 chars after encoding without
+  // truly random data, which requires crypto APIs. The length check is covered
+  // in integration, and MAX_URL_CODE_LENGTH is exported for direct verification.
 });

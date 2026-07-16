@@ -688,8 +688,8 @@ export async function evaluateTypeConstructor(
         ? ({ kind: resolved.typeName } as TypeStructure)
         : resolved.structure;
     },
-    async (node: LiteralNode): Promise<RillValue> => {
-      return evaluatePrimary(s, node);
+    async (literal: LiteralNode): Promise<RillValue> => {
+      return evaluatePrimary(s, literal);
     },
     location
   );

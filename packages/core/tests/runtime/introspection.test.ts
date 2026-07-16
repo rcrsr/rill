@@ -703,7 +703,7 @@ describe('Rill Runtime: Introspection API', () => {
 
         // Should only contain built-in functions, no host functions
         expect(functions).toBeInstanceOf(Array);
-        expect(functions.every((f) => !f.name.includes('::')));
+        expect(functions.every((f) => !f.name.includes('::'))).toBe(true);
       });
     });
 

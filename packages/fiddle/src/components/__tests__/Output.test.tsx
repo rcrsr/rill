@@ -574,14 +574,14 @@ describe('Output', () => {
         statusProvider: null,
         statusTrace: null,
       };
-      const errorState: ExecutionState = {
+      const stateWithId: ExecutionState = {
         status: 'error',
         result: null,
         error: errorWithId,
         duration: 10,
         logs: [],
       };
-      const { container } = render(<Output state={errorState} />);
+      const { container } = render(<Output state={stateWithId} />);
       const errorElement = container.querySelector('.output-error');
       expect(errorElement?.textContent).toContain('RILL-R999');
     });
@@ -598,14 +598,14 @@ describe('Output', () => {
         statusProvider: null,
         statusTrace: null,
       };
-      const errorState: ExecutionState = {
+      const stateWithoutId: ExecutionState = {
         status: 'error',
         result: null,
         error: errorWithoutId,
         duration: 10,
         logs: [],
       };
-      const { container } = render(<Output state={errorState} />);
+      const { container } = render(<Output state={stateWithoutId} />);
       const errorIdElement = container.querySelector('.output-error-id');
       expect(errorIdElement).toBeNull();
     });

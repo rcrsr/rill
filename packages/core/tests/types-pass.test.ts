@@ -28,10 +28,12 @@ describe('PassNode type', () => {
   });
 
   it('PassNode has correct shape', () => {
-    // Type-level test: if this compiles, PassNode matches the pattern
-    type PassNode = import('../src/types.js').PassNode;
+    // Type-level test: if this compiles, PassNode matches the pattern.
+    // Sourced from src/ rather than the package entry point, so it is named
+    // distinctly from the PassNode imported above.
+    type SrcPassNode = import('../src/types.js').PassNode;
 
-    const node: PassNode = {
+    const node: SrcPassNode = {
       type: 'Pass',
       span: {
         start: { offset: 0, line: 1, column: 1 },
