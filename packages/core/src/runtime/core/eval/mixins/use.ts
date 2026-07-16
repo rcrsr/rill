@@ -30,8 +30,204 @@ import { createChildContext } from '../../context.js';
 import { execute } from '../../execute.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
-import type { EvaluatorInterface } from '../interface.js';
+import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+
+/**
+ * Evaluate a use<> expression [IR-6].
+ *
+ * Resolves the identifier to a scheme + resource string, calls the
+ * registered resolver, and returns the result value (or executes source).
+ */
+export async function evaluateUseExpr(
+  s: EvalState,
+  node: UseExprNode
+): Promise<RillValue> {
+  let scheme: string;
+  let resource: string;
+
+  const { identifier } = node;
+
+  if (identifier.kind === 'static') {
+    // Static form: scheme and segments known at parse time
+    scheme = identifier.scheme;
+    resource = identifier.segments.join('.');
+  } else if (identifier.kind === 'variable') {
+    // Variable form: evaluate the variable, expect string
+    const varNode = {
+      type: 'Variable' as const,
+      name: identifier.name,
+      isPipeVar: false,
+      accessChain: [],
+      defaultValue: null,
+      existenceCheck: null,
+      span: node.span,
+    };
+    const varValue = await s.evaluateVariableAsync(varNode);
+    if (typeof varValue !== 'string') {
+      throwCatchableHostHalt(
+        {
+          location: s.getNodeLocation(node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateUseExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R057],
+        `use<> identifier must resolve to string, got ${typeof varValue}`
+      );
+    }
+    const parsed = parseSchemeString(
+      varValue,
+      node,
+      s.getNodeLocation(node),
+      s.ctx.sourceId
+    );
+    scheme = parsed.scheme;
+    resource = parsed.resource;
+  } else {
+    // Computed form: evaluate the expression, expect string
+    const exprValue = await s.evaluateExpression(identifier.expression);
+    if (typeof exprValue !== 'string') {
+      throwCatchableHostHalt(
+        {
+          location: s.getNodeLocation(node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateUseExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R057],
+        `use<> identifier must resolve to string, got ${typeof exprValue}`
+      );
+    }
+    const parsed = parseSchemeString(
+      exprValue,
+      node,
+      s.getNodeLocation(node),
+      s.ctx.sourceId
+    );
+    scheme = parsed.scheme;
+    resource = parsed.resource;
+  }
+
+  // Look up resolver
+  const resolver = s.ctx.resolvers.get(scheme);
+  if (!resolver) {
+    throwCatchableHostHalt(
+      {
+        location: s.getNodeLocation(node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateUseExpr',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R054],
+      `No resolver registered for scheme '${scheme}'`
+    );
+  }
+
+  // Cycle detection: check before calling resolver
+  const key = `${scheme}:${resource}`;
+  if (s.ctx.resolvingSchemes.has(key)) {
+    throwCatchableHostHalt(
+      {
+        location: s.getNodeLocation(node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateUseExpr',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R055],
+      `Circular resolution detected: ${key} is already being resolved`
+    );
+  }
+
+  // Mark in-flight — must stay set through source execution so circular
+  // re-entry within the executed source is detected (EC-7 / RILL-R055).
+  s.ctx.resolvingSchemes.add(key);
+
+  let result;
+  try {
+    const config = s.ctx.resolverConfigs.get(scheme);
+    try {
+      result = await resolver(resource, config);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throwCatchableHostHalt(
+        {
+          location: s.getNodeLocation(node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateUseExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R056],
+        `Resolver error for '${key}': ${message}`
+      );
+    }
+
+    // Handle result — key is still in-flight for the source execution path
+    if (result.kind === 'value') {
+      return result.value;
+    }
+
+    // source: parse and execute in child scope
+    const parseSource = s.ctx.parseSource;
+    if (!parseSource) {
+      throwCatchableHostHalt(
+        {
+          location: s.getNodeLocation(node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateUseExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R061],
+        `Resolver error for '${key}': parseSource is not configured on RuntimeContext — provide parseSource in RuntimeOptions to use source resolvers`
+      );
+    }
+
+    let scriptNode;
+    try {
+      scriptNode = parseSource(result.text);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      // Use the parse error's location within the resolved source, not the use<> call site
+      const parseLocation = err instanceof RillError ? err.location : undefined;
+      // Preserve the JS-standard `.cause` chain so host callers can
+      // inspect the original parse error. Halt builders cannot carry
+      // a live `cause` through to the bridge (only raw fields), so
+      // this single wrap site keeps the RuntimeError construction.
+      const wrapped =
+        parseLocation !== undefined
+          ? new RuntimeError(
+              ERROR_IDS.RILL_R056,
+              `Resolver error for '${key}': ${message.replace(/ at \d+:\d+$/, '')}`,
+              parseLocation,
+              { sourceId: key }
+            )
+          : RuntimeError.fromNode(
+              ERROR_IDS.RILL_R056,
+              `Resolver error for '${key}': ${message}`,
+              node,
+              { sourceId: key }
+            );
+      (wrapped as { sourceId: string }).sourceId = key;
+      wrapped.cause = err;
+      throw wrapped;
+    }
+    const childCtx = createChildContext(s.ctx, {
+      sourceId: result.sourceId ?? key,
+      sourceText: result.text,
+    });
+    let execResult;
+    try {
+      execResult = await execute(scriptNode, childCtx);
+    } catch (err) {
+      // Enrich runtime errors from module execution with sourceId and sourceText
+      if (err instanceof RillError && !err.sourceId) {
+        (err as { sourceId: string }).sourceId = result.sourceId ?? key;
+        const ctx = (err.context ?? {}) as Record<string, unknown>;
+        ctx['sourceText'] = result.text;
+        (err as { context: Record<string, unknown> }).context = ctx;
+      }
+      throw err;
+    }
+    return execResult.result;
+  } finally {
+    // Remove after resolver call and any source execution complete (or error)
+    s.ctx.resolvingSchemes.delete(key);
+  }
+}
 
 /**
  * UseMixin implementation.
@@ -59,196 +255,8 @@ export function UseMixin<TBase extends EvaluatorConstructor<EvaluatorBase>>(
      * Resolves the identifier to a scheme + resource string, calls the
      * registered resolver, and returns the result value (or executes source).
      */
-    async evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
-      let scheme: string;
-      let resource: string;
-
-      const { identifier } = node;
-
-      if (identifier.kind === 'static') {
-        // Static form: scheme and segments known at parse time
-        scheme = identifier.scheme;
-        resource = identifier.segments.join('.');
-      } else if (identifier.kind === 'variable') {
-        // Variable form: evaluate the variable, expect string
-        const varNode = {
-          type: 'Variable' as const,
-          name: identifier.name,
-          isPipeVar: false,
-          accessChain: [],
-          defaultValue: null,
-          existenceCheck: null,
-          span: node.span,
-        };
-        const varValue = await (
-          this as unknown as EvaluatorInterface
-        ).evaluateVariableAsync(varNode);
-        if (typeof varValue !== 'string') {
-          throwCatchableHostHalt(
-            {
-              location: this.getNodeLocation(node),
-              sourceId: this.ctx.sourceId,
-              fn: 'evaluateUseExpr',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R057],
-            `use<> identifier must resolve to string, got ${typeof varValue}`
-          );
-        }
-        const parsed = parseSchemeString(
-          varValue,
-          node,
-          this.getNodeLocation(node),
-          this.ctx.sourceId
-        );
-        scheme = parsed.scheme;
-        resource = parsed.resource;
-      } else {
-        // Computed form: evaluate the expression, expect string
-        const exprValue = await (
-          this as unknown as EvaluatorInterface
-        ).evaluateExpression(identifier.expression);
-        if (typeof exprValue !== 'string') {
-          throwCatchableHostHalt(
-            {
-              location: this.getNodeLocation(node),
-              sourceId: this.ctx.sourceId,
-              fn: 'evaluateUseExpr',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R057],
-            `use<> identifier must resolve to string, got ${typeof exprValue}`
-          );
-        }
-        const parsed = parseSchemeString(
-          exprValue,
-          node,
-          this.getNodeLocation(node),
-          this.ctx.sourceId
-        );
-        scheme = parsed.scheme;
-        resource = parsed.resource;
-      }
-
-      // Look up resolver
-      const resolver = this.ctx.resolvers.get(scheme);
-      if (!resolver) {
-        throwCatchableHostHalt(
-          {
-            location: this.getNodeLocation(node),
-            sourceId: this.ctx.sourceId,
-            fn: 'evaluateUseExpr',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R054],
-          `No resolver registered for scheme '${scheme}'`
-        );
-      }
-
-      // Cycle detection: check before calling resolver
-      const key = `${scheme}:${resource}`;
-      if (this.ctx.resolvingSchemes.has(key)) {
-        throwCatchableHostHalt(
-          {
-            location: this.getNodeLocation(node),
-            sourceId: this.ctx.sourceId,
-            fn: 'evaluateUseExpr',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R055],
-          `Circular resolution detected: ${key} is already being resolved`
-        );
-      }
-
-      // Mark in-flight — must stay set through source execution so circular
-      // re-entry within the executed source is detected (EC-7 / RILL-R055).
-      this.ctx.resolvingSchemes.add(key);
-
-      let result;
-      try {
-        const config = this.ctx.resolverConfigs.get(scheme);
-        try {
-          result = await resolver(resource, config);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          throwCatchableHostHalt(
-            {
-              location: this.getNodeLocation(node),
-              sourceId: this.ctx.sourceId,
-              fn: 'evaluateUseExpr',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R056],
-            `Resolver error for '${key}': ${message}`
-          );
-        }
-
-        // Handle result — key is still in-flight for the source execution path
-        if (result.kind === 'value') {
-          return result.value;
-        }
-
-        // source: parse and execute in child scope
-        const parseSource = this.ctx.parseSource;
-        if (!parseSource) {
-          throwCatchableHostHalt(
-            {
-              location: this.getNodeLocation(node),
-              sourceId: this.ctx.sourceId,
-              fn: 'evaluateUseExpr',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R061],
-            `Resolver error for '${key}': parseSource is not configured on RuntimeContext — provide parseSource in RuntimeOptions to use source resolvers`
-          );
-        }
-
-        let scriptNode;
-        try {
-          scriptNode = parseSource(result.text);
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          // Use the parse error's location within the resolved source, not the use<> call site
-          const parseLocation =
-            err instanceof RillError ? err.location : undefined;
-          // Preserve the JS-standard `.cause` chain so host callers can
-          // inspect the original parse error. Halt builders cannot carry
-          // a live `cause` through to the bridge (only raw fields), so
-          // this single wrap site keeps the RuntimeError construction.
-          const wrapped =
-            parseLocation !== undefined
-              ? new RuntimeError(
-                  ERROR_IDS.RILL_R056,
-                  `Resolver error for '${key}': ${message.replace(/ at \d+:\d+$/, '')}`,
-                  parseLocation,
-                  { sourceId: key }
-                )
-              : RuntimeError.fromNode(
-                  ERROR_IDS.RILL_R056,
-                  `Resolver error for '${key}': ${message}`,
-                  node,
-                  { sourceId: key }
-                );
-          (wrapped as { sourceId: string }).sourceId = key;
-          wrapped.cause = err;
-          throw wrapped;
-        }
-        const childCtx = createChildContext(this.ctx, {
-          sourceId: result.sourceId ?? key,
-          sourceText: result.text,
-        });
-        let execResult;
-        try {
-          execResult = await execute(scriptNode, childCtx);
-        } catch (err) {
-          // Enrich runtime errors from module execution with sourceId and sourceText
-          if (err instanceof RillError && !err.sourceId) {
-            (err as { sourceId: string }).sourceId = result.sourceId ?? key;
-            const ctx = (err.context ?? {}) as Record<string, unknown>;
-            ctx['sourceText'] = result.text;
-            (err as { context: Record<string, unknown> }).context = ctx;
-          }
-          throw err;
-        }
-        return execResult.result;
-      } finally {
-        // Remove after resolver call and any source execution complete (or error)
-        this.ctx.resolvingSchemes.delete(key);
-      }
+    evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
+      return evaluateUseExpr(this as unknown as EvalState, node);
     }
   };
 }
