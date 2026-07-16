@@ -8,19 +8,17 @@
  */
 
 import type { ASTNode, CaptureNode, SourceLocation } from '../../../types.js';
-import type { EvaluatorInterface } from './interface.js';
-import { TimeoutError } from '../../../types.js';
 import type { RuntimeContext } from '../types/runtime.js';
-import { isCallable, isDict } from '../callable.js';
-import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
+import type { EvalState } from './state.js';
 import {
-  throwAbortHalt,
-  throwAutoExceptionHalt,
-  throwCatchableHostHalt,
-  type TypeHaltSite,
-} from '../types/halt.js';
-import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
+  getNodeLocation,
+  checkAborted,
+  checkAutoExceptions,
+  withTimeout,
+  handleCapture,
+  accessDictField,
+} from './shared.js';
 
 /**
  * Base class for the evaluator.
@@ -35,7 +33,7 @@ export class EvaluatorBase {
    * Used for error reporting with precise location information.
    */
   getNodeLocation(node?: ASTNode): SourceLocation | undefined {
-    return node?.span.start;
+    return getNodeLocation(this as unknown as EvalState, node);
   }
 
   /**
@@ -44,14 +42,7 @@ export class EvaluatorBase {
    * when the signal is aborted.
    */
   checkAborted(node?: ASTNode): void {
-    if (this.ctx.signal?.aborted) {
-      const site: TypeHaltSite = {
-        location: this.getNodeLocation(node),
-        sourceId: this.ctx.sourceId,
-        fn: 'checkAborted',
-      };
-      throwAbortHalt(site);
-    }
+    return checkAborted(this as unknown as EvalState, node);
   }
 
   /**
@@ -60,20 +51,7 @@ export class EvaluatorBase {
    * via throwAutoExceptionHalt (IR-2) on match.
    */
   checkAutoExceptions(value: RillValue, node?: ASTNode): void {
-    if (typeof value !== 'string' || this.ctx.autoExceptions.length === 0) {
-      return;
-    }
-
-    for (const pattern of this.ctx.autoExceptions) {
-      if (pattern.test(value)) {
-        const site: TypeHaltSite = {
-          location: this.getNodeLocation(node),
-          sourceId: this.ctx.sourceId,
-          fn: 'checkAutoExceptions',
-        };
-        throwAutoExceptionHalt(site, pattern.source, value);
-      }
-    }
+    return checkAutoExceptions(this as unknown as EvalState, value, node);
   }
 
   /**
@@ -86,24 +64,13 @@ export class EvaluatorBase {
     functionName: string,
     node?: ASTNode
   ): Promise<T> {
-    if (timeoutMs === undefined) {
-      return promise;
-    }
-
-    return Promise.race([
+    return withTimeout(
+      this as unknown as EvalState,
       promise,
-      new Promise<never>((_, reject) => {
-        setTimeout(() => {
-          reject(
-            new TimeoutError(
-              functionName,
-              timeoutMs,
-              this.getNodeLocation(node)
-            )
-          );
-        }, timeoutMs);
-      }),
-    ]);
+      timeoutMs,
+      functionName,
+      node
+    );
   }
 
   /**
@@ -115,14 +82,10 @@ export class EvaluatorBase {
    * Phase 1-3 use the functional evaluator which has its own handleCapture.
    */
   handleCapture(
-    _capture: CaptureNode | null,
-    _value: RillValue
+    capture: CaptureNode | null,
+    value: RillValue
   ): Promise<{ name: string; value: RillValue } | undefined> {
-    // AC-13: Intentional raw throw - internal mixin guard, not user-reachable.
-    // This stub only runs if mixin composition is incomplete (programming error).
-    throw new Error(
-      'handleCapture requires full Evaluator composition with VariablesMixin'
-    );
+    return handleCapture(this as unknown as EvalState, capture, value);
   }
 
   /**
@@ -136,49 +99,19 @@ export class EvaluatorBase {
    * @returns The field value
    * @throws RuntimeError if value is not a dict or field is missing (unless allowMissing)
    */
-  async accessDictField(
+  accessDictField(
     value: RillValue,
     field: string,
     location?: SourceLocation,
     allowMissing = false
   ): Promise<RillValue> {
-    if (!isDict(value)) {
-      throwCatchableHostHalt(
-        { location, sourceId: this.ctx.sourceId, fn: 'accessDictField' },
-        ERROR_ATOMS[ERROR_IDS.RILL_R003],
-        `Cannot access field '${field}' on non-dict`
-      );
-    }
-
-    const dictValue = (value as Record<string, RillValue>)[field];
-
-    // Check if field exists
-    if (dictValue === undefined || dictValue === null) {
-      if (allowMissing) {
-        return null;
-      }
-      throwCatchableHostHalt(
-        { location, sourceId: this.ctx.sourceId, fn: 'accessDictField' },
-        ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        `Dict has no field '${field}'`
-      );
-    }
-
-    // Property-style callable: auto-invoke when accessed
-    if (isCallable(dictValue)) {
-      if (dictValue.isProperty) {
-        // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
-        // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
-        const args = dictValue.kind === 'script' ? [] : [value];
-        return await (this as unknown as EvaluatorInterface).invokeCallable(
-          dictValue as RillCallable,
-          args,
-          location
-        );
-      }
-    }
-
-    return dictValue;
+    return accessDictField(
+      this as unknown as EvalState,
+      value,
+      field,
+      location,
+      allowMissing
+    );
   }
 }
 
