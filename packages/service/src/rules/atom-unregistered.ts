@@ -36,6 +36,7 @@ export const atomUnregistered: Rule = {
   code: 'ATOM_UNREGISTERED',
   nodeTypes: ['AtomLiteral'],
   defaultSeverity: 'warning',
+  category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const atom = node as AtomLiteralNode;

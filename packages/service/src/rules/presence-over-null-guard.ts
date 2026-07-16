@@ -70,6 +70,7 @@ export const presenceOverNullGuard: Rule = {
   code: 'PRESENCE_OVER_NULL_GUARD',
   nodeTypes: ['Conditional'],
   defaultSeverity: 'info',
+  category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const cond = node as ConditionalNode;

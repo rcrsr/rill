@@ -201,6 +201,7 @@ export const complexCondition: Rule = {
   code: 'COMPLEX_CONDITION',
   nodeTypes: ['Conditional'],
   defaultSeverity: 'info',
+  category: 'anti-patterns',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const conditionalNode = node as ConditionalNode;

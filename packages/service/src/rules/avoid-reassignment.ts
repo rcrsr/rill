@@ -14,6 +14,7 @@ export const avoidReassignment: Rule = {
   code: 'AVOID_REASSIGNMENT',
   nodeTypes: ['Capture'],
   defaultSeverity: 'warning',
+  category: 'anti-patterns',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const captureNode = node as CaptureNode;

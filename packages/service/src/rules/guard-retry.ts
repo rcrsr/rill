@@ -20,6 +20,7 @@ export const guardBare: Rule = {
   code: 'GUARD_BARE',
   nodeTypes: ['GuardBlock'],
   defaultSeverity: 'info',
+  category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const guard = node as GuardBlockNode;
@@ -51,6 +52,7 @@ export const retryTrivial: Rule = {
   code: 'RETRY_TRIVIAL',
   nodeTypes: ['RetryBlock'],
   defaultSeverity: 'warning',
+  category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const retry = node as RetryBlockNode;

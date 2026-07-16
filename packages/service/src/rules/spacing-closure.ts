@@ -19,6 +19,7 @@ export const spacingClosure: Rule = {
   code: 'SPACING_CLOSURE',
   nodeTypes: ['Closure'],
   defaultSeverity: 'info',
+  category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];

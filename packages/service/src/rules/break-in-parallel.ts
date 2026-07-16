@@ -21,6 +21,7 @@ export const breakInParallel: Rule = {
   code: 'BREAK_IN_PARALLEL',
   nodeTypes: ['HostCall'],
   defaultSeverity: 'error',
+  category: 'collections',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     if (!isCollectionOpCall(node)) return [];

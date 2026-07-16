@@ -111,6 +111,7 @@ export const namingSnakeCase: Rule = {
   code: 'NAMING_SNAKE_CASE',
   nodeTypes: ['ClosureParam', 'DictEntry', 'Capture'],
   defaultSeverity: 'error',
+  category: 'naming',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     switch (node.type) {

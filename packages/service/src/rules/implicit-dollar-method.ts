@@ -23,6 +23,7 @@ export const implicitDollarMethod: Rule = {
   code: 'IMPLICIT_DOLLAR_METHOD',
   nodeTypes: ['MethodCall'],
   defaultSeverity: 'info',
+  category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const methodNode = node as MethodCallNode;

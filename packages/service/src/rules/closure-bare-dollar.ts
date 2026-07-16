@@ -17,6 +17,7 @@ export const closureBareDollar: Rule = {
   code: 'CLOSURE_BARE_DOLLAR',
   nodeTypes: ['Closure'],
   defaultSeverity: 'warning',
+  category: 'closures',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const closureNode = node as ClosureNode;

@@ -13,6 +13,7 @@ export const statusProbeNoField: Rule = {
   code: 'STATUS_PROBE_NO_FIELD',
   nodeTypes: ['StatusProbe'],
   defaultSeverity: 'info',
+  category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const probe = node as StatusProbeNode;

@@ -63,6 +63,7 @@ export const validateExternal: Rule = {
   code: 'VALIDATE_EXTERNAL',
   nodeTypes: ['HostCall'],
   defaultSeverity: 'info',
+  category: 'types',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const hostCallNode = node as HostCallNode;

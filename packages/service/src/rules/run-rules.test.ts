@@ -34,6 +34,7 @@ function makeFakeRule(
 ): Rule {
   return {
     code,
+    category: 'flow',
     nodeTypes,
     defaultSeverity: diagnostic.severity,
     validate(_node: ASTNode, _context: RuleContext): Diagnostic[] {
@@ -111,6 +112,7 @@ describe('runRules', () => {
 
       const throwingRule: Rule = {
         code: 'THROWING_RULE',
+        category: 'flow',
         nodeTypes: ['Capture'],
         defaultSeverity: 'error',
         validate(): Diagnostic[] {

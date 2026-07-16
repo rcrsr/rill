@@ -12,6 +12,7 @@ export const spacingBraces: Rule = {
   code: 'SPACING_BRACES',
   nodeTypes: ['Block', 'Closure'],
   defaultSeverity: 'info',
+  category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];

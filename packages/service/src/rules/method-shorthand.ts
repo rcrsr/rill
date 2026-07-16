@@ -23,6 +23,7 @@ export const methodShorthand: Rule = {
   code: 'METHOD_SHORTHAND',
   nodeTypes: ['HostCall'],
   defaultSeverity: 'info',
+  category: 'collections',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     if (!isCollectionOpCall(node)) return [];

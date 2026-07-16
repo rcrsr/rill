@@ -39,6 +39,7 @@ export const indentContinuation: Rule = {
   code: 'INDENT_CONTINUATION',
   nodeTypes: ['PipeChain'],
   defaultSeverity: 'info',
+  category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];

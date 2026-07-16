@@ -23,6 +23,7 @@ export const filterNegation: Rule = {
   code: 'FILTER_NEGATION',
   nodeTypes: ['HostCall'],
   defaultSeverity: 'warning',
+  category: 'collections',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     if (!isCollectionOpCall(node)) return [];

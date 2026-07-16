@@ -25,6 +25,7 @@ export const useDynamicIdentifier: Rule = {
   code: 'USE_DYNAMIC_IDENTIFIER',
   nodeTypes: ['UseExpr'],
   defaultSeverity: 'warning',
+  category: 'anti-patterns',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const useNode = node as UseExprNode;
@@ -65,6 +66,7 @@ export const useUntypedHostRef: Rule = {
   code: 'USE_UNTYPED_HOST_REF',
   nodeTypes: ['UseExpr'],
   defaultSeverity: 'warning',
+  category: 'types',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const useNode = node as UseExprNode;
