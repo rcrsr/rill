@@ -32,6 +32,9 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { getNodeLocation } from '../shared.js';
+import { evaluateExpression } from './core.js';
+import { evaluateVariableAsync } from './variables.js';
 
 /**
  * Evaluate a use<> expression [IR-6].
@@ -63,11 +66,11 @@ export async function evaluateUseExpr(
       existenceCheck: null,
       span: node.span,
     };
-    const varValue = await s.evaluateVariableAsync(varNode);
+    const varValue = await evaluateVariableAsync(s, varNode);
     if (typeof varValue !== 'string') {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateUseExpr',
         },
@@ -78,18 +81,18 @@ export async function evaluateUseExpr(
     const parsed = parseSchemeString(
       varValue,
       node,
-      s.getNodeLocation(node),
+      getNodeLocation(s, node),
       s.ctx.sourceId
     );
     scheme = parsed.scheme;
     resource = parsed.resource;
   } else {
     // Computed form: evaluate the expression, expect string
-    const exprValue = await s.evaluateExpression(identifier.expression);
+    const exprValue = await evaluateExpression(s, identifier.expression);
     if (typeof exprValue !== 'string') {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateUseExpr',
         },
@@ -100,7 +103,7 @@ export async function evaluateUseExpr(
     const parsed = parseSchemeString(
       exprValue,
       node,
-      s.getNodeLocation(node),
+      getNodeLocation(s, node),
       s.ctx.sourceId
     );
     scheme = parsed.scheme;
@@ -112,7 +115,7 @@ export async function evaluateUseExpr(
   if (!resolver) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateUseExpr',
       },
@@ -126,7 +129,7 @@ export async function evaluateUseExpr(
   if (s.ctx.resolvingSchemes.has(key)) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateUseExpr',
       },
@@ -148,7 +151,7 @@ export async function evaluateUseExpr(
       const message = err instanceof Error ? err.message : String(err);
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateUseExpr',
         },
@@ -167,7 +170,7 @@ export async function evaluateUseExpr(
     if (!parseSource) {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateUseExpr',
         },
