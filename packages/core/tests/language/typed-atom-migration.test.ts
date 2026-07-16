@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
-import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js';
+import { RuntimeHaltSignal } from '../../src/runtime/core/eval/handlers/access.js';
 
 /** Run a script and return its final value. */
 async function runScript(src: string): Promise<unknown> {

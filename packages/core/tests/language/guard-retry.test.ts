@@ -43,7 +43,7 @@ import {
 } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import { createTraceFrame } from '../../src/runtime/core/types/trace.js';
-import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js';
+import { RuntimeHaltSignal } from '../../src/runtime/core/eval/handlers/access.js';
 import { run } from '../helpers/runtime.js';
 
 /**
