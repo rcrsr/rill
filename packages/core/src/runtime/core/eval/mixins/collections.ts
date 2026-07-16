@@ -34,7 +34,7 @@ import {
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import { getEvaluator } from '../evaluator.js';
-import type { EvaluatorInterface } from '../interface.js';
+import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
@@ -95,7 +95,7 @@ export async function getIterableElements(
   if (typeof input === 'string') {
     return [...input];
   }
-  const evaluator = getEvaluator(ctx) as unknown as EvaluatorInterface;
+  const evaluator: EvalState = getEvaluator(ctx);
   // Check for stream BEFORE iterator (streams satisfy iterator shape)
   if (isStream(input)) {
     return expandStream(input, evaluator, node, limit);
@@ -135,7 +135,7 @@ export async function getIterableElements(
  */
 async function expandIterator(
   iterator: RillValue,
-  evaluator: EvaluatorInterface,
+  evaluator: EvalState,
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
@@ -218,7 +218,7 @@ async function expandIterator(
  */
 async function expandStream(
   stream: RillStream,
-  evaluator: EvaluatorInterface,
+  evaluator: EvalState,
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
@@ -369,7 +369,7 @@ export function CollectionsMixin<
     ): Promise<RillValue[]> {
       return expandIterator(
         iterator,
-        this as unknown as EvaluatorInterface,
+        this as unknown as EvalState,
         node,
         limit
       );
@@ -384,12 +384,7 @@ export function CollectionsMixin<
       node: { span: { start: SourceLocation } },
       limit: number = DEFAULT_MAX_ITERATIONS
     ): Promise<RillValue[]> {
-      return expandStream(
-        stream,
-        this as unknown as EvaluatorInterface,
-        node,
-        limit
-      );
+      return expandStream(stream, this as unknown as EvalState, node, limit);
     }
   };
 }
