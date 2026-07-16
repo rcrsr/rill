@@ -12,7 +12,7 @@ The package splits its surface across three entry points so consumers importing 
 |---------|---------|
 | `@rcrsr/rill-language-service` | `documentSymbols`, `semanticTokens`, `formatDocument`, `spanToRange`, `version`, plus `Position`, `Range`, `DocumentSymbol`, `SymbolKind`, `SemanticToken`, `ServiceTokenType`, `TextEdit` |
 | `@rcrsr/rill-language-service/scope` | `resolveScopeAt`, `findDefinition`, `getHover`, `getCompletions`, plus `Binding`, `BindingKind`, `HoverInfo`, `CompletionItem`, `CompletionKind` |
-| `@rcrsr/rill-language-service/rules` | `createDefaultConfig`, `validateConfig`, `validateRuleCodes`, `runRules`, `RULES`, plus `CheckConfig`, `Diagnostic`, `DiagnosticFix`, `DiagnosticSeverity`, `Rule`, `RuleCategory`, `RuleContext`, `RuleState`, `ValidationError` |
+| `@rcrsr/rill-language-service/rules` | `createDefaultConfig`, `validateConfig`, `validateRuleCodes`, `runRules`, `RULES`, `capturesInSubtree`, plus `CheckConfig`, `Diagnostic`, `DiagnosticFix`, `DiagnosticSeverity`, `Rule`, `RuleCategory`, `RuleContext`, `RuleState`, `ValidationError`, `AstFacts`, `CaptureEntry`, `ScriptFacts`, `SubtreeFacts` |
 
 ---
 

@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`@rcrsr/rill-language-service` package debut:** The package ships outline, semantic tokens, formatting, scope, hover, go-to-definition, completion, and a static checker with 37 active rule codes (40 registered, 3 reserved stubs). ([#109](https://github.com/rcrsr/rill/pull/109)) ([#110](https://github.com/rcrsr/rill/pull/110))
-- **Rule categories:** Each rule now carries a category designation, enabling consumers to organize and filter diagnostics by type. ([#117](https://github.com/rcrsr/rill/pull/117))
+- **Rule categories:** Each rule in `RULES` now carries a `category` taxonomy field, enabling consumers to group and filter rules by type. ([#117](https://github.com/rcrsr/rill/pull/117))
 
 ### Changed
 
