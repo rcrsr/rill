@@ -13,12 +13,21 @@
 # Also prints the cross-mixin cast count and `as any` factory-export count
 # for inclusion in PR descriptions (informational, not enforced here).
 #
-# Usage: scripts/check-test-parity.sh [base-ref]   (default: main)
+# Usage: scripts/check-test-parity.sh [base-ref]
+#        (default: main, falling back to origin/main when no local main
+#        branch exists, e.g. in a CI PR checkout)
 
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-BASE_REF="${1:-main}"
+BASE_REF="${1:-}"
+if [ -z "$BASE_REF" ]; then
+  if git rev-parse --verify --quiet main >/dev/null; then
+    BASE_REF=main
+  else
+    BASE_REF=origin/main
+  fi
+fi
 BASELINE_TESTS=5732 # recorded 2026-07-15 on refactor/evaluator-migration after adding eval-state.test.ts (main @ 20ebc8c unchanged at 5752)
 
 MERGE_BASE=$(git merge-base "$BASE_REF" HEAD)
