@@ -43,8 +43,6 @@ import {
   throwFatalHostHalt,
   type TypeHaltSite,
 } from '../../types/halt.js';
-import type { EvaluatorConstructor } from '../types.js';
-import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, checkAborted } from '../shared.js';
@@ -608,84 +606,3 @@ export async function evaluateBodyExpression(
     throw e;
   }
 }
-
-/**
- * ControlFlowMixin implementation.
- *
- * Evaluates conditionals, loops, blocks, and body nodes.
- * Handles BreakSignal and ReturnSignal for control flow.
- *
- * Depends on:
- * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
- * - evaluateExpression() (from future CoreMixin composition)
- * - evaluateGroupedExpr() (from ExpressionsMixin)
- * - evaluatePostfixExpr() (from future CoreMixin composition)
- * - evaluatePipeChain() (from future CoreMixin composition)
- * - executeStatement() (from future CoreMixin composition)
- *
- * Methods added:
- * - evaluateConditional(node) -> Promise<RillValue>
- * - evaluateWhileLoop(node) -> Promise<RillValue>
- * - evaluateDoWhileLoop(node) -> Promise<RillValue>
- * - evaluateBlock(node) -> Promise<RillValue>
- * - evaluateBlockExpression(node) -> Promise<RillValue>
- * - evaluateBody(node) -> Promise<RillValue>
- * - evaluateBodyExpression(node) -> Promise<RillValue>
- * - getIterationLimit() -> number (helper)
- */
-export function ControlFlowMixin<
-  TBase extends EvaluatorConstructor<EvaluatorBase>,
->(Base: TBase) {
-  return class ControlFlowEvaluator extends Base {
-    evaluateConditional(node: ConditionalNode): Promise<RillValue> {
-      return evaluateConditional(this as unknown as EvalState, node);
-    }
-
-    evaluateWhileLoop(node: WhileLoopNode): Promise<RillValue> {
-      return evaluateWhileLoop(this as unknown as EvalState, node);
-    }
-
-    evaluateDoWhileLoop(node: DoWhileLoopNode): Promise<RillValue> {
-      return evaluateDoWhileLoop(this as unknown as EvalState, node);
-    }
-
-    evaluateBlock(node: BlockNode): Promise<RillValue> {
-      return evaluateBlock(this as unknown as EvalState, node);
-    }
-
-    evaluateBlockExpression(node: BlockNode): Promise<RillValue> {
-      return evaluateBlockExpression(this as unknown as EvalState, node);
-    }
-
-    evaluateAssert(node: AssertNode, input?: RillValue): Promise<RillValue> {
-      return evaluateAssert(this as unknown as EvalState, node, input);
-    }
-
-    evaluateError(node: ErrorNode, input?: RillValue): Promise<never> {
-      return evaluateError(this as unknown as EvalState, node, input);
-    }
-
-    evaluateBody(node: BodyNode): Promise<RillValue> {
-      return evaluateBody(this as unknown as EvalState, node);
-    }
-
-    evaluateBodyExpression(node: BodyNode): Promise<RillValue> {
-      return evaluateBodyExpression(this as unknown as EvalState, node);
-    }
-  };
-}
-
-/**
- * Capability fragment: methods contributed by ControlFlowMixin that are called
- * from core.ts cast sites. Covers only the methods core.ts invokes.
- */
-export type ControlFlowMixinCapability = {
-  evaluateConditional(node: ConditionalNode): Promise<RillValue>;
-  evaluateWhileLoop(node: WhileLoopNode): Promise<RillValue>;
-  evaluateDoWhileLoop(node: DoWhileLoopNode): Promise<RillValue>;
-  evaluateBlock(node: BlockNode): Promise<RillValue>;
-  evaluateAssert(node: AssertNode, input?: RillValue): Promise<RillValue>;
-  evaluateError(node: ErrorNode, input?: RillValue): Promise<never>;
-  evaluateBody(node: BodyNode): Promise<RillValue>;
-  evaluateBodyExpression(node: BodyNode): Promise<RillValue>;
-};

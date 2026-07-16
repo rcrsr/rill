@@ -28,11 +28,10 @@ import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { createChildContext } from '../../context.js';
 import { execute } from '../../execute.js';
-import type { EvaluatorConstructor } from '../types.js';
-import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation } from '../shared.js';
+import type { SourceLocation } from '../../../../types.js';
 import { evaluateExpression } from './core.js';
 import { evaluateVariableAsync } from './variables.js';
 
@@ -233,45 +232,13 @@ export async function evaluateUseExpr(
 }
 
 /**
- * UseMixin implementation.
- *
- * Provides use<> expression evaluation. Resolves scheme-qualified identifiers
- * via the host-provided resolver map on RuntimeContext.
- *
- * Depends on:
- * - EvaluatorBase: ctx, getNodeLocation()
- * - context utilities: createChildContext
- * - execute.ts: execute() for source results
- * - CoreMixin: evaluateExpression() for computed identifiers
- * - VariablesMixin: evaluateVariableAsync() for variable identifiers
- *
- * Methods added:
- * - evaluateUseExpr(node) -> Promise<RillValue>
- */
-export function UseMixin<TBase extends EvaluatorConstructor<EvaluatorBase>>(
-  Base: TBase
-) {
-  return class UseEvaluator extends Base {
-    /**
-     * Evaluate a use<> expression [IR-6].
-     *
-     * Resolves the identifier to a scheme + resource string, calls the
-     * registered resolver, and returns the result value (or executes source).
-     */
-    evaluateUseExpr(node: UseExprNode): Promise<RillValue> {
-      return evaluateUseExpr(this as unknown as EvalState, node);
-    }
-  };
-}
-
-/**
  * Parse a "scheme:resource" string, throwing RILL_R058 if ':' is absent.
  * @internal
  */
 function parseSchemeString(
   value: string,
   _node: UseExprNode,
-  location: ReturnType<EvaluatorBase['getNodeLocation']>,
+  location: SourceLocation | undefined,
   sourceId: string | undefined
 ): { scheme: string; resource: string } {
   const colonIndex = value.indexOf(':');
@@ -287,11 +254,3 @@ function parseSchemeString(
     resource: value.slice(colonIndex + 1),
   };
 }
-
-/**
- * Capability fragment: methods contributed by UseMixin that are called
- * from core.ts cast sites. Covers only the methods core.ts invokes.
- */
-export type UseMixinCapability = {
-  evaluateUseExpr(node: UseExprNode): Promise<RillValue>;
-};

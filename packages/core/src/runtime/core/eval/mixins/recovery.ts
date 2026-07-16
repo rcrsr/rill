@@ -46,8 +46,6 @@ import {
 import { createTraceFrame } from '../../types/trace.js';
 import type { RillAtom } from '../../types/atom-registry.js';
 import { resolveAtom } from '../../types/atom-registry.js';
-import type { EvaluatorConstructor } from '../types.js';
-import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
@@ -411,96 +409,6 @@ export async function evaluateTimeoutBlock(
   }
 }
 
-/**
- * RecoveryMixin implementation.
- *
- * Depends on:
- * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
- * - ControlFlowMixin: evaluateBody(node) (for body execution)
- * - CoreMixin / VariablesMixin: evaluateExpression() (for probe target)
- *
- * Methods added:
- * - evaluateGuardBlock(node) -> Promise<RillValue>
- * - evaluateRetryBlock(node) -> Promise<RillValue>
- * - evaluateStatusProbe(node) -> Promise<RillValue>
- */
-export function RecoveryMixin<
-  TBase extends EvaluatorConstructor<EvaluatorBase>,
->(Base: TBase) {
-  return class RecoveryEvaluator extends Base {
-    /**
-     * Evaluate a guard block.
-     *
-     * Runs the body once. On a catchable halt whose code matches the
-     * optional `onCodes` filter, appends a `guard-caught` trace frame
-     * and returns the invalid value as the block result. Non-matching
-     * halts and non-catchable halts (error / assert) propagate.
-     */
-    evaluateGuardBlock(node: GuardBlockNode): Promise<RillValue> {
-      return evaluateGuardBlock(this as unknown as EvalState, node);
-    }
-
-    /**
-     * Evaluate a retry block.
-     *
-     * Re-enters the body up to `node.attempts` times. Each caught halt
-     * that matches the `onCodes` filter appends one `guard-caught`
-     * frame to a running invalid value and advances to the next
-     * attempt. On success, returns the body's result. If every attempt
-     * halts, returns the final invalid value with all N frames.
-     *
-     * AC-B2: A `RetryBlock` node with `attempts <= 0` (only reachable via
-     * host-synthesised AST; the parser rejects `limit: N` for N < 1) executes
-     * zero times and returns an invalid `#R001` (programmer error).
-     */
-    evaluateRetryBlock(node: RetryBlockNode): Promise<RillValue> {
-      return evaluateRetryBlock(this as unknown as EvalState, node);
-    }
-
-    /**
-     * Evaluate a status probe (`.!`, `.!code`, `.!message`, `.!provider`,
-     * `.!trace`, `.!<raw-field>`).
-     *
-     * Bypasses the access-halt gate: reading the sidecar of an invalid
-     * value is the one access site that must NOT halt. Instead, the
-     * probe materialises sidecar metadata as an ordinary RillValue.
-     *
-     * Projection semantics:
-     * - bare `.!`         -> bool: `false` when valid, `true` when invalid
-     *                        (spec AC-1: `$valid.!` is `false`).
-     * - `.!code`          -> `:atom` atom value.
-     * - `.!message`       -> string.
-     * - `.!provider`      -> string.
-     * - `.!trace`         -> list of trace-frame dicts.
-     * - `.!<other>`       -> lookup in `status.raw`; missing key yields `""`.
-     */
-    evaluateStatusProbe(node: StatusProbeNode): Promise<RillValue> {
-      return evaluateStatusProbe(this as unknown as EvalState, node);
-    }
-
-    /**
-     * Evaluate a timeout block.
-     *
-     * Validates that `node.duration` evaluates to a `duration` value [EC-3].
-     * Creates a fresh `AbortController` for the timeout scope, chains it to
-     * `ctx.signal` via `AbortSignal.any` so either side can cancel. Arms a
-     * `setTimeout` (total) or idle-tick (idle) timer via `ctx.scheduler` when
-     * injected, falling back to the global scheduler [IR-1, IR-2].
-     *
-     * On expiry: the chained controller is aborted and a catchable
-     * `RuntimeHaltSignal` carrying `#TIMEOUT_TOTAL` or `#TIMEOUT_IDLE` is
-     * thrown [EC-1, EC-2]. The host body runs under the chained signal so
-     * cooperative host functions observing `ctx.signal` halt naturally.
-     *
-     * Non-catchable halts (RILL_R010, error, assert) and ControlSignal
-     * subclasses propagate through unchanged [EC-5, §NOD.10.4].
-     */
-    evaluateTimeoutBlock(node: TimeoutBlockNode): Promise<RillValue> {
-      return evaluateTimeoutBlock(this as unknown as EvalState, node);
-    }
-  };
-}
-
 // ============================================================
 // SCHEDULER
 // ============================================================
@@ -608,14 +516,3 @@ const TIMEOUT_TOTAL_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R082];
  * Paired with RILL-R083 in error-registry.ts.
  */
 const TIMEOUT_IDLE_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R083];
-
-/**
- * Capability fragment: methods contributed by RecoveryMixin that are called
- * from core.ts cast sites. Covers only the methods core.ts invokes.
- */
-export type RecoveryMixinCapability = {
-  evaluateGuardBlock(node: GuardBlockNode): Promise<RillValue>;
-  evaluateRetryBlock(node: RetryBlockNode): Promise<RillValue>;
-  evaluateStatusProbe(node: StatusProbeNode): Promise<RillValue>;
-  evaluateTimeoutBlock(node: TimeoutBlockNode): Promise<RillValue>;
-};

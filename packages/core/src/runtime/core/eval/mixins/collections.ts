@@ -31,8 +31,6 @@ import {
   throwFatalHostHalt,
   throwTypeHalt,
 } from '../../types/halt.js';
-import type { EvaluatorConstructor } from '../types.js';
-import type { EvaluatorBase } from '../base.js';
 import { getEvalState } from '../state.js';
 import type { EvalState } from '../state.js';
 import { checkAborted } from '../shared.js';
@@ -335,67 +333,3 @@ async function expandStream(
 
   return elements;
 }
-
-/**
- * CollectionsMixin implementation.
- *
- * Exposes protected wrapper methods for the exported iterable helpers.
- * The evaluate* operator methods are removed (IC-3/IC-4).
- *
- * Methods added:
- * - getIterableElements(input, node) -> Promise<RillValue[]>
- * - expandIterator(iterator, node, limit?) -> Promise<RillValue[]>
- * - expandStream(stream, node, limit?) -> Promise<RillValue[]>
- */
-export function CollectionsMixin<
-  TBase extends EvaluatorConstructor<EvaluatorBase>,
->(Base: TBase) {
-  return class CollectionsEvaluator extends Base {
-    /**
-     * Get elements from an iterable value (list, string, dict, iterator, or stream).
-     * Delegates to the exported `getIterableElements` helper (IC-3).
-     */
-    async getIterableElements(
-      input: RillValue,
-      node: { span: { start: SourceLocation } }
-    ): Promise<RillValue[]> {
-      return getIterableElements(input, this.ctx, node);
-    }
-
-    /**
-     * Expand an iterator to a list of values.
-     * Delegates to the exported `expandIterator` helper (IC-3).
-     */
-    async expandIterator(
-      iterator: RillValue,
-      node: { span: { start: SourceLocation } },
-      limit: number = DEFAULT_MAX_ITERATIONS
-    ): Promise<RillValue[]> {
-      return expandIterator(
-        iterator,
-        this as unknown as EvalState,
-        node,
-        limit
-      );
-    }
-
-    /**
-     * Expand a stream to a list of chunk values.
-     * Delegates to the exported `expandStream` helper (IC-3).
-     */
-    async expandStream(
-      stream: RillStream,
-      node: { span: { start: SourceLocation } },
-      limit: number = DEFAULT_MAX_ITERATIONS
-    ): Promise<RillValue[]> {
-      return expandStream(stream, this as unknown as EvalState, node, limit);
-    }
-  };
-}
-
-/**
- * Capability fragment: CollectionsMixin contributes only protected helpers
- * (getIterableElements, expandIterator, expandStream) which are not called
- * from external cast sites. No public methods are added to the evaluator.
- */
-export type CollectionsMixinCapability = Record<never, never>;

@@ -23,7 +23,7 @@
  * @internal
  */
 
-import type { SourceLocation, BlockNode } from '../../../../types.js';
+import type { SourceLocation } from '../../../../types.js';
 import { ControlSignal } from '../../signals.js';
 import { RuntimeHaltSignal } from '../../types/halt.js';
 import type { ScriptCallable } from '../../callable.js';
@@ -41,8 +41,6 @@ import { ReturnSignal } from '../../signals.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { getEvalState } from '../state.js';
 import type { EvalState } from '../state.js';
-import type { EvaluatorConstructor } from '../types.js';
-import type { EvaluatorBase } from '../base.js';
 import { evaluateBodyExpression } from '../mixins/control-flow.js';
 import { createCallableContext } from '../mixins/closures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -422,102 +420,3 @@ export async function invokeStreamClosure(
 
   return stream;
 }
-
-// ============================================================
-// MIXIN FACTORY
-// ============================================================
-
-export function StreamClosuresMixin<
-  TBase extends EvaluatorConstructor<EvaluatorBase>,
->(Base: TBase) {
-  return class StreamClosuresEvaluator extends Base {
-    /**
-     * Stack of active stream lists for IR-14 scope exit cleanup.
-     * Each entry represents a scope boundary. Streams are tracked in
-     * creation order; disposed in reverse order on scope exit.
-     */
-    streamScopeStack: RillStream[][] = [];
-
-    /**
-     * Override: push a stream scope, evaluate the block, then dispose any
-     * unconsumed streams created inside it (IR-14).
-     *
-     * Co-located with `streamScopeStack` to keep all stream-lifecycle state
-     * and overrides inside this mixin.
-     */
-    evaluateBlock(node: BlockNode): Promise<RillValue> {
-      return runInStreamScope(this as unknown as EvalState, () =>
-        // Base chain provides evaluateBlock via ControlFlowMixin; TypeScript
-        // cannot see it through the mixin composition, so reach it via the
-        // prototype chain rather than widening `super` to `any`.
-        Object.getPrototypeOf(
-          StreamClosuresEvaluator.prototype
-        ).evaluateBlock.call(this, node)
-      );
-    }
-
-    /**
-     * Track a stream in the current scope for cleanup on scope exit (IR-14).
-     * Streams with dispose functions get cleaned up when their scope exits.
-     */
-    trackStream(stream: RillStream): void {
-      trackStream(this as unknown as EvalState, stream);
-    }
-
-    /**
-     * Dispose a list of unconsumed streams in reverse creation order (IR-14).
-     * Propagates dispose errors as RILL_R002 — does not swallow.
-     *
-     * Halt and control signals are re-thrown directly (IR-14 fix, EC-10).
-     * Other errors are wrapped as a fatal host halt (RILL_R002, EC-9): dispose
-     * failures are not user-recoverable and must not be swallowed by guard/retry,
-     * matching the lifecycle policy in collections.ts:expandStream.
-     *
-     * Idempotent on empty arrays and repeated calls after stack drain.
-     */
-    disposeStreams(streams: RillStream[]): Promise<void> {
-      return disposeStreams(this as unknown as EvalState, streams);
-    }
-
-    /**
-     * Create a RillStream from a stream-typed ScriptCallable (IR-7).
-     *
-     * Initializes a callable context, marshals arguments, spins up a dedicated
-     * body evaluator with an active stream channel, and returns a lazy
-     * RillStream whose async generator pulls from that channel.
-     *
-     * Error contracts:
-     * - Chunk type mismatch at yield → TYPE_MISMATCH (validated by evaluateYield)
-     * - Resolution type mismatch → TYPE_MISMATCH
-     * - Body RillError preserved with original code; dispose runs before re-throw (EC-8/AC-13)
-     */
-    invokeStreamClosure(
-      callable: ScriptCallable,
-      args: RillValue[],
-      callLocation?: SourceLocation
-    ): Promise<RillValue> {
-      return invokeStreamClosure(
-        this as unknown as EvalState,
-        callable,
-        args,
-        callLocation
-      );
-    }
-  };
-}
-
-/**
- * Capability fragment: methods contributed by StreamClosuresMixin that are
- * called from other mixin files. Used as the structural cast target in
- * EvaluatorInterface.
- */
-export type StreamClosuresMixinCapability = {
-  invokeStreamClosure(
-    callable: ScriptCallable,
-    args: RillValue[],
-    callLocation?: SourceLocation
-  ): Promise<RillValue>;
-  trackStream(stream: RillStream): void;
-  disposeStreams(streams: RillStream[]): Promise<void>;
-  streamScopeStack: RillStream[][];
-};

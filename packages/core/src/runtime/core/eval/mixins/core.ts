@@ -37,8 +37,6 @@ import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
 import { resolveAtom, atomName } from '../../types/atom-registry.js';
-import type { EvaluatorConstructor } from '../types.js';
-import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { accessHaltGateFast, formatAccessSite } from './access.js';
 import {
@@ -341,10 +339,10 @@ export async function evaluatePostfixExpr(
  * - Grouped expressions
  *
  * Extension: to add a new PrimaryNode type, (1) add the node to the AST
- * union in ast-nodes.ts and ast-unions.ts, (2) add an evaluation method
- * to the appropriate mixin and declare it on EvaluatorInterface, (3) add a
- * case here delegating to that method.  The default branch surfaces any
- * unhandled type at runtime so TypeScript exhaustiveness remains in force.
+ * union in ast-nodes.ts and ast-unions.ts, (2) add an evaluation function
+ * to the appropriate module, (3) add a case here delegating to that
+ * function. The default branch surfaces any unhandled type at runtime so
+ * TypeScript exhaustiveness remains in force.
  */
 export async function evaluatePrimary(
   s: EvalState,
@@ -1146,147 +1144,3 @@ export async function resolveTerminalValue(
     }
   }
 }
-
-/**
- * CoreMixin implementation.
- *
- * Provides main dispatch methods for expression evaluation.
- * This mixin coordinates with other mixins to provide complete evaluation.
- *
- * Depends on:
- * - EvaluatorBase: ctx, checkAborted(), getNodeLocation()
- * - ExpressionsMixin: evaluateBinaryExpr(), evaluateUnaryExpr(), evaluateGroupedExpr()
- * - LiteralsMixin: evaluateString(), evaluateDict(), evaluateTuple(), createClosure()
- * - VariablesMixin: evaluateVariable(), evaluateVariableAsync(), evaluatePipePropertyAccess(), evaluateVariableInvoke(), handleCapture()
- * - ClosuresMixin: evaluateHostCall(), evaluateClosureCall(), evaluatePipeInvoke()
- * - ControlFlowMixin: evaluateConditional(), evaluateWhileLoop(), evaluateDoWhileLoop(), evaluateBlockExpression()
- * - TypesMixin: evaluateTypeAssertion(), evaluateTypeCheck()
- * - CollectionsMixin: evaluateEach(), evaluateMap(), evaluateFold(), evaluateFilter()
- * - ExtractionMixin: evaluateDestructure(), evaluateSlice(), evaluateCollectionLiteral()
- *
- * Methods added:
- * - evaluateExpression(expr) -> Promise<RillValue>
- * - evaluatePipeChain(chain) -> Promise<RillValue>
- * - evaluatePostfixExpr(expr) -> Promise<RillValue>
- * - evaluatePrimary(primary) -> Promise<RillValue>
- * - evaluatePipeTarget(target, input) -> Promise<RillValue>
- */
-export function CoreMixin<TBase extends EvaluatorConstructor<EvaluatorBase>>(
-  Base: TBase
-) {
-  return class CoreEvaluator extends Base {
-    evaluateExpression(expr: ExpressionNode): Promise<RillValue> {
-      return evaluateExpression(this as unknown as EvalState, expr);
-    }
-
-    evaluatePipeChain(chain: PipeChainNode): Promise<RillValue> {
-      return evaluatePipeChain(this as unknown as EvalState, chain);
-    }
-
-    evaluatePostfixExpr(expr: PostfixExprNode): Promise<RillValue> {
-      return evaluatePostfixExpr(this as unknown as EvalState, expr);
-    }
-
-    evaluatePrimary(primary: PrimaryNode): Promise<RillValue> {
-      return evaluatePrimary(this as unknown as EvalState, primary);
-    }
-
-    evaluatePipeTarget(
-      target: PipeTargetNode,
-      input: RillValue
-    ): Promise<RillValue> {
-      return evaluatePipeTarget(this as unknown as EvalState, target, input);
-    }
-
-    evaluateHierarchicalDispatch(
-      target: RillValue,
-      path: RillValue[],
-      defaultExpr?: BodyNode,
-      location?: SourceLocation
-    ): Promise<RillValue> {
-      return evaluateHierarchicalDispatch(
-        this as unknown as EvalState,
-        target,
-        path,
-        defaultExpr,
-        location
-      );
-    }
-
-    traversePathStep(
-      current: RillValue,
-      key: RillValue,
-      isTerminal: boolean,
-      location?: SourceLocation
-    ): Promise<RillValue> {
-      return traversePathStep(
-        this as unknown as EvalState,
-        current,
-        key,
-        isTerminal,
-        location
-      );
-    }
-
-    resolveIntermediateClosure(
-      value: RillValue,
-      location?: SourceLocation
-    ): Promise<RillValue> {
-      return resolveIntermediateClosure(
-        this as unknown as EvalState,
-        value,
-        location
-      );
-    }
-
-    resolveTerminalValue(
-      value: RillValue,
-      finalKey: RillValue,
-      location?: SourceLocation
-    ): Promise<RillValue> {
-      return resolveTerminalValue(
-        this as unknown as EvalState,
-        value,
-        finalKey,
-        location
-      );
-    }
-  };
-}
-
-/**
- * Capability fragment: methods contributed by CoreMixin that are called from
- * other mixin files. These are the public-signature declarations used as the
- * structural cast target in EvaluatorInterface.
- *
- * TypeScript `protected` is a class modifier; type aliases use plain method
- * signatures. The cast target works because `this` inside a mixin class already
- * has access to its own protected members.
- */
-export type CoreMixinCapability = {
-  evaluateExpression(expr: ExpressionNode): Promise<RillValue>;
-  evaluatePipeChain(chain: PipeChainNode): Promise<RillValue>;
-  evaluatePostfixExpr(expr: PostfixExprNode): Promise<RillValue>;
-  evaluatePrimary(primary: PrimaryNode): Promise<RillValue>;
-  evaluateHierarchicalDispatch(
-    target: RillValue,
-    path: RillValue[],
-    defaultExpr?: BodyNode,
-    location?: SourceLocation
-  ): Promise<RillValue>;
-  traversePathStep(
-    current: RillValue,
-    key: RillValue,
-    isTerminal: boolean,
-    location?: SourceLocation
-  ): Promise<RillValue>;
-  resolveTerminalValue(
-    value: RillValue,
-    finalKey: RillValue,
-    location?: SourceLocation
-  ): Promise<RillValue>;
-  resolveIntermediateClosure(
-    value: RillValue,
-    location?: SourceLocation
-  ): Promise<RillValue>;
-};

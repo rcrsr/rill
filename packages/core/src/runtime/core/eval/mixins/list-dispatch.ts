@@ -22,8 +22,6 @@ import type {
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferElementType } from '../../types/operations.js';
-import type { EvaluatorConstructor } from '../types.js';
-import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation } from '../shared.js';
@@ -132,63 +130,3 @@ export async function evaluateListLiteralElements(
   inferElementType(result);
   return result;
 }
-
-/**
- * ListDispatchMixin implementation.
- *
- * Evaluates list[...] when used as a pipe target. The piped value is
- * used as a numeric index into the evaluated list elements.
- *
- * Depends on:
- * - EvaluatorBase: ctx, getNodeLocation()
- * - evaluateExpression() (from CoreMixin composition)
- *
- * Methods added:
- * - evaluateListLiteralDispatch(node, input) -> Promise<RillValue>
- */
-export function ListDispatchMixin<
-  TBase extends EvaluatorConstructor<EvaluatorBase>,
->(Base: TBase) {
-  return class ListDispatchEvaluator extends Base {
-    /**
-     * Evaluate list[...] as a pipe target [IR-11].
-     *
-     * The piped value is used as a numeric index. Negative indices count from
-     * the end (-1 is last). Non-integer indices throw EC-15. Out-of-bounds
-     * without a default value throws EC-16.
-     */
-    evaluateListLiteralDispatch(
-      node: ListLiteralNode,
-      input: RillValue
-    ): Promise<RillValue> {
-      return evaluateListLiteralDispatch(
-        this as unknown as EvalState,
-        node,
-        input
-      );
-    }
-
-    /**
-     * Evaluate list literal elements, expanding any ...spread nodes inline.
-     */
-    evaluateListLiteralElements(
-      rawElements: (ExpressionNode | ListSpreadNode)[]
-    ): Promise<RillValue[]> {
-      return evaluateListLiteralElements(
-        this as unknown as EvalState,
-        rawElements
-      );
-    }
-  };
-}
-
-/**
- * Capability fragment: methods contributed by ListDispatchMixin that are called
- * from core.ts cast sites. Covers only the methods core.ts invokes.
- */
-export type ListDispatchMixinCapability = {
-  evaluateListLiteralDispatch(
-    node: ListLiteralNode,
-    input: RillValue
-  ): Promise<RillValue>;
-};
