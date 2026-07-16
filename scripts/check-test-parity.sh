@@ -78,8 +78,10 @@ fi
 echo "OK: packages/core/tests/language/ matches ${BASE_REF} (RuntimeHaltSignal import exemption only)"
 
 # 3. Full suite: everything passes, nothing skipped, count at or above baseline.
-# `pnpm test` (not bare `pnpm vitest run`) so the pretest hook regenerates
-# src/generated/version-data.ts on a fresh checkout.
+# Regenerate both git-ignored generated files for fresh checkouts: the
+# docs-bundle generator emits src/generated/introspection-data.ts (normally a
+# build step), and `pnpm test`'s pretest hook emits src/generated/version-data.ts.
+(cd packages/core && pnpm exec tsx scripts/generate-docs-bundle.ts >/dev/null)
 SUITE_OUT=$(cd packages/core && pnpm test 2>&1) || {
   echo "$SUITE_OUT" | tail -30
   echo "FAIL: test suite failed"
