@@ -61,8 +61,8 @@ fi
 echo "OK: ${PASSED} tests passed, zero skipped, baseline ${BASELINE_TESTS} held"
 
 # Informational counters for the PR description.
-CASTS=$(grep -rn "as unknown as EvaluatorInterface" packages/core/src | wc -l)
-AS_ANY=$(grep -rn "as any" packages/core/src/runtime/core/eval/mixins packages/core/src/runtime/core/eval/invocation 2>/dev/null | grep -c "Mixin =" || true)
+CASTS=$(grep -rn "as unknown as EvaluatorInterface" packages/core/src | wc -l || true)
+AS_ANY=$(grep -rn "as any" packages/core/src/runtime/core/eval/handlers packages/core/src/runtime/core/eval/invocation 2>/dev/null | grep -c "Mixin =" || true)
 echo "Info: cast count ${CASTS} (baseline 214), as-any factory exports ${AS_ANY} (baseline 15)"
 
 echo "PASS: test parity lock holds"
