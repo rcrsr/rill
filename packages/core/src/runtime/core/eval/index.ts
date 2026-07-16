@@ -1,9 +1,19 @@
 /**
  * Evaluation Public API
  *
- * Public API for AST evaluation using module-level EvalState functions.
- * Provides functional wrappers around eval module functions for backward
- * compatibility.
+ * eval/ is a set of plain module-level functions operating over a shared
+ * EvalState struct. There are no classes or `this`-based state anywhere
+ * in this directory. This file exposes the external wrapper surface
+ * (checkAborted, checkAutoExceptions, executeStatement, invokeCallable)
+ * that resolves EvalState via getEvalState(ctx) and threads that state
+ * into the individual handler functions.
+ *
+ * Handler files import each other directly. Circular ESM imports between
+ * handler files are safe because every cross-handler call happens during
+ * evaluation, never at module-init time.
+ *
+ * See internal/review-evaluator-mixin-architecture-2026-07-15.md for
+ * migration history.
  *
  * @internal
  */

@@ -43,7 +43,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 /**
  * Injected executor: performs the actual callable dispatch.
  * Provided by the evaluator so the strategy stays decoupled from
- * invokeScriptCallable / invokeFnCallable mixin internals.
+ * invokeScriptCallable / invokeFnCallable internals.
  */
 export type InvocationCaller = (
   callable: RillCallable,

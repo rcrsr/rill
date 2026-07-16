@@ -4,7 +4,7 @@
  * Provides the main entry points for expression evaluation and dispatches
  * to specialized evaluators based on AST node type.
  *
- * This is the central coordination point that ties together all other mixins.
+ * This is the central coordination point that ties together all other evaluator handlers.
  *
  * Interface requirements (from spec IR-5 through IR-13):
  * - evaluateExpression(expr) -> Promise<RillValue> [IR-8]

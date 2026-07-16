@@ -2,18 +2,18 @@
  * Runtime Halt Signal and Type-Halt Builder
  *
  * Low-level primitives shared by the access-halt gate, the evaluator
- * mixins, and the standalone type-layer helpers. Living in `types/`
+ * handlers, and the standalone type-layer helpers. Living in `types/`
  * keeps the signal class reachable from `types/operations.ts` and
  * `types/registrations.ts` without creating a layer inversion.
  *
  * `RuntimeHaltSignal` carries an invalid `RillValue` as its payload and
  * is thrown by:
  *   - the access-halt gate when an access site reads an invalid value,
- *   - the evaluator mixins when a type assertion / conversion / check
+ *   - the evaluator handlers when a type assertion / conversion / check
  *     fails and must surface as a typed-atom invalid (FR-ERR-17).
  *
  * `throwTypeHalt` is the canonical constructor for type-assertion halts
- * produced by evaluator mixins and type-layer helpers. It builds the
+ * produced by evaluator handlers and type-layer helpers. It builds the
  * invalid value via `invalidate`, appends a `type` trace frame, and
  * throws a catchable `RuntimeHaltSignal` so `guard` / `retry` may
  * recover the invalid (spec FR-ERR-17, DEC-11).
