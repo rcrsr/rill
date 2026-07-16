@@ -1,5 +1,5 @@
 /**
- * Rill Runtime Tests: CoreMixin and AnnotationsMixin Error Contracts
+ * Rill Runtime Tests: core and annotations handler error contracts
  * Tests for EC-4, EC-5, EC-25, EC-26
  */
 
@@ -39,7 +39,7 @@ async function expectAbortHalt(
   return signal;
 }
 
-describe('Rill Runtime: CoreMixin Error Contracts', () => {
+describe('Rill Runtime: core handler error contracts', () => {
   describe('EC-4: Unsupported expression types', () => {
     it('halts for unsupported expression type', async () => {
       // Create a mock AST node with an unsupported type
@@ -229,7 +229,7 @@ describe('Rill Runtime: CoreMixin Error Contracts', () => {
   });
 });
 
-describe('Rill Runtime: AnnotationsMixin Error Contracts', () => {
+describe('Rill Runtime: annotations handler error contracts', () => {
   describe('EC-25: Annotated statement execution errors', () => {
     it('propagates errors from annotated statement execution', async () => {
       await expect(run('^(limit: 10) $undefined_var')).rejects.toThrow(

@@ -1,5 +1,5 @@
 /**
- * Rill Runtime Tests: Evaluator Base Class and Mixin Infrastructure
+ * Rill Runtime Tests: Evaluator Error Contracts
  * Tests for error contracts and boundary conditions in the evaluator architecture
  *
  * Covers:
@@ -10,9 +10,9 @@
  * - EC-22: Arithmetic type mismatch errors
  * - EC-23: Nested expression propagation
  * - EC-24: Type assertion failures
- * - AC-6: Mixin type inference failure (caught by typecheck)
+ * - AC-6: Evaluator type inference failure (caught by typecheck)
  * - AC-10: Type assertion failure with expected vs actual
- * - AC-14: Single-mixin composition (Base + CoreMixin) boundary
+ * - AC-14: Core evaluation boundary (minimal expressions)
  */
 
 import { describe, expect, it } from 'vitest';
@@ -234,10 +234,10 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
   });
 
-  describe('Single-mixin composition boundary (AC-14)', () => {
+  describe('Core evaluation boundary (AC-14)', () => {
     it('evaluates basic expressions with minimal evaluator', async () => {
-      // These tests verify that the core evaluation works
-      // with just the base class and core mixin
+      // These tests verify that core evaluation works
+      // for minimal literal expressions
       const result = await run('42');
       expect(result).toBe(42);
     });
@@ -409,7 +409,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
   });
 
-  describe('TypesMixin error contracts', () => {
+  describe('types handler error contracts', () => {
     describe('EC-24: Type assertion failures', () => {
       it('halts #TYPE_MISMATCH with "Type assertion failed" for type mismatch', async () => {
         await expectHalt(() => run('42 :string'), {
@@ -504,7 +504,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
   });
 
-  describe('ExpressionsMixin error contracts', () => {
+  describe('expressions handler error contracts', () => {
     describe('EC-22: Arithmetic type mismatch', () => {
       it('throws RuntimeError for addition with non-number left operand', async () => {
         try {
@@ -775,7 +775,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
   });
 
-  describe('VariablesMixin error contracts', () => {
+  describe('variables handler error contracts', () => {
     describe('EC-8, AC-9: Undefined variable access', () => {
       it('throws RuntimeError with RUNTIME_UNDEFINED_VARIABLE code', async () => {
         try {
@@ -903,7 +903,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
   });
 
-  describe('ExtractionMixin error contracts', () => {
+  describe('extraction handler error contracts', () => {
     describe('EC-14: List destructure size mismatch', () => {
       it('throws RuntimeError for too few elements', async () => {
         try {
@@ -1070,7 +1070,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
   });
 
-  describe('LiteralsMixin error contracts', () => {
+  describe('literals handler error contracts', () => {
     describe('EC-6: String interpolation error propagation', () => {
       it('propagates undefined variable error from interpolation', async () => {
         try {
