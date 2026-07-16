@@ -54,6 +54,8 @@ import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import type { RillTypeName } from '../../../../types.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { getNodeLocation } from '../shared.js';
+import { evaluateTypeConstructor, assertType } from './types.js';
 
 /**
  * Apply conversion for a parameterized type constructor target
@@ -75,13 +77,13 @@ export async function applyConstructorConversion(
     typeRef.constructorName === 'dict' ||
     typeRef.constructorName === 'tuple'
   ) {
-    const typeValue = await s.evaluateTypeConstructor(typeRef);
+    const typeValue = await evaluateTypeConstructor(s, typeRef);
     const structure = typeValue.structure;
 
     // Uniform types (valueType present): use general convert-then-assert path
     if ('valueType' in structure && structure.valueType) {
-      const result = s.applyConversion(input, typeRef.constructorName, node);
-      s.assertType(result, structure, node.span.start);
+      const result = applyConversion(s, input, typeRef.constructorName, node);
+      assertType(s, result, structure, node.span.start);
       return result;
     }
 
@@ -96,9 +98,9 @@ export async function applyConstructorConversion(
   }
 
   // Non-dict/ordered/tuple constructors: convert first, then assert structural type
-  const typeValue = await s.evaluateTypeConstructor(typeRef);
-  const result = s.applyConversion(input, typeRef.constructorName, node);
-  s.assertType(result, typeValue.structure, node.span.start);
+  const typeValue = await evaluateTypeConstructor(s, typeRef);
+  const result = applyConversion(s, input, typeRef.constructorName, node);
+  assertType(s, result, typeValue.structure, node.span.start);
   return result;
 }
 
@@ -131,7 +133,7 @@ export function applyConversion(
   if (targetType === 'stream') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'convertType',
       },
@@ -144,7 +146,7 @@ export function applyConversion(
   if (sourceType === 'dict' && targetType === 'ordered') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'convertType',
       },
@@ -160,7 +162,7 @@ export function applyConversion(
   if (!converter) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'convertType',
       },
@@ -182,7 +184,7 @@ export function applyConversion(
       const message = err instanceof Error ? err.message : String(err);
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'convertType',
         },
@@ -196,7 +198,7 @@ export function applyConversion(
     // Use consistent "cannot convert X to Y" format.
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'convertType',
       },
@@ -230,7 +232,7 @@ export async function convertToOrderedWithSig(
   } else {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'convertToOrderedWithSig',
       },
@@ -243,7 +245,7 @@ export async function convertToOrderedWithSig(
   const sourceType = isOrdered(input) ? 'ordered' : 'dict';
 
   // Evaluate the full type constructor to get resolved fields with defaults.
-  const typeValue = await s.evaluateTypeConstructor(sigNode);
+  const typeValue = await evaluateTypeConstructor(s, sigNode);
   const { structure: orderedStructure } = typeValue;
   let resolvedFields: RillFieldDef[] = [];
   if (orderedStructure.kind === 'ordered') {
@@ -276,7 +278,7 @@ export async function convertToOrderedWithSig(
     } else {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'convertToOrderedWithSig',
         },
@@ -314,7 +316,7 @@ export async function convertToDictWithSig(
   } else {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'convertToDictWithSig',
       },
@@ -327,7 +329,7 @@ export async function convertToDictWithSig(
   const sourceType = isOrdered(input) ? 'ordered' : 'dict';
 
   // Evaluate the full type constructor to get resolved fields with defaults.
-  const typeValue = await s.evaluateTypeConstructor(sigNode);
+  const typeValue = await evaluateTypeConstructor(s, sigNode);
   const { structure: dictStructure } = typeValue;
   let resolvedFields: Record<string, RillFieldDef> = {};
   if (dictStructure.kind === 'dict') {
@@ -378,7 +380,7 @@ export async function convertToDictWithSig(
       } else {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'convertToDictWithSig',
           },
@@ -414,7 +416,7 @@ export async function convertToTupleWithSig(
   if (!isTupleInput && !isListInput) {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'convertToTupleWithSig',
       },
@@ -425,7 +427,7 @@ export async function convertToTupleWithSig(
   }
 
   // Evaluate the full type constructor to get resolved elements with defaults.
-  const typeValue = await s.evaluateTypeConstructor(sigNode);
+  const typeValue = await evaluateTypeConstructor(s, sigNode);
   const { structure: tupleStructure } = typeValue;
   let resolvedElements: RillFieldDef[] = [];
   if (tupleStructure.kind === 'tuple') {
@@ -462,7 +464,7 @@ export async function convertToTupleWithSig(
       // Missing element without default
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'convertToTupleWithSig',
         },
@@ -522,7 +524,7 @@ export function hydrateNested(
         } else {
           throwCatchableHostHalt(
             {
-              location: s.getNodeLocation(node),
+              location: getNodeLocation(s, node),
               sourceId: s.ctx.sourceId,
               fn: 'hydrateNested',
             },
@@ -574,7 +576,7 @@ export function hydrateNested(
       } else {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'hydrateNested',
           },
@@ -617,7 +619,7 @@ export function hydrateNested(
       } else {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'hydrateNested',
           },
