@@ -58,6 +58,7 @@ export const captureBeforeBranch: Rule = {
   code: 'CAPTURE_BEFORE_BRANCH',
   nodeTypes: ['Conditional'],
   defaultSeverity: 'info',
+  category: 'flow',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const conditional = node as ConditionalNode;

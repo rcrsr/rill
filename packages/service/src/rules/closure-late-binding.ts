@@ -23,6 +23,7 @@ export const closureLateBinding: Rule = {
   code: 'CLOSURE_LATE_BINDING',
   nodeTypes: ['HostCall'],
   defaultSeverity: 'warning',
+  category: 'closures',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     if (!isCollectionOpCall(node)) return [];

@@ -41,6 +41,7 @@ export const useEmptyMethod: Rule = {
   code: 'USE_EMPTY_METHOD',
   nodeTypes: ['BinaryExpr'],
   defaultSeverity: 'warning',
+  category: 'strings',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const binaryNode = node as BinaryExprNode;

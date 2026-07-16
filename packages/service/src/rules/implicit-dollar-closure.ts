@@ -16,6 +16,7 @@ export const implicitDollarClosure: Rule = {
   code: 'IMPLICIT_DOLLAR_CLOSURE',
   nodeTypes: ['ClosureCall'],
   defaultSeverity: 'info',
+  category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const closureCallNode = node as ClosureCallNode;

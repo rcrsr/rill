@@ -12,7 +12,7 @@ The package splits its surface across three entry points so consumers importing 
 |---------|---------|
 | `@rcrsr/rill-language-service` | `documentSymbols`, `semanticTokens`, `formatDocument`, `spanToRange`, `version`, plus `Position`, `Range`, `DocumentSymbol`, `SymbolKind`, `SemanticToken`, `ServiceTokenType`, `TextEdit` |
 | `@rcrsr/rill-language-service/scope` | `resolveScopeAt`, `findDefinition`, `getHover`, `getCompletions`, plus `Binding`, `BindingKind`, `HoverInfo`, `CompletionItem`, `CompletionKind` |
-| `@rcrsr/rill-language-service/rules` | `createDefaultConfig`, `validateConfig`, `validateRuleCodes`, `runRules`, `RULES`, plus `CheckConfig`, `Diagnostic`, `DiagnosticFix`, `DiagnosticSeverity`, `Rule`, `RuleContext`, `RuleState`, `ValidationError` |
+| `@rcrsr/rill-language-service/rules` | `createDefaultConfig`, `validateConfig`, `validateRuleCodes`, `runRules`, `RULES`, `capturesInSubtree`, plus `CheckConfig`, `Diagnostic`, `DiagnosticFix`, `DiagnosticSeverity`, `Rule`, `RuleCategory`, `RuleContext`, `RuleState`, `ValidationError`, `AstFacts`, `CaptureEntry`, `ScriptFacts`, `SubtreeFacts` |
 
 ---
 
@@ -268,11 +268,27 @@ interface Rule {
   readonly code: string;
   readonly nodeTypes: readonly NodeType[];
   readonly defaultSeverity: DiagnosticSeverity;
+  readonly category: RuleCategory;
   /** True for a reserved code with no diagnostic implementation yet; validate() always returns []. */
   readonly stub?: boolean | undefined;
   validate(node: ASTNode, context: RuleContext): Diagnostic[];
 }
+
+type RuleCategory =
+  | 'naming'
+  | 'flow'
+  | 'collections'
+  | 'loops'
+  | 'conditionals'
+  | 'closures'
+  | 'types'
+  | 'strings'
+  | 'errors'
+  | 'formatting'
+  | 'anti-patterns';
 ```
+
+Every rule in `RULES` carries a `category`. Custom rules must supply one of the 11 values above.
 
 `RuleContext` (the second argument to `Rule.validate`) is also exported from `/rules` for consumers writing custom rules:
 

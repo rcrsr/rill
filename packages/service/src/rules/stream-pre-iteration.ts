@@ -27,6 +27,7 @@ export const streamPreIteration: Rule = {
   code: 'STREAM_PRE_ITERATION',
   nodeTypes: ['Script'],
   defaultSeverity: 'warning',
+  category: 'anti-patterns',
 
   validate(_node: ASTNode, context: RuleContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];

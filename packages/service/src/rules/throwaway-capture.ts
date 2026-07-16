@@ -14,6 +14,7 @@ export const throwawayCapture: Rule = {
   code: 'THROWAWAY_CAPTURE',
   nodeTypes: ['Capture'],
   defaultSeverity: 'info',
+  category: 'formatting',
   stub: true,
 
   validate(_node: ASTNode, _context: RuleContext): Diagnostic[] {

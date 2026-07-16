@@ -28,6 +28,7 @@ export const spacingBrackets: Rule = {
   code: 'SPACING_BRACKETS',
   nodeTypes: ['PostfixExpr'],
   defaultSeverity: 'info',
+  category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];

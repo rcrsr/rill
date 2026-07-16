@@ -121,6 +121,7 @@ export const loopAccumulator: Rule = {
   code: 'LOOP_ACCUMULATOR',
   nodeTypes: ['WhileLoop', 'DoWhileLoop'],
   defaultSeverity: 'info',
+  category: 'loops',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const loop = node as WhileLoopNode | DoWhileLoopNode;
@@ -165,6 +166,7 @@ export const preferDoWhile: Rule = {
   code: 'PREFER_DO_WHILE',
   nodeTypes: ['WhileLoop'],
   defaultSeverity: 'info',
+  category: 'loops',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const loop = node as WhileLoopNode;
@@ -195,6 +197,7 @@ export const useEach: Rule = {
   code: 'USE_EACH',
   nodeTypes: ['WhileLoop'],
   defaultSeverity: 'info',
+  category: 'loops',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const loop = node as WhileLoopNode;

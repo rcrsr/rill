@@ -17,6 +17,7 @@ export const closureBraces: Rule = {
   code: 'CLOSURE_BRACES',
   nodeTypes: ['Closure'],
   defaultSeverity: 'info',
+  category: 'closures',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const closureNode = node as ClosureNode;

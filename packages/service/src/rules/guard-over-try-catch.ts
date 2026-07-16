@@ -18,6 +18,7 @@ export const guardOverTryCatch: Rule = {
   code: 'GUARD_OVER_TRY_CATCH',
   nodeTypes: ['Conditional'],
   defaultSeverity: 'info',
+  category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const cond = node as ConditionalNode;

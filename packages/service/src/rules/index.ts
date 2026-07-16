@@ -45,6 +45,7 @@ export type {
   DiagnosticFix,
   DiagnosticSeverity,
   Rule,
+  RuleCategory,
   RuleContext,
   RuleState,
   ValidationError,

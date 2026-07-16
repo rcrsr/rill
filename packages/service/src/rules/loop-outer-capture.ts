@@ -32,6 +32,7 @@ export const loopOuterCapture: Rule = {
   code: 'LOOP_OUTER_CAPTURE',
   nodeTypes: ['HostCall', 'WhileLoop', 'DoWhileLoop'],
   defaultSeverity: 'warning',
+  category: 'anti-patterns',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];

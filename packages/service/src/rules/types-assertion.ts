@@ -100,6 +100,7 @@ export const unnecessaryAssertion: Rule = {
   code: 'UNNECESSARY_ASSERTION',
   nodeTypes: ['TypeAssertion'],
   defaultSeverity: 'info',
+  category: 'types',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const assertionNode = node as TypeAssertionNode;

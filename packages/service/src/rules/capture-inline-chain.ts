@@ -124,6 +124,7 @@ export const captureInlineChain: Rule = {
   code: 'CAPTURE_INLINE_CHAIN',
   nodeTypes: ['Script'],
   defaultSeverity: 'info',
+  category: 'flow',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const scriptNode = node as ScriptNode;

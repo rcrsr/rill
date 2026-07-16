@@ -427,6 +427,7 @@ function createDispatchProbe(): { rule: Rule; getCount: () => number } {
   let count = 0;
   const rule: Rule = {
     code: 'DISPATCH_PROBE',
+    category: 'flow',
     nodeTypes: ALL_NODE_TYPES,
     defaultSeverity: 'info',
     validate(_node: ASTNode, _context: RuleContext): Diagnostic[] {

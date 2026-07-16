@@ -61,6 +61,7 @@ export const spacingOperator: Rule = {
   code: 'SPACING_OPERATOR',
   nodeTypes: ['BinaryExpr', 'PipeChain', 'Capture'],
   defaultSeverity: 'info',
+  category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];

@@ -61,6 +61,7 @@ export const useDefaultOperator: Rule = {
   code: 'USE_DEFAULT_OPERATOR',
   nodeTypes: ['Conditional'],
   defaultSeverity: 'info',
+  category: 'conditionals',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const conditional = node as ConditionalNode;

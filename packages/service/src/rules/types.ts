@@ -123,6 +123,20 @@ export interface RuleContext {
 // VALIDATION RULES
 // ============================================================
 
+/** Taxonomy grouping for a rule. Ported verbatim from the rill-cli check engine. */
+export type RuleCategory =
+  | 'naming'
+  | 'flow'
+  | 'collections'
+  | 'loops'
+  | 'conditionals'
+  | 'closures'
+  | 'types'
+  | 'strings'
+  | 'errors'
+  | 'formatting'
+  | 'anti-patterns';
+
 /**
  * Validation rule contract.
  * Rules are stateless from the registry's perspective - all mutable
@@ -135,6 +149,8 @@ export interface Rule {
   readonly nodeTypes: readonly NodeType[];
   /** Default severity level. */
   readonly defaultSeverity: DiagnosticSeverity;
+  /** Taxonomy grouping, ported from the rill-cli check engine. */
+  readonly category: RuleCategory;
   /**
    * True for a reserved rule code whose `validate` unconditionally returns
    * `[]` (no static-analysis implementation exists yet). Stub rules stay

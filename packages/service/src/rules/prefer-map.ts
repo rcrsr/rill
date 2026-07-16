@@ -18,6 +18,7 @@ export const preferMap: Rule = {
   code: 'PREFER_MAP',
   nodeTypes: ['HostCall'],
   defaultSeverity: 'info',
+  category: 'collections',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     if (!isCollectionOpCall(node)) return [];

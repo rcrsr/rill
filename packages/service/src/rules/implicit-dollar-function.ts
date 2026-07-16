@@ -16,6 +16,7 @@ export const implicitDollarFunction: Rule = {
   code: 'IMPLICIT_DOLLAR_FUNCTION',
   nodeTypes: ['HostCall'],
   defaultSeverity: 'info',
+  category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const hostCallNode = node as HostCallNode;
