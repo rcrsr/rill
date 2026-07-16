@@ -48,7 +48,7 @@ import type { RillAtom } from '../../types/atom-registry.js';
 import { resolveAtom } from '../../types/atom-registry.js';
 import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
-import type { EvaluatorInterface } from '../interface.js';
+import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
@@ -110,6 +110,305 @@ function shouldCatch(
 }
 
 /**
+ * Evaluate a guard block.
+ *
+ * Runs the body once. On a catchable halt whose code matches the
+ * optional `onCodes` filter, appends a `guard-caught` trace frame
+ * and returns the invalid value as the block result. Non-matching
+ * halts and non-catchable halts (error / assert) propagate.
+ */
+export async function evaluateGuardBlock(
+  s: EvalState,
+  node: GuardBlockNode
+): Promise<RillValue> {
+  const onCodes = resolveOnCodes(node.onCodes);
+  try {
+    return await s.evaluateBody(node.body);
+  } catch (e) {
+    if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
+      const frame = createTraceFrame({
+        site: formatAccessSite(s.getNodeLocation(node), s.ctx.sourceId),
+        kind: 'guard-caught',
+        fn: 'guard',
+      });
+      return appendTraceFrame(e.value, frame);
+    }
+    throw e;
+  }
+}
+
+/**
+ * Evaluate a retry block.
+ *
+ * Re-enters the body up to `node.attempts` times. Each caught halt
+ * that matches the `onCodes` filter appends one `guard-caught`
+ * frame to a running invalid value and advances to the next
+ * attempt. On success, returns the body's result. If every attempt
+ * halts, returns the final invalid value with all N frames.
+ *
+ * AC-B2: A `RetryBlock` node with `attempts <= 0` (only reachable via
+ * host-synthesised AST; the parser rejects `limit: N` for N < 1) executes
+ * zero times and returns an invalid `#R001` (programmer error).
+ */
+export async function evaluateRetryBlock(
+  s: EvalState,
+  node: RetryBlockNode
+): Promise<RillValue> {
+  const onCodes = resolveOnCodes(node.onCodes);
+
+  // AC-B2: a synthesised RetryBlock with attempts <= 0 executes zero times and yields
+  // an invalid `#R001` fallback. The body never runs; the returned
+  // value carries a single `guard-caught` frame so traces still
+  // reflect that recovery was attempted and no body ran.
+  if (node.attempts < RETRY_MIN_ATTEMPTS) {
+    const site = formatAccessSite(s.getNodeLocation(node), s.ctx.sourceId);
+    // Empty-dict base carries the sidecar; primitives cannot hold
+    // status metadata (status.ts#attachStatus) so the invalid
+    // fallback materialises as `{}` with an attached `#R001` status.
+    const base: RillValue = {};
+    const invalid = invalidate(
+      base,
+      {
+        code: 'R001',
+        provider: 'retry',
+        raw: {
+          message: `retry attempts must be >= ${RETRY_MIN_ATTEMPTS}, got ${node.attempts}`,
+        },
+      },
+      createTraceFrame({ site, kind: 'guard-caught', fn: 'retry' })
+    );
+    return invalid;
+  }
+
+  let lastInvalid: RillValue | undefined;
+  for (let attempt = 0; attempt < node.attempts; attempt++) {
+    try {
+      return await s.evaluateBody(node.body);
+    } catch (e) {
+      if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
+        const frame = createTraceFrame({
+          site: formatAccessSite(s.getNodeLocation(node), s.ctx.sourceId),
+          kind: 'guard-caught',
+          fn: 'retry',
+        });
+        // Accumulate frames across attempts: attempt 1 seeds
+        // lastInvalid from the thrown value; subsequent attempts
+        // append to the running accumulator. AC-E8 requires N
+        // guard-caught frames after N exhausted attempts.
+        lastInvalid = appendTraceFrame(lastInvalid ?? e.value, frame);
+        continue;
+      }
+      throw e;
+    }
+  }
+
+  // All attempts exhausted; lastInvalid is populated because the
+  // loop ran at least once (RETRY_MIN_ATTEMPTS guards the path).
+  return lastInvalid as RillValue;
+}
+
+/**
+ * Evaluate a status probe (`.!`, `.!code`, `.!message`, `.!provider`,
+ * `.!trace`, `.!<raw-field>`).
+ *
+ * Bypasses the access-halt gate: reading the sidecar of an invalid
+ * value is the one access site that must NOT halt. Instead, the
+ * probe materialises sidecar metadata as an ordinary RillValue.
+ *
+ * Projection semantics:
+ * - bare `.!`         -> bool: `false` when valid, `true` when invalid
+ *                        (spec AC-1: `$valid.!` is `false`).
+ * - `.!code`          -> `:atom` atom value.
+ * - `.!message`       -> string.
+ * - `.!provider`      -> string.
+ * - `.!trace`         -> list of trace-frame dicts.
+ * - `.!<other>`       -> lookup in `status.raw`; missing key yields `""`.
+ */
+export async function evaluateStatusProbe(
+  s: EvalState,
+  node: StatusProbeNode
+): Promise<RillValue> {
+  const target = await s.evaluateExpression(node.target);
+  const status = getStatus(target);
+
+  if (node.field === undefined) {
+    // Bare `.!` — per spec AC-1, `.!` returns `false` on a VALID value
+    // and `true` on an INVALID value. Reads directly against the
+    // sidecar via `isInvalid` so the probe bypasses the access-halt
+    // gate and never allocates when the value is valid.
+    void status;
+    return isInvalid(target);
+  }
+
+  switch (node.field) {
+    case 'code':
+      return {
+        __rill_atom: true,
+        atom: status.code,
+      } as unknown as RillValue;
+    case 'message':
+      return status.message;
+    case 'provider':
+      return status.provider;
+    case 'trace': {
+      // Surface frames as plain dicts so scripts can iterate them
+      // with standard list / field operators.
+      return status.trace.map(
+        (frame) =>
+          ({
+            site: frame.site,
+            kind: frame.kind,
+            fn: frame.fn,
+            wrapped: frame.wrapped,
+          }) as RillValue
+      );
+    }
+    default: {
+      // Provider-specific raw bag; missing keys surface as "" so
+      // `.!foo` never halts on a valid or invalid value.
+      const raw = status.raw as Record<string, RillValue>;
+      const val = raw[node.field];
+      return val === undefined ? '' : val;
+    }
+  }
+}
+
+/**
+ * Evaluate a timeout block.
+ *
+ * Validates that `node.duration` evaluates to a `duration` value [EC-3].
+ * Creates a fresh `AbortController` for the timeout scope, chains it to
+ * `ctx.signal` via `AbortSignal.any` so either side can cancel. Arms a
+ * `setTimeout` (total) or idle-tick (idle) timer via `ctx.scheduler` when
+ * injected, falling back to the global scheduler [IR-1, IR-2].
+ *
+ * On expiry: the chained controller is aborted and a catchable
+ * `RuntimeHaltSignal` carrying `#TIMEOUT_TOTAL` or `#TIMEOUT_IDLE` is
+ * thrown [EC-1, EC-2]. The host body runs under the chained signal so
+ * cooperative host functions observing `ctx.signal` halt naturally.
+ *
+ * Non-catchable halts (RILL_R010, error, assert) and ControlSignal
+ * subclasses propagate through unchanged [EC-5, §NOD.10.4].
+ */
+export async function evaluateTimeoutBlock(
+  s: EvalState,
+  node: TimeoutBlockNode
+): Promise<RillValue> {
+  // Evaluate the duration expression and validate its type [EC-3].
+  const durationValue = await s.evaluateExpression(node.duration);
+
+  if (!isDuration(durationValue)) {
+    throwCatchableHostHalt(
+      {
+        location: s.getNodeLocation(node),
+        sourceId: s.ctx.sourceId,
+        fn: 'timeout',
+      },
+      'INVALID_INPUT',
+      `timeout<${node.kind}:> duration must be a duration value, got ${inferType(durationValue)}`
+    );
+  }
+
+  // Extract millisecond value from the validated duration.
+  const dur = durationValue as RillDuration;
+  const durationMs = dur.ms;
+
+  // Build a fresh controller for this timeout scope; chain it to the
+  // parent signal (if present) so either side can terminate the body.
+  const controller = new AbortController();
+  const parentSignal = s.ctx.signal;
+  const signalsToChain: AbortSignal[] = parentSignal
+    ? [controller.signal, parentSignal]
+    : [controller.signal];
+  const chainedSignal = AbortSignal.any(signalsToChain);
+
+  // Save ctx.signal and replace it with the chained signal for the body
+  // execution so host functions observing ctx.signal see abort correctly.
+  const savedSignal = s.ctx.signal;
+  (s.ctx as { signal: AbortSignal | undefined }).signal = chainedSignal;
+
+  const site = {
+    location: s.getNodeLocation(node),
+    sourceId: s.ctx.sourceId,
+    fn: 'timeout',
+  };
+
+  const sched = s.ctx.scheduler ?? globalScheduler;
+  let timerHandle: ReturnType<typeof setTimeout> | undefined;
+  let idleTicker: { reset(): void; cancel(): void } | undefined;
+  let expired = false;
+
+  // Callback that fires on expiry; produces the halt signal.
+  const onExpire = (): void => {
+    expired = true;
+    controller.abort();
+  };
+
+  try {
+    if (node.kind === 'total') {
+      // Wall-time bound: single setTimeout for the full duration.
+      timerHandle = sched.setTimeout(onExpire, durationMs);
+    } else {
+      // Idle bound: idle-tick helper resets on each body chunk.
+      // The idle ticker is created here; the body must call
+      // ticker.reset() on each yielded chunk (future task 2.3
+      // wires the stream path). For non-stream bodies the timer
+      // fires if the body does not complete within idleMs.
+      idleTicker = createIdleTicker({
+        ctx: s.ctx,
+        idleMs: durationMs,
+        onIdle: onExpire,
+      });
+    }
+
+    const result = await s.evaluateBody(node.body);
+
+    // The body may complete after the timer fires (e.g. host code
+    // ignores ctx.signal). Surface the timeout halt rather than the
+    // late result so expiry is enforced consistently.
+    if (expired) {
+      const atomCode =
+        node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
+      throwCatchableHostHalt(
+        site,
+        atomCode,
+        `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
+        { durationMs }
+      );
+    }
+
+    return result;
+  } catch (e) {
+    // Re-throw ControlSignal subclasses (break/return/yield) and
+    // non-catchable RuntimeHaltSignals unconditionally [§NOD.10.4].
+    if (e instanceof ControlSignal) throw e;
+    if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
+
+    // If the controller was aborted due to our timer, produce the
+    // timeout invalid value. If the parent signal aborted (not us),
+    // re-throw the original error to preserve abort semantics.
+    if (expired) {
+      const atomCode =
+        node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
+      throwCatchableHostHalt(
+        site,
+        atomCode,
+        `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
+        { durationMs }
+      );
+    }
+
+    // Otherwise re-throw (e.g. catchable halt from body, or parent abort).
+    throw e;
+  } finally {
+    // Always restore the original signal and clean up timers.
+    (s.ctx as { signal: AbortSignal | undefined }).signal = savedSignal;
+    sched.clearTimeout(timerHandle);
+    idleTicker?.cancel();
+  }
+}
+
+/**
  * RecoveryMixin implementation.
  *
  * Depends on:
@@ -134,26 +433,8 @@ export function RecoveryMixin<
      * and returns the invalid value as the block result. Non-matching
      * halts and non-catchable halts (error / assert) propagate.
      */
-    async evaluateGuardBlock(node: GuardBlockNode): Promise<RillValue> {
-      const onCodes = resolveOnCodes(node.onCodes);
-      try {
-        return await (this as unknown as EvaluatorInterface).evaluateBody(
-          node.body
-        );
-      } catch (e) {
-        if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
-          const frame = createTraceFrame({
-            site: formatAccessSite(
-              this.getNodeLocation(node),
-              this.ctx.sourceId
-            ),
-            kind: 'guard-caught',
-            fn: 'guard',
-          });
-          return appendTraceFrame(e.value, frame);
-        }
-        throw e;
-      }
+    evaluateGuardBlock(node: GuardBlockNode): Promise<RillValue> {
+      return evaluateGuardBlock(this as unknown as EvalState, node);
     }
 
     /**
@@ -169,66 +450,8 @@ export function RecoveryMixin<
      * host-synthesised AST; the parser rejects `limit: N` for N < 1) executes
      * zero times and returns an invalid `#R001` (programmer error).
      */
-    async evaluateRetryBlock(node: RetryBlockNode): Promise<RillValue> {
-      const onCodes = resolveOnCodes(node.onCodes);
-
-      // AC-B2: a synthesised RetryBlock with attempts <= 0 executes zero times and yields
-      // an invalid `#R001` fallback. The body never runs; the returned
-      // value carries a single `guard-caught` frame so traces still
-      // reflect that recovery was attempted and no body ran.
-      if (node.attempts < RETRY_MIN_ATTEMPTS) {
-        const site = formatAccessSite(
-          this.getNodeLocation(node),
-          this.ctx.sourceId
-        );
-        // Empty-dict base carries the sidecar; primitives cannot hold
-        // status metadata (status.ts#attachStatus) so the invalid
-        // fallback materialises as `{}` with an attached `#R001` status.
-        const base: RillValue = {};
-        const invalid = invalidate(
-          base,
-          {
-            code: 'R001',
-            provider: 'retry',
-            raw: {
-              message: `retry attempts must be >= ${RETRY_MIN_ATTEMPTS}, got ${node.attempts}`,
-            },
-          },
-          createTraceFrame({ site, kind: 'guard-caught', fn: 'retry' })
-        );
-        return invalid;
-      }
-
-      let lastInvalid: RillValue | undefined;
-      for (let attempt = 0; attempt < node.attempts; attempt++) {
-        try {
-          return await (this as unknown as EvaluatorInterface).evaluateBody(
-            node.body
-          );
-        } catch (e) {
-          if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
-            const frame = createTraceFrame({
-              site: formatAccessSite(
-                this.getNodeLocation(node),
-                this.ctx.sourceId
-              ),
-              kind: 'guard-caught',
-              fn: 'retry',
-            });
-            // Accumulate frames across attempts: attempt 1 seeds
-            // lastInvalid from the thrown value; subsequent attempts
-            // append to the running accumulator. AC-E8 requires N
-            // guard-caught frames after N exhausted attempts.
-            lastInvalid = appendTraceFrame(lastInvalid ?? e.value, frame);
-            continue;
-          }
-          throw e;
-        }
-      }
-
-      // All attempts exhausted; lastInvalid is populated because the
-      // loop ran at least once (RETRY_MIN_ATTEMPTS guards the path).
-      return lastInvalid as RillValue;
+    evaluateRetryBlock(node: RetryBlockNode): Promise<RillValue> {
+      return evaluateRetryBlock(this as unknown as EvalState, node);
     }
 
     /**
@@ -248,52 +471,8 @@ export function RecoveryMixin<
      * - `.!trace`         -> list of trace-frame dicts.
      * - `.!<other>`       -> lookup in `status.raw`; missing key yields `""`.
      */
-    async evaluateStatusProbe(node: StatusProbeNode): Promise<RillValue> {
-      const target = await (
-        this as unknown as EvaluatorInterface
-      ).evaluateExpression(node.target);
-      const status = getStatus(target);
-
-      if (node.field === undefined) {
-        // Bare `.!` — per spec AC-1, `.!` returns `false` on a VALID value
-        // and `true` on an INVALID value. Reads directly against the
-        // sidecar via `isInvalid` so the probe bypasses the access-halt
-        // gate and never allocates when the value is valid.
-        void status;
-        return isInvalid(target);
-      }
-
-      switch (node.field) {
-        case 'code':
-          return {
-            __rill_atom: true,
-            atom: status.code,
-          } as unknown as RillValue;
-        case 'message':
-          return status.message;
-        case 'provider':
-          return status.provider;
-        case 'trace': {
-          // Surface frames as plain dicts so scripts can iterate them
-          // with standard list / field operators.
-          return status.trace.map(
-            (frame) =>
-              ({
-                site: frame.site,
-                kind: frame.kind,
-                fn: frame.fn,
-                wrapped: frame.wrapped,
-              }) as RillValue
-          );
-        }
-        default: {
-          // Provider-specific raw bag; missing keys surface as "" so
-          // `.!foo` never halts on a valid or invalid value.
-          const raw = status.raw as Record<string, RillValue>;
-          const val = raw[node.field];
-          return val === undefined ? '' : val;
-        }
-      }
+    evaluateStatusProbe(node: StatusProbeNode): Promise<RillValue> {
+      return evaluateStatusProbe(this as unknown as EvalState, node);
     }
 
     /**
@@ -313,123 +492,8 @@ export function RecoveryMixin<
      * Non-catchable halts (RILL_R010, error, assert) and ControlSignal
      * subclasses propagate through unchanged [EC-5, §NOD.10.4].
      */
-    async evaluateTimeoutBlock(node: TimeoutBlockNode): Promise<RillValue> {
-      // Evaluate the duration expression and validate its type [EC-3].
-      const durationValue = await (
-        this as unknown as EvaluatorInterface
-      ).evaluateExpression(node.duration);
-
-      if (!isDuration(durationValue)) {
-        throwCatchableHostHalt(
-          {
-            location: this.getNodeLocation(node),
-            sourceId: this.ctx.sourceId,
-            fn: 'timeout',
-          },
-          'INVALID_INPUT',
-          `timeout<${node.kind}:> duration must be a duration value, got ${inferType(durationValue)}`
-        );
-      }
-
-      // Extract millisecond value from the validated duration.
-      const dur = durationValue as RillDuration;
-      const durationMs = dur.ms;
-
-      // Build a fresh controller for this timeout scope; chain it to the
-      // parent signal (if present) so either side can terminate the body.
-      const controller = new AbortController();
-      const parentSignal = this.ctx.signal;
-      const signalsToChain: AbortSignal[] = parentSignal
-        ? [controller.signal, parentSignal]
-        : [controller.signal];
-      const chainedSignal = AbortSignal.any(signalsToChain);
-
-      // Save ctx.signal and replace it with the chained signal for the body
-      // execution so host functions observing ctx.signal see abort correctly.
-      const savedSignal = this.ctx.signal;
-      (this.ctx as { signal: AbortSignal | undefined }).signal = chainedSignal;
-
-      const site = {
-        location: this.getNodeLocation(node),
-        sourceId: this.ctx.sourceId,
-        fn: 'timeout',
-      };
-
-      const sched = this.ctx.scheduler ?? globalScheduler;
-      let timerHandle: ReturnType<typeof setTimeout> | undefined;
-      let idleTicker: { reset(): void; cancel(): void } | undefined;
-      let expired = false;
-
-      // Callback that fires on expiry; produces the halt signal.
-      const onExpire = (): void => {
-        expired = true;
-        controller.abort();
-      };
-
-      try {
-        if (node.kind === 'total') {
-          // Wall-time bound: single setTimeout for the full duration.
-          timerHandle = sched.setTimeout(onExpire, durationMs);
-        } else {
-          // Idle bound: idle-tick helper resets on each body chunk.
-          // The idle ticker is created here; the body must call
-          // ticker.reset() on each yielded chunk (future task 2.3
-          // wires the stream path). For non-stream bodies the timer
-          // fires if the body does not complete within idleMs.
-          idleTicker = createIdleTicker({
-            ctx: this.ctx,
-            idleMs: durationMs,
-            onIdle: onExpire,
-          });
-        }
-
-        const result = await (
-          this as unknown as EvaluatorInterface
-        ).evaluateBody(node.body);
-
-        // The body may complete after the timer fires (e.g. host code
-        // ignores ctx.signal). Surface the timeout halt rather than the
-        // late result so expiry is enforced consistently.
-        if (expired) {
-          const atomCode =
-            node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
-          throwCatchableHostHalt(
-            site,
-            atomCode,
-            `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
-            { durationMs }
-          );
-        }
-
-        return result;
-      } catch (e) {
-        // Re-throw ControlSignal subclasses (break/return/yield) and
-        // non-catchable RuntimeHaltSignals unconditionally [§NOD.10.4].
-        if (e instanceof ControlSignal) throw e;
-        if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
-
-        // If the controller was aborted due to our timer, produce the
-        // timeout invalid value. If the parent signal aborted (not us),
-        // re-throw the original error to preserve abort semantics.
-        if (expired) {
-          const atomCode =
-            node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
-          throwCatchableHostHalt(
-            site,
-            atomCode,
-            `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
-            { durationMs }
-          );
-        }
-
-        // Otherwise re-throw (e.g. catchable halt from body, or parent abort).
-        throw e;
-      } finally {
-        // Always restore the original signal and clean up timers.
-        (this.ctx as { signal: AbortSignal | undefined }).signal = savedSignal;
-        sched.clearTimeout(timerHandle);
-        idleTicker?.cancel();
-      }
+    evaluateTimeoutBlock(node: TimeoutBlockNode): Promise<RillValue> {
+      return evaluateTimeoutBlock(this as unknown as EvalState, node);
     }
   };
 }
