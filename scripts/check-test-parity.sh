@@ -19,7 +19,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BASE_REF="${1:-main}"
-BASELINE_TESTS=5720 # recorded 2026-07-15 on refactor/evaluator-migration after deleting evaluator-composition.test.ts and annotations-mixin.test.ts (main @ 20ebc8c unchanged at 5752)
+BASELINE_TESTS=5732 # recorded 2026-07-15 on refactor/evaluator-migration after adding eval-state.test.ts (main @ 20ebc8c unchanged at 5752)
 
 MERGE_BASE=$(git merge-base "$BASE_REF" HEAD)
 echo "Comparing tests against ${BASE_REF} (merge-base ${MERGE_BASE:0:7})"
