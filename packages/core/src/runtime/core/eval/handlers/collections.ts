@@ -1,12 +1,12 @@
 /**
- * CollectionsMixin: iterable helpers
+ * Iterable helpers
  *
  * Provides exported iterable helper functions:
  * - getIterableElements: expand any iterable to a flat list
  * - expandIterator: drive an iterator protocol to completion
  * - expandStream: drain an async stream to a list
  *
- * The CollectionsMixin class wraps these helpers for evaluator access.
+ * Module functions shared across the evaluator.
  * The evaluate* operator methods (each/map/fold/filter) are removed (IC-3/IC-4).
  *
  * @internal
@@ -31,10 +31,10 @@ import {
   throwFatalHostHalt,
   throwTypeHalt,
 } from '../../types/halt.js';
-import type { EvaluatorConstructor } from '../types.js';
-import type { EvaluatorBase } from '../base.js';
-import { getEvaluator } from '../evaluator.js';
-import type { EvaluatorInterface } from '../interface.js';
+import { getEvalState } from '../state.js';
+import type { EvalState } from '../state.js';
+import { checkAborted } from '../shared.js';
+import { invokeCallable } from './closures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 /**
@@ -95,7 +95,7 @@ export async function getIterableElements(
   if (typeof input === 'string') {
     return [...input];
   }
-  const evaluator = getEvaluator(ctx) as unknown as EvaluatorInterface;
+  const evaluator: EvalState = getEvalState(ctx);
   // Check for stream BEFORE iterator (streams satisfy iterator shape)
   if (isStream(input)) {
     return expandStream(input, evaluator, node, limit);
@@ -129,13 +129,13 @@ export async function getIterableElements(
  * Respects iteration limits to prevent infinite loops.
  *
  * @param iterator - The iterator value ({ done, value, next })
- * @param evaluator - Evaluator instance used for abort checks and callable invocation
+ * @param evaluator - EvalState used for abort checks and callable invocation
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */
 async function expandIterator(
   iterator: RillValue,
-  evaluator: EvaluatorInterface,
+  evaluator: EvalState,
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
@@ -144,7 +144,7 @@ async function expandIterator(
   let count = 0;
 
   while (!current['done'] && count < limit) {
-    evaluator.checkAborted();
+    checkAborted(evaluator);
     const val = current['value'];
     if (val !== undefined) {
       elements.push(val);
@@ -165,7 +165,8 @@ async function expandIterator(
         'Iterator .next must be a closure'
       );
     }
-    const nextIterator = await evaluator.invokeCallable(
+    const nextIterator = await invokeCallable(
+      evaluator,
       nextClosure,
       [],
       node.span.start,
@@ -212,13 +213,13 @@ async function expandIterator(
  * before re-throwing (NFR-STREAM-2).
  *
  * @param stream - The stream value ({ __rill_stream, done, value, next })
- * @param evaluator - Evaluator instance used for abort checks, callable invocation, and sourceId
+ * @param evaluator - EvalState used for abort checks, callable invocation, and sourceId
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */
 async function expandStream(
   stream: RillStream,
-  evaluator: EvaluatorInterface,
+  evaluator: EvalState,
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
@@ -229,7 +230,7 @@ async function expandStream(
 
   try {
     while (!current.done && count < limit) {
-      evaluator.checkAborted();
+      checkAborted(evaluator);
       const val = current['value'];
       if (val !== undefined) {
         const actualType = inferType(val);
@@ -266,7 +267,8 @@ async function expandStream(
           'Stream .next must be a closure'
         );
       }
-      const nextStep = await evaluator.invokeCallable(
+      const nextStep = await invokeCallable(
+        evaluator,
         nextClosure,
         [],
         node.span.start,
@@ -331,75 +333,3 @@ async function expandStream(
 
   return elements;
 }
-
-/**
- * CollectionsMixin implementation.
- *
- * Exposes protected wrapper methods for the exported iterable helpers.
- * The evaluate* operator methods are removed (IC-3/IC-4).
- *
- * Methods added:
- * - getIterableElements(input, node) -> Promise<RillValue[]>
- * - expandIterator(iterator, node, limit?) -> Promise<RillValue[]>
- * - expandStream(stream, node, limit?) -> Promise<RillValue[]>
- */
-function createCollectionsMixin(Base: EvaluatorConstructor<EvaluatorBase>) {
-  return class CollectionsEvaluator extends Base {
-    /**
-     * Get elements from an iterable value (list, string, dict, iterator, or stream).
-     * Delegates to the exported `getIterableElements` helper (IC-3).
-     */
-    protected async getIterableElements(
-      input: RillValue,
-      node: { span: { start: SourceLocation } }
-    ): Promise<RillValue[]> {
-      return getIterableElements(input, this.ctx, node);
-    }
-
-    /**
-     * Expand an iterator to a list of values.
-     * Delegates to the exported `expandIterator` helper (IC-3).
-     */
-    protected async expandIterator(
-      iterator: RillValue,
-      node: { span: { start: SourceLocation } },
-      limit: number = DEFAULT_MAX_ITERATIONS
-    ): Promise<RillValue[]> {
-      return expandIterator(
-        iterator,
-        this as unknown as EvaluatorInterface,
-        node,
-        limit
-      );
-    }
-
-    /**
-     * Expand a stream to a list of chunk values.
-     * Delegates to the exported `expandStream` helper (IC-3).
-     */
-    protected async expandStream(
-      stream: RillStream,
-      node: { span: { start: SourceLocation } },
-      limit: number = DEFAULT_MAX_ITERATIONS
-    ): Promise<RillValue[]> {
-      return expandStream(
-        stream,
-        this as unknown as EvaluatorInterface,
-        node,
-        limit
-      );
-    }
-  };
-}
-
-// Export with type assertion to work around TS4094 limitation
-// TypeScript can't generate declarations for functions returning classes with protected members
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const CollectionsMixin = createCollectionsMixin as any;
-
-/**
- * Capability fragment: CollectionsMixin contributes only protected helpers
- * (getIterableElements, expandIterator, expandStream) which are not called
- * from external cast sites. No public methods are added to the evaluator.
- */
-export type CollectionsMixinCapability = Record<never, never>;

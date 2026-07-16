@@ -1,5 +1,5 @@
 /**
- * AccessMixin: Centralised Access-Halt Gate
+ * Centralised Access-Halt Gate
  *
  * Provides the gate helper that every invalid-value access site routes
  * through. When a RillValue carries a non-`#ok` status sidecar
@@ -49,7 +49,7 @@ import type { RillValue } from '../../types/structures.js';
  * `RuntimeHaltSignal` is re-exported so existing imports from this
  * module continue to compile. The canonical definition lives in
  * `types/halt.ts` (the type-layer primitive shared with the type-halt
- * builder used by evaluator mixins and standalone type helpers).
+ * builder used by evaluator handlers and standalone type helpers).
  */
 export { RuntimeHaltSignal };
 

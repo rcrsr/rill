@@ -52,3 +52,16 @@ jobs:
 
       - name: Check formatting
         run: pnpm check:format
+
+  language-lock:
+    name: Language arbiter lock
+    runs-on: ubuntu-latest
+    steps:
+      # No fetch-depth: the lock compares against a committed snapshot, not a
+      # base ref, so it needs no history and behaves the same on main.
+      - uses: actions/checkout@v5
+
+      # Needs git, grep, and sha256sum only. The check job above already runs
+      # the suite on 22/24/25, so this never runs it a second time.
+      - name: Check language arbiter lock
+        run: bash scripts/check-test-lock.sh

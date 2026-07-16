@@ -1,17 +1,17 @@
 /**
- * Tests for CollectionsMixin helper contracts and builtin dispatch
+ * Tests for collections handler helper contracts and builtin dispatch
  *
  * These tests verify:
  * 1. The iterable helper contracts (RILL-R002, RILL-R003, element expansion)
- *    exercised via the runtime evaluator.
- * 2. The new builtin dispatch path (seq, fan, fold, filter, acc) via run().
+ *    exercised via the runtime evaluator (eval/handlers/collections.ts).
+ * 2. The builtin dispatch path (seq, fan, fold, filter, acc) via run().
  */
 
 import { createVector } from '@rcrsr/rill';
 import { describe, it, expect } from 'vitest';
 import { run } from '../helpers/runtime.js';
 
-describe('CollectionsMixin', () => {
+describe('collections handlers', () => {
   describe('getIterableElements helper contract', () => {
     describe('RILL-R002: non-iterable input', () => {
       it('raises error for number input to seq', async () => {

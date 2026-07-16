@@ -56,7 +56,7 @@ import { getStatus, invalidate } from './types/status.js';
 import { atomName, registerErrorCode } from './types/atom-registry.js';
 import { RuntimeHaltSignal, throwFatalHostHalt } from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
-import { formatAccessSite } from './eval/mixins/access.js';
+import { formatAccessSite } from './eval/handlers/access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 
 // ============================================================
@@ -557,7 +557,7 @@ const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
   RILL_R009: ERROR_IDS.RILL_R009,
   // Phase 2 migrations: control-flow.ts assert site (IC-3).
   RILL_R015: ERROR_IDS.RILL_R015,
-  // Evaluator-mixin migration: type-conversion and list-dispatch.
+  // Type-conversion and list-dispatch error IDs.
   RILL_R036: ERROR_IDS.RILL_R036,
   RILL_R037: ERROR_IDS.RILL_R037,
   RILL_R038: ERROR_IDS.RILL_R038,

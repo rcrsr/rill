@@ -57,7 +57,7 @@ import {
   expectHaltSync,
   expectHalt,
 } from '../helpers/halt.js';
-import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js';
+import { RuntimeHaltSignal } from '../../src/runtime/core/eval/handlers/access.js';
 
 // Old implementations from values.ts for comparison.
 // These remain as internal imports because they verify parity between

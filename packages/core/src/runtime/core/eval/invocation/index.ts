@@ -22,4 +22,3 @@ export { CallableInvocationStrategy } from './callable-strategy.js';
 // STREAM CLOSURES
 // ============================================================
 export { activeStreamContexts } from './stream-closures.js';
-export type { StreamChannel } from './stream-closures.js';

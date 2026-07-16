@@ -5,7 +5,7 @@
  * Requirements from evaluate-decomposition-spec.md:
  * - Run 1000 iterations of nested expression evaluation
  * - Test script includes: map, each, fold, dict creation, closures
- * - Measure baseline before mixin extraction
+ * - Baseline recorded before the evaluator refactor; guards against regressions
  * - Fail if execution time regresses > 5%
  */
 

@@ -50,9 +50,11 @@ import { BreakSignal, ControlSignal } from '../core/signals.js';
 import { createChildContext } from '../core/context.js';
 import { registerBuiltinFunctions } from '../core/builtin-registry.js';
 
-import { getIterableElements } from '../core/eval/mixins/collections.js';
-import { getEvaluator } from '../core/eval/evaluator.js';
-import type { EvaluatorInterface } from '../core/eval/interface.js';
+import { getIterableElements } from '../core/eval/handlers/collections.js';
+import { getEvalState } from '../core/eval/state.js';
+import type { EvalState } from '../core/eval/state.js';
+import { checkAborted } from '../core/eval/shared.js';
+import { invokeCallable as invokeCallableState } from '../core/eval/handlers/closures.js';
 import { ERROR_IDS } from '../../error-registry.js';
 
 /**
@@ -63,7 +65,7 @@ import { ERROR_IDS } from '../../error-registry.js';
 async function walkIteratorSteps(
   start: Record<string, unknown>,
   cap: number,
-  evaluator: EvaluatorInterface,
+  evaluator: EvalState,
   location: { line: number; column: number; offset: number },
   sourceId: string | undefined
 ): Promise<{ elements: RillValue[]; tail: Record<string, unknown> }> {
@@ -76,7 +78,7 @@ async function walkIteratorSteps(
   };
 
   for (let i = 0; i < cap; i++) {
-    evaluator.checkAborted();
+    checkAborted(evaluator);
     if (current['done']) break;
     const val = current['value'];
     if (val !== undefined) {
@@ -91,7 +93,8 @@ async function walkIteratorSteps(
         'Iterator/stream .next must be a closure'
       );
     }
-    const nextStep = await evaluator.invokeCallable(
+    const nextStep = await invokeCallableState(
+      evaluator,
       nextClosure,
       [],
       location,
@@ -1427,9 +1430,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       // This handles infinite iterators (e.g. cycle) correctly.
       if (isStream(input) || isIterator(input)) {
         const loc = location ?? { line: 0, column: 0, offset: 0 };
-        const evaluator = getEvaluator(
-          ctx as RuntimeContext
-        ) as unknown as EvaluatorInterface;
+        const evaluator = getEvalState(ctx as RuntimeContext);
         const { elements } = await walkIteratorSteps(
           input as unknown as Record<string, unknown>,
           clamped,
@@ -1511,9 +1512,7 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = {
       if (isStream(input) || isIterator(input)) {
         const loc = location ?? { line: 0, column: 0, offset: 0 };
         const node = { span: { start: loc } };
-        const evaluator = getEvaluator(
-          ctx as RuntimeContext
-        ) as unknown as EvaluatorInterface;
+        const evaluator = getEvalState(ctx as RuntimeContext);
 
         if (n === 0) {
           // No skipping: materialize the whole sequence normally.

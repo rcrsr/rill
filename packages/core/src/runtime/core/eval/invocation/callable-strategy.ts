@@ -6,7 +6,9 @@
  *   Phase 2 – bind: delegate to ArgumentsBinder for spread-aware binding
  *   Phase 3 – invoke: own the call-stack frame try/catch/finally
  *
- * Instantiated once per evaluation context (no per-call allocation).
+ * Cached on `EvalState.invocationStrategy` and lazily constructed on first
+ * use, so a given evaluation context allocates at most one strategy instance
+ * rather than reallocating it on every call-site invocation.
  *
  * Error codes:
  *   RILL-R001 – non-callable target [EC-4], argument binding failure [EC-5]
@@ -43,7 +45,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 /**
  * Injected executor: performs the actual callable dispatch.
  * Provided by the evaluator so the strategy stays decoupled from
- * invokeScriptCallable / invokeFnCallable mixin internals.
+ * invokeScriptCallable / invokeFnCallable internals.
  */
 export type InvocationCaller = (
   callable: RillCallable,

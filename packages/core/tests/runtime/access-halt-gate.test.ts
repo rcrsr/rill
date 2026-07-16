@@ -16,7 +16,7 @@ import {
   accessHaltGate,
   accessHaltGateFast,
   RuntimeHaltSignal,
-} from '../../src/runtime/core/eval/mixins/access.js';
+} from '../../src/runtime/core/eval/handlers/access.js';
 import { createRuntimeContext } from '@rcrsr/rill';
 
 describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {

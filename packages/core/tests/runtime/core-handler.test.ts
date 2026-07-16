@@ -1,7 +1,7 @@
 /**
- * Tests for CoreMixin Error Contracts
+ * Tests for core handler error contracts
  *
- * Tests error handling in CoreMixin:
+ * Tests error handling in eval/handlers/core.ts:
  * - EC-4: Unsupported expression types throw RuntimeError
  * - EC-5: RuntimeHaltSignal (code=DISPOSED) when context signal aborted
  */
@@ -37,7 +37,7 @@ async function expectAbortHalt(
   return signal;
 }
 
-describe('CoreMixin Error Contracts', () => {
+describe('core handler error contracts', () => {
   describe('EC-4: Unsupported expression types', () => {
     it('RuntimeError shape for unsupported primary node type', async () => {
       // This is a structural check on RuntimeError construction.
@@ -268,7 +268,7 @@ describe('CoreMixin Error Contracts', () => {
     });
   });
 
-  describe('CoreMixin method behavior', () => {
+  describe('core handler method behavior', () => {
     it('evaluateExpression delegates to evaluatePipeChain', async () => {
       const result = await run('"hello"');
       expect(result).toBe('hello');

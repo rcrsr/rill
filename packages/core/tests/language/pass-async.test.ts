@@ -24,7 +24,7 @@ import { describe, expect, it } from 'vitest';
 import { createRuntimeContext, execute, parse, ParseError } from '@rcrsr/rill';
 import { invalidate } from '../../src/runtime/core/types/status.js';
 import { createTraceFrame } from '../../src/runtime/core/types/trace.js';
-import { RuntimeHaltSignal } from '../../src/runtime/core/eval/mixins/access.js';
+import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 import { run, runWithContext } from '../helpers/runtime.js';
 
 // ---------------------------------------------------------------------------

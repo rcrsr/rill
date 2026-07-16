@@ -1,8 +1,19 @@
 /**
  * Evaluation Public API
  *
- * Public API for AST evaluation using the class-based Evaluator architecture.
- * Provides functional wrappers around Evaluator methods for backward compatibility.
+ * eval/ is a set of plain module-level functions operating over a shared
+ * EvalState struct. There are no classes or `this`-based state anywhere
+ * in this directory. This file exposes the external wrapper surface
+ * (checkAborted, checkAutoExceptions, executeStatement, invokeCallable)
+ * that resolves EvalState via getEvalState(ctx) and threads that state
+ * into the individual handler functions.
+ *
+ * Handler files import each other directly. Circular ESM imports between
+ * handler files are safe because every cross-handler call happens during
+ * evaluation, never at module-init time.
+ *
+ * See internal/review-evaluator-mixin-architecture-2026-07-15.md for
+ * migration history.
  *
  * @internal
  */
@@ -16,16 +27,21 @@ import type {
 import type { RillCallable } from '../callable.js';
 import type { RuntimeContext } from '../types/runtime.js';
 import type { RillValue } from '../types/structures.js';
-import { getEvaluator } from './evaluator.js';
-import type { EvaluatorInterface } from './interface.js';
+import { getEvalState } from './state.js';
+import {
+  checkAborted as checkAbortedState,
+  checkAutoExceptions as checkAutoExceptionsState,
+} from './shared.js';
+import { executeStatement as executeStatementState } from './handlers/annotations.js';
+import { invokeCallable as invokeCallableState } from './handlers/closures.js';
 
 /**
  * Check if execution has been aborted via AbortSignal.
  * Throws RuntimeHaltSignal (code=#DISPOSED, catchable=false) if signal is aborted.
  */
 export function checkAborted(ctx: RuntimeContext, node?: ASTNode): void {
-  const evaluator = getEvaluator(ctx);
-  (evaluator as unknown as EvaluatorInterface).checkAborted(node);
+  const state = getEvalState(ctx);
+  checkAbortedState(state, node);
 }
 
 /**
@@ -37,8 +53,8 @@ export function checkAutoExceptions(
   ctx: RuntimeContext,
   node?: ASTNode
 ): void {
-  const evaluator = getEvaluator(ctx);
-  (evaluator as unknown as EvaluatorInterface).checkAutoExceptions(value, node);
+  const state = getEvalState(ctx);
+  checkAutoExceptionsState(state, value, node);
 }
 
 /**
@@ -49,14 +65,14 @@ export async function executeStatement(
   stmt: StatementNode | AnnotatedStatementNode,
   ctx: RuntimeContext
 ): Promise<RillValue> {
-  const evaluator = getEvaluator(ctx);
-  return evaluator.executeStatement(stmt);
+  const state = getEvalState(ctx);
+  return executeStatementState(state, stmt);
 }
 
 /**
  * Invoke any callable (script, runtime, or application) with positional arguments.
  *
- * Dispatches to the evaluator's invokeCallable which handles all callable kinds:
+ * Dispatches to invokeCallable which handles all callable kinds:
  * - ScriptCallable: executes the Rill closure body in a new scope
  * - RuntimeCallable: calls the native fn directly
  * - ApplicationCallable: calls the native fn with optional validation
@@ -72,10 +88,6 @@ export async function invokeCallable(
   ctx: RuntimeContext,
   location?: SourceLocation
 ): Promise<RillValue> {
-  const evaluator = getEvaluator(ctx);
-  return (evaluator as unknown as EvaluatorInterface).invokeCallable(
-    callable,
-    args,
-    location
-  );
+  const state = getEvalState(ctx);
+  return invokeCallableState(state, callable, args, location);
 }

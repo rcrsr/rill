@@ -202,7 +202,7 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   ['IGNORE', 'generic'],
   ['R999', 'registry'],
   // FR-ERR-17 taxonomy: typed atom for type-assertion / conversion
-  // failures. Registered here so mixins and type-layer helpers can
+  // failures. Registered here so evaluator handlers and type-layer helpers can
   // resolve `#TYPE_MISMATCH` before any script parses.
   ['TYPE_MISMATCH', 'generic'],
   // IR-3: error-wrap halt atom. Underscore form required by
@@ -214,7 +214,7 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   [ERROR_ATOMS[ERROR_IDS.RILL_R002], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R003], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R010], 'runtime'],
-  // Evaluator-mixin migration: type-conversion and list-dispatch atoms.
+  // Type-conversion and list-dispatch atoms.
   [ERROR_ATOMS[ERROR_IDS.RILL_R036], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R037], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R038], 'runtime'],

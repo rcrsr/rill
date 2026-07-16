@@ -16,6 +16,11 @@ pre-commit:
       glob: '*.{ts,tsx}'
       run: pnpm exec oxlint --config .oxlintrc.json --fix {staged_files}
       stage_fixed: true
+    # Ungated by glob on purpose: it runs in ~30ms, and gating on the arbiter
+    # path would miss a commit that edits only the lock.
+    language-lock:
+      priority: 3
+      run: bash scripts/check-test-lock.sh
 
 pre-push:
   parallel: true

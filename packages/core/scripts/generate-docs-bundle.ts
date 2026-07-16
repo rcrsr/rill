@@ -46,6 +46,9 @@ function main(): void {
 export const LANGUAGE_REFERENCE = \`${escaped}\`;
 `;
 
+  // Ensure output directory exists
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+
   // Write output file
   fs.writeFileSync(outputPath, output, 'utf-8');
 
