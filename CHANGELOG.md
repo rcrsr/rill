@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`@rcrsr/rill-language-service` package debut:** The package ships outline, semantic tokens, formatting, scope, hover, go-to-definition, completion, and a static checker with 37 active rule codes (40 registered, 3 reserved stubs). ([#109](https://github.com/rcrsr/rill/pull/109)) ([#110](https://github.com/rcrsr/rill/pull/110))
 
+### Changed
+
+- **Evaluator internals:** Evaluator refactored internally without any public API changes. ([#115](https://github.com/rcrsr/rill/pull/115))
+
 ## 0.19.5 - 2026-07-11
 
 ### Added
