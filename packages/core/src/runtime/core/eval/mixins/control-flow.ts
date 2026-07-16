@@ -47,6 +47,19 @@ import type { EvaluatorConstructor } from '../types.js';
 import type { EvaluatorBase } from '../base.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { getNodeLocation, checkAborted } from '../shared.js';
+import {
+  evaluateAnnotations,
+  getIterationLimit,
+  executeStatement,
+} from './annotations.js';
+import {
+  evaluateExpression,
+  evaluatePostfixExpr,
+  evaluatePipeChain,
+} from './core.js';
+import { evaluateString } from './literals.js';
+import { evaluateGroupedExpr } from './expressions.js';
 
 /**
  * Evaluate conditional expression (ternary if-else).
@@ -72,7 +85,7 @@ export async function evaluateConditional(
     if (typeof conditionValue !== 'boolean') {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateConditional',
         },
@@ -87,7 +100,7 @@ export async function evaluateConditional(
     if (typeof s.ctx.pipeValue !== 'boolean') {
       throwCatchableHostHalt(
         {
-          location: s.getNodeLocation(node),
+          location: getNodeLocation(s, node),
           sourceId: s.ctx.sourceId,
           fn: 'evaluateConditional',
         },
@@ -151,7 +164,7 @@ export async function evaluateWhileLoop(
   const originalPipeValue = s.ctx.pipeValue;
 
   // Evaluate condition
-  const conditionValue = await s.evaluateExpression(node.condition);
+  const conditionValue = await evaluateExpression(s, node.condition);
 
   // Restore original pipe value for loop body
   s.ctx.pipeValue = originalPipeValue;
@@ -160,7 +173,7 @@ export async function evaluateWhileLoop(
   if (typeof conditionValue !== 'boolean') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateWhileLoop',
       },
@@ -174,9 +187,9 @@ export async function evaluateWhileLoop(
   // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
   // Statement-level annotationStack is not consulted (EC-5).
   const operatorAnnotations = node.annotations?.length
-    ? await s.evaluateAnnotations(node.annotations)
+    ? await evaluateAnnotations(s, node.annotations)
     : undefined;
-  const maxIter = s.getIterationLimit(operatorAnnotations);
+  const maxIter = getIterationLimit(s, operatorAnnotations);
 
   try {
     let conditionResult = conditionValue;
@@ -185,7 +198,7 @@ export async function evaluateWhileLoop(
       if (iterCount > maxIter) {
         throwFatalHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateWhileLoop',
           },
@@ -194,7 +207,7 @@ export async function evaluateWhileLoop(
           { limit: maxIter, iterations: iterCount }
         );
       }
-      s.checkAborted(node);
+      checkAborted(s, node);
 
       // Create child scope for this iteration
       const iterCtx = createChildContext(s.ctx);
@@ -209,11 +222,11 @@ export async function evaluateWhileLoop(
       s.ctx.pipeValue = value;
 
       // Re-evaluate condition for next iteration
-      const nextCondition = await s.evaluateExpression(node.condition);
+      const nextCondition = await evaluateExpression(s, node.condition);
       if (typeof nextCondition !== 'boolean') {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateWhileLoop',
           },
@@ -255,9 +268,9 @@ export async function evaluateDoWhileLoop(
   // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
   // Statement-level annotationStack is not consulted (EC-5).
   const operatorAnnotations = node.annotations?.length
-    ? await s.evaluateAnnotations(node.annotations)
+    ? await evaluateAnnotations(s, node.annotations)
     : undefined;
-  const maxIter = s.getIterationLimit(operatorAnnotations);
+  const maxIter = getIterationLimit(s, operatorAnnotations);
   let iterCount = 0;
 
   try {
@@ -269,7 +282,7 @@ export async function evaluateDoWhileLoop(
       if (iterCount > maxIter) {
         throwFatalHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateDoWhileLoop',
           },
@@ -278,7 +291,7 @@ export async function evaluateDoWhileLoop(
           { limit: maxIter, iterations: iterCount }
         );
       }
-      s.checkAborted(node);
+      checkAborted(s, node);
 
       const iterCtx = createChildContext(s.ctx);
       iterCtx.pipeValue = value;
@@ -296,7 +309,7 @@ export async function evaluateDoWhileLoop(
       if (typeof conditionValue !== 'boolean') {
         throwCatchableHostHalt(
           {
-            location: s.getNodeLocation(node),
+            location: getNodeLocation(s, node),
             sourceId: s.ctx.sourceId,
             fn: 'evaluateDoWhileLoop',
           },
@@ -349,7 +362,7 @@ export async function evaluateBlock(
     const savedCtx = s.ctx;
     s.ctx = stmtCtx;
     try {
-      lastValue = await s.executeStatement(stmt);
+      lastValue = await executeStatement(s, stmt);
     } finally {
       s.ctx = savedCtx;
     }
@@ -421,7 +434,7 @@ export async function evaluateAssert(
   const savedPipeValue = s.ctx.pipeValue;
 
   // Evaluate the condition
-  const conditionResult = await s.evaluateExpression(node.condition);
+  const conditionResult = await evaluateExpression(s, node.condition);
 
   // Restore the pipe value (condition evaluation may have changed it)
   s.ctx.pipeValue = savedPipeValue;
@@ -430,7 +443,7 @@ export async function evaluateAssert(
   if (typeof conditionResult !== 'boolean') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateAssert',
       },
@@ -445,7 +458,7 @@ export async function evaluateAssert(
     let errorMessage: string;
     if (node.message) {
       // Evaluate the message string literal
-      const { value } = await s.evaluateString(node.message);
+      const { value } = await evaluateString(s, node.message);
       errorMessage = value;
     } else {
       errorMessage = 'Assertion failed';
@@ -453,7 +466,7 @@ export async function evaluateAssert(
 
     throwFatalHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateAssert',
       },
@@ -494,7 +507,7 @@ export async function evaluateError(
   if (node.message) {
     // Direct form: error "message"
     // Evaluate the message string literal (handles interpolation)
-    const evaluated = await s.evaluateString(node.message);
+    const evaluated = await evaluateString(s, node.message);
     messageValue = evaluated.value;
     interpolated = evaluated.interpolated === true;
   } else if (input !== undefined) {
@@ -504,7 +517,7 @@ export async function evaluateError(
     // No message and no input - should not happen if parser is correct
     throwFatalHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateError',
       },
@@ -517,7 +530,7 @@ export async function evaluateError(
   if (typeof messageValue !== 'string') {
     throwCatchableHostHalt(
       {
-        location: s.getNodeLocation(node),
+        location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateError',
       },
@@ -530,7 +543,7 @@ export async function evaluateError(
   // typed-atom invalid carrying `#RILL_R016` with a wrap frame when
   // the source message used interpolation.
   const site: TypeHaltSite = {
-    location: s.getNodeLocation(node),
+    location: getNodeLocation(s, node),
     sourceId: s.ctx.sourceId,
     fn: 'evaluateError',
   };
@@ -558,11 +571,11 @@ export async function evaluateBody(
       // fires.
       return s.evaluateBlock(node);
     case 'GroupedExpr':
-      return s.evaluateGroupedExpr(node);
+      return evaluateGroupedExpr(s, node);
     case 'PostfixExpr':
-      return s.evaluatePostfixExpr(node);
+      return evaluatePostfixExpr(s, node);
     case 'PipeChain':
-      return s.evaluatePipeChain(node);
+      return evaluatePipeChain(s, node);
   }
 }
 
