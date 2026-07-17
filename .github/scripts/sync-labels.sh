@@ -26,6 +26,7 @@ declare -a AREAS=(
   "area:types|type system: structural types, assertions, unions"
   "area:stdlib|built-in functions and the host extension surface"
   "area:errors|error IDs, registry, formatting, error reference"
+  "area:service|the published language service (packages/service)"
   "area:fiddle|the browser playground (packages/fiddle)"
   "area:docs|documentation content and the web site"
   "area:dx|CI, toolchain, lint rules, test harness, root config"

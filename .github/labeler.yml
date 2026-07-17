@@ -8,8 +8,8 @@
 #      when the work is genuinely co-owned. The PR labeler is additive and
 #      mechanical, so cross-cutting PRs collect one label per touched path. The
 #      minimize rule governs what humans and skills apply, not the labeler.
-#      Nine areas, mapped to rill's pipeline (Source -> Lexer -> Parser -> AST
-#      -> Runtime -> Result) plus the three publishable and support surfaces:
+#      Ten areas, mapped to rill's pipeline (Source -> Lexer -> Parser -> AST
+#      -> Runtime -> Result) plus the publishable and support surfaces:
 #        area:lexer    packages/core/src/lexer -- tokenizer, token types, the
 #                      syntax-highlight map.
 #        area:parser   packages/core/src/parser -- parser, AST nodes/unions,
@@ -27,6 +27,10 @@
 #        area:errors   the error subsystem -- error-registry, error-formatter,
 #                      error-patterns, error-classes, and the error reference.
 #                      A new error ID or a message-format change lives here.
+#        area:service  packages/service -- the published language service
+#                      (@rcrsr/rill-language-service): outline, semantic
+#                      tokens, formatting, scope, hover, go-to-definition,
+#                      completion, and the rule checker.
 #        area:fiddle   packages/fiddle -- the browser playground (private).
 #        area:docs     documentation -- docs/**, the web site (packages/web),
 #                      README, CHANGELOG. Overlap with area:errors and
@@ -156,6 +160,10 @@
           - 'packages/core/src/error-patterns.ts'
           - 'packages/core/src/error-registry.ts'
           - 'docs/ref-errors.md'
+
+'area:service':
+  - changed-files:
+      - any-glob-to-any-file: 'packages/service/**'
 
 'area:fiddle':
   - changed-files:
