@@ -7,10 +7,10 @@ Language service tooling for [rill](https://rill.run) — outline, semantic toke
 ## Install
 
 ```bash
-npm install @rcrsr/rill-language-service
+npm install @rcrsr/rill-language-service @rcrsr/rill
 ```
 
-`@rcrsr/rill` is a dependency and installs automatically. Every entry point takes a `ParseResult` from its `parseWithRecovery`, so parse once and pass the result to each call.
+`@rcrsr/rill` is a required peer dependency, supported at `>=0.19.5 <0.20.0`. The AST crosses the package boundary, so a single shared copy keeps AST types and AST values consistent. Every entry point takes a `ParseResult` from its `parseWithRecovery`, so parse once and pass the result to each call.
 
 ## Quick Start
 
