@@ -49,7 +49,10 @@
   "engines": {
     "node": ">=22.16.0"
   },
-  "dependencies": {
+  "peerDependencies": {
+    "@rcrsr/rill": "workspace:^"
+  },
+  "devDependencies": {
     "@rcrsr/rill": "workspace:*"
   },
   "publishConfig": {
