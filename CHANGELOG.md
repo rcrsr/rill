@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.19.6 - 2026-07-16
+
 ### Added
 
 - **`@rcrsr/rill-language-service` package debut:** The package ships outline, semantic tokens, formatting, scope, hover, go-to-definition, completion, and a static checker with 37 active rule codes (40 registered, 3 reserved stubs), plus README and LICENSE. ([#109](https://github.com/rcrsr/rill/pull/109)) ([#110](https://github.com/rcrsr/rill/pull/110)) ([#119](https://github.com/rcrsr/rill/pull/119))
@@ -15,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Evaluator internals:** Evaluator refactored internally without any public API changes. ([#115](https://github.com/rcrsr/rill/pull/115))
-- **`@rcrsr/rill` peer dependency:** `@rcrsr/rill-language-service` now declares `@rcrsr/rill` as a required peer dependency at `>=0.19.5 <0.20.0`, replacing the previous exact-pinned regular dependency. Hosts must install `@rcrsr/rill` themselves. This guarantees the AST a host parses and the types the service's rules consume come from one shared core copy. ([#120](https://github.com/rcrsr/rill/issues/120)) ([#121](https://github.com/rcrsr/rill/pull/121))
+- **`@rcrsr/rill` peer dependency:** `@rcrsr/rill-language-service` now declares `@rcrsr/rill` as a required peer dependency at `>=0.19.6 <0.20.0`, replacing the previous exact-pinned regular dependency. Hosts must install `@rcrsr/rill` themselves. This guarantees the AST a host parses and the types the service's rules consume come from one shared core copy. ([#120](https://github.com/rcrsr/rill/issues/120)) ([#121](https://github.com/rcrsr/rill/pull/121))
 
 ## 0.19.5 - 2026-07-11
 

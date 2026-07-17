@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-language-service",
-  "version": "0.19.5",
+  "version": "0.19.6",
   "description": "Language service tooling for rill",
   "license": "MIT",
   "author": "Andre Bremer",
