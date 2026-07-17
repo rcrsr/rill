@@ -85,11 +85,16 @@ export function App(): JSX.Element {
   // ============================================================
 
   useEffect(() => {
-    readSourceFromURL().then((sharedSource) => {
-      if (sharedSource) {
-        setSource(sharedSource);
-      }
-    });
+    readSourceFromURL()
+      .then((sharedSource) => {
+        if (sharedSource) {
+          setSource(sharedSource);
+        }
+      })
+      .catch(() => {
+        // The ?code= parameter is untrusted input, so decoding it can reject.
+        // Fall back to the default source rather than blanking the editor.
+      });
   }, []);
 
   // ============================================================
@@ -114,12 +119,35 @@ export function App(): JSX.Element {
       };
 
       // Execute async (outside setState)
-      executeRill(source, resolverConfig).then((result) => {
-        setExecutionState(result);
-        if (result.status === 'error' && result.error !== null) {
-          setErrorLine(result.error.line);
-        }
-      });
+      executeRill(source, resolverConfig)
+        .then((result) => {
+          setExecutionState(result);
+          if (result.status === 'error' && result.error !== null) {
+            setErrorLine(result.error.line);
+          }
+        })
+        .catch((err: unknown) => {
+          // executeRill converts errors into an error state internally, so a
+          // rejection here is unexpected. Surface it rather than leaving the
+          // UI stuck on 'running' forever.
+          setExecutionState({
+            status: 'error',
+            result: null,
+            error: {
+              message: err instanceof Error ? err.message : String(err),
+              category: 'runtime',
+              line: null,
+              column: null,
+              errorId: null,
+              statusCode: null,
+              statusMessage: null,
+              statusProvider: null,
+              statusTrace: null,
+            },
+            duration: null,
+            logs: [],
+          });
+        });
 
       return {
         status: 'running',
