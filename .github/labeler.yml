@@ -176,7 +176,6 @@
           - 'scripts/**'
           - 'lint-rules/**'
           - 'packages/core/scripts/**'
-          - 'tests/workflow/**'
           - 'tests/workspace/**'
           - '.claude/**'
           # Root and workspace toolchain inputs. A root-only deps or
