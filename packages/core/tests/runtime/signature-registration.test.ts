@@ -29,6 +29,7 @@ import {
   anyTypeValue,
   createRuntimeContext,
   getFunctions,
+  type RillParam,
   structureToTypeValue,
   RuntimeError,
 } from '@rcrsr/rill';
@@ -492,7 +493,7 @@ describe('Rill Runtime: Signature Registration', () => {
         createRuntimeContext({
           functions: {
             broken: {
-              params: null as any,
+              params: null as unknown as RillParam[],
               fn: (args) => args[0],
               returnType: anyTypeValue,
             },

@@ -18,9 +18,11 @@
 import { describe, expect, it } from 'vitest';
 import {
   anyTypeValue,
+  type ApplicationCallable,
   createRuntimeContext,
   getFunctions,
   getLanguageReference,
+  type RuntimeContext,
 } from '@rcrsr/rill';
 
 describe('Rill Runtime: Introspection API', () => {
@@ -488,7 +490,10 @@ describe('Rill Runtime: Introspection API', () => {
 
         // Manually corrupt a function entry in the context to test enumeration robustness
         const corruptValue = { corrupt: true };
-        ctx.functions.set('malformed', corruptValue as unknown as any);
+        ctx.functions.set(
+          'malformed',
+          corruptValue as unknown as ApplicationCallable
+        );
 
         // getFunctions should not throw, even with corrupt entry
         expect(() => getFunctions(ctx)).not.toThrow();
@@ -517,7 +522,9 @@ describe('Rill Runtime: Introspection API', () => {
         });
 
         // Inject malformed entry after valid ones (Map preserves insertion order)
-        ctx.functions.set('bad', { malformed: true } as unknown as any);
+        ctx.functions.set('bad', {
+          malformed: true,
+        } as unknown as ApplicationCallable);
 
         const functions = getFunctions(ctx);
 
@@ -555,7 +562,7 @@ describe('Rill Runtime: Introspection API', () => {
         const invalidCtx = {
           functions: null,
           variables: null,
-        } as unknown as any;
+        } as unknown as RuntimeContext;
 
         const functions = getFunctions(invalidCtx);
 
@@ -591,7 +598,10 @@ describe('Rill Runtime: Introspection API', () => {
           description: 'Invalid params',
           params: { malformed: true }, // Not an array
         };
-        ctx.functions.set('invalidParams', malformedCallable as unknown as any);
+        ctx.functions.set(
+          'invalidParams',
+          malformedCallable as unknown as ApplicationCallable
+        );
 
         // Should not throw
         expect(() => getFunctions(ctx)).not.toThrow();
@@ -625,7 +635,10 @@ describe('Rill Runtime: Introspection API', () => {
             },
           ],
         };
-        ctx.functions.set('throwingParam', throwingCallable as unknown as any);
+        ctx.functions.set(
+          'throwingParam',
+          throwingCallable as unknown as ApplicationCallable
+        );
 
         // Should not throw - malformed entry skipped
         expect(() => getFunctions(ctx)).not.toThrow();
@@ -671,7 +684,7 @@ describe('Rill Runtime: Introspection API', () => {
           __type: 'application' as const,
           fn: () => '',
           params: 'not-an-array',
-        } as unknown as any);
+        } as unknown as ApplicationCallable);
 
         const functions = getFunctions(ctx);
 
@@ -703,7 +716,7 @@ describe('Rill Runtime: Introspection API', () => {
 
         // Should only contain built-in functions, no host functions
         expect(functions).toBeInstanceOf(Array);
-        expect(functions.every((f) => !f.name.includes('::')));
+        expect(functions.every((f) => !f.name.includes('::'))).toBe(true);
       });
     });
 

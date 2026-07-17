@@ -429,7 +429,7 @@ export function evaluateYield(
     return s.activeStreamChannel.push(value);
   }
   let searchCtx: RuntimeContext | undefined = s.ctx;
-  while (searchCtx != null) {
+  while (searchCtx !== undefined) {
     const streamCtx = activeStreamContexts.get(searchCtx);
     if (streamCtx !== undefined) {
       if (streamCtx.chunkType !== null) {

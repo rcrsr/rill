@@ -1,12 +1,14 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "oxc"],
+  "plugins": ["typescript", "oxc", "import", "vitest", "promise"],
   "categories": {
     "correctness": "error"
   },
   "rules": {
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
-    "typescript/no-explicit-any": "warn",
+    "eqeqeq": "error",
+    "no-shadow": "error",
+    "typescript/no-explicit-any": "error",
     "typescript/explicit-function-return-type": "off",
     "typescript/no-namespace": "error",
     "typescript/no-this-alias": "error",
@@ -24,7 +26,58 @@
     "typescript/no-duplicate-enum-values": "error",
     "typescript/no-unsafe-function-type": "error",
     "typescript/no-wrapper-object-types": "error",
-    "typescript/no-array-constructor": "error"
+    "typescript/no-array-constructor": "error",
+
+    "import/no-cycle": "error",
+    "import/no-self-import": "error",
+    "import/no-empty-named-blocks": "error",
+    "import/no-named-as-default-member": "error",
+
+    "vitest/expect-expect": [
+      "error",
+      { "assertFunctionNames": ["expect", "expect*"] }
+    ],
+    "vitest/valid-expect": ["error", { "maxArgs": 2 }],
+    "vitest/no-standalone-expect": "error",
+    "vitest/no-identical-title": "error",
+    "vitest/no-focused-tests": "error",
+    "vitest/no-disabled-tests": "error",
+    "vitest/no-commented-out-tests": "error",
+
+    "promise/catch-or-return": ["error", { "allowThen": true }],
+    "promise/no-return-wrap": "error",
+    "promise/no-new-statics": "error",
+
+    // These four ship in their plugin's `correctness` category, so loading the
+    // plugin above turns them on against the `categories` setting. Each is
+    // switched off deliberately rather than by omission. Counts are measured on
+    // this tree; 446 of them fall inside the locked language arbiter and so are
+    // not fixable by a lint change at all.
+    //
+    // - vitest/no-conditional-expect (844 hits): the suite asserts inside
+    //   branches by design, e.g. after a guard narrows a union.
+    // - vitest/require-to-throw-message (80 hits): stylistic. rill asserts on
+    //   typed halts and error IDs rather than on message text.
+    // - vitest/require-mock-type-parameters (22 hits): stylistic; wants explicit
+    //   type parameters on every vi.fn().
+    // - promise/valid-params (15 hits): every one is a false positive. The rule
+    //   pattern-matches `.catch(a, b)` against Promise.catch, but these are
+    //   rill's own ctx.catch(thunk, handler) lifecycle facade.
+    "vitest/no-conditional-expect": "off",
+    "vitest/require-to-throw-message": "off",
+    "vitest/require-mock-type-parameters": "off",
+    "promise/valid-params": "off"
+
+    // Also deliberately NOT enabled. Re-check before adding:
+    // - promise/param-names (16 hits): stylistic; requires Promise executor
+    //   params be named resolve/reject.
+    // - import/no-duplicates (18 hits): only 7 are real duplicates. The other
+    //   11 are `import type` + `import` from one module, which is the split
+    //   verbatimModuleSyntax encourages and this tree uses widely; the
+    //   prefer-inline option reports 98. It is a style choice, not a defect.
+    // - no-unmodified-loop-condition (2 hits): both false positives on
+    //   invariant guards (a const and an options field) where a different
+    //   conjunct advances parser state and terminates the loop.
   },
   "ignorePatterns": [
     "**/dist/**",
@@ -38,6 +91,53 @@
       "files": ["**/generated/introspection-data.ts"],
       "rules": {
         "no-useless-escape": "off"
+      }
+    },
+    {
+      // The evaluator is a tree-walking interpreter: core.ts dispatches to each
+      // handler, and every handler imports evaluateExpression back to recurse
+      // into sub-expressions. The cycle is the dispatch shape, not an accident.
+      // Removing it means reintroducing the indirection that #115 deleted, which
+      // cost 214 `as unknown as` casts and made the evaluator type `any`. These
+      // imports are safe because every cross-handler call happens at evaluation
+      // time, never at module-init time.
+      "files": [
+        "**/src/runtime/core/eval/**/*.ts",
+        "**/src/runtime/core/execute.ts"
+      ],
+      "rules": {
+        "import/no-cycle": "off"
+      }
+    },
+    {
+      // The type registry and its protocols are mutually recursive: registrations
+      // must know all 16 protocols to build BUILT_IN_TYPES, and a protocol
+      // formatting a compound value must dispatch on its elements' types. The
+      // established fix here is the late-binding initializer in protocols/shared.ts.
+      // Extending that to the remaining edges would trade a deterministic,
+      // ESM-safe static cycle for an implicit bootstrap contract, since nothing
+      // would force registrations.js to load and dict must stay last (AC-16).
+      "files": [
+        "**/src/runtime/core/callable.ts",
+        "**/src/runtime/core/values.ts",
+        "**/src/runtime/core/types/operations.ts",
+        "**/src/runtime/core/types/registrations.ts",
+        "**/src/runtime/core/types/protocols/index.ts",
+        "**/src/runtime/core/types/protocols/closure.ts",
+        "**/src/runtime/core/types/protocols/type.ts"
+      ],
+      "rules": {
+        "import/no-cycle": "off"
+      }
+    },
+    {
+      // packages/core/tests/language/ is the language arbiter, snapshotted in
+      // language.lock and enforced by lefthook and CI. It may only change for
+      // language spec reasons, so its 122 remaining `any` casts cannot be typed
+      // as part of a lint change. Production src/ carries zero.
+      "files": ["**/tests/language/**/*.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
       }
     },
     {

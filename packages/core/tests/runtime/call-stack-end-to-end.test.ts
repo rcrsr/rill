@@ -6,7 +6,14 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
-import { RuntimeError, getCallStack } from '@rcrsr/rill';
+import {
+  type CallFrame,
+  type RillFunction,
+  RuntimeError,
+  type RuntimeContext,
+  type SourceSpan,
+  getCallStack,
+} from '@rcrsr/rill';
 
 describe('Rill Runtime: Call Stack End-to-End', () => {
   describe('call stack infrastructure with nested calls (AC-7)', () => {
@@ -117,7 +124,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       let maxObservedDepth = 0;
 
       const createNestedFn = (depth: number, maxNesting: number) => {
-        return async (_args: unknown[], ctx: any): Promise<unknown> => {
+        return async (
+          _args: unknown[],
+          ctx: RuntimeContext
+        ): Promise<unknown> => {
           maxObservedDepth = Math.max(maxObservedDepth, ctx.callStack.length);
 
           if (depth >= maxNesting) {
@@ -132,7 +142,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
         };
       };
 
-      const functions: Record<string, any> = {};
+      const functions: Record<string, RillFunction> = {};
       for (let i = 0; i < 10; i++) {
         functions[`fn${i}`] = {
           params: [],
@@ -154,7 +164,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       const stackSnapshots: number[] = [];
 
       const createFn = (depth: number) => {
-        return async (_args: unknown[], ctx: any): Promise<unknown> => {
+        return async (
+          _args: unknown[],
+          ctx: RuntimeContext
+        ): Promise<unknown> => {
           stackSnapshots.push(ctx.callStack.length);
 
           if (depth >= maxDepth) {
@@ -169,7 +182,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
         };
       };
 
-      const functions: Record<string, any> = {};
+      const functions: Record<string, RillFunction> = {};
       for (let i = 1; i <= maxDepth; i++) {
         functions[`level${i}`] = {
           params: [],
@@ -253,7 +266,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
 
   describe('call stack tracking during execution', () => {
     it('tracks host function calls in call stack', async () => {
-      let stackInFunction: any[] = [];
+      let stackInFunction: CallFrame[] = [];
 
       await run('testFunction()', {
         functions: {
@@ -273,7 +286,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
     });
 
     it('pops frame after function returns', async () => {
-      let ctxAfterCall: any;
+      let ctxAfterCall: RuntimeContext | undefined;
 
       await run('testFn()', {
         functions: {
@@ -292,7 +305,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
     });
 
     it('includes call site location in frames', async () => {
-      let frameLocation: any;
+      let frameLocation: SourceSpan | undefined;
 
       await run('myFunction()', {
         functions: {

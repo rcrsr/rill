@@ -28,6 +28,7 @@ import {
   createRuntimeContext,
   getFunctions,
   getDocumentationCoverage,
+  type RuntimeContext,
   structureToTypeValue,
 } from '@rcrsr/rill';
 
@@ -188,7 +189,7 @@ describe('Rill Runtime: Function Metadata', () => {
                 },
               ],
               body: { type: 'Body' as const, statements: [] },
-              definingScope: {} as any,
+              definingScope: {} as unknown as RuntimeContext,
               annotations: {},
               isProperty: false,
             },

@@ -19,6 +19,7 @@ import {
   toNative,
   type ApplicationCallable,
   type RillFunction,
+  type RillTypeValue,
   type RillValue,
   type SourceLocation,
 } from '@rcrsr/rill';
@@ -217,7 +218,7 @@ describe('Rill Runtime: Host Integration', () => {
 
     it('location is undefined for internal calls', async () => {
       // Built-in functions should still work; typeName via host API
-      const result = (await run('"hello" => $v\n$v.^type')) as any;
+      const result = (await run('"hello" => $v\n$v.^type')) as RillTypeValue;
       expect(result.typeName).toBe('string');
     });
   });

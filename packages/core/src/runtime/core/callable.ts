@@ -50,7 +50,7 @@ import {
   copyValue,
   emptyForType,
 } from './types/constructors.js';
-import { anyTypeValue, hasCollectionFields } from './values.js';
+import { hasCollectionFields } from './values.js';
 import { ERROR_IDS } from '../../error-registry.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
@@ -172,29 +172,7 @@ export function isApplicationCallable(
   return isCallable(value) && value.kind === 'application';
 }
 
-/**
- * Create an application callable from a host function.
- * Creates an untyped callable (params: undefined) that skips validation.
- * @param fn The function to wrap
- * @param isProperty If true, auto-invokes when accessed from dict (property-style)
- */
-export function callable(
-  fn: CallableFn,
-  isProperty = false
-): ApplicationCallable {
-  return {
-    __type: 'callable',
-    kind: 'application',
-    // Use undefined to signal "untyped" — skips arity validation in invokeCallable.
-    // Explicitly registered callables use params: [] (typed zero-param) and DO validate.
-    // See [DEVIATION] in Implementation Notes.
-    params: undefined as unknown as readonly RillParam[],
-    annotations: {},
-    returnType: anyTypeValue,
-    fn,
-    isProperty,
-  };
-}
+export { callable } from './callable-factory.js';
 
 /**
  * Convert a RillFunction to an ApplicationCallable.
@@ -209,7 +187,7 @@ export function toCallable(
   def: RillFunction,
   isProperty = false
 ): ApplicationCallable {
-  if (def == null) {
+  if (def === null || def === undefined) {
     throw new TypeError('RillFunction cannot be null or undefined');
   }
   if (typeof def.fn !== 'function') {

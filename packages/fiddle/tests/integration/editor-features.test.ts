@@ -12,6 +12,7 @@ import { resolve } from 'node:path';
 import { createThemeExtension } from '../../src/lib/theme.js';
 import { createTabKeyBinding } from '../../src/lib/keybindings.js';
 import { rillHighlighter } from '../../src/lib/highlight.js';
+import type { StringStream } from '@codemirror/language';
 
 // ============================================================
 // THEME INTEGRATION TESTS
@@ -197,7 +198,7 @@ describe('Syntax Highlighting Integration', () => {
         skipToEnd: () => {
           mockStream.pos = mockStream.string.length;
         },
-      } as any;
+      } as unknown as StringStream;
 
       expect(() => rillHighlighter.token!(mockStream, state)).not.toThrow();
     });
@@ -223,7 +224,7 @@ describe('Syntax Highlighting Integration', () => {
           mockStream.pos < mockStream.string.length
             ? mockStream.string[mockStream.pos]
             : undefined,
-      } as any;
+      } as unknown as StringStream;
 
       const result = rillHighlighter.token!(mockStream, state);
 
@@ -242,7 +243,7 @@ describe('Syntax Highlighting Integration', () => {
         sol: () => true,
         eol: () => true,
         next: () => undefined,
-      } as any;
+      } as unknown as StringStream;
 
       const result = rillHighlighter.token!(mockStream, state);
 
@@ -262,7 +263,7 @@ describe('Syntax Highlighting Integration', () => {
           mockStream.pos++;
           return '\n';
         },
-      } as any;
+      } as unknown as StringStream;
 
       expect(() => rillHighlighter.token!(mockStream, state)).not.toThrow();
     });
@@ -284,7 +285,7 @@ describe('Performance Integration', () => {
         sol: () => true,
         eol: () => true,
         next: () => undefined,
-      } as any;
+      } as unknown as StringStream;
 
       const startTime = performance.now();
       rillHighlighter.token!(mockStream, state);
@@ -320,7 +321,7 @@ describe('Performance Integration', () => {
             mockStream.pos < mockStream.string.length
               ? mockStream.string[mockStream.pos]
               : undefined,
-        } as any;
+        } as unknown as StringStream;
 
         while (!mockStream.eol()) {
           rillHighlighter.token!(mockStream, state);
@@ -359,7 +360,7 @@ describe('Performance Integration', () => {
             mockStream.pos < mockStream.string.length
               ? mockStream.string[mockStream.pos]
               : undefined,
-        } as any;
+        } as unknown as StringStream;
 
         while (!mockStream.eol()) {
           rillHighlighter.token!(mockStream, state);
@@ -397,7 +398,7 @@ describe('Performance Integration', () => {
           mockStream.pos < mockStream.string.length
             ? mockStream.string[mockStream.pos]
             : undefined,
-      } as any;
+      } as unknown as StringStream;
 
       const startTime = performance.now();
 

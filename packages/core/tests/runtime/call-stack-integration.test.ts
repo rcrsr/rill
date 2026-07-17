@@ -5,7 +5,13 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
-import { RuntimeError, getCallStack } from '@rcrsr/rill';
+import {
+  type CallFrame,
+  RuntimeError,
+  type RuntimeContext,
+  type SourceSpan,
+  getCallStack,
+} from '@rcrsr/rill';
 
 describe('Rill Runtime: Call Stack Integration', () => {
   describe('pushCallFrame at function call sites (IR-2)', () => {
@@ -26,7 +32,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
     });
 
     it('pushes frame before closure invocation', async () => {
-      let capturedStack: any[] = [];
+      let capturedStack: CallFrame[] = [];
       await run('|x|{ capture() }(42)', {
         functions: {
           capture: {
@@ -45,13 +51,13 @@ describe('Rill Runtime: Call Stack Integration', () => {
     });
 
     it('pushes frame with call site location (IC-9)', async () => {
-      let capturedLocation: any = null;
+      let capturedLocation: SourceSpan | null = null;
       await run('testFn()', {
         functions: {
           testFn: {
             params: [],
             fn: (_args, ctx) => {
-              capturedLocation = ctx.callStack[0]?.location;
+              capturedLocation = ctx.callStack[0]?.location ?? null;
               return null;
             },
           },
@@ -83,7 +89,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
 
   describe('popCallFrame after function completes (IR-3)', () => {
     it('pops frame after host function returns', async () => {
-      let ctx: any;
+      let ctx: RuntimeContext | undefined;
       await run('testFn()', {
         functions: {
           testFn: {
@@ -100,7 +106,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
     });
 
     it('pops frame after closure returns', async () => {
-      let ctx: any;
+      let ctx: RuntimeContext | undefined;
       await run('|x|{ capture() }(5)', {
         functions: {
           capture: {
@@ -117,7 +123,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
     });
 
     it('pops frame after method call returns', async () => {
-      let ctx: any;
+      let ctx: RuntimeContext | undefined;
       await run('"hello".upper() -> capture()', {
         functions: {
           capture: {
@@ -143,7 +149,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
 
   describe('popCallFrame on error paths (IR-3)', () => {
     it('pops frame when host function throws error', async () => {
-      let ctx: any;
+      let ctx: RuntimeContext | undefined;
       await expect(
         run('failFn() -> capture()', {
           functions: {
@@ -236,7 +242,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
     });
 
     it('maintains correct order in nested closure calls', async () => {
-      let capturedStack: any[] = [];
+      let capturedStack: CallFrame[] = [];
       await run('||{ ||{ capture() }() }()', {
         functions: {
           capture: {
@@ -258,7 +264,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
 
   describe('method calls', () => {
     it('pushes frame for dict-bound callable', async () => {
-      let capturedStack: any[] = [];
+      let capturedStack: CallFrame[] = [];
       await run('dict[fn: |x|{ capture() }].fn(42)', {
         functions: {
           capture: {
@@ -285,13 +291,13 @@ describe('Rill Runtime: Call Stack Integration', () => {
 
   describe('call site location vs function body location (IC-9)', () => {
     it('captures call site location, not function body', async () => {
-      let callSiteLocation: any = null;
+      let callSiteLocation: SourceSpan | null = null;
       await run('testFn()', {
         functions: {
           testFn: {
             params: [],
             fn: (_args, ctx) => {
-              callSiteLocation = ctx.callStack[0]?.location;
+              callSiteLocation = ctx.callStack[0]?.location ?? null;
               return null;
             },
           },

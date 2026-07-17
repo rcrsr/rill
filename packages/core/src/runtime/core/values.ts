@@ -215,15 +215,7 @@ function toNativeValue(value: RillValue): NativeValue {
 /** Reserved dict method names that cannot be overridden */
 const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
 
-/**
- * Singleton RillTypeValue representing the 'any' type.
- * Used as the default returnType for callable() factory and ApplicationCallable.
- */
-export const anyTypeValue: RillTypeValue = Object.freeze({
-  __rill_type: true as const,
-  typeName: 'any' as const,
-  structure: { kind: 'any' as const },
-});
+export { anyTypeValue } from './types/any-type.js';
 
 /**
  * Convert a TypeStructure descriptor to a RillTypeValue.

@@ -113,25 +113,25 @@ async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
  * Handles both named arguments and spread arguments.
  *
  * @param annotations - Annotation arguments from AST
- * @param evaluateExpression - Expression evaluator function
+ * @param evalExpr - Expression evaluator function
  * @returns Record of annotation key-value pairs
  *
  * @internal
  */
 async function evaluateAnnotations(
   annotations: AnnotationArg[],
-  evaluateExpression: (expr: ExpressionNode) => Promise<RillValue>
+  evalExpr: (expr: ExpressionNode) => Promise<RillValue>
 ): Promise<Record<string, RillValue>> {
   const result: Record<string, RillValue> = {};
 
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
       const namedArg = arg as NamedArgNode;
-      result[namedArg.name] = await evaluateExpression(namedArg.value);
+      result[namedArg.name] = await evalExpr(namedArg.value);
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
       const spreadArg = arg as SpreadArgNode;
-      const spreadValue = await evaluateExpression(spreadArg.expression);
+      const spreadValue = await evalExpr(spreadArg.expression);
 
       if (
         typeof spreadValue === 'object' &&
