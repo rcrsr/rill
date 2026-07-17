@@ -63,7 +63,7 @@ The package ships three subpaths.
 | `runRules(parsed, source, config, rules?)` | Run the checker, returning `Diagnostic[]` |
 | `capturesInSubtree(node)` | Capture facts for a subtree |
 
-`runRules` defaults to `RULES`; pass a rule array to run a subset. `config` is a `CheckConfig`, whose `rules` field holds per-rule state and whose optional `checkerMode` selects `'strict'` or `'permissive'`. The registry holds 40 rules: 37 active and 3 reserved stubs.
+`runRules` defaults to `RULES`; pass a rule array to run a subset. `config` is a `CheckConfig`, whose `rules` field holds per-rule state and whose optional `checkerMode` selects `'strict'` or `'permissive'`. The registry holds 40 rules.
 
 ## Documentation
 

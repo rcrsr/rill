@@ -152,14 +152,6 @@ export interface Rule {
   /** Taxonomy grouping, ported from the rill-cli check engine. */
   readonly category: RuleCategory;
   /**
-   * True for a reserved rule code whose `validate` unconditionally returns
-   * `[]` (no static-analysis implementation exists yet). Stub rules stay
-   * registered and configurable - the code is reserved and accepted by
-   * rule-code validation - but are excluded from the advertised/active
-   * rule count, since they can never emit a diagnostic.
-   */
-  readonly stub?: boolean | undefined;
-  /**
    * Validate a node, returning diagnostics for violations.
    * Called for each node matching nodeTypes.
    */

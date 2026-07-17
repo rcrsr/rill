@@ -48,7 +48,7 @@ describe('runRules', () => {
     it('returns an empty diagnostics array', () => {
       const parsed = toParseResult('1 => $a\n2 => $b\n');
 
-      const result = runRules(parsed, '1 => $a\n2 => $b\n', makeConfig());
+      const result = runRules(parsed, '1 => $a\n2 => $b\n', makeConfig(), []);
 
       expect(result).toEqual([]);
     });
@@ -89,7 +89,12 @@ describe('runRules', () => {
         result = runRules(parsed, source, makeConfig());
       }).not.toThrow();
 
-      expect(result).toEqual([]);
+      // Both captures are dead, so the survivable findings are the two
+      // THROWAWAY_CAPTURE hits either side of the malformed `$ ->` region.
+      expect(result.map((diagnostic) => diagnostic.code)).toEqual([
+        'THROWAWAY_CAPTURE',
+        'THROWAWAY_CAPTURE',
+      ]);
     });
 
     it('does not throw on a PartialExpressionNode input and returns survivable findings', () => {

@@ -168,11 +168,11 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `USE_EACH` | loops | info | Use `each` instead of while loop |
 | `BREAK_IN_PARALLEL` | collections | error | `break` inside `map` or `filter` |
 | `PREFER_MAP` | collections | info | Use `map` when body has no side effects |
-| `FOLD_INTERMEDIATES` | collections | info | `fold` discards intermediate results |
+| `FOLD_INTERMEDIATES` | collections | info | `acc` used only for its final value |
 | `FILTER_NEGATION` | collections | warning | Negated filter condition |
 | `METHOD_SHORTHAND` | collections | info | Use method reference shorthand |
 | `USE_DEFAULT_OPERATOR` | conditionals | info | Use `??` instead of conditional |
-| `CONDITION_TYPE` | conditionals | warning | Condition not boolean |
+| `CONDITION_TYPE` | conditionals | warning | Condition is a non-boolean literal |
 | `CLOSURE_BARE_DOLLAR` | closures | warning | Stored closure uses bare `$` |
 | `CLOSURE_BRACES` | closures | info | Multi-statement closure needs braces |
 | `CLOSURE_LATE_BINDING` | closures | warning | Closure captures late-bound variable |
@@ -184,7 +184,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `IMPLICIT_DOLLAR_METHOD` | formatting | info | Prefer implicit `$` for methods |
 | `IMPLICIT_DOLLAR_FUNCTION` | formatting | info | Prefer implicit `$` for functions |
 | `IMPLICIT_DOLLAR_CLOSURE` | formatting | info | Prefer implicit `$` for closures |
-| `THROWAWAY_CAPTURE` | formatting | info | Captured variable never used |
+| `THROWAWAY_CAPTURE` | formatting | info | Capture unused or used once, far away |
 
 ## rill-run
 

@@ -201,6 +201,101 @@ describe('capturesInSubtree', () => {
 });
 
 // ============================================================
+// referenceLog
+// ============================================================
+
+describe('ScriptFacts.referenceLog', () => {
+  it('logs a ClosureCall as a reference to its callee name ($double(5))', () => {
+    const source = '|x|($x * 2) => $double\n$double(5)\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    const names = facts.script.referenceLog.map((entry) => entry.name);
+    expect(names).toContain('double');
+  });
+
+  it('logs a reference for a Variable nested inside a DictEntry value', () => {
+    const source = '1 => $x\ndict[a: $x]\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    const names = facts.script.referenceLog.map((entry) => entry.name);
+    expect(names).toContain('x');
+  });
+
+  it('logs a reference for a Variable nested inside a HostCall argument (foo($x))', () => {
+    const source = '1 => $x\nlog($x)\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    const names = facts.script.referenceLog.map((entry) => entry.name);
+    expect(names).toContain('x');
+  });
+
+  it('logs a reference for a Variable nested inside a MethodCall argument ($x -> .m($y))', () => {
+    const source = '1 => $x\n2 => $y\n$x -> .plus($y)\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    const names = facts.script.referenceLog.map((entry) => entry.name);
+    expect(names).toContain('y');
+  });
+
+  it('logs a reference for a Variable nested inside a GuardBlock body (guard { $x })', () => {
+    const source = '1 => $x\nguard { $x }\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    const names = facts.script.referenceLog.map((entry) => entry.name);
+    expect(names).toContain('x');
+  });
+
+  it('logs a reference for a Variable nested inside a Closure body (|p|($x))', () => {
+    const source = '1 => $x\n(|p|($x)) => $f\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    const names = facts.script.referenceLog.map((entry) => entry.name);
+    expect(names).toContain('x');
+  });
+});
+
+// ============================================================
+// closureOrOpDepth / bindingScopeDepth
+// ============================================================
+
+describe('closureOrOpDepth and bindingScopeDepth', () => {
+  it('sets closureOrOpDepth to 1 for a reference inside a Closure body (|x|($x * 2))', () => {
+    const source = '|x|($x * 2) => $double\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    const xRef = facts.script.referenceLog.find((entry) => entry.name === 'x');
+    expect(xRef?.closureOrOpDepth).toBe(1);
+  });
+
+  it('sets closureOrOpDepth to 1 for a reference inside a bare-block collection-op body ([1] -> seq({ $c }))', () => {
+    const source = '1 => $c\n[1] -> seq({ $c })\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    const refs = facts.script.referenceLog.filter(
+      (entry) => entry.name === 'c'
+    );
+    const innerRef = refs.find((entry) => entry.closureOrOpDepth === 1);
+    expect(innerRef).toBeDefined();
+  });
+
+  it('sets bindingScopeDepth to 1 for a capture inside a GroupedExpr (("a" => $x))', () => {
+    const source = '("a" => $x)\n';
+    const root = parse(source);
+    const facts = collectFacts(root);
+
+    expect(facts.script.captureLog[0]?.bindingScopeDepth).toBe(1);
+  });
+});
+
+// ============================================================
 // SINGLE-VISIT INVARIANT
 // ============================================================
 

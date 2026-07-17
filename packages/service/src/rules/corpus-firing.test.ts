@@ -5,8 +5,8 @@
  * protected core language test corpus (via `corpus-loader.ts`) to assert
  * structural invariants: no snippet throws, the full 40-rule registry
  * executes, and emitted diagnostics stay sorted by line then column. It
- * also asserts the stub rules' empty firing set and reproduces a purpose
- * built per-rule firing scenario and severity-resolution behavior.
+ * also reproduces purpose-built per-rule firing scenarios and
+ * severity-resolution behavior.
  *
  * This module does not build a byte-exact parity baseline against an
  * external tool; it only asserts invariants that hold regardless of any
@@ -14,6 +14,8 @@
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { parseWithRecovery } from '@rcrsr/rill';
 import { loadCorpusSnippets, listCorpusFileNames } from './corpus-loader.js';
 import { compareDiagnosticLocation, runRules } from './run-rules.js';
@@ -26,13 +28,6 @@ import { useDynamicIdentifier, useUntypedHostRef } from './use-expressions.js';
 function makeConfig(overrides: Partial<CheckConfig> = {}): CheckConfig {
   return { rules: {}, ...overrides };
 }
-
-/** Rule codes ported as stubs; each must fire on zero corpus positions. */
-const STUB_RULE_CODES = new Set([
-  'CONDITION_TYPE',
-  'FOLD_INTERMEDIATES',
-  'THROWAWAY_CAPTURE',
-]);
 
 interface CorpusRunResult {
   readonly file: string;
@@ -93,29 +88,54 @@ describe('full corpus run', () => {
     }
   });
 
-  it('produces zero diagnostics for the stub rule codes across the full corpus', () => {
-    const stubHits = results
+  it('fires CONDITION_TYPE on exactly the corpus snippets the language spec calls non-boolean', () => {
+    // The corpus is the acceptance oracle for CONDITION_TYPE: these three
+    // snippets are the language's own "errors (not boolean)" cases, so they
+    // are independent true positives. Drifting to zero means the rule went
+    // dead in practice; drifting upward means it false-positives on
+    // protected spec code. Both are defects, and neither is visible to a
+    // hand-written fixture.
+    const hits = results
       .flatMap((result) => result.diagnostics)
-      .filter((diagnostic) => STUB_RULE_CODES.has(diagnostic.code));
+      .filter((diagnostic) => diagnostic.code === 'CONDITION_TYPE');
 
-    expect(stubHits).toEqual([]);
+    expect(hits).toHaveLength(3);
   });
 });
 
 describe('per-rule firing set', () => {
-  it('fires AVOID_REASSIGNMENT and LOOP_OUTER_CAPTURE on a violating script without over-firing unrelated rules', () => {
-    const source =
-      '1 => $x\n' +
-      '2 => $x\n' +
-      '0 => $count\n' +
-      '[1, 2, 3] -> seq({ $count + $ => $count })\n';
+  it('fires AVOID_REASSIGNMENT and THROWAWAY_CAPTURE on dead reassigned captures without over-firing unrelated rules', () => {
+    const source = '1 => $x\n2 => $x\n';
     const parsed = parseWithRecovery(source);
 
     const result = runRules(parsed, source, createDefaultConfig(), RULES);
     const codes = result.map((diagnostic) => diagnostic.code);
 
     expect(codes).toContain('AVOID_REASSIGNMENT');
+    // $x is reassigned and never referenced by either binding: both
+    // top-level captures are genuinely dead.
+    expect(codes).toContain('THROWAWAY_CAPTURE');
+
+    // Rules with no matching construct in this script must not fire.
+    expect(codes).not.toContain('LOOP_OUTER_CAPTURE');
+    expect(codes).not.toContain('USE_DYNAMIC_IDENTIFIER');
+    expect(codes).not.toContain('USE_UNTYPED_HOST_REF');
+    expect(codes).not.toContain('NAMING_SNAKE_CASE');
+    expect(codes).not.toContain('CONDITION_TYPE');
+    expect(codes).not.toContain('FOLD_INTERMEDIATES');
+  });
+
+  it('fires LOOP_OUTER_CAPTURE while staying silent on THROWAWAY_CAPTURE for a closure-body-read accumulator', () => {
+    const source = '0 => $count\n[1, 2, 3] -> seq({ $count + $ => $count })\n';
+    const parsed = parseWithRecovery(source);
+
+    const result = runRules(parsed, source, createDefaultConfig(), RULES);
+    const codes = result.map((diagnostic) => diagnostic.code);
+
     expect(codes).toContain('LOOP_OUTER_CAPTURE');
+    // $count is read inside the closure body on every iteration, so the
+    // capture is not dead even though it is reassigned inside the loop.
+    expect(codes).not.toContain('THROWAWAY_CAPTURE');
 
     // Rules with no matching construct in this script must not fire.
     expect(codes).not.toContain('USE_DYNAMIC_IDENTIFIER');
@@ -123,7 +143,6 @@ describe('per-rule firing set', () => {
     expect(codes).not.toContain('NAMING_SNAKE_CASE');
     expect(codes).not.toContain('CONDITION_TYPE');
     expect(codes).not.toContain('FOLD_INTERMEDIATES');
-    expect(codes).not.toContain('THROWAWAY_CAPTURE');
   });
 });
 
@@ -207,5 +226,25 @@ describe('severity reproduction', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.severity).toBe('info');
+  });
+});
+
+describe('stub removal: raw-text proof', () => {
+  it('does not contain the raw text "stub" in any source file under src/rules/', () => {
+    const rulesDir = join(import.meta.dirname, '.');
+    const offenders: string[] = [];
+    for (const fileName of readdirSync(rulesDir)) {
+      const fullPath = join(rulesDir, fileName);
+      if (fullPath === import.meta.filename) continue;
+      if (!fileName.endsWith('.ts')) continue;
+      const contents = readFileSync(fullPath, 'utf8');
+      if (contents.toLowerCase().includes('stub')) {
+        offenders.push(fileName);
+      }
+    }
+    expect(
+      offenders,
+      `Expected no source file under src/rules/ to contain the raw text "stub", but found it in: ${offenders.join(', ')}`
+    ).toEqual([]);
   });
 });
