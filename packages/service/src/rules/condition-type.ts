@@ -24,15 +24,22 @@ import { registeredRules } from './rules-registry.js';
 // FIRE-SET PRIMARY TYPES
 // ============================================================
 
-/** Primary node types that unambiguously produce a non-bool value. */
+/**
+ * Primary node types that unambiguously produce a non-bool value.
+ *
+ * `DictLiteralNode` is not in this set: the parser always produces
+ * `type: 'Dict'` for `dict[...]` literals (already listed below); no parse
+ * path emits a `DictLiteral`-typed node, so including it would be
+ * unreachable dead code.
+ */
 const NON_BOOL_PRIMARY_TYPES = new Set([
   'StringLiteral',
   'NumberLiteral',
   'ListLiteral',
-  'DictLiteral',
   'TupleLiteral',
   'OrderedLiteral',
   'Dict',
+  'AtomLiteral',
 ]);
 
 // ============================================================

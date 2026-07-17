@@ -53,7 +53,7 @@ import type {
 } from '@rcrsr/rill';
 
 import { traverseForRules } from './traversal.js';
-import { isCollectionOpCall } from './collection-ops.js';
+import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
 
 // ============================================================
 // PUBLIC TYPES
@@ -269,6 +269,13 @@ export function collectFacts(root: ASTNode): AstFacts {
   let currentClosureOrOpDepth = 0;
   let currentBindingScopeDepth = 0;
 
+  // Collection-op body nodes that are a bare `{...}` Block (not an explicit
+  // `|x|(...)` Closure). Populated when the enclosing HostCall is entered,
+  // consulted when that specific Block node is entered/exited below, so the
+  // extra closureOrOpDepth bump scopes only the resolved body subtree - not
+  // the call's other arguments (e.g. `fold`/`acc`'s seed value).
+  const collectionOpBlockBodies = new Set<ASTNode>();
+
   traverseForRules(root, {
     enter(node: ASTNode) {
       stack.push({
@@ -286,15 +293,22 @@ export function collectFacts(root: ASTNode): AstFacts {
 
       const isCollectionOp = isCollectionOpCall(node);
 
+      if (isCollectionOp) {
+        const body = getCollectionOpBody(node);
+        if (body && body.type === 'Block') {
+          collectionOpBlockBodies.add(body);
+        }
+      }
+
       if (node.type === 'Closure') {
         currentClosureDepth++;
         currentClosureOrOpDepth++;
         currentBindingScopeDepth++;
       } else if (node.type === 'Block' || node.type === 'GroupedExpr') {
         currentBindingScopeDepth++;
-      } else if (isCollectionOp) {
-        currentClosureOrOpDepth++;
-        currentBindingScopeDepth++;
+        if (collectionOpBlockBodies.has(node)) {
+          currentClosureOrOpDepth++;
+        }
       }
 
       if (node.type === 'Capture') {
@@ -364,9 +378,9 @@ export function collectFacts(root: ASTNode): AstFacts {
         currentBindingScopeDepth--;
       } else if (node.type === 'Block' || node.type === 'GroupedExpr') {
         currentBindingScopeDepth--;
-      } else if (isCollectionOpCall(node)) {
-        currentClosureOrOpDepth--;
-        currentBindingScopeDepth--;
+        if (collectionOpBlockBodies.has(node)) {
+          currentClosureOrOpDepth--;
+        }
       }
 
       const acc = stack.pop();

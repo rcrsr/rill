@@ -22,11 +22,15 @@
  * top-level-only lookahead without adding a new field to `RuleContext`.
  */
 
-import type { ASTNode, ScriptNode, StatementNode } from '@rcrsr/rill';
+import type { ASTNode, ScriptNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
-import { findChainCapture, getPrimaryFromHead } from './capture-chain.js';
+import {
+  findChainCapture,
+  getInnerStatement,
+  getPrimaryFromHead,
+} from './capture-chain.js';
 
 // ============================================================
 // HELPERS
@@ -41,19 +45,21 @@ function checkStatementList(
 
   for (let i = 0; i < statements.length - 1; i++) {
     const statement = statements[i];
-    if (!statement || statement.type !== 'Statement') continue;
+    if (!statement) continue;
+    const innerStatement = getInnerStatement(statement);
+    if (!innerStatement) continue;
 
-    const captureNode = findChainCapture(
-      (statement as StatementNode).expression
-    );
+    const captureNode = findChainCapture(innerStatement.expression);
     if (!captureNode) continue;
 
     const capturedVarName = captureNode.name;
 
     const nextStatement = statements[i + 1];
-    if (!nextStatement || nextStatement.type !== 'Statement') continue;
+    if (!nextStatement) continue;
+    const nextInnerStatement = getInnerStatement(nextStatement);
+    if (!nextInnerStatement) continue;
 
-    const nextChain = (nextStatement as StatementNode).expression;
+    const nextChain = nextInnerStatement.expression;
     const headPrimary = getPrimaryFromHead(nextChain);
 
     if (

@@ -263,6 +263,10 @@ Frozen registry of all 40 built-in rules. Importing `/rules` triggers each rule 
 
 `CONDITION_TYPE` fires only on a conditional whose condition is a bare non-boolean literal. It performs no type inference and does not flag variables, host calls, method calls, or comparisons.
 
+`FOLD_INTERMEDIATES` fires on an adjacent `acc(...) -> .tail` pair. The running-totals list is built for every step, then thrown away except for the last element. `fold(...)` computes the same final value directly. Only adjacent operator-consumer pairs in one pipe chain are recognized. The capture-then-subscript form (`acc(...) => $t` followed later by `$t[-1]`) needs whole-script analysis and stays silent.
+
+`THROWAWAY_CAPTURE` fires when a top-level capture is never referenced, or referenced exactly once away from its capture site. A single use on the statement immediately following the capture is not "away from its capture". That adjacent-head shape belongs to `CAPTURE_INLINE_CHAIN` instead.
+
 ```typescript
 interface Rule {
   readonly code: string;

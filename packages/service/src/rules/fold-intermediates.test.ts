@@ -64,4 +64,15 @@ describe('FOLD_INTERMEDIATES', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('fires once per occurrence when a single PipeChain has multiple adjacent acc(...) -> .tail pairs', () => {
+    const source =
+      '[1, 2, 3] -> acc(0, { $@ + $ }) -> .tail -> acc(0, { $@ + $ }) -> .tail\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [foldIntermediates]);
+
+    expect(result).toHaveLength(2);
+    expect(result.every((d) => d.code === 'FOLD_INTERMEDIATES')).toBe(true);
+  });
 });

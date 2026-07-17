@@ -161,6 +161,12 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `UNNECESSARY_ASSERTION` | types | info | Type assertion on a literal value |
 | `USE_UNTYPED_HOST_REF` | types | warning | Untyped host reference in `use` expression |
 | `VALIDATE_EXTERNAL` | types | info | External data lacks type validation |
+| `ATOM_UNREGISTERED` | errors | warning | Atom literal is not a runtime builtin |
+| `GUARD_BARE` | errors | info | Bare `guard` catches every error |
+| `GUARD_OVER_TRY_CATCH` | errors | info | Branching on `.!` is manual try/catch |
+| `PRESENCE_OVER_NULL_GUARD` | errors | info | Nil-checking conditional instead of `??` |
+| `RETRY_TRIVIAL` | errors | warning | `retry<limit: N>` with N <= 1 has no effect |
+| `STATUS_PROBE_NO_FIELD` | errors | info | Bare `.!` returns the whole status record |
 | `CAPTURE_INLINE_CHAIN` | flow | info | Capture breaks a pipe chain |
 | `CAPTURE_BEFORE_BRANCH` | flow | info | Capture value before branching |
 | `LOOP_ACCUMULATOR` | loops | info | Use accumulator `$@` pattern |

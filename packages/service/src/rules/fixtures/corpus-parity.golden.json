@@ -194,38 +194,12 @@
   {
     "index": 15,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$n' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "10 => $n",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 16,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$opts' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 20,
-          "offset": 19
-        },
-        "context": "dict[limit: 10] => $opts",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 17,
@@ -240,38 +214,12 @@
   {
     "index": 19,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$n' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "10 => $n",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 20,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$opts' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 20,
-          "offset": 19
-        },
-        "context": "dict[limit: 10] => $opts",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 21,
@@ -603,18 +551,6 @@
     "index": 55,
     "file": "annotations.test.ts",
     "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$limit' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 8,
-          "offset": 7
-        },
-        "context": "100 => $limit",
-        "fix": null
-      },
       {
         "code": "THROWAWAY_CAPTURE",
         "message": "'$fn' is captured but never referenced",
@@ -985,8 +921,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1062,8 +998,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1080,8 +1016,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1224,8 +1160,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1254,20 +1190,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$base' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 17,
-          "offset": 17
-        },
-        "context": "10 => $base",
-        "fix": null
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 3,
@@ -1577,8 +1501,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1595,8 +1519,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1613,8 +1537,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1631,8 +1555,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1649,8 +1573,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1667,8 +1591,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1685,8 +1609,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1721,8 +1645,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1737,20 +1661,7 @@
   {
     "index": 132,
     "file": "annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 39,
-          "offset": 39
-        },
-        "context": "^(enabled: true) |x|($x) => $fn",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 133,
@@ -1762,8 +1673,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1790,8 +1701,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1820,8 +1731,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1872,8 +1783,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$b' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $b -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 1,
@@ -1890,8 +1801,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 1,
@@ -1908,8 +1819,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 1,
@@ -1956,8 +1867,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -1974,8 +1885,8 @@
     "file": "annotations.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $fn -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 2,
@@ -2586,18 +2497,6 @@
           },
           "replacement": "number|{ $ * 2 }:number "
         }
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 56,
-          "offset": 56
-        },
-        "context": "^(label: \"double\") |number|{ $ * 2 }:number => $fn",
-        "fix": null
       }
     ]
   },
@@ -2632,18 +2531,6 @@
           },
           "replacement": "string|{ $ } "
         }
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 41,
-          "offset": 41
-        },
-        "context": "^(label: \"id\") |string|{ $ } => $fn",
-        "fix": null
       }
     ]
   },
@@ -27253,8 +27140,8 @@
     "file": "ref-llms-full-assertions.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$weather' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $weather -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 1,
@@ -27271,8 +27158,8 @@
     "file": "ref-llms-full-assertions.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$get_user' is captured and used only once, away from its capture; consider inlining instead",
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $get_user -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 1,

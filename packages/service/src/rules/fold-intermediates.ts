@@ -34,6 +34,7 @@ export const foldIntermediates: Rule = {
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const pipeChainNode = node as PipeChainNode;
     const pipes = pipeChainNode.pipes;
+    const diagnostics: Diagnostic[] = [];
 
     for (let i = 0; i < pipes.length - 1; i++) {
       const op = pipes[i];
@@ -44,20 +45,18 @@ export const foldIntermediates: Rule = {
         continue;
       }
 
-      return [
-        {
-          code: 'FOLD_INTERMEDIATES',
-          message:
-            'acc(...) -> .tail discards every intermediate result but the last; use fold(...) to compute the final value directly.',
-          severity: 'info',
-          location: op.span.start,
-          context: extractContextLine(op.span.start.line, context.source),
-          fix: null,
-        },
-      ];
+      diagnostics.push({
+        code: 'FOLD_INTERMEDIATES',
+        message:
+          'acc(...) -> .tail discards every intermediate result but the last; use fold(...) to compute the final value directly.',
+        severity: 'info',
+        location: op.span.start,
+        context: extractContextLine(op.span.start.line, context.source),
+        fix: null,
+      });
     }
 
-    return [];
+    return diagnostics;
   },
 };
 

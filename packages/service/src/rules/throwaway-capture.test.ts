@@ -108,6 +108,18 @@ describe('THROWAWAY_CAPTURE', () => {
 
       expect(result).toEqual([]);
     });
+
+    it('on a capture whose single use is the immediately-following AnnotatedStatement', () => {
+      // The reference sits inside the very next statement, same as the
+      // plain-Statement adjacency case above - it just happens to carry an
+      // annotation prefix. Adjacency must see through the wrapper.
+      const source = '10 => $n\n^(limit: $n) "hello"\n';
+      const parsed = toParseResult(source);
+
+      const result = runRules(parsed, source, makeConfig(), [throwawayCapture]);
+
+      expect(result).toEqual([]);
+    });
   });
 
   describe('through the full rule set', () => {

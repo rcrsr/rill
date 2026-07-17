@@ -25,17 +25,12 @@
  * even for top-level captures of the same name that are genuinely dead.
  */
 
-import type {
-  ASTNode,
-  CaptureNode,
-  ScriptNode,
-  StatementNode,
-} from '@rcrsr/rill';
+import type { ASTNode, CaptureNode, ScriptNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import type { CaptureEntry, ReferenceEntry } from './facts.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
-import { findChainCapture } from './capture-chain.js';
+import { findChainCapture, getInnerStatement } from './capture-chain.js';
 
 // ============================================================
 // HELPERS
@@ -114,14 +109,49 @@ function groupReferencesByName(
   return byName;
 }
 
+/**
+ * Collect the references in `refs` (one name's source-ordered reference
+ * list) falling in the half-open offset window `(offset, nextOffset)`,
+ * starting the scan at `startCursor`.
+ *
+ * Candidates of the same name are processed in source order with strictly
+ * increasing, non-overlapping windows (each candidate's window ends where
+ * the next candidate of that name begins), so the cursor returned here only
+ * ever needs to move forward - never backward - across the whole candidate
+ * loop. That turns what was an O(M) `.filter()` per candidate (O(N*M)
+ * overall for N candidates and M references sharing a name) into a single
+ * forward sweep per name (O(N+M) overall).
+ */
+function collectRefsInWindow(
+  refs: readonly ReferenceEntry[],
+  startCursor: number,
+  offset: number,
+  nextOffset: number
+): {
+  readonly matched: readonly ReferenceEntry[];
+  readonly nextCursor: number;
+} {
+  let i = startCursor;
+  while (i < refs.length && refs[i]!.node.span.start.offset <= offset) {
+    i++;
+  }
+  const matched: ReferenceEntry[] = [];
+  while (i < refs.length && refs[i]!.node.span.start.offset < nextOffset) {
+    matched.push(refs[i]!);
+    i++;
+  }
+  return { matched, nextCursor: i };
+}
+
 /** Map each top-level statement's trailing capture to its statement index. */
 function indexTopLevelCaptures(
   statements: readonly ASTNode[]
 ): ReadonlyMap<CaptureNode, number> {
   const indexByCapture = new Map<CaptureNode, number>();
   statements.forEach((statement, index) => {
-    if (statement.type !== 'Statement') return;
-    const capture = findChainCapture((statement as StatementNode).expression);
+    const innerStatement = getInnerStatement(statement);
+    if (!innerStatement) return;
+    const capture = findChainCapture(innerStatement.expression);
     if (capture) {
       indexByCapture.set(capture, index);
     }
@@ -150,7 +180,7 @@ function isImmediatelyChained(
   if (statementIndex === undefined) return false;
 
   const nextStatement = statements[statementIndex + 1];
-  if (!nextStatement || nextStatement.type !== 'Statement') return false;
+  if (!nextStatement || !getInnerStatement(nextStatement)) return false;
 
   // Half-open interval on the reference's start offset. A statement's end
   // offset is exclusive, and a Variable node's span is zero-width, so
@@ -212,28 +242,32 @@ export const throwawayCapture: Rule = {
     const topLevelCaptureIndex = indexTopLevelCaptures(scriptNode.statements);
 
     const diagnostics: Diagnostic[] = [];
+    const cursorByName = new Map<string, number>();
 
     for (const candidate of candidates) {
       const captureNode = candidate.node;
       const offset = captureNode.span.start.offset;
       const nextOffset = nextOffsetByCapture.get(captureNode) ?? Infinity;
 
-      const refs = (referencesByName.get(captureNode.name) ?? []).filter(
-        (reference) => {
-          const refOffset = reference.node.span.start.offset;
-          return refOffset > offset && refOffset < nextOffset;
-        }
+      const refs = referencesByName.get(captureNode.name) ?? [];
+      const startCursor = cursorByName.get(captureNode.name) ?? 0;
+      const { matched, nextCursor } = collectRefsInWindow(
+        refs,
+        startCursor,
+        offset,
+        nextOffset
       );
+      cursorByName.set(captureNode.name, nextCursor);
 
-      if (refs.length === 0) {
+      if (matched.length === 0) {
         diagnostics.push(deadCaptureDiagnostic(captureNode, context.source));
         continue;
       }
 
-      if (refs.length === 1) {
+      if (matched.length === 1) {
         const isChained = isImmediatelyChained(
           captureNode,
-          refs[0]!.node,
+          matched[0]!.node,
           scriptNode.statements,
           topLevelCaptureIndex
         );

@@ -19,10 +19,11 @@ import type {
   CaptureNode,
   PipeChainNode,
   PostfixExprNode,
+  StatementNode,
 } from '@rcrsr/rill';
 
 /** True when `node` is a CaptureNode. */
-export function isCaptureNode(node: unknown): node is CaptureNode {
+function isCaptureNode(node: unknown): node is CaptureNode {
   return (
     typeof node === 'object' &&
     node !== null &&
@@ -39,6 +40,27 @@ export function getPrimaryFromHead(chain: PipeChainNode): ASTNode | null {
   const head = chain.head;
   if (head.type === 'PostfixExpr') {
     return (head as PostfixExprNode).primary;
+  }
+  return null;
+}
+
+/**
+ * Unwrap a top-level script entry to its inner `StatementNode`, whether it
+ * is a plain `Statement` or an `AnnotatedStatement` wrapping one. Returns
+ * `null` for any other node type.
+ *
+ * Annotations (`^(key: value) statement`) prefix a statement without
+ * changing its expression shape, so adjacency checks that key off a
+ * statement's `expression` must see through the wrapper. Callers that need
+ * the full source range (including the annotation prefix) should still use
+ * the original, unwrapped node's `span`.
+ */
+export function getInnerStatement(node: ASTNode): StatementNode | null {
+  if (node.type === 'Statement') {
+    return node as StatementNode;
+  }
+  if (node.type === 'AnnotatedStatement') {
+    return (node as { statement: StatementNode }).statement;
   }
   return null;
 }

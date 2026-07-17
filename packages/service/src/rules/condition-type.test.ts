@@ -64,6 +64,19 @@ describe('CONDITION_TYPE', () => {
     expect(result).toEqual([]);
   });
 
+  it('fires on a bare atom literal condition', () => {
+    const source = '#ABC ? "yes" ! "no"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [conditionType]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'CONDITION_TYPE',
+      location: { line: 1 },
+    });
+  });
+
   it('stays silent on a bool literal condition', () => {
     const source = 'true ? "a" ! "b"\n';
     const parsed = toParseResult(source);

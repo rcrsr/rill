@@ -229,17 +229,33 @@ describe('severity reproduction', () => {
   });
 });
 
+/**
+ * Recursively list every file path under `dir`, so a subdirectory added
+ * later is scanned too rather than silently skipped.
+ */
+function listFilesRecursively(dir: string): string[] {
+  const files: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listFilesRecursively(fullPath));
+    } else if (entry.isFile()) {
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
 describe('stub removal: raw-text proof', () => {
   it('does not contain the raw text "stub" in any source file under src/rules/', () => {
     const rulesDir = join(import.meta.dirname, '.');
     const offenders: string[] = [];
-    for (const fileName of readdirSync(rulesDir)) {
-      const fullPath = join(rulesDir, fileName);
+    for (const fullPath of listFilesRecursively(rulesDir)) {
       if (fullPath === import.meta.filename) continue;
-      if (!fileName.endsWith('.ts')) continue;
+      if (!fullPath.endsWith('.ts')) continue;
       const contents = readFileSync(fullPath, 'utf8');
       if (contents.toLowerCase().includes('stub')) {
-        offenders.push(fileName);
+        offenders.push(fullPath);
       }
     }
     expect(
