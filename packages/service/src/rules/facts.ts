@@ -18,6 +18,28 @@
  * operator (`seq`/`fan`/`fold`/`filter`/`acc`) scopes bare-`$` usage to
  * itself, since the `$` inside a nested collection-op body refers to that
  * operator's own iteration variable, not the enclosing body's.
+ *
+ * This walk also maintains a script-wide `referenceLog` (every `Variable`
+ * and `ClosureCall` reference, in source order, tagged with two extra
+ * depth counters: `closureOrOpDepth` and `bindingScopeDepth`) for
+ * THROWAWAY_CAPTURE. Two existing facilities were considered and rejected
+ * for this:
+ * - `loops.ts`'s `collectVariableReferences` (loops.ts:21-86) is an
+ *   incomplete hand-rolled switch: it has no case for `HostCall`/
+ *   `ClosureCall`/`MethodCall` args, `Dict`/`Tuple`/`List` elements,
+ *   `Closure` bodies, `GuardBlock`/`RetryBlock`, `Destructure`, `Slice`, or
+ *   `TypeAssertion`. Reusing it here would silently undercount references,
+ *   turning a live capture into a false "dead capture" diagnostic - a
+ *   correctness defect, not a style preference, so extending the existing
+ *   single walk with a facts-driven reference log is licensed over reusing
+ *   or patching that helper.
+ * - `packages/service/src/scope/` resolves binding *identity* (which
+ *   declaration a name refers to) but does not count references, and each
+ *   of its entry points (`resolve-scope.ts`, `find-definition.ts`,
+ *   `get-hover.ts`) re-walks the AST via `walkAst` independently per call.
+ *   Driving THROWAWAY_CAPTURE off it would reintroduce the quadratic
+ *   per-rule walk this module exists to eliminate (see the module-level
+ *   rationale above).
  */
 
 import type {
@@ -29,8 +51,9 @@ import type {
   TypeConstructorNode,
   VariableNode,
 } from '@rcrsr/rill';
+
 import { traverseForRules } from './traversal.js';
-import { isCollectionOpCall } from './collection-ops.js';
+import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
 
 // ============================================================
 // PUBLIC TYPES
@@ -40,6 +63,24 @@ import { isCollectionOpCall } from './collection-ops.js';
 export interface CaptureEntry {
   readonly node: CaptureNode;
   readonly closureDepth: number;
+  /** Count of Closure/collection-op ancestors strictly above this node. */
+  readonly closureOrOpDepth: number;
+  /** Count of Closure/Block/GroupedExpr/collection-op ancestors strictly above this node. */
+  readonly bindingScopeDepth: number;
+}
+
+/**
+ * A single variable reference observed during the walk: a `Variable` node
+ * with a non-null, non-pipe name, or a `ClosureCall` node (whose `name` is
+ * itself a variable reference - `$double(5)` reads `$double`).
+ */
+export interface ReferenceEntry {
+  readonly name: string;
+  readonly node: ASTNode;
+  /** Count of Closure/collection-op ancestors strictly above this node. */
+  readonly closureOrOpDepth: number;
+  /** Count of Closure/Block/GroupedExpr/collection-op ancestors strictly above this node. */
+  readonly bindingScopeDepth: number;
 }
 
 /** Precomputed boolean facts and capture-log window for one AST subtree. */
@@ -71,6 +112,8 @@ export interface SubtreeFacts {
 export interface ScriptFacts {
   /** Every Capture node observed, in enter order. */
   readonly captureLog: readonly CaptureEntry[];
+  /** Every Variable/ClosureCall reference observed, in enter order. */
+  readonly referenceLog: readonly ReferenceEntry[];
   /** Variable names captured from a stream-returning closure or a `:stream` annotation. */
   readonly streamVars: ReadonlySet<string>;
   /** First zero-accessChain ClosureCall per callee name, in source order. */
@@ -216,12 +259,22 @@ interface Accumulator {
 export function collectFacts(root: ASTNode): AstFacts {
   const bySubtree = new Map<ASTNode, SubtreeFacts>();
   const captureLog: CaptureEntry[] = [];
+  const referenceLog: ReferenceEntry[] = [];
   const streamVars = new Set<string>();
   const firstClosureCall = new Map<string, ClosureCallNode>();
   const firstPipeIteration = new Map<string, ASTNode>();
 
   const stack: Accumulator[] = [];
   let currentClosureDepth = 0;
+  let currentClosureOrOpDepth = 0;
+  let currentBindingScopeDepth = 0;
+
+  // Collection-op body nodes that are a bare `{...}` Block (not an explicit
+  // `|x|(...)` Closure). Populated when the enclosing HostCall is entered,
+  // consulted when that specific Block node is entered/exited below, so the
+  // extra closureOrOpDepth bump scopes only the resolved body subtree - not
+  // the call's other arguments (e.g. `fold`/`acc`'s seed value).
+  const collectionOpBlockBodies = new Set<ASTNode>();
 
   traverseForRules(root, {
     enter(node: ASTNode) {
@@ -238,12 +291,51 @@ export function collectFacts(root: ASTNode): AstFacts {
         hasBracketAccess: hasBracketAccessSelf(node),
       });
 
+      const isCollectionOp = isCollectionOpCall(node);
+
+      if (isCollectionOp) {
+        const body = getCollectionOpBody(node);
+        if (body && body.type === 'Block') {
+          collectionOpBlockBodies.add(body);
+        }
+      }
+
       if (node.type === 'Closure') {
         currentClosureDepth++;
+        currentClosureOrOpDepth++;
+        currentBindingScopeDepth++;
+      } else if (node.type === 'Block' || node.type === 'GroupedExpr') {
+        currentBindingScopeDepth++;
+        if (collectionOpBlockBodies.has(node)) {
+          currentClosureOrOpDepth++;
+        }
       }
 
       if (node.type === 'Capture') {
-        captureLog.push({ node, closureDepth: currentClosureDepth });
+        captureLog.push({
+          node,
+          closureDepth: currentClosureDepth,
+          closureOrOpDepth: currentClosureOrOpDepth,
+          bindingScopeDepth: currentBindingScopeDepth,
+        });
+      }
+
+      if (node.type === 'Variable' && node.name !== null && !node.isPipeVar) {
+        referenceLog.push({
+          name: node.name,
+          node,
+          closureOrOpDepth: currentClosureOrOpDepth,
+          bindingScopeDepth: currentBindingScopeDepth,
+        });
+      }
+
+      if (node.type === 'ClosureCall') {
+        referenceLog.push({
+          name: node.name,
+          node,
+          closureOrOpDepth: currentClosureOrOpDepth,
+          bindingScopeDepth: currentBindingScopeDepth,
+        });
       }
 
       if (node.type === 'PipeChain') {
@@ -282,6 +374,13 @@ export function collectFacts(root: ASTNode): AstFacts {
     exit(node: ASTNode) {
       if (node.type === 'Closure') {
         currentClosureDepth--;
+        currentClosureOrOpDepth--;
+        currentBindingScopeDepth--;
+      } else if (node.type === 'Block' || node.type === 'GroupedExpr') {
+        currentBindingScopeDepth--;
+        if (collectionOpBlockBodies.has(node)) {
+          currentClosureOrOpDepth--;
+        }
       }
 
       const acc = stack.pop();
@@ -341,6 +440,7 @@ export function collectFacts(root: ASTNode): AstFacts {
     bySubtree,
     script: {
       captureLog,
+      referenceLog,
       streamVars,
       firstClosureCall,
       firstPipeIteration,

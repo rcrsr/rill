@@ -1,8 +1,8 @@
 # rill Language Service API
 
-*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a 37-rule static checker*
+*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a 40-rule static checker*
 
-`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 37 active rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
+`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 40 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
 ## Subpath Exports
 
@@ -219,7 +219,7 @@ function runRules(
 ): Diagnostic[]
 ```
 
-Runs the static checker's 40 registered rules over `parsed.ast` in two linear passes. First a bottom-up fact-collection pass, then a top-down rule-dispatch pass. 37 of the 40 are active; 3 are reserved stubs. Total node visits equal 2n, independent of nesting depth, and no rule re-walks a subtree. `source` is required because formatting rules, the naming-convention fix, and diagnostic context lines all read the raw source text. The optional fourth `rules` parameter defaults to the shared `RULES` registry; pass a subset for testing or a custom rule set. The fact-collection pass populates a capture tracker and the `assertedHostCalls` set once, shared across every rule in the dispatch pass. Diagnostics are returned sorted by line, then column. `runRules` owns final severity resolution, applying each rule's `on`/`off`/`warn` state and then `config.severity` as a global override. Tolerates recovery nodes without throwing. A single rule that throws is isolated: its contribution is skipped and every other rule still reports. Measures a p95 near 42 milliseconds on a flat 2,000-line document on typical developer hardware, roughly 6x the single-pass providers. It runs 40 rules across two passes, not a separate walk per rule. On flat input the two-pass engine costs about 20% more than the per-rule sub-walks it replaced, because a shallow subtree is cheap to re-walk. On deeply nested input it is 153x faster, because nothing re-walks a subtree at all. The wider 350 ms ceiling in `latency.test.ts` is a shared-CI-runner flake guard, not a latency claim.
+Runs the static checker's 40 registered rules over `parsed.ast` in two linear passes. First a bottom-up fact-collection pass, then a top-down rule-dispatch pass. Total node visits equal 2n, independent of nesting depth, and no rule re-walks a subtree. `source` is required because formatting rules, the naming-convention fix, and diagnostic context lines all read the raw source text. The optional fourth `rules` parameter defaults to the shared `RULES` registry; pass a subset for testing or a custom rule set. The fact-collection pass populates a capture tracker and the `assertedHostCalls` set once, shared across every rule in the dispatch pass. Diagnostics are returned sorted by line, then column. `runRules` owns final severity resolution, applying each rule's `on`/`off`/`warn` state and then `config.severity` as a global override. Tolerates recovery nodes without throwing. A single rule that throws is isolated: its contribution is skipped and every other rule still reports. Measures a p95 near 42 milliseconds on a flat 2,000-line document on typical developer hardware, roughly 6x the single-pass providers. It runs 40 rules across two passes, not a separate walk per rule. On flat input the two-pass engine costs about 20% more than the per-rule sub-walks it replaced, because a shallow subtree is cheap to re-walk. On deeply nested input it is 153x faster, because nothing re-walks a subtree at all. The wider 350 ms ceiling in `latency.test.ts` is a shared-CI-runner flake guard, not a latency claim.
 
 ```typescript
 interface Diagnostic {
@@ -261,7 +261,11 @@ const RULES: readonly Rule[]
 
 Frozen registry of all 40 built-in rules. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
 
-Of the 40 registered codes, 37 are active and 3 are reserved stubs. `CONDITION_TYPE`, `FOLD_INTERMEDIATES`, and `THROWAWAY_CAPTURE` each have a `validate` that unconditionally returns `[]`. Stub codes stay registered and configurable for forward compatibility, but they never emit a diagnostic today.
+`CONDITION_TYPE` fires only on a conditional whose condition is a bare non-boolean literal. It performs no type inference and does not flag variables, host calls, method calls, or comparisons.
+
+`FOLD_INTERMEDIATES` fires on an adjacent `acc(...) -> .tail` pair. The running-totals list is built for every step, then thrown away except for the last element. `fold(...)` computes the same final value directly. Only adjacent operator-consumer pairs in one pipe chain are recognized. The capture-then-subscript form (`acc(...) => $t` followed later by `$t[-1]`) needs whole-script analysis and stays silent.
+
+`THROWAWAY_CAPTURE` fires when a top-level capture is never referenced, or referenced exactly once away from its capture site. A single use on the statement immediately following the capture is not "away from its capture". That adjacent-head shape belongs to `CAPTURE_INLINE_CHAIN` instead.
 
 ```typescript
 interface Rule {
@@ -269,8 +273,6 @@ interface Rule {
   readonly nodeTypes: readonly NodeType[];
   readonly defaultSeverity: DiagnosticSeverity;
   readonly category: RuleCategory;
-  /** True for a reserved code with no diagnostic implementation yet; validate() always returns []. */
-  readonly stub?: boolean | undefined;
   validate(node: ASTNode, context: RuleContext): Diagnostic[];
 }
 

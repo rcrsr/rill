@@ -44,7 +44,7 @@
 | [Error Reference](ref-errors.md) | All error codes with causes and resolutions |
 | [Host API](ref-host-api.md) | Complete TypeScript API exports |
 | [Host API Types](ref-host-api-types.md) | TypeStructure, TypeDefinition, TypeProtocol exports |
-| [Language Service API](ref-language-service.md) | Outline, semantic tokens, formatting, scope, hover, go-to-definition, completion, 37-rule checker |
+| [Language Service API](ref-language-service.md) | Outline, semantic tokens, formatting, scope, hover, go-to-definition, completion, 40-rule checker |
 | [Config Reference](ref-config.md) | rill.config.ts options (now in [rill-config](https://github.com/rcrsr/rill-config)) |
 | [Config API Reference](ref-config-api.md) | Config TypeScript API (now in [rill-config](https://github.com/rcrsr/rill-config)) |
 | [Grammar](ref-grammar.ebnf) | Formal EBNF grammar |
@@ -94,7 +94,7 @@
 
 ## Related Packages
 
-`@rcrsr/rill` is the core language runtime and parser documented above. `@rcrsr/rill-language-service` is the second published package from this monorepo. It ships outline, semantic-token, formatting, scope-resolution, hover, go-to-definition, completion, and a static checker with 37 active rule codes (40 registered, 3 reserved) across three subpath exports, documented in the [Language Service API](ref-language-service.md). Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
+`@rcrsr/rill` is the core language runtime and parser documented above. `@rcrsr/rill-language-service` is the second published package from this monorepo. It ships outline, semantic-token, formatting, scope-resolution, hover, go-to-definition, completion, and a static checker with 40 rule codes across three subpath exports, documented in the [Language Service API](ref-language-service.md). Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
 ## Changelog
 

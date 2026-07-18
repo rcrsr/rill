@@ -161,6 +161,12 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `UNNECESSARY_ASSERTION` | types | info | Type assertion on a literal value |
 | `USE_UNTYPED_HOST_REF` | types | warning | Untyped host reference in `use` expression |
 | `VALIDATE_EXTERNAL` | types | info | External data lacks type validation |
+| `ATOM_UNREGISTERED` | errors | warning | Atom literal is not a runtime builtin |
+| `GUARD_BARE` | errors | info | Bare `guard` catches every error |
+| `GUARD_OVER_TRY_CATCH` | errors | info | Branching on `.!` is manual try/catch |
+| `PRESENCE_OVER_NULL_GUARD` | errors | info | Nil-checking conditional instead of `??` |
+| `RETRY_TRIVIAL` | errors | warning | `retry<limit: N>` with N <= 1 has no effect |
+| `STATUS_PROBE_NO_FIELD` | errors | info | Bare `.!` returns the whole status record |
 | `CAPTURE_INLINE_CHAIN` | flow | info | Capture breaks a pipe chain |
 | `CAPTURE_BEFORE_BRANCH` | flow | info | Capture value before branching |
 | `LOOP_ACCUMULATOR` | loops | info | Use accumulator `$@` pattern |
@@ -168,11 +174,11 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `USE_EACH` | loops | info | Use `each` instead of while loop |
 | `BREAK_IN_PARALLEL` | collections | error | `break` inside `map` or `filter` |
 | `PREFER_MAP` | collections | info | Use `map` when body has no side effects |
-| `FOLD_INTERMEDIATES` | collections | info | `fold` discards intermediate results |
+| `FOLD_INTERMEDIATES` | collections | info | `acc` used only for its final value |
 | `FILTER_NEGATION` | collections | warning | Negated filter condition |
 | `METHOD_SHORTHAND` | collections | info | Use method reference shorthand |
 | `USE_DEFAULT_OPERATOR` | conditionals | info | Use `??` instead of conditional |
-| `CONDITION_TYPE` | conditionals | warning | Condition not boolean |
+| `CONDITION_TYPE` | conditionals | warning | Condition is a non-boolean literal |
 | `CLOSURE_BARE_DOLLAR` | closures | warning | Stored closure uses bare `$` |
 | `CLOSURE_BRACES` | closures | info | Multi-statement closure needs braces |
 | `CLOSURE_LATE_BINDING` | closures | warning | Closure captures late-bound variable |
@@ -184,7 +190,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `IMPLICIT_DOLLAR_METHOD` | formatting | info | Prefer implicit `$` for methods |
 | `IMPLICIT_DOLLAR_FUNCTION` | formatting | info | Prefer implicit `$` for functions |
 | `IMPLICIT_DOLLAR_CLOSURE` | formatting | info | Prefer implicit `$` for closures |
-| `THROWAWAY_CAPTURE` | formatting | info | Captured variable never used |
+| `THROWAWAY_CAPTURE` | formatting | info | Capture unused or used once, far away |
 
 ## rill-run
 

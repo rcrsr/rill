@@ -22,56 +22,19 @@
  * top-level-only lookahead without adding a new field to `RuleContext`.
  */
 
-import type {
-  ASTNode,
-  CaptureNode,
-  PipeChainNode,
-  PostfixExprNode,
-  ScriptNode,
-  StatementNode,
-} from '@rcrsr/rill';
+import type { ASTNode, ScriptNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
+import {
+  findChainCapture,
+  getInnerStatement,
+  getPrimaryFromHead,
+} from './capture-chain.js';
 
 // ============================================================
 // HELPERS
 // ============================================================
-
-function isCaptureNode(node: unknown): node is CaptureNode {
-  return (
-    typeof node === 'object' &&
-    node !== null &&
-    'type' in node &&
-    (node as { type: unknown }).type === 'Capture'
-  );
-}
-
-/**
- * Get the primary expression from a PipeChain's head.
- * ArithHead can be BinaryExprNode, UnaryExprNode, or PostfixExprNode.
- */
-function getPrimaryFromHead(chain: PipeChainNode): ASTNode | null {
-  const head = chain.head;
-  if (head.type === 'PostfixExpr') {
-    return (head as PostfixExprNode).primary;
-  }
-  return null;
-}
-
-/** Find the capture node ending a statement's chain, if any. */
-function findChainCapture(chain: PipeChainNode): CaptureNode | null {
-  if (chain.terminator && isCaptureNode(chain.terminator)) {
-    return chain.terminator;
-  }
-  if (chain.pipes.length > 0) {
-    const lastPipe = chain.pipes[chain.pipes.length - 1];
-    if (lastPipe && isCaptureNode(lastPipe)) {
-      return lastPipe;
-    }
-  }
-  return null;
-}
 
 /** Check consecutive statement pairs in a statement list for the pattern. */
 function checkStatementList(
@@ -82,19 +45,21 @@ function checkStatementList(
 
   for (let i = 0; i < statements.length - 1; i++) {
     const statement = statements[i];
-    if (!statement || statement.type !== 'Statement') continue;
+    if (!statement) continue;
+    const innerStatement = getInnerStatement(statement);
+    if (!innerStatement) continue;
 
-    const captureNode = findChainCapture(
-      (statement as StatementNode).expression
-    );
+    const captureNode = findChainCapture(innerStatement.expression);
     if (!captureNode) continue;
 
     const capturedVarName = captureNode.name;
 
     const nextStatement = statements[i + 1];
-    if (!nextStatement || nextStatement.type !== 'Statement') continue;
+    if (!nextStatement) continue;
+    const nextInnerStatement = getInnerStatement(nextStatement);
+    if (!nextInnerStatement) continue;
 
-    const nextChain = (nextStatement as StatementNode).expression;
+    const nextChain = nextInnerStatement.expression;
     const headPrimary = getPrimaryFromHead(nextChain);
 
     if (

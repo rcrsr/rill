@@ -1016,5 +1016,5 @@ try {
 - [Extensions](integration-extensions.md): Reusable function packages
 - [Modules](integration-modules.md): Module convention
 - [Host API Types](ref-host-api-types.md): TypeStructure, TypeDefinition, TypeProtocol
-- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 37 active rule codes
+- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 40 rule codes
 
