@@ -9,7 +9,11 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse } from '@rcrsr/rill';
 import type { ASTNode, ScriptNode } from '@rcrsr/rill';
-import { isImmediatelyChained } from './capture-chain.js';
+import {
+  getInnerStatement,
+  getPrimaryFromHead,
+  isImmediatelyChained,
+} from './capture-chain.js';
 
 const RULES_DIR = join(import.meta.dirname, '.');
 
@@ -21,10 +25,9 @@ describe('isImmediatelyChained', () => {
 
     // statements[1] is `$raw -> log`; its head Variable node is the
     // reference used to decide adjacency.
-    const nextStatement = statements[1] as unknown as {
-      expression: { head: { primary: ASTNode } };
-    };
-    const refNode = nextStatement.expression.head.primary;
+    const refNode = getPrimaryFromHead(
+      getInnerStatement(statements[1]!)!.expression
+    )!;
 
     expect(isImmediatelyChained(0, refNode, statements)).toBe(true);
   });
@@ -37,10 +40,9 @@ describe('isImmediatelyChained', () => {
     // statements[2] is `$raw -> log`, two statements away from the
     // capture at statements[0]; the shared adjacency window only spans
     // statements[0 + 1].
-    const distantStatement = statements[2] as unknown as {
-      expression: { head: { primary: ASTNode } };
-    };
-    const refNode = distantStatement.expression.head.primary;
+    const refNode = getPrimaryFromHead(
+      getInnerStatement(statements[2]!)!.expression
+    )!;
 
     expect(isImmediatelyChained(0, refNode, statements)).toBe(false);
   });

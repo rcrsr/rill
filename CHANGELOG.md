@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **SPACING_CLOSURE:** Now reports removable spaces before closure opening pipes; silent where the space is idiomatic. ([#127](https://github.com/rcrsr/rill/pull/127))
+- **`SPACING_CLOSURE`:** Now reports removable spaces before closure opening pipes; silent where the space is required or idiomatic elsewhere. ([#127](https://github.com/rcrsr/rill/pull/127))
 
 ## 0.19.6 - 2026-07-16
 

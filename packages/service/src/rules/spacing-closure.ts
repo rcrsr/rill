@@ -47,6 +47,9 @@ export const spacingClosure: Rule = {
         code: 'SPACING_CLOSURE',
         message: 'No space before opening pipe in closure parameters',
         severity: 'info',
+        // `location` anchors on the pipe (`pipeOffset`), not the removable
+        // space. A future autofix must derive the removable range as
+        // `[cursor + 1, pipeOffset)` rather than inferring it from `location`.
         location: closureNode.span.start,
         context: extractContextLine(
           closureNode.span.start.line,
