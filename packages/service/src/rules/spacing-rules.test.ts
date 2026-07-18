@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { parse } from '@rcrsr/rill';
 import type { ParseResult } from '@rcrsr/rill';
@@ -186,15 +187,75 @@ describe('SPACING_BRACKETS', () => {
 });
 
 describe('SPACING_CLOSURE', () => {
-  it('never fires: both branches are dead in the ported source rule (the space-before-pipe check only inspects text starting at the pipe itself, and the missing-space-after-params branch is an explicit no-op)', () => {
-    const sources = ['|x| ($x)\n', '|a, b| { $a + $b }\n', '|| { $.count }\n'];
+  it('fires when a mid-line closure has a space before its opening pipe', () => {
+    const source = '[1, 2] -> seq( |x| { $x })\n';
+    const parsed = toParseResult(source);
 
-    for (const source of sources) {
-      const parsed = toParseResult(source);
-      expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
-        []
-      );
-    }
+    const result = runRules(parsed, source, makeConfig(), [spacingClosure]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_CLOSURE',
+      severity: 'info',
+      message: 'No space before opening pipe in closure parameters',
+      location: { line: 1, column: 16, offset: 15 },
+      fix: null,
+    });
+  });
+
+  it('does not fire for a closure at offset 0', () => {
+    const source = '|x| ($x)\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire for a no-space inline closure', () => {
+    const source = '[1, 2] -> seq(|x| { $x })\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire for an indented closure alone on its own line', () => {
+    const source = '[1, 2]\n-> seq(\n  |x| { $x }\n)\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire on a space after the pipe operator, which SPACING_OPERATOR requires', () => {
+    const source = '5 -> |number|{ $ * 2 }\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire on the idiomatic space after a closure annotation', () => {
+    const source = '^(doc: "test") |x|($x * 2) => $fn\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
+      []
+    );
+  });
+
+  it('no longer contains the dead extractSpanText-based scan or the empty-body post-pipe branch', () => {
+    const ruleSource = readFileSync(
+      new URL('./spacing-closure.ts', import.meta.url),
+      'utf-8'
+    );
+
+    expect(ruleSource).not.toContain('extractSpanText');
+    expect(ruleSource).not.toContain('closureNode.params.length > 0');
   });
 });
 

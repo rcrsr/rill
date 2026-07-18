@@ -30,7 +30,11 @@ import type { Diagnostic, Rule, RuleContext } from './types.js';
 import type { CaptureEntry, ReferenceEntry } from './facts.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
-import { findChainCapture, getInnerStatement } from './capture-chain.js';
+import {
+  findChainCapture,
+  getInnerStatement,
+  isImmediatelyChained,
+} from './capture-chain.js';
 
 // ============================================================
 // HELPERS
@@ -159,40 +163,6 @@ function indexTopLevelCaptures(
   return indexByCapture;
 }
 
-/**
- * True when `refNode` sits anywhere inside the top-level statement
- * immediately following `captureNode`'s own top-level statement.
- *
- * A use on the very next line is not "away from its capture", whatever its
- * position within that statement. Testing only the head-primary would
- * report `x => $x` / `guard { $x.field }` as a distant single use and tell
- * the author to inline something already adjacent. Containment is decided
- * by source offset rather than by descending the statement, because rules
- * must not sub-walk the AST (see no-subwalks.test.ts).
- */
-function isImmediatelyChained(
-  captureNode: CaptureNode,
-  refNode: ASTNode,
-  statements: readonly ASTNode[],
-  topLevelCaptureIndex: ReadonlyMap<CaptureNode, number>
-): boolean {
-  const statementIndex = topLevelCaptureIndex.get(captureNode);
-  if (statementIndex === undefined) return false;
-
-  const nextStatement = statements[statementIndex + 1];
-  if (!nextStatement || !getInnerStatement(nextStatement)) return false;
-
-  // Half-open interval on the reference's start offset. A statement's end
-  // offset is exclusive, and a Variable node's span is zero-width, so
-  // comparing ends would read a reference at the head of the next statement
-  // as belonging to the previous one.
-  const refStart = refNode.span.start.offset;
-  return (
-    refStart >= nextStatement.span.start.offset &&
-    refStart < nextStatement.span.end.offset
-  );
-}
-
 function deadCaptureDiagnostic(
   captureNode: CaptureNode,
   source: string
@@ -265,12 +235,14 @@ export const throwawayCapture: Rule = {
       }
 
       if (matched.length === 1) {
-        const isChained = isImmediatelyChained(
-          captureNode,
-          matched[0]!.node,
-          scriptNode.statements,
-          topLevelCaptureIndex
-        );
+        const statementIndex = topLevelCaptureIndex.get(captureNode);
+        const isChained =
+          statementIndex !== undefined &&
+          isImmediatelyChained(
+            statementIndex,
+            matched[0]!.node,
+            scriptNode.statements
+          );
         if (!isChained) {
           diagnostics.push(
             singleDistantUseDiagnostic(captureNode, context.source)

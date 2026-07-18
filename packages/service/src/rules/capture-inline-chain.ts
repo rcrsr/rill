@@ -30,6 +30,7 @@ import {
   findChainCapture,
   getInnerStatement,
   getPrimaryFromHead,
+  isImmediatelyChained,
 } from './capture-chain.js';
 
 // ============================================================
@@ -62,8 +63,17 @@ function checkStatementList(
     const nextChain = nextInnerStatement.expression;
     const headPrimary = getPrimaryFromHead(nextChain);
 
+    // `headPrimary` is derived from `getInnerStatement(statements[i + 1])`
+    // above, so it is a structural descendant of `statements[i + 1]` by
+    // construction: the `isImmediatelyChained` offset-containment check
+    // below is always true at this call site and filters nothing. It is
+    // retained deliberately (defense-in-depth) so CAPTURE_INLINE_CHAIN
+    // stays routed through the one shared adjacency predicate alongside
+    // THROWAWAY_CAPTURE, which holds the real filter (see
+    // throwaway-capture.ts:239-245), rather than silently diverging from it.
     if (
       headPrimary &&
+      isImmediatelyChained(i, headPrimary, statements) &&
       headPrimary.type === 'Variable' &&
       headPrimary.name === capturedVarName
     ) {
