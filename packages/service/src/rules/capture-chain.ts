@@ -9,9 +9,9 @@
  * CAPTURE_INLINE_CHAIN reports as a chainable pattern must never also be
  * reported by THROWAWAY_CAPTURE, and vice versa) only holds if both rules
  * evaluate the identical adjacency predicate - divergent copies would
- * silently drift apart and break it. These three helpers are the single
- * source of truth for that predicate; both rule modules import them from
- * here rather than each defining their own.
+ * silently drift apart and break it. These helpers are the single source of
+ * truth for that predicate; both rule modules import them from here rather
+ * than each defining their own.
  */
 
 import type {
@@ -77,4 +77,34 @@ export function findChainCapture(chain: PipeChainNode): CaptureNode | null {
     }
   }
   return null;
+}
+
+/**
+ * True when `refNode` sits anywhere inside the top-level statement
+ * immediately following the top-level statement at `captureStatementIndex`.
+ *
+ * A use on the very next line is not "away from its capture", whatever its
+ * position within that statement. Testing only the head-primary would
+ * report `x => $x` / `guard { $x.field }` as a distant single use and tell
+ * the author to inline something already adjacent. Containment is decided
+ * by source offset rather than by descending the statement, because rules
+ * must not sub-walk the AST (see no-subwalks.test.ts).
+ */
+export function isImmediatelyChained(
+  captureStatementIndex: number,
+  refNode: ASTNode,
+  statements: readonly ASTNode[]
+): boolean {
+  const nextStatement = statements[captureStatementIndex + 1];
+  if (!nextStatement || !getInnerStatement(nextStatement)) return false;
+
+  // Half-open interval on the reference's start offset. A statement's end
+  // offset is exclusive, and a Variable node's span is zero-width, so
+  // comparing ends would read a reference at the head of the next statement
+  // as belonging to the previous one.
+  const refStart = refNode.span.start.offset;
+  return (
+    refStart >= nextStatement.span.start.offset &&
+    refStart < nextStatement.span.end.offset
+  );
 }

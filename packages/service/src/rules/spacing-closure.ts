@@ -1,18 +1,22 @@
 /**
- * Enforces no space before pipe, space after in closures.
- * Closure parameters: |x| not | x |.
+ * Flags a removable space between an opening bracket and a closure's
+ * opening pipe: `seq( |x| ...)` should be `seq(|x| ...)`.
  *
- * KNOWN QUIRK (ported verbatim from the rill-cli source): only the
- * space-before-opening-pipe branch emits a diagnostic. The
- * missing-space-after-params branch is fully evaluated but its body is an
- * explicit no-op comment in the source ("This is complex - skip for now as
- * it requires better parsing"); it never fires. Both branches are kept
- * here in the same shape so the second stays inert.
+ * A ClosureNode.span begins at its first `|`, so the space cannot be seen
+ * in the span text; the rule looks back into the source from the pipe.
+ * It fires only when the run of whitespace before the `|` sits directly
+ * after an opening bracket (`(` or `[`), where tightening the closure is
+ * both idiomatic and safe. Whitespace that another rule requires or that
+ * is idiomatic elsewhere is deliberately not flagged: a space after a
+ * pipe/capture operator (`-> |x|`, `=> |x|`) is mandated by
+ * SPACING_OPERATOR, and a space after an annotation, a comma, or inside a
+ * block body carries no removable-space signal. Flagging those would put
+ * SPACING_CLOSURE in direct conflict with idiomatic rill.
  */
 
 import type { ASTNode, ClosureNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { extractContextLine, extractSpanText } from './helpers.js';
+import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 export const spacingClosure: Rule = {
@@ -24,10 +28,21 @@ export const spacingClosure: Rule = {
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const diagnostics: Diagnostic[] = [];
     const closureNode = node as ClosureNode;
-    const text = extractSpanText(closureNode.span, context.source);
+    const source = context.source;
+    const pipeOffset = closureNode.span.start.offset;
 
-    // Check for space before opening pipe.
-    if (/\s\|/.test(text.substring(0, text.indexOf('|') + 1))) {
+    let cursor = pipeOffset - 1;
+    let sawWhitespace = false;
+    while (cursor >= 0 && (source[cursor] === ' ' || source[cursor] === '\t')) {
+      sawWhitespace = true;
+      cursor -= 1;
+    }
+    const afterOpenBracket =
+      cursor >= 0 && (source[cursor] === '(' || source[cursor] === '[');
+
+    // Fire only when the space directly follows an opening bracket, where
+    // it is removable without violating operator or delimiter spacing.
+    if (sawWhitespace && afterOpenBracket) {
       diagnostics.push({
         code: 'SPACING_CLOSURE',
         message: 'No space before opening pipe in closure parameters',
@@ -39,36 +54,6 @@ export const spacingClosure: Rule = {
         ),
         fix: null,
       });
-    }
-
-    // Check for missing space after params (only if params exist).
-    // This branch is an explicit no-op in the ported source: it locates the
-    // pipe/brace boundary but never emits a diagnostic.
-    // DEBT (drift tracking): this after-pipe branch is dead code, kept only
-    // to mirror the rill-cli source shape byte-for-byte. Assumption: the
-    // closing-pipe-to-body boundary can only be found via text scanning
-    // (`text.indexOf('{')` / `'('`), never via a typed body span. Re-review
-    // this branch if a future @rcrsr/rill core change alters
-    // ClosureNode span semantics (e.g. exposes a params-end position or a
-    // typed body-start boundary) that would let this branch be completed
-    // without breaking rill-cli diagnostic parity.
-    if (closureNode.params.length > 0) {
-      const afterPipeIdx = text.lastIndexOf(
-        '|',
-        text.indexOf('{') || text.indexOf('(')
-      );
-      if (afterPipeIdx !== -1) {
-        const afterPipe = text.substring(afterPipeIdx + 1, afterPipeIdx + 2);
-        if (
-          afterPipe &&
-          /[^\s]/.test(afterPipe) &&
-          afterPipe !== '{' &&
-          afterPipe !== '('
-        ) {
-          // No-op: requires better parsing to safely handle. Kept as a
-          // faithful port of the dead branch.
-        }
-      }
     }
 
     return diagnostics;

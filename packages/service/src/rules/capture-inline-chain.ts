@@ -30,6 +30,7 @@ import {
   findChainCapture,
   getInnerStatement,
   getPrimaryFromHead,
+  isImmediatelyChained,
 } from './capture-chain.js';
 
 // ============================================================
@@ -64,6 +65,7 @@ function checkStatementList(
 
     if (
       headPrimary &&
+      isImmediatelyChained(i, headPrimary, statements) &&
       headPrimary.type === 'Variable' &&
       headPrimary.name === capturedVarName
     ) {
