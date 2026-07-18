@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`Rule.stub` field:** The `stub` field is removed from the exported `Rule` interface. This is a breaking change for consumers setting `stub` on custom rule objects. ([#111](https://github.com/rcrsr/rill/issues/111)) ([#112](https://github.com/rcrsr/rill/issues/112)) ([#113](https://github.com/rcrsr/rill/issues/113)) ([#125](https://github.com/rcrsr/rill/pull/125))
 
+### Fixed
+
+- **SPACING_CLOSURE:** Now reports removable spaces before closure opening pipes; silent where the space is idiomatic. ([#127](https://github.com/rcrsr/rill/pull/127))
+
 ## 0.19.6 - 2026-07-16
 
 ### Added
