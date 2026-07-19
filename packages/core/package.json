@@ -30,7 +30,7 @@
     "build:dev": "tsx scripts/generate-version.ts && tsx scripts/generate-docs-bundle.ts && tsc --build tsconfig.dev.json",
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
-    "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/",
+    "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/ ../../README.md",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --config ../../.oxlintrc.json src/",
     "test:rules": "node ../../lint-rules/rule-unit-test.cjs",

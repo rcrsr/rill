@@ -70,13 +70,13 @@ use<ext:app> => $app
 
 $task
   -> $app.classify
-  -> .category:string
+  -> .category -> :string
   -> [
     billing:   $app.handle_billing,
     technical: $app.handle_technical,
     general:   $app.handle_general
   ] ?? $app.handle_general
-  -> $($task)
+  -> |handler|{ $handler($task) }
 ```
 
 Every defensive check in the Python maps to a failure category rill eliminates:
@@ -179,9 +179,20 @@ Switch providers by changing one line, `createAnthropicExtension` or `createGemi
 
 ## Extensions
 
-Core extensions ship with `@rcrsr/rill`: fs, fetch, exec, kv, crypto. Vendor extensions (LLM providers, vector databases, storage backends, MCP) live in [rill-ext](https://github.com/rcrsr/rill-ext).
+`@rcrsr/rill` ships the extension framework: types, contracts, and lifecycle hooks. It ships no extension implementations, which is what keeps the dependency count at zero and the default capability set empty.
 
-See [Bundled Extensions](docs/bundled-extensions.md) for core extension docs and [Developing Extensions](docs/integration-extensions.md) to write your own.
+Extensions live in [rill-ext](https://github.com/rcrsr/rill-ext): fs, fetch, exec, kv, crypto, LLM providers, vector databases, storage backends, and MCP.
+
+See [Extensions](docs/bundled-extensions.md) for the catalog and [Developing Extensions](docs/integration-extensions.md) to write your own.
+
+## Packages in This Repository
+
+| Package | Description |
+|---------|-------------|
+| [`@rcrsr/rill`](https://www.npmjs.com/package/@rcrsr/rill) | Language runtime and parser |
+| [`@rcrsr/rill-language-service`](https://www.npmjs.com/package/@rcrsr/rill-language-service) | Outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker |
+
+The language service powers editor tooling and `rill check`. Its version tracks `@rcrsr/rill` exactly, and the two publish together. See the [Language Service API](docs/ref-language-service.md).
 
 ## Related Repositories
 
@@ -202,8 +213,7 @@ Branch based on content patterns. Ideal for parsing LLM output.
 ```rill
 use<ext:app> => $app
 
-$app.prompt("analyze code")
-  -> .contains("ERROR") ? $app.error() ! $app.process()
+$app.prompt("analyze code") -> .contains("ERROR") ? $app.flag($) ! $app.process($)
 ```
 
 ### Bounded Loops
@@ -342,9 +352,24 @@ See [docs/index.md](docs/index.md) for full navigation.
 | [Reference](docs/ref-language.md) | Language specification |
 | [Examples](docs/guide-examples.md) | Workflow patterns |
 | [Host Integration](docs/integration-host.md) | Embedding API |
-| [Bundled Extensions](docs/bundled-extensions.md) | Core extensions (fs, fetch, exec, kv, crypto) |
+| [Extensions](docs/bundled-extensions.md) | Extension repositories and packages |
+| [Language Service API](docs/ref-language-service.md) | Outline, tokens, formatting, hover, completion, checker |
 | [Developing Extensions](docs/integration-extensions.md) | Writing custom extensions |
 | [Design Principles](docs/topic-design-principles.md) | Why rill works the way it does |
+
+## Contributing
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). It covers setup, the review bar a pull request must clear, and the language arbiter lock that protects `packages/core/tests/language/`.
+
+Open an issue before writing anything non-trivial. Design gets settled there, which is cheaper than settling it in review.
+
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+rill executes machine-generated scripts, so the [threat model](SECURITY.md#threat-model) treats sandbox escape and resource exhaustion as vulnerability classes, not ordinary bugs.
+
+Report a vulnerability privately through the [Security tab](https://github.com/rcrsr/rill/security/advisories/new), not as a public issue. [SECURITY.md](SECURITY.md) has the threat model, including what falls outside it.
 
 ## License
 

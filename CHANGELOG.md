@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **Contributor and security documentation:** Added contributor guide, security policy, code of conduct, and PR template documenting threat model and disclosure. ([#130](https://github.com/rcrsr/rill/pull/130))
+
 ### Changed
 
 - **`CONDITION_TYPE`, `FOLD_INTERMEDIATES`, `THROWAWAY_CAPTURE` now report:** These three rule codes were registered but inert; `validate` always returned `[]` for them. `CONDITION_TYPE` (warning) now flags a conditional whose condition is a bare non-boolean literal, without performing type inference. `FOLD_INTERMEDIATES` (info) now flags an `acc` consumed only for its final value via `.tail`. `THROWAWAY_CAPTURE` (info) now flags a capture with no references, or one reference in a non-adjacent statement. Because `createDefaultConfig` sets every rule to `'on'`, consumers on the default config will see new diagnostics on unchanged source. ([#111](https://github.com/rcrsr/rill/issues/111)) ([#112](https://github.com/rcrsr/rill/issues/112)) ([#113](https://github.com/rcrsr/rill/issues/113)) ([#125](https://github.com/rcrsr/rill/pull/125))
+- **`test:examples` accepts multiple target paths:** A single invocation now validates `docs/` alongside root-level files such as `README.md`, deduping any overlap. `packages/core`'s `test:examples` script covers both. ([#130](https://github.com/rcrsr/rill/pull/130))
 
 ### Removed
 
@@ -18,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **`SPACING_CLOSURE`:** Now reports removable spaces before closure opening pipes; silent where the space is required or idiomatic elsewhere. ([#127](https://github.com/rcrsr/rill/pull/127))
+- **Root README examples:** Corrected the type assertion, dispatch table, and conditional examples. Each now parses and invokes its host functions as the surrounding prose describes. ([#130](https://github.com/rcrsr/rill/pull/130))
 
 ## 0.19.6 - 2026-07-16
 
