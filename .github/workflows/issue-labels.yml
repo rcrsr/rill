@@ -54,34 +54,53 @@ jobs:
             // across the many labeled/unlabeled re-runs this job generates).
             const MARKER = '<!-- label-enforcer -->';
 
-            const issue = context.payload.issue;
             const { owner, repo } = context.repo;
-            const number = issue.number;
+            const number = context.payload.issue.number;
+
+            // Read every axis fresh at execution time rather than trusting
+            // `context.payload.issue`, which is a snapshot frozen when the event
+            // fired and can be arbitrarily stale by the time this job runs.
+            //
+            // This is load-bearing, not defensive. `gh issue create --label
+            // --type` attaches the label and type a second or two AFTER the
+            // issue is created, so the `opened` payload carries neither. When
+            // that `opened` run is queued behind the `typed`/`labeled` runs it
+            // executes LAST, and a payload-trusting check concludes the issue is
+            // under-labeled and flags an issue that is already conformant. That
+            // is exactly how #129, #131 and #132 acquired a stuck `needs-triage`
+            // (see their timelines: `needs-triage` lands after both axes are
+            // set). Reading current state makes the outcome independent of event
+            // ordering: whichever run executes last sees the truth and wins.
+            //
+            // It also makes the concurrency group's dropped runs harmless.
+            // `cancel-in-progress: false` still cancels a *superseded pending*
+            // run, since GitHub keeps at most one pending run per group, so the
+            // compensating `labeled` run cannot be relied on to arrive.
+            const res = await github.graphql(
+              `query($owner:String!,$repo:String!,$n:Int!){
+                 repository(owner:$owner,name:$repo){
+                   issue(number:$n){
+                     state
+                     issueType{ name }
+                     labels(first:100){ nodes{ name } }
+                   } } }`,
+              { owner, repo, n: number,
+                headers: { 'GraphQL-Features': 'issue_types' } },
+            );
+            const fresh = res.repository.issue;
 
             // Closed issues are out of scope: label deletions fire `unlabeled`
             // on closed issues too, and flagging a closed issue helps no one.
-            if (issue.state === 'closed') return;
+            if (fresh.state === 'CLOSED') return;
 
             // Area is a label (path-derivable, multi-valued). The prefix check
             // means the optional `on-hold` label can never satisfy the area
             // requirement, by design.
-            const names = (issue.labels || []).map(l => l.name);
+            const names = fresh.labels.nodes.map(l => l.name);
             const hasArea = names.some(n => n.startsWith('area:'));
 
-            // Type is a native org-level Issue Type, not a label. The webhook
-            // payload usually carries it; fall back to a GraphQL read so we are
-            // correct even when it does not (e.g. a labeled event that fires
-            // before the type is set).
-            let typeName = issue.type?.name ?? null;
-            if (typeName === null) {
-              const res = await github.graphql(
-                `query($owner:String!,$repo:String!,$n:Int!){
-                   repository(owner:$owner,name:$repo){ issue(number:$n){ issueType{ name } } } }`,
-                { owner, repo, n: number,
-                  headers: { 'GraphQL-Features': 'issue_types' } },
-              );
-              typeName = res.repository.issue.issueType?.name ?? null;
-            }
+            // Type is a native org-level Issue Type, not a label.
+            const typeName = fresh.issueType?.name ?? null;
             const hasType = typeName !== null;
             const ok = hasArea && hasType;
             const hasTriage = names.includes(TRIAGE);
