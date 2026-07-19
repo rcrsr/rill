@@ -76,7 +76,7 @@ $task
     technical: $app.handle_technical,
     general:   $app.handle_general
   ] ?? $app.handle_general
-  -> $($task)
+  -> |handler|{ $handler($task) }
 ```
 
 Every defensive check in the Python maps to a failure category rill eliminates:
@@ -213,8 +213,8 @@ Branch based on content patterns. Ideal for parsing LLM output.
 ```rill
 use<ext:app> => $app
 
-$app.prompt("analyze code")
-  -> .contains("ERROR") ? $app.flag ! $app.process
+$app.prompt("analyze code") => $result
+$result -> .contains("ERROR") ? $app.flag($result) ! $app.process($result)
 ```
 
 ### Bounded Loops
@@ -368,7 +368,7 @@ Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Security
 
-rill executes machine-generated scripts, so sandbox scope, resolver access, host API surface, and resource exhaustion are first-class concerns.
+rill executes machine-generated scripts, so the [threat model](SECURITY.md#threat-model) treats sandbox escape and resource exhaustion as vulnerability classes, not ordinary bugs.
 
 Report a vulnerability privately through the [Security tab](https://github.com/rcrsr/rill/security/advisories/new), not as a public issue. [SECURITY.md](SECURITY.md) has the threat model, including what falls outside it.
 

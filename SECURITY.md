@@ -49,7 +49,7 @@ rill's premise is that a host embeds the runtime and executes scripts it did not
 - **Resolver access scope.** A script resolving a `use<scheme:resource>` the host did not authorize, or reaching a resource outside a resolver's intended bounds.
 - **Enforcement bypass.** Any mechanism that gates, filters, or validates being defeated by a different call syntax, a renamed binding, an unhandled input shape, or an unlisted default. Defaults that fail open are a defect in this class.
 - **Tampering with privileged runtime state.** Extension or host function code disabling a security mechanism mid-run, given that these receive the runtime context.
-- **Resource exhaustion.** A script that halts or wedges the host process by escaping a documented limit on time, memory, or recursion depth.
+- **Resource exhaustion.** A script that halts or wedges the host process by escaping a documented limit on time or recursion depth, or that grows memory unboundedly on adversarial input.
 - **Parser and lexer memory safety.** Crashes, unbounded allocation, or hangs on adversarial source text.
 - **Supply chain.** Anything in the published package contents or the release pipeline that lets a third party alter what consumers install.
 

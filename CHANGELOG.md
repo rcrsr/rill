@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **`CONDITION_TYPE`, `FOLD_INTERMEDIATES`, `THROWAWAY_CAPTURE` now report:** These three rule codes were registered but inert; `validate` always returned `[]` for them. `CONDITION_TYPE` (warning) now flags a conditional whose condition is a bare non-boolean literal, without performing type inference. `FOLD_INTERMEDIATES` (info) now flags an `acc` consumed only for its final value via `.tail`. `THROWAWAY_CAPTURE` (info) now flags a capture with no references, or one reference in a non-adjacent statement. Because `createDefaultConfig` sets every rule to `'on'`, consumers on the default config will see new diagnostics on unchanged source. ([#111](https://github.com/rcrsr/rill/issues/111)) ([#112](https://github.com/rcrsr/rill/issues/112)) ([#113](https://github.com/rcrsr/rill/issues/113)) ([#125](https://github.com/rcrsr/rill/pull/125))
+- **`test:examples` accepts multiple target paths:** The script iterates over every path argument and dedupes resolved files, so a single invocation can validate `docs/` alongside root-level files such as `README.md`. `packages/core`'s `test:examples` script now covers both. ([#130](https://github.com/rcrsr/rill/pull/130))
 
 ### Removed
 
@@ -22,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **`SPACING_CLOSURE`:** Now reports removable spaces before closure opening pipes; silent where the space is required or idiomatic elsewhere. ([#127](https://github.com/rcrsr/rill/pull/127))
+- **Root README type assertion and dispatch example:** Corrected `.category:string` to `.category -> :string`. Postfix `:type` binds to an atom or literal, not a property chain. The dispatch-table example now invokes the selected handler with the original input via `|handler|{ $handler($task) }`. ([#130](https://github.com/rcrsr/rill/pull/130))
+- **Root README host function calls:** Renamed `$app.error()` to `$app.flag()`, since `error` is a reserved keyword. Both conditional branches now use call syntax, so the host functions actually invoke. ([#130](https://github.com/rcrsr/rill/pull/130))
 
 ## 0.19.6 - 2026-07-16
 

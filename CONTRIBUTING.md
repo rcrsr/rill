@@ -14,7 +14,7 @@ For a feature that touches core, expect a design discussion in the issue. That d
 
 **Follow the agreed design.** If you find a reason to depart from it while implementing, say so in the issue or the pull request description. An unflagged deviation costs a review cycle and sometimes a rewrite. A flagged one usually just updates the plan.
 
-**Security work follows the [Security Policy](SECURITY.md).** rill executes machine-generated scripts, so sandbox scope, resolver access, host API surface, and resource exhaustion are first-class concerns rather than a subcategory of bugs.
+**Security work follows the [Security Policy](SECURITY.md).** Its [threat model](SECURITY.md#threat-model) covers what counts as a vulnerability, from sandbox escape to resource exhaustion.
 
 Report a vulnerability in a published release privately through the [Security tab](https://github.com/rcrsr/rill/security/advisories/new), not as a public issue. Hardening work on unreleased code uses the Security issue template. The policy has the threat model and the scope boundaries.
 
@@ -51,7 +51,9 @@ Run from the repository root:
 
 ```bash
 pnpm test              # All tests, all packages
-pnpm check             # Full validation: build, test, examples, lint rules, lint
+pnpm check             # Full validation across every package: build, test, lint
+                        # (packages/core also runs docs examples and lint rules;
+                        # packages/service also runs typecheck)
 pnpm check:types       # Type validation only
 pnpm check:lint        # Lint only
 pnpm check:format      # Formatting check

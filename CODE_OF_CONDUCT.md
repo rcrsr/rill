@@ -60,8 +60,8 @@ representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
 reported to the community leaders responsible for enforcement by contacting the
-project maintainer [@AndreBremer](https://github.com/AndreBremer) directly on
-GitHub.
+project maintainer [@AndreBremer](https://github.com/AndreBremer) at
+andre@gxpsoft.co.
 
 All complaints will be reviewed and investigated promptly and fairly.
 
