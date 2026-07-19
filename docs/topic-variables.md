@@ -64,7 +64,7 @@ Capture at end of expression stores and ends the chain:
 | Each loop `-> seq({ })` | Current iteration item |
 | While-loop `while (cond) do { }` | Accumulated value |
 | Do-while `do { } while (cond)` | Accumulated value |
-| Conditional `cond ? { }` | Tested value |
+| Conditional `cond ? a ! b` | Pipe value entering the conditional, in either branch (block or bare) |
 | Piped conditional `-> ? { }` | Piped value (also used as condition) |
 | Stored closure `\|x\|{ }` | N/A — use explicit params |
 | Dict closure `\|\|{ $.x }` | Dict self (`this`) — late-bound |

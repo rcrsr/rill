@@ -373,6 +373,84 @@ describe('Rill Runtime: Closure Semantics', () => {
       }
     });
 
+    // The next 6 cases guard the fix for rcrsr/rill#131: a dict-member
+    // empty-paren call (`$app.flag()`) previously errored "Missing argument
+    // for parameter '$'" whenever it appeared outside direct pipe-target
+    // position (e.g. inside a ternary branch), even though a pipe value was
+    // in scope. AC-13 above is the falsifying check for the guard added by
+    // that fix (`args.length === 0 && s.ctx.pipeValue !== null &&
+    // !declaresZeroParams(dictValue)`): at statement top level `pipeValue`
+    // is null, so AC-13 still throws. If a future change drops the
+    // `pipeValue !== null` condition, AC-13 is the only case that fails.
+
+    it('AC-20: dict-member empty-paren call in ternary then-branch receives pipe value', async () => {
+      // Primary regression case for rcrsr/rill#131.
+      const script = `
+        dict[flag: { $ + 1 }] => $app
+        5 -> (true) ? $app.flag() ! 0
+      `;
+      expect(await run(script)).toBe(6);
+    });
+
+    it('AC-21: dict-member empty-paren call in bare ternary else-branch receives pipe value', async () => {
+      // Guards that both ternary branches bind the pipe value regardless of
+      // block/bare notation.
+      const script = `
+        dict[flag: { $ + 1 }] => $app
+        5 -> (false) ? 0 ! $app.flag()
+      `;
+      expect(await run(script)).toBe(6);
+    });
+
+    it('AC-22: dict-member empty-paren call inside a block body receives pipe value', async () => {
+      const script = `
+        dict[flag: { $ + 1 }] => $app
+        5 -> { $app.flag() }
+      `;
+      expect(await run(script)).toBe(6);
+    });
+
+    it('AC-23: zero-param dict member is not injected with the pipe value', async () => {
+      // declaresZeroParams(dictValue) guards ||{ } members from receiving an
+      // unexpected argument. Fails with an arity error if that guard drops.
+      const script = `
+        dict[f: ||{ 42 }] => $d
+        5 -> { $d.f() }
+      `;
+      expect(await run(script)).toBe(42);
+    });
+
+    it('AC-24: dict-member call with explicit args binds args, not the pipe value', async () => {
+      // args.length === 0 guards existing explicit arguments from being
+      // displaced. Fails (binds 5 instead of 1) if that guard is loosened.
+      const script = `
+        dict[g: |a|{ $a + 1 }] => $d
+        5 -> { $d.g(1) }
+      `;
+      expect(await run(script)).toBe(2);
+    });
+
+    it('AC-25: bare dict-member reference (no parens) stays an unapplied callable in pipe context', async () => {
+      // Dispatch-table contract from the issue: `$app.flag` without parens
+      // is a plain dict lookup, never auto-invoked, even with a pipe value
+      // in scope. Capture it, confirm it is still a closure, then invoke it
+      // explicitly later.
+      const typeScript = `
+        dict[flag: { $ + 1 }] => $app
+        5 -> { $app.flag } => $captured
+        $captured.^type
+      `;
+      const typeResult = (await run(typeScript)) as any;
+      expect(typeResult.typeName).toBe('closure');
+
+      const invokeScript = `
+        dict[flag: { $ + 1 }] => $app
+        5 -> { $app.flag } => $captured
+        10 -> $captured
+      `;
+      expect(await run(invokeScript)).toBe(11);
+    });
+
     it('EC-3: undefined variable in closure body throws RUNTIME_UNDEFINED_VARIABLE', async () => {
       // Closure body references undefined variable at call time
       try {

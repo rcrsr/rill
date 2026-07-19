@@ -188,7 +188,7 @@ See [Variables](topic-variables.md) for detailed documentation.
 | Each loop `-> seq({ })` | Current item |
 | While-loop `while (cond) do { }` | Accumulated value |
 | Do-while `do { } while (cond)` | Accumulated value |
-| Conditional `cond ? { }` | Tested value |
+| Conditional `cond ? a ! b` | Pipe value entering the conditional, in either branch (block or bare) |
 | Piped conditional `-> ? { }` | Piped value |
 | Stored closure `\|x\|{ }` | N/A: use params |
 | Dict closure `\|\|{ $.x }` | Dict self |

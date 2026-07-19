@@ -876,17 +876,20 @@ export async function evaluateClosureCallWithPipe(
   }
 
   const args = await evaluateArgs(s, node.args);
-  if (args.length === 0 && pipeInput !== null) {
-    const closureHasZeroParams =
-      (isScriptCallable(closure) && closure.params.length === 0) ||
-      (isApplicationCallable(closure) &&
-        closure.params !== undefined &&
-        closure.params.length === 0);
-    if (!closureHasZeroParams) {
-      args.push(pipeInput);
-    }
+  if (args.length === 0 && pipeInput !== null && !declaresZeroParams(closure)) {
+    args.push(pipeInput);
   }
   return invokeCallable(s, closure, args, node.span.start, fullPath);
+}
+
+/** True when the callable explicitly declares an empty parameter list. */
+function declaresZeroParams(value: RillCallable): boolean {
+  return (
+    (isScriptCallable(value) && value.params.length === 0) ||
+    (isApplicationCallable(value) &&
+      value.params !== undefined &&
+      value.params.length === 0)
+  );
 }
 
 /** Evaluate $.field as property access on the pipe value. */
@@ -1057,6 +1060,18 @@ export async function evaluateMethod(
   if (isDict(receiver)) {
     const dictValue = receiver[node.name];
     if (dictValue !== undefined && isCallable(dictValue)) {
+      // MethodCallNode carries no parens flag, so an empty-args call here
+      // still means "explicit ()", not "bare reference": parseAccessChain
+      // (parser-variables.ts) only ever attaches this node when the source
+      // wrote parens (see isMethodCallWithArgs in parser/helpers.ts). A bare
+      // `$app.flag` stays an unapplied dict lookup and never reaches here.
+      if (
+        args.length === 0 &&
+        s.ctx.pipeValue !== null &&
+        !declaresZeroParams(dictValue)
+      ) {
+        args.push(s.ctx.pipeValue);
+      }
       return invokeCallable(
         s,
         dictValue,
