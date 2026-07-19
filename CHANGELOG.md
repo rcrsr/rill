@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`SPACING_CLOSURE`:** Now reports removable spaces before closure opening pipes; silent where the space is required or idiomatic elsewhere. ([#127](https://github.com/rcrsr/rill/pull/127))
 - **Root README type assertion and dispatch example:** Corrected `.category:string` to `.category -> :string`. Postfix `:type` binds to an atom or literal, not a property chain. The dispatch-table example now invokes the selected handler with the original input via `|handler|{ $handler($task) }`. ([#130](https://github.com/rcrsr/rill/pull/130))
-- **Root README host function calls:** Renamed `$app.error()` to `$app.flag()`, since `error` is a reserved keyword. Both conditional branches now use call syntax, so the host functions actually invoke. ([#130](https://github.com/rcrsr/rill/pull/130))
+- **Root README host function calls:** Renamed `$app.error()` to `$app.flag($)`, since `error` is a reserved keyword. Both conditional branches now pass the piped value explicitly, so the host functions actually invoke. ([#130](https://github.com/rcrsr/rill/pull/130))
 
 ## 0.19.6 - 2026-07-16
 

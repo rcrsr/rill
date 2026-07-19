@@ -213,8 +213,7 @@ Branch based on content patterns. Ideal for parsing LLM output.
 ```rill
 use<ext:app> => $app
 
-$app.prompt("analyze code") => $result
-$result -> .contains("ERROR") ? $app.flag($result) ! $app.process($result)
+$app.prompt("analyze code") -> .contains("ERROR") ? $app.flag($) ! $app.process($)
 ```
 
 ### Bounded Loops
