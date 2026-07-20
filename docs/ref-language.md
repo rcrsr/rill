@@ -211,6 +211,47 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.?field&type` | Existence + type check |
 | `$data.^key` | Annotation reflection |
 
+### Reserved Words as Member Names
+
+Reserved words are legal member names immediately after a dot. The lexer retypes any keyword token following `.` or `.?` to a member name. These words never trigger their statement parsing.
+
+Affected words: `true`, `false`, `break`, `return`, `yield`, `pass`, `assert`, `error`, `guard`, `retry`, `while`, `do`.
+
+```rill
+dict["error": "not found"] => $result
+$result.error
+# Result: "not found"
+```
+
+```rill
+dict["retry": 3] => $config
+$config.?retry
+# Result: true
+```
+
+The same rule applies to `use<>` resource segments, so `use<host:pkg.error>` resolves `error` as a path segment, not a statement keyword.
+
+The 10 non-boolean reserved words are still not valid bare dict keys. `true` and `false` remain valid bare keys because the parser treats them as boolean literal keys.
+
+```text
+dict[error: 1]
+# Error: Dict key must be identifier, string, number, boolean, variable, or expression
+```
+
+```rill
+dict["error": 1] => $d
+$d.error
+# Result: 1
+```
+
+```rill
+dict[true: 1] => $d
+$d.true
+# Result: 1
+```
+
+Quote the key to use a reserved word as a bare dict entry name.
+
 ### Type Constructors
 
 Type constructors are primary expressions that produce structural type values. They describe the internal structure of a collection type.
