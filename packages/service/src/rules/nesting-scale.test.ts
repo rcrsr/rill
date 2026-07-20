@@ -229,6 +229,7 @@ function methodCallNode(name: string): MethodCallNode {
     name,
     args: [],
     receiverSpan: null,
+    hasParens: false,
     span: DUMMY_SPAN,
   };
 }

@@ -429,6 +429,7 @@ function closureCallEquals(a: ClosureCallNode, b: ClosureCallNode): boolean {
 
 function methodCallEquals(a: MethodCallNode, b: MethodCallNode): boolean {
   if (a.name !== b.name) return false;
+  if (a.hasParens !== b.hasParens) return false;
   return argsListEquals(a.args, b.args);
 }
 

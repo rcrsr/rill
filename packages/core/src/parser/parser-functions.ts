@@ -284,7 +284,9 @@ Parser.prototype.parseMethodCall = function (
 
   let args: ExpressionNode[] = [];
   let endLoc = current(this.state).span.end;
+  let hasParens = false;
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
+    hasParens = true;
     advance(this.state);
     // allowSpread defaults to false — spread not supported in method calls
     args = this.parseArgumentList() as ExpressionNode[];
@@ -302,6 +304,7 @@ Parser.prototype.parseMethodCall = function (
     name: nameToken.value,
     args,
     receiverSpan: receiverSpan ?? null,
+    hasParens,
     span: makeSpan(start, endLoc),
   };
 };

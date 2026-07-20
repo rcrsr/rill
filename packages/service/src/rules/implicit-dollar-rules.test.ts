@@ -30,7 +30,7 @@ describe('IMPLICIT_DOLLAR_METHOD', () => {
     expect(result[0]).toMatchObject({
       code: 'IMPLICIT_DOLLAR_METHOD',
       severity: 'info',
-      message: "Prefer implicit '.upper' over explicit '$.upper()'",
+      message: "Prefer implicit '.upper()' over explicit '$.upper()'",
       fix: null,
     });
   });

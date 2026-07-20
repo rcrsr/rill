@@ -90,7 +90,7 @@ CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.
 | `-> seq({ })` / `fan({ })` / `filter({ })` | current item |
 | `-> fold(i, { })` / `acc(i, { })` | current item (`$@` = accumulator) |
 | `while (cond) do { }` | accumulated value |
-| `cond ? { } ! { }` | tested value |
+| `cond ? a ! b` | pipe value entering the conditional (either branch) |
 | `\|\|{ $.field }` in dict | the containing dict |
 
 Implied `$`: bare `.method` means `$ -> .method`. `"hello" -> .upper` is `"hello" -> $.upper`.

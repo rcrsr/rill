@@ -876,17 +876,25 @@ export async function evaluateClosureCallWithPipe(
   }
 
   const args = await evaluateArgs(s, node.args);
-  if (args.length === 0 && pipeInput !== null) {
-    const closureHasZeroParams =
-      (isScriptCallable(closure) && closure.params.length === 0) ||
-      (isApplicationCallable(closure) &&
-        closure.params !== undefined &&
-        closure.params.length === 0);
-    if (!closureHasZeroParams) {
-      args.push(pipeInput);
-    }
+  if (args.length === 0 && pipeInput !== null && !declaresZeroParams(closure)) {
+    args.push(pipeInput);
   }
   return invokeCallable(s, closure, args, node.span.start, fullPath);
+}
+
+/**
+ * True when the callable declares an empty parameter list, or when arity is
+ * unknown (`params === undefined` on an ApplicationCallable). Unknown arity
+ * is treated as "do not inject" (the safe default): a loosely-typed host
+ * callable built outside the documented registration API should not
+ * silently receive a pipe value it never declared a parameter for.
+ */
+function declaresZeroParams(value: RillCallable): boolean {
+  return (
+    (isScriptCallable(value) && value.params.length === 0) ||
+    (isApplicationCallable(value) &&
+      (value.params === undefined || value.params.length === 0))
+  );
 }
 
 /** Evaluate $.field as property access on the pipe value. */
@@ -1057,6 +1065,23 @@ export async function evaluateMethod(
   if (isDict(receiver)) {
     const dictValue = receiver[node.name];
     if (dictValue !== undefined && isCallable(dictValue)) {
+      // Only inject the piped value for an explicit empty-paren call
+      // (`.method()`), never for a bare `.field` reference. MethodCallNode
+      // carries `hasParens` precisely to distinguish the two: the
+      // Variable.accessChain path (parser-variables.ts, isMethodCallWithArgs)
+      // only attaches this node when the source wrote parens, but the
+      // postfix/pipe-target path (parseMethodCall via isMethodCall in
+      // parser-expr.ts and parsePipeTargetDot) attaches it for bare `.field`
+      // too, with `args: []` either way. `hasParens` is therefore the only
+      // reliable signal here.
+      if (
+        node.hasParens &&
+        args.length === 0 &&
+        s.ctx.pipeValue !== null &&
+        !declaresZeroParams(dictValue)
+      ) {
+        args.push(s.ctx.pipeValue);
+      }
       return invokeCallable(
         s,
         dictValue,
