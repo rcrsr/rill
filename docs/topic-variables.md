@@ -79,7 +79,7 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 | `.method()` | `$ -> .method()` | Method call without receiver |
 | `$fn()` | `$fn($)` | Closure call with no explicit args* |
 
-*Closure calls receive `$` only when: no explicit args, first param has no default, and `$` is not a closure.
+*Closure calls receive `$` only when: no explicit args, a pipe value is in scope, and the callable does not declare an empty parameter list.
 
 ```rill
 # Inside blocks, $ flows naturally

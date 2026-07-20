@@ -1270,6 +1270,13 @@ describe('AC-6: Named-param closure does not modify $', () => {
   });
 });
 
+// This test depends on the `s.ctx.pipeValue !== null` clause in
+// evaluateMethod's injection guard (runtime/core/eval/handlers/closures.ts):
+// dropping that clause pushes a null pipe value into args, making
+// args.length !== 0 and defeating the boundDict receiver fallback in
+// invokeFnCallable, so `self` becomes null instead of the bound dict.
+// See tests/language/closure-semantics.test.ts near AC-13/AC-20 for the
+// companion language-level regression tests on the same guard.
 describe('AC-8: Method dispatch — bound dict fills first ordered entry', () => {
   it('$person.greet() passes dict as receiver (first param)', async () => {
     let receivedReceiver: RillValue = null;

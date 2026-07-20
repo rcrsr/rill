@@ -442,6 +442,7 @@ export async function evaluateVariableAsync(
           name: field,
           args: [],
           receiverSpan: null,
+          hasParens: false,
           span: node.span,
         };
         value = await evaluateMethod(s, methodNode, value);

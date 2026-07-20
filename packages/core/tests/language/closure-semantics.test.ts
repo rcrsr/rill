@@ -377,11 +377,18 @@ describe('Rill Runtime: Closure Semantics', () => {
     // empty-paren call (`$app.flag()`) previously errored "Missing argument
     // for parameter '$'" whenever it appeared outside direct pipe-target
     // position (e.g. inside a ternary branch), even though a pipe value was
-    // in scope. AC-13 above is the falsifying check for the guard added by
-    // that fix (`args.length === 0 && s.ctx.pipeValue !== null &&
-    // !declaresZeroParams(dictValue)`): at statement top level `pipeValue`
-    // is null, so AC-13 still throws. If a future change drops the
-    // `pipeValue !== null` condition, AC-13 is the only case that fails.
+    // in scope. The guard added by that fix is
+    // `node.hasParens && args.length === 0 && s.ctx.pipeValue !== null &&
+    // !declaresZeroParams(dictValue)` in evaluateMethod
+    // (runtime/core/eval/handlers/closures.ts). AC-13 above is one
+    // falsifying check for the `pipeValue !== null` clause: at statement top
+    // level `pipeValue` is null, so AC-13 still throws. Dropping that clause
+    // also fails "$person.greet() passes dict as receiver (first param)" in
+    // tests/runtime/host-integration.test.ts (AC-8), because every
+    // dict-stored callable's boundDict fallback in invokeFnCallable requires
+    // `args.length === 0`; injecting a null pipe value there defeats it.
+    // Confirmed empirically: removing the `pipeValue !== null` clause fails
+    // exactly those two tests and no others.
 
     it('AC-20: dict-member empty-paren call in ternary then-branch receives pipe value', async () => {
       // Primary regression case for rcrsr/rill#131.
@@ -449,6 +456,68 @@ describe('Rill Runtime: Closure Semantics', () => {
         10 -> $captured
       `;
       expect(await run(invokeScript)).toBe(11);
+    });
+
+    it('AC-26: dict member with an all-optional param receives the piped value on an empty-paren call', async () => {
+      // Documented breaking change (CHANGELOG.md): a dict member whose sole
+      // parameter is optional with a default is no longer zero-param
+      // (declaresZeroParams is false), so an empty-paren call still injects
+      // the pipe value instead of falling back to the default.
+      const script = `
+        dict[h: |a: number = 99|{ $a }] => $d
+        5 -> { $d.h() }
+      `;
+      expect(await run(script)).toBe(5);
+    });
+
+    // The next 3 cases guard against expanding the rcrsr/rill#131 fix beyond
+    // its intended scope: the pipe-value injection in evaluateMethod's
+    // isDict(receiver) branch is gated on MethodCallNode.hasParens, which is
+    // only true when the source wrote explicit parens. A bare `.field`
+    // reached via the postfix/pipe-target path (parseMethodCall via
+    // isMethodCall in parser-expr.ts, and parsePipeTargetDot) produces the
+    // same `args: []` as an explicit `.field()` call, so hasParens is the
+    // only signal that distinguishes them. If a future change drops that
+    // gate, all 3 cases below silently receive the piped value instead of
+    // throwing "Missing argument for parameter 'x'".
+
+    it('AC-27: bare .field on a pipe target does not receive the piped value', async () => {
+      try {
+        await run(`dict[flag: |x|($x)] -> .flag`);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId');
+        expect(err).toHaveProperty(
+          'message',
+          expect.stringMatching(/Missing argument for parameter 'x'/)
+        );
+      }
+    });
+
+    it('AC-28: bare .field on a grouped expression does not receive an implicit value', async () => {
+      try {
+        await run(`(dict[flag: |x|($x)]).flag`);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId');
+        expect(err).toHaveProperty(
+          'message',
+          expect.stringMatching(/Missing argument for parameter 'x'/)
+        );
+      }
+    });
+
+    it('AC-29: bare .field directly on a dict literal does not receive an implicit value', async () => {
+      try {
+        await run(`dict[flag: |x|($x)].flag`);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId');
+        expect(err).toHaveProperty(
+          'message',
+          expect.stringMatching(/Missing argument for parameter 'x'/)
+        );
+      }
     });
 
     it('EC-3: undefined variable in closure body throws RUNTIME_UNDEFINED_VARIABLE', async () => {
