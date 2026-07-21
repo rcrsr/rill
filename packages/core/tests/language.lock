@@ -67,7 +67,7 @@ a04fa84a471343be912e2eece097e01db03817a64af8e239f2aeb3f774614dca  packages/core/
 428a3173097027c24d8a63c1b973414c44e5e637ee1fd407c12802aae5cf3916  packages/core/tests/language/pass-parsing.test.ts
 068b23273128f1cf97b4831884c623e646d672cf2b89afb39a3043897d2a5f4b  packages/core/tests/language/pass.test.ts
 278c38ad2c5c983ab11fce9c5a919e7152ca053bffbb73bdd206b0a9d2506b2e  packages/core/tests/language/pipe-targets.test.ts
-0dc3197b3e901f7dca13a38c0ed8e372c94ba384942b5b63b8fb64bd77079397  packages/core/tests/language/property-access.test.ts
+6714e07066645c0697fec1e0e1de812bc9c62e20a9cb3ebd95e815a86893a85b  packages/core/tests/language/property-access.test.ts
 bbef854bbd05d29ac0c037f0828b90a7cc92566565256881f6639cc26902704f  packages/core/tests/language/ref-llms-full-assertions.test.ts
 6176f0dada7075f1f1766672729878e37f8b0a714118281457a3307423c8d52f  packages/core/tests/language/scope-isolation.test.ts
 137a80f72dba30a93d0d23c4e98f94b5849505b80209bf4981a64daddf309221  packages/core/tests/language/sort.test.ts

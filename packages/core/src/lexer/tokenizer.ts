@@ -13,7 +13,11 @@ import {
   isWhitespace,
   makeToken,
 } from './helpers.js';
-import { SINGLE_CHAR_OPERATORS, TWO_CHAR_OPERATORS } from './operators.js';
+import {
+  KEYWORDS,
+  SINGLE_CHAR_OPERATORS,
+  TWO_CHAR_OPERATORS,
+} from './operators.js';
 import {
   readAtom,
   readIdentifier,
@@ -32,6 +36,12 @@ import {
   peekString,
 } from './state.js';
 import { ERROR_IDS } from '../error-registry.js';
+
+/**
+ * Token types produced for reserved keywords (see KEYWORDS in ./operators.js).
+ * Derived from the table so this set cannot drift if KEYWORDS gains an entry.
+ */
+const KEYWORD_TOKEN_TYPES = new Set(Object.values(KEYWORDS));
 
 function skipWhitespace(state: LexerState): void {
   while (!isAtEnd(state) && isWhitespace(peek(state))) {
@@ -208,12 +218,13 @@ export function tokenize(
     tokens.push(token);
   } while (token.type !== TOKEN_TYPES.EOF);
 
-  // Post-process: IDENTIFIER after DOT/DOT_QUESTION → METHOD_NAME
+  // Post-process: IDENTIFIER or keyword-typed token after DOT/DOT_QUESTION → METHOD_NAME
   for (let i = 1; i < tokens.length; i++) {
     const prev = tokens[i - 1]!;
     const curr = tokens[i]!;
     if (
-      curr.type === TOKEN_TYPES.IDENTIFIER &&
+      (curr.type === TOKEN_TYPES.IDENTIFIER ||
+        KEYWORD_TOKEN_TYPES.has(curr.type)) &&
       (prev.type === TOKEN_TYPES.DOT || prev.type === TOKEN_TYPES.DOT_QUESTION)
     ) {
       tokens[i] = {
