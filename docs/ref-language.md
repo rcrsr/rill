@@ -535,93 +535,7 @@ $fn.^min     # 0
 $fn.^max     # 100
 ```
 
-Annotations are metadata attached at definition time. They enable runtime configuration and introspection.
-
-**Scope rule:** Annotations apply only to the closure directly targeted by `^(...)`. A closure nested inside an annotated statement does not inherit the annotation.
-
-```rill
-# Direct annotation: works
-^(version: 2) |x|($x) => $fn
-$fn.^version    # 2
-```
-
-```text
-# Nested closure does NOT inherit outer annotation
-^(version: 2)
-"" -> {
-  |x|($x) => $fn
-}
-$fn.^version    # Error: RUNTIME_UNDEFINED_ANNOTATION
-```
-
-### Description Shorthand
-
-A bare string in `^(...)` expands to `description: <string>`:
-
-```rill
-^("Validates user input") |input|($input) => $validate
-$validate.^description    # "Validates user input"
-```
-
-Mix the shorthand with explicit keys:
-
-```rill
-^("Fetch user profile", cache: true) |id|($id) => $get_user
-$get_user.^description    # "Fetch user profile"
-$get_user.^cache          # true
-```
-
-### Common Use Cases
-
-**Function Metadata:**
-
-```rill
-^(doc: "validates user input", version: 2) |input|($input) => $validate
-
-$validate.^doc      # "validates user input"
-$validate.^version  # 2
-```
-
-**Configuration Annotations:**
-
-```rill
-^(timeout: 30000, max_retries: 3) |url|($url) => $fetch
-
-$fetch.^timeout      # 30000
-$fetch.^max_retries  # 3
-```
-
-**Complex Annotation Values:**
-
-```rill
-^(config: [timeout: 30, endpoints: ["a", "b"]]) |x|($x) => $fn
-
-$fn.^config.timeout      # 30
-$fn.^config.endpoints[0] # "a"
-```
-
-### Error Handling
-
-Accessing undefined annotation keys throws `RUNTIME_UNDEFINED_ANNOTATION`:
-
-```text
-|x|($x) => $fn
-$fn.^missing   # Error: Annotation 'missing' not defined
-```
-
-Use default value operator for optional annotations:
-
-```rill
-|x|($x) => $fn
-$fn.^timeout ?? 30  # 30 (uses default since annotation missing)
-```
-
-Accessing `.^key` with a non-`type` key on primitives, lists, or dicts throws `RUNTIME_TYPE_ERROR`. Use `.^type` first to get a type value, then access `.name` on the result:
-
-```text
-"hello" => $str
-$str.^key        # Error: Cannot access annotation on string
-```
+Annotations apply only to the closure directly targeted by `^(...)`; a nested closure does not inherit an outer annotation. Accessing an undefined key throws `RUNTIME_UNDEFINED_ANNOTATION`.
 
 ### Reserved Annotation Keys
 
@@ -642,74 +556,11 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 ^(output: "text") name: string   # Error: annotation key "output" is reserved
 ```
 
-The `name` key is not reserved; user annotations may use `name` on closures without restriction. On type values, `.name` is a dot-notation property (not annotation access). Accessing `.^name` on a type value raises RILL-R008. Use `.^type.name` to get the type name: `.^type` returns the type value, then `.name` accesses the dot-notation property.
-
-### Parameter Annotations
-
-Parameters can have their own annotations using `^(key: value)` syntax. These attach metadata to individual parameters.
-
-**Syntax:** `|^(annotation: value) paramName| body`
-
-**Order:** Parameter annotations appear before the parameter name, before the type annotation (if present) and default value (if present).
-
-```rill
-|^(min: 0, max: 100) x: number|($x) => $validate
-|^(required: true) name: string = "guest"|($name) => $greet
-|^(cache: true) count = 0|($count) => $process
-true
-```
-
-**Access via `.params`:**
-
-The `.params` property returns a dict keyed by parameter name. Each entry is a dict containing:
-
-- `type`: Type annotation (string) if present
-- `__annotations`: Dict of parameter-level annotations if present
-
-```rill
-|^(min: 0, max: 100) x: number, y: string|($x + $y) => $fn
-
-$fn.params
-# Returns:
-# [
-#   x: [type: "number", __annotations: [min: 0, max: 100]],
-#   y: [type: "string"]
-# ]
-
-$fn.params.x.__annotations.min  # 0
-$fn.params.y.?__annotations     # false (no annotations on y)
-```
-
-**Use Cases:**
-
-```rill
-# Validation metadata
-|^(min: 0, max: 100) value|($value) => $bounded
-
-# Caching hints
-|^(cache: true) key|($key) => $fetch
-
-# Format specifications
-|^(format: "ISO8601") timestamp|($timestamp) => $formatDate
-true
-```
-
-See [Closures](topic-closures.md) for parameter annotation examples and patterns.
+The `name` key is not reserved on closures. On type values, `.name` is a dot-notation property, not annotation access; use `.^type.name` to read a type value's name.
 
 ### Field Annotations in Type Constructors
 
 `dict`, `ordered`, and `tuple` type constructors support `^()` annotations on individual fields. The `list()` constructor does NOT support field annotations.
-
-**Syntax:** `^(key: value)` appears before the field name (named) or field type (positional).
-
-```text
-dict(^("label") name: string)
-ordered(^("label") name: string)
-tuple(^("x") number, ^("y") number)
-dict(^(description: "d", enum: "a,b") f: string)
-```
-
-**Annotation placement rules:**
 
 | Container | Field kind | Annotation position |
 |-----------|-----------|---------------------|
@@ -718,9 +569,7 @@ dict(^(description: "d", enum: "a,b") f: string)
 | `tuple()` | Positional (`T`) | Before field type |
 | `list()` | N/A | Not supported (RILL-P001) |
 
-**Merge behavior:** Multiple `^()` blocks on one field merge into one annotation map.
-
-**Error contracts:**
+Multiple `^()` blocks on one field merge into one annotation map.
 
 | Condition | Error |
 |-----------|-------|
@@ -730,7 +579,7 @@ dict(^(description: "d", enum: "a,b") f: string)
 | Unclosed `^(` | RILL-P005 |
 | `^()` on `list()` field | RILL-P001 |
 
-See [Closure Annotations](topic-closure-annotations.md) for the shared `^()` syntax and reflection patterns.
+See [Closure Annotations](topic-closure-annotations.md) for parameter annotations, the `.params` reflection API, the description shorthand, and dict/ordered/tuple field-annotation examples.
 
 ---
 
@@ -758,24 +607,7 @@ Valid return type targets:
 | `any` | Any type (no assertion) |
 | `list(T)`, `dict(k: T, ...)`, `tuple(T, ...)` | Parameterized structural types (deep-validates) |
 
-```rill
-|x: number| { list[1, $x, 3] }:list(number) => $fn
-$fn(2)    # list[1, 2, 3]
-```
-
-Mismatched return type halts with `RILL-R004`:
-
-```text
-|x: number| { $x * 2 }:string => $double
-$double(5)    # RILL-R004: Type assertion failed: expected string, got number
-```
-
-Declared return type is accessible via `$fn.^output`:
-
-```rill
-|a: number, b: number| { $a + $b }:number => $add
-$add(3, 4)    # 7
-```
+Declared return type is accessible via `$fn.^output`. See [Closure Annotations](topic-closure-annotations.md#return-type-assertions) for parameterized-type examples and the mismatch error output.
 
 ---
 

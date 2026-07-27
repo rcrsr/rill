@@ -265,11 +265,34 @@ export function readIdentifier(state: LexerState): Token {
   // any characters, so we can emit a single compound token when the bracket
   // immediately follows the keyword with zero whitespace.
   //
-  // Guard: skip compound check when the character immediately before this
+  // Guard 1: skip compound check when the character immediately before this
   // identifier is '$'. That handles variable names that happen to match a
   // collection keyword (e.g. `$list[0]` is subscript access, not a list literal).
+  //
+  // Guard 2: skip compound check when this identifier immediately follows a
+  // standalone `.` or `.?` (member access). A dot is never followed by a
+  // collection literal, angle-delimited head, or block head, so every entry
+  // in COMPOUND_KEYWORD_MAP is member-access text in that position (e.g.
+  // `$d.retry<10` is a member named `retry` followed by `<`, not a
+  // `retry<...>` block). Suppressing uniformly, rather than special-casing
+  // only the reserved-word entries, keeps the rule simple and correct for
+  // the non-reserved-word entries too (`list`, `dict`, `tuple`, `ordered`,
+  // `destruct`, `slice`, `use`, `timeout`).
+  //
+  // "Standalone" matters: the `...` spread operator (ELLIPSIS) also ends in
+  // `.` (e.g. `...ordered[a: 1]`), and a naive `prevChar === '.'` check
+  // would misidentify its trailing dot as a member-access DOT. Distinguish
+  // the two by checking the character two positions back: a genuine DOT (or
+  // the `.` of DOT_QUESTION) is never itself preceded by another `.`.
+  // `threeBack` applies that same ellipsis exclusion to the DOT_QUESTION
+  // branch, one character further back (e.g. `...?guard{1}`).
   const prevChar = state.pos > 0 ? state.source[state.pos - 1] : '';
-  if (prevChar !== '$') {
+  const twoBack = state.pos > 1 ? state.source[state.pos - 2] : '';
+  const threeBack = state.pos > 2 ? state.source[state.pos - 3] : '';
+  const afterDot =
+    (prevChar === '.' && twoBack !== '.') ||
+    (prevChar === '?' && twoBack === '.' && threeBack !== '.');
+  if (prevChar !== '$' && !afterDot) {
     const compound = tokenizeCompoundKeyword(state.source, state.pos);
     if (compound !== null) {
       // Consume keyword + bracket character (keyword.length + 1)

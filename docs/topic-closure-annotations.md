@@ -306,6 +306,28 @@ $fn.^min     # 0
 $fn.^max     # 100
 ```
 
+### Function Metadata
+
+Annotations record documentation and versioning alongside the closure:
+
+```rill
+^(doc: "validates user input", version: 2) |input|($input) => $validate
+
+$validate.^doc      # "validates user input"
+$validate.^version  # 2
+```
+
+### Configuration Annotations
+
+Annotations carry per-closure configuration that a host reads at call time:
+
+```rill
+^(timeout: 30000, max_retries: 3) |url|($url) => $fetch
+
+$fetch.^timeout      # 30000
+$fetch.^max_retries  # 3
+```
+
 ### Complex Annotation Values
 
 Annotations can hold any value type:

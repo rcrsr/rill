@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
+import {
+  createRuntimeContext,
+  execute,
+  parse,
+  TOKEN_TYPES,
+  tokenize,
+} from '@rcrsr/rill';
 import type { ResolverResult, SchemeResolver } from '@rcrsr/rill';
 
 import { run as runWithOptions } from '../helpers/runtime.js';
@@ -10,7 +16,7 @@ async function run(code: string) {
   return result.result;
 }
 
-/** All 12 KEYWORDS-table token types (packages/core/src/lexer/operators.ts). */
+/** All 12 KEYWORDS-table keyword names (packages/core/src/lexer/operators.ts). */
 const KEYWORD_MEMBER_NAMES = [
   'true',
   'false',
@@ -176,6 +182,125 @@ describe('implicit $ property access bug', () => {
         });
         expect(result).toBe('resolved');
         expect(capturedResource).toBe('pkg.error');
+      });
+    });
+
+    describe('compound-keyword-prefix names as dotted member access', () => {
+      // retry, do, pass, and guard are also compound-keyword prefixes
+      // (retry<, do<, pass<, guard{) in COMPOUND_KEYWORD_MAP. readIdentifier()
+      // must suppress that compound check when the identifier immediately
+      // follows DOT/DOT_QUESTION, so these retype to METHOD_NAME just like
+      // the other keyword names.
+      const COMPOUND_PREFIX_CASES = [
+        { keyword: 'retry', opener: '<' },
+        { keyword: 'do', opener: '<' },
+        { keyword: 'pass', opener: '<' },
+        { keyword: 'guard', opener: '{' },
+      ];
+
+      describe('tokenizer retypes the keyword to METHOD_NAME', () => {
+        it.each(COMPOUND_PREFIX_CASES)(
+          'retypes "$keyword$opener" after a dot to METHOD_NAME',
+          ({ keyword, opener }) => {
+            const tokens = tokenize(`$d.${keyword}${opener}`);
+            const dot = tokens.find((t) => t.type === TOKEN_TYPES.DOT);
+            expect(dot).toBeDefined();
+            const dotIndex = tokens.indexOf(dot!);
+            const next = tokens[dotIndex + 1];
+            expect(next?.type).toBe(TOKEN_TYPES.METHOD_NAME);
+            expect(next?.value).toBe(keyword);
+          }
+        );
+
+        it.each(COMPOUND_PREFIX_CASES)(
+          'retypes "$keyword$opener" after .? to METHOD_NAME',
+          ({ keyword, opener }) => {
+            const tokens = tokenize(`$d.?${keyword}${opener}`);
+            const dotQuestion = tokens.find(
+              (t) => t.type === TOKEN_TYPES.DOT_QUESTION
+            );
+            expect(dotQuestion).toBeDefined();
+            const dotIndex = tokens.indexOf(dotQuestion!);
+            const next = tokens[dotIndex + 1];
+            expect(next?.type).toBe(TOKEN_TYPES.METHOD_NAME);
+            expect(next?.value).toBe(keyword);
+          }
+        );
+      });
+
+      describe('end-to-end evaluation with zero whitespace before the compound opener', () => {
+        // These exercise the actual collision: the member name is immediately
+        // followed by the same character that opens its compound-keyword form
+        // elsewhere in the grammar (retry<, do<, pass<), with no whitespace
+        // between them.
+        it('parses "$d.retry<10" as a comparison against the "retry" field', async () => {
+          const result = await run('dict["retry": 5] => $d\n$d.retry<10');
+          expect(result).toBe(true);
+        });
+
+        it('parses "$d.do<10" as a comparison against the "do" field', async () => {
+          const result = await run('dict["do": 20] => $d\n$d.do<10');
+          expect(result).toBe(false);
+        });
+
+        it('parses "$d.pass<10" as a comparison against the "pass" field', async () => {
+          const result = await run('dict["pass": 5] => $d\n$d.pass<10');
+          expect(result).toBe(true);
+        });
+      });
+
+      describe('"guard" has no zero-whitespace e2e case: "{" starts a new statement', () => {
+        // `guard{` cannot be exercised as a single-expression e2e case the way
+        // `retry<`, `do<`, and `pass<` are above. `<` continues the current
+        // expression (a comparison), but `{` starts a new statement without
+        // requiring a newline, so `$d.guard{ 1 }` always parses as two
+        // statements: a bare `$d.guard` member access, then a wholly separate
+        // (and discarded) `{ 1 }` block-literal statement. There is no
+        // zero-whitespace source that both collides with the `guard{`
+        // compound-keyword token and evaluates the member access inline the
+        // way `$d.retry<10` does. This test asserts that real parse shape
+        // directly, then confirms the member access half reads the field.
+        it('parses "$d.guard{ 1 }" as a "guard" field access statement followed by a discarded block statement', () => {
+          const ast = parse('dict["guard": 5] => $d\n$d.guard{ 1 }');
+          expect(ast.statements).toHaveLength(3);
+
+          const memberStatement = ast.statements[1];
+          expect(memberStatement?.type).toBe('Statement');
+          if (memberStatement?.type === 'Statement') {
+            const expr = memberStatement.expression;
+            if (expr?.type === 'PipeChain') {
+              const head = expr.head;
+              if (head?.type === 'PostfixExpr') {
+                const variableNode = head.primary;
+                expect(variableNode?.type).toBe('Variable');
+                if (variableNode?.type === 'Variable') {
+                  expect(variableNode.accessChain).toHaveLength(1);
+                  expect(variableNode.accessChain[0]).toMatchObject({
+                    kind: 'literal',
+                    field: 'guard',
+                  });
+                }
+              }
+            }
+          }
+
+          const blockStatement = ast.statements[2];
+          expect(blockStatement?.type).toBe('Statement');
+          if (blockStatement?.type === 'Statement') {
+            const expr = blockStatement.expression;
+            if (expr?.type === 'PipeChain') {
+              const head = expr.head;
+              if (head?.type === 'PostfixExpr') {
+                expect(head.primary?.type).toBe('Block');
+              }
+            }
+          }
+        });
+
+        it('reads the "guard" field via "$d.guard" alone, confirming the member-access half of the split', async () => {
+          const result = await run('dict["guard": 5] => $d\n$d.guard');
+          expect(result).toBe(5);
+        });
       });
     });
   });
