@@ -217,6 +217,7 @@ export function tokenize(
     token = nextToken(state);
     tokens.push(token);
     state.prevTokenType = token.type;
+    state.prevTokenValue = token.value;
   } while (token.type !== TOKEN_TYPES.EOF);
 
   // Post-process: IDENTIFIER or keyword-typed token after DOT/DOT_QUESTION → METHOD_NAME

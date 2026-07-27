@@ -265,9 +265,13 @@ export function readIdentifier(state: LexerState): Token {
   // any characters, so we can emit a single compound token when the bracket
   // immediately follows the keyword with zero whitespace.
   //
-  // Guard 1: skip compound check when the character immediately before this
-  // identifier is '$'. That handles variable names that happen to match a
-  // collection keyword (e.g. `$list[0]` is subscript access, not a list literal).
+  // Guard 1: skip compound check when this identifier is a variable's name,
+  // i.e. it follows the `$` sigil (e.g. `$list[0]` is subscript access, not a
+  // list literal). readVariable() emits a bare DOLLAR and leaves the name to
+  // this function. The value test is load-bearing: readVariable also emits
+  // DOLLAR for the accumulator `$@`, which is a complete variable carrying
+  // its own name, so type alone would wrongly suppress the compound check on
+  // whatever follows it.
   //
   // Guard 2: skip compound check when this identifier follows a DOT or
   // DOT_QUESTION token (member access). A dot is never followed by a
@@ -279,18 +283,19 @@ export function readIdentifier(state: LexerState): Token {
   // the non-reserved-word entries too (`list`, `dict`, `tuple`, `ordered`,
   // `destruct`, `slice`, `use`, `timeout`).
   //
-  // This tests the preceding TOKEN, not the preceding characters. A
+  // Both guards test the preceding TOKEN, not the preceding characters. A
   // character-level test has to special-case the `...` spread operator,
   // which also ends in `.` (`...ordered[a: 1]` is a spread, not member
   // access), and would need further patching for any future operator
   // ending in `.` or `?`. Reading the token type is exact, and matches the
   // DOT/DOT_QUESTION test the post-tokenize METHOD_NAME rewrite in
   // ./tokenizer.ts already uses, so the two cannot disagree.
-  const prevChar = state.pos > 0 ? state.source[state.pos - 1] : '';
-  const afterDot =
-    state.prevTokenType === TOKEN_TYPES.DOT ||
-    state.prevTokenType === TOKEN_TYPES.DOT_QUESTION;
-  if (prevChar !== '$' && !afterDot) {
+  const prev = state.prevTokenType;
+  const suppressCompound =
+    (prev === TOKEN_TYPES.DOLLAR && state.prevTokenValue === '$') ||
+    prev === TOKEN_TYPES.DOT ||
+    prev === TOKEN_TYPES.DOT_QUESTION;
+  if (!suppressCompound) {
     const compound = tokenizeCompoundKeyword(state.source, state.pos);
     if (compound !== null) {
       // Consume keyword + bracket character (keyword.length + 1)

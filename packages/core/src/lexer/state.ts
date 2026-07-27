@@ -19,6 +19,12 @@ export interface LexerState {
    * re-deriving it from raw characters.
    */
   prevTokenType: TokenType | undefined;
+  /**
+   * Value of that same token. Needed because DOLLAR is emitted for both the
+   * `$` that prefixes a variable name and the self-contained accumulator
+   * `$@`, which the type alone cannot tell apart.
+   */
+  prevTokenValue: string | undefined;
 }
 
 export function createLexerState(
@@ -33,6 +39,7 @@ export function createLexerState(
     baseOffset: baseLocation?.offset ?? 0,
     inFrontmatter: false,
     prevTokenType: undefined,
+    prevTokenValue: undefined,
   };
 }
 

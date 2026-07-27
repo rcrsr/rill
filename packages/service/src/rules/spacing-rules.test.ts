@@ -8,6 +8,7 @@ import { spacingOperator } from './spacing-operator.js';
 import { spacingBraces } from './spacing-braces.js';
 import { spacingBrackets } from './spacing-brackets.js';
 import { spacingClosure } from './spacing-closure.js';
+import { spacingMember } from './spacing-member.js';
 import { indentContinuation } from './indent-continuation.js';
 
 /** Wraps a well-formed AST built with `parse` in a `ParseResult` shape. */
@@ -186,6 +187,115 @@ describe('SPACING_BRACKETS', () => {
   });
 });
 
+describe('SPACING_MEMBER', () => {
+  it('fires on a space between the dot and the field name', () => {
+    const source = '$obj. field\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingMember]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_MEMBER',
+      severity: 'info',
+      message: "No space after '.': write '.field'",
+      location: { line: 1, column: 5 },
+      context: '$obj. field',
+      fix: null,
+    });
+  });
+
+  it('fires on a space before the dot', () => {
+    const source = '$obj .field\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingMember]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_MEMBER',
+      message: "No space before '.': write '.field'",
+    });
+  });
+
+  it('reports both sides as one diagnostic', () => {
+    const source = '$obj . field\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingMember]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_MEMBER',
+      message: "No spaces around '.': write '.field'",
+    });
+  });
+
+  it('names the .? operator rather than the bare dot', () => {
+    const source = '$obj.? field\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingMember]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_MEMBER',
+      message: "No space after '.?': write '.?field'",
+    });
+  });
+
+  it('reports each spaced access in a chain', () => {
+    const source = '$a. b. c\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingMember]);
+
+    expect(result).toHaveLength(2);
+    expect(result.map((d) => d.message)).toEqual([
+      "No space after '.': write '.b'",
+      "No space after '.': write '.c'",
+    ]);
+  });
+
+  it('does not fire on tight member access', () => {
+    const source = '$obj.field\n$a.b.c\n$obj.?field\n$obj.$key\n$obj.("k")\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingMember])).toEqual([]);
+  });
+
+  it('does not fire on a leading-dot continuation line', () => {
+    // The dot opens its line, so the preceding whitespace is indentation
+    // rather than a spacing violation.
+    const source = '$obj\n  .field\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingMember])).toEqual([]);
+  });
+
+  it('does not fire on whitespace inside a string that merely contains a dot', () => {
+    const source = '"a. b" -> log\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingMember])).toEqual([]);
+  });
+
+  it('fires on a reserved word used as a spaced member name', () => {
+    // Reserved words are legal member names, so the spacing rule must reach
+    // them the same way it reaches ordinary identifiers.
+    const source = '$app. error\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingMember]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_MEMBER',
+      message: "No space after '.': write '.error'",
+    });
+  });
+});
+
 describe('SPACING_CLOSURE', () => {
   it('fires when a mid-line closure has a space before its opening pipe', () => {
     const source = '[1, 2] -> seq( |x| { $x })\n';
@@ -316,6 +426,7 @@ describe('with all spacing rules on', () => {
       spacingBraces,
       spacingBrackets,
       spacingClosure,
+      spacingMember,
       indentContinuation,
     ]);
 

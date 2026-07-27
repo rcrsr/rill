@@ -244,6 +244,27 @@ describe('implicit $ property access bug', () => {
         );
       });
 
+      describe('the accumulator "$@" does not suppress the compound check', () => {
+        // `readVariable` emits DOLLAR for both the `$` that prefixes a name
+        // and the self-contained `$@`, so suppressing on token type alone
+        // would also suppress after `$@`, where no name follows. That made
+        // `$@list[0]` fail with "keyword and bracket must be adjacent;
+        // found whitespace" on source containing no whitespace at all.
+        it.each(['$@list[0]', '$@dict[a: 1]', '$@ordered[a: 1]'])(
+          'parses "%s"',
+          (src) => {
+            expect(() => parse(src)).not.toThrow();
+          }
+        );
+
+        it('still suppresses after a plain "$"', () => {
+          const tokens = tokenize('$list[0]');
+          expect(tokens[1]?.type).toBe(TOKEN_TYPES.IDENTIFIER);
+          expect(tokens[1]?.value).toBe('list');
+          expect(tokens[2]?.type).toBe(TOKEN_TYPES.LBRACKET);
+        });
+      });
+
       describe('spread is unaffected: "..." is an ELLIPSIS token, not a dot', () => {
         // The `...` spread operator ends in `.`, so a character-level
         // "preceded by a dot" test would misread its trailing dot as member

@@ -1,8 +1,8 @@
 # rill Language Service API
 
-*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a 40-rule static checker*
+*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a 41-rule static checker*
 
-`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 40 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
+`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 41 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
 ## Subpath Exports
 
@@ -182,7 +182,7 @@ type CompletionKind = 'variable' | 'function' | 'keyword';
 function createDefaultConfig(): CheckConfig
 ```
 
-Pure function. Returns a `CheckConfig` with all 40 registered rules set to `'on'` at each rule's own default severity, and `checkerMode` left undefined.
+Pure function. Returns a `CheckConfig` with all 41 registered rules set to `'on'` at each rule's own default severity, and `checkerMode` left undefined.
 
 ### `validateConfig`
 
@@ -198,7 +198,7 @@ Pure function. Validates a `CheckConfig` and returns an array of `ValidationErro
 function validateRuleCodes(codes: readonly string[]): ValidationError[] | null
 ```
 
-Pure function. Validates each code in `codes` against the 40 codes in `RULES`. Returns a `ValidationError` with `code: 'UNKNOWN_RULE_CODE'` for each unrecognized entry, or `null` when every code is known.
+Pure function. Validates each code in `codes` against the 41 codes in `RULES`. Returns a `ValidationError` with `code: 'UNKNOWN_RULE_CODE'` for each unrecognized entry, or `null` when every code is known.
 
 ```typescript
 interface ValidationError {
@@ -219,7 +219,7 @@ function runRules(
 ): Diagnostic[]
 ```
 
-Runs the static checker's 40 registered rules over `parsed.ast` in two linear passes. First a bottom-up fact-collection pass, then a top-down rule-dispatch pass. Total node visits equal 2n, independent of nesting depth, and no rule re-walks a subtree. `source` is required because formatting rules, the naming-convention fix, and diagnostic context lines all read the raw source text. The optional fourth `rules` parameter defaults to the shared `RULES` registry; pass a subset for testing or a custom rule set. The fact-collection pass populates a capture tracker and the `assertedHostCalls` set once, shared across every rule in the dispatch pass. Diagnostics are returned sorted by line, then column. `runRules` owns final severity resolution, applying each rule's `on`/`off`/`warn` state and then `config.severity` as a global override. Tolerates recovery nodes without throwing. A single rule that throws is isolated: its contribution is skipped and every other rule still reports. Measures a p95 near 42 milliseconds on a flat 2,000-line document on typical developer hardware, roughly 6x the single-pass providers. It runs 40 rules across two passes, not a separate walk per rule. On flat input the two-pass engine costs about 20% more than the per-rule sub-walks it replaced, because a shallow subtree is cheap to re-walk. On deeply nested input it is 153x faster, because nothing re-walks a subtree at all. The wider 350 ms ceiling in `latency.test.ts` is a shared-CI-runner flake guard, not a latency claim.
+Runs the static checker's 41 registered rules over `parsed.ast` in two linear passes. First a bottom-up fact-collection pass, then a top-down rule-dispatch pass. Total node visits equal 2n, independent of nesting depth, and no rule re-walks a subtree. `source` is required because formatting rules, the naming-convention fix, and diagnostic context lines all read the raw source text. The optional fourth `rules` parameter defaults to the shared `RULES` registry; pass a subset for testing or a custom rule set. The fact-collection pass populates a capture tracker and the `assertedHostCalls` set once, shared across every rule in the dispatch pass. Diagnostics are returned sorted by line, then column. `runRules` owns final severity resolution, applying each rule's `on`/`off`/`warn` state and then `config.severity` as a global override. Tolerates recovery nodes without throwing. A single rule that throws is isolated: its contribution is skipped and every other rule still reports. Measures a p95 near 42 milliseconds on a flat 2,000-line document on typical developer hardware, roughly 6x the single-pass providers. It runs 41 rules across two passes, not a separate walk per rule. On flat input the two-pass engine costs about 20% more than the per-rule sub-walks it replaced, because a shallow subtree is cheap to re-walk. On deeply nested input it is 153x faster, because nothing re-walks a subtree at all. The wider 350 ms ceiling in `latency.test.ts` is a shared-CI-runner flake guard, not a latency claim.
 
 ```typescript
 interface Diagnostic {
@@ -259,7 +259,7 @@ type RuleState = 'on' | 'off' | 'warn';
 const RULES: readonly Rule[]
 ```
 
-Frozen registry of all 40 built-in rules. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
+Frozen registry of all 41 built-in rules. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
 
 `CONDITION_TYPE` fires only on a conditional whose condition is a bare non-boolean literal. It performs no type inference and does not flag variables, host calls, method calls, or comparisons.
 

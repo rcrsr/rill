@@ -160,6 +160,10 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
 
 ## Whitespace traps
 
-    list [1, 2, 3]    # ERROR (RILL-P007): no space before keyword `[`
-    $obj. field       # ERROR: no space after `.`
-    $x->.upper        # invalid: pipe needs spaces both sides
+Only the first halts. The rest parse and run; the checker reports them at
+info level. Write them tight anyway.
+
+    list [1, 2, 3]    # ERROR (RILL-P007): keyword and bracket must be adjacent
+    $obj. field       # SPACING_MEMBER: dot must touch the field name
+    $obj .field       # SPACING_MEMBER: same, on the other side
+    $x->.upper        # SPACING_OPERATOR: pipe needs spaces both sides
