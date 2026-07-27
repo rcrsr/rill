@@ -269,8 +269,8 @@ export function readIdentifier(state: LexerState): Token {
   // identifier is '$'. That handles variable names that happen to match a
   // collection keyword (e.g. `$list[0]` is subscript access, not a list literal).
   //
-  // Guard 2: skip compound check when this identifier immediately follows a
-  // standalone `.` or `.?` (member access). A dot is never followed by a
+  // Guard 2: skip compound check when this identifier follows a DOT or
+  // DOT_QUESTION token (member access). A dot is never followed by a
   // collection literal, angle-delimited head, or block head, so every entry
   // in COMPOUND_KEYWORD_MAP is member-access text in that position (e.g.
   // `$d.retry<10` is a member named `retry` followed by `<`, not a
@@ -279,19 +279,17 @@ export function readIdentifier(state: LexerState): Token {
   // the non-reserved-word entries too (`list`, `dict`, `tuple`, `ordered`,
   // `destruct`, `slice`, `use`, `timeout`).
   //
-  // "Standalone" matters: the `...` spread operator (ELLIPSIS) also ends in
-  // `.` (e.g. `...ordered[a: 1]`), and a naive `prevChar === '.'` check
-  // would misidentify its trailing dot as a member-access DOT. Distinguish
-  // the two by checking the character two positions back: a genuine DOT (or
-  // the `.` of DOT_QUESTION) is never itself preceded by another `.`.
-  // `threeBack` applies that same ellipsis exclusion to the DOT_QUESTION
-  // branch, one character further back (e.g. `...?guard{1}`).
+  // This tests the preceding TOKEN, not the preceding characters. A
+  // character-level test has to special-case the `...` spread operator,
+  // which also ends in `.` (`...ordered[a: 1]` is a spread, not member
+  // access), and would need further patching for any future operator
+  // ending in `.` or `?`. Reading the token type is exact, and matches the
+  // DOT/DOT_QUESTION test the post-tokenize METHOD_NAME rewrite in
+  // ./tokenizer.ts already uses, so the two cannot disagree.
   const prevChar = state.pos > 0 ? state.source[state.pos - 1] : '';
-  const twoBack = state.pos > 1 ? state.source[state.pos - 2] : '';
-  const threeBack = state.pos > 2 ? state.source[state.pos - 3] : '';
   const afterDot =
-    (prevChar === '.' && twoBack !== '.') ||
-    (prevChar === '?' && twoBack === '.' && threeBack !== '.');
+    state.prevTokenType === TOKEN_TYPES.DOT ||
+    state.prevTokenType === TOKEN_TYPES.DOT_QUESTION;
   if (prevChar !== '$' && !afterDot) {
     const compound = tokenizeCompoundKeyword(state.source, state.pos);
     if (compound !== null) {

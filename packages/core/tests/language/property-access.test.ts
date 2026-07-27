@@ -226,6 +226,38 @@ describe('implicit $ property access bug', () => {
             expect(next?.value).toBe(keyword);
           }
         );
+
+        it.each(COMPOUND_PREFIX_CASES)(
+          'retypes "$keyword$opener" after a dot and whitespace to METHOD_NAME',
+          ({ keyword, opener }) => {
+            // The suppression keys off the preceding DOT *token*, not the
+            // preceding character, so whitespace after the dot does not
+            // resurrect the compound token. This matches the post-tokenize
+            // METHOD_NAME rewrite, which is likewise token-based.
+            const tokens = tokenize(`$d. ${keyword}${opener}`);
+            const dot = tokens.find((t) => t.type === TOKEN_TYPES.DOT);
+            expect(dot).toBeDefined();
+            const next = tokens[tokens.indexOf(dot!) + 1];
+            expect(next?.type).toBe(TOKEN_TYPES.METHOD_NAME);
+            expect(next?.value).toBe(keyword);
+          }
+        );
+      });
+
+      describe('spread is unaffected: "..." is an ELLIPSIS token, not a dot', () => {
+        // The `...` spread operator ends in `.`, so a character-level
+        // "preceded by a dot" test would misread its trailing dot as member
+        // access and break spread of a compound-keyword collection. Keyed off
+        // the ELLIPSIS token instead, these keep emitting compound tokens.
+        it.each([
+          { src: 'list[...ordered[a: 1]]', type: TOKEN_TYPES.ORDERED_LBRACKET },
+          { src: 'list[...guard{1}]', type: TOKEN_TYPES.GUARD_LBRACE },
+        ])('keeps the compound token in "$src"', ({ src, type }) => {
+          const tokens = tokenize(src);
+          const ellipsis = tokens.find((t) => t.type === TOKEN_TYPES.ELLIPSIS);
+          expect(ellipsis).toBeDefined();
+          expect(tokens[tokens.indexOf(ellipsis!) + 1]?.type).toBe(type);
+        });
       });
 
       describe('end-to-end evaluation with zero whitespace before the compound opener', () => {
