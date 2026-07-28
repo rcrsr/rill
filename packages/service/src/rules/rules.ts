@@ -36,6 +36,7 @@ import './presence-over-null-guard.js';
 import './spacing-braces.js';
 import './spacing-brackets.js';
 import './spacing-closure.js';
+import './spacing-member.js';
 import './spacing-operator.js';
 import './status-probe-no-field.js';
 import './stream-pre-iteration.js';

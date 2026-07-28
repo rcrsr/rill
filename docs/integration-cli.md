@@ -186,6 +186,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `SPACING_BRACES` | formatting | info | Braces need inner spacing |
 | `SPACING_BRACKETS` | formatting | info | Brackets need consistent spacing |
 | `SPACING_CLOSURE` | formatting | info | Closure params need spacing |
+| `SPACING_MEMBER` | formatting | info | Member access dot must touch the field name |
 | `INDENT_CONTINUATION` | formatting | info | Continuation line indentation |
 | `IMPLICIT_DOLLAR_METHOD` | formatting | info | Prefer implicit `$` for methods |
 | `IMPLICIT_DOLLAR_FUNCTION` | formatting | info | Prefer implicit `$` for functions |

@@ -3,8 +3,8 @@ import { RULES } from './index.js';
 import type { RuleCategory } from './index.js';
 
 describe('RULES', () => {
-  it('registers exactly 40 rules', () => {
-    expect(RULES.length).toBe(40);
+  it('registers exactly 41 rules', () => {
+    expect(RULES.length).toBe(41);
   });
 
   it('has unique rule codes', () => {
@@ -22,7 +22,7 @@ describe('RULES', () => {
 
 /**
  * Authoritative code -> category mapping, ported verbatim from the
- * rill-cli check engine. This table restates the 40 rule categories in a
+ * rill-cli check engine. This table restates the 41 rule categories in a
  * second location, so it is a change detector, not a behavioral test:
  * `category` is not read by any code in this repo. Its value is as a
  * review artifact - it concentrates the port into one block a reviewer
@@ -59,6 +59,7 @@ const EXPECTED_CATEGORIES: Record<string, RuleCategory> = {
   SPACING_BRACES: 'formatting',
   SPACING_BRACKETS: 'formatting',
   SPACING_CLOSURE: 'formatting',
+  SPACING_MEMBER: 'formatting',
   SPACING_OPERATOR: 'formatting',
   STATUS_PROBE_NO_FIELD: 'errors',
   STREAM_PRE_ITERATION: 'anti-patterns',

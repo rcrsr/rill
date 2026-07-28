@@ -36,7 +36,7 @@ import { measureP95 } from './percentile.js';
 // in a single-pass provider would overshoot by far more than that margin,
 // so the wider ceiling still catches what this benchmark exists to catch.
 const P95_BUDGET_MS = 100;
-// runRules aggregates every bundled rule (~40 rules) over the script, so it
+// runRules aggregates every bundled rule (~41 rules) over the script, so it
 // does proportionately more work than the single-pass providers and gets a
 // wider ceiling.
 //
