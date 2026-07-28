@@ -55,6 +55,45 @@ import {
   mNorm,
   mNormalize,
 } from './bodies.js';
+import {
+  mDtYear,
+  mDtMonth,
+  mDtDay,
+  mDtHour,
+  mDtMinute,
+  mDtSecond,
+  mDtMs,
+  mDtUnix,
+  mDtWeekday,
+  mDtEmpty,
+  mDtIso,
+  mDtDate,
+  mDtTime,
+  mDtLocalIso,
+  mDtLocalDate,
+  mDtLocalTime,
+  mDtLocalOffset,
+  mDtAdd,
+  mDtDiff,
+  mDtEq,
+  mDtNe,
+  mDtLt,
+  mDtGt,
+  mDtLe,
+  mDtGe,
+  mDurMonths,
+  mDurDays,
+  mDurHours,
+  mDurMinutes,
+  mDurSeconds,
+  mDurMs,
+  mDurTotalMs,
+  mDurDisplay,
+  mDurEmpty,
+  mDurAdd,
+  mDurSubtract,
+  mDurMultiply,
+} from '../temporal/methods.js';
 
 // ============================================================
 // PER-TYPE METHOD RECORDS
@@ -191,4 +230,80 @@ export const VECTOR_METHODS = Object.freeze({
   ),
   norm: buildMethodEntry('norm', '||:number', mNorm, true),
   normalize: buildMethodEntry('normalize', '||:any', mNormalize, true),
+});
+
+// Datetime methods: properties, string formatters, local properties, arithmetic.
+// All property-style methods (year, month, day, etc.) use skipReceiverValidation
+// because the receiver is always a RillDatetime discriminated by __rill_datetime.
+export const DATETIME_METHODS = Object.freeze({
+  // Component properties (IR-4)
+  year: buildMethodEntry('year', '||:number', mDtYear, true),
+  month: buildMethodEntry('month', '||:number', mDtMonth, true),
+  day: buildMethodEntry('day', '||:number', mDtDay, true),
+  hour: buildMethodEntry('hour', '||:number', mDtHour, true),
+  minute: buildMethodEntry('minute', '||:number', mDtMinute, true),
+  second: buildMethodEntry('second', '||:number', mDtSecond, true),
+  ms: buildMethodEntry('ms', '||:number', mDtMs, true),
+  unix: buildMethodEntry('unix', '||:number', mDtUnix, true),
+  weekday: buildMethodEntry('weekday', '||:number', mDtWeekday, true),
+  empty: buildMethodEntry('empty', '||:datetime', mDtEmpty, true),
+
+  // String formatting methods (IR-5)
+  iso: buildMethodEntry('iso', '|offset: number = 0|:string', mDtIso, true),
+  date: buildMethodEntry('date', '|offset: number = 0|:string', mDtDate, true),
+  time: buildMethodEntry('time', '|offset: number = 0|:string', mDtTime, true),
+
+  // Local properties (IR-6)
+  local_iso: buildMethodEntry('local_iso', '||:string', mDtLocalIso, true),
+  local_date: buildMethodEntry('local_date', '||:string', mDtLocalDate, true),
+  local_time: buildMethodEntry('local_time', '||:string', mDtLocalTime, true),
+  local_offset: buildMethodEntry(
+    'local_offset',
+    '||:number',
+    mDtLocalOffset,
+    true
+  ),
+
+  // Arithmetic methods (IR-7)
+  add: buildMethodEntry('add', '|dur: any|:datetime', mDtAdd, true),
+  diff: buildMethodEntry('diff', '|other: any|:duration', mDtDiff, true),
+
+  // Comparison methods
+  eq: buildMethodEntry('eq', SIG_EQ, mDtEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mDtNe, true),
+  lt: buildMethodEntry('lt', SIG_CMP, mDtLt, true),
+  gt: buildMethodEntry('gt', SIG_CMP, mDtGt, true),
+  le: buildMethodEntry('le', SIG_CMP, mDtLe, true),
+  ge: buildMethodEntry('ge', SIG_CMP, mDtGe, true),
+});
+
+// Duration methods: properties, display, arithmetic.
+// All use skipReceiverValidation because the receiver is a RillDuration
+// discriminated by __rill_duration.
+export const DURATION_METHODS = Object.freeze({
+  // Decomposition properties (IR-8)
+  months: buildMethodEntry('months', '||:number', mDurMonths, true),
+  days: buildMethodEntry('days', '||:number', mDurDays, true),
+  hours: buildMethodEntry('hours', '||:number', mDurHours, true),
+  minutes: buildMethodEntry('minutes', '||:number', mDurMinutes, true),
+  seconds: buildMethodEntry('seconds', '||:number', mDurSeconds, true),
+  ms: buildMethodEntry('ms', '||:number', mDurMs, true),
+  total_ms: buildMethodEntry('total_ms', '||:number', mDurTotalMs, true),
+  display: buildMethodEntry('display', '||:string', mDurDisplay, true),
+  empty: buildMethodEntry('empty', '||:duration', mDurEmpty, true),
+
+  // Arithmetic methods (IR-9)
+  add: buildMethodEntry('add', '|other: any|:duration', mDurAdd, true),
+  subtract: buildMethodEntry(
+    'subtract',
+    '|other: any|:duration',
+    mDurSubtract,
+    true
+  ),
+  multiply: buildMethodEntry(
+    'multiply',
+    '|n: any|:duration',
+    mDurMultiply,
+    true
+  ),
 });
