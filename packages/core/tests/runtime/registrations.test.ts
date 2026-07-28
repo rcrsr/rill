@@ -1,5 +1,5 @@
 /**
- * Tests for type-registrations.ts dispatch functions and error contracts.
+ * Tests for types/registrations.ts dispatch functions and error contracts.
  *
  * AC-1:  BUILT_IN_TYPES has exactly 16 entries, each with unique name
  * AC-2:  inferType returns same type name as existing inferType from values.ts
@@ -61,7 +61,7 @@ import { RuntimeHaltSignal } from '../../src/runtime/core/eval/handlers/access.j
 
 // Old implementations from values.ts for comparison.
 // These remain as internal imports because they verify parity between
-// the legacy values.ts functions and the new type-registrations dispatch.
+// the legacy values.ts functions and the new types/registrations dispatch.
 import {
   inferType as oldInferType,
   formatValue as oldFormatValue,
@@ -176,7 +176,7 @@ const sharedTestValues = testValues.filter(
 // Tests
 // ============================================================
 
-describe('type-registrations', () => {
+describe('types/registrations', () => {
   // AC-1: BUILT_IN_TYPES has exactly 16 entries, each with unique name.
   // Task 1.2 added the `:atom` primitive as the 16th type.
   describe('AC-1: BUILT_IN_TYPES registry', () => {
