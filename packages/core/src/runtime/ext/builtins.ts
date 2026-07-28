@@ -25,7 +25,7 @@ export const BUILTIN_FUNCTION_NAMES: readonly string[] = Object.freeze(
 );
 
 // Populate registration methods from BUILTIN_METHODS at module load time.
-// No circular dependency: type-registrations.ts does not import builtins.ts.
+// No circular dependency: registrations.ts does not import builtins.ts.
 populateBuiltinMethods(BUILTIN_METHODS);
 
 // Built-in functions that are genuinely variadic and must skip arg validation.

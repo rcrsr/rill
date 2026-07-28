@@ -243,7 +243,7 @@ const DURATION_PARAM_KEYS = new Set([
 ]);
 
 /**
- * Validate a duration parameter: must be a non-negative integer.
+ * Validate a duration parameter: must be a finite, non-negative number.
  * Halts with invalid #INVALID_INPUT on non-number or negative value.
  */
 function validateDurationParam(

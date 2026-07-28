@@ -1,5 +1,6 @@
 import type { RillFunction } from '../../../core/callable.js';
 import {
+  callable,
   isCallable,
   isDict,
   isScriptCallable,
@@ -17,7 +18,25 @@ import { BreakSignal } from '../../../core/signals.js';
 import { createChildContext } from '../../../core/context.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, chunkSlice, DICT_DEFAULT_KEY_FN } from '../shared.js';
+import { MAX_ITER, chunkSlice } from '../shared.js';
+
+/**
+ * Default key extractor for sort(dict, ...).
+ * Receives a { key, value } entry dict and returns the key string.
+ * Constructed once at module load; not re-allocated per call.
+ */
+const DICT_DEFAULT_KEY_FN = callable((args) => {
+  const entry = (args as unknown as RillValue[])[0] ?? null;
+  if (
+    entry !== null &&
+    typeof entry === 'object' &&
+    !Array.isArray(entry) &&
+    'key' in (entry as Record<string, unknown>)
+  ) {
+    return (entry as Record<string, RillValue>)['key'] ?? null;
+  }
+  return null;
+});
 
 /** Collection built-in functions: seq, fan, acc, fold, filter, sort. */
 export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {

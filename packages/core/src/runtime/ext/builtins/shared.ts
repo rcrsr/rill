@@ -142,9 +142,11 @@ export function makeDictIterator(
 }
 
 /**
- * Check if a value is a rill iterator (dict with value, done, next fields).
+ * Iteration step cap shared by unbounded collection operators.
+ * Enforced as a hard cap (halts with #RILL_R010 when exceeded) by seq, acc,
+ * fold, iterate, batch, window, start_when, and stop_when. take is the sole
+ * exception: n > MAX_ITER is silently clamped to MAX_ITER without halting.
  */
-
 export const MAX_ITER = 10000;
 
 /**
@@ -184,21 +186,3 @@ export function makeGenericIterator(
   };
   return step(seed);
 }
-
-/**
- * Default key extractor for sort(dict, ...).
- * Receives a { key, value } entry dict and returns the key string.
- * Constructed once at module load; not re-allocated per call.
- */
-export const DICT_DEFAULT_KEY_FN = callable((args) => {
-  const entry = (args as unknown as RillValue[])[0] ?? null;
-  if (
-    entry !== null &&
-    typeof entry === 'object' &&
-    !Array.isArray(entry) &&
-    'key' in (entry as Record<string, unknown>)
-  ) {
-    return (entry as Record<string, RillValue>)['key'] ?? null;
-  }
-  return null;
-});
