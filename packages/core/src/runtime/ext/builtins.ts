@@ -48,24 +48,15 @@ export const BUILTIN_METHODS: {
   datetime: Record<string, RillFunction>;
   duration: Record<string, RillFunction>;
 } = {
-  string: null as unknown as Record<string, RillFunction>,
-  list: null as unknown as Record<string, RillFunction>,
-  dict: null as unknown as Record<string, RillFunction>,
-  number: null as unknown as Record<string, RillFunction>,
-  bool: null as unknown as Record<string, RillFunction>,
-  vector: null as unknown as Record<string, RillFunction>,
-  datetime: null as unknown as Record<string, RillFunction>,
-  duration: null as unknown as Record<string, RillFunction>,
+  string: STRING_METHODS,
+  list: LIST_METHODS,
+  dict: DICT_METHODS,
+  number: NUMBER_METHODS,
+  bool: BOOL_METHODS,
+  vector: VECTOR_METHODS,
+  datetime: DATETIME_METHODS,
+  duration: DURATION_METHODS,
 };
-
-BUILTIN_METHODS.string = STRING_METHODS;
-BUILTIN_METHODS.list = LIST_METHODS;
-BUILTIN_METHODS.dict = DICT_METHODS;
-BUILTIN_METHODS.number = NUMBER_METHODS;
-BUILTIN_METHODS.bool = BOOL_METHODS;
-BUILTIN_METHODS.vector = VECTOR_METHODS;
-BUILTIN_METHODS.datetime = DATETIME_METHODS;
-BUILTIN_METHODS.duration = DURATION_METHODS;
 
 // Populate registration methods from BUILTIN_METHODS at module load time.
 // No circular dependency: type-registrations.ts does not import builtins.ts.
