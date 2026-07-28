@@ -7,23 +7,13 @@
  * @internal - Not part of public API
  */
 
-import type { RillFunction } from '../core/callable.js';
 import { populateBuiltinMethods } from '../core/types/registrations.js';
 import { registerBuiltinFunctions } from '../core/builtin-registry.js';
 
-import {
-  STRING_METHODS,
-  LIST_METHODS,
-  DICT_METHODS,
-  NUMBER_METHODS,
-  BOOL_METHODS,
-  VECTOR_METHODS,
-  DATETIME_METHODS,
-  DURATION_METHODS,
-} from './builtins/methods/tables.js';
 import { BUILTIN_FUNCTIONS } from './builtins/functions/index.js';
+import { BUILTIN_METHODS } from './builtins/methods/index.js';
 
-export { BUILTIN_FUNCTIONS };
+export { BUILTIN_FUNCTIONS, BUILTIN_METHODS };
 
 /**
  * Read-only view of the built-in function names.
@@ -33,30 +23,6 @@ export { BUILTIN_FUNCTIONS };
 export const BUILTIN_FUNCTION_NAMES: readonly string[] = Object.freeze(
   Object.keys(BUILTIN_FUNCTIONS)
 );
-
-// ============================================================
-// BUILT-IN METHODS
-// ============================================================
-
-export const BUILTIN_METHODS: {
-  string: Record<string, RillFunction>;
-  list: Record<string, RillFunction>;
-  dict: Record<string, RillFunction>;
-  number: Record<string, RillFunction>;
-  bool: Record<string, RillFunction>;
-  vector: Record<string, RillFunction>;
-  datetime: Record<string, RillFunction>;
-  duration: Record<string, RillFunction>;
-} = {
-  string: STRING_METHODS,
-  list: LIST_METHODS,
-  dict: DICT_METHODS,
-  number: NUMBER_METHODS,
-  bool: BOOL_METHODS,
-  vector: VECTOR_METHODS,
-  datetime: DATETIME_METHODS,
-  duration: DURATION_METHODS,
-};
 
 // Populate registration methods from BUILTIN_METHODS at module load time.
 // No circular dependency: type-registrations.ts does not import builtins.ts.
