@@ -226,8 +226,8 @@ export function invalidate(
 
 /**
  * Appends a trace frame to an invalid value's status, returning a new
- * RillValue with the extended trace. Prior frames are not cloned
- * (NFR-ERR-3); the new trace array is frozen.
+ * RillValue with the extended trace. Prior frames are not cloned;
+ * the new trace array is frozen.
  *
  * When called on a valid value (empty-status singleton), the result
  * remains logically valid: the frame is appended but `code` stays
@@ -294,7 +294,7 @@ function readMessage(raw: Readonly<Record<string, RillValue>>): string {
 /**
  * Renders a plain-text representation of an invalid RillValue's status.
  *
- * Deterministic, byte-equal across runtimes (FR-ERR-28 / AC-FDL-E1):
+ * Deterministic, byte-equal across runtimes:
  * no platform APIs, no timestamps, no random IDs. Uses `\n` as the line
  * separator (not platform-dependent `EOL`) and produces no trailing
  * newline.
@@ -305,7 +305,7 @@ function readMessage(raw: Readonly<Record<string, RillValue>>): string {
  *     <kind> <site>[/<fn>]        (one line per trace frame, origin first)
  *
  * For a valid value (`status.code === #ok`), returns `""`. The fast
- * path performs zero allocations (AC-N3 / AC-B5 / NFR-ERR-2): the
+ * path performs zero allocations: the
  * `isInvalid` probe reads the frozen empty-status singleton by
  * reference without cloning.
  */

@@ -3,9 +3,9 @@
  *
  * Defines the TypeDefinition for the 'atom' primitive type.
  * Atoms are interned: resolveAtom returns one frozen RillAtom per name,
- * so identity-based equality (AC-3) is a reference check on atom.atom.
+ * so identity-based equality is a reference check on atom.atom.
  *
- * Must NOT import from ../registrations.js (AC-4).
+ * Must NOT import from ../registrations.js.
  */
 
 import type { RillValue, RillAtomValue } from '../structures.js';
@@ -29,7 +29,7 @@ function formatCode(v: RillValue): string {
 
 /**
  * Atom equality uses interned reference comparison on the nested atom object.
- * AC-3: resolveAtom interns one frozen RillAtom per name, so identical names
+ * resolveAtom interns one frozen RillAtom per name, so identical names
  * share the same atom reference.
  */
 function eqCode(a: RillValue, b: RillValue): boolean {
@@ -68,7 +68,7 @@ function serializeAtom(v: RillValue): unknown {
 
 /**
  * Deserialize a string into a `:atom` value via `resolveAtom`.
- * Unregistered names resolve to `#R001` (EC-3) rather than throwing.
+ * Unregistered names resolve to `#R001` rather than throwing.
  */
 function deserializeAtom(data: unknown): RillValue {
   if (typeof data !== 'string') {

@@ -10,9 +10,9 @@
  *
  * ## Implementation Notes
  *
- * [DEVIATION] EC-1 Error Context Fields
+ * [DEVIATION] Excess-argument error context fields
  * - Spec defines error context as { functionName, paramName, expectedType, actualType }
- * - EC-1 (excess arguments) uses { functionName, expectedCount, actualCount }
+ * - Excess arguments instead uses { functionName, expectedCount, actualCount }
  * - Rationale: Excess arguments is an arity check, not a type check
  *
  * [ASSUMPTION] validateDefaultValueType _functionName Parameter

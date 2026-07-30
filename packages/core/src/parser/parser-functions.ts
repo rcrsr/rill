@@ -179,7 +179,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
     advance(this.state); // consume the identifier or keyword
   }
 
-  // AC-13: app:: syntax was removed; use use<host:...> instead
+  // app:: syntax was removed; use use<host:...> instead
   if (name === 'app' || name.startsWith('app::')) {
     throw new ParseError(
       ERROR_IDS.RILL_P012,

@@ -5,8 +5,11 @@ The `conduct/` directory and its initiatives, specifications, plans, and require
 - PR titles or descriptions
 - Commit messages on `main` or release branches
 - Any user-facing documentation under `docs/` or `packages/web/`, or root-level published files such as `CHANGELOG.md`
+- Source comments and strings under `packages/*/src/`
 
 Write PR and commit summaries as concrete descriptions of the code and API changes. Refer to source files, exported APIs, and doc pages that ship in the package instead.
+
+The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
 
 ## Monorepo Structure
 

@@ -2,7 +2,7 @@
  * Edge case tests for execution module
  *
  * Covers paths not exercised by execution-error.test.ts:
- * - EC-4: Non-Rill errors (plain Error, string throws) produce runtime category
+ * - Non-Rill errors (plain Error, string throws) produce runtime category
  * - extractCallStack: getCallStack throws, returns empty frames
  */
 
@@ -15,7 +15,7 @@ describe('executeRill edge cases', () => {
   });
 
   // ============================================================
-  // EC-4: Non-Rill errors (line 243 in execution.ts)
+  // Non-Rill errors (line 243 in execution.ts)
   // ============================================================
 
   describe('non-Rill error handling', () => {

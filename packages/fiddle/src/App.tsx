@@ -5,10 +5,10 @@
  * Dark-only brand aesthetic. Manages ExecutionState via React state.
  *
  * Features:
- * - AC-6: Example loading replaces editor content without auto-executing
- * - AC-16: Error clears on re-run with valid code
- * - AC-23: Rapid re-execution guard prevents duplicate outputs
- * - AC-24: First visit loads Hello World
+ * - Example loading replaces editor content without auto-executing
+ * - Error clears on re-run with valid code
+ * - Rapid re-execution guard prevents duplicate outputs
+ * - First visit loads Hello World
  */
 
 import { type JSX, useEffect, useState, useCallback, useRef } from 'react';

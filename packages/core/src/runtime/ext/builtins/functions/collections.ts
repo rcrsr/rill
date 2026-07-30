@@ -44,7 +44,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
    * Sequential iteration: invoke body closure for each element, return all results.
    * Catches BreakSignal and returns partial results.
    * $ is bound to the current element per iteration.
-   * @ is NOT bound (RILL-R040 EC-3: undefined variable error if body references $@).
+   * @ is NOT bound (RILL-R040: undefined variable error if body references $@).
    */
   seq: {
     params: [
@@ -563,11 +563,11 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
    *             sort(dict, key_fn) -> ordered[[key, value]] sorted by key_fn({key, value}).
    *
    * Error conditions:
-   *   EC-1 TYPE_MISMATCH  — mixed-type keys produced by extractor
-   *   EC-2 INVALID_INPUT  — extractor returns null (vacant)
-   *   EC-3 propagated     — extractor itself halts (no wrapping)
-   *   EC-5 TYPE_MISMATCH  — key_fn argument is not a callable
-   *   EC-6 RILL_R010      — iteration cap (propagated from getIterableElements)
+   *   TYPE_MISMATCH  — mixed-type keys produced by extractor
+   *   INVALID_INPUT  — extractor returns null (vacant)
+   *   propagated     — extractor itself halts (no wrapping)
+   *   TYPE_MISMATCH  — key_fn argument is not a callable
+   *   RILL_R010      — iteration cap (propagated from getIterableElements)
    */
   sort: {
     params: [
@@ -595,7 +595,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'sort',
       };
 
-      // EC-5: validate key_fn if supplied
+      // validate key_fn if supplied
       if (
         keyFnArg !== undefined &&
         keyFnArg !== null &&
@@ -615,7 +615,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         const entries = Object.entries(dictInput) as [string, RillValue][];
         const keyFn = keyFnArg ?? DICT_DEFAULT_KEY_FN;
 
-        // Pre-extract sort keys asynchronously (EC-2, EC-3 propagate naturally).
+        // Pre-extract sort keys asynchronously (extractor halts propagate naturally).
         const keyed = await Promise.all(
           entries.map(async ([k, v]) => {
             const entry: RillValue = { key: k, value: v };
@@ -639,7 +639,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           })
         );
 
-        // Synchronous stable sort on pre-extracted keys (EC-1).
+        // Synchronous stable sort on pre-extracted keys.
         keyed.sort((a, b) => {
           const cmp = resolvedCompareValue(a.key, b.key);
           if (cmp === undefined) {
@@ -667,7 +667,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       );
 
       if (!keyFnArg) {
-        // Default identity: compare elements directly (EC-1 via resolvedCompareValue).
+        // Default identity: compare elements directly via resolvedCompareValue.
         const keyed = elements.map((el) => ({ el, key: el }));
         keyed.sort((a, b) => {
           const cmp = resolvedCompareValue(a.key, b.key);
@@ -684,7 +684,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return keyed.map(({ el }) => el);
       }
 
-      // With key_fn: pre-extract sort keys asynchronously (EC-2, EC-3 propagate naturally).
+      // With key_fn: pre-extract sort keys asynchronously (extractor halts propagate naturally).
       const keyed = await Promise.all(
         elements.map(async (el) => {
           const childCtx = createChildContext(ctx as RuntimeContext);
@@ -707,7 +707,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         })
       );
 
-      // Synchronous stable sort on pre-extracted keys (EC-1).
+      // Synchronous stable sort on pre-extracted keys.
       keyed.sort((a, b) => {
         const cmp = resolvedCompareValue(a.key, b.key);
         if (cmp === undefined) {

@@ -101,7 +101,7 @@ export function createTraceFrame(args: {
  * Append `frame` to `frames`, returning a new frozen array.
  *
  * Order preserved: origin first, latest last. Prior frames are referenced
- * (not cloned) per NFR-ERR-3; the returned array is frozen.
+ * (not cloned); the returned array is frozen.
  */
 export function appendFrame(
   frames: ReadonlyArray<TraceFrame>,

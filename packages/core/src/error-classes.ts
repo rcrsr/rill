@@ -79,17 +79,17 @@ export function createError(
   // Lookup error definition from registry (O(1))
   const definition = ERROR_REGISTRY.get(errorId);
 
-  // EC-9: Unknown errorId -> Throws TypeError
+  // Unknown errorId -> Throws TypeError
   if (!definition) {
     throw new TypeError(`Unknown error ID: ${errorId}`);
   }
 
   // Render message from template + context (O(n) where n = template length)
-  // EC-10: Context value fails String() coercion -> Uses fallback "[object Object]"
+  // Context value fails String() coercion -> Uses fallback "[object Object]"
   // This is handled inside renderMessage via try-catch
   const message = renderMessage(definition.messageTemplate, context);
 
-  // EC-11: Malformed location (missing line/column) -> Error created without location metadata
+  // Malformed location (missing line/column) -> Error created without location metadata
   // We accept the location as-is; if it's malformed, the error won't have proper location data
   // This is acceptable per spec - the error is still created, just without complete location info
 
@@ -123,12 +123,12 @@ export class RillError extends Error {
   readonly sourceId?: string | undefined;
 
   constructor(data: RillErrorData) {
-    // EC-3: Missing errorId
+    // Missing errorId
     if (!data.errorId) {
       throw new TypeError('errorId is required');
     }
 
-    // EC-4: Unknown errorId
+    // Unknown errorId
     if (!ERROR_REGISTRY.has(data.errorId)) {
       throw new TypeError(`Unknown error ID: ${data.errorId}`);
     }
@@ -181,13 +181,13 @@ export class ParseError extends RillError {
     location: SourceLocation,
     context?: Record<string, unknown>
   ) {
-    // EC-7: Unknown errorId
+    // Unknown errorId
     const definition = ERROR_REGISTRY.get(errorId);
     if (!definition) {
       throw new TypeError(`Unknown error ID: ${errorId}`);
     }
 
-    // EC-8: Wrong category
+    // Wrong category
     if (definition.category !== 'parse') {
       throw new TypeError(`Expected parse error ID, got: ${errorId}`);
     }

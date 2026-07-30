@@ -1,7 +1,7 @@
 /**
  * AST visitor and position-lookup utilities.
  *
- * Import boundary note (§NOD.2.1):
+ * Import boundary note:
  * - This file lives at src/ level (not in runtime/), and depends only on
  *   the shared AST/type files (./ast-nodes.js, ./source-location.js).
  * - No imports from lexer/*, parser/*, or runtime/* — keeps this module

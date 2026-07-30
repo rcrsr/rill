@@ -8,15 +8,15 @@
  * - assertType(value, expected, location?) -> RillValue
  * - evaluateTypeAssertion(node, input) -> Promise<RillValue>
  * - evaluateTypeCheck(node, input) -> Promise<boolean>
- * - evaluateTypeConstructor(node) -> Promise<RillTypeValue> [IR-7]
- * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue> [IR-8]
- * - resolveTypeRef(typeRef, getVariable) -> Promise<RillTypeValue> [IR-2]
- * - buildCollectionType(name, args, resolveArg, evaluateDefault, location?) -> Promise<RillTypeValue> [IR-4]
+ * - evaluateTypeConstructor(node) -> Promise<RillTypeValue>
+ * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue>
+ * - resolveTypeRef(typeRef, getVariable) -> Promise<RillTypeValue>
+ * - buildCollectionType(name, args, resolveArg, evaluateDefault, location?) -> Promise<RillTypeValue>
  *
  * Error Handling:
- * - Type assertion failures throw RuntimeError(RUNTIME_TYPE_ERROR) [EC-24]
- * - Type constructor argument errors throw RuntimeError [EC-4 through EC-7]
- * - Closure sig literal errors throw RuntimeError [EC-8, EC-9]
+ * - Type assertion failures throw RuntimeError(RUNTIME_TYPE_ERROR)
+ * - Type constructor argument errors throw RuntimeError
+ * - Closure sig literal errors throw RuntimeError
  *
  * @internal
  */
@@ -59,19 +59,19 @@ import {
 
 /**
  * Shared helper that partitions args, enforces validation, evaluates
- * defaults, and constructs a RillTypeValue [IR-4].
+ * defaults, and constructs a RillTypeValue.
  *
  * Called by both resolveTypeRef and evaluateTypeConstructor with
  * different resolution/evaluation strategies via callbacks.
  *
  * Error contracts:
- * - EC-B1: Leaf type with args -> TYPE_MISMATCH
- * - EC-B2: list != 1 arg -> TYPE_MISMATCH
- * - EC-B3: Positional+named mix -> TYPE_MISMATCH
- * - EC-B4: tuple with named arg -> TYPE_MISMATCH
- * - EC-B5: Non-type arg value (delegated to resolveArg callback)
- * - EC-B6: Default type mismatch -> TYPE_MISMATCH
- * - EC-B7: Tuple non-trailing default -> TYPE_MISMATCH
+ * - Leaf type with args -> TYPE_MISMATCH
+ * - list != 1 arg -> TYPE_MISMATCH
+ * - Positional+named mix -> TYPE_MISMATCH
+ * - tuple with named arg -> TYPE_MISMATCH
+ * - Non-type arg value (delegated to resolveArg callback)
+ * - Default type mismatch -> TYPE_MISMATCH
+ * - Tuple non-trailing default -> TYPE_MISMATCH
  */
 async function buildCollectionType(
   s: EvalState,
@@ -82,7 +82,7 @@ async function buildCollectionType(
   location?: SourceLocation
 ): Promise<RillTypeValue> {
   if (name === 'list') {
-    // EC-B2: list requires exactly 1 positional arg
+    // list requires exactly 1 positional arg
     if (args.length !== 1 || args[0]!.name !== undefined) {
       throwTypeHalt(
         {
@@ -108,7 +108,7 @@ async function buildCollectionType(
     const positional = args.filter((a) => a.name === undefined);
     const named = args.filter((a) => a.name !== undefined);
 
-    // EC-B3: Cannot mix positional and named arguments
+    // Cannot mix positional and named arguments
     if (positional.length > 0 && named.length > 0) {
       throwTypeHalt(
         {
@@ -125,7 +125,7 @@ async function buildCollectionType(
     // Uniform path: exactly 1 positional, 0 named -> valueType
     if (positional.length === 1 && named.length === 0) {
       const valueType = await resolveArg(positional[0]!);
-      // EC-B6: Default type mismatch on uniform single-arg path
+      // Default type mismatch on uniform single-arg path
       if (positional[0]!.defaultValue !== undefined) {
         const defaultVal = await evaluateDefault(positional[0]!.defaultValue);
         if (!structureMatches(defaultVal, valueType)) {
@@ -175,7 +175,7 @@ async function buildCollectionType(
         const fieldDef: RillFieldDef = { type: resolvedType };
         if (arg.defaultValue !== undefined) {
           const defaultVal = await evaluateDefault(arg.defaultValue);
-          // EC-B6: Default type mismatch
+          // Default type mismatch
           if (!structureMatches(defaultVal, resolvedType)) {
             throwTypeHalt(
               {
@@ -194,7 +194,7 @@ async function buildCollectionType(
           }
           fieldDef.defaultValue = defaultVal;
         }
-        // IR-2: Evaluate per-field annotations
+        // Evaluate per-field annotations
         if (arg.annotations) {
           if (arg.annotations.length > 0) {
             const annots: Record<string, RillValue> = await evaluateAnnotations(
@@ -227,7 +227,7 @@ async function buildCollectionType(
       };
       if (arg.defaultValue !== undefined) {
         const defaultVal = await evaluateDefault(arg.defaultValue);
-        // EC-B6: Default type mismatch
+        // Default type mismatch
         if (!structureMatches(defaultVal, resolvedType)) {
           throwTypeHalt(
             {
@@ -246,7 +246,7 @@ async function buildCollectionType(
         }
         fieldDef.defaultValue = defaultVal;
       }
-      // IR-2: Evaluate per-field annotations
+      // Evaluate per-field annotations
       if (arg.annotations) {
         if (arg.annotations.length > 0) {
           const annots: Record<string, RillValue> = await evaluateAnnotations(
@@ -272,7 +272,7 @@ async function buildCollectionType(
   }
 
   // name === 'tuple'
-  // EC-B4: tuple requires positional args only
+  // tuple requires positional args only
   for (const arg of args) {
     if (arg.name !== undefined) {
       throwTypeHalt(
@@ -291,7 +291,7 @@ async function buildCollectionType(
   // Uniform path: exactly 1 positional -> valueType
   if (args.length === 1 && args[0]!.name === undefined) {
     const valueType = await resolveArg(args[0]!);
-    // EC-B6: Default type mismatch on uniform single-arg path
+    // Default type mismatch on uniform single-arg path
     if (args[0]!.defaultValue !== undefined) {
       const defaultVal = await evaluateDefault(args[0]!.defaultValue);
       if (!structureMatches(defaultVal, valueType)) {
@@ -326,7 +326,7 @@ async function buildCollectionType(
     const fieldDef: RillFieldDef = { type: resolvedType };
     if (arg.defaultValue !== undefined) {
       const defaultVal = await evaluateDefault(arg.defaultValue);
-      // EC-B6: Default type mismatch
+      // Default type mismatch
       if (!structureMatches(defaultVal, resolvedType)) {
         throwTypeHalt(
           {
@@ -345,7 +345,7 @@ async function buildCollectionType(
       }
       fieldDef.defaultValue = defaultVal;
     }
-    // IR-2: Evaluate per-field annotations
+    // Evaluate per-field annotations
     if (arg.annotations) {
       if (arg.annotations.length > 0) {
         const annots: Record<string, RillValue> = await evaluateAnnotations(
@@ -360,7 +360,7 @@ async function buildCollectionType(
     elements.push(fieldDef);
   }
 
-  // EC-B7: Tuple non-trailing default — no element without a default
+  // Tuple non-trailing default — no element without a default
   // may follow an element that has one.
   let sawDefault = false;
   for (let i = 0; i < elements.length; i++) {
@@ -390,7 +390,7 @@ async function buildCollectionType(
 }
 
 /**
- * Resolve a TypeRef to a RillTypeValue [IR-2].
+ * Resolve a TypeRef to a RillTypeValue.
  *
  * Static refs with no args return a frozen RillTypeValue directly.
  * Static refs with args delegate to buildCollectionType.
@@ -398,14 +398,14 @@ async function buildCollectionType(
  * - RillTypeValue -> return as-is
  * - Otherwise -> throw TYPE_MISMATCH
  *
- * EC-3: Variable not found -> RILL-R005.
- * EC-4: Non-type variable value -> TYPE_MISMATCH.
- * EC-5: list with != 1 positional arg -> TYPE_MISMATCH.
- * EC-6: dict/ordered positional+named mix -> TYPE_MISMATCH.
- * EC-7: tuple with named arg -> TYPE_MISMATCH.
- * EC-8: Default type mismatch -> TYPE_MISMATCH.
- * EC-9: Default evaluation failure -> propagated.
- * EC-10: Tuple non-trailing default -> TYPE_MISMATCH.
+ * Variable not found -> RILL-R005.
+ * Non-type variable value -> TYPE_MISMATCH.
+ * list with != 1 positional arg -> TYPE_MISMATCH.
+ * dict/ordered positional+named mix -> TYPE_MISMATCH.
+ * tuple with named arg -> TYPE_MISMATCH.
+ * Default type mismatch -> TYPE_MISMATCH.
+ * Default evaluation failure -> propagated.
+ * Tuple non-trailing default -> TYPE_MISMATCH.
  */
 export async function resolveTypeRef(
   s: EvalState,
@@ -424,7 +424,7 @@ export async function resolveTypeRef(
       });
     }
 
-    // EC-B1: Leaf types reject all type arguments (AC-4: derived from registrations)
+    // Leaf types reject all type arguments (derived from registrations)
     if (s.ctx.leafTypes.has(typeName)) {
       throwTypeHalt(
         {
@@ -481,7 +481,7 @@ export async function resolveTypeRef(
   // Union type ref: (A | B) -- resolve each member recursively and
   // return a RillTypeValue with structure: { kind: 'union', members: [...] }.
   // typeName is set to a display string for error messages; the structure
-  // field carries the authoritative type shape for validation (DR-1).
+  // field carries the authoritative type shape for validation.
   if (typeRef.kind === 'union') {
     const members: TypeStructure[] = [];
     for (const member of typeRef.members) {
@@ -633,7 +633,7 @@ export async function evaluateTypeCheck(
 }
 
 /**
- * Evaluate a type constructor node into a RillTypeValue [IR-7].
+ * Evaluate a type constructor node into a RillTypeValue.
  *
  * Handles list(T), dict(...), tuple(...), ordered(...).
  * Delegates to buildCollectionType with evaluateTypeConstructor-specific
@@ -696,14 +696,14 @@ export async function evaluateTypeConstructor(
 }
 
 /**
- * Evaluate a closure signature literal into a RillTypeValue [IR-8].
+ * Evaluate a closure signature literal into a RillTypeValue.
  *
  * Creates a closure type value from |param: T, ...|: R syntax.
  * Each parameter produces a [name, TypeStructure] entry.
  *
  * Error contracts:
- * - EC-8: missing return type -> TYPE_MISMATCH (enforced at parse time; node always has returnType)
- * - EC-9: non-type in parameter position -> TYPE_MISMATCH
+ * - missing return type -> TYPE_MISMATCH (enforced at parse time; node always has returnType)
+ * - non-type in parameter position -> TYPE_MISMATCH
  */
 export async function evaluateClosureSigLiteral(
   s: EvalState,
@@ -740,7 +740,7 @@ export async function evaluateClosureSigLiteral(
     params.push({ name: param.name, type: paramType });
   }
 
-  // Evaluate return type (EC-8: required -- parser enforces this at parse time)
+  // Evaluate return type (required -- parser enforces this at parse time)
   // returnType is PostfixExprNode (stops before pipe operators) so the
   // return type annotation cannot accidentally consume a trailing pipe chain.
   const retVal: RillValue = await evaluatePostfixExpr(s, node.returnType);

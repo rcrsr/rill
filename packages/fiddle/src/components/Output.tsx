@@ -6,9 +6,9 @@
  * success result, or structured error display.
  *
  * Features:
- * - AC-9: Formatted result display
- * - AC-10: "No output" for null results
- * - AC-12/13/14: Error display with line number and help links
+ * - Formatted result display
+ * - "No output" for null results
+ * - Error display with line number and help links
  * - ARIA labels for screen reader support
  */
 

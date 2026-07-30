@@ -2,7 +2,7 @@
  * Dict Protocol Module
  *
  * TypeDefinition for the 'dict' built-in type.
- * Dict MUST remain last in BUILT_IN_TYPES assembly (AC-16).
+ * Dict MUST remain last in BUILT_IN_TYPES assembly.
  * Assembly order is enforced in task 1.7 (registrations.ts), not here.
  *
  * Allowed imports: ../structures.js, ../guards.js, ./shared.js,

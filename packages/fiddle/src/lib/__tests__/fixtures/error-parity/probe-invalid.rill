@@ -1,4 +1,4 @@
-# AC-FDL-3 (invalid variant): .! probe on an invalid value returns true
+# .! probe on an invalid value returns true (invalid variant)
 #
 # guard produces an invalid value from the failing type assertion.
 # The bare .! probe on the invalid value returns boolean true.

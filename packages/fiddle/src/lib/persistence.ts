@@ -66,11 +66,11 @@ function isLocalStorageAvailable(): boolean {
  * Load editor state from localStorage.
  *
  * Returns default state on:
- * - localStorage unavailable (EC-7)
- * - Corrupt JSON in localStorage (EC-8)
+ * - localStorage unavailable
+ * - Corrupt JSON in localStorage
  * - Invalid state structure
  *
- * Clamps splitRatio to valid range (EC-9).
+ * Clamps splitRatio to valid range.
  */
 export function loadEditorState(): EditorState {
   if (!isLocalStorageAvailable()) {
@@ -110,7 +110,7 @@ export function loadEditorState(): EditorState {
 /**
  * Persist editor state to localStorage.
  *
- * Fails silently if localStorage is unavailable (EC-7).
+ * Fails silently if localStorage is unavailable.
  */
 export function persistEditorState(state: EditorState): void {
   if (!isLocalStorageAvailable()) {

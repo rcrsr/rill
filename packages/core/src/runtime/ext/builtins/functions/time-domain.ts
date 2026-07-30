@@ -16,16 +16,16 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
    * Suppress rapid stream emissions; emit the latest chunk after `duration`
    * of silence since the last observed chunk.
    *
-   * Stream-only: rejects list input with #INVALID_INPUT (EC-10).
-   * `duration` arg must be a duration value (EC-11).
-   * Iteration ceiling enforced via getIterableElements (EC-12).
-   * Upstream halt propagates through getIterableElements (EC-13).
+   * Stream-only: rejects list input with #INVALID_INPUT.
+   * `duration` arg must be a duration value.
+   * Iteration ceiling enforced via getIterableElements.
+   * Upstream halt propagates through getIterableElements.
    *
    * Semantics: of all observed chunks, emit only those not followed by
    * another chunk within `duration.ms`. With all chunks at the same virtual
    * timestamp (deterministic clock), only the last chunk passes.
    *
-   * Per AC-25: debounce = emit latest after silence.
+   * debounce = emit latest after silence.
    */
   debounce: {
     params: [
@@ -53,7 +53,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'debounce',
       };
 
-      // EC-10: reject list input
+      // reject list input
       if (Array.isArray(input)) {
         throwCatchableHostHalt(
           site,
@@ -62,7 +62,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      // EC-11: duration arg must be a duration value
+      // duration arg must be a duration value
       if (!isDuration(durArg)) {
         throwCatchableHostHalt(
           site,
@@ -76,7 +76,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
 
-      // EC-12 enforced by getIterableElements limit; EC-13 propagates halts
+      // Iteration cap enforced by the getIterableElements limit; halts propagate
       const elements = await getIterableElements(
         input,
         ctx as RuntimeContext,
@@ -111,12 +111,12 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
    * The first chunk in each interval passes; subsequent chunks in the same
    * interval are suppressed.
    *
-   * Stream-only: rejects list input with #INVALID_INPUT (EC-10).
-   * `duration` arg must be a duration value (EC-11).
-   * Iteration ceiling enforced via getIterableElements (EC-12).
-   * Upstream halt propagates through getIterableElements (EC-13).
+   * Stream-only: rejects list input with #INVALID_INPUT.
+   * `duration` arg must be a duration value.
+   * Iteration ceiling enforced via getIterableElements.
+   * Upstream halt propagates through getIterableElements.
    *
-   * Per AC-25: throttle = first-of-interval.
+   * throttle = first-of-interval.
    */
   throttle: {
     params: [
@@ -144,7 +144,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'throttle',
       };
 
-      // EC-10: reject list input
+      // reject list input
       if (Array.isArray(input)) {
         throwCatchableHostHalt(
           site,
@@ -153,7 +153,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      // EC-11: duration arg must be a duration value
+      // duration arg must be a duration value
       if (!isDuration(durArg)) {
         throwCatchableHostHalt(
           site,
@@ -167,7 +167,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
 
-      // EC-12 enforced by getIterableElements limit; EC-13 propagates halts
+      // Iteration cap enforced by the getIterableElements limit; halts propagate
       const elements = await getIterableElements(
         input,
         ctx as RuntimeContext,
@@ -201,12 +201,12 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
    * each checkpoint emits that latest value (if any chunk was seen since the
    * last checkpoint or the beginning).
    *
-   * Stream-only: rejects list input with #INVALID_INPUT (EC-10).
-   * `duration` arg must be a duration value (EC-11).
-   * Iteration ceiling enforced via getIterableElements (EC-12).
-   * Upstream halt propagates through getIterableElements (EC-13).
+   * Stream-only: rejects list input with #INVALID_INPUT.
+   * `duration` arg must be a duration value.
+   * Iteration ceiling enforced via getIterableElements.
+   * Upstream halt propagates through getIterableElements.
    *
-   * Per AC-25: sample = latest-at-interval.
+   * sample = latest-at-interval.
    * With a static virtual clock (ctx.nowMs), all chunks fall in the first
    * interval window and the last chunk is emitted as a single sample.
    */
@@ -236,7 +236,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'sample',
       };
 
-      // EC-10: reject list input
+      // reject list input
       if (Array.isArray(input)) {
         throwCatchableHostHalt(
           site,
@@ -245,7 +245,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      // EC-11: duration arg must be a duration value
+      // duration arg must be a duration value
       if (!isDuration(durArg)) {
         throwCatchableHostHalt(
           site,
@@ -254,13 +254,13 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      // durationMs validated above (EC-11); static-clock semantics make all
+      // durationMs validated above; static-clock semantics make all
       // elements fall in window 0 regardless of duration value.
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
 
-      // EC-12 enforced by getIterableElements limit; EC-13 propagates halts
+      // Iteration cap enforced by the getIterableElements limit; halts propagate
       const elements = await getIterableElements(
         input,
         ctx as RuntimeContext,

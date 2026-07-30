@@ -40,11 +40,11 @@ type CompoundToken = {
  * Three opener flavors:
  * - `[` bracket-body: collection literals (list, dict, tuple, ordered)
  * - `<` langle-body: angle-delimited heads (destruct, slice, use, retry, do)
- * - `{` brace-body: block heads (guard) — DEC-3 parallel path
+ * - `{` brace-body: block heads (guard)
  *
- * The brace-body flavor is a parallel addition per DEC-3 in the error-handling
- * plan. It reuses the same dispatch table so the lexer emits a single compound
- * token without leaking opener discrimination into the parser.
+ * The brace-body flavor is a parallel addition alongside the other two, not a
+ * replacement. It reuses the same dispatch table so the lexer emits a single
+ * compound token without leaking opener discrimination into the parser.
  */
 const COMPOUND_KEYWORD_MAP: Record<
   string,

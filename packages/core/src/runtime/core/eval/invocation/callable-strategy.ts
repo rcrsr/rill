@@ -11,10 +11,10 @@
  * rather than reallocating it on every call-site invocation.
  *
  * Error codes:
- *   RILL-R001 – non-callable target [EC-4], argument binding failure [EC-5]
- *   Original code preserved – callable body RillError [EC-6], re-thrown after
+ *   RILL-R001 – non-callable target, argument binding failure
+ *   Original code preserved – callable body RillError, re-thrown after
  *                              frame is appended to callStack
- *   Wrapped as RuntimeError – callable body non-Rill error [EC-7]
+ *   Wrapped as RuntimeError – callable body non-Rill error
  *
  * @internal
  */
@@ -86,7 +86,7 @@ export class CallableInvocationStrategy {
   /**
    * Guard non-callable targets before any argument evaluation.
    *
-   * EC-4 / AC-12: throws RILL-R001 when `target` is not a callable,
+   * throws RILL-R001 when `target` is not a callable,
    * embedding `path` and `location` in the error context.
    */
   validate(target: RillCallable, path: string, location: SourceLocation): void {
@@ -108,7 +108,7 @@ export class CallableInvocationStrategy {
    * Evaluate and bind arguments to the callable's parameter list.
    *
    * Delegates to `ArgumentsBinder` as the single spread-detection owner.
-   * EC-5: binding failures surface from ArgumentsBinder unchanged.
+   * binding failures surface from ArgumentsBinder unchanged.
    */
   async bind(
     callable: RillCallable,
@@ -138,12 +138,12 @@ export class CallableInvocationStrategy {
    * Callers must NOT re-catch for frame enrichment — this method is
    * the single frame-enrichment site.
    *
-   * AC-16: `finally` guarantees frame pop on both success and failure.
-   * AC-18: each call pushes/pops its own frame, preventing cross-call
+   * `finally` guarantees frame pop on both success and failure.
+   * each call pushes/pops its own frame, preventing cross-call
    *        contamination in re-entrant (nested) invocations.
    *
-   * EC-6: body RillError — callStack snapshot appended, error re-thrown.
-   * EC-7: body non-Rill error — wrapped as RuntimeError (RILL-R001).
+   * body RillError — callStack snapshot appended, error re-thrown.
+   * body non-Rill error — wrapped as RuntimeError (RILL-R001).
    */
   async invoke(
     callable: RillCallable,
@@ -177,7 +177,7 @@ export class CallableInvocationStrategy {
         functionName
       );
     } catch (error) {
-      // EC-6: snapshot call stack onto the error before finally pops frame.
+      // snapshot call stack onto the error before finally pops frame.
       // First snapshot wins — nested calls capture the deepest stack.
       if (error instanceof RillError && ctx.callStack.length > 0) {
         const errCtx = error.context as Record<string, unknown> | undefined;
@@ -195,7 +195,7 @@ export class CallableInvocationStrategy {
         ctx.callStack.length > 0
       ) {
         // Halt path: attach call stack to raw so the host-boundary bridge
-        // surfaces it on RuntimeError.context.callStack (AC-NOD-6 parity).
+        // surfaces it on RuntimeError.context.callStack.
         const priorRaw = getStatus(error.value).raw;
         if (!('callStack' in priorRaw)) {
           const enriched = mergeRaw(error.value, {
@@ -212,7 +212,7 @@ export class CallableInvocationStrategy {
       }
       throw error;
     } finally {
-      // AC-16: pop frame on both success and failure paths.
+      // pop frame on both success and failure paths.
       popCallFrame(ctx);
     }
   }

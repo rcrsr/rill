@@ -31,7 +31,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 /** Uppercase atom name regex: `[A-Z][A-Z0-9_]*`. Max 64 characters. */
 const ATOM_NAME_REGEX = /^[A-Z][A-Z0-9_]*$/;
 
-/** Maximum permitted atom name length (AC-B7). */
+/** Maximum permitted atom name length. */
 const MAX_ATOM_NAME_LENGTH = 64;
 
 // ============================================================
@@ -72,7 +72,7 @@ function makeAtom(name: string, kind: string): RillAtom {
 
 /**
  * Validates an atom name against the uppercase regex and length limit.
- * Throws on failure (EC-2 / AC-B7).
+ * Throws on failure.
  */
 function validateAtomName(name: string): void {
   if (typeof name !== 'string' || name.length === 0) {
@@ -101,8 +101,8 @@ function validateAtomName(name: string): void {
  * set at module load. Idempotent for identical (name, kind); re-registering
  * the same name with a different kind throws.
  *
- * @throws Error when `name` fails the uppercase regex or exceeds 64 chars (EC-2).
- * @throws Error when `name` was previously registered with a different kind (EC-1).
+ * @throws Error when `name` fails the uppercase regex or exceeds 64 chars.
+ * @throws Error when `name` was previously registered with a different kind.
  */
 export function registerErrorCode(name: string, kind: string): RillAtom {
   validateAtomName(name);
@@ -134,13 +134,13 @@ function registerAtomInternal(name: string, kind: string): RillAtom {
 /**
  * Resolves a name to its interned atom, or `#R001` when unregistered.
  *
- * Never throws (EC-3). Used by parse/link-time atom resolution and by
+ * Never throws. Used by parse/link-time atom resolution and by
  * the `:atom(name)` conversion.
  */
 export function resolveAtom(name: string): RillAtom {
   const found = registry.get(name);
   if (found !== undefined) return found;
-  // EC-3: unregistered -> fallback. `#R001` is pre-registered below
+  // unregistered -> fallback. `#R001` is pre-registered below
   // before this function can be called from user code.
   const fallback = registry.get('R001');
   if (fallback === undefined) {
@@ -201,15 +201,15 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   // not collapse to the `#R001` fallback.
   ['IGNORE', 'generic'],
   ['R999', 'registry'],
-  // FR-ERR-17 taxonomy: typed atom for type-assertion / conversion
+  // Error taxonomy: typed atom for type-assertion / conversion
   // failures. Registered here so evaluator handlers and type-layer helpers can
   // resolve `#TYPE_MISMATCH` before any script parses.
   ['TYPE_MISMATCH', 'generic'],
-  // IR-3: error-wrap halt atom. Underscore form required by
+  // error-wrap halt atom. Underscore form required by
   // ATOM_NAME_REGEX. Host-facing error ID `RILL-R015`/`RILL-R016`
   // (hyphen form) is a separate string namespace in error-registry.ts.
   [ERROR_ATOMS[ERROR_IDS.RILL_R016], 'runtime'],
-  // IC-4: collections.ts halt-builder migration atoms. Underscore form
+  // collections.ts halt-builder migration atoms. Underscore form
   // per ATOM_NAME_REGEX. Host-facing IDs use hyphen form (RILL-Rxxx).
   [ERROR_ATOMS[ERROR_IDS.RILL_R002], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R003], 'runtime'],

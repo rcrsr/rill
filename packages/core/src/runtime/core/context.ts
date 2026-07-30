@@ -32,7 +32,7 @@ import { ERROR_IDS } from '../../error-registry.js';
 
 /**
  * Maximum time (ms) `dispose()` waits for in-flight operations before
- * logging a warning and proceeding (EC-11).
+ * logging a warning and proceeding.
  */
 const DISPOSE_TIMEOUT_MS = 5000;
 
@@ -63,7 +63,7 @@ interface LifecycleState {
  *
  * When the host supplied `options.signal`, chain it with the factory-scope
  * controller via `AbortSignal.any` so either can cancel. Requires Node
- * >= 22.16.0 / 24.0.0 (DEC-6) to avoid GC bug #57736.
+ * >= 22.16.0 / 24.0.0 to avoid GC bug #57736.
  */
 function buildChainedSignal(
   factorySignal: AbortSignal,
@@ -192,7 +192,7 @@ function sanitizeMessage(message: string): string {
 }
 
 /**
- * Implements the `dispose()` cascade (IR-13, EC-11):
+ * Implements the `dispose()` cascade:
  * 1. Abort the factory-scope controller.
  * 2. Await in-flight operations with a bounded timeout.
  * 3. On timeout, log a warning via callbacks and proceed.
@@ -325,14 +325,14 @@ export function createRuntimeContext(
         | string
         | undefined;
 
-      // Validate default values at registration time (EC-4)
+      // Validate default values at registration time
       for (const param of params) {
         validateDefaultValueType(param, name);
       }
 
-      // Validate descriptions when requireDescriptions enabled (IR-6)
+      // Validate descriptions when requireDescriptions enabled
       if (options.requireDescriptions === true) {
-        // Check function description (EC-10)
+        // Check function description
         if (
           description === undefined ||
           typeof description !== 'string' ||
@@ -344,7 +344,7 @@ export function createRuntimeContext(
           );
         }
 
-        // Check parameter descriptions (EC-11)
+        // Check parameter descriptions
         for (const param of params) {
           const paramDesc = param.annotations['description'];
           if (
@@ -360,7 +360,7 @@ export function createRuntimeContext(
         }
       }
 
-      // Direct RillFunction mapping (AC-15: only structured form accepted)
+      // Direct RillFunction mapping (only structured form accepted)
       const appCallable: ApplicationCallable = {
         __type: 'callable',
         kind: 'application',
@@ -401,7 +401,7 @@ export function createRuntimeContext(
       : []
   );
 
-  // EC-1: Validate no duplicate type names in registrations.
+  // Validate no duplicate type names in registrations.
   const seenTypeNames = new Set<string>();
   for (const reg of BUILT_IN_TYPES) {
     if (seenTypeNames.has(reg.name)) {
@@ -413,7 +413,7 @@ export function createRuntimeContext(
     seenTypeNames.add(reg.name);
   }
 
-  // EC-2: Validate every registration has protocol.format.
+  // Validate every registration has protocol.format.
   for (const reg of BUILT_IN_TYPES) {
     if (!reg.protocol.format) {
       throw new RuntimeError(
@@ -429,7 +429,7 @@ export function createRuntimeContext(
   );
 
   // Derive leafTypes from registrations where isLeaf === true, plus 'any'
-  // which has no registration but rejects type arguments (AC-4).
+  // which has no registration but rejects type arguments.
   const leafTypes: ReadonlySet<string> = Object.freeze(
     new Set([
       ...BUILT_IN_TYPES.filter((r) => r.isLeaf).map((r) => r.name),
@@ -438,7 +438,7 @@ export function createRuntimeContext(
   );
 
   // Derive method dicts from registration.methods (absorbs buildTypeMethodDicts
-  // logic). Validates EC-6: duplicate method on same type.
+  // logic). Rejects a duplicate method on the same type.
   const methodRegistry = new Map<string, Set<string>>();
   const typeMethodDicts = new Map<
     string,
@@ -483,7 +483,7 @@ export function createRuntimeContext(
   const unvalidatedMethodReceivers =
     deriveUnvalidatedMethodReceivers(BUILT_IN_TYPES);
 
-  // BC-5: Freeze all derived collections after creation.
+  // Freeze all derived collections after creation.
   Object.freeze(typeNames);
   Object.freeze(typeMethodDicts);
 
@@ -662,7 +662,7 @@ export function createChildContext(
  * Get a variable value, walking the parent chain.
  * Returns undefined if not found in any scope.
  *
- * Thin wrapper delegating to the ScopeContext method (TD-1).
+ * Thin wrapper delegating to the ScopeContext method.
  */
 export function getVariable(
   ctx: RuntimeContext,
@@ -674,7 +674,7 @@ export function getVariable(
 /**
  * Check if a variable exists in any scope.
  *
- * Thin wrapper delegating to the ScopeContext method (TD-1).
+ * Thin wrapper delegating to the ScopeContext method.
  */
 export function hasVariable(ctx: RuntimeContext, name: string): boolean {
   return ctx.hasVariable(name);
@@ -691,7 +691,7 @@ export function hasVariable(ctx: RuntimeContext, name: string): boolean {
 export function getCallStack(
   error: import('../../types.js').RillError
 ): readonly import('../../types.js').CallFrame[] {
-  // EC-1: Non-RillError passed
+  // Non-RillError passed
   if (
     !error ||
     typeof error !== 'object' ||
@@ -733,7 +733,7 @@ export function pushCallFrame(
  * Pop frame from call stack after function/closure returns.
  */
 export function popCallFrame(ctx: RuntimeContext): void {
-  // EC-2: Pop on empty stack is no-op (defensive)
+  // Pop on empty stack is no-op (defensive)
   if (ctx.callStack.length > 0) {
     ctx.callStack.pop();
   }

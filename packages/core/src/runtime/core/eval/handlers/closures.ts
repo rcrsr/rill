@@ -88,7 +88,7 @@ import {
 } from '../invocation/stream-closures.js';
 
 // ============================================================
-// IR-8: CLOSURE-SKIPPING PIPE-RULE SCANNER
+// CLOSURE-SKIPPING PIPE-RULE SCANNER
 // ============================================================
 
 /**
@@ -100,7 +100,7 @@ import {
  * node boundaries, because references to `$` inside closure literals are
  * late-bound and do not affect the outer pipe-binding decision.
  *
- * Implements the IR-8 pipe-rule scanner.
+ * Implements the unified pipe-rule scanner.
  *
  * SCOPE: HostCall only — PipeInvoke and MethodCall are intentionally excluded.
  *
@@ -339,7 +339,7 @@ async function invokeFnCallable(
   try {
     return await dispatchPromise;
   } catch (e) {
-    // Enrichment site 1: extension-dispatch boundary (IR-4, AC-NOD-4).
+    // Enrichment site 1: extension-dispatch boundary.
     // Tag every thrown value as extension-originated first, then enrich
     // either RuntimeHaltSignal payloads or unmigrated RuntimeError sites
     // with call-site metadata.
@@ -520,7 +520,7 @@ async function invokeRegularScriptCallable(
     }
     return result;
   } catch (e) {
-    // Enrichment site 2: script-callable boundary (IR-4, AC-NOD-4).
+    // Enrichment site 2: script-callable boundary.
     // Tag every thrown value as extension-originated first, then enrich
     // RuntimeHaltSignal payloads with a host-kind trace frame.
     markExtensionThrow(e);
@@ -541,7 +541,7 @@ async function invokeRegularScriptCallable(
     // Pre-migration this block was explicit; after the halt-builder migration
     // the unmigrated RuntimeError sites (e.g. variables.ts RILL_R005) still
     // throw RuntimeError directly and need sourceId enriched at this boundary
-    // so host callers observe the AC-NOD-6 sourceId contract.
+    // so host callers observe the documented sourceId contract.
     if (e instanceof RillError && !e.sourceId && callableCtx.sourceId) {
       (e as { sourceId: string }).sourceId = callableCtx.sourceId;
       if (callableCtx.sourceText) {
@@ -594,7 +594,7 @@ async function invokeStream(
 
 /** Evaluate host function call: functionName(args).
  *
- * When `inPipeTarget` is true the IR-8 unified pipe-binding rule applies:
+ * When `inPipeTarget` is true the unified pipe-binding rule applies:
  * auto-prepend fires when no top-level `$` appears in the argument list.
  * When false (primary-expression context) the legacy guard is used instead
  * (`args.length === 0`), preserving existing behaviour for calls inside
@@ -672,7 +672,7 @@ export async function evaluateHostCall(
     isApplicationCallable(fn) &&
     fn.params !== undefined &&
     fn.params.length === 0;
-  // IR-8: pipe-binding rule.
+  // pipe-binding rule.
   // In pipe-target position: auto-prepend when no top-level `$` in args.
   // In primary-expression position: preserve legacy guard (args.length === 0)
   // so that host calls inside blocks/conditionals are not affected.
@@ -682,7 +682,7 @@ export async function evaluateHostCall(
   if (shouldPrepend && s.ctx.pipeValue !== null && !isTypedZeroParam) {
     // unshift inserts at position 0 so the piped value is the first arg.
     // push was sufficient for the legacy empty-args path but is wrong
-    // when existing args are present (new IR-8 rule).
+    // when existing args are present under the unified rule.
     args.unshift(s.ctx.pipeValue);
   }
   s.ctx.observability.onHostCall?.({ name: node.name, args });
@@ -1047,7 +1047,7 @@ export async function evaluateMethod(
       const result = typeMethod.fn(methodArgs, s.ctx, callLocation);
       return result instanceof Promise ? await result : result;
     } catch (e) {
-      // Enrichment site 3: type-method boundary (IR-4, AC-NOD-4).
+      // Enrichment site 3: type-method boundary.
       if (e instanceof RuntimeHaltSignal) {
         const enriched = appendTraceFrame(
           e.value,
@@ -1152,7 +1152,7 @@ export async function evaluateMethod(
           );
           return result instanceof Promise ? await result : result;
         } catch (e) {
-          // Enrichment site 4: fallback-method boundary (IR-4, AC-NOD-4).
+          // Enrichment site 4: fallback-method boundary.
           const callLocation = getNodeLocation(s, node);
           if (e instanceof RuntimeHaltSignal) {
             const enriched = appendTraceFrame(

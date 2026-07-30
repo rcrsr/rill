@@ -10,16 +10,16 @@
  * - Block-closure creation for expression-position blocks
  *
  * Interface requirements (from spec):
- * - evaluatePass(node) -> Promise<RillValue> [IR-4]
+ * - evaluatePass(node) -> Promise<RillValue>
  * - evaluateString(node) -> Promise<{ value: string; interpolated: boolean }>
  * - evaluateDict(node) -> Promise<Record<string, RillValue>>
  * - createClosure(node) -> Promise<ScriptCallable>
  * - createBlockClosure(node) -> ScriptCallable
  *
  * Error Handling:
- * - Pass throws RUNTIME_UNDEFINED_VARIABLE if $ not bound [EC-5]
- * - String interpolation errors propagate from evaluateExpression() [EC-6]
- * - Dict/tuple evaluation errors propagate from nested expressions [EC-7]
+ * - Pass throws RUNTIME_UNDEFINED_VARIABLE if $ not bound
+ * - String interpolation errors propagate from evaluateExpression()
+ * - Dict/tuple evaluation errors propagate from nested expressions
  *
  * @internal
  */
@@ -97,7 +97,7 @@ import { evaluateListLiteralElements } from './extraction.js';
 async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
   annotations: Record<string, RillValue>;
 }> {
-  // Capture closure-level annotations from immediateAnnotation field [IR-7].
+  // Capture closure-level annotations from immediateAnnotation field.
   // When a closure is created within a directly-annotated statement like:
   // ^(doc: "test") |x|($x * 2) :> $fn
   // immediateAnnotation holds the evaluated annotations set by executeAnnotatedStatement.
@@ -188,10 +188,10 @@ function requirePipeChainHead(
 }
 
 /**
- * Evaluate pass node - returns current pipe value unchanged [IR-4].
+ * Evaluate pass node - returns current pipe value unchanged.
  *
  * Pass returns ctx.pipeValue. If $ not bound (pipeValue is null),
- * throws RUNTIME_UNDEFINED_VARIABLE error [EC-5].
+ * throws RUNTIME_UNDEFINED_VARIABLE error.
  *
  * @param s - Evaluator state
  * @param node - PassNode from AST
@@ -218,20 +218,20 @@ export async function evaluatePass(
 }
 
 /**
- * Evaluate pass block node — non-halting side-effect [IR-8].
+ * Evaluate pass block node — non-halting side-effect.
  *
  * Runs `body` in the current context. Reads `on_error` from `options`;
  * when it equals `#IGNORE`, catchable halts from the body are suppressed
- * and the original pipe value is returned unchanged [EC-8].
+ * and the original pipe value is returned unchanged.
  *
  * When `async: true` is present in options, the body is dispatched via
  * `trackInflight` without awaiting (fire-and-forget). The pipe-entry value
- * flows downstream immediately; the body return value is discarded [IR-3].
+ * flows downstream immediately; the body return value is discarded.
  * `on_error: #IGNORE` composes with `async: true`: the registered promise
- * suppresses catchable body halts when both options are set [EC-8].
+ * suppresses catchable body halts when both options are set.
  *
  * Non-catchable halts (`catchable: false`) and `ControlSignal` instances
- * are always re-thrown per §NOD.10.4 [EC-9].
+ * are always re-thrown.
  *
  * @param s - Evaluator state
  * @param node - PassBlockNode from AST
@@ -253,8 +253,8 @@ export async function evaluatePassBlock(
     isAtom(onErrorValue) &&
     onErrorValue.atom === resolveAtom('IGNORE');
 
-  // Read async option [IR-3]. Parser enforces BoolLiteral; runtime defends
-  // against non-bool at evaluation time [EC-6 → RILL_R003].
+  // Read async option. Parser enforces BoolLiteral; runtime defends
+  // against non-bool at evaluation time [RILL_R003].
   const asyncValue = opts['async'];
   if (asyncValue !== undefined && typeof asyncValue !== 'boolean') {
     throwCatchableHostHalt(
@@ -277,11 +277,11 @@ export async function evaluatePassBlock(
     evaluateBody(evaluator, node.body)
       .then(() => undefined)
       .catch((e: unknown) => {
-        // §NOD.10.4: ControlSignal always re-throws.
+        // ControlSignal always re-throws.
         if (e instanceof ControlSignal) throw e;
-        // Non-catchable halts always re-throw [EC-9].
+        // Non-catchable halts always re-throw.
         if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
-        // Catchable halt: suppress only when on_error: #IGNORE [EC-8].
+        // Catchable halt: suppress only when on_error: #IGNORE.
         if (e instanceof RuntimeHaltSignal && suppress) {
           // Suppressed — body error discarded.
           return;
@@ -290,7 +290,7 @@ export async function evaluatePassBlock(
       });
 
   if (isAsync) {
-    // Async path [IR-3]: register body promise with trackInflight and return
+    // Async path: register body promise with trackInflight and return
     // control immediately. Body return value is intentionally discarded.
     // Pipe-entry value flows downstream unchanged.
     //
@@ -347,7 +347,7 @@ export async function evaluateString(
       // Restore pipeValue before each interpolation so they all see the same value
       s.ctx.pipeValue = savedPipeValue;
       const value = await evaluateExpression(s, part.expression);
-      // Vector coercion guard [EC-31]
+      // Vector coercion guard
       if (isVector(value)) {
         throwCatchableHostHalt(
           {
@@ -381,7 +381,7 @@ async function evaluateDictMultiKeyFromList(
     keyList.elements
   );
 
-  // Validate non-empty [EC-4]
+  // Validate non-empty
   if (keys.length === 0) {
     throwCatchableHostHalt(
       {
@@ -394,7 +394,7 @@ async function evaluateDictMultiKeyFromList(
     );
   }
 
-  // Validate all keys are primitives [EC-5]
+  // Validate all keys are primitives
   for (const key of keys) {
     const keyType = typeof key;
     if (keyType !== 'string' && keyType !== 'number' && keyType !== 'boolean') {
@@ -467,7 +467,7 @@ export async function evaluateDict(
         if (keyObj.kind === 'variable') {
           const varValue = getVariable(s.ctx, keyObj.variableName);
 
-          // EC-6: Variable undefined
+          // Variable undefined
           if (varValue === undefined) {
             throwCatchableHostHalt(
               {
@@ -480,7 +480,7 @@ export async function evaluateDict(
             );
           }
 
-          // EC-7: Variable non-string
+          // Variable non-string
           if (typeof varValue !== 'string') {
             throwCatchableHostHalt(
               {
@@ -557,7 +557,7 @@ export async function evaluateDict(
           }
           const computedValue = await evaluatePipeChain(s, keyObj.expression);
 
-          // EC-8: Computed key must evaluate to string
+          // Computed key must evaluate to string
           if (typeof computedValue !== 'string') {
             throwCatchableHostHalt(
               {
@@ -643,7 +643,7 @@ export async function evaluateDict(
       continue;
     }
 
-    // Convert number and boolean keys to strings per IR-3
+    // Convert number and boolean keys to strings.
     // String keys: use directly as object property
     // Number keys: convert to string via String(key)
     // Boolean keys: convert to string via String(key)
@@ -692,7 +692,7 @@ export async function evaluateDict(
 }
 
 /**
- * Evaluate dict as dispatch table when piped [IR-2].
+ * Evaluate dict as dispatch table when piped.
  *
  * Searches dict entries for key matching piped value using type-aware deep equality.
  * Returns matched value. Auto-invokes if matched value is closure.
@@ -708,7 +708,7 @@ export async function evaluateDict(
  * @param node - DictNode representing dispatch table
  * @param input - Piped value to use as lookup key
  * @returns Matched value (auto-invoked if closure)
- * @throws RuntimeError with RUNTIME_PROPERTY_NOT_FOUND if no match and no default [EC-4]
+ * @throws RuntimeError with RUNTIME_PROPERTY_NOT_FOUND if no match and no default
  */
 export async function evaluateDictDispatch(
   s: EvalState,
@@ -766,7 +766,7 @@ export async function evaluateDictDispatch(
     return await evaluateBodyExpression(s, node.defaultValue);
   }
 
-  // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND [EC-4]
+  // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND
   const location = node.span?.start;
   throwCatchableHostHalt(
     { location, sourceId: s.ctx.sourceId, fn: 'evaluateDictDispatch' },
@@ -1015,7 +1015,7 @@ export async function createClosure(
       defaultValue = await evaluatePrimary(s, param.defaultValue);
     }
 
-    // Resolve typeRef at closure-creation time (AC-12).
+    // Resolve typeRef at closure-creation time.
     // Dynamic refs ($var) are resolved against the current context now,
     // so the closure captures the concrete type, not the variable reference.
     let resolvedType: TypeStructure | undefined = undefined;
@@ -1038,7 +1038,7 @@ export async function createClosure(
       resolvedType = resolved.structure;
     }
 
-    // Infer type from default value when no explicit typeRef is present (AC-12).
+    // Infer type from default value when no explicit typeRef is present.
     // Primitive defaults (string, number, bool) constrain the parameter type.
     // Complex defaults (list, dict, closure) leave the parameter any-typed.
     if (resolvedType === undefined && defaultValue !== undefined) {
@@ -1070,10 +1070,10 @@ export async function createClosure(
 
   const isProperty = rillParams.length === 0;
 
-  // Evaluate returnTypeTarget at closure creation time (IR-4).
+  // Evaluate returnTypeTarget at closure creation time.
   // TypeConstructorNode → resolve via evaluateTypeConstructor() (e.g., stream(T):R).
   // TypeRef → resolve via resolveTypeRef() — returns RillTypeValue.
-  // Absent → returnType defaults to anyTypeValue (omission implies :any, AC-17, AC-18, AC-19).
+  // Absent → returnType defaults to anyTypeValue (omission implies :any).
   let returnType = anyTypeValue;
   if (node.returnTypeTarget !== undefined) {
     if (

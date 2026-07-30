@@ -3,7 +3,7 @@
  *
  * Defines the TypeDefinition for the 'number' primitive type.
  *
- * Must NOT import from ../registrations.js (AC-4).
+ * Must NOT import from ../registrations.js.
  */
 
 import type { RillValue } from '../structures.js';

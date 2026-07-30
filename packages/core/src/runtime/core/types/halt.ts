@@ -10,13 +10,13 @@
  * is thrown by:
  *   - the access-halt gate when an access site reads an invalid value,
  *   - the evaluator handlers when a type assertion / conversion / check
- *     fails and must surface as a typed-atom invalid (FR-ERR-17).
+ *     fails and must surface as a typed-atom invalid.
  *
  * `throwTypeHalt` is the canonical constructor for type-assertion halts
  * produced by evaluator handlers and type-layer helpers. It builds the
  * invalid value via `invalidate`, appends a `type` trace frame, and
  * throws a catchable `RuntimeHaltSignal` so `guard` / `retry` may
- * recover the invalid (spec FR-ERR-17, DEC-11).
+ * recover the invalid.
  */
 
 import type { SourceLocation } from '../../../types.js';
@@ -36,7 +36,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
  *
  * `catchable` distinguishes recoverable halts (access-gate halts and
  * operational type failures) from programmer-error halts (`error`,
- * `assert`, per FR-ERR-10 / FR-ERR-11). Guard and retry only catch
+ * `assert`). Guard and retry only catch
  * signals with `catchable === true`; non-catchable halts propagate
  * through recovery blocks unconditionally.
  */
@@ -93,7 +93,7 @@ export interface TypeHaltSite {
 
 /**
  * Build an invalid RillValue carrying a typed atom and a trace frame,
- * then throw a catchable `RuntimeHaltSignal` wrapping it (FR-ERR-17).
+ * then throw a catchable `RuntimeHaltSignal` wrapping it.
  *
  * `code` names the atom (e.g. `"TYPE_MISMATCH"`, `"INVALID_INPUT"`).
  * `kind` selects the trace-frame kind; defaults to `"type"` because the
@@ -131,7 +131,7 @@ export function throwTypeHalt(
 }
 
 // ============================================================
-// ABORT HALT BUILDER (IR-1)
+// ABORT HALT BUILDER
 // ============================================================
 
 /**
@@ -142,7 +142,7 @@ export function throwTypeHalt(
  * `host`-kind trace frame. Callers (typically `checkAborted` on the
  * evaluator base) set `site.fn = "checkAborted"`.
  *
- * Per TD-2, abort halts are non-catchable: guard and retry must not
+ * Abort halts are non-catchable: guard and retry must not
  * recover them. The builder allocates only when thrown; it is not on
  * the hot path and runs only when abort is detected.
  *
@@ -167,7 +167,7 @@ export function throwAbortHalt(site: TypeHaltSite): never {
 }
 
 // ============================================================
-// AUTO-EXCEPTION HALT BUILDER (IR-2)
+// AUTO-EXCEPTION HALT BUILDER
 // ============================================================
 
 /**
@@ -181,7 +181,7 @@ export function throwAbortHalt(site: TypeHaltSite): never {
  * The human-readable message is derived from `pattern` and
  * `matchedValue`; callers do not format it.
  *
- * Caller responsibility (EC-3): the builder does not validate inputs.
+ * Caller responsibility: the builder does not validate inputs.
  * `pattern` MUST be a non-empty string (the regex source) and
  * `matchedValue` MUST be a string, because auto-exceptions fire only on
  * string pipe values. Violating these preconditions yields a
@@ -216,7 +216,7 @@ export function throwAutoExceptionHalt(
 }
 
 // ============================================================
-// CATCHABLE HOST HALT BUILDER (IR-3)
+// CATCHABLE HOST HALT BUILDER
 // ============================================================
 
 /**
@@ -269,7 +269,7 @@ export function throwCatchableHostHalt(
 }
 
 // ============================================================
-// FATAL HOST HALT BUILDER (IR-3)
+// FATAL HOST HALT BUILDER
 // ============================================================
 
 /**
@@ -320,12 +320,12 @@ export function throwFatalHostHalt(
 }
 
 // ============================================================
-// ERROR WRAP HALT BUILDER (IR-3)
+// ERROR WRAP HALT BUILDER
 // ============================================================
 
 /**
  * Build an invalid RillValue for an `error "..."` statement, then throw
- * a non-catchable `RuntimeHaltSignal` wrapping it (NFR-HSM-7).
+ * a non-catchable `RuntimeHaltSignal` wrapping it.
  *
  * Emits the `#RILL_R016` atom with `provider="runtime"` and always
  * appends one `host`-kind trace frame via `invalidate`. Callers

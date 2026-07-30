@@ -1,4 +1,4 @@
-# AC-FDL-3 (valid variant): .! probe on a valid value returns false
+# .! probe on a valid value returns false (valid variant)
 #
 # 42 is a valid value. The bare .! probe returns the boolean false.
 # This script produces a valid success result (false).

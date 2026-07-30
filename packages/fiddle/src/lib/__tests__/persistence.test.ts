@@ -2,11 +2,11 @@
  * Tests for persistence module
  *
  * Coverage:
- * - IR-4: persistEditorState serializes and persists state
- * - IR-5: loadEditorState deserializes and returns defaults on failure
- * - EC-7: localStorage unavailable falls back to defaults
- * - EC-8: Corrupt JSON returns defaults
- * - EC-9: splitRatio clamped to valid range
+ * - persistEditorState serializes and persists state
+ * - loadEditorState deserializes and returns defaults on failure
+ * - localStorage unavailable falls back to defaults
+ * - Corrupt JSON returns defaults
+ * - splitRatio clamped to valid range
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -46,7 +46,7 @@ describe('persistence', () => {
   });
 
   describe('loadEditorState', () => {
-    // IR-5: First visit (no localStorage key) returns defaults
+    // First visit (no localStorage key) returns defaults
     it('returns default state on first visit', () => {
       const state = loadEditorState();
 
@@ -54,7 +54,7 @@ describe('persistence', () => {
       expect(state.lastSource).toContain('Hello, World!');
     });
 
-    // IR-4: Persist and load round-trip preserves state
+    // Persist and load round-trip preserves state
     it('loads persisted state correctly', () => {
       const testState: EditorState = {
         splitRatio: 60,
@@ -67,7 +67,7 @@ describe('persistence', () => {
       expect(loaded).toEqual(testState);
     });
 
-    // EC-8: Corrupt JSON returns default EditorState
+    // Corrupt JSON returns default EditorState
     it('returns defaults when JSON is corrupt', () => {
       window.localStorage.setItem('rill-fiddle-editor-state', '{invalid json}');
 
@@ -77,7 +77,7 @@ describe('persistence', () => {
       expect(state.lastSource).toContain('Hello, World!');
     });
 
-    // EC-8: Corrupt JSON returns defaults (non-object JSON)
+    // Corrupt JSON returns defaults (non-object JSON)
     it('returns defaults when stored value is not an object', () => {
       window.localStorage.setItem('rill-fiddle-editor-state', '"string value"');
 
@@ -86,7 +86,7 @@ describe('persistence', () => {
       expect(state.splitRatio).toBe(50);
     });
 
-    // EC-8: Corrupt JSON returns defaults (null value)
+    // Corrupt JSON returns defaults (null value)
     it('returns defaults when stored value is null', () => {
       window.localStorage.setItem('rill-fiddle-editor-state', 'null');
 
@@ -95,7 +95,7 @@ describe('persistence', () => {
       expect(state.splitRatio).toBe(50);
     });
 
-    // EC-9: splitRatio out of range clamps to valid bounds (too low)
+    // splitRatio out of range clamps to valid bounds (too low)
     it('clamps splitRatio to minimum when value is too low', () => {
       window.localStorage.setItem(
         'rill-fiddle-editor-state',
@@ -111,7 +111,7 @@ describe('persistence', () => {
       expect(state.splitRatio).toBeLessThanOrEqual(17);
     });
 
-    // EC-9: splitRatio out of range clamps to valid bounds (too high)
+    // splitRatio out of range clamps to valid bounds (too high)
     it('clamps splitRatio to maximum when value is too high', () => {
       window.localStorage.setItem(
         'rill-fiddle-editor-state',
@@ -127,7 +127,7 @@ describe('persistence', () => {
       expect(state.splitRatio).toBeLessThanOrEqual(84);
     });
 
-    // EC-9: Valid splitRatio values pass through unchanged
+    // Valid splitRatio values pass through unchanged
     it('preserves valid splitRatio values', () => {
       const validRatios = [20, 30, 50, 70, 80];
 
@@ -145,7 +145,7 @@ describe('persistence', () => {
       }
     });
 
-    // IR-5: Missing fields use defaults
+    // Missing fields use defaults
     it('uses defaults for missing fields', () => {
       window.localStorage.setItem(
         'rill-fiddle-editor-state',
@@ -160,7 +160,7 @@ describe('persistence', () => {
       expect(state.lastSource).toContain('Hello, World!');
     });
 
-    // IR-5: Wrong type for splitRatio uses default
+    // Wrong type for splitRatio uses default
     it('uses default splitRatio when type is wrong', () => {
       window.localStorage.setItem(
         'rill-fiddle-editor-state',
@@ -175,7 +175,7 @@ describe('persistence', () => {
       expect(state.splitRatio).toBe(50);
     });
 
-    // IR-5: Wrong type for lastSource uses default
+    // Wrong type for lastSource uses default
     it('uses default lastSource when type is wrong', () => {
       window.localStorage.setItem(
         'rill-fiddle-editor-state',
@@ -190,7 +190,7 @@ describe('persistence', () => {
       expect(state.lastSource).toContain('Hello, World!');
     });
 
-    // EC-7: localStorage unavailable (private browsing)
+    // localStorage unavailable (private browsing)
     it('falls back to defaults when localStorage is unavailable', () => {
       // Mock localStorage to throw on getItem
       vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
@@ -208,7 +208,7 @@ describe('persistence', () => {
   });
 
   describe('persistEditorState', () => {
-    // IR-4: Serializes to JSON and writes single localStorage key
+    // Serializes to JSON and writes single localStorage key
     it('persists state to localStorage', () => {
       const testState: EditorState = {
         splitRatio: 60,
@@ -224,7 +224,7 @@ describe('persistence', () => {
       expect(parsed).toEqual(testState);
     });
 
-    // IR-4: Uses single localStorage key for all editor state
+    // Uses single localStorage key for all editor state
     it('overwrites previous state on subsequent persist', () => {
       const state1: EditorState = {
         splitRatio: 50,
@@ -245,7 +245,7 @@ describe('persistence', () => {
       expect(loaded).toEqual(state2);
     });
 
-    // EC-7: localStorage unavailable falls back silently
+    // localStorage unavailable falls back silently
     it('fails silently when localStorage is unavailable', () => {
       // Mock localStorage to throw on setItem
       vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
@@ -261,7 +261,7 @@ describe('persistence', () => {
       expect(() => persistEditorState(testState)).not.toThrow();
     });
 
-    // IR-4: Round-trip preserves all fields
+    // Round-trip preserves all fields
     it('preserves all state fields through round-trip', () => {
       const testStates: EditorState[] = [
         { splitRatio: 30, lastSource: 'code 1' },
@@ -279,7 +279,7 @@ describe('persistence', () => {
   });
 
   describe('integration', () => {
-    // IR-4 + IR-5: Complete persist/load cycle
+    // Complete persist/load cycle
     it('handles complete lifecycle: first visit -> persist -> load', () => {
       // First visit: returns defaults
       const initial = loadEditorState();
@@ -299,7 +299,7 @@ describe('persistence', () => {
       expect(reloaded).toEqual(updated);
     });
 
-    // EC-8: Overwrites corrupt data on next persist
+    // Overwrites corrupt data on next persist
     it('recovers from corrupt data by overwriting on next persist', () => {
       // Corrupt the stored data
       window.localStorage.setItem('rill-fiddle-editor-state', '{invalid}');

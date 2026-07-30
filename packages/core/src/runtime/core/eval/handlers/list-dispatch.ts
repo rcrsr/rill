@@ -4,12 +4,12 @@
  * Handles `index -> list[v0, v1, ...]` — evaluates the list literal elements,
  * then returns the element at the piped numeric index.
  *
- * Interface requirements (from spec IR-11):
+ * Interface requirements:
  * - evaluateListLiteralDispatch(node, input) -> Promise<RillValue>
  *
  * Error Contracts:
- * - EC-15 (RILL-R041): Non-integer index
- * - EC-16 (RILL-R042): Out-of-bounds without ?? fallback
+ * - RILL-R041: Non-integer index
+ * - RILL-R042: Out-of-bounds without ?? fallback
  *
  * @internal
  */
@@ -29,18 +29,18 @@ import { evaluateBody } from './control-flow.js';
 import { evaluateExpression } from './core.js';
 
 /**
- * Evaluate list[...] as a pipe target [IR-11].
+ * Evaluate list[...] as a pipe target.
  *
  * The piped value is used as a numeric index. Negative indices count from
- * the end (-1 is last). Non-integer indices throw EC-15. Out-of-bounds
- * without a default value throws EC-16.
+ * the end (-1 is last). Non-integer indices throw RILL-R041. Out-of-bounds
+ * without a default value throws RILL-R042.
  */
 export async function evaluateListLiteralDispatch(
   s: EvalState,
   node: ListLiteralNode,
   input: RillValue
 ): Promise<RillValue> {
-  // EC-15: index must be a number
+  // index must be a number
   if (typeof input !== 'number') {
     throwCatchableHostHalt(
       {
@@ -54,7 +54,7 @@ export async function evaluateListLiteralDispatch(
     );
   }
 
-  // EC-15: index must be an integer (no fractional part)
+  // index must be an integer (no fractional part)
   if (!Number.isInteger(input)) {
     throwCatchableHostHalt(
       {

@@ -151,8 +151,8 @@ function createExtModuleResolver(bindingSource: string): SchemeResolver {
  * Builds extension bindings, registers ext and module resolvers,
  * and returns a context ready for execute().
  *
- * @throws {TypeError} when an extension value is undefined (EC-9)
- * @throws {ExtensionBindingError} when binding generation fails (EC-10)
+ * @throws {TypeError} when an extension value is undefined
+ * @throws {ExtensionBindingError} when binding generation fails
  */
 export function createTestContext(
   extensions: Record<
@@ -160,7 +160,7 @@ export function createTestContext(
     { value: RillValue; dispose?: () => void | Promise<void> }
   >
 ): RuntimeContext {
-  // EC-9: Validate no undefined extension values
+  // Validate no undefined extension values
   for (const [name, entry] of Object.entries(extensions)) {
     if (entry.value === undefined) {
       throw new TypeError(`Extension '${name}' has undefined value`);
@@ -173,7 +173,7 @@ export function createTestContext(
     extConfig[name] = entry.value;
   }
 
-  // Generate rill source bindings (EC-10: propagates ExtensionBindingError)
+  // Generate rill source bindings (propagates ExtensionBindingError)
   const bindingSource = buildExtensionBindings(extConfig);
 
   // Create module resolver for ext bindings

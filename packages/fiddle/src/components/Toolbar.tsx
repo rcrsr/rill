@@ -5,8 +5,8 @@
  * and keyboard shortcut hint. Dark-only void aesthetic.
  *
  * Features:
- * - AC-5: Run button triggers execution
- * - AC-6: Example loading replaces editor content without auto-executing
+ * - Run button triggers execution
+ * - Example loading replaces editor content without auto-executing
  * - Keyboard accessible controls (WAI-ARIA patterns)
  */
 

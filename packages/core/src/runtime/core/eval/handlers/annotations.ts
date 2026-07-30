@@ -4,14 +4,14 @@
  * Provides statement execution wrapper with annotation handling.
  * Annotations modify execution behavior (e.g., iteration limits).
  *
- * Interface requirements (from spec IR-53 through IR-55):
- * - executeStatement(stmt) -> Promise<RillValue> [IR-53]
- * - getAnnotation(key) -> RillValue | undefined [IR-54]
- * - getIterationLimit() -> number [IR-55]
+ * Interface requirements:
+ * - executeStatement(stmt) -> Promise<RillValue>
+ * - getAnnotation(key) -> RillValue | undefined
+ * - getIterationLimit() -> number
  *
  * Error Handling:
- * - Annotated statement execution errors propagate [EC-25]
- * - Annotation evaluation errors propagate [EC-26]
+ * - Annotated statement execution errors propagate
+ * - Annotation evaluation errors propagate
  *
  * @internal
  */
@@ -35,7 +35,7 @@ import { checkAutoExceptions } from '../shared.js';
 const DEFAULT_MAX_ITERATIONS = 10000;
 
 /**
- * Execute statement with annotation handling [IR-53].
+ * Execute statement with annotation handling.
  *
  * Handles both regular and annotated statements.
  * For annotated statements, evaluates annotations, pushes to stack,
@@ -78,10 +78,10 @@ async function executeAnnotatedStatement(
   s: EvalState,
   stmt: AnnotatedStatementNode
 ): Promise<RillValue> {
-  // Evaluate annotation arguments to build annotation dict [EC-26]
+  // Evaluate annotation arguments to build annotation dict
   const newAnnotations = await evaluateAnnotations(s, stmt.annotations);
 
-  // No inheritance: use only the annotations declared on this statement [IR-7]
+  // No inheritance: use only the annotations declared on this statement
   const merged = newAnnotations;
 
   // Set immediateAnnotation for closure capture before pushing to stack
@@ -101,7 +101,7 @@ async function executeAnnotatedStatement(
  * Evaluate annotation arguments to a dict of key-value pairs.
  * Handles both named arguments and spread arguments.
  *
- * Errors during evaluation propagate [EC-26].
+ * Errors during evaluation propagate.
  */
 export async function evaluateAnnotations(
   s: EvalState,
@@ -155,7 +155,7 @@ export async function evaluateAnnotations(
 }
 
 /**
- * Get the current value of an annotation from the annotation stack [IR-54].
+ * Get the current value of an annotation from the annotation stack.
  *
  * Returns the value from the top of the annotation stack (innermost scope).
  */
@@ -167,11 +167,11 @@ export function getAnnotation(
 }
 
 /**
- * Get the iteration limit for loops from operator-level annotations [IR-55, IR-6].
+ * Get the iteration limit for loops from operator-level annotations.
  *
  * Reads from the provided operator-level annotations dict when given.
  * Falls back to DEFAULT_MAX_ITERATIONS when no valid positive number is found.
- * Statement-level annotationStack is NOT consulted (EC-5).
+ * Statement-level annotationStack is NOT consulted.
  *
  * @param operatorAnnotations - Evaluated operator-level annotations (from node.annotations)
  */

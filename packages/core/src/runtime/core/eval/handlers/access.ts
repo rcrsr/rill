@@ -19,7 +19,7 @@
  * blocks catch the signal and recover the invalid value; any other
  * frame lets the signal propagate.
  *
- * Interface requirements (from spec FR-ERR-14, EC-7):
+ * Interface requirements:
  * - Access on invalid value halts (catchable by guard / retry).
  * - Status-probe sites (`.!`, `.!field`) bypass the gate entirely.
  *
@@ -121,7 +121,7 @@ export function accessHaltGate(value: RillValue, site: AccessSite): RillValue {
  *
  * The valid-path body is inlined: a single property read against the
  * Symbol-keyed sidecar. When no sidecar is present (the overwhelming
- * majority of runtime values on NFR-ERR-1 benchmarks), the value is
+ * majority of runtime values in the hot-path benchmarks), the value is
  * returned immediately with zero allocations. Only the slow path
  * constructs the `AccessSite` record and invokes `formatAccessSite`.
  *
@@ -165,7 +165,7 @@ export function accessHaltGateFast(
 }
 
 /**
- * Out-of-line slow-path helper for inlined access-halt probes (RI-4).
+ * Out-of-line slow-path helper for inlined access-halt probes.
  *
  * Call sites in hot loops (e.g. `evaluateBinaryExpr` arithmetic branch)
  * inline the Symbol-keyed sidecar probe directly, avoiding the arrow

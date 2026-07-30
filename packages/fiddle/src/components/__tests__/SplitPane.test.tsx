@@ -2,9 +2,9 @@
  * SplitPane Component Tests
  *
  * Test coverage for SplitPane component:
- * - IC-12: Component renders without errors
- * - AC-8: Split ratio persists via onSplitChange callback
- * - AC-20: Divider enforces 200px minimum panel size
+ * - Component renders without errors
+ * - Split ratio persists via onSplitChange callback
+ * - Divider enforces 200px minimum panel size
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -29,7 +29,7 @@ describe('SplitPane', () => {
   });
 
   // ============================================================
-  // IC-12: Component renders without errors
+  // Component renders without errors
   // ============================================================
 
   describe('rendering', () => {
@@ -82,7 +82,7 @@ describe('SplitPane', () => {
   });
 
   // ============================================================
-  // AC-8: Split ratio persistence (callback interface)
+  // Split ratio persistence (callback interface)
   // ============================================================
 
   describe('split ratio persistence interface', () => {
@@ -114,7 +114,7 @@ describe('SplitPane', () => {
   });
 
   // ============================================================
-  // AC-20: Divider enforces 200px minimum panel size
+  // Divider enforces 200px minimum panel size
   // ============================================================
 
   describe('minimum panel size enforcement', () => {

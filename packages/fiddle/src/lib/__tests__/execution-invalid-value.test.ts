@@ -1,9 +1,9 @@
 /**
  * Tests for executeRill invalid-value detection and FiddleError shape
  *
- * AC-FDL-6 : executeRill routes an invalid final value to status === 'error'
+ * executeRill routes an invalid final value to status === 'error'
  *            with statusCode, statusMessage, statusProvider, statusTrace.
- * AC-FDL-8 : statusTrace carries N >= 1 frames; each frame has kind, site, fn.
+ * statusTrace carries N >= 1 frames; each frame has kind, site, fn.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -11,10 +11,10 @@ import { executeRill } from '../execution.js';
 
 describe('executeRill invalid-value detection', () => {
   // ============================================================
-  // AC-FDL-6: invalid final value routes to error status
+  // invalid final value routes to error status
   // ============================================================
 
-  describe('AC-FDL-6: invalid final value', () => {
+  describe('invalid final value', () => {
     it('guard-caught invalid produces status error (not success)', async () => {
       // guard catches the type-assertion halt and returns an invalid value
       // as the script's final result. executeRill must detect isInvalid and
@@ -66,7 +66,7 @@ describe('executeRill invalid-value detection', () => {
       expect(state.error?.errorId).toBe(null);
     });
 
-    it('message equals formatHalt output (DEC-8)', async () => {
+    it('message equals formatHalt output', async () => {
       // executeRill uses formatHalt internally; the message field must be
       // the same string that formatHalt produces for the same invalid value.
       const state = await executeRill('guard { "hello" -> :number }');
@@ -77,7 +77,7 @@ describe('executeRill invalid-value detection', () => {
     });
 
     it('valid final value is NOT routed to the error path', async () => {
-      // AC-FDL-B1: valid result must use the success renderer
+      // valid result must use the success renderer
       const state = await executeRill('42');
 
       expect(state.status).toBe('success');
@@ -87,10 +87,10 @@ describe('executeRill invalid-value detection', () => {
   });
 
   // ============================================================
-  // AC-FDL-8: statusTrace frame shape
+  // statusTrace frame shape
   // ============================================================
 
-  describe('AC-FDL-8: statusTrace frame shape', () => {
+  describe('statusTrace frame shape', () => {
     it('each trace frame has kind, site, and fn fields', async () => {
       const state = await executeRill('guard { "hello" -> :number }');
 
