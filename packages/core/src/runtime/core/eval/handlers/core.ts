@@ -6,16 +6,16 @@
  *
  * This is the central coordination point that ties together all other evaluator handlers.
  *
- * Interface requirements (from spec IR-5 through IR-13):
- * - evaluateExpression(expr) -> Promise<RillValue> [IR-8]
- * - evaluatePipeChain(chain) -> Promise<RillValue> [IR-9]
- * - evaluatePostfixExpr(expr) -> Promise<RillValue> [IR-10]
- * - evaluatePrimary(primary) -> Promise<RillValue> [IR-11]
- * - evaluatePipeTarget(target, input) -> Promise<RillValue> [IR-12]
+ * Interface requirements:
+ * - evaluateExpression(expr) -> Promise<RillValue>
+ * - evaluatePipeChain(chain) -> Promise<RillValue>
+ * - evaluatePostfixExpr(expr) -> Promise<RillValue>
+ * - evaluatePrimary(primary) -> Promise<RillValue>
+ * - evaluatePipeTarget(target, input) -> Promise<RillValue>
  *
  * Error Handling:
- * - Unsupported expression types throw RuntimeError [EC-4]
- * - Aborted execution halts via RuntimeHaltSignal [EC-5]
+ * - Unsupported expression types throw RuntimeError
+ * - Aborted execution halts via RuntimeHaltSignal
  *
  * @internal
  */
@@ -136,7 +136,7 @@ function matchesErrorId(
 }
 
 /**
- * Main expression evaluation entry point [IR-8].
+ * Main expression evaluation entry point.
  * Delegates to pipe chain evaluator.
  */
 export async function evaluateExpression(
@@ -163,7 +163,7 @@ export async function evaluateExpression(
 }
 
 /**
- * Evaluate pipe chain with left-to-right flow [IR-9].
+ * Evaluate pipe chain with left-to-right flow.
  *
  * Pipe chains isolate their $ value from parent scope.
  * The chain's result is returned, but $ modifications don't leak.
@@ -196,7 +196,7 @@ export async function evaluatePipeChain(
   s.ctx.pipeValue = value; // OK: local to this chain evaluation
 
   // Evaluate each pipe target in sequence
-  // [IR-8: BreakSignal and ReturnSignal propagate through to caller]
+  // BreakSignal and ReturnSignal propagate through to the caller.
   for (const target of chain.pipes) {
     // Handle inline captures (act as identity: store and pass through)
     if (target.type === 'Capture') {
@@ -205,7 +205,7 @@ export async function evaluatePipeChain(
       continue;
     }
 
-    // EC-7: access-halt gate at pipe site. An invalid LHS halts before
+    // access-halt gate at pipe site. An invalid LHS halts before
     // flowing into the pipe target; `->` is an access on the LHS value.
     // Status probes bypass the gate at their own call site (see
     // evaluateStatusProbe) so this gate never fires for `.!` access.
@@ -255,7 +255,7 @@ export async function evaluatePipeChain(
 }
 
 /**
- * Evaluate postfix expression: primary with method chain [IR-10].
+ * Evaluate postfix expression: primary with method chain.
  *
  * Example: obj.method1().method2().method3()
  * Evaluates primary, then applies each method in sequence.
@@ -329,7 +329,7 @@ export async function evaluatePostfixExpr(
 }
 
 /**
- * Evaluate primary expression [IR-11].
+ * Evaluate primary expression.
  *
  * Primary expressions are the atomic units of expressions:
  * - Literals (string, number, boolean, tuple, dict, closure)
@@ -377,13 +377,13 @@ export async function evaluatePrimary(
 
     case 'AnnotatedExpr': {
       // Set immediateAnnotation before evaluating the inner primary so
-      // createClosure() can consume it via captureClosureAnnotations [IR-5].
+      // createClosure() can consume it via captureClosureAnnotations.
       const annots = await evaluateAnnotations(s, primary.annotations);
       s.ctx.immediateAnnotation = annots;
       try {
         const innerResult = await evaluatePrimary(s, primary.expression);
         if (!isScriptCallable(innerResult)) {
-          // Non-closure: annotation silently ignored [EC-5]
+          // Non-closure: annotation silently ignored
           s.ctx.immediateAnnotation = undefined;
         }
         // ScriptCallable: immediateAnnotation was consumed by createClosure()
@@ -536,9 +536,9 @@ export async function evaluatePrimary(
       } as unknown as RillValue;
 
     case 'RecoveryError': {
-      // EC-12 / EC-14: a RecoveryErrorNode reached runtime produces an
+      // a RecoveryErrorNode reached runtime produces an
       // invalid value with code `#R001`. Parse-recovery emitted the node;
-      // execution surfaces it as an invalid per FR-ERR-4.
+      // execution surfaces it as an invalid.
       const site = formatAccessSite(
         getNodeLocation(s, primary),
         s.ctx.sourceId
@@ -571,7 +571,7 @@ export async function evaluatePrimary(
 }
 
 /**
- * Evaluate pipe target with input value [IR-12].
+ * Evaluate pipe target with input value.
  *
  * Pipe targets are expressions that can receive piped values.
  * Sets $ to the input value before evaluation.
@@ -585,13 +585,13 @@ async function evaluatePipeTarget(
 
   switch (target.type) {
     case 'HostCall':
-      // Pass inPipeTarget=true so the IR-8 unified pipe-binding rule
+      // Pass inPipeTarget=true so the unified pipe-binding rule
       // applies: auto-prepend fires when no top-level `$` is in args.
       return evaluateHostCall(s, target, true);
 
     case 'HostRef':
       // pipeValue is already set to input above; evaluateHostRef invokes
-      // with it when pipeValue is non-null [IR-4].
+      // with it when pipeValue is non-null.
       return evaluateHostRef(s, target);
 
     case 'ClosureCall':
@@ -672,7 +672,7 @@ async function evaluatePipeTarget(
       return evaluateDestructure(s, target, input);
 
     case 'Destruct':
-      // Keyword-based destruct<$a, $b, ...> form [IR-26]
+      // Keyword-based destruct<$a, $b, ...> form
       return evaluateDestruct(s, target, input);
 
     case 'ListLiteral': {
@@ -688,7 +688,7 @@ async function evaluatePipeTarget(
           getNodeLocation(s, target)
         );
       }
-      // list[...] as pipe target: index-based dispatch [IR-11]
+      // list[...] as pipe target: index-based dispatch
       return evaluateListLiteralDispatch(s, target, input);
     }
 
@@ -739,7 +739,7 @@ async function evaluatePipeTarget(
         }
       }
 
-      // Slot 6 (IR-2): Type value dispatch — delegate to applyConversion.
+      // Slot 6: Type value dispatch — delegate to applyConversion.
       // Detection uses the __rill_type flag on RillTypeValue, not structural
       // duck typing. Must be checked BEFORE isDict and hierarchical dispatch
       // checks, since RillTypeValue is a plain object that isDict() would
@@ -862,7 +862,7 @@ async function evaluatePipeTarget(
 }
 
 /**
- * Navigate nested data structure using list of keys/indexes [IR-1].
+ * Navigate nested data structure using list of keys/indexes.
  *
  * Traverses through nested dicts and lists using a path of keys/indexes.
  * Empty path returns target unchanged. Each path element dispatches to
@@ -933,7 +933,7 @@ async function evaluateHierarchicalDispatch(
 }
 
 /**
- * Execute single path step: dispatch key to current value [IR-2].
+ * Execute single path step: dispatch key to current value.
  *
  * Handles type-specific dispatch:
  * - Dict + string key -> dispatchToDict
@@ -1059,7 +1059,7 @@ async function resolveIntermediateClosure(
   if (value.kind === 'script' && value.params.length >= 1) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
     if (value.params[0]!.name !== '$') {
-      // Parameterized closure at intermediate position: error per EC-8
+      // Parameterized closure at intermediate position: error per
       throwCatchableHostHalt(
         {
           location,
@@ -1080,7 +1080,7 @@ async function resolveIntermediateClosure(
  * Resolve terminal value in hierarchical dispatch: auto-invoke closures with finalKey.
  * Used when navigating to a final path element.
  *
- * Behavior per IR-4:
+ * Behavior
  * - Block-closures (params.length > 0, first param is '$'): invoke with args = [finalKey]
  * - Zero-param closures: invoke with pipeValue = finalKey
  * - Parameterized closures: throw error (dispatch does not provide args)
@@ -1109,7 +1109,7 @@ async function resolveTerminalValue(
   if (value.kind === 'script' && value.params.length >= 1) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
     if (value.params[0]!.name !== '$') {
-      // Parameterized closure at terminal position: error per EC-9
+      // Parameterized closure at terminal position: error per
       throwCatchableHostHalt(
         {
           location,

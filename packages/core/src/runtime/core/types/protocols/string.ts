@@ -3,9 +3,9 @@
  *
  * Defines the TypeDefinition for the 'string' primitive type.
  * Includes null identity: typeof null !== 'string', but rill's type system
- * treats null as the string type (BC-1, AC-19).
+ * treats null as the string type.
  *
- * Must NOT import from ../registrations.js (AC-4).
+ * Must NOT import from ../registrations.js.
  */
 
 import type { RillValue } from '../structures.js';

@@ -44,8 +44,8 @@ import { ERROR_IDS } from '../error-registry.js';
  * Dynamic refs do not accept parameterization — `$T(...)` is not valid.
  * Union members are flattened: nested unions are spread into the member list.
  *
- * Throws ParseError (EC-13) if neither a `$identifier` nor a valid type name
- * is found. Throws ParseError (EC-14) if the arg list is malformed.
+ * Throws ParseError if neither a `$identifier` nor a valid type name
+ * is found. Throws ParseError if the arg list is malformed.
  * Throws ParseError (RILL-P011) if `|` is not followed by a valid type start.
  *
  * @internal
@@ -209,8 +209,8 @@ function parseSingleType(
  * @param state - Parser state (positioned after opening paren)
  * @param opts  - Optional parseLiteral callback for default value support
  *
- * @throws ParseError RILL-P014 if token after arg is not `,` or `)`  (EC-1)
- * @throws ParseError RILL-P014 if missing closing `)`                (EC-2)
+ * @throws ParseError RILL-P014 if token after arg is not `,` or `)`
+ * @throws ParseError RILL-P014 if missing closing `)`
  *
  * @internal
  */
@@ -319,7 +319,7 @@ export function parseFieldArgList(
       advance(state);
       skipNewlines(state);
     } else if (!check(state, TOKEN_TYPES.RPAREN)) {
-      // Neither comma nor closing paren — malformed arg list (EC-1)
+      // Neither comma nor closing paren — malformed arg list
       throw new ParseError(
         ERROR_IDS.RILL_P014,
         "Expected ',' or ')' in type argument list",
@@ -328,7 +328,7 @@ export function parseFieldArgList(
     }
   }
 
-  // Verify closing ")" is present (EC-2)
+  // Verify closing ")" is present
   if (!check(state, TOKEN_TYPES.RPAREN)) {
     throw new ParseError(
       ERROR_IDS.RILL_P014,

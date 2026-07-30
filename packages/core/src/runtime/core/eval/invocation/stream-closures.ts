@@ -3,18 +3,18 @@
  *
  * Owns the stream lifecycle for script-defined stream closures:
  * - Stream creation from a ScriptCallable with a stream return type
- * - Scope-level stream tracking for disposal on scope exit (IR-14)
+ * - Scope-level stream tracking for disposal on scope exit
  * - Dispose error propagation: halt and control signals re-thrown directly;
- *   other errors wrapped as catchable RILL_R002 halts (IR-14 fix, EC-9/EC-10)
+ *   other errors wrapped as catchable RILL_R002 halts
  *
  * Methods added:
- * - invokeStreamClosure(closure, args, location) -> Promise<RillStream>  [IR-7]
- * - trackStream(stream) -> void                                           [IR-8]
- * - disposeStreams(streams) -> Promise<void>                              [IR-9]
+ * - invokeStreamClosure(closure, args, location) -> Promise<RillStream>
+ * - trackStream(stream) -> void
+ * - disposeStreams(streams) -> Promise<void>
  *
  * State:
  * - streamScopeStack: RillStream[][] — per-instance stack; no cross-instance
- *   contamination (AC-17)
+ *   contamination
  *
  * Cross-module dependencies:
  * - createCallableContext(callable) — provided by closures.ts
@@ -219,7 +219,7 @@ export async function runInStreamScope<T, A>(
 }
 
 /**
- * Track a stream in the current scope for cleanup on scope exit (IR-14).
+ * Track a stream in the current scope for cleanup on scope exit.
  * Streams with dispose functions get cleaned up when their scope exits.
  */
 export function trackStream(s: EvalState, stream: RillStream): void {
@@ -230,11 +230,11 @@ export function trackStream(s: EvalState, stream: RillStream): void {
 }
 
 /**
- * Dispose a list of unconsumed streams in reverse creation order (IR-14).
+ * Dispose a list of unconsumed streams in reverse creation order.
  * Propagates dispose errors as RILL_R002 — does not swallow.
  *
- * Halt and control signals are re-thrown directly (IR-14 fix, EC-10).
- * Other errors are wrapped as a fatal host halt (RILL_R002, EC-9): dispose
+ * Halt and control signals are re-thrown directly.
+ * Other errors are wrapped as a fatal host halt (RILL_R002): dispose
  * failures are not user-recoverable and must not be swallowed by guard/retry,
  * matching the lifecycle policy in collections.ts:expandStream.
  *
@@ -255,7 +255,7 @@ async function disposeStreams(
       try {
         disposeFn();
       } catch (err) {
-        // Propagate dispose errors — do not swallow (IR-14)
+        // Propagate dispose errors — do not swallow
         if (err instanceof RuntimeHaltSignal || err instanceof ControlSignal) {
           throw err;
         }
@@ -270,7 +270,7 @@ async function disposeStreams(
 }
 
 /**
- * Create a RillStream from a stream-typed ScriptCallable (IR-7).
+ * Create a RillStream from a stream-typed ScriptCallable.
  *
  * Initializes a callable context, marshals arguments, spins up a dedicated
  * body evaluator with an active stream channel, and returns a lazy
@@ -279,7 +279,7 @@ async function disposeStreams(
  * Error contracts:
  * - Chunk type mismatch at yield → TYPE_MISMATCH (validated by evaluateYield)
  * - Resolution type mismatch → TYPE_MISMATCH
- * - Body RillError preserved with original code; dispose runs before re-throw (EC-8/AC-13)
+ * - Body RillError preserved with original code; dispose runs before re-throw
  */
 export async function invokeStreamClosure(
   s: EvalState,
@@ -289,7 +289,7 @@ export async function invokeStreamClosure(
 ): Promise<RillValue> {
   const callableCtx = createCallableContext(s, callable);
 
-  // Marshal positional args to named record (IC-1).
+  // Marshal positional args to named record.
   const record = marshalArgs(args, callable.params, {
     functionName: '<anonymous>',
     location: callLocation,
@@ -300,7 +300,7 @@ export async function invokeStreamClosure(
     callableCtx.variables.set(name, value);
   }
 
-  // IR-4: Block closure pipe sync
+  // Block closure pipe sync
   if (callable.params[0]?.name === '$') {
     callableCtx.pipeValue = record['$']!;
   }
@@ -411,7 +411,7 @@ export async function invokeStreamClosure(
     }
   }
 
-  // Build the RillStream (IR-13)
+  // Build the RillStream
   const stream = createRillStream({
     chunks: generateChunks(),
     resolve: async () => {

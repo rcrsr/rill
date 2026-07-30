@@ -2,9 +2,9 @@
  * Bool Type Protocol Module
  *
  * Defines the TypeDefinition for the 'bool' primitive type.
- * EC-4: No protocol.compare (ordering unsupported for bool).
+ * No protocol.compare (ordering unsupported for bool).
  *
- * Must NOT import from ../registrations.js (AC-4).
+ * Must NOT import from ../registrations.js.
  */
 
 import type { RillValue } from '../structures.js';

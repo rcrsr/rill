@@ -22,7 +22,7 @@ const RECEIVER_PARAM = {
  * Parses the signature to extract params and returnType so that task 1.4
  * can use them directly without re-parsing.
  *
- * EC-4: Receiver missing from record raises RILL-R044.
+ * Receiver missing from record raises RILL-R044.
  */
 export function buildMethodEntry(
   name: string,

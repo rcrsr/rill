@@ -211,7 +211,7 @@ export const BOOL_METHODS = Object.freeze({
 
 // [ASSUMPTION] vector is a 6th group beyond the 5 specified basic types.
 // The 7 vector methods do not belong to string/list/dict/number/bool.
-// Adding this group ensures all 42 methods are accessible (AC-36).
+// Adding this group ensures all 42 methods are accessible.
 export const VECTOR_METHODS = Object.freeze({
   dimensions: buildMethodEntry('dimensions', '||:number', mDimensions, true),
   model: buildMethodEntry('model', '||:string', mModel, true),
@@ -236,7 +236,7 @@ export const VECTOR_METHODS = Object.freeze({
 // All property-style methods (year, month, day, etc.) use skipReceiverValidation
 // because the receiver is always a RillDatetime discriminated by __rill_datetime.
 export const DATETIME_METHODS = Object.freeze({
-  // Component properties (IR-4)
+  // Component properties
   year: buildMethodEntry('year', '||:number', mDtYear, true),
   month: buildMethodEntry('month', '||:number', mDtMonth, true),
   day: buildMethodEntry('day', '||:number', mDtDay, true),
@@ -248,12 +248,12 @@ export const DATETIME_METHODS = Object.freeze({
   weekday: buildMethodEntry('weekday', '||:number', mDtWeekday, true),
   empty: buildMethodEntry('empty', '||:datetime', mDtEmpty, true),
 
-  // String formatting methods (IR-5)
+  // String formatting methods
   iso: buildMethodEntry('iso', '|offset: number = 0|:string', mDtIso, true),
   date: buildMethodEntry('date', '|offset: number = 0|:string', mDtDate, true),
   time: buildMethodEntry('time', '|offset: number = 0|:string', mDtTime, true),
 
-  // Local properties (IR-6)
+  // Local properties
   local_iso: buildMethodEntry('local_iso', '||:string', mDtLocalIso, true),
   local_date: buildMethodEntry('local_date', '||:string', mDtLocalDate, true),
   local_time: buildMethodEntry('local_time', '||:string', mDtLocalTime, true),
@@ -264,7 +264,7 @@ export const DATETIME_METHODS = Object.freeze({
     true
   ),
 
-  // Arithmetic methods (IR-7)
+  // Arithmetic methods
   add: buildMethodEntry('add', '|dur: any|:datetime', mDtAdd, true),
   diff: buildMethodEntry('diff', '|other: any|:duration', mDtDiff, true),
 
@@ -281,7 +281,7 @@ export const DATETIME_METHODS = Object.freeze({
 // All use skipReceiverValidation because the receiver is a RillDuration
 // discriminated by __rill_duration.
 export const DURATION_METHODS = Object.freeze({
-  // Decomposition properties (IR-8)
+  // Decomposition properties
   months: buildMethodEntry('months', '||:number', mDurMonths, true),
   days: buildMethodEntry('days', '||:number', mDurDays, true),
   hours: buildMethodEntry('hours', '||:number', mDurHours, true),
@@ -292,7 +292,7 @@ export const DURATION_METHODS = Object.freeze({
   display: buildMethodEntry('display', '||:string', mDurDisplay, true),
   empty: buildMethodEntry('empty', '||:duration', mDurEmpty, true),
 
-  // Arithmetic methods (IR-9)
+  // Arithmetic methods
   add: buildMethodEntry('add', '|other: any|:duration', mDurAdd, true),
   subtract: buildMethodEntry(
     'subtract',

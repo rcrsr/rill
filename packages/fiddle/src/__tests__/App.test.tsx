@@ -2,16 +2,16 @@
  * App Component Integration Tests
  *
  * Test coverage:
- * - IC-8: App renders without errors
- * - AC-5: Keyboard shortcut execution
- * - AC-6: Example selection replaces editor content without auto-executing
- * - AC-8: Panel resize persists across reload
- * - AC-11: Re-execution clears previous output before showing new result
- * - AC-15: Error with line location highlights gutter line in editor
- * - AC-16: Error clears on successful re-run
- * - AC-17: Empty source shows no error; output remains idle
- * - AC-23: Rapid re-execution guard prevents duplicates
- * - AC-24: First visit loads Hello World
+ * - App renders without errors
+ * - Keyboard shortcut execution
+ * - Example selection replaces editor content without auto-executing
+ * - Panel resize persists across reload
+ * - Re-execution clears previous output before showing new result
+ * - Error with line location highlights gutter line in editor
+ * - Error clears on successful re-run
+ * - Empty source shows no error; output remains idle
+ * - Rapid re-execution guard prevents duplicates
+ * - First visit loads Hello World
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -46,7 +46,7 @@ describe('App', () => {
   });
 
   // ============================================================
-  // IC-8: App renders without errors
+  // App renders without errors
   // ============================================================
 
   describe('rendering', () => {
@@ -81,7 +81,7 @@ describe('App', () => {
   });
 
   // ============================================================
-  // AC-24: First visit loads Hello World
+  // First visit loads Hello World
   // ============================================================
 
   describe('initial state', () => {
@@ -117,7 +117,7 @@ describe('App', () => {
   });
 
   // ============================================================
-  // AC-5: Keyboard shortcut execution
+  // Keyboard shortcut execution
   // ============================================================
 
   describe('keyboard shortcuts', () => {
@@ -157,7 +157,7 @@ describe('App', () => {
   });
 
   // ============================================================
-  // AC-6: Example selection replaces editor content
+  // Example selection replaces editor content
   // ============================================================
 
   describe('example loading', () => {
@@ -212,11 +212,11 @@ describe('App', () => {
   });
 
   // ============================================================
-  // AC-15, AC-16, AC-17: Error handling
+  // Error handling
   // ============================================================
 
   describe('error handling', () => {
-    it('error with line location highlights gutter line in editor [AC-15]', async () => {
+    it('error with line location highlights gutter line in editor', async () => {
       const executeSpy = vi.spyOn(execution, 'executeRill');
 
       executeSpy.mockResolvedValueOnce({
@@ -363,7 +363,7 @@ describe('App', () => {
       }
     });
 
-    it('empty source shows no error and output remains idle [AC-17]', async () => {
+    it('empty source shows no error and output remains idle', async () => {
       const executeSpy = vi.spyOn(execution, 'executeRill');
 
       executeSpy.mockResolvedValueOnce({
@@ -403,7 +403,7 @@ describe('App', () => {
   });
 
   // ============================================================
-  // AC-23: Rapid re-execution guard
+  // Rapid re-execution guard
   // ============================================================
 
   describe('rapid re-execution', () => {
@@ -492,7 +492,7 @@ describe('App', () => {
   });
 
   // ============================================================
-  // AC-8: Panel resize persists across reload
+  // Panel resize persists across reload
   // ============================================================
 
   describe('panel resize persistence', () => {
@@ -544,7 +544,7 @@ describe('App', () => {
   });
 
   // ============================================================
-  // AC-11: Re-execution clears previous output
+  // Re-execution clears previous output
   // ============================================================
 
   describe('re-execution output clearing', () => {

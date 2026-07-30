@@ -34,11 +34,11 @@ function formatTuple(v: RillValue): string {
 // ============================================================
 
 /**
- * Lexicographic tuple comparison (IR-10).
+ * Lexicographic tuple comparison.
  *
  * Preconditions (halts with #TYPE_MISMATCH on violation):
- *   - Both tuples must have the same length (EC-4).
- *   - Each positional slot pair must share a type that supports compare (EC-4).
+ *   - Both tuples must have the same length.
+ *   - Each positional slot pair must share a type that supports compare.
  *
  * Empty tuples compare equal (length 0 == length 0).
  */

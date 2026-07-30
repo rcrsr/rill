@@ -9,6 +9,11 @@ so they resolve as `rill/no-duplicate-error-id`.
 
 ## Rules
 
+| Rule | Enabled for | Auto-fix |
+|------|-------------|----------|
+| `no-duplicate-error-id` | `**/src/runtime/**/*.ts` | Yes |
+| `no-spec-id-reference` | `packages/*/src/**/*.{ts,tsx}` | No |
+
 ### `no-duplicate-error-id`
 
 Detects when RuntimeError message arguments contain the error ID prefix.
@@ -39,6 +44,59 @@ RuntimeError.fromNode('RILL-R002', 'Type mismatch', node);
 - Dynamic error ID (variable): ignored (cannot statically validate)
 - Template literal with complex expression: ignored (only checks literal prefix)
 
+### `no-spec-id-reference`
+
+Rejects internal workflow-artifact ID references in shipped source. These IDs
+point at planning documents that are not published, so they are unresolvable for
+anyone reading the code, including future maintainers and external contributors.
+
+**Prefix vocabulary**, by family:
+
+| Family | Prefixes |
+|--------|----------|
+| Requirements | `FR`, `NFR`, `IR`, `IC`, `EC`, `AC` |
+| Decisions | `DEC`, `DR`, `DD`, `BC` |
+| UX | `UXC`, `UXI`, `UXS`, `UXT` |
+| Work items | `TC`, `TD`, `DEBT`, `RI`, `GF`, `LOG`, `OK` |
+
+Matched shape is `PREFIX-<segment>` with word boundaries on both ends, so
+compound forms (`AC-FDL-4`, `FR-ERR-14`, `NFR-HSM-7`) are caught whole.
+
+**Scanned surfaces:** line and block comments (including JSDoc), string
+literals, template-literal chunks, and JSX text. Never executable syntax — a
+TypeScript identifier cannot contain `-`.
+
+**Auto-fixable:** No. Most occurrences pair a real fact with an opaque
+reference, and only a human can tell which half to keep.
+
+**Examples:**
+
+```typescript
+// Bad
+// Negative n halts with #INVALID_INPUT (EC-1).
+it('AC-49: range("hello", 5) produces RILL-R001', ...);
+
+// Good
+// Negative n halts with #INVALID_INPUT.
+it('range("hello", 5) produces RILL-R001', ...);
+```
+
+**Never matches:**
+- rill error codes — `RILL-R010`, `RILL-P007`, `#TYPE_MISMATCH`, `#INVALID_INPUT`
+- a prefix embedded in a longer word — `SPEC-1`, `REC-2`, `ABC-3`
+- fiddle's fabricated test error IDs — `'TEST-001'`, `'ERR-001'`, `'COMM-001'`
+
+**Escape hatch:** `// oxlint-disable-next-line rill/no-spec-id-reference`
+
+**Out of scope:**
+- `packages/core/tests/`, which still carries these identifiers. Most sit in
+  `tests/language/`, the locked language arbiter, which may only change for
+  language spec reasons.
+- `§` section anchors. The tree mixes internal ones (`§NOD.10.4`) with
+  legitimate external citations (`RFC 4648 §5`) and cites of published rill doc
+  sections (`see § Error Handling`), and no pattern separates them. The internal
+  ones were removed by hand.
+
 ## Testing
 
 One test layer covers the custom rules. It requires no JavaScript parser
@@ -53,7 +111,12 @@ inputs, invalid inputs (asserting `messageId`/`data`), and — for
 `no-duplicate-error-id` — auto-fix output for both string-literal and
 template-literal messages, plus the edge cases where the rule must not fire
 (non-`RuntimeError` constructors, dynamic error IDs, template literals with a
-leading expression). Run from the repository root or `packages/core`:
+leading expression).
+
+For `no-spec-id-reference` the mock `sourceCode` also supplies `text`,
+`getAllComments()`, and real `getLocFromIndex()` line/column arithmetic, so
+reported positions are asserted against columns a reader can look up in the
+fixture source. Run from the repository root or `packages/core`:
 
 ```bash
 node lint-rules/rule-unit-test.cjs

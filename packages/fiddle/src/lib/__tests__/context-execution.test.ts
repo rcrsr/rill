@@ -2,7 +2,6 @@
  * Integration tests for context resolver execution (Task 3.5)
  *
  * Tests executeRill with context scheme resolver wired to DEMO_CONTEXT_VALUES.
- * Covers AC-30, AC-31, AC-32, AC-33, AC-39.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -39,7 +38,7 @@ function valueResolver(value: unknown): SchemeResolver {
 // ============================================================
 
 describe('executeRill with context resolver', () => {
-  describe('AC-FDL-1 (AC-30): use<context:key> with present key resolves value', () => {
+  describe('use<context:key> with present key resolves value', () => {
     it('resolves flat key timeout to its number value', async () => {
       const config = buildContextConfig();
       const result = await executeRill(
@@ -65,7 +64,7 @@ describe('executeRill with context resolver', () => {
     });
   });
 
-  describe('AC-FDL-2 (AC-31): use<ext:mount.path> with wired resolver executes', () => {
+  describe('use<ext:mount.path> with wired resolver executes', () => {
     it('ext resolver with resource path resolves successfully', async () => {
       const config: FiddleResolverConfig = {
         resolvers: {
@@ -82,7 +81,7 @@ describe('executeRill with context resolver', () => {
     });
   });
 
-  describe('AC-FDL-3 (AC-32): Fiddle loads and executes successfully', () => {
+  describe('Fiddle loads and executes successfully', () => {
     it('executeRill returns success for a simple script', async () => {
       const result = await executeRill('1 + 2');
       expect(result.status).toBe('success');
@@ -95,7 +94,7 @@ describe('executeRill with context resolver', () => {
     });
   });
 
-  describe('AC-FDL-4 (AC-33): script without use<> runs identically', () => {
+  describe('script without use<> runs identically', () => {
     it('produces same result with and without context resolver config', async () => {
       const withoutConfig = await executeRill('42 => $x\n$x * 2');
       const withConfig = await executeRill(
@@ -114,7 +113,7 @@ describe('executeRill with context resolver', () => {
     });
   });
 
-  describe('AC-FDL-10 (AC-39): nested dot-path context key resolves correctly', () => {
+  describe('nested dot-path context key resolves correctly', () => {
     it('resolves limits.max_tokens via dot-path traversal', async () => {
       const config = buildContextConfig();
       const result = await executeRill(

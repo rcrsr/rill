@@ -2,8 +2,8 @@
  * Toolbar Component Tests
  *
  * Test coverage for Toolbar component:
- * - IC-12: Component renders without errors
- * - AC-6: Example selection triggers onExampleSelect callback
+ * - Component renders without errors
+ * - Example selection triggers onExampleSelect callback
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -32,7 +32,7 @@ describe('Toolbar', () => {
   });
 
   // ============================================================
-  // IC-12: Component renders without errors
+  // Component renders without errors
   // ============================================================
 
   describe('rendering', () => {
@@ -166,7 +166,7 @@ describe('Toolbar', () => {
   });
 
   // ============================================================
-  // AC-6: Example selection triggers onExampleSelect callback
+  // Example selection triggers onExampleSelect callback
   // ============================================================
 
   describe('example selector', () => {

@@ -26,8 +26,8 @@ import {
 export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
   /**
    * Slice at most n elements from the front of a list, iterator, or stream.
-   * Negative n halts with #INVALID_INPUT (EC-1).
-   * n > MAX_ITER is clamped to MAX_ITER without halting (EC-7).
+   * Negative n halts with #INVALID_INPUT.
+   * n > MAX_ITER is clamped to MAX_ITER without halting.
    * Iterator/stream inputs are walked lazily to avoid RILL_R010 on infinite
    * sequences (e.g. cycle). clamped===0 returns [] without touching the input.
    */
@@ -115,7 +115,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
   /**
    * Skip the first n elements of a list, iterator, or stream, then yield the rest.
-   * Negative n halts with #INVALID_INPUT (EC-1).
+   * Negative n halts with #INVALID_INPUT.
    * n exceeding input length returns empty result (no error).
    * Iterator/stream inputs are walked lazily for the skip phase to avoid
    * RILL_R010 on large or infinite sequences.
@@ -217,7 +217,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    * Cycle through input elements repeatedly, producing a lazy iterator of T.
    * Empty input yields an empty iterator (no error, no infinite loop).
    * Yield count past MAX_ITER is enforced at the consumer boundary via
-   * expandIterator / expandStream raising #RILL_R010 (EC-6).
+   * expandIterator / expandStream raising #RILL_R010.
    */
   cycle: {
     params: [
@@ -241,7 +241,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         node
       );
 
-      // Empty input → empty iterator (EC-3 / IR-3 empty guard)
+      // Empty input → empty iterator (empty guard)
       if (elements.length === 0) {
         return makeListIterator([], 0);
       }
@@ -262,13 +262,13 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
   /**
    * Split input into fixed-size chunks of n elements. Returns a list of lists.
-   * Validates n > 0; halts with #INVALID_INPUT (EC-2) on n <= 0.
+   * Validates n > 0; halts with #INVALID_INPUT on n <= 0.
    * options dict may specify:
    *   { drop_partial: bool }    — discard trailing chunk shorter than n
    *                               (default false — keep partial tail).
-   *   { idle_flush: duration }  — (IR-8) flush accumulated buffer early when
+   *   { idle_flush: duration }  — flush accumulated buffer early when
    *                               no chunk arrives within the given duration.
-   *                               Must be a duration value (EC-18); non-duration
+   *                               Must be a duration value; non-duration
    *                               raises a catchable TYPE_MISMATCH halt.
    *                               Note: idle_flush is validated here but acts as
    *                               a scheduling hint. With synchronous iteration
@@ -277,8 +277,8 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    *                               idle-triggered early-flush applies only to
    *                               future async streaming paths (Path A — static
    *                               clock limitation).
-   * Chunk count is capped at MAX_ITER → #RILL_R010 (EC-6).
-   * BreakSignal and ControlSignal are re-thrown per §NOD.10.4.
+   * Chunk count is capped at MAX_ITER → #RILL_R010.
+   * BreakSignal and ControlSignal are re-thrown.
    */
   batch: {
     params: [
@@ -339,7 +339,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           dropPartial = dp === true;
         }
 
-        // EC-18: idle_flush must be a duration when provided.
+        // idle_flush must be a duration when provided.
         const idleFlushRaw = optDict['idle_flush'];
         if (idleFlushRaw !== undefined && idleFlushRaw !== null) {
           if (!isDuration(idleFlushRaw)) {
@@ -395,9 +395,9 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
   /**
    * Emit sliding windows of n elements advancing by step elements each time.
    * Default step = n (non-overlapping). Validates n > 0 and step > 0;
-   * halts with #INVALID_INPUT (EC-3) otherwise.
+   * halts with #INVALID_INPUT otherwise.
    * The last window may be shorter than n (partial tail emitted).
-   * Window count is capped at MAX_ITER → #RILL_R010 (EC-6).
+   * Window count is capped at MAX_ITER → #RILL_R010.
    */
   window: {
     params: [
@@ -502,10 +502,10 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    * Pass through all elements starting from the first one where predicate
    * returns true (inclusive). Elements before the first match are discarded.
    * Once triggered, predicate is never re-evaluated.
-   * Validates predicate is callable → #RILL_R040 (EC-4).
-   * Predicate result must be bool → #TYPE_MISMATCH (EC-5).
-   * Yield count is capped at MAX_ITER → #RILL_R010 (EC-6).
-   * BreakSignal and ControlSignal are re-thrown per §NOD.10.4.
+   * Validates predicate is callable → #RILL_R040.
+   * Predicate result must be bool → #TYPE_MISMATCH.
+   * Yield count is capped at MAX_ITER → #RILL_R010.
+   * BreakSignal and ControlSignal are re-thrown.
    */
   start_when: {
     params: [
@@ -597,10 +597,10 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
   /**
    * Pass through elements up to and including the first one where predicate
    * returns true. Elements after the first match are discarded.
-   * Validates predicate is callable → #RILL_R040 (EC-4).
-   * Predicate result must be bool → #TYPE_MISMATCH (EC-5).
-   * Yield count is capped at MAX_ITER → #RILL_R010 (EC-6).
-   * BreakSignal and ControlSignal are re-thrown per §NOD.10.4.
+   * Validates predicate is callable → #RILL_R040.
+   * Predicate result must be bool → #TYPE_MISMATCH.
+   * Yield count is capped at MAX_ITER → #RILL_R010.
+   * BreakSignal and ControlSignal are re-thrown.
    */
   stop_when: {
     params: [

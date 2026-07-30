@@ -5,16 +5,16 @@
  * to ensure the fiddle handles concurrent operations correctly.
  *
  * Covers:
- * - AC-9: Log output capture
- * - AC-11: Re-execution clears previous output
- * - AC-23: Rapid re-execution does not duplicate output entries
+ * - Log output capture
+ * - Re-execution clears previous output
+ * - Rapid re-execution does not duplicate output entries
  */
 
 import { describe, it, expect } from 'vitest';
 import { executeRill } from '../execution.js';
 
 describe('executeRill', () => {
-  describe('log output capture [AC-9]', () => {
+  describe('log output capture', () => {
     it('captures single log() call in output panel', async () => {
       const result = await executeRill('"test message" -> log\n"final"');
 
@@ -157,7 +157,7 @@ describe('executeRill', () => {
     });
   });
 
-  describe('re-execution clears previous output [AC-11]', () => {
+  describe('re-execution clears previous output', () => {
     it('clears previous output on second execution', async () => {
       // First execution
       const firstResult = await executeRill('"first run" -> log\n"result1"');
@@ -270,7 +270,7 @@ describe('executeRill', () => {
     });
   });
 
-  describe('rapid re-execution does not duplicate output [AC-23]', () => {
+  describe('rapid re-execution does not duplicate output', () => {
     it('does not duplicate output from rapid sequential executions', async () => {
       // Execute same source rapidly multiple times
       const source = '"output" -> log\n"final"';

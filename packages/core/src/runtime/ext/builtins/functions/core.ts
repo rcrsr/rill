@@ -224,7 +224,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
    * chain(value, closure)        -> closure(value)
    * chain(value, [f, g, h])     -> h(g(f(value)))
    * chain(value, [])             -> value unchanged
-   * Non-closure/non-list second arg throws RILL-R040 (EC-14).
+   * Non-closure/non-list second arg throws RILL-R040.
    */
   chain: {
     params: [
@@ -302,10 +302,10 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
    * or let RILL_R010 enforce the MAX_ITER ceiling.
    *
    * Error contracts:
-   *   EC-14  Closure throws catchable halt   → propagates (catchable)
-   *   EC-15  Closure throws non-catchable    → propagates (non-catchable)
-   *   EC-16  Iteration exceeds MAX_ITER      → RILL_R010 (non-catchable)
-   *   EC-17  Closure missing/not invocable   → RILL_R006 (catchable)
+   *   Closure throws catchable halt   → propagates (catchable)
+   *   Closure throws non-catchable    → propagates (non-catchable)
+   *   Iteration exceeds MAX_ITER      → RILL_R010 (non-catchable)
+   *   Closure missing/not invocable   → RILL_R006 (catchable)
    */
   iterate: {
     params: [

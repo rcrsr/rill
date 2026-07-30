@@ -16,9 +16,9 @@
  * - evaluateBodyExpression(node) -> Promise<RillValue>
  *
  * Error Handling:
- * - Non-boolean conditions throw RuntimeError(RUNTIME_TYPE_ERROR) [EC-15]
- * - BreakSignal/ReturnSignal are caught and handled appropriately [EC-16]
- * - Body evaluation errors propagate correctly [EC-17]
+ * - Non-boolean conditions throw RuntimeError(RUNTIME_TYPE_ERROR)
+ * - BreakSignal/ReturnSignal are caught and handled appropriately
+ * - Body evaluation errors propagate correctly
  *
  * @internal
  */
@@ -182,8 +182,8 @@ export async function evaluateWhileLoop(
 
   let value = s.ctx.pipeValue;
   let iterCount = 0;
-  // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
-  // Statement-level annotationStack is not consulted (EC-5).
+  // Evaluate operator-level annotations (node.annotations) to read limit.
+  // Statement-level annotationStack is not consulted.
   const operatorAnnotations = node.annotations?.length
     ? await evaluateAnnotations(s, node.annotations)
     : undefined;
@@ -263,8 +263,8 @@ export async function evaluateDoWhileLoop(
 ): Promise<RillValue> {
   let value = s.ctx.pipeValue;
 
-  // Evaluate operator-level annotations (node.annotations) to read limit [IR-6].
-  // Statement-level annotationStack is not consulted (EC-5).
+  // Evaluate operator-level annotations (node.annotations) to read limit.
+  // Statement-level annotationStack is not consulted.
   const operatorAnnotations = node.annotations?.length
     ? await evaluateAnnotations(s, node.annotations)
     : undefined;
@@ -523,7 +523,7 @@ export async function evaluateError(
     );
   }
 
-  // IR-5: route through throwErrorHalt so the halt surfaces as a
+  // route through throwErrorHalt so the halt surfaces as a
   // typed-atom invalid carrying `#RILL_R016` with a wrap frame when
   // the source message used interpolation.
   const site: TypeHaltSite = {

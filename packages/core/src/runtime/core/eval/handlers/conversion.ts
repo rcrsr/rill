@@ -17,9 +17,9 @@
  * | bool    | error  | error  | error   | error          | error           | valid    | no-op               |
  *
  * Error Contracts:
- * - EC-10 (RILL-R036): Incompatible source/target type
- * - EC-11 (RILL-R037): dict -> ordered without structural signature
- * - EC-12 (RILL-R038): Non-parseable string to number
+ * - RILL-R036: Incompatible source/target type
+ * - RILL-R037: dict -> ordered without structural signature
+ * - RILL-R038: Non-parseable string to number
  *
  * @internal
  */
@@ -106,13 +106,13 @@ export async function applyConstructorConversion(
  * Apply conversion from source value to target type name.
  * Dispatches to protocol.convertTo on the source type's registration.
  *
- * IR-6: Replaces the hardcoded conversion matrix with protocol dispatch.
+ * Replaces the hardcoded conversion matrix with protocol dispatch.
  *
  * Special cases preserved:
  * - Same type = no-op (short-circuit)
- * - dict -> :>ordered without structural sig raises RILL-R037 (EC-11)
- * - String-to-number parse failure raises RILL-R038 (EC-12)
- * - Missing convertTo target raises RILL-R036 (EC-10)
+ * - dict -> :>ordered without structural sig raises RILL-R037
+ * - String-to-number parse failure raises RILL-R038
+ * - Missing convertTo target raises RILL-R036
  */
 export function applyConversion(
   s: EvalState,
@@ -127,7 +127,7 @@ export function applyConversion(
     return input;
   }
 
-  // IR-11: :>stream is not supported — stream type cannot be a conversion target
+  // :>stream is not supported — stream type cannot be a conversion target
   if (targetType === 'stream') {
     throwCatchableHostHalt(
       {
@@ -140,7 +140,7 @@ export function applyConversion(
     );
   }
 
-  // dict -> :>ordered without structural sig is always RILL-R037 (EC-11)
+  // dict -> :>ordered without structural sig is always RILL-R037
   if (sourceType === 'dict' && targetType === 'ordered') {
     throwCatchableHostHalt(
       {
@@ -176,7 +176,7 @@ export function applyConversion(
     // Protocol converters throw RuntimeError (RILL-R064/R065/R066);
     // wrap with evaluator-level error codes for user-facing messages.
 
-    // String-to-number parse failures use RILL-R038 (EC-12)
+    // String-to-number parse failures use RILL-R038
     // Preserve the protocol's detailed message (includes unparseable value).
     if (sourceType === 'string' && targetType === 'number') {
       const message = err instanceof Error ? err.message : String(err);
@@ -192,7 +192,7 @@ export function applyConversion(
       );
     }
 
-    // All other conversion failures use RILL-R036 (EC-10)
+    // All other conversion failures use RILL-R036
     // Use consistent "cannot convert X to Y" format.
     throwCatchableHostHalt(
       {
@@ -291,7 +291,7 @@ async function convertToOrderedWithSig(
 }
 
 /**
- * Convert dict -> :>dict(field: type = default, ...) using structural signature [IR-4].
+ * Convert dict -> :>dict(field: type = default, ...) using structural signature.
  *
  * - Input must be a dict (else RILL-R036)
  * - Iterates signature fields in declaration order
@@ -394,7 +394,7 @@ async function convertToDictWithSig(
 }
 
 /**
- * Convert tuple/list -> :>tuple(type, ...) using structural signature [IR-5].
+ * Convert tuple/list -> :>tuple(type, ...) using structural signature.
  *
  * - Input must be a tuple or list (else RILL-R036)
  * - Iterates signature elements in declaration order

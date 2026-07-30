@@ -18,7 +18,7 @@ interface RuntimeContextLike {
 /**
  * Result object returned by extension factories.
  * Contains the mounted RillValue with optional lifecycle hooks.
- * Lifecycle hooks live on the factory result, not on the value dict (DD-1).
+ * Lifecycle hooks live on the factory result, not on the value dict.
  */
 export interface ExtensionFactoryResult {
   readonly value: RillValue;
@@ -28,13 +28,13 @@ export interface ExtensionFactoryResult {
 }
 
 /**
- * Factory function contract for creating extensions (IR-10).
+ * Factory function contract for creating extensions.
  *
  * Accepts typed configuration and a factory-scope {@link ExtensionFactoryCtx}.
  * Returns (or resolves to) an {@link ExtensionFactoryResult}.
  *
  * The factory-scope ctx exposes exactly `{ registerErrorCode, signal }`
- * (IR-9, NFR-ERR-4). Host-scope helpers like `invalidate` and `catch` are
+ * Host-scope helpers like `invalidate` and `catch` are
  * intentionally absent at factory init time.
  */
 export type ExtensionFactory<TConfig> = (
@@ -93,12 +93,12 @@ export function emitExtensionEvent(
   ctx: RuntimeContextLike,
   event: Omit<ExtensionEvent, 'timestamp'> & { timestamp?: string | undefined }
 ): void {
-  // EC-4: Null/undefined context
+  // Null/undefined context
   if (ctx === null || ctx === undefined) {
     throw new TypeError('Context cannot be null or undefined');
   }
 
-  // EC-5: Missing/empty event.event field
+  // Missing/empty event.event field
   if (
     !event['event'] ||
     typeof event['event'] !== 'string' ||
@@ -110,7 +110,7 @@ export function emitExtensionEvent(
     );
   }
 
-  // IC-2: Guard for callbacks property (graceful degradation)
+  // Guard for callbacks property (graceful degradation)
   if ('callbacks' in ctx && ctx.callbacks) {
     // Call callback if defined
     if (ctx.callbacks.onLogEvent !== undefined) {

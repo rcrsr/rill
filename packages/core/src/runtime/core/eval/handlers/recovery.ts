@@ -7,8 +7,7 @@
  * - `StatusProbe` (`$x.!`, `$x.!code`, `$x.!message`, ...)
  * - `TimeoutBlock` (`timeout<total: d> { body }` / `timeout<idle: d> { body }`)
  *
- * Interface requirements (from spec §Architecture Overview Data Flow,
- * IC-1, EC-7, EC-8, EC-9):
+ * Interface requirements:
  * - Guard catches `RuntimeHaltSignal` at block boundary, appends a
  *   `guard-caught` trace frame, returns the invalid value as block
  *   result.
@@ -19,11 +18,11 @@
  * - Status probes bypass the access-halt gate and read the sidecar
  *   directly.
  * - `error "..."` and `assert` raise non-catchable halts: guard /
- *   retry re-throw them unconditionally (FR-ERR-10, FR-ERR-11).
+ *   retry re-throw them unconditionally.
  * - TimeoutBlock creates a fresh AbortController, chains it to ctx.signal,
  *   arms a wall-time (total) or idle-tick (idle) timer, and on expiry
  *   aborts the controller and throws a catchable halt carrying
- *   #TIMEOUT_TOTAL or #TIMEOUT_IDLE. [IR-1, IR-2, EC-1, EC-2]
+ *   #TIMEOUT_TOTAL or #TIMEOUT_IDLE.
  *
  * @internal
  */
@@ -59,14 +58,14 @@ import { evaluateBody } from './control-flow.js';
 import { evaluateExpression } from './core.js';
 
 // ============================================================
-// AC-B2: Minimum retry attempts (engineer-consistent choice)
+// Minimum retry attempts (engineer-consistent choice)
 // ============================================================
 
 /**
  * Minimum retry attempts. The parser rejects `limit:` values `< 1`, so this
  * guard only fires when a host synthesises a `RetryBlock` AST node directly
  * with `attempts <= 0`. Such a node executes zero times and returns an
- * invalid `#R001` per AC-B2 (plan task 2.3); the body never runs.
+ * invalid `#R001`; the body never runs.
  */
 const RETRY_MIN_ATTEMPTS = 1;
 
@@ -97,8 +96,7 @@ function resolveOnCodes(
  * Returns true when `signal` is catchable AND its invalid value's
  * status code matches the `onCodes` filter (or the filter is absent).
  *
- * Non-catchable halts (from `error` / `assert`) never match; this
- * enforces FR-ERR-10 / FR-ERR-11.
+ * Non-catchable halts (from `error` / `assert`) never match.
  */
 function shouldCatch(
   signal: RuntimeHaltSignal,
@@ -147,7 +145,7 @@ export async function evaluateGuardBlock(
  * attempt. On success, returns the body's result. If every attempt
  * halts, returns the final invalid value with all N frames.
  *
- * AC-B2: A `RetryBlock` node with `attempts <= 0` (only reachable via
+ * A `RetryBlock` node with `attempts <= 0` (only reachable via
  * host-synthesised AST; the parser rejects `limit: N` for N < 1) executes
  * zero times and returns an invalid `#R001` (programmer error).
  */
@@ -157,7 +155,7 @@ export async function evaluateRetryBlock(
 ): Promise<RillValue> {
   const onCodes = resolveOnCodes(node.onCodes);
 
-  // AC-B2: a synthesised RetryBlock with attempts <= 0 executes zero times and yields
+  // a synthesised RetryBlock with attempts <= 0 executes zero times and yields
   // an invalid `#R001` fallback. The body never runs; the returned
   // value carries a single `guard-caught` frame so traces still
   // reflect that recovery was attempted and no body ran.
@@ -194,8 +192,8 @@ export async function evaluateRetryBlock(
         });
         // Accumulate frames across attempts: attempt 1 seeds
         // lastInvalid from the thrown value; subsequent attempts
-        // append to the running accumulator. AC-E8 requires N
-        // guard-caught frames after N exhausted attempts.
+        // append to the running accumulator, so N exhausted
+        // attempts produce N guard-caught frames.
         lastInvalid = appendTraceFrame(lastInvalid ?? e.value, frame);
         continue;
       }
@@ -218,7 +216,7 @@ export async function evaluateRetryBlock(
  *
  * Projection semantics:
  * - bare `.!`         -> bool: `false` when valid, `true` when invalid
- *                        (spec AC-1: `$valid.!` is `false`).
+ *                        (`$valid.!` is `false`).
  * - `.!code`          -> `:atom` atom value.
  * - `.!message`       -> string.
  * - `.!provider`      -> string.
@@ -233,7 +231,7 @@ export async function evaluateStatusProbe(
   const status = getStatus(target);
 
   if (node.field === undefined) {
-    // Bare `.!` — per spec AC-1, `.!` returns `false` on a VALID value
+    // Bare `.!` returns `false` on a VALID value
     // and `true` on an INVALID value. Reads directly against the
     // sidecar via `isInvalid` so the probe bypasses the access-halt
     // gate and never allocates when the value is valid.
@@ -277,25 +275,25 @@ export async function evaluateStatusProbe(
 /**
  * Evaluate a timeout block.
  *
- * Validates that `node.duration` evaluates to a `duration` value [EC-3].
+ * Validates that `node.duration` evaluates to a `duration` value.
  * Creates a fresh `AbortController` for the timeout scope, chains it to
  * `ctx.signal` via `AbortSignal.any` so either side can cancel. Arms a
  * `setTimeout` (total) or idle-tick (idle) timer via `ctx.scheduler` when
- * injected, falling back to the global scheduler [IR-1, IR-2].
+ * injected, falling back to the global scheduler.
  *
  * On expiry: the chained controller is aborted and a catchable
  * `RuntimeHaltSignal` carrying `#TIMEOUT_TOTAL` or `#TIMEOUT_IDLE` is
- * thrown [EC-1, EC-2]. The host body runs under the chained signal so
+ * thrown. The host body runs under the chained signal so
  * cooperative host functions observing `ctx.signal` halt naturally.
  *
  * Non-catchable halts (RILL_R010, error, assert) and ControlSignal
- * subclasses propagate through unchanged [EC-5, §NOD.10.4].
+ * subclasses propagate through unchanged.
  */
 export async function evaluateTimeoutBlock(
   s: EvalState,
   node: TimeoutBlockNode
 ): Promise<RillValue> {
-  // Evaluate the duration expression and validate its type [EC-3].
+  // Evaluate the duration expression and validate its type.
   const durationValue = await evaluateExpression(s, node.duration);
 
   if (!isDuration(durationValue)) {
@@ -381,7 +379,7 @@ export async function evaluateTimeoutBlock(
     return result;
   } catch (e) {
     // Re-throw ControlSignal subclasses (break/return/yield) and
-    // non-catchable RuntimeHaltSignals unconditionally [§NOD.10.4].
+    // non-catchable RuntimeHaltSignals unconditionally.
     if (e instanceof ControlSignal) throw e;
     if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
 

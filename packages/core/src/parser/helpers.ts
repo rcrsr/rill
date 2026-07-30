@@ -379,7 +379,7 @@ export function parseBareHostCall(
 
   const span = { start, end: state.tokens[state.pos - 1]!.span.end };
 
-  // Namespaced bare identifier → host function reference (IR-4)
+  // Namespaced bare identifier → host function reference
   if (hasNamespace) {
     return {
       type: 'HostRef',

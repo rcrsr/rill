@@ -7,7 +7,7 @@
  * - expandStream: drain an async stream to a list
  *
  * Module functions shared across the evaluator.
- * The evaluate* operator methods (each/map/fold/filter) are removed (IC-3/IC-4).
+ * The evaluate* operator methods (each/map/fold/filter) are removed.
  *
  * @internal
  */
@@ -44,14 +44,14 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 const DEFAULT_MAX_ITERATIONS = 10000;
 
 // ============================================================
-// EXPORTED ITERABLE HELPERS (IC-3)
+// EXPORTED ITERABLE HELPERS
 // ============================================================
 
 /**
  * Get elements from an iterable value (list, string, dict, iterator, or stream).
  *
- * Raises RILL-R003 for vector input (EC-6).
- * Raises RILL-R002 for non-iterable input (EC-5).
+ * Raises RILL-R003 for vector input.
+ * Raises RILL-R002 for non-iterable input.
  *
  * @param input - The value to iterate over
  * @param ctx - Runtime context (used by iterator/stream expansion)
@@ -64,7 +64,7 @@ export async function getIterableElements(
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
-  // Vector guard [EC-6, RILL-R003] — catchable: user supplied wrong type
+  // Vector guard [RILL-R003] — catchable: user supplied wrong type
   if (isVector(input)) {
     throwCatchableHostHalt(
       {
@@ -112,7 +112,7 @@ export async function getIterableElements(
       value: (input as Record<string, RillValue>)[key]!,
     }));
   }
-  // Non-iterable [EC-5, RILL-R002] — catchable: user supplied wrong type
+  // Non-iterable [RILL-R002] — catchable: user supplied wrong type
   throwCatchableHostHalt(
     {
       location: node.span.start,
@@ -210,7 +210,7 @@ async function expandIterator(
  * Respects iteration limits to prevent unbounded expansion.
  *
  * On BreakSignal, calls the stream's dispose callable (if present)
- * before re-throwing (NFR-STREAM-2).
+ * before re-throwing.
  *
  * @param stream - The stream value ({ __rill_stream, done, value, next })
  * @param evaluator - EvalState used for abort checks, callable invocation, and sourceId
@@ -290,7 +290,7 @@ async function expandStream(
     }
   } catch (e) {
     if (e instanceof BreakSignal) {
-      // Dispose stream resources before re-throwing (IR-14)
+      // Dispose stream resources before re-throwing
       const disposeFn = (
         stream as unknown as Record<string, (() => void) | undefined>
       )['__rill_stream_dispose'];
@@ -298,7 +298,7 @@ async function expandStream(
         try {
           disposeFn();
         } catch (disposeErr) {
-          // fatal: dispose failures are not user-recoverable (EC-15)
+          // fatal: dispose failures are not user-recoverable
           throwFatalHostHalt(
             {
               location: node.span.start,

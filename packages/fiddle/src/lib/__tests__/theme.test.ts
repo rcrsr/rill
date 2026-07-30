@@ -66,7 +66,7 @@ describe('createThemeExtension', () => {
   });
 
   describe('acceptance criteria', () => {
-    it('AC-1: returns extension with brand neon dark theme', () => {
+    it('returns extension with brand neon dark theme', () => {
       const extension = createThemeExtension(true);
       // Verify extension is created successfully
       expect(extension).toBeDefined();

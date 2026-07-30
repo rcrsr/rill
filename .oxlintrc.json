@@ -147,6 +147,16 @@
       }
     },
     {
+      // Scoped to shipped source. `packages/core/tests/language/` is the locked
+      // language arbiter and still carries ~3.7k of these identifiers; it may
+      // only change for language spec reasons, so it is out of this rule's
+      // reach by design. src/ is what anyone reading the published package sees.
+      "files": ["packages/*/src/**/*.{ts,tsx}"],
+      "rules": {
+        "rill/no-spec-id-reference": "error"
+      }
+    },
+    {
       "files": ["**/src/lexer/**/*.ts"],
       "rules": {
         "no-restricted-imports": [

@@ -181,7 +181,7 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.SLICE_LANGLE, 'Expected slice<');
 
-  // EC-8: slice<> with no ':' separator is an error
+  // slice<> with no ':' separator is an error
   if (check(this.state, TOKEN_TYPES.GT)) {
     throw new ParseError(
       ERROR_IDS.RILL_P001,

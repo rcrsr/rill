@@ -80,7 +80,7 @@ export interface ParamMetadata {
 export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
   const result: FunctionMetadata[] = [];
 
-  // Defensive: handle invalid context (EC-1)
+  // Defensive: handle invalid context
   if (!ctx || !ctx.functions || !ctx.variables) {
     return result;
   }
@@ -133,7 +133,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
         });
       }
     } catch {
-      // EC-2: Malformed function entry skipped
+      // Malformed function entry skipped
       continue;
     }
   }
@@ -151,7 +151,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
           }
         }
 
-        // Convert params to ParamMetadata using RillParam.type (IC-5)
+        // Convert params to ParamMetadata using RillParam.type
         const params: ParamMetadata[] = value.params.map((p) => ({
           name: p.name,
           type: p.type !== undefined ? formatStructure(p.type) : 'any',
@@ -170,7 +170,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
         });
       }
     } catch {
-      // EC-2: Malformed entry skipped
+      // Malformed entry skipped
       continue;
     }
   }
@@ -266,7 +266,7 @@ export function generateManifest(ctx: RuntimeContext): string {
       continue;
     }
 
-    // Include only ApplicationCallable entries with params defined (EC-7)
+    // Include only ApplicationCallable entries with params defined
     if (!isApplicationCallable(callable) || callable.params === undefined) {
       continue;
     }
@@ -321,7 +321,7 @@ export function getDocumentationCoverage(
   // Get all functions using existing getFunctions helper
   const functions = getFunctions(ctx);
 
-  // Handle empty context (AC-11)
+  // Handle empty context
   if (functions.length === 0) {
     return { total: 0, documented: 0, percentage: 100 };
   }
@@ -337,7 +337,7 @@ export function getDocumentationCoverage(
       (p) => p.description.trim().length > 0
     );
 
-    // AC-13: Function with 0 params and description counts as documented
+    // Function with 0 params and description counts as documented
     if (hasDescription && allParamsDocumented) {
       documented++;
     }

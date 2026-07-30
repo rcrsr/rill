@@ -1,7 +1,7 @@
 /**
  * Tests for executeRill error paths and edge cases
  *
- * AC-65: errorId not in ERROR_REGISTRY renders basic error without enrichment fields
+ * errorId not in ERROR_REGISTRY renders basic error without enrichment fields
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -236,7 +236,7 @@ describe('executeRill', () => {
     });
   });
 
-  // AC-65: errorId not in ERROR_REGISTRY produces FiddleError without enrichment fields
+  // errorId not in ERROR_REGISTRY produces FiddleError without enrichment fields
   describe('registry-miss fallback', () => {
     afterEach(() => {
       vi.restoreAllMocks();
@@ -250,7 +250,7 @@ describe('executeRill', () => {
       // We allow the first call to pass through (so the core can build the error),
       // then return undefined on all subsequent calls for RILL-R005.
       // This simulates a registry miss exclusively in convertError's enrichment lookup
-      // (execution.ts:148-161), exercising AC-65 without breaking error construction.
+      // (execution.ts:148-161), without breaking error construction.
       const realGet = ERROR_REGISTRY.get.bind(ERROR_REGISTRY);
       let constructionCallSeen = false;
       vi.spyOn(ERROR_REGISTRY, 'get').mockImplementation((errorId: string) => {
@@ -275,7 +275,7 @@ describe('executeRill', () => {
       expect(result.error?.category).toBe('runtime');
       expect(result.error?.errorId).toBe('RILL-R005');
 
-      // Enrichment fields must be absent on registry miss (AC-65)
+      // Enrichment fields must be absent on registry miss
       expect(result.error?.helpUrl).toBeUndefined();
       expect(result.error?.cause).toBeUndefined();
       expect(result.error?.resolution).toBeUndefined();

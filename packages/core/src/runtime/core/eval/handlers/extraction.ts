@@ -400,7 +400,7 @@ export async function evaluateDestruct(
 }
 
 /**
- * Evaluate collection literals [IR-8].
+ * Evaluate collection literals.
  * Handles list[...], dict[...], tuple[...], ordered[...] keyword forms.
  *
  * Ellipsis spread (...$other) expands referenced collections inline.

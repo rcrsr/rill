@@ -4,13 +4,13 @@
  * Verifies that datetime and duration expressions produce correct output
  * in the Fiddle executeRill() pipeline, with no Fiddle source changes needed.
  *
- * AC-FDL-DT-1: datetime expression produces identical output in Fiddle and Node
- * AC-FDL-DT-2: duration expression produces identical output in Fiddle and Node
- * AC-FDL-DT-3: now() returns datetime value (status 'success', rillTypeName 'datetime')
- * AC-FDL-DT-4: Invalid datetime expression produces error with 'runtime' category
- * AC-FDL-DT-5: Invalid duration expression produces error with 'runtime' category
- * AC-FDL-DT-6: No new dependencies in packages/fiddle/package.json
- * AC-FDL-DT-7: Zero source files in packages/fiddle/src/ modified for datetime/duration
+ * datetime expression produces identical output in Fiddle and Node
+ * duration expression produces identical output in Fiddle and Node
+ * now() returns datetime value (status 'success', rillTypeName 'datetime')
+ * Invalid datetime expression produces error with 'runtime' category
+ * Invalid duration expression produces error with 'runtime' category
+ * No new dependencies in packages/fiddle/package.json
+ * Zero source files in packages/fiddle/src/ modified for datetime/duration
  */
 
 import { readFileSync } from 'node:fs';
@@ -26,11 +26,11 @@ const FIDDLE_ROOT = process.cwd();
 
 describe('executeRill datetime/duration parity', () => {
   // ============================================================
-  // AC-FDL-DT-1: datetime expression produces identical output
+  // datetime expression produces identical output
   // ============================================================
 
   describe('datetime expressions', () => {
-    it('constructs datetime from ISO string and returns datetime rillTypeName [AC-FDL-DT-1]', async () => {
+    it('constructs datetime from ISO string and returns datetime rillTypeName', async () => {
       const result = await executeRill(`datetime("${REF_ISO}")`);
 
       expect(result.status).toBe('success');
@@ -43,7 +43,7 @@ describe('executeRill datetime/duration parity', () => {
       expect(parsed.value.iso).toBe('2026-03-13T08:00:00.000Z');
     });
 
-    it('constructs datetime from named components via dict spread [AC-FDL-DT-1]', async () => {
+    it('constructs datetime from named components via dict spread', async () => {
       const result = await executeRill(
         'datetime(...dict[year: 2026, month: 3, day: 13])'
       );
@@ -59,11 +59,11 @@ describe('executeRill datetime/duration parity', () => {
   });
 
   // ============================================================
-  // AC-FDL-DT-2: duration expression produces identical output
+  // duration expression produces identical output
   // ============================================================
 
   describe('duration expressions', () => {
-    it('constructs duration from positional hours and returns duration rillTypeName [AC-FDL-DT-2]', async () => {
+    it('constructs duration from positional hours and returns duration rillTypeName', async () => {
       // duration(0, 0, 0, 2) = 2 hours = 7200000 ms
       const result = await executeRill('duration(0, 0, 0, 2)');
 
@@ -76,7 +76,7 @@ describe('executeRill datetime/duration parity', () => {
       expect(parsed.value.ms).toBe(7_200_000);
     });
 
-    it('constructs duration from days and minutes [AC-FDL-DT-2]', async () => {
+    it('constructs duration from days and minutes', async () => {
       // duration(0, 0, 1, 0, 30) = 1 day 30 min
       const result = await executeRill('duration(0, 0, 1, 0, 30)');
 
@@ -91,11 +91,11 @@ describe('executeRill datetime/duration parity', () => {
   });
 
   // ============================================================
-  // AC-FDL-DT-3: now() returns datetime value
+  // now() returns datetime value
   // ============================================================
 
   describe('now() function', () => {
-    it('returns a datetime value with status success [AC-FDL-DT-3]', async () => {
+    it('returns a datetime value with status success', async () => {
       const result = await executeRill('now()');
 
       expect(result.status).toBe('success');
@@ -105,7 +105,7 @@ describe('executeRill datetime/duration parity', () => {
       expect(parsed.rillTypeName).toBe('datetime');
     });
 
-    it('returns a unix timestamp within the current execution window [AC-FDL-DT-3]', async () => {
+    it('returns a unix timestamp within the current execution window', async () => {
       const before = Date.now();
       const result = await executeRill('now() -> .unix');
       const after = Date.now();
@@ -120,11 +120,11 @@ describe('executeRill datetime/duration parity', () => {
   });
 
   // ============================================================
-  // AC-FDL-DT-4: Invalid datetime produces runtime error
+  // Invalid datetime produces runtime error
   // ============================================================
 
   describe('invalid datetime error handling', () => {
-    it('month:13 produces runtime error [AC-FDL-DT-4]', async () => {
+    it('month:13 produces runtime error', async () => {
       const result = await executeRill(
         'datetime(...dict[year: 2026, month: 13, day: 1])'
       );
@@ -136,7 +136,7 @@ describe('executeRill datetime/duration parity', () => {
       expect(result.error?.message).toContain('month');
     });
 
-    it('invalid ISO string produces runtime error [AC-FDL-DT-4]', async () => {
+    it('invalid ISO string produces runtime error', async () => {
       const result = await executeRill('datetime("not-a-date")');
 
       expect(result.status).toBe('error');
@@ -145,11 +145,11 @@ describe('executeRill datetime/duration parity', () => {
   });
 
   // ============================================================
-  // AC-FDL-DT-5: Invalid duration produces runtime error
+  // Invalid duration produces runtime error
   // ============================================================
 
   describe('invalid duration error handling', () => {
-    it('negative hours produces runtime error [AC-FDL-DT-5]', async () => {
+    it('negative hours produces runtime error', async () => {
       // duration(0, 0, 0, -2) = hours: -2 (invalid)
       const result = await executeRill('duration(0, 0, 0, -2)');
 
@@ -160,7 +160,7 @@ describe('executeRill datetime/duration parity', () => {
       expect(result.error?.message).toContain('hours');
     });
 
-    it('negative months produces runtime error [AC-FDL-DT-5]', async () => {
+    it('negative months produces runtime error', async () => {
       // duration(0, -3) = months: -3 (invalid)
       const result = await executeRill('duration(0, -3)');
 
@@ -170,10 +170,10 @@ describe('executeRill datetime/duration parity', () => {
   });
 
   // ============================================================
-  // AC-FDL-DT-6: No new dependencies in package.json
+  // No new dependencies in package.json
   // ============================================================
 
-  describe('package.json dependencies unchanged [AC-FDL-DT-6]', () => {
+  describe('package.json dependencies unchanged', () => {
     it('has no new dependencies added for datetime/duration support', () => {
       const raw = readFileSync(join(FIDDLE_ROOT, 'package.json'), 'utf-8');
       const pkg = JSON.parse(raw) as {
@@ -215,10 +215,10 @@ describe('executeRill datetime/duration parity', () => {
   });
 
   // ============================================================
-  // AC-FDL-DT-7: Zero fiddle src/ files modified for datetime/duration
+  // Zero fiddle src/ files modified for datetime/duration
   // ============================================================
 
-  describe('fiddle source files unmodified [AC-FDL-DT-7]', () => {
+  describe('fiddle source files unmodified', () => {
     it('execution.ts does not import any datetime-specific module', () => {
       const source = readFileSync(
         join(FIDDLE_ROOT, 'src/lib/execution.ts'),
