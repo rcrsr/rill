@@ -643,7 +643,7 @@ export async function evaluateDict(
       continue;
     }
 
-    // Convert number and boolean keys to strings per
+    // Convert number and boolean keys to strings.
     // String keys: use directly as object property
     // Number keys: convert to string via String(key)
     // Boolean keys: convert to string via String(key)

@@ -36,7 +36,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
  *
  * `catchable` distinguishes recoverable halts (access-gate halts and
  * operational type failures) from programmer-error halts (`error`,
- * `assert`,). Guard and retry only catch
+ * `assert`). Guard and retry only catch
  * signals with `catchable === true`; non-catchable halts propagate
  * through recovery blocks unconditionally.
  */
@@ -142,7 +142,7 @@ export function throwTypeHalt(
  * `host`-kind trace frame. Callers (typically `checkAborted` on the
  * evaluator base) set `site.fn = "checkAborted"`.
  *
- * abort halts are non-catchable: guard and retry must not
+ * Abort halts are non-catchable: guard and retry must not
  * recover them. The builder allocates only when thrown; it is not on
  * the hot path and runs only when abort is detected.
  *

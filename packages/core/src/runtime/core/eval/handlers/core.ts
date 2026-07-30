@@ -1059,7 +1059,7 @@ async function resolveIntermediateClosure(
   if (value.kind === 'script' && value.params.length >= 1) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
     if (value.params[0]!.name !== '$') {
-      // Parameterized closure at intermediate position: error per
+      // Parameterized closures cannot be auto-invoked at an intermediate path position.
       throwCatchableHostHalt(
         {
           location,
@@ -1080,7 +1080,7 @@ async function resolveIntermediateClosure(
  * Resolve terminal value in hierarchical dispatch: auto-invoke closures with finalKey.
  * Used when navigating to a final path element.
  *
- * Behavior
+ * Behavior:
  * - Block-closures (params.length > 0, first param is '$'): invoke with args = [finalKey]
  * - Zero-param closures: invoke with pipeValue = finalKey
  * - Parameterized closures: throw error (dispatch does not provide args)
@@ -1109,7 +1109,7 @@ async function resolveTerminalValue(
   if (value.kind === 'script' && value.params.length >= 1) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
     if (value.params[0]!.name !== '$') {
-      // Parameterized closure at terminal position: error per
+      // Parameterized closures cannot be auto-invoked at a terminal path position.
       throwCatchableHostHalt(
         {
           location,

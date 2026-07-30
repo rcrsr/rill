@@ -1,4 +1,4 @@
-# AC-FDL-2: retry<limit: 3> exhausted: exactly 3 guard-caught frames, byte-equal
+# retry<limit: 3> exhausted: exactly 3 guard-caught frames, byte-equal
 #
 # retry<limit: 3> catches the type-assertion halt on each attempt.
 # After 3 failed attempts the invalid value carries exactly 3

@@ -1,4 +1,4 @@
-# AC-FDL-4 (conversion variant): .!code probe equals #TYPE_MISMATCH literal
+# .!code probe equals #TYPE_MISMATCH literal (conversion variant)
 #
 # guard catches the type-assertion halt and the invalid value carries
 # a #TYPE_MISMATCH status code. .!code materialises the atom as a

@@ -96,6 +96,11 @@ it('range("hello", 5) produces RILL-R001', ...);
   legitimate external citations (`RFC 4648 §5`) and cites of published rill doc
   sections (`see § Error Handling`), and no pattern separates them. The internal
   ones were removed by hand.
+- `.rill` fixture files under `packages/*/src/`. The `no-spec-id-reference`
+  override in `.oxlintrc.json` is scoped to `*.{ts,tsx}` because oxlint has no
+  `.rill` parser; there is no AST for it to walk, so widening the glob would
+  never make the rule run. Fixtures under `packages/fiddle/src/lib/__tests__/fixtures/`
+  are not machine-checked and were swept by hand.
 
 ## Testing
 

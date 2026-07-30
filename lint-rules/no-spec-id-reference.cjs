@@ -74,29 +74,25 @@ module.exports = {
     /**
      * Reports every spec-ID match inside the source range [start, end).
      *
-     * Scanning raw source text rather than a cooked value keeps the reported
-     * position exact for all four surfaces: a comment's range spans its `//` or
-     * delimiters, a string literal's spans its quotes, and a template chunk's
-     * spans the raw text between substitutions. Offsets therefore map straight
-     * back to absolute source indices.
+     * Scans `sourceCode.text` directly instead of slicing: the shared regex
+     * is seeded at `start` via `lastIndex` and walked forward, stopping once
+     * a match starts at or past `end`. Delimiter characters bound every
+     * scanned surface (comment markers, quotes, template `` ` ``/`${`/`}`,
+     * JSX `<`/`>`) and are all non-word, so `\b` behaves the same at a range
+     * edge whether or not the neighboring character is part of the range.
      *
      * @param {number} start - Absolute source index where the range begins
      * @param {number} end - Absolute source index where the range ends
      */
     function scanRange(start, end) {
-      const text = sourceCode.text.slice(start, end);
-
-      // Cheap reject: every match needs a hyphen and an uppercase letter.
-      if (!text.includes('-')) return;
-
-      SPEC_ID.lastIndex = 0;
+      SPEC_ID.lastIndex = start;
       let match;
-      while ((match = SPEC_ID.exec(text)) !== null) {
-        const from = start + match.index;
+      while ((match = SPEC_ID.exec(sourceCode.text)) !== null) {
+        if (match.index >= end) break;
         context.report({
           loc: {
-            start: sourceCode.getLocFromIndex(from),
-            end: sourceCode.getLocFromIndex(from + match[0].length),
+            start: sourceCode.getLocFromIndex(match.index),
+            end: sourceCode.getLocFromIndex(match.index + match[0].length),
           },
           messageId: 'specIdReference',
           data: { specId: match[0] },
