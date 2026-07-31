@@ -84,6 +84,14 @@ jobs:
       - name: Test custom lint rules
         run: pnpm test:rules
 
+      # --remote adds the branch-protection and repository-settings elements,
+      # which are host state and cannot be read from a checkout. GITHUB_TOKEN
+      # covers the two read-only API calls it makes.
+      - name: Check repository standards conformance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash dev/check-standards.sh --remote
+
   language-lock:
     name: Language arbiter lock
     runs-on: ubuntu-latest

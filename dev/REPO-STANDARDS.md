@@ -42,6 +42,38 @@ Every element states how to verify it. No element names a version number. Tool
 versions are pinned by §10 and read from `rill`'s manifests, so this document
 does not go stale when a dependency is bumped.
 
+## Checking conformance
+
+`dev/check-standards.sh` enforces mechanically every element with a
+deterministic answer readable from the repository. It is propagated by
+`dev/apply.sh` alongside this document, so the same checker runs everywhere.
+
+```bash
+dev/check-standards.sh            # elements readable from the tree
+dev/check-standards.sh --remote   # also §1 and §13, which live on the host
+```
+
+Wire it up as `check:standards` and call it from the root `check` script, so a
+regression surfaces locally rather than at review.
+
+**A green run is not a conformance claim.** The checker reports three states,
+and the third is the important one:
+
+| State | Meaning |
+|---|---|
+| `ok` | The element was checked and holds. |
+| `FAIL` | The element was checked and does not hold. |
+| `--` | The element was **not** checked. It still applies. |
+
+Elements needing judgement, and every cross-repository comparison, land in the
+third state. The script prints their count in the summary rather than omitting
+them, because a checker that silently passes what it cannot decide is worse than
+no checker: it converts an unknown into a false assurance. An unreachable API
+degrades to `--` as well, never to `FAIL`.
+
+Adding an element to this document does not automatically make it enforced. If
+it can be decided from the tree, add it to the script in the same change.
+
 ---
 
 ## 1. Merge gates
@@ -63,6 +95,21 @@ Trigger-level `paths-ignore` is not the fix. It fails the same requirement from
 the other side: the workflow never runs, the required context is never reported,
 and the pull request blocks permanently. See STD-CI-7.
 
+**STD-GATE-5 disables rebase-merge for a different reason than merge-commit.**
+Merge-commit genuinely conflicts: the button offers a merge that the
+linear-history rule then rejects, so the setting and the protection rule
+disagree. Rebase-merge produces linear history and does not conflict. It is
+disabled anyway, to leave exactly one merge path across the ecosystem, so a
+repository's history shape is a property of the standard rather than of whichever
+button someone reached for. Squash is that path. Read the element as one
+decision with two causes, not as a claim that both strategies break linear
+history.
+
+These are host settings rather than files, so nothing in a checkout enforces
+them and nothing in a diff reveals a change. Record the intent in `CLAUDE.md`
+with the command that re-checks it. See also STD-SET-1, which requires the same
+strategy across repositories.
+
 **Verify**
 
 ```bash
@@ -79,9 +126,9 @@ gh api repos/<owner>/<repo>/branches/main/protection \
 | STD-CI-3 | Corepack is enabled **before** `actions/setup-node`, and `setup-node` sets `cache: 'pnpm'`. | — |
 | STD-CI-4 | Install uses `--frozen-lockfile`. | — |
 | STD-CI-5 | Every workflow declares a top-level `permissions:` block scoped to least privilege. | — |
-| STD-CI-6 | Every workflow declares a `concurrency:` group so superseded runs are cancelled. | — |
+| STD-CI-6 | Every workflow declares a `concurrency:` group. Cancellation is scoped, not blanket: see the note below for where cancelling is wrong. | — |
 | STD-CI-7 | No path filtering of any kind on a workflow that supplies a required status check. Neither trigger-level `paths-ignore` nor job-level `if:` gating. See the note below. | — |
-| STD-CI-8 | Third-party actions pinned to a commit SHA, not a floating major tag. | — |
+| STD-CI-8 | **Every** action pinned to a full commit SHA, with the release it belongs to in a trailing comment. Applies to first-party `actions/*` and `github/*` too. | — |
 | STD-CI-9 | A scheduled compatibility workflow builds and tests against the latest published version of the ecosystem packages the repository consumes. | The repository consumes no ecosystem package, i.e. it is the upstream root. |
 
 **Why STD-CI-7 forbids path filtering outright.** Both mechanisms deadlock
@@ -104,6 +151,37 @@ filter, so the context always reports — not a filter on the real one.
 
 Note also that filtering `**/*.md` is unsafe wherever documentation carries
 executable examples: it skips exactly the checks that validate them.
+
+**Why STD-CI-6 does not say "cancel superseded runs".** Cancelling is right for
+a pull-request run and wrong in two places:
+
+- **On `main`.** A push to `main` must leave a completed status behind. Cancel
+  it and the required contexts for that commit never report, which is the same
+  deadlock STD-CI-7 describes arriving from a different direction. Gate on the
+  ref: `cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}`.
+- **On a release workflow.** A publish interrupted between two packages leaves
+  the registry holding half a release, and the pre-publish existence check then
+  reads the published half as already-done on the retry. Release workflows
+  serialize on a fixed group with `cancel-in-progress: false`.
+
+Include `github.workflow` in the group. A bare ref collides across workflows
+that key on the same ref, so one workflow cancels another's run.
+
+**Why STD-CI-8 is not limited to third-party actions.** A major tag is mutable
+regardless of who owns it: `actions/checkout@v5` can be retargeted, and the next
+run executes different code with no diff in the repository. First-party is a
+statement about trust, not about immutability.
+
+Two mechanics the pin depends on:
+
+- **The trailing comment is load-bearing.** Dependabot reads it to know which
+  release the SHA represents and to offer the next one. A bare SHA with no
+  comment is pinned and unmaintainable. Update the comment whenever the SHA
+  changes.
+- **Annotated tags need dereferencing.** Some repositories publish their major
+  as an annotated tag, so the ref API returns a tag object rather than a commit.
+  The tag object SHA is not a valid `uses:` target; resolve through to the
+  commit.
 
 **Verify**
 
@@ -129,7 +207,7 @@ non-conformant if any is reachable only by running a script no workflow calls.
 | STD-CHK-6 | Unused dependency and export check | — |
 | STD-CHK-7 | Version-consistency gate, run before publish | The repository publishes exactly one package and has no root-versus-package version split to reconcile. |
 
-**Two traps this section exists to catch.**
+**Three traps this section exists to catch.**
 
 *Root-script skip.* `pnpm -r run <script>` does **not** include the workspace
 root. Any check defined only as a root script never runs under `-r`. Either
@@ -138,6 +216,14 @@ invoke it directly in a dedicated job or use `--include-workspace-root`.
 *Bundler typecheck gap.* `tsc --build` typechecks; esbuild-based bundlers and
 Vite do not. A package built by one of those needs an explicit `tsc --noEmit`
 step. Confirm per package rather than assuming the build covers it.
+
+*Typecheck scope gap.* A package can have a reachable `typecheck` script that
+still reads none of its tests. `tsconfig.json` usually scopes `include` to
+`src/**/*`, and `tsc --noEmit` honours it, so type errors in test files go
+undetected even where STD-LINT-4 has lint covering the same directory. Check
+what `include` actually resolves to rather than trusting the script's presence.
+This is currently a known hole in `rill` rather than a satisfied element; it is
+recorded here so it is not rediscovered, and closing it is tracked work.
 
 **Verify**
 
@@ -154,13 +240,13 @@ cannot share a workflow template or a runbook.
 
 | ID | Element | N/A only when |
 |---|---|---|
-| STD-SCRIPT-1 | The root package exposes the canonical vocabulary: `build`, `test`, `check`, `check:types`, `check:lint`, `check:format`, `check:deps`, `fix:lint`, `fix:format`. | — |
+| STD-SCRIPT-1 | The root package exposes the canonical vocabulary: `build`, `test`, `check`, `check:types`, `check:lint`, `check:format`, `check:deps`, `check:standards`, `fix:lint`, `fix:format`. | — |
 | STD-SCRIPT-2 | Root `check` runs the complete check set. Where a check exists only as a root script, `check` must not delegate solely to a recursive run. | — |
 | STD-SCRIPT-3 | `check:versions` and `fix:versions` present. | The same condition as STD-CHK-7. |
 | STD-SCRIPT-4 | `prepare` installs the git hooks, so clone plus install wires them with no extra step. | — |
 | STD-SCRIPT-5 | `bootstrap` present, idempotent, and identically named in every repository. It verifies toolchain preconditions and leaves the repository build-ready. | — |
 | STD-SCRIPT-6 | No two script names invoke the same command. One name per task. | — |
-| STD-SCRIPT-7 | Every workspace package exposes `build`, `typecheck`, `lint`, `check`, and `test` where the package has tests. | The repository is a single package, or the package ships no TypeScript. |
+| STD-SCRIPT-7 | Every workspace package exposes `build`, `typecheck`, `lint`, `check`, and `test` where the package has tests. | The repository is a single package, or the package ships no TypeScript. The second condition exempts only `typecheck`, `lint`, and `check`; `build` still applies. |
 | STD-SCRIPT-8 | Canonical names carry only their canonical meaning and are never reused. Root aggregators use `<verb>:<target>` with verbs `build`, `test`, `check`, `fix`; packages use the bare atomic names in STD-SCRIPT-7. A task with no canonical verb may take a bare descriptive name. | — |
 
 **Why STD-SCRIPT-2 is separate from §3.** §3 says which checks must run. This
@@ -199,6 +285,16 @@ are unmet, then leave the tree build-ready. It must be safe to run repeatedly,
 and it must be the same command in every repository, because its whole value is
 that a contributor never has to ask which repository needs what.
 
+**How it stays identical across repositories.** Read the floors it enforces from
+the root manifest's `engines` rather than hardcoding them. That is what lets the
+copy be byte-identical everywhere and stops it going stale when a floor moves,
+which is the difference between "the same command" and "the same file". Install
+with a frozen lockfile so bootstrap never rewrites one, and run `build` where a
+`build` script exists, because "build-ready" means usable rather than merely
+installed: packages that consume each other's emitted declarations need it
+before typecheck or tests will run at all. The reference implementation is
+`dev/bootstrap.sh`, propagated by `dev/apply.sh`.
+
 ## 5. Lint configuration
 
 | ID | Element | N/A only when |
@@ -208,7 +304,7 @@ that a contributor never has to ask which repository needs what.
 | STD-LINT-3 | The custom rule plugin is loaded, and the rule banning internal workflow-artifact identifiers in shipped source is enabled for `src/`. | The repository has no private planning directory and therefore no identifiers to leak. |
 | STD-LINT-4 | Lint scope covers `src/` **and** `tests/`. | — |
 | STD-LINT-5 | The same plugin set as `rill`. A plugin reporting zero findings is enabled, not omitted. | — |
-| STD-LINT-6 | Every disabled rule carries a comment stating why, with a measured finding count. | — |
+| STD-LINT-6 | Every disabled rule carries a comment stating why, with a measured finding count. A rule category evaluated and declined is recorded the same way, per rule. | — |
 | STD-LINT-7 | Config files declare `$schema`. | — |
 | STD-LINT-9 | Rules shared with the reference config carry the same severity. A rule set to `warn` in one repository and `error` in another is non-conformant. | — |
 | STD-LINT-8 | Plugin enablement is explicit. Naming a `plugins` array replaces the tool's defaults, so a default-on plugin is silently disabled unless relisted. | — |
@@ -217,6 +313,18 @@ that a contributor never has to ask which repository needs what.
 anyone reading the published package, including future maintainers and external
 contributors. Any repository with a private planning directory can leak them
 into shipped source. Keep the fact a comment states and drop the reference.
+
+**Measure STD-LINT-5 and STD-LINT-6 only after STD-LINT-4 holds.** A plugin or
+category measured while `tests/` sits outside the lint scope reads artificially
+clean, and the decision recorded from that measurement is wrong for a reason
+nothing in the config reveals. Close STD-LINT-4 first, then measure.
+
+**On STD-LINT-8.** The failure is silent in both directions. Naming a `plugins`
+array replaces the tool's defaults, so a default-on plugin is off with no
+warning and no finding to notice. Enabling it later may still report nothing,
+because most of its rules sit in categories the config does not enable, which
+means a zero count is not evidence that listing it was pointless. List every
+plugin the repository wants, including the ones reporting zero.
 
 **Verify**
 
@@ -254,9 +362,30 @@ registry. Record that once against the section rather than element by element.
 concurrent publish. Handle the registry's conflict response as success, not
 failure.
 
+**STD-REL-5 and STD-REL-6 must land together, in that pairing.** Reading the
+registry's response means capturing the publish output, which means a pipe, and
+a pipe without `pipefail` reports the exit status of the last command in it
+rather than the publish. A repository that has STD-REL-5 and not STD-REL-6 is in
+a worse state than one with neither: a failed publish reports success, and the
+job goes on to cut a release for a package that never shipped. This is not
+hypothetical. Verify it by running the publish step against a stubbed package
+manager that exits non-zero; without `pipefail` the step prints its success
+message and exits 0.
+
+That is also why STD-REL-6's "when piping" is not a real escape. Satisfying
+STD-REL-5 introduces the pipe, so STD-REL-6 is active in every conformant
+repository.
+
 **On STD-REL-3.** Provenance requires a package manager version that supports it
 and a CI provider it can detect. Confirm support in the pinned package manager
-before relying on the flag; some majors accept it and silently ignore it.
+before relying on the flag; some majors accept it and silently ignore it. A
+package manager's `publish --help` may not advertise the flag even where it
+works, so read the bundled publish library rather than the help text.
+
+Provenance also requires each published package to declare `repository` in its
+manifest, with `directory` set in a monorepo. Without it the attestation has no
+source to bind to and the publish fails at the point of no return, after the
+version gate has passed.
 
 ## 8. Package manager
 
@@ -287,7 +416,7 @@ node -p "require('./package.json').packageManager"
 |---|---|---|
 | STD-SUP-1 | `.github/dependabot.yml` present, covering the package ecosystem and GitHub Actions. | — |
 | STD-SUP-2 | Published packages carry provenance. See STD-REL-3. | Repository publishes nothing. |
-| STD-SUP-3 | A minimum release age is set, so freshly published dependency versions are not installed inside the cooling-off window. | — |
+| STD-SUP-3 | A minimum release age is set **explicitly**, so freshly published dependency versions are not installed inside the cooling-off window. Inheriting a package-manager default does not satisfy this. | — |
 | STD-SUP-4 | Any exclusion from that window is expressed so it does not need a hand edit every release. | The repository declares no exclusions. |
 | STD-SUP-5 | Dependency trust evidence is verified on install, failing when a dependency's trust level is downgraded. | — |
 | STD-SUP-6 | Static analysis workflow and dependency review enabled. | — |
@@ -296,6 +425,22 @@ node -p "require('./package.json').packageManager"
 **On STD-SUP-3 and STD-SUP-4.** A minimum-release-age exclusion pinned to an
 exact version silently stops applying at the next release. Express exclusions by
 name where the tooling allows it.
+
+**Why STD-SUP-3 says explicitly.** This setting's default moved between package
+manager majors: off in one, a full day in the next. A repository relying on the
+default therefore enforces a different policy depending on which major it pins,
+which is the STD-PM-2 failure mode reaching the supply chain. An explicit value
+makes the policy the same everywhere and survives the next default change. Match
+the value to the dependency-update cadence in STD-SUP-1; a window longer than
+that interval defers every bump by a full extra cycle without covering a
+materially different threat.
+
+**A setting can silently disable both STD-SUP-3 and STD-SUP-5.** Package
+managers offer a switch that treats an existing lockfile as already trusted and
+skips re-applying these policies to its entries. It reads like a caching
+optimisation and it turns both elements off. Leave it at its default, and check
+its value rather than assuming, because a repository can satisfy both elements
+on paper while verifying nothing on install.
 
 ## 10. Dependency versions
 

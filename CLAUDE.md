@@ -35,11 +35,13 @@ comment with it.
 **Squash is the only merge path.** Merge commits and rebase merges are disabled
 in repository settings so they cannot disagree with the required-linear-history
 protection rule, per STD-GATE-5. These are GitHub settings, not files, so
-nothing in the tree enforces them. Re-check with:
+nothing in the tree enforces them. `pnpm check:standards` covers the elements
+readable from the tree; `bash dev/check-standards.sh --remote` adds these, and
+is what CI runs.
 
-```bash
-gh api repos/rcrsr/rill --jq '{allow_merge_commit, allow_rebase_merge, allow_squash_merge, delete_branch_on_merge}'
-```
+Conformance is machine-checked, but not entirely. The script reports elements it
+cannot decide as `--` and counts them separately. A green run means the checked
+subset holds, not that the repository is conformant.
 
 `pnpm bootstrap` is the entry point for a fresh clone: it asserts the node and
 pnpm floors from `engines`, installs against the committed lockfile, and builds.

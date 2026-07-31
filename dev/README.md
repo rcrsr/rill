@@ -8,6 +8,7 @@ CI, lint, and process setup from what is here.
 | [`REPO-STANDARDS.md`](REPO-STANDARDS.md) | The conformance index. 84 elements, each with a stable ID and a verification command. |
 | [`lint-rules/`](lint-rules/) | Custom oxlint rules, loaded through oxlint's `jsPlugins` field. |
 | [`bootstrap.sh`](bootstrap.sh) | Brings a fresh clone to build-ready, failing with the fix when the toolchain cannot support it. |
+| [`check-standards.sh`](check-standards.sh) | Enforces the conformance index mechanically. Reports unchecked elements rather than passing them. |
 | `apply.sh` | Copies the above into a target repository, and checks a copy for drift. |
 
 ## Nothing here is published
@@ -74,7 +75,21 @@ After the first copy, in the target repository:
    and runs `build` if one is defined. It never installs git hooks: `prepare`
    already does that on install.
 
-4. Add the drift check to CI, so a stale copy fails a build instead of rotting
+4. Wire up `check-standards.sh` and call it from the root `check` script:
+
+   ```json
+   { "scripts": { "check:standards": "bash dev/check-standards.sh" } }
+   ```
+
+   Expect failures on the first run. That is the point: it reports which
+   elements of `REPO-STANDARDS.md` the repository does not yet meet, by ID. Pass
+   `--remote` in CI to add the branch-protection and repository-settings
+   elements, which cannot be read from a checkout.
+
+   Read the summary line, not just the exit code. Elements the script cannot
+   decide are reported as `--` and counted separately; they still apply.
+
+5. Add the drift check to CI, so a stale copy fails a build instead of rotting
    quietly. It needs a `rill` checkout alongside:
 
    ```yaml
