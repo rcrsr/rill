@@ -1,0 +1,40 @@
+name: Dependency review
+
+# Template source for the rill ecosystem. See dev/REPO-STANDARDS.md
+# STD-SUP-6.
+#
+# Diffs the dependency manifest of the PR against its base and fails on a
+# vulnerable or disallowed-licence addition. Pull-request only: the action
+# compares two commits, so it has nothing to diff on a push to main.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Exact version, not a floating major: this action publishes no moving
+      # `v4`/`v5` tag, only `vX.Y.Z`. Dependabot keeps it current.
+      - uses: actions/dependency-review-action@v5.0.0
+        with:
+          fail-on-severity: moderate
+          # Copyleft licences are incompatible with this repo's MIT
+          # distribution. Named rather than using allow-licenses, which would
+          # reject every dependency whose licence string is merely unrecognised.
+          deny-licenses: AGPL-3.0, GPL-2.0, GPL-3.0, LGPL-2.1, LGPL-3.0
+          comment-summary-in-pr: on-failure

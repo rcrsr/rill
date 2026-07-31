@@ -9,7 +9,23 @@ The `conduct/` directory and its initiatives, specifications, plans, and require
 
 Write PR and commit summaries as concrete descriptions of the code and API changes. Refer to source files, exported APIs, and doc pages that ship in the package instead.
 
-The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
+The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `dev/lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
+
+## Repository Standards Conformance
+
+This repository is the source of `dev/REPO-STANDARDS.md`, the ecosystem
+conformance index. Recorded non-applicabilities, per the rule that every N/A
+names an element ID and the stated condition it meets:
+
+| Element | Condition met |
+|---------|---------------|
+| STD-CI-9 (scheduled compatibility workflow) | This repository is the upstream root. It publishes `@rcrsr/rill` and consumes no ecosystem package, so there is no upstream version to drift against. |
+
+`no path filtering` in `ci.yml` is a deliberate ecosystem-wide decision, not an
+omission. See STD-CI-7.
+
+Shared dev assets live in `dev/`. They are not published and not installable;
+`dev/apply.sh` copies them into a target repository. See `dev/README.md`.
 
 ## Monorepo Structure
 

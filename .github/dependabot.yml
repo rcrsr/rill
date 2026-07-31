@@ -1,0 +1,60 @@
+# Template source for the rill ecosystem. See dev/REPO-STANDARDS.md
+# STD-SUP-1. Downstream repos copy this file and adjust only the `directories`
+# list to match their own workspace layout.
+version: 2
+
+updates:
+  # Workspace dependencies. `directories` with a glob covers every package in
+  # the pnpm workspace; a single `directory: "/"` entry would only see the root
+  # manifest and would miss per-package devDependencies entirely.
+  - package-ecosystem: npm
+    directories:
+      - '/'
+      - '/packages/*'
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels:
+      - 'area:dx'
+    groups:
+      # One PR per tool family. Ungrouped, the shared toolchain produces a
+      # separate PR per package per bump, which for this workspace is dozens a
+      # week and guarantees the updates get ignored.
+      oxc:
+        patterns:
+          - 'oxlint'
+          - 'oxfmt'
+      typescript:
+        patterns:
+          - 'typescript'
+          - '@types/*'
+      testing:
+        patterns:
+          - 'vitest'
+          - '@vitest/*'
+      dev-tooling:
+        patterns:
+          - 'knip'
+          - 'lefthook'
+          - 'tsx'
+          - 'tsup'
+    ignore:
+      # Version alignment across packages/core and packages/service is enforced
+      # by scripts/check-versions.sh and driven by the release process. A
+      # dependabot bump of the workspace self-reference would fail that gate.
+      - dependency-name: '@rcrsr/rill'
+      - dependency-name: '@rcrsr/rill-language-service'
+
+  # Action versions. Separate ecosystem, so it needs its own entry.
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - 'area:dx'
+    groups:
+      actions:
+        patterns:
+          - '*'

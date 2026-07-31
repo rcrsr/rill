@@ -1,11 +1,34 @@
 # Custom lint rules
 
-Project-specific lint rules for rill, run by [oxlint](https://oxc.rs) via its
-JS plugin API. The rules use the standard ESLint rule shape (`meta` +
+Shared lint rules for the rill ecosystem, run by [oxlint](https://oxc.rs) via
+its JS plugin API. The rules use the standard ESLint rule shape (`meta` +
 `create(context)` returning AST visitors), which oxlint executes unchanged.
 
-`oxlint-plugin.js` bundles the rules into a single plugin (`meta.name: "rill"`),
-so they resolve as `rill/no-duplicate-error-id`.
+`index.js` bundles them into a single plugin (`meta.name: "rill"`), so they
+resolve as `rill/no-duplicate-error-id`.
+
+## Use
+
+Not published and not installable. A repository holds a copy of `dev/`, placed
+there by `dev/apply.sh`; see [`../README.md`](../README.md). Reference the
+plugin by relative path, which adds no dependency:
+
+```json
+{
+  "jsPlugins": ["./dev/lint-rules/index.js"],
+  "overrides": [
+    {
+      "files": ["packages/*/src/**/*.{ts,tsx}"],
+      "rules": { "rill/no-spec-id-reference": "error" }
+    }
+  ]
+}
+```
+
+Rules are opt-in. Loading the plugin registers them; an `overrides` entry turns
+one on for a path. `no-spec-id-reference` applies to every repository with a
+`conduct/` directory. `no-duplicate-error-id` is specific to repositories that
+construct `RuntimeError`, which in practice means `rill` alone.
 
 ## Rules
 
@@ -97,7 +120,7 @@ it('range("hello", 5) produces RILL-R001', ...);
   sections (`see § Error Handling`), and no pattern separates them. The internal
   ones were removed by hand.
 - `.rill` fixture files under `packages/*/src/`. The `no-spec-id-reference`
-  override in `.oxlintrc.json` is scoped to `*.{ts,tsx}` because oxlint has no
+  override in the consuming repository's `.oxlintrc.json` is scoped to `*.{ts,tsx}` because oxlint has no
   `.rill` parser; there is no AST for it to walk, so widening the glob would
   never make the rule run. Fixtures under `packages/fiddle/src/lib/__tests__/fixtures/`
   are not machine-checked and were swept by hand.
@@ -124,16 +147,17 @@ reported positions are asserted against columns a reader can look up in the
 fixture source. Run from the repository root or `packages/core`:
 
 ```bash
-node lint-rules/rule-unit-test.cjs
-# or, from packages/core:
-pnpm run test:rules
+pnpm test:rules
+# or, directly:
+node dev/lint-rules/rule-unit-test.cjs
 ```
 
-The script runs as part of the core `check` pipeline
-(`pnpm --filter @rcrsr/rill run check`), which CI invokes via `pnpm -r run check`.
+It is a root script, so it runs as part of `pnpm check` locally and as its own
+step in the CI `deps` job. `pnpm -r run check` does not reach it: `-r` excludes
+the workspace root.
 
 ## Usage
 
-The plugin is registered in `.oxlintrc.json` at the repository root via the
-`jsPlugins` field, and the rules are enabled for `src/runtime/**` files through
-an `overrides` entry.
+Within this repository the plugin is registered in the root `.oxlintrc.json`
+via `jsPlugins` as `./dev/lint-rules/index.js`, and the rules are enabled for
+their target globs through `overrides` entries.

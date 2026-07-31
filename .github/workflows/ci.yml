@@ -1,10 +1,19 @@
 name: CI
 
+# No path filtering, deliberately. Both filtering mechanisms are incompatible
+# with required status checks: `paths-ignore` prevents the run entirely, so a
+# required context is never reported and the PR blocks forever; a job-level
+# `if:` gate reports "skipped", which never satisfies a required context. See
+# dev/REPO-STANDARDS.md STD-CI-7. Filtering `**/*.md` would also skip
+# test:examples, which executes every rill snippet in docs/ and README.md.
 on:
   push:
     branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -52,6 +61,11 @@ jobs:
 
       - name: Check formatting
         run: pnpm check:format
+
+      # Root-level, so `pnpm -r run check` never reaches it: -r excludes the
+      # workspace root.
+      - name: Test custom lint rules
+        run: pnpm test:rules
 
   language-lock:
     name: Language arbiter lock

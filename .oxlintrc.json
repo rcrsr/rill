@@ -85,7 +85,7 @@
     "**/*.d.ts",
     "**/generated/**"
   ],
-  "jsPlugins": ["./lint-rules/oxlint-plugin.js"],
+  "jsPlugins": ["./dev/lint-rules/index.js"],
   "overrides": [
     {
       "files": ["**/generated/introspection-data.ts"],
@@ -230,7 +230,7 @@
       }
     },
     {
-      "files": ["**/lint-rules/**/*.cjs"],
+      "files": ["dev/lint-rules/**/*.cjs"],
       "rules": {
         "typescript/no-require-imports": "off"
       }
