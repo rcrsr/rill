@@ -80,6 +80,15 @@ WORKFLOWS=(.github/workflows/*.yml)
 pkg_field() { node -p "JSON.stringify((require('./package.json')$1)||null)" 2>/dev/null; }
 has_script() { node -e "process.exit(((require('./package.json').scripts)||{})['$1']?0:1)" 2>/dev/null; }
 
+# Publishable package count. Several elements are N/A for a repository that
+# publishes one package and so has no root-versus-package split to reconcile,
+# so count once here rather than assuming either way.
+PUBLISHABLE=0
+for f in packages/*/package.json packages/*/*/package.json; do
+  [ -f "$f" ] || continue
+  node -e "process.exit(require('./$f').private?1:0)" 2>/dev/null && PUBLISHABLE=$((PUBLISHABLE + 1))
+done
+
 # ---------------------------------------------------------------------------
 section "§1 Merge gates, §13 Repository settings"
 
@@ -247,6 +256,19 @@ else
   grep -q "cache: *'pnpm'" .github/workflows/ci.yml 2>/dev/null &&
     ok "STD-CI-3" "setup-node caches pnpm" ||
     bad "STD-CI-3" "setup-node caches pnpm" "no cache: 'pnpm' in ci.yml"
+
+  # §3 requires the CI check job to exercise the version gate, not just the
+  # release workflow. Reaching it only at tag push means a split is found when
+  # the fix costs another release commit.
+  if [ "$PUBLISHABLE" -le 1 ]; then
+    skip "STD-CHK-7" "version gate in CI" \
+      "N/A: $PUBLISHABLE publishable package, no version split to reconcile"
+  else
+    grep -q 'check:versions\|check-versions' .github/workflows/ci.yml 2>/dev/null &&
+      ok "STD-CHK-7" "version gate runs in CI, not only at release" ||
+      bad "STD-CHK-7" "version gate runs in CI, not only at release" \
+        "ci.yml never runs check:versions; drift surfaces at the tag push instead"
+  fi
 fi
 skip "STD-CI-2" "node matrix covers supported majors" "the supported set is an ecosystem decision"
 skip "STD-CI-9" "scheduled compatibility workflow" "N/A for the upstream root; record in CLAUDE.md"
@@ -306,14 +328,6 @@ if [ -f pnpm-workspace.yaml ]; then
     ok "STD-SCRIPT-7" "every TypeScript package has the atomic scripts" ||
     bad "STD-SCRIPT-7" "every TypeScript package has the atomic scripts" "missing: ${PKG_MISSING:-}"
 fi
-# N/A only for a repository publishing exactly one package, which has no
-# root-versus-package split to reconcile. Count the publishable packages rather
-# than assuming either way.
-PUBLISHABLE=0
-for f in packages/*/package.json packages/*/*/package.json; do
-  [ -f "$f" ] || continue
-  node -e "process.exit(require('./$f').private?1:0)" 2>/dev/null && PUBLISHABLE=$((PUBLISHABLE + 1))
-done
 if [ "$PUBLISHABLE" -le 1 ]; then
   skip "STD-SCRIPT-3" "check:versions / fix:versions" \
     "N/A: $PUBLISHABLE publishable package, no version split to reconcile"

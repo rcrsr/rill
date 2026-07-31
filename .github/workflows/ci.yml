@@ -79,6 +79,12 @@ jobs:
       - name: Check formatting
         run: pnpm check:format
 
+      # Also runs in release.yml before publishing. Running it here too catches
+      # a version split at review time rather than at the tag push, when the
+      # fix costs a second release commit. See dev/REPO-STANDARDS.md STD-CHK-7.
+      - name: Verify version consistency
+        run: pnpm check:versions
+
       # Root-level, so `pnpm -r run check` never reaches it: -r excludes the
       # workspace root.
       - name: Test custom lint rules
