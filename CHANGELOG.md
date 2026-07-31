@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.19.7 - 2026-07-30
+
 ### Added
 
 - **`SPACING_MEMBER` rule:** New formatting rule (info) in `@rcrsr/rill-language-service` flagging whitespace between a member-access dot and its field name, so `$obj. field` and `$obj .field` now report where nothing reported before. Covers `.` and `.?`, and every `accessChain` field-access kind carrying a source span. A dot opening its own line stays silent, since that is the idiomatic continuation form. This takes the registry from 40 rule codes to 41, and `createDefaultConfig` sets it to `'on'`, so consumers on the default config will see new diagnostics on unchanged source. ([#136](https://github.com/rcrsr/rill/pull/136))
