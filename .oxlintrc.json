@@ -94,7 +94,7 @@
     // here so the next reader does not have to re-measure to find out whether
     // omitting them was a decision.
     //
-    // perf, 93 hits, 91 of them one rule:
+    // perf, 96 hits, 91 of them one rule:
     // - no-await-in-loop (91): this is the semantics, not a defect. rill is a
     //   sequential interpreter and its `seq` operator is defined to await each
     //   element in order. Parallelising is what `fan` is for.
@@ -103,7 +103,7 @@
     // - oxc/no-map-spread (2): the fix it suggests, Object.assign or in-place
     //   assignment, is worse than the conditional-spread idiom it flags.
     //
-    // suspicious, 221 hits, 88 inside the locked language arbiter:
+    // suspicious, 287 hits, 88 inside the locked language arbiter:
     // - no-underscore-dangle (106): contradicts this config's own
     //   argsIgnorePattern of ^_, which is how unused params are marked here.
     // - no-new (61): every hit is in tests/runtime, constructing a value to

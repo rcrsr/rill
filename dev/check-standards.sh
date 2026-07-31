@@ -275,7 +275,23 @@ if [ -f pnpm-workspace.yaml ]; then
     ok "STD-SCRIPT-7" "every TypeScript package has the atomic scripts" ||
     bad "STD-SCRIPT-7" "every TypeScript package has the atomic scripts" "missing: ${PKG_MISSING:-}"
 fi
-skip "STD-SCRIPT-3" "check:versions / fix:versions" "N/A when the repo publishes one package"
+# N/A only for a repository publishing exactly one package, which has no
+# root-versus-package split to reconcile. Count the publishable packages rather
+# than assuming either way.
+PUBLISHABLE=0
+for f in packages/*/package.json packages/*/*/package.json; do
+  [ -f "$f" ] || continue
+  node -e "process.exit(require('./$f').private?1:0)" 2>/dev/null && PUBLISHABLE=$((PUBLISHABLE + 1))
+done
+if [ "$PUBLISHABLE" -le 1 ]; then
+  skip "STD-SCRIPT-3" "check:versions / fix:versions" \
+    "N/A: $PUBLISHABLE publishable package, no version split to reconcile"
+else
+  { has_script check:versions && has_script fix:versions; } &&
+    ok "STD-SCRIPT-3" "check:versions / fix:versions" ||
+    bad "STD-SCRIPT-3" "check:versions / fix:versions" \
+      "$PUBLISHABLE publishable packages, so the version gate is required"
+fi
 skip "STD-SCRIPT-8" "canonical names not reused" "needs judgement about intent"
 
 # ---------------------------------------------------------------------------
