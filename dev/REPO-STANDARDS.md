@@ -419,7 +419,7 @@ node -p "require('./package.json').packageManager"
 | STD-SUP-3 | A minimum release age is set **explicitly**, so freshly published dependency versions are not installed inside the cooling-off window. Inheriting a package-manager default does not satisfy this. | — |
 | STD-SUP-4 | Any exclusion from that window is expressed so it does not need a hand edit every release. | The repository declares no exclusions. |
 | STD-SUP-5 | Dependency trust evidence is verified on install, failing when a dependency's trust level is downgraded. | — |
-| STD-SUP-6 | Static analysis workflow and dependency review enabled. | — |
+| STD-SUP-6 | Static analysis workflow and dependency review enabled, **and the host features they depend on turned on**. A committed workflow file is not sufficient. | — |
 | STD-SUP-7 | `CODEOWNERS` present, paired with required review on high-blast-radius paths such as workflow files. | — |
 
 **On STD-SUP-3 and STD-SUP-4.** A minimum-release-age exclusion pinned to an
@@ -434,6 +434,21 @@ makes the policy the same everywhere and survives the next default change. Match
 the value to the dependency-update cadence in STD-SUP-1; a window longer than
 that interval defers every bump by a full extra cycle without covering a
 materially different threat.
+
+**Why STD-SUP-6 names the host feature.** Dependency review needs the
+repository's dependency graph enabled. That is a host setting, not something the
+workflow file can turn on, and it is off on some repositories even when public.
+Commit the workflow without it and the job runs on every pull request and fails
+every time with "Dependency review is not supported on this repository", which
+is a permanently red check that proves nothing about the dependencies.
+
+The failure mode this catches is broader than one feature: an element satisfied
+by a file in the tree can still be unsatisfied in effect. Verify the workflow
+can actually do its job, not merely that it exists.
+
+```bash
+gh api repos/<owner>/<repo>/dependency-graph/sbom --jq '.sbom.name'
+```
 
 **A setting can silently disable both STD-SUP-3 and STD-SUP-5.** Package
 managers offer a switch that treats an existing lockfile as already trusted and

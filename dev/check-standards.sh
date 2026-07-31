@@ -109,6 +109,13 @@ if [ "$REMOTE" -eq 1 ]; then
   else
     j() { node -p "try{JSON.parse(process.argv[1])$2}catch(e){'?'}" "$1" 2>/dev/null; }
 
+    # A token without admin scope gets a repository object with the
+    # administrative fields omitted entirely, so the value comes back
+    # `undefined`. That is "not visible", not "false", and reporting it as a
+    # failure is the exact false negative this script must not produce.
+    # CI's GITHUB_TOKEN is such a token.
+    visible() { [ "$1" != "undefined" ] && [ "$1" != "?" ] && [ -n "$1" ]; }
+
     if [ -n "$PROT" ]; then
       [ "$(j "$PROT" '.enforce_admins.enabled')" = "true" ] &&
         [ "$(j "$PROT" '.allow_force_pushes.enabled')" = "false" ] &&
@@ -134,6 +141,9 @@ if [ "$REMOTE" -eq 1 ]; then
     if [ -z "$LINEAR" ]; then
       skip "STD-GATE-5" "linear history, squash the only merge path" \
         "branch protection unreadable, so the pairing cannot be judged"
+    elif ! visible "$MC" || ! visible "$RB" || ! visible "$SQ"; then
+      skip "STD-GATE-5" "linear history, squash the only merge path" \
+        "merge settings not visible to this token; needs admin scope"
     elif [ "$LINEAR" = "1" ] && [ "$MC" = "false" ] && [ "$RB" = "false" ] && [ "$SQ" = "true" ]; then
       ok "STD-GATE-5" "linear history, squash the only merge path"
     else
@@ -141,13 +151,34 @@ if [ "$REMOTE" -eq 1 ]; then
         "linear=$LINEAR merge_commit=$MC rebase=$RB squash=$SQ"
     fi
 
-    [ "$(j "$SETTINGS" '.delete_branch_on_merge')" = "true" ] &&
-      ok "STD-GATE-6" "delete_branch_on_merge" ||
+    DBM="$(j "$SETTINGS" '.delete_branch_on_merge')"
+    if ! visible "$DBM"; then
+      skip "STD-GATE-6" "delete_branch_on_merge" "not visible to this token; needs admin scope"
+    elif [ "$DBM" = "true" ]; then
+      ok "STD-GATE-6" "delete_branch_on_merge"
+    else
       bad "STD-GATE-6" "delete_branch_on_merge" "delete_branch_on_merge is false"
+    fi
 
-    [ "$(j "$SETTINGS" '.has_wiki')" = "false" ] &&
-      ok "STD-SET-2" "wiki disabled" ||
+    WIKI="$(j "$SETTINGS" '.has_wiki')"
+    if ! visible "$WIKI"; then
+      skip "STD-SET-2" "wiki disabled" "not visible to this token"
+    elif [ "$WIKI" = "false" ]; then
+      ok "STD-SET-2" "wiki disabled"
+    else
       bad "STD-SET-2" "wiki disabled" "has_wiki is true and the wiki is presumed unused"
+    fi
+
+    # STD-SUP-6's dependency-review half needs the dependency graph enabled on
+    # the repository, which is a host feature the workflow file cannot turn on.
+    # Without it the workflow runs and fails on every pull request, so checking
+    # only that the file exists reports conformance that does not hold.
+    if gh api "repos/$SLUG/dependency-graph/sbom" >/dev/null 2>&1; then
+      ok "STD-SUP-6" "dependency graph enabled, so dependency review can run"
+    else
+      bad "STD-SUP-6" "dependency graph enabled, so dependency review can run" \
+        "repos/$SLUG/dependency-graph/sbom is unreadable; enable Dependency graph in Settings > Security"
+    fi
     skip "STD-GATE-2" "required contexts cover the matrix" "matrix legs are named per repository"
     skip "STD-GATE-3" "required context runs the suite" "needs judgement about what a job does"
     skip "STD-SET-1" "merge strategy identical across repos" "cross-repository, not decidable here"
