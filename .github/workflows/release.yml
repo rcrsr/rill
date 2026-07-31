@@ -21,8 +21,14 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      # write: creates the GitHub Release. id-token: mints the OIDC token npm
-      # provenance attestation requires.
+      # write: creates the GitHub Release. id-token: mints the OIDC token the
+      # npm provenance attestation requires. `pnpm publish --provenance` below
+      # is what consumes it. STD-REL-3 and STD-REL-4.
+      #
+      # `pnpm publish --help` does not advertise --provenance, which makes it
+      # look unsupported. It is not: pnpm 11 bundles libnpmpublish's
+      # provenance.js and the flag reaches ensureProvenanceGeneration. pnpm 10
+      # ignores it silently, so a repo copying this must be on 11 first.
       contents: write
       id-token: write
 
@@ -83,6 +89,11 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
+          # Without pipefail the `pnpm publish | tee` below reports tee's exit
+          # status, so a failed publish would read as success and the job would
+          # go on to cut a GitHub Release for packages that never shipped.
+          # See dev/REPO-STANDARDS.md STD-REL-6.
+          set -o pipefail
           for dir in packages/core packages/service; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
@@ -96,7 +107,22 @@ jobs:
             fi
             echo "Publishing $NAME@$VERSION..."
             cd "$dir"
-            pnpm publish --access public --no-git-checks
+            # The npm view check above races a concurrent publish: it can pass
+            # while another run is mid-publish of the same version. Treat the
+            # registry's own conflict response as already-published rather than
+            # failing the job. STD-REL-5.
+            PUBLISH_LOG=$(mktemp)
+            if pnpm publish --provenance --access public --no-git-checks 2>&1 | tee "$PUBLISH_LOG"; then
+              echo "Published $NAME@$VERSION"
+            elif grep -Eqi '(EPUBLISHCONFLICT|E403|cannot publish over( the)? previously published versions|cannot modify pre-existing version)' "$PUBLISH_LOG"; then
+              echo "Skipping $NAME@$VERSION (already published, confirmed by registry)"
+            else
+              echo "Failed to publish $NAME@$VERSION"
+              cat "$PUBLISH_LOG"
+              rm -f "$PUBLISH_LOG"
+              exit 1
+            fi
+            rm -f "$PUBLISH_LOG"
             cd "$GITHUB_WORKSPACE"
           done
 
