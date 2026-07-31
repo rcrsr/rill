@@ -34,7 +34,7 @@
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint --config ../../.oxlintrc.json src/",
+    "lint": "oxlint --config ../../.oxlintrc.json src/ tests/",
     "check": "pnpm run build && pnpm run test && pnpm run typecheck && pnpm run lint"
   },
   "repository": {

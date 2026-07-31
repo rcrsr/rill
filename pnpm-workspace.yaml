@@ -6,3 +6,28 @@ packages:
 allowBuilds:
   esbuild: true
   lefthook: true
+
+# Supply-chain policy. Template source for the rill ecosystem; see
+# dev/REPO-STANDARDS.md STD-SUP-3 and STD-SUP-5. Both are enforced against every
+# lockfile entry on install, not just on resolution, because `trustLockfile`
+# stays at its default of false.
+
+# Minutes a version must have been on the registry before pnpm will install it,
+# which is the window in which a compromised release is normally yanked. Set
+# explicitly rather than inherited: pnpm 11 defaults this to 1440, pnpm 10
+# defaults it to off, so a repo copying this file gets the same behaviour on
+# either major. 1440 also matches the weekly dependabot cadence, where a longer
+# window would just defer every bump by an extra cycle.
+minimumReleaseAge: 1440
+
+# No minimumReleaseAgeExclude. This repository is the upstream root: its only
+# @rcrsr/* dependency is `workspace:*`, which never resolves through the
+# registry, so there is nothing to exempt. A downstream repo copying this file
+# needs an exclusion for whichever @rcrsr/* package it consumes, expressed by
+# name rather than by exact version so it survives the next release.
+
+# Fail the install when a package's trust evidence weakens against an
+# earlier-published version, for example a drop from a trusted publisher to
+# provenance-only. Verified against this tree: all 314 lockfile entries pass, so
+# enabling it costs nothing today.
+trustPolicy: no-downgrade

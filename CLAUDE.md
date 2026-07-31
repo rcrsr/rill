@@ -9,7 +9,47 @@ The `conduct/` directory and its initiatives, specifications, plans, and require
 
 Write PR and commit summaries as concrete descriptions of the code and API changes. Refer to source files, exported APIs, and doc pages that ship in the package instead.
 
-The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
+The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `dev/lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
+
+## Repository Standards Conformance
+
+This repository is the source of `dev/REPO-STANDARDS.md`, the ecosystem
+conformance index. Recorded non-applicabilities, per the rule that every N/A
+names an element ID and the stated condition it meets:
+
+| Element | Condition met |
+|---------|---------------|
+| STD-CI-9 (scheduled compatibility workflow) | This repository is the upstream root. It publishes `@rcrsr/rill` and consumes no ecosystem package, so there is no upstream version to drift against. |
+| STD-SCRIPT-7 (`typecheck`, `lint`, `check` in `packages/web`) | `packages/web` ships no TypeScript. Its tracked sources are CSS, Hugo templates, two bash scripts, and static assets. `knip.json` already lists it under `ignoreWorkspaces` for the same reason. The exception covers only the three TypeScript-dependent scripts; `build` is present. |
+
+The condition is per package, so it lapses the moment `packages/web` gains a
+`.ts` or `.tsx` file. Add the three scripts then rather than widening the row.
+
+`no path filtering` in `ci.yml` is a deliberate ecosystem-wide decision, not an
+omission. See STD-CI-7.
+
+Every `uses:` in `.github/workflows/` pins a commit SHA with the release it
+belongs to in a trailing comment, per STD-CI-8. When a SHA changes, update the
+comment with it.
+
+**Squash is the only merge path.** Merge commits and rebase merges are disabled
+in repository settings so they cannot disagree with the required-linear-history
+protection rule, per STD-GATE-5. These are GitHub settings, not files, so
+nothing in the tree enforces them. `pnpm check:standards` covers the elements
+readable from the tree; `bash dev/check-standards.sh --remote` adds these, and
+is what CI runs.
+
+Conformance is machine-checked, but not entirely. The script reports elements it
+cannot decide as `--` and counts them separately. A green run means the checked
+subset holds, not that the repository is conformant.
+
+`pnpm bootstrap` is the entry point for a fresh clone: it asserts the node and
+pnpm floors from `engines`, installs against the committed lockfile, and builds.
+`pnpm check` runs the complete check set, including the root-only checks that
+`pnpm -r run check` cannot reach. See STD-SCRIPT-2 and STD-SCRIPT-5.
+
+Shared dev assets live in `dev/`. They are not published and not installable;
+`dev/apply.sh` copies them into a target repository. See `dev/README.md`.
 
 ## Monorepo Structure
 

@@ -869,8 +869,8 @@ export async function evaluateClosureCallWithPipe(
       (expr) => evaluateExpression(s, expr),
       node.span.start
     );
-    const orderedArgs = closure.params!.map(
-      (p) => boundArgs.params.get(p.name)!
+    const orderedArgs = closure.params!.map((p) =>
+      boundArgs.params.get(p.name)!
     );
     return invokeCallable(s, closure, orderedArgs, node.span.start, fullPath);
   }
@@ -1223,8 +1223,8 @@ async function evaluateInvoke(
       (expr) => evaluateExpression(s, expr),
       node.span.start
     );
-    const orderedArgs = receiver.params!.map(
-      (p) => boundArgs.params.get(p.name)!
+    const orderedArgs = receiver.params!.map((p) =>
+      boundArgs.params.get(p.name)!
     );
     return invokeCallable(s, receiver, orderedArgs, node.span.start);
   }

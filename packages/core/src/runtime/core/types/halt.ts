@@ -123,7 +123,7 @@ export function throwTypeHalt(
     {
       code,
       provider,
-      raw: { message, ...(raw ?? {}) },
+      raw: { message, ...raw },
     },
     frame
   );
@@ -261,7 +261,7 @@ export function throwCatchableHostHalt(
     {
       code,
       provider: 'runtime',
-      raw: { message, ...(raw ?? {}) },
+      raw: { message, ...raw },
     },
     frame
   );
@@ -312,7 +312,7 @@ export function throwFatalHostHalt(
     {
       code,
       provider: 'runtime',
-      raw: { message, ...(raw ?? {}) },
+      raw: { message, ...raw },
     },
     frame
   );
