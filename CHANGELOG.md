@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **`dev/check-standards.sh`:** Enforces `dev/REPO-STANDARDS.md` mechanically, deciding 49 elements from the repository and 5 more from the GitHub API under `--remote`. Wired as the root `check:standards` script and run in CI. Elements needing human judgement are reported as unchecked and counted separately rather than passed silently, so a green run never reads as full conformance. Propagated to other repositories by `dev/apply.sh`.
+- **`dev/bootstrap.sh`:** Brings a fresh clone to build-ready via `pnpm bootstrap`. Asserts the Node and pnpm floors declared in `engines`, installs against the committed lockfile, then builds. It reads those floors from the manifest rather than hardcoding them, so the copy stays identical across repositories. It does not install git hooks; `prepare` already does that.
+
+### Changed
+
+- **Root `check` now runs the complete check set:** It previously delegated to `pnpm -r run check` plus `test:rules`, and `-r` excludes the workspace root, so `check:format`, `check:deps`, and `check:versions` were reachable only from CI. Running `pnpm check` locally now exercises all of them. Contributors may see failures that CI was already catching.
+- **Lint scope extended to `tests/`:** `packages/core`, `packages/service`, and `packages/fiddle` now lint `src/` and `tests/`. Zero new findings; the existing `.oxlintrc.json` overrides already anticipated the wider scope. The `unicorn` plugin is now listed explicitly, since naming a `plugins` array replaces oxlint's defaults and left it silently inactive.
+- **`packages/fiddle` is typechecked in CI:** Its `check` script now runs `typecheck` between `build` and `test`. `vite build` does not typecheck, so `tsc --noEmit` was previously unreachable from `pnpm -r run check`.
+- **Release publishes with provenance and tolerates a registry conflict:** `pnpm publish` now passes `--provenance`, binding each published version to its source commit and build; the `id-token: write` permission was already granted and unused. The publish step also handles the registry's conflict response as already-published rather than failing, and sets `set -o pipefail` so a failed publish cannot report success through the pipe.
+- **Supply-chain policy enforced on install:** `pnpm-workspace.yaml` sets `minimumReleaseAge: 1440` and `trustPolicy: no-downgrade`, so a dependency version published inside the cooling window, or one whose trust evidence weakened, fails the install. All 314 lockfile entries pass today.
+- **Every GitHub Action pinned to a commit SHA:** All 14 `uses:` references across the six workflows now pin a full SHA with the release in a trailing comment. A major tag is mutable, so `@v5` can be retargeted and a run executes different code with no diff in the repository.
+- **Toolchain refreshed:** pnpm 11.11.0 to 11.18.0, oxfmt to 0.61.0, oxlint to 1.76.0, knip to 6.29.0, plus in-range refreshes across the fiddle front-end dependencies. `engines.pnpm` now declares `>=11`.
+
 ## 0.20.0 - 2026-07-30
 
 ### Added
