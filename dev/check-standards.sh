@@ -26,7 +26,10 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$ROOT"
+# No `set -e` here, deliberately, so a failing cd would otherwise run every
+# relative-path check against the caller's directory and print a page of
+# misleading results instead of one error.
+cd "$ROOT" || { echo "cannot cd to $ROOT" >&2; exit 2; }
 
 REMOTE=0
 LIST=0
@@ -79,6 +82,19 @@ WORKFLOWS=(.github/workflows/*.yml)
 
 pkg_field() { node -p "JSON.stringify((require('./package.json')$1)||null)" 2>/dev/null; }
 has_script() { node -e "process.exit(((require('./package.json').scripts)||{})['$1']?0:1)" 2>/dev/null; }
+
+# has_ts <dir> — does the directory hold TypeScript of its own? Read find to
+# completion into a variable rather than piping it into `grep -q`: grep exits at
+# the first line it needs, find dies of SIGPIPE, and under `pipefail` that
+# becomes the pipeline's status, so a large package reads as having no
+# TypeScript and silently skips every element that tests one. Pruning
+# node_modules keeps the walk off the dependency tree.
+has_ts() {
+  local found
+  found="$(find "$1" \( -name node_modules -prune \) -o \
+    \( -name '*.ts' -o -name '*.tsx' \) -print 2>/dev/null)"
+  [ -n "$found" ]
+}
 
 # Publishable package count. Several elements are N/A for a repository that
 # publishes one package and so has no root-versus-package split to reconcile,
@@ -253,25 +269,148 @@ else
     ok "STD-CI-4" "install uses --frozen-lockfile" ||
     bad "STD-CI-4" "install uses --frozen-lockfile" "not found in ci.yml"
 
-  grep -q "cache: *'pnpm'" .github/workflows/ci.yml 2>/dev/null &&
-    ok "STD-CI-3" "setup-node caches pnpm" ||
-    bad "STD-CI-3" "setup-node caches pnpm" "no cache: 'pnpm' in ci.yml"
+  # Both halves of the element. Reordering the two steps keeps `cache: 'pnpm'`
+  # in the file and breaks the install: setup-node resolves the pnpm cache by
+  # running pnpm, which corepack is what puts on PATH.
+  COREPACK_LINE="$(grep -n 'corepack enable' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
+  SETUPNODE_LINE="$(grep -n 'uses: *actions/setup-node' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
+  { grep -q "cache: *'pnpm'" .github/workflows/ci.yml 2>/dev/null &&
+    [ -n "$COREPACK_LINE" ] && [ -n "$SETUPNODE_LINE" ] &&
+    [ "$COREPACK_LINE" -lt "$SETUPNODE_LINE" ]; } &&
+    ok "STD-CI-3" "corepack enabled before setup-node, which caches pnpm" ||
+    bad "STD-CI-3" "corepack enabled before setup-node, which caches pnpm" \
+      "corepack line=${COREPACK_LINE:-none} setup-node line=${SETUPNODE_LINE:-none}, cache: 'pnpm' must also be set"
+fi
+skip "STD-CI-2" "node matrix covers supported majors" "the supported set is an ecosystem decision"
+skip "STD-CI-9" "scheduled compatibility workflow" "N/A for the upstream root; record in CLAUDE.md"
 
-  # §3 requires the CI check job to exercise the version gate, not just the
-  # release workflow. Reaching it only at tag push means a split is found when
-  # the fix costs another release commit.
+# ---------------------------------------------------------------------------
+section "§3 Check coverage"
+
+# §3 is about reachability, not presence: a check defined only in a script no
+# workflow calls is non-conformant. ci.yml names none of build, test, lint, or
+# typecheck, because the check job runs `pnpm -r run check`, so grepping the
+# workflow decides nothing. Expand the script graph from what the workflow
+# actually invokes and decide each element against that.
+CIYML=.github/workflows/ci.yml
+if [ ! -f "$CIYML" ]; then
+  skip "STD-CHK-1..7" "check coverage" "no $CIYML to expand; STD-CI-1 reports its absence"
+else
+  # One `<scope> <script> <command>` line per script the workflow reaches,
+  # scope `.` for the root package. Comment lines are stripped first, so a
+  # command quoted in a comment does not count as reached.
+  CI_REACHED="$(node -e '
+    const fs = require("fs");
+    const load = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return {}; } };
+    // Two levels of packages/, the same depth the shell globs in this file walk,
+    // so a nested package is not invisible to the expansion.
+    const kids = (p) => { try { return fs.readdirSync(p).filter((n) => n !== "node_modules"); } catch (e) { return []; } };
+    const found = ["."];
+    for (const a of kids("packages")) {
+      found.push("packages/" + a);
+      for (const b of kids("packages/" + a)) found.push("packages/" + a + "/" + b);
+    }
+    const dirs = found.filter((d) => fs.existsSync(d + "/package.json"));
+    const man = {};
+    const byName = {};
+    for (const d of dirs) { man[d] = load(d + "/package.json"); if (man[d].name) byName[man[d].name] = d; }
+    const pkgs = dirs.filter((d) => d !== ".");
+    const seen = new Set();
+    const out = [];
+    const walk = (scope, name) => {
+      const cmd = ((man[scope] || {}).scripts || {})[name];
+      const key = scope + " " + name;
+      if (cmd === undefined || seen.has(key)) return;
+      seen.add(key);
+      out.push(key + " " + cmd.replace(/\s+/g, " "));
+      scan(scope, cmd);
+    };
+    const scan = (scope, text) => {
+      // Expands `pnpm [flags] [run] <script>`, with -r or --recursive fanning
+      // out to every workspace package and --filter <name> or --filter=<name>
+      // selecting one. Not expanded: pnpm exec and pnpm dlx, which parse as a
+      // script named exec or dlx, and an invocation split across a YAML line
+      // continuation. Both fail in the conservative direction, reading as
+      // unreached, so an element FAILs rather than passing on no evidence.
+      const re = /pnpm ((?:--filter[= ]\S+ |--?[\w-]+ )*)(?:run )?([\w:.-]+)/g;
+      let m;
+      while ((m = re.exec(text)) !== null) {
+        const flags = m[1] || "";
+        let targets = [scope];
+        if (/(^| )(-r|--recursive)( |$)/.test(flags)) targets = pkgs;
+        else {
+          const f = /--filter[= ](\S+)/.exec(flags);
+          if (f) targets = byName[f[1]] ? [byName[f[1]]] : [];
+        }
+        for (const t of targets) walk(t, m[2]);
+      }
+    };
+    scan(".", fs.readFileSync(".github/workflows/ci.yml", "utf8")
+      .split("\n").filter((l) => !/^\s*#/.test(l)).join("\n"));
+    console.log(out.join("\n"));
+  ' 2>/dev/null)"
+
+  # A here-string, not a pipe: `something | grep -q` closes the pipe early and
+  # under pipefail the SIGPIPE becomes the predicate's answer.
+  reaches() { grep -qE '^[^ ]+ ('"$1"')( |$)' <<<"$CI_REACHED"; }
+
+  reaches 'build' &&
+    ok "STD-CHK-1" "CI reaches build" ||
+    bad "STD-CHK-1" "CI reaches build" "no build script is reachable from $CIYML"
+
+  reaches 'test' &&
+    ok "STD-CHK-2" "CI reaches the test suite" ||
+    bad "STD-CHK-2" "CI reaches the test suite" "no test script is reachable from $CIYML"
+
+  reaches 'lint|check:lint' &&
+    ok "STD-CHK-3" "CI reaches lint" ||
+    bad "STD-CHK-3" "CI reaches lint" "no lint script is reachable from $CIYML"
+
+  # `check:format` only. `format` is the writer's name in the STD-SCRIPT-1
+  # vocabulary, and a script that rewrites files is not a check.
+  reaches 'check:format' &&
+    ok "STD-CHK-4" "CI reaches the format check" ||
+    bad "STD-CHK-4" "CI reaches the format check" \
+      "no check:format is reachable from $CIYML; a root-only script is skipped by pnpm -r"
+
+  # Every package under packages/, and a build is not evidence: esbuild and Vite
+  # do not typecheck, so those packages need typecheck reached explicitly. A
+  # `tsc` build does typecheck, and counts, in whatever form it is written:
+  # bare, with flags, or behind a preceding command.
+  #
+  # awk, not grep, so the directory name is compared as a field rather than
+  # interpolated into a pattern where its dots would match anything.
+  UNTYPED=""
+  for d in packages/*/ packages/*/*/; do
+    d="${d%/}"
+    [ -f "$d/package.json" ] || continue
+    has_ts "$d" || continue
+    awk -v d="$d" '$1 == d && ($2 == "typecheck" || $0 ~ / tsc( |$)/) { hit = 1 }
+      END { exit hit ? 0 : 1 }' <<<"$CI_REACHED" || UNTYPED="$UNTYPED$d "
+  done
+  [ -z "$UNTYPED" ] &&
+    ok "STD-CHK-5" "every TypeScript package under packages/ is typechecked in CI" ||
+    bad "STD-CHK-5" "every TypeScript package under packages/ is typechecked in CI" \
+      "CI reaches no typecheck for: $UNTYPED"
+
+  reaches 'check:deps' &&
+    ok "STD-CHK-6" "CI reaches the unused dependency and export check" ||
+    bad "STD-CHK-6" "CI reaches the unused dependency and export check" \
+      "no check:deps is reachable from $CIYML"
+
+  # The version gate belongs in the CI check job, not only in the release
+  # workflow. Reaching it at tag push alone means a split is found when the fix
+  # costs another release commit.
   if [ "$PUBLISHABLE" -le 1 ]; then
     skip "STD-CHK-7" "version gate in CI" \
       "N/A: $PUBLISHABLE publishable package, no version split to reconcile"
   else
-    grep -q 'check:versions\|check-versions' .github/workflows/ci.yml 2>/dev/null &&
+    grep -q 'check:versions\|check-versions' "$CIYML" 2>/dev/null &&
       ok "STD-CHK-7" "version gate runs in CI, not only at release" ||
       bad "STD-CHK-7" "version gate runs in CI, not only at release" \
         "ci.yml never runs check:versions; drift surfaces at the tag push instead"
   fi
 fi
-skip "STD-CI-2" "node matrix covers supported majors" "the supported set is an ecosystem decision"
-skip "STD-CI-9" "scheduled compatibility workflow" "N/A for the upstream root; record in CLAUDE.md"
 
 # ---------------------------------------------------------------------------
 section "§4 Script vocabulary"
@@ -317,8 +456,7 @@ DUPES="$(node -p "
 if [ -f pnpm-workspace.yaml ]; then
   for d in packages/*/ packages/*/*/; do
     [ -f "$d/package.json" ] || continue
-    find "$d" -name '*.ts' -o -name '*.tsx' 2>/dev/null |
-      grep -qv node_modules || continue
+    has_ts "$d" || continue
     for s in build typecheck lint check; do
       node -e "process.exit(((require('./$d/package.json').scripts)||{})['$s']?0:1)" 2>/dev/null ||
         PKG_MISSING="${PKG_MISSING:-}$d:$s "
@@ -505,10 +643,14 @@ if [ -f pnpm-workspace.yaml ]; then
       "pinned to an exact version: $PINNED"
 fi
 
+# Both ecosystems, not just actions. The npm half is the one that surfaces the
+# dependency updates the repository actually consumes.
 [ -f .github/dependabot.yml ] &&
-  grep -q 'github-actions' .github/dependabot.yml &&
+  grep -qE "package-ecosystem: *['\"]?npm['\"]?" .github/dependabot.yml &&
+  grep -qE "package-ecosystem: *['\"]?github-actions['\"]?" .github/dependabot.yml &&
   ok "STD-SUP-1" "dependabot covers npm and actions" ||
-  bad "STD-SUP-1" "dependabot covers npm and actions" "missing or no github-actions ecosystem"
+  bad "STD-SUP-1" "dependabot covers npm and actions" \
+    "missing, or one ecosystem absent: needs a npm block and a github-actions block"
 
 { [ -f .github/workflows/codeql.yml ] && [ -f .github/workflows/dependency-review.yml ]; } &&
   ok "STD-SUP-6" "static analysis and dependency review" ||

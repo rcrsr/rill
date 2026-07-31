@@ -114,7 +114,7 @@ jobs:
             PUBLISH_LOG=$(mktemp)
             if pnpm publish --provenance --access public --no-git-checks 2>&1 | tee "$PUBLISH_LOG"; then
               echo "Published $NAME@$VERSION"
-            elif grep -Eqi '(EPUBLISHCONFLICT|E403|cannot publish over( the)? previously published versions|cannot modify pre-existing version)' "$PUBLISH_LOG"; then
+            elif grep -Eqi '(EPUBLISHCONFLICT|cannot publish over( the)? previously published versions|cannot modify pre-existing version)' "$PUBLISH_LOG"; then
               echo "Skipping $NAME@$VERSION (already published, confirmed by registry)"
             else
               echo "Failed to publish $NAME@$VERSION"

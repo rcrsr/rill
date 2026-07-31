@@ -48,6 +48,11 @@ done
 
 [ -n "$TARGET" ] || usage
 [ -d "$TARGET" ] || { echo "not a directory: $TARGET" >&2; exit 2; }
+# A mistyped or tab-completed path is otherwise accepted silently and gets a
+# dev/ tree written into it, possibly with no version control to undo it.
+# -e, not -d: in a worktree or a submodule .git is a file holding a gitdir
+# pointer, and those targets are version-controlled like any other.
+[ -e "$TARGET/.git" ] || { echo "not a git repository: $TARGET" >&2; exit 2; }
 
 TARGET="$(cd "$TARGET" && pwd)"
 
