@@ -7,6 +7,7 @@ CI, lint, and process setup from what is here.
 |-------|------------|
 | [`REPO-STANDARDS.md`](REPO-STANDARDS.md) | The conformance index. 84 elements, each with a stable ID and a verification command. |
 | [`lint-rules/`](lint-rules/) | Custom oxlint rules, loaded through oxlint's `jsPlugins` field. |
+| [`bootstrap.sh`](bootstrap.sh) | Brings a fresh clone to build-ready, failing with the fix when the toolchain cannot support it. |
 | `apply.sh` | Copies the above into a target repository, and checks a copy for drift. |
 
 ## Nothing here is published
@@ -59,7 +60,21 @@ After the first copy, in the target repository:
    directory. `no-duplicate-error-id` is keyed to `RuntimeError` construction,
    so in practice it applies to `rill` alone.
 
-3. Add the drift check to CI, so a stale copy fails a build instead of rotting
+3. Wire up `bootstrap.sh` in the root `package.json`. The command is identical
+   in every repository, which is the point: a contributor never has to ask which
+   repository needs what.
+
+   ```json
+   { "scripts": { "bootstrap": "bash dev/bootstrap.sh" } }
+   ```
+
+   It reads `engines.node` and `engines.pnpm` from the root manifest rather than
+   hardcoding versions, so the copy stays byte-identical across repositories and
+   does not go stale when a floor moves. It installs with `--frozen-lockfile`
+   and runs `build` if one is defined. It never installs git hooks: `prepare`
+   already does that on install.
+
+4. Add the drift check to CI, so a stale copy fails a build instead of rotting
    quietly. It needs a `rill` checkout alongside:
 
    ```yaml

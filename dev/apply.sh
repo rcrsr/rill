@@ -18,6 +18,7 @@ set -euo pipefail
 ASSETS=(
   lint-rules
   REPO-STANDARDS.md
+  bootstrap.sh
 )
 
 SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

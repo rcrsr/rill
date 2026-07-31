@@ -32,6 +32,20 @@ Every `uses:` in `.github/workflows/` pins a commit SHA with the release it
 belongs to in a trailing comment, per STD-CI-8. When a SHA changes, update the
 comment with it.
 
+**Squash is the only merge path.** Merge commits and rebase merges are disabled
+in repository settings so they cannot disagree with the required-linear-history
+protection rule, per STD-GATE-5. These are GitHub settings, not files, so
+nothing in the tree enforces them. Re-check with:
+
+```bash
+gh api repos/rcrsr/rill --jq '{allow_merge_commit, allow_rebase_merge, allow_squash_merge, delete_branch_on_merge}'
+```
+
+`pnpm bootstrap` is the entry point for a fresh clone: it asserts the node and
+pnpm floors from `engines`, installs against the committed lockfile, and builds.
+`pnpm check` runs the complete check set, including the root-only checks that
+`pnpm -r run check` cannot reach. See STD-SCRIPT-2 and STD-SCRIPT-5.
+
 Shared dev assets live in `dev/`. They are not published and not installable;
 `dev/apply.sh` copies them into a target repository. See `dev/README.md`.
 

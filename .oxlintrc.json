@@ -1,6 +1,16 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["typescript", "oxc", "import", "vitest", "promise"],
+  // Naming this array replaces oxlint's CLI defaults rather than extending
+  // them, so a plugin left out here is silently off even though the tool
+  // enables it by default. `unicorn` is the one that bites: it is default-on
+  // from the CLI and was inert in this repo until it was listed. Every plugin
+  // this repo wants is therefore named explicitly, including the ones that
+  // report nothing. See dev/REPO-STANDARDS.md STD-LINT-5 and STD-LINT-8.
+  //
+  // Enabling `unicorn` cost 3 findings, all no-useless-fallback-in-spread in
+  // halt.ts, all fixed. Its other 137 rules sit in categories this config does
+  // not enable, so they stay off through `categories`, not through omission.
+  "plugins": ["typescript", "oxc", "import", "vitest", "promise", "unicorn"],
   "categories": {
     "correctness": "error"
   },
@@ -78,6 +88,31 @@
     // - no-unmodified-loop-condition (2 hits): both false positives on
     //   invariant guards (a const and an options field) where a different
     //   conjunct advances parser state and terminates the loop.
+
+    // `suspicious` and `perf` were evaluated as categories and both declined.
+    // Counts measured on this tree with the full src/ + tests/ scope. Recorded
+    // here so the next reader does not have to re-measure to find out whether
+    // omitting them was a decision.
+    //
+    // perf, 93 hits, 91 of them one rule:
+    // - no-await-in-loop (91): this is the semantics, not a defect. rill is a
+    //   sequential interpreter and its `seq` operator is defined to await each
+    //   element in order. Parallelising is what `fan` is for.
+    // - unicorn/prefer-set-has (3): the rule assumes a large array. Both
+    //   production hits are 3-element constant lists where a Set is slower.
+    // - oxc/no-map-spread (2): the fix it suggests, Object.assign or in-place
+    //   assignment, is worse than the conditional-spread idiom it flags.
+    //
+    // suspicious, 221 hits, 88 inside the locked language arbiter:
+    // - no-underscore-dangle (106): contradicts this config's own
+    //   argsIgnorePattern of ^_, which is how unused params are marked here.
+    // - no-new (61): every hit is in tests/runtime, constructing a value to
+    //   assert on the constructor. That is the test, not a side effect.
+    // - unicorn/consistent-function-scoping (49): stylistic.
+    // - import/no-unassigned-import (47): side-effect imports in test setup.
+    // - unicorn/no-array-sort (16): wants toSorted; a style choice.
+    // - promise/always-return (5), no-unmodified-loop-condition (2, already
+    //   covered above), unicorn/no-array-reverse (1).
   },
   "ignorePatterns": [
     "**/dist/**",
