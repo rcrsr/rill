@@ -9,8 +9,8 @@
     "build:embedded": "FIDDLE_BASE_PATH=/fiddle/ vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint --config ../../.oxlintrc.json src/",
-    "check": "pnpm run build && pnpm run test && pnpm run lint",
+    "lint": "oxlint --config ../../.oxlintrc.json src/ tests/",
+    "check": "pnpm run build && pnpm run typecheck && pnpm run test && pnpm run lint",
     "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run --passWithNoTests"
   },
   "dependencies": {

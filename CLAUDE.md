@@ -20,9 +20,17 @@ names an element ID and the stated condition it meets:
 | Element | Condition met |
 |---------|---------------|
 | STD-CI-9 (scheduled compatibility workflow) | This repository is the upstream root. It publishes `@rcrsr/rill` and consumes no ecosystem package, so there is no upstream version to drift against. |
+| STD-SCRIPT-7 (`typecheck`, `lint`, `check` in `packages/web`) | `packages/web` ships no TypeScript. Its tracked sources are CSS, Hugo templates, two bash scripts, and static assets. `knip.json` already lists it under `ignoreWorkspaces` for the same reason. The exception covers only the three TypeScript-dependent scripts; `build` is present. |
+
+The condition is per package, so it lapses the moment `packages/web` gains a
+`.ts` or `.tsx` file. Add the three scripts then rather than widening the row.
 
 `no path filtering` in `ci.yml` is a deliberate ecosystem-wide decision, not an
 omission. See STD-CI-7.
+
+Every `uses:` in `.github/workflows/` pins a commit SHA with the release it
+belongs to in a trailing comment, per STD-CI-8. When a SHA changes, update the
+comment with it.
 
 Shared dev assets live in `dev/`. They are not published and not installable;
 `dev/apply.sh` copies them into a target repository. See `dev/README.md`.

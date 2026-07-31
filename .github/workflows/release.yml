@@ -9,6 +9,14 @@ on:
 permissions:
   contents: read
 
+# Serialized, never cancelled. A publish that is interrupted between the two
+# packages leaves the registry holding one half of a release, which the version
+# gate then reads as already-published on the retry. See dev/REPO-STANDARDS.md
+# STD-CI-6.
+concurrency:
+  group: release-${{ github.workflow }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -19,12 +27,12 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - name: Enable Corepack and install pnpm
         run: corepack enable && corepack prepare --activate
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version: '25'
           cache: 'pnpm'
