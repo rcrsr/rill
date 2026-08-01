@@ -96,25 +96,110 @@ has_ts() {
   [ -n "$found" ]
 }
 
-# Every package manifest the repository owns, root included. A single-package
-# repository publishes from the root and has no packages/ tree at all, so a walk
-# that starts at packages/ sees nothing and every element derived from this list
-# passes vacuously. WORKSPACE distinguishes the two layouts.
-WORKSPACE=0
-[ -f pnpm-workspace.yaml ] && grep -q '^packages:' pnpm-workspace.yaml && WORKSPACE=1
+# Workspace globs, parsed once, from the `packages:` block alone. Two different
+# questions ride on this file and answering both from one grep gets both wrong:
+# STD-PM-7 asks whether the declared globs match anything, which only a
+# declaration can answer, while every other element asks what the tree holds.
+# WS_DECLARED answers the first and nothing else.
+WS_GLOBS=()
+if [ -f pnpm-workspace.yaml ]; then
+  while IFS= read -r g; do
+    [ -n "$g" ] && WS_GLOBS+=("$g")
+  done < <(awk -v q="\"'" '
+    # Trim, then strip one matched pair of quotes. Trimming also drops the \r
+    # of a CRLF checkout, which [[:space:]] covers.
+    function emit(s,   c) {
+      sub(/^[[:space:]]+/, "", s)
+      sub(/[[:space:]]+$/, "", s)
+      c = substr(s, 1, 1)
+      if (length(s) > 1 && index(q, c) && substr(s, length(s), 1) == c)
+        s = substr(s, 2, length(s) - 2)
+      if (s != "") print s
+    }
+    /^packages:/ {
+      in_b = 1
+      rest = $0
+      sub(/^packages:[[:space:]]*/, "", rest)
+      sub(/(^|[[:space:]])#.*$/, "", rest)
+      # A flow sequence carries the whole list on this line, so consuming the
+      # line unconditionally dropped every glob a repository spelled that way.
+      if (rest ~ /^\[/) {
+        sub(/^\[/, "", rest)
+        sub(/\][[:space:]]*$/, "", rest)
+        n = split(rest, parts, ",")
+        for (i = 1; i <= n; i++) emit(parts[i])
+        in_b = 0
+      }
+      next
+    }
+    # A column-0 comment is not the next top-level key. Reading it as one
+    # truncated the sequence, and killed it outright when it came first.
+    in_b && /^[^[:space:]#-]/ { in_b = 0 }
+    in_b && /^[[:space:]]*-[[:space:]]*/ {
+      line = $0
+      sub(/^[[:space:]]*-[[:space:]]*/, "", line)
+      sub(/[[:space:]]+#.*$/, "", line)
+      emit(line)
+    }' pnpm-workspace.yaml)
+fi
+WS_DECLARED=0
+[ ${#WS_GLOBS[@]} -gt 0 ] && WS_DECLARED=1
 
+# Every package manifest the repository owns, root included, expanded from the
+# declared globs rather than a hardcoded packages/. A workspace declaring
+# `apps/*` had its globs confirmed live by STD-PM-7 while its packages stayed
+# invisible to every element below. The packages/ pair is the fallback for a
+# repository that declares nothing, which also covers a misspelled stanza: the
+# layout has to follow what the tree holds, not what a header says.
 MANIFESTS=(package.json)
-for f in packages/*/package.json packages/*/*/package.json; do
-  [ -f "$f" ] && MANIFESTS+=("$f")
+MAN_GLOBS=("packages/*" "packages/*/*")
+[ "$WS_DECLARED" -eq 1 ] && MAN_GLOBS=("${WS_GLOBS[@]}")
+for g in "${MAN_GLOBS[@]}"; do
+  case "$g" in '!'* | '') continue ;; esac
+  # Each glob is expanded at its own depth and one below it. `**` is pnpm's
+  # canonical spelling and bash expands it as a plain `*` unless globstar is
+  # set, so `packages/**` alone reached depth 1 and a nested package went
+  # missing — taking the whole workspace with it, since the layout is read from
+  # what this loop finds. Enabling globstar instead would walk the dependency
+  # tree. The extra level restores the reach of the packages/*/* pair below.
+  # shellcheck disable=SC2086,SC2231
+  for d in $g $g/*; do
+    # A glob may be written `./apps/*`, and `.` is how a repository declares
+    # its own root. Both have to normalise onto the paths every other loop
+    # compares against, or a scope is compared to one spelled differently.
+    d="${d#./}"
+    case "$d" in node_modules | */node_modules | */node_modules/*) continue ;; esac
+    [ "$d" = "." ] && m=package.json || m="$d/package.json"
+    [ -f "$m" ] || continue
+    case " ${MANIFESTS[*]} " in *" $m "*) continue ;; esac
+    MANIFESTS+=("$m")
+  done
+done
+
+# Layout, decided by what was found. A repository whose only manifest is the
+# root publishes from the root and has no package tree to walk, so an element
+# derived from a packages/ glob passes having checked nothing. Every loop and
+# every script walk below reads MANIFESTS or PKG_DIRS, so no two can disagree.
+WORKSPACE=0
+[ ${#MANIFESTS[@]} -gt 1 ] && WORKSPACE=1
+
+PKG_DIRS=()
+for f in "${MANIFESTS[@]}"; do
+  [ "$f" = package.json ] || PKG_DIRS+=("$(dirname "$f")")
 done
 
 # Publishable package count. Several elements are N/A for a repository that
 # publishes one package and so has no root-versus-package split to reconcile,
-# so count once here rather than assuming either way. A workspace root is
-# normally private and drops out on its own.
+# so count once here rather than assuming either way. The workspace root drops
+# out by layout, not by its `private` flag: no element requires a root to
+# declare one, and keying on it flipped STD-SCRIPT-3, STD-CHK-7 and STD-REL-3 to
+# FAIL on a repository whose stated N/A condition still held.
 PUBLISHABLE=0
 for f in "${MANIFESTS[@]}"; do
-  node -e "process.exit(require('./$f').private?1:0)" 2>/dev/null && PUBLISHABLE=$((PUBLISHABLE + 1))
+  [ "$WORKSPACE" -eq 1 ] && [ "$f" = package.json ] && continue
+  node -e 'const fs = require("fs");
+    process.exit(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).private ? 1 : 0)' \
+    "$f" 2>/dev/null && PUBLISHABLE=$((PUBLISHABLE + 1))
 done
 
 # ---------------------------------------------------------------------------
@@ -127,6 +212,7 @@ if [ "$REMOTE" -eq 1 ]; then
     sed -E 's#\.git$##' | sed -E 's#.*[:/]([^/]+/[^/]+)$#\1#')"
   SETTINGS=""
   PROT=""
+  PROT_STATE=unreadable
   if [ -n "$SLUG" ] && command -v gh >/dev/null 2>&1; then
     SETTINGS="$(gh api "repos/$SLUG" 2>/dev/null)"
     PROT="$(gh api "repos/$SLUG/branches/main/protection" 2>/dev/null)"
@@ -134,12 +220,20 @@ if [ "$REMOTE" -eq 1 ]; then
     # response to carry the field every repository object has.
     node -p "try{JSON.parse(process.argv[1]).full_name?0:1}catch(e){1}" "$SETTINGS" 2>/dev/null |
       grep -q '^0$' || SETTINGS=""
-    # Test .url, not .required_status_checks: a branch can be protected and
-    # carry no required checks at all, which is exactly the STD-GATE-2 and
-    # STD-GATE-4 failure this section exists to report. Keying readability on
-    # that field converted the failure into "unreadable" and hid it.
-    node -p "try{JSON.parse(process.argv[1]).url?0:1}catch(e){1}" "$PROT" 2>/dev/null |
-      grep -q '^0$' || PROT=""
+    # Three states, not two. `.url` is present exactly when the branch is
+    # protected, and the API answers an unprotected branch with a body carrying
+    # no `.url` at all — so testing only that field reported the dominant
+    # failure, a branch with no protection whatsoever, as "unreadable" and let
+    # it exit green. That body's message is unambiguous, so it is decided here
+    # and separated from a genuine auth or network failure, which is not.
+    PROT_STATE="$(node -p 'try{const o=JSON.parse(process.argv[1]);
+      o.url?"protected":(o.message==="Branch not protected"?"unprotected":"unreadable")}
+      catch(e){"unreadable"}' "$PROT" 2>/dev/null)"
+    case "$PROT_STATE" in
+      protected | unprotected) ;;
+      *) PROT_STATE=unreadable ;;
+    esac
+    [ "$PROT_STATE" = protected ] || PROT=""
   fi
 
   # An unreachable API is not a failing element. Reporting it as one trains the
@@ -157,7 +251,7 @@ if [ "$REMOTE" -eq 1 ]; then
     # CI's GITHUB_TOKEN is such a token.
     visible() { [ "$1" != "undefined" ] && [ "$1" != "?" ] && [ -n "$1" ]; }
 
-    if [ -n "$PROT" ]; then
+    if [ "$PROT_STATE" = protected ]; then
       [ "$(j "$PROT" '.enforce_admins.enabled')" = "true" ] &&
         [ "$(j "$PROT" '.allow_force_pushes.enabled')" = "false" ] &&
         ok "STD-GATE-1" "main protected, force push off, admins included" ||
@@ -170,6 +264,14 @@ if [ "$REMOTE" -eq 1 ]; then
 
       [ "$(j "$PROT" '.required_linear_history.enabled')" = "true" ] &&
         LINEAR=1 || LINEAR=0
+    elif [ "$PROT_STATE" = unprotected ]; then
+      bad "STD-GATE-1" "main protected, force push off, admins included" \
+        "main carries no branch protection at all"
+      bad "STD-GATE-4" "strict status checks" "main carries no branch protection at all"
+      # An unprotected branch has linear history off, which is a term the
+      # pairing below can judge against the merge settings. Blanking it instead
+      # skipped STD-GATE-5 on the one repository state it most needs to report.
+      LINEAR=0
     else
       skip "STD-GATE-1" "main protected" "branch protection unreadable"
       skip "STD-GATE-4" "strict status checks" "branch protection unreadable"
@@ -224,10 +326,21 @@ if [ "$REMOTE" -eq 1 ]; then
     # matrix parsed, so completeness stays unchecked. An empty list does not:
     # zero required contexts is a decidable failure of STD-GATE-2, and reporting
     # the whole element as unchecked hid a branch that gates on nothing.
-    if [ -z "$PROT" ]; then
+    #
+    # `required_status_checks` is null when a protected branch requires none.
+    # `visible` passes the literal string null, and the length probe throws on
+    # it and answers '?', so both spellings of "nothing is required" fell
+    # through to the skip this arm exists to replace. Tested here rather than in
+    # `visible`, which serves boolean fields where null means something else.
+    RSC="$(j "$PROT" '.required_status_checks')"
+    NCTX="$(j "$PROT" '.required_status_checks.contexts.length')"
+    if [ "$PROT_STATE" = unreadable ]; then
       skip "STD-GATE-2" "required contexts cover the matrix" "branch protection unreadable"
-    elif ! visible "$(j "$PROT" '.required_status_checks')" ||
-      [ "$(j "$PROT" '.required_status_checks.contexts.length')" = "0" ]; then
+    elif [ "$PROT_STATE" = unprotected ]; then
+      bad "STD-GATE-2" "required contexts cover the matrix" \
+        "main carries no branch protection, so nothing is required"
+    elif ! visible "$RSC" || [ "$RSC" = "null" ] ||
+      [ "$NCTX" = "0" ] || [ "$NCTX" = "?" ]; then
       bad "STD-GATE-2" "required contexts cover the matrix" \
         "no required status checks at all, so main merges with nothing gating it"
     else
@@ -316,14 +429,24 @@ skip "STD-CI-2" "node matrix covers supported majors" "the supported set is an e
 # reaches the registry and so is the root consuming itself. This was hardcoded
 # to the root's own answer, and that file is copied verbatim into every sibling,
 # so each one claimed an N/A it does not meet.
+#
+# Read the value as well as the key: an `npm:` alias hides the real package name
+# in the value, so `"rill": "npm:@rcrsr/rill@^0.20.0"` consumes an ecosystem
+# package under a name that does not look like one. `optionalDependencies`
+# counts for the same reason the other three do. `catalog:` and git URLs stay
+# consumed; only `workspace:` is the root consuming itself.
 CONSUMES="$(node -e '
   const fs = require("fs");
   const names = new Set();
   for (const f of process.argv.slice(1)) {
     let p; try { p = JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { continue; }
-    for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
+    for (const field of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
       for (const [n, v] of Object.entries(p[field] || {})) {
-        if (n.startsWith("@rcrsr/") && !String(v).startsWith("workspace:")) names.add(n);
+        const s = String(v);
+        if (s.startsWith("workspace:")) continue;
+        const alias = /^npm:((?:@[^/@]+\/)?[^@]+)(?:@|$)/.exec(s);
+        const name = alias ? alias[1] : n;
+        if (name.startsWith("@rcrsr/")) names.add(name);
       }
     }
   }
@@ -333,19 +456,32 @@ if [ -z "$CONSUMES" ]; then
   skip "STD-CI-9" "scheduled compatibility workflow" \
     "N/A: consumes no ecosystem package from the registry, i.e. the upstream root"
 else
-  # A workflow that runs on a schedule and names one of those packages.
-  COMPAT=""
-  for f in "${WORKFLOWS[@]}"; do
-    grep -q '^ *schedule:' "$f" 2>/dev/null || continue
-    for n in $CONSUMES; do
-      grep -qF "$n" "$f" 2>/dev/null && COMPAT="$f" && break
+  # A scheduled workflow naming each consumed package, one verdict per name: the
+  # element reads "the packages the repository consumes", plural, and breaking
+  # out of both loops on the first hit reported coverage of a set after matching
+  # one member of it.
+  #
+  # The name is anchored, not matched as a substring. Every sibling of
+  # @rcrsr/rill is itself named @rcrsr/rill-<something>, so a bare `grep -F`
+  # for the consumed package is satisfied by any workflow mentioning the
+  # repository's own name — a nightly stale-issue bot passed.
+  #
+  # Not decidable from the tree, and so not checked: whether that job resolves
+  # the *latest* published version rather than the one the lockfile pins.
+  UNCOVERED=""
+  for n in $CONSUMES; do
+    HIT=""
+    NRE="$(printf %s "$n" | sed 's/[.[]/\\&/g')"
+    [ ${#WORKFLOWS[@]} -eq 0 ] || for f in "${WORKFLOWS[@]}"; do
+      grep -q '^ *schedule:' "$f" 2>/dev/null &&
+        grep -qE "$NRE([^A-Za-z0-9._-]|\$)" "$f" 2>/dev/null && HIT=1 && break
     done
-    [ -n "$COMPAT" ] && break
+    [ -n "$HIT" ] || UNCOVERED="$UNCOVERED$n "
   done
-  [ -n "$COMPAT" ] &&
+  [ -z "$UNCOVERED" ] &&
     ok "STD-CI-9" "scheduled compatibility workflow covers $CONSUMES" ||
     bad "STD-CI-9" "scheduled compatibility workflow covers $CONSUMES" \
-      "no scheduled workflow builds and tests against the latest $CONSUMES"
+      "no scheduled workflow builds and tests against: $UNCOVERED"
 fi
 
 # ---------------------------------------------------------------------------
@@ -366,15 +502,12 @@ else
   CI_REACHED="$(node -e '
     const fs = require("fs");
     const load = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return {}; } };
-    // Two levels of packages/, the same depth the shell globs in this file walk,
-    // so a nested package is not invisible to the expansion.
-    const kids = (p) => { try { return fs.readdirSync(p).filter((n) => n !== "node_modules"); } catch (e) { return []; } };
-    const found = ["."];
-    for (const a of kids("packages")) {
-      found.push("packages/" + a);
-      for (const b of kids("packages/" + a)) found.push("packages/" + a + "/" + b);
-    }
-    const dirs = found.filter((d) => fs.existsSync(d + "/package.json"));
+    // The package set arrives as arguments rather than being rediscovered here.
+    // Walking packages/ again meant a repository declaring apps/* had `pnpm -r`
+    // fan out to nothing, so build, test and lint read as unreachable from a
+    // workflow that runs them.
+    const dirs = ["."].concat(process.argv.slice(1))
+      .filter((d) => fs.existsSync(d + "/package.json"));
     const man = {};
     const byName = {};
     for (const d of dirs) { man[d] = load(d + "/package.json"); if (man[d].name) byName[man[d].name] = d; }
@@ -412,7 +545,7 @@ else
     scan(".", fs.readFileSync(".github/workflows/ci.yml", "utf8")
       .split("\n").filter((l) => !/^\s*#/.test(l)).join("\n"));
     console.log(out.join("\n"));
-  ' 2>/dev/null)"
+  ' ${PKG_DIRS[@]+"${PKG_DIRS[@]}"} 2>/dev/null)"
 
   # A here-string, not a pipe: `something | grep -q` closes the pipe early and
   # under pipefail the SIGPIPE becomes the predicate's answer.
@@ -449,18 +582,30 @@ else
   # nothing. STD-CHK-5 admits no N/A, so the root is checked in that layout.
   # It is not checked in a workspace: has_ts recurses, so the root would match
   # on its packages' sources and be judged against the aggregator's scripts.
+  #
+  # That layout also changes which script name counts. §4 splits the two
+  # vocabularies, so the root spells this check:types where a package spells it
+  # typecheck, and accepting only the package name failed a conformant
+  # single-package repo. The root name is added rather than substituted: this
+  # element asks whether a typecheck is reachable, and which name the root is
+  # allowed to use is STD-SCRIPT-1's to report. Rejecting bare typecheck here
+  # would bill one defect to two elements, and to the one that is not about it.
   CHK5_DIRS=()
+  CHK5_ROOT=0
   if [ "$WORKSPACE" -eq 1 ]; then
-    for d in packages/*/ packages/*/*/; do CHK5_DIRS+=("${d%/}"); done
+    CHK5_DIRS=("${PKG_DIRS[@]}")
   else
     CHK5_DIRS=(.)
+    CHK5_ROOT=1
   fi
 
   UNTYPED=""
   for d in "${CHK5_DIRS[@]}"; do
     [ -f "$d/package.json" ] || continue
     has_ts "$d" || continue
-    awk -v d="$d" '$1 == d && ($2 == "typecheck" || $0 ~ / tsc( |$)/) { hit = 1 }
+    awk -v d="$d" -v root="$CHK5_ROOT" '
+      $1 == d && ($2 == "typecheck" || (root == 1 && $2 == "check:types") ||
+        $0 ~ / tsc( |$)/) { hit = 1 }
       END { exit hit ? 0 : 1 }' <<<"$CI_REACHED" || UNTYPED="$UNTYPED$d "
   done
   [ -z "$UNTYPED" ] &&
@@ -532,12 +677,13 @@ DUPES="$(node -p "
 # that is neither ok, FAIL, nor -- leaves the summary understating what is
 # unverified, which is worse than an unimplemented check.
 if [ "$WORKSPACE" -eq 1 ]; then
-  for d in packages/*/ packages/*/*/; do
-    [ -f "$d/package.json" ] || continue
+  for d in "${PKG_DIRS[@]}"; do
     has_ts "$d" || continue
     for s in build typecheck lint check; do
-      node -e "process.exit(((require('./$d/package.json').scripts)||{})['$s']?0:1)" 2>/dev/null ||
-        PKG_MISSING="${PKG_MISSING:-}$d:$s "
+      node -e 'const fs = require("fs");
+        const scripts = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).scripts || {};
+        process.exit(scripts[process.argv[2]] ? 0 : 1)' \
+        "$d/package.json" "$s" 2>/dev/null || PKG_MISSING="${PKG_MISSING:-}$d:$s "
     done
   done
   [ -z "${PKG_MISSING:-}" ] &&
@@ -580,14 +726,34 @@ if [ -f "$LINTRC" ]; then
         "plugins array does not list unicorn, which the CLI enables by default"
   fi
 
-  # Lint scope must include tests/, checked at the call sites that run it.
+  # Lint scope must include tests/, checked at the call sites that run it. The
+  # root is that call site in a single-package repository, under the name §4
+  # gives it there; walking only the package list meant the element reported ok
+  # having read nothing in exactly the layout this file exists to decide.
+  # §4 gives the root check:lint and a package the bare name, so the candidates
+  # differ by layout. The root is offered both, because it is the one place the
+  # two vocabularies meet and reading only one name reports nothing.
+  LINT4_DIRS=(.)
+  LINT4_NAMES=(check:lint lint)
+  if [ "$WORKSPACE" -eq 1 ]; then
+    LINT4_DIRS=("${PKG_DIRS[@]}")
+    LINT4_NAMES=(lint)
+  fi
+
   UNSCOPED=""
-  for f in packages/*/package.json; do
-    [ -f "$f" ] || continue
-    L="$(node -p "((require('./$f').scripts)||{}).lint||''" 2>/dev/null)"
+  for d in "${LINT4_DIRS[@]}"; do
+    [ -d "$d/tests" ] || continue
+    L="$(node -e 'const fs = require("fs");
+      const scripts = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).scripts || {};
+      const hit = process.argv.slice(2).find((n) => scripts[n]);
+      process.stdout.write(hit ? scripts[hit] : "")' \
+      "$d/package.json" "${LINT4_NAMES[@]}" 2>/dev/null)"
     [ -z "$L" ] && continue
-    [ -d "$(dirname "$f")/tests" ] || continue
-    case "$L" in *tests*) ;; *) UNSCOPED="$UNSCOPED$(dirname "$f") " ;; esac
+    # Only a command naming an explicit scope can leave tests/ out of it. A bare
+    # invocation lints the working directory and covers both, so reading its
+    # silence as a missing scope would report a repository that has none.
+    case "$L" in *src*) ;; *) continue ;; esac
+    case "$L" in *tests*) ;; *) UNSCOPED="$UNSCOPED$d " ;; esac
   done
   [ -z "$UNSCOPED" ] &&
     ok "STD-LINT-4" "lint scope covers src/ and tests/" ||
@@ -648,29 +814,32 @@ else
   # Requiring the script form in both layouts left STD-REL-2 unsatisfiable for
   # every single-package repo, which is the standard contradicting itself.
   #
-  # The fallback tests for a comparison carrying a ref-derived and a
-  # version-derived term on one line, so it reads the assertion rather than a
-  # fixed string a file could be shaped around.
+  # No single-line pattern reads that comparison. One loose enough to match the
+  # spellings a shell allows also matches `if`, `test` and `version` inside
+  # ordinary words, so it passed lines that gate nothing and failed real gates
+  # written across two lines. Reporting a guess as `ok` is worse than the
+  # guaranteed FAIL it replaced; `--` is the honest answer.
   if has_script check:versions; then
     grep -q 'check-versions\|check:versions' "$REL" &&
       ok "STD-REL-2" "version gate runs before publish" ||
       bad "STD-REL-2" "version gate runs before publish" "$REL never runs check:versions"
   else
-    grep -qE '(if|\[\[?|test).*((REF|TAG|ref_name).*(VERSION|version)|(VERSION|version).*(REF|TAG|ref_name))' "$REL" &&
-      ok "STD-REL-2" "publish gate compares the tag to the manifest version" ||
-      bad "STD-REL-2" "publish gate compares the tag to the manifest version" \
-        "$REL publishes without failing on a tag that disagrees with package.json"
+    skip "STD-REL-2" "publish gate compares the tag to the manifest version" \
+      "the tag-to-manifest comparison is spelled per repository"
   fi
 
   # Provenance binds to a source repository, so each published package needs it.
-  # Read every manifest, root included: a single-package repository publishes
-  # from the root, and walking only packages/ passes having checked nothing.
+  # Read every manifest: a single-package repository publishes from the root, so
+  # walking only the package tree passes having checked nothing. The workspace
+  # root is excluded in the other layout, where it aggregates and publishes
+  # nothing, and requiring `repository` of it tested a field no element names.
   NOREPO=""
   for f in "${MANIFESTS[@]}"; do
-    node -e "
-      const p=require('./$f');
+    [ "$WORKSPACE" -eq 1 ] && [ "$f" = package.json ] && continue
+    node -e 'const fs = require("fs");
+      const p = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
       if (p.private) process.exit(0);
-      process.exit(p.repository ? 0 : 1)" 2>/dev/null || NOREPO="$NOREPO$f "
+      process.exit(p.repository ? 0 : 1)' "$f" 2>/dev/null || NOREPO="$NOREPO$f "
   done
   [ -z "$NOREPO" ] &&
     ok "STD-REL-3" "published packages declare repository" ||
@@ -704,57 +873,136 @@ else
   bad "STD-PM-5" ".nvmrc and .node-version present" "one or both missing"
 fi
 
-# Workspace globs that match nothing are dead config. Only a repository that
-# declares a workspace has any, so the single-package case is the stated N/A.
-if [ "$WORKSPACE" -eq 1 ]; then
+# Workspace globs that match nothing are dead config, so this keys on the
+# declaration and not on the layout: a single-package repository can hold
+# pnpm-workspace.yaml for the §9 settings alone, and that file declares no
+# globs to go dead.
+if [ "$WS_DECLARED" -eq 1 ]; then
   DEAD=""
-  while read -r glob; do
-    [ -z "$glob" ] && continue
+  for glob in "${WS_GLOBS[@]}"; do
+    case "$glob" in '!'*) continue ;; esac
     # shellcheck disable=SC2086
     set -- $glob
     [ -e "$1" ] || DEAD="$DEAD$glob "
-  done < <(grep -oE "^ *- *'[^']+'" pnpm-workspace.yaml | sed -E "s/^ *- *'//; s/'$//")
+  done
   [ -z "$DEAD" ] &&
     ok "STD-PM-7" "every workspace glob matches" ||
     bad "STD-PM-7" "every workspace glob matches" "matches nothing: $DEAD"
 else
   skip "STD-PM-7" "every workspace glob matches" \
-    "N/A: single package with no workspace file"
+    "N/A: no workspace packages are declared"
 fi
 
-# §9's install-time policies. These are NOT gated on a workspace: pnpm reads
-# pnpm-workspace.yaml for settings whether or not it declares `packages:`, so a
-# single-package repository holds the file for these keys alone. Gating them on
-# a workspace made all three vanish from the accounting on every sibling repo,
-# reported as neither ok, FAIL, nor --. A missing file is a FAIL, not a skip:
-# STD-SUP-3 and STD-SUP-5 admit no N/A.
+# §9's install-time policies. These are NOT gated on the workspace layout: pnpm
+# reads pnpm-workspace.yaml for settings whether or not it declares `packages:`,
+# so a single-package repository holds the file for these keys alone. Gating
+# them on a workspace made all three vanish from the accounting on every sibling
+# repo, reported as neither ok, FAIL, nor --.
+#
+# The file has three dispositions, not two, and `[ -f ]` decides only the first
+# of them. Substituting /dev/null reported success for a file that is not there;
+# testing existence alone reported it for a file node could not read, and did so
+# on the two facets whose default reads as passing. Present and parsed is the
+# only state that earns a verdict.
+#
+#   absent      STD-SUP-3 and STD-SUP-5 admit no N/A, so they FAIL. STD-SUP-4 is
+#               N/A: with no file there is nowhere to declare an exclusion, the
+#               same condition its row grants a file that declares none.
+#   unreadable  Nothing is known, which is `--` on all four per the contract at
+#               the top of this file. A parse that fails must not leave a facet
+#               reading ok off its default.
+#   parsed      Judged on the values.
+#
+# The values decide, not the keys: `minimumReleaseAge: 0`, `trustPolicy: none`
+# and `trustLockfile: True` each satisfy a key-presence grep while turning the
+# control off, and the last of those silently disables the other two. Parsed in
+# node from top-level scalars only, with no YAML dependency, because this file
+# has to stay byte-identical across repositories that install nothing extra.
 PNPMWS=pnpm-workspace.yaml
-[ -f "$PNPMWS" ] || PNPMWS=/dev/null
+WS_POLICY=""
+[ -f "$PNPMWS" ] && WS_POLICY="$(node -e '
+  const fs = require("fs");
+  const v = {};
+  // \r is a JS line terminator, so `.` cannot cross it and `$` is unreachable
+  // on a CRLF checkout: the match failed outright and every key read as unset.
+  for (const raw of fs.readFileSync(process.argv[1], "utf8").split(/\r?\n/)) {
+    const m = /^([A-Za-z_][A-Za-z0-9_-]*):[ \t]*(.*)$/.exec(raw);
+    // Strip a trailing comment, then one *matched* pair of surrounding quotes,
+    // written as escapes so the apostrophe does not end this shell string.
+    if (m) v[m[1]] = m[2].replace(/(^|[ \t]+)#.*$/, "").trim()
+      .replace(/^([\u0022\u0027])(.*)\1$/, "$2");
+  }
+  const show = (k) => (v[k] === undefined || v[k] === "" ? "unset" : v[k]);
+  // An underscore separator is a digit group, not a different number.
+  const age = Number(String(show("minimumReleaseAge")).replace(/_/g, ""));
+  // true/True/TRUE are YAML 1.2 booleans. yes/on/y are YAML 1.1 booleans that
+  // 1.2 leaves as strings, so whether a given parser acts on one is not
+  // decidable here — but every spelling states an intent to turn the switch on,
+  // and this element is about leaving it at its default.
+  const truthy = ["true", "yes", "on", "y"]
+    .indexOf(String(v.trustLockfile).toLowerCase()) !== -1;
+  const line = (okay, key) => console.log((okay ? 1 : 0) + " " + show(key));
+  line(v.minimumReleaseAge !== undefined && Number.isFinite(age) && age > 0, "minimumReleaseAge");
+  line(v.trustPolicy !== undefined && v.trustPolicy !== "" &&
+    v.trustPolicy.toLowerCase() !== "none", "trustPolicy");
+  line(truthy, "trustLockfile");' "$PNPMWS" 2>/dev/null)"
 
-grep -q '^minimumReleaseAge:' "$PNPMWS" &&
-  ok "STD-SUP-3" "minimum release age set explicitly" ||
+if [ ! -f "$PNPMWS" ]; then
   bad "STD-SUP-3" "minimum release age set explicitly" \
-    "not in pnpm-workspace.yaml; inheriting the major's default does not satisfy this"
-
-grep -q '^trustPolicy:' "$PNPMWS" &&
-  ok "STD-SUP-5" "dependency trust verified on install" ||
-  bad "STD-SUP-5" "dependency trust verified on install" "no trustPolicy in pnpm-workspace.yaml"
-
-# This one silently disables both of the above.
-if grep -q '^trustLockfile: *true' "$PNPMWS"; then
+    "no $PNPMWS, so the package manager's default applies and that moved between majors"
+  bad "STD-SUP-5" "dependency trust verified on install" \
+    "no $PNPMWS to declare trustPolicy in"
   bad "STD-SUP-3" "supply-chain policies actually applied" \
-    "trustLockfile: true skips re-applying minimumReleaseAge and trustPolicy"
+    "no $PNPMWS, so there is no policy to apply on install"
+  skip "STD-SUP-4" "exclusions do not need a hand edit each release" \
+    "N/A: no $PNPMWS, so the repository declares no exclusions"
+elif [ -z "$WS_POLICY" ]; then
+  skip "STD-SUP-3" "minimum release age set explicitly" "$PNPMWS cannot be read"
+  skip "STD-SUP-5" "dependency trust verified on install" "$PNPMWS cannot be read"
+  skip "STD-SUP-3" "supply-chain policies actually applied" "$PNPMWS cannot be read"
+  skip "STD-SUP-4" "exclusions do not need a hand edit each release" "$PNPMWS cannot be read"
 else
-  ok "STD-SUP-3" "supply-chain policies actually applied"
-fi
+  { read -r AGE_OK AGE_VAL
+    read -r TRUST_OK TRUST_VAL
+    read -r LOCK_ON LOCK_VAL; } <<<"$WS_POLICY"
 
-# An exclusion pinned to an exact version goes stale every release.
-PINNED="$(grep -A20 '^minimumReleaseAgeExclude:' "$PNPMWS" 2>/dev/null |
-  grep -oE "^ *- *'[^']*@[0-9]+\.[0-9]+\.[0-9]+'" | tr '\n' ' ')"
-[ -z "$PINNED" ] &&
-  ok "STD-SUP-4" "exclusions do not need a hand edit each release" ||
-  bad "STD-SUP-4" "exclusions do not need a hand edit each release" \
-    "pinned to an exact version: $PINNED"
+  [ "${AGE_OK:-0}" = 1 ] &&
+    ok "STD-SUP-3" "minimum release age set explicitly" ||
+    bad "STD-SUP-3" "minimum release age set explicitly" \
+      "minimumReleaseAge is ${AGE_VAL:-unset} in $PNPMWS; only a positive value holds a fresh release out"
+
+  [ "${TRUST_OK:-0}" = 1 ] &&
+    ok "STD-SUP-5" "dependency trust verified on install" ||
+    bad "STD-SUP-5" "dependency trust verified on install" \
+      "trustPolicy is ${TRUST_VAL:-unset} in $PNPMWS; none verifies nothing"
+
+  # This one silently disables both of the above. Its safe reading is the
+  # failing one, so a missing third line from the parse must not read as off.
+  if [ "${LOCK_ON:-1}" = 1 ]; then
+    bad "STD-SUP-3" "supply-chain policies actually applied" \
+      "trustLockfile: ${LOCK_VAL:-unset} skips re-applying minimumReleaseAge and trustPolicy"
+  else
+    ok "STD-SUP-3" "supply-chain policies actually applied"
+  fi
+
+  # An exclusion pinned to an exact version goes stale every release. The row
+  # grants an N/A to a repository that declares no exclusions, and a file
+  # without the key declares none just as an absent file does. Reporting `ok`
+  # there counted an element that does not apply as a checked pass, which is the
+  # inflation the absent-file arm above exists to avoid.
+  if grep -q '^minimumReleaseAgeExclude:' "$PNPMWS" 2>/dev/null; then
+    # Quotes are optional in YAML, so an unquoted entry is a pin too.
+    PINNED="$(grep -A20 '^minimumReleaseAgeExclude:' "$PNPMWS" 2>/dev/null |
+      grep -oE "^ *- *['\"]?[^ '\"]+@[0-9]+\.[0-9]+\.[0-9]+" | tr '\n' ' ')"
+    [ -z "$PINNED" ] &&
+      ok "STD-SUP-4" "exclusions do not need a hand edit each release" ||
+      bad "STD-SUP-4" "exclusions do not need a hand edit each release" \
+        "pinned to an exact version: $PINNED"
+  else
+    skip "STD-SUP-4" "exclusions do not need a hand edit each release" \
+      "N/A: the repository declares no exclusions"
+  fi
+fi
 
 # Both ecosystems, not just actions. The npm half is the one that surfaces the
 # dependency updates the repository actually consumes.
