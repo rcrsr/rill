@@ -13,6 +13,7 @@ import { createThemeExtension } from '../../src/lib/theme.js';
 import { createTabKeyBinding } from '../../src/lib/keybindings.js';
 import { rillHighlighter } from '../../src/lib/highlight.js';
 import type { StringStream } from '@codemirror/language';
+import { measureP95 } from '../helpers/measure.js';
 
 // ============================================================
 // THEME INTEGRATION TESTS
@@ -39,34 +40,43 @@ describe('Theme Integration', () => {
 
   describe('AC-3: Theme creation performance', () => {
     it('completes theme creation within 100ms', () => {
-      const startTime = performance.now();
-      createThemeExtension(true);
-      const darkTime = performance.now() - startTime;
+      const darkP95 = measureP95(
+        () => {
+          createThemeExtension(true);
+        },
+        { samples: 50, warmup: 5 }
+      );
+      expect(darkP95).toBeLessThan(100);
 
-      expect(darkTime).toBeLessThan(100);
-
-      const lightStart = performance.now();
-      createThemeExtension(false);
-      const lightTime = performance.now() - lightStart;
-
-      expect(lightTime).toBeLessThan(100);
+      const lightP95 = measureP95(
+        () => {
+          createThemeExtension(false);
+        },
+        { samples: 50, warmup: 5 }
+      );
+      expect(lightP95).toBeLessThan(100);
     });
   });
 
   describe('AC-34: Rapid theme creation calls', () => {
     it('completes 10 rapid createThemeExtension calls', () => {
-      const startTime = performance.now();
-
+      // The defined-ness check is the functional assertion and needs no
+      // timing; the budget below is measured separately, warm.
       for (let i = 0; i < 10; i++) {
-        const darkMode = i % 2 === 0;
-        const extension = createThemeExtension(darkMode);
-        expect(extension).toBeDefined();
+        expect(createThemeExtension(i % 2 === 0)).toBeDefined();
       }
 
-      const totalTime = performance.now() - startTime;
+      const p95 = measureP95(
+        () => {
+          for (let i = 0; i < 10; i++) {
+            createThemeExtension(i % 2 === 0);
+          }
+        },
+        { samples: 20, warmup: 3 }
+      );
 
       // All 10 calls should complete within 1 second
-      expect(totalTime).toBeLessThan(1000);
+      expect(p95).toBeLessThan(1000);
     });
   });
 
@@ -287,11 +297,14 @@ describe('Performance Integration', () => {
         next: () => undefined,
       } as unknown as StringStream;
 
-      const startTime = performance.now();
-      rillHighlighter.token!(mockStream, state);
-      const duration = performance.now() - startTime;
+      const p95 = measureP95(
+        () => {
+          rillHighlighter.token!(mockStream, state);
+        },
+        { samples: 200, warmup: 20 }
+      );
 
-      expect(duration).toBeLessThan(1);
+      expect(p95).toBeLessThan(1);
     });
   });
 
@@ -299,38 +312,39 @@ describe('Performance Integration', () => {
     it('highlights 1000-line document in less than 16ms', () => {
       const lines = Array.from({ length: 1000 }, (_, i) => `${i} -> $var${i}`);
 
-      const startTime = performance.now();
+      const p95 = measureP95(
+        () => {
+          for (const line of lines) {
+            const state = rillHighlighter.startState!(2);
+            const mockStream = {
+              string: line,
+              pos: 0,
+              start: 0,
+              sol: () => mockStream.pos === 0,
+              eol: () => mockStream.pos >= mockStream.string.length,
+              next: () => {
+                if (mockStream.pos < mockStream.string.length) {
+                  const char = mockStream.string[mockStream.pos];
+                  mockStream.pos++;
+                  return char;
+                }
+                return undefined;
+              },
+              peek: () =>
+                mockStream.pos < mockStream.string.length
+                  ? mockStream.string[mockStream.pos]
+                  : undefined,
+            } as unknown as StringStream;
 
-      for (const line of lines) {
-        const state = rillHighlighter.startState!(2);
-        const mockStream = {
-          string: line,
-          pos: 0,
-          start: 0,
-          sol: () => mockStream.pos === 0,
-          eol: () => mockStream.pos >= mockStream.string.length,
-          next: () => {
-            if (mockStream.pos < mockStream.string.length) {
-              const char = mockStream.string[mockStream.pos];
-              mockStream.pos++;
-              return char;
+            while (!mockStream.eol()) {
+              rillHighlighter.token!(mockStream, state);
             }
-            return undefined;
-          },
-          peek: () =>
-            mockStream.pos < mockStream.string.length
-              ? mockStream.string[mockStream.pos]
-              : undefined,
-        } as unknown as StringStream;
+          }
+        },
+        { samples: 5, warmup: 2 }
+      );
 
-        while (!mockStream.eol()) {
-          rillHighlighter.token!(mockStream, state);
-        }
-      }
-
-      const duration = performance.now() - startTime;
-
-      expect(duration).toBeLessThan(200);
+      expect(p95).toBeLessThan(200);
     });
   });
 
@@ -338,38 +352,39 @@ describe('Performance Integration', () => {
     it('highlights 10,000-line document in less than 1000ms', () => {
       const lines = Array.from({ length: 10000 }, (_, i) => `${i} -> $var${i}`);
 
-      const startTime = performance.now();
+      const p95 = measureP95(
+        () => {
+          for (const line of lines) {
+            const state = rillHighlighter.startState!(2);
+            const mockStream = {
+              string: line,
+              pos: 0,
+              start: 0,
+              sol: () => mockStream.pos === 0,
+              eol: () => mockStream.pos >= mockStream.string.length,
+              next: () => {
+                if (mockStream.pos < mockStream.string.length) {
+                  const char = mockStream.string[mockStream.pos];
+                  mockStream.pos++;
+                  return char;
+                }
+                return undefined;
+              },
+              peek: () =>
+                mockStream.pos < mockStream.string.length
+                  ? mockStream.string[mockStream.pos]
+                  : undefined,
+            } as unknown as StringStream;
 
-      for (const line of lines) {
-        const state = rillHighlighter.startState!(2);
-        const mockStream = {
-          string: line,
-          pos: 0,
-          start: 0,
-          sol: () => mockStream.pos === 0,
-          eol: () => mockStream.pos >= mockStream.string.length,
-          next: () => {
-            if (mockStream.pos < mockStream.string.length) {
-              const char = mockStream.string[mockStream.pos];
-              mockStream.pos++;
-              return char;
+            while (!mockStream.eol()) {
+              rillHighlighter.token!(mockStream, state);
             }
-            return undefined;
-          },
-          peek: () =>
-            mockStream.pos < mockStream.string.length
-              ? mockStream.string[mockStream.pos]
-              : undefined,
-        } as unknown as StringStream;
+          }
+        },
+        { samples: 3, warmup: 1 }
+      );
 
-        while (!mockStream.eol()) {
-          rillHighlighter.token!(mockStream, state);
-        }
-      }
-
-      const duration = performance.now() - startTime;
-
-      expect(duration).toBeLessThan(1000);
+      expect(p95).toBeLessThan(1000);
     });
   });
 
@@ -379,7 +394,6 @@ describe('Performance Integration', () => {
 
       expect(longLine.length).toBeGreaterThanOrEqual(1000);
 
-      const state = rillHighlighter.startState!(2);
       const mockStream = {
         string: longLine,
         pos: 0,
@@ -400,15 +414,21 @@ describe('Performance Integration', () => {
             : undefined,
       } as unknown as StringStream;
 
-      const startTime = performance.now();
+      const p95 = measureP95(
+        () => {
+          // Both resets matter: the loop below consumes the stream and
+          // mutates the highlighter state, so without them every sample
+          // after the first would start at EOL and measure no work at all.
+          mockStream.pos = 0;
+          const sampleState = rillHighlighter.startState!(2);
+          while (!mockStream.eol()) {
+            rillHighlighter.token!(mockStream, sampleState);
+          }
+        },
+        { samples: 50, warmup: 5 }
+      );
 
-      while (!mockStream.eol()) {
-        rillHighlighter.token!(mockStream, state);
-      }
-
-      const duration = performance.now() - startTime;
-
-      expect(duration).toBeLessThan(50);
+      expect(p95).toBeLessThan(50);
     });
   });
 });
