@@ -23,7 +23,8 @@
   "files": [
     "check-standards.sh",
     "lint-rules",
-    "REPO-STANDARDS.md"
+    "REPO-STANDARDS.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "test": "node lint-rules/rule-unit-test.cjs",
