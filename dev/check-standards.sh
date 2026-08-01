@@ -310,7 +310,43 @@ else
       "corepack line=${COREPACK_LINE:-none} setup-node line=${SETUPNODE_LINE:-none}, cache: 'pnpm' must also be set"
 fi
 skip "STD-CI-2" "node matrix covers supported majors" "the supported set is an ecosystem decision"
-skip "STD-CI-9" "scheduled compatibility workflow" "N/A for the upstream root; record in CLAUDE.md"
+# STD-CI-9's N/A is "the repository consumes no ecosystem package, i.e. it is
+# the upstream root", which is decidable: an @rcrsr/* dependency resolved from
+# the registry is a consumed ecosystem package, while `workspace:*` never
+# reaches the registry and so is the root consuming itself. This was hardcoded
+# to the root's own answer, and that file is copied verbatim into every sibling,
+# so each one claimed an N/A it does not meet.
+CONSUMES="$(node -e '
+  const fs = require("fs");
+  const names = new Set();
+  for (const f of process.argv.slice(1)) {
+    let p; try { p = JSON.parse(fs.readFileSync(f, "utf8")); } catch (e) { continue; }
+    for (const field of ["dependencies", "devDependencies", "peerDependencies"]) {
+      for (const [n, v] of Object.entries(p[field] || {})) {
+        if (n.startsWith("@rcrsr/") && !String(v).startsWith("workspace:")) names.add(n);
+      }
+    }
+  }
+  process.stdout.write([...names].join(" "));' "${MANIFESTS[@]}" 2>/dev/null)"
+
+if [ -z "$CONSUMES" ]; then
+  skip "STD-CI-9" "scheduled compatibility workflow" \
+    "N/A: consumes no ecosystem package from the registry, i.e. the upstream root"
+else
+  # A workflow that runs on a schedule and names one of those packages.
+  COMPAT=""
+  for f in "${WORKFLOWS[@]}"; do
+    grep -q '^ *schedule:' "$f" 2>/dev/null || continue
+    for n in $CONSUMES; do
+      grep -qF "$n" "$f" 2>/dev/null && COMPAT="$f" && break
+    done
+    [ -n "$COMPAT" ] && break
+  done
+  [ -n "$COMPAT" ] &&
+    ok "STD-CI-9" "scheduled compatibility workflow covers $CONSUMES" ||
+    bad "STD-CI-9" "scheduled compatibility workflow covers $CONSUMES" \
+      "no scheduled workflow builds and tests against the latest $CONSUMES"
+fi
 
 # ---------------------------------------------------------------------------
 section "§3 Check coverage"
