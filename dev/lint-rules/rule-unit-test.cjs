@@ -10,8 +10,8 @@
  * result into the fixture source, so quote-style preservation and
  * template-literal handling are exercised against real source text.
  *
- * Run standalone: `node lint-rules/rule-unit-test.cjs`
- * Wired into: packages/core `test:rules` script (see package.json).
+ * Run standalone: `node dev/lint-rules/rule-unit-test.cjs`
+ * Wired into: the root `test:rules` script (see package.json).
  */
 
 'use strict';

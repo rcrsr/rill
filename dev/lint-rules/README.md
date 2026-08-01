@@ -144,7 +144,7 @@ leading expression).
 For `no-spec-id-reference` the mock `sourceCode` also supplies `text`,
 `getAllComments()`, and real `getLocFromIndex()` line/column arithmetic, so
 reported positions are asserted against columns a reader can look up in the
-fixture source. Run from the repository root or `packages/core`:
+fixture source. Run from the repository root:
 
 ```bash
 pnpm test:rules
