@@ -1,5 +1,6 @@
 packages:
   - 'packages/core'
+  - 'packages/dev'
   - 'packages/fiddle'
   - 'packages/web'
   - 'packages/service'
@@ -8,9 +9,9 @@ allowBuilds:
   lefthook: true
 
 # Supply-chain policy. Template source for the rill ecosystem; see
-# dev/REPO-STANDARDS.md STD-SUP-3 and STD-SUP-5. Both are enforced against every
-# lockfile entry on install, not just on resolution, because `trustLockfile`
-# stays at its default of false.
+# packages/dev/REPO-STANDARDS.md STD-SUP-3 and STD-SUP-5. Both are enforced
+# against every lockfile entry on install, not just on resolution, because
+# `trustLockfile` stays at its default of false.
 
 # Minutes a version must have been on the registry before pnpm will install it,
 # which is the window in which a compromised release is normally yanked. Set

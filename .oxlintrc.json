@@ -5,7 +5,7 @@
   // enables it by default. `unicorn` is the one that bites: it is default-on
   // from the CLI and was inert in this repo until it was listed. Every plugin
   // this repo wants is therefore named explicitly, including the ones that
-  // report nothing. See dev/REPO-STANDARDS.md STD-LINT-5 and STD-LINT-8.
+  // report nothing. See packages/dev/REPO-STANDARDS.md STD-LINT-5 and STD-LINT-8.
   //
   // Enabling `unicorn` cost 3 findings, all no-useless-fallback-in-spread in
   // halt.ts, all fixed. Its other 137 rules sit in categories this config does
@@ -120,7 +120,7 @@
     "**/*.d.ts",
     "**/generated/**"
   ],
-  "jsPlugins": ["./dev/lint-rules/index.js"],
+  "jsPlugins": ["@rcrsr/rill-dev/lint-rules"],
   "overrides": [
     {
       "files": ["**/generated/introspection-data.ts"],
@@ -265,7 +265,7 @@
       }
     },
     {
-      "files": ["dev/lint-rules/**/*.cjs"],
+      "files": ["packages/dev/lint-rules/**/*.cjs"],
       "rules": {
         "typescript/no-require-imports": "off"
       }

@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 #
-# Mechanically enforce the elements of dev/REPO-STANDARDS.md that a script can
+# Mechanically enforce the elements of REPO-STANDARDS.md that a script can
 # decide from the repository itself.
 #
-#   dev/check-standards.sh            check the repository this script sits in
-#   dev/check-standards.sh --list     print every element this script covers
-#   dev/check-standards.sh --remote   also check host settings, needs gh auth
+#   rill-check-standards            check the repository in the working directory
+#   rill-check-standards --list     print every element this script covers
+#   rill-check-standards --remote   also check host settings, needs gh auth
 #
-# Wire it up with `"check:standards": "bash dev/check-standards.sh"` and call it
-# from the root `check` script.
+# Ships in @rcrsr/rill-dev. Wire it up with `"check:standards":
+# "rill-check-standards"` and call it from the root `check` script.
 #
 # Scope, deliberately narrow. This covers the elements with a deterministic
 # answer readable from the tree. Elements needing judgement are NOT checked and
@@ -18,18 +18,32 @@
 # Host settings (§1, §13) need an authenticated API call, so they run only under
 # --remote. Without it they are reported as unchecked, never as passing.
 #
-# Repository-agnostic: everything is derived from the tree, so the copy in each
-# repository is byte-identical.
+# Repository-agnostic: everything is derived from the tree under test, so every
+# consumer runs the same published script.
 #
 # Exit codes: 0 all checked elements pass, 1 at least one fails, 2 usage error.
 
 set -uo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# The repository under test is the working directory, never the directory this
+# script lives in. Deriving it from BASH_SOURCE was safe only while the script
+# was copied to `<repo>/dev/`; from `node_modules/@rcrsr/rill-dev/` the same
+# expression resolves to `node_modules/@rcrsr`, and every probe below would then
+# read a tree with no manifest and no workflows. Absent inputs are decidable
+# here, so that does not error out -- it reports a page of confident results
+# about a directory that was never the subject.
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # No `set -e` here, deliberately, so a failing cd would otherwise run every
 # relative-path check against the caller's directory and print a page of
 # misleading results instead of one error.
 cd "$ROOT" || { echo "cannot cd to $ROOT" >&2; exit 2; }
+# The manifest is the one file every element set assumes. Requiring it converts
+# "invoked outside a repository" from dozens of misleading passes into a single
+# usage error, which is the same reason the cd above is guarded.
+[ -f package.json ] || {
+  echo "no package.json in $ROOT; run this from the repository you want checked" >&2
+  exit 2
+}
 
 REMOTE=0
 LIST=0
@@ -1121,5 +1135,5 @@ if [ "$FAIL" -eq 0 ]; then
 fi
 printf '%s  %d of %d checked elements failed: %s\n' \
   "$(red 'NON-CONFORMANT')" "$FAIL" "$TOTAL" "$(printf '%s ' "${FAILED_IDS[@]}")"
-printf '%s\n' "$(dim 'See dev/REPO-STANDARDS.md for what each element requires and why.')"
+printf '%s\n' "$(dim 'See https://github.com/rcrsr/rill/blob/main/packages/dev/REPO-STANDARDS.md for what each element requires and why.')"
 exit 1

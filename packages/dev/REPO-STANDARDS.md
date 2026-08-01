@@ -44,13 +44,13 @@ does not go stale when a dependency is bumped.
 
 ## Checking conformance
 
-`dev/check-standards.sh` enforces mechanically every element with a
-deterministic answer readable from the repository. It is propagated by
-`dev/apply.sh` alongside this document, so the same checker runs everywhere.
+`rill-check-standards` enforces mechanically every element with a deterministic
+answer readable from the repository. It ships in `@rcrsr/rill-dev` alongside this
+document, so the same checker runs everywhere.
 
 ```bash
-dev/check-standards.sh            # elements readable from the tree
-dev/check-standards.sh --remote   # also §1 and §13, which live on the host
+rill-check-standards            # elements readable from the tree
+rill-check-standards --remote   # also §1 and §13, which live on the host
 ```
 
 Wire it up as `check:standards` and call it from the root `check` script, so a
@@ -293,7 +293,9 @@ with a frozen lockfile so bootstrap never rewrites one, and run `build` where a
 `build` script exists, because "build-ready" means usable rather than merely
 installed: packages that consume each other's emitted declarations need it
 before typecheck or tests will run at all. The reference implementation is
-`dev/bootstrap.sh`, propagated by `dev/apply.sh`.
+`scripts/bootstrap.sh` in the `rill` repository. It stays a per-repository file
+rather than shipping in `@rcrsr/rill-dev`: it performs the install that would
+fetch the package, so it cannot live inside its own prerequisite.
 
 ## 5. Lint configuration
 
@@ -543,11 +545,11 @@ repository that publishes nothing.
 
 ## Referencing this document
 
-Other repositories hold a copy of this file, placed there by `dev/apply.sh`,
-and should link here rather than restating the rules:
+Other repositories receive this file through `@rcrsr/rill-dev`, and should link
+here rather than restating the rules:
 
 ```
-https://github.com/rcrsr/rill/blob/main/dev/REPO-STANDARDS.md
+https://github.com/rcrsr/rill/blob/main/packages/dev/REPO-STANDARDS.md
 ```
 
 Record every N/A in the repository's own `CLAUDE.md`, naming the element ID and

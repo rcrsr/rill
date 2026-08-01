@@ -9,13 +9,12 @@ resolve as `rill/no-duplicate-error-id`.
 
 ## Use
 
-Not published and not installable. A repository holds a copy of `dev/`, placed
-there by `dev/apply.sh`; see [`../README.md`](../README.md). Reference the
-plugin by relative path, which adds no dependency:
+Ships in `@rcrsr/rill-dev`; see [`../README.md`](../README.md). Add that package
+as a devDependency and reference the plugin by its subpath export:
 
 ```json
 {
-  "jsPlugins": ["./dev/lint-rules/index.js"],
+  "jsPlugins": ["@rcrsr/rill-dev/lint-rules"],
   "overrides": [
     {
       "files": ["packages/*/src/**/*.{ts,tsx}"],
@@ -149,15 +148,15 @@ fixture source. Run from the repository root:
 ```bash
 pnpm test:rules
 # or, directly:
-node dev/lint-rules/rule-unit-test.cjs
+rill-test-rules
 ```
 
-It is a root script, so it runs as part of `pnpm check` locally and as its own
-step in the CI `deps` job. `pnpm -r run check` does not reach it: `-r` excludes
-the workspace root.
+In a consuming repository `test:rules` is a root script, so it runs as part of
+`pnpm check` locally and as its own step in CI. `pnpm -r run check` does not
+reach it: `-r` excludes the workspace root.
 
 ## Usage
 
 Within this repository the plugin is registered in the root `.oxlintrc.json`
-via `jsPlugins` as `./dev/lint-rules/index.js`, and the rules are enabled for
+via `jsPlugins` as `@rcrsr/rill-dev/lint-rules`, and the rules are enabled for
 their target globs through `overrides` entries.

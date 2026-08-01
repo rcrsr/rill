@@ -9,13 +9,14 @@ The `conduct/` directory and its initiatives, specifications, plans, and require
 
 Write PR and commit summaries as concrete descriptions of the code and API changes. Refer to source files, exported APIs, and doc pages that ship in the package instead.
 
-The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `dev/lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
+The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `packages/dev/lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
 
 ## Repository Standards Conformance
 
-This repository is the source of `dev/REPO-STANDARDS.md`, the ecosystem
-conformance index. Recorded non-applicabilities, per the rule that every N/A
-names an element ID and the stated condition it meets:
+This repository is the source of `packages/dev/REPO-STANDARDS.md`, the ecosystem
+conformance index, published to other repositories as `@rcrsr/rill-dev`.
+Recorded non-applicabilities, per the rule that every N/A names an element ID
+and the stated condition it meets:
 
 | Element | Condition met |
 |---------|---------------|
@@ -36,8 +37,8 @@ comment with it.
 in repository settings so they cannot disagree with the required-linear-history
 protection rule, per STD-GATE-5. These are GitHub settings, not files, so
 nothing in the tree enforces them. `pnpm check:standards` covers the elements
-readable from the tree; `bash dev/check-standards.sh --remote` adds these, and
-is what CI runs.
+readable from the tree; `pnpm exec rill-check-standards --remote` adds these,
+and is what CI runs.
 
 Conformance is machine-checked, but not entirely. The script reports elements it
 cannot decide as `--` and counts them separately. A green run means the checked
@@ -48,8 +49,14 @@ pnpm floors from `engines`, installs against the committed lockfile, and builds.
 `pnpm check` runs the complete check set, including the root-only checks that
 `pnpm -r run check` cannot reach. See STD-SCRIPT-2 and STD-SCRIPT-5.
 
-Shared dev assets live in `dev/`. They are not published and not installable;
-`dev/apply.sh` copies them into a target repository. See `dev/README.md`.
+Shared dev assets live in `packages/dev` and ship as `@rcrsr/rill-dev`: the
+standards checker (`rill-check-standards`), the custom oxlint rules, and
+`REPO-STANDARDS.md` itself. Sibling repositories consume it as a devDependency
+and upgrade by version rather than by copy. See `packages/dev/README.md`.
+
+`scripts/bootstrap.sh` stays a per-repository file rather than shipping in that
+package: it performs the install that would fetch the package, so it cannot live
+inside its own prerequisite.
 
 ## Monorepo Structure
 
@@ -59,6 +66,7 @@ rill uses pnpm workspaces with the following package organization:
 |---------|----------|---------|
 | `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
 | `packages/service` | `@rcrsr/rill-language-service` | Published language service |
+| `packages/dev` | `@rcrsr/rill-dev` | Standards checker and custom oxlint rules |
 | `packages/fiddle` | `@rcrsr/rill-fiddle` (private) | Browser-based rill playground |
 | `packages/web` | `@rcrsr/rill-web` (private) | Documentation website |
 
@@ -110,26 +118,42 @@ Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
 ## Versioning
 
-`@rcrsr/rill` (packages/core) and `@rcrsr/rill-language-service` (packages/service) are published from this monorepo. Private packages (fiddle, web) are not published and hold a fixed placeholder version of 0.1.0.
+`@rcrsr/rill` (packages/core), `@rcrsr/rill-language-service` (packages/service), and `@rcrsr/rill-dev` (packages/dev) are published from this monorepo. Private packages (fiddle, web) are not published and hold a fixed placeholder version of 0.1.0.
 
 | Scope | Rule |
 |-------|------|
 | Root `package.json` | Increments patch on every release |
 | `packages/core` | Increments patch when core changes |
 | `packages/service` | Held exactly equal to `packages/core` version, character-for-character |
+| `packages/dev` | Floats independently. It ships development assets, not language surface, so tying it to the language version would force a release on every unrelated core patch. `check:versions` deliberately does not cover it |
 
 - `pnpm fix:versions` — Syncs major.minor from root to packages/core, then syncs packages/service to packages/core's full version
 - `pnpm check:versions` — Verifies packages/core shares root major.minor and packages/service exactly equals packages/core's version
 
 ## Release Process
 
-rill is released by tagging a release commit on `main`. When a `v*` tag is pushed, `.github/workflows/release.yml` iterates over `packages/core` and `packages/service` and publishes each non-private package whose current version is not yet on npm. The job skips any package already published at that version, so `@rcrsr/rill` and `@rcrsr/rill-language-service` publish together only when both carry a new version.
+There are two release tracks, keyed to two tag namespaces. `.github/workflows/release.yml` serves both and derives the publish set from the tag that triggered it. A tag glob anchors at the start, so `v*` does not match `dev-v0.1.0`.
 
-Before publishing, CI enforces a version-consistency gate: `./scripts/check-versions.sh` verifies `packages/core` shares the root major.minor and `packages/service` exactly equals `packages/core`'s version.
+| Tag | Publishes | Track |
+|-----|-----------|-------|
+| `vx.y.z` | `@rcrsr/rill`, `@rcrsr/rill-language-service` | The language |
+| `dev-vx.y.z` | `@rcrsr/rill-dev` | Development tooling |
 
-### Release Checklist
+The split exists so the two cadences stay independent. `@rcrsr/rill-dev` ships lint rules and the standards checker, not language surface; without a namespace of its own, shipping a lint-rule fix would mean minting a language version containing no language change, and that version would take the repository's "Latest release" badge. A `dev-v*` release is created with `--latest=false` for the same reason.
 
-1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json` (run `pnpm fix:versions` to sync `packages/service` to `packages/core`)
+Both tracks publish each non-private package whose current version is not yet on npm, skipping anything already published at that version.
+
+Before publishing, CI enforces two gates on both tracks.
+
+`./scripts/check-versions.sh` reconciles the manifests against each other: `packages/core` shares the root major.minor, and `packages/service` exactly equals `packages/core`'s version.
+
+A second gate reconciles the **tag** against the manifest it releases — `v*` against root `package.json`, `dev-v*` against `packages/dev/package.json`. Without it, tagging a version nobody bumped publishes nothing (every version is already on the registry, so the loop skips everything and reports success) and still cuts a GitHub Release for a version that shipped nowhere.
+
+The `v*` gate reads root, not `packages/core`. Root increments its patch on every release while core increments only when core changes, so a release carrying no core change legitimately leaves core behind — as at `v0.18.1`, where root was `0.18.1` and core `0.18.0`. Gating on core would have failed that release.
+
+### Release Checklist — the language
+
+1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json` (run `pnpm fix:versions` to sync `packages/service` to `packages/core`). The tag you push in step 4 must equal the **root** version
 2. Run `pnpm check:versions` to verify alignment
 3. Commit with `chore: release vx.y.z`, open a PR, merge to `main`
 4. From a clean `main` at the merge commit:
@@ -141,12 +165,27 @@ Before publishing, CI enforces a version-consistency gate: `./scripts/check-vers
 
 CI takes over from the tag push, publishes each package with a new version, and creates a GitHub Release for the tag.
 
+### Release Checklist — `@rcrsr/rill-dev`
+
+Independent of the language release. Do not bump the root or `packages/core` version; nothing outside `packages/dev` participates.
+
+1. On a branch, bump the version in `packages/dev/package.json` and add the entry to `packages/dev/CHANGELOG.md`
+2. Commit, open a PR, merge to `main`
+3. From a clean `main` at the merge commit:
+
+   ```bash
+   git tag -a dev-vx.y.z -m "Release @rcrsr/rill-dev x.y.z"
+   git push origin dev-vx.y.z
+   ```
+
+The tag version must equal `packages/dev/package.json`'s version, or the job fails before publishing.
+
 ### Dry Run Testing
 
 Test publish without releasing:
 
 ```bash
-cd packages/core     # or packages/service
+cd packages/core     # or packages/service, packages/dev
 pnpm publish --dry-run --access public
 ```
 

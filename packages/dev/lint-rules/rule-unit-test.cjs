@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * Dependency-free unit-test harness for the custom lint rules.
  *
@@ -10,8 +11,10 @@
  * result into the fixture source, so quote-style preservation and
  * template-literal handling are exercised against real source text.
  *
- * Run standalone: `node dev/lint-rules/rule-unit-test.cjs`
- * Wired into: the root `test:rules` script (see package.json).
+ * Run standalone: `rill-test-rules`, or `node lint-rules/rule-unit-test.cjs`
+ * from the package root.
+ * Wired into: this package's `test` script, and the consuming repository's root
+ * `test:rules` script (see package.json).
  */
 
 'use strict';
