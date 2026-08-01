@@ -1,5 +1,16 @@
 # @rcrsr/rill-dev
 
+> **Not for users of the rill language.** This package holds internal tooling
+> for developing rill itself and the repositories around it: a repository
+> conformance checker and custom lint rules. It contains no language runtime, no
+> parser, and nothing you would call from a rill script or from a host embedding
+> one. Nothing here affects a program written in rill.
+>
+> If you are writing rill, you want **[`@rcrsr/rill`](https://www.npmjs.com/package/@rcrsr/rill)**
+> (the language runtime and parser) or
+> **[`@rcrsr/rill-language-service`](https://www.npmjs.com/package/@rcrsr/rill-language-service)**
+> (outline, formatting, hover, completion, and the static checker).
+
 Shared development assets for the rill ecosystem: the repository standards
 checker and the custom oxlint rules. Every repository in the ecosystem derives
 its lint and conformance setup from what is here.
