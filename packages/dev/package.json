@@ -1,0 +1,48 @@
+{
+  "name": "@rcrsr/rill-dev",
+  "version": "0.1.0",
+  "description": "Shared development assets for the rill ecosystem: the repository standards checker and the custom oxlint rules",
+  "license": "MIT",
+  "author": "Andre Bremer",
+  "type": "module",
+  "exports": {
+    "./lint-rules": "./lint-rules/index.js",
+    "./REPO-STANDARDS.md": "./REPO-STANDARDS.md"
+  },
+  "bin": {
+    "rill-check-standards": "./check-standards.sh",
+    "rill-test-rules": "./lint-rules/rule-unit-test.cjs"
+  },
+  "keywords": [
+    "rill",
+    "oxlint",
+    "lint-rules",
+    "repository-standards",
+    "tooling"
+  ],
+  "files": [
+    "check-standards.sh",
+    "lint-rules",
+    "REPO-STANDARDS.md"
+  ],
+  "scripts": {
+    "test": "node lint-rules/rule-unit-test.cjs",
+    "lint": "oxlint --config ../../.oxlintrc.json lint-rules/",
+    "check": "pnpm run test && pnpm run lint"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rcrsr/rill.git",
+    "directory": "packages/dev"
+  },
+  "homepage": "https://github.com/rcrsr/rill/tree/main/packages/dev#readme",
+  "bugs": {
+    "url": "https://github.com/rcrsr/rill/issues"
+  },
+  "engines": {
+    "node": ">=22.16.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

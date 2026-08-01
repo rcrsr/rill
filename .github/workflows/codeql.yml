@@ -1,6 +1,6 @@
 name: CodeQL
 
-# Template source for the rill ecosystem. See dev/REPO-STANDARDS.md
+# Template source for the rill ecosystem. See packages/dev/REPO-STANDARDS.md
 # STD-SUP-6.
 #
 # No path filtering, for the same reason as ci.yml: a skipped run reports no

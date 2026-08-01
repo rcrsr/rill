@@ -5,8 +5,11 @@
   "workspaces": {
     ".": {
       "entry": ["scripts/*.{ts,mjs,js,sh}"],
-      "project": ["scripts/**/*.{ts,mjs,js}", "dev/lint-rules/**/*.{js,cjs}"],
+      "project": ["scripts/**/*.{ts,mjs,js}"],
       "vitest": ["vitest.config.ts"]
+    },
+    "packages/dev": {
+      "project": ["lint-rules/**/*.{js,cjs}"]
     },
     "packages/core": {
       "entry": ["tests/**/*.test.ts"]

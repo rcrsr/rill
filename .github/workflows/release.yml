@@ -11,7 +11,7 @@ permissions:
 
 # Serialized, never cancelled. A publish that is interrupted between the two
 # packages leaves the registry holding one half of a release, which the version
-# gate then reads as already-published on the retry. See dev/REPO-STANDARDS.md
+# gate then reads as already-published on the retry. See packages/dev/REPO-STANDARDS.md
 # STD-CI-6.
 concurrency:
   group: release-${{ github.workflow }}
@@ -92,9 +92,9 @@ jobs:
           # Without pipefail the `pnpm publish | tee` below reports tee's exit
           # status, so a failed publish would read as success and the job would
           # go on to cut a GitHub Release for packages that never shipped.
-          # See dev/REPO-STANDARDS.md STD-REL-6.
+          # See packages/dev/REPO-STANDARDS.md STD-REL-6.
           set -o pipefail
-          for dir in packages/core packages/service; do
+          for dir in packages/core packages/service packages/dev; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")

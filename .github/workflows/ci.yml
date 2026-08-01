@@ -4,7 +4,7 @@ name: CI
 # with required status checks: `paths-ignore` prevents the run entirely, so a
 # required context is never reported and the PR blocks forever; a job-level
 # `if:` gate reports "skipped", which never satisfies a required context. See
-# dev/REPO-STANDARDS.md STD-CI-7. Filtering `**/*.md` would also skip
+# packages/dev/REPO-STANDARDS.md STD-CI-7. Filtering `**/*.md` would also skip
 # test:examples, which executes every rill snippet in docs/ and README.md.
 #
 # Every `uses:` in this repository pins a commit SHA with the release it belongs
@@ -21,7 +21,7 @@ on:
 permissions:
   contents: read
 
-# Template source for the rill ecosystem. See dev/REPO-STANDARDS.md STD-CI-6.
+# Template source for the rill ecosystem. See packages/dev/REPO-STANDARDS.md STD-CI-6.
 # Keyed on the ref, so a force-push to a PR branch cancels the superseded run
 # instead of leaving a 3-node matrix plus two more jobs racing the new one.
 # `github.workflow` is in the group because a bare ref would collide with the
@@ -81,7 +81,7 @@ jobs:
 
       # Also runs in release.yml before publishing. Running it here too catches
       # a version split at review time rather than at the tag push, when the
-      # fix costs a second release commit. See dev/REPO-STANDARDS.md STD-CHK-7.
+      # fix costs a second release commit. See packages/dev/REPO-STANDARDS.md STD-CHK-7.
       - name: Verify version consistency
         run: pnpm check:versions
 
@@ -96,7 +96,7 @@ jobs:
       - name: Check repository standards conformance
         env:
           GH_TOKEN: ${{ github.token }}
-        run: bash dev/check-standards.sh --remote
+        run: pnpm exec rill-check-standards --remote
 
   language-lock:
     name: Language arbiter lock

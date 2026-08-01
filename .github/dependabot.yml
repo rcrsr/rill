@@ -1,4 +1,4 @@
-# Template source for the rill ecosystem. See dev/REPO-STANDARDS.md
+# Template source for the rill ecosystem. See packages/dev/REPO-STANDARDS.md
 # STD-SUP-1. Downstream repos copy this file and adjust only the `directories`
 # list to match their own workspace layout.
 version: 2

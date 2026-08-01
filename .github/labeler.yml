@@ -182,7 +182,7 @@
       - any-glob-to-any-file:
           - '.github/**'
           - 'scripts/**'
-          - 'lint-rules/**'
+          - 'packages/dev/**'
           - 'packages/core/scripts/**'
           - 'tests/workspace/**'
           - '.claude/**'

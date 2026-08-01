@@ -5,10 +5,10 @@
 #
 #   pnpm bootstrap
 #
-# Wire it up with `"bootstrap": "bash dev/bootstrap.sh"` in the root
+# Wire it up with `"bootstrap": "bash scripts/bootstrap.sh"` in the root
 # package.json. The command is the same in every repository in the ecosystem,
 # which is the whole point: a contributor never has to ask which repository
-# needs what. See dev/REPO-STANDARDS.md STD-SCRIPT-5.
+# needs what. See packages/dev/REPO-STANDARDS.md STD-SCRIPT-5.
 #
 # This deliberately does NOT install git hooks. `prepare` already does that on
 # every install, so duplicating it here would give two places to keep in sync.

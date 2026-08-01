@@ -1,5 +1,6 @@
 packages:
   - 'packages/core'
+  - 'packages/dev'
   - 'packages/fiddle'
   - 'packages/web'
   - 'packages/service'

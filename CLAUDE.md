@@ -9,13 +9,14 @@ The `conduct/` directory and its initiatives, specifications, plans, and require
 
 Write PR and commit summaries as concrete descriptions of the code and API changes. Refer to source files, exported APIs, and doc pages that ship in the package instead.
 
-The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `dev/lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
+The same rule covers workflow-artifact identifiers (`AC-*`, `EC-*`, `IR-*`, `FR-*`, and the other prefixes listed in `packages/dev/lint-rules/README.md`). The `rill/no-spec-id-reference` lint rule enforces this across `packages/*/src/`. Keep the fact a comment states and drop the reference: `Negative n halts with #INVALID_INPUT (EC-1).` becomes `Negative n halts with #INVALID_INPUT.` rill's own error codes (`RILL-R010`, `#TYPE_MISMATCH`) are part of the published error surface and stay. `packages/core/tests/` is out of scope, because most occurrences sit in the locked language arbiter.
 
 ## Repository Standards Conformance
 
-This repository is the source of `dev/REPO-STANDARDS.md`, the ecosystem
-conformance index. Recorded non-applicabilities, per the rule that every N/A
-names an element ID and the stated condition it meets:
+This repository is the source of `packages/dev/REPO-STANDARDS.md`, the ecosystem
+conformance index, published to other repositories as `@rcrsr/rill-dev`.
+Recorded non-applicabilities, per the rule that every N/A names an element ID
+and the stated condition it meets:
 
 | Element | Condition met |
 |---------|---------------|
@@ -36,8 +37,8 @@ comment with it.
 in repository settings so they cannot disagree with the required-linear-history
 protection rule, per STD-GATE-5. These are GitHub settings, not files, so
 nothing in the tree enforces them. `pnpm check:standards` covers the elements
-readable from the tree; `bash dev/check-standards.sh --remote` adds these, and
-is what CI runs.
+readable from the tree; `pnpm exec rill-check-standards --remote` adds these,
+and is what CI runs.
 
 Conformance is machine-checked, but not entirely. The script reports elements it
 cannot decide as `--` and counts them separately. A green run means the checked
@@ -48,8 +49,14 @@ pnpm floors from `engines`, installs against the committed lockfile, and builds.
 `pnpm check` runs the complete check set, including the root-only checks that
 `pnpm -r run check` cannot reach. See STD-SCRIPT-2 and STD-SCRIPT-5.
 
-Shared dev assets live in `dev/`. They are not published and not installable;
-`dev/apply.sh` copies them into a target repository. See `dev/README.md`.
+Shared dev assets live in `packages/dev` and ship as `@rcrsr/rill-dev`: the
+standards checker (`rill-check-standards`), the custom oxlint rules, and
+`REPO-STANDARDS.md` itself. Sibling repositories consume it as a devDependency
+and upgrade by version rather than by copy. See `packages/dev/README.md`.
+
+`scripts/bootstrap.sh` stays a per-repository file rather than shipping in that
+package: it performs the install that would fetch the package, so it cannot live
+inside its own prerequisite.
 
 ## Monorepo Structure
 
@@ -59,6 +66,7 @@ rill uses pnpm workspaces with the following package organization:
 |---------|----------|---------|
 | `packages/core` | `@rcrsr/rill` | Core language runtime and parser |
 | `packages/service` | `@rcrsr/rill-language-service` | Published language service |
+| `packages/dev` | `@rcrsr/rill-dev` | Standards checker and custom oxlint rules |
 | `packages/fiddle` | `@rcrsr/rill-fiddle` (private) | Browser-based rill playground |
 | `packages/web` | `@rcrsr/rill-web` (private) | Documentation website |
 
@@ -110,13 +118,14 @@ Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
 ## Versioning
 
-`@rcrsr/rill` (packages/core) and `@rcrsr/rill-language-service` (packages/service) are published from this monorepo. Private packages (fiddle, web) are not published and hold a fixed placeholder version of 0.1.0.
+`@rcrsr/rill` (packages/core), `@rcrsr/rill-language-service` (packages/service), and `@rcrsr/rill-dev` (packages/dev) are published from this monorepo. Private packages (fiddle, web) are not published and hold a fixed placeholder version of 0.1.0.
 
 | Scope | Rule |
 |-------|------|
 | Root `package.json` | Increments patch on every release |
 | `packages/core` | Increments patch when core changes |
 | `packages/service` | Held exactly equal to `packages/core` version, character-for-character |
+| `packages/dev` | Floats independently. It ships development assets, not language surface, so tying it to the language version would force a release on every unrelated core patch. `check:versions` deliberately does not cover it |
 
 - `pnpm fix:versions` — Syncs major.minor from root to packages/core, then syncs packages/service to packages/core's full version
 - `pnpm check:versions` — Verifies packages/core shares root major.minor and packages/service exactly equals packages/core's version
