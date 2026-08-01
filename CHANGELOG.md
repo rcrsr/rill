@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`dev/check-standards.sh`:** Enforces `dev/REPO-STANDARDS.md` mechanically, deciding 56 elements from the repository and 6 more from the GitHub API under `--remote`. Wired as the root `check:standards` script and run in CI. Elements needing human judgement are reported as unchecked and counted separately rather than passed silently, so a green run never reads as full conformance. Propagated to other repositories by `dev/apply.sh`.
+- **`dev/check-standards.sh`:** Enforces `dev/REPO-STANDARDS.md` mechanically, deciding 55 elements from the repository and 6 more from the GitHub API under `--remote`. Wired as the root `check:standards` script and run in CI. Elements needing human judgement are reported as unchecked and counted separately rather than passed silently, so a green run never reads as full conformance. Propagated to other repositories by `dev/apply.sh`. ([#150](https://github.com/rcrsr/rill/pull/150))
 - **`dev/bootstrap.sh`:** Brings a fresh clone to build-ready via `pnpm bootstrap`. Asserts the Node and pnpm floors declared in `engines`, installs against the committed lockfile, then builds. It reads those floors from the manifest rather than hardcoding them, so the copy stays identical across repositories. It does not install git hooks; `prepare` already does that.
 
 ### Changed
