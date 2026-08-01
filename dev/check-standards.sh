@@ -96,12 +96,24 @@ has_ts() {
   [ -n "$found" ]
 }
 
+# Every package manifest the repository owns, root included. A single-package
+# repository publishes from the root and has no packages/ tree at all, so a walk
+# that starts at packages/ sees nothing and every element derived from this list
+# passes vacuously. WORKSPACE distinguishes the two layouts.
+WORKSPACE=0
+[ -f pnpm-workspace.yaml ] && grep -q '^packages:' pnpm-workspace.yaml && WORKSPACE=1
+
+MANIFESTS=(package.json)
+for f in packages/*/package.json packages/*/*/package.json; do
+  [ -f "$f" ] && MANIFESTS+=("$f")
+done
+
 # Publishable package count. Several elements are N/A for a repository that
 # publishes one package and so has no root-versus-package split to reconcile,
-# so count once here rather than assuming either way.
+# so count once here rather than assuming either way. A workspace root is
+# normally private and drops out on its own.
 PUBLISHABLE=0
-for f in packages/*/package.json packages/*/*/package.json; do
-  [ -f "$f" ] || continue
+for f in "${MANIFESTS[@]}"; do
   node -e "process.exit(require('./$f').private?1:0)" 2>/dev/null && PUBLISHABLE=$((PUBLISHABLE + 1))
 done
 
@@ -122,7 +134,11 @@ if [ "$REMOTE" -eq 1 ]; then
     # response to carry the field every repository object has.
     node -p "try{JSON.parse(process.argv[1]).full_name?0:1}catch(e){1}" "$SETTINGS" 2>/dev/null |
       grep -q '^0$' || SETTINGS=""
-    node -p "try{JSON.parse(process.argv[1]).required_status_checks?0:1}catch(e){1}" "$PROT" 2>/dev/null |
+    # Test .url, not .required_status_checks: a branch can be protected and
+    # carry no required checks at all, which is exactly the STD-GATE-2 and
+    # STD-GATE-4 failure this section exists to report. Keying readability on
+    # that field converted the failure into "unreadable" and hid it.
+    node -p "try{JSON.parse(process.argv[1]).url?0:1}catch(e){1}" "$PROT" 2>/dev/null |
       grep -q '^0$' || PROT=""
   fi
 
@@ -204,7 +220,19 @@ if [ "$REMOTE" -eq 1 ]; then
       bad "STD-SUP-6" "dependency graph enabled, so dependency review can run" \
         "repos/$SLUG/dependency-graph/sbom is unreadable; enable Dependency graph in Settings > Security"
     fi
-    skip "STD-GATE-2" "required contexts cover the matrix" "matrix legs are named per repository"
+    # Whether the listed contexts cover every matrix leg needs the workflow's
+    # matrix parsed, so completeness stays unchecked. An empty list does not:
+    # zero required contexts is a decidable failure of STD-GATE-2, and reporting
+    # the whole element as unchecked hid a branch that gates on nothing.
+    if [ -z "$PROT" ]; then
+      skip "STD-GATE-2" "required contexts cover the matrix" "branch protection unreadable"
+    elif ! visible "$(j "$PROT" '.required_status_checks')" ||
+      [ "$(j "$PROT" '.required_status_checks.contexts.length')" = "0" ]; then
+      bad "STD-GATE-2" "required contexts cover the matrix" \
+        "no required status checks at all, so main merges with nothing gating it"
+    else
+      skip "STD-GATE-2" "required contexts cover the matrix" "matrix legs are named per repository"
+    fi
     skip "STD-GATE-3" "required context runs the suite" "needs judgement about what a job does"
     skip "STD-SET-1" "merge strategy identical across repos" "cross-repository, not decidable here"
     skip "STD-SET-3" "issues enabled" "depends on whether the repo files issues elsewhere"
@@ -380,17 +408,28 @@ else
   #
   # awk, not grep, so the directory name is compared as a field rather than
   # interpolated into a pattern where its dots would match anything.
+  # In a single-package repository the one package IS the root, so a walk that
+  # starts at packages/ finds nothing and the element passes having checked
+  # nothing. STD-CHK-5 admits no N/A, so the root is checked in that layout.
+  # It is not checked in a workspace: has_ts recurses, so the root would match
+  # on its packages' sources and be judged against the aggregator's scripts.
+  CHK5_DIRS=()
+  if [ "$WORKSPACE" -eq 1 ]; then
+    for d in packages/*/ packages/*/*/; do CHK5_DIRS+=("${d%/}"); done
+  else
+    CHK5_DIRS=(.)
+  fi
+
   UNTYPED=""
-  for d in packages/*/ packages/*/*/; do
-    d="${d%/}"
+  for d in "${CHK5_DIRS[@]}"; do
     [ -f "$d/package.json" ] || continue
     has_ts "$d" || continue
     awk -v d="$d" '$1 == d && ($2 == "typecheck" || $0 ~ / tsc( |$)/) { hit = 1 }
       END { exit hit ? 0 : 1 }' <<<"$CI_REACHED" || UNTYPED="$UNTYPED$d "
   done
   [ -z "$UNTYPED" ] &&
-    ok "STD-CHK-5" "every TypeScript package under packages/ is typechecked in CI" ||
-    bad "STD-CHK-5" "every TypeScript package under packages/ is typechecked in CI" \
+    ok "STD-CHK-5" "every TypeScript package is typechecked in CI" ||
+    bad "STD-CHK-5" "every TypeScript package is typechecked in CI" \
       "CI reaches no typecheck for: $UNTYPED"
 
   reaches 'check:deps' &&
@@ -453,7 +492,10 @@ DUPES="$(node -p "
   bad "STD-SCRIPT-6" "no duplicate script aliases" "$DUPES"
 
 # Package vocabulary. A package with no TypeScript is exempt per STD-SCRIPT-7.
-if [ -f pnpm-workspace.yaml ]; then
+# Report the single-package case as N/A rather than printing nothing: an element
+# that is neither ok, FAIL, nor -- leaves the summary understating what is
+# unverified, which is worse than an unimplemented check.
+if [ "$WORKSPACE" -eq 1 ]; then
   for d in packages/*/ packages/*/*/; do
     [ -f "$d/package.json" ] || continue
     has_ts "$d" || continue
@@ -465,6 +507,9 @@ if [ -f pnpm-workspace.yaml ]; then
   [ -z "${PKG_MISSING:-}" ] &&
     ok "STD-SCRIPT-7" "every TypeScript package has the atomic scripts" ||
     bad "STD-SCRIPT-7" "every TypeScript package has the atomic scripts" "missing: ${PKG_MISSING:-}"
+else
+  skip "STD-SCRIPT-7" "every TypeScript package has the atomic scripts" \
+    "N/A: the repository is a single package"
 fi
 if [ "$PUBLISHABLE" -le 1 ]; then
   skip "STD-SCRIPT-3" "check:versions / fix:versions" \
@@ -559,14 +604,33 @@ else
     ok "STD-REL-7" "creates a GitHub Release idempotently" ||
     bad "STD-REL-7" "creates a GitHub Release idempotently" "no gh release step"
 
-  has_script check:versions && grep -q 'check-versions' "$REL" &&
-    ok "STD-REL-2" "version gate runs before publish" ||
-    bad "STD-REL-2" "version gate runs before publish" "no version check in $REL"
+  # Version consistency before publish, which is a different assertion in each
+  # layout. A workspace reconciles the root against its packages, and that is
+  # the check:versions script. A single-package repository has no such split, so
+  # STD-SCRIPT-3 is N/A there and the script does not exist; the consistency
+  # that remains is the pushed tag against the manifest it is about to publish.
+  # Requiring the script form in both layouts left STD-REL-2 unsatisfiable for
+  # every single-package repo, which is the standard contradicting itself.
+  #
+  # The fallback tests for a comparison carrying a ref-derived and a
+  # version-derived term on one line, so it reads the assertion rather than a
+  # fixed string a file could be shaped around.
+  if has_script check:versions; then
+    grep -q 'check-versions\|check:versions' "$REL" &&
+      ok "STD-REL-2" "version gate runs before publish" ||
+      bad "STD-REL-2" "version gate runs before publish" "$REL never runs check:versions"
+  else
+    grep -qE '(if|\[\[?|test).*((REF|TAG|ref_name).*(VERSION|version)|(VERSION|version).*(REF|TAG|ref_name))' "$REL" &&
+      ok "STD-REL-2" "publish gate compares the tag to the manifest version" ||
+      bad "STD-REL-2" "publish gate compares the tag to the manifest version" \
+        "$REL publishes without failing on a tag that disagrees with package.json"
+  fi
 
   # Provenance binds to a source repository, so each published package needs it.
+  # Read every manifest, root included: a single-package repository publishes
+  # from the root, and walking only packages/ passes having checked nothing.
   NOREPO=""
-  for f in packages/*/package.json; do
-    [ -f "$f" ] || continue
+  for f in "${MANIFESTS[@]}"; do
     node -e "
       const p=require('./$f');
       if (p.private) process.exit(0);
@@ -604,8 +668,9 @@ else
   bad "STD-PM-5" ".nvmrc and .node-version present" "one or both missing"
 fi
 
-# Workspace globs that match nothing are dead config.
-if [ -f pnpm-workspace.yaml ]; then
+# Workspace globs that match nothing are dead config. Only a repository that
+# declares a workspace has any, so the single-package case is the stated N/A.
+if [ "$WORKSPACE" -eq 1 ]; then
   DEAD=""
   while read -r glob; do
     [ -z "$glob" ] && continue
@@ -616,32 +681,44 @@ if [ -f pnpm-workspace.yaml ]; then
   [ -z "$DEAD" ] &&
     ok "STD-PM-7" "every workspace glob matches" ||
     bad "STD-PM-7" "every workspace glob matches" "matches nothing: $DEAD"
-
-  grep -q '^minimumReleaseAge:' pnpm-workspace.yaml &&
-    ok "STD-SUP-3" "minimum release age set explicitly" ||
-    bad "STD-SUP-3" "minimum release age set explicitly" \
-      "not in pnpm-workspace.yaml; inheriting the major's default does not satisfy this"
-
-  grep -q '^trustPolicy:' pnpm-workspace.yaml &&
-    ok "STD-SUP-5" "dependency trust verified on install" ||
-    bad "STD-SUP-5" "dependency trust verified on install" "no trustPolicy in pnpm-workspace.yaml"
-
-  # This one silently disables both of the above.
-  if grep -q '^trustLockfile: *true' pnpm-workspace.yaml; then
-    bad "STD-SUP-3" "supply-chain policies actually applied" \
-      "trustLockfile: true skips re-applying minimumReleaseAge and trustPolicy"
-  else
-    ok "STD-SUP-3" "supply-chain policies actually applied"
-  fi
-
-  # An exclusion pinned to an exact version goes stale every release.
-  PINNED="$(grep -A20 '^minimumReleaseAgeExclude:' pnpm-workspace.yaml 2>/dev/null |
-    grep -oE "^ *- *'[^']*@[0-9]+\.[0-9]+\.[0-9]+'" | tr '\n' ' ')"
-  [ -z "$PINNED" ] &&
-    ok "STD-SUP-4" "exclusions do not need a hand edit each release" ||
-    bad "STD-SUP-4" "exclusions do not need a hand edit each release" \
-      "pinned to an exact version: $PINNED"
+else
+  skip "STD-PM-7" "every workspace glob matches" \
+    "N/A: single package with no workspace file"
 fi
+
+# §9's install-time policies. These are NOT gated on a workspace: pnpm reads
+# pnpm-workspace.yaml for settings whether or not it declares `packages:`, so a
+# single-package repository holds the file for these keys alone. Gating them on
+# a workspace made all three vanish from the accounting on every sibling repo,
+# reported as neither ok, FAIL, nor --. A missing file is a FAIL, not a skip:
+# STD-SUP-3 and STD-SUP-5 admit no N/A.
+PNPMWS=pnpm-workspace.yaml
+[ -f "$PNPMWS" ] || PNPMWS=/dev/null
+
+grep -q '^minimumReleaseAge:' "$PNPMWS" &&
+  ok "STD-SUP-3" "minimum release age set explicitly" ||
+  bad "STD-SUP-3" "minimum release age set explicitly" \
+    "not in pnpm-workspace.yaml; inheriting the major's default does not satisfy this"
+
+grep -q '^trustPolicy:' "$PNPMWS" &&
+  ok "STD-SUP-5" "dependency trust verified on install" ||
+  bad "STD-SUP-5" "dependency trust verified on install" "no trustPolicy in pnpm-workspace.yaml"
+
+# This one silently disables both of the above.
+if grep -q '^trustLockfile: *true' "$PNPMWS"; then
+  bad "STD-SUP-3" "supply-chain policies actually applied" \
+    "trustLockfile: true skips re-applying minimumReleaseAge and trustPolicy"
+else
+  ok "STD-SUP-3" "supply-chain policies actually applied"
+fi
+
+# An exclusion pinned to an exact version goes stale every release.
+PINNED="$(grep -A20 '^minimumReleaseAgeExclude:' "$PNPMWS" 2>/dev/null |
+  grep -oE "^ *- *'[^']*@[0-9]+\.[0-9]+\.[0-9]+'" | tr '\n' ' ')"
+[ -z "$PINNED" ] &&
+  ok "STD-SUP-4" "exclusions do not need a hand edit each release" ||
+  bad "STD-SUP-4" "exclusions do not need a hand edit each release" \
+    "pinned to an exact version: $PINNED"
 
 # Both ecosystems, not just actions. The npm half is the one that surfaces the
 # dependency updates the repository actually consumes.
