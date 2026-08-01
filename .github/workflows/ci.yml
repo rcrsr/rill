@@ -90,13 +90,22 @@ jobs:
       - name: Test custom lint rules
         run: pnpm test:rules
 
-      # --remote adds the branch-protection and repository-settings elements,
-      # which are host state and cannot be read from a checkout. GITHUB_TOKEN
-      # covers the two read-only API calls it makes.
+      # Tree only, deliberately. --remote adds the branch-protection and
+      # repository-settings elements, and a pull request cannot change either:
+      # they are host state, altered out of band by an admin. Gating merges on
+      # them means one settings change turns every open PR red for a reason no
+      # author can fix, which trains people to ignore this job.
+      #
+      # GITHUB_TOKEN could not decide them anyway. It reads the repository
+      # object, but the administrative fields are omitted from the response and
+      # branches/*/protection answers 404, so both element groups reported as
+      # unchecked. The step cost an API round trip and settled nothing.
+      #
+      # Host settings are checked with `rill-check-standards --remote` from a
+      # maintainer's authenticated shell, where the credentials already exist
+      # and no secret has to live in CI.
       - name: Check repository standards conformance
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: pnpm exec rill-check-standards --remote
+        run: pnpm exec rill-check-standards
 
   language-lock:
     name: Language arbiter lock
