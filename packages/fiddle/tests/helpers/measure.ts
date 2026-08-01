@@ -37,6 +37,19 @@ export function measureP95(
   fn: () => void,
   { samples, warmup }: { samples: number; warmup: number }
 ): number {
+  // A zero sample count reaches computeP95 with an empty array, which
+  // returns undefined rather than throwing, and `expect(undefined)
+  // .toBeLessThan(budget)` then fails for a reason the message never
+  // mentions. A benchmark that measured nothing should say so.
+  if (!Number.isInteger(samples) || samples < 1) {
+    throw new Error(`measureP95 needs at least one sample, got ${samples}.`);
+  }
+  if (!Number.isInteger(warmup) || warmup < 0) {
+    throw new Error(
+      `measureP95 needs a non-negative warmup count, got ${warmup}.`
+    );
+  }
+
   for (let i = 0; i < warmup; i++) {
     fn();
   }

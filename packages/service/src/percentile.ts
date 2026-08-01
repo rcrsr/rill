@@ -55,6 +55,18 @@ export function measureRatioP95(
   fn: () => void,
   referenceP95Ms: number
 ): number {
+  // Most bad references fail closed: 0 gives Infinity and NaN gives NaN,
+  // and no budget accepts either. A negative one is the exception. It makes
+  // the ratio negative, every budget accepts a negative, and the suite goes
+  // green having measured nothing - the one failure this file exists to
+  // prevent. Reject all of them here so the cause arrives as itself rather
+  // than as a budget breach with no explanation.
+  if (!Number.isFinite(referenceP95Ms) || referenceP95Ms <= 0) {
+    throw new Error(
+      `measureRatioP95 needs a positive reference p95 in ms, got ${referenceP95Ms}. ` +
+        'Zero usually means the beforeAll that measures the reference did not run.'
+    );
+  }
   return measureP95(fn) / referenceP95Ms;
 }
 
