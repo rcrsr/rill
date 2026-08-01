@@ -137,7 +137,7 @@ describe('non-null-fix rules emit a well-formed DiagnosticFix', () => {
     'UNNECESSARY_ASSERTION',
   ]);
 
-  it('every NAMING_SNAKE_CASE / UNNECESSARY_ASSERTION corpus firing carries a complete fix', () => {
+  it('every emitted NAMING_SNAKE_CASE / UNNECESSARY_ASSERTION fix is complete, and each code is checked for withheld fixes on its own terms', () => {
     const golden = loadGolden();
     const fixFirings = golden
       .flatMap((entry) => entry.diagnostics)
@@ -145,10 +145,13 @@ describe('non-null-fix rules emit a well-formed DiagnosticFix', () => {
 
     expect(fixFirings.length).toBeGreaterThan(0);
 
-    for (const diagnostic of fixFirings) {
-      expect(diagnostic.fix).not.toBeNull();
+    const withFix = fixFirings.filter(
+      (d): d is typeof d & { fix: NonNullable<typeof d.fix> } => d.fix !== null
+    );
+
+    // Well-formedness applies to every emitted fix across both codes.
+    for (const diagnostic of withFix) {
       const fix = diagnostic.fix;
-      if (fix === null) continue; // narrowed above; satisfies noUncheckedIndexedAccess-style checks
       expect(typeof fix.description).toBe('string');
       expect(fix.description.length).toBeGreaterThan(0);
       expect(fix.applicable).toBe(true);
@@ -158,6 +161,27 @@ describe('non-null-fix rules emit a well-formed DiagnosticFix', () => {
       expect(fix.range.end.offset).toBeGreaterThanOrEqual(
         fix.range.start.offset
       );
+    }
+
+    // Per-code assertions: pooling both codes before splitting into
+    // withFix/withheldFix masks a single-rule regression, since one code's
+    // fixes can carry the non-empty assertion while the other emits none.
+    for (const code of NON_NULL_FIX_CODES) {
+      const firings = fixFirings.filter((d) => d.code === code);
+      const codeWithFix = firings.filter((d) => d.fix !== null);
+      const codeWithheldFix = firings.filter((d) => d.fix === null);
+
+      expect(codeWithFix.length).toBeGreaterThan(0);
+
+      if (code === 'NAMING_SNAKE_CASE') {
+        // Locks in that reference-site suppression genuinely happens for
+        // this rule specifically, not just somewhere in the pooled set.
+        expect(codeWithheldFix.length).toBeGreaterThan(0);
+      } else {
+        // UNNECESSARY_ASSERTION does not participate in the reference-site
+        // suppression mechanism, so it never withholds a fix.
+        expect(codeWithheldFix.length).toBe(0);
+      }
     }
   });
 

@@ -4896,23 +4896,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'myOrdered' should use snake_case (e.g., 'my_ordered')",
         "context": "ordered[x: 1, y: 2] => $myOrdered",
-        "fix": {
-          "description": "Rename 'myOrdered' to 'my_ordered'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 32,
-              "offset": 32
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 43
-            }
-          },
-          "replacement": "$my_ordered\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -8072,23 +8056,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'addTwo' should use snake_case (e.g., 'add_two')",
         "context": "|x|($x + 2) => $addTwo",
-        "fix": {
-          "description": "Rename 'addTwo' to 'add_two'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 24,
-              "offset": 24
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 32
-            }
-          },
-          "replacement": "$add_two\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -8212,23 +8180,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'addFive' should use snake_case (e.g., 'add_five')",
         "context": "|x|($x + 5) => $addFive",
-        "fix": {
-          "description": "Rename 'addFive' to 'add_five'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 24,
-              "offset": 24
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 33
-            }
-          },
-          "replacement": "$add_five\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -8258,23 +8210,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'addThree' should use snake_case (e.g., 'add_three')",
         "context": "|x|($x + 3) => $addThree",
-        "fix": {
-          "description": "Rename 'addThree' to 'add_three'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 3,
-              "column": 24,
-              "offset": 55
-            },
-            "end": {
-              "line": 4,
-              "column": 1,
-              "offset": 65
-            }
-          },
-          "replacement": "$add_three\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -8297,23 +8233,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'toStr' should use snake_case (e.g., 'to_str')",
         "context": "|x|($x -> string) => $toStr",
-        "fix": {
-          "description": "Rename 'toStr' to 'to_str'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 30,
-              "offset": 30
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 37
-            }
-          },
-          "replacement": "$to_str\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -8437,23 +8357,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'addFive' should use snake_case (e.g., 'add_five')",
         "context": "|x|($x + 5) => $addFive",
-        "fix": {
-          "description": "Rename 'addFive' to 'add_five'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 24,
-              "offset": 24
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 33
-            }
-          },
-          "replacement": "$add_five\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -10244,23 +10148,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Parameter '@' should use snake_case (e.g., '@')",
         "context": "list[1, 2, 3] -> acc(0, |number, number|{ $@ + $ })",
-        "fix": {
-          "description": "Rename '@' to '@'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 1,
-              "column": 34,
-              "offset": 33
-            },
-            "end": {
-              "line": 1,
-              "column": 51,
-              "offset": 50
-            }
-          },
-          "replacement": "number|{ $@ + $ }"
-        }
+        "fix": null
       }
     ]
   },
@@ -10306,23 +10194,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Parameter '@' should use snake_case (e.g., '@')",
         "context": "list[1, 2, 3] -> fold(0, |number, number|{ $@ + $ })",
-        "fix": {
-          "description": "Rename '@' to '@'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 1,
-              "column": 35,
-              "offset": 34
-            },
-            "end": {
-              "line": 1,
-              "column": 52,
-              "offset": 51
-            }
-          },
-          "replacement": "number|{ $@ + $ }"
-        }
+        "fix": null
       }
     ]
   },
@@ -10709,23 +10581,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Parameter '@' should use snake_case (e.g., '@')",
         "context": "list[1, 2, 3] -> fold(0, |string, number|{ $@ + $ })",
-        "fix": {
-          "description": "Rename '@' to '@'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 1,
-              "column": 35,
-              "offset": 34
-            },
-            "end": {
-              "line": 1,
-              "column": 52,
-              "offset": 51
-            }
-          },
-          "replacement": "number|{ $@ + $ }"
-        }
+        "fix": null
       }
     ]
   },
@@ -16980,23 +16836,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'hasName' should use snake_case (e.g., 'has_name')",
         "context": "$data.?$key => $hasName",
-        "fix": {
-          "description": "Rename 'hasName' to 'has_name'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 4,
-              "column": 24,
-              "offset": 93
-            },
-            "end": {
-              "line": 5,
-              "column": 1,
-              "offset": 102
-            }
-          },
-          "replacement": "$has_name\n"
-        }
+        "fix": null
       },
       {
         "code": "THROWAWAY_CAPTURE",
@@ -17032,23 +16872,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'hasAge' should use snake_case (e.g., 'has_age')",
         "context": "$data.?$key => $hasAge",
-        "fix": {
-          "description": "Rename 'hasAge' to 'has_age'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 6,
-              "column": 24,
-              "offset": 147
-            },
-            "end": {
-              "line": 7,
-              "column": 1,
-              "offset": 155
-            }
-          },
-          "replacement": "$has_age\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -21559,23 +21383,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'emptyIter' should use snake_case (e.g., 'empty_iter')",
         "context": "|n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter",
-        "fix": {
-          "description": "Rename 'emptyIter' to 'empty_iter'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 60,
-              "offset": 60
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 71
-            }
-          },
-          "replacement": "$empty_iter\n"
-        }
+        "fix": null
       },
       {
         "code": "PREFER_MAP",
@@ -21605,23 +21413,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'emptyIter' should use snake_case (e.g., 'empty_iter')",
         "context": "|n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter",
-        "fix": {
-          "description": "Rename 'emptyIter' to 'empty_iter'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 60,
-              "offset": 60
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 71
-            }
-          },
-          "replacement": "$empty_iter\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -21733,23 +21525,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'getX' should use snake_case (e.g., 'get_x')",
         "context": "|| { $x } => $getX",
-        "fix": {
-          "description": "Rename 'getX' to 'get_x'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 3,
-              "column": 22,
-              "offset": 38
-            },
-            "end": {
-              "line": 4,
-              "column": 1,
-              "offset": 44
-            }
-          },
-          "replacement": "$get_x\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -21779,23 +21555,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'getX' should use snake_case (e.g., 'get_x')",
         "context": "|| { $x } => $getX",
-        "fix": {
-          "description": "Rename 'getX' to 'get_x'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 3,
-              "column": 22,
-              "offset": 38
-            },
-            "end": {
-              "line": 4,
-              "column": 1,
-              "offset": 44
-            }
-          },
-          "replacement": "$get_x\n"
-        }
+        "fix": null
       },
       {
         "code": "AVOID_REASSIGNMENT",
@@ -21883,23 +21643,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'makeGetter' should use snake_case (e.g., 'make_getter')",
         "context": "|n| { || { $n } } => $makeGetter",
-        "fix": {
-          "description": "Rename 'makeGetter' to 'make_getter'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 30,
-              "offset": 30
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 42
-            }
-          },
-          "replacement": "$make_getter\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -21951,23 +21695,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'getPlus1' should use snake_case (e.g., 'get_plus1')",
         "context": "|| { $counter + 1 } => $getPlus1",
-        "fix": {
-          "description": "Rename 'getPlus1' to 'get_plus1'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 4,
-              "column": 32,
-              "offset": 86
-            },
-            "end": {
-              "line": 5,
-              "column": 1,
-              "offset": 96
-            }
-          },
-          "replacement": "$get_plus1\n"
-        }
+        "fix": null
       },
       {
         "code": "AVOID_REASSIGNMENT",
@@ -22015,23 +21743,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'makeDoubler' should use snake_case (e.g., 'make_doubler')",
         "context": "|| { |n| { $n * 2 } } => $makeDoubler",
-        "fix": {
-          "description": "Rename 'makeDoubler' to 'make_doubler'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 34,
-              "offset": 34
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 47
-            }
-          },
-          "replacement": "$make_doubler\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -28794,23 +28506,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'gtTwo' should use snake_case (e.g., 'gt_two')",
         "context": "|x| { $x -> .gt(2) } => $gtTwo",
-        "fix": {
-          "description": "Rename 'gtTwo' to 'gt_two'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 35,
-              "offset": 35
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 42
-            }
-          },
-          "replacement": "$gt_two\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -28833,23 +28529,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'longEnough' should use snake_case (e.g., 'long_enough')",
         "context": "|s| { $s -> .len -> .gt(3) } => $longEnough",
-        "fix": {
-          "description": "Rename 'longEnough' to 'long_enough'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 43,
-              "offset": 43
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 55
-            }
-          },
-          "replacement": "$long_enough\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -28939,23 +28619,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'addA' should use snake_case (e.g., 'add_a')",
         "context": "|s| { \"{$s}-a\" } => $addA",
-        "fix": {
-          "description": "Rename 'addA' to 'add_a'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 31,
-              "offset": 31
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 37
-            }
-          },
-          "replacement": "$add_a\n"
-        }
+        "fix": null
       },
       {
         "code": "THROWAWAY_CAPTURE",
@@ -28979,23 +28643,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'addB' should use snake_case (e.g., 'add_b')",
         "context": "|s| { \"{$s}-b\" } => $addB",
-        "fix": {
-          "description": "Rename 'addB' to 'add_b'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 3,
-              "column": 31,
-              "offset": 67
-            },
-            "end": {
-              "line": 4,
-              "column": 1,
-              "offset": 73
-            }
-          },
-          "replacement": "$add_b\n"
-        }
+        "fix": null
       },
       {
         "location": {
@@ -29007,23 +28655,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'addC' should use snake_case (e.g., 'add_c')",
         "context": "|s| { \"{$s}-c\" } => $addC",
-        "fix": {
-          "description": "Rename 'addC' to 'add_c'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 4,
-              "column": 31,
-              "offset": 103
-            },
-            "end": {
-              "line": 5,
-              "column": 1,
-              "offset": 109
-            }
-          },
-          "replacement": "$add_c\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -33265,23 +32897,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'sigType' should use snake_case (e.g., 'sig_type')",
         "context": "(|x: number, y: number| :number) => $sigType",
-        "fix": {
-          "description": "Rename 'sigType' to 'sig_type'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 3,
-              "column": 45,
-              "offset": 95
-            },
-            "end": {
-              "line": 4,
-              "column": 1,
-              "offset": 104
-            }
-          },
-          "replacement": "$sig_type\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -33329,23 +32945,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'sigType' should use snake_case (e.g., 'sig_type')",
         "context": "(|x: number| :number) => $sigType",
-        "fix": {
-          "description": "Rename 'sigType' to 'sig_type'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 3,
-              "column": 34,
-              "offset": 75
-            },
-            "end": {
-              "line": 4,
-              "column": 1,
-              "offset": 84
-            }
-          },
-          "replacement": "$sig_type\n"
-        }
+        "fix": null
       }
     ]
   },
@@ -39283,23 +38883,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'normA' should use snake_case (e.g., 'norm_a')",
         "context": "$a -> .normalize => $normA",
-        "fix": {
-          "description": "Rename 'normA' to 'norm_a'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 1,
-              "column": 21,
-              "offset": 20
-            },
-            "end": {
-              "line": 2,
-              "column": 1,
-              "offset": 27
-            }
-          },
-          "replacement": "$norm_a\n"
-        }
+        "fix": null
       },
       {
         "location": {
@@ -39311,23 +38895,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'normB' should use snake_case (e.g., 'norm_b')",
         "context": "$b -> .normalize => $normB",
-        "fix": {
-          "description": "Rename 'normB' to 'norm_b'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 21,
-              "offset": 47
-            },
-            "end": {
-              "line": 3,
-              "column": 1,
-              "offset": 54
-            }
-          },
-          "replacement": "$norm_b\n"
-        }
+        "fix": null
       }
     ]
   },

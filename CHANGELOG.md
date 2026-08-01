@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Every GitHub Action pinned to a commit SHA:** All 14 `uses:` references across the six workflows now pin a full SHA with the release in a trailing comment. A major tag is mutable, so `@v5` can be retargeted and a run executes different code with no diff in the repository.
 - **Toolchain refreshed:** pnpm 11.11.0 to 11.18.0, oxfmt to 0.61.0, oxlint to 1.76.0, knip to 6.29.0, plus in-range refreshes across the fiddle front-end dependencies. `engines.pnpm` now declares `>=11`.
 
+### Fixed
+
+- **`NAMING_SNAKE_CASE` no longer proposes a fix that breaks references:** A `DiagnosticFix` carries one contiguous range, and the rule's fix covered only the declaration site. Applying it renamed a capture, closure parameter, or dict key while every reference kept the old name, so the fixed script referenced an undefined binding. The rule now sets `fix: null` when the renamed binding is referenced elsewhere. For captures and closure parameters, this covers any reference anywhere in the script, including a closure call such as `$double(5)`. For dict keys, this covers any literal field access matching the key name. The diagnostic still fires at the same location with the same message naming the snake_case target. An unreferenced binding still receives a working fix. Referenced bindings need a manual rename.
+
 ## 0.20.0 - 2026-07-30
 
 ### Added
