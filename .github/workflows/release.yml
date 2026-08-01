@@ -68,7 +68,11 @@ jobs:
 
       - name: Resolve publish set from the tag
         run: |
-          TAG="${{ github.ref_name }}"
+          # Read the tag from the environment, not `${{ }}` interpolation. The
+          # templater substitutes `${{ }}` before bash parses the script, and
+          # tag names permit shell metacharacters, so an interpolated tag can
+          # inject commands into a job holding NPM_TOKEN and id-token: write.
+          TAG="$GITHUB_REF_NAME"
           if [[ "$TAG" == dev-v* ]]; then
             echo "PACKAGES=packages/dev" >> "$GITHUB_ENV"
             echo "RELEASE_KIND=dev" >> "$GITHUB_ENV"
@@ -177,8 +181,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
-            echo "GitHub Release '${{ github.ref_name }}' already exists. Skipping creation."
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "GitHub Release '$GITHUB_REF_NAME' already exists. Skipping creation."
             exit 0
           fi
           if [ "$RELEASE_KIND" = "dev" ]; then
@@ -193,12 +197,12 @@ jobs:
             NOTES=$(printf '%s\n\n%s\n' \
               "Development tooling for the rill ecosystem. This is not a release of the rill language." \
               "See [\`packages/dev/CHANGELOG.md\`](${CL}) for what changed.")
-            gh release create "${{ github.ref_name }}" \
+            gh release create "$GITHUB_REF_NAME" \
               --title "@rcrsr/rill-dev ${GITHUB_REF_NAME#dev-v}" \
               --latest=false \
               --notes "$NOTES"
           else
-            gh release create "${{ github.ref_name }}" \
-              --title "${{ github.ref_name }}" \
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
               --generate-notes
           fi
