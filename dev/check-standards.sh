@@ -80,7 +80,34 @@ section() { printf '\n%s\n' "$1"; }
 WORKFLOWS=(.github/workflows/*.yml)
 [ -e "${WORKFLOWS[0]}" ] || WORKFLOWS=()
 
-pkg_field() { node -p "JSON.stringify((require('./package.json')$1)||null)" 2>/dev/null; }
+# pkg_field <dot-path> — the value at that path in the root manifest as JSON,
+# or the string null when the path is absent, when any parent of it is absent,
+# or when the value is falsy. Collapsing "" onto null is load-bearing and not
+# incidental: `engines.node: ""` declares no floor, and every caller tests the
+# result rather than the distinction. Walked a segment at a time rather than
+# spliced into the expression: `.engines.node` threw on a manifest carrying no
+# `engines` at all, and with stderr suppressed the empty substitution compared
+# unequal to "null", so both elements that read one reported ok for a manifest
+# that declares neither.
+pkg_field() {
+  node -e 'const fs = require("fs");
+    let v;
+    try { v = JSON.parse(fs.readFileSync("package.json", "utf8")); } catch (e) { v = undefined; }
+    for (const k of process.argv[1].split(".").filter(Boolean)) {
+      v = v === null || v === undefined ? undefined : v[k];
+    }
+    process.stdout.write(JSON.stringify(v || null));' "$1"
+}
+
+# pkg_has <dot-path> — is a non-empty value declared there? Tested positively,
+# because an empty substitution is what a probe that could not run at all
+# produces, and `!= null` alone reads that as the element passing.
+pkg_has() {
+  local v
+  v="$(pkg_field "$1")"
+  [ -n "$v" ] && [ "$v" != "null" ]
+}
+
 has_script() { node -e "process.exit(((require('./package.json').scripts)||{})['$1']?0:1)" 2>/dev/null; }
 
 # has_ts <dir> — does the directory hold TypeScript of its own? Read find to
@@ -851,15 +878,15 @@ fi
 section "§8 Package manager, §9 Supply chain"
 
 PM="$(pkg_field '.packageManager')"
-[ "$PM" != "null" ] && [ "$PM" != "" ] && echo "$PM" | grep -q 'sha512' &&
+pkg_has '.packageManager' && echo "$PM" | grep -q 'sha512' &&
   ok "STD-PM-1" "packageManager pinned with its hash" ||
   bad "STD-PM-1" "packageManager pinned with its hash" "packageManager=$PM"
 
-[ "$(pkg_field '.engines.node')" != "null" ] &&
+pkg_has '.engines.node' &&
   ok "STD-PM-3" "engines.node declared" ||
   bad "STD-PM-3" "engines.node declared" "no engines.node"
 
-[ "$(pkg_field '.engines.pnpm')" != "null" ] &&
+pkg_has '.engines.pnpm' &&
   ok "STD-PM-4" "engines constrains the package manager major" ||
   bad "STD-PM-4" "engines constrains the package manager major" \
     "no engines.pnpm, so a local install under the wrong major does not fail"
