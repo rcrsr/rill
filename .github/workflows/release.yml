@@ -85,22 +85,46 @@ jobs:
       - name: Verify version consistency
         run: ./scripts/check-versions.sh
 
-      # check-versions.sh deliberately does not cover packages/dev, whose
-      # version floats free of the language. That leaves a `dev-v*` tag with no
-      # gate at all, so assert the one relationship that tag asserts: it names
-      # the version in the manifest it is about to publish. A mismatch here
-      # would otherwise publish a version nobody tagged, and the publish loop's
-      # skip-if-already-published check would hide it as a no-op.
-      - name: Verify the dev tag matches the manifest
-        if: env.RELEASE_KIND == 'dev'
+      # check-versions.sh reconciles the manifests against each other but never
+      # against the tag, so nothing here read the one thing the tag asserts: the
+      # version being released. Tagging a version nobody bumped publishes
+      # nothing, because every version is already on the registry, and the
+      # skip-if-already-published path reports that as success — then the job
+      # goes on to cut a GitHub Release for a version that shipped nowhere.
+      #
+      # Which manifest a `v*` tag must equal is the root, not packages/core.
+      # Core has diverged from the tag at v0.18.1 (root 0.18.1, core 0.18.0),
+      # and that release was correct: root increments its patch on every
+      # release, core only when core changes, so a release carrying no core
+      # change legitimately leaves core behind. Gating on core would have failed
+      # it.
+      #
+      # Against root the rule holds for the last 55 consecutive tags, v0.7.1
+      # through v0.20.0. It does not hold for v0.6.0 through v0.7.0, four tags
+      # cut while the root manifest sat at a placeholder 1.0.0; every tag before
+      # and after matches. The gate applies to what is pushed from here, so that
+      # window is history, not a counterexample.
+      #
+      # packages/dev is gated the same way against its own manifest.
+      # check-versions.sh deliberately does not cover it, since its version
+      # floats free of the language, which would otherwise leave a `dev-v*` tag
+      # with no version gate at all.
+      - name: Verify the tag matches the manifest it releases
         run: |
-          TAG_VERSION="${GITHUB_REF_NAME#dev-v}"
-          PKG_VERSION=$(node -p "require('./packages/dev/package.json').version")
+          if [ "$RELEASE_KIND" = "dev" ]; then
+            TAG_VERSION="${GITHUB_REF_NAME#dev-v}"
+            MANIFEST="packages/dev/package.json"
+          else
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            MANIFEST="package.json"
+          fi
+          PKG_VERSION=$(node -p "require('./$MANIFEST').version")
           if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
-            echo "Tag ${GITHUB_REF_NAME} names $TAG_VERSION, but packages/dev/package.json is $PKG_VERSION." >&2
+            echo "Tag ${GITHUB_REF_NAME} names $TAG_VERSION, but $MANIFEST is $PKG_VERSION." >&2
+            echo "Bump the manifest and retag, or delete the tag; publishing now would ship nothing under a release named $TAG_VERSION." >&2
             exit 1
           fi
-          echo "Tag ${GITHUB_REF_NAME} matches @rcrsr/rill-dev@${PKG_VERSION}."
+          echo "Tag ${GITHUB_REF_NAME} matches $MANIFEST at $PKG_VERSION."
 
       - name: Build all packages
         run: pnpm -r run build

@@ -143,11 +143,17 @@ The split exists so the two cadences stay independent. `@rcrsr/rill-dev` ships l
 
 Both tracks publish each non-private package whose current version is not yet on npm, skipping anything already published at that version.
 
-Before publishing, CI enforces a version gate on both tracks: `./scripts/check-versions.sh` verifies `packages/core` shares the root major.minor and `packages/service` exactly equals `packages/core`'s version. It deliberately does not cover `packages/dev`, which floats free of the language, so a `dev-v*` tag gets a second gate asserting the tag names the version in `packages/dev/package.json`.
+Before publishing, CI enforces two gates on both tracks.
+
+`./scripts/check-versions.sh` reconciles the manifests against each other: `packages/core` shares the root major.minor, and `packages/service` exactly equals `packages/core`'s version.
+
+A second gate reconciles the **tag** against the manifest it releases — `v*` against root `package.json`, `dev-v*` against `packages/dev/package.json`. Without it, tagging a version nobody bumped publishes nothing (every version is already on the registry, so the loop skips everything and reports success) and still cuts a GitHub Release for a version that shipped nowhere.
+
+The `v*` gate reads root, not `packages/core`. Root increments its patch on every release while core increments only when core changes, so a release carrying no core change legitimately leaves core behind — as at `v0.18.1`, where root was `0.18.1` and core `0.18.0`. Gating on core would have failed that release.
 
 ### Release Checklist — the language
 
-1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json` (run `pnpm fix:versions` to sync `packages/service` to `packages/core`)
+1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json` (run `pnpm fix:versions` to sync `packages/service` to `packages/core`). The tag you push in step 4 must equal the **root** version
 2. Run `pnpm check:versions` to verify alignment
 3. Commit with `chore: release vx.y.z`, open a PR, merge to `main`
 4. From a clean `main` at the merge commit:
