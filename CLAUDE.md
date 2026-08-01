@@ -132,11 +132,20 @@ Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
 ## Release Process
 
-rill is released by tagging a release commit on `main`. When a `v*` tag is pushed, `.github/workflows/release.yml` iterates over `packages/core` and `packages/service` and publishes each non-private package whose current version is not yet on npm. The job skips any package already published at that version, so `@rcrsr/rill` and `@rcrsr/rill-language-service` publish together only when both carry a new version.
+There are two release tracks, keyed to two tag namespaces. `.github/workflows/release.yml` serves both and derives the publish set from the tag that triggered it. A tag glob anchors at the start, so `v*` does not match `dev-v0.1.0`.
 
-Before publishing, CI enforces a version-consistency gate: `./scripts/check-versions.sh` verifies `packages/core` shares the root major.minor and `packages/service` exactly equals `packages/core`'s version.
+| Tag | Publishes | Track |
+|-----|-----------|-------|
+| `vx.y.z` | `@rcrsr/rill`, `@rcrsr/rill-language-service` | The language |
+| `dev-vx.y.z` | `@rcrsr/rill-dev` | Development tooling |
 
-### Release Checklist
+The split exists so the two cadences stay independent. `@rcrsr/rill-dev` ships lint rules and the standards checker, not language surface; without a namespace of its own, shipping a lint-rule fix would mean minting a language version containing no language change, and that version would take the repository's "Latest release" badge. A `dev-v*` release is created with `--latest=false` for the same reason.
+
+Both tracks publish each non-private package whose current version is not yet on npm, skipping anything already published at that version.
+
+Before publishing, CI enforces a version gate on both tracks: `./scripts/check-versions.sh` verifies `packages/core` shares the root major.minor and `packages/service` exactly equals `packages/core`'s version. It deliberately does not cover `packages/dev`, which floats free of the language, so a `dev-v*` tag gets a second gate asserting the tag names the version in `packages/dev/package.json`.
+
+### Release Checklist — the language
 
 1. On a release branch, bump the patch in root `package.json` and `packages/core/package.json` (run `pnpm fix:versions` to sync `packages/service` to `packages/core`)
 2. Run `pnpm check:versions` to verify alignment
@@ -150,12 +159,27 @@ Before publishing, CI enforces a version-consistency gate: `./scripts/check-vers
 
 CI takes over from the tag push, publishes each package with a new version, and creates a GitHub Release for the tag.
 
+### Release Checklist — `@rcrsr/rill-dev`
+
+Independent of the language release. Do not bump the root or `packages/core` version; nothing outside `packages/dev` participates.
+
+1. On a branch, bump the version in `packages/dev/package.json` and add the entry to `packages/dev/CHANGELOG.md`
+2. Commit, open a PR, merge to `main`
+3. From a clean `main` at the merge commit:
+
+   ```bash
+   git tag -a dev-vx.y.z -m "Release @rcrsr/rill-dev x.y.z"
+   git push origin dev-vx.y.z
+   ```
+
+The tag version must equal `packages/dev/package.json`'s version, or the job fails before publishing.
+
 ### Dry Run Testing
 
 Test publish without releasing:
 
 ```bash
-cd packages/core     # or packages/service
+cd packages/core     # or packages/service, packages/dev
 pnpm publish --dry-run --access public
 ```
 

@@ -1,18 +1,31 @@
 name: Release
 
+# Two tag namespaces, because the two release cadences are unrelated. `v*` is a
+# language release and publishes @rcrsr/rill with @rcrsr/rill-language-service.
+# `dev-v*` publishes @rcrsr/rill-dev alone, which ships development tooling and
+# versions independently; without the split, shipping a lint-rule fix would mean
+# minting a language version that contains no language change.
+#
+# `v*` does not match `dev-v0.1.0`: a tag glob anchors at the start.
 on:
   push:
     tags:
       - 'v*'
+      - 'dev-v*'
 
 # Least privilege at the top; the release job re-grants exactly what it needs.
 permissions:
   contents: read
 
-# Serialized, never cancelled. A publish that is interrupted between the two
-# packages leaves the registry holding one half of a release, which the version
-# gate then reads as already-published on the retry. See packages/dev/REPO-STANDARDS.md
+# Serialized, never cancelled. A publish that is interrupted partway through the
+# set leaves the registry holding one half of a release, which the version gate
+# then reads as already-published on the retry. See packages/dev/REPO-STANDARDS.md
 # STD-CI-6.
+#
+# One group across both namespaces, not one per namespace. The two sets are
+# disjoint, so concurrent runs would not corrupt each other, but releases are
+# rare and a queued run costs nothing next to reasoning about two publishes
+# racing for the same npm auth and the same GitHub Release API.
 concurrency:
   group: release-${{ github.workflow }}
   cancel-in-progress: false
@@ -53,8 +66,41 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve publish set from the tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ "$TAG" == dev-v* ]]; then
+            echo "PACKAGES=packages/dev" >> "$GITHUB_ENV"
+            echo "RELEASE_KIND=dev" >> "$GITHUB_ENV"
+          else
+            echo "PACKAGES=packages/core packages/service" >> "$GITHUB_ENV"
+            echo "RELEASE_KIND=language" >> "$GITHUB_ENV"
+          fi
+
+      # Runs on both namespaces. The workspace-consistency rules it enforces are
+      # about core, service, and root, so a dev tag does not depend on them, but
+      # a tree that fails them is broken regardless of which tag was pushed and
+      # should not publish anything. See packages/dev/REPO-STANDARDS.md
+      # STD-REL-2 and STD-CHK-7.
       - name: Verify version consistency
         run: ./scripts/check-versions.sh
+
+      # check-versions.sh deliberately does not cover packages/dev, whose
+      # version floats free of the language. That leaves a `dev-v*` tag with no
+      # gate at all, so assert the one relationship that tag asserts: it names
+      # the version in the manifest it is about to publish. A mismatch here
+      # would otherwise publish a version nobody tagged, and the publish loop's
+      # skip-if-already-published check would hide it as a no-op.
+      - name: Verify the dev tag matches the manifest
+        if: env.RELEASE_KIND == 'dev'
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#dev-v}"
+          PKG_VERSION=$(node -p "require('./packages/dev/package.json').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag ${GITHUB_REF_NAME} names $TAG_VERSION, but packages/dev/package.json is $PKG_VERSION." >&2
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} matches @rcrsr/rill-dev@${PKG_VERSION}."
 
       - name: Build all packages
         run: pnpm -r run build
@@ -71,7 +117,7 @@ jobs:
           # go on to cut a GitHub Release for packages that never shipped.
           # See packages/dev/REPO-STANDARDS.md STD-REL-6.
           set -o pipefail
-          for dir in packages/core packages/service packages/dev; do
+          for dir in $PACKAGES; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")
@@ -111,6 +157,24 @@ jobs:
             echo "GitHub Release '${{ github.ref_name }}' already exists. Skipping creation."
             exit 0
           fi
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes
+          if [ "$RELEASE_KIND" = "dev" ]; then
+            # --latest=false keeps the repository's "Latest release" badge on
+            # the language. A visitor reading it wants the current rill, not the
+            # tooling the maintainers happened to bump most recently.
+            #
+            # Notes point at the package changelog instead of --generate-notes,
+            # which derives its range from the previous release of any kind and
+            # would list the language commits since the last `v*` tag.
+            CL="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/packages/dev/CHANGELOG.md"
+            NOTES=$(printf '%s\n\n%s\n' \
+              "Development tooling for the rill ecosystem. This is not a release of the rill language." \
+              "See [\`packages/dev/CHANGELOG.md\`](${CL}) for what changed.")
+            gh release create "${{ github.ref_name }}" \
+              --title "@rcrsr/rill-dev ${GITHUB_REF_NAME#dev-v}" \
+              --latest=false \
+              --notes "$NOTES"
+          else
+            gh release create "${{ github.ref_name }}" \
+              --title "${{ github.ref_name }}" \
+              --generate-notes
+          fi
