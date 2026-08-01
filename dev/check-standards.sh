@@ -81,11 +81,14 @@ WORKFLOWS=(.github/workflows/*.yml)
 [ -e "${WORKFLOWS[0]}" ] || WORKFLOWS=()
 
 # pkg_field <dot-path> — the value at that path in the root manifest as JSON,
-# or the string null when the path, or any parent of it, is absent. Walked a
-# segment at a time rather than spliced into the expression: `.engines.node`
-# threw on a manifest carrying no `engines` at all, and with stderr suppressed
-# the empty substitution compared unequal to "null", so both elements that read
-# one reported ok for a manifest that declares neither.
+# or the string null when the path is absent, when any parent of it is absent,
+# or when the value is falsy. Collapsing "" onto null is load-bearing and not
+# incidental: `engines.node: ""` declares no floor, and every caller tests the
+# result rather than the distinction. Walked a segment at a time rather than
+# spliced into the expression: `.engines.node` threw on a manifest carrying no
+# `engines` at all, and with stderr suppressed the empty substitution compared
+# unequal to "null", so both elements that read one reported ok for a manifest
+# that declares neither.
 pkg_field() {
   node -e 'const fs = require("fs");
     let v;
