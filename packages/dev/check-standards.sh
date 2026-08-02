@@ -33,6 +33,21 @@ set -uo pipefail
 # here, so that does not error out -- it reports a page of confident results
 # about a directory that was never the subject.
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# This script's own directory, which is the one thing BASH_SOURCE is right for:
+# the version stamped on the summary line. Resolved before the cd below,
+# because BASH_SOURCE may be relative.
+SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# The version of the checker producing the report, not of the repository under
+# test. Without it, "CONFORMANT 56 checked" from one repository and
+# "CONFORMANT 52 checked" from another give no indication that two different
+# checkers produced them, and the difference reads as a conformance gap rather
+# than as version skew. Empty rather than fatal when unreadable: a missing
+# sibling manifest costs a label, not a run.
+SELF_VERSION="$(node -e 'try {
+  process.stdout.write(String(require(process.argv[1] + "/package.json").version || ""));
+} catch (e) { /* unstamped */ }' "$SELF_DIR" 2>/dev/null)"
+
 # No `set -e` here, deliberately, so a failing cd would otherwise run every
 # relative-path check against the caller's directory and print a page of
 # misleading results instead of one error.
@@ -1149,13 +1164,18 @@ skip "STD-DEP-1..5" "dependency versions" "cross-repository comparison"
 # ---------------------------------------------------------------------------
 printf '\n'
 TOTAL=$((PASS + FAIL))
+# Stamped on both verdicts. The element counts move between checker versions --
+# 0.1.1 took the tree-only set from 55 to 56 -- so a count reported without the
+# version that produced it cannot be compared against another repository's.
+STAMP=""
+[ -n "$SELF_VERSION" ] && STAMP="  $(dim "(rill-dev $SELF_VERSION)")"
 if [ "$FAIL" -eq 0 ]; then
-  printf '%s  %d checked, %d passed, %d not machine-checkable.\n' \
-    "$(green 'CONFORMANT')" "$TOTAL" "$PASS" "$SKIP"
+  printf '%s  %d checked, %d passed, %d not machine-checkable.%s\n' \
+    "$(green 'CONFORMANT')" "$TOTAL" "$PASS" "$SKIP" "$STAMP"
   printf '%s\n' "$(dim 'A green run covers only the elements above. The skipped ones still apply.')"
   exit 0
 fi
-printf '%s  %d of %d checked elements failed: %s\n' \
-  "$(red 'NON-CONFORMANT')" "$FAIL" "$TOTAL" "$(printf '%s ' "${FAILED_IDS[@]}")"
+printf '%s  %d of %d checked elements failed: %s%s\n' \
+  "$(red 'NON-CONFORMANT')" "$FAIL" "$TOTAL" "$(printf '%s ' "${FAILED_IDS[@]}")" "$STAMP"
 printf '%s\n' "$(dim 'See https://github.com/rcrsr/rill/blob/main/packages/dev/REPO-STANDARDS.md for what each element requires and why.')"
 exit 1

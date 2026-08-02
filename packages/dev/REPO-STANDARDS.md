@@ -56,6 +56,12 @@ rill-check-standards --remote   # also §1 and §13, which live on the host
 Wire it up as `check:standards` and call it from the root `check` script, so a
 regression surfaces locally rather than at review.
 
+The summary line ends with the checker's own version. Repositories upgrade
+`@rcrsr/rill-dev` on their own schedule, so two of them can be running different
+checkers against this one document, and the element counts move between checker
+versions. Compare a count against another repository's only when the two stamps
+agree; otherwise the difference is version skew, not a conformance gap.
+
 **A green run is not a conformance claim.** The checker reports three states,
 and the third is the important one:
 
