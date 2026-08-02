@@ -35,8 +35,8 @@ set -uo pipefail
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 # This script's own directory, which is the one thing BASH_SOURCE is right for:
-# the version stamped on the summary line. Resolved before the cd below,
-# because BASH_SOURCE may be relative.
+# the version stamped on the summary line, and the baseline shipped beside it.
+# Resolved before the cd below, because BASH_SOURCE may be relative.
 SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # The version of the checker producing the report, not of the repository under
 # test. Without it, "CONFORMANT 56 checked" from one repository and
@@ -856,9 +856,15 @@ else
     ok "STD-REL-1" "triggered by a version tag" ||
     bad "STD-REL-1" "triggered by a version tag" "no tag trigger in $REL"
 
-  grep -q 'provenance' "$REL" &&
-    ok "STD-REL-3" "publishes with provenance" ||
+  # Recorded, because STD-SUP-2 is the same assertion read from §9 and settles
+  # on this result rather than on a grep of its own.
+  if grep -q 'provenance' "$REL"; then
+    PROVENANCE=1
+    ok "STD-REL-3" "publishes with provenance"
+  else
+    PROVENANCE=0
     bad "STD-REL-3" "publishes with provenance" "no --provenance in $REL"
+  fi
 
   grep -q 'id-token: *write' "$REL" &&
     ok "STD-REL-4" "grants id-token: write" ||
@@ -1099,8 +1105,52 @@ fi
   ok "STD-SUP-7" "CODEOWNERS present" ||
   bad "STD-SUP-7" "CODEOWNERS present" "no CODEOWNERS"
 skip "STD-PM-2" "same package manager version everywhere" "cross-repository comparison"
-skip "STD-PM-6" "build allowlist in the expected location" "the location moves between majors"
-skip "STD-SUP-2" "published packages carry provenance" "same as STD-REL-3, checked above"
+
+# The location the allowlist belongs in is decided by the pinned major, which
+# STD-PM-1 already read into $PM: pnpm 11 reads `allowBuilds` from
+# pnpm-workspace.yaml and no longer reads `pnpm.onlyBuiltDependencies` from
+# package.json, which is the move the element warns about. Declaring one in the
+# old location under a major that ignores it is the failure mode -- the settings
+# read as present and are inert -- so it is reported as a failure rather than as
+# an absent allowlist.
+#
+# Declaring none anywhere is the element's own N/A condition: no dependency
+# requires a build script. That cannot be distinguished from "forgot to declare
+# one", and the element accepts the ambiguity by naming it as the N/A. Reported
+# as N/A rather than passed, so it is counted as unchecked.
+PM_MAJOR="$(printf '%s' "$PM" | sed -n 's/^"\?pnpm@\([0-9]\+\)\..*/\1/p')"
+NEW_LOC=0
+OLD_LOC=0
+[ -f pnpm-workspace.yaml ] && grep -q '^allowBuilds:' pnpm-workspace.yaml && NEW_LOC=1
+grep -q '"onlyBuiltDependencies"' package.json && OLD_LOC=1
+if [ -z "$PM_MAJOR" ]; then
+  skip "STD-PM-6" "build allowlist in the expected location" \
+    "no pnpm major to read the expected location from"
+elif [ "$NEW_LOC" -eq 0 ] && [ "$OLD_LOC" -eq 0 ]; then
+  skip "STD-PM-6" "build allowlist in the expected location" \
+    "N/A: no dependency requires a build script"
+elif [ "$PM_MAJOR" -ge 11 ]; then
+  [ "$NEW_LOC" -eq 1 ] &&
+    ok "STD-PM-6" "build allowlist in the expected location" ||
+    bad "STD-PM-6" "build allowlist in the expected location" \
+      "pnpm $PM_MAJOR reads allowBuilds: from pnpm-workspace.yaml; the allowlist is in package.json, where it is inert"
+else
+  [ "$OLD_LOC" -eq 1 ] &&
+    ok "STD-PM-6" "build allowlist in the expected location" ||
+    bad "STD-PM-6" "build allowlist in the expected location" \
+      "pnpm $PM_MAJOR reads pnpm.onlyBuiltDependencies from package.json; the allowlist is in pnpm-workspace.yaml, where it is not yet read"
+fi
+
+# Not a grep of its own: the element says "See STD-REL-3", so reading the
+# release workflow a second time would let the two disagree. $PROVENANCE is
+# unset when there is no release.yml at all, which is this element's own N/A.
+if [ -z "${PROVENANCE:-}" ]; then
+  skip "STD-SUP-2" "published packages carry provenance" "N/A: the repository publishes nothing"
+else
+  [ "$PROVENANCE" -eq 1 ] &&
+    ok "STD-SUP-2" "published packages carry provenance" ||
+    bad "STD-SUP-2" "published packages carry provenance" "see STD-REL-3"
+fi
 
 # ---------------------------------------------------------------------------
 section "§11 Issue and PR process, §12 Community health"
@@ -1129,7 +1179,34 @@ done
   bad "STD-PROC-6" "PULL_REQUEST_TEMPLATE.md" "missing"
 skip "STD-PROC-1" "area:* taxonomy" "label state lives on the host"
 skip "STD-PROC-4" "issue workflow reads state fresh" "needs judgement about the script"
-skip "STD-PROC-7" "idempotent label-sync script" "the script's name is repo-specific"
+# The script's path is not repo-specific after all -- every repository in scope
+# carries it at .github/scripts/sync-labels.sh -- and idempotency has a marker
+# worth reading rather than trusting: `gh label create --force` upserts, where a
+# bare `gh label create` exits non-zero the second time and, under `set -e`,
+# halts the sync partway. Requiring --force on every create is what the element
+# means by reproducible. A rewrite in another language would report as absent
+# here, which is a false negative worth taking over passing on presence alone.
+LABEL_SYNC=.github/scripts/sync-labels.sh
+if [ ! -f "$LABEL_SYNC" ]; then
+  bad "STD-PROC-7" "idempotent label-sync script" "no $LABEL_SYNC"
+else
+  # Join backslash continuations before counting, then drop comment lines. Both
+  # matter on the reference script and each one alone reports it non-conformant:
+  # two of its four calls carry --force on the continued line, and the header
+  # comment documenting the flag otherwise counts as a fifth call.
+  LABEL_SRC="$(sed -e :a -e '/\\$/N; s/\\\n//; ta' "$LABEL_SYNC" | grep -v '^[[:space:]]*#')"
+  CREATES="$(printf '%s\n' "$LABEL_SRC" | grep -c 'gh label create')"
+  FORCED="$(printf '%s\n' "$LABEL_SRC" | grep -c 'gh label create.*--force')"
+  if [ "$CREATES" -eq 0 ]; then
+    skip "STD-PROC-7" "idempotent label-sync script" \
+      "$LABEL_SYNC calls no gh label create; idempotency needs judgement"
+  else
+    [ "$CREATES" -eq "$FORCED" ] &&
+      ok "STD-PROC-7" "idempotent label-sync script" ||
+      bad "STD-PROC-7" "idempotent label-sync script" \
+        "$((CREATES - FORCED)) of $CREATES gh label create calls lack --force; a re-run halts on the first existing label"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 section "§6 Git hooks, §10 Dependency versions"
