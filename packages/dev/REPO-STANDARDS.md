@@ -223,7 +223,7 @@ still reads none of its tests. `tsconfig.json` usually scopes `include` to
 undetected even where STD-LINT-4 has lint covering the same directory. Check
 what `include` actually resolves to rather than trusting the script's presence.
 This is currently a known hole in `rill` rather than a satisfied element; it is
-recorded here so it is not rediscovered, and closing it is tracked work.
+recorded here so it is not rediscovered.
 
 **Verify**
 
@@ -334,7 +334,7 @@ these files carry comments and so are not `JSON.parse`-able. It confirms the
 plugin is loaded and the rule is set to `error`; it does not confirm the
 override's glob actually covers `src/`. A rule enabled at `error` under a glob
 scoped somewhere else reads as conformant. Verify the glob by eye once per
-repository. Closing this needs a JSONC parser in the checker and is tracked work.
+repository. Closing this needs a JSONC parser in the checker.
 
 **Measure STD-LINT-5 and STD-LINT-6 only after STD-LINT-4 holds.** A plugin or
 category measured while `tests/` sits outside the lint scope reads artificially

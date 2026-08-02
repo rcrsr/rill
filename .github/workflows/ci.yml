@@ -96,16 +96,17 @@ jobs:
       # them means one settings change turns every open PR red for a reason no
       # author can fix, which trains people to ignore this job.
       #
-      # GITHUB_TOKEN could not decide them anyway. It reads the repository
-      # object, but the administrative fields are omitted from the response and
-      # branches/*/protection answers 404, so both element groups reported as
-      # unchecked. The step cost an API round trip and settled nothing.
+      # GITHUB_TOKEN decides almost none of it. The administrative fields are
+      # omitted from the repository object and branches/*/protection answers
+      # 404, so every STD-GATE element reported as unchecked. It settled
+      # STD-SET-2 and STD-SUP-6's host half, and those two move to the
+      # maintainer run with the rest.
       #
       # Host settings are checked with `rill-check-standards --remote` from a
       # maintainer's authenticated shell, where the credentials already exist
       # and no secret has to live in CI.
       - name: Check repository standards conformance
-        run: pnpm exec rill-check-standards
+        run: pnpm check:standards
 
   language-lock:
     name: Language arbiter lock
