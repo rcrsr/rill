@@ -258,6 +258,85 @@ for f in "${MANIFESTS[@]}"; do
     "$f" 2>/dev/null && PUBLISHABLE=$((PUBLISHABLE + 1))
 done
 
+# The cross-repository baseline. REPO-STANDARDS.md §10 names rill's root
+# package.json and pnpm-workspace.yaml as the canonical pins, which a
+# consuming repository cannot read — it has neither file. The baseline ships
+# instead: generated from rill's tree by gen-baseline.cjs, committed to
+# packages/dev/baseline.json, and published in the @rcrsr/rill-dev tarball, so
+# it travels with the checker into every consumer's node_modules.
+#
+# Ownership is decided by which of those two files a tree holds, not by a
+# hostname or a repository name: a tracked packages/dev/baseline.json is
+# rill's own tree, checked out anywhere. A consumer has no such file at that
+# path — its baseline lives one level further in, at
+# node_modules/@rcrsr/rill-dev/baseline.json — so the two cases cannot collide.
+OWNS_BASELINE=0
+BASELINE_PATH=""
+[ -f packages/dev/baseline.json ] && OWNS_BASELINE=1 && BASELINE_PATH="packages/dev/baseline.json"
+if [ "$OWNS_BASELINE" -eq 0 ]; then
+  BASELINE_PATH="$(node -e 'try {
+    process.stdout.write(require.resolve("@rcrsr/rill-dev/baseline.json"));
+  } catch (e) { /* not installed, or too old to export it */ }' 2>/dev/null)"
+fi
+BASELINE_JSON=""
+[ -n "$BASELINE_PATH" ] && BASELINE_JSON="$(cat "$BASELINE_PATH" 2>/dev/null)"
+
+# rill verifies its own baseline is fresh rather than trusting the committed
+# file: it regenerates in memory from the tree under test and requires the two
+# to agree byte-for-byte (as JSON values, not as text, so key order from a
+# stable generator is the only thing that can differ and still counts as
+# equal). Skipping this and trusting the committed file would let a pin bump
+# ship a stale baseline to every consumer with nothing here to catch it before
+# publish. A consuming repository has no tree to regenerate from — its
+# baseline IS the pin, read from node_modules — so this only runs for the
+# owner.
+BASELINE_FRESH=1
+if [ "$OWNS_BASELINE" -eq 1 ]; then
+  BASELINE_FRESH=0
+  LIVE_BASELINE="$(node "$SELF_DIR/gen-baseline.cjs" 2>/dev/null)"
+  if [ -n "$LIVE_BASELINE" ]; then
+    node -e 'try {
+      const live = JSON.parse(process.argv[1]);
+      const committed = JSON.parse(process.argv[2]);
+      process.exit(JSON.stringify(live) === JSON.stringify(committed) ? 0 : 1);
+    } catch (e) { process.exit(1); }' "$LIVE_BASELINE" "$BASELINE_JSON" 2>/dev/null &&
+      BASELINE_FRESH=1
+  fi
+fi
+
+# baseline_str <dot-path> — the string value at that path in the baseline, or
+# empty if the path is absent or not a string.
+baseline_str() {
+  node -e 'let v; try { v = JSON.parse(process.argv[2] || "null"); } catch (e) { v = null; }
+    for (const k of process.argv[1].split(".").filter(Boolean)) {
+      v = v === null || v === undefined ? undefined : v[k];
+    }
+    process.stdout.write(typeof v === "string" ? v : "");' "$1" "$BASELINE_JSON"
+}
+
+# baseline_json <dot-path> — the value at that path, JSON-encoded, or the
+# string null if absent. For arrays and objects, where baseline_str would
+# discard structure.
+baseline_json() {
+  node -e 'let v; try { v = JSON.parse(process.argv[2] || "null"); } catch (e) { v = null; }
+    for (const k of process.argv[1].split(".").filter(Boolean)) {
+      v = v === null || v === undefined ? undefined : v[k];
+    }
+    process.stdout.write(v === undefined ? "null" : JSON.stringify(v));' "$1" "$BASELINE_JSON"
+}
+
+# has_dep <name> — is it declared, at any version, in any dependency field of
+# the root manifest?
+has_dep() {
+  node -e 'const fs = require("fs");
+    let p; try { p = JSON.parse(fs.readFileSync("package.json", "utf8")); } catch (e) { process.exit(1); }
+    const name = process.argv[1];
+    for (const f of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
+      if (p[f] && p[f][name]) process.exit(0);
+    }
+    process.exit(1);' "$1"
+}
+
 # ---------------------------------------------------------------------------
 section "§1 Merge gates, §13 Repository settings"
 
@@ -788,13 +867,42 @@ if [ -f "$LINTRC" ]; then
   # `error` rather than any severity: the element bans these identifiers, and
   # a warning bans nothing. STD-LINT-9 requires the same severity as the
   # reference config in any case, so `warn` fails there too.
-  if grep -q 'rill-dev/lint-rules' "$LINTRC" &&
-    grep -q '"rill/no-spec-id-reference": *"error"' "$LINTRC"; then
-    ok "STD-LINT-3" "workflow-artifact rule enabled"
-  else
-    bad "STD-LINT-3" "workflow-artifact rule enabled" \
-      "plugin not loaded, or rill/no-spec-id-reference is not error in $LINTRC"
-  fi
+  #
+  # Parsed with jsonc.cjs rather than grepped, which closes the hole this
+  # predicate used to carry: confirming the rule is `error` somewhere in the
+  # file is not confirming the override whose glob actually matches `src/` is
+  # the one that sets it. A rule enabled at `error` under a glob scoped
+  # elsewhere used to read as conformant; this walks `overrides[]` and checks
+  # the glob on the override that sets the rule, the same way STD-LINT-4 reads
+  # a lint command's own scope rather than trusting the rule's presence.
+  LINT3_RESULT="$(node -e '
+    const { readJSONC } = require(process.argv[1]);
+    let cfg;
+    try { cfg = readJSONC(process.argv[2]); } catch (e) { console.log("parse-error"); process.exit(0); }
+    const loaded = (cfg.jsPlugins || []).some((p) => String(p).includes("rill-dev/lint-rules"));
+    if (!loaded) { console.log("not-loaded"); process.exit(0); }
+    const covering = (cfg.overrides || []).filter((o) => {
+      const r = (o.rules || {})["rill/no-spec-id-reference"];
+      return (Array.isArray(r) ? r[0] : r) === "error";
+    });
+    if (covering.length === 0) { console.log("not-error"); process.exit(0); }
+    const coversSrc = covering.some((o) => (o.files || []).some((f) => String(f).includes("src")));
+    console.log(coversSrc ? "ok" : "glob-gap");
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+
+  case "$LINT3_RESULT" in
+    ok)
+      ok "STD-LINT-3" "workflow-artifact rule enabled, glob covers src/" ;;
+    glob-gap)
+      bad "STD-LINT-3" "workflow-artifact rule enabled, glob covers src/" \
+        "rill/no-spec-id-reference is error, but no override setting it lists a files glob containing src" ;;
+    not-loaded)
+      bad "STD-LINT-3" "workflow-artifact rule enabled" "rill-dev/lint-rules plugin not loaded" ;;
+    not-error)
+      bad "STD-LINT-3" "workflow-artifact rule enabled" "rill/no-spec-id-reference is not error in $LINTRC" ;;
+    *)
+      bad "STD-LINT-3" "workflow-artifact rule enabled" "could not parse $LINTRC as JSONC" ;;
+  esac
 
   # Naming a plugins array replaces the tool defaults, so unicorn is off unless
   # relisted. Its absence is the silent case STD-LINT-8 exists to catch.
@@ -840,10 +948,100 @@ if [ -f "$LINTRC" ]; then
 else
   skip "STD-LINT-2,3,4,7,8" "lint configuration" "no $LINTRC in this repository"
 fi
-skip "STD-LINT-1" "shared linter and formatter" "cross-repository comparison"
-skip "STD-LINT-5" "same plugin set as rill" "cross-repository comparison"
+
+# STD-LINT-1: shared linter and formatter. The baseline names the two package
+# names rill runs; a repository that declares both, at any version, runs the
+# same pair. The version itself is not this element's claim — STD-DEP-1 covers
+# range agreement — only that the tool choice has not diverged.
+if [ -z "$BASELINE_JSON" ]; then
+  skip "STD-LINT-1" "shared linter and formatter" \
+    "no baseline available; install or update @rcrsr/rill-dev"
+elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+  bad "STD-LINT-1" "shared linter and formatter" \
+    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+else
+  EXP_LINTER="$(baseline_str linter)"
+  EXP_FMT="$(baseline_str formatter)"
+  if has_dep "$EXP_LINTER" && has_dep "$EXP_FMT"; then
+    ok "STD-LINT-1" "shared linter and formatter ($EXP_LINTER, $EXP_FMT)"
+  else
+    bad "STD-LINT-1" "shared linter and formatter" \
+      "expected $EXP_LINTER and $EXP_FMT declared in package.json"
+  fi
+fi
+
+# STD-LINT-5: same plugin set. Compared as sets, not as ordered lists — the
+# element names the set, not a spelling order, and neither config here treats
+# order as meaningful.
+if [ ! -f "$LINTRC" ]; then
+  skip "STD-LINT-5" "same plugin set as rill" "no $LINTRC in this repository"
+elif [ -z "$BASELINE_JSON" ]; then
+  skip "STD-LINT-5" "same plugin set as rill" \
+    "no baseline available; install or update @rcrsr/rill-dev"
+elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+  bad "STD-LINT-5" "same plugin set as rill" \
+    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+else
+  EXP_PLUGINS="$(baseline_json lintPlugins)"
+  HAVE_PLUGINS="$(node -e '
+    const { readJSONC } = require(process.argv[1]);
+    let cfg; try { cfg = readJSONC(process.argv[2]); } catch (e) { cfg = {}; }
+    process.stdout.write(JSON.stringify((cfg.plugins || []).slice().sort()));
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+  DIFF_PLUGINS="$(node -e '
+    const have = new Set(JSON.parse(process.argv[1] || "[]"));
+    const want = new Set(JSON.parse(process.argv[2] || "[]"));
+    const missing = [...want].filter((p) => !have.has(p));
+    const extra = [...have].filter((p) => !want.has(p));
+    const out = [];
+    if (missing.length) out.push("missing: " + missing.join(","));
+    if (extra.length) out.push("extra: " + extra.join(","));
+    process.stdout.write(out.join(" "));
+  ' "$HAVE_PLUGINS" "$EXP_PLUGINS")"
+  [ -z "$DIFF_PLUGINS" ] &&
+    ok "STD-LINT-5" "same plugin set as rill" ||
+    bad "STD-LINT-5" "same plugin set as rill" "$DIFF_PLUGINS"
+fi
+
 skip "STD-LINT-6" "disabled rules carry counts" "the comment is prose, not machine-checkable"
-skip "STD-LINT-9" "shared rules carry the same severity" "cross-repository comparison"
+
+# STD-LINT-9: rules shared with the reference config carry the same severity.
+# Read only rules present in BOTH configs — the element compares the
+# intersection, not rill's full set against a consumer that legitimately
+# carries fewer rules (rill ~40, rill-config ~26, 25 shared today). A rule the
+# baseline does not carry at all says nothing about this element.
+if [ ! -f "$LINTRC" ]; then
+  skip "STD-LINT-9" "shared rules carry the same severity" "no $LINTRC in this repository"
+elif [ -z "$BASELINE_JSON" ]; then
+  skip "STD-LINT-9" "shared rules carry the same severity" \
+    "no baseline available; install or update @rcrsr/rill-dev"
+elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+  bad "STD-LINT-9" "shared rules carry the same severity" \
+    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+else
+  EXP_RULES="$(baseline_json lintRules)"
+  HAVE_RULES="$(node -e '
+    const { readJSONC } = require(process.argv[1]);
+    let cfg; try { cfg = readJSONC(process.argv[2]); } catch (e) { cfg = {}; }
+    const out = {};
+    for (const [k, v] of Object.entries(cfg.rules || {})) out[k] = Array.isArray(v) ? v[0] : v;
+    process.stdout.write(JSON.stringify(out));
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+  MISMATCH="$(node -e '
+    const have = JSON.parse(process.argv[1] || "{}");
+    const want = JSON.parse(process.argv[2] || "{}");
+    const out = [];
+    for (const k of Object.keys(want)) {
+      if (Object.prototype.hasOwnProperty.call(have, k) && have[k] !== want[k]) {
+        out.push(k + ": " + have[k] + " vs " + want[k]);
+      }
+    }
+    process.stdout.write(out.join("; "));
+  ' "$HAVE_RULES" "$EXP_RULES")"
+  [ -z "$MISMATCH" ] &&
+    ok "STD-LINT-9" "shared rules carry the same severity" ||
+    bad "STD-LINT-9" "shared rules carry the same severity" "$MISMATCH"
+fi
 
 # ---------------------------------------------------------------------------
 section "§7 Release workflow"
@@ -1104,7 +1302,23 @@ fi
 { [ -f .github/CODEOWNERS ] || [ -f CODEOWNERS ]; } &&
   ok "STD-SUP-7" "CODEOWNERS present" ||
   bad "STD-SUP-7" "CODEOWNERS present" "no CODEOWNERS"
-skip "STD-PM-2" "same package manager version everywhere" "cross-repository comparison"
+# STD-PM-2: the same package manager major and version string in every
+# repository. $PM was read by STD-PM-1 above, JSON-encoded (quoted); the
+# baseline's copy is read unquoted, so strip the quotes rather than re-parse.
+if [ -z "$BASELINE_JSON" ]; then
+  skip "STD-PM-2" "same package manager version everywhere" \
+    "no baseline available; install or update @rcrsr/rill-dev"
+elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+  bad "STD-PM-2" "same package manager version everywhere" \
+    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+else
+  EXP_PM="$(baseline_str packageManager)"
+  PM_UNQUOTED="$(printf '%s' "$PM" | sed -e 's/^"//' -e 's/"$//')"
+  [ -n "$EXP_PM" ] && [ "$PM_UNQUOTED" = "$EXP_PM" ] &&
+    ok "STD-PM-2" "same package manager version everywhere" ||
+    bad "STD-PM-2" "same package manager version everywhere" \
+      "packageManager=$PM_UNQUOTED, ecosystem pin is $EXP_PM"
+fi
 
 # The location the allowlist belongs in is decided by the pinned major, which
 # STD-PM-1 already read into $PM: pnpm 11 reads `allowBuilds` from
@@ -1236,7 +1450,204 @@ if [ -f lefthook.yml ]; then
 else
   bad "STD-HOOK-1..4" "git hooks configured" "no lefthook.yml"
 fi
-skip "STD-DEP-1..5" "dependency versions" "cross-repository comparison"
+# STD-DEP-1: shared build and test tooling pinned to the same range. The
+# baseline names which deps count as "shared build and test tooling" — the
+# linter, formatter, test runner, compiler, hook manager, unused-dep checker,
+# and @types/node — and records rill's own range for each. Repo-specific
+# runtime deps (e.g. rill-config's `semver`) are deliberately not in that set;
+# this element is about the tools the ecosystem shares, not every devDependency
+# a repository happens to declare.
+if [ -z "$BASELINE_JSON" ]; then
+  skip "STD-DEP-1" "shared build and test tooling pinned to the same range" \
+    "no baseline available; install or update @rcrsr/rill-dev"
+elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+  bad "STD-DEP-1" "shared build and test tooling pinned to the same range" \
+    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+else
+  EXP_TOOLING="$(baseline_json sharedTooling)"
+  DEP1_MISMATCH="$(node -e '
+    const fs = require("fs");
+    let pkg; try { pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); } catch (e) { pkg = {}; }
+    const have = Object.assign({}, pkg.dependencies, pkg.devDependencies,
+      pkg.peerDependencies, pkg.optionalDependencies);
+    const want = JSON.parse(process.argv[1] || "{}");
+    const out = [];
+    for (const [name, range] of Object.entries(want)) {
+      if (have[name] === undefined) out.push(name + ": not declared");
+      else if (have[name] !== range) out.push(name + ": " + have[name] + " vs " + range);
+    }
+    process.stdout.write(out.join("; "));
+  ' "$EXP_TOOLING")"
+  [ -z "$DEP1_MISMATCH" ] &&
+    ok "STD-DEP-1" "shared build and test tooling pinned to the same range" ||
+    bad "STD-DEP-1" "shared build and test tooling pinned to the same range" "$DEP1_MISMATCH"
+fi
+
+# STD-DEP-2: one compiler major across the ecosystem. Read from the root
+# manifest's own `typescript` devDependency; a repository declaring none has
+# nothing to compare and is reported unchecked rather than guessed at.
+TS_RANGE="$(node -p "((require('./package.json').devDependencies)||{}).typescript || ((require('./package.json').dependencies)||{}).typescript || ''" 2>/dev/null)"
+TS_MAJOR="$(printf '%s' "$TS_RANGE" | sed -nE 's/^[^0-9]*([0-9]+).*/\1/p')"
+if [ -z "$TS_MAJOR" ]; then
+  skip "STD-DEP-2" "one compiler major across the ecosystem" \
+    "no typescript dependency declared in package.json"
+elif [ -z "$BASELINE_JSON" ]; then
+  skip "STD-DEP-2" "one compiler major across the ecosystem" \
+    "no baseline available; install or update @rcrsr/rill-dev"
+elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+  bad "STD-DEP-2" "one compiler major across the ecosystem" \
+    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+else
+  EXP_TS_MAJOR="$(baseline_str typescriptMajor)"
+  [ "$TS_MAJOR" = "$EXP_TS_MAJOR" ] &&
+    ok "STD-DEP-2" "one compiler major across the ecosystem (typescript $TS_MAJOR)" ||
+    bad "STD-DEP-2" "one compiler major across the ecosystem" \
+      "typescript major is $TS_MAJOR, ecosystem pin is $EXP_TS_MAJOR"
+fi
+
+# STD-DEP-3: a tool incompatible with the current compiler major is handled by
+# a scoped nested override, never a whole-workspace downgrade. Decided from the
+# tree, not the baseline: this is about whether THIS repository's own override
+# shape is scoped, which needs no comparison to rill at all. No override
+# anywhere is this element's own N/A — nothing conflicts with the pinned
+# compiler major. pnpm reads workspace-wide overrides from two places
+# depending on major: `pnpm.overrides` in package.json (older) and a top-level
+# `overrides:` block in pnpm-workspace.yaml (newer); either is a candidate.
+# `>` in an override key is pnpm's syntax for a scoped, nested override
+# (dependency-of-dependency); a bare package name overrides it everywhere,
+# which is the whole-workspace downgrade this element forbids.
+PKG_OVERRIDE_KEYS="$(node -p "Object.keys(((require('./package.json').pnpm)||{}).overrides||{}).join('\n')" 2>/dev/null)"
+WS_OVERRIDE_KEYS=""
+if [ -f pnpm-workspace.yaml ] && grep -q '^overrides:' pnpm-workspace.yaml; then
+  WS_OVERRIDE_KEYS="$(awk '/^overrides:/{f=1;next} /^[^[:space:]]/{f=0} f && /^[[:space:]]*[^[:space:]#]+:/{
+    line=$0; sub(/^[[:space:]]*/, "", line); sub(/:.*$/, "", line); print line
+  }' pnpm-workspace.yaml)"
+fi
+ALL_OVERRIDE_KEYS="$(printf '%s\n%s\n' "$PKG_OVERRIDE_KEYS" "$WS_OVERRIDE_KEYS" | grep -v '^$')"
+if [ -z "$ALL_OVERRIDE_KEYS" ]; then
+  skip "STD-DEP-3" "incompatible tool handled by a scoped nested override" \
+    "N/A: no tool conflicts with the current compiler major"
+else
+  UNSCOPED_OVERRIDES="$(printf '%s\n' "$ALL_OVERRIDE_KEYS" | grep -v '>' | tr '\n' ' ')"
+  [ -z "$UNSCOPED_OVERRIDES" ] &&
+    ok "STD-DEP-3" "incompatible tool handled by a scoped nested override" ||
+    bad "STD-DEP-3" "incompatible tool handled by a scoped nested override" \
+      "whole-workspace override, not scoped with '>': $UNSCOPED_OVERRIDES"
+fi
+
+# STD-DEP-4: test runner declared consistently — either in every package or in
+# none, relying on root resolution. Cross-package, not cross-repository, so
+# this is decided from the tree under test alone. Checked as version
+# consistency wherever the runner IS declared, rather than a strict
+# binary presence-everywhere-or-nowhere: a package with its own bundler
+# config (a browser test environment, say) can need its own devDependency
+# entry purely so its local config resolves the runner, while a plain Node
+# package correctly relies on the hoisted root install. What the element's
+# "declared consistently" guards against is version drift between those
+# entries, which this catches; a package pinning a different major than root
+# is the real defect this element exists to prevent.
+if [ "$WORKSPACE" -eq 0 ]; then
+  skip "STD-DEP-4" "test runner declared consistently" "N/A: the repository is a single package"
+else
+  DEP4_RESULT="$(node -e '
+    const fs = require("fs");
+    const KNOWN = ["vitest", "jest", "mocha", "ava", "tape", "uvu"];
+    const load = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return {}; } };
+    const has = (m, name) => Boolean((m.dependencies || {})[name] || (m.devDependencies || {})[name]);
+    const range = (m, name) => (m.dependencies || {})[name] || (m.devDependencies || {})[name];
+    const root = load("package.json");
+    const dirs = process.argv.slice(1);
+    const pkgs = dirs.map((d) => load(d + "/package.json"));
+    for (const name of KNOWN) {
+      const rootHas = has(root, name);
+      const rootRange = range(root, name);
+      const declaring = dirs.filter((d, i) => has(pkgs[i], name));
+      if (!rootHas && declaring.length === 0) continue;
+      const drift = declaring.filter((d, _i) => {
+        const m = pkgs[dirs.indexOf(d)];
+        return rootHas && range(m, name) !== rootRange;
+      });
+      if (drift.length === 0) { console.log("ok " + name); process.exit(0); }
+      console.log("bad " + name + " " + drift.join(",") + " root=" + rootRange);
+      process.exit(0);
+    }
+    console.log("none");
+  ' "${PKG_DIRS[@]}")"
+  set -- $DEP4_RESULT
+  case "$1" in
+    ok)
+      ok "STD-DEP-4" "test runner declared consistently ($2)" ;;
+    bad)
+      bad "STD-DEP-4" "test runner declared consistently" \
+        "$2 pinned a different range than root in: $3" ;;
+    *)
+      skip "STD-DEP-4" "test runner declared consistently" \
+        "no recognised test runner dependency found in this workspace" ;;
+  esac
+fi
+
+# STD-DEP-5: cross-repository peer ranges track the current published version.
+# The baseline's publishedVersions map is the current published version for
+# each package this ecosystem's peer ranges point at; only @rcrsr/* peer
+# dependencies count, and only the workspace-external kind. A `workspace:`
+# range never resolves through the registry, so a package pinning its sibling
+# that way (packages/service on @rcrsr/rill, here) is the root consuming
+# itself, not a cross-repository peer dependency — the same distinction
+# STD-CI-9's CONSUMES walk already draws.
+PEER_LINES="$(node -e '
+  const fs = require("fs");
+  const load = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return {}; } };
+  const dirs = ["."].concat(process.argv.slice(1));
+  const out = [];
+  for (const d of dirs) {
+    const p = load((d === "." ? "" : d + "/") + "package.json");
+    for (const [name, r] of Object.entries(p.peerDependencies || {})) {
+      if (name.startsWith("@rcrsr/") && !String(r).startsWith("workspace:")) out.push(name + " " + r);
+    }
+  }
+  process.stdout.write(out.join("\n"));
+' "${PKG_DIRS[@]}")"
+if [ -z "$PEER_LINES" ]; then
+  skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
+    "N/A: no cross-repository peer dependency"
+elif [ -z "$BASELINE_JSON" ]; then
+  skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
+    "no baseline available; install or update @rcrsr/rill-dev"
+elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+  bad "STD-DEP-5" "cross-repository peer ranges track the current published version" \
+    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+else
+  EXP_VERSIONS="$(baseline_json publishedVersions)"
+  # Tracks the published version by major.minor, not the exact patch: a `~`
+  # or `^` peer range names the release its author last verified against, and
+  # a patch bump on the pinned package is exactly the case such a range is
+  # written to keep tracking without an edit.
+  PEER_MISMATCH="$(node -e '
+    const versions = JSON.parse(process.argv[1] || "{}");
+    const lines = process.argv[2].split("\n").filter(Boolean);
+    const majorMinor = (v) => (String(v).match(/(\d+)\.(\d+)/) || []).slice(1, 3).join(".");
+    const out = [];
+    const unresolved = [];
+    for (const line of lines) {
+      const [name, range] = line.split(" ");
+      if (!(name in versions)) { unresolved.push(name); continue; }
+      if (majorMinor(range) !== majorMinor(versions[name])) {
+        out.push(name + ": peer " + range + " vs published " + versions[name]);
+      }
+    }
+    process.stdout.write(JSON.stringify({ mismatch: out, unresolved, checked: lines.length - unresolved.length }));
+  ' "$EXP_VERSIONS" "$PEER_LINES")"
+  PM_CHECKED="$(printf '%s' "$PEER_MISMATCH" | node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(0,"utf8")).checked))')"
+  PM_BAD="$(printf '%s' "$PEER_MISMATCH" | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0,"utf8")).mismatch.join("; "))')"
+  if [ "$PM_CHECKED" -eq 0 ]; then
+    skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
+      "no baseline pin for the peer dependency this repository declares"
+  elif [ -z "$PM_BAD" ]; then
+    ok "STD-DEP-5" "cross-repository peer ranges track the current published version"
+  else
+    bad "STD-DEP-5" "cross-repository peer ranges track the current published version" "$PM_BAD"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 printf '\n'
