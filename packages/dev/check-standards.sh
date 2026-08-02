@@ -1537,15 +1537,15 @@ fi
 
 # STD-DEP-4: test runner declared consistently — either in every package or in
 # none, relying on root resolution. Cross-package, not cross-repository, so
-# this is decided from the tree under test alone. Checked as version
-# consistency wherever the runner IS declared, rather than a strict
-# binary presence-everywhere-or-nowhere: a package with its own bundler
-# config (a browser test environment, say) can need its own devDependency
-# entry purely so its local config resolves the runner, while a plain Node
-# package correctly relies on the hoisted root install. What the element's
-# "declared consistently" guards against is version drift between those
-# entries, which this catches; a package pinning a different major than root
-# is the real defect this element exists to prevent.
+# this is decided from the tree under test alone. Read literally: presence is
+# binary across PKG_DIRS, not "wherever declared, versions agree" — a package
+# with its own bundler config still resolves a hoisted root install by Node's
+# ordinary upward node_modules walk, so a local devDependency entry is
+# redundant, not load-bearing, and does not earn an exception from the text.
+# Version drift is checked too, inside the "every package declares it" branch
+# only: it is a defect that binary presence alone cannot see, but it does not
+# replace the binary reading, since a repository is non-conformant on
+# structure alone regardless of whether the versions happen to agree.
 if [ "$WORKSPACE" -eq 0 ]; then
   skip "STD-DEP-4" "test runner declared consistently" "N/A: the repository is a single package"
 else
@@ -1560,26 +1560,44 @@ else
     const pkgs = dirs.map((d) => load(d + "/package.json"));
     for (const name of KNOWN) {
       const rootHas = has(root, name);
-      const rootRange = range(root, name);
       const declaring = dirs.filter((d, i) => has(pkgs[i], name));
-      if (!rootHas && declaring.length === 0) continue;
-      const drift = declaring.filter((d, _i) => {
-        const m = pkgs[dirs.indexOf(d)];
-        return rootHas && range(m, name) !== rootRange;
-      });
-      if (drift.length === 0) { console.log("ok " + name); process.exit(0); }
-      console.log("bad " + name + " " + drift.join(",") + " root=" + rootRange);
+      const missing = dirs.filter((d, i) => !has(pkgs[i], name));
+      if (!rootHas && declaring.length === 0) continue; // not used at all
+      if (declaring.length === 0) { console.log("ok-none " + name); process.exit(0); }
+      if (missing.length > 0) {
+        console.log("bad-mixed " + name + " declares=" + declaring.join(",") +
+          " relies-on-root=" + missing.join(","));
+        process.exit(0);
+      }
+      // Every package declares it. Version drift is a second, additive check:
+      // compare each package range to the first packages own range, not to
+      // root, since "every package" means root resolution plays no part here.
+      const base = range(pkgs[0], name);
+      const drift = dirs.filter((d, i) => range(pkgs[i], name) !== base);
+      if (drift.length > 0) {
+        console.log("bad-drift " + name + " " + dirs.map((d, i) => d + "=" + range(pkgs[i], name)).join(" "));
+        process.exit(0);
+      }
+      console.log("ok-every " + name);
       process.exit(0);
     }
     console.log("none");
   ' "${PKG_DIRS[@]}")"
   set -- $DEP4_RESULT
-  case "$1" in
-    ok)
-      ok "STD-DEP-4" "test runner declared consistently ($2)" ;;
-    bad)
+  DEP4_KIND="$1"
+  DEP4_NAME="${2:-}"
+  [ $# -ge 2 ] && shift 2 || shift $#
+  case "$DEP4_KIND" in
+    ok-none)
+      ok "STD-DEP-4" "test runner declared consistently (none; $DEP4_NAME resolves from root)" ;;
+    ok-every)
+      ok "STD-DEP-4" "test runner declared consistently (every package declares $DEP4_NAME)" ;;
+    bad-mixed)
       bad "STD-DEP-4" "test runner declared consistently" \
-        "$2 pinned a different range than root in: $3" ;;
+        "$DEP4_NAME declared in some packages, relied on root resolution in others: $*" ;;
+    bad-drift)
+      bad "STD-DEP-4" "test runner declared consistently" \
+        "$DEP4_NAME declared in every package but at drifted ranges: $*" ;;
     *)
       skip "STD-DEP-4" "test runner declared consistently" \
         "no recognised test runner dependency found in this workspace" ;;
