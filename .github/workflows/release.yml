@@ -68,10 +68,16 @@ jobs:
 
       - name: Resolve publish set from the tag
         run: |
-          # Read the tag from the environment, not `${{ }}` interpolation. The
-          # templater substitutes `${{ }}` before bash parses the script, and
-          # tag names permit shell metacharacters, so an interpolated tag can
-          # inject commands into a job holding NPM_TOKEN and id-token: write.
+          # Read the tag from the environment, not by interpolating a GitHub
+          # expression into the script. The templater substitutes expressions
+          # before bash parses the script, and tag names permit shell
+          # metacharacters, so an interpolated tag can inject commands into a
+          # job holding NPM_TOKEN and id-token: write.
+          #
+          # Spelling the expression delimiters literally here, even inside a
+          # `#` comment, is what broke this file: the templater scans the whole
+          # run block and does not know bash comments, so it read the empty
+          # pair as an expression and rejected the workflow.
           TAG="$GITHUB_REF_NAME"
           if [[ "$TAG" == dev-v* ]]; then
             echo "PACKAGES=packages/dev" >> "$GITHUB_ENV"

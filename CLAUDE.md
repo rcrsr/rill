@@ -37,8 +37,12 @@ comment with it.
 in repository settings so they cannot disagree with the required-linear-history
 protection rule, per STD-GATE-5. These are GitHub settings, not files, so
 nothing in the tree enforces them. `pnpm check:standards` covers the elements
-readable from the tree; `pnpm exec rill-check-standards --remote` adds these,
-and is what CI runs.
+readable from the tree, and is what CI runs.
+`pnpm exec rill-check-standards --remote` adds these, and is a maintainer task
+run from an authenticated shell — not a CI step. A pull request cannot change
+host settings, so gating merges on them only means an out-of-band settings
+change reddens every open PR. CI checks the tree; the host is checked where the
+credentials already are.
 
 Conformance is machine-checked, but not entirely. The script reports elements it
 cannot decide as `--` and counts them separately. A green run means the checked

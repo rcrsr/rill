@@ -223,7 +223,7 @@ still reads none of its tests. `tsconfig.json` usually scopes `include` to
 undetected even where STD-LINT-4 has lint covering the same directory. Check
 what `include` actually resolves to rather than trusting the script's presence.
 This is currently a known hole in `rill` rather than a satisfied element; it is
-recorded here so it is not rediscovered, and closing it is tracked work.
+recorded here so it is not rediscovered.
 
 **Verify**
 
@@ -303,7 +303,7 @@ fetch the package, so it cannot live inside its own prerequisite.
 |---|---|---|
 | STD-LINT-1 | Shared linter and formatter across all repositories. No repository runs a different pair. | — |
 | STD-LINT-2 | The `correctness` rule category is set to `error`. | — |
-| STD-LINT-3 | The custom rule plugin is loaded, and the rule banning internal workflow-artifact identifiers in shipped source is enabled for `src/`. | The repository has no private planning directory and therefore no identifiers to leak. |
+| STD-LINT-3 | The custom rule plugin is loaded, and the rule banning internal workflow-artifact identifiers in shipped source is enabled for `src/` at `error`. | — |
 | STD-LINT-4 | Lint scope covers `src/` **and** `tests/`. | — |
 | STD-LINT-5 | The same plugin set as `rill`. A plugin reporting zero findings is enabled, not omitted. | — |
 | STD-LINT-6 | Every disabled rule carries a comment stating why, with a measured finding count. A rule category evaluated and declined is recorded the same way, per rule. | — |
@@ -315,6 +315,26 @@ fetch the package, so it cannot live inside its own prerequisite.
 anyone reading the published package, including future maintainers and external
 contributors. Any repository with a private planning directory can leak them
 into shipped source. Keep the fact a comment states and drop the reference.
+
+**STD-LINT-3 carries no N/A condition, on purpose.** It used to admit one — no
+planning directory, nothing to leak — and that condition cannot be decided from
+a checkout. The directory is gitignored in every repository that has one, which
+is the point of it, so a probe answers *applicable* on a contributor's machine
+and *N/A* in CI for the same commit, with nothing in the output to say which run
+you are reading. The privacy that makes the rule necessary is what hides its N/A
+condition from CI, and any tree-based resolution of the condition inherits that.
+
+Requiring the rule unconditionally costs a repository with nothing to leak
+exactly nothing: it reports zero findings and is conformant. That is STD-LINT-5's
+rule one row down — a plugin reporting zero findings is enabled, not omitted —
+and the reason to enable it before the first identifier lands rather than after.
+
+**Known hole in STD-LINT-3's check.** The predicate greps the config, because
+these files carry comments and so are not `JSON.parse`-able. It confirms the
+plugin is loaded and the rule is set to `error`; it does not confirm the
+override's glob actually covers `src/`. A rule enabled at `error` under a glob
+scoped somewhere else reads as conformant. Verify the glob by eye once per
+repository. Closing this needs a JSONC parser in the checker.
 
 **Measure STD-LINT-5 and STD-LINT-6 only after STD-LINT-4 holds.** A plugin or
 category measured while `tests/` sits outside the lint scope reads artificially

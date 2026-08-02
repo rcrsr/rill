@@ -41,8 +41,8 @@ pnpm add -D @rcrsr/rill-dev
 
 ## Wiring it up
 
-1. **Point `.oxlintrc.json` at the plugin.** Loading it only registers the
-   rules; they are opt-in.
+1. **Point `.oxlintrc.json` at the plugin, and enable the rules.** Loading the
+   plugin only registers them — a rule nobody lists runs nowhere, silently.
 
    ```json
    {
@@ -56,9 +56,12 @@ pnpm add -D @rcrsr/rill-dev
    }
    ```
 
-   `no-spec-id-reference` applies to every repository carrying internal planning
-   documents. `no-duplicate-error-id` is keyed to `RuntimeError` construction, so
-   in practice it applies to `rill` alone.
+   `no-spec-id-reference` is required by `STD-LINT-3` in every repository, at
+   `error`, with no N/A condition — including repositories with nothing to leak
+   today. It reports zero findings there and is conformant, and the door is shut
+   before the first identifier lands. `no-duplicate-error-id` is keyed to
+   `RuntimeError` construction, so in practice it applies to `rill` alone;
+   leaving it off elsewhere is a recorded decision, not a gap.
 
 2. **Wire up the two binaries** in the root `package.json`, and call
    `check:standards` from the root `check` script:
@@ -74,8 +77,15 @@ pnpm add -D @rcrsr/rill-dev
 
 Expect `check:standards` to fail on the first run. That is the point: it reports
 which elements of `REPO-STANDARDS.md` the repository does not yet meet, by ID.
-Pass `--remote` in CI to add the branch-protection and repository-settings
-elements, which cannot be read from a checkout.
+`--remote` adds the branch-protection and repository-settings elements, which
+cannot be read from a checkout. Run it from a maintainer's authenticated shell,
+not from CI. A pull request cannot change host state, so gating merges on it
+means one out-of-band settings change reddens every open PR for a reason no
+author can fix. `GITHUB_TOKEN` decides almost none of it: the administrative
+fields are omitted from its view of the repository object and
+`branches/*/protection` answers 404, so every STD-GATE element reports as
+unchecked. It settles STD-SET-2 and STD-SUP-6's host half, and those two move
+to the maintainer run with the rest.
 
 Read the summary line, not just the exit code. Elements the script cannot decide
 are reported as `--` and counted separately; they still apply. A green run means
