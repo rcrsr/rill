@@ -758,6 +758,29 @@ if [ -f "$LINTRC" ]; then
     ok "STD-LINT-2" "correctness set to error" ||
     bad "STD-LINT-2" "correctness set to error" "correctness is not error in $LINTRC"
 
+  # Checked unconditionally, and deliberately not gated on the planning
+  # directory the element's N/A condition names. That directory is gitignored
+  # in every repository that has one - which is the point of it - so a probe
+  # answers "applicable" on a laptop and "N/A" in CI for the same commit, and
+  # nothing in the output says which run you are reading. The privacy that
+  # makes the rule necessary is what hides its N/A condition from CI.
+  #
+  # So don't resolve the condition. A repository with nothing to leak that
+  # enables the rule reports zero findings and is conformant, which is
+  # STD-LINT-5's own logic one row down: a plugin reporting zero findings is
+  # enabled, not omitted.
+  #
+  # `error` rather than any severity: the element bans these identifiers, and
+  # a warning bans nothing. STD-LINT-9 requires the same severity as the
+  # reference config in any case, so `warn` fails there too.
+  if grep -q 'rill-dev/lint-rules' "$LINTRC" &&
+    grep -q '"rill/no-spec-id-reference": *"error"' "$LINTRC"; then
+    ok "STD-LINT-3" "workflow-artifact rule enabled"
+  else
+    bad "STD-LINT-3" "workflow-artifact rule enabled" \
+      "plugin not loaded, or rill/no-spec-id-reference is not error in $LINTRC"
+  fi
+
   # Naming a plugins array replaces the tool defaults, so unicorn is off unless
   # relisted. Its absence is the silent case STD-LINT-8 exists to catch.
   if grep -q '"plugins"' "$LINTRC"; then
@@ -800,10 +823,9 @@ if [ -f "$LINTRC" ]; then
     ok "STD-LINT-4" "lint scope covers src/ and tests/" ||
     bad "STD-LINT-4" "lint scope covers src/ and tests/" "tests/ not linted in: $UNSCOPED"
 else
-  skip "STD-LINT-2,4,7,8" "lint configuration" "no $LINTRC in this repository"
+  skip "STD-LINT-2,3,4,7,8" "lint configuration" "no $LINTRC in this repository"
 fi
 skip "STD-LINT-1" "shared linter and formatter" "cross-repository comparison"
-skip "STD-LINT-3" "workflow-artifact rule enabled" "depends on a private planning directory"
 skip "STD-LINT-5" "same plugin set as rill" "cross-repository comparison"
 skip "STD-LINT-6" "disabled rules carry counts" "the comment is prose, not machine-checkable"
 skip "STD-LINT-9" "shared rules carry the same severity" "cross-repository comparison"

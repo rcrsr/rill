@@ -41,8 +41,8 @@ pnpm add -D @rcrsr/rill-dev
 
 ## Wiring it up
 
-1. **Point `.oxlintrc.json` at the plugin.** Loading it only registers the
-   rules; they are opt-in.
+1. **Point `.oxlintrc.json` at the plugin, and enable the rules.** Loading the
+   plugin only registers them — a rule nobody lists runs nowhere, silently.
 
    ```json
    {
@@ -56,9 +56,12 @@ pnpm add -D @rcrsr/rill-dev
    }
    ```
 
-   `no-spec-id-reference` applies to every repository carrying internal planning
-   documents. `no-duplicate-error-id` is keyed to `RuntimeError` construction, so
-   in practice it applies to `rill` alone.
+   `no-spec-id-reference` is required by `STD-LINT-3` in every repository, at
+   `error`, with no N/A condition — including repositories with nothing to leak
+   today. It reports zero findings there and is conformant, and the door is shut
+   before the first identifier lands. `no-duplicate-error-id` is keyed to
+   `RuntimeError` construction, so in practice it applies to `rill` alone;
+   leaving it off elsewhere is a recorded decision, not a gap.
 
 2. **Wire up the two binaries** in the root `package.json`, and call
    `check:standards` from the root `check` script:
