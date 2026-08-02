@@ -74,8 +74,14 @@ pnpm add -D @rcrsr/rill-dev
 
 Expect `check:standards` to fail on the first run. That is the point: it reports
 which elements of `REPO-STANDARDS.md` the repository does not yet meet, by ID.
-Pass `--remote` in CI to add the branch-protection and repository-settings
-elements, which cannot be read from a checkout.
+`--remote` adds the branch-protection and repository-settings elements, which
+cannot be read from a checkout. Run it from a maintainer's authenticated shell,
+not from CI. A pull request cannot change host state, so gating merges on it
+means one out-of-band settings change reddens every open PR for a reason no
+author can fix. `GITHUB_TOKEN` could not decide those elements anyway: the
+administrative fields are omitted from its view of the repository object and
+`branches/*/protection` answers 404, so both groups report as unchecked and the
+flag changes nothing but an API round trip.
 
 Read the summary line, not just the exit code. Elements the script cannot decide
 are reported as `--` and counted separately; they still apply. A green run means
