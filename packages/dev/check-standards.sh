@@ -33,6 +33,31 @@ set -uo pipefail
 # here, so that does not error out -- it reports a page of confident results
 # about a directory that was never the subject.
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# This script's own directory, which is the one thing BASH_SOURCE is right for:
+# the version stamped on the summary line, and the baseline shipped beside it.
+# Resolved before the cd below, because BASH_SOURCE may be relative.
+# realpath/readlink -f resolves a symlinked entry point (e.g. an npm/yarn
+# .bin shim) to the real file before taking its directory; without that, a
+# symlink installed at node_modules/.bin resolves SELF_DIR to the .bin
+# directory itself, and every require() below a sibling path fails silently.
+SELF_SCRIPT="${BASH_SOURCE[0]}"
+if command -v realpath >/dev/null 2>&1; then
+  SELF_SCRIPT="$(realpath "$SELF_SCRIPT")"
+elif command -v readlink >/dev/null 2>&1 && readlink -f "$SELF_SCRIPT" >/dev/null 2>&1; then
+  SELF_SCRIPT="$(readlink -f "$SELF_SCRIPT")"
+fi
+SELF_DIR="$(cd "$(dirname "$SELF_SCRIPT")" && pwd)"
+# The version of the checker producing the report, not of the repository under
+# test. Without it, "CONFORMANT 56 checked" from one repository and
+# "CONFORMANT 52 checked" from another give no indication that two different
+# checkers produced them, and the difference reads as a conformance gap rather
+# than as version skew. Empty rather than fatal when unreadable: a missing
+# sibling manifest costs a label, not a run.
+SELF_VERSION="$(node -e 'try {
+  process.stdout.write(String(require(process.argv[1] + "/package.json").version || ""));
+} catch (e) { /* unstamped */ }' "$SELF_DIR" 2>/dev/null)"
+
 # No `set -e` here, deliberately, so a failing cd would otherwise run every
 # relative-path check against the caller's directory and print a page of
 # misleading results instead of one error.
@@ -242,6 +267,111 @@ for f in "${MANIFESTS[@]}"; do
     process.exit(JSON.parse(fs.readFileSync(process.argv[1], "utf8")).private ? 1 : 0)' \
     "$f" 2>/dev/null && PUBLISHABLE=$((PUBLISHABLE + 1))
 done
+
+# The cross-repository baseline. REPO-STANDARDS.md §10 names rill's root
+# package.json and pnpm-workspace.yaml as the canonical pins, which a
+# consuming repository cannot read — it has neither file. The baseline ships
+# instead: generated from rill's tree by gen-baseline.cjs, committed to
+# packages/dev/baseline.json, and published in the @rcrsr/rill-dev tarball, so
+# it travels with the checker into every consumer's node_modules.
+#
+# Ownership is decided by which of those two files a tree holds, not by a
+# hostname or a repository name: a tracked packages/dev/baseline.json is
+# rill's own tree, checked out anywhere. A consumer has no such file at that
+# path — its baseline lives one level further in, at
+# node_modules/@rcrsr/rill-dev/baseline.json — so the two cases cannot collide.
+OWNS_BASELINE=0
+BASELINE_PATH=""
+[ -f packages/dev/baseline.json ] && OWNS_BASELINE=1 && BASELINE_PATH="packages/dev/baseline.json"
+if [ "$OWNS_BASELINE" -eq 0 ]; then
+  BASELINE_PATH="$(node -e 'try {
+    process.stdout.write(require.resolve("@rcrsr/rill-dev/baseline.json"));
+  } catch (e) { /* not installed, or too old to export it */ }' 2>/dev/null)"
+fi
+BASELINE_JSON=""
+[ -n "$BASELINE_PATH" ] && BASELINE_JSON="$(cat "$BASELINE_PATH" 2>/dev/null)"
+
+# rill verifies its own baseline is fresh rather than trusting the committed
+# file: it regenerates in memory from the tree under test and requires the two
+# to agree byte-for-byte (as JSON values, not as text, so key order from a
+# stable generator is the only thing that can differ and still counts as
+# equal). Skipping this and trusting the committed file would let a pin bump
+# ship a stale baseline to every consumer with nothing here to catch it before
+# publish. A consuming repository has no tree to regenerate from — its
+# baseline IS the pin, read from node_modules — so this only runs for the
+# owner.
+BASELINE_FRESH=1
+if [ "$OWNS_BASELINE" -eq 1 ]; then
+  BASELINE_FRESH=0
+  LIVE_BASELINE="$(node "$SELF_DIR/gen-baseline.cjs" 2>/dev/null)"
+  if [ -n "$LIVE_BASELINE" ]; then
+    node -e 'try {
+      const live = JSON.parse(process.argv[1]);
+      const committed = JSON.parse(process.argv[2]);
+      const canon = (v) => {
+        if (Array.isArray(v)) return v.map(canon);
+        if (v !== null && typeof v === "object") {
+          const out = {};
+          for (const k of Object.keys(v).sort()) out[k] = canon(v[k]);
+          return out;
+        }
+        return v;
+      };
+      process.exit(JSON.stringify(canon(live)) === JSON.stringify(canon(committed)) ? 0 : 1);
+    } catch (e) { process.exit(1); }' "$LIVE_BASELINE" "$BASELINE_JSON" 2>/dev/null &&
+      BASELINE_FRESH=1
+  fi
+fi
+
+# baseline_str <dot-path> — the string value at that path in the baseline, or
+# empty if the path is absent or not a string.
+baseline_str() {
+  node -e 'let v; try { v = JSON.parse(process.argv[2] || "null"); } catch (e) { v = null; }
+    for (const k of process.argv[1].split(".").filter(Boolean)) {
+      v = v === null || v === undefined ? undefined : v[k];
+    }
+    process.stdout.write(typeof v === "string" ? v : "");' "$1" "$BASELINE_JSON"
+}
+
+# baseline_json <dot-path> — the value at that path, JSON-encoded, or the
+# string null if absent. For arrays and objects, where baseline_str would
+# discard structure.
+baseline_json() {
+  node -e 'let v; try { v = JSON.parse(process.argv[2] || "null"); } catch (e) { v = null; }
+    for (const k of process.argv[1].split(".").filter(Boolean)) {
+      v = v === null || v === undefined ? undefined : v[k];
+    }
+    process.stdout.write(v === undefined ? "null" : JSON.stringify(v));' "$1" "$BASELINE_JSON"
+}
+
+# baseline_gate <id> <label> — the skip/bad wrapper every baseline-derived
+# element opens with (STD-LINT-1/5/9, STD-PM-2, STD-DEP-1/2/5): no baseline at
+# all is a skip, and a stale committed baseline in the owning repository is a
+# bad. Emits the line and returns non-zero when it already handled the
+# element; returns 0 when the caller should run its own check.
+baseline_gate() {
+  local id="$1" label="$2"
+  if [ -z "$BASELINE_JSON" ]; then
+    skip "$id" "$label" "no baseline available; install or update @rcrsr/rill-dev"
+    return 1
+  elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+    bad "$id" "$label" "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+    return 1
+  fi
+  return 0
+}
+
+# has_dep <name> — is it declared, at any version, in any dependency field of
+# the root manifest?
+has_dep() {
+  node -e 'const fs = require("fs");
+    let p; try { p = JSON.parse(fs.readFileSync("package.json", "utf8")); } catch (e) { process.exit(1); }
+    const name = process.argv[1];
+    for (const f of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
+      if (p[f] && p[f][name]) process.exit(0);
+    }
+    process.exit(1);' "$1"
+}
 
 # ---------------------------------------------------------------------------
 section "§1 Merge gates, §13 Repository settings"
@@ -773,13 +903,45 @@ if [ -f "$LINTRC" ]; then
   # `error` rather than any severity: the element bans these identifiers, and
   # a warning bans nothing. STD-LINT-9 requires the same severity as the
   # reference config in any case, so `warn` fails there too.
-  if grep -q 'rill-dev/lint-rules' "$LINTRC" &&
-    grep -q '"rill/no-spec-id-reference": *"error"' "$LINTRC"; then
-    ok "STD-LINT-3" "workflow-artifact rule enabled"
-  else
-    bad "STD-LINT-3" "workflow-artifact rule enabled" \
-      "plugin not loaded, or rill/no-spec-id-reference is not error in $LINTRC"
-  fi
+  #
+  # Parsed with jsonc.cjs rather than grepped, which closes the hole this
+  # predicate used to carry: confirming the rule is `error` somewhere in the
+  # file is not confirming the override whose glob actually matches `src/` is
+  # the one that sets it. A rule enabled at `error` under a glob scoped
+  # elsewhere used to read as conformant; this walks `overrides[]` and checks
+  # the glob on the override that sets the rule, the same way STD-LINT-4 reads
+  # a lint command's own scope rather than trusting the rule's presence.
+  LINT3_RESULT="$(node -e '
+    let cfg;
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      cfg = readJSONC(process.argv[2]);
+    } catch (e) { console.log("parse-error"); process.exit(0); }
+    const loaded = (cfg.jsPlugins || []).some((p) => String(p).includes("rill-dev/lint-rules"));
+    if (!loaded) { console.log("not-loaded"); process.exit(0); }
+    const covering = (cfg.overrides || []).filter((o) => {
+      const r = (o.rules || {})["rill/no-spec-id-reference"];
+      return (Array.isArray(r) ? r[0] : r) === "error";
+    });
+    if (covering.length === 0) { console.log("not-error"); process.exit(0); }
+    const toArray = (x) => (Array.isArray(x) ? x : x === undefined || x === null ? [] : [x]);
+    const coversSrc = covering.some((o) => toArray(o.files).some((f) => String(f).includes("src")));
+    console.log(coversSrc ? "ok" : "glob-gap");
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+
+  case "$LINT3_RESULT" in
+    ok)
+      ok "STD-LINT-3" "workflow-artifact rule enabled, glob covers src/" ;;
+    glob-gap)
+      bad "STD-LINT-3" "workflow-artifact rule enabled, glob covers src/" \
+        "rill/no-spec-id-reference is error, but no override setting it lists a files glob containing src" ;;
+    not-loaded)
+      bad "STD-LINT-3" "workflow-artifact rule enabled" "rill-dev/lint-rules plugin not loaded" ;;
+    not-error)
+      bad "STD-LINT-3" "workflow-artifact rule enabled" "rill/no-spec-id-reference is not error in $LINTRC" ;;
+    *)
+      bad "STD-LINT-3" "workflow-artifact rule enabled" "could not parse $LINTRC as JSONC" ;;
+  esac
 
   # Naming a plugins array replaces the tool defaults, so unicorn is off unless
   # relisted. Its absence is the silent case STD-LINT-8 exists to catch.
@@ -825,10 +987,103 @@ if [ -f "$LINTRC" ]; then
 else
   skip "STD-LINT-2,3,4,7,8" "lint configuration" "no $LINTRC in this repository"
 fi
-skip "STD-LINT-1" "shared linter and formatter" "cross-repository comparison"
-skip "STD-LINT-5" "same plugin set as rill" "cross-repository comparison"
+
+# STD-LINT-1: shared linter and formatter. The baseline names the two package
+# names rill runs; a repository that declares both, at any version, runs the
+# same pair. The version itself is not this element's claim — STD-DEP-1 covers
+# range agreement — only that the tool choice has not diverged.
+if baseline_gate "STD-LINT-1" "shared linter and formatter"; then
+  EXP_LINTER="$(baseline_str linter)"
+  EXP_FMT="$(baseline_str formatter)"
+  if has_dep "$EXP_LINTER" && has_dep "$EXP_FMT"; then
+    ok "STD-LINT-1" "shared linter and formatter ($EXP_LINTER, $EXP_FMT)"
+  else
+    bad "STD-LINT-1" "shared linter and formatter" \
+      "expected $EXP_LINTER and $EXP_FMT declared in package.json"
+  fi
+fi
+
+# STD-LINT-5: same plugin set. Compared as sets, not as ordered lists — the
+# element names the set, not a spelling order, and neither config here treats
+# order as meaningful.
+if [ ! -f "$LINTRC" ]; then
+  skip "STD-LINT-5" "same plugin set as rill" "no $LINTRC in this repository"
+elif baseline_gate "STD-LINT-5" "same plugin set as rill"; then
+  EXP_PLUGINS="$(baseline_json lintPlugins)"
+  HAVE_PLUGINS="$(node -e '
+    let cfg = {};
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      cfg = readJSONC(process.argv[2]);
+    } catch (e) { cfg = {}; }
+    const raw = cfg.plugins;
+    const arr = Array.isArray(raw) ? raw : raw === undefined || raw === null ? [] : [raw];
+    process.stdout.write(JSON.stringify(arr.slice().sort()));
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+  DIFF_PLUGINS="$(node -e '
+    const have = new Set(JSON.parse(process.argv[1] || "[]") ?? []);
+    const want = new Set(JSON.parse(process.argv[2] || "[]") ?? []);
+    const missing = [...want].filter((p) => !have.has(p));
+    const extra = [...have].filter((p) => !want.has(p));
+    const out = [];
+    if (missing.length) out.push("missing: " + missing.join(","));
+    if (extra.length) out.push("extra: " + extra.join(","));
+    process.stdout.write(out.join(" "));
+  ' "$HAVE_PLUGINS" "$EXP_PLUGINS")"
+  [ -z "$DIFF_PLUGINS" ] &&
+    ok "STD-LINT-5" "same plugin set as rill" ||
+    bad "STD-LINT-5" "same plugin set as rill" "$DIFF_PLUGINS"
+fi
+
 skip "STD-LINT-6" "disabled rules carry counts" "the comment is prose, not machine-checkable"
-skip "STD-LINT-9" "shared rules carry the same severity" "cross-repository comparison"
+
+# STD-LINT-9: rules shared with the reference config carry the same severity.
+# Read only rules present in BOTH configs — the element compares the
+# intersection, not rill's full set against a consumer that legitimately
+# carries fewer rules (rill ~40, rill-config ~26, 25 shared today). A rule the
+# baseline does not carry at all says nothing about this element.
+if [ ! -f "$LINTRC" ]; then
+  skip "STD-LINT-9" "shared rules carry the same severity" "no $LINTRC in this repository"
+elif baseline_gate "STD-LINT-9" "shared rules carry the same severity"; then
+  EXP_RULES="$(baseline_json lintRules)"
+  # A load/parse failure prints the PARSE_ERROR sentinel rather than falling
+  # back to `cfg = {}`. An empty `have` is indistinguishable from "legitimately
+  # no overlapping rules" once it reaches the intersection diff below — the
+  # diff only flags keys present in both objects, so an empty `have` always
+  # reports zero mismatches and STD-LINT-9 would read `ok` on a broken or
+  # partial jsonc.cjs install, exactly the silent false-conformance this
+  # element must not produce. Checked before the diff runs, mirroring
+  # STD-LINT-3's parse-error handling above.
+  HAVE_RULES="$(node -e '
+    let cfg;
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      cfg = readJSONC(process.argv[2]);
+    } catch (e) { console.log("PARSE_ERROR"); process.exit(0); }
+    const out = {};
+    for (const [k, v] of Object.entries(cfg.rules || {})) out[k] = Array.isArray(v) ? v[0] : v;
+    process.stdout.write(JSON.stringify(out));
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+  if [ "$HAVE_RULES" = "PARSE_ERROR" ] || [ -z "$HAVE_RULES" ]; then
+    bad "STD-LINT-9" "shared rules carry the same severity" \
+      "could not parse $LINTRC as JSONC"
+  else
+    MISMATCH="$(node -e '
+      const have = JSON.parse(process.argv[1] || "{}") ?? {};
+      const want = JSON.parse(process.argv[2] || "{}") ?? {};
+      const out = [];
+      for (const k of Object.keys(want)) {
+        if (Object.prototype.hasOwnProperty.call(have, k) && have[k] !== want[k]) {
+          out.push(k + ": " + have[k] + " vs " + want[k]);
+        }
+      }
+      process.stdout.write(out.join("; "));
+    ' "$HAVE_RULES" "$EXP_RULES")"
+    [ -z "$MISMATCH" ] &&
+      ok "STD-LINT-9" "shared rules carry the same severity" ||
+      bad "STD-LINT-9" "shared rules carry the same severity" "$MISMATCH"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 section "§7 Release workflow"
@@ -841,9 +1096,15 @@ else
     ok "STD-REL-1" "triggered by a version tag" ||
     bad "STD-REL-1" "triggered by a version tag" "no tag trigger in $REL"
 
-  grep -q 'provenance' "$REL" &&
-    ok "STD-REL-3" "publishes with provenance" ||
+  # Recorded, because STD-SUP-2 is the same assertion read from §9 and settles
+  # on this result rather than on a grep of its own.
+  if grep -q 'provenance' "$REL"; then
+    PROVENANCE=1
+    ok "STD-REL-3" "publishes with provenance"
+  else
+    PROVENANCE=0
     bad "STD-REL-3" "publishes with provenance" "no --provenance in $REL"
+  fi
 
   grep -q 'id-token: *write' "$REL" &&
     ok "STD-REL-4" "grants id-token: write" ||
@@ -1083,9 +1344,63 @@ fi
 { [ -f .github/CODEOWNERS ] || [ -f CODEOWNERS ]; } &&
   ok "STD-SUP-7" "CODEOWNERS present" ||
   bad "STD-SUP-7" "CODEOWNERS present" "no CODEOWNERS"
-skip "STD-PM-2" "same package manager version everywhere" "cross-repository comparison"
-skip "STD-PM-6" "build allowlist in the expected location" "the location moves between majors"
-skip "STD-SUP-2" "published packages carry provenance" "same as STD-REL-3, checked above"
+# STD-PM-2: the same package manager major and version string in every
+# repository. $PM was read by STD-PM-1 above, JSON-encoded (quoted); the
+# baseline's copy is read unquoted, so strip the quotes rather than re-parse.
+if baseline_gate "STD-PM-2" "same package manager version everywhere"; then
+  EXP_PM="$(baseline_str packageManager)"
+  PM_UNQUOTED="$(printf '%s' "$PM" | sed -e 's/^"//' -e 's/"$//')"
+  [ -n "$EXP_PM" ] && [ "$PM_UNQUOTED" = "$EXP_PM" ] &&
+    ok "STD-PM-2" "same package manager version everywhere" ||
+    bad "STD-PM-2" "same package manager version everywhere" \
+      "packageManager=$PM_UNQUOTED, ecosystem pin is $EXP_PM"
+fi
+
+# The location the allowlist belongs in is decided by the pinned major, which
+# STD-PM-1 already read into $PM: pnpm 11 reads `allowBuilds` from
+# pnpm-workspace.yaml and no longer reads `pnpm.onlyBuiltDependencies` from
+# package.json, which is the move the element warns about. Declaring one in the
+# old location under a major that ignores it is the failure mode -- the settings
+# read as present and are inert -- so it is reported as a failure rather than as
+# an absent allowlist.
+#
+# Declaring none anywhere is the element's own N/A condition: no dependency
+# requires a build script. That cannot be distinguished from "forgot to declare
+# one", and the element accepts the ambiguity by naming it as the N/A. Reported
+# as N/A rather than passed, so it is counted as unchecked.
+PM_MAJOR="$(printf '%s' "$PM" | sed -n 's/^"\?pnpm@\([0-9]\+\)\..*/\1/p')"
+NEW_LOC=0
+OLD_LOC=0
+[ -f pnpm-workspace.yaml ] && grep -q '^allowBuilds:' pnpm-workspace.yaml && NEW_LOC=1
+grep -q '"onlyBuiltDependencies"' package.json && OLD_LOC=1
+if [ -z "$PM_MAJOR" ]; then
+  skip "STD-PM-6" "build allowlist in the expected location" \
+    "no pnpm major to read the expected location from"
+elif [ "$NEW_LOC" -eq 0 ] && [ "$OLD_LOC" -eq 0 ]; then
+  skip "STD-PM-6" "build allowlist in the expected location" \
+    "N/A: no dependency requires a build script"
+elif [ "$PM_MAJOR" -ge 11 ]; then
+  [ "$NEW_LOC" -eq 1 ] &&
+    ok "STD-PM-6" "build allowlist in the expected location" ||
+    bad "STD-PM-6" "build allowlist in the expected location" \
+      "pnpm $PM_MAJOR reads allowBuilds: from pnpm-workspace.yaml; the allowlist is in package.json, where it is inert"
+else
+  [ "$OLD_LOC" -eq 1 ] &&
+    ok "STD-PM-6" "build allowlist in the expected location" ||
+    bad "STD-PM-6" "build allowlist in the expected location" \
+      "pnpm $PM_MAJOR reads pnpm.onlyBuiltDependencies from package.json; the allowlist is in pnpm-workspace.yaml, where it is not yet read"
+fi
+
+# Not a grep of its own: the element says "See STD-REL-3", so reading the
+# release workflow a second time would let the two disagree. $PROVENANCE is
+# unset when there is no release.yml at all, which is this element's own N/A.
+if [ -z "${PROVENANCE:-}" ]; then
+  skip "STD-SUP-2" "published packages carry provenance" "N/A: the repository publishes nothing"
+else
+  [ "$PROVENANCE" -eq 1 ] &&
+    ok "STD-SUP-2" "published packages carry provenance" ||
+    bad "STD-SUP-2" "published packages carry provenance" "see STD-REL-3"
+fi
 
 # ---------------------------------------------------------------------------
 section "§11 Issue and PR process, §12 Community health"
@@ -1114,7 +1429,34 @@ done
   bad "STD-PROC-6" "PULL_REQUEST_TEMPLATE.md" "missing"
 skip "STD-PROC-1" "area:* taxonomy" "label state lives on the host"
 skip "STD-PROC-4" "issue workflow reads state fresh" "needs judgement about the script"
-skip "STD-PROC-7" "idempotent label-sync script" "the script's name is repo-specific"
+# The script's path is not repo-specific after all -- every repository in scope
+# carries it at .github/scripts/sync-labels.sh -- and idempotency has a marker
+# worth reading rather than trusting: `gh label create --force` upserts, where a
+# bare `gh label create` exits non-zero the second time and, under `set -e`,
+# halts the sync partway. Requiring --force on every create is what the element
+# means by reproducible. A rewrite in another language would report as absent
+# here, which is a false negative worth taking over passing on presence alone.
+LABEL_SYNC=.github/scripts/sync-labels.sh
+if [ ! -f "$LABEL_SYNC" ]; then
+  bad "STD-PROC-7" "idempotent label-sync script" "no $LABEL_SYNC"
+else
+  # Join backslash continuations before counting, then drop comment lines. Both
+  # matter on the reference script and each one alone reports it non-conformant:
+  # two of its three calls carry --force on the continued line, and the header
+  # comment documenting the flag otherwise counts as a fourth call.
+  LABEL_SRC="$(sed -e :a -e '/\\$/N; s/\\\n//; ta' "$LABEL_SYNC" | grep -v '^[[:space:]]*#')"
+  CREATES="$(printf '%s\n' "$LABEL_SRC" | grep -c 'gh label create')"
+  FORCED="$(printf '%s\n' "$LABEL_SRC" | grep -c 'gh label create.*--force')"
+  if [ "$CREATES" -eq 0 ]; then
+    skip "STD-PROC-7" "idempotent label-sync script" \
+      "$LABEL_SYNC calls no gh label create; idempotency needs judgement"
+  else
+    [ "$CREATES" -eq "$FORCED" ] &&
+      ok "STD-PROC-7" "idempotent label-sync script" ||
+      bad "STD-PROC-7" "idempotent label-sync script" \
+        "$((CREATES - FORCED)) of $CREATES gh label create calls lack --force; a re-run halts on the first existing label"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 section "§6 Git hooks, §10 Dependency versions"
@@ -1144,18 +1486,244 @@ if [ -f lefthook.yml ]; then
 else
   bad "STD-HOOK-1..4" "git hooks configured" "no lefthook.yml"
 fi
-skip "STD-DEP-1..5" "dependency versions" "cross-repository comparison"
+# STD-DEP-1: shared build and test tooling pinned to the same range. The
+# baseline names which deps count as "shared build and test tooling" — the
+# linter, formatter, test runner, compiler, hook manager, unused-dep checker,
+# and @types/node — and records rill's own range for each. Repo-specific
+# runtime deps (e.g. rill-config's `semver`) are deliberately not in that set;
+# this element is about the tools the ecosystem shares, not every devDependency
+# a repository happens to declare.
+if baseline_gate "STD-DEP-1" "shared build and test tooling pinned to the same range"; then
+  EXP_TOOLING="$(baseline_json sharedTooling)"
+  DEP1_MISMATCH="$(node -e '
+    const fs = require("fs");
+    let pkg; try { pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); } catch (e) { pkg = {}; }
+    const have = Object.assign({}, pkg.dependencies, pkg.devDependencies,
+      pkg.peerDependencies, pkg.optionalDependencies);
+    const want = JSON.parse(process.argv[1] || "{}") ?? {};
+    const out = [];
+    for (const [name, range] of Object.entries(want)) {
+      if (have[name] === undefined) out.push(name + ": not declared");
+      else if (have[name] !== range) out.push(name + ": " + have[name] + " vs " + range);
+    }
+    process.stdout.write(out.join("; "));
+  ' "$EXP_TOOLING")"
+  [ -z "$DEP1_MISMATCH" ] &&
+    ok "STD-DEP-1" "shared build and test tooling pinned to the same range" ||
+    bad "STD-DEP-1" "shared build and test tooling pinned to the same range" "$DEP1_MISMATCH"
+fi
+
+# STD-DEP-2: one compiler major across the ecosystem. Read from the root
+# manifest's own `typescript` devDependency; a repository declaring none has
+# nothing to compare and is reported unchecked rather than guessed at.
+TS_RANGE="$(node -p "((require('./package.json').devDependencies)||{}).typescript || ((require('./package.json').dependencies)||{}).typescript || ''" 2>/dev/null)"
+TS_MAJOR="$(printf '%s' "$TS_RANGE" | sed -nE 's/^[^0-9]*([0-9]+).*/\1/p')"
+if [ -z "$TS_MAJOR" ]; then
+  skip "STD-DEP-2" "one compiler major across the ecosystem" \
+    "no typescript dependency declared in package.json"
+elif baseline_gate "STD-DEP-2" "one compiler major across the ecosystem"; then
+  EXP_TS_MAJOR="$(baseline_str typescriptMajor)"
+  [ "$TS_MAJOR" = "$EXP_TS_MAJOR" ] &&
+    ok "STD-DEP-2" "one compiler major across the ecosystem (typescript $TS_MAJOR)" ||
+    bad "STD-DEP-2" "one compiler major across the ecosystem" \
+      "typescript major is $TS_MAJOR, ecosystem pin is $EXP_TS_MAJOR"
+fi
+
+# STD-DEP-3: a tool incompatible with the current compiler major is handled by
+# a scoped nested override, never a whole-workspace downgrade. Decided from the
+# tree, not the baseline: this is about whether THIS repository's own override
+# shape is scoped, which needs no comparison to rill at all. No override
+# anywhere is this element's own N/A — nothing conflicts with the pinned
+# compiler major. pnpm reads workspace-wide overrides from two places
+# depending on major: `pnpm.overrides` in package.json (older) and a top-level
+# `overrides:` block in pnpm-workspace.yaml (newer); either is a candidate.
+# `>` in an override key is pnpm's syntax for a scoped, nested override
+# (dependency-of-dependency); a bare package name overrides it everywhere,
+# which is the whole-workspace downgrade this element forbids.
+PKG_OVERRIDE_KEYS="$(node -p "Object.keys(((require('./package.json').pnpm)||{}).overrides||{}).join('\n')" 2>/dev/null)"
+WS_OVERRIDE_KEYS=""
+if [ -f pnpm-workspace.yaml ] && grep -q '^overrides:' pnpm-workspace.yaml; then
+  # A one-line structured read, not an awk scan: the block-start match requires
+  # the rest of the line to be blank or a comment (so a trailing comment on
+  # `overrides:` itself doesn't confuse the scan), quoted keys are captured
+  # verbatim so a colon inside one doesn't truncate the key, and a line
+  # without a colon before the first unquoted `#` (block-scalar content, a
+  # blank line) is skipped rather than misread as a key.
+  WS_OVERRIDE_KEYS="$(node -e '
+    const fs = require("fs");
+    let text = "";
+    try { text = fs.readFileSync("pnpm-workspace.yaml", "utf8"); } catch (e) { text = ""; }
+    let inBlock = false;
+    const keys = [];
+    for (const raw of text.split("\n")) {
+      if (!inBlock) {
+        if (/^overrides:\s*(#.*)?$/.test(raw)) inBlock = true;
+        continue;
+      }
+      if (raw.trim() === "") continue;
+      if (/^\S/.test(raw)) break;
+      const m = raw.match(/^\s*(?:\x27([^\x27]+)\x27|"([^"]+)"|([^\s\x27"#][^:]*?))\s*:/);
+      if (m) keys.push(m[1] || m[2] || m[3]);
+    }
+    process.stdout.write(keys.join("\n"));
+  ' 2>/dev/null)"
+fi
+ALL_OVERRIDE_KEYS="$(printf '%s\n%s\n' "$PKG_OVERRIDE_KEYS" "$WS_OVERRIDE_KEYS" | grep -v '^$')"
+if [ -z "$ALL_OVERRIDE_KEYS" ]; then
+  skip "STD-DEP-3" "incompatible tool handled by a scoped nested override" \
+    "N/A: no tool conflicts with the current compiler major"
+else
+  UNSCOPED_OVERRIDES="$(printf '%s\n' "$ALL_OVERRIDE_KEYS" | grep -v '>' | tr '\n' ' ')"
+  [ -z "$UNSCOPED_OVERRIDES" ] &&
+    ok "STD-DEP-3" "incompatible tool handled by a scoped nested override" ||
+    bad "STD-DEP-3" "incompatible tool handled by a scoped nested override" \
+      "whole-workspace override, not scoped with '>': $UNSCOPED_OVERRIDES"
+fi
+
+# STD-DEP-4: test runner declared consistently — either in every package or in
+# none, relying on root resolution. Cross-package, not cross-repository, so
+# this is decided from the tree under test alone. Read literally: presence is
+# binary across PKG_DIRS, not "wherever declared, versions agree" — a package
+# with its own bundler config still resolves a hoisted root install by Node's
+# ordinary upward node_modules walk, so a local devDependency entry is
+# redundant, not load-bearing, and does not earn an exception from the text.
+# Version drift is checked too, inside the "every package declares it" branch
+# only: it is a defect that binary presence alone cannot see, but it does not
+# replace the binary reading, since a repository is non-conformant on
+# structure alone regardless of whether the versions happen to agree.
+if [ "$WORKSPACE" -eq 0 ]; then
+  skip "STD-DEP-4" "test runner declared consistently" "N/A: the repository is a single package"
+else
+  DEP4_RESULT="$(node -e '
+    const fs = require("fs");
+    const KNOWN = ["vitest", "jest", "mocha", "ava", "tape", "uvu"];
+    const load = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return {}; } };
+    const has = (m, name) => Boolean((m.dependencies || {})[name] || (m.devDependencies || {})[name]);
+    const range = (m, name) => (m.dependencies || {})[name] || (m.devDependencies || {})[name];
+    const root = load("package.json");
+    const dirs = process.argv.slice(1);
+    const pkgs = dirs.map((d) => load(d + "/package.json"));
+    for (const name of KNOWN) {
+      const rootHas = has(root, name);
+      const declaring = dirs.filter((d, i) => has(pkgs[i], name));
+      const missing = dirs.filter((d, i) => !has(pkgs[i], name));
+      if (!rootHas && declaring.length === 0) continue; // not used at all
+      if (declaring.length === 0) { console.log("ok-none " + name); process.exit(0); }
+      if (missing.length > 0) {
+        console.log("bad-mixed " + name + " declares=" + declaring.join(",") +
+          " relies-on-root=" + missing.join(","));
+        process.exit(0);
+      }
+      // Every package declares it. Version drift is a second, additive check:
+      // compare each package range to the first packages own range, not to
+      // root, since "every package" means root resolution plays no part here.
+      const base = range(pkgs[0], name);
+      const drift = dirs.filter((d, i) => range(pkgs[i], name) !== base);
+      if (drift.length > 0) {
+        console.log("bad-drift " + name + " " + dirs.map((d, i) => d + "=" + range(pkgs[i], name)).join(" "));
+        process.exit(0);
+      }
+      console.log("ok-every " + name);
+      process.exit(0);
+    }
+    console.log("none");
+  ' "${PKG_DIRS[@]}" 2>/dev/null)"
+  DEP4_RESULT="${DEP4_RESULT:-none}"
+  set -f
+  set -- $DEP4_RESULT
+  set +f
+  DEP4_KIND="$1"
+  DEP4_NAME="${2:-}"
+  [ $# -ge 2 ] && shift 2 || shift $#
+  case "$DEP4_KIND" in
+    ok-none)
+      ok "STD-DEP-4" "test runner declared consistently (none; $DEP4_NAME resolves from root)" ;;
+    ok-every)
+      ok "STD-DEP-4" "test runner declared consistently (every package declares $DEP4_NAME)" ;;
+    bad-mixed)
+      bad "STD-DEP-4" "test runner declared consistently" \
+        "$DEP4_NAME declared in some packages, relied on root resolution in others: $*" ;;
+    bad-drift)
+      bad "STD-DEP-4" "test runner declared consistently" \
+        "$DEP4_NAME declared in every package but at drifted ranges: $*" ;;
+    *)
+      skip "STD-DEP-4" "test runner declared consistently" \
+        "no recognised test runner dependency found in this workspace" ;;
+  esac
+fi
+
+# STD-DEP-5: cross-repository peer ranges track the current published version.
+# The baseline's publishedVersions map is the current published version for
+# each package this ecosystem's peer ranges point at; only @rcrsr/* peer
+# dependencies count, and only the workspace-external kind. A `workspace:`
+# range never resolves through the registry, so a package pinning its sibling
+# that way (packages/service on @rcrsr/rill, here) is the root consuming
+# itself, not a cross-repository peer dependency — the same distinction
+# STD-CI-9's CONSUMES walk already draws.
+PEER_LINES="$(node -e '
+  const fs = require("fs");
+  const load = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return {}; } };
+  const dirs = ["."].concat(process.argv.slice(1));
+  const out = [];
+  for (const d of dirs) {
+    const p = load((d === "." ? "" : d + "/") + "package.json");
+    for (const [name, r] of Object.entries(p.peerDependencies || {})) {
+      if (name.startsWith("@rcrsr/") && !String(r).startsWith("workspace:")) out.push(name + " " + r);
+    }
+  }
+  process.stdout.write(out.join("\n"));
+' "${PKG_DIRS[@]}")"
+if [ -z "$PEER_LINES" ]; then
+  skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
+    "N/A: no cross-repository peer dependency"
+elif baseline_gate "STD-DEP-5" "cross-repository peer ranges track the current published version"; then
+  EXP_VERSIONS="$(baseline_json publishedVersions)"
+  # Tracks the published version by major.minor, not the exact patch: a `~`
+  # or `^` peer range names the release its author last verified against, and
+  # a patch bump on the pinned package is exactly the case such a range is
+  # written to keep tracking without an edit.
+  PEER_MISMATCH="$(node -e '
+    const versions = JSON.parse(process.argv[1] || "{}") ?? {};
+    const lines = process.argv[2].split("\n").filter(Boolean);
+    const majorMinor = (v) => (String(v).match(/(\d+)\.(\d+)/) || []).slice(1, 3).join(".");
+    const out = [];
+    const unresolved = [];
+    for (const line of lines) {
+      const [name, range] = line.split(/ (.*)/s);
+      if (!(name in versions)) { unresolved.push(name); continue; }
+      if (majorMinor(range) !== majorMinor(versions[name])) {
+        out.push(name + ": peer " + range + " vs published " + versions[name]);
+      }
+    }
+    process.stdout.write(JSON.stringify({ mismatch: out, unresolved, checked: lines.length - unresolved.length }));
+  ' "$EXP_VERSIONS" "$PEER_LINES")"
+  PM_CHECKED="$(printf '%s' "$PEER_MISMATCH" | node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(0,"utf8")).checked))')"
+  PM_BAD="$(printf '%s' "$PEER_MISMATCH" | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0,"utf8")).mismatch.join("; "))')"
+  if [ "$PM_CHECKED" -eq 0 ]; then
+    skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
+      "no baseline pin for the peer dependency this repository declares"
+  elif [ -z "$PM_BAD" ]; then
+    ok "STD-DEP-5" "cross-repository peer ranges track the current published version"
+  else
+    bad "STD-DEP-5" "cross-repository peer ranges track the current published version" "$PM_BAD"
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 printf '\n'
 TOTAL=$((PASS + FAIL))
+# Stamped on both verdicts. The element counts move between checker versions --
+# 0.1.1 took the tree-only set from 55 to 56 -- so a count reported without the
+# version that produced it cannot be compared against another repository's.
+STAMP=""
+[ -n "$SELF_VERSION" ] && STAMP="  $(dim "(rill-dev $SELF_VERSION)")"
 if [ "$FAIL" -eq 0 ]; then
-  printf '%s  %d checked, %d passed, %d not machine-checkable.\n' \
-    "$(green 'CONFORMANT')" "$TOTAL" "$PASS" "$SKIP"
+  printf '%s  %d checked, %d passed, %d not machine-checkable.%s\n' \
+    "$(green 'CONFORMANT')" "$TOTAL" "$PASS" "$SKIP" "$STAMP"
   printf '%s\n' "$(dim 'A green run covers only the elements above. The skipped ones still apply.')"
   exit 0
 fi
-printf '%s  %d of %d checked elements failed: %s\n' \
-  "$(red 'NON-CONFORMANT')" "$FAIL" "$TOTAL" "$(printf '%s ' "${FAILED_IDS[@]}")"
+printf '%s  %d of %d checked elements failed: %s%s\n' \
+  "$(red 'NON-CONFORMANT')" "$FAIL" "$TOTAL" "$(printf '%s ' "${FAILED_IDS[@]}")" "$STAMP"
 printf '%s\n' "$(dim 'See https://github.com/rcrsr/rill/blob/main/packages/dev/REPO-STANDARDS.md for what each element requires and why.')"
 exit 1

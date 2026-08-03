@@ -7,11 +7,13 @@
   "type": "module",
   "exports": {
     "./lint-rules": "./lint-rules/index.js",
-    "./REPO-STANDARDS.md": "./REPO-STANDARDS.md"
+    "./REPO-STANDARDS.md": "./REPO-STANDARDS.md",
+    "./baseline.json": "./baseline.json"
   },
   "bin": {
     "rill-check-standards": "./check-standards.sh",
-    "rill-test-rules": "./lint-rules/rule-unit-test.cjs"
+    "rill-test-rules": "./lint-rules/rule-unit-test.cjs",
+    "rill-gen-baseline": "./gen-baseline.cjs"
   },
   "keywords": [
     "rill",
@@ -22,6 +24,9 @@
   ],
   "files": [
     "check-standards.sh",
+    "gen-baseline.cjs",
+    "jsonc.cjs",
+    "baseline.json",
     "lint-rules",
     "REPO-STANDARDS.md",
     "CHANGELOG.md"

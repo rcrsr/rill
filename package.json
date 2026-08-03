@@ -34,7 +34,8 @@
     "check:versions": "bash scripts/check-versions.sh",
     "fix:lint": "oxlint --fix",
     "fix:format": "oxfmt",
-    "fix:versions": "bash scripts/sync-versions.sh"
+    "fix:versions": "bash scripts/sync-versions.sh",
+    "fix:baseline": "node packages/dev/gen-baseline.cjs > packages/dev/baseline.json"
   },
   "keywords": [
     "rill",

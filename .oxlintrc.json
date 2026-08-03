@@ -265,7 +265,7 @@
       }
     },
     {
-      "files": ["packages/dev/lint-rules/**/*.cjs"],
+      "files": ["packages/dev/lint-rules/**/*.cjs", "packages/dev/*.cjs"],
       "rules": {
         "typescript/no-require-imports": "off"
       }
