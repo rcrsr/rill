@@ -37,7 +37,17 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # This script's own directory, which is the one thing BASH_SOURCE is right for:
 # the version stamped on the summary line, and the baseline shipped beside it.
 # Resolved before the cd below, because BASH_SOURCE may be relative.
-SELF_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# realpath/readlink -f resolves a symlinked entry point (e.g. an npm/yarn
+# .bin shim) to the real file before taking its directory; without that, a
+# symlink installed at node_modules/.bin resolves SELF_DIR to the .bin
+# directory itself, and every require() below a sibling path fails silently.
+SELF_SCRIPT="${BASH_SOURCE[0]}"
+if command -v realpath >/dev/null 2>&1; then
+  SELF_SCRIPT="$(realpath "$SELF_SCRIPT")"
+elif command -v readlink >/dev/null 2>&1 && readlink -f "$SELF_SCRIPT" >/dev/null 2>&1; then
+  SELF_SCRIPT="$(readlink -f "$SELF_SCRIPT")"
+fi
+SELF_DIR="$(cd "$(dirname "$SELF_SCRIPT")" && pwd)"
 # The version of the checker producing the report, not of the repository under
 # test. Without it, "CONFORMANT 56 checked" from one repository and
 # "CONFORMANT 52 checked" from another give no indication that two different
@@ -298,7 +308,16 @@ if [ "$OWNS_BASELINE" -eq 1 ]; then
     node -e 'try {
       const live = JSON.parse(process.argv[1]);
       const committed = JSON.parse(process.argv[2]);
-      process.exit(JSON.stringify(live) === JSON.stringify(committed) ? 0 : 1);
+      const canon = (v) => {
+        if (Array.isArray(v)) return v.map(canon);
+        if (v !== null && typeof v === "object") {
+          const out = {};
+          for (const k of Object.keys(v).sort()) out[k] = canon(v[k]);
+          return out;
+        }
+        return v;
+      };
+      process.exit(JSON.stringify(canon(live)) === JSON.stringify(canon(committed)) ? 0 : 1);
     } catch (e) { process.exit(1); }' "$LIVE_BASELINE" "$BASELINE_JSON" 2>/dev/null &&
       BASELINE_FRESH=1
   fi
@@ -323,6 +342,23 @@ baseline_json() {
       v = v === null || v === undefined ? undefined : v[k];
     }
     process.stdout.write(v === undefined ? "null" : JSON.stringify(v));' "$1" "$BASELINE_JSON"
+}
+
+# baseline_gate <id> <label> — the skip/bad wrapper every baseline-derived
+# element opens with (STD-LINT-1/5/9, STD-PM-2, STD-DEP-1/2/5): no baseline at
+# all is a skip, and a stale committed baseline in the owning repository is a
+# bad. Emits the line and returns non-zero when it already handled the
+# element; returns 0 when the caller should run its own check.
+baseline_gate() {
+  local id="$1" label="$2"
+  if [ -z "$BASELINE_JSON" ]; then
+    skip "$id" "$label" "no baseline available; install or update @rcrsr/rill-dev"
+    return 1
+  elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
+    bad "$id" "$label" "packages/dev/baseline.json is stale; run pnpm fix:baseline"
+    return 1
+  fi
+  return 0
 }
 
 # has_dep <name> — is it declared, at any version, in any dependency field of
@@ -876,9 +912,11 @@ if [ -f "$LINTRC" ]; then
   # the glob on the override that sets the rule, the same way STD-LINT-4 reads
   # a lint command's own scope rather than trusting the rule's presence.
   LINT3_RESULT="$(node -e '
-    const { readJSONC } = require(process.argv[1]);
     let cfg;
-    try { cfg = readJSONC(process.argv[2]); } catch (e) { console.log("parse-error"); process.exit(0); }
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      cfg = readJSONC(process.argv[2]);
+    } catch (e) { console.log("parse-error"); process.exit(0); }
     const loaded = (cfg.jsPlugins || []).some((p) => String(p).includes("rill-dev/lint-rules"));
     if (!loaded) { console.log("not-loaded"); process.exit(0); }
     const covering = (cfg.overrides || []).filter((o) => {
@@ -886,7 +924,8 @@ if [ -f "$LINTRC" ]; then
       return (Array.isArray(r) ? r[0] : r) === "error";
     });
     if (covering.length === 0) { console.log("not-error"); process.exit(0); }
-    const coversSrc = covering.some((o) => (o.files || []).some((f) => String(f).includes("src")));
+    const toArray = (x) => (Array.isArray(x) ? x : x === undefined || x === null ? [] : [x]);
+    const coversSrc = covering.some((o) => toArray(o.files).some((f) => String(f).includes("src")));
     console.log(coversSrc ? "ok" : "glob-gap");
   ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
 
@@ -953,13 +992,7 @@ fi
 # names rill runs; a repository that declares both, at any version, runs the
 # same pair. The version itself is not this element's claim — STD-DEP-1 covers
 # range agreement — only that the tool choice has not diverged.
-if [ -z "$BASELINE_JSON" ]; then
-  skip "STD-LINT-1" "shared linter and formatter" \
-    "no baseline available; install or update @rcrsr/rill-dev"
-elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
-  bad "STD-LINT-1" "shared linter and formatter" \
-    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
-else
+if baseline_gate "STD-LINT-1" "shared linter and formatter"; then
   EXP_LINTER="$(baseline_str linter)"
   EXP_FMT="$(baseline_str formatter)"
   if has_dep "$EXP_LINTER" && has_dep "$EXP_FMT"; then
@@ -975,22 +1008,21 @@ fi
 # order as meaningful.
 if [ ! -f "$LINTRC" ]; then
   skip "STD-LINT-5" "same plugin set as rill" "no $LINTRC in this repository"
-elif [ -z "$BASELINE_JSON" ]; then
-  skip "STD-LINT-5" "same plugin set as rill" \
-    "no baseline available; install or update @rcrsr/rill-dev"
-elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
-  bad "STD-LINT-5" "same plugin set as rill" \
-    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
-else
+elif baseline_gate "STD-LINT-5" "same plugin set as rill"; then
   EXP_PLUGINS="$(baseline_json lintPlugins)"
   HAVE_PLUGINS="$(node -e '
-    const { readJSONC } = require(process.argv[1]);
-    let cfg; try { cfg = readJSONC(process.argv[2]); } catch (e) { cfg = {}; }
-    process.stdout.write(JSON.stringify((cfg.plugins || []).slice().sort()));
+    let cfg = {};
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      cfg = readJSONC(process.argv[2]);
+    } catch (e) { cfg = {}; }
+    const raw = cfg.plugins;
+    const arr = Array.isArray(raw) ? raw : raw === undefined || raw === null ? [] : [raw];
+    process.stdout.write(JSON.stringify(arr.slice().sort()));
   ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
   DIFF_PLUGINS="$(node -e '
-    const have = new Set(JSON.parse(process.argv[1] || "[]"));
-    const want = new Set(JSON.parse(process.argv[2] || "[]"));
+    const have = new Set(JSON.parse(process.argv[1] || "[]") ?? []);
+    const want = new Set(JSON.parse(process.argv[2] || "[]") ?? []);
     const missing = [...want].filter((p) => !have.has(p));
     const extra = [...have].filter((p) => !want.has(p));
     const out = [];
@@ -1012,35 +1044,45 @@ skip "STD-LINT-6" "disabled rules carry counts" "the comment is prose, not machi
 # baseline does not carry at all says nothing about this element.
 if [ ! -f "$LINTRC" ]; then
   skip "STD-LINT-9" "shared rules carry the same severity" "no $LINTRC in this repository"
-elif [ -z "$BASELINE_JSON" ]; then
-  skip "STD-LINT-9" "shared rules carry the same severity" \
-    "no baseline available; install or update @rcrsr/rill-dev"
-elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
-  bad "STD-LINT-9" "shared rules carry the same severity" \
-    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
-else
+elif baseline_gate "STD-LINT-9" "shared rules carry the same severity"; then
   EXP_RULES="$(baseline_json lintRules)"
+  # A load/parse failure prints the PARSE_ERROR sentinel rather than falling
+  # back to `cfg = {}`. An empty `have` is indistinguishable from "legitimately
+  # no overlapping rules" once it reaches the intersection diff below — the
+  # diff only flags keys present in both objects, so an empty `have` always
+  # reports zero mismatches and STD-LINT-9 would read `ok` on a broken or
+  # partial jsonc.cjs install, exactly the silent false-conformance this
+  # element must not produce. Checked before the diff runs, mirroring
+  # STD-LINT-3's parse-error handling above.
   HAVE_RULES="$(node -e '
-    const { readJSONC } = require(process.argv[1]);
-    let cfg; try { cfg = readJSONC(process.argv[2]); } catch (e) { cfg = {}; }
+    let cfg;
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      cfg = readJSONC(process.argv[2]);
+    } catch (e) { console.log("PARSE_ERROR"); process.exit(0); }
     const out = {};
     for (const [k, v] of Object.entries(cfg.rules || {})) out[k] = Array.isArray(v) ? v[0] : v;
     process.stdout.write(JSON.stringify(out));
   ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
-  MISMATCH="$(node -e '
-    const have = JSON.parse(process.argv[1] || "{}");
-    const want = JSON.parse(process.argv[2] || "{}");
-    const out = [];
-    for (const k of Object.keys(want)) {
-      if (Object.prototype.hasOwnProperty.call(have, k) && have[k] !== want[k]) {
-        out.push(k + ": " + have[k] + " vs " + want[k]);
+  if [ "$HAVE_RULES" = "PARSE_ERROR" ] || [ -z "$HAVE_RULES" ]; then
+    bad "STD-LINT-9" "shared rules carry the same severity" \
+      "could not parse $LINTRC as JSONC"
+  else
+    MISMATCH="$(node -e '
+      const have = JSON.parse(process.argv[1] || "{}") ?? {};
+      const want = JSON.parse(process.argv[2] || "{}") ?? {};
+      const out = [];
+      for (const k of Object.keys(want)) {
+        if (Object.prototype.hasOwnProperty.call(have, k) && have[k] !== want[k]) {
+          out.push(k + ": " + have[k] + " vs " + want[k]);
+        }
       }
-    }
-    process.stdout.write(out.join("; "));
-  ' "$HAVE_RULES" "$EXP_RULES")"
-  [ -z "$MISMATCH" ] &&
-    ok "STD-LINT-9" "shared rules carry the same severity" ||
-    bad "STD-LINT-9" "shared rules carry the same severity" "$MISMATCH"
+      process.stdout.write(out.join("; "));
+    ' "$HAVE_RULES" "$EXP_RULES")"
+    [ -z "$MISMATCH" ] &&
+      ok "STD-LINT-9" "shared rules carry the same severity" ||
+      bad "STD-LINT-9" "shared rules carry the same severity" "$MISMATCH"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -1305,13 +1347,7 @@ fi
 # STD-PM-2: the same package manager major and version string in every
 # repository. $PM was read by STD-PM-1 above, JSON-encoded (quoted); the
 # baseline's copy is read unquoted, so strip the quotes rather than re-parse.
-if [ -z "$BASELINE_JSON" ]; then
-  skip "STD-PM-2" "same package manager version everywhere" \
-    "no baseline available; install or update @rcrsr/rill-dev"
-elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
-  bad "STD-PM-2" "same package manager version everywhere" \
-    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
-else
+if baseline_gate "STD-PM-2" "same package manager version everywhere"; then
   EXP_PM="$(baseline_str packageManager)"
   PM_UNQUOTED="$(printf '%s' "$PM" | sed -e 's/^"//' -e 's/"$//')"
   [ -n "$EXP_PM" ] && [ "$PM_UNQUOTED" = "$EXP_PM" ] &&
@@ -1406,8 +1442,8 @@ if [ ! -f "$LABEL_SYNC" ]; then
 else
   # Join backslash continuations before counting, then drop comment lines. Both
   # matter on the reference script and each one alone reports it non-conformant:
-  # two of its four calls carry --force on the continued line, and the header
-  # comment documenting the flag otherwise counts as a fifth call.
+  # two of its three calls carry --force on the continued line, and the header
+  # comment documenting the flag otherwise counts as a fourth call.
   LABEL_SRC="$(sed -e :a -e '/\\$/N; s/\\\n//; ta' "$LABEL_SYNC" | grep -v '^[[:space:]]*#')"
   CREATES="$(printf '%s\n' "$LABEL_SRC" | grep -c 'gh label create')"
   FORCED="$(printf '%s\n' "$LABEL_SRC" | grep -c 'gh label create.*--force')"
@@ -1457,20 +1493,14 @@ fi
 # runtime deps (e.g. rill-config's `semver`) are deliberately not in that set;
 # this element is about the tools the ecosystem shares, not every devDependency
 # a repository happens to declare.
-if [ -z "$BASELINE_JSON" ]; then
-  skip "STD-DEP-1" "shared build and test tooling pinned to the same range" \
-    "no baseline available; install or update @rcrsr/rill-dev"
-elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
-  bad "STD-DEP-1" "shared build and test tooling pinned to the same range" \
-    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
-else
+if baseline_gate "STD-DEP-1" "shared build and test tooling pinned to the same range"; then
   EXP_TOOLING="$(baseline_json sharedTooling)"
   DEP1_MISMATCH="$(node -e '
     const fs = require("fs");
     let pkg; try { pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); } catch (e) { pkg = {}; }
     const have = Object.assign({}, pkg.dependencies, pkg.devDependencies,
       pkg.peerDependencies, pkg.optionalDependencies);
-    const want = JSON.parse(process.argv[1] || "{}");
+    const want = JSON.parse(process.argv[1] || "{}") ?? {};
     const out = [];
     for (const [name, range] of Object.entries(want)) {
       if (have[name] === undefined) out.push(name + ": not declared");
@@ -1491,13 +1521,7 @@ TS_MAJOR="$(printf '%s' "$TS_RANGE" | sed -nE 's/^[^0-9]*([0-9]+).*/\1/p')"
 if [ -z "$TS_MAJOR" ]; then
   skip "STD-DEP-2" "one compiler major across the ecosystem" \
     "no typescript dependency declared in package.json"
-elif [ -z "$BASELINE_JSON" ]; then
-  skip "STD-DEP-2" "one compiler major across the ecosystem" \
-    "no baseline available; install or update @rcrsr/rill-dev"
-elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
-  bad "STD-DEP-2" "one compiler major across the ecosystem" \
-    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
-else
+elif baseline_gate "STD-DEP-2" "one compiler major across the ecosystem"; then
   EXP_TS_MAJOR="$(baseline_str typescriptMajor)"
   [ "$TS_MAJOR" = "$EXP_TS_MAJOR" ] &&
     ok "STD-DEP-2" "one compiler major across the ecosystem (typescript $TS_MAJOR)" ||
@@ -1519,9 +1543,30 @@ fi
 PKG_OVERRIDE_KEYS="$(node -p "Object.keys(((require('./package.json').pnpm)||{}).overrides||{}).join('\n')" 2>/dev/null)"
 WS_OVERRIDE_KEYS=""
 if [ -f pnpm-workspace.yaml ] && grep -q '^overrides:' pnpm-workspace.yaml; then
-  WS_OVERRIDE_KEYS="$(awk '/^overrides:/{f=1;next} /^[^[:space:]]/{f=0} f && /^[[:space:]]*[^[:space:]#]+:/{
-    line=$0; sub(/^[[:space:]]*/, "", line); sub(/:.*$/, "", line); print line
-  }' pnpm-workspace.yaml)"
+  # A one-line structured read, not an awk scan: the block-start match requires
+  # the rest of the line to be blank or a comment (so a trailing comment on
+  # `overrides:` itself doesn't confuse the scan), quoted keys are captured
+  # verbatim so a colon inside one doesn't truncate the key, and a line
+  # without a colon before the first unquoted `#` (block-scalar content, a
+  # blank line) is skipped rather than misread as a key.
+  WS_OVERRIDE_KEYS="$(node -e '
+    const fs = require("fs");
+    let text = "";
+    try { text = fs.readFileSync("pnpm-workspace.yaml", "utf8"); } catch (e) { text = ""; }
+    let inBlock = false;
+    const keys = [];
+    for (const raw of text.split("\n")) {
+      if (!inBlock) {
+        if (/^overrides:\s*(#.*)?$/.test(raw)) inBlock = true;
+        continue;
+      }
+      if (raw.trim() === "") continue;
+      if (/^\S/.test(raw)) break;
+      const m = raw.match(/^\s*(?:\x27([^\x27]+)\x27|"([^"]+)"|([^\s\x27"#][^:]*?))\s*:/);
+      if (m) keys.push(m[1] || m[2] || m[3]);
+    }
+    process.stdout.write(keys.join("\n"));
+  ' 2>/dev/null)"
 fi
 ALL_OVERRIDE_KEYS="$(printf '%s\n%s\n' "$PKG_OVERRIDE_KEYS" "$WS_OVERRIDE_KEYS" | grep -v '^$')"
 if [ -z "$ALL_OVERRIDE_KEYS" ]; then
@@ -1582,8 +1627,11 @@ else
       process.exit(0);
     }
     console.log("none");
-  ' "${PKG_DIRS[@]}")"
+  ' "${PKG_DIRS[@]}" 2>/dev/null)"
+  DEP4_RESULT="${DEP4_RESULT:-none}"
+  set -f
   set -- $DEP4_RESULT
+  set +f
   DEP4_KIND="$1"
   DEP4_NAME="${2:-}"
   [ $# -ge 2 ] && shift 2 || shift $#
@@ -1628,26 +1676,20 @@ PEER_LINES="$(node -e '
 if [ -z "$PEER_LINES" ]; then
   skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
     "N/A: no cross-repository peer dependency"
-elif [ -z "$BASELINE_JSON" ]; then
-  skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
-    "no baseline available; install or update @rcrsr/rill-dev"
-elif [ "$OWNS_BASELINE" -eq 1 ] && [ "$BASELINE_FRESH" -eq 0 ]; then
-  bad "STD-DEP-5" "cross-repository peer ranges track the current published version" \
-    "packages/dev/baseline.json is stale; run pnpm fix:baseline"
-else
+elif baseline_gate "STD-DEP-5" "cross-repository peer ranges track the current published version"; then
   EXP_VERSIONS="$(baseline_json publishedVersions)"
   # Tracks the published version by major.minor, not the exact patch: a `~`
   # or `^` peer range names the release its author last verified against, and
   # a patch bump on the pinned package is exactly the case such a range is
   # written to keep tracking without an edit.
   PEER_MISMATCH="$(node -e '
-    const versions = JSON.parse(process.argv[1] || "{}");
+    const versions = JSON.parse(process.argv[1] || "{}") ?? {};
     const lines = process.argv[2].split("\n").filter(Boolean);
     const majorMinor = (v) => (String(v).match(/(\d+)\.(\d+)/) || []).slice(1, 3).join(".");
     const out = [];
     const unresolved = [];
     for (const line of lines) {
-      const [name, range] = line.split(" ");
+      const [name, range] = line.split(/ (.*)/s);
       if (!(name in versions)) { unresolved.push(name); continue; }
       if (majorMinor(range) !== majorMinor(versions[name])) {
         out.push(name + ": peer " + range + " vs published " + versions[name]);

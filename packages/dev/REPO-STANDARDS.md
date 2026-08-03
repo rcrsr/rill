@@ -514,14 +514,14 @@ A consuming repository cannot read those two files directly, so the pins they
 hold travel as `packages/dev/baseline.json`: generated from rill's tree by
 `rill-gen-baseline` (`pnpm fix:baseline` in this repository), committed, and
 published in the `@rcrsr/rill-dev` tarball. STD-LINT-1, STD-LINT-5, STD-LINT-9,
-STD-PM-2, STD-DEP-1, and STD-DEP-2 read it to decide what used to be `--` in
+STD-PM-2, STD-DEP-1, STD-DEP-2, and STD-DEP-5 (which reads only the one
+`publishedVersions` fact it needs: the current version of each package the
+ecosystem's peer ranges point at) read it to decide what used to be `--` in
 every repository but rill. `rill-check-standards` regenerates the baseline in
 memory whenever it runs against rill's own tree and fails rather than trusting
 a stale committed copy, so a pin bump that forgot `pnpm fix:baseline` is caught
 before it ships to every consumer. STD-DEP-3 and STD-DEP-4 stay tree-local —
-neither needs the baseline — and STD-DEP-5 uses it only for the one
-`publishedVersions` fact it needs: the current version of each package the
-ecosystem's peer ranges point at.
+neither needs the baseline.
 
 ## 11. Issue and PR process
 

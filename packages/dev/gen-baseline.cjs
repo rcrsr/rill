@@ -16,9 +16,12 @@
 //     read clean, which is the exact staleness this check exists to catch.
 //
 // Reads only rill's own tree: root `package.json` and `.oxlintrc.json`, plus
-// `packages/service/package.json` for the one other published version this
-// ecosystem pins. REPO-STANDARDS.md §10 names these two files as the
-// canonical pins; this script is how that stops being prose.
+// `packages/core/package.json` and `packages/service/package.json` for the
+// published versions this ecosystem pins. `@rcrsr/rill` is `packages/core`,
+// which increments only when core changes, unlike root's every-release patch
+// bump — so its version is read from its own manifest, not root's.
+// REPO-STANDARDS.md §10 names these files as the canonical pins; this script
+// is how that stops being prose.
 
 'use strict';
 
@@ -72,7 +75,10 @@ function generate(root) {
 
   const tsMajorMatch = /(\d+)/.exec(devDeps.typescript || '');
 
-  const publishedVersions = { '@rcrsr/rill': pkg.version };
+  const publishedVersions = {};
+  const corePkg = loadOptional(path.join(root, 'packages/core/package.json'));
+  if (corePkg && corePkg.name)
+    publishedVersions[corePkg.name] = corePkg.version;
   const servicePkg = loadOptional(
     path.join(root, 'packages/service/package.json')
   );
