@@ -16,11 +16,12 @@
  * These tests pin two things directly:
  *   1. `generate()` reflects every canonical pin the baseline records, so a
  *      change to any of them changes its output.
- *   2. The canonical-equality comparator — replicated here byte-for-byte from
- *      the `node -e` block in check-standards.sh — reads a value change as
- *      unequal (stale) and key-order as equal (fresh). Both directions matter:
- *      the first is the guard firing, the second is what keeps a stable
- *      generator's key order from reading as a false staleness.
+ *   2. The canonical-equality comparator — logic-equivalent to, and kept in
+ *      sync with, the `node -e` block in check-standards.sh — reads a value
+ *      change as unequal (stale) and key-order as equal (fresh). Both
+ *      directions matter: the first is the guard firing, the second is what
+ *      keeps a stable generator's key order from reading as a false
+ *      staleness.
  *
  * Fixtures are minimal repository trees written to a temp directory, since
  * `generate(root)` reads real files (root package.json, .oxlintrc.json, and the
@@ -36,7 +37,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-const { generate } = require(path.join(__dirname, 'gen-baseline.cjs'));
+const { generate, SHARED_TOOLING_DEPS } = require(
+  path.join(__dirname, 'gen-baseline.cjs')
+);
 
 const stats = { pass: 0, fail: 0 };
 
@@ -55,10 +58,11 @@ function check(condition, label, detail) {
 }
 
 // ============================================================
-// The staleness oracle — a byte-for-byte copy of the comparator in
-// check-standards.sh (the `node -e` block that decides BASELINE_FRESH). If the
-// checker's canonicalisation ever changes, this copy must change with it, and
-// these tests are where that divergence surfaces.
+// The staleness oracle — logic-equivalent to the comparator in
+// check-standards.sh (the `node -e` block that decides BASELINE_FRESH), kept
+// in sync with it by hand rather than shared code. If the checker's
+// canonicalisation ever changes, this copy must change with it, and these
+// tests are where that divergence surfaces.
 // ============================================================
 
 function canon(v) {
@@ -83,6 +87,22 @@ function baselineFresh(live, committed) {
 
 const createdRoots = [];
 
+// Fixture versions for the shared-tooling pins, keyed by name so the fixture
+// can be built by mapping over gen-baseline.cjs's exported SHARED_TOOLING_DEPS
+// rather than hand-copying the list a second time. A pin added to
+// SHARED_TOOLING_DEPS without a version here falls back to '^1.0.0', so the
+// fixture (and the sharedPins staleness loop below, which is derived from the
+// same array) picks it up automatically instead of silently omitting it.
+const SHARED_TOOLING_VERSIONS = {
+  '@types/node': '^26.1.2',
+  knip: '^6.29.0',
+  lefthook: '^2.1.10',
+  oxfmt: '^0.61.0',
+  oxlint: '^1.76.0',
+  typescript: '^7.0.0',
+  vitest: '^3.0.0',
+};
+
 // A canonical spec mirroring rill's real shape. Callers pass a mutator to
 // perturb exactly one pin, so a failing assertion names the pin that broke.
 function baseSpec() {
@@ -91,13 +111,15 @@ function baseSpec() {
       name: '@rcrsr/rill-root',
       packageManager: 'pnpm@11.18.0',
       devDependencies: {
-        '@types/node': '^26.1.2',
-        knip: '^6.29.0',
-        lefthook: '^2.1.10',
-        oxfmt: '^0.61.0',
-        oxlint: '^1.76.0',
-        typescript: '^7.0.0',
-        vitest: '^3.0.0',
+        ...Object.fromEntries(
+          SHARED_TOOLING_DEPS.map((dep) => [
+            dep,
+            SHARED_TOOLING_VERSIONS[dep] || '^1.0.0',
+          ])
+        ),
+        // Not in SHARED_TOOLING_DEPS: a per-repo dev convenience that must
+        // never be swept into sharedTooling by an allowlist regression.
+        tsx: '^4.19.0',
       },
     },
     oxlintrc: {
@@ -177,17 +199,10 @@ function runStalenessTests() {
     'generate() output did not change when knip was bumped'
   );
 
-  // Every shared-tooling pin, generically: bump each, expect stale.
-  const sharedPins = [
-    '@types/node',
-    'knip',
-    'lefthook',
-    'oxfmt',
-    'oxlint',
-    'typescript',
-    'vitest',
-  ];
-  for (const dep of sharedPins) {
+  // Every shared-tooling pin, generically: bump each, expect stale. Derived
+  // from gen-baseline.cjs's exported SHARED_TOOLING_DEPS, so an 8th pin added
+  // there is exercised here without a matching hand-edit.
+  for (const dep of SHARED_TOOLING_DEPS) {
     const live = generateFrom((s) => {
       s.pkg.devDependencies[dep] = '^999.0.0';
     });
@@ -350,17 +365,39 @@ function runContractTests() {
     JSON.stringify(coreBehindRoot.publishedVersions)
   );
 
-  // generate() is read-only: it must not write a baseline into the tree, or the
-  // checker's in-memory diff would always read clean.
+  // generate() is read-only: it must not write a baseline into the tree, or
+  // the checker's in-memory diff would always read clean. A directory listing
+  // alone would miss an in-place rewrite (e.g. package.json overwritten with
+  // identical entries but a different byte layout), so this snapshots the
+  // actual contents of every file generate() reads and compares those too.
   const spec = baseSpec();
   const root = buildTree(spec);
+  const watchedFiles = [
+    'package.json',
+    '.oxlintrc.json',
+    path.join('packages', 'core', 'package.json'),
+    path.join('packages', 'service', 'package.json'),
+  ];
+  const snapshot = () =>
+    Object.fromEntries(
+      watchedFiles.map((f) => [
+        f,
+        fs.existsSync(path.join(root, f))
+          ? fs.readFileSync(path.join(root, f), 'utf8')
+          : null,
+      ])
+    );
   const before = fs.readdirSync(root).sort();
+  const contentsBefore = snapshot();
   generate(root);
   const after = fs.readdirSync(root).sort();
+  const contentsAfter = snapshot();
   check(
     JSON.stringify(before) === JSON.stringify(after) &&
+      JSON.stringify(contentsBefore) === JSON.stringify(contentsAfter) &&
       !fs.existsSync(path.join(root, 'baseline.json')),
-    'contract: generate() writes nothing to the tree'
+    'contract: generate() writes nothing to the tree',
+    JSON.stringify({ before, after })
   );
 }
 
