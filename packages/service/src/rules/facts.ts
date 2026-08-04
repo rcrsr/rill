@@ -120,6 +120,8 @@ export interface ScriptFacts {
   readonly firstClosureCall: ReadonlyMap<string, ClosureCallNode>;
   /** First collection-op pipe applied to a bare-variable head, per variable name, in source order. */
   readonly firstPipeIteration: ReadonlyMap<string, ASTNode>;
+  /** Every literal field name accessed anywhere in the script (dot access, ClosureCall access chain, or `.?field` existence check). */
+  readonly fieldAccessNames: ReadonlySet<string>;
 }
 
 /** Result of a single fact-collection pass over an AST. */
@@ -263,6 +265,7 @@ export function collectFacts(root: ASTNode): AstFacts {
   const streamVars = new Set<string>();
   const firstClosureCall = new Map<string, ClosureCallNode>();
   const firstPipeIteration = new Map<string, ASTNode>();
+  const fieldAccessNames = new Set<string>();
 
   const stack: Accumulator[] = [];
   let currentClosureDepth = 0;
@@ -327,6 +330,15 @@ export function collectFacts(root: ASTNode): AstFacts {
           closureOrOpDepth: currentClosureOrOpDepth,
           bindingScopeDepth: currentBindingScopeDepth,
         });
+        for (const access of node.accessChain) {
+          if ('kind' in access && access.kind === 'literal') {
+            fieldAccessNames.add(access.field);
+          }
+        }
+        const finalAccess = node.existenceCheck?.finalAccess;
+        if (finalAccess && finalAccess.kind === 'literal') {
+          fieldAccessNames.add(finalAccess.field);
+        }
       }
 
       if (node.type === 'ClosureCall') {
@@ -336,6 +348,9 @@ export function collectFacts(root: ASTNode): AstFacts {
           closureOrOpDepth: currentClosureOrOpDepth,
           bindingScopeDepth: currentBindingScopeDepth,
         });
+        for (const field of node.accessChain) {
+          fieldAccessNames.add(field);
+        }
       }
 
       if (node.type === 'PipeChain') {
@@ -444,6 +459,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       streamVars,
       firstClosureCall,
       firstPipeIteration,
+      fieldAccessNames,
     },
   };
 }

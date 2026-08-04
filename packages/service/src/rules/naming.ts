@@ -58,6 +58,19 @@ function toSnakeCase(name: string): string {
 }
 
 // ============================================================
+// REFERENCE SAFETY
+// ============================================================
+
+/**
+ * A rename autofix only touches the declaration span. If the name is
+ * referenced elsewhere, the fix would silently leave those references
+ * pointing at a now-nonexistent binding, so withhold it.
+ */
+function isReferencedElsewhere(name: string, context: RuleContext): boolean {
+  return context.facts.script.referenceLog.some((entry) => entry.name === name);
+}
+
+// ============================================================
 // DIAGNOSTIC CONSTRUCTION
 // ============================================================
 
@@ -120,7 +133,9 @@ export const namingSnakeCase: Rule = {
         const name = paramNode.name;
 
         if (!isSnakeCase(name)) {
-          const fix = buildFix(name, paramNode.span, context.source);
+          const fix = isReferencedElsewhere(name, context)
+            ? null
+            : buildFix(name, paramNode.span, context.source);
           return [
             createNamingDiagnostic(
               paramNode.span.start,
@@ -147,7 +162,9 @@ export const namingSnakeCase: Rule = {
         }
 
         if (!isSnakeCase(key)) {
-          const fix = buildFix(key, entryNode.span, context.source);
+          const fix = context.facts.script.fieldAccessNames.has(key)
+            ? null
+            : buildFix(key, entryNode.span, context.source);
           return [
             createNamingDiagnostic(
               entryNode.span.start,
@@ -167,7 +184,9 @@ export const namingSnakeCase: Rule = {
         const name = captureNode.name;
 
         if (!isSnakeCase(name)) {
-          const fix = buildFix(name, captureNode.span, context.source);
+          const fix = isReferencedElsewhere(name, context)
+            ? null
+            : buildFix(name, captureNode.span, context.source);
           return [
             createNamingDiagnostic(
               captureNode.span.start,

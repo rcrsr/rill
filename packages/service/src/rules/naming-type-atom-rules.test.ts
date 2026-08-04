@@ -71,6 +71,101 @@ describe('NAMING_SNAKE_CASE', () => {
       []
     );
   });
+
+  it('withholds the fix when a captured variable is referenced elsewhere', () => {
+    const source = '"x" => $userName\n$userName -> .len\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [namingSnakeCase]);
+    const diagnostic = result.find((d) => d.code === 'NAMING_SNAKE_CASE');
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.fix).toBeNull();
+  });
+
+  it('offers a fix that renames the declaration when the capture is unreferenced', () => {
+    const source = '5 => $userName\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [namingSnakeCase]);
+    const diagnostic = result.find((d) => d.code === 'NAMING_SNAKE_CASE');
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.fix).not.toBeNull();
+    expect(diagnostic?.fix).toMatchObject({
+      applicable: true,
+      description: "Rename 'userName' to 'user_name'",
+      replacement: expect.stringContaining('user_name'),
+    });
+  });
+
+  it('withholds the fix when a closure param is referenced in the closure body', () => {
+    const source = '|userName|($userName * 2) => $double\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [namingSnakeCase]);
+    const diagnostic = result.find((d) => d.code === 'NAMING_SNAKE_CASE');
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.fix).toBeNull();
+  });
+
+  it('offers a fix for a closure param that is never referenced in the body', () => {
+    const source = '|userName|(5) => $five\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [namingSnakeCase]);
+    const diagnostic = result.find((d) => d.code === 'NAMING_SNAKE_CASE');
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.fix).not.toBeNull();
+    expect(diagnostic?.fix).toMatchObject({ applicable: true });
+  });
+
+  it('withholds the fix when the captured closure is invoked via ClosureCall', () => {
+    const source = '|x|($x * 2) => $doubleIt\n$doubleIt(5)\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [namingSnakeCase]);
+    const diagnostic = result.find((d) => d.code === 'NAMING_SNAKE_CASE');
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.fix).toBeNull();
+  });
+
+  it('withholds the fix when the captured closure is invoked via a bare-variable pipe', () => {
+    const source = '|x|($x * 2) => $doubleIt\n5 -> $doubleIt\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [namingSnakeCase]);
+    const diagnostic = result.find((d) => d.code === 'NAMING_SNAKE_CASE');
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.fix).toBeNull();
+  });
+
+  it('withholds the dict-key fix when the key is later accessed as a field', () => {
+    const source = 'dict[userName: 1] => $c\n$c.userName\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [namingSnakeCase]);
+    const diagnostic = result.find((d) => d.code === 'NAMING_SNAKE_CASE');
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.fix).toBeNull();
+  });
+
+  it('offers a dict-key fix when no field access matches the key anywhere', () => {
+    const source = 'dict[userName: 1]\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [namingSnakeCase]);
+    const diagnostic = result.find((d) => d.code === 'NAMING_SNAKE_CASE');
+
+    expect(diagnostic).toBeDefined();
+    expect(diagnostic?.fix).not.toBeNull();
+    expect(diagnostic?.fix).toMatchObject({ applicable: true });
+  });
 });
 
 describe('LOOP_ACCUMULATOR', () => {

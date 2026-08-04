@@ -243,6 +243,8 @@ interface DiagnosticFix {
 
 Only the `NAMING_SNAKE_CASE` and `UNNECESSARY_ASSERTION` rules ever produce a non-null `fix`.
 
+`NAMING_SNAKE_CASE` withholds its own fix when the renamed binding has a reference site elsewhere in the script. A `fix` covers exactly one contiguous range, so it can rewrite the declaration but not every place that references it. For a capture or closure parameter, the rule checks for any reference, including a closure call such as `$double(5)`. For a dict key, it checks whether that key name appears as a literal field access anywhere. The diagnostic still fires at the same location with the same message naming the snake_case target; only `fix` becomes `null`. An unreferenced binding still receives a working fix.
+
 ```typescript
 interface CheckConfig {
   readonly rules: Record<string, RuleState>;
