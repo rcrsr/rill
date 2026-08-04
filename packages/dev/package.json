@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-dev",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Internal tooling for developing rill itself, not for users of the rill language: the repository standards checker and the custom oxlint rules",
   "license": "MIT",
   "author": "Andre Bremer",
