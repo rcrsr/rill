@@ -185,6 +185,23 @@ function createMockFunctions(): Record<string, RillFunction> {
       params: [{ name: 'input', type: { type: 'string' } }],
       fn: () => 'processed',
     },
+    'app::flag': {
+      params: [{ name: 'input', type: { type: 'string' } }],
+      fn: () => 'flagged',
+    },
+    // Classify plus handle_billing back the dispatch-table example in the
+    // root README. classify returns a dict so `.category` resolves to a key
+    // present in that table. classify always returns 'billing', so only the
+    // billing arm of the dispatch table is ever evaluated; the technical and
+    // general handler mocks were dropped since nothing exercises them.
+    'app::classify': {
+      params: [{ name: 'input', type: { type: 'string' } }],
+      fn: () => ({ category: 'billing', confidence: 0.9 }),
+    },
+    'app::handle_billing': {
+      params: [{ name: 'input', type: { type: 'string' } }],
+      fn: () => 'billing handled',
+    },
     'app::validate': {
       params: [{ name: 'value', type: { type: 'string' } }],
       fn: (v) => v,
@@ -985,6 +1002,7 @@ function createMockVariables(): Record<string, RillValue> {
     config: { key: 'value', count: 42 },
     data: { items: [1, 2, 3], name: 'test' },
     input: 'mock input',
+    task: 'refund request',
     response: 'mock LLM response',
     file: '/path/to/file.txt',
     // Pre-populated vectors for examples
@@ -1112,24 +1130,38 @@ async function main(): Promise<void> {
 
   if (filteredArgs.length === 0) {
     console.error(
-      'Usage: npx tsx scripts/test-examples.ts [--json] <file-or-directory>'
+      'Usage: npx tsx scripts/test-examples.ts [--json] <file-or-directory>...'
     );
     console.error('');
     console.error('Examples:');
     console.error('  npx tsx scripts/test-examples.ts docs/guide.md');
     console.error('  npx tsx scripts/test-examples.ts docs/');
+    console.error('  npx tsx scripts/test-examples.ts docs/ README.md');
     console.error('  npx tsx scripts/test-examples.ts --json docs/');
     process.exit(1);
   }
 
-  const targetPath = filteredArgs[0]!;
-
-  if (!fs.existsSync(targetPath)) {
-    console.error(`Path not found: ${targetPath}`);
-    process.exit(1);
+  for (const targetPath of filteredArgs) {
+    if (!fs.existsSync(targetPath)) {
+      console.error(`Path not found: ${targetPath}`);
+      process.exit(1);
+    }
   }
 
-  const files = findMarkdownFiles(targetPath);
+  // Accepts several targets so a run can cover docs/ and the root README in
+  // one pass. Dedupe by resolved path: a file named explicitly may also sit
+  // under a directory target (even under a differently spelled path, e.g. a
+  // trailing slash or `./` prefix), and testing it twice would double-count
+  // the totals. Keep the first-seen (unresolved) spelling for display so
+  // reported paths stay relative when the caller passed relative targets.
+  const seenByResolvedPath = new Map<string, string>();
+  for (const file of filteredArgs.flatMap(findMarkdownFiles)) {
+    const resolved = path.resolve(file);
+    if (!seenByResolvedPath.has(resolved)) {
+      seenByResolvedPath.set(resolved, file);
+    }
+  }
+  const files = [...seenByResolvedPath.values()];
 
   if (files.length === 0) {
     console.error('No markdown files found');

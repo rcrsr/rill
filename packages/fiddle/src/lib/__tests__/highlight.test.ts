@@ -223,11 +223,11 @@ describe('rillHighlighter', () => {
 });
 
 // ============================================================
-// TOKEN HIGHLIGHTING TESTS (AC-14-19)
+// TOKEN HIGHLIGHTING TESTS
 // ============================================================
 
 describe('token highlighting', () => {
-  describe('AC-14: keyword highlighting', () => {
+  describe('keyword highlighting', () => {
     it('"each" is no longer a keyword (now an identifier)', () => {
       const tags = tokenizeLine('each');
       expect(tags).toContain('variableName');
@@ -246,7 +246,7 @@ describe('token highlighting', () => {
     });
   });
 
-  describe('AC-15: operator highlighting', () => {
+  describe('operator highlighting', () => {
     it('highlights "->" as operator', () => {
       const tags = tokenizeLine('->');
       expect(tags).toContain('operator');
@@ -263,7 +263,7 @@ describe('token highlighting', () => {
     });
   });
 
-  describe('AC-16: string highlighting', () => {
+  describe('string highlighting', () => {
     it('highlights double-quoted string as string', () => {
       const tags = tokenizeLine('"hello"');
       expect(tags).toContain('string');
@@ -275,7 +275,7 @@ describe('token highlighting', () => {
     });
   });
 
-  describe('AC-17: number highlighting', () => {
+  describe('number highlighting', () => {
     it('highlights integer as number', () => {
       const tags = tokenizeLine('42');
       expect(tags).toContain('number');
@@ -287,7 +287,7 @@ describe('token highlighting', () => {
     });
   });
 
-  describe('AC-18: bool highlighting', () => {
+  describe('bool highlighting', () => {
     it('highlights "true" as bool', () => {
       const tags = tokenizeLine('true');
       expect(tags).toContain('bool');
@@ -299,7 +299,7 @@ describe('token highlighting', () => {
     });
   });
 
-  describe('AC-19: variableName highlighting', () => {
+  describe('variableName highlighting', () => {
     it('highlights identifier as variableName', () => {
       const tags = tokenizeLine('foo');
       expect(tags).toContain('variableName');
@@ -389,11 +389,11 @@ describe('token highlighting', () => {
 });
 
 // ============================================================
-// ERROR HANDLING TESTS (AC-24, AC-25, EC-3, EC-4)
+// ERROR HANDLING TESTS
 // ============================================================
 
 describe('error handling', () => {
-  describe('AC-24: tokenize error handling', () => {
+  describe('tokenize error handling', () => {
     it('handles invalid syntax without throwing', () => {
       // Invalid character that tokenizer cannot handle
       const invalidLine = '§§§';
@@ -410,7 +410,7 @@ describe('error handling', () => {
     });
   });
 
-  describe('AC-25: missing category handling', () => {
+  describe('missing category handling', () => {
     it('handles tokens without highlight category', () => {
       // NEWLINE and EOF tokens have no highlight category
       const line = '\n';
@@ -429,7 +429,7 @@ describe('error handling', () => {
     });
   });
 
-  describe('EC-3: tokenize throws error', () => {
+  describe('tokenize throws error', () => {
     it('returns previous valid tokens on error', () => {
       const validLine = '42';
       const tags = tokenizeLine(validLine);
@@ -454,7 +454,7 @@ describe('error handling', () => {
     });
   });
 
-  describe('EC-4: TOKEN_HIGHLIGHT_MAP missing category', () => {
+  describe('TOKEN_HIGHLIGHT_MAP missing category', () => {
     it('returns null for unmapped token types', () => {
       // NEWLINE is intentionally unmapped
       const stream = new MockStringStream('\n') as unknown as StringStream;

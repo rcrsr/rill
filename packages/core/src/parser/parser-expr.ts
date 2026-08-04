@@ -83,7 +83,7 @@ type CommonConstruct =
 
 /**
  * Mutable state shared between parsePostfixExprBase and its dispatch handlers.
- * Handlers mutate this object in place (void return per IR-NOD-2).
+ * Handlers mutate this object in place (void return).
  */
 interface PostfixLoopState {
   primary: PrimaryNode;
@@ -604,7 +604,7 @@ Parser.prototype.parsePostfixExpr = function (this: Parser): PostfixExprNode {
 // ============================================================
 
 // Handler: .! (bare) or .!field — status probe
-// Wraps accumulated primary+methods as probe target; resets methods array [IR-NOD-2].
+// Wraps accumulated primary+methods as probe target; resets methods array.
 Parser.prototype.parsePostfixDotBang = function (
   this: Parser,
   loopState: PostfixLoopState,
@@ -639,7 +639,7 @@ Parser.prototype.parsePostfixDotBang = function (
     field,
     span: makeSpan(start, probeEnd),
   };
-  // The probe becomes the new primary; clear collected methods [IR-NOD-2 preserve].
+  // The probe becomes the new primary; clear collected methods.
   loopState.primary = probeNode;
   loopState.methods.length = 0;
   loopState.receiverEnd = probeEnd;
@@ -648,7 +648,7 @@ Parser.prototype.parsePostfixDotBang = function (
 // Handler: (...) — invoke expression
 // Dispatch table for the postfix loop inside parsePostfixExprBase.
 // Multi-token guards (isAnnotationAccess, isMethodCall) are evaluated before this table.
-// Not exported — file-local per DR-NOD-4.
+// Not exported — file-local.
 const postfixDispatchTable: Record<
   string,
   (this: Parser, loopState: PostfixLoopState, start: SourceLocation) => void
@@ -690,7 +690,7 @@ Parser.prototype.parsePostfixExprBase = function (
       (primary.thenBranch?.type === 'PipeChain' &&
         primary.thenBranch.terminator !== null));
 
-  // Mutable state object shared with dispatch handlers [IR-NOD-2].
+  // Mutable state object shared with dispatch handlers.
   const loopState: PostfixLoopState = { primary, methods, receiverEnd };
 
   while (
@@ -911,7 +911,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     );
   }
 
-  // Expression-position annotation: ^(...) expression (IR-5)
+  // Expression-position annotation: ^(...) expression
   if (
     check(this.state, TOKEN_TYPES.CARET) &&
     peek(this.state, 1).type === TOKEN_TYPES.LPAREN
@@ -1104,7 +1104,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
   }
 
   // Type name expression: bare type name in expression position (e.g. `number`, `string`)
-  // Invalid type names fall through to the host call path (EC-6).
+  // Invalid type names fall through to the host call path.
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
     VALID_TYPE_NAMES.includes(current(this.state).value as RillTypeName) &&
@@ -1329,7 +1329,7 @@ Parser.prototype.parsePipeTargetDictLiteral = function (
 
 // Dispatch table for parsePipeTarget. Single-token forms only.
 // Inline guards handle multi-token conditions before this table is checked.
-// Not exported — file-local per DR-NOD-4.
+// Not exported — file-local.
 const pipeTargetDispatchTable: Record<
   string,
   (this: Parser) => PipeTargetNode

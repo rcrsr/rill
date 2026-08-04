@@ -11,7 +11,7 @@ import { executeRill } from '../execution.js';
 describe('executeRill', () => {
   describe('boundary conditions', () => {
     describe('large source input', () => {
-      it('executes 10KB source without freezing [AC-18]', async () => {
+      it('executes 10KB source without freezing', async () => {
         // Generate source exceeding 10KB
         // Strategy: Create a script with many variable assignments
         const lines: string[] = [];
@@ -81,7 +81,7 @@ describe('executeRill', () => {
     });
 
     describe('deep nesting', () => {
-      it('executes 50-level nested expression within 500ms or reports error [AC-19]', async () => {
+      it('executes 50-level nested expression within 500ms or reports error', async () => {
         // Build deeply nested arithmetic expression: ((((...(1 + 1)...))))
         const depth = 50;
         let source = '1';
@@ -178,7 +178,7 @@ describe('executeRill', () => {
     });
 
     describe('execution timeout', () => {
-      it('triggers iteration limit error for infinite loop [AC-25]', async () => {
+      it('triggers iteration limit error for infinite loop', async () => {
         // Create while loop that exceeds iteration limit
         // Syntax: while (cond) do<limit: N> { body }
         // Explicit limit of 1,000 is exceeded by 20,000-iteration target
@@ -405,7 +405,7 @@ describe('executeRill', () => {
     });
   });
 
-  describe('legacy loop syntax passthrough [AC-F10, AC-F11]', () => {
+  describe('legacy loop syntax passthrough', () => {
     it('surfaces verbatim RILL-R079 migration error for legacy @ { } syntax', async () => {
       const result = await executeRill('($ < 5) @ { $ + 1 }');
 
@@ -413,7 +413,7 @@ describe('executeRill', () => {
       expect(result.error).not.toBe(null);
       expect(result.error?.category).toBe('parse');
       expect(result.error?.errorId).toBe('RILL-R079');
-      // UXT-LOOP-1: core message prefix passed through verbatim; RillError appends ' at line:col'
+      // core message prefix passed through verbatim; RillError appends ' at line:col'
       expect(result.error?.message).toContain(
         'Migration error: use `while (cond) do { body }`'
       );

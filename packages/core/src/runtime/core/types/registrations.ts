@@ -32,7 +32,7 @@ import { ERROR_IDS } from '../../../error-registry.js';
 
 export type { TypeProtocol, TypeDefinition } from './protocols/types.js';
 
-/** All 16 built-in type registrations (NFR-TPC-1). dict is last (fallback). */
+/** All 16 built-in type registrations. dict is last (fallback). */
 export const BUILT_IN_TYPES: readonly TypeDefinition[] = Object.freeze([
   stringType,
   numberType,
@@ -66,7 +66,7 @@ function dispatchByIdentity<T>(
   return fallback;
 }
 
-/** Infer the Rill type name from a runtime value. Returns 'string' as fallback (BC-1). */
+/** Infer the Rill type name from a runtime value. Returns 'string' as fallback. */
 export function inferType(value: RillValue): string {
   return dispatchByIdentity(value, (reg) => reg.name, 'string');
 }
@@ -87,7 +87,7 @@ initFormatNested(formatValue);
 // primitives short-circuit on === above.
 let _deepEqualsVisited: WeakMap<object, WeakSet<object>> | null = null;
 
-/** Deep equality. Short-circuits on reference equality (EC-3, AC-18, AC-20). */
+/** Deep equality. Short-circuits on reference equality. */
 export function deepEquals(a: RillValue, b: RillValue): boolean {
   if (a === b) return true;
   const isRoot = _deepEqualsVisited === null;

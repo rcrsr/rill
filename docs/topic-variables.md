@@ -64,7 +64,7 @@ Capture at end of expression stores and ends the chain:
 | Each loop `-> seq({ })` | Current iteration item |
 | While-loop `while (cond) do { }` | Accumulated value |
 | Do-while `do { } while (cond)` | Accumulated value |
-| Conditional `cond ? { }` | Tested value |
+| Conditional `cond ? a ! b` | Pipe value entering the conditional, in either branch (block or bare) |
 | Piped conditional `-> ? { }` | Piped value (also used as condition) |
 | Stored closure `\|x\|{ }` | N/A — use explicit params |
 | Dict closure `\|\|{ $.x }` | Dict self (`this`) — late-bound |
@@ -79,7 +79,7 @@ When certain constructs appear without explicit input, `$` is used implicitly:
 | `.method()` | `$ -> .method()` | Method call without receiver |
 | `$fn()` | `$fn($)` | Closure call with no explicit args* |
 
-*Closure calls receive `$` only when: no explicit args, first param has no default, and `$` is not a closure.
+*Closure calls receive `$` only when: no explicit args, a pipe value is in scope, and the callable does not declare an empty parameter list.
 
 ```rill
 # Inside blocks, $ flows naturally

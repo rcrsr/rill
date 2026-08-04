@@ -3,7 +3,7 @@
  *
  * Runs `runRules` against every statically-extractable snippet in the
  * protected core language test corpus (via `corpus-loader.ts`) to assert
- * structural invariants: no snippet throws, the full 40-rule registry
+ * structural invariants: no snippet throws, the full 41-rule registry
  * executes, and emitted diagnostics stay sorted by line then column. It
  * also reproduces purpose-built per-rule firing scenarios and
  * severity-resolution behavior.
@@ -72,9 +72,9 @@ describe('full corpus run', () => {
     expect(loadCorpusSnippets().length).toBeGreaterThan(fileNames.length);
   });
 
-  it('registers the complete 40-rule set and passes it through to runRules', () => {
-    expect(RULES.length).toBe(40);
-    expect(Object.keys(createDefaultConfig().rules)).toHaveLength(40);
+  it('registers the complete 41-rule set and passes it through to runRules', () => {
+    expect(RULES.length).toBe(41);
+    expect(Object.keys(createDefaultConfig().rules)).toHaveLength(41);
   });
 
   it('never throws while parsing and checking any corpus snippet', () => {

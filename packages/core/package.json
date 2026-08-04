@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill",
-  "version": "0.19.6",
+  "version": "0.20.0",
   "description": "Scripting designed for machine-generated code",
   "license": "MIT",
   "author": "Andre Bremer",
@@ -30,12 +30,11 @@
     "build:dev": "tsx scripts/generate-version.ts && tsx scripts/generate-docs-bundle.ts && tsc --build tsconfig.dev.json",
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
-    "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/",
+    "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/ ../../README.md",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint --config ../../.oxlintrc.json src/",
-    "test:rules": "node ../../lint-rules/rule-unit-test.cjs",
+    "lint": "oxlint --config ../../.oxlintrc.json src/ tests/",
     "docs:errors": "tsx scripts/generate-error-docs.ts",
-    "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run test:rules && pnpm run lint"
+    "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run lint"
   },
   "repository": {
     "type": "git",

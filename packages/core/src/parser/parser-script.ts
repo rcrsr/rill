@@ -444,7 +444,7 @@ Parser.prototype.parseAnnotatedStatement = function (
   const statement = this.parseStatement();
 
   // If inner is already annotated, return it unchanged.
-  // BC-2: The immediately-preceding annotation attaches to the closure;
+  // The immediately-preceding annotation attaches to the closure;
   // the outer annotation is discarded.
   if (statement.type === 'AnnotatedStatement') {
     return statement;

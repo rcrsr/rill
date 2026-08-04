@@ -137,7 +137,7 @@ export function createRillStream(options: {
         try {
           dispose();
         } catch (err) {
-          // EC-15: Propagate dispose errors as RILL-R002. Wrapping
+          // Propagate dispose errors as RILL-R002. Wrapping
           // ensures the throw is a structured halt (RillError) rather
           // than a plain Error that the extension-boundary reshape
           // would convert to #R999.

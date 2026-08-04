@@ -36,7 +36,7 @@ export function getNodeLocation(
 
 /**
  * Check if execution has been aborted via AbortSignal.
- * Throws a non-catchable RuntimeHaltSignal via throwAbortHalt (IR-1)
+ * Throws a non-catchable RuntimeHaltSignal via throwAbortHalt
  * when the signal is aborted.
  */
 export function checkAborted(s: EvalState, node?: ASTNode): void {
@@ -53,7 +53,7 @@ export function checkAborted(s: EvalState, node?: ASTNode): void {
 /**
  * Check if the current pipe value matches any autoException pattern.
  * Only checks string values. Throws a non-catchable RuntimeHaltSignal
- * via throwAutoExceptionHalt (IR-2) on match.
+ * via throwAutoExceptionHalt on match.
  */
 export function checkAutoExceptions(
   s: EvalState,

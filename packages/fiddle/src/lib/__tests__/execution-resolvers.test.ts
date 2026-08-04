@@ -168,7 +168,7 @@ describe('buildFiddleRuntimeOptions', () => {
 
 describe('executeRill', () => {
   describe('resolver config — boundary conditions', () => {
-    it('AC-53: resolverConfig undefined → behaves identically to pre-use<> behavior', async () => {
+    it('resolverConfig undefined → behaves identically to pre-use<> behavior', async () => {
       const withUndefined = await executeRill('1 + 2', undefined);
       const withOmit = await executeRill('1 + 2');
       expect(withUndefined.status).toBe('success');
@@ -176,7 +176,7 @@ describe('executeRill', () => {
       expect(withUndefined.result).toBe(withOmit.result);
     });
 
-    it('AC-44: no use<> expressions executes identically with empty resolver config', async () => {
+    it('no use<> expressions executes identically with empty resolver config', async () => {
       const withResolvers = await executeRill('42 => $x\n$x * 3', {
         resolvers: {},
         configurations: { resolvers: {} },
@@ -193,8 +193,8 @@ describe('executeRill', () => {
     });
   });
 
-  describe('resolver config — error cases (EC-14)', () => {
-    it('EC-14: use<db:users> produces FiddleError with runtime category (unknown scheme)', async () => {
+  describe('resolver config — error cases', () => {
+    it('use<db:users> produces FiddleError with runtime category (unknown scheme)', async () => {
       // The parser now handles use<scheme:resource> correctly (Phase 1 complete).
       // 'db' is not a registered scheme, so the runtime raises RILL-R054.
       const result = await executeRill('use<db:users>');
@@ -203,7 +203,7 @@ describe('executeRill', () => {
       expect(result.error!.category).toBe('runtime');
     });
 
-    it('EC-14: resolver callback throws → FiddleError via convertError', async () => {
+    it('resolver callback throws → FiddleError via convertError', async () => {
       // Build a resolver that throws. The resolver wiring is tested here even
       // though use<> parsing is blocked — test via a script that does not need
       // use<> and inject the error path through buildFiddleRuntimeOptions.
@@ -224,8 +224,8 @@ describe('executeRill', () => {
       );
     });
 
-    it('EC-14: empty resolvers record with ext resolver config resolves options without error', async () => {
-      // AC-51: empty resolvers record — wiring succeeds; runtime error for
+    it('empty resolvers record with ext resolver config resolves options without error', async () => {
+      // empty resolvers record — wiring succeeds; runtime error for
       // unregistered scheme fires when use<> parsing is complete.
       const config: FiddleResolverConfig = {
         resolvers: {},
@@ -260,7 +260,7 @@ describe('executeRill', () => {
     });
 
     it('multiple ext resolvers for different resources resolve independently in options', () => {
-      // AC-52: each resolver is keyed by scheme, not resource.
+      // each resolver is keyed by scheme, not resource.
       // Two resolvers for different schemes coexist independently.
       const searchResolver = valueResolver(['result1']);
       const authResolver = valueResolver({ token: 'abc' });
@@ -275,14 +275,14 @@ describe('executeRill', () => {
   });
 
   describe('resolver config — integration', () => {
-    it('AC-42: ext resolver registered → script executes with resolved value', async () => {
+    it('ext resolver registered → script executes with resolved value', async () => {
       const config = singleResolverConfig('ext', valueResolver('resolved-ext'));
       const result = await executeRill('use<ext:example> => $e\n$e', config);
       expect(result.status).toBe('success');
       expect(JSON.parse(result.result!).value).toBe('resolved-ext');
     });
 
-    it('AC-43: host resolver registered → script executes with resolved number', async () => {
+    it('host resolver registered → script executes with resolved number', async () => {
       const config = singleResolverConfig('host', valueResolver(42));
       const result = await executeRill(
         'use<host:app.timeout>:number => $t\n$t',
@@ -292,13 +292,13 @@ describe('executeRill', () => {
       expect(JSON.parse(result.result!).value).toBe(42);
     });
 
-    it('AC-46: use<module:greetings> → FiddleError runtime (no module resolver)', async () => {
+    it('use<module:greetings> → FiddleError runtime (no module resolver)', async () => {
       const result = await executeRill('use<module:greetings>');
       expect(result.status).toBe('error');
       expect(result.error!.category).toBe('runtime');
     });
 
-    it('AC-47: unknown scheme → FiddleError with resolver-not-found message', async () => {
+    it('unknown scheme → FiddleError with resolver-not-found message', async () => {
       const config: FiddleResolverConfig = {
         resolvers: {},
         configurations: { resolvers: {} },
@@ -309,7 +309,7 @@ describe('executeRill', () => {
       expect(result.error!.message).toMatch(/No resolver registered/);
     });
 
-    it('AC-49: resolver callback throws → FiddleError via convertError', async () => {
+    it('resolver callback throws → FiddleError via convertError', async () => {
       const throwingResolver: SchemeResolver = () => {
         throw new Error('resolver-failure-sentinel');
       };
@@ -320,7 +320,7 @@ describe('executeRill', () => {
       expect(result.error!.message).toContain('resolver-failure-sentinel');
     });
 
-    it('AC-52: multiple ext resolvers for different extensions resolve independently', async () => {
+    it('multiple ext resolvers for different extensions resolve independently', async () => {
       const aResolver = valueResolver('value-a');
       const bResolver = valueResolver('value-b');
       const config: FiddleResolverConfig = {
@@ -338,7 +338,7 @@ describe('executeRill', () => {
       });
     });
 
-    it('AC-48: use<ext:...> + ext::fn() in permissive mode — both resolve; ext::fn() returns its argument', async () => {
+    it('use<ext:...> + ext::fn() in permissive mode — both resolve; ext::fn() returns its argument', async () => {
       // use<ext:example> captures the resolved ext value; ext::fn() is a
       // namespace-qualified host function registered in the functions map.
       const extFn: RillFunction = {
@@ -365,7 +365,7 @@ describe('executeRill', () => {
       expect(result.status).toBe('success');
     });
 
-    it('AC-50: use<$varName> in permissive mode — execution proceeds, resolved value is available', async () => {
+    it('use<$varName> in permissive mode — execution proceeds, resolved value is available', async () => {
       // Dynamic use<> form: $name holds the resource identifier string at
       // runtime. The runtime resolves it and binds the result to $e.
       const config = singleResolverConfig(
@@ -379,7 +379,7 @@ describe('executeRill', () => {
       expect(result.status).toBe('success');
     });
 
-    it('AC-54: use<ext:...> + ext::fn() in permissive mode (FDL boundary 4) — both resolve, ext::fn() returns its argument', async () => {
+    it('use<ext:...> + ext::fn() in permissive mode (FDL boundary 4) — both resolve, ext::fn() returns its argument', async () => {
       // FDL boundary 4: script combines use<ext:...> capture with an
       // ext::fn() namespace-qualified host function call. Both expressions
       // resolve because ext::fn is registered in the functions map.

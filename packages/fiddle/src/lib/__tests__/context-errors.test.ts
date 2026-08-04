@@ -3,7 +3,6 @@
  *
  * Tests FiddleError outcomes for missing keys, unknown schemes,
  * throwing resolvers, empty resolver maps, and undefined config.
- * Covers AC-34, AC-35, AC-36, AC-37, AC-38.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -32,7 +31,7 @@ function buildContextConfig(): FiddleResolverConfig {
 // ============================================================
 
 describe('executeRill context resolver — error cases', () => {
-  describe('AC-FDL-5 (AC-34): use<context:nonexistent> → FiddleError category runtime', () => {
+  describe('use<context:nonexistent> → FiddleError category runtime', () => {
     it('missing key produces status error with category runtime', async () => {
       const config = buildContextConfig();
       const result = await executeRill('use<context:nonexistent_key>', config);
@@ -48,7 +47,7 @@ describe('executeRill context resolver — error cases', () => {
     });
   });
 
-  describe('AC-FDL-6 (AC-35): use<unknown_scheme:resource> → FiddleError "No resolver registered"', () => {
+  describe('use<unknown_scheme:resource> → FiddleError "No resolver registered"', () => {
     it('unregistered scheme produces FiddleError', async () => {
       const result = await executeRill('use<unknown_scheme:resource>');
       expect(result.status).toBe('error');
@@ -66,7 +65,7 @@ describe('executeRill context resolver — error cases', () => {
     });
   });
 
-  describe('AC-FDL-7 (AC-36): resolver callback throws → FiddleError via convertError', () => {
+  describe('resolver callback throws → FiddleError via convertError', () => {
     it('throwing resolver produces FiddleError with category runtime', async () => {
       const throwingResolver: SchemeResolver = () => {
         throw new Error('resolver-failure-sentinel');
@@ -93,7 +92,7 @@ describe('executeRill context resolver — error cases', () => {
     });
   });
 
-  describe('AC-FDL-8 (AC-37): empty resolvers record → FiddleError for unregistered scheme', () => {
+  describe('empty resolvers record → FiddleError for unregistered scheme', () => {
     it('empty resolvers with use<context:key> produces FiddleError', async () => {
       const config: FiddleResolverConfig = {
         resolvers: {},
@@ -105,7 +104,7 @@ describe('executeRill context resolver — error cases', () => {
     });
   });
 
-  describe('AC-FDL-9 (AC-38): undefined resolverConfig, no use<> → identical behavior', () => {
+  describe('undefined resolverConfig, no use<> → identical behavior', () => {
     it('undefined config produces same result as omitting config', async () => {
       const withUndefined = await executeRill('"hello"', undefined);
       const withOmit = await executeRill('"hello"');

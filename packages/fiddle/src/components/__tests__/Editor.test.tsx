@@ -2,9 +2,9 @@
  * Editor Component Tests
  *
  * Test coverage for Editor component:
- * - IC-12: Component renders without errors
- * - AC-5: Cmd/Ctrl+Enter triggers onRun callback
- * - AC-15: errorLine prop highlights gutter line
+ * - Component renders without errors
+ * - Cmd/Ctrl+Enter triggers onRun callback
+ * - errorLine prop highlights gutter line
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -31,7 +31,7 @@ describe('Editor', () => {
   });
 
   // ============================================================
-  // IC-12: Component renders without errors
+  // Component renders without errors
   // ============================================================
 
   describe('rendering', () => {
@@ -71,7 +71,7 @@ describe('Editor', () => {
   });
 
   // ============================================================
-  // AC-5: Keyboard shortcut execution
+  // Keyboard shortcut execution
   // ============================================================
 
   describe('keyboard shortcuts', () => {
@@ -122,7 +122,7 @@ describe('Editor', () => {
   });
 
   // ============================================================
-  // AC-15: Error line highlighting
+  // Error line highlighting
   // ============================================================
 
   describe('error line highlighting', () => {
@@ -277,7 +277,7 @@ describe('Editor', () => {
   // ============================================================
 
   describe('indentation', () => {
-    // AC-5: User views existing code with tabs and sees 2-space indentation width
+    // User views existing code with tabs and sees 2-space indentation width
     it('displays tabs with 2-space width', () => {
       const valueWithTabs = 'if true {\n\tlog("indented")\n}';
       const { container } = render(
@@ -288,7 +288,7 @@ describe('Editor', () => {
       // Visual verification: tabs should display as 2 spaces wide
     });
 
-    // AC-6: User copies code from documentation and sees preserved alignment with 2-space tabs
+    // User copies code from documentation and sees preserved alignment with 2-space tabs
     it('preserves alignment with 2-space indentation', () => {
       const valueWithSpaces = 'if true {\n  log("2-space indent")\n}';
       const { container } = render(

@@ -15,7 +15,7 @@ export type { NativeArray, NativePlainObject, NativeValue } from '../values.js';
 /**
  * Alias for {@link InvalidateMeta} used by `RuntimeContext.catch` detector
  * signatures. The detector returns the same shape that `invalidate` accepts.
- * See API Contract (§Data Model).
+ * See the API Contract data model.
  */
 export type InvalidMeta = InvalidateMeta;
 
@@ -188,7 +188,7 @@ export interface LifecycleContext {
   /**
    * Produce an invalid RillValue from an arbitrary error and structured meta.
    * Never throws at the call site: `meta.code` that names an unregistered atom
-   * resolves to `#R001` (see FR-ERR-21 / EC-4). Behavior bound at construction
+   * resolves to `#R001`. Behavior bound at construction
    * site in context.ts (task 3.2).
    */
   invalidate(error: unknown, meta: InvalidateMeta): RillValue;
@@ -196,7 +196,7 @@ export interface LifecycleContext {
    * Execute a Promise-returning thunk; on rejection, run the detector to
    * classify the error. When the detector returns a non-null {@link InvalidMeta},
    * produce an invalid RillValue via {@link invalidate}. When the detector
-   * returns `null`, produce an invalid value with code `#R999` (see EC-5/EC-6).
+   * returns `null`, produce an invalid value with code `#R999`.
    * Behavior bound at construction site in context.ts (task 3.2).
    */
   catch<T>(
@@ -206,26 +206,26 @@ export interface LifecycleContext {
   /**
    * Aborts the factory-scope signal, awaits in-flight operations with a
    * bounded timeout, flips the disposed flag, and marks subsequent extension
-   * calls as returning `#DISPOSED` (IR-13).
+   * calls as returning `#DISPOSED`.
    *
-   * Idempotent: repeated calls resolve to the same promise (EC-10/AC-B6).
+   * Idempotent: repeated calls resolve to the same promise.
    * Signal abort propagates through the same chain that feeds
    * `ExtensionFactoryCtx.signal` and host-function `ctx.signal`.
    */
   dispose(): Promise<void>;
   /**
-   * True once `dispose()` has begun (AC-E9). Host-function dispatch sites
+   * True once `dispose()` has begun. Host-function dispatch sites
    * consult this to short-circuit with {@link createDisposedResult}.
    */
   isDisposed(): boolean;
   /**
    * Produce an invalid RillValue carrying `.!code == #DISPOSED` without
-   * dispatching to user code. Used by post-dispose guard paths (AC-E9).
+   * dispatching to user code. Used by post-dispose guard paths.
    */
   createDisposedResult(): RillValue;
   /**
    * Register an in-flight extension-dispatch promise so `dispose()` awaits
-   * its settlement before flipping the disposed flag (EC-11). No-op when
+   * its settlement before flipping the disposed flag. No-op when
    * the context is not attached to a factory lifecycle (e.g. minimal test
    * contexts); safe to call from any dispatch site.
    */
@@ -392,13 +392,13 @@ export interface StepResult {
 /**
  * Factory-scope context passed to an `ExtensionFactory` at init time.
  *
- * Surface is exactly `{ registerErrorCode, signal }` (IR-9, NFR-ERR-4).
+ * Surface is exactly `{ registerErrorCode, signal }`.
  * Factory authors must not receive host-scope helpers like `invalidate` or
  * `catch`; those live on {@link RuntimeContext} at call time only.
  *
  * TypeScript enforces the exact-prop constraint on object-literal assignment:
  * any object literal with properties outside this set fails the excess-property
- * check under `strict` (AC-7, AC-N5, EC-15).
+ * check under `strict`.
  */
 export interface ExtensionFactoryCtx {
   /** Register a custom error code atom with kind metadata. */

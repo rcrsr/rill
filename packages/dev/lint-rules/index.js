@@ -11,6 +11,7 @@
  */
 
 import noDuplicateErrorId from './no-duplicate-error-id.cjs';
+import noSpecIdReference from './no-spec-id-reference.cjs';
 
 export default {
   meta: {
@@ -18,5 +19,6 @@ export default {
   },
   rules: {
     'no-duplicate-error-id': noDuplicateErrorId,
+    'no-spec-id-reference': noSpecIdReference,
   },
 };

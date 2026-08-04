@@ -1,24 +1,57 @@
 name: Release
 
+# Two tag namespaces, because the two release cadences are unrelated. `v*` is a
+# language release and publishes @rcrsr/rill with @rcrsr/rill-language-service.
+# `dev-v*` publishes @rcrsr/rill-dev alone, which ships development tooling and
+# versions independently; without the split, shipping a lint-rule fix would mean
+# minting a language version that contains no language change.
+#
+# `v*` does not match `dev-v0.1.0`: a tag glob anchors at the start.
 on:
   push:
     tags:
       - 'v*'
+      - 'dev-v*'
+
+# Least privilege at the top; the release job re-grants exactly what it needs.
+permissions:
+  contents: read
+
+# Serialized, never cancelled. A publish that is interrupted partway through the
+# set leaves the registry holding one half of a release, which the version gate
+# then reads as already-published on the retry. See packages/dev/REPO-STANDARDS.md
+# STD-CI-6.
+#
+# One group across both namespaces, not one per namespace. The two sets are
+# disjoint, so concurrent runs would not corrupt each other, but releases are
+# rare and a queued run costs nothing next to reasoning about two publishes
+# racing for the same npm auth and the same GitHub Release API.
+concurrency:
+  group: release-${{ github.workflow }}
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
+      # write: creates the GitHub Release. id-token: mints the OIDC token the
+      # npm provenance attestation requires. `pnpm publish --provenance` below
+      # is what consumes it. STD-REL-3 and STD-REL-4.
+      #
+      # `pnpm publish --help` does not advertise --provenance, which makes it
+      # look unsupported. It is not: pnpm 11 bundles libnpmpublish's
+      # provenance.js and the flag reaches ensureProvenanceGeneration. pnpm 10
+      # ignores it silently, so a repo copying this must be on 11 first.
       contents: write
       id-token: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Enable Corepack and install pnpm
         run: corepack enable && corepack prepare --activate
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '25'
           cache: 'pnpm'
@@ -33,31 +66,75 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve publish set from the tag
+        run: |
+          # Read the tag from the environment, not by interpolating a GitHub
+          # expression into the script. The templater substitutes expressions
+          # before bash parses the script, and tag names permit shell
+          # metacharacters, so an interpolated tag can inject commands into a
+          # job holding NPM_TOKEN and id-token: write.
+          #
+          # Spelling the expression delimiters literally here, even inside a
+          # `#` comment, is what broke this file: the templater scans the whole
+          # run block and does not know bash comments, so it read the empty
+          # pair as an expression and rejected the workflow.
+          TAG="$GITHUB_REF_NAME"
+          if [[ "$TAG" == dev-v* ]]; then
+            echo "PACKAGES=packages/dev" >> "$GITHUB_ENV"
+            echo "RELEASE_KIND=dev" >> "$GITHUB_ENV"
+          else
+            echo "PACKAGES=packages/core packages/service" >> "$GITHUB_ENV"
+            echo "RELEASE_KIND=language" >> "$GITHUB_ENV"
+          fi
+
+      # Runs on both namespaces. The workspace-consistency rules it enforces are
+      # about core, service, and root, so a dev tag does not depend on them, but
+      # a tree that fails them is broken regardless of which tag was pushed and
+      # should not publish anything. See packages/dev/REPO-STANDARDS.md
+      # STD-REL-2 and STD-CHK-7.
       - name: Verify version consistency
         run: ./scripts/check-versions.sh
 
-      - name: Verify debut CHANGELOG entry
+      # check-versions.sh reconciles the manifests against each other but never
+      # against the tag, so nothing here read the one thing the tag asserts: the
+      # version being released. Tagging a version nobody bumped publishes
+      # nothing, because every version is already on the registry, and the
+      # skip-if-already-published path reports that as success — then the job
+      # goes on to cut a GitHub Release for a version that shipped nowhere.
+      #
+      # Which manifest a `v*` tag must equal is the root, not packages/core.
+      # Core has diverged from the tag at v0.18.1 (root 0.18.1, core 0.18.0),
+      # and that release was correct: root increments its patch on every
+      # release, core only when core changes, so a release carrying no core
+      # change legitimately leaves core behind. Gating on core would have failed
+      # it.
+      #
+      # Against root the rule holds for the last 55 consecutive tags, v0.7.1
+      # through v0.20.0. It does not hold for v0.6.0 through v0.7.0, four tags
+      # cut while the root manifest sat at a placeholder 1.0.0; every tag before
+      # and after matches. The gate applies to what is pushed from here, so that
+      # window is history, not a counterexample.
+      #
+      # packages/dev is gated the same way against its own manifest.
+      # check-versions.sh deliberately does not cover it, since its version
+      # floats free of the language, which would otherwise leave a `dev-v*` tag
+      # with no version gate at all.
+      - name: Verify the tag matches the manifest it releases
         run: |
-          NAME="@rcrsr/rill-language-service"
-          if npm view "$NAME" version &>/dev/null; then
-            echo "$NAME already published; skipping debut CHANGELOG check."
-            exit 0
+          if [ "$RELEASE_KIND" = "dev" ]; then
+            TAG_VERSION="${GITHUB_REF_NAME#dev-v}"
+            MANIFEST="packages/dev/package.json"
+          else
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+            MANIFEST="package.json"
           fi
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
-          # The debut entry may sit under "## Unreleased" (not yet dated) or
-          # under the freshly-dated header for the version being released.
-          SECTION=$(awk -v version="$VERSION" '
-            /^## Unreleased/ { flag=1; next }
-            $0 ~ "^## " version "( |$)" { flag=1; next }
-            /^## / { flag=0 }
-            flag
-          ' CHANGELOG.md)
-          if ! grep -q "$NAME" <<< "$SECTION"; then
-            echo "Debut release detected for $NAME, but neither the Unreleased section nor the ${VERSION} section of CHANGELOG.md mentions it." >&2
+          PKG_VERSION=$(node -p "require('./$MANIFEST').version")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "Tag ${GITHUB_REF_NAME} names $TAG_VERSION, but $MANIFEST is $PKG_VERSION." >&2
+            echo "Bump the manifest and retag, or delete the tag; publishing now would ship nothing under a release named $TAG_VERSION." >&2
             exit 1
           fi
-          echo "Debut CHANGELOG entry for $NAME verified."
+          echo "Tag ${GITHUB_REF_NAME} matches $MANIFEST at $PKG_VERSION."
 
       - name: Build all packages
         run: pnpm -r run build
@@ -69,7 +146,12 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          for dir in packages/core packages/service; do
+          # Without pipefail the `pnpm publish | tee` below reports tee's exit
+          # status, so a failed publish would read as success and the job would
+          # go on to cut a GitHub Release for packages that never shipped.
+          # See packages/dev/REPO-STANDARDS.md STD-REL-6.
+          set -o pipefail
+          for dir in $PACKAGES; do
             dir="${dir%/}"
             [ -f "$dir/package.json" ] || continue
             PRIVATE=$(node -p "require('./$dir/package.json').private || false")
@@ -82,7 +164,22 @@ jobs:
             fi
             echo "Publishing $NAME@$VERSION..."
             cd "$dir"
-            pnpm publish --access public --no-git-checks
+            # The npm view check above races a concurrent publish: it can pass
+            # while another run is mid-publish of the same version. Treat the
+            # registry's own conflict response as already-published rather than
+            # failing the job. STD-REL-5.
+            PUBLISH_LOG=$(mktemp)
+            if pnpm publish --provenance --access public --no-git-checks 2>&1 | tee "$PUBLISH_LOG"; then
+              echo "Published $NAME@$VERSION"
+            elif grep -Eqi '(EPUBLISHCONFLICT|cannot publish over( the)? previously published versions|cannot modify pre-existing version)' "$PUBLISH_LOG"; then
+              echo "Skipping $NAME@$VERSION (already published, confirmed by registry)"
+            else
+              echo "Failed to publish $NAME@$VERSION"
+              cat "$PUBLISH_LOG"
+              rm -f "$PUBLISH_LOG"
+              exit 1
+            fi
+            rm -f "$PUBLISH_LOG"
             cd "$GITHUB_WORKSPACE"
           done
 
@@ -90,10 +187,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "${{ github.ref_name }}" >/dev/null 2>&1; then
-            echo "GitHub Release '${{ github.ref_name }}' already exists. Skipping creation."
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "GitHub Release '$GITHUB_REF_NAME' already exists. Skipping creation."
             exit 0
           fi
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
-            --generate-notes
+          if [ "$RELEASE_KIND" = "dev" ]; then
+            # --latest=false keeps the repository's "Latest release" badge on
+            # the language. A visitor reading it wants the current rill, not the
+            # tooling the maintainers happened to bump most recently.
+            #
+            # Notes point at the package changelog instead of --generate-notes,
+            # which derives its range from the previous release of any kind and
+            # would list the language commits since the last `v*` tag.
+            CL="https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/packages/dev/CHANGELOG.md"
+            NOTES=$(printf '%s\n\n%s\n' \
+              "Development tooling for the rill ecosystem. This is not a release of the rill language." \
+              "See [\`packages/dev/CHANGELOG.md\`](${CL}) for what changed.")
+            gh release create "$GITHUB_REF_NAME" \
+              --title "@rcrsr/rill-dev ${GITHUB_REF_NAME#dev-v}" \
+              --latest=false \
+              --notes "$NOTES"
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi

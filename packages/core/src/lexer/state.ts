@@ -3,7 +3,7 @@
  * Tracks position in source text during tokenization
  */
 
-import type { SourceLocation } from '../types.js';
+import type { SourceLocation, TokenType } from '../types.js';
 
 export interface LexerState {
   readonly source: string;
@@ -12,6 +12,19 @@ export interface LexerState {
   column: number;
   baseOffset: number;
   inFrontmatter: boolean;
+  /**
+   * Type of the token emitted immediately before the one being read, or
+   * undefined at the start of input. Maintained by the `tokenize()` loop so
+   * readers can branch on the preceding token exactly, rather than
+   * re-deriving it from raw characters.
+   */
+  prevTokenType: TokenType | undefined;
+  /**
+   * Value of that same token. Needed because DOLLAR is emitted for both the
+   * `$` that prefixes a variable name and the self-contained accumulator
+   * `$@`, which the type alone cannot tell apart.
+   */
+  prevTokenValue: string | undefined;
 }
 
 export function createLexerState(
@@ -25,6 +38,8 @@ export function createLexerState(
     column: baseLocation?.column ?? 1,
     baseOffset: baseLocation?.offset ?? 0,
     inFrontmatter: false,
+    prevTokenType: undefined,
+    prevTokenValue: undefined,
   };
 }
 

@@ -1,7 +1,7 @@
 /**
  * Byte-equal parity harness: Fiddle vs Node runtime for error-handling fixtures
  *
- * DEC-8: Both sides call formatHalt on the same invalid value. Fiddle and
+ * Both sides call formatHalt on the same invalid value. Fiddle and
  * Node share the identical @rcrsr/rill runtime (no fork), so formatHalt
  * output is structurally identical when both receive the same invalid value.
  *
@@ -11,14 +11,14 @@
  * Parity is trivial at the formatter level; the fixtures prove the invalid
  * value *content* (code, message, trace) is byte-equal across both paths.
  *
- * AC-FDL-1  : guard fixture
- * AC-FDL-2  : retry<limit: 3> exhausted, 3 guard-caught frames
- * AC-FDL-3  : .! probe variants (valid and invalid)
- * AC-FDL-4  : atom literal / .!code comparison
- * AC-FDL-5  : invalid LHS coerced to default with ??
- * AC-FDL-9  : harness runs as part of pnpm --filter @rcrsr/rill-fiddle test
- * AC-FDL-E1 : formatHalt export present (release gate)
- * AC-FDL-E2 : unregistered atom -> #R001 byte-equal
+ * guard fixture
+ * retry<limit: 3> exhausted, 3 guard-caught frames
+ * .! probe variants (valid and invalid)
+ * atom literal / .!code comparison
+ * invalid LHS coerced to default with ??
+ * harness runs as part of pnpm --filter @rcrsr/rill-fiddle test
+ * formatHalt export present (release gate)
+ * unregistered atom -> #R001 byte-equal
  */
 
 import { readFileSync } from 'node:fs';
@@ -81,10 +81,10 @@ async function fiddleExecute(source: string): Promise<string> {
 }
 
 // ============================================================
-// AC-FDL-E1: Release gate — formatHalt must be exported
+// Release gate — formatHalt must be exported
 // ============================================================
 
-describe('AC-FDL-E1: release gate', () => {
+describe('release gate', () => {
   it('formatHalt is exported from @rcrsr/rill and is a function', () => {
     expect(typeof formatHalt).toBe('function');
   });
@@ -95,8 +95,8 @@ describe('AC-FDL-E1: release gate', () => {
 // ============================================================
 
 describe('error-handling parity: Fiddle vs Node', () => {
-  // AC-FDL-1: guard fixture
-  it('AC-FDL-1: guard { "hello" -> :number } produces byte-equal halt output', async () => {
+  // guard fixture
+  it('guard { "hello" -> :number } produces byte-equal halt output', async () => {
     const source = loadFixture('guard');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
@@ -105,8 +105,8 @@ describe('error-handling parity: Fiddle vs Node', () => {
     expect(nodeSide).toContain('#TYPE_MISMATCH');
   });
 
-  // AC-FDL-2: retry exhausted — exactly 3 guard-caught frames
-  it('AC-FDL-2: retry<limit: 3> exhausted renders exactly 3 guard-caught frames, byte-equal', async () => {
+  // retry exhausted — exactly 3 guard-caught frames
+  it('retry<limit: 3> exhausted renders exactly 3 guard-caught frames, byte-equal', async () => {
     const source = loadFixture('retry-exhausted');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
@@ -122,8 +122,8 @@ describe('error-handling parity: Fiddle vs Node', () => {
     }
   });
 
-  // AC-FDL-3: .! probe on valid value
-  it('AC-FDL-3 (valid probe): 42.! returns false, byte-equal', async () => {
+  // .! probe on valid value
+  it('valid probe: 42.! returns false, byte-equal', async () => {
     const source = loadFixture('probe-valid');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
@@ -133,8 +133,8 @@ describe('error-handling parity: Fiddle vs Node', () => {
     expect(native.value).toBe(false);
   });
 
-  // AC-FDL-3: .! probe on invalid value
-  it('AC-FDL-3 (invalid probe): $invalid.! returns true, byte-equal', async () => {
+  // .! probe on invalid value
+  it('invalid probe: $invalid.! returns true, byte-equal', async () => {
     const source = loadFixture('probe-invalid');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
@@ -143,8 +143,8 @@ describe('error-handling parity: Fiddle vs Node', () => {
     expect(native.value).toBe(true);
   });
 
-  // AC-FDL-4: #TIMEOUT literal identity
-  it('AC-FDL-4 (literal): #TIMEOUT == #TIMEOUT returns true, byte-equal', async () => {
+  // #TIMEOUT literal identity
+  it('literal: #TIMEOUT == #TIMEOUT returns true, byte-equal', async () => {
     const source = loadFixture('code-literal');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
@@ -153,8 +153,8 @@ describe('error-handling parity: Fiddle vs Node', () => {
     expect(native.value).toBe(true);
   });
 
-  // AC-FDL-4: .!code comparison (.!code == #TYPE_MISMATCH)
-  it('AC-FDL-4 (conversion): .!code == #TYPE_MISMATCH returns true, byte-equal', async () => {
+  // .!code comparison (.!code == #TYPE_MISMATCH)
+  it('conversion: .!code == #TYPE_MISMATCH returns true, byte-equal', async () => {
     const source = loadFixture('code-conversion');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
@@ -163,8 +163,8 @@ describe('error-handling parity: Fiddle vs Node', () => {
     expect(native.value).toBe(true);
   });
 
-  // AC-FDL-5: invalid LHS coerced to default with ??
-  it('AC-FDL-5: invalid $x ?? "default" returns "default", byte-equal', async () => {
+  // invalid LHS coerced to default with ??
+  it('invalid $x ?? "default" returns "default", byte-equal', async () => {
     const source = loadFixture('coerce-invalid');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
@@ -181,8 +181,8 @@ describe('error-handling parity: Fiddle vs Node', () => {
     expect(nodeSide).toContain('#TYPE_MISMATCH');
   });
 
-  // AC-FDL-E2: unregistered atom #FOO -> #R001
-  it('AC-FDL-E2: unregistered #FOO collapses to #R001, byte-equal', async () => {
+  // unregistered atom #FOO -> #R001
+  it('unregistered #FOO collapses to #R001, byte-equal', async () => {
     const source = loadFixture('unregistered-atom');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);

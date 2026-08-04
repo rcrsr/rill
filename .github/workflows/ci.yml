@@ -1,10 +1,36 @@
 name: CI
 
+# No path filtering, deliberately. Both filtering mechanisms are incompatible
+# with required status checks: `paths-ignore` prevents the run entirely, so a
+# required context is never reported and the PR blocks forever; a job-level
+# `if:` gate reports "skipped", which never satisfies a required context. See
+# packages/dev/REPO-STANDARDS.md STD-CI-7. Filtering `**/*.md` would also skip
+# test:examples, which executes every rill snippet in docs/ and README.md.
+#
+# Every `uses:` in this repository pins a commit SHA with the release it belongs
+# to in a trailing comment, per STD-CI-8. A major tag such as `@v5` is mutable:
+# whoever controls the action repository can retarget it, and the next run
+# executes different code with no diff here. The comment is what dependabot
+# reads to offer an upgrade, so it must stay accurate when a SHA changes.
 on:
   push:
     branches: [main]
   pull_request:
     types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+# Template source for the rill ecosystem. See packages/dev/REPO-STANDARDS.md STD-CI-6.
+# Keyed on the ref, so a force-push to a PR branch cancels the superseded run
+# instead of leaving a 3-node matrix plus two more jobs racing the new one.
+# `github.workflow` is in the group because a bare ref would collide with the
+# other ref-keyed workflows on this repo.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Never on main: every push to main must leave a completed status behind, and
+  # the branch-protection contexts are reported from this workflow.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   check:
@@ -14,12 +40,12 @@ jobs:
         node-version: ['22', '24', '25']
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Enable Corepack
         run: corepack enable
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
@@ -34,12 +60,12 @@ jobs:
     name: Unused deps and exports
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Enable Corepack
         run: corepack enable
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
           cache: 'pnpm'
@@ -53,13 +79,42 @@ jobs:
       - name: Check formatting
         run: pnpm check:format
 
+      # Also runs in release.yml before publishing. Running it here too catches
+      # a version split at review time rather than at the tag push, when the
+      # fix costs a second release commit. See packages/dev/REPO-STANDARDS.md STD-CHK-7.
+      - name: Verify version consistency
+        run: pnpm check:versions
+
+      # Root-level, so `pnpm -r run check` never reaches it: -r excludes the
+      # workspace root.
+      - name: Test custom lint rules
+        run: pnpm test:rules
+
+      # Tree only, deliberately. --remote adds the branch-protection and
+      # repository-settings elements, and a pull request cannot change either:
+      # they are host state, altered out of band by an admin. Gating merges on
+      # them means one settings change turns every open PR red for a reason no
+      # author can fix, which trains people to ignore this job.
+      #
+      # GITHUB_TOKEN decides almost none of it. The administrative fields are
+      # omitted from the repository object and branches/*/protection answers
+      # 404, so every STD-GATE element reported as unchecked. It settled
+      # STD-SET-2 and STD-SUP-6's host half, and those two move to the
+      # maintainer run with the rest.
+      #
+      # Host settings are checked with `rill-check-standards --remote` from a
+      # maintainer's authenticated shell, where the credentials already exist
+      # and no secret has to live in CI.
+      - name: Check repository standards conformance
+        run: pnpm check:standards
+
   language-lock:
     name: Language arbiter lock
     runs-on: ubuntu-latest
     steps:
       # No fetch-depth: the lock compares against a committed snapshot, not a
       # base ref, so it needs no history and behaves the same on main.
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Needs git, grep, and sha256sum only. The check job above already runs
       # the suite on 22/24/25, so this never runs it a second time.

@@ -165,7 +165,7 @@ export async function executeRill(
   source: string,
   resolverConfig?: FiddleResolverConfig
 ): Promise<ExecutionState> {
-  // EC-5: Empty source returns idle status
+  // Empty source returns idle status
   if (!source.trim()) {
     return {
       status: 'idle',
@@ -192,7 +192,7 @@ export async function executeRill(
     const executionResult = await execute(ast, ctx);
     const duration = performance.now() - startTime;
 
-    // Route invalid final-value results to the error path (AC-FDL-6)
+    // Route invalid final-value results to the error path
     if (isInvalid(executionResult.result)) {
       return {
         status: 'error',
@@ -232,7 +232,7 @@ export async function executeRill(
  * Convert thrown error to FiddleError structure
  */
 function convertError(err: unknown, source?: string): FiddleError {
-  // EC-1, EC-2, EC-3: RillError hierarchy (LexerError, ParseError, RuntimeError)
+  // RillError hierarchy (LexerError, ParseError, RuntimeError)
   if (isRillError(err)) {
     const basicError: FiddleError = {
       message: err.message,
@@ -269,12 +269,12 @@ function convertError(err: unknown, source?: string): FiddleError {
     return basicError;
   }
 
-  // EC-RHS: RuntimeHaltSignal escaping unguarded execution
+  // RuntimeHaltSignal escaping unguarded execution
   if (err instanceof RuntimeHaltSignal) {
     return convertInvalidValue(err.value);
   }
 
-  // EC-4: Unexpected error (non-Rill errors)
+  // Unexpected error (non-Rill errors)
   return {
     message: err instanceof Error ? err.message : String(err),
     category: 'runtime',

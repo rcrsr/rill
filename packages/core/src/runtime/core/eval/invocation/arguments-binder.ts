@@ -12,18 +12,18 @@
  * - Return pre-allocated empty sentinel for zero-arg or non-spread calls
  *
  * ## Error Cases
- * - EC-1: Spread on untyped builtin → RILL-R001 (message matches closures.ts:1079)
- * - EC-2: Extra positional argument → RILL-R001 (message matches closures.ts:1893)
- * - EC-3: Null spread source → RILL-R001 (message matches closures.ts:1912)
- * - EC-4: Spread value not tuple/dict/ordered → RILL-R001
- * - EC-5: Dict spread key matches no parameter → RILL-R001
- * - EC-6: Ordered spread key-order mismatch → RILL-R001
- * - EC-7: Duplicate binding → RILL-R001
- * - EC-11: ApplicationCallable with undefined params → RILL-R001
+ * - Spread on untyped builtin → RILL-R001 (message matches closures.ts:1079)
+ * - Extra positional argument → RILL-R001 (message matches closures.ts:1893)
+ * - Null spread source → RILL-R001 (message matches closures.ts:1912)
+ * - Spread value not tuple/dict/ordered → RILL-R001
+ * - Dict spread key matches no parameter → RILL-R001
+ * - Ordered spread key-order mismatch → RILL-R001
+ * - Duplicate binding → RILL-R001
+ * - ApplicationCallable with undefined params → RILL-R001
  *
  * ## Implementation Notes
  *
- * [SPEC] IR-1 signature omits evaluateExpression callback.
+ * [SPEC] Signature omits the evaluateExpression callback.
  * Spec: `bind(args, callable, pipeInput, location) => Promise<BoundArguments>`
  * Actual: `bind(args, callable, pipeInput, evaluate, location) => Promise<BoundArguments>`
  * Rationale: args are AST nodes requiring evaluation. A stateless class with no context
@@ -122,17 +122,17 @@ export class ArgumentsBinder {
     location: SourceLocation,
     sourceId?: string
   ): Promise<BoundArguments> {
-    // AC-14: zero args — return sentinel with no allocation
+    // zero args — return sentinel with no allocation
     if (args.length === 0) {
       return EMPTY_BOUND_ARGUMENTS;
     }
 
-    // AC-15: non-spread path — return sentinel; marshalArgs handles normal arg passing
+    // non-spread path — return sentinel; marshalArgs handles normal arg passing
     if (!this.hasSpread(args)) {
       return EMPTY_BOUND_ARGUMENTS;
     }
 
-    // EC-11: ApplicationCallable with undefined params (e.g. created via callable() helper)
+    // ApplicationCallable with undefined params (e.g. created via callable() helper)
     // has no param metadata. Emit "parameter metadata required" to match baseline behavior.
     // Must be checked before the isUntypedBuiltin (empty params) branch.
     if (
@@ -147,7 +147,7 @@ export class ArgumentsBinder {
       );
     }
 
-    // EC-1: Spread on untyped builtin — ApplicationCallable with empty params array.
+    // Spread on untyped builtin — ApplicationCallable with empty params array.
     // Message matches closures.ts:1079 verbatim.
     const isUntypedBuiltin =
       isRuntimeCallable(callable as RillValue) ||
@@ -174,7 +174,7 @@ export class ArgumentsBinder {
         // Positional argument
         const param = params[positionalIndex];
         if (param === undefined) {
-          // EC-2: extra positional arg beyond param count.
+          // extra positional arg beyond param count.
           // Message matches closures.ts:1893 verbatim.
           throwCatchableHostHalt(
             { location, sourceId, fn: 'bind' },
@@ -189,7 +189,7 @@ export class ArgumentsBinder {
         // SpreadArg: evaluate the spread expression
         const spreadValue = await evaluate(argNode.expression);
 
-        // EC-3: spread source is null (bare ... with no pipe value).
+        // spread source is null (bare ... with no pipe value).
         // Message matches closures.ts:1912 verbatim.
         if (spreadValue === null) {
           throwCatchableHostHalt(
@@ -199,9 +199,9 @@ export class ArgumentsBinder {
           );
         }
 
-        // Dispatch by type: isOrdered BEFORE isDict per spec (IC-3 algorithm step 2)
+        // Dispatch by type: isOrdered BEFORE isDict, per the spec algorithm
         if (isTuple(spreadValue)) {
-          // Tuple: fill remaining params positionally LTR (EC-9)
+          // Tuple: fill remaining params positionally LTR
           const tupleEntries = spreadValue.entries;
           const remaining = params.length - positionalIndex;
           if (tupleEntries.length > remaining) {
@@ -213,7 +213,7 @@ export class ArgumentsBinder {
           }
           for (let i = 0; i < tupleEntries.length; i++) {
             const param = params[positionalIndex + i]!;
-            // EC-7: duplicate binding
+            // duplicate binding
             if (bound.has(param.name)) {
               throwCatchableHostHalt(
                 { location, sourceId, fn: 'bind' },
@@ -230,7 +230,7 @@ export class ArgumentsBinder {
           for (let i = 0; i < orderedEntries.length; i++) {
             const [key, value] = orderedEntries[i]!;
             const expectedParam = params[positionalIndex + i];
-            // EC-6: key-order mismatch
+            // key-order mismatch
             if (expectedParam === undefined || expectedParam.name !== key) {
               const expectedName = expectedParam?.name ?? '<none>';
               throwCatchableHostHalt(
@@ -239,7 +239,7 @@ export class ArgumentsBinder {
                 `Ordered spread key '${key}' at position ${i} does not match expected parameter '${expectedName}' at position ${positionalIndex + i}`
               );
             }
-            // EC-7: duplicate binding
+            // duplicate binding
             if (bound.has(key)) {
               throwCatchableHostHalt(
                 { location, sourceId, fn: 'bind' },
@@ -255,7 +255,7 @@ export class ArgumentsBinder {
           const dictValue = spreadValue as Record<string, RillValue>;
           const paramNames = new Set(params.map((p) => p.name));
           for (const [key, value] of Object.entries(dictValue)) {
-            // EC-5: key matches no parameter
+            // key matches no parameter
             if (!paramNames.has(key)) {
               const validParams = params.map((p) => p.name).join(', ');
               throwCatchableHostHalt(
@@ -264,7 +264,7 @@ export class ArgumentsBinder {
                 `Dict spread key '${key}' does not match any parameter. Valid parameters: ${validParams}`
               );
             }
-            // EC-7: duplicate binding
+            // duplicate binding
             if (bound.has(key)) {
               throwCatchableHostHalt(
                 { location, sourceId, fn: 'bind' },
@@ -275,7 +275,7 @@ export class ArgumentsBinder {
             bound.set(key, value);
           }
         } else {
-          // EC-4: spread value is not tuple/dict/ordered
+          // spread value is not tuple/dict/ordered
           const actualType = inferType(spreadValue);
           throwCatchableHostHalt(
             { location, sourceId, fn: 'bind' },

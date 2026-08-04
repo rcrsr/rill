@@ -2,7 +2,7 @@
  * Shared Protocol Utilities
  *
  * Cross-type helpers used by per-type protocol modules.
- * Must NOT import from ../registrations.js to avoid circular dependencies (AC-4),
+ * Must NOT import from ../registrations.js to avoid circular dependencies,
  * nor from ../operations.js, which imports registrations.js and so closes the
  * same cycle one hop out. String quoting comes from the ../format-string.js leaf.
  *
@@ -128,8 +128,8 @@ export function resolvedCompareValue(
  * Parameterized element-wise comparison for collections.
  * Replaces duplicated loops in eqTuple, eqList, eqOrdered.
  *
- * AC-40: Zero-length collections return true.
- * AC-19: eqTuple, eqList, eqOrdered delegate loop body here.
+ * Zero-length collections return true.
+ * eqTuple, eqList, eqOrdered delegate loop body here.
  */
 export function compareElements(
   aEntries: readonly unknown[],

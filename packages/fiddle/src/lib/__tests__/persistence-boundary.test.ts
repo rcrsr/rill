@@ -2,10 +2,10 @@
  * Boundary condition tests for persistence edge cases
  *
  * Coverage:
- * - AC-20: Panel divider stops at 200px minimum; does not collapse below
- * - AC-21: Application functions without localStorage (mock unavailable)
- * - AC-22: Corrupt localStorage recovered with default state
- * - AC-24: First visit with no localStorage loads Hello World
+ * - Panel divider stops at 200px minimum; does not collapse below
+ * - Application functions without localStorage (mock unavailable)
+ * - Corrupt localStorage recovered with default state
+ * - First visit with no localStorage loads Hello World
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -44,7 +44,7 @@ describe('persistence boundary conditions', () => {
     vi.restoreAllMocks();
   });
 
-  describe('AC-20: Panel at minimum size', () => {
+  describe('Panel at minimum size', () => {
     it('stops divider at minimum ratio enforcing 200px minimum', () => {
       // Given: splitRatio below minimum (~16.67% for 1200px viewport)
       window.localStorage.setItem(
@@ -121,7 +121,7 @@ describe('persistence boundary conditions', () => {
     });
   });
 
-  describe('AC-21: localStorage unavailable', () => {
+  describe('localStorage unavailable', () => {
     it('functions without persistence when localStorage unavailable', () => {
       // Given: localStorage throws on all operations (private browsing mode)
       vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
@@ -171,7 +171,7 @@ describe('persistence boundary conditions', () => {
     });
   });
 
-  describe('AC-22: Corrupt localStorage', () => {
+  describe('Corrupt localStorage', () => {
     it('recovers with default state when JSON is malformed', () => {
       // Given: Corrupt JSON data in localStorage
       window.localStorage.setItem('rill-fiddle-editor-state', '{invalid json}');
@@ -258,7 +258,7 @@ describe('persistence boundary conditions', () => {
     });
   });
 
-  describe('AC-24: First visit (no localStorage)', () => {
+  describe('First visit (no localStorage)', () => {
     it('loads Hello World example on first visit', () => {
       // Given: Clean localStorage (first visit scenario)
       window.localStorage.clear();

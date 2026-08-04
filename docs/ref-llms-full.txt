@@ -138,7 +138,7 @@ The `$` prefix disambiguates callables from variables and keys:
 | `-> acc(i, { })` | current item (`$@` = accumulator) |
 | `while (cond) do { }` | accumulated value |
 | `do { } while (cond)` | accumulated value |
-| `cond ? { } ! { }` | tested value |
+| `cond ? a ! b` | pipe value entering the conditional (either branch) |
 | `-> ? { } ! { }` | piped value |
 | `\|\|{ $.field }` in dict | the containing dict |
 | `\|x\|{ }` stored closure | N/A — use parameters |

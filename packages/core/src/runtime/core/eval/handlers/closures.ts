@@ -93,7 +93,7 @@ import {
 } from '../invocation/stream-closures.js';
 
 // ============================================================
-// IR-8: CLOSURE-SKIPPING PIPE-RULE SCANNER
+// CLOSURE-SKIPPING PIPE-RULE SCANNER
 // ============================================================
 
 /**
@@ -105,7 +105,7 @@ import {
  * node boundaries, because references to `$` inside closure literals are
  * late-bound and do not affect the outer pipe-binding decision.
  *
- * Implements the IR-8 pipe-rule scanner.
+ * Implements the unified pipe-rule scanner.
  *
  * SCOPE: HostCall only — PipeInvoke and MethodCall are intentionally excluded.
  *
@@ -409,7 +409,7 @@ async function invokeFnCallable(
   try {
     return await dispatchPromise;
   } catch (e) {
-    // Enrichment site 1: extension-dispatch boundary (IR-4, AC-NOD-4).
+    // Enrichment site 1: extension-dispatch boundary.
     // Tag every thrown value as extension-originated first, then enrich
     // either RuntimeHaltSignal payloads or unmigrated RuntimeError sites
     // with call-site metadata.
@@ -590,7 +590,7 @@ async function invokeRegularScriptCallable(
     }
     return result;
   } catch (e) {
-    // Enrichment site 2: script-callable boundary (IR-4, AC-NOD-4).
+    // Enrichment site 2: script-callable boundary.
     // Tag every thrown value as extension-originated first, then enrich
     // RuntimeHaltSignal payloads with a host-kind trace frame.
     markExtensionThrow(e);
@@ -611,7 +611,7 @@ async function invokeRegularScriptCallable(
     // Pre-migration this block was explicit; after the halt-builder migration
     // the unmigrated RuntimeError sites (e.g. variables.ts RILL_R005) still
     // throw RuntimeError directly and need sourceId enriched at this boundary
-    // so host callers observe the AC-NOD-6 sourceId contract.
+    // so host callers observe the documented sourceId contract.
     if (e instanceof RillError && !e.sourceId && callableCtx.sourceId) {
       (e as { sourceId: string }).sourceId = callableCtx.sourceId;
       if (callableCtx.sourceText) {
@@ -664,7 +664,7 @@ async function invokeStream(
 
 /** Evaluate host function call: functionName(args).
  *
- * When `inPipeTarget` is true the IR-8 unified pipe-binding rule applies:
+ * When `inPipeTarget` is true the unified pipe-binding rule applies:
  * auto-prepend fires when no top-level `$` appears in the argument list.
  * When false (primary-expression context) the legacy guard is used instead
  * (`args.length === 0`), preserving existing behaviour for calls inside
@@ -742,7 +742,7 @@ export async function evaluateHostCall(
     isApplicationCallable(fn) &&
     fn.params !== undefined &&
     fn.params.length === 0;
-  // IR-8: pipe-binding rule.
+  // pipe-binding rule.
   // In pipe-target position: auto-prepend when no top-level `$` in args.
   // In primary-expression position: preserve legacy guard (args.length === 0)
   // so that host calls inside blocks/conditionals are not affected.
@@ -752,7 +752,7 @@ export async function evaluateHostCall(
   if (shouldPrepend && s.ctx.pipeValue !== null && !isTypedZeroParam) {
     // unshift inserts at position 0 so the piped value is the first arg.
     // push was sufficient for the legacy empty-args path but is wrong
-    // when existing args are present (new IR-8 rule).
+    // when existing args are present under the unified rule.
     args.unshift(s.ctx.pipeValue);
   }
   s.ctx.observability.onHostCall?.({ name: node.name, args });
@@ -939,24 +939,32 @@ export async function evaluateClosureCallWithPipe(
       (expr) => evaluateExpression(s, expr),
       node.span.start
     );
-    const orderedArgs = closure.params!.map(
-      (p) => boundArgs.params.get(p.name)!
+    const orderedArgs = closure.params!.map((p) =>
+      boundArgs.params.get(p.name)!
     );
     return invokeCallable(s, closure, orderedArgs, node.span.start, fullPath);
   }
 
   const args = await evaluateArgs(s, node.args);
-  if (args.length === 0 && pipeInput !== null) {
-    const closureHasZeroParams =
-      (isScriptCallable(closure) && closure.params.length === 0) ||
-      (isApplicationCallable(closure) &&
-        closure.params !== undefined &&
-        closure.params.length === 0);
-    if (!closureHasZeroParams) {
-      args.push(pipeInput);
-    }
+  if (args.length === 0 && pipeInput !== null && !declaresZeroParams(closure)) {
+    args.push(pipeInput);
   }
   return invokeCallable(s, closure, args, node.span.start, fullPath);
+}
+
+/**
+ * True when the callable declares an empty parameter list, or when arity is
+ * unknown (`params === undefined` on an ApplicationCallable). Unknown arity
+ * is treated as "do not inject" (the safe default): a loosely-typed host
+ * callable built outside the documented registration API should not
+ * silently receive a pipe value it never declared a parameter for.
+ */
+function declaresZeroParams(value: RillCallable): boolean {
+  return (
+    (isScriptCallable(value) && value.params.length === 0) ||
+    (isApplicationCallable(value) &&
+      (value.params === undefined || value.params.length === 0))
+  );
 }
 
 /** Evaluate $.field as property access on the pipe value. */
@@ -1109,7 +1117,7 @@ export async function evaluateMethod(
       const result = typeMethod.fn(methodArgs, s.ctx, callLocation);
       return result instanceof Promise ? await result : result;
     } catch (e) {
-      // Enrichment site 3: type-method boundary (IR-4, AC-NOD-4).
+      // Enrichment site 3: type-method boundary.
       if (e instanceof RuntimeHaltSignal) {
         const enriched = appendTraceFrame(
           e.value,
@@ -1127,6 +1135,23 @@ export async function evaluateMethod(
   if (isDict(receiver)) {
     const dictValue = receiver[node.name];
     if (dictValue !== undefined && isCallable(dictValue)) {
+      // Only inject the piped value for an explicit empty-paren call
+      // (`.method()`), never for a bare `.field` reference. MethodCallNode
+      // carries `hasParens` precisely to distinguish the two: the
+      // Variable.accessChain path (parser-variables.ts, isMethodCallWithArgs)
+      // only attaches this node when the source wrote parens, but the
+      // postfix/pipe-target path (parseMethodCall via isMethodCall in
+      // parser-expr.ts and parsePipeTargetDot) attaches it for bare `.field`
+      // too, with `args: []` either way. `hasParens` is therefore the only
+      // reliable signal here.
+      if (
+        node.hasParens &&
+        args.length === 0 &&
+        s.ctx.pipeValue !== null &&
+        !declaresZeroParams(dictValue)
+      ) {
+        args.push(s.ctx.pipeValue);
+      }
       return invokeCallable(
         s,
         dictValue,
@@ -1197,7 +1222,7 @@ export async function evaluateMethod(
           );
           return result instanceof Promise ? await result : result;
         } catch (e) {
-          // Enrichment site 4: fallback-method boundary (IR-4, AC-NOD-4).
+          // Enrichment site 4: fallback-method boundary.
           const callLocation = getNodeLocation(s, node);
           if (e instanceof RuntimeHaltSignal) {
             const enriched = appendTraceFrame(
@@ -1268,8 +1293,8 @@ async function evaluateInvoke(
       (expr) => evaluateExpression(s, expr),
       node.span.start
     );
-    const orderedArgs = receiver.params!.map(
-      (p) => boundArgs.params.get(p.name)!
+    const orderedArgs = receiver.params!.map((p) =>
+      boundArgs.params.get(p.name)!
     );
     return invokeCallable(s, receiver, orderedArgs, node.span.start);
   }

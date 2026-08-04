@@ -113,10 +113,10 @@ const TYPE_NAME_VALUES: ReadonlySet<string> = new Set([
 function getTokensForLine(lineText: string): Token[] {
   try {
     // Tokenize single line with comments included for syntax highlighting
-    // AC-24: Handle tokenize errors by returning empty array
+    // Handle tokenize errors by returning empty array
     return tokenize(lineText, undefined, { includeComments: true });
   } catch {
-    // EC-3: Tokenize throws error - return empty array
+    // Tokenize throws error - return empty array
     return [];
   }
 }
@@ -134,7 +134,7 @@ function getTokenTag(token: Token): string | null {
     return 'typeName';
   }
 
-  // EC-4: TOKEN_HIGHLIGHT_MAP missing category - return undefined
+  // TOKEN_HIGHLIGHT_MAP missing category - return undefined
   const category = TOKEN_HIGHLIGHT_MAP.get(token.type);
   if (category === undefined) {
     return null;

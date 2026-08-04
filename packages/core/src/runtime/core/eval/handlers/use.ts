@@ -8,7 +8,7 @@
  * - Executes 'source' results in a child scope
  * - Returns 'value' results directly
  *
- * Interface requirements (from spec IR-6):
+ * Interface requirements:
  * - evaluateUseExpr(node) -> Promise<RillValue>
  *
  * Error Contracts:
@@ -37,7 +37,7 @@ import { evaluateVariableAsync } from './variables.js';
 import { brandExtensionValue } from '../../policy/identity.js';
 
 /**
- * Evaluate a use<> expression [IR-6].
+ * Evaluate a use<> expression.
  *
  * Resolves the identifier to a scheme + resource string, calls the
  * registered resolver, and returns the result value (or executes source).
@@ -139,7 +139,7 @@ export async function evaluateUseExpr(
   }
 
   // Mark in-flight — must stay set through source execution so circular
-  // re-entry within the executed source is detected (EC-7 / RILL-R055).
+  // re-entry within the executed source is detected (RILL-R055).
   s.ctx.resolvingSchemes.add(key);
 
   let result;

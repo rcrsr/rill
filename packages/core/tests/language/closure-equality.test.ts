@@ -123,6 +123,18 @@ describe('Rill Runtime: Closure Equality', () => {
       `;
       expect(await run(code)).toBe(false);
     });
+
+    it('closures with bare vs explicit-paren method calls are not equal', async () => {
+      // hasParens distinguishes `.trim` (never receives the pipe value) from
+      // `.trim()` (may receive it on an eligible dict member), so the two
+      // are structurally different bodies even though both call .trim.
+      const code = `
+        ||{ .trim } => $a
+        ||{ .trim() } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(false);
+    });
   });
 
   describe('inequality operator', () => {

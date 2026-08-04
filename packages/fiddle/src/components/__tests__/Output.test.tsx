@@ -2,14 +2,14 @@
  * Output Component Tests
  *
  * Test coverage for Output component:
- * - IC-12: Component renders without errors
- * - AC-9: Log output capture
- * - AC-10: Empty result message
- * - AC-11: Re-execution clears previous output
- * - AC-12: Syntax error display
- * - AC-13: Parse error display
- * - AC-14: Runtime error display
- * - AC-65: errorId not in ERROR_REGISTRY renders basic error without enrichment fields
+ * - Component renders without errors
+ * - Log output capture
+ * - Empty result message
+ * - Re-execution clears previous output
+ * - Syntax error display
+ * - Parse error display
+ * - Runtime error display
+ * - errorId not in ERROR_REGISTRY renders basic error without enrichment fields
  * - Verbose error rendering (cause, resolution, help URL)
  */
 
@@ -64,7 +64,7 @@ describe('Output', () => {
   });
 
   // ============================================================
-  // IC-12: Component renders without errors
+  // Component renders without errors
   // ============================================================
 
   describe('rendering', () => {
@@ -96,11 +96,11 @@ describe('Output', () => {
   });
 
   // ============================================================
-  // AC-9: Log output capture
+  // Log output capture
   // ============================================================
 
   describe('log output', () => {
-    it('LOG-1: script with 0 log() calls returns value - result renders, no logs section', () => {
+    it('script with 0 log() calls returns value - result renders, no logs section', () => {
       const stateNoLogs: ExecutionState = {
         status: 'success',
         result: 'hello world',
@@ -118,7 +118,7 @@ describe('Output', () => {
       expect(resultLabel).toBeNull();
     });
 
-    it('LOG-2: script with 1 log() call returns value - logs section with 1 entry, result section with value', () => {
+    it('script with 1 log() call returns value - logs section with 1 entry, result section with value', () => {
       const stateWithOneLog: ExecutionState = {
         status: 'success',
         result: 'final result',
@@ -139,7 +139,7 @@ describe('Output', () => {
       expect(resultLabel).toBeDefined();
     });
 
-    it('LOG-3: script with 3 log() calls returns value - logs section with 3 entries in order', () => {
+    it('script with 3 log() calls returns value - logs section with 3 entries in order', () => {
       const stateWithLogs: ExecutionState = {
         status: 'success',
         result: 'final result',
@@ -158,7 +158,7 @@ describe('Output', () => {
       expect(resultElement?.textContent).toContain('final result');
     });
 
-    it('LOG-4: script with log() calls and null result - logs section shows entries', () => {
+    it('script with log() calls and null result - logs section shows entries', () => {
       const stateLogsNullResult: ExecutionState = {
         status: 'success',
         result: 'null',
@@ -175,7 +175,7 @@ describe('Output', () => {
       expect(resultElement?.textContent).toContain('No output');
     });
 
-    it('LOG-5: script with log() calls that errors - logs shown above error', () => {
+    it('script with log() calls that errors - logs shown above error', () => {
       const stateLogsWithError: ExecutionState = {
         status: 'error',
         result: null,
@@ -206,7 +206,7 @@ describe('Output', () => {
       expect(errorElement?.textContent).toContain('Runtime error');
     });
 
-    it('LOG-E1: error before any log() - no logs section, error renders normally', () => {
+    it('error before any log() - no logs section, error renders normally', () => {
       const stateErrorNoLogs: ExecutionState = {
         status: 'error',
         result: null,
@@ -233,7 +233,7 @@ describe('Output', () => {
       expect(errorElement?.textContent).toContain('Parse error');
     });
 
-    it('LOG-B2: log with multi-line value - preserves whitespace', () => {
+    it('log with multi-line value - preserves whitespace', () => {
       const stateMultilineLog: ExecutionState = {
         status: 'success',
         result: 'done',
@@ -247,7 +247,7 @@ describe('Output', () => {
       expect(logsEntry?.textContent).toContain('line 1\nline 2\nline 3');
     });
 
-    it('LOG-B3: re-execution replaces previous logs', () => {
+    it('re-execution replaces previous logs', () => {
       const stateWithLogs1: ExecutionState = {
         status: 'success',
         result: 'result 1',
@@ -276,7 +276,7 @@ describe('Output', () => {
   });
 
   // ============================================================
-  // AC-10: Empty result message
+  // Empty result message
   // ============================================================
 
   describe('empty result', () => {
@@ -314,7 +314,7 @@ describe('Output', () => {
   });
 
   // ============================================================
-  // AC-11: Re-execution clears previous output
+  // Re-execution clears previous output
   // ============================================================
 
   describe('re-execution', () => {
@@ -380,7 +380,7 @@ describe('Output', () => {
   });
 
   // ============================================================
-  // AC-12: Syntax error display (LexerError)
+  // Syntax error display (LexerError)
   // ============================================================
 
   describe('syntax errors', () => {
@@ -440,7 +440,7 @@ describe('Output', () => {
   });
 
   // ============================================================
-  // AC-13: Parse error display (ParseError)
+  // Parse error display (ParseError)
   // ============================================================
 
   describe('parse errors', () => {
@@ -499,7 +499,7 @@ describe('Output', () => {
   });
 
   // ============================================================
-  // AC-14: Runtime error display (RuntimeError)
+  // Runtime error display (RuntimeError)
   // ============================================================
 
   describe('runtime errors', () => {
@@ -715,7 +715,7 @@ describe('Output', () => {
       expect(linkElement?.textContent).toContain('Docs');
     });
 
-    // AC-65: errorId not in ERROR_REGISTRY renders basic error without enrichment fields
+    // errorId not in ERROR_REGISTRY renders basic error without enrichment fields
     it('renders basic error without verbose fields', () => {
       const basicError: FiddleError = {
         message: 'Unexpected token',
@@ -807,11 +807,11 @@ describe('Output', () => {
   });
 
   // ============================================================
-  // AC-FDL-6: Invalid-value halt panel rendering
+  // Invalid-value halt panel rendering
   // ============================================================
 
   describe('invalid-value halt rendering', () => {
-    it('AC-FDL-6: halt panel renders #CODE with sigil when statusCode is set', () => {
+    it('halt panel renders #CODE with sigil when statusCode is set', () => {
       const haltState: ExecutionState = {
         status: 'error',
         result: null,
@@ -844,7 +844,7 @@ describe('Output', () => {
       expect(statusCode?.textContent).toContain('#TYPE_MISMATCH');
     });
 
-    it('AC-FDL-6: halt panel renders statusMessage when present', () => {
+    it('halt panel renders statusMessage when present', () => {
       const haltState: ExecutionState = {
         status: 'error',
         result: null,
@@ -875,7 +875,7 @@ describe('Output', () => {
       expect(msg?.textContent).toContain('Type assertion failed');
     });
 
-    it('AC-FDL-6: halt panel renders statusProvider when present', () => {
+    it('halt panel renders statusProvider when present', () => {
       const haltState: ExecutionState = {
         status: 'error',
         result: null,
@@ -907,8 +907,8 @@ describe('Output', () => {
       expect(provider?.textContent).toContain('my-service');
     });
 
-    // AC-FDL-8: trace frame panel renders kind, site, fn
-    it('AC-FDL-8: trace frame panel renders kind, site, and fn for each frame', () => {
+    // trace frame panel renders kind, site, fn
+    it('trace frame panel renders kind, site, and fn for each frame', () => {
       const haltState: ExecutionState = {
         status: 'error',
         result: null,
@@ -962,7 +962,7 @@ describe('Output', () => {
       ).toBe('guard');
     });
 
-    it('AC-FDL-8: frame with empty fn does not render fn element', () => {
+    it('frame with empty fn does not render fn element', () => {
       const haltState: ExecutionState = {
         status: 'error',
         result: null,
@@ -990,8 +990,8 @@ describe('Output', () => {
       expect(fnElement).toBeNull();
     });
 
-    // AC-FDL-B3: wrap frame with empty wrapped dict renders without crashing
-    it('AC-FDL-B3: wrap frame with empty wrapped dict renders without error', () => {
+    // wrap frame with empty wrapped dict renders without crashing
+    it('wrap frame with empty wrapped dict renders without error', () => {
       const haltState: ExecutionState = {
         status: 'error',
         result: null,
@@ -1026,8 +1026,8 @@ describe('Output', () => {
       expect(frames.length).toBe(2);
     });
 
-    // AC-FDL-B1: valid final value uses existing success renderer unchanged
-    it('AC-FDL-B1: valid final value does not render halt panel', () => {
+    // valid final value uses existing success renderer unchanged
+    it('valid final value does not render halt panel', () => {
       const { container } = render(<Output state={successState} />);
       // Status fields must not appear when result is valid
       expect(container.querySelector('.output-error-status-code')).toBeNull();
@@ -1036,8 +1036,8 @@ describe('Output', () => {
       expect(container.querySelector('.output-result')).toBeDefined();
     });
 
-    // AC-FDL-B2: trace with only origin frame (0 non-origin frames)
-    it('AC-FDL-B2: trace with 1 frame (origin only) renders single frame without error', () => {
+    // trace with only origin frame (0 non-origin frames)
+    it('trace with 1 frame (origin only) renders single frame without error', () => {
       const haltState: ExecutionState = {
         status: 'error',
         result: null,

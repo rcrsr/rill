@@ -25,8 +25,8 @@
  * - access.ts: adds property chain evaluation to evaluateVariableAsync
  *
  * Error Handling:
- * - Undefined variables throw RuntimeError(RUNTIME_UNDEFINED_VARIABLE) [EC-8]
- * - Type mismatches throw RuntimeError(RUNTIME_TYPE_ERROR) [EC-9]
+ * - Undefined variables throw RuntimeError(RUNTIME_UNDEFINED_VARIABLE)
+ * - Type mismatches throw RuntimeError(RUNTIME_TYPE_ERROR)
  *
  * @internal
  */
@@ -287,7 +287,7 @@ export async function evaluateVariableAsync(
 
   // Apply access chain ($.field, $var.field, etc.)
   for (const access of node.accessChain) {
-    // AC-6 / FR-ERR-4: `??` widens from `=== null` to `isVacant(value)`.
+    // `??` widens from `=== null` to `isVacant(value)`.
     // Vacancy fires the default branch for empty OR invalid values; an
     // invalid LHS with a default short-circuits instead of halting.
     if (isVacant(value)) {
@@ -442,6 +442,7 @@ export async function evaluateVariableAsync(
           name: field,
           args: [],
           receiverSpan: null,
+          hasParens: false,
           span: node.span,
         };
         value = await evaluateMethod(s, methodNode, value);
@@ -530,7 +531,7 @@ export async function evaluateVariableAsync(
     const finalAccess = node.existenceCheck.finalAccess;
     const typeRef = node.existenceCheck.typeRef;
 
-    // Helper: check type match using structural resolution (EC-4: mismatch returns false)
+    // Helper: check type match using structural resolution (mismatch returns false)
     const matchesType = async (fieldValue: RillValue): Promise<boolean> => {
       if (typeRef === null) return true;
       const resolved = await resolveTypeRef(
@@ -560,7 +561,7 @@ export async function evaluateVariableAsync(
     }
 
     if (finalAccess.kind === 'variable') {
-      // Resolve variable to get key (EC-9)
+      // Resolve variable to get key
       let keyValue: RillValue | undefined;
       if (finalAccess.variableName === null) {
         keyValue = s.ctx.pipeValue ?? undefined;
@@ -568,7 +569,7 @@ export async function evaluateVariableAsync(
         keyValue = getVariable(s.ctx, finalAccess.variableName);
       }
 
-      // EC-9: Variable undefined
+      // Variable undefined
       if (keyValue === undefined) {
         const varName = finalAccess.variableName ?? '$';
         throwCatchableHostHalt(
@@ -584,7 +585,7 @@ export async function evaluateVariableAsync(
 
       // Check if key exists in dict or list
       if (isDict(value)) {
-        // EC-10: Key variable non-string
+        // Key variable non-string
         if (typeof keyValue !== 'string') {
           throwCatchableHostHalt(
             {
@@ -637,7 +638,7 @@ export async function evaluateVariableAsync(
       }
       const keyValue = await evaluatePipeChain(s, finalAccess.expression);
 
-      // EC-11: Computed key non-string
+      // Computed key non-string
       if (typeof keyValue !== 'string') {
         throwCatchableHostHalt(
           {
@@ -678,9 +679,9 @@ export async function evaluateVariableAsync(
     );
   }
 
-  // AC-6 / FR-ERR-4: apply default value when the final result is
+  // apply default value when the final result is
   // vacant (empty OR invalid). `??` fires on vacancy so an invalid
-  // LHS also routes to the default branch per GF-25.
+  // LHS also routes to the default branch.
   //
   // When an access chain was applied, the vacancy predicate covers
   // the full partition (null, empty, or invalid).
@@ -688,12 +689,12 @@ export async function evaluateVariableAsync(
   // When no access chain was applied, the variable itself is the
   // result and may be consumed as a pipe target by
   // `evaluatePipeTarget`. In pipe-target position the dispatcher
-  // consumes `target.defaultValue` as a dispatch fallback (AC-19:
+  // consumes `target.defaultValue` as a dispatch fallback (
   // empty list dispatch returns default via the dispatcher). For
   // that path to work, we must return the empty collection here —
   // not short-circuit to the default branch — so the dispatcher can
   // reach its own default-handling. We therefore widen the bare
-  // trigger to cover null OR invalid (FR-ERR-4's bare-invalid case),
+  // trigger to cover null OR invalid (the bare-invalid case),
   // but leave empty-valid collections for the dispatcher to handle.
   if (node.defaultValue) {
     const trigger =
@@ -719,7 +720,7 @@ export async function evaluateVariableAsync(
  * @param value - The current value being accessed (dict or list)
  * @param node - The parent variable node for location info
  * @returns The field/element value or null if missing
- * @throws RuntimeError if variable undefined or wrong type (EC-1, EC-2, EC-3)
+ * @throws RuntimeError if variable undefined or wrong type
  */
 async function evaluateFieldAccessVariable(
   s: EvalState,
@@ -730,7 +731,7 @@ async function evaluateFieldAccessVariable(
   value: RillValue,
   node: VariableNode
 ): Promise<RillValue> {
-  // Resolve the variable (EC-1)
+  // Resolve the variable
   let keyValue: RillValue | undefined;
   if (access.variableName === null) {
     // .$ (pipe variable as key)
@@ -762,7 +763,7 @@ async function evaluateFieldAccessVariable(
     }
   }
 
-  // Validate key type (EC-2, EC-3)
+  // Validate key type
   if (typeof keyValue === 'boolean') {
     throwCatchableHostHalt(
       {
@@ -837,7 +838,7 @@ async function evaluateFieldAccessVariable(
  * @param value - The current value being accessed (dict or list)
  * @param node - The parent variable node for location info
  * @returns The field/element value or null if missing
- * @throws RuntimeError if expression result is wrong type (EC-4, EC-5)
+ * @throws RuntimeError if expression result is wrong type
  */
 async function evaluateFieldAccessComputed(
   s: EvalState,
@@ -865,7 +866,7 @@ async function evaluateFieldAccessComputed(
   }
   const keyValue = await evaluatePipeChain(s, access.expression);
 
-  // EC-4: Expression result is closure
+  // Expression result is closure
   if (isCallable(keyValue)) {
     throwCatchableHostHalt(
       {
@@ -878,7 +879,7 @@ async function evaluateFieldAccessComputed(
     );
   }
 
-  // EC-5: Expression result is dict
+  // Expression result is dict
   if (isDict(keyValue)) {
     throwCatchableHostHalt(
       {
@@ -966,7 +967,7 @@ async function evaluateFieldAccessComputed(
  * @param value - The current value being accessed (must be dict)
  * @param node - The parent variable node for location info
  * @returns The first found field value or null if all keys missing
- * @throws RuntimeError if target is not dict (EC-6)
+ * @throws RuntimeError if target is not dict
  */
 async function evaluateFieldAccessAlternatives(
   s: EvalState,
@@ -977,7 +978,7 @@ async function evaluateFieldAccessAlternatives(
   value: RillValue,
   node: VariableNode
 ): Promise<RillValue> {
-  // EC-6: Target must be dict
+  // Target must be dict
   if (!isDict(value)) {
     throwCatchableHostHalt(
       {

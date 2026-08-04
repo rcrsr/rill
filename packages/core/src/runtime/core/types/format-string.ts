@@ -7,7 +7,7 @@
  * Import constraints:
  * - No imports. This module is a leaf so that protocols/shared.ts can quote
  *   strings without reaching operations.ts, which imports registrations.ts and
- *   would reintroduce the cycle AC-4 forbids.
+ *   would reintroduce the import cycle this split exists to avoid.
  */
 
 /**

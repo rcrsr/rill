@@ -26,7 +26,7 @@ interface RillFieldDescriptor {
 /**
  * Build a frozen RillFieldDescriptor for the given field in a structural dict type.
  *
- * EC-1: Throws RILL-R003 when fieldName is absent from structuralType.fields.
+ * Throws RILL-R003 when fieldName is absent from structuralType.fields.
  */
 export function buildFieldDescriptor(
   structuralType: TypeStructure & { kind: 'dict' },

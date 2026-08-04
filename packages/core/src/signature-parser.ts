@@ -5,7 +5,7 @@
  * This module bridges the lexer/parser boundary so that runtime/core/context.ts
  * can parse signatures without importing from parser/* or lexer/* directly.
  *
- * Import boundary note (§NOD.2.1):
+ * Import boundary note:
  * - This file lives at src/ level (not in runtime/), so it may import from
  *   both lexer and parser barrels.
  * - runtime/core/context.ts imports from this file (../../signature-parser.js),
@@ -204,7 +204,7 @@ interface ParsedSignature {
  * The return type follows `:type` directly after the closing `|`.
  *
  * Throws Error with message `Invalid signature for function '{name}': {parse error}`
- * on any parse failure (EC-8, EC-9).
+ * on any parse failure.
  *
  * @param signature - The signature string to parse
  * @param functionName - The function name (for error messages)

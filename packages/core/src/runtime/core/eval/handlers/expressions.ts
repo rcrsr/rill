@@ -11,9 +11,9 @@
  * - resolveExpressionValue(value) -> Promise<RillValue>
  *
  * Error Handling:
- * - Type mismatches in operators throw RuntimeError(RUNTIME_TYPE_ERROR) [EC-22]
- * - Nested expression evaluation errors are propagated [EC-23]
- * - Closure auto-invoke errors are propagated [EC-4, EC-6]
+ * - Type mismatches in operators throw RuntimeError(RUNTIME_TYPE_ERROR)
+ * - Nested expression evaluation errors are propagated
+ * - Closure auto-invoke errors are propagated
  *
  * @internal
  */
@@ -135,11 +135,11 @@ export async function evaluateBinaryExpr(
   // Auto-invoke closures before checking type
   const rawLeft = await evaluateExprHead(s, node.left);
   const resolvedLeftRaw = await resolveExpressionValue(s, rawLeft);
-  // EC-7: access-halt gate at arith site. An invalid operand halts
+  // access-halt gate at arith site. An invalid operand halts
   // before the type check, so the halt surfaces as an access frame.
-  // RI-4: inline the Symbol-keyed sidecar probe to eliminate the
+  // Inline the Symbol-keyed sidecar probe to eliminate the
   // per-iteration arrow-closure allocation that `accessHaltGateFast`
-  // required (NFR-ERR-1 hot loop). Slow path delegates to
+  // required in this hot loop. Slow path delegates to
   // `haltSlowPath` which reads `node.span.start` itself.
   let resolvedLeft: RillValue;
   if (
@@ -237,7 +237,7 @@ export async function evaluateBinaryExpr(
  * - == / != dispatch to protocol.eq; absent eq raises RILL-R002.
  * - Ordering ops dispatch to protocol.compare; absent compare raises RILL-R002.
  *
- * IR-5: Breaking change: bool ordering (e.g. true > false) raises RILL-R002
+ * Breaking change: bool ordering (e.g. true > false) raises RILL-R002
  * because the bool registration has no protocol.compare.
  */
 function evaluateBinaryComparison(

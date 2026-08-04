@@ -1,6 +1,6 @@
 {
   "name": "@rcrsr/rill-language-service",
-  "version": "0.19.6",
+  "version": "0.20.0",
   "description": "Language service tooling for rill",
   "license": "MIT",
   "author": "Andre Bremer",
@@ -34,7 +34,7 @@
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint --config ../../.oxlintrc.json src/",
+    "lint": "oxlint --config ../../.oxlintrc.json src/ tests/",
     "check": "pnpm run build && pnpm run test && pnpm run typecheck && pnpm run lint"
   },
   "repository": {

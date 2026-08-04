@@ -138,10 +138,10 @@ Parser.prototype.parseConditionalRest = function (
  * Validates that `limit` is a positive integer.
  * Returns a synthesized AnnotationArg[] equivalent to `^(limit: N)`.
  *
- * Error contracts (UXT-LOOP-1):
- *   EC-4: unknown option name  → RILL-P004
- *   EC-5: non-positive limit   → RILL-P004
- *   EC-6: missing `>`          → RILL-P005
+ * Error contracts:
+ *   unknown option name  → RILL-P004
+ *   non-positive limit   → RILL-P004
+ *   missing `>`          → RILL-P005
  */
 function parseConstructOptions(
   parser: Parser,
@@ -234,7 +234,7 @@ function parseConstructOptions(
  *
  * Precondition: current token is DO or DO_LANGLE.
  * Produces a DoWhileLoopNode. `input` is null (set by parseLoopWithInput when
- * called from a pipe chain). Trailing `while (cond)` is required (EC-3).
+ * called from a pipe chain). Trailing `while (cond)` is required.
  */
 Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
   const start = current(this.state).span.start;
@@ -250,7 +250,7 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
 
   const body = this.parseBlock();
 
-  // Require trailing `while (cond)` — EC-3.
+  // Require trailing `while (cond)`.
   skipNewlines(this.state);
   if (!check(this.state, TOKEN_TYPES.WHILE)) {
     throw new ParseError(
@@ -299,15 +299,15 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
  * Precondition: current token is WHILE.
  * Produces a WhileLoopNode. Trailing `do` / `do<limit: N>` is required.
  *
- * Error contracts (UXT-LOOP-1):
- *   EC-1: missing `(cond)`  → RILL-P004
- *   EC-2: missing `do`      → RILL-P004
+ * Error contracts:
+ *   missing `(cond)`  → RILL-P004
+ *   missing `do`      → RILL-P004
  */
 Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
   const start = current(this.state).span.start;
   advance(this.state); // consume `while`
 
-  // Require `( cond )` — EC-1.
+  // Require `( cond )`.
   if (!check(this.state, TOKEN_TYPES.LPAREN)) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
@@ -321,7 +321,7 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
 
   skipNewlines(this.state);
 
-  // Require `do` or `do<opts>` — EC-2.
+  // Require `do` or `do<opts>`.
   if (
     !check(this.state, TOKEN_TYPES.DO) &&
     !check(this.state, TOKEN_TYPES.DO_LANGLE)
@@ -611,7 +611,7 @@ Parser.prototype.parseError = function (
 /**
  * Parse the `<on: list[#X, #Y, ...]>` option list that may follow `guard` or
  * `retry<N,`. Returns either the collected atoms or a RecoveryErrorNode when
- * any atom fails the strict shape check (EC-14).
+ * any atom fails the strict shape check.
  *
  * Assumes the opening `<` has NOT yet been consumed by the caller; caller
  * decides based on whether the compound lexer token (GUARD_LBRACE /
@@ -710,8 +710,8 @@ function parseOnOptionList(
   if (hadInvalid) {
     const invalidEnd = rangle.span.end;
     // Record the error on the parser's error collection so
-    // parseWithRecovery reports success: false for shape-invalid atoms
-    // (EC-14). Without this push, parser.errors remains empty and the
+    // parseWithRecovery reports success: false for shape-invalid atoms.
+    // Without this push, parser.errors remains empty and the
     // caller incorrectly reports a successful parse despite a
     // RecoveryErrorNode in the AST.
     reportError(parser.state, ERROR_IDS.RILL_P004, invalidMessage, start);
@@ -734,7 +734,7 @@ function parseOnOptionList(
  *
  * Enters with current token being GUARD_LBRACE (compound, no option list)
  * or GUARD (bare keyword, option list follows). Returns a RecoveryErrorNode
- * per EC-14 if any atom in the option list fails the strict shape check.
+ * if any atom in the option list fails the strict shape check.
  */
 Parser.prototype.parseGuardBlock = function (
   this: Parser
@@ -803,7 +803,7 @@ Parser.prototype.parseGuardBlock = function (
  * Enters with current token being RETRY_LANGLE (compound) or RETRY (bare).
  * The `limit:` named argument is required; bare `retry<N>` is a parse error.
  * Returns a RecoveryErrorNode when an atom in the on: list fails the strict
- * shape check (EC-14).
+ * shape check.
  */
 Parser.prototype.parseRetryBlock = function (
   this: Parser
@@ -928,7 +928,7 @@ function parseGuardOrRetryBody(
  *
  * Enters with current token being TIMEOUT_LANGLE (compound `timeout<`).
  * Exactly one of `total:` or `idle:` must appear — both together is a
- * compile-time parse error (EC-4). The duration is parsed as a primary
+ * compile-time parse error. The duration is parsed as a primary
  * expression so that `>` is not consumed as a comparison operator. To use
  * a richer expression (e.g. a method chain or arithmetic), wrap it in
  * parentheses — `parsePrimary` accepts `(expression)` as a grouped primary,
@@ -986,7 +986,7 @@ Parser.prototype.parseTimeoutBlock = function (this: Parser): TimeoutBlockNode {
 
   skipNewlines(this.state);
 
-  // EC-4: reject second kind key before the closing `>`.
+  // reject second kind key before the closing `>`.
   if (check(this.state, TOKEN_TYPES.COMMA)) {
     advance(this.state); // consume `,`
     skipNewlines(this.state);

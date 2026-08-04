@@ -7,8 +7,8 @@
  * Structural operations (structureEquals, structureMatches, formatStructure,
  * inferStructure, commonType) live in types/operations.ts and are re-exported.
  *
- * Dispatch functions (inferType, formatValue, deepEquals, serializeValue,
- * copyValue) re-export from type-registrations.ts protocol implementations.
+ * Dispatch functions (inferType, formatValue) re-export from
+ * types/registrations.ts protocol implementations.
  */
 
 import type { RillTypeName } from '../../types.js';
@@ -48,7 +48,7 @@ import type {
 } from './types/operations.js';
 import { formatStructure, inferStructure } from './types/operations.js';
 
-/** Infer the Rill type from a runtime value. Delegates to type-registrations. */
+/** Infer the Rill type from a runtime value. Delegates to types/registrations. */
 export const inferType: (value: RillValue) => string = registryInferType;
 
 /**
@@ -95,7 +95,7 @@ export function isEmpty(value: RillValue): boolean {
   return !isTruthy(value);
 }
 
-/** Format a value for display. Delegates to type-registrations. */
+/** Format a value for display. Delegates to types/registrations. */
 export const formatValue: (value: RillValue) => string = registryFormatValue;
 
 /**

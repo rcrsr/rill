@@ -735,6 +735,8 @@ export interface MethodCallNode extends BaseNode {
   readonly name: string;
   readonly args: ExpressionNode[];
   readonly receiverSpan: SourceSpan | null;
+  /** True when the source wrote explicit parens: `.method(...)` vs bare `.method`. */
+  readonly hasParens: boolean;
 }
 
 /** Postfix invocation: expr(args) - calls the result of expr as a closure */
