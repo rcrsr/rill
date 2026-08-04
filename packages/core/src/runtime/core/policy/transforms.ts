@@ -1,37 +1,37 @@
 /**
  * Transform execution for in() and out() filters.
  *
- * Transforms are invoked with internal=true to bypass the filter
- * mechanism (avoids recursive interception on the transform's own
- * method call).
+ * The dispatch site supplies the invoker rather than this module
+ * importing one. A module-level mutable `invokeCallable` slot would have
+ * no reset and no isolation: fragile across parallel vitest workers, and
+ * wrong outright if two runtimes share a process. Passing the invoker in
+ * also keeps `EvalState` inside `eval/`, which a direct import of the
+ * internal handler would not.
  */
 
-import type { EvalState } from '../eval/state.js';
+import { throwCatchableHostHalt } from '../types/halt.js';
+import type { TypeHaltSite } from '../types/halt.js';
 import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
-import type { SourceLocation } from '../../../../types.js';
-
-// Forward reference: imported at call time to avoid circular dep
-let _invokeCallable:
-  | ((
-      s: EvalState,
-      callable: RillCallable,
-      args: RillValue[],
-      callLocation?: SourceLocation,
-      functionName?: string,
-      internal?: boolean
-    ) => Promise<RillValue>)
-  | null = null;
+import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
+import { getExtensionIdentity } from './identity.js';
 
 /**
- * Register the invokeCallable function.
- * Called once during module init to break the circular dependency.
+ * Runs one transform against one value.
+ *
+ * The dispatch site passes an invoker that dispatches with
+ * `internal: true`, which skips frame enrichment and, because the filter
+ * runs ahead of that branch, keeps the transform's own dispatch from
+ * being filtered again.
+ *
+ * That flag does not propagate into the transform's body: a transform
+ * that calls another policed method re-enters the filter path normally,
+ * which is what makes the in-flight guard below necessary.
  */
-export function registerInvokeCallable(
-  fn: typeof _invokeCallable
-): void {
-  _invokeCallable = fn;
-}
+export type TransformInvoker = (
+  transform: RillCallable,
+  value: RillValue
+) => Promise<RillValue>;
 
 /**
  * Apply a chain of transforms to a value.
@@ -40,30 +40,49 @@ export function registerInvokeCallable(
  * the transformed value. Transforms are chained sequentially: output of
  * one feeds into the next.
  *
- * Invoked with internal=true so the filter mechanism does not intercept
- * the transform's own dispatch.
+ * @param transforms - Pre-resolved transform callables, in order
+ * @param value - The value entering the chain
+ * @param invoke - Dispatches a single transform
+ * @param inFlight - Transforms already running in this context tree
+ * @param site - Halt site used when a cycle is detected
+ * @throws RILL-R087 (catchable) if a transform re-enters itself
  */
 export async function applyTransforms(
-  s: EvalState,
-  transforms: RillCallable[],
+  transforms: readonly RillCallable[],
   value: RillValue,
-  callLocation?: SourceLocation
+  invoke: TransformInvoker,
+  inFlight: Set<RillCallable> | undefined,
+  site: TypeHaltSite
 ): Promise<RillValue> {
   if (transforms.length === 0) return value;
-  if (!_invokeCallable) {
-    throw new Error('invokeCallable not registered for transform execution');
-  }
 
   let current = value;
   for (const transform of transforms) {
-    current = await _invokeCallable(
-      s,
-      transform,
-      [current],
-      callLocation,
-      undefined, // no functionName for transforms
-      true // internal: bypass filter
-    );
+    if (inFlight?.has(transform) === true) {
+      const ref = describe(transform);
+      throwCatchableHostHalt(
+        site,
+        ERROR_ATOMS[ERROR_IDS.RILL_R087],
+        `Policy transform cycle detected: ${ref} is already running`,
+        { reference: ref }
+      );
+    }
+
+    inFlight?.add(transform);
+    try {
+      current = await invoke(transform, current);
+    } finally {
+      inFlight?.delete(transform);
+    }
   }
   return current;
+}
+
+/** Name a transform for diagnostics, falling back when unbranded. */
+function describe(transform: RillCallable): string {
+  const identity = getExtensionIdentity(transform);
+  if (identity === undefined) return 'transform';
+  return identity.method === ''
+    ? identity.extension
+    : `${identity.extension}.${identity.method}`;
 }

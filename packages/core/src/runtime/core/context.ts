@@ -29,6 +29,10 @@ import {
   type RillParam,
 } from './callable.js';
 import { ERROR_IDS } from '../../error-registry.js';
+import {
+  inheritPolicyState,
+  installFilterResolver,
+} from './policy/registry.js';
 
 /**
  * Maximum time (ms) `dispose()` waits for in-flight operations before
@@ -556,6 +560,13 @@ export function createRuntimeContext(
 
   bindLifecycleMethods(ctx, lifecycle);
 
+  // Kept in a module-private WeakMap rather than on ctx: host functions
+  // are handed the context, and a resolver they can reach is a resolver
+  // they can replace.
+  if (options.filterResolver !== undefined) {
+    installFilterResolver(ctx, options.filterResolver);
+  }
+
   // Stash lifecycle state so createChildContext can find it by walking to
   // the root. Non-enumerable to avoid leaking into structural comparisons.
   Object.defineProperty(ctx, LIFECYCLE_SYMBOL, {
@@ -651,6 +662,9 @@ export function createChildContext(
     sourceId: overrides?.sourceId ?? parent.sourceId,
     sourceText: overrides?.sourceText ?? parent.sourceText,
   };
+  // Policy state is shared by reference, so the in-flight transform set
+  // spans the whole call tree rather than resetting per scope.
+  inheritPolicyState(parent, child);
   // Suppress unused-variable warning for findLifecycleState; exposed for
   // future callers that need to inspect the shared state without reaching
   // into the parent's closures (e.g. dispatch-site guards in task 3.3).

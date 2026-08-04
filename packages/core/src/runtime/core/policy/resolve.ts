@@ -1,77 +1,68 @@
 /**
  * Filter resolution at the invokeCallable dispatch boundary.
  *
- * Extracts the extension name and method from the resolved path,
- * then looks up the pre-resolved policy. Returns a Filter or null.
+ * Matches on the extension identity branded onto the callable when
+ * `use<>` resolved it, not on the call path. See ./identity.ts for why
+ * the path is unsafe as an authorization key.
  */
 
-import type { Filter, FilterResolver, ResolvedPolicy } from './types.js';
 import type { RillCallable } from '../callable.js';
 import type { RuntimeContext } from '../types/runtime.js';
-
-/** Key on hostContext where the resolved policy is stored. */
-export const POLICY_KEY = '__rill_policy';
+import { getExtensionIdentity } from './identity.js';
+import type { Filter, FilterResolver, ResolvedPolicy } from './types.js';
 
 /**
- * Parse the resolved path into extension name and method.
- *
- * Resolved paths arrive as "$kb.search" or "ns::name" or just "log".
- * Returns [extName, method] for "$prefix.method" paths, null otherwise.
+ * Applied when a callable is known to belong to a policed extension but
+ * its method cannot be named — the extension root is itself a callable,
+ * so no per-method rule can ever address it. Access control fails
+ * closed on shapes it cannot reason about.
  */
-export function parsePath(
-  resolvedPath: string | undefined
-): [string, string] | null {
-  if (!resolvedPath) return null;
+const DENY_UNIDENTIFIED: Filter = Object.freeze({
+  access: 'deny',
+  inTransforms: Object.freeze([]),
+  outTransforms: Object.freeze([]),
+}) as Filter;
 
-  // $kb.search -> extName="kb", method="search"
-  if (resolvedPath.startsWith('$')) {
-    const dotIndex = resolvedPath.indexOf('.');
-    if (dotIndex === -1) return null; // $fn with no method
-    const extName = resolvedPath.slice(1, dotIndex);
-    const method = resolvedPath.slice(dotIndex + 1);
-    if (!extName || !method) return null;
-    return [extName, method];
-  }
+/**
+ * Build a filter resolver over a resolved policy.
+ *
+ * A factory rather than a bare resolver so the policy lives in this
+ * closure. Nothing reachable from the RuntimeContext holds it, which
+ * keeps it out of reach of the extension functions it governs.
+ *
+ * Matching, in order:
+ * 1. Callable carries no extension brand — pass through. Script
+ *    closures, built-ins, and directly registered host functions are
+ *    not extension methods and are not policed.
+ * 2. Extension has no rules at all — pass through.
+ * 3. Extension is policed but the method cannot be named — deny.
+ * 4. Exact rule for the method — use it.
+ * 5. The extension's `"*"` rule — use it.
+ * 6. Otherwise pass through. An unlisted method on a policed extension
+ *    is allowed unless the host declared `"*"`; see {@link resolvePolicy}
+ *    for why that switch is the host's to throw.
+ */
+export function createConfigFilterResolver(
+  policy: ResolvedPolicy
+): FilterResolver {
+  return (
+    callable: RillCallable,
+    _resolvedPath: string | undefined,
+    _ctx: RuntimeContext
+  ): Filter | null => {
+    const identity = getExtensionIdentity(callable);
+    if (identity === undefined) return null;
 
-  return null;
+    const { extension, method } = identity;
+    const extRules = policy.rules.get(extension);
+    const extDefault = policy.defaults.get(extension);
+    if (extRules === undefined && extDefault === undefined) return null;
+
+    if (method === '') return DENY_UNIDENTIFIED;
+
+    const exact = extRules?.get(method);
+    if (exact !== undefined) return exact;
+
+    return extDefault ?? null;
+  };
 }
-
-/**
- * Config-reading filter resolver.
- *
- * Reads the pre-resolved policy from ctx.hostContext[POLICY_KEY].
- * Returns a Filter if a rule matches, null otherwise.
- *
- * Lookup order:
- * 1. Exact match: policy[extName][method]
- * 2. Default match: policy[extName]["*"]
- * 3. No match: return null (call passes through)
- */
-export const configFilterResolver: FilterResolver = (
-  _callable: RillCallable,
-  resolvedPath: string | undefined,
-  ctx: RuntimeContext
-): Filter | null => {
-  const policy = ctx.hostContext[POLICY_KEY] as
-    | ResolvedPolicy
-    | undefined;
-  if (!policy) return null;
-
-  const parsed = parsePath(resolvedPath);
-  if (!parsed) return null;
-
-  const [extName, method] = parsed;
-
-  // Exact match
-  const extRules = policy.rules.get(extName);
-  if (extRules) {
-    const methodFilter = extRules.get(method);
-    if (methodFilter) return methodFilter;
-  }
-
-  // Default match
-  const defaultFilter = policy.defaults.get(extName);
-  if (defaultFilter) return defaultFilter;
-
-  return null;
-};

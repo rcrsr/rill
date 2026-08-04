@@ -1,233 +1,171 @@
 import { describe, it, expect } from 'vitest';
 import { parse, execute, createRuntimeContext } from '../../../src/index.js';
 import { resolvePolicy } from '../../../src/runtime/core/policy/config-resolver.js';
-import {
-  configFilterResolver,
-  POLICY_KEY,
-} from '../../../src/runtime/core/policy/resolve.js';
+import { createConfigFilterResolver } from '../../../src/runtime/core/policy/resolve.js';
+import { extResolver } from '../../../src/runtime/core/resolvers.js';
+import { toCallable } from '../../../src/runtime/core/callable.js';
+import { anyTypeValue } from '../../../src/runtime/core/values.js';
+import type { PolicyConfig } from '../../../src/runtime/core/policy/types.js';
 import type { RillValue } from '../../../src/runtime/core/types/structures.js';
-import { callable } from '../../../src/runtime/core/callable-factory.js';
+import type { RillParam } from '../../../src/runtime/core/callable.js';
+import { expectHalt } from '../../helpers/halt.js';
+
+const ONE_ARG: RillParam[] = [
+  { name: '0', type: undefined, defaultValue: undefined, annotations: {} },
+];
+
+/** Zero-argument method returning a fixed value. */
+function method(result: string): RillValue {
+  return toCallable({
+    fn: () => result,
+    params: [],
+    returnType: anyTypeValue,
+  }) as unknown as RillValue;
+}
+
+/** Single-argument transform tagging its input. */
+function transform(tag: string): RillValue {
+  return toCallable({
+    fn: (args) => `${tag}(${String(args['0'])})`,
+    params: ONE_ARG,
+    returnType: anyTypeValue,
+  }) as unknown as RillValue;
+}
+
+/** Single-argument method recording what reached it. */
+function recorder(sink: { received?: RillValue }): RillValue {
+  return toCallable({
+    fn: (args) => {
+      sink.received = args['0'] as RillValue;
+      return 'summary';
+    },
+    params: ONE_ARG,
+    returnType: anyTypeValue,
+  }) as unknown as RillValue;
+}
 
 function createTestContext(
-  policyConfig: Record<string, unknown>,
+  policyConfig: PolicyConfig,
   extensions: Record<string, RillValue>
 ) {
-  const extMap = new Map(Object.entries(extensions));
-  const resolved = resolvePolicy(policyConfig as any, extMap);
+  const resolved = resolvePolicy(
+    policyConfig,
+    new Map(Object.entries(extensions))
+  );
 
   return createRuntimeContext({
-    filterResolver: configFilterResolver,
-    hostContext: { [POLICY_KEY]: resolved },
-    resolvers: {
-      ext: {
-        resolve: (resource: string) => {
-          const ext = extMap.get(resource);
-          if (!ext) throw new Error(`Extension not found: ${resource}`);
-          return { kind: 'value' as const, value: ext };
-        },
-      },
-    },
+    filterResolver: createConfigFilterResolver(resolved),
+    resolvers: { ext: extResolver },
+    configurations: { resolvers: { ext: extensions } },
   });
 }
 
 describe('filter integration', () => {
   it('allows calls when access is "allow"', async () => {
-    const kbExt: RillValue = {
-      search: callable({
-        fn: () => 'search result',
-        params: [],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
     const ctx = createTestContext(
       { kb: { search: { access: 'allow' } } },
-      { kb: kbExt }
+      { kb: { search: method('search result') } as unknown as RillValue }
     );
 
-    const ast = parse('use<ext:kb> => $kb\n$kb.search');
-    const result = await execute(ast, ctx);
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.search()'),
+      ctx
+    );
     expect(result.result).toBe('search result');
   });
 
   it('denies calls when access is "deny"', async () => {
-    const kbExt: RillValue = {
-      delete: callable({
-        fn: () => 'deleted',
-        params: [],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { kb: kbExt }
+      { kb: { delete: method('deleted') } as unknown as RillValue }
     );
 
-    const ast = parse('use<ext:kb> => $kb\n$kb.delete');
-    await expect(execute(ast, ctx)).rejects.toThrow(/denied by policy/);
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.delete()'), ctx),
+      {
+        code: 'RILL_R086',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('denies regardless of the capture variable the script picks', async () => {
+    // Policy keyed on the resolved path would read "$anything.delete",
+    // miss every rule, and pass the call through. A one-line rename must
+    // not defeat a deny rule.
+    const ctx = createTestContext(
+      { kb: { delete: { access: 'deny' } } },
+      { kb: { delete: method('deleted') } as unknown as RillValue }
+    );
+
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $anything\n$anything.delete()'), ctx),
+      {
+        code: 'RILL_R086',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('denies a rebound method reached through a second variable', async () => {
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' } } },
+      { kb: { delete: method('deleted') } as unknown as RillValue }
+    );
+
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb> => $kb\n$kb.delete => $escaped\n$escaped()'),
+          ctx
+        ),
+      {
+        code: 'RILL_R086',
+        messagePattern: /denied by policy/,
+      }
+    );
   });
 
   it('applies out() transform to return value', async () => {
-    const kbExt: RillValue = {
-      search: callable({
-        fn: () => 'raw data',
-        params: [],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
-    const filterExt: RillValue = {
-      sanitize: callable({
-        fn: (args) => `clean(${args['0']})`,
-        params: [
-          {
-            name: '0',
-            type: undefined,
-            defaultValue: undefined,
-            annotations: {},
-          },
-        ],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
     const ctx = createTestContext(
       { kb: { search: { access: 'allow', out: ['filter.sanitize'] } } },
-      { kb: kbExt, filter: filterExt }
+      {
+        kb: { search: method('raw data') } as unknown as RillValue,
+        filter: { sanitize: transform('clean') } as unknown as RillValue,
+      }
     );
 
-    const ast = parse('use<ext:kb> => $kb\n$kb.search');
-    const result = await execute(ast, ctx);
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.search()'),
+      ctx
+    );
     expect(result.result).toBe('clean(raw data)');
   });
 
   it('applies in() transform to pipe value', async () => {
-    let receivedArg: RillValue;
-    const llmExt: RillValue = {
-      summarize: callable({
-        fn: (args) => {
-          receivedArg = args['0']!;
-          return 'summary';
-        },
-        params: [
-          {
-            name: '0',
-            type: undefined,
-            defaultValue: undefined,
-            annotations: {},
-          },
-        ],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
-    const filterExt: RillValue = {
-      sanitize_for_prompt: callable({
-        fn: (args) => `safe(${args['0']})`,
-        params: [
-          {
-            name: '0',
-            type: undefined,
-            defaultValue: undefined,
-            annotations: {},
-          },
-        ],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
+    const sink: { received?: RillValue } = {};
     const ctx = createTestContext(
       {
         llm: {
-          summarize: {
-            access: 'allow',
-            in: ['filter.sanitize_for_prompt'],
-          },
+          summarize: { access: 'allow', in: ['filter.sanitize_for_prompt'] },
         },
       },
-      { llm: llmExt, filter: filterExt }
+      {
+        llm: { summarize: recorder(sink) } as unknown as RillValue,
+        filter: {
+          sanitize_for_prompt: transform('safe'),
+        } as unknown as RillValue,
+      }
     );
 
-    const ast = parse(
-      'use<ext:llm> => $llm\n"tainted input" -> $llm.summarize'
+    await execute(
+      parse('use<ext:llm> => $llm\n"tainted input" -> $llm.summarize'),
+      ctx
     );
-    await execute(ast, ctx);
-    expect(receivedArg!).toBe('safe(tainted input)');
-  });
-
-  it('wildcard denies unlisted methods', async () => {
-    const kbExt: RillValue = {
-      search: callable({
-        fn: () => 'ok',
-        params: [],
-        returnType: { kind: 'string' },
-      }),
-      raw_query: callable({
-        fn: () => 'leaked',
-        params: [],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
-    const ctx = createTestContext(
-      { kb: { '*': { access: 'deny' }, search: { access: 'allow' } } },
-      { kb: kbExt }
-    );
-
-    // search is allowed
-    const ast1 = parse('use<ext:kb> => $kb\n$kb.search');
-    const result1 = await execute(ast1, ctx);
-    expect(result1.result).toBe('ok');
-
-    // raw_query falls to wildcard deny
-    const ast2 = parse('use<ext:kb> => $kb\n$kb.raw_query');
-    await expect(execute(ast2, ctx)).rejects.toThrow(/denied by policy/);
-  });
-
-  it('no policy config means no filtering', async () => {
-    const ctx = createRuntimeContext({});
-    const ast = parse('"hello"');
-    const result = await execute(ast, ctx);
-    expect(result.result).toBe('hello');
+    expect(sink.received).toBe('safe(tainted input)');
   });
 
   it('chains multiple out transforms sequentially', async () => {
-    const kbExt: RillValue = {
-      search: callable({
-        fn: () => 'raw',
-        params: [],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
-    const filterExt: RillValue = {
-      sanitize: callable({
-        fn: (args) => `sanitized(${args['0']})`,
-        params: [
-          {
-            name: '0',
-            type: undefined,
-            defaultValue: undefined,
-            annotations: {},
-          },
-        ],
-        returnType: { kind: 'string' },
-      }),
-      redact: callable({
-        fn: (args) => `redacted(${args['0']})`,
-        params: [
-          {
-            name: '0',
-            type: undefined,
-            defaultValue: undefined,
-            annotations: {},
-          },
-        ],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
-
     const ctx = createTestContext(
       {
         kb: {
@@ -237,30 +175,232 @@ describe('filter integration', () => {
           },
         },
       },
-      { kb: kbExt, filter: filterExt }
+      {
+        kb: { search: method('raw') } as unknown as RillValue,
+        filter: {
+          sanitize: transform('sanitized'),
+          redact: transform('redacted'),
+        } as unknown as RillValue,
+      }
     );
 
-    const ast = parse('use<ext:kb> => $kb\n$kb.search');
-    const result = await execute(ast, ctx);
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.search()'),
+      ctx
+    );
     expect(result.result).toBe('redacted(sanitized(raw))');
   });
 
-  it('allows unfiltered extensions when no rules exist for them', async () => {
-    const cacheExt: RillValue = {
-      get: callable({
-        fn: () => 'cached',
-        params: [],
-        returnType: { kind: 'string' },
-      }),
-    } as unknown as RillValue;
+  it('wildcard denies unlisted methods', async () => {
+    const extensions = {
+      kb: {
+        search: method('ok'),
+        raw_query: method('leaked'),
+      } as unknown as RillValue,
+    };
+    const config: PolicyConfig = {
+      kb: { '*': { access: 'deny' }, search: { access: 'allow' } },
+    };
 
+    const allowed = await execute(
+      parse('use<ext:kb> => $kb\n$kb.search()'),
+      createTestContext(config, extensions)
+    );
+    expect(allowed.result).toBe('ok');
+
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb> => $kb\n$kb.raw_query()'),
+          createTestContext(config, extensions)
+        ),
+      {
+        code: 'RILL_R086',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('matches rules on nested sub-clients', async () => {
+    // "$kb.client.search" must key on "client.search", not on "client".
     const ctx = createTestContext(
-      { kb: { delete: { access: 'deny' } } }, // rules only for kb
-      { cache: cacheExt }
+      {
+        kb: {
+          '*': { access: 'deny' },
+          'client.search': { access: 'allow' },
+        },
+      },
+      {
+        kb: {
+          client: {
+            search: method('nested ok'),
+            purge: method('nested leaked'),
+          },
+        } as unknown as RillValue,
+      }
     );
 
-    const ast = parse('use<ext:cache> => $cache\n$cache.get');
-    const result = await execute(ast, ctx);
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.client.search()'),
+      ctx
+    );
+    expect(result.result).toBe('nested ok');
+  });
+
+  it('denies an unlisted nested method under a wildcard', async () => {
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' }, 'client.search': { access: 'allow' } } },
+      {
+        kb: {
+          client: { search: method('ok'), purge: method('leaked') },
+        } as unknown as RillValue,
+      }
+    );
+
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.client.purge()'), ctx),
+      {
+        code: 'RILL_R086',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('applies rules to a member mounted directly by resource path', async () => {
+    // use<ext:kb.client> resolves below the extension root; the brand must
+    // still place its members under "client.*".
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' }, 'client.search': { access: 'allow' } } },
+      {
+        kb: {
+          client: { search: method('ok'), purge: method('leaked') },
+        } as unknown as RillValue,
+      }
+    );
+
+    const result = await execute(
+      parse('use<ext:kb.client> => $c\n$c.search()'),
+      ctx
+    );
+    expect(result.result).toBe('ok');
+
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb.client> => $c\n$c.purge()'),
+          createTestContext(
+            {
+              kb: {
+                '*': { access: 'deny' },
+                'client.search': { access: 'allow' },
+              },
+            },
+            {
+              kb: {
+                client: { search: method('ok'), purge: method('leaked') },
+              } as unknown as RillValue,
+            }
+          )
+        ),
+      {
+        code: 'RILL_R086',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('denies a policed extension whose root is itself a callable', async () => {
+    // No per-method rule can name it, so the shape fails closed.
+    const ctx = createTestContext(
+      { greet: { '*': { access: 'allow' } } },
+      { greet: method('hi') }
+    );
+
+    await expectHalt(
+      () => execute(parse('use<ext:greet> => $greet\n$greet()'), ctx),
+      {
+        code: 'RILL_R086',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('no policy config means no filtering', async () => {
+    const ctx = createRuntimeContext({});
+    const result = await execute(parse('"hello"'), ctx);
+    expect(result.result).toBe('hello');
+  });
+
+  it('allows unfiltered extensions when no rules exist for them', async () => {
+    const ctx = createTestContext(
+      { kb: { delete: { access: 'deny' } } },
+      { cache: { get: method('cached') } as unknown as RillValue }
+    );
+
+    const result = await execute(
+      parse('use<ext:cache> => $cache\n$cache.get()'),
+      ctx
+    );
     expect(result.result).toBe('cached');
+  });
+
+  it('leaves built-ins and script closures unpoliced', async () => {
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' } } },
+      { kb: { search: method('ok') } as unknown as RillValue }
+    );
+
+    const result = await execute(
+      parse('|x| ($x -> .upper) => $shout\n"hi" -> $shout'),
+      ctx
+    );
+    expect(result.result).toBe('HI');
+  });
+
+  it('does not filter when the host configures no resolver', async () => {
+    const ctx = createRuntimeContext({
+      resolvers: { ext: extResolver },
+      configurations: {
+        resolvers: {
+          ext: { kb: { delete: method('deleted') } as unknown as RillValue },
+        },
+      },
+    });
+
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.delete()'),
+      ctx
+    );
+    expect(result.result).toBe('deleted');
+  });
+
+  it('keeps the resolver off the runtime context', async () => {
+    // Host functions are handed the context. A resolver reachable there
+    // is a resolver an extension can read or replace mid-run.
+    const ctx = createTestContext(
+      { kb: { search: { access: 'allow' } } },
+      { kb: { search: method('ok') } as unknown as RillValue }
+    );
+
+    expect(Object.keys(ctx)).not.toContain('filterResolver');
+    expect((ctx as unknown as Record<string, unknown>)['filterResolver']).toBe(
+      undefined
+    );
+    expect(ctx.hostContext).toEqual({});
+  });
+
+  it('recovers a denied call with guard', async () => {
+    const ctx = createTestContext(
+      { kb: { delete: { access: 'deny' } } },
+      { kb: { delete: method('deleted') } as unknown as RillValue }
+    );
+
+    const result = await execute(
+      parse(
+        'use<ext:kb> => $kb\nguard { $kb.delete() } => $r\n$r.! ? "blocked" ! "ran"'
+      ),
+      ctx
+    );
+    expect(result.result).toBe('blocked');
   });
 });

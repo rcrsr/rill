@@ -34,6 +34,7 @@ import { getNodeLocation } from '../shared.js';
 import type { SourceLocation } from '../../../../types.js';
 import { evaluateExpression } from './core.js';
 import { evaluateVariableAsync } from './variables.js';
+import { brandExtensionValue } from '../../policy/identity.js';
 
 /**
  * Evaluate a use<> expression [IR-6].
@@ -161,6 +162,11 @@ export async function evaluateUseExpr(
 
     // Handle result — key is still in-flight for the source execution path
     if (result.kind === 'value') {
+      // Record where these callables came from, keyed on the resource in
+      // `use<scheme:resource>` rather than on the capture variable the
+      // script picks. Policy matches on this brand, so renaming the
+      // variable cannot move a method out from under its rule.
+      brandExtensionValue(result.value, resource);
       return result.value;
     }
 
