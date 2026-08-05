@@ -345,6 +345,15 @@ export interface RuntimeOptions {
   resolvers?: Record<string, SchemeResolver>;
   /** Per-scheme configuration data passed as the second argument to each resolver */
   configurations?: { resolvers?: Record<string, unknown> };
+  /**
+   * Dispatch-boundary filter consulted on every non-internal call.
+   * Build one with `createConfigFilterResolver(resolvePolicy(config, extensions))`.
+   *
+   * Held off the RuntimeContext deliberately: host functions receive the
+   * context, so a resolver stored on it could be read or replaced by the
+   * code it governs.
+   */
+  filterResolver?: import('../policy/types.js').FilterResolver;
   /** Type checker mode; default `'permissive'` */
   checkerMode?: 'strict' | 'permissive';
   /**

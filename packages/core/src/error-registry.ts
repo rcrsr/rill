@@ -139,6 +139,10 @@ export const ERROR_IDS = {
   RILL_R081: 'RILL-R081',
   RILL_R082: 'RILL-R082',
   RILL_R083: 'RILL-R083',
+  RILL_R084: 'RILL-R084',
+  RILL_R085: 'RILL-R085',
+  RILL_R086: 'RILL-R086',
+  RILL_R087: 'RILL-R087',
   RILL_C001: 'RILL-C001',
   RILL_C002: 'RILL-C002',
   RILL_C003: 'RILL-C003',
@@ -2059,6 +2063,73 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Idle timeout with guard recovery',
         code: 'guard { timeout<idle: 200ms> { $stream } }',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_R084,
+    category: 'runtime',
+    description: 'Wildcard policy rule declares transforms',
+    messageTemplate:
+      'Wildcard rule "*" on extension {extension} cannot declare in/out transforms',
+    cause:
+      'A "*" policy rule carried in or out entries. Wildcard rules are access-control only, because one transform signature cannot fit every method it would wrap.',
+    resolution:
+      'Drop the in/out entries from the "*" rule and declare transforms on the specific methods that need them.',
+    examples: [
+      {
+        description: 'Wildcard restricted to an access decision',
+        code: '# policy: { "kb": { "*": { "access": "deny" } } }',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_R085,
+    category: 'runtime',
+    description: 'Transform reference cannot be resolved',
+    messageTemplate:
+      'Transform reference {reference} cannot be resolved: {reason}',
+    cause:
+      'A policy in/out entry named a transform that is missing from the mounted extensions, is not written as "extension.method", or does not name a callable.',
+    resolution:
+      'Write the reference as "extension.method", mount the extension that provides it, and confirm the named member is a callable.',
+    examples: [
+      {
+        description: 'Transform reference naming a mounted callable',
+        code: '# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_R086,
+    category: 'runtime',
+    description: 'Call denied by policy',
+    messageTemplate: 'Call to {path} denied by policy',
+    cause:
+      'The dispatch-boundary filter matched a rule whose access is "deny", or matched a policed extension whose method could not be identified.',
+    resolution:
+      'Recover via guard { ... } or a ?? fallback, or grant the method an "access": "allow" rule in the host policy.',
+    examples: [
+      {
+        description: 'Denied call recovered with guard',
+        code: 'guard { $kb.delete() } => $r\n$r.! ? "not permitted" ! $r',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_R087,
+    category: 'runtime',
+    description: 'Policy transform cycle detected',
+    messageTemplate:
+      'Policy transform cycle detected: {reference} is already running',
+    cause:
+      'A policy transform re-entered itself, directly or through another policed method whose own transforms call back into it.',
+    resolution:
+      'Break the cycle so a transform does not call a method whose in/out chain reaches that same transform.',
+    examples: [
+      {
+        description: 'Transform that must not call back into its own method',
+        code: '# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }',
       },
     ],
   },

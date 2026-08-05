@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-R078)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R083)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R087)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -1894,6 +1894,92 @@ $slow_stream -> timeout<idle: duration(...dict[ms: 200])> { pass }
 guard {
   $slow_stream -> timeout<idle: duration(...dict[ms: 500])> { pass }
 } ?? "stream went idle"
+```
+
+---
+
+### rill-r084
+
+**Description:** Wildcard policy rule declares transforms
+
+**Cause:** A `"*"` policy rule carried `in` or `out` entries. Wildcard rules are access-control only, because one transform signature cannot fit every method it would wrap.
+
+**Resolution:** Drop the `in`/`out` entries from the `"*"` rule and declare transforms on the specific methods that need them.
+
+**Example:**
+
+```text
+# Rejected: wildcard cannot carry transforms
+# { "kb": { "*": { "access": "deny", "out": ["filter.redact"] } } }
+
+# Accepted: wildcard decides access, methods declare transforms
+# { "kb": { "*":      { "access": "deny" },
+#           "search": { "access": "allow", "out": ["filter.redact"] } } }
+```
+
+---
+
+### rill-r085
+
+**Description:** Transform reference cannot be resolved
+
+**Cause:** A policy `in`/`out` entry named a transform that is missing from the mounted extensions, is not written as `"extension.method"`, or does not name a callable.
+
+**Resolution:** Write the reference as `"extension.method"`, mount the extension that provides it, and confirm the named member is a callable.
+
+**Example:**
+
+```text
+# Rejected: no dot separator
+# { "kb": { "search": { "access": "allow", "out": ["redact"] } } }
+
+# Rejected: "filter" is not mounted, or has no callable "redact"
+# { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }
+```
+
+---
+
+### rill-r086
+
+**Description:** Call denied by policy
+
+**Cause:** The dispatch-boundary filter matched a rule whose access is `deny`, or matched a policed extension whose method could not be identified.
+
+**Resolution:** Recover with `guard` or a `??` fallback, or grant the method an `"access": "allow"` rule in the host policy.
+
+**Example:**
+
+```text
+# Policy: { "kb": { "*": { "access": "deny" }, "search": { "access": "allow" } } }
+use<ext:kb> => $kb
+$kb.delete()
+# Halts with #RILL_R086
+
+# Recovery pattern
+guard { $kb.delete() } => $r
+$r.! ? "not permitted" ! $r
+```
+
+Renaming the capture variable does not change the decision: rules match on
+the extension the value was resolved from, not on the path the script
+happens to write.
+
+---
+
+### rill-r087
+
+**Description:** Policy transform cycle detected
+
+**Cause:** A policy transform re-entered itself, directly or through another policed method whose own transforms call back into it.
+
+**Resolution:** Break the cycle so a transform does not call a method whose `in`/`out` chain reaches that same transform.
+
+**Example:**
+
+```text
+# kb.search out -> filter.redact, and filter.redact's body calls
+# kb.search again. The second entry into filter.redact halts.
+guard { $kb.search() } ?? "transform cycle"
 ```
 
 ---
