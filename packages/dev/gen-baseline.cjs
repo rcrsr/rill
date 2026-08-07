@@ -102,4 +102,4 @@ if (require.main === module) {
   process.stdout.write(JSON.stringify(generate(root), null, 2) + '\n');
 }
 
-module.exports = { generate };
+module.exports = { generate, SHARED_TOOLING_DEPS };
