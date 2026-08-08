@@ -42,6 +42,7 @@ export type {
 export type {
   CheckConfig,
   Diagnostic,
+  DiagnosticEdit,
   DiagnosticFix,
   DiagnosticSeverity,
   Rule,

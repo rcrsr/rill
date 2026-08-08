@@ -120,6 +120,8 @@ export interface ScriptFacts {
   readonly firstClosureCall: ReadonlyMap<string, ClosureCallNode>;
   /** First collection-op pipe applied to a bare-variable head, per variable name, in source order. */
   readonly firstPipeIteration: ReadonlyMap<string, ASTNode>;
+  /** True if any Variable node's access chain contains a dynamically-keyed field access (`computed`, `variable`, or `block` kind). */
+  readonly hasDynamicFieldAccess: boolean;
 }
 
 /** Result of a single fact-collection pass over an AST. */
@@ -233,6 +235,24 @@ function hasBracketAccessSelf(node: ASTNode): boolean {
   );
 }
 
+/**
+ * True for a Variable node whose access chain contains a dynamically-keyed
+ * field access: `computed` (`.($expr)`), `variable` (`.$var`), or `block`
+ * (`.{...}`) kind. Excludes `alternatives` (`.a|b|c`) deliberately - those
+ * keys are static identifiers known at parse time, so they carry no dynamic
+ * field name and are out of scope for this fact.
+ */
+function hasDynamicFieldAccessSelf(node: ASTNode): boolean {
+  if (node.type !== 'Variable') return false;
+  return node.accessChain.some(
+    (access) =>
+      'kind' in access &&
+      (access.kind === 'computed' ||
+        access.kind === 'variable' ||
+        access.kind === 'block')
+  );
+}
+
 // ============================================================
 // FACT COLLECTION
 // ============================================================
@@ -263,6 +283,7 @@ export function collectFacts(root: ASTNode): AstFacts {
   const streamVars = new Set<string>();
   const firstClosureCall = new Map<string, ClosureCallNode>();
   const firstPipeIteration = new Map<string, ASTNode>();
+  let hasDynamicFieldAccess = false;
 
   const stack: Accumulator[] = [];
   let currentClosureDepth = 0;
@@ -369,6 +390,10 @@ export function collectFacts(root: ASTNode): AstFacts {
           firstClosureCall.set(node.name, node);
         }
       }
+
+      if (hasDynamicFieldAccessSelf(node)) {
+        hasDynamicFieldAccess = true;
+      }
     },
 
     exit(node: ASTNode) {
@@ -444,6 +469,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       streamVars,
       firstClosureCall,
       firstPipeIteration,
+      hasDynamicFieldAccess,
     },
   };
 }

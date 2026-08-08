@@ -238,10 +238,16 @@ interface DiagnosticFix {
   readonly applicable: boolean;
   readonly range: SourceSpan;
   readonly replacement: string;
+  readonly additionalEdits?: readonly DiagnosticEdit[];
+}
+
+interface DiagnosticEdit {
+  readonly range: SourceSpan;
+  readonly replacement: string;
 }
 ```
 
-Only the `NAMING_SNAKE_CASE` and `UNNECESSARY_ASSERTION` rules ever produce a non-null `fix`.
+Only the `NAMING_SNAKE_CASE` and `UNNECESSARY_ASSERTION` rules ever produce a non-null `fix`. `range`/`replacement` is the primary/anchor edit; `additionalEdits`, when present, are disjoint edits accompanying it (e.g. renaming every reference to a declaration renamed by the anchor edit). Appliers must apply `additionalEdits` in descending offset order or renames dangle references.
 
 ```typescript
 interface CheckConfig {

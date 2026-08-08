@@ -4911,7 +4911,24 @@
               "offset": 43
             }
           },
-          "replacement": "$my_ordered\n"
+          "replacement": "$my_ordered\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 9,
+                  "offset": 51
+                },
+                "end": {
+                  "line": 3,
+                  "column": 19,
+                  "offset": 61
+                }
+              },
+              "replacement": "$my_ordered"
+            }
+          ]
         }
       }
     ]
@@ -8087,7 +8104,24 @@
               "offset": 32
             }
           },
-          "replacement": "$add_two\n"
+          "replacement": "$add_two\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 15,
+                  "offset": 46
+                },
+                "end": {
+                  "line": 3,
+                  "column": 22,
+                  "offset": 53
+                }
+              },
+              "replacement": "$add_two"
+            }
+          ]
         }
       }
     ]
@@ -8227,7 +8261,39 @@
               "offset": 33
             }
           },
-          "replacement": "$add_five\n"
+          "replacement": "$add_five\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 16,
+                  "offset": 48
+                },
+                "end": {
+                  "line": 3,
+                  "column": 24,
+                  "offset": 56
+                }
+              },
+              "replacement": "$add_five"
+            },
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 34,
+                  "offset": 66
+                },
+                "end": {
+                  "line": 3,
+                  "column": 42,
+                  "offset": 74
+                }
+              },
+              "replacement": "$add_five"
+            }
+          ]
         }
       }
     ]
@@ -8273,7 +8339,24 @@
               "offset": 65
             }
           },
-          "replacement": "$add_three\n"
+          "replacement": "$add_three\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "column": 26,
+                  "offset": 90
+                },
+                "end": {
+                  "line": 4,
+                  "column": 35,
+                  "offset": 99
+                }
+              },
+              "replacement": "$add_three"
+            }
+          ]
         }
       }
     ]
@@ -8312,7 +8395,24 @@
               "offset": 37
             }
           },
-          "replacement": "$to_str\n"
+          "replacement": "$to_str\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 17,
+                  "offset": 53
+                },
+                "end": {
+                  "line": 3,
+                  "column": 23,
+                  "offset": 59
+                }
+              },
+              "replacement": "$to_str"
+            }
+          ]
         }
       }
     ]
@@ -8452,7 +8552,39 @@
               "offset": 33
             }
           },
-          "replacement": "$add_five\n"
+          "replacement": "$add_five\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "column": 17,
+                  "offset": 80
+                },
+                "end": {
+                  "line": 4,
+                  "column": 25,
+                  "offset": 88
+                }
+              },
+              "replacement": "$add_five"
+            },
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "column": 47,
+                  "offset": 110
+                },
+                "end": {
+                  "line": 4,
+                  "column": 55,
+                  "offset": 118
+                }
+              },
+              "replacement": "$add_five"
+            }
+          ]
         }
       }
     ]
@@ -16995,7 +17127,24 @@
               "offset": 102
             }
           },
-          "replacement": "$has_name\n"
+          "replacement": "$has_name\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 7,
+                  "column": 10,
+                  "offset": 164
+                },
+                "end": {
+                  "line": 7,
+                  "column": 18,
+                  "offset": 172
+                }
+              },
+              "replacement": "$has_name"
+            }
+          ]
         }
       },
       {
@@ -17047,7 +17196,24 @@
               "offset": 155
             }
           },
-          "replacement": "$has_age\n"
+          "replacement": "$has_age\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 7,
+                  "column": 22,
+                  "offset": 176
+                },
+                "end": {
+                  "line": 7,
+                  "column": 29,
+                  "offset": 183
+                }
+              },
+              "replacement": "$has_age"
+            }
+          ]
         }
       }
     ]
@@ -21574,7 +21740,39 @@
               "offset": 71
             }
           },
-          "replacement": "$empty_iter\n"
+          "replacement": "$empty_iter\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 2,
+                  "column": 40,
+                  "offset": 40
+                },
+                "end": {
+                  "line": 2,
+                  "column": 53,
+                  "offset": 53
+                }
+              },
+              "replacement": "$empty_iter(0)"
+            },
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 9,
+                  "offset": 79
+                },
+                "end": {
+                  "line": 3,
+                  "column": 22,
+                  "offset": 92
+                }
+              },
+              "replacement": "$empty_iter(0)"
+            }
+          ]
         }
       },
       {
@@ -21620,7 +21818,39 @@
               "offset": 71
             }
           },
-          "replacement": "$empty_iter\n"
+          "replacement": "$empty_iter\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 2,
+                  "column": 40,
+                  "offset": 40
+                },
+                "end": {
+                  "line": 2,
+                  "column": 53,
+                  "offset": 53
+                }
+              },
+              "replacement": "$empty_iter(0)"
+            },
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 9,
+                  "offset": 79
+                },
+                "end": {
+                  "line": 3,
+                  "column": 22,
+                  "offset": 92
+                }
+              },
+              "replacement": "$empty_iter(0)"
+            }
+          ]
         }
       }
     ]
@@ -21748,7 +21978,24 @@
               "offset": 44
             }
           },
-          "replacement": "$get_x\n"
+          "replacement": "$get_x\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "column": 9,
+                  "offset": 52
+                },
+                "end": {
+                  "line": 4,
+                  "column": 16,
+                  "offset": 59
+                }
+              },
+              "replacement": "$get_x()"
+            }
+          ]
         }
       }
     ]
@@ -21794,7 +22041,24 @@
               "offset": 44
             }
           },
-          "replacement": "$get_x\n"
+          "replacement": "$get_x\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 5,
+                  "column": 9,
+                  "offset": 68
+                },
+                "end": {
+                  "line": 5,
+                  "column": 16,
+                  "offset": 75
+                }
+              },
+              "replacement": "$get_x()"
+            }
+          ]
         }
       },
       {
@@ -21898,7 +22162,24 @@
               "offset": 42
             }
           },
-          "replacement": "$make_getter\n"
+          "replacement": "$make_getter\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 9,
+                  "offset": 50
+                },
+                "end": {
+                  "line": 3,
+                  "column": 24,
+                  "offset": 65
+                }
+              },
+              "replacement": "$make_getter(42)"
+            }
+          ]
         }
       }
     ]
@@ -21966,7 +22247,24 @@
               "offset": 96
             }
           },
-          "replacement": "$get_plus1\n"
+          "replacement": "$get_plus1\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 6,
+                  "column": 22,
+                  "offset": 139
+                },
+                "end": {
+                  "line": 6,
+                  "column": 33,
+                  "offset": 150
+                }
+              },
+              "replacement": "$get_plus1()"
+            }
+          ]
         }
       },
       {
@@ -22030,7 +22328,24 @@
               "offset": 47
             }
           },
-          "replacement": "$make_doubler\n"
+          "replacement": "$make_doubler\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 9,
+                  "offset": 55
+                },
+                "end": {
+                  "line": 3,
+                  "column": 23,
+                  "offset": 69
+                }
+              },
+              "replacement": "$make_doubler()"
+            }
+          ]
         }
       }
     ]
@@ -28809,7 +29124,24 @@
               "offset": 42
             }
           },
-          "replacement": "$gt_two\n"
+          "replacement": "$gt_two\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 41,
+                  "offset": 82
+                },
+                "end": {
+                  "line": 3,
+                  "column": 47,
+                  "offset": 88
+                }
+              },
+              "replacement": "$gt_two"
+            }
+          ]
         }
       }
     ]
@@ -28848,7 +29180,24 @@
               "offset": 55
             }
           },
-          "replacement": "$long_enough\n"
+          "replacement": "$long_enough\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 61,
+                  "offset": 115
+                },
+                "end": {
+                  "line": 3,
+                  "column": 72,
+                  "offset": 126
+                }
+              },
+              "replacement": "$long_enough"
+            }
+          ]
         }
       }
     ]
@@ -28954,7 +29303,24 @@
               "offset": 37
             }
           },
-          "replacement": "$add_a\n"
+          "replacement": "$add_a\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 5,
+                  "column": 33,
+                  "offset": 141
+                },
+                "end": {
+                  "line": 5,
+                  "column": 38,
+                  "offset": 146
+                }
+              },
+              "replacement": "$add_a"
+            }
+          ]
         }
       },
       {
@@ -28994,7 +29360,24 @@
               "offset": 73
             }
           },
-          "replacement": "$add_b\n"
+          "replacement": "$add_b\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 5,
+                  "column": 40,
+                  "offset": 148
+                },
+                "end": {
+                  "line": 5,
+                  "column": 45,
+                  "offset": 153
+                }
+              },
+              "replacement": "$add_b"
+            }
+          ]
         }
       },
       {
@@ -29022,7 +29405,24 @@
               "offset": 109
             }
           },
-          "replacement": "$add_c\n"
+          "replacement": "$add_c\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 5,
+                  "column": 47,
+                  "offset": 155
+                },
+                "end": {
+                  "line": 5,
+                  "column": 52,
+                  "offset": 160
+                }
+              },
+              "replacement": "$add_c"
+            }
+          ]
         }
       }
     ]
@@ -33280,7 +33680,24 @@
               "offset": 104
             }
           },
-          "replacement": "$sig_type\n"
+          "replacement": "$sig_type\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "column": 22,
+                  "offset": 125
+                },
+                "end": {
+                  "line": 4,
+                  "column": 30,
+                  "offset": 133
+                }
+              },
+              "replacement": "$sig_type"
+            }
+          ]
         }
       }
     ]
@@ -33344,7 +33761,24 @@
               "offset": 84
             }
           },
-          "replacement": "$sig_type\n"
+          "replacement": "$sig_type\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "column": 22,
+                  "offset": 105
+                },
+                "end": {
+                  "line": 4,
+                  "column": 30,
+                  "offset": 113
+                }
+              },
+              "replacement": "$sig_type"
+            }
+          ]
         }
       }
     ]
@@ -39298,7 +39732,24 @@
               "offset": 27
             }
           },
-          "replacement": "$norm_a\n"
+          "replacement": "$norm_a\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 1,
+                  "offset": 54
+                },
+                "end": {
+                  "line": 3,
+                  "column": 7,
+                  "offset": 60
+                }
+              },
+              "replacement": "$norm_a"
+            }
+          ]
         }
       },
       {
@@ -39326,7 +39777,24 @@
               "offset": 54
             }
           },
-          "replacement": "$norm_b\n"
+          "replacement": "$norm_b\n",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 3,
+                  "column": 23,
+                  "offset": 76
+                },
+                "end": {
+                  "line": 3,
+                  "column": 29,
+                  "offset": 82
+                }
+              },
+              "replacement": "$norm_b"
+            }
+          ]
         }
       }
     ]

@@ -158,6 +158,32 @@ describe('non-null-fix rules emit a well-formed DiagnosticFix', () => {
       expect(fix.range.end.offset).toBeGreaterThanOrEqual(
         fix.range.start.offset
       );
+
+      if (fix.additionalEdits !== undefined) {
+        const allRanges = [
+          fix.range,
+          ...fix.additionalEdits.map((edit) => edit.range),
+        ];
+
+        for (const edit of fix.additionalEdits) {
+          expect(edit.range.start.offset).toBeTypeOf('number');
+          expect(edit.range.end.offset).toBeTypeOf('number');
+          expect(edit.range.end.offset).toBeGreaterThanOrEqual(
+            edit.range.start.offset
+          );
+        }
+
+        for (let i = 0; i < allRanges.length; i++) {
+          for (let j = i + 1; j < allRanges.length; j++) {
+            const a = allRanges[i];
+            const b = allRanges[j];
+            if (a === undefined || b === undefined) continue;
+            const overlaps =
+              a.start.offset < b.end.offset && b.start.offset < a.end.offset;
+            expect(overlaps).toBe(false);
+          }
+        }
+      }
     }
   });
 
