@@ -33,7 +33,7 @@ function unwrapConditionToBinary(cond: ConditionalNode): BinaryExprNode | null {
   if (!expr) return null;
 
   let inner: ASTNode | null = expr;
-  if (inner && inner.type === 'GroupedExpr') {
+  if (inner.type === 'GroupedExpr') {
     inner = (inner as GroupedExprNode).expression;
   }
   if (inner && inner.type === 'PipeChain') {

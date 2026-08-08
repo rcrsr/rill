@@ -97,7 +97,7 @@ export async function execute(
     // Guard against removed frontmatter keys
     if (script.frontmatter) {
       const content = script.frontmatter.content;
-      if (/(?:^|\n)\s*use\s*:/.test(content)) {
+      if (/^[^\S\n]*use[^\S\n]*:/m.test(content)) {
         throwFatalHostHalt(
           {
             location: script.frontmatter.span.start,
@@ -108,7 +108,7 @@ export async function execute(
           'Frontmatter key removed: use: frontmatter removed; use use<module:...> instead'
         );
       }
-      if (/(?:^|\n)\s*export\s*:/.test(content)) {
+      if (/^[^\S\n]*export[^\S\n]*:/m.test(content)) {
         throwFatalHostHalt(
           {
             location: script.frontmatter.span.start,
