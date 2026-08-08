@@ -69,9 +69,13 @@ function toSnakeCase(name: string): string {
  *
  * `VariableNode.span` for a bare `$name` reference is a zero-width point
  * anchored at the `$` (confirmed by direct parse of `$x` in `$x + 1`: span
- * start === end) - the parser never widens it to cover the name text. Only
- * `ClosureCall` nodes (`$fn(...)`) carry a span that covers real source
- * text, so those pass through unchanged. This mirrors
+ * start === end) - the parser never widens it to cover the name text.
+ * `ClosureCallNode.span` (`$fn(...)`) is also anchored at the `$` before the
+ * callee name but widens all the way to the closing `)` (confirmed against
+ * `parseClosureCall` in `packages/core/src/parser/parser-functions.ts`), so
+ * using it unnarrowed would overlap with separate edits inside the call's
+ * own arguments (e.g. `$f($f)`). Both node kinds therefore narrow to the
+ * same `$name`-width span anchored at their shared span start. This mirrors
  * `nameOnlySpan` in `src/scope/locate-target.ts` (same `1 + name.length`
  * anchored-at-start arithmetic), reimplemented locally: it's pure span
  * arithmetic over already-computed facts, not a binding-identity lookup, so
@@ -79,9 +83,6 @@ function toSnakeCase(name: string): string {
  * `src/scope/`).
  */
 function referenceSpan(entry: ReferenceEntry): SourceSpan {
-  if (entry.node.type !== 'Variable') {
-    return entry.node.span;
-  }
   const { start } = entry.node.span;
   const width = 1 + entry.name.length;
   return {
@@ -131,11 +132,19 @@ type NamingFixKind = 'capture' | 'param' | 'dictKey';
  * - `capture` with more than one capture of `name` in scope: binding
  *   identity is ambiguous without scope resolution, which the rules
  *   firewall (`src/rules/**` may not import `src/scope/`) forbids computing.
+ * - `capture` when a `ClosureParam` in the script also uses `name`:
+ *   `referenceLog` is name-only, so rewriting every reference to `name`
+ *   would also rewrite references to a same-named parameter that shadows
+ *   the capture in its own closure body.
  * - `capture`/`param` when `toSnakeCase(name)` collides with an existing
  *   capture: renaming would merge two distinct variables.
  * - `dictKey` when the script has any dynamically-keyed field access
  *   (`.($expr)`, `.$var`, `.{...}`): a bare-identifier rename could silently
  *   retarget a computed lookup elsewhere in the script.
+ * - `dictKey` when the script has any literal field access (`.name`) to a
+ *   field named `name`: the fix only rewrites the dict-literal key, so a
+ *   literal access elsewhere in the script would be left pointing at a
+ *   field that no longer exists.
  *
  * For `capture`, the primary edit rewrites the declaration span and
  * `additionalEdits` carries one edit per reference to `name` in
@@ -153,11 +162,16 @@ function buildFix(
   }
 
   const snakeCaseName = toSnakeCase(name);
-  const { captureLog, referenceLog, hasDynamicFieldAccess } =
-    context.facts.script;
+  const {
+    captureLog,
+    referenceLog,
+    hasDynamicFieldAccess,
+    paramNames,
+    literalFieldAccessNames,
+  } = context.facts.script;
 
   if (kind === 'dictKey') {
-    if (hasDynamicFieldAccess) {
+    if (hasDynamicFieldAccess || literalFieldAccessNames.has(name)) {
       return null;
     }
   } else {
@@ -175,6 +189,10 @@ function buildFix(
         (entry) => entry.node.name === name
       ).length;
       if (bindingCount > 1) {
+        return null;
+      }
+
+      if (paramNames.has(name)) {
         return null;
       }
     }

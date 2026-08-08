@@ -122,6 +122,10 @@ export interface ScriptFacts {
   readonly firstPipeIteration: ReadonlyMap<string, ASTNode>;
   /** True if any Variable node's access chain contains a dynamically-keyed field access (`computed`, `variable`, or `block` kind). */
   readonly hasDynamicFieldAccess: boolean;
+  /** Every ClosureParam name observed, script-wide (order and duplicates not preserved). */
+  readonly paramNames: ReadonlySet<string>;
+  /** Every literal (`.field`) field name accessed via a Variable's access chain, script-wide. */
+  readonly literalFieldAccessNames: ReadonlySet<string>;
 }
 
 /** Result of a single fact-collection pass over an AST. */
@@ -253,6 +257,18 @@ function hasDynamicFieldAccessSelf(node: ASTNode): boolean {
   );
 }
 
+/** Literal (`.field`) field names accessed by a single Variable node's access chain. */
+function literalFieldAccessNamesSelf(node: ASTNode): string[] {
+  if (node.type !== 'Variable') return [];
+  const names: string[] = [];
+  for (const access of node.accessChain) {
+    if ('kind' in access && access.kind === 'literal') {
+      names.push(access.field);
+    }
+  }
+  return names;
+}
+
 // ============================================================
 // FACT COLLECTION
 // ============================================================
@@ -284,6 +300,8 @@ export function collectFacts(root: ASTNode): AstFacts {
   const firstClosureCall = new Map<string, ClosureCallNode>();
   const firstPipeIteration = new Map<string, ASTNode>();
   let hasDynamicFieldAccess = false;
+  const paramNames = new Set<string>();
+  const literalFieldAccessNames = new Set<string>();
 
   const stack: Accumulator[] = [];
   let currentClosureDepth = 0;
@@ -394,6 +412,14 @@ export function collectFacts(root: ASTNode): AstFacts {
       if (hasDynamicFieldAccessSelf(node)) {
         hasDynamicFieldAccess = true;
       }
+
+      if (node.type === 'ClosureParam') {
+        paramNames.add(node.name);
+      }
+
+      for (const field of literalFieldAccessNamesSelf(node)) {
+        literalFieldAccessNames.add(field);
+      }
     },
 
     exit(node: ASTNode) {
@@ -470,6 +496,8 @@ export function collectFacts(root: ASTNode): AstFacts {
       firstClosureCall,
       firstPipeIteration,
       hasDynamicFieldAccess,
+      paramNames,
+      literalFieldAccessNames,
     },
   };
 }

@@ -21751,11 +21751,11 @@
                 },
                 "end": {
                   "line": 2,
-                  "column": 53,
-                  "offset": 53
+                  "column": 50,
+                  "offset": 50
                 }
               },
-              "replacement": "$empty_iter(0)"
+              "replacement": "$empty_iter"
             },
             {
               "range": {
@@ -21766,11 +21766,11 @@
                 },
                 "end": {
                   "line": 3,
-                  "column": 22,
-                  "offset": 92
+                  "column": 19,
+                  "offset": 89
                 }
               },
-              "replacement": "$empty_iter(0)"
+              "replacement": "$empty_iter"
             }
           ]
         }
@@ -21829,11 +21829,11 @@
                 },
                 "end": {
                   "line": 2,
-                  "column": 53,
-                  "offset": 53
+                  "column": 50,
+                  "offset": 50
                 }
               },
-              "replacement": "$empty_iter(0)"
+              "replacement": "$empty_iter"
             },
             {
               "range": {
@@ -21844,11 +21844,11 @@
                 },
                 "end": {
                   "line": 3,
-                  "column": 22,
-                  "offset": 92
+                  "column": 19,
+                  "offset": 89
                 }
               },
-              "replacement": "$empty_iter(0)"
+              "replacement": "$empty_iter"
             }
           ]
         }
@@ -21989,11 +21989,11 @@
                 },
                 "end": {
                   "line": 4,
-                  "column": 16,
-                  "offset": 59
+                  "column": 14,
+                  "offset": 57
                 }
               },
-              "replacement": "$get_x()"
+              "replacement": "$get_x"
             }
           ]
         }
@@ -22052,11 +22052,11 @@
                 },
                 "end": {
                   "line": 5,
-                  "column": 16,
-                  "offset": 75
+                  "column": 14,
+                  "offset": 73
                 }
               },
-              "replacement": "$get_x()"
+              "replacement": "$get_x"
             }
           ]
         }
@@ -22173,11 +22173,11 @@
                 },
                 "end": {
                   "line": 3,
-                  "column": 24,
-                  "offset": 65
+                  "column": 20,
+                  "offset": 61
                 }
               },
-              "replacement": "$make_getter(42)"
+              "replacement": "$make_getter"
             }
           ]
         }
@@ -22258,11 +22258,11 @@
                 },
                 "end": {
                   "line": 6,
-                  "column": 33,
-                  "offset": 150
+                  "column": 31,
+                  "offset": 148
                 }
               },
-              "replacement": "$get_plus1()"
+              "replacement": "$get_plus1"
             }
           ]
         }
@@ -22339,11 +22339,11 @@
                 },
                 "end": {
                   "line": 3,
-                  "column": 23,
-                  "offset": 69
+                  "column": 21,
+                  "offset": 67
                 }
               },
-              "replacement": "$make_doubler()"
+              "replacement": "$make_doubler"
             }
           ]
         }

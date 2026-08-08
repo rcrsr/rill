@@ -42,6 +42,47 @@ describe('NAMING_SNAKE_CASE fix: reference-aware capture rename', () => {
   });
 });
 
+describe('NAMING_SNAKE_CASE fix: closure-call callee and argument in the same call', () => {
+  it('rewrites the callee and the argument as disjoint $name-width edits', () => {
+    const source = '|x|($x) => $userName\n$userName($userName)\n';
+    const parsed = parse(source);
+
+    const result = runRules(parsed, source, createDefaultConfig(), [
+      namingSnakeCase,
+    ]);
+
+    const diagnostic = result.find((d) => d.message.includes("'userName'"));
+    expect(diagnostic).toBeDefined();
+    const fix = diagnostic?.fix;
+    expect(fix).not.toBeNull();
+    expect(fix?.additionalEdits?.length).toBe(2);
+
+    const allEdits = [
+      { range: fix!.range, replacement: fix!.replacement },
+      ...(fix?.additionalEdits ?? []),
+    ];
+
+    // Every reference edit (the two additionalEdits, callee and argument)
+    // rewrites exactly the `$name` text.
+    for (const edit of fix?.additionalEdits ?? []) {
+      expect(edit.replacement).toBe('$user_name');
+      expect(edit.range.end.offset - edit.range.start.offset).toBe(
+        '$userName'.length
+      );
+    }
+
+    // Pairwise disjoint: no edit's range overlaps another's.
+    const sorted = [...allEdits].sort(
+      (a, b) => a.range.start.offset - b.range.start.offset
+    );
+    for (let i = 1; i < sorted.length; i++) {
+      expect(sorted[i]!.range.start.offset).toBeGreaterThanOrEqual(
+        sorted[i - 1]!.range.end.offset
+      );
+    }
+  });
+});
+
 describe('NAMING_SNAKE_CASE fix: withheld on snake_case collision', () => {
   it('withholds the fix when the snake_case target already names a capture', () => {
     const source = '"alpha" => $user_name\n"b" => $userName\n';
@@ -109,7 +150,7 @@ describe('NAMING_SNAKE_CASE fix: dict key withheld on dynamic field access', () 
     expect(dictKeyDiagnostic?.fix).toBeNull();
   });
 
-  it('(control) still applies a single-edit fix when field access is only literal', () => {
+  it('withholds the fix when field access is only literal, since the fix does not rewrite it', () => {
     const source = 'dict[camelKey: 1] => $c\n$c.camelKey\n';
     const parsed = parse(source);
 
@@ -121,11 +162,7 @@ describe('NAMING_SNAKE_CASE fix: dict key withheld on dynamic field access', () 
       d.message.includes('Dict key')
     );
     expect(dictKeyDiagnostic).toBeDefined();
-    expect(dictKeyDiagnostic?.fix).toMatchObject({
-      description: "Rename 'camelKey' to 'camel_key'",
-      applicable: true,
-    });
-    expect(dictKeyDiagnostic?.fix?.additionalEdits).toBeUndefined();
+    expect(dictKeyDiagnostic?.fix).toBeNull();
   });
 });
 
