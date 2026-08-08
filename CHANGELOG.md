@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Every GitHub Action pinned to a commit SHA:** All 14 `uses:` references across the six workflows now pin a full SHA with the release in a trailing comment. A major tag is mutable, so `@v5` can be retargeted and a run executes different code with no diff in the repository.
 - **Toolchain refreshed:** pnpm 11.11.0 to 11.18.0, oxfmt to 0.61.0, oxlint to 1.76.0, knip to 6.29.0, plus in-range refreshes across the fiddle front-end dependencies. `engines.pnpm` now declares `>=11`.
 
+### Fixed
+
+- **NAMING_SNAKE_CASE autofix:** Now rewrites all capture references when fixing the name, and withholds the fix when a rename would create dangling references across scopes, collide with an existing name, or break dynamic dict-key access. DiagnosticFix gains an optional additionalEdits array to carry the reference-site edits. ([#163](https://github.com/rcrsr/rill/pull/163))
+
 ## 0.20.0 - 2026-07-30
 
 ### Added

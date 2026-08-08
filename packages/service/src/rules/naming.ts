@@ -17,7 +17,14 @@ import type {
   SourceLocation,
   SourceSpan,
 } from '@rcrsr/rill';
-import type { Diagnostic, DiagnosticFix, Rule, RuleContext } from './types.js';
+import type {
+  Diagnostic,
+  DiagnosticEdit,
+  DiagnosticFix,
+  Rule,
+  RuleContext,
+} from './types.js';
+import type { ReferenceEntry } from './facts.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
@@ -57,6 +64,37 @@ function toSnakeCase(name: string): string {
     .replace(/^_+|_+$/g, '');
 }
 
+/**
+ * Derives the true `$name` text span for a `referenceLog` entry.
+ *
+ * `VariableNode.span` for a bare `$name` reference is a zero-width point
+ * anchored at the `$` (confirmed by direct parse of `$x` in `$x + 1`: span
+ * start === end) - the parser never widens it to cover the name text.
+ * `ClosureCallNode.span` (`$fn(...)`) is also anchored at the `$` before the
+ * callee name but widens all the way to the closing `)` (confirmed against
+ * `parseClosureCall` in `packages/core/src/parser/parser-functions.ts`), so
+ * using it unnarrowed would overlap with separate edits inside the call's
+ * own arguments (e.g. `$f($f)`). Both node kinds therefore narrow to the
+ * same `$name`-width span anchored at their shared span start. This mirrors
+ * `nameOnlySpan` in `src/scope/locate-target.ts` (same `1 + name.length`
+ * anchored-at-start arithmetic), reimplemented locally: it's pure span
+ * arithmetic over already-computed facts, not a binding-identity lookup, so
+ * it doesn't cross the rules/scope firewall (`src/rules/**` may not import
+ * `src/scope/`).
+ */
+function referenceSpan(entry: ReferenceEntry): SourceSpan {
+  const { start } = entry.node.span;
+  const width = 1 + entry.name.length;
+  return {
+    start,
+    end: {
+      line: start.line,
+      column: start.column + width,
+      offset: start.offset + width,
+    },
+  };
+}
+
 // ============================================================
 // DIAGNOSTIC CONSTRUCTION
 // ============================================================
@@ -82,24 +120,111 @@ function createNamingDiagnostic(
   };
 }
 
+/** Discriminates the definition-site kind a fix is being built for. */
+type NamingFixKind = 'capture' | 'param' | 'dictKey';
+
+/**
+ * Build a rename fix for a naming violation at `range`, or withhold (`null`)
+ * when the rename cannot be applied safely.
+ *
+ * Withholds (§BASIC.12.1 fail loud - the diagnostic still fires, only the
+ * fix is dropped):
+ * - `capture` with more than one capture of `name` in scope: binding
+ *   identity is ambiguous without scope resolution, which the rules
+ *   firewall (`src/rules/**` may not import `src/scope/`) forbids computing.
+ * - `capture` when a `ClosureParam` in the script also uses `name`:
+ *   `referenceLog` is name-only, so rewriting every reference to `name`
+ *   would also rewrite references to a same-named parameter that shadows
+ *   the capture in its own closure body.
+ * - `capture`/`param` when `toSnakeCase(name)` collides with an existing
+ *   capture: renaming would merge two distinct variables.
+ * - `dictKey` when the script has any dynamically-keyed field access
+ *   (`.($expr)`, `.$var`, `.{...}`): a bare-identifier rename could silently
+ *   retarget a computed lookup elsewhere in the script.
+ * - `dictKey` when the script has any literal field access (`.name`) to a
+ *   field named `name`: the fix only rewrites the dict-literal key, so a
+ *   literal access elsewhere in the script would be left pointing at a
+ *   field that no longer exists.
+ *
+ * For `capture`, the primary edit rewrites the declaration span and
+ * `additionalEdits` carries one edit per reference to `name` in
+ * `context.facts.script.referenceLog`, keeping every rewritten site
+ * disjoint from the primary edit and from each other.
+ */
 function buildFix(
+  context: RuleContext,
+  kind: NamingFixKind,
   name: string,
-  range: SourceSpan,
-  source: string
+  range: SourceSpan
 ): DiagnosticFix | null {
   if (!name || isSnakeCase(name)) {
     return null;
   }
 
   const snakeCaseName = toSnakeCase(name);
-  const sourceText = source.substring(range.start.offset, range.end.offset);
-  const replacement = sourceText.replace(name, snakeCaseName);
+  const {
+    captureLog,
+    referenceLog,
+    hasDynamicFieldAccess,
+    paramNames,
+    literalFieldAccessNames,
+  } = context.facts.script;
+
+  if (kind === 'dictKey') {
+    if (hasDynamicFieldAccess || literalFieldAccessNames.has(name)) {
+      return null;
+    }
+  } else {
+    // capture / param: withhold if the snake_case target already names a
+    // captured variable (would merge two bindings).
+    const collides = captureLog.some(
+      (entry) => entry.node.name === snakeCaseName
+    );
+    if (collides) {
+      return null;
+    }
+
+    if (kind === 'capture') {
+      const bindingCount = captureLog.filter(
+        (entry) => entry.node.name === name
+      ).length;
+      if (bindingCount > 1) {
+        return null;
+      }
+
+      if (paramNames.has(name)) {
+        return null;
+      }
+    }
+  }
+
+  const sourceTextAt = (span: SourceSpan): string =>
+    context.source.substring(span.start.offset, span.end.offset);
+
+  const replacement = sourceTextAt(range).replace(name, snakeCaseName);
+
+  let additionalEdits: readonly DiagnosticEdit[] | undefined;
+  if (kind === 'capture') {
+    const edits: DiagnosticEdit[] = [];
+    for (const entry of referenceLog) {
+      if (entry.name !== name) continue;
+      const span = referenceSpan(entry);
+      edits.push({
+        range: span,
+        replacement: sourceTextAt(span).replace(name, snakeCaseName),
+      });
+    }
+    if (edits.length > 0) {
+      additionalEdits = edits;
+    }
+  }
 
   return {
     description: `Rename '${name}' to '${snakeCaseName}'`,
     applicable: true,
     range,
     replacement,
+    ...(additionalEdits ? { additionalEdits } : {}),
   };
 }
 
@@ -120,7 +245,7 @@ export const namingSnakeCase: Rule = {
         const name = paramNode.name;
 
         if (!isSnakeCase(name)) {
-          const fix = buildFix(name, paramNode.span, context.source);
+          const fix = buildFix(context, 'param', name, paramNode.span);
           return [
             createNamingDiagnostic(
               paramNode.span.start,
@@ -147,7 +272,7 @@ export const namingSnakeCase: Rule = {
         }
 
         if (!isSnakeCase(key)) {
-          const fix = buildFix(key, entryNode.span, context.source);
+          const fix = buildFix(context, 'dictKey', key, entryNode.span);
           return [
             createNamingDiagnostic(
               entryNode.span.start,
@@ -167,7 +292,7 @@ export const namingSnakeCase: Rule = {
         const name = captureNode.name;
 
         if (!isSnakeCase(name)) {
-          const fix = buildFix(name, captureNode.span, context.source);
+          const fix = buildFix(context, 'capture', name, captureNode.span);
           return [
             createNamingDiagnostic(
               captureNode.span.start,
