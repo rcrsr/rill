@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **NAMING_SNAKE_CASE autofix:** Now rewrites all capture references when fixing the name, and withholds the fix when a rename would create dangling references across scopes, collide with an existing name, or break dynamic dict-key access. DiagnosticFix gains an optional additionalEdits array to carry the reference-site edits. ([#163](https://github.com/rcrsr/rill/pull/163))
+- **CodeQL warnings:** Resolved in core runtime and language service. Changes are behavior-preserving. ([#164](https://github.com/rcrsr/rill/pull/164))
 
 ## 0.20.0 - 2026-07-30
 
