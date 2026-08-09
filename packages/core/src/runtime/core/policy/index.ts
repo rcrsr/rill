@@ -1,3 +1,13 @@
+/**
+ * Public policy surface, re-exported from `src/index.ts`.
+ *
+ * Only what a host or a downstream package consumes belongs here. The
+ * internal wiring — identity branding, transform execution and the
+ * per-context resolver registry — is imported directly from its module
+ * by the one or two call sites that need it, so it stays off the public
+ * surface and out of the barrel.
+ */
+
 export type {
   ExtensionIdentity,
   ExtensionMethodPolicy,
@@ -9,12 +19,4 @@ export type {
 } from './types.js';
 export { createConfigFilterResolver } from './resolve.js';
 export { resolvePolicy } from './config-resolver.js';
-export { brandExtensionValue, getExtensionIdentity } from './identity.js';
-export { applyTransforms } from './transforms.js';
-export type { TransformInvoker } from './transforms.js';
-export {
-  getFilterResolver,
-  getInFlightTransforms,
-  inheritPolicyState,
-  installFilterResolver,
-} from './registry.js';
+export { getExtensionIdentity } from './identity.js';
