@@ -12,6 +12,12 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+## 0.2.1 - 2026-08-08
+
+### Changed
+
+- **Baseline refreshed to the current shared-tooling pins:** `baseline.json` now records `@types/node ^26.2.0`, `knip ^6.32.0`, `oxfmt ^0.62.0`, and `oxlint ^1.77.0`, matching rill's tree after a dev-dependency sweep. Consumers reading `@rcrsr/rill-dev/baseline.json` resolve `STD-DEP-1` and `STD-PM-2` against the same ranges rill pins today; the published 0.2.0 baseline lagged them. No checker logic changed. ([#166](https://github.com/rcrsr/rill/pull/166))
+
 ## 0.2.0 - 2026-08-03
 
 ### Added
