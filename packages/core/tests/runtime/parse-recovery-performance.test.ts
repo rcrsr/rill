@@ -29,11 +29,12 @@
 import { describe, expect, it } from 'vitest';
 import { parseWithRecovery } from '@rcrsr/rill';
 
-// Scaling-tolerance constant: quadrupling the input must not more than
-// quintuple the parse time. Linear scaling would produce a ratio near 4;
-// this leaves generous margin for measurement noise while still catching a
+// Scaling-tolerance constant: quadrupling the input must not multiply the
+// parse time by more than 8x. Linear scaling would produce a ratio near 4;
+// this leaves generous margin for shared-CI-runner measurement noise (which
+// has been observed to push a linear run just past 5x) while still catching a
 // quadratic (ratio ~16) or worse regression.
-const MAX_SCALING_RATIO = 5;
+const MAX_SCALING_RATIO = 8;
 
 /**
  * Builds a script of `count` back-to-back malformed statements, each of

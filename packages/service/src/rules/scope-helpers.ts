@@ -33,7 +33,7 @@ export function isVariableInParentScope(
 
   // If we're not in a closure, variable can't be outer to us
   if (currentClosureScope === null) {
-    return variableScope === null;
+    return false;
   }
 
   // Variable is outer if its scope is the same as current closure
