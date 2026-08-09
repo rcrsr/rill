@@ -102,12 +102,10 @@ function staticTypeRefToTypeStructure(
   }
 
   if (typeName === 'tuple') {
-    const elements: RillFieldDef[] = args.map(
-      (arg): RillFieldDef => ({
-        ...(arg.name !== undefined ? { name: arg.name } : {}),
-        type: staticTypeRefToTypeStructure(arg.value, functionName),
-      })
-    );
+    const elements: RillFieldDef[] = args.map((arg): RillFieldDef => ({
+      ...(arg.name !== undefined ? { name: arg.name } : {}),
+      type: staticTypeRefToTypeStructure(arg.value, functionName),
+    }));
     return { kind: 'tuple', elements };
   }
 
