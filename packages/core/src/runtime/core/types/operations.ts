@@ -795,22 +795,18 @@ export function inferStructure(value: RillValue): TypeStructure {
   if (isTuple(value)) {
     return {
       kind: 'tuple',
-      elements: value.entries.map(
-        (e): RillFieldDef => ({
-          type: inferStructure(e),
-        })
-      ),
+      elements: value.entries.map((e): RillFieldDef => ({
+        type: inferStructure(e),
+      })),
     };
   }
   if (isOrdered(value)) {
     return {
       kind: 'ordered',
-      fields: value.entries.map(
-        ([k, v]): RillFieldDef => ({
-          name: k,
-          type: inferStructure(v),
-        })
-      ),
+      fields: value.entries.map(([k, v]): RillFieldDef => ({
+        name: k,
+        type: inferStructure(v),
+      })),
     };
   }
   if (isVector(value)) {

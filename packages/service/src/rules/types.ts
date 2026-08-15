@@ -36,6 +36,24 @@ export interface DiagnosticFix {
   readonly description: string;
   /** Whether the fix can be safely applied automatically. */
   readonly applicable: boolean;
+  /** Source range to replace. This is the primary/anchor edit. */
+  readonly range: SourceSpan;
+  /** Replacement text for the primary/anchor edit. */
+  readonly replacement: string;
+  /**
+   * Additional edits accompanying the primary/anchor edit, e.g. renaming
+   * every reference to a declaration renamed by the anchor edit. Disjoint
+   * from `range` and from each other. Appliers must apply every edit in
+   * descending offset order or renames dangle references.
+   */
+  readonly additionalEdits?: readonly DiagnosticEdit[];
+}
+
+/**
+ * A single edit within a multi-edit {@link DiagnosticFix}.
+ * Disjoint from every other edit applied alongside it.
+ */
+export interface DiagnosticEdit {
   /** Source range to replace. */
   readonly range: SourceSpan;
   /** Replacement text. */
