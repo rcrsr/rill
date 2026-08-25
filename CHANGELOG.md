@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **NAMING_SNAKE_CASE autofix:** Now rewrites all capture references when fixing the name, and withholds the fix when a rename would create dangling references across scopes, collide with an existing name, or break dynamic dict-key access. DiagnosticFix gains an optional additionalEdits array to carry the reference-site edits. ([#163](https://github.com/rcrsr/rill/pull/163))
 - **CodeQL warnings:** Resolved in core runtime and language service. Changes are behavior-preserving. ([#164](https://github.com/rcrsr/rill/pull/164))
 - **Parser and lexer defects:** Reserved words now parse as bare dict keys (dict[error: 1]); unterminated double-quoted strings halt at the lexer (RILL-L001) instead of lexing as valid. Exported parser state helpers throw ParseError, and recursion depth is guarded with RILL-P015. ([#241](https://github.com/rcrsr/rill/pull/241))
+- **Runtime defect fixes:** Eight defects fixed in error handling, promise management, logging defaults, singleton safety, and structural consistency. ([#242](https://github.com/rcrsr/rill/pull/242))
 
 ## 0.20.0 - 2026-07-30
 
