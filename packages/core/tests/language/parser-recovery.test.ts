@@ -117,16 +117,16 @@ describe('Parser Recovery', () => {
       expect(result.errors[0]?.message).toMatch(/Empty string interpolation/);
     });
 
-    it('recovers from unterminated interpolation', () => {
+    it('recovers from unterminated string literal', () => {
+      // The string never reaches a closing `"`, so the lexer reports it as
+      // unterminated rather than reaching the parser as an interpolation error.
       const source = `"x" => $x
 "{$x"`;
       const result = parseWithRecovery(source);
 
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors[0]?.message).toMatch(
-        /Unterminated string interpolation/
-      );
+      expect(result.errors[0]?.message).toMatch(/Unterminated string literal/);
     });
   });
 

@@ -21,6 +21,7 @@ import {
   current,
   peek,
   skipNewlines,
+  withRecursionDepth,
 } from './state.js';
 import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -51,6 +52,21 @@ import { ERROR_IDS } from '../error-registry.js';
  * @internal
  */
 export function parseTypeRef(
+  state: ParserState,
+  opts?: {
+    allowTrailingPipe?: boolean;
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  }
+): TypeRef {
+  return withRecursionDepth(
+    state,
+    () => current(state).span.start,
+    () => parseTypeRefImpl(state, opts)
+  );
+}
+
+function parseTypeRefImpl(
   state: ParserState,
   opts?: {
     allowTrailingPipe?: boolean;
@@ -210,7 +226,6 @@ function parseSingleType(
  * @param opts  - Optional parseLiteral callback for default value support
  *
  * @throws ParseError RILL-P014 if token after arg is not `,` or `)`
- * @throws ParseError RILL-P014 if missing closing `)`
  *
  * @internal
  */
@@ -326,15 +341,6 @@ export function parseFieldArgList(
         current(state).span.start
       );
     }
-  }
-
-  // Verify closing ")" is present
-  if (!check(state, TOKEN_TYPES.RPAREN)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P014,
-      "Expected ')' to close type argument list",
-      current(state).span.start
-    );
   }
 
   return args;

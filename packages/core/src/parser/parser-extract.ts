@@ -13,7 +13,14 @@ import type {
   TypeRef,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, advance, expect, current, makeSpan } from './state.js';
+import {
+  check,
+  advance,
+  expect,
+  current,
+  makeSpan,
+  withRecursionDepth,
+} from './state.js';
 import { isDictStart, isNegativeNumber } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -59,6 +66,14 @@ Parser.prototype.parseDestructure = function (this: Parser): DestructureNode {
 Parser.prototype.parseDestructPattern = function (
   this: Parser
 ): DestructPatternNode {
+  return withRecursionDepth(
+    this.state,
+    () => current(this.state).span.start,
+    () => parseDestructPatternImpl.call(this)
+  );
+};
+
+function parseDestructPatternImpl(this: Parser): DestructPatternNode {
   const start = current(this.state).span.start;
 
   if (check(this.state, TOKEN_TYPES.DESTRUCT_LANGLE)) {
@@ -139,7 +154,7 @@ Parser.prototype.parseDestructPattern = function (
     nested: null,
     span: makeSpan(start, current(this.state).span.end),
   };
-};
+}
 
 // ============================================================
 // DESTRUCT (keyword form)

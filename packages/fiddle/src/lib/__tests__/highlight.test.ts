@@ -747,5 +747,16 @@ describe('integration', () => {
 
       expect(copy.inTripleQuoteString).toBe(true);
     });
+
+    it('sets inTripleQuoteString even when the opening line has an odd number of embedded quotes', () => {
+      const state = highlighter.startState(2);
+      const openTags = processLine(state, '"""She said "hi');
+
+      expect(state.inTripleQuoteString).toBe(true);
+      expect(openTags).toContain('string');
+
+      const contentTags = processLine(state, 'more content');
+      expect(contentTags).toContain('string');
+    });
   });
 });

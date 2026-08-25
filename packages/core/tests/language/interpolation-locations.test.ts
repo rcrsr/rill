@@ -1,19 +1,21 @@
 import { describe, it, expect } from 'vitest';
-import { parse, ParseError } from '@rcrsr/rill';
+import { parse, ParseError, LexerError } from '@rcrsr/rill';
 
 describe('String interpolation location tracking', () => {
-  it('reports correct location for single-line interpolation syntax error', () => {
+  it('reports unterminated string literal for a source with no closing quote', () => {
+    // The string never reaches a closing `"`, so the lexer reports it as
+    // unterminated rather than reaching the parser as an interpolation error.
     const source = '"{$x +"';
 
     try {
       parse(source);
-      expect.fail('Should have thrown ParseError');
+      expect.fail('Should have thrown LexerError');
     } catch (err) {
-      expect(err).toBeInstanceOf(ParseError);
-      const parseErr = err as ParseError;
+      expect(err).toBeInstanceOf(LexerError);
+      const lexerErr = err as LexerError;
 
-      expect(parseErr.location?.line).toBe(1);
-      expect(parseErr.location?.column).toBe(1);
+      expect(lexerErr.location?.line).toBe(1);
+      expect(lexerErr.location?.column).toBe(1);
     }
   });
 

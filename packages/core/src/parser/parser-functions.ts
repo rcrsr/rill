@@ -63,12 +63,12 @@ Parser.prototype.parseArgumentList = function (
   let hasSpread = false;
   skipNewlines(this.state);
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    args.push(parseOneArg(this, allowSpread, hasSpread));
+    args.push(parseSpreadOrArg(this, { allowSpread, hasSpread }));
     if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
-      args.push(parseOneArg(this, allowSpread, hasSpread));
+      args.push(parseSpreadOrArg(this, { allowSpread, hasSpread }));
       if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     }
   }
@@ -77,14 +77,18 @@ Parser.prototype.parseArgumentList = function (
 };
 
 /**
- * Parse one argument, handling spread if allowed.
- * Enforces max-one-spread per list.
+ * Parse one argument in an argument list, handling spread when allowed.
+ * Enforces max-one-spread per list via `hasSpread`, and rejects spread
+ * entirely (RILL_P006) when `allowSpread` is false. Shared by
+ * `parseArgumentList` (function/closure/pipe-invoke calls, where spread
+ * support is caller-controlled) and `parseInvoke` (postfix invoke, where
+ * spread is always allowed).
  */
-function parseOneArg(
+export function parseSpreadOrArg(
   parser: Parser,
-  allowSpread: boolean,
-  hasSpread: boolean
+  options: { allowSpread: boolean; hasSpread: boolean }
 ): ExpressionNode | SpreadArgNode {
+  const { allowSpread, hasSpread } = options;
   if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
     if (!allowSpread) {
       throw new ParseError(
@@ -139,7 +143,7 @@ function parseOneArg(
       } satisfies SpreadArgNode;
     }
 
-    const expression = parser.parseExpression();
+    const expression = parser.parsePipeChain();
     return {
       type: 'SpreadArg',
       expression,
@@ -147,7 +151,7 @@ function parseOneArg(
     } satisfies SpreadArgNode;
   }
 
-  return parser.parseExpression();
+  return parser.parsePipeChain();
 }
 
 // ============================================================

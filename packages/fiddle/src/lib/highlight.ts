@@ -15,6 +15,7 @@ import {
   tokenize,
   TOKEN_HIGHLIGHT_MAP,
   TOKEN_TYPES,
+  RillError,
   type HighlightCategory,
   type Token,
   type SourceLocation,
@@ -102,22 +103,131 @@ const TYPE_NAME_VALUES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Find the start of a single- or double-quoted string left unterminated at
+ * end of line (excluding triple-quote strings, handled separately).
+ *
+ * Scans left-to-right honoring backslash escapes and `{expr}` interpolation
+ * depth: a quote character inside an open (unmatched) interpolation does not
+ * close the string, which is what makes `"unclosed {$x"` unterminated even
+ * though a `"` appears at the end of the line.
+ *
+ * @param lineText - Line text to scan
+ */
+function findUnterminatedQuoteStart(lineText: string): number | null {
+  let i = 0;
+  while (i < lineText.length) {
+    const ch = lineText[i];
+    if (ch === '\\') {
+      i += 2;
+      continue;
+    }
+    if (ch === '"' && lineText.slice(i, i + 3) === '"""') {
+      // A triple-quote opener anywhere on the line means this is
+      // triple-quote territory. Defer entirely to the caller's existing
+      // multi-line triple-quote fallback rather than scanning the
+      // remaining `"` characters as single-quote pairs.
+      return null;
+    }
+    if (ch === '"' || ch === "'") {
+      const quote = ch;
+      let j = i + 1;
+      let depth = 0;
+      let closed = false;
+      while (j < lineText.length) {
+        const cj = lineText[j];
+        if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        if (cj === '{') {
+          depth++;
+          j++;
+          continue;
+        }
+        if (cj === '}' && depth > 0) {
+          depth--;
+          j++;
+          continue;
+        }
+        if (cj === quote && depth === 0) {
+          closed = true;
+          j++;
+          break;
+        }
+        j++;
+      }
+      if (!closed) {
+        return i;
+      }
+      i = j;
+      continue;
+    }
+    i++;
+  }
+  return null;
+}
+
+/**
+ * Best-effort tokenization of source text, swallowing tokenize() errors.
+ *
+ * Used to recover tokens for the portion of a line preceding an unterminated
+ * string, where the substring itself should tokenize cleanly.
+ *
+ * @param text - Source text to tokenize
+ */
+function tokenizeSafely(text: string): Token[] {
+  if (text.length === 0) {
+    return [];
+  }
+  try {
+    return tokenize(text, undefined, { includeComments: true }).filter(
+      (t) => t.type !== TOKEN_TYPES.EOF && t.type !== TOKEN_TYPES.NEWLINE
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Get tokens for a single line with error handling
  *
  * Tokenizes just the provided line text. Multi-line constructs
  * (like triple-quote strings) may not highlight correctly.
  *
+ * When tokenize() throws because a single- or double-quoted string is
+ * unterminated at end-of-input (RILL-L001), this recovers a best-effort
+ * token list: tokens for the text preceding the opening quote, plus a
+ * synthetic STRING token spanning the opening quote to end of line. This
+ * keeps the line highlighted while the user is still typing the string,
+ * matching the triple-quote fallback used for multi-line strings.
+ *
  * @param lineText - Line text to tokenize
- * @returns Token array, or empty array on error
+ * @returns Token array, or a recovered best-effort array on error
  */
 function getTokensForLine(lineText: string): Token[] {
   try {
     // Tokenize single line with comments included for syntax highlighting
-    // Handle tokenize errors by returning empty array
     return tokenize(lineText, undefined, { includeComments: true });
-  } catch {
-    // Tokenize throws error - return empty array
-    return [];
+  } catch (error) {
+    if (!(error instanceof RillError) || error.errorId !== 'RILL-L001') {
+      return [];
+    }
+
+    const quoteStart = findUnterminatedQuoteStart(lineText);
+    if (quoteStart === null) {
+      return [];
+    }
+
+    const prefixTokens = tokenizeSafely(lineText.slice(0, quoteStart));
+    const stringToken = makeSyntheticToken(
+      TOKEN_TYPES.STRING,
+      lineText.slice(quoteStart),
+      quoteStart + 1,
+      lineText.length + 1,
+      1
+    );
+
+    return [...prefixTokens, stringToken];
   }
 }
 

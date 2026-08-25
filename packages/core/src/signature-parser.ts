@@ -13,7 +13,7 @@
  */
 
 import { tokenize } from './lexer/index.js';
-import { ParseError, TOKEN_TYPES } from './types.js';
+import { ERROR_IDS, ParseError, TOKEN_TYPES } from './types.js';
 import {
   type ParserState,
   createParserState,
@@ -293,7 +293,18 @@ function parseSignatureBody(
       if (check(state, TOKEN_TYPES.COMMA)) {
         advance(state);
         skipNewlines(state);
+        continue;
       }
+
+      if (check(state, TOKEN_TYPES.PIPE_BAR)) {
+        break;
+      }
+
+      throw new ParseError(
+        ERROR_IDS.RILL_P005,
+        "expected ',' or '|' between parameters",
+        current(state).span.start
+      );
     }
 
     if (!check(state, TOKEN_TYPES.PIPE_BAR)) {
