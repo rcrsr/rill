@@ -56,7 +56,7 @@ export function createParserState(
  * on a default V8 stack), leaving margin for test-runner and CI stack
  * usage that differs from a bare `node` invocation.
  */
-export const MAX_RECURSION_DEPTH = 150;
+const MAX_RECURSION_DEPTH = 150;
 
 /**
  * Increment a recursion-depth counter, call fn(), decrement in finally.
