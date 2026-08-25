@@ -20,6 +20,8 @@ export interface ParserState {
   readonly errors: ParseError[];
   /** Original source text (for error recovery) */
   readonly source: string;
+  /** Tracks recursive-descent depth for functions guarded by withRecursionDepth */
+  recursionDepth: number;
 }
 
 interface ParserStateOptions {
@@ -39,7 +41,48 @@ export function createParserState(
     recoveryMode: options.recoveryMode ?? false,
     errors: [],
     source: options.source ?? '',
+    recursionDepth: 0,
   };
+}
+
+// ============================================================
+// RECURSION DEPTH GUARD
+// ============================================================
+
+/**
+ * Maximum recursive-descent depth before halting with RILL-P015.
+ * Chosen comfortably below the native call-stack limit observed for
+ * deeply-nested constructs (empirically ~450 levels of nested parens
+ * on a default V8 stack), leaving margin for test-runner and CI stack
+ * usage that differs from a bare `node` invocation.
+ */
+export const MAX_RECURSION_DEPTH = 150;
+
+/**
+ * Increment a recursion-depth counter, call fn(), decrement in finally.
+ * Guards against depth counter leaks when fn() throws. Shared by any
+ * recursive-descent entry point that must halt with RILL-P015 instead
+ * of a raw RangeError on adversarial input.
+ * @internal
+ */
+export function withRecursionDepth<T>(
+  counter: { recursionDepth: number },
+  getLocation: () => SourceLocation,
+  fn: () => T
+): T {
+  counter.recursionDepth++;
+  try {
+    if (counter.recursionDepth > MAX_RECURSION_DEPTH) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P015,
+        'Maximum expression nesting depth exceeded',
+        getLocation()
+      );
+    }
+    return fn();
+  } finally {
+    counter.recursionDepth--;
+  }
 }
 
 // ============================================================

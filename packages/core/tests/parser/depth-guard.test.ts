@@ -53,3 +53,78 @@ describe('parsePrimary recursion-depth guard', () => {
     expect(() => parse(source)).not.toThrow();
   });
 });
+
+describe('parseUnary recursion-depth guard', () => {
+  it('throws ParseError with id RILL-P015 on deeply nested unary operators, not RangeError', () => {
+    const source = '!'.repeat(20000) + 'true';
+
+    let caught: unknown;
+    try {
+      parse(source);
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(ParseError);
+    expect(caught).not.toBeInstanceOf(RangeError);
+    expect((caught as ParseError).errorId).toBe('RILL-P015');
+  });
+
+  it('leaves shallow unary nesting unaffected', () => {
+    const source = '!'.repeat(5) + 'true';
+
+    expect(() => parse(source)).not.toThrow();
+  });
+});
+
+describe('parseTypeRef recursion-depth guard', () => {
+  it('throws ParseError with id RILL-P015 on deeply nested parameterized types, not RangeError', () => {
+    const source =
+      '|x: ' + 'list('.repeat(5000) + 'string' + ')'.repeat(5000) + '|: bool';
+
+    let caught: unknown;
+    try {
+      parse(source);
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(ParseError);
+    expect(caught).not.toBeInstanceOf(RangeError);
+    expect((caught as ParseError).errorId).toBe('RILL-P015');
+  });
+
+  it('leaves shallow parameterized-type nesting unaffected', () => {
+    const source =
+      '|x: ' + 'list('.repeat(3) + 'string' + ')'.repeat(3) + '|: bool';
+
+    expect(() => parse(source)).not.toThrow();
+  });
+});
+
+describe('parseDestructPattern recursion-depth guard', () => {
+  function deeplyNestedDestruct(depth: number): string {
+    return 'list[1] -> ' + 'destruct<'.repeat(depth) + '$a' + '>'.repeat(depth);
+  }
+
+  it('throws ParseError with id RILL-P015 on deeply nested destruct<>, not RangeError', () => {
+    const source = deeplyNestedDestruct(5000);
+
+    let caught: unknown;
+    try {
+      parse(source);
+    } catch (err) {
+      caught = err;
+    }
+
+    expect(caught).toBeInstanceOf(ParseError);
+    expect(caught).not.toBeInstanceOf(RangeError);
+    expect((caught as ParseError).errorId).toBe('RILL-P015');
+  });
+
+  it('leaves shallow destruct<> nesting unaffected', () => {
+    const source = deeplyNestedDestruct(2);
+
+    expect(() => parse(source)).not.toThrow();
+  });
+});

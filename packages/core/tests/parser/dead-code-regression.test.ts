@@ -1,18 +1,25 @@
 /**
- * Regression tests for two dead-code removals:
+ * Regression tests for two dead-code removals, plus a follow-up fix to
+ * isClosureSigLiteralStart's lookahead:
  *
  * - parseFieldArgList no longer performs a trailing "closing ')' present"
  *   check after its loop, because the loop only exits when the current
  *   token is RPAREN. Malformed lists must still error, either via the
  *   in-loop separator check or via the type-ref parser hitting EOF.
- * - isClosureSigLiteralStart no longer tracks a nested-pipe-bar depth
- *   counter; it scans for the first PIPE_BAR and checks whether COLON
- *   follows. This must not change sig-literal vs. typed-closure
- *   disambiguation on any existing input.
+ * - isClosureSigLiteralStart no longer bails out at the first PIPE_BAR
+ *   it finds; a PIPE_BAR not immediately followed by COLON may be a
+ *   union-type separator inside a param type ref (e.g.
+ *   `|x: string | number|: bool`), so the scan continues past it when
+ *   the following token starts a type. This must not change sig-literal
+ *   vs. typed-closure disambiguation on any existing input, and must
+ *   correctly route union-typed param signatures to the sig-literal
+ *   parse path — even though that path cannot yet fully parse a union
+ *   type in the param position (a separate, unrelated limitation of
+ *   parseClosureSigLiteral's param-type parser).
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse } from '@rcrsr/rill';
+import { parse, ParseError } from '@rcrsr/rill';
 
 describe('parseFieldArgList unterminated list', () => {
   it('errors on an unterminated stream() type argument list', () => {
@@ -72,5 +79,25 @@ describe('isClosureSigLiteralStart disambiguation', () => {
     const stmt = ast.statements[0]!;
     expect(stmt.expression.head.primary.type).not.toBe('ClosureSigLiteral');
     expect(stmt.expression.head.primary.type).toBe('Closure');
+  });
+
+  it('routes a union-typed param signature to the sig-literal path instead of misclassifying it as a closure', () => {
+    // The scan must not bail out at the first PIPE_BAR (the union
+    // separator between `string` and `number`); it correctly continues
+    // to the closing `|` followed by `:` and enters parseClosureSigLiteral.
+    // That function's param-type parser has no union-type support, so
+    // this still throws -- but with the sig-literal parser's own error,
+    // not the old first-pipe misclassification failure.
+    let caught: unknown;
+    try {
+      parse('|x: string | number|: bool');
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ParseError);
+    expect((caught as ParseError).errorId).toBe('RILL-P001');
+    expect((caught as ParseError).message).toContain(
+      'Expected : before return type in closure sig literal'
+    );
   });
 });

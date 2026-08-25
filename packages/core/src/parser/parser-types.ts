@@ -21,6 +21,7 @@ import {
   current,
   peek,
   skipNewlines,
+  withRecursionDepth,
 } from './state.js';
 import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -51,6 +52,21 @@ import { ERROR_IDS } from '../error-registry.js';
  * @internal
  */
 export function parseTypeRef(
+  state: ParserState,
+  opts?: {
+    allowTrailingPipe?: boolean;
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  }
+): TypeRef {
+  return withRecursionDepth(
+    state,
+    () => current(state).span.start,
+    () => parseTypeRefImpl(state, opts)
+  );
+}
+
+function parseTypeRefImpl(
   state: ParserState,
   opts?: {
     allowTrailingPipe?: boolean;

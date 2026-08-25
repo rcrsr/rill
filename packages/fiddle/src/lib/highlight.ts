@@ -15,6 +15,7 @@ import {
   tokenize,
   TOKEN_HIGHLIGHT_MAP,
   TOKEN_TYPES,
+  RillError,
   type HighlightCategory,
   type Token,
   type SourceLocation,
@@ -134,7 +135,7 @@ function findUnterminatedQuoteStart(lineText: string): number | null {
       let closed = false;
       while (j < lineText.length) {
         const cj = lineText[j];
-        if (cj === '\\' && depth === 0) {
+        if (cj === '\\') {
           j += 2;
           continue;
         }
@@ -207,7 +208,11 @@ function getTokensForLine(lineText: string): Token[] {
   try {
     // Tokenize single line with comments included for syntax highlighting
     return tokenize(lineText, undefined, { includeComments: true });
-  } catch {
+  } catch (error) {
+    if (!(error instanceof RillError) || error.errorId !== 'RILL-L001') {
+      return [];
+    }
+
     const quoteStart = findUnterminatedQuoteStart(lineText);
     if (quoteStart === null) {
       return [];

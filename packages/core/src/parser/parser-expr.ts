@@ -54,6 +54,7 @@ import {
   peek,
   skipNewlines,
   skipNewlinesIfFollowedBy,
+  withRecursionDepth,
 } from './state.js';
 import {
   isHostCall,
@@ -793,9 +794,16 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
  * AND the matching closing PIPE_BAR is followed by COLON (:).
  * This avoids misidentifying typed closures |x: T| { body } as sig literals
  * because those have `{` after the closing `|`, not `:`.
+ *
+ * This lookahead only decides which parse path to take; it does not
+ * guarantee the sig-literal path can fully parse the input. A union type
+ * in the param position (e.g. `|x: string | number|: bool`) is correctly
+ * routed to `parseClosureSigLiteral` by this scan, but that function's
+ * param-type parser (`this.parseExpression()`) has no union-type support
+ * and will still throw. Fixing that is a separate, unrelated change.
  */
 function isClosureSigLiteralStart(state: {
-  tokens: { type: string }[];
+  tokens: { type: string; value: string }[];
   pos: number;
 }): boolean {
   const t0 = state.tokens[state.pos];
@@ -809,13 +817,24 @@ function isClosureSigLiteralStart(state: {
   ) {
     return false;
   }
-  // Scan forward for the first closing PIPE_BAR, then check for COLON.
+  // Scan forward until we find a PIPE_BAR immediately followed by COLON.
+  // A PIPE_BAR not followed by COLON is only a union type separator (e.g.
+  // `|x: string | number|: bool`) when the token after it starts a type
+  // (a valid type name or `$variable`); otherwise it's the closing `|` of
+  // an ordinary closure param list (e.g. `|x: number| { body }`) and the
+  // scan must stop there rather than searching unboundedly into later
+  // statements for an unrelated `|...|:` pair.
   let i = state.pos + 1;
   while (i < state.tokens.length) {
     const tok = state.tokens[i]!;
     if (tok.type === TOKEN_TYPES.PIPE_BAR) {
       const afterClose = state.tokens[i + 1];
-      return afterClose?.type === TOKEN_TYPES.COLON;
+      if (afterClose?.type === TOKEN_TYPES.COLON) return true;
+      const afterCloseIsDollar = afterClose?.type === TOKEN_TYPES.DOLLAR;
+      const afterCloseIsTypeName =
+        afterClose?.type === TOKEN_TYPES.IDENTIFIER &&
+        (VALID_TYPE_NAMES as readonly string[]).includes(afterClose.value);
+      if (!afterCloseIsDollar && !afterCloseIsTypeName) return false;
     }
     i += 1;
   }
@@ -826,37 +845,12 @@ function isClosureSigLiteralStart(state: {
 // PRIMARY PARSING
 // ============================================================
 
-/**
- * Maximum parsePrimary recursion depth before halting with RILL-P015.
- * Chosen comfortably below the native call-stack limit observed for
- * deeply-nested expressions (empirically ~450 levels of nested parens
- * on a default V8 stack), leaving margin for test-runner and CI stack
- * usage that differs from a bare `node` invocation.
- */
-const MAX_RECURSION_DEPTH = 150;
-
-/**
- * Increment recursionDepth, call fn(), decrement in finally.
- * Guards against depth counter leaks when parsePrimary throws.
- */
-function withRecursionDepth<T>(parser: Parser, fn: () => T): T {
-  parser.recursionDepth++;
-  try {
-    if (parser.recursionDepth > MAX_RECURSION_DEPTH) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P015,
-        `Maximum expression nesting depth of ${MAX_RECURSION_DEPTH} exceeded`,
-        current(parser.state).span.start
-      );
-    }
-    return fn();
-  } finally {
-    parser.recursionDepth--;
-  }
-}
-
 Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
-  return withRecursionDepth(this, () => parsePrimaryImpl.call(this));
+  return withRecursionDepth(
+    this.state,
+    () => current(this.state).span.start,
+    () => parsePrimaryImpl.call(this)
+  );
 };
 
 function parsePrimaryImpl(this: Parser): PrimaryNode {
@@ -1706,6 +1700,14 @@ Parser.prototype.parseMultiplicative = function (this: Parser): ArithHead {
 Parser.prototype.parseUnary = function (
   this: Parser
 ): UnaryExprNode | PostfixExprNode {
+  return withRecursionDepth(
+    this.state,
+    () => current(this.state).span.start,
+    () => parseUnaryImpl.call(this)
+  );
+};
+
+function parseUnaryImpl(this: Parser): UnaryExprNode | PostfixExprNode {
   if (check(this.state, TOKEN_TYPES.MINUS)) {
     const start = current(this.state).span.start;
     advance(this.state);
@@ -1729,7 +1731,7 @@ Parser.prototype.parseUnary = function (
     };
   }
   return this.parsePostfixExpr();
-};
+}
 
 // ============================================================
 // CLOSURE SIG LITERAL PARSING

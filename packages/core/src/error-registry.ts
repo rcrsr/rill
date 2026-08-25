@@ -633,7 +633,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     errorId: ERROR_IDS.RILL_P015,
     category: 'parse',
     description: 'Maximum nesting depth exceeded',
-    messageTemplate: 'Maximum expression nesting depth of {limit} exceeded',
+    messageTemplate: 'Maximum expression nesting depth exceeded',
     cause:
       'An expression nests primary expressions (e.g. parentheses) deeper than the parser supports.',
     resolution:
