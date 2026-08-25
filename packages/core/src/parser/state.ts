@@ -52,7 +52,11 @@ export function current(state: ParserState): Token {
   if (token) return token;
   const last = state.tokens[state.tokens.length - 1];
   if (last) return last;
-  throw new Error('No tokens available');
+  throw new ParseError(ERROR_IDS.RILL_P002, 'Unexpected end of input', {
+    line: 1,
+    column: 1,
+    offset: 0,
+  });
 }
 
 /** @internal */
@@ -62,7 +66,11 @@ export function peek(state: ParserState, offset = 0): Token {
   if (token) return token;
   const last = state.tokens[state.tokens.length - 1];
   if (last) return last;
-  throw new Error('No tokens available');
+  throw new ParseError(ERROR_IDS.RILL_P002, 'Unexpected end of input', {
+    line: 1,
+    column: 1,
+    offset: 0,
+  });
 }
 
 /** @internal */

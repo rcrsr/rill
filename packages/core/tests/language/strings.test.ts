@@ -322,11 +322,23 @@ hello
       );
     });
 
-    it('throws ParseError for unterminated interpolation (AC-9)', async () => {
-      // Note: The spec's example """{$x""" would trigger AC-7 (triple-quotes in interpolation)
-      // before reaching the parser. Using a closed triple-quote string with mismatched braces.
+    it('throws LexerError for unterminated string with open interpolation (AC-9)', async () => {
+      // The string never reaches a closing `"`, so the lexer reports it as
+      // unterminated rather than reaching the parser as an interpolation error.
       await expect(run('"x" => $x\n"{$x"')).rejects.toThrow(
-        'Unterminated string interpolation'
+        'Unterminated string literal'
+      );
+    });
+  });
+
+  describe('Double-Quote Error Cases', () => {
+    it('parses a properly closed double-quote string', async () => {
+      expect(await run('"hello"')).toBe('hello');
+    });
+
+    it('throws LexerError for unterminated double-quote string at EOF', async () => {
+      await expect(run('"hello')).rejects.toThrow(
+        'Unterminated string literal'
       );
     });
   });

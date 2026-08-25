@@ -71,6 +71,7 @@ import {
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
+import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 /** Constructs valid as both primary expressions and pipe targets */
@@ -755,12 +756,12 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
   const args: (ExpressionNode | SpreadArgNode)[] = [];
   let hasSpread = false;
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    args.push(parseInvokeArg(this, hasSpread));
+    args.push(parseSpreadOrArg(this, { allowSpread: true, hasSpread }));
     if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
-      args.push(parseInvokeArg(this, hasSpread));
+      args.push(parseSpreadOrArg(this, { allowSpread: true, hasSpread }));
       if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     }
   }
@@ -779,72 +780,6 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
     span: makeSpan(start, rparen.span.end),
   };
 };
-
-/**
- * Parse one argument inside parseInvoke, with spread support.
- * Bare `...` synthesizes VariableNode for `$`. Max one spread per list.
- */
-function parseInvokeArg(
-  parser: Parser,
-  hasSpread: boolean
-): ExpressionNode | SpreadArgNode {
-  if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
-    if (hasSpread) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P007,
-        'Only one spread argument (...) is allowed per argument list',
-        current(parser.state).span.start
-      );
-    }
-    const start = current(parser.state).span.start;
-    advance(parser.state); // consume ...
-
-    // Bare `...` before `)` or `,` → synthesize VariableNode for `$`
-    if (
-      check(parser.state, TOKEN_TYPES.RPAREN) ||
-      check(parser.state, TOKEN_TYPES.COMMA)
-    ) {
-      const spreadSpan = makeSpan(start, current(parser.state).span.start);
-      const varNode: VariableNode = {
-        type: 'Variable',
-        name: null,
-        isPipeVar: true,
-        accessChain: [],
-        defaultValue: null,
-        existenceCheck: null,
-        span: spreadSpan,
-      };
-      const postfixNode: PostfixExprNode = {
-        type: 'PostfixExpr',
-        primary: varNode,
-        methods: [],
-        defaultValue: null,
-        span: spreadSpan,
-      };
-      const pipeChainNode: PipeChainNode = {
-        type: 'PipeChain',
-        head: postfixNode,
-        pipes: [],
-        terminator: null,
-        span: spreadSpan,
-      };
-      return {
-        type: 'SpreadArg',
-        expression: pipeChainNode,
-        span: spreadSpan,
-      } satisfies SpreadArgNode;
-    }
-
-    const expression = parser.parsePipeChain();
-    return {
-      type: 'SpreadArg',
-      expression,
-      span: makeSpan(start, current(parser.state).span.end),
-    } satisfies SpreadArgNode;
-  }
-
-  return parser.parsePipeChain();
-}
 
 // ============================================================
 // CLOSURE SIG LITERAL HELPERS
@@ -874,18 +809,13 @@ function isClosureSigLiteralStart(state: {
   ) {
     return false;
   }
-  // Scan forward to find the matching closing PIPE_BAR, then check for COLON.
-  // Track nested pipe bars (|| is OR, not PIPE_BAR so we only count PIPE_BAR).
-  let depth = 1;
+  // Scan forward for the first closing PIPE_BAR, then check for COLON.
   let i = state.pos + 1;
   while (i < state.tokens.length) {
     const tok = state.tokens[i]!;
     if (tok.type === TOKEN_TYPES.PIPE_BAR) {
-      depth -= 1;
-      if (depth === 0) {
-        const afterClose = state.tokens[i + 1];
-        return afterClose?.type === TOKEN_TYPES.COLON;
-      }
+      const afterClose = state.tokens[i + 1];
+      return afterClose?.type === TOKEN_TYPES.COLON;
     }
     i += 1;
   }
@@ -896,7 +826,40 @@ function isClosureSigLiteralStart(state: {
 // PRIMARY PARSING
 // ============================================================
 
+/**
+ * Maximum parsePrimary recursion depth before halting with RILL-P015.
+ * Chosen comfortably below the native call-stack limit observed for
+ * deeply-nested expressions (empirically ~450 levels of nested parens
+ * on a default V8 stack), leaving margin for test-runner and CI stack
+ * usage that differs from a bare `node` invocation.
+ */
+const MAX_RECURSION_DEPTH = 150;
+
+/**
+ * Increment recursionDepth, call fn(), decrement in finally.
+ * Guards against depth counter leaks when parsePrimary throws.
+ */
+function withRecursionDepth<T>(parser: Parser, fn: () => T): T {
+  parser.recursionDepth++;
+  try {
+    if (parser.recursionDepth > MAX_RECURSION_DEPTH) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P015,
+        `Maximum expression nesting depth of ${MAX_RECURSION_DEPTH} exceeded`,
+        current(parser.state).span.start
+      );
+    }
+    return fn();
+  } finally {
+    parser.recursionDepth--;
+  }
+}
+
 Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
+  return withRecursionDepth(this, () => parsePrimaryImpl.call(this));
+};
+
+function parsePrimaryImpl(this: Parser): PrimaryNode {
   // Legacy bare ^ (CARET) loop annotation: ^(limit: N) { body } → RILL-R081
   if (
     check(this.state, TOKEN_TYPES.CARET) &&
@@ -1164,7 +1127,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     `Unexpected token: ${token.value}`,
     token.span.start
   );
-};
+}
 
 // ============================================================
 // PRIMARY DISPATCH TABLE

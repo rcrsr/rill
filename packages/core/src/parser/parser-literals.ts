@@ -594,6 +594,24 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     const keyToken = advance(this.state);
     key = keyToken.value;
     keyForm = 'identifier';
+  } else if (
+    check(
+      this.state,
+      TOKEN_TYPES.BREAK,
+      TOKEN_TYPES.RETURN,
+      TOKEN_TYPES.YIELD,
+      TOKEN_TYPES.PASS,
+      TOKEN_TYPES.ASSERT,
+      TOKEN_TYPES.ERROR,
+      TOKEN_TYPES.GUARD,
+      TOKEN_TYPES.RETRY,
+      TOKEN_TYPES.WHILE,
+      TOKEN_TYPES.DO
+    )
+  ) {
+    // Reserved keywords parse as identifier-form string keys
+    key = advance(this.state).value;
+    keyForm = 'identifier';
   } else {
     // Invalid token at key position
     throw new ParseError(
@@ -835,6 +853,27 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       return false;
     };
 
+    // Helper: given the lookahead position of a COMMA following the first
+    // type, check whether a second type start leads to a PIPE_BAR (with
+    // optional newlines and an optional parameterized-type LPAREN escape).
+    const checkSecondTypeThenPipe = (lookahead: number): boolean => {
+      lookahead++;
+      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+        lookahead++;
+      }
+      if (!isTypeStart(lookahead)) return false;
+      // Advance past the second type token (DOLLAR = 2 tokens, IDENTIFIER = 1 token)
+      lookahead +=
+        peek(this.state, lookahead).type === TOKEN_TYPES.DOLLAR ? 2 : 1;
+      // Parameterized second type: list(string), dict(name: type), etc.
+      // LPAREN after the name means it is a parameterized type; accept and let parseTypeRef handle args.
+      if (peek(this.state, lookahead).type === TOKEN_TYPES.LPAREN) return true;
+      while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+        lookahead++;
+      }
+      return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+    };
+
     if (check(this.state, TOKEN_TYPES.DOLLAR)) {
       // Dynamic type ref: $identifier — offset 0=$, offset 1=name, offset 2+ skip newlines.
       let lookahead = 2;
@@ -845,22 +884,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       if (afterFirst === TOKEN_TYPES.PIPE_BAR) return true;
       // Two-type: COMMA, optional newlines, second type start, optional newlines, PIPE_BAR
       if (afterFirst === TOKEN_TYPES.COMMA) {
-        lookahead++;
-        while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-          lookahead++;
-        }
-        if (!isTypeStart(lookahead)) return false;
-        // Advance past the second type token (DOLLAR = 2 tokens, IDENTIFIER = 1 token)
-        lookahead +=
-          peek(this.state, lookahead).type === TOKEN_TYPES.DOLLAR ? 2 : 1;
-        // Parameterized second type: list(string), dict(name: type), etc.
-        // LPAREN after the name means it is a parameterized type; accept and let parseTypeRef handle args.
-        if (peek(this.state, lookahead).type === TOKEN_TYPES.LPAREN)
-          return true;
-        while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-          lookahead++;
-        }
-        return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+        return checkSecondTypeThenPipe(lookahead);
       }
       return false;
     }
@@ -884,22 +908,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       if (afterFirst === TOKEN_TYPES.PIPE_BAR) return true;
       // Two-type: COMMA, optional newlines, second type start, optional newlines, PIPE_BAR
       if (afterFirst === TOKEN_TYPES.COMMA) {
-        lookahead++;
-        while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-          lookahead++;
-        }
-        if (!isTypeStart(lookahead)) return false;
-        // Advance past the second type token (DOLLAR = 2 tokens, IDENTIFIER = 1 token)
-        lookahead +=
-          peek(this.state, lookahead).type === TOKEN_TYPES.DOLLAR ? 2 : 1;
-        // Parameterized second type: list(string), dict(name: type), etc.
-        // LPAREN after the name means it is a parameterized type; accept and let parseTypeRef handle args.
-        if (peek(this.state, lookahead).type === TOKEN_TYPES.LPAREN)
-          return true;
-        while (peek(this.state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-          lookahead++;
-        }
-        return peek(this.state, lookahead).type === TOKEN_TYPES.PIPE_BAR;
+        return checkSecondTypeThenPipe(lookahead);
       }
       return false;
     }
@@ -1099,6 +1108,38 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
 // ============================================================
 
 /**
+ * Parse the shared prefix of a spread element inside a keyword-prefixed
+ * collection literal: consumes ELLIPSIS, skips newlines, guards against a
+ * missing operand, then parses the spread expression.
+ *
+ * Callers build their own node (ListSpread vs DictEntry) from the result.
+ * @internal
+ */
+function parseSpreadOperand(parser: Parser): {
+  spreadStart: SourceLocation;
+  expression: ExpressionNode;
+} {
+  const spreadStart = current(parser.state).span.start;
+  advance(parser.state); // consume ELLIPSIS
+  skipNewlines(parser.state);
+
+  if (
+    check(parser.state, TOKEN_TYPES.COMMA) ||
+    check(parser.state, TOKEN_TYPES.RBRACKET) ||
+    check(parser.state, TOKEN_TYPES.EOF)
+  ) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "Expected expression after '...'",
+      current(parser.state).span.start
+    );
+  }
+
+  const expression = parser.parseExpression();
+  return { spreadStart, expression };
+}
+
+/**
  * Track seen keys for dict/ordered literals to enforce key uniqueness.
  * Returns the string form of a key for comparison purposes.
  */
@@ -1158,21 +1199,8 @@ Parser.prototype.parseCollectionLiteral = function (
 
       // Spread element: ...$other
       if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
-        const spreadStart = current(this.state).span.start;
-        advance(this.state); // consume ELLIPSIS
-        skipNewlines(this.state);
-        if (
-          check(this.state, TOKEN_TYPES.COMMA) ||
-          check(this.state, TOKEN_TYPES.RBRACKET) ||
-          check(this.state, TOKEN_TYPES.EOF)
-        ) {
-          throw new ParseError(
-            ERROR_IDS.RILL_P004,
-            "Expected expression after '...'",
-            current(this.state).span.start
-          );
-        }
-        const spreadExpr = this.parseExpression();
+        const { spreadStart, expression: spreadExpr } =
+          parseSpreadOperand(this);
         elements.push({
           type: 'ListSpread',
           expression: spreadExpr,
@@ -1242,21 +1270,7 @@ Parser.prototype.parseCollectionLiteral = function (
 
     // Spread entry: ...$other
     if (check(this.state, TOKEN_TYPES.ELLIPSIS)) {
-      const spreadStart = current(this.state).span.start;
-      advance(this.state); // consume ELLIPSIS
-      skipNewlines(this.state);
-      if (
-        check(this.state, TOKEN_TYPES.COMMA) ||
-        check(this.state, TOKEN_TYPES.RBRACKET) ||
-        check(this.state, TOKEN_TYPES.EOF)
-      ) {
-        throw new ParseError(
-          ERROR_IDS.RILL_P004,
-          "Expected expression after '...'",
-          current(this.state).span.start
-        );
-      }
-      const spreadExpr = this.parseExpression();
+      const { spreadStart, expression: spreadExpr } = parseSpreadOperand(this);
       entries.push({
         type: 'DictEntry',
         key: '...',

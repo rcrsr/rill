@@ -293,7 +293,16 @@ function parseSignatureBody(
       if (check(state, TOKEN_TYPES.COMMA)) {
         advance(state);
         skipNewlines(state);
+        continue;
       }
+
+      if (check(state, TOKEN_TYPES.PIPE_BAR)) {
+        break;
+      }
+
+      throw new Error(
+        `Invalid signature for function '${functionName}': expected ',' or '|' between parameters`
+      );
     }
 
     if (!check(state, TOKEN_TYPES.PIPE_BAR)) {

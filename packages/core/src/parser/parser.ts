@@ -38,6 +38,9 @@ export class Parser {
   /** Tracks closure nesting depth for yield validation */
   closureDepth = 0;
 
+  /** Tracks parsePrimary recursion depth to guard against native stack overflow */
+  recursionDepth = 0;
+
   constructor(
     tokens: Token[],
     options?: { recoveryMode?: boolean; source?: string }

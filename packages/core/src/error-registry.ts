@@ -58,6 +58,7 @@ export const ERROR_IDS = {
   RILL_P011: 'RILL-P011',
   RILL_P012: 'RILL-P012',
   RILL_P014: 'RILL-P014',
+  RILL_P015: 'RILL-P015',
   RILL_P020: 'RILL-P020',
   RILL_P021: 'RILL-P021',
   RILL_P022: 'RILL-P022',
@@ -625,6 +626,22 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Missing closing paren',
         code: 'dict(key: string  # Error: expected )',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P015,
+    category: 'parse',
+    description: 'Maximum nesting depth exceeded',
+    messageTemplate: 'Maximum expression nesting depth of {limit} exceeded',
+    cause:
+      'An expression nests primary expressions (e.g. parentheses) deeper than the parser supports.',
+    resolution:
+      'Reduce the nesting depth of the expression, e.g. by extracting sub-expressions into variables.',
+    examples: [
+      {
+        description: 'Thousands of nested parentheses',
+        code: '((((((((((1))))))))))  # Error when nesting exceeds the limit',
       },
     ],
   },
