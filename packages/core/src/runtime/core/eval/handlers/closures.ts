@@ -214,6 +214,31 @@ function getInvocationStrategy(s: EvalState): CallableInvocationStrategy {
   return strategy;
 }
 
+/**
+ * Bind spread-containing call-site arguments to a callable's parameter list,
+ * in parameter-declaration order. Wraps `argumentsBinder.bind` and the
+ * subsequent `params.map(p => bound.params.get(p.name))` projection shared by
+ * every spread-binding call site. `undefined` holes are preserved rather than
+ * asserted away: `marshalArgs` (see callable.ts) already treats a missing
+ * positional value as "use default".
+ */
+async function bindOrdered(
+  s: EvalState,
+  callable: RillCallable,
+  node: { args: (ExpressionNode | SpreadArgNode)[]; span: SourceSpan },
+  pipeInput: RillValue | undefined
+): Promise<(RillValue | undefined)[]> {
+  const bound = await argumentsBinder.bind(
+    node.args,
+    callable,
+    pipeInput,
+    (expr) => evaluateExpression(s, expr),
+    node.span.start,
+    s.ctx.sourceId
+  );
+  return callable.params!.map((p) => bound.params.get(p.name));
+}
+
 /** Evaluate argument expressions, preserving the current pipeValue. */
 async function evaluateArgs(
   s: EvalState,
@@ -246,7 +271,7 @@ async function evaluateArgs(
 export async function invokeCallable(
   s: EvalState,
   callable: RillCallable,
-  args: RillValue[],
+  args: (RillValue | undefined)[],
   callLocation?: SourceLocation,
   functionName?: string,
   internal?: boolean
@@ -274,8 +299,10 @@ export async function invokeCallable(
 
   if (callLocation) {
     // Route through invocationStrategy.invoke — single frame-enrichment site.
+    // BoundArguments.params (arguments-binder.ts) is out of scope for the
+    // (RillValue | undefined)[] threading; the cast lands at this boundary.
     const bound: BoundArguments = {
-      params: new Map(args.map((v, i) => [String(i), v])),
+      params: new Map((args as RillValue[]).map((v, i) => [String(i), v])),
     };
     const result = await getInvocationStrategy(s).invoke(
       callable,
@@ -312,7 +339,7 @@ export async function invokeCallable(
 async function invokeFnCallable(
   s: EvalState,
   callable: RuntimeCallable | ApplicationCallable,
-  args: RillValue[],
+  args: (RillValue | undefined)[],
   callLocation?: SourceLocation,
   functionName = 'callable'
 ): Promise<RillValue> {
@@ -325,7 +352,9 @@ async function invokeFnCallable(
 
   let fnArgs: Record<string, RillValue>;
   if (isApplicationCallable(callable) && callable.params !== undefined) {
-    fnArgs = marshalArgs(effectiveArgs, callable.params, {
+    // marshalArgs (callable.ts) is out of scope for the (RillValue |
+    // undefined)[] threading; the cast lands at this boundary.
+    fnArgs = marshalArgs(effectiveArgs as RillValue[], callable.params, {
       functionName,
       location: callLocation,
     });
@@ -367,7 +396,7 @@ async function invokeFnCallable(
         e.errorId,
         e.toData().message,
         callLocation,
-        e.context,
+        e.context ? { ...e.context } : undefined,
         span
       );
       markExtensionThrow(enriched);
@@ -456,11 +485,13 @@ export function evaluateYield(
 async function invokeScriptCallable(
   s: EvalState,
   callable: ScriptCallable,
-  args: RillValue[],
+  args: (RillValue | undefined)[],
   callLocation?: SourceLocation
 ): Promise<RillValue> {
   if (callable.returnType.structure.kind === 'stream') {
-    return invokeStreamClosure(s, callable, args, callLocation);
+    // invokeStreamClosure (invocation/stream-closures.ts) is out of scope
+    // for the (RillValue | undefined)[] threading; the cast lands here.
+    return invokeStreamClosure(s, callable, args as RillValue[], callLocation);
   }
   return invokeRegularScriptCallable(s, callable, args, callLocation);
 }
@@ -468,7 +499,7 @@ async function invokeScriptCallable(
 async function invokeRegularScriptCallable(
   s: EvalState,
   callable: ScriptCallable,
-  args: RillValue[],
+  args: (RillValue | undefined)[],
   callLocation?: SourceLocation
 ): Promise<RillValue> {
   const callableCtx = createCallableContext(s, callable);
@@ -485,7 +516,9 @@ async function invokeRegularScriptCallable(
       callableCtx.pipeValue = args[0]!;
     }
   } else {
-    const record = marshalArgs(args, params, {
+    // marshalArgs (callable.ts) is out of scope for the (RillValue |
+    // undefined)[] threading; the cast lands at this boundary.
+    const record = marshalArgs(args as RillValue[], params, {
       functionName: '<anonymous>',
       location: callLocation,
     });
@@ -543,12 +576,15 @@ async function invokeRegularScriptCallable(
     // throw RuntimeError directly and need sourceId enriched at this boundary
     // so host callers observe the documented sourceId contract.
     if (e instanceof RillError && !e.sourceId && callableCtx.sourceId) {
-      (e as { sourceId: string }).sourceId = callableCtx.sourceId;
-      if (callableCtx.sourceText) {
-        const ctx = (e.context ?? {}) as Record<string, unknown>;
-        ctx['sourceText'] = callableCtx.sourceText;
-        (e as { context: Record<string, unknown> }).context = ctx;
-      }
+      // Enrich on a fresh clone; never mutate the caught error's context in
+      // place. That object may be shared with a rewrapped copy, so an
+      // in-place `e.context` mutation would bleed sourceText across errors.
+      const enriched = e.withContext(
+        callableCtx.sourceText ? { sourceText: callableCtx.sourceText } : {}
+      );
+      // The clone is fresh and unshared, so setting sourceId on it is safe.
+      (enriched as { sourceId: string }).sourceId = callableCtx.sourceId;
+      throw enriched;
     }
     throw e;
   } finally {
@@ -638,17 +674,17 @@ export async function evaluateHostCall(
         { functionName: node.name }
       );
     }
-    const boundArgs = await argumentsBinder.bind(
-      node.args,
+    const orderedArgs = await bindOrdered(
+      s,
       fn,
-      s.ctx.pipeValue ?? undefined,
-      (expr) => evaluateExpression(s, expr),
-      node.span.start
+      node,
+      s.ctx.pipeValue ?? undefined
     );
-    const orderedArgs = fn.params!.map((p) => boundArgs.params.get(p.name)!);
+    // HostCallEvent.args (types/runtime.ts) is out of scope for the
+    // (RillValue | undefined)[] threading; the cast lands at this boundary.
     s.ctx.observability.onHostCall?.({
       name: node.name,
-      args: orderedArgs,
+      args: orderedArgs as RillValue[],
     });
     const startTime = performance.now();
     const result = await withTimeout(
@@ -862,16 +898,7 @@ export async function evaluateClosureCallWithPipe(
         `Spread not supported for built-in callable at '${fullPath}'`
       );
     }
-    const boundArgs = await getInvocationStrategy(s).bind(
-      closure,
-      node.args,
-      pipeInput,
-      (expr) => evaluateExpression(s, expr),
-      node.span.start
-    );
-    const orderedArgs = closure.params!.map((p) =>
-      boundArgs.params.get(p.name)!
-    );
+    const orderedArgs = await bindOrdered(s, closure, node, pipeInput);
     return invokeCallable(s, closure, orderedArgs, node.span.start, fullPath);
   }
 
@@ -971,14 +998,12 @@ export async function evaluatePipeInvoke(
   }
 
   if (argumentsBinder.hasSpread(node.args)) {
-    const boundArgs = await argumentsBinder.bind(
-      node.args,
+    const orderedArgs = await bindOrdered(
+      s,
       input,
-      s.ctx.pipeValue ?? undefined,
-      (expr) => evaluateExpression(s, expr),
-      node.span.start
+      node,
+      s.ctx.pipeValue ?? undefined
     );
-    const orderedArgs = input.params.map((p) => boundArgs.params.get(p.name)!);
     return invokeScriptCallable(s, input, orderedArgs, node.span.start);
   }
 
@@ -1216,15 +1241,11 @@ async function evaluateInvoke(
         'Spread not supported for built-in callable'
       );
     }
-    const boundArgs = await argumentsBinder.bind(
-      node.args,
+    const orderedArgs = await bindOrdered(
+      s,
       receiver,
-      s.ctx.pipeValue ?? undefined,
-      (expr) => evaluateExpression(s, expr),
-      node.span.start
-    );
-    const orderedArgs = receiver.params!.map((p) =>
-      boundArgs.params.get(p.name)!
+      node,
+      s.ctx.pipeValue ?? undefined
     );
     return invokeCallable(s, receiver, orderedArgs, node.span.start);
   }

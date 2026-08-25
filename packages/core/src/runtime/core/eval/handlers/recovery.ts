@@ -228,16 +228,16 @@ export async function evaluateStatusProbe(
   node: StatusProbeNode
 ): Promise<RillValue> {
   const target = await evaluateExpression(s, node.target);
-  const status = getStatus(target);
 
   if (node.field === undefined) {
     // Bare `.!` returns `false` on a VALID value
     // and `true` on an INVALID value. Reads directly against the
     // sidecar via `isInvalid` so the probe bypasses the access-halt
     // gate and never allocates when the value is valid.
-    void status;
     return isInvalid(target);
   }
+
+  const status = getStatus(target);
 
   switch (node.field) {
     case 'code':
