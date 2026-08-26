@@ -32,11 +32,6 @@ import type {
   RillFieldDef,
   RillTuple,
 } from '../../types/structures.js';
-import type {
-  DictStructure,
-  TupleStructure,
-  OrderedStructure,
-} from '../../types/operations.js';
 import { inferType } from '../../types/registrations.js';
 import { isTuple, isOrdered } from '../../types/guards.js';
 import {
@@ -47,6 +42,11 @@ import {
 } from '../../types/constructors.js';
 import { hasCollectionFields } from '../../values.js';
 import { isDict } from '../../callable.js';
+import type {
+  HydrationMissingFieldInfo,
+  HydrationPolicy,
+} from '../../callable.js';
+import { hydrateStructure } from '../../callable.js';
 import { BUILT_IN_TYPES } from '../../types/registrations.js';
 
 import type { EvalState } from '../state.js';
@@ -477,9 +477,67 @@ async function convertToTupleWithSig(
 }
 
 /**
+ * Build the RILL-R044 halt for a field/element that conversion's structural
+ * hydration cannot fill: no value, no default, and not itself a collection
+ * type that can be synthesized empty. Unlike marshaling, structural
+ * conversion has no later type-check stage to fall back on, so this throws
+ * immediately instead of leaving the field absent.
+ */
+function throwNestedHydrationMissingField(
+  s: EvalState,
+  node: ASTNode,
+  info: HydrationMissingFieldInfo
+): never {
+  const site = {
+    location: getNodeLocation(s, node),
+    sourceId: s.ctx.sourceId,
+    fn: 'hydrateNested',
+  };
+  if (info.kind === 'tuple') {
+    throwCatchableHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R044],
+      `cannot convert tuple to tuple: missing required element at position ${info.position}`,
+      { source: 'tuple', target: 'tuple' }
+    );
+  }
+  throwCatchableHostHalt(
+    site,
+    ERROR_ATOMS[ERROR_IDS.RILL_R044],
+    `cannot convert ${info.source} to ${info.target}: missing required field '${info.fieldName}'`,
+    { source: info.source, target: info.target }
+  );
+}
+
+/**
+ * Conversion hydration policy: throw RILL-R044 immediately on a missing
+ * required field (no later type-check stage to defer to), drop keys/elements
+ * not declared on the target type, and allow a dict value to hydrate into an
+ * ordered-typed field (dict -> ordered is a valid conversion).
+ */
+function conversionHydrationPolicy(
+  s: EvalState,
+  node: ASTNode
+): HydrationPolicy {
+  return {
+    onMissingField: (info) => throwNestedHydrationMissingField(s, node, info),
+    keepExtras: false,
+    coerceOrderedFromDict: true,
+  };
+}
+
+/**
  * Recursively hydrate a value against a nested dict, ordered, or tuple RillType.
  * Only applies when the field type has explicit fields/elements.
  * Returns the value unchanged if the type has no fields or the value type does not match.
+ *
+ * Thin wrapper over the shared structural walker (`hydrateStructure` in
+ * callable.ts); see `conversionHydrationPolicy` for how this caller's
+ * behavior differs from argument marshaling's `hydrateFieldDefaults`. Kept
+ * as a two-caller extraction deliberately: the shared walker is what pins
+ * the two behaviors together and stops them from silently drifting apart
+ * again, at the cost of both callers reading a policy object instead of an
+ * inlined recursion.
  */
 function hydrateNested(
   s: EvalState,
@@ -487,147 +545,5 @@ function hydrateNested(
   fieldType: TypeStructure,
   node: ASTNode
 ): RillValue {
-  if (
-    fieldType.kind === 'dict' &&
-    (fieldType as DictStructure).fields &&
-    isDict(value)
-  ) {
-    const ft = fieldType as DictStructure;
-    const dictValue = value as Record<string, RillValue>;
-    const result: Record<string, RillValue> = {};
-    for (const [fieldName, resolvedField] of Object.entries(ft.fields!)) {
-      if (fieldName in dictValue) {
-        const fieldValue = hydrateNested(
-          s,
-          dictValue[fieldName]!,
-          resolvedField.type,
-          node
-        );
-        result[fieldName] = fieldValue;
-      } else {
-        if (resolvedField.defaultValue !== undefined) {
-          result[fieldName] = hydrateNested(
-            s,
-            copyValue(resolvedField.defaultValue),
-            resolvedField.type,
-            node
-          );
-        } else if (hasCollectionFields(resolvedField.type)) {
-          result[fieldName] = hydrateNested(
-            s,
-            emptyForType(resolvedField.type),
-            resolvedField.type,
-            node
-          );
-        } else {
-          throwCatchableHostHalt(
-            {
-              location: getNodeLocation(s, node),
-              sourceId: s.ctx.sourceId,
-              fn: 'hydrateNested',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R044],
-            `cannot convert dict to dict: missing required field '${fieldName}'`,
-            { source: 'dict', target: 'dict' }
-          );
-        }
-      }
-    }
-    return result;
-  } else if (
-    fieldType.kind === 'ordered' &&
-    (fieldType as OrderedStructure).fields
-  ) {
-    const ft = fieldType as OrderedStructure;
-    // Only hydrate if the runtime value is an ordered or dict; return unchanged otherwise.
-    if (!isOrdered(value) && !isDict(value)) {
-      return value;
-    }
-    const source = isOrdered(value) ? 'ordered' : 'dict';
-    // Build a key->value lookup from either an ordered value or a dict value.
-    const lookup = new Map<string, RillValue>(
-      isOrdered(value)
-        ? value.entries.map(([k, v]) => [k, v] as [string, RillValue])
-        : Object.entries(value as Record<string, RillValue>)
-    );
-    const resultEntries: [string, RillValue][] = [];
-    for (const field of ft.fields!) {
-      const name = field.name!;
-      if (lookup.has(name)) {
-        const fieldValue = hydrateNested(
-          s,
-          lookup.get(name)!,
-          field.type,
-          node
-        );
-        resultEntries.push([name, fieldValue]);
-      } else if (field.defaultValue !== undefined) {
-        resultEntries.push([
-          name,
-          hydrateNested(s, copyValue(field.defaultValue), field.type, node),
-        ]);
-      } else if (hasCollectionFields(field.type)) {
-        resultEntries.push([
-          name,
-          hydrateNested(s, emptyForType(field.type), field.type, node),
-        ]);
-      } else {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'hydrateNested',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R044],
-          `cannot convert ${source} to ordered: missing required field '${name}'`,
-          { source, target: 'ordered' }
-        );
-      }
-    }
-    return createOrdered(resultEntries);
-  } else if (
-    fieldType.kind === 'tuple' &&
-    (fieldType as TupleStructure).elements
-  ) {
-    const ft = fieldType as TupleStructure;
-    // Only hydrate if the runtime value is a tuple; return unchanged otherwise.
-    if (!isTuple(value)) {
-      return value;
-    }
-    const inputEntries = (value as unknown as RillTuple).entries;
-    const resultEntries: RillValue[] = [];
-    for (let i = 0; i < ft.elements!.length; i++) {
-      const element = ft.elements![i]!;
-      if (i < inputEntries.length) {
-        const elementValue = hydrateNested(
-          s,
-          inputEntries[i]!,
-          element.type,
-          node
-        );
-        resultEntries.push(elementValue);
-      } else if (element.defaultValue !== undefined) {
-        resultEntries.push(
-          hydrateNested(s, copyValue(element.defaultValue), element.type, node)
-        );
-      } else if (hasCollectionFields(element.type)) {
-        resultEntries.push(
-          hydrateNested(s, emptyForType(element.type), element.type, node)
-        );
-      } else {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'hydrateNested',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R044],
-          `cannot convert tuple to tuple: missing required element at position ${i}`,
-          { source: 'tuple', target: 'tuple' }
-        );
-      }
-    }
-    return createTuple(resultEntries);
-  }
-  return value;
+  return hydrateStructure(value, fieldType, conversionHydrationPolicy(s, node));
 }

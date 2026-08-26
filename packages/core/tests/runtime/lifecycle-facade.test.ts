@@ -22,6 +22,7 @@ import {
   resolveAtom,
 } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
+import { run } from '../helpers/runtime.js';
 
 describe('LifecycleContext', () => {
   describe('IR-3: dispose() idempotency', () => {
@@ -133,6 +134,35 @@ describe('LifecycleContext', () => {
       await Promise.resolve();
       // Dispose should complete without waiting; no inflight entries remain.
       await expect(ctx.dispose()).resolves.toBeUndefined();
+    });
+
+    it('attaches a rejection observer and swallows it when tracked after dispose', async () => {
+      const ctx = createRuntimeContext({});
+      await ctx.dispose();
+
+      const unhandled = vi.fn();
+      process.on('unhandledRejection', unhandled);
+      try {
+        ctx.trackInflight(Promise.reject(new Error('post-dispose')));
+        // Flush a macrotask tick so a would-be unhandledRejection has a
+        // chance to fire before we assert it did not.
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(unhandled).not.toHaveBeenCalled();
+      } finally {
+        process.off('unhandledRejection', unhandled);
+      }
+    });
+  });
+
+  describe('default callbacks: onLog', () => {
+    it('does not write to console.log', async () => {
+      const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+      try {
+        await run('log("x")');
+        expect(spy).not.toHaveBeenCalled();
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 

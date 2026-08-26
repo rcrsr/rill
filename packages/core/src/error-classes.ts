@@ -167,6 +167,24 @@ export class RillError extends Error {
     if (formatter) return formatter(this.toData());
     return this.message;
   }
+
+  /**
+   * Return a new error instance of the same prototype with `patch` merged
+   * into its context. Does not mutate `this`; the original context object
+   * is not shared with the returned instance.
+   */
+  withContext(patch: Record<string, unknown>): RillError {
+    const clone = Object.create(
+      Object.getPrototypeOf(this),
+      Object.getOwnPropertyDescriptors(this)
+    ) as RillError;
+    const merged = { ...this.context, ...patch };
+    (clone as { context: Record<string, unknown> | undefined }).context =
+      this.context === undefined && Object.keys(merged).length === 0
+        ? undefined
+        : merged;
+    return clone;
+  }
 }
 
 // ============================================================
@@ -211,7 +229,8 @@ export class RuntimeError extends RillError {
     message: string,
     location?: SourceLocation,
     context?: Record<string, unknown>,
-    span?: SourceSpan
+    span?: SourceSpan,
+    sourceId?: string
   ) {
     // Validate errorId exists in registry
     const definition = ERROR_REGISTRY.get(errorId);
@@ -232,6 +251,7 @@ export class RuntimeError extends RillError {
       location,
       span,
       context,
+      sourceId,
     });
     this.name = 'RuntimeError';
   }
