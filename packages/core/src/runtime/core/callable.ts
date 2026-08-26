@@ -47,7 +47,6 @@ import {
 } from './types/operations.js';
 import {
   createOrdered,
-  createTuple,
   copyValue,
   emptyForType,
 } from './types/constructors.js';
@@ -525,7 +524,12 @@ export function hydrateStructure(
         resultEntries.push(entries[i]!);
       }
     }
-    return createTuple(resultEntries);
+    // resultEntries is a freshly-built array exclusively owned by this call;
+    // freeze directly instead of going through createTuple's defensive copy.
+    return Object.freeze({
+      __rill_tuple: true as const,
+      entries: resultEntries,
+    });
   }
 
   return value;

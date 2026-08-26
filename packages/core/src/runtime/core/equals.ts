@@ -90,6 +90,9 @@ function arrayEquals<T>(
   return true;
 }
 
+/** Reusable pair comparator for `arrayEquals(..., astEqualsPair)` call sites. */
+const astEqualsPair = (x: ASTNode, y: ASTNode): boolean => astEquals(x, y);
+
 export function astEquals(a: ASTNode, b: ASTNode): boolean {
   // Different node types are never equal
   if (a.type !== b.type) return false;
@@ -324,21 +327,14 @@ function recoveryErrorEquals(
 
 function pipeChainEquals(a: PipeChainNode, b: PipeChainNode): boolean {
   if (!astEquals(a.head as ASTNode, b.head as ASTNode)) return false;
-  if (
-    !arrayEquals(a.pipes, b.pipes, (x, y) =>
-      astEquals(x as ASTNode, y as ASTNode)
-    )
-  )
-    return false;
+  if (!arrayEquals(a.pipes, b.pipes, astEqualsPair)) return false;
   return nullableEquals(a.terminator, b.terminator);
 }
 
 function postfixExprEquals(a: PostfixExprNode, b: PostfixExprNode): boolean {
   if (!astEquals(a.primary as ASTNode, b.primary as ASTNode)) return false;
   // Methods array can contain MethodCallNode or InvokeNode
-  return arrayEquals(a.methods, b.methods, (x, y) =>
-    astEquals(x as ASTNode, y as ASTNode)
-  );
+  return arrayEquals(a.methods, b.methods, astEqualsPair);
 }
 
 function stringLiteralEquals(
@@ -569,9 +565,7 @@ function sliceEquals(a: SliceNode, b: SliceNode): boolean {
 }
 
 function listLiteralEquals(a: ListLiteralNode, b: ListLiteralNode): boolean {
-  return arrayEquals(a.elements, b.elements, (x, y) =>
-    astEquals(x as ASTNode, y as ASTNode)
-  );
+  return arrayEquals(a.elements, b.elements, astEqualsPair);
 }
 
 function dictLiteralEquals(a: DictLiteralNode, b: DictLiteralNode): boolean {
@@ -579,9 +573,7 @@ function dictLiteralEquals(a: DictLiteralNode, b: DictLiteralNode): boolean {
 }
 
 function tupleLiteralEquals(a: TupleLiteralNode, b: TupleLiteralNode): boolean {
-  return arrayEquals(a.elements, b.elements, (x, y) =>
-    astEquals(x as ASTNode, y as ASTNode)
-  );
+  return arrayEquals(a.elements, b.elements, astEqualsPair);
 }
 
 function orderedLiteralEquals(

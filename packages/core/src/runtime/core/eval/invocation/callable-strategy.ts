@@ -185,7 +185,13 @@ export class CallableInvocationStrategy {
         ctx.callStack.length > 0 &&
         !error.context?.['callStack']
       ) {
+        // Preserve extension-throw tag across the rewrap (markExtensionThrow
+        // tracks identity in a WeakSet, so the new object needs re-marking).
+        const wasExtensionThrow = isExtensionThrow(error);
         error = error.withContext({ callStack: [...ctx.callStack] });
+        if (wasExtensionThrow) {
+          markExtensionThrow(error);
+        }
       } else if (
         error instanceof RuntimeHaltSignal &&
         ctx.callStack.length > 0

@@ -174,19 +174,15 @@ export class RillError extends Error {
    * is not shared with the returned instance.
    */
   withContext(patch: Record<string, unknown>): RillError {
-    const clone = Object.create(Object.getPrototypeOf(this)) as RillError;
-    Object.assign(clone, this);
-    // `message` and `stack` are non-enumerable own properties on Error
-    // instances in V8, so Object.assign does not copy them; restore both
-    // explicitly.
-    clone.message = this.message;
-    if (this.stack !== undefined) {
-      clone.stack = this.stack;
-    }
-    (clone as { context: Record<string, unknown> | undefined }).context = {
-      ...this.context,
-      ...patch,
-    };
+    const clone = Object.create(
+      Object.getPrototypeOf(this),
+      Object.getOwnPropertyDescriptors(this)
+    ) as RillError;
+    const merged = { ...this.context, ...patch };
+    (clone as { context: Record<string, unknown> | undefined }).context =
+      this.context === undefined && Object.keys(merged).length === 0
+        ? undefined
+        : merged;
     return clone;
   }
 }

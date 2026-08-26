@@ -146,20 +146,18 @@ function bindLifecycleMethods(
       createTraceFrame({ site: '', kind: 'host', fn: 'dispose' })
     );
 
+  // Both the post-dispose early return and the settle handler below swallow
+  // rejections so an unhandled-promise observer is not triggered by this
+  // bookkeeping promise; actual rejection handling remains the
+  // responsibility of the dispatch site.
   draft.trackInflight = (promise: Promise<unknown>): void => {
     // Defensive: dispose() already began — do not register new work.
     if (state.disposed) {
-      // Swallow rejections here so an unhandled-promise observer is not
-      // triggered by the bookkeeping promise; actual rejection handling
-      // remains the responsibility of the dispatch site.
       void promise.catch(() => {});
       return;
     }
     state.inflight.add(promise);
     // Settle handler removes the entry regardless of fulfillment state.
-    // Swallow rejections here so an unhandled-promise observer is not
-    // triggered by the bookkeeping promise; actual rejection handling
-    // remains the responsibility of the dispatch site.
     const forget = (): void => {
       state.inflight.delete(promise);
     };
