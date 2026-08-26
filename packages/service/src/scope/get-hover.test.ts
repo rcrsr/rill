@@ -195,6 +195,35 @@ $name -> log
     expect(hover?.type).toBe('string');
   });
 
+  it('omits the type key when hovering an untyped capture', () => {
+    const source = `5 => $x
+$x -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.lastIndexOf('$x') + 1;
+    const hover = getHover(parsed, offset);
+
+    expect(hover).not.toBeNull();
+    expect(hover).not.toHaveProperty('type');
+    expect(hover?.type).toBeUndefined();
+  });
+
+  it('renders type: "number" when hovering a typed capture', () => {
+    const source = `5 => $x: number
+$x -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.lastIndexOf('$x') + 1;
+    const hover = getHover(parsed, offset);
+
+    expect(hover).not.toBeNull();
+    expect(hover?.type).toBe('number');
+  });
+
   it('does not hover a `$name` reference onto an unrelated dict key of the same name', () => {
     const source = `"x" => $user
 dict[user: "Alice"] => $d

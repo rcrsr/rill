@@ -4,12 +4,14 @@
  */
 
 import type {
+  ASTNode,
   ExpressionNode,
   PipeChainNode,
   PostfixExprNode,
   SourceSpan,
   VariableNode,
 } from '@rcrsr/rill';
+import type { Diagnostic, RuleContext } from './types.js';
 
 // ============================================================
 // CONTEXT LINE EXTRACTION
@@ -184,12 +186,38 @@ export function extractSpanText(span: SourceSpan, source: string): string {
   return result.join('\n');
 }
 
+// ============================================================
+// IMPLICIT $ PIPE PREFERENCE
+// ============================================================
+
 /**
- * Escape special regex characters so operator text can be embedded in a
- * dynamically built RegExp.
+ * Builds the single `IMPLICIT_DOLLAR_*` diagnostic emitted when a call
+ * node's sole argument is a bare `$` and the pipe form `-> name` is
+ * preferred over `name($)`. Shared by `implicit-dollar-closure.ts` (whose
+ * `name` already carries the `$` prefix and any access chain) and
+ * `implicit-dollar-function.ts` (whose `name` is the bare host function
+ * name).
  */
-export function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export function bareDollarSingleArgDiagnostic(
+  code: string,
+  name: string,
+  node: ASTNode,
+  context: RuleContext
+): Diagnostic[] {
+  return [
+    {
+      code,
+      message: `Prefer pipe syntax '-> ${name}' over explicit '${name}($)'`,
+      severity: 'info',
+      location: {
+        line: node.span.start.line,
+        column: node.span.start.column,
+        offset: node.span.start.offset,
+      },
+      context: extractContextLine(node.span.start.line, context.source),
+      fix: null,
+    },
+  ];
 }
 
 // ============================================================

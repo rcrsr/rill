@@ -7,14 +7,11 @@ import {
   BUILTIN_METHODS,
   introspectHandlerFromAST,
   KEYWORDS,
-  walkAst,
 } from '@rcrsr/rill';
 import type {
-  ASTNode,
   HandlerMetadataStatic,
   ParseResult,
   SourceSpan,
-  TypeRef,
 } from '@rcrsr/rill';
 
 import { spanToRange } from '../span-to-range.js';
@@ -89,15 +86,27 @@ function hoverForVariable(
   name: string,
   span: SourceSpan
 ): HoverInfo | null {
-  const closureHover = hoverForClosureCall(parsed, name, span);
-  if (closureHover !== null) return closureHover;
-
   const binding = findVisibleBinding(parsed, offset, name);
   if (binding === null) return null;
 
-  const declaredType = findDeclaredTypeRef(parsed.ast, binding.bindingSite);
+  // `introspectHandlerFromAST` only ever recognizes top-level `=> $name`
+  // captures, so a closure-signature hover is only attempted for `capture`
+  // bindings -- a plain (`closureParam`/`destructure`) variable hover never
+  // pays for that walk.
+  if (binding.kind === 'capture') {
+    const closureHover = hoverForClosureCall(parsed, name, span);
+    if (closureHover !== null) return closureHover;
+  }
+
+  // `declaredType` is `null` for an untyped declaring construct and
+  // `undefined` for a binding kind that carries no `typeRef` at all; both
+  // mean "no type to show", so the `type` key is only ever populated from a
+  // real `TypeRef`.
+  const { declaredType } = binding;
   const type =
-    declaredType !== undefined ? typeRefToString(declaredType) : undefined;
+    declaredType !== null && declaredType !== undefined
+      ? typeRefToString(declaredType)
+      : undefined;
 
   return {
     contents: `variable \`${name}\``,
@@ -150,30 +159,4 @@ function hoverForMethodCall(name: string, span: SourceSpan): HoverInfo | null {
     return { contents, range: spanToRange(span) };
   }
   return null;
-}
-
-/**
- * Walks the AST looking for the `Capture`/`ClosureParam`/`DestructPattern`
- * node whose own span matches `bindingSite` exactly, returning its
- * `:type` annotation (or `null` when untyped, `undefined` when no matching
- * declaring node is found).
- */
-function findDeclaredTypeRef(
-  root: ASTNode,
-  bindingSite: SourceSpan
-): TypeRef | null | undefined {
-  let found: TypeRef | null | undefined;
-  walkAst(root, (node) => {
-    if (found !== undefined) return;
-    if (
-      (node.type === 'Capture' ||
-        node.type === 'ClosureParam' ||
-        node.type === 'DestructPattern') &&
-      node.span.start.offset === bindingSite.start.offset &&
-      node.span.end.offset === bindingSite.end.offset
-    ) {
-      found = node.typeRef;
-    }
-  });
-  return found;
 }

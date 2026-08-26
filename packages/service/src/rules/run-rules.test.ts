@@ -253,4 +253,78 @@ describe('runRules', () => {
       ]);
     });
   });
+
+  describe('per-node-type rule bucketing preserves registry order', () => {
+    it('keeps registry order for two rules targeting the same node type at the same location', () => {
+      const source = '1 => $a\n';
+      const parsed = toParseResult(source);
+      const location = { line: 1, column: 1, offset: 0 };
+      const ruleFirst = makeFakeRule(
+        'FAKE_REGISTRY_FIRST',
+        ['Capture'],
+        makeDiagnostic({ code: 'FAKE_REGISTRY_FIRST', location })
+      );
+      const ruleSecond = makeFakeRule(
+        'FAKE_REGISTRY_SECOND',
+        ['Capture'],
+        makeDiagnostic({ code: 'FAKE_REGISTRY_SECOND', location })
+      );
+
+      // Passed in registry order; both fire on the same Capture node at the
+      // same location, so the stable sort in `sortDiagnostics` must not
+      // reorder them and the bucketing map must preserve the input order
+      // within its per-node-type list.
+      const result = runRules(parsed, source, makeConfig(), [
+        ruleFirst,
+        ruleSecond,
+      ]);
+
+      expect(result.map((d) => d.code)).toEqual([
+        'FAKE_REGISTRY_FIRST',
+        'FAKE_REGISTRY_SECOND',
+      ]);
+    });
+
+    it('keeps registry order across three rules spanning two node types', () => {
+      const source = '1 => $a\n2 => $b\n';
+      const parsed = toParseResult(source);
+      const location = { line: 1, column: 1, offset: 0 };
+      const ruleA = makeFakeRule(
+        'FAKE_BUCKET_A',
+        ['Capture'],
+        makeDiagnostic({ code: 'FAKE_BUCKET_A', location })
+      );
+      const ruleB = makeFakeRule(
+        'FAKE_BUCKET_B',
+        ['Script'],
+        makeDiagnostic({ code: 'FAKE_BUCKET_B', location })
+      );
+      const ruleC = makeFakeRule(
+        'FAKE_BUCKET_C',
+        ['Capture'],
+        makeDiagnostic({ code: 'FAKE_BUCKET_C', location })
+      );
+
+      const result = runRules(parsed, source, makeConfig(), [
+        ruleA,
+        ruleB,
+        ruleC,
+      ]);
+
+      // ruleB (Script) fires once at the same synthetic location as every
+      // ruleA/ruleC (Capture) firing; the stable sort keeps registry order
+      // for same-location diagnostics, so ruleA's two Capture hits and
+      // ruleC's two Capture hits interleave in registry order relative to
+      // each Capture node, with ruleB's single Script hit ordered first
+      // since Script is visited before any Capture in the traversal.
+      const codes = result.map((d) => d.code);
+      expect(codes).toEqual([
+        'FAKE_BUCKET_B',
+        'FAKE_BUCKET_A',
+        'FAKE_BUCKET_C',
+        'FAKE_BUCKET_A',
+        'FAKE_BUCKET_C',
+      ]);
+    });
+  });
 });

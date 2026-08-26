@@ -5,7 +5,7 @@
 
 import { walkAst } from '@rcrsr/rill';
 import type { ASTNode, BlockNode, ParseResult } from '@rcrsr/rill';
-import type { SourceSpan } from '@rcrsr/rill';
+import type { SourceSpan, TypeRef } from '@rcrsr/rill';
 
 import { dictKeyName, dictKeySpan } from '../dict-key.js';
 import { spanContainsOffset } from './span-helpers.js';
@@ -15,6 +15,12 @@ import type { Binding, BindingKind } from './types.js';
 interface ScopeFrame {
   readonly span: SourceSpan;
   readonly bindings: Binding[];
+}
+
+/** Combined result of a single AST walk driving both scope resolution and the closure-body test `findVisibleBinding` needs. */
+interface ScopeState {
+  readonly bindings: Binding[];
+  readonly insideClosureBody: boolean;
 }
 
 /**
@@ -42,12 +48,23 @@ interface ScopeFrame {
  * nothing resolves.
  */
 export function resolveScopeAt(parsed: ParseResult, offset: number): Binding[] {
+  return computeScopeState(parsed, offset).bindings;
+}
+
+/**
+ * Drives a single AST walk that produces both the bindings visible at
+ * `offset` and whether `offset` falls within some enclosing `Closure`
+ * body, so callers needing both (`findVisibleBinding`) never pay for a
+ * second full-AST pass.
+ */
+function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
   const root = parsed.ast;
   const passBlockBodies = new Set<BlockNode>();
 
   const rootFrame: ScopeFrame = { span: root.span, bindings: [] };
   const allFrames: ScopeFrame[] = [rootFrame];
   const openFrames: ScopeFrame[] = [rootFrame];
+  let insideClosureBody = false;
 
   walkAst(root, (node) => {
     while (
@@ -63,14 +80,30 @@ export function resolveScopeAt(parsed: ParseResult, offset: number): Binding[] {
       case 'PassBlock':
         passBlockBodies.add(node.body);
         break;
+      case 'Closure':
+        if (spanContainsOffset(node.body.span, offset))
+          insideClosureBody = true;
+        break;
       case 'Capture':
         frame.bindings.push(
-          createBinding(node.name, 'capture', node.span, node.span)
+          createBinding(
+            node.name,
+            'capture',
+            node.span,
+            node.span,
+            node.typeRef
+          )
         );
         break;
       case 'ClosureParam':
         frame.bindings.push(
-          createBinding(node.name, 'closureParam', node.span, node.span)
+          createBinding(
+            node.name,
+            'closureParam',
+            node.span,
+            node.span,
+            node.typeRef
+          )
         );
         break;
       case 'DestructPattern': {
@@ -80,7 +113,13 @@ export function resolveScopeAt(parsed: ParseResult, offset: number): Binding[] {
             : null;
         if (name !== null) {
           frame.bindings.push(
-            createBinding(name, 'destructure', node.span, node.span)
+            createBinding(
+              name,
+              'destructure',
+              node.span,
+              node.span,
+              node.typeRef
+            )
           );
         }
         break;
@@ -110,7 +149,7 @@ export function resolveScopeAt(parsed: ParseResult, offset: number): Binding[] {
       bindings.push(...scopeFrame.bindings);
     }
   }
-  return bindings;
+  return { bindings, insideClosureBody };
 }
 
 /**
@@ -128,9 +167,16 @@ function createBinding(
   name: string,
   kind: BindingKind,
   declarationSpan: SourceSpan,
-  bindingSite: SourceSpan
+  bindingSite: SourceSpan,
+  declaredType?: TypeRef | null
 ): Binding {
-  return { name, kind, declarationSpan, bindingSite };
+  return {
+    name,
+    kind,
+    declarationSpan,
+    bindingSite,
+    ...(declaredType !== undefined && { declaredType }),
+  };
 }
 
 /**
@@ -157,12 +203,13 @@ export function findVisibleBinding(
   offset: number,
   name: string
 ): Binding | null {
-  const candidates = resolveScopeAt(parsed, offset).filter(
+  const { bindings, insideClosureBody } = computeScopeState(parsed, offset);
+  const candidates = bindings.filter(
     (b) => b.kind !== 'dictKey' && b.name === name
   );
   if (candidates.length === 0) return null;
 
-  if (isInsideClosureBody(parsed.ast, offset)) {
+  if (insideClosureBody) {
     return candidates[candidates.length - 1]!;
   }
 
@@ -177,18 +224,4 @@ export function findVisibleBinding(
     }
   }
   return nearest ?? candidates[0]!;
-}
-
-/**
- * Returns true when `offset` falls within the body span of some enclosing
- * `Closure` node — i.e. the read this offset belongs to is late-bound
- * rather than textually ordered against its outer scope.
- */
-function isInsideClosureBody(root: ASTNode, offset: number): boolean {
-  let found = false;
-  walkAst(root, (node) => {
-    if (found || node.type !== 'Closure') return;
-    if (spanContainsOffset(node.body.span, offset)) found = true;
-  });
-  return found;
 }

@@ -35,7 +35,14 @@
  * enforces this by asserting no rule module imports `traverseForRules`.
  */
 
-import type { ASTNode, TypeAssertionNode } from '@rcrsr/rill';
+import type {
+  ASTNode,
+  DictEntryNode,
+  FieldArg,
+  PropertyAccess,
+  TypeAssertionNode,
+  TypeRef,
+} from '@rcrsr/rill';
 
 // ============================================================
 // VISITOR INTERFACE
@@ -55,11 +62,117 @@ export interface AstVisitor {
 // ============================================================
 
 /**
+ * Yields child ASTNodes carried inside a span-less property-access segment.
+ * Only `FieldAccessComputed.expression`, `FieldAccessBlock.block`, and
+ * `BracketAccess.expression` carry ASTNode children; the remaining segment
+ * kinds (`literal`, `variable`, `alternatives`, `annotation`) carry none.
+ * Ported from `@rcrsr/rill`'s `ast-walk.ts` `propertyAccessChildren` to
+ * bring `getChildren` to parity with core's `astChildren` - see ADR-0031
+ * CON-6 (duplication licensed; remedy is parity + guard test, not
+ * cross-package de-duplication).
+ */
+function propertyAccessChildren(access: PropertyAccess): ASTNode[] {
+  if ('accessKind' in access) {
+    // BracketAccess
+    return [access.expression];
+  }
+  switch (access.kind) {
+    case 'computed':
+      return [access.expression];
+    case 'block':
+      return [access.block];
+    case 'literal':
+    case 'variable':
+    case 'alternatives':
+    case 'annotation':
+      return [];
+    default: {
+      const exhaustive: never = access;
+      throw new Error(
+        `propertyAccessChildren: unrecognized PropertyAccess kind: ${String((exhaustive as { kind: string }).kind)}`
+      );
+    }
+  }
+}
+
+/**
+ * Yields child ASTNodes carried inside a `DictEntryNode.key`. Plain
+ * `string | number | boolean` keys and `DictKeyVariable` carry no ASTNode
+ * children. `DictKeyComputed` yields its expression. A `ListLiteralNode`
+ * key is itself an ASTNode union member and is yielded directly. Ported
+ * from core's `dictKeyChildren` - see the `propertyAccessChildren` comment
+ * above.
+ */
+function dictKeyChildren(key: DictEntryNode['key']): ASTNode[] {
+  if (
+    typeof key === 'string' ||
+    typeof key === 'number' ||
+    typeof key === 'boolean'
+  ) {
+    return [];
+  }
+  if (!('kind' in key)) {
+    // ListLiteralNode key: itself an ASTNode union member.
+    return [key];
+  }
+  if (key.kind === 'variable') {
+    return [];
+  }
+  return [key.expression];
+}
+
+/**
+ * Yields child ASTNodes carried inside a `FieldArg[]` list (parameterized
+ * type args on a `TypeConstructorNode` or a `static` `TypeRef`). For each
+ * arg: its `defaultValue` (a `LiteralNode`), its `annotations`
+ * (`NamedArgNode` / `SpreadArgNode`), and the recursive children of its
+ * nested `value: TypeRef`. Ported from core's `fieldArgsChildren` - see the
+ * `propertyAccessChildren` comment above.
+ */
+function fieldArgsChildren(args: FieldArg[]): ASTNode[] {
+  const children: ASTNode[] = [];
+  for (const arg of args) {
+    if (arg.defaultValue !== undefined) children.push(arg.defaultValue);
+    if (arg.annotations !== undefined) children.push(...arg.annotations);
+    children.push(...typeRefChildren(arg.value));
+  }
+  return children;
+}
+
+/**
+ * Yields child ASTNodes carried inside a `TypeRef`. `dynamic` refs carry
+ * none. `union` refs recurse into each member. `static` refs recurse into
+ * `args` (via `fieldArgsChildren`) when parameterized. Ported from core's
+ * `typeRefChildren` - see the `propertyAccessChildren` comment above.
+ */
+function typeRefChildren(ref: TypeRef): ASTNode[] {
+  switch (ref.kind) {
+    case 'dynamic':
+      return [];
+    case 'union':
+      return ref.members.flatMap((member) => typeRefChildren(member));
+    case 'static':
+      return ref.args === undefined ? [] : fieldArgsChildren(ref.args);
+    default: {
+      const exhaustive: never = ref;
+      throw new Error(
+        `typeRefChildren: unrecognized TypeRef kind: ${String((exhaustive as TypeRef).kind)}`
+      );
+    }
+  }
+}
+
+/**
  * Returns the direct children of `node`, in source (left-to-right) order.
  * Implemented as an exhaustive switch over `node.type` so that adding a
  * new member to the ASTNode union breaks `pnpm typecheck` until a
  * corresponding arm is added here - see the `never`-typed exhaustiveness
  * check in the `default` arm.
+ *
+ * Kept at parity with `@rcrsr/rill`'s `astChildren` (`ast-walk.ts`),
+ * verified by `traversal.test.ts`'s corpus-wide parity assertion against
+ * the exported `walkAst`. Not re-exported from core to de-duplicate - see
+ * ADR-0031 CON-6.
  */
 function getChildren(node: ASTNode): ASTNode[] {
   switch (node.type) {
@@ -144,16 +257,45 @@ function getChildren(node: ASTNode): ASTNode[] {
     }
 
     case 'DictEntry':
-      return [node.value];
+      return [...dictKeyChildren(node.key), node.value];
 
-    case 'Closure':
-      return [...node.params, node.body];
+    case 'Closure': {
+      const children: ASTNode[] = [...node.params, node.body];
+      if (node.returnTypeTarget !== undefined) {
+        const target = node.returnTypeTarget;
+        if ('type' in target && target.type === 'TypeConstructor') {
+          children.push(target);
+        } else if (!('type' in target)) {
+          children.push(...typeRefChildren(target));
+        }
+      }
+      return children;
+    }
 
-    case 'ClosureParam':
-      return node.defaultValue ? [node.defaultValue] : [];
+    case 'ClosureParam': {
+      const children: ASTNode[] = [];
+      if (node.defaultValue) children.push(node.defaultValue);
+      if (node.annotations) children.push(...node.annotations);
+      if (node.typeRef) children.push(...typeRefChildren(node.typeRef));
+      return children;
+    }
 
-    case 'Variable':
-      return node.defaultValue ? [node.defaultValue] : [];
+    case 'Variable': {
+      const children: ASTNode[] = [];
+      for (const access of node.accessChain) {
+        children.push(...propertyAccessChildren(access));
+      }
+      if (node.existenceCheck) {
+        children.push(
+          ...propertyAccessChildren(node.existenceCheck.finalAccess)
+        );
+        if (node.existenceCheck.typeRef) {
+          children.push(...typeRefChildren(node.existenceCheck.typeRef));
+        }
+      }
+      if (node.defaultValue) children.push(node.defaultValue);
+      return children;
+    }
 
     case 'HostCall':
       return [...node.args];
@@ -182,13 +324,17 @@ function getChildren(node: ASTNode): ASTNode[] {
       return children;
     }
 
-    case 'WhileLoop':
-      return [node.condition, node.body];
+    case 'WhileLoop': {
+      const children: ASTNode[] = [node.condition, node.body];
+      if (node.annotations) children.push(...node.annotations);
+      return children;
+    }
 
     case 'DoWhileLoop': {
       const children: ASTNode[] = [];
       if (node.input) children.push(node.input);
       children.push(node.body, node.condition);
+      if (node.annotations) children.push(...node.annotations);
       return children;
     }
 
@@ -216,8 +362,12 @@ function getChildren(node: ASTNode): ASTNode[] {
     case 'Destructure':
       return [...node.elements];
 
-    case 'DestructPattern':
-      return node.nested ? [node.nested] : [];
+    case 'DestructPattern': {
+      const children: ASTNode[] = [];
+      if (node.nested) children.push(node.nested);
+      if (node.typeRef) children.push(...typeRefChildren(node.typeRef));
+      return children;
+    }
 
     case 'Slice': {
       const children: ASTNode[] = [];
@@ -230,11 +380,19 @@ function getChildren(node: ASTNode): ASTNode[] {
     case 'Destruct':
       return [...node.elements];
 
-    case 'TypeAssertion':
-      return node.operand ? [node.operand] : [];
+    case 'TypeAssertion': {
+      const children: ASTNode[] = [];
+      if (node.operand) children.push(node.operand);
+      children.push(...typeRefChildren(node.typeRef));
+      return children;
+    }
 
-    case 'TypeCheck':
-      return node.operand ? [node.operand] : [];
+    case 'TypeCheck': {
+      const children: ASTNode[] = [];
+      if (node.operand) children.push(node.operand);
+      children.push(...typeRefChildren(node.typeRef));
+      return children;
+    }
 
     case 'Assert': {
       const children: ASTNode[] = [node.condition];
@@ -243,6 +401,8 @@ function getChildren(node: ASTNode): ASTNode[] {
     }
 
     case 'Capture':
+      return node.typeRef ? typeRefChildren(node.typeRef) : [];
+
     case 'Break':
     case 'Return':
     case 'Pass':
@@ -263,23 +423,27 @@ function getChildren(node: ASTNode): ASTNode[] {
     case 'AnnotatedExpr':
       return [...node.annotations, node.expression];
 
-    case 'TypeConstructor': {
-      const children: ASTNode[] = [];
-      for (const arg of node.args) {
-        // arg.value is a TypeRef (not an ASTNode) - skip it.
-        if (arg.defaultValue) children.push(arg.defaultValue);
-      }
-      return children;
-    }
+    case 'TypeConstructor':
+      return fieldArgsChildren(node.args);
 
     case 'ClosureSigLiteral':
       return [...node.params.map((param) => param.typeExpr), node.returnType];
 
-    case 'UseExpr':
-      // Visit computed expression if present; typeRef is not an ASTNode.
-      return node.identifier.kind === 'computed'
-        ? [node.identifier.expression]
-        : [];
+    case 'UseExpr': {
+      const children: ASTNode[] = [];
+      if (node.identifier.kind === 'computed') {
+        children.push(node.identifier.expression);
+      }
+      if (node.typeRef) children.push(...typeRefChildren(node.typeRef));
+      if (node.closureAnnotation) {
+        for (const param of node.closureAnnotation) {
+          if (param.defaultValue !== undefined)
+            children.push(param.defaultValue);
+          children.push(...typeRefChildren(param.typeRef));
+        }
+      }
+      return children;
+    }
 
     case 'PassBlock':
       return [node.options, node.body];

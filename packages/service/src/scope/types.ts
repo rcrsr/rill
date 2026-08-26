@@ -3,7 +3,7 @@
  * These are plain-data shapes describing bindings, hover, and completion results.
  */
 
-import type { SourceSpan } from '@rcrsr/rill';
+import type { SourceSpan, TypeRef } from '@rcrsr/rill';
 
 import type { Range } from '../types.js';
 
@@ -24,6 +24,13 @@ export interface Binding {
   readonly kind: BindingKind;
   readonly declarationSpan: SourceSpan;
   readonly bindingSite: SourceSpan;
+  /**
+   * The `:type` annotation carried by the declaring `Capture`/
+   * `ClosureParam`/`DestructPattern` node, `null` when that construct is
+   * untyped, or `undefined` for binding kinds (`dictKey`) that carry no
+   * `typeRef` at all.
+   */
+  readonly declaredType?: TypeRef | null;
 }
 
 // ============================================================

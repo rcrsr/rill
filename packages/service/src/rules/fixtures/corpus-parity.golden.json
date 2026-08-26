@@ -661,18 +661,6 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$limit' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 6,
-          "offset": 5
-        },
-        "context": "5 => $limit",
-        "fix": null
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
         "message": "'$fn' is captured but never referenced",
         "severity": "info",
         "location": {
@@ -12987,18 +12975,6 @@
         },
         "context": "dict[field1: \"a\", field2: \"b\"] => $data",
         "fix": null
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$n' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 14,
-          "offset": 62
-        },
-        "context": "3 => $n",
-        "fix": null
       }
     ]
   },
@@ -14236,7 +14212,44 @@
   {
     "index": 1232,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "SPACING_BRACES",
+        "message": "Space required after opening brace {",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 13,
+          "offset": 12
+        },
+        "context": "dict[list[||{1}, \"valid\"]: \"value\"]",
+        "fix": null
+      },
+      {
+        "code": "SPACING_BRACES",
+        "message": "Space required before closing brace }",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "context": "dict[list[||{1}, \"valid\"]: \"value\"]",
+        "fix": null
+      },
+      {
+        "code": "SPACING_BRACES",
+        "message": "Space required before closing brace }",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 16,
+          "offset": 15
+        },
+        "context": "dict[list[||{1}, \"valid\"]: \"value\"]",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 1233,
@@ -14421,20 +14434,7 @@
   {
     "index": 1256,
     "file": "dict-field-annotations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$x' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "\"hello\" => $x",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1257,
@@ -14589,20 +14589,7 @@
   {
     "index": 1274,
     "file": "dict-variable-keys.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$base' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 18,
-          "offset": 18
-        },
-        "context": "2 => $base",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1275,
@@ -14779,38 +14766,12 @@
   {
     "index": 1291,
     "file": "dict-variable-keys.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$base' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 16,
-          "offset": 16
-        },
-        "context": "2 => $base",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1292,
     "file": "dict-variable-keys.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$flag' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 19,
-          "offset": 19
-        },
-        "context": "true => $flag",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1293,
@@ -14838,20 +14799,7 @@
   {
     "index": 1295,
     "file": "dict-variable-keys.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$raw' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 24,
-          "offset": 24
-        },
-        "context": "\"  key  \" => $raw",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1296,
@@ -15566,7 +15514,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key1' is captured but never referenced",
+        "message": "'$key1' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15578,7 +15526,7 @@
       },
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key2' is captured but never referenced",
+        "message": "'$key2' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 3,
@@ -15608,7 +15556,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$i' is captured but never referenced",
+        "message": "'$i' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15638,7 +15586,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$str' is captured but never referenced",
+        "message": "'$str' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15668,7 +15616,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$base' is captured but never referenced",
+        "message": "'$base' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15698,7 +15646,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15836,7 +15784,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$idx' is captured but never referenced",
+        "message": "'$idx' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15896,7 +15844,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$idx' is captured but never referenced",
+        "message": "'$idx' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15968,7 +15916,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15998,7 +15946,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$i' is captured but never referenced",
+        "message": "'$i' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16106,7 +16054,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$i' is captured but never referenced",
+        "message": "'$i' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16166,7 +16114,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$n' is captured but never referenced",
+        "message": "'$n' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16256,7 +16204,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key1' is captured but never referenced",
+        "message": "'$key1' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16268,7 +16216,7 @@
       },
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key2' is captured but never referenced",
+        "message": "'$key2' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 3,
@@ -16376,7 +16324,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$keys' is captured but never referenced",
+        "message": "'$keys' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16424,7 +16372,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$fn' is captured but never referenced",
+        "message": "'$fn' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16454,7 +16402,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$obj' is captured but never referenced",
+        "message": "'$obj' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -17283,18 +17231,6 @@
           "offset": 38
         },
         "context": "dict[name_first: \"alice\"] => $data",
-        "fix": null
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$prefix' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 19,
-          "offset": 62
-        },
-        "context": "\"name\" => $prefix",
         "fix": null
       }
     ]
@@ -18402,18 +18338,6 @@
     "file": "existence-check-dynamic.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$base' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 21,
-          "offset": 21
-        },
-        "context": "\"test\" => $base",
-        "fix": null
-      },
-      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $dict -> ...' instead of separate statements",
         "severity": "info",
@@ -18432,18 +18356,6 @@
     "file": "existence-check-dynamic.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$base' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 16,
-          "offset": 16
-        },
-        "context": "2 => $base",
-        "fix": null
-      },
-      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $dict -> ...' instead of separate statements",
         "severity": "info",
@@ -18461,18 +18373,6 @@
     "index": 1509,
     "file": "existence-check-dynamic.test.ts",
     "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$flag' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 19,
-          "offset": 19
-        },
-        "context": "true => $flag",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $dict -> ...' instead of separate statements",
@@ -18509,18 +18409,6 @@
     "index": 1511,
     "file": "existence-check-dynamic.test.ts",
     "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$raw' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 24,
-          "offset": 24
-        },
-        "context": "\"  key  \" => $raw",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $dict -> ...' instead of separate statements",
@@ -27238,7 +27126,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$a' is captured but never referenced",
+        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 1,
@@ -27246,18 +27134,6 @@
           "offset": 8
         },
         "context": "\"na\" => $a",
-        "fix": null
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$b' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 9,
-          "offset": 19
-        },
-        "context": "\"me\" => $b",
         "fix": null
       }
     ]
@@ -28084,12 +27960,12 @@
           "range": {
             "start": {
               "line": 1,
-              "column": 1,
+              "column": 3,
               "offset": 2
             },
             "end": {
               "line": 1,
-              "column": 1,
+              "column": 10,
               "offset": 9
             }
           },
@@ -31801,12 +31677,12 @@
           "range": {
             "start": {
               "line": 1,
-              "column": 1,
+              "column": 8,
               "offset": 7
             },
             "end": {
               "line": 1,
-              "column": 1,
+              "column": 15,
               "offset": 14
             }
           },
@@ -31850,12 +31726,12 @@
           "range": {
             "start": {
               "line": 1,
-              "column": 1,
+              "column": 8,
               "offset": 7
             },
             "end": {
               "line": 1,
-              "column": 1,
+              "column": 15,
               "offset": 14
             }
           },
@@ -33183,20 +33059,7 @@
   {
     "index": 3119,
     "file": "structural-type-errors.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$n' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "42 => $n",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3120,
@@ -34867,12 +34730,12 @@
           "range": {
             "start": {
               "line": 1,
-              "column": 1,
+              "column": 9,
               "offset": 8
             },
             "end": {
               "line": 1,
-              "column": 1,
+              "column": 24,
               "offset": 23
             }
           },
@@ -34926,12 +34789,12 @@
           "range": {
             "start": {
               "line": 1,
-              "column": 1,
+              "column": 9,
               "offset": 8
             },
             "end": {
               "line": 1,
-              "column": 1,
+              "column": 24,
               "offset": 23
             }
           },
@@ -40231,12 +40094,12 @@
           "range": {
             "start": {
               "line": 1,
-              "column": 1,
+              "column": 8,
               "offset": 7
             },
             "end": {
               "line": 1,
-              "column": 1,
+              "column": 15,
               "offset": 14
             }
           },
