@@ -191,11 +191,11 @@ describe('semanticTokens', () => {
     expect(nameToken?.tokenType).toBe('variableName');
   });
 
-  it('classifies a large input identically to per-token isolated classification (precomputed type-name coverage matches a naive scan)', () => {
-    // Interleave many type-constructor usages (reclassified typeName) with
-    // plain value usages of the same identifier (stays variableName), so
-    // the precomputed coverage structure is exercised across a wide,
-    // non-trivial offset range rather than a single small span.
+  it('classifies every type-context occurrence of a repeated identifier as typeName across a large input', () => {
+    // Interleave many type-constructor usages (reclassified typeName) of the
+    // same identifier across many lines, so the precomputed coverage
+    // structure is exercised across a wide, non-trivial offset range rather
+    // than a single small span.
     const lines: string[] = [];
     for (let i = 0; i < 300; i++) {
       lines.push(`list(string) => $t${i}`);
@@ -210,8 +210,8 @@ describe('semanticTokens', () => {
     const decoded = decodeAbsolute(result);
 
     // Every occurrence of `string` immediately after `list(` or inside
-    // `dict[` classifies as typeName; there is no other `string` usage in
-    // this fixture, so every occurrence must be typeName.
+    // `dict[` classifies as typeName; the fixture contains only these
+    // type-context occurrences, so every occurrence must be typeName.
     const typeNameCount = decoded.filter(
       (t) => t.tokenType === 'typeName'
     ).length;

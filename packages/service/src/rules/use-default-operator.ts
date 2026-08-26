@@ -18,8 +18,9 @@ import { registeredRules } from './rules-registry.js';
  * Check if a node tree contains an existence check (.?field). Walks via
  * the exported `walkAst` (an iterative, explicit-stack traversal) rather
  * than recursing over `Object.keys` - the previous implementation risked
- * a `RangeError` on deeply nested ASTs and revisited every enumerable key
- * of every node, which is quadratic in subtree size.
+ * a `RangeError` on deeply nested ASTs and visited every enumerable key of
+ * every node (including non-child properties like `span`), a larger
+ * constant factor per node than a walk that visits only child nodes.
  */
 function hasExistenceCheck(node: ASTNode): boolean {
   let found = false;

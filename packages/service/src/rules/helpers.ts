@@ -186,14 +186,6 @@ export function extractSpanText(span: SourceSpan, source: string): string {
   return result.join('\n');
 }
 
-/**
- * Escape special regex characters so operator text can be embedded in a
- * dynamically built RegExp.
- */
-export function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 // ============================================================
 // IMPLICIT $ PIPE PREFERENCE
 // ============================================================

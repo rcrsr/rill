@@ -66,14 +66,12 @@ export const loopAccumulator: Rule = {
       return [];
     }
 
-    const conditionSpan = loop.condition.span;
-    const conditionRefs = context.facts.script.referenceLog
-      .filter(
-        (entry) =>
-          entry.node.span.start.offset >= conditionSpan.start.offset &&
-          entry.node.span.end.offset <= conditionSpan.end.offset
-      )
-      .map((entry) => `$${entry.name}`);
+    const conditionFacts = context.facts.bySubtree.get(loop.condition);
+    const conditionRefs = conditionFacts
+      ? context.facts.script.referenceLog
+          .slice(conditionFacts.referenceStart, conditionFacts.referenceEnd)
+          .map((entry) => `$${entry.name}`)
+      : [];
 
     const capturedSet = new Set(capturedNames);
     const problematicVars = conditionRefs.filter((ref) => capturedSet.has(ref));

@@ -90,6 +90,9 @@ export interface SubtreeFacts {
   /** [captureStart, captureEnd) window into ScriptFacts.captureLog. */
   readonly captureStart: number;
   readonly captureEnd: number;
+  /** [referenceStart, referenceEnd) window into ScriptFacts.referenceLog. */
+  readonly referenceStart: number;
+  readonly referenceEnd: number;
   /** True if a `break` appears in this subtree, masked under Closure and under seq/acc HostCall. */
   readonly hasBreak: boolean;
   /** True if a HostCall or ClosureCall appears in this subtree, masked under Closure. */
@@ -277,6 +280,7 @@ function literalFieldAccessNamesSelf(node: ASTNode): string[] {
 interface Accumulator {
   closureDepth: number;
   captureStart: number;
+  referenceStart: number;
   hasBreak: boolean;
   hasSideEffect: boolean;
   hasBareDollar: boolean;
@@ -320,6 +324,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       stack.push({
         closureDepth: currentClosureDepth,
         captureStart: captureLog.length,
+        referenceStart: referenceLog.length,
         hasBreak: node.type === 'Break',
         hasSideEffect: node.type === 'HostCall' || node.type === 'ClosureCall',
         hasBareDollar: node.type === 'Variable' && node.isPipeVar,
@@ -441,6 +446,8 @@ export function collectFacts(root: ASTNode): AstFacts {
         closureDepth: acc.closureDepth,
         captureStart: acc.captureStart,
         captureEnd: captureLog.length,
+        referenceStart: acc.referenceStart,
+        referenceEnd: referenceLog.length,
         hasBreak: acc.hasBreak,
         hasSideEffect: acc.hasSideEffect,
         hasBareDollar: acc.hasBareDollar,

@@ -30,7 +30,7 @@ export interface Binding {
    * untyped, or `undefined` for binding kinds (`dictKey`) that carry no
    * `typeRef` at all.
    */
-  readonly declaredType?: TypeRef | null | undefined;
+  readonly declaredType?: TypeRef | null;
 }
 
 // ============================================================
