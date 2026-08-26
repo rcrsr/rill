@@ -185,4 +185,33 @@ dict[user: "Alice"] => $d
     const offset = source.indexOf('$d') + 1;
     expect(findVisibleBinding(parsed, offset, 'user')).toBeNull();
   });
+
+  it('sets declaredType to the TypeRef for a typed capture', () => {
+    const source = `"hello" => $name: string
+$name -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('$name -> log') + 1;
+    const binding = findVisibleBinding(parsed, offset, 'name');
+
+    expect(binding).not.toBeNull();
+    expect(binding?.declaredType).not.toBeNull();
+    expect(binding?.declaredType).toMatchObject({ typeName: 'string' });
+  });
+
+  it('sets declaredType to null for an untyped capture', () => {
+    const source = `"hello" => $name
+$name -> log
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const offset = source.indexOf('$name -> log') + 1;
+    const binding = findVisibleBinding(parsed, offset, 'name');
+
+    expect(binding).not.toBeNull();
+    expect(binding?.declaredType).toBeNull();
+  });
 });

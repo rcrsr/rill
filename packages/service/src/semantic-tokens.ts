@@ -42,18 +42,18 @@ export function semanticTokens(
 ): SemanticToken[] {
   if (tokens.length === 0) return [];
 
-  const typeNameSpans = collectTypeNameSpans(parsed.ast);
+  const typeNameCoverage = buildTypeNameCoverage(parsed.ast);
   const lineStarts = computeLineStarts(source);
 
   const classified: ClassifiedToken[] = [];
   for (const token of tokens) {
     if (token.type === TOKEN_TYPES.STRING) {
       classified.push(
-        ...classifyStringToken(token, source, lineStarts, typeNameSpans)
+        ...classifyStringToken(token, source, lineStarts, typeNameCoverage)
       );
       continue;
     }
-    const category = classifyToken(token, typeNameSpans);
+    const category = classifyToken(token, typeNameCoverage);
     if (category !== null) {
       classified.push({ span: token.span, tokenType: category });
     }
@@ -67,37 +67,90 @@ export function semanticTokens(
 // ============================================================
 
 /**
- * Collects the spans of every `TypeNameExpr`/`TypeConstructor` node reachable
- * from `root`. An identifier token whose span falls within one of these spans
- * is reclassified from `variableName` to `typeName`.
+ * Sorted, non-overlapping-by-start `TypeNameExpr`/`TypeConstructor` spans
+ * (by absolute char offset), enabling an O(log n) "is this offset covered"
+ * query instead of the O(n) linear scan a per-token `.some()` performs.
  */
-function collectTypeNameSpans(root: ASTNode): SourceSpan[] {
+interface TypeNameCoverage {
+  /** Span start offsets, sorted ascending. */
+  readonly starts: readonly number[];
+  /**
+   * Running maximum of end offsets over the `starts`-sorted prefix: `
+   * prefixMaxEnd[i] = max(ends[0..i])`. Lets a containment query answer
+   * "does any span with `start <= x` also reach end `>= y`" without
+   * tracking which specific span achieves the max — any span in the
+   * qualifying prefix has `start <= x` by construction, so a prefix max
+   * end `>= y` proves at least one of them fully covers `[x, y]`.
+   */
+  readonly prefixMaxEnd: readonly number[];
+}
+
+/**
+ * Collects the spans of every `TypeNameExpr`/`TypeConstructor` node reachable
+ * from `root` and arranges them for binary-search coverage queries. An
+ * identifier token whose span falls within one of these spans is
+ * reclassified from `variableName` to `typeName`. Handles nested/overlapping
+ * spans (e.g. a `TypeNameExpr` inside an enclosing `TypeConstructor`)
+ * correctly, unlike a naive "nearest preceding start" lookup.
+ */
+function buildTypeNameCoverage(root: ASTNode): TypeNameCoverage {
   const spans: SourceSpan[] = [];
   walkAst(root, (node) => {
     if (node.type === 'TypeNameExpr' || node.type === 'TypeConstructor') {
       spans.push(node.span);
     }
   });
-  return spans;
+  spans.sort((a, b) => a.start.offset - b.start.offset);
+
+  const starts: number[] = [];
+  const prefixMaxEnd: number[] = [];
+  let runningMax = -Infinity;
+  for (const span of spans) {
+    runningMax = Math.max(runningMax, span.end.offset);
+    starts.push(span.start.offset);
+    prefixMaxEnd.push(runningMax);
+  }
+  return { starts, prefixMaxEnd };
 }
 
-/** True when `span` lies entirely within `outer` (by absolute char offset). */
-function isSpanWithin(span: SourceSpan, outer: SourceSpan): boolean {
-  return (
-    span.start.offset >= outer.start.offset &&
-    span.end.offset <= outer.end.offset
-  );
+/**
+ * True when `span` lies entirely within some collected type-name span (by
+ * absolute char offset). Binary-searches for the prefix of spans whose
+ * start is `<= span.start.offset`, then checks whether the maximum end
+ * offset in that prefix reaches `span.end.offset`. Equivalent to the
+ * previous `.some(isSpanWithin)` linear scan, including for overlapping or
+ * nested type spans, but in O(log n) instead of O(n).
+ */
+function isCoveredByTypeNameSpan(
+  span: SourceSpan,
+  coverage: TypeNameCoverage
+): boolean {
+  const { starts, prefixMaxEnd } = coverage;
+  let low = 0;
+  let high = starts.length - 1;
+  let candidate = -1;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (starts[mid]! <= span.start.offset) {
+      candidate = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  if (candidate === -1) return false;
+  return prefixMaxEnd[candidate]! >= span.end.offset;
 }
 
 /** Classifies a single token, applying the type-name heuristic. Returns `null` for unmapped token types. */
 function classifyToken(
   token: Token,
-  typeNameSpans: readonly SourceSpan[]
+  typeNameCoverage: TypeNameCoverage
 ): ServiceTokenType | null {
   if (
     token.type === TOKEN_TYPES.IDENTIFIER &&
     (VALID_TYPE_NAMES as readonly string[]).includes(token.value) &&
-    typeNameSpans.some((typeSpan) => isSpanWithin(token.span, typeSpan))
+    isCoveredByTypeNameSpan(token.span, typeNameCoverage)
   ) {
     return 'typeName';
   }
@@ -123,7 +176,7 @@ function classifyStringToken(
   token: Token,
   source: string,
   lineStarts: readonly number[],
-  typeNameSpans: readonly SourceSpan[]
+  typeNameCoverage: TypeNameCoverage
 ): ClassifiedToken[] {
   const raw = source.slice(token.span.start.offset, token.span.end.offset);
   const isTriple = raw.startsWith('"""');
@@ -140,7 +193,7 @@ function classifyStringToken(
     contentStartOffset,
     lineStarts,
     isTriple,
-    typeNameSpans
+    typeNameCoverage
   );
 }
 
@@ -212,7 +265,7 @@ function splitInterpolatedString(
   contentStartOffset: number,
   lineStarts: readonly number[],
   isTriple: boolean,
-  typeNameSpans: readonly SourceSpan[]
+  typeNameCoverage: TypeNameCoverage
 ): ClassifiedToken[] {
   const result: ClassifiedToken[] = [];
   let i = 0;
@@ -290,7 +343,7 @@ function splitInterpolatedString(
           exprText,
           exprAbsOffset,
           lineStarts,
-          typeNameSpans
+          typeNameCoverage
         )
       );
 
@@ -322,7 +375,7 @@ function tokenizeInterpolatedExpression(
   exprText: string,
   exprAbsOffset: number,
   lineStarts: readonly number[],
-  typeNameSpans: readonly SourceSpan[]
+  typeNameCoverage: TypeNameCoverage
 ): ClassifiedToken[] {
   const baseLocation = offsetToLocation(exprAbsOffset, lineStarts);
 
@@ -338,7 +391,7 @@ function tokenizeInterpolatedExpression(
       ) {
         continue;
       }
-      const category = classifyToken(inner, typeNameSpans);
+      const category = classifyToken(inner, typeNameCoverage);
       if (category !== null) {
         result.push({ span: inner.span, tokenType: category });
       }

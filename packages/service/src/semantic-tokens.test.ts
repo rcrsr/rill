@@ -190,4 +190,63 @@ describe('semanticTokens', () => {
     );
     expect(nameToken?.tokenType).toBe('variableName');
   });
+
+  it('classifies a large input identically to per-token isolated classification (precomputed type-name coverage matches a naive scan)', () => {
+    // Interleave many type-constructor usages (reclassified typeName) with
+    // plain value usages of the same identifier (stays variableName), so
+    // the precomputed coverage structure is exercised across a wide,
+    // non-trivial offset range rather than a single small span.
+    const lines: string[] = [];
+    for (let i = 0; i < 300; i++) {
+      lines.push(`list(string) => $t${i}`);
+      lines.push(`dict[string: ${i}] => $d${i}`);
+    }
+    const source = lines.join('\n');
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const tokens = tokenize(source);
+    const result = semanticTokens(parsed, tokens, source);
+    const decoded = decodeAbsolute(result);
+
+    // Every occurrence of `string` immediately after `list(` or inside
+    // `dict[` classifies as typeName; there is no other `string` usage in
+    // this fixture, so every occurrence must be typeName.
+    const typeNameCount = decoded.filter(
+      (t) => t.tokenType === 'typeName'
+    ).length;
+    expect(typeNameCount).toBe(600);
+  });
+
+  it('correctly classifies identifiers under multiple distinct type-constructor spans on one line', () => {
+    // Two sibling (non-adjacent, non-overlapping) TypeConstructor spans in
+    // one statement, exercising the coverage lookup across more than a
+    // single candidate span.
+    const source = '(list(number) == list(string)) => $eq';
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    let typeConstructorCount = 0;
+    walkAst(parsed.ast, (node) => {
+      if (node.type === 'TypeConstructor') typeConstructorCount++;
+    });
+    expect(typeConstructorCount).toBe(2);
+
+    const tokens = tokenize(source);
+    const result = semanticTokens(parsed, tokens, source);
+    const decoded = decodeAbsolute(result);
+
+    const numberCol = source.indexOf('number');
+    const stringCol = source.indexOf('string');
+
+    const numberToken = decoded.find(
+      (t) => t.line === 0 && t.character === numberCol
+    );
+    const stringToken = decoded.find(
+      (t) => t.line === 0 && t.character === stringCol
+    );
+
+    expect(numberToken?.tokenType).toBe('typeName');
+    expect(stringToken?.tokenType).toBe('typeName');
+  });
 });

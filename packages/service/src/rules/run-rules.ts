@@ -10,7 +10,7 @@
  * location.
  */
 
-import type { ASTNode, ParseResult } from '@rcrsr/rill';
+import type { ASTNode, NodeType, ParseResult } from '@rcrsr/rill';
 import type {
   CheckConfig,
   Diagnostic,
@@ -82,6 +82,45 @@ function sortDiagnostics(diagnostics: Diagnostic[]): Diagnostic[] {
 }
 
 // ============================================================
+// RULE BUCKETING
+// ============================================================
+
+/** A rule paired with its pre-resolved (never 'off') configured state. */
+interface EnabledRule {
+  readonly rule: Rule;
+  readonly ruleState: RuleState;
+}
+
+/**
+ * Buckets enabled rules by the node types they target, resolving each
+ * rule's configured state once up front instead of per visited node.
+ * Rules are iterated in registry order, so each bucket preserves that
+ * order; the O(41) per-node `nodeTypes.includes` scan collapses into a
+ * single `Map` lookup during traversal.
+ */
+function buildEnabledRuleBuckets(
+  rules: readonly Rule[],
+  config: CheckConfig
+): Map<NodeType, EnabledRule[]> {
+  const buckets = new Map<NodeType, EnabledRule[]>();
+  for (const rule of rules) {
+    const ruleState = resolveRuleState(rule.code, config);
+    if (ruleState === 'off') {
+      continue;
+    }
+    for (const nodeType of rule.nodeTypes) {
+      let bucket = buckets.get(nodeType);
+      if (!bucket) {
+        bucket = [];
+        buckets.set(nodeType, bucket);
+      }
+      bucket.push({ rule, ruleState });
+    }
+  }
+  return buckets;
+}
+
+// ============================================================
 // ORCHESTRATOR
 // ============================================================
 
@@ -104,6 +143,7 @@ export function runRules(
   rules: readonly Rule[] = RULES
 ): Diagnostic[] {
   const facts = collectFacts(parsed.ast);
+  const ruleBuckets = buildEnabledRuleBuckets(rules, config);
 
   const ruleContext: RuleContext = {
     source,
@@ -131,16 +171,10 @@ export function runRules(
       }
     }
 
-    // Dispatch to every enabled rule that applies to this node type.
-    for (const rule of rules) {
-      const ruleState = resolveRuleState(rule.code, config);
-      if (ruleState === 'off') {
-        continue;
-      }
-      if (!rule.nodeTypes.includes(node.type)) {
-        continue;
-      }
-
+    // Dispatch to every enabled rule bucketed under this node type, in
+    // registry order.
+    const bucket = ruleBuckets.get(node.type);
+    for (const { rule, ruleState } of bucket ?? []) {
       let ruleDiagnostics: Diagnostic[];
       try {
         ruleDiagnostics = rule.validate(node, ruleContext);

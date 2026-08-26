@@ -5,7 +5,7 @@
 
 import type { ASTNode, HostCallNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { extractContextLine, isBareReference } from './helpers.js';
+import { bareDollarSingleArgDiagnostic, isBareReference } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
@@ -38,23 +38,12 @@ export const implicitDollarFunction: Rule = {
       return [];
     }
 
-    return [
-      {
-        code: 'IMPLICIT_DOLLAR_FUNCTION',
-        message: `Prefer pipe syntax '-> ${hostCallNode.name}' over explicit '${hostCallNode.name}($)'`,
-        severity: 'info',
-        location: {
-          line: hostCallNode.span.start.line,
-          column: hostCallNode.span.start.column,
-          offset: hostCallNode.span.start.offset,
-        },
-        context: extractContextLine(
-          hostCallNode.span.start.line,
-          context.source
-        ),
-        fix: null,
-      },
-    ];
+    return bareDollarSingleArgDiagnostic(
+      'IMPLICIT_DOLLAR_FUNCTION',
+      hostCallNode.name,
+      hostCallNode,
+      context
+    );
   },
 };
 

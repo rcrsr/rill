@@ -61,6 +61,8 @@ describe('IMPLICIT_DOLLAR_FUNCTION', () => {
       code: 'IMPLICIT_DOLLAR_FUNCTION',
       severity: 'info',
       message: "Prefer pipe syntax '-> log' over explicit 'log($)'",
+      location: { line: 1, column: 1, offset: 0 },
+      context: 'log($)',
       fix: null,
     });
   });
@@ -92,6 +94,8 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
       severity: 'info',
       message:
         "Prefer pipe syntax '-> $myclosure' over explicit '$myclosure($)'",
+      location: { line: 1, column: 1, offset: 0 },
+      context: '$myclosure($)',
       fix: null,
     });
   });
@@ -105,6 +109,36 @@ describe('IMPLICIT_DOLLAR_CLOSURE', () => {
     ]);
 
     expect(result).toEqual([]);
+  });
+});
+
+describe('shared bareDollarSingleArgDiagnostic display-name construction', () => {
+  it('prefixes the closure name with $ and its access chain', () => {
+    const source = '1 -> $math.double($)\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [
+      implicitDollarClosure,
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.message).toBe(
+      "Prefer pipe syntax '-> $math.double' over explicit '$math.double($)'"
+    );
+  });
+
+  it('keeps the bare (unprefixed) name for a host function call', () => {
+    const source = 'greet($)\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [
+      implicitDollarFunction,
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.message).toBe(
+      "Prefer pipe syntax '-> greet' over explicit 'greet($)'"
+    );
   });
 });
 
