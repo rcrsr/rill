@@ -147,11 +147,11 @@ module.exports = {
      * @param {object} node - CallExpression or NewExpression node
      */
     function checkRuntimeError(node) {
-      // EC-6: Skip if error ID is not a string literal (variable case)
+      // Skip when the error ID is not a string literal (variable case).
       const errorId = getErrorId(node);
       if (!errorId) return;
 
-      // EC-7: Skip if message is not determinable (complex expression case)
+      // Skip when the message is not determinable (complex expression case).
       const messageText = getMessagePrefix(node);
       if (!messageText) return;
 
@@ -165,14 +165,14 @@ module.exports = {
     return {
       // Check: new RuntimeError(...)
       NewExpression(node) {
-        // EC-5: Ignore non-RuntimeError constructors
+        // Ignore constructors other than RuntimeError.
         if (!isRuntimeErrorCall(node.callee)) return;
         checkRuntimeError(node);
       },
 
       // Check: RuntimeError.fromNode(...)
       CallExpression(node) {
-        // EC-5: Ignore non-RuntimeError calls
+        // Ignore calls other than RuntimeError.fromNode.
         if (!isRuntimeErrorCall(node.callee)) return;
         checkRuntimeError(node);
       },

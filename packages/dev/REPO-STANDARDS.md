@@ -379,8 +379,48 @@ plugin the repository wants, including the ones reporting zero.
 | STD-HOOK-2 | Pre-commit formats then lints staged files, in that order, and restages fixes. | — |
 | STD-HOOK-3 | Pre-commit runs piped so a failing step halts the rest. | — |
 | STD-HOOK-4 | Pre-push runs typecheck and tests in parallel. | — |
+| STD-HOOK-5 | No pre-commit command's `glob` reduces to a set the invoked formatter or linter fully ignores. | — |
 
 Format before lint. The reverse order lets the formatter undo a lint fix.
+
+**On STD-HOOK-5.** A hook glob and the tool's own `ignorePatterns` (or
+equivalent) are declared in two different files and checked by no one against
+each other. When every file a glob can match is also in the tool's ignore
+list, the tool receives an all-ignored input list, and formatters commonly
+treat that as an error rather than a no-op — exiting non-zero. Under
+`piped: true` (STD-HOOK-3) that non-zero exit halts the rest of the
+pre-commit chain, so a commit touching only files the tool ignores (a
+lockfile is the common case) is blocked by a step that has nothing to do.
+Fix it by narrowing the glob, adding an `exclude:` entry for the
+ignored file, or moving the ignore to the glob itself — not by dropping
+`piped: true` or reordering format-before-lint.
+
+**Verify**
+
+The failure is directory-scoped as often as it is file-scoped (a lockfile,
+but equally a whole ignored subtree such as a docs site under the language
+package). Sampling only the lockfile misses the subtree case, so probe every
+directory that holds a tracked file, not just one file:
+
+```bash
+# For every directory holding a tracked file, verify a commit touching only
+# that directory does not block pre-commit. A hook glob whose matches are
+# fully excluded by the tool's own ignore config exits non-zero under
+# `piped: true` (STD-HOOK-3), blocking a real commit to that subtree.
+FAIL=0
+for dir in $(git ls-files | xargs -n1 dirname | sort -u); do
+  SAMPLE="$(git ls-files -- "$dir" | head -1)"
+  [ -z "$SAMPLE" ] && continue
+  if ! pnpm exec lefthook run pre-commit --file "$SAMPLE" >/tmp/std-hook-5.log 2>&1; then
+    echo "BAD: pre-commit blocks a commit touching only $dir (sample: $SAMPLE)"
+    cat /tmp/std-hook-5.log
+    FAIL=1
+  fi
+done
+rm -f /tmp/std-hook-5.log
+[ "$FAIL" -eq 0 ] && echo "OK: pre-commit does not block any tracked directory"
+exit "$FAIL"
+```
 
 ## 7. Release workflow
 

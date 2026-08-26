@@ -90,6 +90,13 @@ jobs:
       - name: Test custom lint rules
         run: pnpm test:rules
 
+      # Fixture-md driven regression coverage for scripts/test-examples.ts:
+      # exercises marker-line splitting and the unapplied-callable check
+      # against scripts/fixtures/test-examples/*.md, asserting on exit code
+      # and --json output. Root-level for the same reason as the step above.
+      - name: Test example-runner fixtures
+        run: pnpm test:examples:fixtures
+
       # Tree only, deliberately. --remote adds the branch-protection and
       # repository-settings elements, and a pull request cannot change either:
       # they are host state, altered out of band by an admin. Gating merges on
