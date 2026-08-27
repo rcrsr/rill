@@ -1357,6 +1357,25 @@ fi
   bad "STD-SUP-1" "dependabot covers npm and actions" \
     "missing, or one ecosystem absent: needs a npm block and a github-actions block"
 
+# STD-SUP-8: version-update PRs disabled ecosystem-wide. Upgrades are done
+# manually under the repository's upgrade policy; Dependabot's own security
+# updates are a separate host feature and are unaffected. The policy holds only
+# when every `package-ecosystem` block carries `open-pull-requests-limit: 0`, so
+# the check counts blocks against zero-limit lines and rejects any positive
+# limit. A single un-zeroed block reopens the automated-PR firehose for that
+# ecosystem, which is the failure this element exists to catch.
+if [ -f .github/dependabot.yml ]; then
+  sup8_eco=$(grep -cE "^[[:space:]]*-?[[:space:]]*package-ecosystem:" .github/dependabot.yml)
+  sup8_zero=$(grep -cE "^[[:space:]]*open-pull-requests-limit:[[:space:]]*0[[:space:]]*(#.*)?$" .github/dependabot.yml)
+  sup8_pos=$(grep -cE "^[[:space:]]*open-pull-requests-limit:[[:space:]]*[1-9]" .github/dependabot.yml)
+  { [ "$sup8_pos" -eq 0 ] && [ "$sup8_zero" -eq "$sup8_eco" ] && [ "$sup8_eco" -gt 0 ]; } &&
+    ok "STD-SUP-8" "dependabot version-update PRs disabled" ||
+    bad "STD-SUP-8" "dependabot version-update PRs disabled" \
+      "every package-ecosystem block needs open-pull-requests-limit: 0 ($sup8_zero of $sup8_eco set, $sup8_pos positive)"
+else
+  bad "STD-SUP-8" "dependabot version-update PRs disabled" "no .github/dependabot.yml"
+fi
+
 { [ -f .github/workflows/codeql.yml ] && [ -f .github/workflows/dependency-review.yml ]; } &&
   ok "STD-SUP-6" "static analysis and dependency review" ||
   bad "STD-SUP-6" "static analysis and dependency review" "codeql.yml or dependency-review.yml missing"
