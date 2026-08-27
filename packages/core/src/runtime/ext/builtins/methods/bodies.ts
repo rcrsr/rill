@@ -9,6 +9,7 @@ import {
 import { isIterator, isVector } from '../../../core/types/guards.js';
 import { isEmpty } from '../../../core/values.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
+import { throwCatchableHostHalt } from '../../../core/types/halt.js';
 import {
   type RillMethod,
   makeListIterator,
@@ -174,56 +175,86 @@ export const mLower: RillMethod = (receiver) =>
 export const mUpper: RillMethod = (receiver) =>
   formatValue(receiver).toUpperCase();
 
-/** Replace first regex match */
-export const mReplace: RillMethod = (receiver, args) => {
+/** Replace first regex match. Invalid pattern halts with INVALID_INPUT. */
+export const mReplace: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const pattern = formatValue(args[0] ?? '');
   const replacement = formatValue(args[1] ?? '');
+  let re: RegExp;
   try {
-    return str.replace(new RegExp(pattern), replacement);
-  } catch {
-    return str;
+    re = new RegExp(pattern);
+  } catch (e) {
+    throwCatchableHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'replace' },
+      'INVALID_INPUT',
+      `replace: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
+    );
   }
+  return str.replace(re, replacement);
 };
 
-/** Replace all regex matches */
-export const mReplaceAll: RillMethod = (receiver, args) => {
+/** Replace all regex matches. Invalid pattern halts with INVALID_INPUT. */
+export const mReplaceAll: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const pattern = formatValue(args[0] ?? '');
   const replacement = formatValue(args[1] ?? '');
+  let re: RegExp;
   try {
-    return str.replace(new RegExp(pattern, 'g'), replacement);
-  } catch {
-    return str;
+    re = new RegExp(pattern, 'g');
+  } catch (e) {
+    throwCatchableHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'replaceAll' },
+      'INVALID_INPUT',
+      `replaceAll: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
+    );
   }
+  return str.replace(re, replacement);
 };
 
 /** Check if string contains substring */
 export const mContains: RillMethod = (receiver, args) =>
   formatValue(receiver).includes(formatValue(args[0] ?? ''));
 
-/** First regex match info, or empty dict if no match */
-export const mMatch: RillMethod = (receiver, args) => {
+/**
+ * First regex match info, or empty dict if no match.
+ * Invalid pattern halts with INVALID_INPUT.
+ */
+export const mMatch: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const pattern = formatValue(args[0] ?? '');
+  let re: RegExp;
   try {
-    const m = new RegExp(pattern).exec(str);
-    if (!m) return {};
-    return { matched: m[0], index: m.index, groups: m.slice(1) };
-  } catch {
-    return {};
+    re = new RegExp(pattern);
+  } catch (e) {
+    throwCatchableHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'match' },
+      'INVALID_INPUT',
+      `match: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
+    );
   }
+  const m = re.exec(str);
+  if (!m) return {};
+  return { matched: m[0], index: m.index, groups: m.slice(1) };
 };
 
-/** True if regex matches anywhere in string */
-export const mIsMatch: RillMethod = (receiver, args) => {
+/**
+ * True if regex matches anywhere in string.
+ * Invalid pattern halts with INVALID_INPUT.
+ */
+export const mIsMatch: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const pattern = formatValue(args[0] ?? '');
+  let re: RegExp;
   try {
-    return new RegExp(pattern).test(str);
-  } catch {
-    return false;
+    re = new RegExp(pattern);
+  } catch (e) {
+    throwCatchableHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'isMatch' },
+      'INVALID_INPUT',
+      `isMatch: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
+    );
   }
+  return re.test(str);
 };
 
 /** Position of first substring occurrence (-1 if not found) */

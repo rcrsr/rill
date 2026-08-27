@@ -162,7 +162,6 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      const durationMs = (durArg as RillDuration).ms;
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
@@ -178,37 +177,24 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         return [];
       }
 
-      const result: RillValue[] = [];
-      // Gate tracks the earliest time the next chunk is allowed through.
-      let nextAllowedMs = -Infinity;
-
-      for (let i = 0; i < elements.length; i++) {
-        // Static clock: all chunks share timestamp 0 (batch processing, no Date.now()).
-        const tChunk = 0;
-        if (tChunk >= nextAllowedMs) {
-          result.push(elements[i]!);
-          nextAllowedMs = tChunk + durationMs;
-        }
-      }
-
-      return result;
+      // Static clock: all chunks share timestamp 0 (batch processing, no
+      // Date.now()), so only the first chunk ever falls within the interval
+      // gate; every later chunk arrives at the same instant and is
+      // suppressed. Emit the first element.
+      return [elements[0]!];
     },
   },
 
   /**
-   * Periodically emit the latest seen chunk at fixed `duration` intervals.
-   * Chunks arriving between sample checkpoints update the "latest seen" value;
-   * each checkpoint emits that latest value (if any chunk was seen since the
-   * last checkpoint or the beginning).
+   * Emit the latest seen chunk at fixed `duration` intervals.
    *
    * Stream-only: rejects list input with #INVALID_INPUT.
    * `duration` arg must be a duration value.
    * Iteration ceiling enforced via getIterableElements.
    * Upstream halt propagates through getIterableElements.
    *
-   * sample = latest-at-interval.
-   * With a static virtual clock (ctx.nowMs), all chunks fall in the first
-   * interval window and the last chunk is emitted as a single sample.
+   * sample = latest-at-interval. Under batch (synchronous) semantics all
+   * chunks arrive at once, so the last chunk is emitted as the single sample.
    */
   sample: {
     params: [
@@ -254,8 +240,6 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      // durationMs validated above; static-clock semantics make all
-      // elements fall in window 0 regardless of duration value.
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
@@ -271,26 +255,10 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         return [];
       }
 
-      // Assign each element to a time window.
-      // Static clock: all chunks share timestamp 0 (batch processing, no Date.now()).
-      // With a static clock all elements fall in window 0 → emit last.
-      const result: RillValue[] = [];
-      // Track latest seen per window index.
-      const windowLatest = new Map<number, RillValue>();
-
-      for (let i = 0; i < elements.length; i++) {
-        // Static clock: windowIdx is always 0; last element in window wins.
-        const windowIdx = 0;
-        windowLatest.set(windowIdx, elements[i]!);
-      }
-
-      // Emit windows in order: latest value per window.
-      const windowIndices = [...windowLatest.keys()].sort((a, b) => a - b);
-      for (const idx of windowIndices) {
-        result.push(windowLatest.get(idx)!);
-      }
-
-      return result;
+      // Static clock: all chunks share timestamp 0 (batch processing, no
+      // Date.now()), so every element falls into the same interval window
+      // and the latest-seen value at that checkpoint is the last element.
+      return [elements[elements.length - 1]!];
     },
   },
 };

@@ -425,11 +425,6 @@ export function createRuntimeContext(
     }
   }
 
-  // Derive typeNames from registrations (replaces VALID_TYPE_NAMES in context).
-  const typeNames: readonly string[] = Object.freeze(
-    BUILT_IN_TYPES.map((r) => r.name)
-  );
-
   // Derive leafTypes from registrations where isLeaf === true, plus 'any'
   // which has no registration but rejects type arguments.
   const leafTypes: ReadonlySet<string> = Object.freeze(
@@ -486,11 +481,7 @@ export function createRuntimeContext(
     deriveUnvalidatedMethodReceivers(BUILT_IN_TYPES);
 
   // Freeze all derived collections after creation.
-  Object.freeze(typeNames);
   Object.freeze(typeMethodDicts);
-
-  // Suppress unused-variable warning for typeNames (consumed in later phases).
-  void typeNames;
 
   // Factory-scope AbortController: its signal is the ExtensionFactoryCtx.signal
   // surface (wired in task 3.5) and is chained with the host-supplied signal
@@ -571,25 +562,6 @@ export function createRuntimeContext(
 }
 
 /**
- * Walk the parent chain to find the shared {@link LifecycleState} stashed
- * by `createRuntimeContext`. Returns `undefined` for minimal literal
- * contexts (e.g. `eval/index.ts:assertType`) that never participate in
- * dispose flow.
- */
-function findLifecycleState(ctx: RuntimeContext): LifecycleState | undefined {
-  // Walk via `parent`; the lifecycle lives on the root factory-scope ctx.
-  let cursor: RuntimeContext | undefined = ctx;
-  while (cursor !== undefined) {
-    const slot = (cursor as unknown as Record<symbol, unknown>)[
-      LIFECYCLE_SYMBOL
-    ];
-    if (slot !== undefined) return slot as LifecycleState;
-    cursor = cursor.parent;
-  }
-  return undefined;
-}
-
-/**
  * Create a child context for block scoping.
  * Child inherits parent's functions, methods, callbacks, etc.
  * but has its own variables map. Variable lookups walk the parent chain.
@@ -650,13 +622,12 @@ export function createChildContext(
     resolverConfigs: parent.resolverConfigs,
     resolvingSchemes: parent.resolvingSchemes,
     parseSource: parent.parseSource,
+    timezone: parent.timezone,
+    nowMs: parent.nowMs,
+    scheduler: parent.scheduler,
     sourceId: overrides?.sourceId ?? parent.sourceId,
     sourceText: overrides?.sourceText ?? parent.sourceText,
   };
-  // Suppress unused-variable warning for findLifecycleState; exposed for
-  // future callers that need to inspect the shared state without reaching
-  // into the parent's closures (e.g. dispatch-site guards in task 3.3).
-  void findLifecycleState;
   return child;
 }
 

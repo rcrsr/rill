@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Built-in Methods', () => {
   describe('.empty', () => {
@@ -140,8 +141,17 @@ describe('Rill Runtime: Built-in Methods', () => {
       });
     });
 
-    it('returns empty dict for invalid regex', async () => {
-      expect(await run('"test" -> .match("[")')).toEqual({});
+    it('halts with #INVALID_INPUT for invalid regex', async () => {
+      await expectHalt(() => run('"test" -> .match("[")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('invalid regex halt is catchable via guard', async () => {
+      const result = await run(
+        'guard { "test" -> .match("[") } ?? "recovered"'
+      );
+      expect(result).toBe('recovered');
     });
 
     it('matches at any position and reports index', async () => {
@@ -175,8 +185,17 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"hello" -> .is_match("[0-9]+")')).toBe(false);
     });
 
-    it('returns false for invalid regex', async () => {
-      expect(await run('"test" -> .is_match("[")')).toBe(false);
+    it('halts with #INVALID_INPUT for invalid regex', async () => {
+      await expectHalt(() => run('"test" -> .is_match("[")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('invalid regex halt is catchable via guard', async () => {
+      const result = await run(
+        'guard { "test" -> .is_match("[") } ?? "recovered"'
+      );
+      expect(result).toBe('recovered');
     });
 
     it('matches partial patterns', async () => {
@@ -269,8 +288,17 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"hello" -> .replace("x", "y")')).toBe('hello');
     });
 
-    it('returns original for invalid regex', async () => {
-      expect(await run('"test" -> .replace("[", "_")')).toBe('test');
+    it('halts with #INVALID_INPUT for invalid regex', async () => {
+      await expectHalt(() => run('"test" -> .replace("[", "_")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('invalid regex halt is catchable via guard', async () => {
+      const result = await run(
+        'guard { "test" -> .replace("[", "_") } ?? "recovered"'
+      );
+      expect(result).toBe('recovered');
     });
 
     it('handles empty replacement', async () => {
@@ -293,8 +321,17 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"hello" -> .replace_all("x", "y")')).toBe('hello');
     });
 
-    it('returns original for invalid regex', async () => {
-      expect(await run('"test" -> .replace_all("[", "_")')).toBe('test');
+    it('halts with #INVALID_INPUT for invalid regex', async () => {
+      await expectHalt(() => run('"test" -> .replace_all("[", "_")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('invalid regex halt is catchable via guard', async () => {
+      const result = await run(
+        'guard { "test" -> .replace_all("[", "_") } ?? "recovered"'
+      );
+      expect(result).toBe('recovered');
     });
 
     it('handles empty replacement', async () => {

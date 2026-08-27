@@ -3,7 +3,7 @@
  * Main entry point and re-exports
  */
 
-import { tokenize } from '../lexer/index.js';
+import { tokenize, LexerError } from '../lexer/index.js';
 import { ParseError, type ParseResult, type ScriptNode } from '../types.js';
 import { Parser } from './parser.js';
 
@@ -69,9 +69,7 @@ export function parseWithRecovery(source: string): ParseResult {
     // Handle lexer errors by converting to ParseError and returning a
     // partial AST built from the tokens recognized before the failure.
     if (err instanceof Error && err.name === 'LexerError') {
-      const lexerErr = err as {
-        location?: { line: number; column: number; offset: number };
-      };
+      const lexerErr = err as Partial<LexerError> & Error;
       const location = lexerErr.location ?? {
         line: 1,
         column: 1,
@@ -79,7 +77,7 @@ export function parseWithRecovery(source: string): ParseResult {
       };
       const parseError = new ParseError(
         ERROR_IDS.RILL_P001,
-        err.message.replace(/ at \d+:\d+$/, ''),
+        lexerErr.rawMessage ?? err.message,
         location
       );
 
