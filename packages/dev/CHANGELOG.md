@@ -31,6 +31,12 @@ the language version. Language changes are recorded in the
 - **`--list` now prints every `ok` result, not just `bad` and `skip`.** `--list` promises "every element this script covers"; `ok()` previously stayed silent under `--list`, so a passing element was missing from its own catalogue. `ok()` now prints unconditionally, matching `bad()` and `skip()`. ([#245](https://github.com/rcrsr/rill/pull/245))
 - **Workflow discovery now globs `.yml` and `.yaml`.** `WORKFLOWS` matched only `.github/workflows/*.yml`, so a repository spelling its workflow files `.yaml` had every `STD-CI-*` element in that section read the tree as holding no workflows at all. The glob now covers both extensions and prunes to files that actually exist. ([#245](https://github.com/rcrsr/rill/pull/245))
 
+## 0.2.3 - 2026-08-27
+
+Published from a tag pushed before the release PR merged, then superseded by
+0.2.4. 0.2.4 ships identical tooling; prefer it. The changes are documented
+under 0.2.4 above.
+
 ## 0.2.2 - 2026-08-26
 
 ### Changed
