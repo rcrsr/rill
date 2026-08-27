@@ -23,7 +23,7 @@ import type { ExecutionState } from '../lib/execution.js';
 /**
  * Output component props
  */
-interface OutputProps {
+export interface OutputProps {
   /** Current execution state */
   state: ExecutionState;
   /** ARIA label for screen readers */
