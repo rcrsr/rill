@@ -494,6 +494,7 @@ node -p "require('./package.json').packageManager"
 | STD-SUP-5 | Dependency trust evidence is verified on install, failing when a dependency's trust level is downgraded. | — |
 | STD-SUP-6 | Static analysis workflow and dependency review enabled, **and the host features they depend on turned on**. A committed workflow file is not sufficient. | — |
 | STD-SUP-7 | `CODEOWNERS` present, paired with required review on high-blast-radius paths such as workflow files. | — |
+| STD-SUP-8 | Dependabot version-update PRs are disabled: every `package-ecosystem` block sets `open-pull-requests-limit: 0`. Dependency upgrades are done manually under the repository's upgrade policy. | — |
 
 **On STD-SUP-3 and STD-SUP-4.** A minimum-release-age exclusion pinned to an
 exact version silently stops applying at the next release. Express exclusions by
@@ -507,6 +508,16 @@ makes the policy the same everywhere and survives the next default change. Match
 the value to the dependency-update cadence in STD-SUP-1; a window longer than
 that interval defers every bump by a full extra cycle without covering a
 materially different threat.
+
+**Why STD-SUP-8 sets the limit to zero rather than trusting judgment.** A
+positive `open-pull-requests-limit` reopens the automated-PR firehose for that
+ecosystem, and Dependabot's version PRs do not observe the repository's upgrade
+policy: they bump one dependency at a time on the tool's own cadence, ignoring
+grouping and staging the maintainers decide by hand. Zeroing the limit stops
+those PRs at the source. It does not touch Dependabot **security** updates,
+which are a separate host feature (Settings, Code security) and keep filing PRs
+for advisories. STD-SUP-1 still requires both ecosystem blocks to exist; this
+element requires each to be zeroed.
 
 **Why STD-SUP-6 names the host feature.** Dependency review needs the
 repository's dependency graph enabled. That is a host setting, not something the
@@ -616,14 +627,14 @@ gh api repos/<owner>/<repo> \
 | 6 Git hooks | 4 | 0 |
 | 7 Release workflow | 7 | 7 |
 | 8 Package manager | 7 | 2 |
-| 9 Supply chain | 7 | 2 |
+| 9 Supply chain | 8 | 2 |
 | 10 Dependency versions | 5 | 3 |
 | 11 Issue and PR process | 7 | 2 |
 | 12 Community health | 5 | 0 |
 | 13 Repository settings | 3 | 1 |
-| **Total** | **84** | **22** |
+| **Total** | **85** | **22** |
 
-62 of 84 elements admit no exception at all. Of the 22 that can be N/A, 7 are
+63 of 85 elements admit no exception at all. Of the 22 that can be N/A, 7 are
 the entire release section, which collapses to a single assertion for a
 repository that publishes nothing.
 
