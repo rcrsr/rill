@@ -109,8 +109,10 @@ export function SplitPane({
     }
 
     handleResize();
-    window.addEventListener('resize', handleResize);
 
+    // ResizeObserver already covers window-driven container-size changes,
+    // so a separate window `resize` listener is redundant and would run
+    // handleResize twice per window resize.
     const container = containerRef.current;
     let observer: ResizeObserver | undefined;
     if (container && typeof ResizeObserver !== 'undefined') {
@@ -119,7 +121,6 @@ export function SplitPane({
     }
 
     return () => {
-      window.removeEventListener('resize', handleResize);
       observer?.disconnect();
     };
   }, [breakpoint]);

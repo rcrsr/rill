@@ -47,13 +47,15 @@ export function App(): JSX.Element {
   // STATE INITIALIZATION
   // ============================================================
 
-  // `source` is seeded once from persisted state; `lastSource` itself is
-  // never held in React state, so there is no stale field to keep in sync.
+  // `source` and `splitRatio` are seeded once from the same persisted
+  // object, so a single loadEditorState() call on mount serves both
+  // initializers instead of reading and parsing localStorage twice.
+  const [initialEditorState] = useState(() => loadEditorState());
   const [source, setSource] = useState<string>(
-    () => loadEditorState().lastSource
+    () => initialEditorState.lastSource
   );
   const [splitRatio, setSplitRatio] = useState<number>(
-    () => loadEditorState().splitRatio
+    () => initialEditorState.splitRatio
   );
   const [executionState, setExecutionState] = useState<ExecutionState>({
     status: 'idle',
@@ -78,6 +80,13 @@ export function App(): JSX.Element {
   // updater, which React 18 StrictMode double-invokes in dev to surface
   // impure updaters.
   const isRunningRef = useRef(false);
+  // Mirrors `source` so handleRun/handleCopyLink can read the latest value
+  // without depending on it, keeping their identities stable across
+  // keystrokes (matches the ref pattern in Editor.tsx's onChangeRef).
+  const sourceRef = useRef(source);
+  useEffect(() => {
+    sourceRef.current = source;
+  }, [source]);
 
   // ============================================================
   // CLEANUP TIMERS ON UNMOUNT
@@ -171,7 +180,7 @@ export function App(): JSX.Element {
       configurations: { resolvers: { context: DEMO_CONTEXT_VALUES } },
     };
 
-    executeRill(source, resolverConfig)
+    executeRill(sourceRef.current, resolverConfig)
       .then((result) => {
         isRunningRef.current = false;
         setExecutionState(result);
@@ -202,7 +211,7 @@ export function App(): JSX.Element {
           logs: [],
         });
       });
-  }, [source]);
+  }, []);
 
   const handleExampleSelect = useCallback((example: CodeExample) => {
     setSource(example.source);
@@ -224,9 +233,9 @@ export function App(): JSX.Element {
     }
 
     // Copy link to clipboard
-    const result = await copyLinkToClipboard(source);
+    const result = await copyLinkToClipboard(sourceRef.current);
 
-    // W-1's copyLinkToClipboard status is already the tri/quad-state this
+    // copyLinkToClipboard's status is already the tri/quad-state this
     // component needs ('copied' | 'too-large' | 'error'), so assign it
     // directly instead of collapsing every non-'copied' result to 'error'.
     setCopyLinkState(result.status);
@@ -240,7 +249,7 @@ export function App(): JSX.Element {
     }, COPY_FEEDBACK_RESET_MS);
 
     copyFeedbackTimerRef.current = timerId;
-  }, [source]);
+  }, []);
 
   // ============================================================
   // RENDER
