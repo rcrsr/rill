@@ -98,7 +98,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
               ? err
               : new ParseError(
                   ERROR_IDS.RILL_P001,
-                  err.message.replace(/ at \d+:\d+$/, ''),
+                  err.rawMessage,
                   err.location
                 );
           this.state.errors.push(parseError);
@@ -139,7 +139,7 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
               ? err
               : new ParseError(
                   ERROR_IDS.RILL_P001,
-                  err.message.replace(/ at \d+:\d+$/, ''),
+                  err.rawMessage,
                   err.location
                 );
           this.state.errors.push(parseError);

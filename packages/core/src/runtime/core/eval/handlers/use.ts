@@ -193,7 +193,7 @@ export async function evaluateUseExpr(
         parseLocation !== undefined
           ? new RuntimeError(
               ERROR_IDS.RILL_R056,
-              `Resolver error for '${key}': ${message.replace(/ at \d+:\d+$/, '')}`,
+              `Resolver error for '${key}': ${err instanceof RillError ? err.rawMessage : message}`,
               parseLocation,
               { sourceId: key }
             )

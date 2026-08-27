@@ -236,6 +236,36 @@ describe('RillError Constructor Validation', () => {
       }).toThrow(TypeError);
     });
   });
+
+  describe('rawMessage field', () => {
+    it('excludes the location suffix while message includes it', () => {
+      const location: SourceLocation = { line: 1, column: 5, offset: 5 };
+      const error = new RillError({
+        errorId: 'RILL-R001',
+        message: 'Test error',
+        location,
+      });
+
+      expect(error.rawMessage).toBe('Test error');
+      expect(error.message).toBe('Test error at 1:5');
+    });
+
+    it('round-trips through toData().message without truncation when the raw message legitimately ends in a location-like suffix', () => {
+      const location: SourceLocation = { line: 1, column: 5, offset: 5 };
+      const rawMessage = 'Unexpected token reported at 1:5';
+      const error = new RillError({
+        errorId: 'RILL-R001',
+        message: rawMessage,
+        location,
+      });
+
+      // The base Error message carries the appended suffix on top of the
+      // already-suffix-like raw message.
+      expect(error.message).toBe('Unexpected token reported at 1:5 at 1:5');
+      expect(error.rawMessage).toBe(rawMessage);
+      expect(error.toData().message).toBe(rawMessage);
+    });
+  });
 });
 
 describe('ParseError Constructor Validation (Task 1.3)', () => {

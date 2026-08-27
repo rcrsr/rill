@@ -4,7 +4,8 @@
  * Specification Mapping:
  * - AC-E1: All RuntimeContext fields present; omission causes tsc failure at destructuring.
  * - AC-E2: Standalone getVariable/hasVariable exports exist; removal causes tsc failure.
- * - AC-E3: Object.keys order matches hardcoded 34-field baseline; field count === 34.
+ * - AC-E3: Object.keys order matches hardcoded per-context-kind baseline; field
+ *          count matches ROOT_FIELD_COUNT / CHILD_FIELD_COUNT respectively.
  * - AC-E4: Object.getOwnPropertyNames matches Object.keys (no non-enumerable own props,
  *          no hidden class divergence beyond the flat literal).
  * - AC-E9: RuntimeContext equals intersection of the 6 named facade interfaces; a 7th
@@ -14,9 +15,11 @@
  * hidden-class shape across factory.
  *
  * SPEC DEVIATION (see Implementation Notes):
- *   Root context ends in timezone,nowMs; child context ends in sourceId,sourceText.
- *   Per TD-3 the key order should be identical — it is not in Phase 1. The two
- *   baselines are tested independently, and the deviation is documented below.
+ *   Root context ends in timezone,nowMs,scheduler; child context inherits those
+ *   same three fields (by value from the parent) and then ends in
+ *   sourceId,sourceText. Per TD-3 the key order should be identical — it is not.
+ *   The two baselines are tested independently, and the deviation is documented
+ *   below.
  *
  * Run: pnpm --filter @rcrsr/rill check   (full build + typecheck + test + lint)
  */
@@ -66,10 +69,11 @@ const CHILD_BASELINE =
   'maxCallStackDepth,annotationStack,callStack,' +
   'metadata,hostContext,immediateAnnotation,' +
   'resolvers,resolverConfigs,resolvingSchemes,parseSource,' +
+  'timezone,nowMs,scheduler,' +
   'sourceId,sourceText';
 
 const ROOT_FIELD_COUNT = 34;
-const CHILD_FIELD_COUNT = 33;
+const CHILD_FIELD_COUNT = 36;
 
 // ============================================================
 // AC-E1: compile-time field-presence guard
@@ -232,7 +236,7 @@ describe('V8 hidden-class shape regression', () => {
       expect(Object.keys(child).join(',')).toBe(CHILD_BASELINE);
     });
 
-    it('field count is 33', () => {
+    it('field count is 36', () => {
       const parent = createRuntimeContext({});
       const child = createChildContext(parent);
       expect(Object.keys(child).length).toBe(CHILD_FIELD_COUNT);
@@ -278,7 +282,7 @@ describe('V8 hidden-class shape regression', () => {
       expect(ownProps.join(',')).toBe(enumKeys.join(','));
     });
 
-    it('child: getOwnPropertyNames length is 33', () => {
+    it('child: getOwnPropertyNames length is 36', () => {
       const parent = createRuntimeContext({});
       const child = createChildContext(parent);
       expect(Object.getOwnPropertyNames(child).length).toBe(CHILD_FIELD_COUNT);
