@@ -592,7 +592,7 @@ else
   # forces the `file:line:` prefix unconditionally, since grep drops it by
   # default whenever exactly one file is passed — dropping only `-h` still
   # printed a bare `line:` for the common case of a single-workflow repository.
-  NOCOMMENT="$(grep -HnE 'uses: *[^ ]+@[0-9a-f]{40} *$' "${WORKFLOWS[@]}" 2>/dev/null | tr '\n' ' ')"
+  NOCOMMENT="$(grep -HnE 'uses: *"?'"'"'?[^ ]+@[0-9a-f]{40}["'"'"']? *$' "${WORKFLOWS[@]}" 2>/dev/null | tr '\n' ' ')"
   [ -z "$NOCOMMENT" ] &&
     ok "STD-CI-8" "every pin carries its version comment" ||
     bad "STD-CI-8" "every pin carries its version comment" "bare SHA, no # comment: $NOCOMMENT"
@@ -1575,19 +1575,28 @@ HOOK5_RESULT="$(node -e '
     }
     return out;
   };
-  const toRegexes = (glob) => expandBraces(glob).map((p) => {
-    let re = "";
-    let i = 0;
-    while (i < p.length) {
-      if (p.startsWith("**", i)) { re += ".*"; i += 2; continue; }
-      const ch = p[i];
-      if (ch === "*") re += ".*";
-      else if (ch === "?") re += ".";
-      else re += ch.replace(/[.^$+()|[\]\\]/g, "\\$&");
-      i += 1;
-    }
-    return new RegExp("^" + re + "$");
-  });
+  // Memoized: the same glob string (a command'"'"'s `glob`, or an `exclude`/
+  // `ignorePatterns` entry) recurs once per tracked file below, so compiling
+  // it fresh each time would recompile identical globs file count times.
+  const regexCache = new Map();
+  const toRegexes = (glob) => {
+    if (regexCache.has(glob)) return regexCache.get(glob);
+    const compiled = expandBraces(glob).map((p) => {
+      let re = "";
+      let i = 0;
+      while (i < p.length) {
+        if (p.startsWith("**", i)) { re += ".*"; i += 2; continue; }
+        const ch = p[i];
+        if (ch === "*") re += ".*";
+        else if (ch === "?") re += ".";
+        else re += ch.replace(/[.^$+()|[\]\\]/g, "\\$&");
+        i += 1;
+      }
+      return new RegExp("^" + re + "$");
+    });
+    regexCache.set(glob, compiled);
+    return compiled;
+  };
   const globMatches = (glob, path) => (glob ? toRegexes(glob).some((re) => re.test(path)) : false);
   // A directory-prefix entry with no wildcard (e.g. "dist", "packages/web")
   // covers itself and everything under it, the same shape lefthook'"'"'s own

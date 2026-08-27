@@ -90,6 +90,17 @@ jobs:
       - name: Test custom lint rules
         run: pnpm test:rules
 
+      # scripts/test-examples.ts spawns tsx directly (no build step), and
+      # tsconfig.base.json's `paths` resolves its `@rcrsr/rill` import to
+      # packages/core/src/index.ts, which re-exports the gitignored files
+      # core's own build/pretest scripts generate. Without this step those
+      # files are absent in a fresh checkout, tsx fails to resolve the
+      # import, and the fixture step below fails with an empty stdout.
+      - name: Generate core source-generated files
+        run: |
+          pnpm --filter @rcrsr/rill exec tsx scripts/generate-version.ts
+          pnpm --filter @rcrsr/rill exec tsx scripts/generate-docs-bundle.ts
+
       # Fixture-md driven regression coverage for scripts/test-examples.ts:
       # exercises marker-line splitting and the unapplied-callable check
       # against scripts/fixtures/test-examples/*.md, asserting on exit code

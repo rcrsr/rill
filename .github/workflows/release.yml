@@ -71,7 +71,7 @@ jobs:
           curl -fsSL -o checksums.txt "${BASE_URL}/hugo_${HUGO_VERSION}_checksums.txt"
           # The checksums file lists every platform's archive; only the
           # line for the asset downloaded above matters here.
-          grep " ${ASSET}$" checksums.txt | sha256sum -c -
+          awk -v asset="$ASSET" '$NF == asset' checksums.txt | sha256sum -c -
           sudo tar -xzf "$ASSET" -C /usr/local/bin hugo
           rm -f "$ASSET" checksums.txt
 

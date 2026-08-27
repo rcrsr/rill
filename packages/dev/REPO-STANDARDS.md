@@ -397,30 +397,24 @@ ignored file, or moving the ignore to the glob itself — not by dropping
 
 **Verify**
 
-The failure is directory-scoped as often as it is file-scoped (a lockfile,
-but equally a whole ignored subtree such as a docs site under the language
-package). Sampling only the lockfile misses the subtree case, so probe every
-directory that holds a tracked file, not just one file:
+Run `pnpm exec rill-check-standards` and read the `STD-HOOK-5` line. The
+failure is directory-scoped as often as it is file-scoped (a lockfile, but
+equally a whole ignored subtree such as a docs site under the language
+package), so a per-directory shell probe that spawns `pnpm exec lefthook run
+pre-commit` for every tracked directory is both incomplete and an
+O(directories) full Node+pnpm startup. The checker instead takes one `git
+ls-files` listing and checks each pre-commit command's glob coverage against
+that tool's own `ignorePatterns` in a single pass — parsing `lefthook.yml`
+for each command's `glob`/`exclude`, reading the matching tool config
+(`.oxfmtrc.json` / `.oxlintrc.json`) for `ignorePatterns`, and reporting `bad`
+when every tracked file a glob matches is also covered by that tool's
+`ignorePatterns` with no matching `exclude` entry. See `check-standards.sh`'s
+`STD-HOOK-5` block for the runnable implementation; the shape above is
+illustrative, not a standalone script to copy and run.
 
-```bash
-# For every directory holding a tracked file, verify a commit touching only
-# that directory does not block pre-commit. A hook glob whose matches are
-# fully excluded by the tool's own ignore config exits non-zero under
-# `piped: true` (STD-HOOK-3), blocking a real commit to that subtree.
-FAIL=0
-for dir in $(git ls-files | xargs -n1 dirname | sort -u); do
-  SAMPLE="$(git ls-files -- "$dir" | head -1)"
-  [ -z "$SAMPLE" ] && continue
-  if ! pnpm exec lefthook run pre-commit --file "$SAMPLE" >/tmp/std-hook-5.log 2>&1; then
-    echo "BAD: pre-commit blocks a commit touching only $dir (sample: $SAMPLE)"
-    cat /tmp/std-hook-5.log
-    FAIL=1
-  fi
-done
-rm -f /tmp/std-hook-5.log
-[ "$FAIL" -eq 0 ] && echo "OK: pre-commit does not block any tracked directory"
-exit "$FAIL"
-```
+`pnpm exec rill-check-standards` runs this same single-pass check as
+`STD-HOOK-5` — see `check-standards.sh`'s implementation for the full glob
+matcher this sketch elides.
 
 ## 7. Release workflow
 

@@ -23,6 +23,7 @@ interface CliRun {
   status: number | null;
   stdout: string;
   stderr: string;
+  error: Error | undefined;
 }
 
 function runCli(args: string[]): CliRun {
@@ -34,20 +35,32 @@ function runCli(args: string[]): CliRun {
     status: result.status,
     stdout: result.stdout,
     stderr: result.stderr,
+    error: result.error,
   };
 }
 
-function parseSummary(stdout: string): {
+// Takes the full CliRun, not just stdout, so a spawn/resolution failure (an
+// absent generated file the process can't import, tsx exiting before it
+// prints anything) surfaces status/stderr/error in the assertion failure
+// instead of an unexplained empty stdout — see the CI incident where the
+// `deps:` job's tsx process errored to stderr with nothing on stdout.
+function parseSummary(run: CliRun): {
   passed: number;
   failed: number;
   skipped: number;
   total: number;
 } {
-  const match = stdout.match(
+  const match = run.stdout.match(
     /(\d+) passed, (\d+) failed, (\d+) skipped, (\d+) total/
   );
   if (!match) {
-    throw new Error(`No summary line found in stdout:\n${stdout}`);
+    throw new Error(
+      `No summary line found in stdout.\n` +
+        `status: ${run.status}\n` +
+        `error: ${run.error ?? '(none)'}\n` +
+        `stderr:\n${run.stderr}\n` +
+        `stdout:\n${run.stdout}`
+    );
   }
   return {
     passed: Number(match[1]),
@@ -69,13 +82,13 @@ describe('test-examples.ts fixture: marker-and-callable.md', () => {
   const fixture = path.join(fixturesDir, 'marker-and-callable.md');
 
   it('runs Case A (executable lines ahead of a trailing marker), fails Case B (unapplied callable), passes Case C, and exits 1', () => {
-    const { status, stdout } = runCli([fixture]);
+    const run = runCli([fixture]);
 
-    expect(status).toBe(1);
+    expect(run.status).toBe(1);
 
     // 3 rill fences total: Case A passes (marker line no longer skips the
     // whole block), Case B fails on the unapplied callable, Case C passes.
-    const summary = parseSummary(stdout);
+    const summary = parseSummary(run);
     expect(summary).toEqual({ passed: 2, failed: 1, skipped: 0, total: 3 });
   });
 
@@ -95,13 +108,13 @@ describe('test-examples.ts fixture: skip-ratio-guard.md', () => {
   const fixture = path.join(fixturesDir, 'skip-ratio-guard.md');
 
   it('trips the skip-ratio guard and exits 1 when 3 of 4 blocks are comment-only', () => {
-    const { status, stdout } = runCli([fixture]);
+    const run = runCli([fixture]);
 
-    expect(status).toBe(1);
+    expect(run.status).toBe(1);
 
-    const summary = parseSummary(stdout);
+    const summary = parseSummary(run);
     expect(summary).toEqual({ passed: 1, failed: 0, skipped: 3, total: 4 });
-    expect(stdout).toMatch(/Skip ratio guard/);
+    expect(run.stdout).toMatch(/Skip ratio guard/);
   });
 
   it('emits a skip-ratio-exceeded object in --json output with the pinned threshold', () => {

@@ -36,10 +36,11 @@ cd "$(dirname "$0")/.."
 
 # Select a sha256 digest tool once. bash 3.2 (the macOS system shell) has no
 # mapfile builtin and often no sha256sum on PATH, only shasum -a 256. Same
-# idiom as packages/dev/check-standards.sh:45-49. Resolved before the ERR trap
-# below would otherwise fire on an unrelated failure and get misreported as a
-# lock violation: a genuinely absent digest tool is its own named failure, not
-# a "the arbiter changed" result.
+# idiom as packages/dev/check-standards.sh:45-49. This branch calls `exit 2`
+# directly rather than letting `set -e` propagate, and an explicit `exit`
+# does not trigger the ERR trap registered above — so a genuinely absent
+# digest tool reports its own named failure here instead of being misreported
+# as a lock violation by the trap.
 if command -v sha256sum >/dev/null 2>&1; then
   SHA256() { sha256sum "$@"; }
 elif command -v shasum >/dev/null 2>&1; then

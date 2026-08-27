@@ -954,11 +954,24 @@ function processFrontmatter(code: string): {
 
 // A line that is entirely an ellipsis-continuation comment, e.g. "# ... later use $x".
 const ELLIPSIS_LINE_RE = /^[ \t]*#[ \t]+\.\.\./;
-// A line (code and/or comment) that documents an expected error inline.
-const ERROR_MARKER_LINE_RE = /# Error:|# ERROR:|# error:/;
+// The comment-marker form of an expected-error annotation: a `#` that starts
+// a comment (preceded by line-start or whitespace), not a literal "# Error:"
+// occurring inside a quoted string on an otherwise-executable line.
+const ERROR_MARKER_LINE_RE = /(^|\s)# (Error|ERROR|error):/;
+
+// True if the line's `# Error:`-style marker sits inside an unclosed string
+// literal rather than starting a real comment, e.g. `"see # Error: docs"`.
+function markerInsideStringLiteral(line: string): boolean {
+  const match = ERROR_MARKER_LINE_RE.exec(line);
+  if (!match) return false;
+  const before = line.slice(0, match.index);
+  const quoteCount = (before.match(/(?<!\\)"/g) ?? []).length;
+  return quoteCount % 2 === 1;
+}
 
 function isMarkerLine(line: string): boolean {
-  return ELLIPSIS_LINE_RE.test(line) || ERROR_MARKER_LINE_RE.test(line);
+  if (ELLIPSIS_LINE_RE.test(line)) return true;
+  return ERROR_MARKER_LINE_RE.test(line) && !markerInsideStringLiteral(line);
 }
 
 // Strip a contiguous run of marker lines (ellipsis continuations or expected-error
@@ -1029,7 +1042,12 @@ function analyzeBlock(code: string): {
   }
 
   if (executable.trim() === '') {
-    const reason = ERROR_MARKER_LINE_RE.test(code)
+    const reason = code
+      .split('\n')
+      .some(
+        (line) =>
+          ERROR_MARKER_LINE_RE.test(line) && !markerInsideStringLiteral(line)
+      )
       ? 'expected error example'
       : 'contains ellipsis placeholder';
     return { skipReason: reason, executableCode: code };

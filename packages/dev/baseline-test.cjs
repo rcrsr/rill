@@ -395,6 +395,62 @@ function runCheckStandardsFixtureTests() {
       ok_.stdout
     );
   }
+
+  // (f) STD-HOOK-5, oxlint/JSONC branch: the same shape as (e) but driving
+  // the `oxlint` tool-detection path and `.oxlintrc.json` read via
+  // `readJSONC` (a `//` comment in the config), which (e) never exercises
+  // since it only drives `oxfmt`/plain-JSON.
+  {
+    const lefthookNoExclude =
+      'pre-commit:\n' +
+      '  piped: true\n' +
+      '  commands:\n' +
+      '    oxlint:\n' +
+      "      glob: '*.{yaml,yml,json}'\n" +
+      '      run: pnpm exec oxlint {staged_files}\n';
+    const rootBad = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.oxlintrc.json':
+        '{\n' +
+        '  // ignore the lockfile; JSONC comments must survive readJSONC\n' +
+        '  "ignorePatterns": ["pnpm-lock.yaml"]\n' +
+        '}\n',
+      'lefthook.yml': lefthookNoExclude,
+      'pnpm-lock.yaml': 'lockfile: true\n',
+    });
+    const bad = runCheckStandards(rootBad);
+    check(
+      /FAIL\s+STD-HOOK-5\s/.test(bad.stdout),
+      'STD-HOOK-5 (oxlint/JSONC): a glob reaching an ignored lockfile with no exclude is bad',
+      bad.stdout
+    );
+
+    const lefthookExcluded =
+      'pre-commit:\n' +
+      '  piped: true\n' +
+      '  commands:\n' +
+      '    oxlint:\n' +
+      "      glob: '*.{yaml,yml,json}'\n" +
+      '      exclude:\n' +
+      '        - pnpm-lock.yaml\n' +
+      '      run: pnpm exec oxlint {staged_files}\n';
+    const rootOk = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.oxlintrc.json':
+        '{\n' +
+        '  // ignore the lockfile; JSONC comments must survive readJSONC\n' +
+        '  "ignorePatterns": ["pnpm-lock.yaml"]\n' +
+        '}\n',
+      'lefthook.yml': lefthookExcluded,
+      'pnpm-lock.yaml': 'lockfile: true\n',
+    });
+    const ok_ = runCheckStandards(rootOk);
+    check(
+      /ok\s+STD-HOOK-5\s/.test(ok_.stdout),
+      'STD-HOOK-5 (oxlint/JSONC): the same glob is ok once lefthook excludes the lockfile',
+      ok_.stdout
+    );
+  }
 }
 
 // ============================================================

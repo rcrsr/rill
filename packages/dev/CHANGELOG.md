@@ -19,7 +19,7 @@ the language version. Language changes are recorded in the
 
 ### Changed
 
-- **`no-duplicate-error-id.cjs`'s own comments no longer cite internal requirement IDs.** `EC-5`, `EC-6`, and `EC-7` markers in its source comments were dropped in favor of comments that state the behavior directly, per this package's own `rill/no-spec-id-reference` rule.
+- **`no-duplicate-error-id.cjs`'s own comments no longer cite internal requirement-tracking identifiers.** The comments now state the behavior directly.
 
 ### Fixed
 
