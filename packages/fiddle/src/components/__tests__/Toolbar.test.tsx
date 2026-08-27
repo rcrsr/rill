@@ -9,7 +9,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import { Toolbar, type ToolbarProps } from '../Toolbar.js';
-import type { CodeExample } from '../../lib/examples.js';
+import { EXAMPLE_ORDER, type CodeExample } from '../../lib/examples.js';
 
 describe('Toolbar', () => {
   let mockOnRun: ReturnType<typeof vi.fn<() => void>>;
@@ -282,26 +282,8 @@ describe('Toolbar', () => {
       // Filter out placeholder option
       const exampleOptions = options.filter((opt) => opt.value !== '');
 
-      expect(exampleOptions).toHaveLength(17);
-      expect(exampleOptions.map((opt) => opt.value)).toEqual([
-        'hello-world',
-        'variables',
-        'pipes',
-        'functions',
-        'conditionals',
-        'fold',
-        'fizzbuzz',
-        'dispatch',
-        'closures',
-        'collection-pipeline',
-        'destructuring',
-        'slicing',
-        'type-checking',
-        'string-processing',
-        'dict-methods',
-        'state-machine',
-        'spread',
-      ]);
+      expect(exampleOptions).toHaveLength(EXAMPLE_ORDER.length);
+      expect(exampleOptions.map((opt) => opt.value)).toEqual(EXAMPLE_ORDER);
     });
 
     it('renders placeholder option as default', () => {
@@ -495,6 +477,16 @@ describe('Toolbar', () => {
         '.toolbar-select'
       ) as HTMLSelectElement;
       expect(select.disabled).toBe(true);
+    });
+  });
+
+  // ============================================================
+  // Memoization
+  // ============================================================
+
+  describe('memoization', () => {
+    it('is wrapped in React.memo', () => {
+      expect(Toolbar.$$typeof).toBe(Symbol.for('react.memo'));
     });
   });
 });

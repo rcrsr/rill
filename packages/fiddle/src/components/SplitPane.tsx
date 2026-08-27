@@ -25,7 +25,15 @@ export interface SplitPaneProps {
   left: React.ReactNode;
   /** Right/bottom panel content */
   right: React.ReactNode;
-  /** Initial split ratio (0-100 percentage) */
+  /**
+   * Initial split ratio (0-100 percentage).
+   *
+   * Read once on mount only. SplitPane owns `splitRatio` as internal
+   * state after that; changing this prop on a later render does not
+   * move the divider. Use `onSplitChange` to persist the ratio and
+   * pass it back in as `initialSplitRatio` on next mount (e.g. via a
+   * `key` change) if you need to reset the split programmatically.
+   */
   initialSplitRatio?: number;
   /** Callback when split ratio changes (for persistence) */
   onSplitChange?: ((ratio: number) => void) | undefined;
@@ -72,6 +80,9 @@ export function SplitPane({
   const splitRatioRef = useRef(initialSplitRatio);
   const [isDragging, setIsDragging] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
+  // Measured container size (width or height, matching orientation),
+  // used only for local display logic (ARIA bounds, drag clamping).
+  const [containerSize, setContainerSize] = useState(0);
   const dragStartRef = useRef<{ ratio: number; pos: number } | null>(null);
 
   // ============================================================
@@ -90,12 +101,27 @@ export function SplitPane({
     function handleResize() {
       const container = containerRef.current;
       if (!container) return;
-      setIsVertical(container.clientWidth < breakpoint);
+      const vertical = container.clientWidth < breakpoint;
+      setIsVertical(vertical);
+      setContainerSize(
+        vertical ? container.clientHeight : container.clientWidth
+      );
     }
 
     handleResize();
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    const container = containerRef.current;
+    let observer: ResizeObserver | undefined;
+    if (container && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(handleResize);
+      observer.observe(container);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      observer?.disconnect();
+    };
   }, [breakpoint]);
 
   // ============================================================
@@ -129,7 +155,10 @@ export function SplitPane({
       if (!container || !dragStartRef.current) return;
 
       const rect = container.getBoundingClientRect();
-      const containerSize = isVertical ? rect.height : rect.width;
+      const liveSize = isVertical ? rect.height : rect.width;
+      if (!(event instanceof MouseEvent)) {
+        event.preventDefault();
+      }
       const currentPos =
         event instanceof MouseEvent
           ? isVertical
@@ -140,9 +169,9 @@ export function SplitPane({
             : event.touches[0]!.clientX - rect.left;
 
       const delta = currentPos - dragStartRef.current.pos;
-      const deltaRatio = (delta / containerSize) * 100;
+      const deltaRatio = (delta / liveSize) * 100;
       const newRatio = dragStartRef.current.ratio + deltaRatio;
-      setSplitRatio(clampRatio(newRatio, containerSize));
+      setSplitRatio(clampRatio(newRatio, liveSize));
     }
 
     function handleDragEnd() {
@@ -155,7 +184,7 @@ export function SplitPane({
 
     document.addEventListener('mousemove', handleDragMove);
     document.addEventListener('mouseup', handleDragEnd);
-    document.addEventListener('touchmove', handleDragMove);
+    document.addEventListener('touchmove', handleDragMove, { passive: false });
     document.addEventListener('touchend', handleDragEnd);
 
     return () => {
@@ -175,7 +204,7 @@ export function SplitPane({
     if (!container) return;
 
     const rect = container.getBoundingClientRect();
-    const containerSize = isVertical ? rect.height : rect.width;
+    const liveSize = isVertical ? rect.height : rect.width;
     const step = 2;
     let newRatio = splitRatio;
 
@@ -198,7 +227,7 @@ export function SplitPane({
     }
 
     if (newRatio !== splitRatio) {
-      const clampedRatio = clampRatio(newRatio, containerSize);
+      const clampedRatio = clampRatio(newRatio, liveSize);
       setSplitRatio(clampedRatio);
       if (onSplitChange) {
         onSplitChange(clampedRatio);
@@ -218,11 +247,6 @@ export function SplitPane({
     ? { width: '100%', height: `${100 - splitRatio}%` }
     : { width: `${100 - splitRatio}%`, height: '100%' };
 
-  const containerSize = containerRef.current
-    ? isVertical
-      ? containerRef.current.clientHeight
-      : containerRef.current.clientWidth
-    : 0;
   const bounds = calculateBounds(containerSize);
 
   return (

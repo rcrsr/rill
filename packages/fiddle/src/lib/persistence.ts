@@ -49,17 +49,37 @@ function clampSplitRatio(ratio: number): number {
 }
 
 /**
- * Check if localStorage is available
+ * Cached result of the localStorage availability probe.
+ *
+ * The probe (setItem+removeItem) is a synchronous localStorage round trip.
+ * loadEditorState/persistEditorState run on every keystroke-driven save, so
+ * re-probing per call adds a redundant write+delete to each one. The
+ * availability of localStorage cannot change mid-session, so the result is
+ * cached after the first check.
+ */
+let cachedLocalStorageAvailable: boolean | null = null;
+
+/**
+ * Check if localStorage is available.
+ *
+ * Runs the setItem/removeItem probe at most once per session; subsequent
+ * calls return the cached result.
  */
 function isLocalStorageAvailable(): boolean {
+  if (cachedLocalStorageAvailable !== null) {
+    return cachedLocalStorageAvailable;
+  }
+
   try {
     const test = '__rill_fiddle_test__';
     window.localStorage.setItem(test, test);
     window.localStorage.removeItem(test);
-    return true;
+    cachedLocalStorageAvailable = true;
   } catch {
-    return false;
+    cachedLocalStorageAvailable = false;
   }
+
+  return cachedLocalStorageAvailable;
 }
 
 /**

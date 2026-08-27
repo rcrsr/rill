@@ -156,7 +156,6 @@ describe('rillHighlighter', () => {
       expect(state).toBeDefined();
       expect(state.lineNumber).toBe(0);
       expect(state.lineTokens).toEqual([]);
-      expect(state.tokenIndex).toBe(0);
     });
 
     it('returns new state object on each call', () => {
@@ -191,7 +190,6 @@ describe('rillHighlighter', () => {
             },
           },
         ],
-        tokenIndex: 0,
         lineComplete: false,
         inTripleQuoteString: false,
       };

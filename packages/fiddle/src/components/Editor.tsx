@@ -140,6 +140,10 @@ export function Editor({
         if (update.docChanged) {
           const newValue = update.state.doc.toString();
           onChangeRef.current(newValue);
+          // Clear the stale error-line decoration on any local edit; it is
+          // re-applied by the ERROR LINE HIGHLIGHTING effect when the next
+          // run fails and passes a fresh errorLine prop.
+          update.view.dispatch({ effects: setErrorLineEffect.of(null) });
         }
       }),
       EditorView.baseTheme({

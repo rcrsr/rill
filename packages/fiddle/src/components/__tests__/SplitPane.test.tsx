@@ -512,4 +512,108 @@ describe('SplitPane', () => {
       expect(divider.classList.contains('dragging')).toBe(false);
     });
   });
+
+  // ============================================================
+  // Measured Container Size (resize)
+  // ============================================================
+
+  describe('measured container size', () => {
+    it('reports valuemin/valuemax from the measured container size after resize, not the 1000px fallback', () => {
+      const { container } = render(<SplitPane {...defaultProps} />);
+      const splitPaneEl = container.querySelector('.split-pane') as HTMLElement;
+
+      // Fallback (unmeasured) bounds are min=20/max=80 (MIN_PANEL_SIZE 200 / 1000).
+      // Simulate a measured container of 2000px so bounds become min=10/max=90.
+      Object.defineProperty(splitPaneEl, 'clientWidth', {
+        value: 2000,
+        configurable: true,
+      });
+      Object.defineProperty(splitPaneEl, 'clientHeight', {
+        value: 2000,
+        configurable: true,
+      });
+
+      act(() => {
+        fireEvent(window, new Event('resize'));
+      });
+
+      const divider = container.querySelector('[role="separator"]');
+      const minValue = parseInt(divider?.getAttribute('aria-valuemin') ?? '0');
+      const maxValue = parseInt(divider?.getAttribute('aria-valuemax') ?? '0');
+
+      expect(minValue).not.toBe(20);
+      expect(maxValue).not.toBe(80);
+      expect(minValue).toBe(10);
+      expect(maxValue).toBe(90);
+    });
+  });
+
+  // ============================================================
+  // Drag Handling (touch events)
+  // ============================================================
+
+  describe('drag handling (touch)', () => {
+    it('touchmove during drag calls preventDefault and updates the split ratio', () => {
+      const { container } = render(
+        <SplitPane {...defaultProps} initialSplitRatio={50} />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.touchStart(divider, {
+          touches: [{ clientX: 100, clientY: 100 }],
+        });
+      });
+
+      expect(divider.classList.contains('dragging')).toBe(true);
+
+      const preventDefaultSpy = vi.spyOn(Event.prototype, 'preventDefault');
+
+      act(() => {
+        fireEvent.touchMove(document, {
+          touches: [{ clientX: 100, clientY: 300 }],
+        });
+      });
+
+      expect(preventDefaultSpy).toHaveBeenCalled();
+      expect(divider.getAttribute('aria-valuenow')).not.toBe('50');
+
+      preventDefaultSpy.mockRestore();
+    });
+
+    it('touchend after touch drag calls onSplitChange', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={50}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.touchStart(divider, {
+          touches: [{ clientX: 100, clientY: 100 }],
+        });
+      });
+
+      act(() => {
+        fireEvent.touchMove(document, {
+          touches: [{ clientX: 100, clientY: 300 }],
+        });
+      });
+
+      act(() => {
+        fireEvent.touchEnd(document);
+      });
+
+      expect(onSplitChange).toHaveBeenCalled();
+      expect(divider.classList.contains('dragging')).toBe(false);
+    });
+  });
 });
