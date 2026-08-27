@@ -12,7 +12,7 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
-## 0.2.3 - 2026-08-27
+## 0.2.4 - 2026-08-27
 
 ### Added
 
