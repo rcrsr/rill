@@ -12,6 +12,8 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+## 0.2.3 - 2026-08-27
+
 ### Added
 
 - **`STD-HOOK-5`: no pre-commit `glob` may reduce to a set the invoked formatter or linter fully ignores.** A hook glob (`lefthook.yml`) and a tool's own `ignorePatterns` (`.oxfmtrc.json`, `.oxlintrc.json`) are declared in two different files and were checked against each other by nothing. When every staged file a glob selects is also in the tool's own ignore list, the tool receives an all-ignored input and commonly exits non-zero instead of no-op, halting the rest of a `piped: true` pre-commit chain (`STD-HOOK-3`) over a commit that touches nothing the tool cares about — a lockfile-only commit is the common trigger. This is a new hard-failure element: a consumer whose `lefthook.yml` `oxfmt`/`oxlint` glob matches a file also covered by that tool's `ignorePatterns` newly reports `bad` on upgrade. Fix it by adding an `exclude:` entry under the affected `lefthook.yml` command for each such file or directory (this repository added `pnpm-lock.yaml` and `packages/web/**` under the `oxfmt` command), narrowing the `glob` itself, or moving the ignore into the glob — not by dropping `piped: true` or reordering format-before-lint. ([#245](https://github.com/rcrsr/rill/pull/245))
