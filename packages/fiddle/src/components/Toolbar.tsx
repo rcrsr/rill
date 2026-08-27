@@ -10,9 +10,13 @@
  * - Keyboard accessible controls (WAI-ARIA patterns)
  */
 
-import type React from 'react';
+import React from 'react';
 import type { JSX } from 'react';
-import { loadExample, type CodeExample } from '../lib/examples.js';
+import {
+  EXAMPLE_ORDER,
+  loadExample,
+  type CodeExample,
+} from '../lib/examples.js';
 import rillIconColor from '../assets/rill-icon-color.png';
 
 // ============================================================
@@ -43,29 +47,21 @@ export interface ToolbarProps {
 // CONSTANTS
 // ============================================================
 
-const EXAMPLE_IDS = [
-  'hello-world',
-  'variables',
-  'pipes',
-  'functions',
-  'conditionals',
-  'fold',
-  'fizzbuzz',
-  'dispatch',
-  'closures',
-  'collection-pipeline',
-  'destructuring',
-  'slicing',
-  'type-checking',
-  'string-processing',
-  'dict-methods',
-  'state-machine',
-  'spread',
-] as const;
-
 const IS_MAC =
   typeof navigator !== 'undefined' &&
   /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
+
+/**
+ * Example <option> data (id + label), built once at module scope from the
+ * example registry instead of calling loadExample() per render inside .map.
+ */
+const EXAMPLE_OPTIONS: ReadonlyArray<{ id: string; label: string }> =
+  EXAMPLE_ORDER.map((id) => {
+    const example = loadExample(id);
+    return example ? { id: example.id, label: example.label } : null;
+  }).filter(
+    (option): option is { id: string; label: string } => option !== null
+  );
 
 // ============================================================
 // TOOLBAR COMPONENT
@@ -74,7 +70,7 @@ const IS_MAC =
 /**
  * Toolbar with brand neon styling
  */
-export function Toolbar({
+export const Toolbar = React.memo(function Toolbar({
   onRun,
   onExampleSelect,
   onCopyLink,
@@ -130,14 +126,11 @@ export function Toolbar({
         <option value="" disabled>
           Examples
         </option>
-        {EXAMPLE_IDS.map((id) => {
-          const example = loadExample(id);
-          return example ? (
-            <option key={id} value={id}>
-              {example.label}
-            </option>
-          ) : null;
-        })}
+        {EXAMPLE_OPTIONS.map((option) => (
+          <option key={option.id} value={option.id}>
+            {option.label}
+          </option>
+        ))}
       </select>
 
       {/* Copy Link Button */}
@@ -176,8 +169,8 @@ export function Toolbar({
 
       {/* Keyboard shortcut hint */}
       <span className="toolbar-shortcut">
-        <kbd>{IS_MAC ? '\u2318' : 'Ctrl'}</kbd>+<kbd>Enter</kbd> to run
+        <kbd>{IS_MAC ? '⌘' : 'Ctrl'}</kbd>+<kbd>Enter</kbd> to run
       </span>
     </div>
   );
-}
+});

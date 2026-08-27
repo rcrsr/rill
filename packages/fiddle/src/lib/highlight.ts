@@ -63,8 +63,6 @@ export interface RillHighlightState {
   lineNumber: number;
   /** Tokens for current line */
   lineTokens: Token[];
-  /** Current token index in lineTokens */
-  tokenIndex: number;
   /** Flag to track if line number was incremented for current line */
   lineComplete: boolean;
   /** True when inside a multi-line triple-quote string that started on a previous line */
@@ -620,7 +618,6 @@ export const rillHighlighter: StreamParser<RillHighlightState> = {
     return {
       lineNumber: 0,
       lineTokens: [],
-      tokenIndex: 0,
       lineComplete: false,
       inTripleQuoteString: false,
     };
@@ -661,7 +658,6 @@ export const rillHighlighter: StreamParser<RillHighlightState> = {
 
         if (continuationTokens !== null) {
           state.lineTokens = continuationTokens;
-          state.tokenIndex = 0;
           state.lineComplete = false;
           // Fall through to normal token-matching below.
         } else {
@@ -677,7 +673,6 @@ export const rillHighlighter: StreamParser<RillHighlightState> = {
           getTokensForLine(stream.string),
           stream.string
         );
-        state.tokenIndex = 0;
         state.lineComplete = false;
 
         // Opening """ without a closing """ on the same line causes tokenize to throw
@@ -759,7 +754,6 @@ export const rillHighlighter: StreamParser<RillHighlightState> = {
     return {
       lineNumber: state.lineNumber,
       lineTokens: [...state.lineTokens],
-      tokenIndex: state.tokenIndex,
       lineComplete: state.lineComplete,
       inTripleQuoteString: state.inTripleQuoteString,
     };

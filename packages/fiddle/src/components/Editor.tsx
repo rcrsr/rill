@@ -65,6 +65,13 @@ const errorLineField = StateField.define<DecorationSet>({
     return Decoration.none;
   },
   update(decorations, tr) {
+    // A local edit invalidates the stale error-line decoration; clear it
+    // here instead of dispatching a second transaction from the update
+    // listener on every keystroke.
+    if (tr.docChanged) {
+      return Decoration.none;
+    }
+
     decorations = decorations.map(tr.changes);
 
     for (const effect of tr.effects) {
@@ -140,6 +147,10 @@ export function Editor({
         if (update.docChanged) {
           const newValue = update.state.doc.toString();
           onChangeRef.current(newValue);
+          // errorLineField.update() clears the stale decoration on
+          // tr.docChanged directly, so no second dispatch is needed here.
+          // It is re-applied by the ERROR LINE HIGHLIGHTING effect when the
+          // next run fails and passes a fresh errorLine prop.
         }
       }),
       EditorView.baseTheme({
