@@ -1366,8 +1366,8 @@ fi
 # ecosystem, which is the failure this element exists to catch.
 if [ -f .github/dependabot.yml ]; then
   sup8_eco=$(grep -cE "^[[:space:]]*-?[[:space:]]*package-ecosystem:" .github/dependabot.yml)
-  sup8_zero=$(grep -cE "^[[:space:]]*open-pull-requests-limit:[[:space:]]*0[[:space:]]*(#.*)?$" .github/dependabot.yml)
-  sup8_pos=$(grep -cE "^[[:space:]]*open-pull-requests-limit:[[:space:]]*[1-9]" .github/dependabot.yml)
+  sup8_zero=$(grep -cE "^[[:space:]]*open-pull-requests-limit:[[:space:]]*[\"']?0[\"']?[[:space:]]*(#.*)?$" .github/dependabot.yml)
+  sup8_pos=$(grep -cE "^[[:space:]]*open-pull-requests-limit:[[:space:]]*[\"']?[1-9][0-9]*[\"']?[[:space:]]*(#.*)?$" .github/dependabot.yml)
   { [ "$sup8_pos" -eq 0 ] && [ "$sup8_zero" -eq "$sup8_eco" ] && [ "$sup8_eco" -gt 0 ]; } &&
     ok "STD-SUP-8" "dependabot version-update PRs disabled" ||
     bad "STD-SUP-8" "dependabot version-update PRs disabled" \
