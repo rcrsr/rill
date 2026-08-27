@@ -14,7 +14,12 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 10
+    # 0 disables version-update PRs entirely: upgrades here are done manually,
+    # in batches, under the repository's upgrade policy. Security updates are a
+    # separate feature (Settings -> Security) and keep flowing regardless.
+    # Downstream repos that want automated version PRs raise this to a positive
+    # limit; the groups/ignore rules below take effect only when they do.
+    open-pull-requests-limit: 0
     labels:
       - 'area:dx'
     groups:
@@ -52,6 +57,8 @@ updates:
     schedule:
       interval: weekly
       day: monday
+    # See the npm block: 0 disables version-update PRs; security updates persist.
+    open-pull-requests-limit: 0
     labels:
       - 'area:dx'
     groups:
