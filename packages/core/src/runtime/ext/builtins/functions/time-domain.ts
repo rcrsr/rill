@@ -162,6 +162,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
+      const durationMs = (durArg as RillDuration).ms;
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
@@ -177,11 +178,20 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         return [];
       }
 
-      // Static clock: all chunks share timestamp 0 (batch processing, no
-      // Date.now()), so only the first chunk ever falls within the interval
-      // gate; every later chunk arrives at the same instant and is
-      // suppressed. Emit the first element.
-      return [elements[0]!];
+      const result: RillValue[] = [];
+      // Gate tracks the earliest time the next chunk is allowed through.
+      let nextAllowedMs = -Infinity;
+
+      for (let i = 0; i < elements.length; i++) {
+        // Static clock: all chunks share timestamp 0 (batch processing, no Date.now()).
+        const tChunk = 0;
+        if (tChunk >= nextAllowedMs) {
+          result.push(elements[i]!);
+          nextAllowedMs = tChunk + durationMs;
+        }
+      }
+
+      return result;
     },
   },
 

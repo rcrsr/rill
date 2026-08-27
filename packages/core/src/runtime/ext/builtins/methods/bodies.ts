@@ -203,9 +203,9 @@ export const mReplaceAll: RillMethod = (receiver, args, ctx, location) => {
     re = new RegExp(pattern, 'g');
   } catch (e) {
     throwCatchableHostHalt(
-      { location, sourceId: ctx.sourceId, fn: 'replaceAll' },
+      { location, sourceId: ctx.sourceId, fn: '.replace_all' },
       'INVALID_INPUT',
-      `replaceAll: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
+      `.replace_all: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
     );
   }
   return str.replace(re, replacement);

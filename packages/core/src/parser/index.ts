@@ -75,6 +75,7 @@ export function parseWithRecovery(source: string): ParseResult {
         column: 1,
         offset: 0,
       };
+      // Fallback covers duck-typed LexerError values (name === 'LexerError' on a plain Error) that lack a real rawMessage.
       const parseError = new ParseError(
         ERROR_IDS.RILL_P001,
         lexerErr.rawMessage ?? err.message,
