@@ -12,6 +12,22 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+### Added
+
+- **`STD-HOOK-5`: no pre-commit `glob` may reduce to a set the invoked formatter or linter fully ignores.** A hook glob (`lefthook.yml`) and a tool's own `ignorePatterns` (`.oxfmtrc.json`, `.oxlintrc.json`) are declared in two different files and were checked against each other by nothing. When every staged file a glob selects is also in the tool's own ignore list, the tool receives an all-ignored input and commonly exits non-zero instead of no-op, halting the rest of a `piped: true` pre-commit chain (`STD-HOOK-3`) over a commit that touches nothing the tool cares about — a lockfile-only commit is the common trigger. This is a new hard-failure element: a consumer whose `lefthook.yml` `oxfmt`/`oxlint` glob matches a file also covered by that tool's `ignorePatterns` newly reports `bad` on upgrade. Fix it by adding an `exclude:` entry under the affected `lefthook.yml` command for each such file or directory (this repository added `pnpm-lock.yaml` and `packages/web/**` under the `oxfmt` command), narrowing the `glob` itself, or moving the ignore into the glob — not by dropping `piped: true` or reordering format-before-lint. ([#245](https://github.com/rcrsr/rill/pull/245))
+- **`rill/no-spec-id-reference` accepts an `{ ignore: string[] }` option.** An exact-match whitelist for incidental matches that are not workflow-artifact references — a date written `DD-MM-YYYY`, a work-item-shaped constant like `LOG-LEVEL`. Each entry is compared against the full matched id verbatim (case-sensitive, no wildcards) and does not affect the underlying `\b`-bounded scan. ([#245](https://github.com/rcrsr/rill/pull/245))
+
+### Changed
+
+- **`no-duplicate-error-id.cjs`'s own comments no longer cite internal requirement-tracking identifiers.** The comments now state the behavior directly.
+
+### Fixed
+
+- **`STD-CI-8` no longer misreads a quoted `uses:` pin as unpinned.** This repository never quotes a `uses:` value, but a consumer workflow spelling `uses: "org/action@sha"` had the trailing quote captured as part of the SHA, so the `@[0-9a-f]{40}$` match failed and every quoted pin read as unpinned. The extracted value is now stripped of a leading/trailing quote before the check runs. ([#245](https://github.com/rcrsr/rill/pull/245))
+- **`STD-CI-8`'s missing-version-comment failure now names the offending `file:line:`.** `grep -h` drops the filename prefix whenever exactly one workflow file is passed, so a single-workflow repository saw a bare `line:` with no file. Switched to `grep -H`, which forces the prefix unconditionally. ([#245](https://github.com/rcrsr/rill/pull/245))
+- **`--list` now prints every `ok` result, not just `bad` and `skip`.** `--list` promises "every element this script covers"; `ok()` previously stayed silent under `--list`, so a passing element was missing from its own catalogue. `ok()` now prints unconditionally, matching `bad()` and `skip()`. ([#245](https://github.com/rcrsr/rill/pull/245))
+- **Workflow discovery now globs `.yml` and `.yaml`.** `WORKFLOWS` matched only `.github/workflows/*.yml`, so a repository spelling its workflow files `.yaml` had every `STD-CI-*` element in that section read the tree as holding no workflows at all. The glob now covers both extensions and prunes to files that actually exist. ([#245](https://github.com/rcrsr/rill/pull/245))
+
 ## 0.2.2 - 2026-08-26
 
 ### Changed

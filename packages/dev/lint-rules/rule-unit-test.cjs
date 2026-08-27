@@ -107,11 +107,13 @@ function memberExpressionNode(objectNode, propertyNode) {
 // ============================================================
 
 // `comments` is the fixture comment list for rules that sweep them; rules that
-// only walk the AST never call getAllComments and can omit it.
-function makeContext(source, comments) {
+// only walk the AST never call getAllComments and can omit it. `options` is
+// the rule-options array (`context.options`), e.g. `[{ ignore: [...] }]`.
+function makeContext(source, comments, options) {
   const reports = [];
   return {
     reports,
+    options: options ?? [],
     report(descriptor) {
       reports.push(descriptor);
     },
@@ -688,6 +690,75 @@ function runSpecIdReferenceTests() {
         context.reports[0].messageId === 'specIdReference',
       'meta: reports use the specIdReference messageId',
       `got ${JSON.stringify(context.reports.map((r) => r.messageId))}`
+    );
+  }
+
+  // ---- options: ignore list whitelists exact-match incidental ids ----
+  {
+    const source =
+      '// Written as DD-MM-YYYY, tracked as TC-39, resolved OK-1 (see EC-1 and AC-16)';
+    const context = makeContext(
+      source,
+      [commentNode(source, source)],
+      [{ ignore: ['DD-MM-YYYY', 'TC-39', 'OK-1'] }]
+    );
+    noSpecIdReference.create(context).Program();
+
+    const found = context.reports.map((r) => r.data.specId);
+    check(
+      JSON.stringify(found) === JSON.stringify(['EC-1', 'AC-16']),
+      'options: ignored ids are not reported, others still are',
+      `expected ["EC-1","AC-16"], got ${JSON.stringify(found)}`
+    );
+  }
+
+  // ---- options: without ignore, the same incidental ids still report ----
+  {
+    const source = '// Written as DD-MM-YYYY, tracked as TC-39, resolved OK-1';
+    const context = makeContext(source, [commentNode(source, source)]);
+    noSpecIdReference.create(context).Program();
+
+    const found = context.reports.map((r) => r.data.specId);
+    check(
+      JSON.stringify(found) === JSON.stringify(['DD-MM-YYYY', 'TC-39', 'OK-1']),
+      'options: absent ignore option reports every matched id',
+      `expected ["DD-MM-YYYY","TC-39","OK-1"], got ${JSON.stringify(found)}`
+    );
+  }
+
+  // ---- options: ignore is an exact-match whitelist, not a prefix filter ----
+  {
+    const source = '// LOG-LEVEL is set, but LOG-9 is not';
+    const context = makeContext(
+      source,
+      [commentNode(source, source)],
+      [{ ignore: ['LOG-LEVEL'] }]
+    );
+    noSpecIdReference.create(context).Program();
+
+    const found = context.reports.map((r) => r.data.specId);
+    check(
+      JSON.stringify(found) === JSON.stringify(['LOG-9']),
+      'options: ignore matches the full id only, siblings still report',
+      `expected ["LOG-9"], got ${JSON.stringify(found)}`
+    );
+  }
+
+  // ---- options: ignore:['TC-39'] suppresses only TC-39, EC-1 still fires ----
+  {
+    const source = '// TC-39 filed alongside EC-1';
+    const context = makeContext(
+      source,
+      [commentNode(source, source)],
+      [{ ignore: ['TC-39'] }]
+    );
+    noSpecIdReference.create(context).Program();
+
+    const found = context.reports.map((r) => r.data.specId);
+    check(
+      JSON.stringify(found) === JSON.stringify(['EC-1']),
+      'options: ignore:["TC-39"] suppresses TC-39 while EC-1 still fires',
+      `expected ["EC-1"], got ${JSON.stringify(found)}`
     );
   }
 }

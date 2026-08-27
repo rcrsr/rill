@@ -90,10 +90,13 @@ green() { printf '\033[32m%s\033[0m' "$1"; }
 red() { printf '\033[31m%s\033[0m' "$1"; }
 dim() { printf '\033[2m%s\033[0m' "$1"; }
 
-# ok <id> <description> — record a pass.
+# ok <id> <description> — record a pass. Printed unconditionally, the same as
+# bad() and skip() below: --list promises "every element this script covers",
+# and a pass that prints nothing under --list is an element missing from that
+# catalogue, not one that is merely quiet about succeeding.
 ok() {
   PASS=$((PASS + 1))
-  [ "$LIST" -eq 1 ] || printf '  %s %-14s %s\n' "$(green ok)" "$1" "$2"
+  printf '  %s %-14s %s\n' "$(green ok)" "$1" "$2"
 }
 
 # bad <id> <description> <detail> — record a failure.
@@ -116,8 +119,17 @@ skip() {
 
 section() { printf '\n%s\n' "$1"; }
 
-WORKFLOWS=(.github/workflows/*.yml)
-[ -e "${WORKFLOWS[0]}" ] || WORKFLOWS=()
+# Both extensions GitHub Actions accepts, not just .yml: a repository that
+# spells its workflows .yaml had every element in this section read the tree
+# as holding no workflows at all, the same false "nothing to check" the
+# `[ -e "${WORKFLOWS[0]}" ]` guard below exists to prevent for the glob that
+# matches nothing.
+WORKFLOWS=(.github/workflows/*.yml .github/workflows/*.yaml)
+PRUNED_WORKFLOWS=()
+for w in "${WORKFLOWS[@]}"; do
+  [ -e "$w" ] && PRUNED_WORKFLOWS+=("$w")
+done
+WORKFLOWS=("${PRUNED_WORKFLOWS[@]}")
 
 # pkg_field <dot-path> — the value at that path in the root manifest as JSON,
 # or the string null when the path is absent, when any parent of it is absent,
@@ -564,15 +576,23 @@ else
     bad "STD-CI-7" "no path filtering" "path filter in: $FILTERED"
 
   # Every `uses:` needs a 40-char SHA. A local action (./path) is exempt: it is
-  # in this repository and versioned with it.
+  # in this repository and versioned with it. This repository never quotes a
+  # `uses:` value, but a consumer's workflow can spell `uses: "org/action@sha"`
+  # and the extracted value then carries the closing quote, which the
+  # `@[0-9a-f]{40}$` test never matches — every quoted pin in a consumer repo
+  # read as unpinned. Stripped here, once, before the test runs.
   UNPINNED="$(grep -hoE '^ *-? *uses: *[^ ]+' "${WORKFLOWS[@]}" 2>/dev/null |
-    sed -E 's/.*uses: *//' | grep -v '^\./' | grep -vE '@[0-9a-f]{40}$' | sort -u | tr '\n' ' ')"
+    sed -E 's/.*uses: *//' | sed -E "s/^['\"]//; s/['\"]\$//" |
+    grep -v '^\./' | grep -vE '@[0-9a-f]{40}$' | sort -u | tr '\n' ' ')"
   [ -z "$UNPINNED" ] &&
     ok "STD-CI-8" "every action pinned to a SHA" ||
     bad "STD-CI-8" "every action pinned to a SHA" "unpinned: $UNPINNED"
 
-  # The trailing comment is what dependabot reads to offer an upgrade.
-  NOCOMMENT="$(grep -hnE 'uses: *[^ ]+@[0-9a-f]{40} *$' "${WORKFLOWS[@]}" 2>/dev/null | tr '\n' ' ')"
+  # The trailing comment is what dependabot reads to offer an upgrade. `-H`
+  # forces the `file:line:` prefix unconditionally, since grep drops it by
+  # default whenever exactly one file is passed — dropping only `-h` still
+  # printed a bare `line:` for the common case of a single-workflow repository.
+  NOCOMMENT="$(grep -HnE 'uses: *"?'"'"'?[^ ]+@[0-9a-f]{40}["'"'"']? *$' "${WORKFLOWS[@]}" 2>/dev/null | tr '\n' ' ')"
   [ -z "$NOCOMMENT" ] &&
     ok "STD-CI-8" "every pin carries its version comment" ||
     bad "STD-CI-8" "every pin carries its version comment" "bare SHA, no # comment: $NOCOMMENT"
@@ -1486,6 +1506,141 @@ if [ -f lefthook.yml ]; then
 else
   bad "STD-HOOK-1..4" "git hooks configured" "no lefthook.yml"
 fi
+
+# STD-HOOK-5: a pre-commit command's glob must not reduce, for some real
+# commit, to a set the invoked tool's own ignore config fully covers. A hook
+# glob (lefthook.yml) and a tool's ignorePatterns (.oxfmtrc.json,
+# .oxlintrc.json) are declared in two different files and checked by no one
+# against each other; when every staged file a glob selects is also in the
+# tool's own ignore list, the tool receives an all-ignored input and commonly
+# exits non-zero rather than no-op, which halts the rest of a `piped: true`
+# chain (STD-HOOK-3) over a commit that touches nothing the tool cares about.
+# Decided from the tree: every tracked file is tested against each oxfmt/
+# oxlint command's own `glob`, and a match not already carved out by that
+# command's own `exclude:` is bad if the tool's own ignorePatterns also
+# covers it. Never skipped — no lefthook.yml, or no oxfmt/oxlint command,
+# means nothing can match, which is a decided ok, not an unchecked element.
+HOOK5_RESULT="$(node -e '
+  const fs = require("fs");
+  const { execFileSync } = require("child_process");
+
+  let lhText = "";
+  try { lhText = fs.readFileSync("lefthook.yml", "utf8"); } catch (e) { lhText = ""; }
+  const lines = lhText.split(/\r?\n/);
+  const commands = {};
+  let inPreCommit = false, inCommands = false, commandsIndent = -1, curCmd = null, inExclude = false;
+  const indentOf = (s) => s.match(/^ */)[0].length;
+  for (const raw of lines) {
+    const line = raw.replace(/\t/g, "  ");
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) continue;
+    const indent = indentOf(line);
+    if (/^pre-commit:\s*$/.test(trimmed) && indent === 0) { inPreCommit = true; inCommands = false; curCmd = null; continue; }
+    if (indent === 0 && !/^pre-commit:\s*$/.test(trimmed)) { inPreCommit = false; inCommands = false; curCmd = null; }
+    if (inPreCommit && /^commands:\s*$/.test(trimmed)) { inCommands = true; commandsIndent = indent; continue; }
+    if (!inCommands) continue;
+    const cm = /^([A-Za-z0-9_.-]+):\s*$/.exec(trimmed);
+    if (cm && indent === commandsIndent + 2) {
+      curCmd = cm[1];
+      commands[curCmd] = { glob: null, exclude: [], run: "" };
+      inExclude = false;
+      continue;
+    }
+    if (curCmd && indent <= commandsIndent) { curCmd = null; inExclude = false; continue; }
+    if (!curCmd) continue;
+    let m = /^glob:\s*(.+)$/.exec(trimmed);
+    if (m) { commands[curCmd].glob = m[1].trim().replace(/^["\x27]|["\x27]$/g, ""); inExclude = false; continue; }
+    m = /^run:\s*(.+)$/.exec(trimmed);
+    if (m) { commands[curCmd].run = m[1]; inExclude = false; continue; }
+    if (/^exclude:\s*$/.test(trimmed)) { inExclude = true; continue; }
+    if (inExclude && /^-\s*/.test(trimmed)) {
+      commands[curCmd].exclude.push(trimmed.replace(/^-\s*/, "").trim().replace(/^["\x27]|["\x27]$/g, ""));
+      continue;
+    }
+    if (!/^-/.test(trimmed)) inExclude = false;
+  }
+
+  // Minimal glob matcher: lefthook'"'"'s default (gobwas, no separators
+  // configured) lets a bare `*` cross `/` the same as `**` does — confirmed
+  // against this repository'"'"'s own lefthook.yml, whose `packages/web/**`
+  // exclude only has an effect because the plain `*.{...}` glob above it
+  // already reaches into that subtree.
+  const expandBraces = (g) => {
+    const m = /\{([^{}]+)\}/.exec(g);
+    if (!m) return [g];
+    const alts = m[1].split(",");
+    const out = [];
+    for (const a of alts) {
+      for (const r of expandBraces(g.slice(0, m.index) + a + g.slice(m.index + m[0].length))) out.push(r);
+    }
+    return out;
+  };
+  // Memoized: the same glob string (a command'"'"'s `glob`, or an `exclude`/
+  // `ignorePatterns` entry) recurs once per tracked file below, so compiling
+  // it fresh each time would recompile identical globs file count times.
+  const regexCache = new Map();
+  const toRegexes = (glob) => {
+    if (regexCache.has(glob)) return regexCache.get(glob);
+    const compiled = expandBraces(glob).map((p) => {
+      let re = "";
+      let i = 0;
+      while (i < p.length) {
+        if (p.startsWith("**", i)) { re += ".*"; i += 2; continue; }
+        const ch = p[i];
+        if (ch === "*") re += ".*";
+        else if (ch === "?") re += ".";
+        else re += ch.replace(/[.^$+()|[\]\\]/g, "\\$&");
+        i += 1;
+      }
+      return new RegExp("^" + re + "$");
+    });
+    regexCache.set(glob, compiled);
+    return compiled;
+  };
+  const globMatches = (glob, path) => (glob ? toRegexes(glob).some((re) => re.test(path)) : false);
+  // A directory-prefix entry with no wildcard (e.g. "dist", "packages/web")
+  // covers itself and everything under it, the same shape lefthook'"'"'s own
+  // `exclude:` and a tool'"'"'s `ignorePatterns` both use for bare names.
+  const ignoreMatches = (pattern, path) => {
+    if (/[*?{]/.test(pattern)) return globMatches(pattern, path);
+    return path === pattern || path.startsWith(pattern.replace(/\/$/, "") + "/");
+  };
+
+  let tracked = [];
+  try {
+    tracked = execFileSync("git", ["ls-files"], { encoding: "utf8" }).split("\n").filter(Boolean);
+  } catch (e) { tracked = []; }
+
+  const readJSON = (p) => { try { return JSON.parse(fs.readFileSync(p, "utf8")); } catch (e) { return null; } };
+  const readJSONC = (p) => {
+    try { return require(process.argv[1]).readJSONC(p); } catch (e) { return null; }
+  };
+  const TOOL_CONFIGS = {
+    oxfmt: { path: ".oxfmtrc.json", read: readJSON },
+    oxlint: { path: ".oxlintrc.json", read: readJSONC },
+  };
+
+  const bad = [];
+  for (const [name, c] of Object.entries(commands)) {
+    const tool = /oxfmt/.test(c.run || name) ? "oxfmt" : /oxlint/.test(c.run || name) ? "oxlint" : null;
+    if (!tool || !c.glob) continue;
+    const cfg = TOOL_CONFIGS[tool];
+    const parsed = cfg.read(cfg.path);
+    const ignorePatterns = (parsed && Array.isArray(parsed.ignorePatterns)) ? parsed.ignorePatterns : [];
+    if (ignorePatterns.length === 0) continue;
+    for (const f of tracked) {
+      if (!globMatches(c.glob, f)) continue;
+      if (c.exclude.some((ex) => ignoreMatches(ex, f))) continue;
+      if (ignorePatterns.some((pat) => ignoreMatches(pat, f))) bad.push(name + ":" + f);
+    }
+  }
+  process.stdout.write([...new Set(bad)].sort().join(" "));
+' "$SELF_DIR/jsonc.cjs" 2>/dev/null)"
+[ -z "$HOOK5_RESULT" ] &&
+  ok "STD-HOOK-5" "no pre-commit glob reduces to a set the tool fully ignores" ||
+  bad "STD-HOOK-5" "no pre-commit glob reduces to a set the tool fully ignores" \
+    "glob matches a file the tool's own ignorePatterns also covers, with no lefthook exclude: $HOOK5_RESULT"
+
 # STD-DEP-1: shared build and test tooling pinned to the same range. The
 # baseline names which deps count as "shared build and test tooling" — the
 # linter, formatter, test runner, compiler, hook manager, unused-dep checker,
@@ -1717,6 +1872,16 @@ TOTAL=$((PASS + FAIL))
 # version that produced it cannot be compared against another repository's.
 STAMP=""
 [ -n "$SELF_VERSION" ] && STAMP="  $(dim "(rill-dev $SELF_VERSION)")"
+# --list is a catalogue, not a gate: the header promises it prints every
+# element this script covers, and every probe above still ran to produce a
+# real verdict for each row. Exiting non-zero here would make `--list` behave
+# like a second invocation of the check itself, which is not what the header
+# documents and not what a caller piping the catalogue through a pager wants.
+if [ "$LIST" -eq 1 ]; then
+  printf '%s  %d elements listed (%d ok, %d bad, %d not machine-checkable).%s\n' \
+    "$(dim 'CATALOGUE')" "$((TOTAL + SKIP))" "$PASS" "$FAIL" "$SKIP" "$STAMP"
+  exit 0
+fi
 if [ "$FAIL" -eq 0 ]; then
   printf '%s  %d checked, %d passed, %d not machine-checkable.%s\n' \
     "$(green 'CONFORMANT')" "$TOTAL" "$PASS" "$SKIP" "$STAMP"

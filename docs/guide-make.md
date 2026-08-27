@@ -547,14 +547,14 @@ In the wrong form, `"" => $desc` becomes the default expression — the capture 
 
 ```rill
 # Pattern 1: group the default, then capture
-($article.?description ?? "") => $desc
+($article.?description ?? "") => $desc1
 
 # Pattern 2: ternary with safe access
-($article.?description) ? $article.description ! "" => $desc
+($article.?description) ? $article.description ! "" => $desc2
 
 # Pattern 3: capture first, then default on use
-$article.?description => $desc
-# ... later use $desc ?? "" where needed
+$article.?description => $desc3
+# ... later use $desc3 ?? "" where needed
 ```
 
 **Other precedence rules:**

@@ -379,8 +379,42 @@ plugin the repository wants, including the ones reporting zero.
 | STD-HOOK-2 | Pre-commit formats then lints staged files, in that order, and restages fixes. | — |
 | STD-HOOK-3 | Pre-commit runs piped so a failing step halts the rest. | — |
 | STD-HOOK-4 | Pre-push runs typecheck and tests in parallel. | — |
+| STD-HOOK-5 | No pre-commit command's `glob` reduces to a set the invoked formatter or linter fully ignores. | — |
 
 Format before lint. The reverse order lets the formatter undo a lint fix.
+
+**On STD-HOOK-5.** A hook glob and the tool's own `ignorePatterns` (or
+equivalent) are declared in two different files and checked by no one against
+each other. When every file a glob can match is also in the tool's ignore
+list, the tool receives an all-ignored input list, and formatters commonly
+treat that as an error rather than a no-op — exiting non-zero. Under
+`piped: true` (STD-HOOK-3) that non-zero exit halts the rest of the
+pre-commit chain, so a commit touching only files the tool ignores (a
+lockfile is the common case) is blocked by a step that has nothing to do.
+Fix it by narrowing the glob, adding an `exclude:` entry for the
+ignored file, or moving the ignore to the glob itself — not by dropping
+`piped: true` or reordering format-before-lint.
+
+**Verify**
+
+Run `pnpm exec rill-check-standards` and read the `STD-HOOK-5` line. The
+failure is directory-scoped as often as it is file-scoped (a lockfile, but
+equally a whole ignored subtree such as a docs site under the language
+package), so a per-directory shell probe that spawns `pnpm exec lefthook run
+pre-commit` for every tracked directory is both incomplete and an
+O(directories) full Node+pnpm startup. The checker instead takes one `git
+ls-files` listing and checks each pre-commit command's glob coverage against
+that tool's own `ignorePatterns` in a single pass — parsing `lefthook.yml`
+for each command's `glob`/`exclude`, reading the matching tool config
+(`.oxfmtrc.json` / `.oxlintrc.json`) for `ignorePatterns`, and reporting `bad`
+when every tracked file a glob matches is also covered by that tool's
+`ignorePatterns` with no matching `exclude` entry. See `check-standards.sh`'s
+`STD-HOOK-5` block for the runnable implementation; the shape above is
+illustrative, not a standalone script to copy and run.
+
+`pnpm exec rill-check-standards` runs this same single-pass check as
+`STD-HOOK-5` — see `check-standards.sh`'s implementation for the full glob
+matcher this sketch elides.
 
 ## 7. Release workflow
 

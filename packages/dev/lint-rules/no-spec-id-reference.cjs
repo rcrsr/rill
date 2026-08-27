@@ -31,6 +31,12 @@
  * because every prefix below is anchored on a word boundary.
  *
  * Escape hatch: `// oxlint-disable-next-line rill/no-spec-id-reference`.
+ *
+ * Options: `{ ignore: string[] }`. Exact-match whitelist for incidental
+ * matches that are not workflow-artifact references — a date written
+ * `DD-MM-YYYY`, a work-item-shaped constant like `LOG-LEVEL`. Each entry is
+ * compared against the full matched id verbatim (case-sensitive, no
+ * wildcards); it does not affect the `\b`-bounded scan itself.
  */
 
 'use strict';
@@ -61,7 +67,15 @@ module.exports = {
         'Disallow internal workflow-artifact ID references in source comments and strings',
       recommended: true,
     },
-    schema: [],
+    schema: [
+      {
+        type: 'object',
+        properties: {
+          ignore: { type: 'array', items: { type: 'string' } },
+        },
+        additionalProperties: false,
+      },
+    ],
     messages: {
       specIdReference:
         "'{{specId}}' references an internal planning document that is not published. Keep the fact the comment states and drop the reference.",
@@ -70,6 +84,8 @@ module.exports = {
 
   create(context) {
     const sourceCode = context.sourceCode || context.getSourceCode();
+    const options = (context.options && context.options[0]) || {};
+    const ignoreSet = new Set(options.ignore || []);
 
     /**
      * Reports every spec-ID match inside the source range [start, end).
@@ -89,6 +105,7 @@ module.exports = {
       let match;
       while ((match = SPEC_ID.exec(sourceCode.text)) !== null) {
         if (match.index >= end) break;
+        if (ignoreSet.has(match[0])) continue;
         context.report({
           loc: {
             start: sourceCode.getLocFromIndex(match.index),

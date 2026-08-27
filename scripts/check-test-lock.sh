@@ -34,6 +34,22 @@ export LC_ALL=C # stable collation for sort and comm
 trap 'echo "FAIL: unexpected abort at line ${LINENO} (exit $?)" >&2' ERR
 cd "$(dirname "$0")/.."
 
+# Select a sha256 digest tool once. bash 3.2 (the macOS system shell) has no
+# mapfile builtin and often no sha256sum on PATH, only shasum -a 256. Same
+# idiom as packages/dev/check-standards.sh:45-49. This branch calls `exit 2`
+# directly rather than letting `set -e` propagate, and an explicit `exit`
+# does not trigger the ERR trap registered above — so a genuinely absent
+# digest tool reports its own named failure here instead of being misreported
+# as a lock violation by the trap.
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA256() { sha256sum "$@"; }
+elif command -v shasum >/dev/null 2>&1; then
+  SHA256() { shasum -a 256 "$@"; }
+else
+  echo "FAIL: no sha256 tool found (need sha256sum or shasum)." >&2
+  exit 2
+fi
+
 ARBITER_DIR=packages/core/tests/language
 LOCK_FILE=packages/core/tests/language.lock
 TEST_ROOT=packages/core/tests
@@ -51,7 +67,12 @@ done
 
 # --cached --others --exclude-standard is tracked plus untracked-but-not-ignored,
 # so a new arbiter file counts before it is ever committed.
-mapfile -t FILES < <(git ls-files --cached --others --exclude-standard -- "$ARBITER_DIR" | sort)
+# mapfile is a bash 4+ builtin, absent from bash 3.2 (the macOS system shell);
+# read into the array by hand instead.
+FILES=()
+while IFS= read -r line; do
+  FILES+=("$line")
+done < <(git ls-files --cached --others --exclude-standard -- "$ARBITER_DIR" | sort)
 
 if [ "${#FILES[@]}" -eq 0 ]; then
   echo "FAIL: no files found under ${ARBITER_DIR}/. Wrong directory, or the arbiter was deleted wholesale."
@@ -64,7 +85,7 @@ for f in "${FILES[@]}"; do
   fi
 done
 
-ACTUAL=$(sha256sum "${FILES[@]}")
+ACTUAL=$(SHA256 "${FILES[@]}")
 
 if [ "$UPDATE" -eq 1 ]; then
   {

@@ -151,7 +151,7 @@
       // established fix here is the late-binding initializer in protocols/shared.ts.
       // Extending that to the remaining edges would trade a deterministic,
       // ESM-safe static cycle for an implicit bootstrap contract, since nothing
-      // would force registrations.js to load and dict must stay last (AC-16).
+      // would force registrations.js to load and dict must stay last.
       "files": [
         "**/src/runtime/core/callable.ts",
         "**/src/runtime/core/values.ts",
