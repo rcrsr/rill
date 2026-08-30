@@ -176,19 +176,21 @@ export class CallableInvocationStrategy {
         location,
         functionName
       );
-    } catch (error) {
+    } catch (caught) {
       // snapshot call stack onto the error before finally pops frame.
       // First snapshot wins — nested calls capture the deepest stack.
-      if (error instanceof RillError && ctx.callStack.length > 0) {
-        const errCtx = error.context as Record<string, unknown> | undefined;
-        if (errCtx && !errCtx['callStack']) {
-          errCtx['callStack'] = [...ctx.callStack];
-        } else if (!errCtx) {
-          // context is readonly on the property; override via cast for errors
-          // constructed without a context object.
-          (error as { context: Record<string, unknown> }).context = {
-            callStack: [...ctx.callStack],
-          };
+      let error = caught;
+      if (
+        error instanceof RillError &&
+        ctx.callStack.length > 0 &&
+        !error.context?.['callStack']
+      ) {
+        // Preserve extension-throw tag across the rewrap (markExtensionThrow
+        // tracks identity in a WeakSet, so the new object needs re-marking).
+        const wasExtensionThrow = isExtensionThrow(error);
+        error = error.withContext({ callStack: [...ctx.callStack] });
+        if (wasExtensionThrow) {
+          markExtensionThrow(error);
         }
       } else if (
         error instanceof RuntimeHaltSignal &&

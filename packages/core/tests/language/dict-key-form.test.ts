@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { type DictEntryNode, parse } from '@rcrsr/rill';
+import { run } from '../helpers/runtime.js';
 
 /** Recursively find the first node with the given `type` field. */
 function findFirst(node: unknown, typeName: string): unknown | null {
@@ -63,5 +64,51 @@ describe('AST keyForm metadata', () => {
     const entry = passBlock.options.entries[0];
     expect(entry).toBeTruthy();
     expect(entry.keyForm).toBe('identifier');
+  });
+
+  const reservedWordKeys = [
+    'break',
+    'return',
+    'yield',
+    'pass',
+    'assert',
+    'error',
+    'guard',
+    'retry',
+    'while',
+    'do',
+  ];
+
+  it.each(reservedWordKeys)(
+    'reserved word "%s" used as a dict key sets keyForm to identifier with a string key',
+    (word) => {
+      const ast = parse(`dict[${word}: 1]`);
+      const entry = findFirst(ast, 'DictEntry') as DictEntryNode;
+      expect(entry).toBeTruthy();
+      expect(entry.keyForm).toBe('identifier');
+      expect(entry.key).toBe(word);
+      expect(typeof entry.key).toBe('string');
+    }
+  );
+
+  it('all reserved-word keys parse together in a single dict literal', () => {
+    const ast = parse(
+      'dict[break:1,return:2,guard:3,do:4,while:5,error:6,retry:7,assert:8,yield:9,pass:10]'
+    );
+    const dictNode = findFirst(ast, 'Dict') as {
+      entries: DictEntryNode[];
+    };
+    expect(dictNode).toBeTruthy();
+    expect(dictNode.entries).toHaveLength(10);
+    for (const entry of dictNode.entries) {
+      expect(entry.keyForm).toBe('identifier');
+      expect(typeof entry.key).toBe('string');
+    }
+  });
+
+  it('dict[error:1] evaluates identically to dict["error":1]', async () => {
+    const bareResult = await run('dict[error: 1]');
+    const quotedResult = await run('dict["error": 1]');
+    expect(bareResult).toEqual(quotedResult);
   });
 });

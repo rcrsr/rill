@@ -54,6 +54,7 @@ import {
   peek,
   skipNewlines,
   skipNewlinesIfFollowedBy,
+  withRecursionDepth,
 } from './state.js';
 import {
   isHostCall,
@@ -71,6 +72,7 @@ import {
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
+import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 /** Constructs valid as both primary expressions and pipe targets */
@@ -755,12 +757,12 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
   const args: (ExpressionNode | SpreadArgNode)[] = [];
   let hasSpread = false;
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    args.push(parseInvokeArg(this, hasSpread));
+    args.push(parseSpreadOrArg(this, { allowSpread: true, hasSpread }));
     if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
-      args.push(parseInvokeArg(this, hasSpread));
+      args.push(parseSpreadOrArg(this, { allowSpread: true, hasSpread }));
       if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
     }
   }
@@ -780,72 +782,6 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
   };
 };
 
-/**
- * Parse one argument inside parseInvoke, with spread support.
- * Bare `...` synthesizes VariableNode for `$`. Max one spread per list.
- */
-function parseInvokeArg(
-  parser: Parser,
-  hasSpread: boolean
-): ExpressionNode | SpreadArgNode {
-  if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
-    if (hasSpread) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P007,
-        'Only one spread argument (...) is allowed per argument list',
-        current(parser.state).span.start
-      );
-    }
-    const start = current(parser.state).span.start;
-    advance(parser.state); // consume ...
-
-    // Bare `...` before `)` or `,` → synthesize VariableNode for `$`
-    if (
-      check(parser.state, TOKEN_TYPES.RPAREN) ||
-      check(parser.state, TOKEN_TYPES.COMMA)
-    ) {
-      const spreadSpan = makeSpan(start, current(parser.state).span.start);
-      const varNode: VariableNode = {
-        type: 'Variable',
-        name: null,
-        isPipeVar: true,
-        accessChain: [],
-        defaultValue: null,
-        existenceCheck: null,
-        span: spreadSpan,
-      };
-      const postfixNode: PostfixExprNode = {
-        type: 'PostfixExpr',
-        primary: varNode,
-        methods: [],
-        defaultValue: null,
-        span: spreadSpan,
-      };
-      const pipeChainNode: PipeChainNode = {
-        type: 'PipeChain',
-        head: postfixNode,
-        pipes: [],
-        terminator: null,
-        span: spreadSpan,
-      };
-      return {
-        type: 'SpreadArg',
-        expression: pipeChainNode,
-        span: spreadSpan,
-      } satisfies SpreadArgNode;
-    }
-
-    const expression = parser.parsePipeChain();
-    return {
-      type: 'SpreadArg',
-      expression,
-      span: makeSpan(start, current(parser.state).span.end),
-    } satisfies SpreadArgNode;
-  }
-
-  return parser.parsePipeChain();
-}
-
 // ============================================================
 // CLOSURE SIG LITERAL HELPERS
 // ============================================================
@@ -858,9 +794,16 @@ function parseInvokeArg(
  * AND the matching closing PIPE_BAR is followed by COLON (:).
  * This avoids misidentifying typed closures |x: T| { body } as sig literals
  * because those have `{` after the closing `|`, not `:`.
+ *
+ * This lookahead only decides which parse path to take; it does not
+ * guarantee the sig-literal path can fully parse the input. A union type
+ * in the param position (e.g. `|x: string | number|: bool`) is correctly
+ * routed to `parseClosureSigLiteral` by this scan, but that function's
+ * param-type parser (`this.parseExpression()`) has no union-type support
+ * and will still throw. Fixing that is a separate, unrelated change.
  */
 function isClosureSigLiteralStart(state: {
-  tokens: { type: string }[];
+  tokens: { type: string; value: string }[];
   pos: number;
 }): boolean {
   const t0 = state.tokens[state.pos];
@@ -874,18 +817,24 @@ function isClosureSigLiteralStart(state: {
   ) {
     return false;
   }
-  // Scan forward to find the matching closing PIPE_BAR, then check for COLON.
-  // Track nested pipe bars (|| is OR, not PIPE_BAR so we only count PIPE_BAR).
-  let depth = 1;
+  // Scan forward until we find a PIPE_BAR immediately followed by COLON.
+  // A PIPE_BAR not followed by COLON is only a union type separator (e.g.
+  // `|x: string | number|: bool`) when the token after it starts a type
+  // (a valid type name or `$variable`); otherwise it's the closing `|` of
+  // an ordinary closure param list (e.g. `|x: number| { body }`) and the
+  // scan must stop there rather than searching unboundedly into later
+  // statements for an unrelated `|...|:` pair.
   let i = state.pos + 1;
   while (i < state.tokens.length) {
     const tok = state.tokens[i]!;
     if (tok.type === TOKEN_TYPES.PIPE_BAR) {
-      depth -= 1;
-      if (depth === 0) {
-        const afterClose = state.tokens[i + 1];
-        return afterClose?.type === TOKEN_TYPES.COLON;
-      }
+      const afterClose = state.tokens[i + 1];
+      if (afterClose?.type === TOKEN_TYPES.COLON) return true;
+      const afterCloseIsDollar = afterClose?.type === TOKEN_TYPES.DOLLAR;
+      const afterCloseIsTypeName =
+        afterClose?.type === TOKEN_TYPES.IDENTIFIER &&
+        (VALID_TYPE_NAMES as readonly string[]).includes(afterClose.value);
+      if (!afterCloseIsDollar && !afterCloseIsTypeName) return false;
     }
     i += 1;
   }
@@ -897,6 +846,14 @@ function isClosureSigLiteralStart(state: {
 // ============================================================
 
 Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
+  return withRecursionDepth(
+    this.state,
+    () => current(this.state).span.start,
+    () => parsePrimaryImpl.call(this)
+  );
+};
+
+function parsePrimaryImpl(this: Parser): PrimaryNode {
   // Legacy bare ^ (CARET) loop annotation: ^(limit: N) { body } → RILL-R081
   if (
     check(this.state, TOKEN_TYPES.CARET) &&
@@ -1164,7 +1121,7 @@ Parser.prototype.parsePrimary = function (this: Parser): PrimaryNode {
     `Unexpected token: ${token.value}`,
     token.span.start
   );
-};
+}
 
 // ============================================================
 // PRIMARY DISPATCH TABLE
@@ -1743,6 +1700,14 @@ Parser.prototype.parseMultiplicative = function (this: Parser): ArithHead {
 Parser.prototype.parseUnary = function (
   this: Parser
 ): UnaryExprNode | PostfixExprNode {
+  return withRecursionDepth(
+    this.state,
+    () => current(this.state).span.start,
+    () => parseUnaryImpl.call(this)
+  );
+};
+
+function parseUnaryImpl(this: Parser): UnaryExprNode | PostfixExprNode {
   if (check(this.state, TOKEN_TYPES.MINUS)) {
     const start = current(this.state).span.start;
     advance(this.state);
@@ -1766,7 +1731,7 @@ Parser.prototype.parseUnary = function (
     };
   }
   return this.parsePostfixExpr();
-};
+}
 
 // ============================================================
 // CLOSURE SIG LITERAL PARSING

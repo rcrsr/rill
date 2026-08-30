@@ -5,7 +5,7 @@
 
 import type { ASTNode, ClosureCallNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { extractContextLine, isBareReference } from './helpers.js';
+import { bareDollarSingleArgDiagnostic, isBareReference } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
@@ -43,23 +43,12 @@ export const implicitDollarClosure: Rule = {
         ? `$${closureCallNode.name}.${closureCallNode.accessChain.join('.')}`
         : `$${closureCallNode.name}`;
 
-    return [
-      {
-        code: 'IMPLICIT_DOLLAR_CLOSURE',
-        message: `Prefer pipe syntax '-> ${closureName}' over explicit '${closureName}($)'`,
-        severity: 'info',
-        location: {
-          line: closureCallNode.span.start.line,
-          column: closureCallNode.span.start.column,
-          offset: closureCallNode.span.start.offset,
-        },
-        context: extractContextLine(
-          closureCallNode.span.start.line,
-          context.source
-        ),
-        fix: null,
-      },
-    ];
+    return bareDollarSingleArgDiagnostic(
+      'IMPLICIT_DOLLAR_CLOSURE',
+      closureName,
+      closureCallNode,
+      context
+    );
   },
 };
 

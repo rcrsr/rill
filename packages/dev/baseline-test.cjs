@@ -36,10 +36,12 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { spawnSync } = require('child_process');
 
 const { generate, SHARED_TOOLING_DEPS } = require(
   path.join(__dirname, 'gen-baseline.cjs')
 );
+const CHECK_STANDARDS = path.join(__dirname, 'check-standards.sh');
 
 const stats = { pass: 0, fail: 0 };
 
@@ -176,6 +178,278 @@ function cleanup() {
     } catch {
       /* best-effort */
     }
+  }
+}
+
+// ============================================================
+// check-standards.sh fixture tests: .yaml workflow discovery, a quoted
+// `uses:` pin, the STD-CI-8 file:line: detail, --list as a catalogue rather
+// than a gate, and the STD-HOOK-5 formatter/linter-ignore predicate.
+//
+// These build minimal repository trees on disk, the same way buildTree()
+// does above, and run the real check-standards.sh against them via
+// spawnSync — the probes fixed here are shell-level (glob expansion, grep
+// flags, --list's exit gate), so a `generate()`-shaped fixture cannot
+// exercise them; only running the script itself can.
+// ============================================================
+
+// writeFixtureTree <files> — a temp directory holding exactly the given
+// relative-path -> content map, git-initialised so `git ls-files` (used by
+// STD-HOOK-5) and `git rev-parse --show-toplevel` (used to anchor ROOT) both
+// resolve inside the fixture rather than falling through to this repository.
+// `git add -A` alone is enough: `git ls-files` reads the index, not HEAD, so
+// no commit is needed.
+function writeFixtureTree(files) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-checkstd-'));
+  createdRoots.push(root);
+  for (const [rel, content] of Object.entries(files)) {
+    const full = path.join(root, rel);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, content);
+  }
+  spawnSync('git', ['init', '-q'], { cwd: root });
+  spawnSync('git', ['add', '-A'], { cwd: root });
+  return root;
+}
+
+// runCheckStandards <root> <extraArgs> — the real script, run against a
+// fixture tree's own root, with ANSI colour stripped so assertions can match
+// plain text regardless of whether stdout is a TTY.
+function runCheckStandards(root, extraArgs) {
+  const result = spawnSync('bash', [CHECK_STANDARDS, ...(extraArgs || [])], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  const ansiEscape = String.fromCharCode(27);
+  const stdout = (result.stdout || '').replace(
+    new RegExp(ansiEscape + '\\[[0-9;]*m', 'g'),
+    ''
+  );
+  return { stdout, status: result.status };
+}
+
+const MINIMAL_PKG = JSON.stringify({ name: 'fixture', private: true });
+
+function runCheckStandardsFixtureTests() {
+  // (a) A synthetic .yaml (not .yml) workflow is now read at all, and reads
+  // as a non-vacuous verdict — a permissions check that actually ran against
+  // it, not the "no workflows found" fallback the old `.yml`-only glob
+  // produced for a repository that spells the extension the other way.
+  {
+    const root = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.github/workflows/ci.yaml':
+        'name: CI\n' +
+        'permissions:\n' +
+        '  contents: read\n' +
+        'concurrency:\n' +
+        '  group: ci-${{ github.ref }}\n' +
+        'on: push\n' +
+        'jobs:\n' +
+        '  build:\n' +
+        '    runs-on: ubuntu-latest\n' +
+        '    steps:\n' +
+        '      - run: echo hi\n',
+    });
+    const { stdout } = runCheckStandards(root);
+    check(
+      /ok\s+STD-CI-5\s/.test(stdout),
+      'check-standards: a .yaml workflow is read (STD-CI-5 gets a real verdict)',
+      stdout
+    );
+    check(
+      !/no \.github\/workflows\/\*\.yml found/.test(stdout),
+      'check-standards: a .yaml-only repository is not reported as holding no workflows'
+    );
+  }
+
+  // (b) A quoted `uses: "org/action@<40hex>"` pin reports ok, not unpinned —
+  // the trailing quote must not survive into the `@[0-9a-f]{40}$` test.
+  {
+    const root = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.github/workflows/ci.yml':
+        'name: CI\n' +
+        'permissions:\n' +
+        '  contents: read\n' +
+        'concurrency:\n' +
+        '  group: ci-${{ github.ref }}\n' +
+        'on: push\n' +
+        'jobs:\n' +
+        '  build:\n' +
+        '    runs-on: ubuntu-latest\n' +
+        '    steps:\n' +
+        '      - uses: "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683" # v4.1.1\n',
+    });
+    const { stdout } = runCheckStandards(root);
+    check(
+      /ok\s+STD-CI-8\s+every action pinned to a SHA/.test(stdout),
+      'check-standards: a quoted uses: pin is read as pinned',
+      stdout
+    );
+  }
+
+  // (c) The STD-CI-8 "no version comment" detail prints `file:line:`, not a
+  // bare `line:` with the filename dropped.
+  {
+    const root = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.github/workflows/ci.yml':
+        'name: CI\n' +
+        'permissions:\n' +
+        '  contents: read\n' +
+        'concurrency:\n' +
+        '  group: ci-${{ github.ref }}\n' +
+        'on: push\n' +
+        'jobs:\n' +
+        '  build:\n' +
+        '    runs-on: ubuntu-latest\n' +
+        '    steps:\n' +
+        '      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n',
+    });
+    const { stdout } = runCheckStandards(root);
+    check(
+      /bare SHA, no # comment: \.github\/workflows\/ci\.yml:\d+:/.test(stdout),
+      'check-standards: the STD-CI-8 comment detail carries file:line:',
+      stdout
+    );
+  }
+
+  // (d) --list prints every element (ok rows included, not just FAIL/--) and
+  // exits 0 even though the fixture fails real elements.
+  {
+    const root = writeFixtureTree({ 'package.json': MINIMAL_PKG });
+    const listed = runCheckStandards(root, ['--list']);
+    check(
+      listed.status === 0,
+      '--list exits 0 as a catalogue, not a gate',
+      `exit status ${listed.status}`
+    );
+    check(
+      /\n\s*ok\s+STD-/.test(listed.stdout),
+      '--list prints at least one ok row',
+      listed.stdout.slice(0, 200)
+    );
+    check(
+      /\n\s*FAIL\s+STD-/.test(listed.stdout),
+      '--list prints at least one FAIL row for a non-conformant fixture'
+    );
+    // The same fixture without --list must still gate on failures: --list
+    // changing the exit code is deliberate, not a general softening.
+    const gated = runCheckStandards(root);
+    check(
+      gated.status === 1,
+      'normal mode (no --list) still exits 1 on the same failing fixture',
+      `exit status ${gated.status}`
+    );
+  }
+
+  // (e) STD-HOOK-5: a formatter glob that reduces to a lockfile the tool's
+  // own ignorePatterns fully covers is bad when lefthook carries no matching
+  // exclude, and ok once one is added — the same shape as the packages/web
+  // case this element was minted to catch.
+  {
+    const lefthookNoExclude =
+      'pre-commit:\n' +
+      '  piped: true\n' +
+      '  commands:\n' +
+      '    oxfmt:\n' +
+      "      glob: '*.{yaml,yml,json}'\n" +
+      '      run: pnpm exec oxfmt {staged_files}\n';
+    const rootBad = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.oxfmtrc.json': JSON.stringify({
+        ignorePatterns: ['pnpm-lock.yaml'],
+      }),
+      'lefthook.yml': lefthookNoExclude,
+      'pnpm-lock.yaml': 'lockfile: true\n',
+    });
+    const bad = runCheckStandards(rootBad);
+    check(
+      /FAIL\s+STD-HOOK-5\s/.test(bad.stdout),
+      'STD-HOOK-5: a glob reaching an ignored lockfile with no exclude is bad',
+      bad.stdout
+    );
+
+    const lefthookExcluded =
+      'pre-commit:\n' +
+      '  piped: true\n' +
+      '  commands:\n' +
+      '    oxfmt:\n' +
+      "      glob: '*.{yaml,yml,json}'\n" +
+      '      exclude:\n' +
+      '        - pnpm-lock.yaml\n' +
+      '      run: pnpm exec oxfmt {staged_files}\n';
+    const rootOk = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.oxfmtrc.json': JSON.stringify({
+        ignorePatterns: ['pnpm-lock.yaml'],
+      }),
+      'lefthook.yml': lefthookExcluded,
+      'pnpm-lock.yaml': 'lockfile: true\n',
+    });
+    const ok_ = runCheckStandards(rootOk);
+    check(
+      /ok\s+STD-HOOK-5\s/.test(ok_.stdout),
+      'STD-HOOK-5: the same glob is ok once lefthook excludes the lockfile',
+      ok_.stdout
+    );
+  }
+
+  // (f) STD-HOOK-5, oxlint/JSONC branch: the same shape as (e) but driving
+  // the `oxlint` tool-detection path and `.oxlintrc.json` read via
+  // `readJSONC` (a `//` comment in the config), which (e) never exercises
+  // since it only drives `oxfmt`/plain-JSON.
+  {
+    const lefthookNoExclude =
+      'pre-commit:\n' +
+      '  piped: true\n' +
+      '  commands:\n' +
+      '    oxlint:\n' +
+      "      glob: '*.{yaml,yml,json}'\n" +
+      '      run: pnpm exec oxlint {staged_files}\n';
+    const rootBad = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.oxlintrc.json':
+        '{\n' +
+        '  // ignore the lockfile; JSONC comments must survive readJSONC\n' +
+        '  "ignorePatterns": ["pnpm-lock.yaml"]\n' +
+        '}\n',
+      'lefthook.yml': lefthookNoExclude,
+      'pnpm-lock.yaml': 'lockfile: true\n',
+    });
+    const bad = runCheckStandards(rootBad);
+    check(
+      /FAIL\s+STD-HOOK-5\s/.test(bad.stdout),
+      'STD-HOOK-5 (oxlint/JSONC): a glob reaching an ignored lockfile with no exclude is bad',
+      bad.stdout
+    );
+
+    const lefthookExcluded =
+      'pre-commit:\n' +
+      '  piped: true\n' +
+      '  commands:\n' +
+      '    oxlint:\n' +
+      "      glob: '*.{yaml,yml,json}'\n" +
+      '      exclude:\n' +
+      '        - pnpm-lock.yaml\n' +
+      '      run: pnpm exec oxlint {staged_files}\n';
+    const rootOk = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.oxlintrc.json':
+        '{\n' +
+        '  // ignore the lockfile; JSONC comments must survive readJSONC\n' +
+        '  "ignorePatterns": ["pnpm-lock.yaml"]\n' +
+        '}\n',
+      'lefthook.yml': lefthookExcluded,
+      'pnpm-lock.yaml': 'lockfile: true\n',
+    });
+    const ok_ = runCheckStandards(rootOk);
+    check(
+      /ok\s+STD-HOOK-5\s/.test(ok_.stdout),
+      'STD-HOOK-5 (oxlint/JSONC): the same glob is ok once lefthook excludes the lockfile',
+      ok_.stdout
+    );
   }
 }
 
@@ -409,6 +683,7 @@ try {
   runStalenessTests();
   runFreshnessTests();
   runContractTests();
+  runCheckStandardsFixtureTests();
 } finally {
   cleanup();
 }

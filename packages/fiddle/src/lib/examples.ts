@@ -394,6 +394,12 @@ list[3, 7, 2, 9, 1, 8, 4]
 // ============================================================
 
 /**
+ * Ordered list of example IDs, derived from the registry so the two
+ * cannot drift out of sync.
+ */
+export const EXAMPLE_ORDER: readonly string[] = Object.keys(EXAMPLES);
+
+/**
  * Load a code example by ID.
  *
  * @param id - Example identifier

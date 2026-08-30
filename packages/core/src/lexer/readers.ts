@@ -150,9 +150,15 @@ export function readString(state: LexerState): Token {
 
   if (peek(state) === '"') {
     advance(state); // consume closing "
+    return makeToken(TOKEN_TYPES.STRING, value, start, currentLocation(state));
   }
 
-  return makeToken(TOKEN_TYPES.STRING, value, start, currentLocation(state));
+  // If we reach here, EOF was reached before closing "
+  throw new LexerError(
+    ERROR_IDS.RILL_L001,
+    'Unterminated string literal',
+    start
+  );
 }
 
 export function readTripleQuoteString(state: LexerState): Token {

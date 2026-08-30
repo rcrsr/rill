@@ -9,6 +9,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
+import { EditorView } from '@codemirror/view';
 import { Editor, type EditorProps } from '../Editor.js';
 
 describe('Editor', () => {
@@ -182,6 +183,59 @@ describe('Editor', () => {
 
       const editor = container.querySelector('.editor-container');
       expect(editor).toBeDefined();
+    });
+
+    it('renders the cm-error-line decoration when errorLine is set', () => {
+      const value = 'line 1\nline 2\nline 3';
+      const { container } = render(
+        <Editor {...defaultProps} value={value} errorLine={2} />
+      );
+
+      const errorLineEl = container.querySelector('.cm-error-line');
+      expect(errorLineEl).not.toBeNull();
+    });
+
+    it('clears the cm-error-line decoration on the first local edit', () => {
+      const value = 'line 1\nline 2\nline 3';
+      const { container } = render(
+        <Editor {...defaultProps} value={value} errorLine={2} />
+      );
+
+      expect(container.querySelector('.cm-error-line')).not.toBeNull();
+
+      const cmContentEl = container.querySelector('.cm-content');
+      expect(cmContentEl).not.toBeNull();
+      const view = EditorView.findFromDOM(cmContentEl as HTMLElement);
+      expect(view).not.toBeNull();
+
+      // Simulate a user edit to the document.
+      act(() => {
+        view?.dispatch({
+          changes: { from: 0, to: 0, insert: 'x' },
+        });
+      });
+
+      expect(container.querySelector('.cm-error-line')).toBeNull();
+    });
+
+    it('re-highlights the error line on the next failed run', () => {
+      const value = 'line 1\nline 2\nline 3';
+      const { container, rerender } = render(
+        <Editor {...defaultProps} value={value} errorLine={2} />
+      );
+
+      // A local edit clears the stale decoration.
+      const cmContentEl = container.querySelector('.cm-content');
+      const view = EditorView.findFromDOM(cmContentEl as HTMLElement);
+      act(() => {
+        view?.dispatch({ changes: { from: 0, to: 0, insert: 'x' } });
+      });
+      expect(container.querySelector('.cm-error-line')).toBeNull();
+
+      // A subsequent failed run sets a new errorLine, which must reappear.
+      rerender(<Editor {...defaultProps} value={value} errorLine={3} />);
+
+      expect(container.querySelector('.cm-error-line')).not.toBeNull();
     });
   });
 

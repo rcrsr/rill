@@ -156,7 +156,6 @@ describe('rillHighlighter', () => {
       expect(state).toBeDefined();
       expect(state.lineNumber).toBe(0);
       expect(state.lineTokens).toEqual([]);
-      expect(state.tokenIndex).toBe(0);
     });
 
     it('returns new state object on each call', () => {
@@ -191,7 +190,6 @@ describe('rillHighlighter', () => {
             },
           },
         ],
-        tokenIndex: 0,
         lineComplete: false,
         inTripleQuoteString: false,
       };
@@ -746,6 +744,17 @@ describe('integration', () => {
       const copy = highlighter.copyState(state);
 
       expect(copy.inTripleQuoteString).toBe(true);
+    });
+
+    it('sets inTripleQuoteString even when the opening line has an odd number of embedded quotes', () => {
+      const state = highlighter.startState(2);
+      const openTags = processLine(state, '"""She said "hi');
+
+      expect(state.inTripleQuoteString).toBe(true);
+      expect(openTags).toContain('string');
+
+      const contentTags = processLine(state, 'more content');
+      expect(contentTags).toContain('string');
     });
   });
 });

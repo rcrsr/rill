@@ -17,74 +17,6 @@ import { capturesInSubtree } from './facts.js';
 // HELPER FUNCTIONS
 // ============================================================
 
-/** Collect all variable references ($name) in the given AST node. */
-function collectVariableReferences(node: ASTNode, names: string[]): void {
-  switch (node.type) {
-    case 'Variable':
-      if (!node.isPipeVar && node.name) {
-        names.push(`$${node.name}`);
-      }
-      return;
-
-    case 'Block':
-      node.statements.forEach((stmt) => collectVariableReferences(stmt, names));
-      return;
-
-    case 'Statement':
-      collectVariableReferences(node.expression, names);
-      return;
-
-    case 'AnnotatedStatement':
-      collectVariableReferences(node.statement, names);
-      return;
-
-    case 'PipeChain':
-      collectVariableReferences(node.head, names);
-      node.pipes.forEach((pipe) =>
-        collectVariableReferences(pipe as ASTNode, names)
-      );
-      if (node.terminator)
-        collectVariableReferences(node.terminator as ASTNode, names);
-      return;
-
-    case 'PostfixExpr':
-      collectVariableReferences(node.primary, names);
-      node.methods.forEach((method) =>
-        collectVariableReferences(method, names)
-      );
-      return;
-
-    case 'BinaryExpr':
-      collectVariableReferences(node.left, names);
-      collectVariableReferences(node.right, names);
-      return;
-
-    case 'UnaryExpr':
-      collectVariableReferences(node.operand, names);
-      return;
-
-    case 'GroupedExpr':
-      collectVariableReferences(node.expression, names);
-      return;
-
-    case 'Conditional':
-      if (node.input) collectVariableReferences(node.input, names);
-      if (node.condition) collectVariableReferences(node.condition, names);
-      collectVariableReferences(node.thenBranch, names);
-      if (node.elseBranch) collectVariableReferences(node.elseBranch, names);
-      return;
-
-    case 'WhileLoop':
-    case 'DoWhileLoop':
-      collectVariableReferences(node.condition, names);
-      collectVariableReferences(node.body, names);
-      return;
-
-    default:
-      return;
-  }
-}
-
 /**
  * Check if a loop body appears to be calling a retry function.
  * Simple heuristic: looks for function calls like attemptOperation() or retry().
@@ -134,8 +66,12 @@ export const loopAccumulator: Rule = {
       return [];
     }
 
-    const conditionRefs: string[] = [];
-    collectVariableReferences(loop.condition, conditionRefs);
+    const conditionFacts = context.facts.bySubtree.get(loop.condition);
+    const conditionRefs = conditionFacts
+      ? context.facts.script.referenceLog
+          .slice(conditionFacts.referenceStart, conditionFacts.referenceEnd)
+          .map((entry) => `$${entry.name}`)
+      : [];
 
     const capturedSet = new Set(capturedNames);
     const problematicVars = conditionRefs.filter((ref) => capturedSet.has(ref));

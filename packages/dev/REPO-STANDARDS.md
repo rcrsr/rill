@@ -379,8 +379,42 @@ plugin the repository wants, including the ones reporting zero.
 | STD-HOOK-2 | Pre-commit formats then lints staged files, in that order, and restages fixes. | — |
 | STD-HOOK-3 | Pre-commit runs piped so a failing step halts the rest. | — |
 | STD-HOOK-4 | Pre-push runs typecheck and tests in parallel. | — |
+| STD-HOOK-5 | No pre-commit command's `glob` reduces to a set the invoked formatter or linter fully ignores. | — |
 
 Format before lint. The reverse order lets the formatter undo a lint fix.
+
+**On STD-HOOK-5.** A hook glob and the tool's own `ignorePatterns` (or
+equivalent) are declared in two different files and checked by no one against
+each other. When every file a glob can match is also in the tool's ignore
+list, the tool receives an all-ignored input list, and formatters commonly
+treat that as an error rather than a no-op — exiting non-zero. Under
+`piped: true` (STD-HOOK-3) that non-zero exit halts the rest of the
+pre-commit chain, so a commit touching only files the tool ignores (a
+lockfile is the common case) is blocked by a step that has nothing to do.
+Fix it by narrowing the glob, adding an `exclude:` entry for the
+ignored file, or moving the ignore to the glob itself — not by dropping
+`piped: true` or reordering format-before-lint.
+
+**Verify**
+
+Run `pnpm exec rill-check-standards` and read the `STD-HOOK-5` line. The
+failure is directory-scoped as often as it is file-scoped (a lockfile, but
+equally a whole ignored subtree such as a docs site under the language
+package), so a per-directory shell probe that spawns `pnpm exec lefthook run
+pre-commit` for every tracked directory is both incomplete and an
+O(directories) full Node+pnpm startup. The checker instead takes one `git
+ls-files` listing and checks each pre-commit command's glob coverage against
+that tool's own `ignorePatterns` in a single pass — parsing `lefthook.yml`
+for each command's `glob`/`exclude`, reading the matching tool config
+(`.oxfmtrc.json` / `.oxlintrc.json`) for `ignorePatterns`, and reporting `bad`
+when every tracked file a glob matches is also covered by that tool's
+`ignorePatterns` with no matching `exclude` entry. See `check-standards.sh`'s
+`STD-HOOK-5` block for the runnable implementation; the shape above is
+illustrative, not a standalone script to copy and run.
+
+`pnpm exec rill-check-standards` runs this same single-pass check as
+`STD-HOOK-5` — see `check-standards.sh`'s implementation for the full glob
+matcher this sketch elides.
 
 ## 7. Release workflow
 
@@ -460,6 +494,7 @@ node -p "require('./package.json').packageManager"
 | STD-SUP-5 | Dependency trust evidence is verified on install, failing when a dependency's trust level is downgraded. | — |
 | STD-SUP-6 | Static analysis workflow and dependency review enabled, **and the host features they depend on turned on**. A committed workflow file is not sufficient. | — |
 | STD-SUP-7 | `CODEOWNERS` present, paired with required review on high-blast-radius paths such as workflow files. | — |
+| STD-SUP-8 | Dependabot version-update PRs are disabled: every `package-ecosystem` block sets `open-pull-requests-limit: 0`. Dependency upgrades are done manually under the repository's upgrade policy. | — |
 
 **On STD-SUP-3 and STD-SUP-4.** A minimum-release-age exclusion pinned to an
 exact version silently stops applying at the next release. Express exclusions by
@@ -473,6 +508,16 @@ makes the policy the same everywhere and survives the next default change. Match
 the value to the dependency-update cadence in STD-SUP-1; a window longer than
 that interval defers every bump by a full extra cycle without covering a
 materially different threat.
+
+**Why STD-SUP-8 sets the limit to zero rather than trusting judgment.** A
+positive `open-pull-requests-limit` reopens the automated-PR firehose for that
+ecosystem, and Dependabot's version PRs do not observe the repository's upgrade
+policy: they bump one dependency at a time on the tool's own cadence, ignoring
+grouping and staging the maintainers decide by hand. Zeroing the limit stops
+those PRs at the source. It does not touch Dependabot **security** updates,
+which are a separate host feature (Settings, Code security) and keep filing PRs
+for advisories. STD-SUP-1 still requires both ecosystem blocks to exist; this
+element requires each to be zeroed.
 
 **Why STD-SUP-6 names the host feature.** Dependency review needs the
 repository's dependency graph enabled. That is a host setting, not something the
@@ -582,14 +627,14 @@ gh api repos/<owner>/<repo> \
 | 6 Git hooks | 4 | 0 |
 | 7 Release workflow | 7 | 7 |
 | 8 Package manager | 7 | 2 |
-| 9 Supply chain | 7 | 2 |
+| 9 Supply chain | 8 | 2 |
 | 10 Dependency versions | 5 | 3 |
 | 11 Issue and PR process | 7 | 2 |
 | 12 Community health | 5 | 0 |
 | 13 Repository settings | 3 | 1 |
-| **Total** | **84** | **22** |
+| **Total** | **85** | **22** |
 
-62 of 84 elements admit no exception at all. Of the 22 that can be N/A, 7 are
+63 of 85 elements admit no exception at all. Of the 22 that can be N/A, 7 are
 the entire release section, which collapses to a single assertion for a
 repository that publishes nothing.
 

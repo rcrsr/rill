@@ -770,6 +770,201 @@ describe('marshalArgs', () => {
       expect(result).toEqual({ x: 5 });
     });
   });
+
+  // ============================================================
+  // Nested field hydration divergence: extras survive, missing leaves
+  // absent for Stage 3 to report as RILL-R001.
+  //
+  // Pins the intentional divergence between argument marshaling's field
+  // default hydration and conversion's structural hydration (which drops
+  // extras and halts immediately with RILL-R044 instead). See
+  // runtime/core/callable.ts HydrationPolicy.
+  // ============================================================
+
+  describe('nested field hydration keeps extras (divergence lock)', () => {
+    it('nested dict-in-dict field keeps extra keys', () => {
+      const params: RillParam[] = [
+        {
+          name: 'data',
+          type: {
+            kind: 'dict',
+            fields: {
+              outer: {
+                type: {
+                  kind: 'dict',
+                  fields: {
+                    a: { type: { kind: 'number' } },
+                    b: { type: { kind: 'number' } },
+                  },
+                },
+              },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      const result = marshalArgs(
+        [{ outer: { a: 1, b: 2, extra: 99 } }],
+        params,
+        opts
+      );
+      expect(result).toEqual({ data: { outer: { a: 1, b: 2, extra: 99 } } });
+    });
+
+    it('nested ordered-in-dict field keeps extra entries (hydrateFieldDefaults called directly, structureMatches rejects ordered extras)', () => {
+      const type = {
+        kind: 'dict' as const,
+        fields: {
+          outer: {
+            type: {
+              kind: 'ordered' as const,
+              fields: [
+                { name: 'a', type: { kind: 'number' as const } },
+                { name: 'b', type: { kind: 'number' as const } },
+              ],
+            },
+          },
+        },
+      };
+      const arg = {
+        outer: createOrdered([
+          ['a', 1],
+          ['b', 2],
+          ['extra', 99],
+        ]),
+      };
+      const result = hydrateFieldDefaults(arg, type) as {
+        outer: { __rill_ordered: boolean; entries: [string, unknown][] };
+      };
+      expect(result.outer.__rill_ordered).toBe(true);
+      expect(result.outer.entries).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['extra', 99],
+      ]);
+    });
+
+    it('nested tuple-in-dict field keeps extra trailing elements (hydrateFieldDefaults called directly, structureMatches rejects tuple extras)', () => {
+      const type = {
+        kind: 'dict' as const,
+        fields: {
+          outer: {
+            type: {
+              kind: 'tuple' as const,
+              elements: [
+                { type: { kind: 'number' as const } },
+                { type: { kind: 'number' as const } },
+              ],
+            },
+          },
+        },
+      };
+      const arg = { outer: createTuple([1, 2, 99]) };
+      const result = hydrateFieldDefaults(arg, type) as {
+        outer: { __rill_tuple: boolean; entries: unknown[] };
+      };
+      expect(result.outer.__rill_tuple).toBe(true);
+      expect(result.outer.entries).toEqual([1, 2, 99]);
+    });
+  });
+
+  describe('nested field hydration leaves missing required absent for RILL-R001 (divergence lock)', () => {
+    it('nested dict-in-dict missing required field leaves it absent, Stage 3 reports RILL-R001', () => {
+      const params: RillParam[] = [
+        {
+          name: 'data',
+          type: {
+            kind: 'dict',
+            fields: {
+              outer: {
+                type: {
+                  kind: 'dict',
+                  fields: {
+                    a: { type: { kind: 'number' } },
+                    b: { type: { kind: 'number' } },
+                  },
+                },
+              },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      try {
+        marshalArgs([{ outer: { a: 1 } }], params, opts);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RuntimeError);
+        expect((err as RuntimeError).errorId).toBe('RILL-R001');
+      }
+    });
+
+    it('nested ordered-in-dict missing required field leaves it absent, Stage 3 reports RILL-R001', () => {
+      const params: RillParam[] = [
+        {
+          name: 'data',
+          type: {
+            kind: 'dict',
+            fields: {
+              outer: {
+                type: {
+                  kind: 'ordered',
+                  fields: [
+                    { name: 'a', type: { kind: 'number' } },
+                    { name: 'b', type: { kind: 'number' } },
+                  ],
+                },
+              },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      const arg = { outer: createOrdered([['a', 1]]) };
+      try {
+        marshalArgs([arg], params, opts);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RuntimeError);
+        expect((err as RuntimeError).errorId).toBe('RILL-R001');
+      }
+    });
+
+    it('nested tuple-in-dict missing required element leaves it absent, Stage 3 reports RILL-R001', () => {
+      const params: RillParam[] = [
+        {
+          name: 'data',
+          type: {
+            kind: 'dict',
+            fields: {
+              outer: {
+                type: {
+                  kind: 'tuple',
+                  elements: [
+                    { type: { kind: 'number' } },
+                    { type: { kind: 'number' } },
+                  ],
+                },
+              },
+            },
+          },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ];
+      const arg = { outer: createTuple([1]) };
+      try {
+        marshalArgs([arg], params, opts);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RuntimeError);
+        expect((err as RuntimeError).errorId).toBe('RILL-R001');
+      }
+    });
+  });
 });
 
 // ============================================================

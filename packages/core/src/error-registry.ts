@@ -58,6 +58,7 @@ export const ERROR_IDS = {
   RILL_P011: 'RILL-P011',
   RILL_P012: 'RILL-P012',
   RILL_P014: 'RILL-P014',
+  RILL_P015: 'RILL-P015',
   RILL_P020: 'RILL-P020',
   RILL_P021: 'RILL-P021',
   RILL_P022: 'RILL-P022',
@@ -200,7 +201,15 @@ export interface ErrorRegistry {
   entries(): IterableIterator<[string, ErrorDefinition]>;
 }
 
-class ErrorRegistryImpl implements ErrorRegistry {
+/** Maps the ID letter (`RILL-{letter}###`) to the category it must declare */
+const CATEGORY_LETTER_MAP: Record<string, ErrorCategory> = {
+  L: 'lexer',
+  P: 'parse',
+  R: 'runtime',
+  C: 'check',
+};
+
+export class ErrorRegistryImpl implements ErrorRegistry {
   private readonly byId: ReadonlyMap<string, ErrorDefinition>;
 
   constructor(definitions: ErrorDefinition[]) {
@@ -212,6 +221,21 @@ class ErrorRegistryImpl implements ErrorRegistry {
           `ErrorRegistry: duplicate definition for ${def.errorId}`
         );
       }
+
+      const categoryLetter = def.errorId[5] ?? '';
+      const expectedCategory = CATEGORY_LETTER_MAP[categoryLetter];
+      if (expectedCategory === undefined) {
+        throw new Error(
+          `ErrorRegistry: ${def.errorId} has an unrecognized category letter '${categoryLetter}'`
+        );
+      }
+      if (def.category !== expectedCategory) {
+        throw new Error(
+          `ErrorRegistry: ${def.errorId} declares category '${def.category}' ` +
+            `but its ID letter '${categoryLetter}' implies '${expectedCategory}'`
+        );
+      }
+
       idMap.set(def.errorId, def);
     }
 
@@ -629,6 +653,22 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Missing closing paren',
         code: 'dict(key: string  # Error: expected )',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P015,
+    category: 'parse',
+    description: 'Maximum nesting depth exceeded',
+    messageTemplate: 'Maximum expression nesting depth exceeded',
+    cause:
+      'An expression nests primary expressions (e.g. parentheses) deeper than the parser supports.',
+    resolution:
+      'Reduce the nesting depth of the expression, e.g. by extracting sub-expressions into variables.',
+    examples: [
+      {
+        description: 'Thousands of nested parentheses',
+        code: '((((((((((1))))))))))  # Error when nesting exceeds the limit',
       },
     ],
   },
@@ -1947,7 +1987,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Registered for documentation; parser emission wired in Phase 3 task 3.1.
   {
     errorId: ERROR_IDS.RILL_R078,
-    category: 'parse',
+    category: 'runtime',
     description: 'Legacy :> conversion syntax',
     messageTemplate:
       "Legacy ':>' conversion syntax removed; use '-> {target}' instead",
@@ -1970,7 +2010,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Legacy loop syntax: pre-loop @ (RILL-R079)
   {
     errorId: ERROR_IDS.RILL_R079,
-    category: 'parse',
+    category: 'runtime',
     description: 'Legacy pre-loop @ syntax',
     messageTemplate: 'Migration error: use `while (cond) do { body }`',
     cause:
@@ -1992,7 +2032,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Legacy loop syntax: post-loop @ (RILL-R080)
   {
     errorId: ERROR_IDS.RILL_R080,
-    category: 'parse',
+    category: 'runtime',
     description: 'Legacy post-loop @ syntax',
     messageTemplate: 'Migration error: use `do { body } while (cond)`',
     cause:
@@ -2014,7 +2054,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   // Legacy loop syntax: bare ^(limit:) annotation (RILL-R081)
   {
     errorId: ERROR_IDS.RILL_R081,
-    category: 'parse',
+    category: 'runtime',
     description: 'Legacy ^(limit:) loop annotation syntax',
     messageTemplate: 'Migration error: use `do<limit: N> { body }`',
     cause:

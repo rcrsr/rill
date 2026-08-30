@@ -68,7 +68,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * which bind handles differently via per-source arity validation).
  */
 export interface BoundArguments {
-  readonly params: Map<string, RillValue>;
+  readonly params: ReadonlyMap<string, RillValue>;
 }
 
 // Pre-allocated empty sentinel: returned for zero-arg calls and non-spread paths.

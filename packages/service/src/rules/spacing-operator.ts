@@ -8,13 +8,11 @@
 import type {
   ASTNode,
   BinaryExprNode,
-  CaptureNode,
   PipeChainNode,
   SourceSpan,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import {
-  escapeRegex,
   extractContextLine,
   extractSpanText,
   maskStringLiterals,
@@ -25,7 +23,11 @@ import { registeredRules } from './rules-registry.js';
 // SPACING CHECKS
 // ============================================================
 
-/** Check if operator has proper spacing in source. */
+/**
+ * Check if operator has proper spacing in source by scanning the masked
+ * span text for the operator substring and testing the immediately
+ * adjacent characters, rather than building a RegExp per node.
+ */
 function checkOperatorSpacing(
   operator: string,
   span: SourceSpan,
@@ -33,24 +35,26 @@ function checkOperatorSpacing(
 ): boolean {
   const text = maskStringLiterals(extractSpanText(span, source));
 
-  const patterns = [
-    new RegExp(`\\S${escapeRegex(operator)}`), // No space before
-    new RegExp(`${escapeRegex(operator)}\\S`), // No space after
-  ];
+  let fromIndex = 0;
+  let index = text.indexOf(operator, fromIndex);
+  while (index !== -1) {
+    const before = index > 0 ? text[index - 1] : undefined;
+    const after = text[index + operator.length];
+    const missingBefore = before !== undefined && !/\s/.test(before);
+    const missingAfter = after !== undefined && !/\s/.test(after);
+    if (missingBefore || missingAfter) {
+      return true;
+    }
+    fromIndex = index + operator.length;
+    index = text.indexOf(operator, fromIndex);
+  }
 
-  return patterns.some((pattern) => pattern.test(text));
+  return false;
 }
 
 /** Check pipe operator spacing. */
 function checkPipeSpacing(span: SourceSpan, source: string): boolean {
-  const text = maskStringLiterals(extractSpanText(span, source));
-  return /\S->/.test(text) || /->\S/.test(text);
-}
-
-/** Check capture operator spacing. */
-function checkCaptureSpacing(span: SourceSpan, source: string): boolean {
-  const text = maskStringLiterals(extractSpanText(span, source));
-  return /\S=>/.test(text) || /=>\S/.test(text);
+  return checkOperatorSpacing('->', span, source);
 }
 
 // ============================================================
@@ -59,7 +63,7 @@ function checkCaptureSpacing(span: SourceSpan, source: string): boolean {
 
 export const spacingOperator: Rule = {
   code: 'SPACING_OPERATOR',
-  nodeTypes: ['BinaryExpr', 'PipeChain', 'Capture'],
+  nodeTypes: ['BinaryExpr', 'PipeChain'],
   defaultSeverity: 'info',
   category: 'formatting',
 
@@ -95,34 +99,6 @@ export const spacingOperator: Rule = {
           severity: 'info',
           location: pipeNode.span.start,
           context: extractContextLine(pipeNode.span.start.line, context.source),
-          fix: null,
-        });
-      }
-    }
-
-    if (node.type === 'Capture') {
-      const captureNode = node as CaptureNode;
-
-      // DEBT (drift tracking): this branch never fires. Assumption carried
-      // over from the ported rill-cli source: CaptureNode.span spans the
-      // `=>` operator itself, so checkCaptureSpacing's `\S=>` / `=>\S`
-      // patterns could match adjacent-source whitespace violations. In the
-      // current @rcrsr/rill core, CaptureNode.span no longer spans `=>`
-      // (it covers the captured expression/target only), so the extracted
-      // span text never contains the operator and the regexes cannot match.
-      // Kept as a faithful, inert port to preserve rill-cli diagnostic
-      // parity. Re-review if a future @rcrsr/rill core change alters
-      // CaptureNode.span to include the `=>` token again.
-      if (checkCaptureSpacing(captureNode.span, context.source)) {
-        diagnostics.push({
-          code: 'SPACING_OPERATOR',
-          message: "Capture operator '=>' should have spaces on both sides",
-          severity: 'info',
-          location: captureNode.span.start,
-          context: extractContextLine(
-            captureNode.span.start.line,
-            context.source
-          ),
           fix: null,
         });
       }

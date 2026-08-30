@@ -12,6 +12,7 @@
  * - ARIA labels for screen reader support
  */
 
+import React from 'react';
 import type { JSX } from 'react';
 import type { ExecutionState } from '../lib/execution.js';
 
@@ -22,7 +23,7 @@ import type { ExecutionState } from '../lib/execution.js';
 /**
  * Output component props
  */
-interface OutputProps {
+export interface OutputProps {
   /** Current execution state */
   state: ExecutionState;
   /** ARIA label for screen readers */
@@ -33,7 +34,7 @@ interface OutputProps {
 // OUTPUT COMPONENT
 // ============================================================
 
-export function Output({
+export const Output = React.memo(function Output({
   state,
   ariaLabel = 'Execution output',
 }: OutputProps): JSX.Element {
@@ -228,4 +229,4 @@ export function Output({
       </div>
     </div>
   );
-}
+});

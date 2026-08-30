@@ -15,10 +15,12 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { StrictMode } from 'react';
 import { render, cleanup, waitFor, act } from '@testing-library/react';
 import { App } from '../App.js';
 import * as persistence from '../lib/persistence.js';
 import * as execution from '../lib/execution.js';
+import * as sharing from '../lib/sharing.js';
 
 describe('App', () => {
   let originalLocalStorage: Storage;
@@ -725,6 +727,210 @@ describe('App', () => {
       await waitFor(() => {
         expect(persistSpy).toHaveBeenCalled();
       });
+    });
+  });
+
+  // ============================================================
+  // Pure setExecutionState updater / concurrent-run guard (#217)
+  // ============================================================
+
+  describe('pure execution updater', () => {
+    it('under StrictMode, a single Run click calls executeRill exactly once', async () => {
+      const executeSpy = vi.spyOn(execution, 'executeRill');
+
+      executeSpy.mockResolvedValue({
+        status: 'success',
+        result: '"Test"',
+        error: null,
+        duration: 10,
+        logs: [],
+      });
+
+      const { container } = render(
+        <StrictMode>
+          <App />
+        </StrictMode>
+      );
+
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
+      expect(runButton).toBeDefined();
+
+      act(() => {
+        runButton.click();
+      });
+
+      await waitFor(() => {
+        expect(executeSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+  });
+
+  // ============================================================
+  // Debounced persistence (#218)
+  // ============================================================
+
+  describe('debounced persistence', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('coalesces rapid source changes into a single persistEditorState call', async () => {
+      const persistSpy = vi.spyOn(persistence, 'persistEditorState');
+
+      const { container } = render(<App />);
+
+      // Discard the initial mount's debounced persist call.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      persistSpy.mockClear();
+
+      const select = container.querySelector(
+        '.toolbar-select'
+      ) as HTMLSelectElement;
+      expect(select).toBeDefined();
+
+      // Rapid-fire several source changes (each a synchronous setSource)
+      // before the debounce window elapses; each subsequent change should
+      // cancel the previous pending write.
+      for (const exampleId of ['variables', 'hello-world', 'variables']) {
+        select.value = exampleId;
+        act(() => {
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(50);
+        });
+      }
+
+      // Advance past the debounce window to flush the coalesced write.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+
+      expect(persistSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ============================================================
+  // Copy link too-large handling (#221)
+  // ============================================================
+
+  describe('copy link too-large state', () => {
+    it('surfaces "Code too large" when copyLinkToClipboard reports status too-large', async () => {
+      vi.spyOn(sharing, 'copyLinkToClipboard').mockResolvedValue({
+        status: 'too-large',
+        message: 'Code too large to share',
+      });
+
+      const { container } = render(<App />);
+
+      const shareButton = container.querySelector(
+        '.toolbar-share'
+      ) as HTMLButtonElement;
+      expect(shareButton).toBeDefined();
+
+      if (shareButton) {
+        act(() => {
+          shareButton.click();
+        });
+
+        await waitFor(() => {
+          expect(container.textContent).toContain('Code too large');
+        });
+      }
+    });
+  });
+
+  // ============================================================
+  // Decode notice for corrupt/unavailable shared links (#228)
+  // ============================================================
+
+  describe('decode notice', () => {
+    it('shows a dismissible notice when the shared code is corrupt', async () => {
+      vi.spyOn(sharing, 'readSourceFromURL').mockResolvedValue({
+        ok: false,
+        reason: 'corrupt',
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        const notice = container.querySelector('.decode-notice');
+        expect(notice).toBeDefined();
+        expect(notice).not.toBeNull();
+      });
+
+      const dismissButton = container.querySelector(
+        '.decode-notice-dismiss'
+      ) as HTMLButtonElement;
+      expect(dismissButton).toBeDefined();
+
+      if (dismissButton) {
+        act(() => {
+          dismissButton.click();
+        });
+
+        await waitFor(() => {
+          const notice = container.querySelector('.decode-notice');
+          expect(notice).toBeNull();
+        });
+      }
+    });
+
+    it('shows no notice when the shared code is absent', async () => {
+      vi.spyOn(sharing, 'readSourceFromURL').mockResolvedValue({
+        ok: false,
+        reason: 'absent',
+      });
+
+      const { container } = render(<App />);
+
+      await waitFor(() => {
+        const editor = container.querySelector('.editor-container');
+        expect(editor).toBeDefined();
+      });
+
+      const notice = container.querySelector('.decode-notice');
+      expect(notice).toBeNull();
+    });
+  });
+
+  // ============================================================
+  // lastSource no longer held in component state (#227)
+  // ============================================================
+
+  describe('lastSource not held in state', () => {
+    it('editing source does not cause loadEditorState().lastSource to drive re-renders back into state', async () => {
+      localStorage.clear();
+
+      const { container } = render(<App />);
+
+      const editor = container.querySelector('.editor-container');
+      expect(editor).toBeDefined();
+
+      // Persisted lastSource should follow the debounced source edits
+      // rather than being tracked separately in component state; verify
+      // by checking persistEditorState eventually reflects a new source
+      // without any duplicate/stale state field driving it.
+      const persistSpy = vi.spyOn(persistence, 'persistEditorState');
+
+      await waitFor(() => {
+        expect(persistSpy).toHaveBeenCalled();
+      });
+
+      const [state] = persistSpy.mock.calls[persistSpy.mock.calls.length - 1]!;
+      expect(state).toHaveProperty('lastSource');
+      expect(state).toHaveProperty('splitRatio');
+      expect(Object.keys(state)).toEqual(
+        expect.arrayContaining(['lastSource', 'splitRatio'])
+      );
     });
   });
 

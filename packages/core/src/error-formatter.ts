@@ -145,37 +145,28 @@ export function formatRillError(
       ? String(data.context['sourceText'])
       : undefined;
 
+  // Resolve which source map (and label override) applies, if any, before
+  // branching into the shared snippet-rendering block below.
+  let resolved: {
+    sourceMap: SourceMap;
+    resolveKey: string | undefined;
+  } | null = null;
   if (data.sourceId !== undefined && data.location !== undefined) {
-    parts.push(
-      `  at ${data.sourceId}:${data.location.line}:${data.location.column}`
-    );
-    // Show source snippet from the cross-module source if available
-    if (crossModuleSource !== undefined) {
-      const crossSources: SourceMap = { script: crossModuleSource };
-      const match = resolveSourceSnippet(
-        data.location,
-        crossSources,
-        data.sourceId
-      );
-      if (match.sourceLine !== undefined) {
-        const allLineNums = [
-          data.location.line,
-          ...visibleFrames.map((f) => f.location.start.line),
-        ];
-        const gutterWidth = String(Math.max(...allLineNums)).length;
-
-        parts.push(
-          ...renderSnippet(
-            data.location.line,
-            data.location.column,
-            match.sourceLine,
-            gutterWidth
-          )
-        );
-      }
-    }
+    resolved = {
+      sourceMap:
+        crossModuleSource !== undefined ? { script: crossModuleSource } : {},
+      resolveKey: data.sourceId,
+    };
   } else if (data.location !== undefined && sources !== undefined) {
-    const match = resolveSourceSnippet(data.location, sources, filePath);
+    resolved = { sourceMap: sources, resolveKey: filePath };
+  }
+
+  if (resolved !== null && data.location !== undefined) {
+    const match = resolveSourceSnippet(
+      data.location,
+      resolved.sourceMap,
+      resolved.resolveKey
+    );
     parts.push(
       `  at ${match.label}:${data.location.line}:${data.location.column}`
     );

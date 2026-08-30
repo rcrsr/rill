@@ -198,19 +198,28 @@ interface AccessSegmentMatch {
 }
 
 /**
- * Finds a `BracketAccess` segment (on any variable's access chain, anywhere
- * in the AST) whose own span contains `offset`. Unlike `.field` dot-access
- * (which `nodeAtPosition` already resolves back to the owning `VariableNode`
- * since it has no ASTNode children of its own), a bracket segment's inner
- * expression is a real, independently-reachable child -- so this is checked
- * directly against the AST rather than relying on `nodeAtPosition`'s return.
+ * Finds a `BracketAccess` segment (on any variable's access chain) whose own
+ * span contains `offset`. Unlike `.field` dot-access (which `nodeAtPosition`
+ * already resolves back to the owning `VariableNode` since it has no ASTNode
+ * children of its own), a bracket segment's inner expression is a real,
+ * independently-reachable child -- so this is checked directly against the
+ * AST rather than relying on `nodeAtPosition`'s return.
+ *
+ * Bounded to the single top-level statement whose span contains `offset`
+ * (a script's statements are siblings, never nested in one another), rather
+ * than walking the whole script: a bracket segment can only ever live inside
+ * the one statement `offset` falls within, so every other top-level
+ * statement's subtree is skipped entirely.
  */
 function findBracketAccessSegmentAt(
-  root: ASTNode,
+  root: ParseResult['ast'],
   offset: number
 ): AccessSegmentMatch | null {
+  const container = findContainingStatement(root, offset);
+  if (container === null) return null;
+
   let found: AccessSegmentMatch | null = null;
-  walkAst(root, (node) => {
+  walkAst(container, (node) => {
     if (found !== null || node.type !== 'Variable') return;
     for (const access of node.accessChain) {
       if (isBracketAccess(access) && spanContainsOffset(access.span, offset)) {
@@ -220,6 +229,27 @@ function findBracketAccessSegmentAt(
     }
   });
   return found;
+}
+
+/**
+ * Returns the top-level statement (or `Frontmatter`) whose own span
+ * contains `offset`, or `null` when `offset` falls outside every top-level
+ * span (e.g. an out-of-range offset).
+ */
+function findContainingStatement(
+  root: ParseResult['ast'],
+  offset: number
+): ASTNode | null {
+  if (
+    root.frontmatter !== null &&
+    spanContainsOffset(root.frontmatter.span, offset)
+  ) {
+    return root.frontmatter;
+  }
+  for (const statement of root.statements) {
+    if (spanContainsOffset(statement.span, offset)) return statement;
+  }
+  return null;
 }
 
 function findAccessSegmentAt(

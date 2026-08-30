@@ -18,11 +18,13 @@ import {
   extResolver,
   formatRillLiteral,
   formatValue,
+  isCallable,
   parse,
   RillError,
   toCallable,
   type RillFunction,
   type RillValue,
+  type ScriptNode,
 } from '@rcrsr/rill';
 
 interface CodeBlock {
@@ -950,6 +952,54 @@ function processFrontmatter(code: string): {
   return { code: restCode, variables };
 }
 
+// A line that is entirely an ellipsis-continuation comment, e.g. "# ... later use $x".
+const ELLIPSIS_LINE_RE = /^[ \t]*#[ \t]+\.\.\./;
+// The comment-marker form of an expected-error annotation: a `#` that starts
+// a comment (preceded by line-start or whitespace), not a literal "# Error:"
+// occurring inside a quoted string on an otherwise-executable line.
+const ERROR_MARKER_LINE_RE = /(^|\s)# (Error|ERROR|error):/;
+
+// True if the line's `# Error:`-style marker sits inside an unclosed string
+// literal rather than starting a real comment, e.g. `"see # Error: docs"`.
+function markerInsideStringLiteral(line: string): boolean {
+  const match = ERROR_MARKER_LINE_RE.exec(line);
+  if (!match) return false;
+  const before = line.slice(0, match.index);
+  const quoteCount = (before.match(/(?<!\\)"/g) ?? []).length;
+  return quoteCount % 2 === 1;
+}
+
+function isMarkerLine(line: string): boolean {
+  if (ELLIPSIS_LINE_RE.test(line)) return true;
+  return ERROR_MARKER_LINE_RE.test(line) && !markerInsideStringLiteral(line);
+}
+
+// Strip a contiguous run of marker lines (ellipsis continuations or expected-error
+// demonstrations) from the trailing edge of the block, walking backward past blank
+// lines. Only trailing markers are exempt from execution — a marker line followed by
+// further executable code is left untouched, and only that trailing line is skipped.
+function stripTrailingMarkerLines(code: string): {
+  executable: string;
+  trimmed: boolean;
+} {
+  const lines = code.split('\n');
+  let end = lines.length;
+  let trimmed = false;
+
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i]!;
+    if (line.trim() === '') continue;
+    if (isMarkerLine(line)) {
+      end = i;
+      trimmed = true;
+      continue;
+    }
+    break;
+  }
+
+  return { executable: lines.slice(0, end).join('\n'), trimmed };
+}
+
 // Check if block should be skipped (pseudo-code, syntax demos)
 function shouldSkipBlock(code: string): string | null {
   // Skip blocks with placeholder syntax like "collection -> each body"
@@ -971,17 +1021,39 @@ function shouldSkipBlock(code: string): string | null {
     return 'comments only';
   }
 
-  // Skip blocks with "# ..." continuation markers
-  if (/^[ \t]*#[ \t]+\.\.\./m.test(code)) {
-    return 'contains ellipsis placeholder';
-  }
-
-  // Skip blocks demonstrating expected errors
-  if (/# Error:|# ERROR:|# error:/.test(code)) {
-    return 'expected error example';
-  }
-
   return null;
+}
+
+// Determine what to run for a block: strip a trailing run of marker lines (ellipsis
+// continuations or expected-error demonstrations) and only skip the whole block when
+// nothing executable remains once those trailing lines are removed.
+function analyzeBlock(code: string): {
+  skipReason: string | null;
+  executableCode: string;
+} {
+  const wholeBlockReason = shouldSkipBlock(code);
+  if (wholeBlockReason) {
+    return { skipReason: wholeBlockReason, executableCode: code };
+  }
+
+  const { executable, trimmed } = stripTrailingMarkerLines(code);
+  if (!trimmed) {
+    return { skipReason: null, executableCode: code };
+  }
+
+  if (executable.trim() === '') {
+    const reason = code
+      .split('\n')
+      .some(
+        (line) =>
+          ERROR_MARKER_LINE_RE.test(line) && !markerInsideStringLiteral(line)
+      )
+      ? 'expected error example'
+      : 'contains ellipsis placeholder';
+    return { skipReason: reason, executableCode: code };
+  }
+
+  return { skipReason: null, executableCode: executable };
 }
 
 // Common mock variables for examples - only input variables, not ones typically assigned
@@ -997,6 +1069,7 @@ function createMockVariables(): Record<string, RillValue> {
       model: 'mock-embed',
     },
     email: 'test@example.com',
+    article: { description: 'mock description' },
     items: ['a', 'b', 'c'],
     list: [1, 2, 3],
     config: { key: 'value', count: 42 },
@@ -1052,14 +1125,38 @@ function createExtExtensionDict(
 // same convention so `use<ext:app> => $app; $app.prompt(...)` works in docs
 // that hoist a synthetic `app` extension covering all `app::*` entries.
 
+// A block's final statement ending in an explicit capture (`=> $name`) is a
+// deliberate closure definition, not a forgotten invocation — only flag a
+// callable result when the last statement does not store it anywhere.
+//
+// A trailing `-> $name` is NOT recognized here. Syntactically that's a
+// pipe-target invocation (the parser marks the target `Variable` node
+// `isPipeTarget: true`, never `type: 'Capture'`), not a capture: it applies
+// the piped value to whatever `$name` already holds rather than storing a
+// new closure. Detecting it would require distinguishing "invocation that
+// happens to no-op" from "deliberate closure definition", which the AST
+// alone doesn't disambiguate — so only the unambiguous `=>` form is exempt.
+function lastStatementEndsInCapture(ast: ScriptNode): boolean {
+  const last = ast.statements[ast.statements.length - 1];
+  if (!last) return false;
+  const statement = last.type === 'AnnotatedStatement' ? last.statement : last;
+  if (statement.type !== 'Statement') return false;
+  const { pipes, terminator } = statement.expression;
+  if (terminator?.type === 'Capture') return true;
+  const lastPipe = pipes[pipes.length - 1];
+  return lastPipe?.type === 'Capture';
+}
+
 async function testBlock(block: CodeBlock): Promise<TestResult> {
   const location = `${block.file}:${block.lineNumber}`;
 
   // Process frontmatter first
   const { code, variables: frontmatterVars } = processFrontmatter(block.code);
 
-  // Check for skip conditions on the processed code
-  const skipReason = shouldSkipBlock(code);
+  // Check for skip conditions on the processed code. A trailing run of marker
+  // lines (ellipsis continuations, expected-error demonstrations) is exempt from
+  // execution, but any executable lines ahead of it still run.
+  const { skipReason, executableCode } = analyzeBlock(code);
   if (skipReason) {
     return { block, success: true, skipped: true, skipReason };
   }
@@ -1080,7 +1177,7 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
   });
 
   try {
-    const ast = parse(code);
+    const ast = parse(executableCode);
     const exec = await execute(ast, ctx);
     if (block.expectedResult !== undefined) {
       const actual1 = formatValue(exec.result).trim();
@@ -1100,6 +1197,18 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
           errorColumn: undefined,
         };
       }
+    } else if (isCallable(exec.result) && !lastStatementEndsInCapture(ast)) {
+      // A block with no `# Result:` annotation that ends in an uninvoked
+      // callable almost always means the example forgot to apply it, rather
+      // than intentionally documenting a callable value. A block whose last
+      // statement stores the callable via an explicit capture (`=> $name`)
+      // is a deliberate closure definition and is exempt.
+      return {
+        block,
+        success: false,
+        error: 'Block ends in an unapplied callable (result was never invoked)',
+        errorColumn: undefined,
+      };
     }
     return { block, success: true };
   } catch (err) {
@@ -1208,6 +1317,20 @@ async function main(): Promise<void> {
   const passes = results.filter((r) => r.success && !r.skipped);
   const skipped = results.filter((r) => r.skipped);
 
+  // Skip-ratio guard: a spike in skipped rill fences usually means the marker
+  // detection in analyzeBlock() is over-matching again (e.g. back to treating
+  // any block that merely contains "# Error:" or "# ..." anywhere as fully
+  // skippable, instead of only a trailing run of marker lines). The threshold
+  // is pinned just above the ratio measured immediately after that fix landed
+  // (2/660 skipped ≈ 0.30% across docs/ + README.md), so a regression back
+  // toward whole-block skipping fails the run instead of silently widening.
+  // Pinned tight enough that a single additional skip (3/660 ≈ 0.45%) already
+  // trips the guard, rather than requiring the count to double first.
+  const SKIP_RATIO_THRESHOLD = 0.0035; // 0.35%
+  const skipRatio =
+    allBlocks.length > 0 ? skipped.length / allBlocks.length : 0;
+  const skipRatioExceeded = skipRatio > SKIP_RATIO_THRESHOLD;
+
   if (jsonFlag) {
     // JSONL output: one JSON object per line for each failure
     for (const result of failures) {
@@ -1220,6 +1343,18 @@ async function main(): Promise<void> {
         obj.column = result.errorColumn;
       }
       console.log(JSON.stringify(obj));
+    }
+    if (skipRatioExceeded) {
+      console.log(
+        JSON.stringify({
+          kind: 'skip-ratio-exceeded',
+          skipped: skipped.length,
+          total: allBlocks.length,
+          ratio: skipRatio,
+          threshold: SKIP_RATIO_THRESHOLD,
+          message: `Skipped ${skipped.length}/${allBlocks.length} rill fences (${(skipRatio * 100).toFixed(2)}%), exceeding the ${(SKIP_RATIO_THRESHOLD * 100).toFixed(2)}% threshold`,
+        })
+      );
     }
   } else {
     console.log('\n');
@@ -1253,9 +1388,15 @@ async function main(): Promise<void> {
     console.log(
       `${passes.length} passed, ${failures.length} failed, ${skipped.length} skipped, ${allBlocks.length} total`
     );
+
+    if (skipRatioExceeded) {
+      console.log(
+        `Skip ratio guard: ${skipped.length}/${allBlocks.length} (${(skipRatio * 100).toFixed(2)}%) skipped, exceeding the ${(SKIP_RATIO_THRESHOLD * 100).toFixed(2)}% threshold`
+      );
+    }
   }
 
-  if (failures.length > 0) {
+  if (failures.length > 0 || skipRatioExceeded) {
     process.exit(1);
   }
 }

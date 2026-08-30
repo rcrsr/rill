@@ -20,6 +20,46 @@ interface CopyLinkResult {
   message: string;
 }
 
+/** Result of encoding source for URL sharing */
+export type EncodeResult =
+  | { ok: true; encoded: string }
+  | {
+      ok: false;
+      reason: 'empty' | 'unavailable' | 'too-large' | 'error';
+    };
+
+/** Result of decoding a URL-shared code string */
+export type DecodeResult =
+  | { ok: true; source: string }
+  | { ok: false; reason: 'absent' | 'corrupt' | 'unavailable' };
+
+/**
+ * Drain a ReadableStream into a single contiguous Uint8Array.
+ */
+async function collectStream(
+  stream: ReadableStream<Uint8Array>
+): Promise<Uint8Array> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalLength = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    totalLength += value.length;
+  }
+
+  const combined = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+
+  return combined;
+}
+
 /**
  * Encode rill source code for URL sharing.
  *
@@ -28,19 +68,19 @@ interface CopyLinkResult {
  * Constraints:
  * - Uses built-in CompressionStream API (no external dependency)
  * - Output uses base64url alphabet (A-Z, a-z, 0-9, -, _) with no padding
- * - Returns null if encoded result exceeds MAX_URL_CODE_LENGTH
- * - Returns null for empty or whitespace-only input
+ * - Returns {ok: false, reason: 'too-large'} if encoded result exceeds MAX_URL_CODE_LENGTH
+ * - Returns {ok: false, reason: 'empty'} for empty or whitespace-only input
  */
-export async function encodeSource(source: string): Promise<string | null> {
+export async function encodeSource(source: string): Promise<EncodeResult> {
   // Guard: empty or whitespace-only input
   if (!source.trim()) {
-    return null;
+    return { ok: false, reason: 'empty' };
   }
 
   // Check for CompressionStream availability
   if (typeof CompressionStream === 'undefined') {
     console.warn('CompressionStream API not available');
-    return null;
+    return { ok: false, reason: 'unavailable' };
   }
 
   try {
@@ -59,31 +99,13 @@ export async function encodeSource(source: string): Promise<string | null> {
     const compressedStream = stream.pipeThrough(new CompressionStream('gzip'));
 
     // Collect compressed bytes
-    const reader = compressedStream.getReader();
-    const chunks: Uint8Array[] = [];
-    let totalLength = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      totalLength += value.length;
-    }
-
-    // Combine chunks
-    const compressed = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      compressed.set(chunk, offset);
-      offset += chunk.length;
-    }
+    const compressed = await collectStream(compressedStream);
 
     // Base64 encode
-    let base64 = '';
     const binaryString = Array.from(compressed)
       .map((byte) => String.fromCharCode(byte))
       .join('');
-    base64 = btoa(binaryString);
+    const base64 = btoa(binaryString);
 
     // Convert to base64url (RFC 4648 §5)
     const base64url = base64
@@ -93,13 +115,13 @@ export async function encodeSource(source: string): Promise<string | null> {
 
     // Check length limit
     if (base64url.length > MAX_URL_CODE_LENGTH) {
-      return null;
+      return { ok: false, reason: 'too-large' };
     }
 
-    return base64url;
+    return { ok: true, encoded: base64url };
   } catch (error) {
     console.warn('Failed to encode source:', error);
-    return null;
+    return { ok: false, reason: 'error' };
   }
 }
 
@@ -109,18 +131,19 @@ export async function encodeSource(source: string): Promise<string | null> {
  * Pipeline: base64url decode -> gzip decompress -> UTF-8 decode
  *
  * Constraints:
- * - Returns null on any decode/decompress failure (no throws)
+ * - Returns {ok: false, reason: 'absent'} when there is no payload to decode
+ * - Returns {ok: false, reason: 'corrupt'} on any decode/decompress failure (no throws)
  * - Handles missing padding characters in base64url input
  */
-export async function decodeSource(encoded: string): Promise<string | null> {
+export async function decodeSource(encoded: string): Promise<DecodeResult> {
   if (!encoded) {
-    return null;
+    return { ok: false, reason: 'absent' };
   }
 
   // Check for DecompressionStream availability
   if (typeof DecompressionStream === 'undefined') {
     console.warn('DecompressionStream API not available');
-    return null;
+    return { ok: false, reason: 'unavailable' };
   }
 
   try {
@@ -151,38 +174,21 @@ export async function decodeSource(encoded: string): Promise<string | null> {
     );
 
     // Collect decompressed bytes
-    const reader = decompressedStream.getReader();
-    const chunks: Uint8Array[] = [];
-    let totalLength = 0;
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      totalLength += value.length;
-    }
-
-    // Combine chunks
-    const decompressed = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      decompressed.set(chunk, offset);
-      offset += chunk.length;
-    }
+    const decompressed = await collectStream(decompressedStream);
 
     // UTF-8 decode
     const decoder = new TextDecoder();
     const source = decoder.decode(decompressed);
 
-    // Guard: empty result
+    // Guard: empty result is a corrupt payload, not valid source
     if (!source) {
-      return null;
+      return { ok: false, reason: 'corrupt' };
     }
 
-    return source;
+    return { ok: true, source };
   } catch (error) {
     console.warn('Failed to decode source:', error);
-    return null;
+    return { ok: false, reason: 'corrupt' };
   }
 }
 
@@ -191,21 +197,22 @@ export async function decodeSource(encoded: string): Promise<string | null> {
  *
  * Constraints:
  * - Reads `code` parameter from window.location.search
- * - Returns null if parameter absent, empty, or decode fails
- * - Cleans URL by removing `code` param via history.replaceState after read
+ * - Returns {ok: false, reason: 'absent'} if the parameter is missing or empty
+ * - Returns {ok: false, reason: 'corrupt'} if the parameter fails to decode
+ * - Cleans URL by removing `code` param via history.replaceState after a successful read
  * - Preserves other query parameters
  */
-export async function readSourceFromURL(): Promise<string | null> {
+export async function readSourceFromURL(): Promise<DecodeResult> {
   const params = new URLSearchParams(window.location.search);
   const encoded = params.get('code');
 
   if (!encoded) {
-    return null;
+    return { ok: false, reason: 'absent' };
   }
 
-  const source = await decodeSource(encoded);
+  const result = await decodeSource(encoded);
 
-  if (source !== null) {
+  if (result.ok) {
     // Clean URL by removing code parameter
     params.delete('code');
     const newSearch = params.toString();
@@ -214,7 +221,7 @@ export async function readSourceFromURL(): Promise<string | null> {
     window.history.replaceState({}, '', newUrl);
   }
 
-  return source;
+  return result;
 }
 
 /**
@@ -247,28 +254,24 @@ export async function copyLinkToClipboard(
   }
 
   // Encode source
-  const encoded = await encodeSource(source);
+  const encodeResult = await encodeSource(source);
 
-  if (encoded === null) {
-    // Could be size exceeded or encoding failure
-    // Try to encode a small test string to determine which
-    const testEncoded = await encodeSource('test');
-    if (testEncoded === null) {
-      // Encoding is broken entirely
+  if (!encodeResult.ok) {
+    if (encodeResult.reason === 'too-large') {
       return {
-        status: 'error',
-        message: 'Failed to encode',
+        status: 'too-large',
+        message: 'Code too large to share',
       };
     }
-    // Must be size issue
+    // 'empty' | 'unavailable' | 'error'
     return {
-      status: 'too-large',
-      message: 'Code too large to share',
+      status: 'error',
+      message: 'Failed to encode',
     };
   }
 
   // Build URL
-  const url = `${window.location.origin}${window.location.pathname}?code=${encoded}`;
+  const url = `${window.location.origin}${window.location.pathname}?code=${encodeResult.encoded}`;
 
   // Copy to clipboard
   try {

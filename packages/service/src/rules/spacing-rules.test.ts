@@ -72,8 +72,41 @@ describe('SPACING_OPERATOR', () => {
     );
   });
 
-  it('does not fire on the Capture branch: CaptureNode.span no longer spans the => token in the current core AST, so the missing-space check on it can never match', () => {
+  it('does not fire on a tight capture operator: CaptureNode.span no longer spans the => token in the current core AST', () => {
     const source = '5=>$x\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingOperator])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire on a spaced capture operator', () => {
+    const source = '5 => $x\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingOperator])).toEqual(
+      []
+    );
+  });
+
+  it('fires when $x is followed directly by -> $y with no space before the arrow', () => {
+    const source = '$x->$y\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingOperator]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_OPERATOR',
+      severity: 'info',
+      message: "Pipe operator '->' should have spaces on both sides",
+      fix: null,
+    });
+  });
+
+  it('does not fire when $x -> $y has spaces around the arrow', () => {
+    const source = '$x -> $y\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [spacingOperator])).toEqual(

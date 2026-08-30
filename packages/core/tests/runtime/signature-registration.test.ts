@@ -35,6 +35,7 @@ import {
 } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
+import { parseSignatureRegistration } from '../../src/signature-parser.js';
 
 describe('Rill Runtime: Signature Registration', () => {
   describe('AC-17: Structured RillParam[] registers and validates on every call', () => {
@@ -643,6 +644,34 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(format?.params[1]?.name).toBe('value');
       expect(format?.params[1]?.defaultValue).toBe('default');
       expect(format?.params[1]?.description).toBe('Value to insert');
+    });
+  });
+
+  describe('parseSignatureRegistration: parameter separator validation', () => {
+    it('rejects two params with no separator between them', () => {
+      expect(() => parseSignatureRegistration('|a b|', 'fn')).toThrow(
+        /expected ',' or '\|' between parameters/
+      );
+    });
+
+    it('parses comma-separated params', () => {
+      const parsed = parseSignatureRegistration('|a, b|', 'fn');
+      expect(parsed.params.map((p) => p.name)).toEqual(['a', 'b']);
+    });
+
+    it('parses a single param', () => {
+      const parsed = parseSignatureRegistration('|a|', 'fn');
+      expect(parsed.params.map((p) => p.name)).toEqual(['a']);
+    });
+
+    it('parses zero params with ||', () => {
+      const parsed = parseSignatureRegistration('||', 'fn');
+      expect(parsed.params).toEqual([]);
+    });
+
+    it('parses a trailing comma the same as without one', () => {
+      const parsed = parseSignatureRegistration('|a,|', 'fn');
+      expect(parsed.params.map((p) => p.name)).toEqual(['a']);
     });
   });
 });

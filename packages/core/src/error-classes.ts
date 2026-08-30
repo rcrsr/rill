@@ -121,6 +121,8 @@ export class RillError extends Error {
   readonly span?: SourceSpan | undefined;
   readonly context?: Record<string, unknown> | undefined;
   readonly sourceId?: string | undefined;
+  /** The message as constructed, before the " at {line}:{column}" location suffix is appended. */
+  readonly rawMessage: string;
 
   constructor(data: RillErrorData) {
     // Missing errorId
@@ -147,6 +149,7 @@ export class RillError extends Error {
     this.span = span;
     this.context = data.context;
     this.sourceId = data.sourceId;
+    this.rawMessage = data.message;
   }
 
   /** Get structured error data for custom formatting */
@@ -154,7 +157,7 @@ export class RillError extends Error {
     return {
       errorId: this.errorId,
       helpUrl: this.helpUrl,
-      message: this.message.replace(/ at \d+:\d+$/, ''), // Strip location suffix
+      message: this.rawMessage,
       location: this.location,
       span: this.span,
       context: this.context,
@@ -167,11 +170,42 @@ export class RillError extends Error {
     if (formatter) return formatter(this.toData());
     return this.message;
   }
+
+  /**
+   * Return a new error instance of the same prototype with `patch` merged
+   * into its context. Does not mutate `this`; the original context object
+   * is not shared with the returned instance.
+   */
+  withContext(patch: Record<string, unknown>): RillError {
+    const clone = Object.create(
+      Object.getPrototypeOf(this),
+      Object.getOwnPropertyDescriptors(this)
+    ) as RillError;
+    const merged = { ...this.context, ...patch };
+    (clone as { context: Record<string, unknown> | undefined }).context =
+      this.context === undefined && Object.keys(merged).length === 0
+        ? undefined
+        : merged;
+    return clone;
+  }
 }
 
 // ============================================================
 // SPECIALIZED ERROR CLASSES
 // ============================================================
+
+/**
+ * Legacy syntax migration errors: detected by the parser at parse time, but
+ * carrying an `RILL-R0xx` ID (category `runtime`) because the ID letter was
+ * assigned before the migration diagnostics existed. The published ID cannot
+ * be renamed, so these are exempted from ParseError's category gate below.
+ */
+const LEGACY_SYNTAX_PARSE_ERROR_IDS: ReadonlySet<string> = new Set([
+  ERROR_IDS.RILL_R078,
+  ERROR_IDS.RILL_R079,
+  ERROR_IDS.RILL_R080,
+  ERROR_IDS.RILL_R081,
+]);
 
 /** Parse-time errors */
 export class ParseError extends RillError {
@@ -188,7 +222,10 @@ export class ParseError extends RillError {
     }
 
     // Wrong category
-    if (definition.category !== 'parse') {
+    if (
+      definition.category !== 'parse' &&
+      !LEGACY_SYNTAX_PARSE_ERROR_IDS.has(errorId)
+    ) {
       throw new TypeError(`Expected parse error ID, got: ${errorId}`);
     }
 
@@ -211,7 +248,8 @@ export class RuntimeError extends RillError {
     message: string,
     location?: SourceLocation,
     context?: Record<string, unknown>,
-    span?: SourceSpan
+    span?: SourceSpan,
+    sourceId?: string
   ) {
     // Validate errorId exists in registry
     const definition = ERROR_REGISTRY.get(errorId);
@@ -232,6 +270,7 @@ export class RuntimeError extends RillError {
       location,
       span,
       context,
+      sourceId,
     });
     this.name = 'RuntimeError';
   }

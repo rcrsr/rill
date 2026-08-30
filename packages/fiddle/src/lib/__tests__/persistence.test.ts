@@ -278,6 +278,46 @@ describe('persistence', () => {
     });
   });
 
+  describe('localStorage availability caching', () => {
+    // Each test imports a fresh module instance so the module-level cache
+    // starts uninitialized, isolating the probe count from other tests.
+    it('probes localStorage at most once across repeated persistEditorState calls', async () => {
+      vi.resetModules();
+      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+      const { persistEditorState: freshPersist } =
+        await import('../persistence.js');
+
+      const state: EditorState = { splitRatio: 55, lastSource: 'probe test' };
+
+      for (let i = 0; i < 5; i++) {
+        freshPersist(state);
+      }
+
+      const probeCalls = setItemSpy.mock.calls.filter(
+        ([key]) => key === '__rill_fiddle_test__'
+      );
+      expect(probeCalls.length).toBeLessThanOrEqual(1);
+    });
+
+    // Caching also applies across loadEditorState calls
+    it('probes localStorage at most once across repeated loadEditorState calls', async () => {
+      vi.resetModules();
+      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
+
+      const { loadEditorState: freshLoad } = await import('../persistence.js');
+
+      for (let i = 0; i < 5; i++) {
+        freshLoad();
+      }
+
+      const probeCalls = setItemSpy.mock.calls.filter(
+        ([key]) => key === '__rill_fiddle_test__'
+      );
+      expect(probeCalls.length).toBeLessThanOrEqual(1);
+    });
+  });
+
   describe('integration', () => {
     // Complete persist/load cycle
     it('handles complete lifecycle: first visit -> persist -> load', () => {

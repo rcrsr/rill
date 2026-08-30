@@ -14,7 +14,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-R078)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P022)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R087)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
@@ -208,7 +208,7 @@ $x => list<string>  # Use list(string) for typed lists
 
 **Cause:** Expression structure violates grammar rules or contains unsupported constructs.
 
-**Resolution:** Check expression syntax. Common causes: invalid operator combinations, malformed literals, unsupported language features, or invalid `pass<>` option lists.
+**Resolution:** Check expression syntax. Common causes: invalid operator combinations, malformed literals, or unsupported language features.
 
 **Example:**
 
@@ -218,15 +218,6 @@ $x + + $y
 
 # Assignment operator (not supported)
 $x = 5  # Use "5 => $x" instead
-
-# Empty pass<> options — use the bracketless body form instead
-pass<> { log($) }    # Use: pass { log($) }
-
-# Unknown option key in pass<>
-pass<on_warn: #IGNORE> { log($) }    # only on_error is recognized
-
-# on_error value other than #IGNORE
-pass<on_error: #SKIP> { log($) }     # only #IGNORE is accepted
 ```
 
 ---
@@ -414,6 +405,23 @@ dict(key: string  # Error: expected )
 
 ---
 
+### rill-p015
+
+**Description:** Maximum nesting depth exceeded
+
+**Cause:** An expression nests primary expressions (e.g. parentheses) deeper than the parser supports.
+
+**Resolution:** Reduce the nesting depth of the expression, e.g. by extracting sub-expressions into variables.
+
+**Example:**
+
+```text
+# Thousands of nested parentheses
+((((((((((1))))))))))  # Error when nesting exceeds the limit
+```
+
+---
+
 ### rill-p020
 
 **Description:** Missing ':' in use<> static form
@@ -461,30 +469,6 @@ use<module:>  # Error: missing resource after colon
 ```text
 # Unclosed use<>
 use<module:resource  # Error: missing >
-```
-
----
-
-### rill-r078
-
-**Description:** Legacy :> conversion syntax
-
-**Cause:** The parser encountered the legacy ':>type' conversion operator. The '->' pipe operator is now the unified syntax for both closure dispatch and type conversion dispatch.
-
-**Resolution:** Replace ':>type' with '-> type'. The target type keyword follows the pipe directly: '-> :>string' becomes '-> string', '-> :>ordered(...)' becomes '-> ordered(...)'.
-
-**Example:**
-
-```text
-# Before (legacy syntax triggers RILL-R078)
-42 -> :>string
-"3.14" -> :>number
-list[1, 2] -> :>tuple
-
-# After (current syntax)
-42 -> string
-"3.14" -> number
-list[1, 2] -> tuple
 ```
 
 ---
@@ -561,9 +545,9 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Description:** Undefined variable
 
-**Cause:** Variable referenced before assignment, variable name misspelled, or bare `pass` evaluated where `$` is unbound.
+**Cause:** Variable referenced before assignment, or variable name misspelled.
 
-**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference. Use bare `pass` only inside a pipe stage or block where `$` is bound.
+**Resolution:** Assign value to variable before use (value => $var), or check spelling. Variables must be captured before reference.
 
 **Example:**
 
@@ -578,9 +562,6 @@ $message  # Typo: mesage vs message
 # Variable out of scope
 { "local" => $x }
 $x  # $x only exists inside block
-
-# Bare pass without a bound $
-pass  # No pipe context; halts #RILL_R005
 ```
 
 ---
@@ -600,8 +581,7 @@ pass  # No pipe context; halts #RILL_R005
 leng("hello")  # Should be length()
 
 # Missing host function
-use<ext:app> => $app
-$app.fetch($url)  # Host must register fetch on the app extension
+app::fetch($url)  # Host must provide app::fetch
 ```
 
 ---
@@ -681,10 +661,7 @@ $stmt.^timeout  # No ^(timeout: ...) set
 while (true) do { "looping" }  # Never terminates
 
 # Large collection with default limit
-range(0, 1000000) -> seq(|x| $x)  # May exceed default limit
-
-# cycle without a consumer bound — halts on the 10,001st element
-[1, 2, 3] -> cycle -> seq({ $ })  # Use take(n) or break to stay within bounds
+range(0, 1000000) -> each |x| $x  # May exceed default limit
 ```
 
 ---
@@ -720,13 +697,11 @@ range(0, 1000000) -> seq(|x| $x)  # May exceed default limit
 **Example:**
 
 ```text
-use<ext:app> => $app
-
 # Slow host function
-$app.slow_api()  # Times out if exceeds limit
+app::slow_api()  # Times out if exceeds limit
 
 # Setting higher timeout
-^(timeout: 30000) $app.slow_api()  # 30 seconds
+^(timeout: 30000) app::slow_api()  # 30 seconds
 ```
 
 ---
@@ -816,10 +791,8 @@ error "Invalid configuration"
 **Example:**
 
 ```text
-use<ext:fs> => $fs
-
 # Unknown mount
-$fs.read("unknown", "file.txt")  # Mount "unknown" not in config
+fs::read("unknown", "file.txt")  # Mount "unknown" not in config
 
 # Invalid mount path
 # createFsExtension({ mounts: { data: { path: "/nonexistent", mode: "read" } } })
@@ -838,13 +811,11 @@ $fs.read("unknown", "file.txt")  # Mount "unknown" not in config
 **Example:**
 
 ```text
-use<ext:fs> => $fs
-
 # Path traversal with ..
-$fs.read("data", "../../etc/passwd")  # Attempts escape
+fs::read("data", "../../etc/passwd")  # Attempts escape
 
 # Symlink escape
-$fs.read("data", "symlink_to_root")  # Symlink points outside mount
+fs::read("data", "symlink_to_root")  # Symlink points outside mount
 ```
 
 ---
@@ -860,13 +831,11 @@ $fs.read("data", "symlink_to_root")  # Symlink points outside mount
 **Example:**
 
 ```text
-use<ext:fs> => $fs
-
 # Glob mismatch
-$fs.read("csv_only", "data.json")  # Mount configured with glob: "*.csv"
+fs::read("csv_only", "data.json")  # Mount configured with glob: "*.csv"
 
 # Multiple extensions
-$fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
+fs::read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
 ```
 
 ---
@@ -882,13 +851,11 @@ $fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
 **Example:**
 
 ```text
-use<ext:fs> => $fs
-
 # Write to read-only mount
-$fs.write("readonly", "file.txt", "data")  # Mount mode: "read"
+fs::write("readonly", "file.txt", "data")  # Mount mode: "read"
 
 # Read from write-only mount
-$fs.read("writeonly", "file.txt")  # Mount mode: "write"
+fs::read("writeonly", "file.txt")  # Mount mode: "write"
 ```
 
 ---
@@ -904,13 +871,11 @@ $fs.read("writeonly", "file.txt")  # Mount mode: "write"
 **Example:**
 
 ```text
-use<ext:fs> => $fs
-
 # Permission denied
-$fs.read("data", "protected.txt")  # File exists but no read permission
+fs::read("data", "protected.txt")  # File exists but no read permission
 
 # File not found
-$fs.read("data", "missing.txt")  # File does not exist
+fs::read("data", "missing.txt")  # File does not exist
 ```
 
 ---
@@ -926,13 +891,11 @@ $fs.read("data", "missing.txt")  # File does not exist
 **Example:**
 
 ```text
-use<ext:fetch> => $fetch
-
 # HTTP 404 Not Found
-$fetch.get("api", "/nonexistent")  # Returns 404
+fetch::get("api", "/nonexistent")  # Returns 404
 
 # HTTP 400 Bad Request
-$fetch.post("api", "/users", [invalid: "data"])  # Returns 400
+fetch::post("api", "/users", [invalid: "data"])  # Returns 400
 ```
 
 ---
@@ -948,10 +911,8 @@ $fetch.post("api", "/users", [invalid: "data"])  # Returns 400
 **Example:**
 
 ```text
-use<ext:fetch> => $fetch
-
 # HTTP 503 Service Unavailable
-$fetch.get("api", "/resource")  # Server returns 503
+fetch::get("api", "/resource")  # Server returns 503
 ```
 
 ---
@@ -967,10 +928,8 @@ $fetch.get("api", "/resource")  # Server returns 503
 **Example:**
 
 ```text
-use<ext:fetch> => $fetch
-
 # Slow API endpoint
-$fetch.get("api", "/slow")  # Times out if exceeds limit
+fetch::get("api", "/slow")  # Times out if exceeds limit
 ```
 
 ---
@@ -986,10 +945,8 @@ $fetch.get("api", "/slow")  # Times out if exceeds limit
 **Example:**
 
 ```text
-use<ext:fetch> => $fetch
-
 # Connection refused
-$fetch.get("api", "/endpoint")  # Server not running
+fetch::get("api", "/endpoint")  # Server not running
 ```
 
 ---
@@ -1005,10 +962,8 @@ $fetch.get("api", "/endpoint")  # Server not running
 **Example:**
 
 ```text
-use<ext:fetch> => $fetch
-
 # HTML error page returned as JSON
-$fetch.get("api", "/endpoint")  # Server returns HTML instead of JSON
+fetch::get("api", "/endpoint")  # Server returns HTML instead of JSON
 ```
 
 ---
@@ -1024,10 +979,8 @@ $fetch.get("api", "/endpoint")  # Server returns HTML instead of JSON
 **Example:**
 
 ```text
-use<ext:ahi> => $ahi
-
 # Missing required parameter
-$ahi.parser([])  # Agent expects a non-empty params dict
+ahi::parser([])  # Agent expects a non-empty params dict
 ```
 
 ---
@@ -1060,10 +1013,8 @@ $ahi.parser([])  # Agent expects a non-empty params dict
 **Example:**
 
 ```text
-use<ext:ahi> => $ahi
-
 # Unhandled error in downstream agent
-$ahi.parser([input: $text])  # Downstream agent crashes
+ahi::parser([input: $text])  # Downstream agent crashes
 ```
 
 ---
@@ -1113,10 +1064,8 @@ $ahi.parser([input: $text])  # Downstream agent crashes
 **Example:**
 
 ```text
-use<ext:ahi> => $ahi
-
 # Too many concurrent requests
-$ahi.parser([input: $text])  # Agent enforces per-second request quota
+ahi::parser([input: $text])  # Agent enforces per-second request quota
 ```
 
 ---
@@ -1149,10 +1098,8 @@ $ahi.parser([input: $text])  # Agent enforces per-second request quota
 **Example:**
 
 ```text
-use<ext:ahi> => $ahi
-
 # HTTP 503 Service Unavailable
-$ahi.parser([input: $text])  # Downstream returns 503
+ahi::parser([input: $text])  # Downstream returns 503
 ```
 
 ---
@@ -1246,21 +1193,17 @@ $dict -> ordered  # Ambiguous field order
 
 ### rill-r040
 
-**Description:** Predicate or chain argument is not callable
+**Description:** chain() non-closure argument
 
-**Cause:** A built-in expecting a closure (e.g., `chain`, `start_when`, `stop_when`) received a value that is neither a closure nor, where applicable, a list of closures.
+**Cause:** The chain() built-in received a value that is neither a closure nor a list of closures.
 
-**Resolution:** Pass a closure (or a list of closures for `chain`).
+**Resolution:** Pass a single closure or a list of closures to chain().
 
 **Example:**
 
 ```text
 # Passing a number to chain()
 5 -> chain(42)  # 42 is not a closure
-
-# Passing a non-callable predicate to start_when / stop_when
-[1, 2, 3] -> start_when(42)   # 42 is not a closure
-[1, 2, 3] -> stop_when("done") # string is not a closure
 ```
 
 ---
@@ -1350,10 +1293,8 @@ tuple["a"] -> tuple(string, number)  # element at position 1 is missing
 **Example:**
 
 ```text
-use<ext:app> => $app
-
 # Too many arguments to a two-param closure
-|x: number, y: number| { x + y } -> $app.call(1, 2, 3)  # 3 args, 2 params
+|x: number, y: number| { x + y } -> app::call(1, 2, 3)  # 3 args, 2 params
 ```
 
 ---
@@ -1421,8 +1362,7 @@ use<ext:app> => $app
 
 ```text
 # Nonexistent member
-use<ext:qdrant> => $qdrant
-$qdrant.missing  # "missing" key not in qdrant extension
+# ext::qdrant.missing — "missing" key not in qdrant extension
 ```
 
 ---
@@ -1848,29 +1788,103 @@ use<module:unknown>  # Error: unknown module
 
 ---
 
-### rill-r082
+### rill-r078
 
-**Description:** Total wall-time timeout exceeded
+**Description:** Legacy :> conversion syntax
 
-**Cause:** The `timeout<total: duration>` block body did not complete within the configured wall-time bound.
+**Cause:** The parser encountered the legacy ':>type' conversion operator. The '->' pipe operator is now the unified syntax for both closure dispatch and type conversion dispatch.
 
-**Resolution:** Wrap the block in `guard` to catch expiry as an invalid value. Increase the duration or optimize the body.
+**Resolution:** Replace ':>type' with '-> type'. The target type keyword follows the pipe directly: '-> :>string' becomes '-> string', '-> :>ordered(...)' becomes '-> ordered(...)'.
 
 **Example:**
 
 ```text
-# Body runs past the total wall-time limit
-timeout<total: duration(...dict[ms: 100])> {
-  $app.slow_operation()
-}
-# Halts with #RILL_R082
+# Before (legacy syntax triggers RILL-R078)
+42 -> :>string
+"3.14" -> :>number
+list[1, 2] -> :>tuple
 
-# Recovery pattern
-guard {
-  timeout<total: duration(...dict[ms: 500])> {
-    $app.slow_operation()
-  }
-} ?? "timed out"
+# After (current syntax)
+42 -> string
+"3.14" -> number
+list[1, 2] -> tuple
+```
+
+---
+
+### rill-r079
+
+**Description:** Legacy pre-loop @ syntax
+
+**Cause:** The parser encountered the legacy pre-loop '@' operator. The 'while (cond) do { body }' syntax is now the canonical while-loop form.
+
+**Resolution:** Replace '(cond) @ { body }' with 'while (cond) do { body }'. For annotated loops, use 'do<limit: N> { body } while (cond)'.
+
+**Example:**
+
+```text
+# Before (legacy syntax triggers RILL-R079)
+0 -> ($ < 3) @ { $ + 1 }
+
+# After (current syntax)
+0 -> while ($ < 3) do { $ + 1 }
+```
+
+---
+
+### rill-r080
+
+**Description:** Legacy post-loop @ syntax
+
+**Cause:** The parser encountered the legacy post-loop '@' operator. The 'do { body } while (cond)' syntax is now the canonical do-while form.
+
+**Resolution:** Replace '@ { body } ? (cond)' with 'do { body } while (cond)'. For seeded loops, pipe the seed: 'seed -> do { body } while (cond)'.
+
+**Example:**
+
+```text
+# Before (legacy syntax triggers RILL-R080)
+0 -> @ { $ + 1 } ? ($ < 3)
+
+# After (current syntax)
+0 -> do { $ + 1 } while ($ < 3)
+```
+
+---
+
+### rill-r081
+
+**Description:** Legacy ^(limit:) loop annotation syntax
+
+**Cause:** The parser encountered the legacy '^(limit: N)' annotation form for loop limits. The 'do<limit: N>' construct option is now the canonical syntax.
+
+**Resolution:** Replace '^(limit: N) @ { body }' with 'do<limit: N> { body } while (cond)' or 'while (cond) do<limit: N> { body }'.
+
+**Example:**
+
+```text
+# Before (legacy syntax triggers RILL-R081)
+0 -> ^(limit: 10) @ { $ + 1 } ? ($ < 3)
+
+# After (current syntax)
+0 -> do<limit: 10> { $ + 1 } while ($ < 3)
+```
+
+---
+
+### rill-r082
+
+**Description:** Total wall-time timeout exceeded
+
+**Cause:** The timeout<total: duration> block body did not complete within the wall-time bound.
+
+**Resolution:** Recover via guard { timeout<total: d> { body } } or ?? fallback. Increase duration or optimize body.
+
+**Example:**
+
+```text
+# Total timeout with guard recovery
+guard { timeout<total: 500ms> { $app.slow() } }
 ```
 
 ---
@@ -1879,21 +1893,15 @@ guard {
 
 **Description:** Idle inactivity timeout exceeded
 
-**Cause:** The `timeout<idle: duration>` block body produced no stream chunk within the configured idle window.
+**Cause:** The timeout<idle: duration> block body produced no output chunk within the idle bound.
 
-**Resolution:** Wrap the block in `guard` to catch expiry as an invalid value. Reduce the idle duration or ensure the body emits chunks more frequently.
+**Resolution:** Recover via guard { timeout<idle: d> { body } } or ?? fallback. Reduce idle duration or ensure body emits chunks.
 
 **Example:**
 
 ```text
-# Stream stops emitting; idle window expires
-$slow_stream -> timeout<idle: duration(...dict[ms: 200])> { pass }
-# Halts with #RILL_R083
-
-# Recovery pattern
-guard {
-  $slow_stream -> timeout<idle: duration(...dict[ms: 500])> { pass }
-} ?? "stream went idle"
+# Idle timeout with guard recovery
+guard { timeout<idle: 200ms> { $stream } }
 ```
 
 ---
@@ -1902,19 +1910,15 @@ guard {
 
 **Description:** Wildcard policy rule declares transforms
 
-**Cause:** A `"*"` policy rule carried `in` or `out` entries. Wildcard rules are access-control only, because one transform signature cannot fit every method it would wrap.
+**Cause:** A "*" policy rule carried in or out entries. Wildcard rules are access-control only, because one transform signature cannot fit every method it would wrap.
 
-**Resolution:** Drop the `in`/`out` entries from the `"*"` rule and declare transforms on the specific methods that need them.
+**Resolution:** Drop the in/out entries from the "*" rule and declare transforms on the specific methods that need them.
 
 **Example:**
 
 ```text
-# Rejected: wildcard cannot carry transforms
-# { "kb": { "*": { "access": "deny", "out": ["filter.redact"] } } }
-
-# Accepted: wildcard decides access, methods declare transforms
-# { "kb": { "*":      { "access": "deny" },
-#           "search": { "access": "allow", "out": ["filter.redact"] } } }
+# Wildcard restricted to an access decision
+# policy: { "kb": { "*": { "access": "deny" } } }
 ```
 
 ---
@@ -1923,18 +1927,15 @@ guard {
 
 **Description:** Transform reference cannot be resolved
 
-**Cause:** A policy `in`/`out` entry named a transform that is missing from the mounted extensions, is not written as `"extension.method"`, or does not name a callable.
+**Cause:** A policy in/out entry named a transform that is missing from the mounted extensions, is not written as "extension.method", or does not name a callable.
 
-**Resolution:** Write the reference as `"extension.method"`, mount the extension that provides it, and confirm the named member is a callable.
+**Resolution:** Write the reference as "extension.method", mount the extension that provides it, and confirm the named member is a callable.
 
 **Example:**
 
 ```text
-# Rejected: no dot separator
-# { "kb": { "search": { "access": "allow", "out": ["redact"] } } }
-
-# Rejected: "filter" is not mounted, or has no callable "redact"
-# { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }
+# Transform reference naming a mounted callable
+# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }
 ```
 
 ---
@@ -1943,26 +1944,17 @@ guard {
 
 **Description:** Call denied by policy
 
-**Cause:** The dispatch-boundary filter matched a rule whose access is `deny`, or matched a policed extension whose method could not be identified.
+**Cause:** The dispatch-boundary filter matched a rule whose access is "deny", or matched a policed extension whose method could not be identified.
 
-**Resolution:** Recover with `guard` or a `??` fallback, or grant the method an `"access": "allow"` rule in the host policy.
+**Resolution:** Recover via guard { ... } or a ?? fallback, or grant the method an "access": "allow" rule in the host policy.
 
 **Example:**
 
 ```text
-# Policy: { "kb": { "*": { "access": "deny" }, "search": { "access": "allow" } } }
-use<ext:kb> => $kb
-$kb.delete()
-# Halts with #RILL_R086
-
-# Recovery pattern
+# Denied call recovered with guard
 guard { $kb.delete() } => $r
 $r.! ? "not permitted" ! $r
 ```
-
-Renaming the capture variable does not change the decision: rules match on
-the extension the value was resolved from, not on the path the script
-happens to write.
 
 ---
 
@@ -1972,14 +1964,13 @@ happens to write.
 
 **Cause:** A policy transform re-entered itself, directly or through another policed method whose own transforms call back into it.
 
-**Resolution:** Break the cycle so a transform does not call a method whose `in`/`out` chain reaches that same transform.
+**Resolution:** Break the cycle so a transform does not call a method whose in/out chain reaches that same transform.
 
 **Example:**
 
 ```text
-# kb.search out -> filter.redact, and filter.redact's body calls
-# kb.search again. The second entry into filter.redact halts.
-guard { $kb.search() } ?? "transform cycle"
+# Transform that must not call back into its own method
+# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }
 ```
 
 ---

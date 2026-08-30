@@ -5,6 +5,7 @@
  */
 
 import type { ASTNode, ConditionalNode } from '@rcrsr/rill';
+import { walkAst } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -13,32 +14,23 @@ import { registeredRules } from './rules-registry.js';
 // HELPERS
 // ============================================================
 
-/** Check if a node tree contains an existence check (.?field). */
+/**
+ * Check if a node tree contains an existence check (.?field). Walks via
+ * the exported `walkAst` (an iterative, explicit-stack traversal) rather
+ * than recursing over `Object.keys` - the previous implementation risked
+ * a `RangeError` on deeply nested ASTs and visited every enumerable key of
+ * every node (including non-child properties like `span`), a larger
+ * constant factor per node than a walk that visits only child nodes.
+ */
 function hasExistenceCheck(node: ASTNode): boolean {
-  if (!node || typeof node !== 'object') return false;
-
-  if (
-    node.type === 'Variable' &&
-    'existenceCheck' in node &&
-    node.existenceCheck !== null
-  ) {
-    return true;
-  }
-
-  for (const key of Object.keys(node)) {
-    const value = (node as unknown as Record<string, unknown>)[key];
-    if (value && typeof value === 'object') {
-      if (Array.isArray(value)) {
-        for (const item of value) {
-          if (hasExistenceCheck(item as ASTNode)) return true;
-        }
-      } else {
-        if (hasExistenceCheck(value as ASTNode)) return true;
-      }
+  let found = false;
+  walkAst(node, (visited) => {
+    if (found) return;
+    if (visited.type === 'Variable' && visited.existenceCheck !== null) {
+      found = true;
     }
-  }
-
-  return false;
+  });
+  return found;
 }
 
 /**

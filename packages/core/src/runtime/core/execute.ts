@@ -641,12 +641,20 @@ function convertHaltToRuntimeError(
   const context: Record<string, unknown> | undefined =
     Object.keys(rest).length > 0 ? rest : undefined;
 
+  // Propagate sourceId from the first trace frame's site string so host
+  // callers observe the same err.sourceId contract pre-migration.
+  // The first frame is the origin (origin-first ordering per appendFrame).
+  const traces = status.trace;
+  const sourceId =
+    traces.length > 0 ? parseSourceIdFromSite(traces[0]!.site) : undefined;
+
   const err = new RuntimeError(
     errorId,
     status.message,
     stmt.span.start,
     context,
-    stmt.span
+    stmt.span,
+    sourceId
   );
   Object.defineProperty(err, 'haltValue', {
     value: signal.value,
@@ -654,18 +662,6 @@ function convertHaltToRuntimeError(
     writable: false,
     configurable: false,
   });
-
-  // Propagate sourceId from the first trace frame's site string so host
-  // callers observe the same err.sourceId contract pre-migration.
-  // The first frame is the origin (origin-first ordering per appendFrame).
-  const traces = status.trace;
-  if (traces.length > 0) {
-    const firstSite = traces[0]!.site;
-    const sourceId = parseSourceIdFromSite(firstSite);
-    if (sourceId !== undefined) {
-      (err as { sourceId: string }).sourceId = sourceId;
-    }
-  }
 
   return err;
 }

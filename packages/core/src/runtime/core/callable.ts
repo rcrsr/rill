@@ -336,41 +336,101 @@ export interface MarshalOptions {
 }
 
 /**
- * Hydrate missing dict/ordered field-level defaults into a value.
- *
- * When a param has type `dict(a: string = "x", b: number)` and the caller
- * passes `[b: 2]`, this fills in `a` with its default `"x"`. Fields without
- * defaults are left absent so Stage 3 catches them with RILL-R001.
- *
- * Pure function: no class context, no evaluator, no side effects.
+ * Info passed to `HydrationPolicy.onMissingField` when a declared dict/ordered
+ * field or tuple element has no value, no default, and is not itself a
+ * collection type that can be synthesized empty.
  */
-export function hydrateFieldDefaults(
+export interface HydrationMissingFieldInfo {
+  /** Which structural kind the missing field belongs to. */
+  readonly kind: 'dict' | 'ordered' | 'tuple';
+  /** Runtime shape of the value being hydrated (e.g. 'dict', 'ordered', 'tuple'). */
+  readonly source: string;
+  /** Structural kind being hydrated into; mirrors `kind` as a string. */
+  readonly target: string;
+  /** Field name (dict/ordered) or stringified index (tuple). */
+  readonly fieldName: string;
+  /** Element index, set only when `kind === 'tuple'`. */
+  readonly position: number | undefined;
+}
+
+/**
+ * Behavior knobs that let a single structural walker serve two independent
+ * callers whose missing-field and extras handling were never meant to
+ * diverge, but drifted because each caller carried its own copy of the walk.
+ *
+ * - `onMissingField` never lets the walker throw directly: marshaling
+ *   (host-application argument binding) leaves the field absent and lets
+ *   Stage 3 type-check report RILL-R001; `-> type` conversion throws
+ *   RILL-R044 immediately, since a structural conversion has no later
+ *   type-check stage to fall back on.
+ * - `keepExtras` controls whether keys/elements not declared on the target
+ *   type survive in the result (marshaling: yes, values must remain
+ *   structurally compatible with the wider caller-supplied shape) or are
+ *   dropped (conversion: yes, `-> type` narrows to exactly the declared
+ *   shape).
+ * - `coerceOrderedFromDict` controls whether a plain dict value is accepted
+ *   as a source for an `ordered`-typed field (conversion allows dict ->
+ *   ordered per the compatibility matrix; marshaling never coerces shape,
+ *   only fills defaults on an already-ordered value).
+ */
+export interface HydrationPolicy {
+  readonly onMissingField: (info: HydrationMissingFieldInfo) => void;
+  readonly keepExtras: boolean;
+  readonly coerceOrderedFromDict: boolean;
+}
+
+/**
+ * Recursively walk a value against a dict/ordered/tuple TypeStructure,
+ * filling in field-level defaults and empty collections, per a
+ * HydrationPolicy. Returns the value unchanged when the type has no
+ * fields/elements or the value's runtime shape does not match.
+ *
+ * Shared by `hydrateFieldDefaults` (argument marshaling) and conversion's
+ * nested-field hydration (`-> type` structural conversion). See
+ * HydrationPolicy for why these two callers need distinct behavior.
+ *
+ * Pure function: no class context, no evaluator, no side effects beyond
+ * invoking `policy.onMissingField`.
+ */
+export function hydrateStructure(
   value: RillValue,
-  type: TypeStructure
+  type: TypeStructure,
+  policy: HydrationPolicy
 ): RillValue {
   if (type.kind === 'dict' && (type as DictStructure).fields && isDict(value)) {
     const t = type as DictStructure;
     const dictValue = value as Record<string, RillValue>;
-    // Seed with all input entries so extra keys survive (structural match allows extras)
-    const result: Record<string, RillValue> = { ...dictValue };
+    const result: Record<string, RillValue> = policy.keepExtras
+      ? { ...dictValue }
+      : {};
     for (const [fieldName, fieldDef] of Object.entries(t.fields!)) {
       if (fieldName in dictValue) {
-        result[fieldName] = hydrateFieldDefaults(
+        result[fieldName] = hydrateStructure(
           dictValue[fieldName]!,
-          fieldDef.type
+          fieldDef.type,
+          policy
         );
       } else if (fieldDef.defaultValue !== undefined) {
-        result[fieldName] = hydrateFieldDefaults(
+        result[fieldName] = hydrateStructure(
           copyValue(fieldDef.defaultValue),
-          fieldDef.type
+          fieldDef.type,
+          policy
         );
       } else if (hasCollectionFields(fieldDef.type)) {
-        result[fieldName] = hydrateFieldDefaults(
+        result[fieldName] = hydrateStructure(
           emptyForType(fieldDef.type),
-          fieldDef.type
+          fieldDef.type,
+          policy
         );
+      } else {
+        policy.onMissingField({
+          kind: 'dict',
+          source: 'dict',
+          target: 'dict',
+          fieldName,
+          position: undefined,
+        });
       }
-      // Missing without default and not collection: leave absent for Stage 3
     }
     return result;
   }
@@ -378,11 +438,14 @@ export function hydrateFieldDefaults(
   if (
     type.kind === 'ordered' &&
     (type as OrderedStructure).fields &&
-    isOrdered(value)
+    (isOrdered(value) || (policy.coerceOrderedFromDict && isDict(value)))
   ) {
     const t = type as OrderedStructure;
+    const source = isOrdered(value) ? 'ordered' : 'dict';
     const lookup = new Map<string, RillValue>(
-      value.entries.map(([k, v]) => [k, v] as [string, RillValue])
+      isOrdered(value)
+        ? value.entries.map(([k, v]) => [k, v] as [string, RillValue])
+        : Object.entries(value as Record<string, RillValue>)
     );
     const fieldNames = new Set<string>(t.fields!.map((f) => f.name ?? ''));
     const resultEntries: [string, RillValue][] = [];
@@ -391,25 +454,36 @@ export function hydrateFieldDefaults(
       if (lookup.has(name)) {
         resultEntries.push([
           name,
-          hydrateFieldDefaults(lookup.get(name)!, field.type),
+          hydrateStructure(lookup.get(name)!, field.type, policy),
         ]);
       } else if (field.defaultValue !== undefined) {
         resultEntries.push([
           name,
-          hydrateFieldDefaults(copyValue(field.defaultValue), field.type),
+          hydrateStructure(copyValue(field.defaultValue), field.type, policy),
         ]);
       } else if (hasCollectionFields(field.type)) {
         resultEntries.push([
           name,
-          hydrateFieldDefaults(emptyForType(field.type), field.type),
+          hydrateStructure(emptyForType(field.type), field.type, policy),
         ]);
+      } else {
+        policy.onMissingField({
+          kind: 'ordered',
+          source,
+          target: 'ordered',
+          fieldName: name,
+          position: undefined,
+        });
       }
-      // Missing without default and not collection: leave absent for Stage 3
     }
-    // Append extra entries not declared in type.fields (structural match allows extras)
-    for (const [k, v] of value.entries) {
-      if (!fieldNames.has(k)) {
-        resultEntries.push([k, v]);
+    if (policy.keepExtras) {
+      const sourceEntries = isOrdered(value)
+        ? value.entries
+        : Object.entries(value as Record<string, RillValue>);
+      for (const [k, v] of sourceEntries) {
+        if (!fieldNames.has(k)) {
+          resultEntries.push([k, v]);
+        }
       }
     }
     return createOrdered(resultEntries);
@@ -422,38 +496,72 @@ export function hydrateFieldDefaults(
   ) {
     const elements = (type as TupleStructure).elements!;
     const entries = value.entries;
-    // All fields present: recurse into nested types for present positions
-    if (entries.length >= elements.length) {
-      const resultEntries = elements.map((el, i) =>
-        hydrateFieldDefaults(entries[i]!, el.type)
-      );
-      // Preserve any extra trailing entries beyond the type definition
-      for (let i = elements.length; i < entries.length; i++) {
-        resultEntries.push(entries[i]!);
-      }
-      return { __rill_tuple: true as const, entries: resultEntries };
-    }
-    // Value shorter: fill missing trailing positions with defaults
     const resultEntries: RillValue[] = [];
     for (let i = 0; i < elements.length; i++) {
       const el = elements[i]!;
       if (i < entries.length) {
-        resultEntries.push(hydrateFieldDefaults(entries[i]!, el.type));
+        resultEntries.push(hydrateStructure(entries[i]!, el.type, policy));
       } else if (el.defaultValue !== undefined) {
         resultEntries.push(
-          hydrateFieldDefaults(copyValue(el.defaultValue), el.type)
+          hydrateStructure(copyValue(el.defaultValue), el.type, policy)
         );
       } else if (hasCollectionFields(el.type)) {
         resultEntries.push(
-          hydrateFieldDefaults(emptyForType(el.type), el.type)
+          hydrateStructure(emptyForType(el.type), el.type, policy)
         );
+      } else {
+        policy.onMissingField({
+          kind: 'tuple',
+          source: 'tuple',
+          target: 'tuple',
+          fieldName: String(i),
+          position: i,
+        });
       }
-      // Missing without default and not collection: leave absent (shorter tuple) for Stage 3
     }
-    return { __rill_tuple: true as const, entries: resultEntries };
+    if (policy.keepExtras) {
+      for (let i = elements.length; i < entries.length; i++) {
+        resultEntries.push(entries[i]!);
+      }
+    }
+    // resultEntries is a freshly-built array exclusively owned by this call;
+    // freeze directly instead of going through createTuple's defensive copy.
+    return Object.freeze({
+      __rill_tuple: true as const,
+      entries: resultEntries,
+    });
   }
 
   return value;
+}
+
+/**
+ * Marshaling hydration policy: leave missing required fields absent (Stage 3
+ * type-check reports RILL-R001), keep extras (structural match allows wider
+ * shapes than declared), never coerce a dict source into an ordered target.
+ */
+const MARSHAL_HYDRATION_POLICY: HydrationPolicy = {
+  onMissingField: () => {
+    // Leave the field absent; Stage 3 (structureMatches) reports RILL-R001.
+  },
+  keepExtras: true,
+  coerceOrderedFromDict: false,
+};
+
+/**
+ * Hydrate missing dict/ordered field-level defaults into a value.
+ *
+ * When a param has type `dict(a: string = "x", b: number)` and the caller
+ * passes `[b: 2]`, this fills in `a` with its default `"x"`. Fields without
+ * defaults are left absent so Stage 3 catches them with RILL-R001.
+ *
+ * Pure function: no class context, no evaluator, no side effects.
+ */
+export function hydrateFieldDefaults(
+  value: RillValue,
+  type: TypeStructure
+): RillValue {
+  return hydrateStructure(value, type, MARSHAL_HYDRATION_POLICY);
 }
 
 /**

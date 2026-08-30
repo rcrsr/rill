@@ -73,6 +73,26 @@ function nullableEquals<T extends ASTNode>(a: T | null, b: T | null): boolean {
   return astEquals(a, b);
 }
 
+/**
+ * Compare two arrays for structural equality: same length, then element-wise
+ * comparison via `cmp`. Returns false on length mismatch before comparing
+ * any elements.
+ */
+function arrayEquals<T>(
+  a: readonly T[],
+  b: readonly T[],
+  cmp: (x: T, y: T) => boolean
+): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (!cmp(a[i] as T, b[i] as T)) return false;
+  }
+  return true;
+}
+
+/** Reusable pair comparator for `arrayEquals(..., astEqualsPair)` call sites. */
+const astEqualsPair = (x: ASTNode, y: ASTNode): boolean => astEquals(x, y);
+
 export function astEquals(a: ASTNode, b: ASTNode): boolean {
   // Different node types are never equal
   if (a.type !== b.type) return false;
@@ -236,19 +256,13 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
 }
 
 function blockEquals(a: BlockNode, b: BlockNode): boolean {
-  if (a.statements.length !== b.statements.length) return false;
-  for (let i = 0; i < a.statements.length; i++) {
-    const stmtA = a.statements[i]!;
-    const stmtB = b.statements[i]!;
+  return arrayEquals(a.statements, b.statements, (stmtA, stmtB) => {
     if (stmtA.type !== stmtB.type) return false;
     if (stmtA.type === 'AnnotatedStatement') {
-      if (!annotatedStatementEquals(stmtA, stmtB as AnnotatedStatementNode))
-        return false;
-    } else {
-      if (!statementEquals(stmtA, stmtB as StatementNode)) return false;
+      return annotatedStatementEquals(stmtA, stmtB as AnnotatedStatementNode);
     }
-  }
-  return true;
+    return statementEquals(stmtA, stmtB as StatementNode);
+  });
 }
 
 function statementEquals(a: StatementNode, b: StatementNode): boolean {
@@ -259,11 +273,8 @@ function annotatedStatementEquals(
   a: AnnotatedStatementNode,
   b: AnnotatedStatementNode
 ): boolean {
-  if (a.annotations.length !== b.annotations.length) return false;
-  for (let i = 0; i < a.annotations.length; i++) {
-    if (!annotationArgEquals(a.annotations[i]!, b.annotations[i]!))
-      return false;
-  }
+  if (!arrayEquals(a.annotations, b.annotations, annotationArgEquals))
+    return false;
   return statementEquals(a.statement, b.statement);
 }
 
@@ -304,11 +315,7 @@ function partialExpressionEquals(
   b: PartialExpressionNode
 ): boolean {
   if (a.message !== b.message) return false;
-  if (a.children.length !== b.children.length) return false;
-  for (let i = 0; i < a.children.length; i++) {
-    if (!expressionEquals(a.children[i]!, b.children[i]!)) return false;
-  }
-  return true;
+  return arrayEquals(a.children, b.children, expressionEquals);
 }
 
 function recoveryErrorEquals(
@@ -320,23 +327,14 @@ function recoveryErrorEquals(
 
 function pipeChainEquals(a: PipeChainNode, b: PipeChainNode): boolean {
   if (!astEquals(a.head as ASTNode, b.head as ASTNode)) return false;
-  if (a.pipes.length !== b.pipes.length) return false;
-  for (let i = 0; i < a.pipes.length; i++) {
-    if (!astEquals(a.pipes[i]! as ASTNode, b.pipes[i]! as ASTNode))
-      return false;
-  }
+  if (!arrayEquals(a.pipes, b.pipes, astEqualsPair)) return false;
   return nullableEquals(a.terminator, b.terminator);
 }
 
 function postfixExprEquals(a: PostfixExprNode, b: PostfixExprNode): boolean {
   if (!astEquals(a.primary as ASTNode, b.primary as ASTNode)) return false;
-  if (a.methods.length !== b.methods.length) return false;
-  for (let i = 0; i < a.methods.length; i++) {
-    // Methods array can contain MethodCallNode or InvokeNode
-    if (!astEquals(a.methods[i]! as ASTNode, b.methods[i]! as ASTNode))
-      return false;
-  }
-  return true;
+  // Methods array can contain MethodCallNode or InvokeNode
+  return arrayEquals(a.methods, b.methods, astEqualsPair);
 }
 
 function stringLiteralEquals(
@@ -344,18 +342,13 @@ function stringLiteralEquals(
   b: StringLiteralNode
 ): boolean {
   if (a.isMultiline !== b.isMultiline) return false;
-  if (a.parts.length !== b.parts.length) return false;
-  for (let i = 0; i < a.parts.length; i++) {
-    const aPart = a.parts[i]!;
-    const bPart = b.parts[i]!;
+  return arrayEquals(a.parts, b.parts, (aPart, bPart) => {
     if (typeof aPart === 'string') {
-      if (typeof bPart !== 'string' || aPart !== bPart) return false;
-    } else {
-      if (typeof bPart === 'string') return false;
-      if (!expressionEquals(aPart.expression, bPart.expression)) return false;
+      return typeof bPart === 'string' && aPart === bPart;
     }
-  }
-  return true;
+    if (typeof bPart === 'string') return false;
+    return expressionEquals(aPart.expression, bPart.expression);
+  });
 }
 
 function fieldAccessEquals(a: FieldAccess, b: FieldAccess): boolean {
@@ -387,12 +380,7 @@ function fieldAccessEquals(a: FieldAccess, b: FieldAccess): boolean {
 function variableEquals(a: VariableNode, b: VariableNode): boolean {
   if (a.name !== b.name) return false;
   if (a.isPipeVar !== b.isPipeVar) return false;
-  if (a.accessChain.length !== b.accessChain.length) return false;
-  for (let i = 0; i < a.accessChain.length; i++) {
-    if (!propertyAccessEquals(a.accessChain[i]!, b.accessChain[i]!))
-      return false;
-  }
-  return true;
+  return arrayEquals(a.accessChain, b.accessChain, propertyAccessEquals);
 }
 
 function propertyAccessEquals(a: PropertyAccess, b: PropertyAccess): boolean {
@@ -420,10 +408,8 @@ function functionCallEquals(a: HostCallNode, b: HostCallNode): boolean {
 
 function closureCallEquals(a: ClosureCallNode, b: ClosureCallNode): boolean {
   if (a.name !== b.name) return false;
-  if (a.accessChain.length !== b.accessChain.length) return false;
-  for (let i = 0; i < a.accessChain.length; i++) {
-    if (a.accessChain[i] !== b.accessChain[i]) return false;
-  }
+  if (!arrayEquals(a.accessChain, b.accessChain, (x, y) => x === y))
+    return false;
   return argsListEquals(a.args, b.args);
 }
 
@@ -445,19 +431,14 @@ function argsListEquals(
   a: (ExpressionNode | SpreadArgNode)[],
   b: (ExpressionNode | SpreadArgNode)[]
 ): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const aItem = a[i]!;
-    const bItem = b[i]!;
+  return arrayEquals(a, b, (aItem, bItem) => {
     if (aItem.type === 'SpreadArg' || bItem.type === 'SpreadArg') {
       if (aItem.type !== 'SpreadArg' || bItem.type !== 'SpreadArg')
         return false;
-      if (!expressionEquals(aItem.expression, bItem.expression)) return false;
-    } else {
-      if (!expressionEquals(aItem, bItem)) return false;
+      return expressionEquals(aItem.expression, bItem.expression);
     }
-  }
-  return true;
+    return expressionEquals(aItem, bItem);
+  });
 }
 
 function conditionalEquals(a: ConditionalNode, b: ConditionalNode): boolean {
@@ -503,12 +484,8 @@ function listSpreadEquals(a: ListSpreadNode, b: ListSpreadNode): boolean {
 }
 
 function dictEquals(a: DictNode, b: DictNode): boolean {
-  if (a.entries.length !== b.entries.length) return false;
-  for (let i = 0; i < a.entries.length; i++) {
-    if (!dictEntryEquals(a.entries[i]!, b.entries[i]!)) return false;
-  }
-  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
-  return true;
+  if (!arrayEquals(a.entries, b.entries, dictEntryEquals)) return false;
+  return nullableEquals(a.defaultValue, b.defaultValue);
 }
 
 function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
@@ -532,10 +509,7 @@ function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
     const aKey = a.key as ListLiteralNode;
     const bKey = b.key as ListLiteralNode;
     if (aKey.type !== bKey.type) return false;
-    if (aKey.elements.length !== bKey.elements.length) return false;
-    for (let i = 0; i < aKey.elements.length; i++) {
-      if (!astEquals(aKey.elements[i]!, bKey.elements[i]!)) return false;
-    }
+    if (!arrayEquals(aKey.elements, bKey.elements, astEquals)) return false;
   } else {
     // Different key types are not equal
     return false;
@@ -544,10 +518,7 @@ function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
 }
 
 function closureEquals(a: ClosureNode, b: ClosureNode): boolean {
-  if (a.params.length !== b.params.length) return false;
-  for (let i = 0; i < a.params.length; i++) {
-    if (!closureParamEquals(a.params[i]!, b.params[i]!)) return false;
-  }
+  if (!arrayEquals(a.params, b.params, closureParamEquals)) return false;
   return simpleBodyEquals(a.body, b.body);
 }
 
@@ -565,11 +536,7 @@ function closureParamEquals(a: ClosureParamNode, b: ClosureParamNode): boolean {
 }
 
 function destructureEquals(a: DestructureNode, b: DestructureNode): boolean {
-  if (a.elements.length !== b.elements.length) return false;
-  for (let i = 0; i < a.elements.length; i++) {
-    if (!destructElemEquals(a.elements[i]!, b.elements[i]!)) return false;
-  }
-  return true;
+  return arrayEquals(a.elements, b.elements, destructElemEquals);
 }
 
 function destructElemEquals(
@@ -598,48 +565,26 @@ function sliceEquals(a: SliceNode, b: SliceNode): boolean {
 }
 
 function listLiteralEquals(a: ListLiteralNode, b: ListLiteralNode): boolean {
-  if (a.elements.length !== b.elements.length) return false;
-  for (let i = 0; i < a.elements.length; i++) {
-    if (!astEquals(a.elements[i]! as ASTNode, b.elements[i]! as ASTNode))
-      return false;
-  }
-  return true;
+  return arrayEquals(a.elements, b.elements, astEqualsPair);
 }
 
 function dictLiteralEquals(a: DictLiteralNode, b: DictLiteralNode): boolean {
-  if (a.entries.length !== b.entries.length) return false;
-  for (let i = 0; i < a.entries.length; i++) {
-    if (!dictEntryEquals(a.entries[i]!, b.entries[i]!)) return false;
-  }
-  return true;
+  return arrayEquals(a.entries, b.entries, dictEntryEquals);
 }
 
 function tupleLiteralEquals(a: TupleLiteralNode, b: TupleLiteralNode): boolean {
-  if (a.elements.length !== b.elements.length) return false;
-  for (let i = 0; i < a.elements.length; i++) {
-    if (!astEquals(a.elements[i]! as ASTNode, b.elements[i]! as ASTNode))
-      return false;
-  }
-  return true;
+  return arrayEquals(a.elements, b.elements, astEqualsPair);
 }
 
 function orderedLiteralEquals(
   a: OrderedLiteralNode,
   b: OrderedLiteralNode
 ): boolean {
-  if (a.entries.length !== b.entries.length) return false;
-  for (let i = 0; i < a.entries.length; i++) {
-    if (!dictEntryEquals(a.entries[i]!, b.entries[i]!)) return false;
-  }
-  return true;
+  return arrayEquals(a.entries, b.entries, dictEntryEquals);
 }
 
 function destructNodeEquals(a: DestructNode, b: DestructNode): boolean {
-  if (a.elements.length !== b.elements.length) return false;
-  for (let i = 0; i < a.elements.length; i++) {
-    if (!destructElemEquals(a.elements[i]!, b.elements[i]!)) return false;
-  }
-  return true;
+  return arrayEquals(a.elements, b.elements, destructElemEquals);
 }
 
 /**
@@ -663,17 +608,12 @@ function typeRefArgListEquals(
 ): boolean {
   const aArgs = a ?? [];
   const bArgs = b ?? [];
-  if (aArgs.length !== bArgs.length) return false;
-  for (let i = 0; i < aArgs.length; i++) {
-    const aArg = aArgs[i]!;
-    const bArg = bArgs[i]!;
+  return arrayEquals(aArgs, bArgs, (aArg, bArg) => {
     if (aArg.name !== bArg.name) return false;
     if (!typeRefEquals(aArg.value, bArg.value)) return false;
     if (!literalNodeEquals(aArg.defaultValue, bArg.defaultValue)) return false;
-    if (!fieldAnnotationsEquals(aArg.annotations, bArg.annotations))
-      return false;
-  }
-  return true;
+    return fieldAnnotationsEquals(aArg.annotations, bArg.annotations);
+  });
 }
 
 /**
@@ -686,11 +626,7 @@ function fieldAnnotationsEquals(
 ): boolean {
   const aAnns = a ?? [];
   const bAnns = b ?? [];
-  if (aAnns.length !== bAnns.length) return false;
-  for (let i = 0; i < aAnns.length; i++) {
-    if (!annotationArgEquals(aAnns[i]!, bAnns[i]!)) return false;
-  }
-  return true;
+  return arrayEquals(aAnns, bAnns, annotationArgEquals);
 }
 
 /**
@@ -703,8 +639,7 @@ function typeRefEquals(a: TypeRef, b: TypeRef): boolean {
   if (a.kind === 'static' && b.kind === 'static')
     return typeRefStaticEquals(a, b);
   if (a.kind === 'union' && b.kind === 'union') {
-    if (a.members.length !== b.members.length) return false;
-    return a.members.every((member, i) => typeRefEquals(member, b.members[i]!));
+    return arrayEquals(a.members, b.members, typeRefEquals);
   }
   return false;
 }
