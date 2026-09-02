@@ -305,3 +305,11 @@ export const DURATION_METHODS = Object.freeze({
     true
   ),
 });
+
+export const TUPLE_METHODS = Object.freeze({
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+});
+
+export const ORDERED_METHODS = Object.freeze({
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+});
