@@ -67,7 +67,7 @@ import type { RuntimeContext } from '../../types/runtime.js';
 import { createChildContext, getVariable } from '../../context.js';
 import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation } from '../shared.js';
+import { getNodeLocation, setDictField } from '../shared.js';
 import {
   evaluateExpression,
   evaluatePipeChain,
@@ -521,7 +521,7 @@ export async function evaluateDict(
             );
             const blockNode = head.primary as BlockNode;
             const closure = createBlockClosure(s, blockNode);
-            result[stringKey] = closure;
+            setDictField(result, stringKey, closure);
           } else if (isClosureExpr(entry.value)) {
             const head = requirePipeChainHead(
               entry.value,
@@ -530,9 +530,13 @@ export async function evaluateDict(
             );
             const fnLit = head.primary as ClosureNode;
             const closure = await createClosure(s, fnLit);
-            result[stringKey] = closure;
+            setDictField(result, stringKey, closure);
           } else {
-            result[stringKey] = await evaluateExpression(s, entry.value);
+            setDictField(
+              result,
+              stringKey,
+              await evaluateExpression(s, entry.value)
+            );
           }
 
           continue;
@@ -598,7 +602,7 @@ export async function evaluateDict(
             );
             const blockNode = head.primary as BlockNode;
             const closure = createBlockClosure(s, blockNode);
-            result[stringKey] = closure;
+            setDictField(result, stringKey, closure);
           } else if (isClosureExpr(entry.value)) {
             const head = requirePipeChainHead(
               entry.value,
@@ -607,9 +611,13 @@ export async function evaluateDict(
             );
             const fnLit = head.primary as ClosureNode;
             const closure = await createClosure(s, fnLit);
-            result[stringKey] = closure;
+            setDictField(result, stringKey, closure);
           } else {
-            result[stringKey] = await evaluateExpression(s, entry.value);
+            setDictField(
+              result,
+              stringKey,
+              await evaluateExpression(s, entry.value)
+            );
           }
 
           continue;
@@ -638,7 +646,7 @@ export async function evaluateDict(
           );
         }
         // Apply last-write-wins semantics
-        result[stringKey] = value;
+        setDictField(result, stringKey, value);
       }
       continue;
     }
@@ -666,25 +674,27 @@ export async function evaluateDict(
       const head = requirePipeChainHead(entry.value, s.ctx, 'evaluateDict');
       const blockNode = head.primary as BlockNode;
       const closure = createBlockClosure(s, blockNode);
-      result[stringKey] = closure;
+      setDictField(result, stringKey, closure);
     } else if (isClosureExpr(entry.value)) {
       const head = requirePipeChainHead(entry.value, s.ctx, 'evaluateDict');
       const fnLit = head.primary as ClosureNode;
       const closure = await createClosure(s, fnLit);
-      result[stringKey] = closure;
+      setDictField(result, stringKey, closure);
     } else {
-      result[stringKey] = await evaluateExpression(s, entry.value);
+      setDictField(result, stringKey, await evaluateExpression(s, entry.value));
     }
   }
 
-  // Bind all callables to the containing dict
+  // Bind all callables to the containing dict. Use setDictField so a field
+  // literally named `__proto__` is rewritten as an own property rather than
+  // reparenting the dict via the prototype setter.
   for (const key of Object.keys(result)) {
     const value = result[key];
     if (value !== undefined && isCallable(value)) {
-      result[key] = {
+      setDictField(result, key, {
         ...value,
         boundDict: result,
-      };
+      });
     }
   }
 

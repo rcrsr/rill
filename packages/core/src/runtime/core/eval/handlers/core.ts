@@ -177,81 +177,84 @@ export async function evaluatePipeChain(
   s: EvalState,
   chain: PipeChainNode
 ): Promise<RillValue> {
-  // Save parent's $ - chains don't leak $ modifications to parent scope
+  // Save parent's $ - chains don't leak $ modifications to parent scope.
+  // The try/finally guarantees restoration on every exit, including when a
+  // pipe target throws (a halt or control signal). Without it, an error
+  // mid-chain leaves the chain's intermediate value in ctx.pipeValue, which
+  // a surrounding `??` default would then observe as a stale `$`.
   const savedPipeValue = s.ctx.pipeValue;
+  try {
+    // Evaluate head (can be PostfixExpr, BinaryExpr, or UnaryExpr)
+    let value: RillValue;
+    switch (chain.head.type) {
+      case 'BinaryExpr':
+        value = await evaluateBinaryExpr(s, chain.head);
+        break;
+      case 'UnaryExpr':
+        value = await evaluateUnaryExpr(s, chain.head);
+        break;
+      case 'PostfixExpr':
+        value = await evaluatePostfixExpr(s, chain.head);
+        break;
+    }
+    s.ctx.pipeValue = value; // OK: local to this chain evaluation
 
-  // Evaluate head (can be PostfixExpr, BinaryExpr, or UnaryExpr)
-  let value: RillValue;
-  switch (chain.head.type) {
-    case 'BinaryExpr':
-      value = await evaluateBinaryExpr(s, chain.head);
-      break;
-    case 'UnaryExpr':
-      value = await evaluateUnaryExpr(s, chain.head);
-      break;
-    case 'PostfixExpr':
-      value = await evaluatePostfixExpr(s, chain.head);
-      break;
+    // Evaluate each pipe target in sequence
+    // BreakSignal and ReturnSignal propagate through to the caller.
+    for (const target of chain.pipes) {
+      // Handle inline captures (act as identity: store and pass through)
+      if (target.type === 'Capture') {
+        await handleCapture(s, target, value);
+        // Value flows through unchanged
+        continue;
+      }
+
+      // access-halt gate at pipe site. An invalid LHS halts before
+      // flowing into the pipe target; `->` is an access on the LHS value.
+      // Status probes bypass the gate at their own call site (see
+      // evaluateStatusProbe) so this gate never fires for `.!` access.
+      value = accessHaltGateFast(
+        value,
+        '->',
+        () => getNodeLocation(s, target),
+        s.ctx.sourceId
+      );
+
+      value = await evaluatePipeTarget(s, target, value);
+      s.ctx.pipeValue = value; // OK: flows within chain
+    }
+
+    // Handle chain terminator (capture, break, return, yield)
+    if (chain.terminator) {
+      if (chain.terminator.type === 'Break') {
+        throw new BreakSignal(value);
+      }
+      if (chain.terminator.type === 'Return') {
+        throw new ReturnSignal(value);
+      }
+      if (chain.terminator.type === 'Yield') {
+        // Restore parent's $ before yielding so a blocked stream consumer
+        // never observes the chain's internal $.
+        s.ctx.pipeValue = savedPipeValue;
+        // Delegate to evaluateYield for chunk type validation + YieldSignal.
+        // When inside a stream closure body, evaluateYield pushes to the
+        // channel and blocks until the consumer pulls (returns Promise<void>).
+        // When outside, it throws YieldSignal synchronously.
+        await evaluateYield(s, value, chain.terminator.span.start);
+        // After yield resumes (stream channel case), return the yielded
+        // value as the chain result
+        return value;
+      }
+      // Capture
+      await handleCapture(s, chain.terminator, value);
+    }
+
+    return value;
+  } finally {
+    // Restore parent's $ on every exit path (normal, thrown, or control
+    // signal) - chain result is returned, but $ doesn't leak.
+    s.ctx.pipeValue = savedPipeValue;
   }
-  s.ctx.pipeValue = value; // OK: local to this chain evaluation
-
-  // Evaluate each pipe target in sequence
-  // BreakSignal and ReturnSignal propagate through to the caller.
-  for (const target of chain.pipes) {
-    // Handle inline captures (act as identity: store and pass through)
-    if (target.type === 'Capture') {
-      await handleCapture(s, target, value);
-      // Value flows through unchanged
-      continue;
-    }
-
-    // access-halt gate at pipe site. An invalid LHS halts before
-    // flowing into the pipe target; `->` is an access on the LHS value.
-    // Status probes bypass the gate at their own call site (see
-    // evaluateStatusProbe) so this gate never fires for `.!` access.
-    value = accessHaltGateFast(
-      value,
-      '->',
-      () => getNodeLocation(s, target),
-      s.ctx.sourceId
-    );
-
-    value = await evaluatePipeTarget(s, target, value);
-    s.ctx.pipeValue = value; // OK: flows within chain
-  }
-
-  // Handle chain terminator (capture, break, return, yield)
-  if (chain.terminator) {
-    if (chain.terminator.type === 'Break') {
-      // Restore parent's $ before throwing (cleanup)
-      s.ctx.pipeValue = savedPipeValue;
-      throw new BreakSignal(value);
-    }
-    if (chain.terminator.type === 'Return') {
-      // Restore parent's $ before throwing (cleanup)
-      s.ctx.pipeValue = savedPipeValue;
-      throw new ReturnSignal(value);
-    }
-    if (chain.terminator.type === 'Yield') {
-      // Restore parent's $ before throwing (cleanup)
-      s.ctx.pipeValue = savedPipeValue;
-      // Delegate to evaluateYield for chunk type validation + YieldSignal.
-      // When inside a stream closure body, evaluateYield pushes to the
-      // channel and blocks until the consumer pulls (returns Promise<void>).
-      // When outside, it throws YieldSignal synchronously.
-      await evaluateYield(s, value, chain.terminator.span.start);
-      // After yield resumes (stream channel case), restore pipe value
-      // and return the yielded value as the chain result
-      return value;
-    }
-    // Capture
-    await handleCapture(s, chain.terminator, value);
-  }
-
-  // Restore parent's $ - chain result is returned, but $ doesn't leak
-  s.ctx.pipeValue = savedPipeValue;
-
-  return value;
 }
 
 /**

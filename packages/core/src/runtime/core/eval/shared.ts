@@ -9,7 +9,6 @@
  */
 
 import type { ASTNode, SourceLocation } from '../../../types.js';
-import { TimeoutError } from '../../../types.js';
 import { isCallable, isDict } from '../callable.js';
 import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
@@ -79,6 +78,14 @@ export function checkAutoExceptions(
 /**
  * Wrap a promise with a timeout.
  * Returns original promise if no timeout configured.
+ *
+ * The pending timer is always cleared once the race settles — whether the
+ * wrapped promise wins or the timeout fires — so a completed operation never
+ * holds the event loop open waiting on a dead timer.
+ *
+ * On expiry the race rejects with a catchable `RuntimeHaltSignal` (atom
+ * `RILL_R012`), so `guard { slow() }` and `retry { slow() }` can recover a
+ * timeout the same way they recover any other operational halt.
  */
 export function withTimeout<T>(
   s: EvalState,
@@ -91,16 +98,33 @@ export function withTimeout<T>(
     return promise;
   }
 
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) => {
-      setTimeout(() => {
-        reject(
-          new TimeoutError(functionName, timeoutMs, getNodeLocation(s, node))
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      // Build the catchable halt via throwCatchableHostHalt (which throws),
+      // then forward it to reject so the race surfaces a RuntimeHaltSignal.
+      try {
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: functionName,
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R012],
+          `Function '${functionName}' timed out after ${timeoutMs}ms`,
+          { functionName, timeoutMs }
         );
-      }, timeoutMs);
-    }),
-  ]);
+      } catch (haltSignal) {
+        reject(haltSignal as Error);
+      }
+    }, timeoutMs);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  });
 }
 
 /**
@@ -130,7 +154,13 @@ export async function accessDictField(
     );
   }
 
-  const dictValue = (value as Record<string, RillValue>)[field];
+  // Only OWN, explicitly-set keys resolve. A plain property read would let
+  // inherited JS members (`constructor`, `__proto__`, `toString`, ...) leak
+  // out as rill values, so gate on Object.hasOwn: an inherited member reads
+  // as `undefined` and falls through to the missing-field path below.
+  const dictValue = Object.hasOwn(value, field)
+    ? (value as Record<string, RillValue>)[field]
+    : undefined;
 
   // Check if field exists
   if (dictValue === undefined || dictValue === null) {
@@ -155,4 +185,26 @@ export async function accessDictField(
   }
 
   return dictValue;
+}
+
+/**
+ * Assign an own, enumerable data property to a dict under construction.
+ *
+ * A plain `obj[key] = value` assignment invokes any inherited setter, so a
+ * key literally named `__proto__` would reparent the object rather than store
+ * a field. `Object.defineProperty` with a data descriptor always creates an
+ * ordinary own field, so `dict[("__proto__"): ...]` stores an own `__proto__`
+ * field (readable via `Object.hasOwn`) instead of mutating the prototype.
+ */
+export function setDictField(
+  obj: Record<string, RillValue>,
+  key: string,
+  value: RillValue
+): void {
+  Object.defineProperty(obj, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
 }

@@ -180,12 +180,41 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
 }
 
 /**
+ * Escape a raw string into the body of a rill double-quoted string literal.
+ * Handles the escape sequences the lexer recognizes (`\\`, `\"`, `\n`, `\r`,
+ * `\t`). Backslash is escaped first so the other replacements do not double it.
+ */
+function escapeRillStringBody(raw: string): string {
+  return raw
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t');
+}
+
+/**
+ * Serialize a default value as a rill literal suitable for emission into a
+ * parseable manifest. String values are wrapped in double quotes with their
+ * contents escaped; all other value kinds delegate to `formatValue`, whose
+ * output already parses (numbers, booleans, collections).
+ */
+function serializeDefaultValue(value: RillValue): string {
+  if (typeof value === 'string') {
+    return `"${escapeRillStringBody(value)}"`;
+  }
+  return formatValue(value);
+}
+
+/**
  * Serialize a single RillParam into rill closure parameter syntax.
  *
  * Format: `^(description: "...") name: type = default`
  * - Annotation prefix included only when annotations.description is present.
  * - Type defaults to `any` when param.type is undefined.
  * - Default value appended as `= value` when param.defaultValue is defined.
+ *   String defaults are emitted as quoted, escaped rill string literals so the
+ *   manifest remains a valid rill file.
  */
 function serializeParam(p: RillParam): string {
   const parts: string[] = [];
@@ -193,7 +222,7 @@ function serializeParam(p: RillParam): string {
   // Parameter-level description annotation
   const desc = p.annotations['description'];
   if (typeof desc === 'string' && desc.length > 0) {
-    parts.push(`^(description: "${desc}") `);
+    parts.push(`^(description: "${escapeRillStringBody(desc)}") `);
   }
 
   // Name and type
@@ -202,7 +231,7 @@ function serializeParam(p: RillParam): string {
 
   // Default value
   if (p.defaultValue !== undefined) {
-    parts.push(` = ${formatValue(p.defaultValue)}`);
+    parts.push(` = ${serializeDefaultValue(p.defaultValue)}`);
   }
 
   return parts.join('');
@@ -225,7 +254,7 @@ function serializeClosureSignature(
 
   // Closure-level description annotation
   if (typeof description === 'string' && description.length > 0) {
-    parts.push(`^(description: "${description}") `);
+    parts.push(`^(description: "${escapeRillStringBody(description)}") `);
   }
 
   // Parameter list

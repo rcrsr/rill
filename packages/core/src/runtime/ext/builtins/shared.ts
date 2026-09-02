@@ -8,9 +8,21 @@ import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/
 import { throwCatchableHostHalt } from '../../core/types/halt.js';
 
 /**
- * Walk an iterator or stream for up to `cap` steps, collecting values.
- * Returns the collected elements. Stops early when done===true.
+ * Walk an iterator or stream until `cap` value-bearing elements have been
+ * produced (or the sequence is exhausted), collecting those values.
+ * Returns the collected elements and the tail step positioned immediately
+ * after the last produced value.
  * Used by take() and skip() to avoid materialising the entire sequence.
+ *
+ * `cap` counts produced elements, not raw steps. A stream from
+ * `createRillStream` begins with a value-less "pending" head step
+ * (done:false with no `value`); the first `.next` pulls the first chunk.
+ * That head step is a positioning step, not an element, so it must not
+ * count toward `cap` — otherwise take() returns one element short and
+ * skip() keeps one too many. Iterators (range, cycle, iterate) carry a
+ * value in their head step and are unaffected: every step they emit is a
+ * produced element. This mirrors expandStream/expandIterator, which push a
+ * step's value only when it is not undefined.
  */
 export async function walkIteratorSteps(
   start: Record<string, unknown>,
@@ -27,13 +39,15 @@ export async function walkIteratorSteps(
     fn: 'walkIteratorSteps',
   };
 
-  for (let i = 0; i < cap; i++) {
+  let produced = 0;
+  while (produced < cap) {
     checkAborted(evaluator);
     if (current['done']) break;
     const val = current['value'];
-    if (val !== undefined) {
-      elements.push(val as RillValue);
-    }
+
+    // Advance to the next step regardless of whether this step carried a
+    // value: the value-less stream head still has to be stepped over to
+    // reach the first chunk.
     const nextRaw = current['next'];
     const nextClosure = nextRaw as RillValue;
     if (nextRaw === undefined || !isCallable(nextClosure)) {
@@ -58,6 +72,12 @@ export async function walkIteratorSteps(
       );
     }
     current = nextStep as Record<string, unknown>;
+
+    // Count this step toward `cap` only when it produced a value.
+    if (val !== undefined) {
+      elements.push(val as RillValue);
+      produced++;
+    }
   }
 
   return { elements, tail: current };

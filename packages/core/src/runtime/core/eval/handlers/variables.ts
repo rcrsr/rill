@@ -377,7 +377,11 @@ export async function evaluateVariableAsync(
             `Dict key must be string, got ${inferType(indexValue)}`
           );
         }
-        const result = (value as Record<string, RillValue>)[indexValue];
+        // Own-key gate: inherited JS members (constructor, __proto__, ...)
+        // must not resolve as dict fields.
+        const result = Object.hasOwn(value, indexValue)
+          ? (value as Record<string, RillValue>)[indexValue]
+          : undefined;
         if (result === undefined) {
           throwCatchableHostHalt(
             {
@@ -545,9 +549,9 @@ export async function evaluateVariableAsync(
     if (finalAccess.kind === 'literal') {
       // Check if literal field exists in dict
       if (isDict(value)) {
-        const fieldValue = (value as Record<string, RillValue>)[
-          finalAccess.field
-        ];
+        const fieldValue = Object.hasOwn(value, finalAccess.field)
+          ? (value as Record<string, RillValue>)[finalAccess.field]
+          : undefined;
         const exists = fieldValue !== undefined && fieldValue !== null;
 
         // If type-qualified check, verify type matches
@@ -598,7 +602,9 @@ export async function evaluateVariableAsync(
           );
         }
 
-        const fieldValue = (value as Record<string, RillValue>)[keyValue];
+        const fieldValue = Object.hasOwn(value, keyValue)
+          ? (value as Record<string, RillValue>)[keyValue]
+          : undefined;
         const exists = fieldValue !== undefined && fieldValue !== null;
 
         // If type-qualified check, verify type matches
@@ -653,7 +659,9 @@ export async function evaluateVariableAsync(
 
       // Check if computed key exists in dict
       if (isDict(value)) {
-        const fieldValue = (value as Record<string, RillValue>)[keyValue];
+        const fieldValue = Object.hasOwn(value, keyValue)
+          ? (value as Record<string, RillValue>)[keyValue]
+          : undefined;
         const exists = fieldValue !== undefined && fieldValue !== null;
 
         // If type-qualified check, verify type matches
@@ -993,7 +1001,9 @@ async function evaluateFieldAccessAlternatives(
 
   // Try each alternative left-to-right (short-circuit on first match)
   for (const key of access.alternatives) {
-    const dictValue = (value as Record<string, RillValue>)[key];
+    const dictValue = Object.hasOwn(value, key)
+      ? (value as Record<string, RillValue>)[key]
+      : undefined;
     if (dictValue !== undefined && dictValue !== null) {
       // Delegate to accessDictField (shared.ts) for consistent property-style callable handling
       return await accessDictField(

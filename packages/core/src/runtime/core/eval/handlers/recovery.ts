@@ -180,6 +180,7 @@ export async function evaluateRetryBlock(
   }
 
   let lastInvalid: RillValue | undefined;
+  const caughtFrames: ReturnType<typeof createTraceFrame>[] = [];
   for (let attempt = 0; attempt < node.attempts; attempt++) {
     try {
       return await evaluateBody(s, node.body);
@@ -190,11 +191,18 @@ export async function evaluateRetryBlock(
           kind: 'guard-caught',
           fn: 'retry',
         });
-        // Accumulate frames across attempts: attempt 1 seeds
-        // lastInvalid from the thrown value; subsequent attempts
-        // append to the running accumulator, so N exhausted
-        // attempts produce N guard-caught frames.
-        lastInvalid = appendTraceFrame(lastInvalid ?? e.value, frame);
+        // The returned value must describe the FINAL failure, not the
+        // first. Each attempt reseeds the accumulator from THIS attempt's
+        // thrown value so its code/message win, then replays every
+        // guard-caught frame collected so far (including this one) on top
+        // of it. N exhausted attempts therefore produce the last attempt's
+        // invalid value carrying N guard-caught frames.
+        caughtFrames.push(frame);
+        let carried = e.value;
+        for (const f of caughtFrames) {
+          carried = appendTraceFrame(carried, f);
+        }
+        lastInvalid = carried;
         continue;
       }
       throw e;

@@ -50,7 +50,7 @@ import {
   formatStructure,
 } from '../../types/operations.js';
 import { anyTypeValue, structureToTypeValue } from '../../values.js';
-import { YieldSignal } from '../../signals.js';
+import { YieldSignal, ControlSignal } from '../../signals.js';
 import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
 import {
@@ -247,24 +247,35 @@ async function evaluateArgs(
   const savedPipeValue = s.ctx.pipeValue;
   const args: RillValue[] = [];
   const sourceId = s.ctx.sourceId;
-  for (const arg of argExprs) {
-    const isSpread = arg.type === 'SpreadArg';
-    const expr = isSpread ? arg.expression : arg;
-    const evaluated = await evaluateExpression(s, expr);
-    let gated: RillValue;
-    if (
-      evaluated !== null &&
-      typeof evaluated === 'object' &&
-      (evaluated as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !== undefined
-    ) {
-      gated = haltSlowPath(evaluated, isSpread ? '...' : 'arg', expr, sourceId);
-    } else {
-      gated = evaluated;
+  try {
+    for (const arg of argExprs) {
+      const isSpread = arg.type === 'SpreadArg';
+      const expr = isSpread ? arg.expression : arg;
+      const evaluated = await evaluateExpression(s, expr);
+      let gated: RillValue;
+      if (
+        evaluated !== null &&
+        typeof evaluated === 'object' &&
+        (evaluated as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !== undefined
+      ) {
+        gated = haltSlowPath(
+          evaluated,
+          isSpread ? '...' : 'arg',
+          expr,
+          sourceId
+        );
+      } else {
+        gated = evaluated;
+      }
+      args.push(gated);
     }
-    args.push(gated);
+    return args;
+  } finally {
+    // Restore pipeValue on every exit path. When an argument expression
+    // throws (e.g. a nested pipe chain halts before a surrounding `??`),
+    // the intermediate value must not be left leaked in ctx.pipeValue.
+    s.ctx.pipeValue = savedPipeValue;
   }
-  s.ctx.pipeValue = savedPipeValue;
-  return args;
 }
 
 /** Invoke any callable; dispatches by kind. */
@@ -347,8 +358,18 @@ async function invokeFnCallable(
     return s.ctx.createDisposedResult();
   }
 
+  // Inject the bound dict as the sole receiver argument only for
+  // property/receiver-style callables (`isProperty`). Every callable stored
+  // in a dict gets a `boundDict` (bindDictCallables in types/runtime.ts), but
+  // a plain zero-param application callable must still be called with zero
+  // args — otherwise `$d.fn()` on a `params: []` callable would pass 1 arg
+  // (RILL-R045) and a defaults-only callable would take the dict as its first
+  // param (RILL-R001). The `isProperty` flag is the receiver contract locked
+  // by tests/runtime/host-integration.test.ts.
   const effectiveArgs =
-    callable.boundDict && args.length === 0 ? [callable.boundDict] : args;
+    callable.boundDict && callable.isProperty && args.length === 0
+      ? [callable.boundDict]
+      : args;
 
   let fnArgs: Record<string, RillValue>;
   if (isApplicationCallable(callable) && callable.params !== undefined) {
@@ -622,7 +643,14 @@ async function invokeStream(
       )
         break;
       current = next as unknown as RillStream;
-    } catch {
+    } catch (err) {
+      // Non-catchable halts (error/assert), abort halts, and control-flow
+      // signals (break/return/yield) must propagate — never swallow them.
+      // Only a normal stream-end (any other thrown value) breaks the loop
+      // and returns the stream's resolution value.
+      if (err instanceof RuntimeHaltSignal || err instanceof ControlSignal) {
+        throw err;
+      }
       break;
     }
   }

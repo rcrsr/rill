@@ -234,14 +234,16 @@ function annotationsEqual(
 
 /**
  * Deep equality for script callables.
- * Compares params, body AST structure, defining scope, and annotations.
+ * Compares params, declared return type, body AST structure, defining scope,
+ * and annotations.
  *
  * Two closures are equal if:
  * 1. Same parameter names, types, default values, and annotations
- * 2. Structurally identical body AST (ignoring source locations)
- * 3. Same defining scope (reference equality)
- * 4. Same closure-level annotations
- * 5. Same parameter-level annotations
+ * 2. Structurally identical declared return type (`:T` suffix)
+ * 3. Structurally identical body AST (ignoring source locations)
+ * 4. Same defining scope (reference equality)
+ * 5. Same closure-level annotations
+ * 6. Same parameter-level annotations
  */
 export function callableEquals(
   a: ScriptCallable,
@@ -271,6 +273,12 @@ export function callableEquals(
     if (!annotationsEqual(ap.annotations, bp.annotations, valueEquals)) {
       return false;
     }
+  }
+
+  // Compare declared return type structurally. Two closures that differ only
+  // in their `:T` return-type suffix are distinct values.
+  if (!structureEquals(a.returnType.structure, b.returnType.structure)) {
+    return false;
   }
 
   // Compare body by AST structure (ignoring source locations)

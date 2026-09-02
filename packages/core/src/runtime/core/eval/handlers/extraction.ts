@@ -32,6 +32,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { resolveTypeRef } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
+import { setDictField } from '../shared.js';
 
 /**
  * Evaluate destructure operator: destruct<$a, $b, $c>
@@ -93,7 +94,9 @@ export async function evaluateDestructure(
       }
 
       const dictInput = input as Record<string, RillValue>;
-      if (!(elem.key in dictInput)) {
+      // Own-key gate: an inherited member (constructor, __proto__, ...) must
+      // not satisfy a destructure key.
+      if (!Object.hasOwn(dictInput, elem.key)) {
         throwCatchableHostHalt(
           {
             location: elem.span.start,
@@ -336,6 +339,23 @@ function applySlice<T extends RillValue[] | string>(
     );
   }
 
+  // Bounds must be integers: a fractional bound generates fractional indices
+  // whose `input[i]` reads are `undefined`, which would leak into the result
+  // list. Halt with a catchable #INVALID_INPUT instead (matching take(1.5)).
+  for (const [label, bound] of [
+    ['start', start],
+    ['stop', stop],
+    ['step', step],
+  ] as const) {
+    if (bound !== null && !Number.isInteger(bound)) {
+      throwCatchableHostHalt(
+        { sourceId: s.ctx.sourceId, fn: 'applySlice' },
+        'INVALID_INPUT',
+        `Slice ${label} must be an integer, got ${bound}`
+      );
+    }
+  }
+
   const normalizeIndex = (
     idx: number | null,
     defaultVal: number,
@@ -440,7 +460,9 @@ export async function evaluateCollectionLiteral(
         s,
         node.entries
       )) {
-        result[key] = value;
+        // Safe assignment so a `__proto__` key becomes an own field rather
+        // than reparenting the dict via the prototype setter.
+        setDictField(result, key, value);
       }
       return result;
     }
