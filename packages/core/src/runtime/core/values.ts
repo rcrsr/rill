@@ -18,7 +18,6 @@ import {
   isCallable as _isCallableGuard,
   isDatetime,
   isDuration,
-  isInvalid,
   isIterator,
   isOrdered,
   isStream,
@@ -26,6 +25,7 @@ import {
   isTypeValue,
   isVector,
 } from './types/guards.js';
+export { isEmpty } from './types/status.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker) */
 const isCallable = _isCallableGuard as (
@@ -57,42 +57,6 @@ export const inferType: (value: RillValue) => string = registryInferType;
  */
 export function checkType(value: RillValue, expected: RillTypeName): boolean {
   return inferType(value) === expected;
-}
-
-/**
- * Check if a value is truthy in Rill semantics.
- *
- * Status-aware: invalid values are never truthy (their halt semantics
- * ensure they never reach boolean consumers in valid programs, but
- * callbacks and guard blocks may surface one here).
- */
-export function isTruthy(value: RillValue): boolean {
-  if (isInvalid(value)) return false;
-  if (value === null) return false;
-  if (typeof value === 'boolean') return value;
-  if (typeof value === 'number') return value !== 0;
-  if (typeof value === 'string') return value.length > 0;
-  if (isTuple(value)) return value.entries.length > 0;
-  if (isOrdered(value)) return value.entries.length > 0;
-  if (isVector(value)) return true; // Vectors always truthy (non-empty by construction)
-  if (Array.isArray(value)) return value.length > 0;
-  if (typeof value === 'object') {
-    if ('__type' in value && value.__type === 'callable') return true;
-    return Object.keys(value).length > 0;
-  }
-  return true;
-}
-
-/**
- * Check if a value is structurally empty.
- *
- * Status-aware: invalid values are a distinct category (not empty).
- * Use `isVacant` when the caller wants "empty OR invalid" semantics
- * (the `??` trigger and `.?` probe use `isVacant`).
- */
-export function isEmpty(value: RillValue): boolean {
-  if (isInvalid(value)) return false;
-  return !isTruthy(value);
 }
 
 /** Format a value for display. Delegates to types/registrations. */

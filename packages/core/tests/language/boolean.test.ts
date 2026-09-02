@@ -241,6 +241,28 @@ describe('Rill Runtime: Boolean Expressions', () => {
     });
   });
 
+  describe('Type Safety: Logical Operators', () => {
+    it('&& rejects non-boolean left operand', async () => {
+      await expect(run('5 && 3')).rejects.toThrow('requires boolean operand');
+    });
+
+    it('|| rejects non-boolean left operand', async () => {
+      await expect(run('0 || 7')).rejects.toThrow('requires boolean operand');
+    });
+
+    it('|| rejects non-boolean string left operand', async () => {
+      await expect(run('"" || "x"')).rejects.toThrow(
+        'requires boolean operand'
+      );
+    });
+
+    it('&& rejects non-boolean right operand', async () => {
+      await expect(run('true && 5')).rejects.toThrow(
+        'requires boolean operand'
+      );
+    });
+  });
+
   describe('Type Safety: Negation Operator', () => {
     it('rejects string operand', async () => {
       await expect(run('! "text"')).rejects.toThrow(

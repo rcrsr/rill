@@ -147,33 +147,38 @@ export function isInvalid(value: RillValue): boolean {
 
 /**
  * Returns true when the value is empty OR invalid (vacant predicate).
- *
- * Empty for primitives is `""`, `0`, `false`, `null`, `[]`, `{}`.
- * Empty for RillValue containers uses structural emptiness; full
- * emptiness rules land in task 1.2 alongside consumer wiring.
  */
 export function isVacant(value: RillValue): boolean {
-  if (isInvalid(value)) return true;
-  return isEmptyValue(value);
+  return isInvalid(value) || isEmpty(value);
 }
 
 /**
- * Provisional emptiness probe for primitives and common containers.
+ * Returns true when `value` is structurally empty.
  *
- * Task 1.2 extends this with type-registry-driven emptiness for
- * RillOrdered, RillVector, RillTuple, RillStream, and RillDatetime /
- * RillDuration. This skeleton covers the primitive and plain
- * container cases so `isVacant` is callable in isolation.
+ * Invalid values are never empty (they are a distinct category). Empty
+ * for primitives is `""`, `null`; `0` and `false` are not empty. Empty
+ * for branded tuple/ordered values is a zero-length `entries`; branded
+ * vectors are never empty. Empty for plain dicts is zero own keys.
+ *
+ * Uses inline brand-field checks rather than the `types/guards.js`
+ * predicates to avoid a circular import: `values.ts` imports
+ * `guards.js`, and `guards.js` imports `status.ts`.
  */
-function isEmptyValue(value: RillValue): boolean {
+export function isEmpty(value: RillValue): boolean {
+  if (isInvalid(value)) return false;
   if (value === null) return true;
   if (value === '') return true;
-  if (value === 0) return true;
-  if (value === false) return true;
+  if (typeof value === 'number') return false;
+  if (typeof value === 'boolean') return false;
   if (Array.isArray(value)) return value.length === 0;
   if (typeof value === 'object') {
-    // Plain dict check; runtime branded types (callable, tuple, etc.)
-    // return false here and gain full handling in task 1.2.
+    if ('__rill_tuple' in value || '__rill_ordered' in value) {
+      const entries = (value as { entries?: unknown[] }).entries;
+      return Array.isArray(entries) && entries.length === 0;
+    }
+    if ('__rill_vector' in value) return false;
+    // Plain dict check; other branded runtime types (callable, stream,
+    // datetime, duration, etc.) return false here.
     const proto = Object.getPrototypeOf(value);
     if (proto === Object.prototype || proto === null) {
       return Object.keys(value as Record<string, unknown>).length === 0;

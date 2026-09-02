@@ -27,7 +27,6 @@ import type {
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTruthy } from '../../values.js';
 import { BUILT_IN_TYPES } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
 import { isCallable } from '../../callable.js';
@@ -100,19 +99,63 @@ export async function evaluateBinaryExpr(
   if (op === '||') {
     const rawLeft = await evaluateExprHead(s, node.left);
     const left = await resolveExpressionValue(s, rawLeft);
-    if (isTruthy(left)) return true;
+    if (typeof left !== 'boolean') {
+      throwCatchableHostHalt(
+        {
+          location: node.span.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateBinaryExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Logical operator (${op}) requires boolean operand, got ${inferType(left)}`
+      );
+    }
+    if (left) return true;
     const rawRight = await evaluateExprHead(s, node.right);
     const right = await resolveExpressionValue(s, rawRight);
-    return isTruthy(right);
+    if (typeof right !== 'boolean') {
+      throwCatchableHostHalt(
+        {
+          location: node.span.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateBinaryExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Logical operator (${op}) requires boolean operand, got ${inferType(right)}`
+      );
+    }
+    return right;
   }
 
   if (op === '&&') {
     const rawLeft = await evaluateExprHead(s, node.left);
     const left = await resolveExpressionValue(s, rawLeft);
-    if (!isTruthy(left)) return false;
+    if (typeof left !== 'boolean') {
+      throwCatchableHostHalt(
+        {
+          location: node.span.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateBinaryExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Logical operator (${op}) requires boolean operand, got ${inferType(left)}`
+      );
+    }
+    if (!left) return false;
     const rawRight = await evaluateExprHead(s, node.right);
     const right = await resolveExpressionValue(s, rawRight);
-    return isTruthy(right);
+    if (typeof right !== 'boolean') {
+      throwCatchableHostHalt(
+        {
+          location: node.span.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateBinaryExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Logical operator (${op}) requires boolean operand, got ${inferType(right)}`
+      );
+    }
+    return right;
   }
 
   // Comparison operators - work on any values, return boolean

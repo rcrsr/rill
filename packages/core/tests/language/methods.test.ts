@@ -39,6 +39,18 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('returns false for non-empty dict', async () => {
       expect(await run('dict[a: 1] -> .empty')).toBe(false);
     });
+
+    it('halts for number operand', async () => {
+      await expect(run('0 -> .empty')).rejects.toThrow(
+        "Method 'empty' not supported on number"
+      );
+    });
+
+    it('halts for boolean operand', async () => {
+      await expect(run('true -> .empty')).rejects.toThrow(
+        "Method 'empty' not supported on bool"
+      );
+    });
   });
 
   describe('.lines', () => {

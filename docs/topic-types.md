@@ -611,7 +611,7 @@ $v1 == $v2
 ### Behavioral Notes
 
 - **Immutable**: Vector data cannot be modified after creation
-- **Always truthy**: Vectors evaluate to true in boolean contexts (non-empty by construction)
+- **No `.empty` method**: Vectors are always non-empty by construction; there is no empty vector to test for
 - **No string coercion**: Cannot be used in string interpolation or concatenation
 - **No collection operations**: Cannot use `seq`, `fan`, `filter`, `fold`, `acc` on vectors
 
@@ -762,15 +762,15 @@ now() => $t
 "Event at {$t}"
 ```
 
-### Empty Value
+### Zero Value
 
-`.empty` returns `datetime(unix: 0)`, the Unix epoch.
+`.zero` returns `datetime(unix: 0)`, the Unix epoch.
 
 ```rill
-now() -> .empty -> .iso()
+now() -> .zero -> .iso()
 # Result: "1970-01-01T00:00:00Z"
 
-now() -> .empty -> .unix
+now() -> .zero -> .unix
 # Result: 0
 ```
 
@@ -861,7 +861,7 @@ duration(...dict[years: 1, months: 3]) -> .display
 
 ```rill
 now() => $t
-$t -> .diff($t) -> .empty -> .display
+$t -> .diff($t) -> .zero -> .display
 # Result: "0ms"
 ```
 
@@ -934,13 +934,13 @@ $t -> .diff($t) => $gap
 # Result: "Gap: 0ms"
 ```
 
-### Empty Value
+### Zero Value
 
-`.empty` returns `duration(ms: 0)`.
+`.zero` returns `duration(ms: 0)`.
 
 ```rill
 now() => $t
-$t -> .diff($t) -> .empty -> .display
+$t -> .diff($t) -> .zero -> .display
 # Result: "0ms"
 ```
 

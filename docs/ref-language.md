@@ -440,7 +440,7 @@ Terminal closures receive `$` bound to the final path key.
 | `.ends_with(suf)` | String | Bool | Ends with suffix |
 | `.match(regex)` | String | Dict | First match info |
 | `.is_match(regex)` | String | Bool | Regex matches |
-| `.empty` | Any | Bool | Is empty |
+| `.empty` | String/List/Dict/Tuple/Ordered | Bool | Is empty |
 | `.has(value)` | List | Bool | Check if list contains value (deep equality) |
 | `.has_any([values])` | List | Bool | Check if list contains any value from candidates |
 | `.has_all([values])` | List | Bool | Check if list contains all values from candidates |
