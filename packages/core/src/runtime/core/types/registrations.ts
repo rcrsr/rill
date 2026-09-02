@@ -182,6 +182,8 @@ const METHOD_BEARING_TYPES = new Set([
   'vector',
   'datetime',
   'duration',
+  'tuple',
+  'ordered',
 ]);
 
 /**

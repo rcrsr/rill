@@ -895,7 +895,7 @@ The following table lists all built-in methods with their typed signatures. Meth
 | `.split` | string | `separator: string = "\n"` | `list` |
 | `.join` | list | `separator: string = ","` | `string` |
 | `.lines` | string | (none) | `list` |
-| `.empty` | string, list, dict, bool, number | (none) | `bool` |
+| `.empty` | string, list, dict, tuple, ordered | (none) | `bool` |
 | `.starts_with` | string | `prefix: string` | `bool` |
 | `.ends_with` | string | `suffix: string` | `bool` |
 | `.lower` | string | (none) | `string` |

@@ -143,7 +143,6 @@ export { formatHalt } from './runtime/core/types/status.js';
 export {
   anyTypeValue,
   isEmpty,
-  isTruthy,
   structureToTypeValue,
   toNative,
 } from './runtime/core/values.js';

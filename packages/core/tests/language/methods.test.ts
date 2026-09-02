@@ -24,11 +24,11 @@ describe('Rill Runtime: Built-in Methods', () => {
       );
     });
 
-    it('returns true for empty tuple', async () => {
+    it('returns true for empty list', async () => {
       expect(await run('list[] -> .empty')).toBe(true);
     });
 
-    it('returns false for non-empty tuple', async () => {
+    it('returns false for non-empty list', async () => {
       expect(await run('list[1] -> .empty')).toBe(false);
     });
 
@@ -38,6 +38,34 @@ describe('Rill Runtime: Built-in Methods', () => {
 
     it('returns false for non-empty dict', async () => {
       expect(await run('dict[a: 1] -> .empty')).toBe(false);
+    });
+
+    it('halts for number operand', async () => {
+      await expect(run('0 -> .empty')).rejects.toThrow(
+        "Method 'empty' not supported on number"
+      );
+    });
+
+    it('halts for boolean operand', async () => {
+      await expect(run('true -> .empty')).rejects.toThrow(
+        "Method 'empty' not supported on bool"
+      );
+    });
+
+    it('returns true for empty tuple', async () => {
+      expect(await run('tuple[] -> .empty')).toBe(true);
+    });
+
+    it('returns false for non-empty tuple', async () => {
+      expect(await run('tuple[1, 2] -> .empty')).toBe(false);
+    });
+
+    it('returns true for empty ordered', async () => {
+      expect(await run('ordered[] -> .empty')).toBe(true);
+    });
+
+    it('returns false for non-empty ordered', async () => {
+      expect(await run('ordered[a: 1] -> .empty')).toBe(false);
     });
   });
 

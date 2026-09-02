@@ -23,6 +23,8 @@ import {
   VECTOR_METHODS,
   DATETIME_METHODS,
   DURATION_METHODS,
+  TUPLE_METHODS,
+  ORDERED_METHODS,
 } from './tables.js';
 
 export const BUILTIN_METHODS: {
@@ -34,6 +36,8 @@ export const BUILTIN_METHODS: {
   vector: Record<string, RillFunction>;
   datetime: Record<string, RillFunction>;
   duration: Record<string, RillFunction>;
+  tuple: Record<string, RillFunction>;
+  ordered: Record<string, RillFunction>;
 } = {
   string: STRING_METHODS,
   list: LIST_METHODS,
@@ -43,4 +47,6 @@ export const BUILTIN_METHODS: {
   vector: VECTOR_METHODS,
   datetime: DATETIME_METHODS,
   duration: DURATION_METHODS,
+  tuple: TUPLE_METHODS,
+  ordered: ORDERED_METHODS,
 };

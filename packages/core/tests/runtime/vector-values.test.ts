@@ -1,6 +1,6 @@
 /**
  * Tests for vector value utilities
- * Verifies inferType, formatValue, deepEquals, isTruthy for vector type
+ * Verifies inferType, formatValue, deepEquals, isEmpty for vector type
  */
 
 import { describe, expect, it } from 'vitest';
@@ -10,7 +10,6 @@ import {
   formatValue,
   inferType,
   isEmpty,
-  isTruthy,
 } from '@rcrsr/rill';
 
 describe('Vector value utilities', () => {
@@ -82,18 +81,6 @@ describe('Vector value utilities', () => {
       expect(deepEquals(vec, { data: [1.0, 2.0], model: 'test-model' })).toBe(
         false
       );
-    });
-  });
-
-  describe('isTruthy', () => {
-    it('returns true for any vector (always truthy)', () => {
-      const vec1 = createVector(new Float32Array([0.0]), 'test-model');
-      const vec2 = createVector(
-        new Float32Array([1.0, 2.0, 3.0]),
-        'test-model'
-      );
-      expect(isTruthy(vec1)).toBe(true);
-      expect(isTruthy(vec2)).toBe(true);
     });
   });
 
