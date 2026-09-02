@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`@rcrsr/rill-dev`:** New published package carrying the ecosystem's shared development assets — the standards checker, the custom oxlint rules, and `REPO-STANDARDS.md` — replacing the `dev/` directory that was copied into each repository. It versions independently of the language; see [`packages/dev/CHANGELOG.md`](packages/dev/CHANGELOG.md). ([#152](https://github.com/rcrsr/rill/pull/152))
 - **`scripts/bootstrap.sh`:** Brings a fresh clone to build-ready via `pnpm bootstrap`. Asserts the Node and pnpm floors declared in `engines`, installs against the committed lockfile, then builds. It reads those floors from the manifest rather than hardcoding them, so it does not go stale when a floor moves. It does not install git hooks; `prepare` already does that.
+- **Release SOP:** Documents the dual-track release process for the language and development tooling. ([#251](https://github.com/rcrsr/rill/pull/251))
 
 ### Changed
 
