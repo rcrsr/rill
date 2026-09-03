@@ -156,7 +156,7 @@ range(1, 11) -> skip(-1)
 # Halts on the 10,001st element
 ```
 
-Always pair `cycle` with `take(n)` or a body containing `break` to stay within bounds.
+Always pair `cycle` with `take(n)` to stay within bounds. A `break` inside a `seq` body does not bound `cycle`: `seq` materializes the iterator through `getIterableElements` before running the body, so the ceiling is already hit before any body `break` can fire. Only lazy consumers such as `take(n)` bound `cycle`.
 
 ### Empty Input
 

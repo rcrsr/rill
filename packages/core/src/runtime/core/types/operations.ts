@@ -14,6 +14,7 @@
 import { RuntimeError } from '../../../types.js';
 import type { RillCallable } from '../callable.js';
 import {
+  isAtom,
   isCallable as _isCallableGuard,
   isDatetime,
   isDict,
@@ -33,6 +34,7 @@ import {
 } from './registrations.js';
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import { quoteRillString } from './format-string.js';
+import { typedKeyEntries, setDictField } from './dict-keys.js';
 import { ERROR_IDS } from '../../../error-registry.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker) */
@@ -311,14 +313,19 @@ const equalsCallbacks: FieldComparisonCallbacks<boolean> = {
 export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
   if (a.kind !== b.kind) return false;
 
-  // Leaf variants compare by kind alone
+  // Leaf variants compare by kind alone. `a.kind === b.kind` is already
+  // established above, so any scalar leaf kind is equal to its twin.
   if (
     a.kind === 'number' ||
     a.kind === 'string' ||
     a.kind === 'bool' ||
     a.kind === 'vector' ||
     a.kind === 'type' ||
-    a.kind === 'any'
+    a.kind === 'any' ||
+    a.kind === 'datetime' ||
+    a.kind === 'duration' ||
+    a.kind === 'atom' ||
+    a.kind === 'iterator'
   ) {
     return true;
   }
@@ -340,12 +347,19 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
   if (a.kind === 'union' && b.kind === 'union') {
     const aUnion = a as UnionStructure;
     const bUnion = b as UnionStructure;
+    // Unions are sets: equal iff they have the same members regardless of
+    // order. Each member of `a` must have a structural match in `b`, and
+    // vice versa. Equal lengths plus one-directional coverage suffices
+    // only when members are distinct, so check both directions.
     if (aUnion.members.length !== bUnion.members.length) return false;
-    for (let i = 0; i < aUnion.members.length; i++) {
-      if (!structureEquals(aUnion.members[i]!, bUnion.members[i]!))
-        return false;
-    }
-    return true;
+    const everyAInB = aUnion.members.every((am) =>
+      bUnion.members.some((bm) => structureEquals(am, bm))
+    );
+    if (!everyAInB) return false;
+    const everyBInA = bUnion.members.every((bm) =>
+      aUnion.members.some((am) => structureEquals(bm, am))
+    );
+    return everyBInA;
   }
 
   if (a.kind === 'stream' && b.kind === 'stream') {
@@ -531,7 +545,11 @@ export function structureMatches(
 
   // Delegate dict/tuple/ordered to compareStructuredFields
   if (type.kind === 'dict') {
-    if (!isDict(value) || isStream(value)) return false;
+    // A dict TYPE matches only plain dict values. Branded non-dicts
+    // (datetime, duration, atom, type-value, ordered, iterator, stream,
+    // vector) structurally satisfy isDict but are distinct types, so gate
+    // on the inferred type name, which resolves each brand ahead of dict.
+    if (registryInferType(value) !== 'dict') return false;
     return compareStructuredFields(
       type,
       type,
@@ -617,6 +635,8 @@ export function structureMatches(
 
   if (type.kind === 'datetime') return isDatetime(value);
   if (type.kind === 'duration') return isDuration(value);
+  if (type.kind === 'atom') return isAtom(value);
+  if (type.kind === 'iterator') return isIterator(value);
 
   return false;
 }
@@ -676,7 +696,9 @@ export function formatStructure(type: TypeStructure): string {
     type.kind === 'vector' ||
     type.kind === 'type' ||
     type.kind === 'datetime' ||
-    type.kind === 'duration'
+    type.kind === 'duration' ||
+    type.kind === 'atom' ||
+    type.kind === 'iterator'
   ) {
     return type.kind;
   }
@@ -845,11 +867,23 @@ export function inferStructure(value: RillValue): TypeStructure {
   if (isDuration(value)) {
     return { kind: 'duration' };
   }
+  if (isAtom(value)) {
+    return { kind: 'atom' };
+  }
+  // Iterators are structurally dicts (done/next/value), so this must
+  // precede the generic dict fallback below.
+  if (isIterator(value)) {
+    return { kind: 'iterator' };
+  }
   if (typeof value === 'object') {
     const dict = value as Record<string, RillValue>;
     const fields: Record<string, RillFieldDef> = {};
     for (const [k, v] of Object.entries(dict)) {
-      fields[k] = { type: inferStructure(v) };
+      setDictField(fields, k, { type: inferStructure(v) });
+    }
+    // Number/boolean keys contribute fields under their string form.
+    for (const { key, value: v } of typedKeyEntries(dict)) {
+      setDictField(fields, String(key), { type: inferStructure(v) });
     }
     return { kind: 'dict', fields };
   }

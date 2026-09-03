@@ -244,8 +244,16 @@ $d.error
 # Result: 1
 ```
 
+A bare `true`/`false` key is a boolean literal key, distinct from the string key `"true"`/`"false"`. Member access (`.true`) reads the string key, so a boolean key is reached by dispatch instead:
+
 ```rill
 dict[true: 1] => $d
+true -> $d
+# Result: 1
+```
+
+```rill
+dict["true": 1] => $d
 $d.true
 # Result: 1
 ```

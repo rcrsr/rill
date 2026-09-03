@@ -59,7 +59,13 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * @internal
  */
 export interface StreamChannel {
-  /** Push a yielded chunk value. Blocks until consumer pulls. */
+  /**
+   * Push a yielded chunk value. The returned promise resolves when this
+   * specific chunk is consumed by a pull (or immediately once the channel
+   * is terminated). Chunks are delivered FIFO, so concurrent pushes (e.g.
+   * from `fan`) are each queued and delivered in turn rather than
+   * overwriting one another.
+   */
   push(value: RillValue): Promise<void>;
   /** Pull the next chunk. Returns done:true when body completes. */
   pull(): Promise<
@@ -69,6 +75,13 @@ export interface StreamChannel {
   close(resolution: RillValue): void;
   /** Signal body failure with an error. */
   error(err: unknown): void;
+  /**
+   * Stop the channel without recording a resolution. Any parked push()
+   * promises resolve immediately and any future push() returns at once, so a
+   * body suspended at a yield can run to completion. Used by the resolve path
+   * and by scope-exit disposal to unblock a partially consumed body.
+   */
+  cancel(): void;
 }
 
 /**
@@ -81,15 +94,15 @@ export interface StreamChannel {
  * @internal
  */
 function createStreamChannel(): StreamChannel {
-  // Pending chunk waiting for consumer
-  let pendingChunk:
-    | {
-        value: RillValue;
-        resume: () => void;
-      }
-    | undefined;
+  // FIFO queue of chunks pushed but not yet pulled. Each entry carries the
+  // resume callback that resolves the originating push() promise once the
+  // chunk is consumed. A queue (rather than a single slot) is what lets
+  // concurrent producers — e.g. the parallel bodies of `fan` — each deliver a
+  // chunk instead of overwriting one another and losing all but the last.
+  const queue: { value: RillValue; resume: () => void }[] = [];
 
-  // Consumer waiting for a chunk
+  // Consumer waiting for a chunk. There is only ever one consumer (the async
+  // generator), so a single slot suffices.
   let pendingPull:
     | {
         resolve: (
@@ -101,40 +114,46 @@ function createStreamChannel(): StreamChannel {
       }
     | undefined;
 
-  // Terminal state
-  let closed = false;
+  // `terminated` tells producers to stop blocking: set by close(), error(),
+  // and cancel(). `settled` tracks whether a terminal resolution/error has
+  // been recorded, so a cancel() that unblocks the body does not stop the
+  // body's own close()/error() from recording its result.
+  let terminated = false;
+  let settled = false;
   let closedResolution: RillValue | undefined;
   let closedError: unknown | undefined;
 
   return {
     async push(value: RillValue): Promise<void> {
-      if (closed) return;
+      // Once terminated, further chunks are discarded and the push resolves
+      // immediately so a suspended body can run to completion.
+      if (terminated) return;
 
-      // If consumer is already waiting, deliver immediately
-      if (pendingPull) {
-        const pull = pendingPull;
-        pendingPull = undefined;
-        pull.resolve({ value, done: false });
-        return;
-      }
-
-      // Otherwise, wait for consumer to pull
       return new Promise<void>((resolve) => {
-        pendingChunk = { value, resume: resolve };
+        // If a consumer is already waiting, deliver immediately; the chunk is
+        // consumed the moment it is handed over, so resolve the push too.
+        if (pendingPull) {
+          const pull = pendingPull;
+          pendingPull = undefined;
+          pull.resolve({ value, done: false });
+          resolve();
+          return;
+        }
+        // Otherwise queue the chunk; resume fires when a pull consumes it.
+        queue.push({ value, resume: resolve });
       });
     },
 
     async pull() {
-      // If there's a pending chunk from the producer, consume it
-      if (pendingChunk) {
-        const chunk = pendingChunk;
-        pendingChunk = undefined;
+      // Deliver the oldest queued chunk, unblocking its producer.
+      if (queue.length > 0) {
+        const chunk = queue.shift()!;
         chunk.resume(); // unblock producer
         return { value: chunk.value, done: false as const };
       }
 
-      // If body already completed, return done
-      if (closed) {
+      // No queued chunks and the body has terminated: surface error or done.
+      if (terminated) {
         if (closedError !== undefined) throw closedError;
         return { done: true as const };
       }
@@ -148,8 +167,10 @@ function createStreamChannel(): StreamChannel {
     },
 
     close(_resolution: RillValue): void {
-      closed = true;
+      if (settled) return;
+      settled = true;
       closedResolution = _resolution;
+      terminated = true;
       // Wake up waiting consumer
       if (pendingPull) {
         const pull = pendingPull;
@@ -159,13 +180,29 @@ function createStreamChannel(): StreamChannel {
     },
 
     error(err: unknown): void {
-      closed = true;
+      if (settled) return;
+      settled = true;
       closedError = err;
+      terminated = true;
       // Wake up waiting consumer with error
       if (pendingPull) {
         const pull = pendingPull;
         pendingPull = undefined;
         pull.reject(err);
+      }
+    },
+
+    cancel(): void {
+      terminated = true;
+      // Unblock every parked producer so a suspended body can finish.
+      while (queue.length > 0) {
+        queue.shift()!.resume();
+      }
+      // Wake a waiting consumer with done (no more chunks are coming).
+      if (pendingPull) {
+        const pull = pendingPull;
+        pendingPull = undefined;
+        pull.resolve({ done: true });
       }
     },
 
@@ -415,9 +452,17 @@ export async function invokeStreamClosure(
   const stream = createRillStream({
     chunks: generateChunks(),
     resolve: async () => {
-      // Wait for body to complete
+      // A partially consumed body may be suspended inside push(), waiting for
+      // a pull that will never come. Cancel the channel so that park resolves
+      // and the body runs to its resolution (close/error), then await it.
+      channel.cancel();
       await bodyPromise.catch(() => {});
       return channel.resolution;
+    },
+    dispose: () => {
+      // Scope-exit disposal of an unconsumed stream: unblock any suspended
+      // body so it can settle rather than leaking a parked push().
+      channel.cancel();
     },
     chunkType: streamStructure.chunk,
     retType: streamStructure.ret,

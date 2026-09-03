@@ -30,6 +30,7 @@ import {
   isStream,
 } from '../guards.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
+import { setDictField } from '../dict-keys.js';
 
 // ============================================================
 // LATE-BINDING: formatNested
@@ -212,7 +213,7 @@ export function serializeListElement(v: RillValue): unknown {
   const dict = v as Record<string, RillValue>;
   const result: Record<string, unknown> = {};
   for (const [k, val] of Object.entries(dict)) {
-    result[k] = serializeListElement(val);
+    setDictField(result, k, serializeListElement(val));
   }
   return result;
 }

@@ -182,6 +182,15 @@ export class ArgumentsBinder {
             `Extra positional argument at position ${positionalIndex} (function has ${params.length} parameters)`
           );
         }
+        // duplicate binding: a prior spread already bound this parameter.
+        // Reject rather than silently overwrite, consistent with the spread paths.
+        if (bound.has(param.name)) {
+          throwCatchableHostHalt(
+            { location, sourceId, fn: 'bind' },
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            `Duplicate binding for parameter '${param.name}': already bound by spread`
+          );
+        }
         const value = await evaluate(argNode);
         bound.set(param.name, value);
         positionalIndex++;
@@ -273,6 +282,15 @@ export class ArgumentsBinder {
               );
             }
             bound.set(key, value);
+          }
+          // Advance the positional cursor past any leading parameters the dict
+          // spread has now bound, so a following positional targets the next
+          // UNBOUND parameter instead of rebinding an already-bound one.
+          while (
+            positionalIndex < params.length &&
+            bound.has(params[positionalIndex]!.name)
+          ) {
+            positionalIndex++;
           }
         } else {
           // spread value is not tuple/dict/ordered

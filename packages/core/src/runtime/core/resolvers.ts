@@ -115,7 +115,9 @@ export const contextResolver: SchemeResolver = (
   const segments = resource.split('.');
   const key = segments[0] ?? resource;
 
-  if (!(key in cfg)) {
+  // Object.hasOwn (not `in`) so inherited members (constructor, __proto__, ...)
+  // are never resolvable as config keys.
+  if (!Object.hasOwn(cfg, key)) {
     throw new RuntimeError(
       ERROR_IDS.RILL_R062,
       `Context key '${resource}' not found`,
@@ -135,6 +137,14 @@ export const contextResolver: SchemeResolver = (
         `Context path '${resource}': '${path}' is not a dict`,
         undefined,
         { path, segment }
+      );
+    }
+    if (!Object.hasOwn(value, segment)) {
+      throw new RuntimeError(
+        ERROR_IDS.RILL_R062,
+        `Context key '${resource}' not found`,
+        undefined,
+        { key: resource }
       );
     }
     value = (value as Record<string, unknown>)[segment];
@@ -160,7 +170,9 @@ export const extResolver: SchemeResolver = (
   const segments = resource.split('.');
   const name = segments[0] ?? resource;
 
-  if (!(name in cfg)) {
+  // Object.hasOwn (not `in`) so inherited members (constructor, __proto__, ...)
+  // are never resolvable as extension names or member paths.
+  if (!Object.hasOwn(cfg, name)) {
     throw new RuntimeError(
       ERROR_IDS.RILL_R052,
       `Extension '${name}' not found in resolver config`,
@@ -177,7 +189,7 @@ export const extResolver: SchemeResolver = (
       typeof value !== 'object' ||
       value === null ||
       Array.isArray(value) ||
-      !(segment in (value as Record<string, RillValue>))
+      !Object.hasOwn(value as Record<string, RillValue>, segment)
     ) {
       const path = segments.slice(1, i + 1).join('.');
       throw new RuntimeError(

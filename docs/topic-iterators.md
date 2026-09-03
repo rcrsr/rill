@@ -424,7 +424,7 @@ Iterators are expanded eagerly when passed to collection operators. A default li
 $inf(0) -> seq({ $ })    # ERROR: Iterator exceeded 10000 elements
 ```
 
-Bound an infinite iterator with `take(n)` or `break` to stay within the ceiling:
+Bound an infinite iterator with `take(n)` to stay within the ceiling. A `break` inside a `seq` body does not help: collection operators expand the iterator eagerly before the body runs, so the ceiling fires before any body `break` can. Only lazy consumers such as `take(n)` bound an infinite iterator:
 
 ```text
 $inf(0) -> take(5)    # list[0, 1, 2, 3, 4]
