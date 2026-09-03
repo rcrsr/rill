@@ -6,10 +6,7 @@ import { callable, isCallable } from '../../core/callable.js';
 import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import { checkAborted } from '../../core/eval/shared.js';
 import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/closures.js';
-import {
-  throwCatchableHostHalt,
-  throwFatalHostHalt,
-} from '../../core/types/halt.js';
+import { throwCatchableHostHalt } from '../../core/types/halt.js';
 
 /**
  * Walk an iterator or stream until `cap` value-bearing elements have been
@@ -31,7 +28,10 @@ import {
  * Bounded by raw steps taken (MAX_ITER), not just `produced`: a
  * user-authored iterator that returns `{done: false, next: ...}` with no
  * `value` field never increments `produced` and would otherwise loop
- * forever. Mirrors the expandIterator/expandStream MAX_ITER guard.
+ * forever. Mirrors the expandIterator/expandStream MAX_ITER guard. Raised as
+ * a catchable #RILL_R010, matching batch/window/start_when/stop_when
+ * (functions/slicing.ts): a guard block can recover from a runaway
+ * take()/skip() input.
  */
 export async function walkIteratorSteps(
   start: Record<string, unknown>,
@@ -54,7 +54,7 @@ export async function walkIteratorSteps(
     checkAborted(evaluator);
     if (current['done']) break;
     if (steps >= MAX_ITER) {
-      throwFatalHostHalt(
+      throwCatchableHostHalt(
         site,
         'RILL_R010',
         `Iterator/stream exceeded ${MAX_ITER} step limit without producing ${cap} value(s)`

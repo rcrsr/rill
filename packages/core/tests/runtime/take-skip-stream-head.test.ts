@@ -10,6 +10,7 @@
 
 import {
   anyTypeValue,
+  callable,
   createRillStream,
   type RillFunction,
   type RillStream,
@@ -36,6 +37,29 @@ function makeStreamFn(chunks: RillValue[]): RillFunction {
 }
 
 const streamOf12345 = { functions: { s: makeStreamFn([1, 2, 3, 4, 5]) } };
+
+/**
+ * Host function returning a custom iterator that never carries a `value`
+ * (every step is `{done: false, value: undefined, next: ...}`, looping
+ * forever). walkIteratorSteps counts raw steps taken as well as produced
+ * elements, so this must halt with a catchable #RILL_R010 instead of
+ * spinning forever or crashing uncatchably.
+ */
+function makeValuelessIterFn(): RillFunction {
+  const step = (): RillValue =>
+    ({
+      done: false,
+      value: undefined,
+      next: callable(step),
+    }) as unknown as RillValue;
+  return {
+    params: [] as { name: string; type: TypeStructure }[],
+    returnType: anyTypeValue,
+    fn: step,
+  };
+}
+
+const valuelessIter = { functions: { valueless_iter: makeValuelessIterFn() } };
 
 describe('take/skip head-step counting on host streams (#274)', () => {
   it('take(2) yields the first two chunks', async () => {
@@ -108,5 +132,39 @@ describe('take/skip on iterators stay correct (#274 regression guard)', () => {
 
   it('list[1,2] -> cycle -> take(4) yields [1,2,1,2]', async () => {
     expect(await run('list[1, 2] -> cycle -> take(4)')).toEqual([1, 2, 1, 2]);
+  });
+});
+
+describe('take/skip on a value-less custom iterator halts recoverably at MAX_ITER', () => {
+  it('guard { ... take(5) } recovers the raw-step overrun as #RILL_R010', async () => {
+    const result = await run(
+      `
+        guard {
+          valueless_iter() -> take(5)
+        } => $r
+        $r.! ? ($r.!code == #RILL_R010) ! false
+      `,
+      valuelessIter
+    );
+    expect(result).toBe(true);
+  });
+
+  it('guard { ... skip(5) } recovers the raw-step overrun as #RILL_R010', async () => {
+    const result = await run(
+      `
+        guard {
+          valueless_iter() -> skip(5)
+        } => $r
+        $r.! ? ($r.!code == #RILL_R010) ! false
+      `,
+      valuelessIter
+    );
+    expect(result).toBe(true);
+  });
+
+  it('take(5) on a value-less iterator halts (not swallowed, not fatal) when unguarded', async () => {
+    await expect(
+      run('valueless_iter() -> take(5)', valuelessIter)
+    ).rejects.toThrow(/exceeded.*step limit/);
   });
 });
