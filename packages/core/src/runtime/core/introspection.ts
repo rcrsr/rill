@@ -9,6 +9,7 @@ import type { RuntimeContext } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
 import { formatStructure } from './types/operations.js';
 import { formatValue } from './types/registrations.js';
+import { escapeRillStringBody } from './types/format-string.js';
 import {
   isApplicationCallable,
   isRuntimeCallable,
@@ -177,20 +178,6 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
 
   // Combine in specified order: host, built-ins, script closures
   return [...hostFunctions, ...builtinFunctions, ...result];
-}
-
-/**
- * Escape a raw string into the body of a rill double-quoted string literal.
- * Handles the escape sequences the lexer recognizes (`\\`, `\"`, `\n`, `\r`,
- * `\t`). Backslash is escaped first so the other replacements do not double it.
- */
-function escapeRillStringBody(raw: string): string {
-  return raw
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    .replace(/\n/g, '\\n')
-    .replace(/\r/g, '\\r')
-    .replace(/\t/g, '\\t');
 }
 
 /**

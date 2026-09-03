@@ -50,7 +50,7 @@ import {
   formatStructure,
 } from '../../types/operations.js';
 import { anyTypeValue, structureToTypeValue } from '../../values.js';
-import { YieldSignal, ControlSignal } from '../../signals.js';
+import { YieldSignal } from '../../signals.js';
 import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
 import {
@@ -644,14 +644,23 @@ async function invokeStream(
         break;
       current = next as unknown as RillStream;
     } catch (err) {
-      // Non-catchable halts (error/assert), abort halts, and control-flow
-      // signals (break/return/yield) must propagate — never swallow them.
-      // Only a normal stream-end (any other thrown value) breaks the loop
-      // and returns the stream's resolution value.
-      if (err instanceof RuntimeHaltSignal || err instanceof ControlSignal) {
-        throw err;
+      // The one designated clean-end signal: `createRillStream`'s `next`
+      // marks its context `{ alreadyConsumed: true }` when this exact
+      // reference (or a stale prior step of it) was already driven to
+      // completion by an earlier call - e.g. invoking `$s()` a second time,
+      // or invoking it after `take`/`skip` already advanced the same
+      // binding. That is idempotent, not a failure: fall through to
+      // resolveFn() below. Every other throw - halts, control-flow signals
+      // (break/return/yield), and ordinary JS errors from a buggy `.next`
+      // callable (e.g. an extension bug) - is a genuine failure and
+      // propagates rather than being swallowed as a silent stream end.
+      if (
+        err instanceof RillError &&
+        err.context?.['alreadyConsumed'] === true
+      ) {
+        break;
       }
-      break;
+      throw err;
     }
   }
   return resolveFn();

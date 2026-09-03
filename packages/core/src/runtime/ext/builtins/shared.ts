@@ -6,7 +6,10 @@ import { callable, isCallable } from '../../core/callable.js';
 import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import { checkAborted } from '../../core/eval/shared.js';
 import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/closures.js';
-import { throwCatchableHostHalt } from '../../core/types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+} from '../../core/types/halt.js';
 
 /**
  * Walk an iterator or stream until `cap` value-bearing elements have been
@@ -24,6 +27,11 @@ import { throwCatchableHostHalt } from '../../core/types/halt.js';
  * value in their head step and are unaffected: every step they emit is a
  * produced element. This mirrors expandStream/expandIterator, which push a
  * step's value only when it is not undefined.
+ *
+ * Bounded by raw steps taken (MAX_ITER), not just `produced`: a
+ * user-authored iterator that returns `{done: false, next: ...}` with no
+ * `value` field never increments `produced` and would otherwise loop
+ * forever. Mirrors the expandIterator/expandStream MAX_ITER guard.
  */
 export async function walkIteratorSteps(
   start: Record<string, unknown>,
@@ -41,9 +49,18 @@ export async function walkIteratorSteps(
   };
 
   let produced = 0;
+  let steps = 0;
   while (produced < cap) {
     checkAborted(evaluator);
     if (current['done']) break;
+    if (steps >= MAX_ITER) {
+      throwFatalHostHalt(
+        site,
+        'RILL_R010',
+        `Iterator/stream exceeded ${MAX_ITER} step limit without producing ${cap} value(s)`
+      );
+    }
+    steps++;
     const val = current['value'];
 
     // Advance to the next step regardless of whether this step carried a
@@ -95,6 +112,23 @@ export function chunkSlice(elements: RillValue[], size: number): RillValue[][] {
     chunks.push(elements.slice(i, i + size));
   }
   return chunks;
+}
+
+/**
+ * True when `str` contains no surrogate-pair (astral) characters, i.e. every
+ * UTF-16 code unit is also a full Unicode code point.
+ *
+ * Code-point-correct string methods (`.len`, `.head`, `.tail`, `.at`,
+ * `.index_of`) must not split an astral character (e.g. "😀") into a lone
+ * surrogate half, so they materialize `[...str]` to walk code points. That
+ * array allocation is O(n) on every call, which makes repeated per-index
+ * access (`range(0, $s.len) -> seq({ $s -> .at($) })`) O(n²). Strings with no
+ * astral characters can use `.length`/`charAt`/direct indexing instead,
+ * which are O(1) per access, while astral strings still take the
+ * code-point-correct path.
+ */
+export function isBmpOnly(str: string): boolean {
+  return !/[\uD800-\uDBFF]/.test(str);
 }
 
 /** Internal type alias for built-in method implementations. */

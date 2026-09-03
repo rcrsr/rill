@@ -9,6 +9,7 @@ import type { RillTypeName } from '../../../types.js';
 import type { CallableFn, RillFunction } from '../callable.js';
 import type { TypeStructure, RillValue } from './structures.js';
 import type { InvalidateMeta } from './status.js';
+import { setDictField } from './dict-keys.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from '../values.js';
 
@@ -458,9 +459,9 @@ export function bindDictCallables(value: RillValue): RillValue {
       v.__type === 'callable' &&
       !('boundDict' in v && (v as Record<string, unknown>)['boundDict'])
     ) {
-      result[key] = { ...v, boundDict: result } as RillValue;
+      setDictField(result, key, { ...v, boundDict: result } as RillValue);
     } else {
-      result[key] = v;
+      setDictField(result, key, v);
     }
   }
 

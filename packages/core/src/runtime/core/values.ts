@@ -35,6 +35,7 @@ import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
 } from './types/registrations.js';
+import { setDictField } from './types/dict-keys.js';
 import type {
   RillTypeValue,
   RillValue,
@@ -123,7 +124,7 @@ function toNativeValue(value: RillValue): NativeValue {
   if (isOrdered(value)) {
     const result: { [key: string]: NativeValue } = {};
     for (const [k, v] of value.entries) {
-      result[k] = toNativeValue(v);
+      setDictField(result, k, toNativeValue(v));
     }
     return result;
   }
@@ -171,7 +172,7 @@ function toNativeValue(value: RillValue): NativeValue {
   const dict = value as Record<string, RillValue>;
   const result: { [key: string]: NativeValue } = {};
   for (const [k, v] of Object.entries(dict)) {
-    result[k] = toNativeValue(v);
+    setDictField(result, k, toNativeValue(v));
   }
   return result;
 }

@@ -187,24 +187,9 @@ export async function accessDictField(
   return dictValue;
 }
 
-/**
- * Assign an own, enumerable data property to a dict under construction.
- *
- * A plain `obj[key] = value` assignment invokes any inherited setter, so a
- * key literally named `__proto__` would reparent the object rather than store
- * a field. `Object.defineProperty` with a data descriptor always creates an
- * ordinary own field, so `dict[("__proto__"): ...]` stores an own `__proto__`
- * field (readable via `Object.hasOwn`) instead of mutating the prototype.
- */
-export function setDictField(
-  obj: Record<string, RillValue>,
-  key: string,
-  value: RillValue
-): void {
-  Object.defineProperty(obj, key, {
-    value,
-    enumerable: true,
-    writable: true,
-    configurable: true,
-  });
-}
+// setDictField lives in types/dict-keys.ts (a types-layer module with no
+// EvalState dependency) so protocols/*.ts, constructors.ts, runtime.ts, and
+// operations.ts can import it directly without reaching into eval/, which
+// they must not depend on (see §NOD.2.1). Re-exported here so existing
+// eval/handlers/* call sites keep importing it from this module.
+export { setDictField } from '../types/dict-keys.js';

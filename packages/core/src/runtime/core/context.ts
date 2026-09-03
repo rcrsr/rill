@@ -688,16 +688,34 @@ export function createRuntimeContext(
  */
 export function createChildContext(
   parent: RuntimeContext,
-  overrides?: { sourceId?: string; sourceText?: string }
-): RuntimeContext {
-  const child: RuntimeContext = {
-    parent,
-    variables: new Map<string, RillValue>(),
-    variableTypes: new Map<
+  overrides?: {
+    sourceId?: string;
+    sourceText?: string;
+    /**
+     * Share the parent's own variables/variableTypes maps instead of
+     * allocating fresh ones. Used for the per-statement child contexts in
+     * `evaluateBlockBody`, where every capture must be visible to later
+     * siblings and same-block re-captures must read as an own-scope
+     * reassignment rather than an outer-scope write.
+     */
+    variables?: Map<string, RillValue>;
+    variableTypes?: Map<
       string,
       | import('../../types.js').RillTypeName
       | import('./types/structures.js').TypeStructure
-    >(),
+    >;
+  }
+): RuntimeContext {
+  const child: RuntimeContext = {
+    parent,
+    variables: overrides?.variables ?? new Map<string, RillValue>(),
+    variableTypes:
+      overrides?.variableTypes ??
+      new Map<
+        string,
+        | import('../../types.js').RillTypeName
+        | import('./types/structures.js').TypeStructure
+      >(),
     getVariable(name: string): RillValue | undefined {
       if (this.variables.has(name)) return this.variables.get(name);
       if (this.parent !== undefined) return this.parent.getVariable(name);

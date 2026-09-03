@@ -10,7 +10,12 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { RuntimeHaltSignal, getStatus } from '@rcrsr/rill';
+import {
+  RuntimeHaltSignal,
+  getStatus,
+  toNative,
+  type RillValue,
+} from '@rcrsr/rill';
 import { mockAsyncFn, run } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
 
@@ -98,6 +103,58 @@ describe('#263: dict access does not reach Object.prototype', () => {
       () => run('dict[("__proto__"): dict[x: 1]] => $p  $p.x'),
       /no field/
     );
+  });
+});
+
+describe('.at() fractional index guard', () => {
+  it('a fractional list index halts with an integer-index error', async () => {
+    await expectHaltMessage(
+      () => run('list[1, 2, 3] -> .at(1.5)'),
+      /must be an integer/
+    );
+  });
+
+  it('a fractional string index halts with an integer-index error', async () => {
+    await expectHaltMessage(
+      () => run('"abc" -> .at(1.5)'),
+      /must be an integer/
+    );
+  });
+
+  it('guard recovers a fractional list index', async () => {
+    const result = await run(
+      'guard { list[1, 2, 3] -> .at(1.5) } => $r  $r.! ? "recovered" ! "no-halt"'
+    );
+    expect(result).toBe('recovered');
+  });
+
+  it('guard recovers a fractional string index', async () => {
+    const result = await run(
+      'guard { "abc" -> .at(1.5) } => $r  $r.! ? "recovered" ! "no-halt"'
+    );
+    expect(result).toBe('recovered');
+  });
+});
+
+describe('setDictField rebuild sites: toNative() and JSON serialization', () => {
+  it('toNative() on an own __proto__-keyed dict does not reparent the native object', async () => {
+    const result = await run('dict[("__proto__"): dict[x: 1]]');
+    const native = toNative(result as RillValue);
+    const value = native.value as Record<string, unknown>;
+    expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
+    expect(Object.hasOwn(value, '__proto__')).toBe(true);
+    expect(value['__proto__']).toEqual({ x: 1 });
+  });
+
+  it('serializing a dict with an own __proto__ key nested inside a list preserves the field instead of reparenting', async () => {
+    const jsonStr = (await run(
+      'list[dict[("__proto__"): dict[x: 1]]] -> json'
+    )) as string;
+    const parsed = JSON.parse(jsonStr) as unknown[];
+    const nested = parsed[0] as Record<string, unknown>;
+    expect(Object.getPrototypeOf(nested)).toBe(Object.prototype);
+    expect(Object.hasOwn(nested, '__proto__')).toBe(true);
+    expect(nested['__proto__']).toEqual({ x: 1 });
   });
 });
 

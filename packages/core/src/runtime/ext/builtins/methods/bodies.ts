@@ -19,6 +19,7 @@ import {
   makeListIterator,
   makeStringIterator,
   makeDictIterator,
+  isBmpOnly,
 } from '../shared.js';
 
 // ============================================================
@@ -31,8 +32,12 @@ import {
 export const mLen: RillMethod = (receiver) => {
   // Strings measure length in Unicode code points, not UTF-16 code units, so
   // an astral character such as "😀" counts as one, matching how seq/fan and
-  // the .first() iterator traverse strings.
-  if (typeof receiver === 'string') return [...receiver].length;
+  // the .first() iterator traverse strings. ASCII/BMP-only strings (the
+  // common case) use .length directly instead of materializing the full
+  // code-point array.
+  if (typeof receiver === 'string') {
+    return isBmpOnly(receiver) ? receiver.length : [...receiver].length;
+  }
   if (Array.isArray(receiver)) return receiver.length;
   if (receiver && typeof receiver === 'object') {
     return Object.keys(receiver).length + typedKeyCount(receiver);
@@ -64,7 +69,7 @@ export const mHead: RillMethod = (receiver, _args, _ctx, location) => {
       );
     }
     // First code point, never a lone surrogate half of an astral character.
-    return [...receiver][0]!;
+    return isBmpOnly(receiver) ? receiver.charAt(0) : [...receiver][0]!;
   }
   throw new RuntimeError(
     ERROR_IDS.RILL_R003,
@@ -94,6 +99,7 @@ export const mTail: RillMethod = (receiver, _args, _ctx, location) => {
       );
     }
     // Last code point, never a lone surrogate half of an astral character.
+    if (isBmpOnly(receiver)) return receiver.charAt(receiver.length - 1);
     const cps = [...receiver];
     return cps[cps.length - 1]!;
   }
@@ -119,9 +125,19 @@ export const mFirst: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Get element at index */
-export const mAt: RillMethod = (receiver, args, _ctx, location) => {
+export const mAt: RillMethod = (receiver, args, ctx, location) => {
   const idx = typeof args[0] === 'number' ? args[0] : 0;
   if (Array.isArray(receiver)) {
+    // A fractional index generates a fractional array access (`receiver[1.5]`)
+    // which is `undefined`, violating the no-null invariant. Halt with a
+    // catchable #INVALID_INPUT instead, mirroring applySlice's bound check.
+    if (!Number.isInteger(idx)) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'INVALID_INPUT',
+        `List index must be an integer, got ${idx}`
+      );
+    }
     if (idx < 0 || idx >= receiver.length) {
       throw new RuntimeError(
         ERROR_IDS.RILL_R002,
@@ -134,6 +150,23 @@ export const mAt: RillMethod = (receiver, args, _ctx, location) => {
   if (typeof receiver === 'string') {
     // Index by code point so an astral character occupies a single position
     // and is never returned as a lone surrogate.
+    if (!Number.isInteger(idx)) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'INVALID_INPUT',
+        `String index must be an integer, got ${idx}`
+      );
+    }
+    if (isBmpOnly(receiver)) {
+      if (idx < 0 || idx >= receiver.length) {
+        throw new RuntimeError(
+          ERROR_IDS.RILL_R002,
+          `String index out of bounds: ${idx}`,
+          location
+        );
+      }
+      return receiver.charAt(idx);
+    }
     const cps = [...receiver];
     if (idx < 0 || idx >= cps.length) {
       throw new RuntimeError(
@@ -280,7 +313,9 @@ export const mIndexOf: RillMethod = (receiver, args) => {
   const unit = str.indexOf(search);
   if (unit < 0) return -1;
   // Convert the UTF-16 code-unit offset to a code-point offset so the result
-  // is consistent with .len and .at on astral strings.
+  // is consistent with .len and .at on astral strings. BMP-only strings need
+  // no conversion: code-unit and code-point offsets coincide.
+  if (isBmpOnly(str)) return unit;
   return Array.from(str.slice(0, unit)).length;
 };
 

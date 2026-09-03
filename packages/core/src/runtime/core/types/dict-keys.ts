@@ -77,15 +77,38 @@ function ensureTypedKeyMap(dict: object): TypedKeyMap {
   return map;
 }
 
-/** True when the dict carries at least one number/boolean key. */
-export function hasTypedKeys(dict: object): boolean {
-  const map = getTypedKeyMap(dict);
-  return map !== undefined && map.size > 0;
-}
-
 /** Number of typed (number/boolean) keys on the dict. */
 export function typedKeyCount(dict: object): number {
   return getTypedKeyMap(dict)?.size ?? 0;
+}
+
+/**
+ * Assign an own, enumerable data property to a dict under construction.
+ *
+ * A plain `obj[key] = value` assignment invokes any inherited setter, so a
+ * key literally named `__proto__` would reparent the object rather than store
+ * a field. `Object.defineProperty` with a data descriptor always creates an
+ * ordinary own field, so `dict[("__proto__"): ...]` stores an own `__proto__`
+ * field (readable via `Object.hasOwn`) instead of mutating the prototype.
+ *
+ * Any code path that rebuilds a dict into a fresh plain object by iterating
+ * its own keys (`Object.entries`, typed-key iteration) must route the write
+ * through this helper rather than ordinary bracket assignment, or a
+ * script-supplied `__proto__` own key reparents the rebuilt object. Generic
+ * over the value type so callers rebuilding into a serialized (JSON-shaped,
+ * `unknown`-valued) object can reuse it too, not just `RillValue` dicts.
+ */
+export function setDictField<T = RillValue>(
+  obj: Record<string, T>,
+  key: string,
+  value: T
+): void {
+  Object.defineProperty(obj, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
 }
 
 /** Store a number/boolean key. Last write wins, matching string-key semantics. */
@@ -136,23 +159,5 @@ export function copyTypedKeys(
       key: entry.key,
       value: copyFn ? copyFn(entry.value) : entry.value,
     });
-  }
-}
-
-/**
- * Route a primitive key/value onto a dict under construction: string keys
- * become own string properties (via `assignStringKey`), number/boolean keys go
- * to the sidecar.
- */
-export function storeDictEntry(
-  dict: object,
-  key: RillValue,
-  value: RillValue,
-  assignStringKey: (dict: object, key: string, value: RillValue) => void
-): void {
-  if (typeof key === 'number' || typeof key === 'boolean') {
-    setTypedKey(dict, key, value);
-  } else {
-    assignStringKey(dict, String(key), value);
   }
 }

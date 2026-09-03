@@ -18,6 +18,7 @@ import { isDict } from '../guards.js';
 import {
   getTypedKeyMap,
   typedKeyEntries,
+  setDictField,
   type TypedKey,
 } from '../dict-keys.js';
 import { quoteRillString } from '../format-string.js';
@@ -123,13 +124,13 @@ function serializeDict(v: RillValue): unknown {
   const dict = v as Record<string, RillValue>;
   const result: Record<string, unknown> = {};
   for (const [k, val] of Object.entries(dict)) {
-    result[k] = serializeListElement(val);
+    setDictField(result, k, serializeListElement(val));
   }
   // JSON object field names are strings, so number/boolean keys serialize to
   // their string form (number 1 -> field "1", boolean true -> field "true").
   // A same-spelled string key, if present, is overwritten last-write-wins.
   for (const { key, value } of typedKeyEntries(dict)) {
-    result[String(key)] = serializeListElement(value);
+    setDictField(result, String(key), serializeListElement(value));
   }
   return result;
 }

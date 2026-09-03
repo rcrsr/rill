@@ -27,7 +27,7 @@ import {
   isTypeValue,
   isVector,
 } from './guards.js';
-import { copyTypedKeys } from './dict-keys.js';
+import { copyTypedKeys, setDictField } from './dict-keys.js';
 import { callable } from '../callable-factory.js';
 import { RuntimeError } from '../../../types.js';
 import { ERROR_IDS } from '../../../error-registry.js';
@@ -155,7 +155,9 @@ export function createRillStream(options: {
         next: callable(() => {
           throw new RuntimeError(
             ERROR_IDS.RILL_R002,
-            'Stream already consumed; cannot re-iterate'
+            'Stream already consumed; cannot re-iterate',
+            undefined,
+            { alreadyConsumed: true }
           );
         }),
       };
@@ -170,13 +172,17 @@ export function createRillStream(options: {
         if (stale) {
           throw new RuntimeError(
             ERROR_IDS.RILL_R002,
-            'Stream already consumed; cannot re-iterate'
+            'Stream already consumed; cannot re-iterate',
+            undefined,
+            { alreadyConsumed: true }
           );
         }
         if (exhausted) {
           throw new RuntimeError(
             ERROR_IDS.RILL_R002,
-            'Stream already consumed; cannot re-iterate'
+            'Stream already consumed; cannot re-iterate',
+            undefined,
+            { alreadyConsumed: true }
           );
         }
         stale = true;
@@ -197,7 +203,9 @@ export function createRillStream(options: {
       if (initialized) {
         throw new RuntimeError(
           ERROR_IDS.RILL_R002,
-          'Stream already consumed; cannot re-iterate'
+          'Stream already consumed; cannot re-iterate',
+          undefined,
+          { alreadyConsumed: true }
         );
       }
       initialized = true;
@@ -273,7 +281,8 @@ export function copyValue(value: RillValue): RillValue {
   // Mutable dict
   const dict = value as Record<string, RillValue>;
   const copy: Record<string, RillValue> = {};
-  for (const [k, v] of Object.entries(dict)) copy[k] = copyValue(v);
+  for (const [k, v] of Object.entries(dict))
+    setDictField(copy, k, copyValue(v));
   // Carry number/boolean keys across, deep-copying their values.
   copyTypedKeys(dict, copy, copyValue);
   return copy;
