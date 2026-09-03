@@ -579,12 +579,18 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     };
   }
 
+  const chainEnd = terminator
+    ? terminator.span.end
+    : pipes.length > 0
+      ? pipes[pipes.length - 1]!.span.end
+      : head.span.end;
+
   return {
     type: 'PipeChain',
     head,
     pipes,
     terminator,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, chainEnd),
   };
 };
 
@@ -740,12 +746,17 @@ Parser.prototype.parsePostfixExprBase = function (
     }
   }
 
+  const lastNode: { span: SourceSpan } =
+    loopState.methods.length > 0
+      ? loopState.methods[loopState.methods.length - 1]!
+      : loopState.primary;
+
   return {
     type: 'PostfixExpr',
     primary: loopState.primary,
     methods: loopState.methods,
     defaultValue: null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, lastNode.span.end),
   };
 };
 
@@ -1215,6 +1226,26 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     return this.parseConditionalWithCondition(postfixExpr);
   }
 
+  if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
+    advance(this.state);
+    const defaultValue = this.parseDefaultValue();
+    return {
+      type: 'PostfixExpr',
+      primary: {
+        type: 'Variable',
+        name: null,
+        isPipeVar: true,
+        accessChain: [],
+        defaultValue: null,
+        existenceCheck: null,
+        span: methods[0]!.span,
+      },
+      methods,
+      defaultValue,
+      span: makeSpan(start, defaultValue.span.end),
+    } as PostfixExprNode;
+  }
+
   // Single method: return as-is
   if (methods.length === 1) {
     return methods[0]!;
@@ -1482,9 +1513,11 @@ Parser.prototype.parseCapture = function (this: Parser): CaptureNode {
   );
 
   let typeRef: CaptureNode['typeRef'] = null;
+  let end = nameToken.span.end;
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
     typeRef = parseTypeRef(this.state);
+    end = peek(this.state, -1).span.end;
   }
 
   return {
@@ -1492,7 +1525,7 @@ Parser.prototype.parseCapture = function (this: Parser): CaptureNode {
     name: nameToken.value,
     typeRef,
     inlineShape: null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, end),
   };
 };
 
@@ -1609,7 +1642,7 @@ Parser.prototype.parseBinaryExprChain = function (
       op,
       left,
       right,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, right.span.end),
     };
     applied++;
   }
@@ -1657,7 +1690,7 @@ Parser.prototype.parseComparison = function (this: Parser): ArithHead {
       op,
       left,
       right,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, right.span.end),
     };
   }
 

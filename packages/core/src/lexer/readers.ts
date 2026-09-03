@@ -123,20 +123,41 @@ export function readString(state: LexerState): Token {
       advance(state); // consume backslash
       value += processEscape(state);
     } else if (peek(state) === '{') {
-      // Interpolation: include {expr} literally, parser handles expression parsing
+      // Check for brace escaping ({{) outside interpolation
+      if (peek(state, 1) === '{') {
+        value += advance(state); // consume first {
+        value += advance(state); // consume second {
+        continue;
+      }
+
+      // Interpolation: include {expr} literally, parser handles expression
+      // parsing. Escape decoding is suspended while braceDepth > 0 so the
+      // interpolation text reaches the parser raw, matching
+      // readTripleQuoteString's handling.
       value += advance(state); // consume {
       let braceDepth = 1;
       while (!isAtEnd(state) && braceDepth > 0) {
-        if (peek(state) === '\\') {
-          advance(state); // consume backslash
-          value += processEscape(state);
-        } else {
-          const ch = advance(state);
-          value += ch;
-          if (ch === '{') braceDepth++;
-          if (ch === '}') braceDepth--;
+        // Check for brace escaping inside interpolation
+        if (peek(state) === '{' && peek(state, 1) === '{') {
+          value += advance(state); // consume first {
+          value += advance(state); // consume second {
+          continue;
         }
+        if (peek(state) === '}' && peek(state, 1) === '}') {
+          value += advance(state); // consume first }
+          value += advance(state); // consume second }
+          continue;
+        }
+
+        const ch = advance(state);
+        value += ch;
+        if (ch === '{') braceDepth++;
+        if (ch === '}') braceDepth--;
       }
+    } else if (peek(state) === '}' && peek(state, 1) === '}') {
+      // Handle }} escaping outside interpolation
+      value += advance(state); // consume first }
+      value += advance(state); // consume second }
     } else if (peek(state) === '\n') {
       throw new LexerError(
         ERROR_IDS.RILL_L001,

@@ -110,6 +110,26 @@ Second: {$b +}
     }
   });
 
+  it('reports correct location for triple-quote interpolation starting on the opening line', () => {
+    // Line 1: """{$bad +}
+    // Line 2: more
+    // Line 3: """
+    // The interpolation starts immediately after the """ delimiter on the
+    // same line (no opening newline was skipped), so the location must use
+    // a 3-character delimiter offset with no extra line/offset adjustment.
+    const source = '"""{$bad +}\nmore\n"""';
+
+    try {
+      parse(source);
+      expect.fail('Should have thrown ParseError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      const parseErr = err as ParseError;
+
+      expect(parseErr.location).toEqual({ line: 1, column: 11, offset: 10 });
+    }
+  });
+
   it('handles triple-quote string with newlines before interpolation', () => {
     // Line 1: """
     // Line 2: (empty)

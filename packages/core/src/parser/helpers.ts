@@ -66,9 +66,7 @@ export function isHostCall(state: ParserState): boolean {
   }
 
   // Simple case: identifier(
-  let simpleOffset = 1;
-  while (peek(state, simpleOffset).type === TOKEN_TYPES.NEWLINE) simpleOffset++;
-  if (peek(state, simpleOffset).type === TOKEN_TYPES.LPAREN) {
+  if (peek(state, 1).type === TOKEN_TYPES.LPAREN) {
     return true;
   }
 
@@ -84,9 +82,8 @@ export function isHostCall(state: ParserState): boolean {
     offset++; // skip identifier/keyword
   }
 
-  // If we consumed at least one ::, skip newlines then check for (
+  // If we consumed at least one ::, check for (
   if (offset > 1) {
-    while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
     return peek(state, offset).type === TOKEN_TYPES.LPAREN;
   }
 
@@ -101,9 +98,7 @@ export function isHostCall(state: ParserState): boolean {
 export function isClosureCall(state: ParserState): boolean {
   if (!check(state, TOKEN_TYPES.DOLLAR)) return false;
   if (peek(state, 1).type !== TOKEN_TYPES.IDENTIFIER) return false;
-  let offset = 2;
-  while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
-  return peek(state, offset).type === TOKEN_TYPES.LPAREN;
+  return peek(state, 2).type === TOKEN_TYPES.LPAREN;
 }
 
 /**

@@ -803,22 +803,47 @@ async function evaluatePipeTarget(
     }
 
     case 'PostfixExpr': {
-      // Chained methods on pipe value: -> .a.b.c
+      // Chained methods on pipe value: -> .a.b.c (optionally -> .a.b.c ?? default)
       // The primary is implicit $ (pipe value)
-      let value = input;
-      for (const method of target.methods) {
-        if (method.type === 'AnnotationAccess') {
-          value = await evaluateAnnotationAccess(
-            s,
-            value,
-            method.key,
-            method.span.start
-          );
-        } else {
-          value = await evaluateMethod(s, method, value);
+      try {
+        let value = input;
+        for (const method of target.methods) {
+          if (method.type === 'AnnotationAccess') {
+            value = await evaluateAnnotationAccess(
+              s,
+              value,
+              method.key,
+              method.span.start
+            );
+          } else {
+            value = await evaluateMethod(s, method, value);
+          }
         }
+        if (target.defaultValue !== null && isInvalid(value)) {
+          return evaluateBody(s, target.defaultValue);
+        }
+        return value;
+      } catch (error) {
+        // Mirrors evaluatePostfixExpr's recovery: a missing method/field
+        // (RILL_R007) or missing annotation key (RILL_R008) falls back to
+        // the default value when one is present.
+        if (
+          target.defaultValue !== null &&
+          (matchesErrorId(
+            error,
+            ERROR_IDS.RILL_R007,
+            ERROR_ATOMS[ERROR_IDS.RILL_R007]
+          ) ||
+            matchesErrorId(
+              error,
+              ERROR_IDS.RILL_R008,
+              ERROR_ATOMS[ERROR_IDS.RILL_R008]
+            ))
+        ) {
+          return evaluateBody(s, target.defaultValue);
+        }
+        throw error;
       }
-      return value;
     }
 
     case 'AnnotationAccess':

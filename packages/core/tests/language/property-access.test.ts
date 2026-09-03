@@ -3,6 +3,7 @@ import {
   createRuntimeContext,
   execute,
   parse,
+  ParseError,
   TOKEN_TYPES,
   tokenize,
 } from '@rcrsr/rill';
@@ -63,6 +64,20 @@ describe('implicit $ property access bug', () => {
     it('chained implicit property access', async () => {
       const result = await run('dict[a: dict[b: 1]] -> .a.b');
       expect(result).toBe(1);
+    });
+  });
+
+  describe('trailing dot with no field name', () => {
+    it('"$x." halts with RILL-P006 located at the dot', () => {
+      try {
+        parse('$x.');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+        expect(parseErr.errorId).toBe('RILL-P006');
+        expect(parseErr.location).toEqual({ line: 1, column: 3, offset: 2 });
+      }
     });
   });
 

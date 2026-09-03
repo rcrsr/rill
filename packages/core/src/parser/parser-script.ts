@@ -420,7 +420,7 @@ Parser.prototype.parseStatement = function (
   return {
     type: 'Statement',
     expression,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, expression.span.end),
   };
 };
 
@@ -454,7 +454,7 @@ Parser.prototype.parseAnnotatedStatement = function (
     type: 'AnnotatedStatement',
     annotations,
     statement,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, statement.span.end),
   };
 };
 

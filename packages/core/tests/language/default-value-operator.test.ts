@@ -245,9 +245,6 @@ describe('Default Value Operator (??)', () => {
   });
 
   describe('Postfix Expression Default Values', () => {
-    // These tests verify function call + ?? operator functionality (AC-1 through AC-4).
-    // Parser support is complete. Runtime evaluation pending separate task.
-
     it('returns field value when present on function call result', async () => {
       const result = await run(`get_data().status ?? "default"`, {
         functions: {
@@ -345,6 +342,52 @@ describe('Default Value Operator (??)', () => {
     // Error-handling phase 1 (task 1.4) removes the .?/?? mutual-exclusion.
     // Composing existence check with default value is now permitted; the
     // vacant-then-default semantics are owned by FR-ERR-4 in phase 2.
+  });
+
+  describe('Pipe Target Default (-> .field ?? default / -> .method ?? default)', () => {
+    it('returns fallback for a vacant field reached via -> .field', async () => {
+      const result = await run(`
+        dict[other: 1] => $d
+        $d -> .name ?? "none"
+      `);
+      expect(result).toBe('none');
+    });
+
+    it('returns the field value when present via -> .field', async () => {
+      const result = await run(`
+        dict[name: "alice"] => $d
+        $d -> .name ?? "none"
+      `);
+      expect(result).toBe('alice');
+    });
+
+    it('parses -> .method() ?? default and returns the method result', async () => {
+      const result = await run(`
+        "  hi  " -> .trim() ?? "none"
+      `);
+      expect(result).toBe('hi');
+    });
+
+    it('parses chained -> .method -> .method ?? default', async () => {
+      const result = await run(`
+        "hi" -> .upper -> .trim ?? "none"
+      `);
+      expect(result).toBe('HI');
+    });
+
+    it('returns the deep value for a multi-method dot chain via -> .a.b', async () => {
+      const result = await run(`
+        dict[a: dict[b: 5]] -> .a.b ?? "x"
+      `);
+      expect(result).toBe(5);
+    });
+
+    it('returns fallback when the final field of a multi-method dot chain is missing', async () => {
+      const result = await run(`
+        dict[a: dict[b: 5]] -> .a.missing ?? "x"
+      `);
+      expect(result).toBe('x');
+    });
   });
 
   describe('Vacancy trigger on invalid LHS', () => {

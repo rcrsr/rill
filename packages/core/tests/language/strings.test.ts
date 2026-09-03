@@ -195,6 +195,18 @@ $d.x.y => $val
 "found: {$val}"`;
       expect(await run(script)).toBe('found: deep');
     });
+
+    it('decodes an unpaired doubled brace to a literal brace and keeps reading the rest of the file', async () => {
+      const script = `"a {{ b" => $s
+"after" => $t
+list[$s, $t]`;
+      expect(await run(script)).toEqual(['a { b', 'after']);
+    });
+
+    it('re-tokenizes an escape sequence inside an interpolation on its own, without pre-decoding it', async () => {
+      const script = `"value: {"a\\nb" -> .len}"`;
+      expect(await run(script)).toBe('value: 3');
+    });
   });
 
   describe('Expression Interpolation', () => {
@@ -212,8 +224,11 @@ $d.x.y => $val
     });
 
     it('interpolates conditional expressions', async () => {
+      // Quotes inside an interpolation don't need escaping relative to the
+      // enclosing string delimiter: the lexer tracks brace depth, not quote
+      // state, while scanning interpolation text.
       const script = `true => $ok
-"status: {$ok ? \\"yes\\" ! \\"no\\"}"`;
+"status: {$ok ? "yes" ! "no"}"`;
       expect(await run(script)).toBe('status: yes');
     });
 
