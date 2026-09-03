@@ -104,6 +104,12 @@ identity("explicit")`;
         const ast = parse(script);
         expect(ast.statements.length).toBe(2);
       });
+
+      it('a "(" on the next line is not treated as a call on a pipe-target property access', () => {
+        const script = '5 -> $math.double\n(1)';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+      });
     });
   });
 

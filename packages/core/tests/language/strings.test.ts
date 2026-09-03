@@ -232,6 +232,14 @@ list[$s, $t]`;
       expect(await run(script)).toBe('status: yes');
     });
 
+    it('interpolates an expression whose own closing brace touches the interpolation close', async () => {
+      // The interpolated block's own `}` sits directly against the
+      // interpolation's closing `}`, forming a literal `}}` that must not be
+      // mistaken for a brace-escape while braceDepth is still 1.
+      const script = `"result: {5 -> { $ + 1 }}"`;
+      expect(await run(script)).toBe('result: 6');
+    });
+
     it('interpolates method chains', async () => {
       const script = `"hello" => $name
 "upper: {$name -> .upper}"`;
@@ -317,6 +325,11 @@ hello
 
     it('handles escaped braces in triple-quote string (AC-5)', async () => {
       expect(await run('"""{{literal}}"""')).toBe('{literal}');
+    });
+
+    it('interpolates an expression whose own closing brace touches the interpolation close', async () => {
+      const script = '"""result: {5 -> { $ + 1 }}"""';
+      expect(await run(script)).toBe('result: 6');
     });
   });
 

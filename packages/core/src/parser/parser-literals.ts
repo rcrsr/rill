@@ -221,18 +221,16 @@ Parser.prototype.parseStringParts = function (
         if (literal) parts.push(literal);
       }
 
+      // Brace-escaping ({{, }}) does not apply inside interpolation: every {
+      // and } here is real rill code (nested blocks, dicts, closures), so
+      // each brace must be counted, not speculatively swallowed as a
+      // literal pair. Swallowing a pair whose first brace actually closes a
+      // nested construct desyncs depth and misreports the interpolation as
+      // unterminated. Matches the lexer's own interpolation scan.
       const exprStart = i + 1;
       let depth = 1;
       i++;
       while (i < raw.length && depth > 0) {
-        if (raw[i] === '{' && raw[i + 1] === '{') {
-          i += 2;
-          continue;
-        }
-        if (raw[i] === '}' && raw[i + 1] === '}') {
-          i += 2;
-          continue;
-        }
         if (raw[i] === '{') depth++;
         else if (raw[i] === '}') depth--;
         i++;

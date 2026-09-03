@@ -75,6 +75,23 @@ import { isTypeConstructorName } from './parser-shape.js';
 import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
 
+/**
+ * Builds a phantom `$` pipe-variable primary node, used as the receiver when
+ * wrapping a chain of methods (`-> .a.b`, `-> .a?`, `-> .a ?? default`) that
+ * has no explicit primary of its own.
+ */
+function makePipeVarPrimary(span: SourceSpan): VariableNode {
+  return {
+    type: 'Variable',
+    name: null,
+    isPipeVar: true,
+    accessChain: [],
+    defaultValue: null,
+    existenceCheck: null,
+    span,
+  };
+}
+
 /** Constructs valid as both primary expressions and pipe targets */
 type CommonConstruct =
   | ConditionalNode
@@ -1210,15 +1227,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
   if (check(this.state, TOKEN_TYPES.QUESTION)) {
     const postfixExpr: PostfixExprNode = {
       type: 'PostfixExpr',
-      primary: {
-        type: 'Variable',
-        name: null,
-        isPipeVar: true,
-        accessChain: [],
-        defaultValue: null,
-        existenceCheck: null,
-        span: methods[0]!.span,
-      },
+      primary: makePipeVarPrimary(methods[0]!.span),
       methods,
       defaultValue: null,
       span: makeSpan(start, current(this.state).span.end),
@@ -1231,15 +1240,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     const defaultValue = this.parseDefaultValue();
     return {
       type: 'PostfixExpr',
-      primary: {
-        type: 'Variable',
-        name: null,
-        isPipeVar: true,
-        accessChain: [],
-        defaultValue: null,
-        existenceCheck: null,
-        span: methods[0]!.span,
-      },
+      primary: makePipeVarPrimary(methods[0]!.span),
       methods,
       defaultValue,
       span: makeSpan(start, defaultValue.span.end),
@@ -1254,15 +1255,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
   // Multiple methods: wrap in PostfixExpr with $ as primary
   return {
     type: 'PostfixExpr',
-    primary: {
-      type: 'Variable',
-      name: null,
-      isPipeVar: true,
-      accessChain: [],
-      defaultValue: null,
-      existenceCheck: null,
-      span: methods[0]!.span,
-    },
+    primary: makePipeVarPrimary(methods[0]!.span),
     methods,
     defaultValue: null,
     span: makeSpan(start, current(this.state).span.end),

@@ -113,7 +113,7 @@ true => $ok
 "Hello, {$name}!"                    # Variable interpolation
 "sum: {$a + $b}"                     # Arithmetic
 "valid: {$count > 0}"                # Comparison
-"status: {$ok ? \"yes\" ! \"no\"}"   # Conditional
+"status: {$ok ? "yes" ! "no"}"       # Conditional
 "upper: {$name -> .upper}"           # Method chain
 ```
 

@@ -166,6 +166,12 @@ function nextToken(state: LexerState): Token {
     return advanceAndMakeToken(state, 3, TOKEN_TYPES.ELLIPSIS, '...', start);
   }
   if (threeChar === '---') {
+    // Only set frontmatter mode if at actual file start (not in sub-parse).
+    // Tolerate leading blank lines/whitespace before the delimiter, matching
+    // the parser's own leading-newline skip ahead of the frontmatter check.
+    // Captured before consuming the delimiter itself, since advancing over
+    // it marks sawNonWhitespace true.
+    const atFileStart = state.baseOffset === 0 && !state.sawNonWhitespace;
     const token = advanceAndMakeToken(
       state,
       3,
@@ -173,11 +179,7 @@ function nextToken(state: LexerState): Token {
       '---',
       start
     );
-    // Only set frontmatter mode if at actual file start (not in sub-parse).
-    // Tolerate leading blank lines/whitespace before the delimiter, matching
-    // the parser's own leading-newline skip ahead of the frontmatter check.
-    const leadingText = state.source.slice(0, state.pos - 3);
-    if (state.baseOffset === 0 && leadingText.trim() === '') {
+    if (atFileStart) {
       state.inFrontmatter = true;
     }
     return token;

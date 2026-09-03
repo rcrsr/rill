@@ -120,7 +120,6 @@ export function isClosureCallWithAccess(state: ParserState): boolean {
     offset++; // skip identifier
   }
 
-  while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
   return peek(state, offset).type === TOKEN_TYPES.LPAREN;
 }
 

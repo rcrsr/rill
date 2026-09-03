@@ -135,20 +135,14 @@ export function readString(state: LexerState): Token {
       // interpolation text reaches the parser raw, matching
       // readTripleQuoteString's handling.
       value += advance(state); // consume {
+      // Brace-escaping ({{, }}) does not apply inside interpolation: every
+      // { and } here is real rill code (nested blocks, dicts, closures) that
+      // the parser will re-tokenize, so each brace must be counted, not
+      // speculatively swallowed as a literal pair. Swallowing a pair whose
+      // first brace actually closes a nested construct desyncs braceDepth
+      // and runs the scanner past the end of the string.
       let braceDepth = 1;
       while (!isAtEnd(state) && braceDepth > 0) {
-        // Check for brace escaping inside interpolation
-        if (peek(state) === '{' && peek(state, 1) === '{') {
-          value += advance(state); // consume first {
-          value += advance(state); // consume second {
-          continue;
-        }
-        if (peek(state) === '}' && peek(state, 1) === '}') {
-          value += advance(state); // consume first }
-          value += advance(state); // consume second }
-          continue;
-        }
-
         const ch = advance(state);
         value += ch;
         if (ch === '{') braceDepth++;
@@ -220,7 +214,13 @@ export function readTripleQuoteString(state: LexerState): Token {
         continue;
       }
 
-      // Interpolation: include {expr} literally, parser handles expression parsing
+      // Interpolation: include {expr} literally, parser handles expression
+      // parsing. Brace-escaping ({{, }}) does not apply inside interpolation:
+      // every { and } here is real rill code (nested blocks, dicts,
+      // closures) that the parser will re-tokenize, so each brace must be
+      // counted, not speculatively swallowed as a literal pair. Swallowing a
+      // pair whose first brace actually closes a nested construct desyncs
+      // braceDepth and runs the scanner past the end of the string.
       value += advance(state); // consume {
       let braceDepth = 1;
       while (!isAtEnd(state) && braceDepth > 0) {
@@ -235,18 +235,6 @@ export function readTripleQuoteString(state: LexerState): Token {
             'Triple-quotes not allowed in interpolation',
             currentLocation(state)
           );
-        }
-
-        // Check for brace escaping inside interpolation
-        if (peek(state) === '{' && peek(state, 1) === '{') {
-          value += advance(state); // consume first {
-          value += advance(state); // consume second {
-          continue;
-        }
-        if (peek(state) === '}' && peek(state, 1) === '}') {
-          value += advance(state); // consume first }
-          value += advance(state); // consume second }
-          continue;
         }
 
         const ch = advance(state);
