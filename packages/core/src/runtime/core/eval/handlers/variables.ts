@@ -57,6 +57,7 @@ import type { EvalState } from '../state.js';
 import { accessHaltGateFast } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, accessDictField } from '../shared.js';
+import { getTypedKey, hasTypedKey } from '../../types/dict-keys.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluatePipeChain } from './core.js';
 import {
@@ -366,34 +367,51 @@ export async function evaluateVariableAsync(
         }
         value = result;
       } else if (isDict(value)) {
-        if (typeof indexValue !== 'string') {
-          throwCatchableHostHalt(
-            {
-              location: getNodeLocation(s, node),
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateVariableAsync',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R002],
-            `Dict key must be string, got ${inferType(indexValue)}`
-          );
+        // Number/boolean bracket keys resolve against the typed-key sidecar,
+        // keeping $d[1] distinct from $d["1"].
+        if (typeof indexValue === 'number' || typeof indexValue === 'boolean') {
+          if (!hasTypedKey(value, indexValue)) {
+            throwCatchableHostHalt(
+              {
+                location: getNodeLocation(s, node),
+                sourceId: s.ctx.sourceId,
+                fn: 'evaluateVariableAsync',
+              },
+              ERROR_ATOMS[ERROR_IDS.RILL_R009],
+              `Undefined dict key: ${indexValue}`
+            );
+          }
+          value = getTypedKey(value, indexValue) as RillValue;
+        } else {
+          if (typeof indexValue !== 'string') {
+            throwCatchableHostHalt(
+              {
+                location: getNodeLocation(s, node),
+                sourceId: s.ctx.sourceId,
+                fn: 'evaluateVariableAsync',
+              },
+              ERROR_ATOMS[ERROR_IDS.RILL_R002],
+              `Dict key must be string, got ${inferType(indexValue)}`
+            );
+          }
+          // Own-key gate: inherited JS members (constructor, __proto__, ...)
+          // must not resolve as dict fields.
+          const result = Object.hasOwn(value, indexValue)
+            ? (value as Record<string, RillValue>)[indexValue]
+            : undefined;
+          if (result === undefined) {
+            throwCatchableHostHalt(
+              {
+                location: getNodeLocation(s, node),
+                sourceId: s.ctx.sourceId,
+                fn: 'evaluateVariableAsync',
+              },
+              ERROR_ATOMS[ERROR_IDS.RILL_R009],
+              `Undefined dict key: ${indexValue}`
+            );
+          }
+          value = result;
         }
-        // Own-key gate: inherited JS members (constructor, __proto__, ...)
-        // must not resolve as dict fields.
-        const result = Object.hasOwn(value, indexValue)
-          ? (value as Record<string, RillValue>)[indexValue]
-          : undefined;
-        if (result === undefined) {
-          throwCatchableHostHalt(
-            {
-              location: getNodeLocation(s, node),
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateVariableAsync',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R009],
-            `Undefined dict key: ${indexValue}`
-          );
-        }
-        value = result;
       } else {
         throwCatchableHostHalt(
           {
@@ -620,6 +638,14 @@ export async function evaluateVariableAsync(
 
       // Check if key exists in dict or list
       if (isDict(value)) {
+        // Number/boolean keys resolve against the typed-key sidecar.
+        if (typeof keyValue === 'number' || typeof keyValue === 'boolean') {
+          if (!hasTypedKey(value, keyValue)) return false;
+          const fieldValue = getTypedKey(value, keyValue);
+          if (fieldValue === undefined || fieldValue === null) return false;
+          if (typeRef !== null) return await matchesType(fieldValue);
+          return true;
+        }
         // Key variable non-string
         if (typeof keyValue !== 'string') {
           throwCatchableHostHalt(
@@ -674,6 +700,18 @@ export async function evaluateVariableAsync(
         );
       }
       const keyValue = await evaluatePipeChain(s, finalAccess.expression);
+
+      // Number/boolean computed keys resolve against the typed-key sidecar.
+      if (
+        isDict(value) &&
+        (typeof keyValue === 'number' || typeof keyValue === 'boolean')
+      ) {
+        if (!hasTypedKey(value, keyValue)) return false;
+        const fieldValue = getTypedKey(value, keyValue);
+        if (fieldValue === undefined || fieldValue === null) return false;
+        if (typeRef !== null) return await matchesType(fieldValue);
+        return true;
+      }
 
       // Computed key non-string
       if (typeof keyValue !== 'string') {

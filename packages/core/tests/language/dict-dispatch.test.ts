@@ -514,10 +514,11 @@ describe('Rill Runtime: Dict Dispatch', () => {
     });
 
     it('expands multi-key with boolean and number keys', async () => {
-      // Note: Boolean and number keys are stored as strings in dicts
+      // Boolean and number multi-keys are type-aware: they are reached by
+      // dispatching the typed value, not by a string-keyed lookup.
       const result = await run(`
         dict[list[true, false]: "bool", list[1, 2]: "num"] => $dict
-        list[$dict.("true"), $dict.("false"), $dict.("1"), $dict.("2")]
+        list[true -> $dict, false -> $dict, 1 -> $dict, 2 -> $dict]
       `);
       expect(result).toEqual(['bool', 'bool', 'num', 'num']);
     });

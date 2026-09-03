@@ -21,6 +21,7 @@ import {
   type RillAtom,
 } from './atom-registry.js';
 import { appendFrame, type TraceFrame } from './trace.js';
+import { typedKeyCount } from './dict-keys.js';
 
 // ============================================================
 // TYPES
@@ -181,7 +182,10 @@ export function isEmpty(value: RillValue): boolean {
     // datetime, duration, etc.) return false here.
     const proto = Object.getPrototypeOf(value);
     if (proto === Object.prototype || proto === null) {
-      return Object.keys(value as Record<string, unknown>).length === 0;
+      return (
+        Object.keys(value as Record<string, unknown>).length === 0 &&
+        typedKeyCount(value) === 0
+      );
     }
   }
   return false;

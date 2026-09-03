@@ -18,6 +18,7 @@ import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
 import { MAX_ITER, makeGenericIterator } from '../shared.js';
+import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
 export const CORE_FUNCTIONS: Record<string, RillFunction> = {
@@ -116,10 +117,19 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       }
       if (isDict(input)) {
         const keys = Object.keys(input).sort();
-        return keys.map((key, index) => ({
-          index,
-          key,
+        const stringEntries = keys.map((key) => ({
+          key: key as RillValue,
           value: input[key]!,
+        }));
+        // Number/boolean keys follow the sorted string keys, in insertion order.
+        const typedEntries = typedKeyEntries(input).map((e) => ({
+          key: e.key as RillValue,
+          value: e.value,
+        }));
+        return [...stringEntries, ...typedEntries].map((e, index) => ({
+          index,
+          key: e.key,
+          value: e.value,
         }));
       }
       return [];

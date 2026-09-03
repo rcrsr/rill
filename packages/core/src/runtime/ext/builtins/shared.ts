@@ -3,6 +3,7 @@ import type { RuntimeContext } from '../../core/types/runtime.js';
 import type { SourceLocation } from '../../../types.js';
 import type { EvalState } from '../../core/eval/state.js';
 import { callable, isCallable } from '../../core/callable.js';
+import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import { checkAborted } from '../../core/eval/shared.js';
 import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/closures.js';
 import { throwCatchableHostHalt } from '../../core/types/halt.js';
@@ -157,22 +158,29 @@ function makeCodePointIterator(codePoints: string[], index: number): RillValue {
 
 /**
  * Create an iterator for a dict at the given index.
- * Dict iteration yields { key, value } entries sorted by key.
+ * Dict iteration yields { key, value } entries: sorted string keys first, then
+ * number/boolean keys (in insertion order), each surfaced with its real type.
  */
 export function makeDictIterator(
   dict: Record<string, RillValue>,
   index: number
 ): RillValue {
-  const keys = Object.keys(dict).sort();
-  if (index >= keys.length) {
+  const stringKeys = Object.keys(dict).sort();
+  const entries: Array<{ key: RillValue; value: RillValue }> = stringKeys.map(
+    (key) => ({ key, value: dict[key]! })
+  );
+  for (const e of typedKeyEntries(dict)) {
+    entries.push({ key: e.key, value: e.value });
+  }
+  if (index >= entries.length) {
     return {
       done: true,
       next: callable(() => makeDictIterator(dict, index)),
     };
   }
-  const key = keys[index]!;
+  const entry = entries[index]!;
   return {
-    value: { key, value: dict[key]! },
+    value: { key: entry.key, value: entry.value },
     done: false,
     next: callable(() => makeDictIterator(dict, index + 1)),
   };

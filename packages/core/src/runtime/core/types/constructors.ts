@@ -27,6 +27,7 @@ import {
   isTypeValue,
   isVector,
 } from './guards.js';
+import { copyTypedKeys } from './dict-keys.js';
 import { callable } from '../callable-factory.js';
 import { RuntimeError } from '../../../types.js';
 import { ERROR_IDS } from '../../../error-registry.js';
@@ -273,5 +274,7 @@ export function copyValue(value: RillValue): RillValue {
   const dict = value as Record<string, RillValue>;
   const copy: Record<string, RillValue> = {};
   for (const [k, v] of Object.entries(dict)) copy[k] = copyValue(v);
+  // Carry number/boolean keys across, deep-copying their values.
+  copyTypedKeys(dict, copy, copyValue);
   return copy;
 }

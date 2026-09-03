@@ -73,6 +73,12 @@ import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, setDictField } from '../shared.js';
 import {
+  setTypedKey,
+  getTypedKey,
+  hasTypedKey,
+  typedKeyEntries,
+} from '../../types/dict-keys.js';
+import {
   evaluateExpression,
   evaluatePipeChain,
   evaluatePrimary,
@@ -394,7 +400,7 @@ async function evaluateDictMultiKeyFromList(
   s: EvalState,
   keyList: ListLiteralNode,
   value: ExpressionNode
-): Promise<Array<[string, RillValue]>> {
+): Promise<Array<[RillValue, RillValue]>> {
   // Evaluate list elements to get keys
   const keys: RillValue[] = await evaluateListLiteralElements(
     s,
@@ -453,11 +459,11 @@ async function evaluateDictMultiKeyFromList(
     evaluatedValue = await evaluateExpression(s, value);
   }
 
-  // Create entry for each key
-  const entries: Array<[string, RillValue]> = [];
+  // Create entry for each key, preserving the key's original type (number and
+  // boolean keys are routed to the sidecar by the caller).
+  const entries: Array<[RillValue, RillValue]> = [];
   for (const key of keys) {
-    const stringKey = String(key);
-    entries.push([stringKey, evaluatedValue]);
+    entries.push([key, evaluatedValue]);
   }
 
   return entries;
@@ -649,7 +655,13 @@ export async function evaluateDict(
         entry.key as ListLiteralNode,
         entry.value
       );
-      for (const [stringKey, value] of pairs) {
+      for (const [key, value] of pairs) {
+        if (typeof key === 'number' || typeof key === 'boolean') {
+          // Number/boolean multi-key: store in the sidecar (type-preserving).
+          setTypedKey(result, key, value);
+          continue;
+        }
+        const stringKey = String(key);
         if (isReservedMethod(stringKey)) {
           throwCatchableHostHalt(
             {
@@ -671,13 +683,16 @@ export async function evaluateDict(
       continue;
     }
 
-    // Convert number and boolean keys to strings.
-    // String keys: use directly as object property
-    // Number keys: convert to string via String(key)
-    // Boolean keys: convert to string via String(key)
-    const stringKey = String(entry.key);
+    // Number and boolean keys carry their type: they are stored in the
+    // sidecar (see dict-keys.ts) so number 1 and string "1" stay distinct.
+    // String keys are stored as own string properties, exactly as before.
+    const typedKey =
+      typeof entry.key === 'number' || typeof entry.key === 'boolean'
+        ? entry.key
+        : undefined;
+    const stringKey = typedKey === undefined ? String(entry.key) : undefined;
 
-    if (isReservedMethod(stringKey)) {
+    if (stringKey !== undefined && isReservedMethod(stringKey)) {
       throwCatchableHostHalt(
         {
           location: entry.span.start,
@@ -690,18 +705,24 @@ export async function evaluateDict(
       );
     }
 
+    const store = (value: RillValue): void => {
+      if (typedKey !== undefined) {
+        setTypedKey(result, typedKey, value);
+      } else {
+        setDictField(result, stringKey!, value);
+      }
+    };
+
     if (isBlockExpr(entry.value)) {
       const head = requirePipeChainHead(entry.value, s.ctx, 'evaluateDict');
       const blockNode = head.primary as BlockNode;
-      const closure = createBlockClosure(s, blockNode);
-      setDictField(result, stringKey, closure);
+      store(createBlockClosure(s, blockNode));
     } else if (isClosureExpr(entry.value)) {
       const head = requirePipeChainHead(entry.value, s.ctx, 'evaluateDict');
       const fnLit = head.primary as ClosureNode;
-      const closure = await createClosure(s, fnLit);
-      setDictField(result, stringKey, closure);
+      store(await createClosure(s, fnLit));
     } else {
-      setDictField(result, stringKey, await evaluateExpression(s, entry.value));
+      store(await evaluateExpression(s, entry.value));
     }
   }
 
@@ -715,6 +736,12 @@ export async function evaluateDict(
         ...value,
         boundDict: result,
       });
+    }
+  }
+  // Bind callables stored under number/boolean keys as well.
+  for (const { key, value } of typedKeyEntries(result)) {
+    if (isCallable(value)) {
+      setTypedKey(result, key, { ...value, boundDict: result });
     }
   }
 
@@ -884,16 +911,28 @@ export async function dispatchToDict(
   },
   skipClosureResolution = false
 ): Promise<RillValue> {
-  // Search dict entries for matching key
-  for (const [key, value] of Object.entries(dict)) {
-    // Simple key match using deep equality
-    if (deepEquals(input, key)) {
-      // Skip closure resolution for hierarchical dispatch (caller handles it)
+  // Type-aware key match. Number/boolean inputs match only sidecar (typed)
+  // keys; string inputs match only string properties. This keeps number 1
+  // distinct from string "1" and boolean true distinct from string "true".
+  if (typeof input === 'number' || typeof input === 'boolean') {
+    if (hasTypedKey(dict, input)) {
+      const value = getTypedKey(dict, input) as RillValue;
       if (skipClosureResolution) {
         return value;
       }
-      // Auto-invoke closures if needed
       return resolveDispatchValueRuntime(s, value, input, location);
+    }
+  } else {
+    for (const [key, value] of Object.entries(dict)) {
+      // Simple key match using deep equality (string keys only here)
+      if (deepEquals(input, key)) {
+        // Skip closure resolution for hierarchical dispatch (caller handles it)
+        if (skipClosureResolution) {
+          return value;
+        }
+        // Auto-invoke closures if needed
+        return resolveDispatchValueRuntime(s, value, input, location);
+      }
     }
   }
 

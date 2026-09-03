@@ -250,35 +250,41 @@ describe('Dynamic Existence Check', () => {
       });
     });
 
-    describe('EC-10: Variable field name non-string', () => {
-      it('AC-10: throws RUNTIME_TYPE_ERROR when variable contains number', async () => {
-        await expect(
-          run(`
+    describe('EC-10: Variable field name number/boolean is type-aware', () => {
+      it('AC-10: number variable key resolves against typed keys', async () => {
+        // A number variable key is type-aware: absent on a string-keyed dict,
+        // present when the dict carries that number key.
+        expect(
+          await run(`
             42 => $n
             dict[x: 1] => $data
             $data.?$n
           `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key must be string, got number'
-          ),
-        });
+        ).toBe(false);
+        expect(
+          await run(`
+            42 => $n
+            dict[42: "answer"] => $data
+            $data.?$n
+          `)
+        ).toBe(true);
       });
 
-      it('throws when variable contains boolean', async () => {
-        await expect(
-          run(`
+      it('boolean variable key resolves against typed keys', async () => {
+        expect(
+          await run(`
             true => $b
             dict[x: 1] => $data
             $data.?$b
           `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key must be string, got bool'
-          ),
-        });
+        ).toBe(false);
+        expect(
+          await run(`
+            true => $b
+            dict[true: "yes"] => $data
+            $data.?$b
+          `)
+        ).toBe(true);
       });
 
       it('throws when variable contains list', async () => {
@@ -312,33 +318,35 @@ describe('Dynamic Existence Check', () => {
       });
     });
 
-    describe('EC-11: Computed key non-string', () => {
-      it('throws RUNTIME_TYPE_ERROR when computed expression evaluates to number', async () => {
-        await expect(
-          run(`
+    describe('EC-11: Computed number/boolean key is type-aware', () => {
+      it('number computed key resolves against typed keys', async () => {
+        expect(
+          await run(`
             dict[x: 1] => $data
             $data.?(42)
           `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key evaluated to number, expected string'
-          ),
-        });
+        ).toBe(false);
+        expect(
+          await run(`
+            dict[42: "answer"] => $data
+            $data.?(42)
+          `)
+        ).toBe(true);
       });
 
-      it('throws when computed expression evaluates to boolean', async () => {
-        await expect(
-          run(`
+      it('boolean computed key resolves against typed keys', async () => {
+        expect(
+          await run(`
             dict[x: 1] => $data
             $data.?(true)
           `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key evaluated to bool, expected string'
-          ),
-        });
+        ).toBe(false);
+        expect(
+          await run(`
+            dict[true: "yes"] => $data
+            $data.?(true)
+          `)
+        ).toBe(true);
       });
 
       it('throws when computed expression evaluates to list', async () => {
@@ -369,18 +377,20 @@ describe('Dynamic Existence Check', () => {
         });
       });
 
-      it('throws in type-qualified check when key is non-string', async () => {
-        await expect(
-          run(`
+      it('type-qualified check with a number key verifies the typed value', async () => {
+        // Absent number key -> false; present number key with matching type -> true.
+        expect(
+          await run(`
             dict[x: 1] => $data
             $data.?(42)&number
           `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key evaluated to number, expected string'
-          ),
-        });
+        ).toBe(false);
+        expect(
+          await run(`
+            dict[42: 7] => $data
+            $data.?(42)&number
+          `)
+        ).toBe(true);
       });
     });
   });

@@ -7,6 +7,10 @@ import {
   inferType,
 } from '../../../core/types/registrations.js';
 import { isIterator, isVector } from '../../../core/types/guards.js';
+import {
+  typedKeyEntries,
+  typedKeyCount,
+} from '../../../core/types/dict-keys.js';
 import { isEmpty } from '../../../core/values.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
 import { throwCatchableHostHalt } from '../../../core/types/halt.js';
@@ -31,7 +35,7 @@ export const mLen: RillMethod = (receiver) => {
   if (typeof receiver === 'string') return [...receiver].length;
   if (Array.isArray(receiver)) return receiver.length;
   if (receiver && typeof receiver === 'object') {
-    return Object.keys(receiver).length;
+    return Object.keys(receiver).length + typedKeyCount(receiver);
   }
   return 0;
 };
@@ -343,17 +347,32 @@ export const mGe: RillMethod = (receiver, args) => {
   return formatValue(receiver) >= formatValue(arg ?? '');
 };
 
-/** Get all keys of a dict as a list */
+/**
+ * Get all keys of a dict as a list. String keys (insertion order) come first,
+ * then number/boolean keys (each surfaced with its original type).
+ */
 export const mKeys: RillMethod = (receiver) =>
-  isDict(receiver) ? Object.keys(receiver) : [];
+  isDict(receiver)
+    ? [...Object.keys(receiver), ...typedKeyEntries(receiver).map((e) => e.key)]
+    : [];
 
-/** Get all values of a dict as a list */
+/** Get all values of a dict as a list, string keys first then typed keys. */
 export const mValues: RillMethod = (receiver) =>
-  isDict(receiver) ? Object.values(receiver) : [];
+  isDict(receiver)
+    ? [
+        ...Object.values(receiver),
+        ...typedKeyEntries(receiver).map((e) => e.value),
+      ]
+    : [];
 
-/** Get all entries of a dict as a list of [key, value] pairs */
+/** Get all entries of a dict as a list of [key, value] pairs. */
 export const mEntries: RillMethod = (receiver) =>
-  isDict(receiver) ? Object.entries(receiver).map(([k, v]) => [k, v]) : [];
+  isDict(receiver)
+    ? [
+        ...Object.entries(receiver).map(([k, v]) => [k, v] as RillValue),
+        ...typedKeyEntries(receiver).map((e) => [e.key, e.value] as RillValue),
+      ]
+    : [];
 
 /** Check if list contains value (deep equality) */
 export const mHas: RillMethod = (receiver, args, _ctx, location) => {

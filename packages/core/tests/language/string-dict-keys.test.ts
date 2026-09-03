@@ -37,8 +37,15 @@ describe('Rill Language: String Literal Dict Keys', () => {
 
   describe('Mixed Key Types', () => {
     it('parses dict with string, identifier, number, and boolean keys', async () => {
-      const result = await run('dict["str": 1, ident: 2, 3: 3, true: 4]');
-      expect(result).toEqual({ str: 1, ident: 2, 3: 3, true: 4 });
+      // Dict keys are type-aware: string/identifier keys are stored as plain
+      // properties while number and boolean keys are distinct typed keys. The
+      // plain object surfaces only the string keys; typed keys are reached via
+      // dispatch and counted by .len.
+      const src = 'dict["str": 1, ident: 2, 3: 3, true: 4]';
+      expect(await run(src)).toEqual({ str: 1, ident: 2 });
+      expect(await run(`${src} -> .len`)).toBe(4);
+      expect(await run(`${src} => $d\n3 -> $d`)).toBe(3);
+      expect(await run(`${src} => $d\ntrue -> $d`)).toBe(4);
     });
 
     it('parses dict with string and identifier keys with same value', async () => {
@@ -46,10 +53,12 @@ describe('Rill Language: String Literal Dict Keys', () => {
       expect(result).toEqual({ key: 2 }); // Later value overwrites
     });
 
-    it('parses dict with negative number and string keys', async () => {
-      const result = await run('dict["-1": "string", -1: "number"]');
-      // Both become "-1" key, later overwrites
-      expect(result).toEqual({ '-1': 'number' });
+    it('keeps a negative number key distinct from its string form', async () => {
+      // dict["-1": ..., -1: ...] holds TWO entries: string "-1" and number -1.
+      const src = 'dict["-1": "string", -1: "number"]';
+      expect(await run(`${src} -> .len`)).toBe(2);
+      expect(await run(`${src} => $d\n-1 -> $d`)).toBe('number');
+      expect(await run(`${src} => $d\n"-1" -> $d`)).toBe('string');
     });
   });
 

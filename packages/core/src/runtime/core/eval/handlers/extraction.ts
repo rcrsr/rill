@@ -33,6 +33,7 @@ import { resolveTypeRef } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
 import { setDictField } from '../shared.js';
+import { setTypedKey } from '../../types/dict-keys.js';
 
 /**
  * Evaluate destructure operator: destruct<$a, $b, $c>
@@ -467,15 +468,23 @@ export async function evaluateCollectionLiteral(
         s,
         node.entries
       )) {
-        // Safe assignment so a `__proto__` key becomes an own field rather
-        // than reparenting the dict via the prototype setter.
-        setDictField(result, key, value);
+        if (typeof key === 'number' || typeof key === 'boolean') {
+          // Number/boolean keys go to the typed-key sidecar.
+          setTypedKey(result, key, value);
+        } else {
+          // Safe assignment so a `__proto__` key becomes an own field rather
+          // than reparenting the dict via the prototype setter.
+          setDictField(result, String(key), value);
+        }
       }
       return result;
     }
 
     case 'OrderedLiteral': {
-      const pairs = await evaluateDictLiteralEntries(s, node.entries);
+      // Ordered literals keep string keys; stringify any typed key.
+      const pairs = (await evaluateDictLiteralEntries(s, node.entries)).map(
+        ([key, value]) => [String(key), value] as [string, RillValue]
+      );
       return createOrdered(pairs);
     }
   }
@@ -515,15 +524,17 @@ export async function evaluateListLiteralElements(
 }
 
 /**
- * Evaluate dict/ordered literal entries, returning [key, value] pairs.
- * Keys are always strings (number/boolean keys are stringified).
+ * Evaluate dict/ordered literal entries, returning [key, value] pairs. Number
+ * and boolean keys are returned with their original type; the DictLiteral
+ * caller routes them to the typed-key sidecar, while the OrderedLiteral caller
+ * stringifies them.
  * Spread entries (...$other) expand inline (dict keys merged).
  */
 async function evaluateDictLiteralEntries(
   s: EvalState,
   entries: DictEntryNode[]
-): Promise<[string, RillValue][]> {
-  const result: [string, RillValue][] = [];
+): Promise<[RillValue, RillValue][]> {
+  const result: [RillValue, RillValue][] = [];
   for (const entry of entries) {
     // Spread entry: key is a string starting with '...' is not how parser marks it.
     // The parser uses ListSpread for element spreads in list/tuple.
@@ -531,12 +542,13 @@ async function evaluateDictLiteralEntries(
     // where kind === 'variable'. Handle simple string/number/boolean keys only here
     // since the collection literal parser does not support multi-key or computed keys.
     const key = entry.key;
-    let stringKey: string;
+    let stringKey: string | number | boolean;
 
     if (typeof key === 'string') {
       stringKey = key;
     } else if (typeof key === 'number' || typeof key === 'boolean') {
-      stringKey = String(key);
+      // Preserve the typed key; the DictLiteral caller sends it to the sidecar.
+      stringKey = key;
     } else {
       // Object key (DictKeyVariable or DictKeyComputed) — evaluate like evaluateDict
       if ('kind' in key) {

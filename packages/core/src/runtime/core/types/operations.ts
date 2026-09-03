@@ -33,6 +33,7 @@ import {
 } from './registrations.js';
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import { quoteRillString } from './format-string.js';
+import { typedKeyEntries } from './dict-keys.js';
 import { ERROR_IDS } from '../../../error-registry.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker) */
@@ -850,6 +851,10 @@ export function inferStructure(value: RillValue): TypeStructure {
     const fields: Record<string, RillFieldDef> = {};
     for (const [k, v] of Object.entries(dict)) {
       fields[k] = { type: inferStructure(v) };
+    }
+    // Number/boolean keys contribute fields under their string form.
+    for (const { key, value: v } of typedKeyEntries(dict)) {
+      fields[String(key)] = { type: inferStructure(v) };
     }
     return { kind: 'dict', fields };
   }
