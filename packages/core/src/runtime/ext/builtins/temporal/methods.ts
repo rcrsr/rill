@@ -76,8 +76,8 @@ export const mDtWeekday: RillMethod = (receiver) => {
   return jsDay === 0 ? 7 : jsDay; // Convert to 1=Mon, 7=Sun
 };
 
-/** .empty property - returns datetime(unix: 0) */
-export const mDtEmpty: RillMethod = () => {
+/** .zero property - returns datetime(unix: 0) */
+export const mDtZero: RillMethod = () => {
   return { __rill_datetime: true, unix: 0 } as unknown as RillValue;
 };
 
@@ -359,8 +359,8 @@ export const mDurDisplay: RillMethod = (receiver) => {
   return parts.join('');
 };
 
-/** .empty property - returns duration(ms: 0) */
-export const mDurEmpty: RillMethod = () => {
+/** .zero property - returns duration(ms: 0) */
+export const mDurZero: RillMethod = () => {
   return {
     __rill_duration: true,
     months: 0,

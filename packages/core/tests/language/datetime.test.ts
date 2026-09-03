@@ -348,18 +348,24 @@ describe('Rill Language: Datetime Type', () => {
   });
 
   // ============================================================
-  // 10. Empty
+  // 10. Zero
   // ============================================================
 
-  describe('empty', () => {
-    it('.empty returns datetime(unix: 0) [AC-B1]', async () => {
-      const result = await run(`datetime("${REF_ISO}") -> .empty -> .unix`);
+  describe('zero', () => {
+    it('.zero returns datetime(unix: 0)', async () => {
+      const result = await run(`datetime("${REF_ISO}") -> .zero -> .unix`);
       expect(result).toBe(0);
     });
 
-    it('.empty -> .iso() returns epoch ISO', async () => {
-      const result = await run(`datetime("${REF_ISO}") -> .empty -> .iso()`);
+    it('.zero -> .iso() returns epoch ISO', async () => {
+      const result = await run(`datetime("${REF_ISO}") -> .zero -> .iso()`);
       expect(result).toBe('1970-01-01T00:00:00Z');
+    });
+
+    it('halts on .empty: datetime has no .empty method', async () => {
+      await expect(run(`datetime("${REF_ISO}") -> .empty`)).rejects.toThrow(
+        "Method 'empty' not supported on datetime"
+      );
     });
   });
 

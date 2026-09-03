@@ -287,24 +287,30 @@ describe('Rill Language: Duration Type', () => {
   });
 
   // ============================================================
-  // 8. Empty
+  // 8. Zero
   // ============================================================
 
-  describe('empty', () => {
-    it('returns duration(ms: 0) from .empty [AC-B2]', async () => {
-      // duration(hours: 5) -> .empty -> .display
-      const result = await run('duration(0, 0, 0, 5) -> .empty -> .display');
+  describe('zero', () => {
+    it('returns duration(ms: 0) from .zero', async () => {
+      // duration(hours: 5) -> .zero -> .display
+      const result = await run('duration(0, 0, 0, 5) -> .zero -> .display');
       expect(result).toBe('0ms');
     });
 
-    it('empty duration has zero total_ms', async () => {
-      const result = await run('duration(0, 0, 0, 1) -> .empty -> .total_ms');
+    it('zero duration has zero total_ms', async () => {
+      const result = await run('duration(0, 0, 0, 1) -> .zero -> .total_ms');
       expect(result).toBe(0);
     });
 
-    it('empty duration has zero months', async () => {
-      const result = await run('duration(0, 3) -> .empty -> .months');
+    it('zero duration has zero months', async () => {
+      const result = await run('duration(0, 3) -> .zero -> .months');
       expect(result).toBe(0);
+    });
+
+    it('halts on .empty: duration has no .empty method', async () => {
+      await expect(run('duration(0, 0, 0, 5) -> .empty')).rejects.toThrow(
+        "Method 'empty' not supported on duration"
+      );
     });
   });
 

@@ -61,6 +61,16 @@ describe('Vacancy coerce (??) — Phase 1 reachable behavior', () => {
       `);
       expect(result).toEqual({ a: 1 });
     });
+
+    it('returns 0 unchanged: zero is a valid number, not vacant', async () => {
+      const result = await run('0 => $y\n$y ?? -1');
+      expect(result).toBe(0);
+    });
+
+    it('returns false unchanged: false is a valid boolean, not vacant', async () => {
+      const result = await run('false => $y\n$y ?? true');
+      expect(result).toBe(false);
+    });
   });
 
   describe('Precedence and composition', () => {

@@ -65,7 +65,7 @@ import {
   mDtMs,
   mDtUnix,
   mDtWeekday,
-  mDtEmpty,
+  mDtZero,
   mDtIso,
   mDtDate,
   mDtTime,
@@ -89,7 +89,7 @@ import {
   mDurMs,
   mDurTotalMs,
   mDurDisplay,
-  mDurEmpty,
+  mDurZero,
   mDurAdd,
   mDurSubtract,
   mDurMultiply,
@@ -194,7 +194,6 @@ export const DICT_METHODS = Object.freeze({
 });
 
 export const NUMBER_METHODS = Object.freeze({
-  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
   eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
   ne: buildMethodEntry('ne', SIG_NE, mNe, true),
   lt: buildMethodEntry('lt', SIG_CMP, mLt),
@@ -204,7 +203,6 @@ export const NUMBER_METHODS = Object.freeze({
 });
 
 export const BOOL_METHODS = Object.freeze({
-  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
   eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
   ne: buildMethodEntry('ne', SIG_NE, mNe, true),
 });
@@ -246,7 +244,7 @@ export const DATETIME_METHODS = Object.freeze({
   ms: buildMethodEntry('ms', '||:number', mDtMs, true),
   unix: buildMethodEntry('unix', '||:number', mDtUnix, true),
   weekday: buildMethodEntry('weekday', '||:number', mDtWeekday, true),
-  empty: buildMethodEntry('empty', '||:datetime', mDtEmpty, true),
+  zero: buildMethodEntry('zero', '||:datetime', mDtZero, true),
 
   // String formatting methods
   iso: buildMethodEntry('iso', '|offset: number = 0|:string', mDtIso, true),
@@ -290,7 +288,7 @@ export const DURATION_METHODS = Object.freeze({
   ms: buildMethodEntry('ms', '||:number', mDurMs, true),
   total_ms: buildMethodEntry('total_ms', '||:number', mDurTotalMs, true),
   display: buildMethodEntry('display', '||:string', mDurDisplay, true),
-  empty: buildMethodEntry('empty', '||:duration', mDurEmpty, true),
+  zero: buildMethodEntry('zero', '||:duration', mDurZero, true),
 
   // Arithmetic methods
   add: buildMethodEntry('add', '|other: any|:duration', mDurAdd, true),
@@ -306,4 +304,12 @@ export const DURATION_METHODS = Object.freeze({
     mDurMultiply,
     true
   ),
+});
+
+export const TUPLE_METHODS = Object.freeze({
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+});
+
+export const ORDERED_METHODS = Object.freeze({
+  empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
 });
