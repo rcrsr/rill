@@ -52,9 +52,24 @@ describe('#263: dict access does not reach Object.prototype', () => {
     );
   });
 
-  it('computed access of an inherited member does not return a JS value', async () => {
-    // Computed access allows-missing, so it resolves to an empty/invalid value
-    // rather than the inherited JS function. Coalescing proves it is vacant.
+  it('computed access of an inherited member halts as a missing field', async () => {
+    // An inherited JS member resolves as absent, so bare computed access
+    // halts exactly like any missing field (never the JS function).
+    await expectHalts(
+      () => run('dict[a: 1] => $d  $d.("constructor")'),
+      /no field/
+    );
+  });
+
+  it('variable-key access of an inherited member halts as a missing field', async () => {
+    await expectHalts(
+      () => run('"constructor" => $k  dict[a: 1] => $d  $d.$k'),
+      /no field/
+    );
+  });
+
+  it('computed access of an inherited member coalesces as vacant', async () => {
+    // With a default, the absent inherited member is vacant, not the JS value.
     const result = await run('dict[a: 1] => $d  $d.("constructor") ?? "gone"');
     expect(result).toBe('gone');
   });
