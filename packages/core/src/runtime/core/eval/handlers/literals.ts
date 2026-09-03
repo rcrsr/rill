@@ -64,7 +64,11 @@ import { resolveAtom } from '../../types/atom-registry.js';
 import { isAtom } from '../../types/guards.js';
 import type { EvalState } from '../state.js';
 import type { RuntimeContext } from '../../types/runtime.js';
-import { createChildContext, getVariable } from '../../context.js';
+import {
+  createChildContext,
+  getVariable,
+  markDeferredHalt,
+} from '../../context.js';
 import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, setDictField } from '../shared.js';
@@ -230,6 +234,12 @@ export async function evaluatePass(
  * `on_error: #IGNORE` composes with `async: true`: the registered promise
  * suppresses catchable body halts when both options are set.
  *
+ * Without `on_error: #IGNORE`, a body halt in the async path is not
+ * awaited by any caller, so it is tagged (`markDeferredHalt`) before it
+ * reaches `trackInflight` and surfaces at `dispose()` time via the log
+ * callbacks rather than being swallowed. Non-catchable `error`/`assert`
+ * halts always surface this way.
+ *
  * Non-catchable halts (`catchable: false`) and `ControlSignal` instances
  * are always re-thrown.
  *
@@ -303,7 +313,17 @@ export async function evaluatePassBlock(
     const asyncCtx = createChildContext(s.ctx);
     asyncCtx.pipeValue = pipeBefore;
     const asyncEvaluator: EvalState = getEvalState(asyncCtx);
-    s.ctx.trackInflight(runBody(asyncEvaluator));
+    // Fire-and-forget: nobody awaits this promise, so a body halt would
+    // otherwise be swallowed by trackInflight. Tag any non-suppressed
+    // rejection (catchable halt without on_error: #IGNORE, or any
+    // non-catchable error/assert halt) so dispose() surfaces it via the
+    // log callbacks — as documented for pass<async: true>. Suppressed
+    // halts (on_error: #IGNORE) resolve in runBody and never reject, so
+    // they are correctly never surfaced.
+    const surfacing = runBody(asyncEvaluator).catch((e: unknown): never => {
+      throw markDeferredHalt(e);
+    });
+    s.ctx.trackInflight(surfacing);
     return pipeBefore ?? '';
   }
 

@@ -187,7 +187,11 @@ async function expandIterator(
     current = nextIterator as Record<string, RillValue>;
   }
 
-  if (count >= limit) {
+  // The loop halts either because the iterator is exhausted (done) or because
+  // count reached the limit. Only the latter — more elements remaining past the
+  // ceiling — is an overrun. Exactly `limit` elements that fully consume the
+  // iterator is within bounds; the (limit+1)th element triggers the halt.
+  if (count >= limit && !current['done']) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
       {
@@ -317,7 +321,9 @@ async function expandStream(
     throw e;
   }
 
-  if (count >= limit) {
+  // Exactly `limit` elements that fully drain the stream (done) is within
+  // bounds; only a stream still producing past the ceiling is an overrun.
+  if (count >= limit && !current.done) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
       {

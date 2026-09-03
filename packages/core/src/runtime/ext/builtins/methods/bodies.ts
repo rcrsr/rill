@@ -25,7 +25,10 @@ import {
 
 /** Get length of string, list, or dict */
 export const mLen: RillMethod = (receiver) => {
-  if (typeof receiver === 'string') return receiver.length;
+  // Strings measure length in Unicode code points, not UTF-16 code units, so
+  // an astral character such as "😀" counts as one, matching how seq/fan and
+  // the .first() iterator traverse strings.
+  if (typeof receiver === 'string') return [...receiver].length;
   if (Array.isArray(receiver)) return receiver.length;
   if (receiver && typeof receiver === 'object') {
     return Object.keys(receiver).length;
@@ -56,7 +59,8 @@ export const mHead: RillMethod = (receiver, _args, _ctx, location) => {
         location
       );
     }
-    return receiver[0]!;
+    // First code point, never a lone surrogate half of an astral character.
+    return [...receiver][0]!;
   }
   throw new RuntimeError(
     ERROR_IDS.RILL_R003,
@@ -85,7 +89,9 @@ export const mTail: RillMethod = (receiver, _args, _ctx, location) => {
         location
       );
     }
-    return receiver[receiver.length - 1]!;
+    // Last code point, never a lone surrogate half of an astral character.
+    const cps = [...receiver];
+    return cps[cps.length - 1]!;
   }
   throw new RuntimeError(
     ERROR_IDS.RILL_R003,
@@ -122,14 +128,17 @@ export const mAt: RillMethod = (receiver, args, _ctx, location) => {
     return receiver[idx]!;
   }
   if (typeof receiver === 'string') {
-    if (idx < 0 || idx >= receiver.length) {
+    // Index by code point so an astral character occupies a single position
+    // and is never returned as a lone surrogate.
+    const cps = [...receiver];
+    if (idx < 0 || idx >= cps.length) {
       throw new RuntimeError(
         ERROR_IDS.RILL_R002,
         `String index out of bounds: ${idx}`,
         location
       );
     }
-    return receiver[idx]!;
+    return cps[idx]!;
   }
   throw new RuntimeError(
     ERROR_IDS.RILL_R003,
@@ -142,6 +151,9 @@ export const mAt: RillMethod = (receiver, args, _ctx, location) => {
 export const mSplit: RillMethod = (receiver, args) => {
   const str = formatValue(receiver);
   const sep = typeof args[0] === 'string' ? args[0] : '\n';
+  // Empty separator splits into code points, not UTF-16 code units, so astral
+  // characters stay whole instead of becoming lone surrogate pairs.
+  if (sep === '') return [...str];
   return str.split(sep);
 };
 
@@ -257,9 +269,16 @@ export const mIsMatch: RillMethod = (receiver, args, ctx, location) => {
   return re.test(str);
 };
 
-/** Position of first substring occurrence (-1 if not found) */
-export const mIndexOf: RillMethod = (receiver, args) =>
-  formatValue(receiver).indexOf(formatValue(args[0] ?? ''));
+/** Position of first substring occurrence, in code points (-1 if not found) */
+export const mIndexOf: RillMethod = (receiver, args) => {
+  const str = formatValue(receiver);
+  const search = formatValue(args[0] ?? '');
+  const unit = str.indexOf(search);
+  if (unit < 0) return -1;
+  // Convert the UTF-16 code-unit offset to a code-point offset so the result
+  // is consistent with .len and .at on astral strings.
+  return Array.from(str.slice(0, unit)).length;
+};
 
 /** Repeat string n times */
 export const mRepeat: RillMethod = (receiver, args) => {

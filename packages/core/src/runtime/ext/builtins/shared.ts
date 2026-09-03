@@ -126,15 +126,32 @@ export function makeListIterator(list: RillValue[], index: number): RillValue {
 /**
  * Create an iterator for a string at the given index.
  * Returns { value, done, next } dict.
+ *
+ * Iteration is by Unicode code point, not UTF-16 code unit, so astral
+ * characters (e.g. "😀") are emitted whole and never split into lone
+ * surrogates. This matches how .len, .head, .tail, .at, and slice<> index
+ * strings, and how seq/fan/take/skip traverse them.
  */
 export function makeStringIterator(str: string, index: number): RillValue {
-  if (index >= str.length) {
-    return { done: true, next: callable(() => makeStringIterator(str, index)) };
+  return makeCodePointIterator(Array.from(str), index);
+}
+
+/**
+ * Iterate a pre-split array of code points. Splitting once and recursing over
+ * the shared array keeps stepping O(1) rather than re-scanning the string on
+ * every `.next`.
+ */
+function makeCodePointIterator(codePoints: string[], index: number): RillValue {
+  if (index >= codePoints.length) {
+    return {
+      done: true,
+      next: callable(() => makeCodePointIterator(codePoints, index)),
+    };
   }
   return {
-    value: str[index]!,
+    value: codePoints[index]!,
     done: false,
-    next: callable(() => makeStringIterator(str, index + 1)),
+    next: callable(() => makeCodePointIterator(codePoints, index + 1)),
   };
 }
 

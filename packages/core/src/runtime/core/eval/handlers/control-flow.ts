@@ -369,6 +369,21 @@ async function evaluateBlockBody(
     const stmtCtx = createChildContext(blockCtx);
     stmtCtx.pipeValue = parentPipeValue; // Always parent's $, not previous sibling's
 
+    // Seed the block's own captures into the statement context so that
+    // re-capturing a name a prior sibling declared in THIS block is seen as
+    // a same-scope reassignment (still subject to the type lock), not a
+    // cross-scope write to an outer variable. Only the block's own captures
+    // are seeded; names inherited from enclosing scopes are not, so
+    // reassigning a genuinely outer variable from this child scope still
+    // halts via setVariable's outer-variable guard.
+    for (const [name, value] of blockCtx.variables) {
+      stmtCtx.variables.set(name, value);
+      const varType = blockCtx.variableTypes.get(name);
+      if (varType !== undefined) {
+        stmtCtx.variableTypes.set(name, varType);
+      }
+    }
+
     const savedCtx = s.ctx;
     s.ctx = stmtCtx;
     try {
@@ -377,15 +392,15 @@ async function evaluateBlockBody(
       s.ctx = savedCtx;
     }
 
-    // Variables captured via :> need to be promoted to block scope
-    // so they're visible to later siblings
+    // Variables captured via :> (and same-block re-captures) are promoted to
+    // block scope so they're visible to later siblings. A re-capture updates
+    // the block-scoped value, so promote unconditionally rather than keeping
+    // only the first capture.
     for (const [name, value] of stmtCtx.variables) {
-      if (!blockCtx.variables.has(name)) {
-        blockCtx.variables.set(name, value);
-        const varType = stmtCtx.variableTypes.get(name);
-        if (varType !== undefined) {
-          blockCtx.variableTypes.set(name, varType);
-        }
+      blockCtx.variables.set(name, value);
+      const varType = stmtCtx.variableTypes.get(name);
+      if (varType !== undefined) {
+        blockCtx.variableTypes.set(name, varType);
       }
     }
   }

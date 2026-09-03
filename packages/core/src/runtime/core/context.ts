@@ -20,8 +20,10 @@ import type { RillValue } from './types/structures.js';
 import { inferType } from './types/registrations.js';
 import {
   invalidate as invalidateStatus,
+  formatHalt,
   type InvalidateMeta,
 } from './types/status.js';
+import { RuntimeHaltSignal } from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
 import {
   validateDefaultValueType,
@@ -56,6 +58,55 @@ interface LifecycleState {
   disposed: boolean;
   disposePromise: Promise<void> | null;
   readonly inflight: Set<Promise<unknown>>;
+  /**
+   * Rejection reasons from fire-and-forget async bodies
+   * (`pass<async: true>`) that must surface at `dispose()` time rather
+   * than being silently discarded. Only reasons carrying the
+   * {@link DEFERRED_HALT_SYM} marker are collected here; ordinary
+   * tracked-promise rejections (e.g. an awaited host-function dispatch
+   * whose rejection is already handled at its call site) are not.
+   */
+  readonly deferredHalts: unknown[];
+}
+
+/**
+ * Marker stamped on a rejection reason to request that `dispose()`
+ * surface it via the log callbacks. Symbol-keyed so it never collides
+ * with a value's own fields and is invisible to structural comparison.
+ */
+const DEFERRED_HALT_SYM: unique symbol = Symbol('rill.deferredHalt');
+
+/**
+ * Tag a rejection reason so a tracked fire-and-forget body's halt is
+ * surfaced at `dispose()` instead of swallowed. Returns the same
+ * reason. Non-object reasons (and frozen objects) pass through
+ * unmarked, which simply means they are not surfaced — never an error.
+ *
+ * Used by the `pass<async: true>` dispatch path in `literals.ts`, which
+ * hands the marked, rejected body promise to {@link RuntimeContext.trackInflight}.
+ */
+export function markDeferredHalt(reason: unknown): unknown {
+  if (reason !== null && typeof reason === 'object') {
+    try {
+      (reason as Record<PropertyKey, unknown>)[DEFERRED_HALT_SYM] = true;
+    } catch {
+      // Frozen/sealed reason: leave unmarked. It will not be surfaced,
+      // but re-throwing here would turn a diagnostic into a crash.
+    }
+  }
+  return reason;
+}
+
+/**
+ * True when a rejection reason carries the {@link DEFERRED_HALT_SYM}
+ * marker set by {@link markDeferredHalt}.
+ */
+function isDeferredHalt(reason: unknown): boolean {
+  return (
+    reason !== null &&
+    typeof reason === 'object' &&
+    (reason as Record<PropertyKey, unknown>)[DEFERRED_HALT_SYM] === true
+  );
 }
 
 /**
@@ -161,7 +212,18 @@ function bindLifecycleMethods(
     const forget = (): void => {
       state.inflight.delete(promise);
     };
-    promise.then(forget, forget);
+    // Fulfillment: just forget. Rejection: forget, then collect the
+    // reason for dispose-time surfacing only when it carries the
+    // deferred-halt marker (a fire-and-forget async body whose halt
+    // nobody else observes). Rejections without the marker are consumed
+    // here to avoid an unhandled-rejection observer, matching the prior
+    // behavior; their handling stays with the awaiting dispatch site.
+    promise.then(forget, (reason: unknown): void => {
+      forget();
+      if (isDeferredHalt(reason)) {
+        state.deferredHalts.push(reason);
+      }
+    });
   };
 }
 
@@ -216,7 +278,60 @@ async function performDispose(state: LifecycleState): Promise<void> {
     }
   }
 
+  // Surface halts from fire-and-forget async bodies (`pass<async: true>`)
+  // that were tagged for deferral. The `trackInflight` rejection handler
+  // runs before `Promise.allSettled` resolves (it was attached at
+  // dispatch, ahead of allSettled's own handlers), so any body that
+  // rejected during the wait above is already collected here. Bodies run
+  // under `on_error: #IGNORE` resolve instead of rejecting, so their
+  // suppressed catchable halts never reach this list — as documented.
+  if (state.deferredHalts.length > 0) {
+    for (const reason of state.deferredHalts) {
+      logDeferredHalt(state, reason);
+    }
+    state.deferredHalts.length = 0;
+  }
+
   state.disposed = true;
+}
+
+/**
+ * Surface a fire-and-forget async body's halt via the callbacks channel.
+ *
+ * Mirrors {@link logDisposeTimeout}: prefers structured `onLogEvent`
+ * when installed, else falls back to `onLog` so the halt is never
+ * silently dropped.
+ */
+function logDeferredHalt(state: LifecycleState, reason: unknown): void {
+  const detail = describeDeferredHalt(reason);
+  const callbacks = state.callbacks;
+  if (callbacks.onLogEvent !== undefined) {
+    callbacks.onLogEvent({
+      event: 'async_body_halt',
+      subsystem: 'runtime',
+      timestamp: new Date().toISOString(),
+      detail,
+    });
+    return;
+  }
+  callbacks.onLog(`runtime: pass<async> body halted: ${detail}`);
+}
+
+/**
+ * Render a human-readable description of a deferred halt reason.
+ *
+ * A {@link RuntimeHaltSignal} carries the invalid value; `formatHalt`
+ * renders its `#<ATOM>: <message>` form (with trace). Other Error
+ * reasons contribute their sanitized message; anything else is
+ * stringified.
+ */
+function describeDeferredHalt(reason: unknown): string {
+  if (reason instanceof RuntimeHaltSignal) {
+    const formatted = formatHalt(reason.value);
+    return formatted.length > 0 ? formatted : 'runtime halt';
+  }
+  if (reason instanceof Error) return sanitizeMessage(reason.message);
+  return String(reason);
 }
 
 /**
@@ -498,6 +613,7 @@ export function createRuntimeContext(
     disposed: false,
     disposePromise: null,
     inflight: new Set(),
+    deferredHalts: [],
   };
 
   const ctx: RuntimeContext = {

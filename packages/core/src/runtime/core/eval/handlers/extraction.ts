@@ -329,6 +329,13 @@ function applySlice<T extends RillValue[] | string>(
   stop: number | null,
   step: number | null
 ): T {
+  // Strings slice by Unicode code point, not UTF-16 code unit: an astral
+  // character such as "😀" occupies a single index and is never split into a
+  // lone surrogate. Index into this array (and use its length as the bound)
+  // instead of the raw string, then join back for the string result.
+  const codePoints = typeof input === 'string' ? Array.from(input) : null;
+  const effectiveLen = codePoints ? codePoints.length : len;
+
   const actualStep = step ?? 1;
 
   if (actualStep === 0) {
@@ -362,23 +369,23 @@ function applySlice<T extends RillValue[] | string>(
     forStep: number
   ): number => {
     if (idx === null) return defaultVal;
-    let normalized = idx < 0 ? len + idx : idx;
+    let normalized = idx < 0 ? effectiveLen + idx : idx;
     if (forStep > 0) {
-      normalized = Math.max(0, Math.min(len, normalized));
+      normalized = Math.max(0, Math.min(effectiveLen, normalized));
     } else {
-      normalized = Math.max(-1, Math.min(len - 1, normalized));
+      normalized = Math.max(-1, Math.min(effectiveLen - 1, normalized));
     }
     return normalized;
   };
 
   const actualStart = normalizeIndex(
     start,
-    actualStep > 0 ? 0 : len - 1,
+    actualStep > 0 ? 0 : effectiveLen - 1,
     actualStep
   );
   const actualStop = normalizeIndex(
     stop,
-    actualStep > 0 ? len : -1,
+    actualStep > 0 ? effectiveLen : -1,
     actualStep
   );
 
@@ -396,7 +403,7 @@ function applySlice<T extends RillValue[] | string>(
   if (Array.isArray(input)) {
     return indices.map((i) => input[i]) as T;
   } else {
-    return indices.map((i) => input[i]).join('') as T;
+    return indices.map((i) => codePoints![i]).join('') as T;
   }
 }
 

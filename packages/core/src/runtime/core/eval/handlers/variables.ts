@@ -478,12 +478,43 @@ export async function evaluateVariableAsync(
           allowMissing
         );
       } else {
-        value = null;
+        // Field access on a non-dict. Halt with the same non-dict error the
+        // dict path raises, unless a `??` default or `.?` existence check
+        // permits the access to resolve to a coalescible null.
+        const allowMissing =
+          node.defaultValue !== null || node.existenceCheck !== null;
+        if (allowMissing) {
+          value = null;
+        } else {
+          value = await accessDictField(
+            s,
+            value,
+            field,
+            getNodeLocation(s, node),
+            false
+          );
+        }
       }
     } else if (access.kind === 'variable') {
-      value = await evaluateFieldAccessVariable(s, access, value, node);
+      const allowMissing =
+        node.defaultValue !== null || node.existenceCheck !== null;
+      value = await evaluateFieldAccessVariable(
+        s,
+        access,
+        value,
+        node,
+        allowMissing
+      );
     } else if (access.kind === 'computed') {
-      value = await evaluateFieldAccessComputed(s, access, value, node);
+      const allowMissing =
+        node.defaultValue !== null || node.existenceCheck !== null;
+      value = await evaluateFieldAccessComputed(
+        s,
+        access,
+        value,
+        node,
+        allowMissing
+      );
     } else if (access.kind === 'alternatives') {
       value = await evaluateFieldAccessAlternatives(s, access, value, node);
     } else if (access.kind === 'annotation') {
@@ -737,7 +768,8 @@ async function evaluateFieldAccessVariable(
     readonly variableName: string | null;
   },
   value: RillValue,
-  node: VariableNode
+  node: VariableNode,
+  allowMissing: boolean
 ): Promise<RillValue> {
   // Resolve the variable
   let keyValue: RillValue | undefined;
@@ -797,17 +829,19 @@ async function evaluateFieldAccessVariable(
 
   // Handle string key (dict access)
   if (typeof keyValue === 'string') {
-    if (isDict(value)) {
-      // Allow missing fields to return null
-      return await accessDictField(
-        s,
-        value,
-        keyValue,
-        getNodeLocation(s, node),
-        true
-      );
+    // Non-dict target with a permissive access resolves to null; otherwise
+    // accessDictField halts with the non-dict / missing-field error, matching
+    // literal field access.
+    if (!isDict(value) && allowMissing) {
+      return null;
     }
-    return null;
+    return await accessDictField(
+      s,
+      value,
+      keyValue,
+      getNodeLocation(s, node),
+      allowMissing
+    );
   }
 
   // Handle number key (list access)
@@ -819,10 +853,36 @@ async function evaluateFieldAccessVariable(
         index = value.length + index;
       }
       const result = value[index];
-      // Return null for out of bounds (use allowMissing pattern)
-      return result !== undefined ? result : null;
+      if (result === undefined) {
+        // Out of bounds. Halt unless a default / existence check permits null.
+        if (allowMissing) {
+          return null;
+        }
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateFieldAccessVariable',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `List index out of bounds: ${keyValue}`
+        );
+      }
+      return result;
     }
-    return null;
+    // Number key on a non-list target.
+    if (allowMissing) {
+      return null;
+    }
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateFieldAccessVariable',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Cannot index ${inferType(value)}`
+    );
   }
 
   // Other types (dict, closure) - fall through to type error
@@ -855,7 +915,8 @@ async function evaluateFieldAccessComputed(
     readonly expression: ExpressionNode;
   },
   value: RillValue,
-  node: VariableNode
+  node: VariableNode,
+  allowMissing: boolean
 ): Promise<RillValue> {
   // Evaluate the expression to get the key. Parsed inline while
   // building a live access chain (never via the statement-level
@@ -926,17 +987,19 @@ async function evaluateFieldAccessComputed(
 
   // Handle string key (dict access)
   if (typeof keyValue === 'string') {
-    if (isDict(value)) {
-      // Allow missing fields to return null
-      return await accessDictField(
-        s,
-        value,
-        keyValue,
-        getNodeLocation(s, node),
-        true
-      );
+    // Non-dict target with a permissive access resolves to null; otherwise
+    // accessDictField halts with the non-dict / missing-field error, matching
+    // literal field access.
+    if (!isDict(value) && allowMissing) {
+      return null;
     }
-    return null;
+    return await accessDictField(
+      s,
+      value,
+      keyValue,
+      getNodeLocation(s, node),
+      allowMissing
+    );
   }
 
   // Handle number key (list access)
@@ -948,10 +1011,36 @@ async function evaluateFieldAccessComputed(
         index = value.length + index;
       }
       const result = value[index];
-      // Return null for out of bounds (use allowMissing pattern)
-      return result !== undefined ? result : null;
+      if (result === undefined) {
+        // Out of bounds. Halt unless a default / existence check permits null.
+        if (allowMissing) {
+          return null;
+        }
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateFieldAccessComputed',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `List index out of bounds: ${keyValue}`
+        );
+      }
+      return result;
     }
-    return null;
+    // Number key on a non-list target.
+    if (allowMissing) {
+      return null;
+    }
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateFieldAccessComputed',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Cannot index ${inferType(value)}`
+    );
   }
 
   // Shouldn't reach here due to exhaustive type checks above
