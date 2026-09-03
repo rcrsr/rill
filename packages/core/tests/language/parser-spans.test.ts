@@ -37,7 +37,188 @@ function sliceSpan(
   return source.slice(span.start.offset, span.end.offset);
 }
 
+function findFirstOfType(node: unknown, type: string): unknown | null {
+  if (!node || typeof node !== 'object') return null;
+  if ('type' in node && (node as { type: unknown }).type === type) {
+    return node;
+  }
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const found = findFirstOfType(item, type);
+        if (found) return found;
+      }
+    } else {
+      const found = findFirstOfType(value, type);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 describe('Parser Spans', () => {
+  describe('Last-consumed-token span ends (not current-token span ends)', () => {
+    it('PipeChain span ends at the last pipe target, not trailing content', () => {
+      const source = '1 -> ($ + 2)\n99';
+      const ast = parse(source);
+
+      const pipeChain = findFirstOfType(ast, 'PipeChain');
+      expect(pipeChain).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            pipeChain as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('1 -> ($ + 2)');
+    });
+
+    it('BinaryExpr span ends at the right operand, not trailing content', () => {
+      const source = '1 + 2\n99';
+      const ast = parse(source);
+
+      const binaryExpr = findFirstOfType(ast, 'BinaryExpr');
+      expect(binaryExpr).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            binaryExpr as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('1 + 2');
+    });
+
+    it('Capture span ends at the variable name, not trailing content', () => {
+      const source = '5 => $x\n99';
+      const ast = parse(source);
+
+      const capture = findFirstOfType(ast, 'Capture');
+      expect(capture).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            capture as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('$x');
+    });
+
+    it('PostfixExpr span ends at the last method call, not trailing content', () => {
+      const source = '"hi".upper()\n99';
+      const ast = parse(source);
+
+      const postfixExpr = findFirstOfType(ast, 'PostfixExpr');
+      expect(postfixExpr).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            postfixExpr as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('"hi".upper()');
+    });
+
+    it('paren-less MethodCall span ends at the method name, not trailing content', () => {
+      const source = '"hi".upper\n99';
+      const ast = parse(source);
+
+      const methodCall = findFirstOfType(ast, 'MethodCall');
+      expect(methodCall).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            methodCall as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('.upper');
+    });
+  });
+
+  describe('Statement and Conditional span ends', () => {
+    it('Statement span ends at the expression, not trailing content', () => {
+      const source = '1 + 2\n99';
+      const ast = parse(source);
+
+      const statement = findFirstOfType(ast, 'Statement');
+      expect(statement).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            statement as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('1 + 2');
+    });
+
+    it('AnnotatedStatement span ends at the inner statement, not trailing content', () => {
+      const source = '^(note: "test")\n5 + 5\n99';
+      const ast = parse(source);
+
+      const annotatedStatement = findFirstOfType(ast, 'AnnotatedStatement');
+      expect(annotatedStatement).toBeTruthy();
+      const span = (
+        annotatedStatement as {
+          span: { start: { offset: number }; end: { offset: number } };
+        }
+      ).span;
+      expect(sliceSpan(source, span)).toBe('^(note: "test")\n5 + 5');
+    });
+
+    it('Conditional span ends at the then-branch when there is no else, not trailing content', () => {
+      const source = 'true -> ? { "yes" }\n99';
+      const ast = parse(source);
+
+      const conditional = findFirstOfType(ast, 'Conditional');
+      expect(conditional).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            conditional as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('? { "yes" }');
+    });
+
+    it('Conditional span ends at the else-branch when present, not trailing content', () => {
+      const source = 'true -> ? { "yes" } ! { "no" }\n99';
+      const ast = parse(source);
+
+      const conditional = findFirstOfType(ast, 'Conditional');
+      expect(conditional).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            conditional as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('? { "yes" } ! { "no" }');
+    });
+  });
+
   describe('Block spans', () => {
     it('does not include capture operator after block', () => {
       const source = '{ 42 } => $x';
@@ -275,6 +456,29 @@ describe('Parser Spans', () => {
         innerSpan.end.offset
       );
       expect(innerContent).toBe('{ 1 }');
+    });
+  });
+
+  describe('Variable node spans', () => {
+    it('access-chain variable span ends at the last field name, not the $ token', () => {
+      const source = '$x.a.b';
+      const ast = parse(source);
+
+      const variable = findVariable(ast, 'x');
+      expect(variable).toBeTruthy();
+      expect(sliceSpan(source, variable!.span)).toBe('$x.a.b');
+    });
+
+    it('bare variable span is non-zero-width', () => {
+      const source = '$x';
+      const ast = parse(source);
+
+      const variable = findVariable(ast, 'x');
+      expect(variable).toBeTruthy();
+      expect(variable!.span.start.offset).toBeLessThan(
+        variable!.span.end.offset
+      );
+      expect(sliceSpan(source, variable!.span)).toBe('$x');
     });
   });
 

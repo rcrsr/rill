@@ -287,7 +287,7 @@ Parser.prototype.parseMethodCall = function (
   const nameToken = advance(this.state);
 
   let args: ExpressionNode[] = [];
-  let endLoc = current(this.state).span.end;
+  let endLoc = nameToken.span.end;
   let hasParens = false;
   if (check(this.state, TOKEN_TYPES.LPAREN)) {
     hasParens = true;

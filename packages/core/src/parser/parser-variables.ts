@@ -23,6 +23,7 @@ import {
 import { isMethodCallWithArgs } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
+import { ParseError } from '../error-classes.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -94,6 +95,11 @@ Parser.prototype.makeVariableWithAccess = function (
 ): VariableNode {
   const { accessChain, existenceCheck } = this.parseAccessChain();
 
+  // The last token consumed by parseAccessChain (or, when the chain is
+  // empty, the name/$ token already consumed by the caller) anchors the
+  // end of the variable's span.
+  const end = this.state.tokens[this.state.pos - 1]!.span.end;
+
   // Task 1.4: `.?` and `??` may now compose. Consume the default when
   // present; the evaluator treats vacancy from the existence check as the
   // trigger for the default value.
@@ -110,7 +116,7 @@ Parser.prototype.makeVariableWithAccess = function (
     accessChain,
     defaultValue,
     existenceCheck,
-    span: makeSpan(start, start),
+    span: makeSpan(start, end),
   };
 };
 
@@ -123,7 +129,6 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
 
   skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
   skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT_QUESTION);
-  skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.LBRACKET);
 
   while (
     check(
@@ -153,7 +158,6 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
       accessChain.push({ accessKind: 'bracket', expression, span });
       skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
       skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT_QUESTION);
-      skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.LBRACKET);
       continue;
     }
 
@@ -181,12 +185,15 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
 
     const access = this.parseFieldAccessElement(false, dotToken.span.start);
     if (!access) {
-      break;
+      throw new ParseError(
+        ERROR_IDS.RILL_P006,
+        "Expected field name after '.'",
+        dotToken.span.start
+      );
     }
     accessChain.push(access);
     skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
     skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT_QUESTION);
-    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.LBRACKET);
   }
 
   return { accessChain, existenceCheck };

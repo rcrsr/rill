@@ -37,7 +37,7 @@ describe('NAMING_SNAKE_CASE fix: reference-aware capture rename', () => {
     expect(fix?.replacement).toContain('$user_name');
     expect(fix?.range).toEqual({
       start: { line: 1, column: 6, offset: 5 },
-      end: { line: 2, column: 1, offset: 15 },
+      end: { line: 1, column: 15, offset: 14 },
     });
   });
 });
@@ -184,9 +184,9 @@ describe('NAMING_SNAKE_CASE fix: reference-free capture rename', () => {
       applicable: true,
       range: {
         start: { line: 1, column: 6, offset: 5 },
-        end: { line: 2, column: 1, offset: 15 },
+        end: { line: 1, column: 15, offset: 14 },
       },
-      replacement: '$user_name\n',
+      replacement: '$user_name',
     });
   });
 });

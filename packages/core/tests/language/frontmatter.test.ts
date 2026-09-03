@@ -58,6 +58,18 @@ line2: value2
       expect(ast.frontmatter?.content).toContain('\n');
     });
 
+    it('parses frontmatter after a leading blank line', () => {
+      const ast = parse(`
+---
+model: opus
+---
+"hello"`);
+      expect(ast.frontmatter).not.toBeNull();
+      expect(ast.frontmatter?.content).toContain('model');
+      expect(ast.frontmatter?.content).toContain('opus');
+      expect(ast.frontmatter?.content).not.toContain('---');
+    });
+
     it('parses frontmatter with array syntax', () => {
       const ast = parse(`---
 items: list[a, b, c]
@@ -95,6 +107,15 @@ description: Capture test
 "b" => $y
 list[$x, $y]`;
       expect(await run(script)).toEqual(['a', 'b']);
+    });
+
+    it('executes script with frontmatter after a leading blank line', async () => {
+      const script = `
+---
+model: sonnet
+---
+"hello"`;
+      expect(await run(script)).toBe('hello');
     });
 
     it('handles frontmatter followed by triple-quote string', async () => {

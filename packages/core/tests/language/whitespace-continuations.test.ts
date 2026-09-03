@@ -84,8 +84,22 @@ describe('Rill Runtime: Whitespace Continuations', () => {
       expect(result).toBe('alice');
     });
 
-    it('index access across newline', async () => {
-      const result = await run(`list["a", "b"] => $items\n$items\n[0]`);
+    it('bracket at start of next line starts a new statement, not an index continuation', () => {
+      const script = parse(`$x\n[0]`);
+      expect(script.statements).toHaveLength(2);
+      const second = script.statements[1];
+      if (second.type !== 'Statement') {
+        expect.fail('Expected second statement to be a plain Statement node');
+      }
+      expect(second.expression.head.type).toBe('PostfixExpr');
+      const { primary } = second.expression.head as {
+        primary: { type: string };
+      };
+      expect(primary.type).toBe('ListLiteral');
+    });
+
+    it('same-line index access still parses as a continuation', async () => {
+      const result = await run(`list["a", "b"] => $items\n$items[0]`);
       expect(result).toBe('a');
     });
 

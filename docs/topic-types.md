@@ -54,7 +54,7 @@ true => $ok
 "Hello, {$name}!"                    # Variable
 "sum: {$a + $b}"                     # Arithmetic
 "valid: {$a > 0}"                    # Comparison
-"status: {$ok ? \"yes\" ! \"no\"}"   # Conditional
+"status: {$ok ? "yes" ! "no"}"       # Conditional
 "upper: {$name -> .upper}"           # Method chain
 ```
 

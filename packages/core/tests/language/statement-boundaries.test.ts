@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { parse } from '@rcrsr/rill';
 
 import { run, runWithContext } from '../helpers/runtime.js';
 
@@ -94,6 +95,20 @@ dict[x: 1]`;
         const script = `"ignored" => $a
 identity("explicit")`;
         expect(await run(script)).toBe('explicit');
+      });
+    });
+
+    describe('Parenthesized Expression Start', () => {
+      it('a "(" on the next line is not treated as a call on the prior name', () => {
+        const script = 'foo\n(1 + 2)';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+      });
+
+      it('a "(" on the next line is not treated as a call on a pipe-target property access', () => {
+        const script = '5 -> $math.double\n(1)';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
       });
     });
   });
