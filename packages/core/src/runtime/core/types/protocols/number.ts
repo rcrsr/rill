@@ -32,7 +32,14 @@ function eqNumber(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 function compareNumber(a: RillValue, b: RillValue): number {
-  return (a as number) - (b as number);
+  const na = a as number;
+  const nb = b as number;
+  // Relational comparison rather than subtraction: subtraction yields NaN for
+  // equal infinities (Infinity - Infinity), which would make every ordering
+  // operator return false and break reflexivity of <= / >=.
+  if (na < nb) return -1;
+  if (na > nb) return 1;
+  return 0;
 }
 
 // ============================================================

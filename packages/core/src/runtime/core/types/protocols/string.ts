@@ -50,14 +50,21 @@ function compareString(a: RillValue, b: RillValue): number {
 const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
   number: (v: RillValue): RillValue => {
     const str = v as string;
-    const parsed = Number(str);
-    if (isNaN(parsed) || str.trim() === '') {
+    // Only clean decimal / float strings convert: optional leading minus,
+    // integer or fractional digits, optional scientific-notation exponent.
+    // This rejects hex/octal/binary prefixes (0x, 0o, 0b), surrounding
+    // whitespace, and the bare "NaN" word that Number() would otherwise
+    // silently accept. "Infinity"/"-Infinity" stay accepted (unpadded), the
+    // one non-decimal token bare Number() already parsed here.
+    const DECIMAL = /^-?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
+    const isInfinity = str === 'Infinity' || str === '-Infinity';
+    if (!isInfinity && !DECIMAL.test(str)) {
       throw new RuntimeError(
         ERROR_IDS.RILL_R064,
         `cannot convert string "${str}" to number`
       );
     }
-    return parsed;
+    return Number(str);
   },
   bool: (v: RillValue): RillValue => {
     const s = v as string;

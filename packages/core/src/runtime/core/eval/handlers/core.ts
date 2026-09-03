@@ -486,7 +486,10 @@ export async function evaluatePrimary(
     }
 
     case 'TypeNameExpr':
-      // Bare type names that are primitives get primitive structure; others get 'any'.
+      // Bare type names that name a known kind get that kind's structure;
+      // unknown names fall back to 'any'. This includes the scalar/branded
+      // kinds (datetime, duration, atom, iterator, stream) so that
+      // `now().^type == datetime` and `range(0,3).^type == iterator` hold.
       return Object.freeze({
         __rill_type: true as const,
         typeName: primary.typeName,
@@ -500,7 +503,12 @@ export async function evaluatePrimary(
           primary.typeName === 'tuple' ||
           primary.typeName === 'ordered' ||
           primary.typeName === 'vector' ||
-          primary.typeName === 'type'
+          primary.typeName === 'type' ||
+          primary.typeName === 'datetime' ||
+          primary.typeName === 'duration' ||
+          primary.typeName === 'atom' ||
+          primary.typeName === 'iterator' ||
+          primary.typeName === 'stream'
             ? ({ kind: primary.typeName } as const)
             : ({ kind: 'any' } as const),
       });

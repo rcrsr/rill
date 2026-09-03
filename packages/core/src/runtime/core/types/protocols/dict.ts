@@ -68,6 +68,10 @@ function formatDict(v: RillValue): string {
 // ============================================================
 
 function eqDict(a: RillValue, b: RillValue): boolean {
+  // Guard the right operand first, like every other eq protocol. Without this,
+  // Object.keys(b) on a primitive or array yields [], making an empty dict
+  // compare equal to non-dicts (dict[] == 5, dict[] == "", dict[] == list[]).
+  if (!isDict(b)) return false;
   const aDict = a as Record<string, RillValue>;
   const bDict = b as Record<string, RillValue>;
   const aKeys = Object.keys(aDict);
