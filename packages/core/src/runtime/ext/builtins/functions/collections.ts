@@ -5,6 +5,12 @@ import {
   isDict,
   isScriptCallable,
 } from '../../../core/callable.js';
+import {
+  isDatetime,
+  isDuration,
+  isOrdered,
+  isVector,
+} from '../../../core/types/guards.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { RuntimeError } from '../../../../types.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
@@ -606,6 +612,22 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           site,
           'TYPE_MISMATCH',
           `sort: key_fn must be a closure, got ${inferType(keyFnArg)}`,
+          'runtime'
+        );
+      }
+
+      // Brand guard — datetime/duration/ordered/vector are plain objects
+      // but not dict-sortable.
+      if (
+        isDatetime(input) ||
+        isDuration(input) ||
+        isOrdered(input) ||
+        isVector(input)
+      ) {
+        throwTypeHalt(
+          site,
+          'TYPE_MISMATCH',
+          `sort: cannot sort ${inferType(input)}`,
           'runtime'
         );
       }

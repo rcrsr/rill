@@ -202,6 +202,15 @@ describe('Rill Runtime: Built-in Methods', () => {
         )
       ).toBe('none');
     });
+
+    it('maps an unmatched optional capture group to "" instead of undefined', async () => {
+      const result = await run('"abc" -> .match("(a)(x)?(c)?")');
+      expect(result).toEqual({
+        matched: 'a',
+        index: 0,
+        groups: ['a', '', ''],
+      });
+    });
   });
 
   describe('.is_match', () => {
@@ -409,6 +418,19 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('handles empty string', async () => {
       expect(await run('"" -> .repeat(5)')).toBe('');
     });
+
+    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
+      await expectHalt(() => run('"ab" -> .repeat(10000000000)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('oversized repeat halt is catchable via guard', async () => {
+      const result = await run(
+        'guard { "ab" -> .repeat(10000000000) } ?? "recovered"'
+      );
+      expect(result).toBe('recovered');
+    });
   });
 
   describe('.pad_start', () => {
@@ -427,6 +449,19 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('handles multi-char fill', async () => {
       expect(await run('"1" -> .pad_start(5, "ab")')).toBe('abab1');
     });
+
+    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
+      await expectHalt(() => run('"ab" -> .pad_start(10000000000)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('oversized pad_start halt is catchable via guard', async () => {
+      const result = await run(
+        'guard { "ab" -> .pad_start(10000000000) } ?? "recovered"'
+      );
+      expect(result).toBe('recovered');
+    });
   });
 
   describe('.pad_end', () => {
@@ -444,6 +479,19 @@ describe('Rill Runtime: Built-in Methods', () => {
 
     it('handles multi-char fill', async () => {
       expect(await run('"1" -> .pad_end(5, "ab")')).toBe('1abab');
+    });
+
+    it('halts with #INVALID_INPUT when the result would be too large to allocate', async () => {
+      await expectHalt(() => run('"ab" -> .pad_end(10000000000)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('oversized pad_end halt is catchable via guard', async () => {
+      const result = await run(
+        'guard { "ab" -> .pad_end(10000000000) } ?? "recovered"'
+      );
+      expect(result).toBe('recovered');
     });
   });
 
@@ -503,6 +551,32 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('compares strings lexicographically', async () => {
       expect(await run('"a" -> .lt("b")')).toBe(true);
     });
+
+    it('returns true for a number less than another number (regression)', async () => {
+      expect(await run('3 -> .lt(5)')).toBe(true);
+    });
+
+    it('returns true for a string less than another string (regression)', async () => {
+      expect(await run('"a" -> .lt("b")')).toBe(true);
+    });
+
+    it('halts with RILL-R002 comparing a number with a string', async () => {
+      await expect(run('1 -> .lt("a")')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('halts with RILL-R002 comparing a dict with a dict', async () => {
+      await expect(run('dict[a: 1] -> .lt(dict[a: 1])')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('halts with RILL-R002 comparing a bool with a bool', async () => {
+      await expect(run('true -> .lt(false)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
   });
 
   describe('.gt', () => {
@@ -521,6 +595,24 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('compares strings lexicographically', async () => {
       expect(await run('"b" -> .gt("a")')).toBe(true);
     });
+
+    it('halts with RILL-R002 comparing a number with a string', async () => {
+      await expect(run('1 -> .gt("a")')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('halts with RILL-R002 comparing a dict with a dict', async () => {
+      await expect(run('dict[a: 1] -> .gt(dict[a: 1])')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('halts with RILL-R002 comparing a bool with a bool', async () => {
+      await expect(run('true -> .gt(false)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
   });
 
   describe('.le', () => {
@@ -535,6 +627,24 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('returns false when greater than', async () => {
       expect(await run('3 -> .le(2)')).toBe(false);
     });
+
+    it('halts with RILL-R002 comparing a number with a string', async () => {
+      await expect(run('1 -> .le("a")')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('halts with RILL-R002 comparing a dict with a dict', async () => {
+      await expect(run('dict[a: 1] -> .le(dict[a: 1])')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('halts with RILL-R002 comparing a bool with a bool', async () => {
+      await expect(run('true -> .le(false)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
   });
 
   describe('.ge', () => {
@@ -548,6 +658,24 @@ describe('Rill Runtime: Built-in Methods', () => {
 
     it('returns false when less than', async () => {
       expect(await run('1 -> .ge(2)')).toBe(false);
+    });
+
+    it('halts with RILL-R002 comparing a number with a string', async () => {
+      await expect(run('1 -> .ge("a")')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('halts with RILL-R002 comparing a dict with a dict', async () => {
+      await expect(run('dict[a: 1] -> .ge(dict[a: 1])')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
+
+    it('halts with RILL-R002 comparing a bool with a bool', async () => {
+      await expect(run('true -> .ge(false)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
     });
   });
 });

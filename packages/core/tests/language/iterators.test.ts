@@ -78,6 +78,13 @@ describe('Rill Runtime: Iterators', () => {
         0, 0.5, 1, 1.5,
       ]);
     });
+
+    it('avoids float drift accumulation for a fractional step', async () => {
+      const result = (await run('range(0, 1, 0.1) -> seq({ $ })')) as number[];
+      const expected = Array.from({ length: 10 }, (_, i) => 0 + i * 0.1);
+      expect(result).toEqual(expected);
+      expect(result).toHaveLength(10);
+    });
   });
 
   describe('repeat()', () => {

@@ -175,14 +175,17 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      return makeGenericIterator(start as RillValue, (current) => {
-        const c = current as number;
-        const done = step > 0 ? c >= end : step < 0 ? c <= end : true;
+      // Carry an integer step index rather than the accumulated float value:
+      // start + i * step avoids compounding floating-point drift across steps.
+      return makeGenericIterator(0 as RillValue, (current) => {
+        const i = current as number;
+        const c = start + i * step;
+        const done = step > 0 ? c >= end : c <= end;
         if (done) return { done: true };
         return {
           done: false,
           value: c as RillValue,
-          next: (c + step) as RillValue,
+          next: (i + 1) as RillValue,
         };
       });
     },

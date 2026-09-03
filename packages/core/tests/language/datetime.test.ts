@@ -8,7 +8,7 @@ import { toNative, type RillFunction } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 // Fixed reference instant: 2026-03-13T08:00:00Z
 const REF_ISO = '2026-03-13T08:00:00Z';
@@ -35,6 +35,22 @@ describe('Rill Language: Datetime Type', () => {
     it('constructs from unix ms [AC-6]', async () => {
       const result = await run('datetime(...dict[unix: 0]) -> .iso()');
       expect(result).toBe('1970-01-01T00:00:00Z');
+    });
+
+    it('constructs a two-digit year without century-remapping', async () => {
+      const result = await run(
+        'datetime(...dict[year: 50, month: 3, day: 13]) -> .year'
+      );
+      expect(result).toBe(50);
+    });
+
+    it('an offset-less datetime-with-time string is anchored to UTC', async () => {
+      const result = await run(
+        'datetime("2026-03-13T08:00:00") -> .unix => $a\n' +
+          'datetime("2026-03-13T08:00:00Z") -> .unix => $b\n' +
+          '$a == $b'
+      );
+      expect(result).toBe(true);
     });
   });
 
@@ -278,6 +294,13 @@ describe('Rill Language: Datetime Type', () => {
       );
       expect(result).toBe(REF_UNIX);
     });
+
+    it('.add() across the 0-99 year boundary stays in range without NaN', async () => {
+      const result = await run(
+        'datetime(...dict[year: 95, month: 6, day: 1]) -> .add(duration(...dict[years: 10])) -> .year'
+      );
+      expect(result).toBe(105);
+    });
   });
 
   // ============================================================
@@ -450,6 +473,19 @@ describe('Rill Language: Datetime Type', () => {
             functions: { getInf },
           }),
         'Invalid datetime component unix'
+      );
+    });
+
+    it('an impossible calendar date via string form halts #INVALID_INPUT', async () => {
+      await expectHalt(() => run('datetime("2024-02-30T00:00:00Z")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('duration(months: 1.5) halts at construction', async () => {
+      await expectHaltMessage(
+        () => run('duration(...dict[months: 1.5])'),
+        'duration months must be an integer'
       );
     });
 

@@ -69,6 +69,7 @@ import {
   makeBoolLiteralBlock,
   parseBareHostCall,
   VALID_TYPE_NAMES,
+  describeToken,
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
@@ -1139,14 +1140,14 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
   ) {
     throw new ParseError(
       ERROR_IDS.RILL_P001,
-      `Unexpected token: ${token.value}. Hint: Heredoc syntax (<<EOF) was removed, use triple-quote strings (""") instead`,
+      `Unexpected token: ${describeToken(token)}. Hint: Heredoc syntax (<<EOF) was removed, use triple-quote strings (""") instead`,
       token.span.start
     );
   }
 
   throw new ParseError(
     ERROR_IDS.RILL_P001,
-    `Unexpected token: ${token.value}`,
+    `Unexpected token: ${describeToken(token)}`,
     token.span.start
   );
 }
@@ -1487,7 +1488,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
 
   throw new ParseError(
     ERROR_IDS.RILL_P001,
-    `Expected pipe target, got: ${current(this.state).value}`,
+    `Expected pipe target, got: ${describeToken(current(this.state))}`,
     current(this.state).span.start
   );
 };

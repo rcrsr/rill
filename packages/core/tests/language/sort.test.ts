@@ -230,5 +230,20 @@ describe('Rill Language: sort primitive', () => {
         run('range(0, 10001) -> seq({ $ }) -> sort')
       ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R010' }));
     });
+
+    it('datetime input halts with #TYPE_MISMATCH instead of sorting as a dict', async () => {
+      await expectHalt(() => run('datetime("2026-01-01") -> sort'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('datetime input to seq halts with RILL-R002 instead of iterating as a dict', async () => {
+      // [SPEC] RILL_R002 is a fatal-mapped atom, so an uncaught halt at the
+      // top level converts to a RuntimeError with errorId RILL-R002 (same
+      // pattern as EC-6's RILL-R010 assertion above).
+      await expect(run('datetime("2026-01-01") -> seq({ $ })')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
   });
 });

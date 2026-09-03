@@ -281,7 +281,7 @@ describe('Rill Runtime: Type Guards', () => {
   describe('isDict', () => {
     it('works with .keys on dict', async () => {
       const result = await runFull('dict[name: "test", count: 42] -> .keys');
-      expect(result.result).toEqual(['name', 'count']);
+      expect(result.result).toEqual(['count', 'name']);
     });
 
     it('works with .values on nested dict', async () => {

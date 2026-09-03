@@ -112,3 +112,29 @@ describe('AST keyForm metadata', () => {
     expect(bareResult).toEqual(quotedResult);
   });
 });
+
+describe('Dict key method ordering', () => {
+  it('.keys returns string keys in sorted order regardless of literal order', async () => {
+    const result = await run('dict[zebra: 1, apple: 2, mango: 3] -> .keys');
+    expect(result).toEqual(['apple', 'mango', 'zebra']);
+  });
+
+  it('.entries aligns keys and values under sorted key order', async () => {
+    const result = await run('dict[zebra: 1, apple: 2, mango: 3] -> .entries');
+    expect(result).toEqual([
+      ['apple', 2],
+      ['mango', 3],
+      ['zebra', 1],
+    ]);
+  });
+
+  it('.values follows the same sorted key order as .keys and .entries', async () => {
+    const result = await run('dict[zebra: 1, apple: 2, mango: 3] -> .values');
+    expect(result).toEqual([2, 3, 1]);
+  });
+
+  it('doc example: dict[name: "test", count: 42] -> .keys yields sorted keys', async () => {
+    const result = await run('dict[name: "test", count: 42] -> .keys');
+    expect(result).toEqual(['count', 'name']);
+  });
+});

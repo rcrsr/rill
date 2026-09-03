@@ -241,7 +241,7 @@ Comparison:
 Produces sliding windows of `n` elements. The default `step` equals `n`, giving non-overlapping windows. `step < n` creates overlapping windows. `step > n` leaves gaps between windows. The `list` argument is auto-prepended when piping.
 
     range(1, 6) -> window(3)           # stream[[1,2,3],[4,5]]
-    range(1, 6) -> window(3, 1)        # stream[[1,2,3],[2,3,4],[3,4,5]]
+    range(1, 6) -> window(3, 1)        # stream[[1,2,3],[2,3,4],[3,4,5],[4,5],[5]]
 
 ## start_when
 
