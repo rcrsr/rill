@@ -1,9 +1,10 @@
 /**
  * Rules engine orchestrator.
- * Runs two linear AST passes: a bottom-up fact-collection pass (`facts.ts`)
- * that computes every subtree fact the rules need, then a top-down dispatch
- * pass that invokes each rule on `enter`. No rule re-walks a subtree; total
- * node visits are 2n, independent of nesting depth.
+ * Runs three linear AST passes: a bottom-up fact-collection pass (`facts.ts`)
+ * that computes every subtree fact the rules need, a lightweight pass that
+ * marks loop-body blocks for scope tracking, then a top-down dispatch pass
+ * that invokes each rule on `enter`. No rule re-walks a subtree; total node
+ * visits are 3n, independent of nesting depth.
  * Dispatches every visited node to the rules registered in
  * `rules-registry.ts`, resolves final diagnostic severity from per-rule
  * config state and any global override, and returns diagnostics sorted by
