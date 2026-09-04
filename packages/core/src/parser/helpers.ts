@@ -14,6 +14,7 @@ import { ParseError, TOKEN_TYPES } from '../types.js';
 import { type ParserState, check, peek, expect, current } from './state.js';
 import { VALID_TYPE_NAMES } from '../constants.js';
 import { ERROR_IDS } from '../error-registry.js';
+import type { Token } from '../types.js';
 
 // ============================================================
 // VALID TYPE NAMES
@@ -155,6 +156,18 @@ export function isAnnotationAccess(state: ParserState): boolean {
   return (
     check(state, TOKEN_TYPES.DOT) && peek(state, 1).type === TOKEN_TYPES.CARET
   );
+}
+
+/**
+ * Describe a token for "got: <token>" style parse error messages.
+ * NEWLINE and EOF tokens carry non-printable/empty `.value`s, so they get
+ * human-readable labels instead of being interpolated raw.
+ * @internal
+ */
+export function describeToken(token: Token): string {
+  if (token.type === TOKEN_TYPES.NEWLINE) return 'newline';
+  if (token.type === TOKEN_TYPES.EOF) return 'end of input';
+  return token.value;
 }
 
 /**

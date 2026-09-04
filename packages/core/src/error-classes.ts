@@ -55,12 +55,14 @@ export interface RillErrorData {
  * Factory function for creating errors from registry.
  *
  * Looks up error definition from registry, renders message template with context,
- * and creates RillError with structured metadata.
+ * and creates an instance of the class matching the error's category: a
+ * `ParseError` for parse-category (and legacy syntax-parse) IDs, a
+ * `RuntimeError` for runtime-category IDs, and a base `RillError` otherwise.
  *
  * @param errorId - Error identifier (format: RILL-{category}{3-digit})
  * @param context - Key-value pairs for template placeholder replacement
  * @param location - Source location where error occurred (optional)
- * @returns RillError instance with rendered message
+ * @returns RillError instance (or a ParseError/RuntimeError subclass) with rendered message
  * @throws TypeError if errorId is not found in registry
  *
  * @example
@@ -92,6 +94,29 @@ export function createError(
   // Malformed location (missing line/column) -> Error created without location metadata
   // We accept the location as-is; if it's malformed, the error won't have proper location data
   // This is acceptable per spec - the error is still created, just without complete location info
+
+  // ParseError requires a non-optional SourceLocation; createError's location
+  // stays optional to preserve its public signature. An unlocated parse
+  // error passes the UNLOCATED sentinel to satisfy the constructor's type
+  // without fabricating a real location: ParseError recognizes the sentinel
+  // by reference and treats it as "no location", so an unlocated call keeps
+  // producing `.location === undefined` and no ' at {line}:{column}' suffix,
+  // matching the behavior of a located call minus the location.
+  if (
+    definition.category === 'parse' ||
+    LEGACY_SYNTAX_PARSE_ERROR_IDS.has(errorId)
+  ) {
+    return new ParseError(
+      errorId,
+      message,
+      location ?? UNLOCATED_PARSE_LOCATION,
+      context
+    );
+  }
+
+  if (definition.category === 'runtime') {
+    return new RuntimeError(errorId, message, location, context);
+  }
 
   // Compute helpUrl from errorId using VERSION constant
   const helpUrl = getHelpUrl(errorId, VERSION);
@@ -181,6 +206,20 @@ export class RillError extends Error {
       Object.getPrototypeOf(this),
       Object.getOwnPropertyDescriptors(this)
     ) as RillError;
+    // Object.getOwnPropertyDescriptors copies Error's `stack` accessor
+    // descriptor as-is (get/set pair). That accessor is backed by V8's
+    // internal captured-frames slot on the original instance, not by the
+    // closure alone, so invoking the copied setter via a plain assignment
+    // on the clone is a silent no-op. Reading `this.stack` forces V8 to
+    // format and cache the stack for the original, then `defineProperty`
+    // replaces the clone's copied accessor with a real own data property
+    // so the clone's `stack` no longer resolves to undefined.
+    Object.defineProperty(clone, 'stack', {
+      value: this.stack,
+      writable: true,
+      configurable: true,
+      enumerable: false,
+    });
     const merged = { ...this.context, ...patch };
     (clone as { context: Record<string, unknown> | undefined }).context =
       this.context === undefined && Object.keys(merged).length === 0
@@ -206,6 +245,21 @@ const LEGACY_SYNTAX_PARSE_ERROR_IDS: ReadonlySet<string> = new Set([
   ERROR_IDS.RILL_R080,
   ERROR_IDS.RILL_R081,
 ]);
+
+/**
+ * Sentinel identified by reference (not value) to let `createError` satisfy
+ * `ParseError`'s non-optional `location` parameter for an unlocated
+ * parse-category error without fabricating a real location. `ParseError`
+ * maps this exact object back to `undefined` before it reaches `RillError`,
+ * so it never sets `.location` or appends a ' at {line}:{column}' suffix to
+ * `.message`. Not exported: callers construct `ParseError` directly with a
+ * real location or omit it via `createError`.
+ */
+const UNLOCATED_PARSE_LOCATION: SourceLocation = {
+  line: 1,
+  column: 1,
+  offset: 0,
+};
 
 /** Parse-time errors */
 export class ParseError extends RillError {
@@ -234,7 +288,7 @@ export class ParseError extends RillError {
       errorId,
       helpUrl: helpUrl || undefined,
       message,
-      location,
+      location: location === UNLOCATED_PARSE_LOCATION ? undefined : location,
       context,
     });
     this.name = 'ParseError';

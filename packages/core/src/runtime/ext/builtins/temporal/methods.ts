@@ -12,6 +12,7 @@ import { isDatetime, isDuration } from '../../../core/types/guards.js';
 import type { RillMethod } from '../shared.js';
 import {
   maxDayInMonth,
+  componentsToUnix,
   formatIso,
   formatDate,
   formatTime,
@@ -184,19 +185,32 @@ export const mDtAdd: RillMethod = (receiver, args, _ctx, location) => {
     const maxDay = maxDayInMonth(targetYear, targetMonth + 1);
     const clampedDay = Math.min(date.getUTCDate(), maxDay);
 
-    resultMs = Date.UTC(
+    resultMs = componentsToUnix(
       targetYear,
-      targetMonth,
+      targetMonth + 1,
       clampedDay,
       date.getUTCHours(),
       date.getUTCMinutes(),
       date.getUTCSeconds(),
-      date.getUTCMilliseconds()
+      date.getUTCMilliseconds(),
+      location
     );
   }
 
   // Then apply milliseconds
   resultMs += d.ms;
+
+  // JS Date only represents timestamps within ±8,640,000,000,000,000ms
+  // (±100,000,000 days) of the epoch. Arithmetic can stay finite yet land
+  // outside that range, which later formats as Invalid Date / NaN fields.
+  if (!Number.isFinite(resultMs) || Math.abs(resultMs) > 8640000000000000) {
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
+      'datetime.add() produced an invalid result',
+      'runtime'
+    );
+  }
 
   return { __rill_datetime: true, unix: resultMs } as unknown as RillValue;
 };

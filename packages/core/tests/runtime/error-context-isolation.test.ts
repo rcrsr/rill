@@ -96,6 +96,12 @@ describe('Rill Runtime: error context isolation', () => {
       // non-enumerable own property on Error instances and must be copied
       // explicitly rather than relying on Object.assign.
       expect(augmented.message).toBe(original.message);
+
+      // `stack` is backed by a V8 accessor that closes over the original
+      // instance; the clone must carry a formatted own-property stack
+      // rather than inheriting an accessor that resolves to undefined.
+      expect(typeof augmented.stack).toBe('string');
+      expect(augmented.stack).not.toHaveLength(0);
     });
 
     it('does not share the context object reference with the original', () => {

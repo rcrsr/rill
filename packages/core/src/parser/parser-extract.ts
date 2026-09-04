@@ -21,7 +21,7 @@ import {
   makeSpan,
   withRecursionDepth,
 } from './state.js';
-import { isDictStart, isNegativeNumber } from './helpers.js';
+import { isDictStart, isNegativeNumber, describeToken } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -292,7 +292,7 @@ Parser.prototype.parseSliceBound = function (this: Parser): SliceBoundNode {
 
   throw new ParseError(
     ERROR_IDS.RILL_P001,
-    `Expected slice bound (number, variable, or grouped expression), got: ${current(this.state).value}`,
+    `Expected slice bound (number, variable, or grouped expression), got: ${describeToken(current(this.state))}`,
     current(this.state).span.start
   );
 };

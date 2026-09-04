@@ -19,6 +19,7 @@ import {
   isDatetime,
   isDuration,
   isIterator,
+  isOrdered,
   isStream,
   isVector,
 } from '../../types/guards.js';
@@ -104,6 +105,19 @@ export async function getIterableElements(
   // Check for iterator protocol BEFORE generic dict handling
   if (isIterator(input)) {
     return expandIterator(input, evaluator, node, limit);
+  }
+  // Ordered guard: ordered values are plain objects but not dict-iterable
+  // catchable: user supplied wrong type
+  if (isOrdered(input)) {
+    throwCatchableHostHalt(
+      {
+        location: node.span.start,
+        sourceId: ctx.sourceId,
+        fn: 'getIterableElements',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
+    );
   }
   if (isDict(input)) {
     // Dict iteration: sorted string keys first, then number/boolean keys

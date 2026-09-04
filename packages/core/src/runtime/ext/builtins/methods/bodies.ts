@@ -1,6 +1,8 @@
 import { isDict } from '../../../core/callable.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue, RillVector } from '../../../core/types/structures.js';
+import type { RuntimeContext } from '../../../core/types/runtime.js';
+import type { SourceLocation } from '../../../../source-location.js';
 import {
   deepEquals,
   formatValue,
@@ -12,8 +14,9 @@ import {
   typedKeyCount,
 } from '../../../core/types/dict-keys.js';
 import { isEmpty } from '../../../core/values.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { throwCatchableHostHalt } from '../../../core/types/halt.js';
+import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
 import {
   type RillMethod,
   makeListIterator,
@@ -283,7 +286,11 @@ export const mMatch: RillMethod = (receiver, args, ctx, location) => {
   }
   const m = re.exec(str);
   if (!m) return {};
-  return { matched: m[0], index: m.index, groups: m.slice(1) };
+  return {
+    matched: m[0],
+    index: m.index,
+    groups: m.slice(1).map((g) => g ?? ''),
+  };
 };
 
 /**
@@ -320,26 +327,59 @@ export const mIndexOf: RillMethod = (receiver, args) => {
 };
 
 /** Repeat string n times */
-export const mRepeat: RillMethod = (receiver, args) => {
+export const mRepeat: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const n = typeof args[0] === 'number' ? Math.max(0, Math.floor(args[0])) : 0;
-  return str.repeat(n);
+  try {
+    return str.repeat(n);
+  } catch (e) {
+    if (e instanceof RangeError) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'repeat' },
+        'INVALID_INPUT',
+        `repeat: count ${n} produces a string too large to allocate`
+      );
+    }
+    throw e;
+  }
 };
 
 /** Pad start to length with fill string */
-export const mPadStart: RillMethod = (receiver, args) => {
+export const mPadStart: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const length = typeof args[0] === 'number' ? args[0] : str.length;
   const fill = typeof args[1] === 'string' ? args[1] : ' ';
-  return str.padStart(length, fill);
+  try {
+    return str.padStart(length, fill);
+  } catch (e) {
+    if (e instanceof RangeError) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'pad_start' },
+        'INVALID_INPUT',
+        `pad_start: length ${length} produces a string too large to allocate`
+      );
+    }
+    throw e;
+  }
 };
 
 /** Pad end to length with fill string */
-export const mPadEnd: RillMethod = (receiver, args) => {
+export const mPadEnd: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const length = typeof args[0] === 'number' ? args[0] : str.length;
   const fill = typeof args[1] === 'string' ? args[1] : ' ';
-  return str.padEnd(length, fill);
+  try {
+    return str.padEnd(length, fill);
+  } catch (e) {
+    if (e instanceof RangeError) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'pad_end' },
+        'INVALID_INPUT',
+        `pad_end: length ${length} produces a string too large to allocate`
+      );
+    }
+    throw e;
+  }
 };
 
 /** Equality check (deep structural comparison) */
@@ -350,52 +390,60 @@ export const mEq: RillMethod = (receiver, args) =>
 export const mNe: RillMethod = (receiver, args) =>
   !deepEquals(receiver, args[0] ?? null);
 
-/** Less-than comparison (number or string) */
-export const mLt: RillMethod = (receiver, args) => {
-  const arg = args[0];
-  if (typeof receiver === 'number' && typeof arg === 'number')
-    return receiver < arg;
-  return formatValue(receiver) < formatValue(arg ?? '');
-};
+function orderedCompare(
+  receiver: RillValue,
+  args: RillValue[],
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined,
+  method: string
+): number {
+  const arg = args[0] ?? null;
+  const cmp = resolvedCompareValue(receiver, arg);
+  if (cmp === undefined) {
+    throwCatchableHostHalt(
+      { location, sourceId: ctx.sourceId, fn: method },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Cannot compare ${inferType(receiver)} with ${inferType(arg)} using .${method}`
+    );
+  }
+  return cmp;
+}
 
-/** Greater-than comparison (number or string) */
-export const mGt: RillMethod = (receiver, args) => {
-  const arg = args[0];
-  if (typeof receiver === 'number' && typeof arg === 'number')
-    return receiver > arg;
-  return formatValue(receiver) > formatValue(arg ?? '');
-};
+/** Less-than comparison via the compare protocol */
+export const mLt: RillMethod = (receiver, args, ctx, location) =>
+  orderedCompare(receiver, args, ctx, location, 'lt') < 0;
 
-/** Less-than-or-equal comparison (number or string) */
-export const mLe: RillMethod = (receiver, args) => {
-  const arg = args[0];
-  if (typeof receiver === 'number' && typeof arg === 'number')
-    return receiver <= arg;
-  return formatValue(receiver) <= formatValue(arg ?? '');
-};
+/** Greater-than comparison via the compare protocol */
+export const mGt: RillMethod = (receiver, args, ctx, location) =>
+  orderedCompare(receiver, args, ctx, location, 'gt') > 0;
 
-/** Greater-than-or-equal comparison (number or string) */
-export const mGe: RillMethod = (receiver, args) => {
-  const arg = args[0];
-  if (typeof receiver === 'number' && typeof arg === 'number')
-    return receiver >= arg;
-  return formatValue(receiver) >= formatValue(arg ?? '');
-};
+/** Less-than-or-equal comparison via the compare protocol */
+export const mLe: RillMethod = (receiver, args, ctx, location) =>
+  orderedCompare(receiver, args, ctx, location, 'le') <= 0;
+
+/** Greater-than-or-equal comparison via the compare protocol */
+export const mGe: RillMethod = (receiver, args, ctx, location) =>
+  orderedCompare(receiver, args, ctx, location, 'ge') >= 0;
 
 /**
- * Get all keys of a dict as a list. String keys (insertion order) come first,
+ * Get all keys of a dict as a list. String keys (sorted) come first,
  * then number/boolean keys (each surfaced with its original type).
  */
 export const mKeys: RillMethod = (receiver) =>
   isDict(receiver)
-    ? [...Object.keys(receiver), ...typedKeyEntries(receiver).map((e) => e.key)]
+    ? [
+        ...Object.keys(receiver).sort(),
+        ...typedKeyEntries(receiver).map((e) => e.key),
+      ]
     : [];
 
-/** Get all values of a dict as a list, string keys first then typed keys. */
+/** Get all values of a dict as a list, sorted string keys first then typed keys. */
 export const mValues: RillMethod = (receiver) =>
   isDict(receiver)
     ? [
-        ...Object.values(receiver),
+        ...Object.keys(receiver)
+          .sort()
+          .map((key) => receiver[key]!),
         ...typedKeyEntries(receiver).map((e) => e.value),
       ]
     : [];
@@ -404,7 +452,9 @@ export const mValues: RillMethod = (receiver) =>
 export const mEntries: RillMethod = (receiver) =>
   isDict(receiver)
     ? [
-        ...Object.entries(receiver).map(([k, v]) => [k, v] as RillValue),
+        ...Object.keys(receiver)
+          .sort()
+          .map((key) => [key, receiver[key]!] as RillValue),
         ...typedKeyEntries(receiver).map((e) => [e.key, e.value] as RillValue),
       ]
     : [];
