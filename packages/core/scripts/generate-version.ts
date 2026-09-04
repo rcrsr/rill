@@ -11,15 +11,13 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveProjectRoot } from './resolve-project-root.js';
 
 const PACKAGE_JSON = 'package.json';
 const OUTPUT_FILE = 'src/generated/version-data.ts';
 
 function main(): void {
-  const rootDir = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    '..'
-  );
+  const rootDir = resolveProjectRoot(import.meta.url);
   const packagePath = path.join(rootDir, PACKAGE_JSON);
   const outputPath = path.join(rootDir, OUTPUT_FILE);
 

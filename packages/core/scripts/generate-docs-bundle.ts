@@ -11,15 +11,13 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveProjectRoot } from './resolve-project-root.js';
 
 const SOURCE_FILE = 'docs/ref-llms-full.txt';
 const OUTPUT_FILE = 'src/generated/introspection-data.ts';
 
 function main(): void {
-  const coreDir = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    '..'
-  );
+  const coreDir = resolveProjectRoot(import.meta.url);
   const projectRoot = path.resolve(coreDir, '..', '..');
   const sourcePath = path.join(projectRoot, SOURCE_FILE);
   const outputPath = path.join(coreDir, OUTPUT_FILE);

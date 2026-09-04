@@ -541,6 +541,14 @@ describe('string interpolation sub-highlighting', () => {
       expect(tags).toContain('bracket');
       expect(tags).toContain('variableName');
     });
+
+    it('treats {{ and }} as escaped literal braces in a single-line string', () => {
+      // "a{{b}}c" — {{ and }} are escaped literal braces, not interpolation,
+      // matching readers.ts readString. The whole string is a single token.
+      const tags = tokenizeLine('"a{{b}}c"');
+      expect(tags).not.toContain('bracket');
+      expect(tags).toEqual(['string']);
+    });
   });
 
   describe('arithmetic expression inside interpolation', () => {

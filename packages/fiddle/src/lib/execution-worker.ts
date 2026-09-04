@@ -12,6 +12,13 @@ import { DEMO_CONTEXT_VALUES } from './context.js';
 import { executeRill, type FiddleResolverConfig } from './execution.js';
 
 self.addEventListener('message', (event: MessageEvent<{ source: string }>) => {
+  // This is a dedicated worker spawned by the app's own page, so it only
+  // ever receives messages from that same origin. Reject anything else
+  // rather than trusting postMessage's default any-origin delivery.
+  if (event.origin !== '' && event.origin !== self.location.origin) {
+    return;
+  }
+
   const { source } = event.data;
 
   const resolverConfig: FiddleResolverConfig = {

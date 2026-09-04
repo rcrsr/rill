@@ -6,12 +6,18 @@
  * that index enumerates them, and concatenates them (with a fixed preamble
  * and a consistent separator) into docs/ref-llms-full.txt.
  *
+ * docs/ref-llms-full.txt is a checked-in artifact, not part of the build
+ * pipeline: tests/ref-llms-full-drift.test.ts asserts the committed file
+ * matches the fragments. Run this script manually after editing a fragment
+ * under docs/llm/, then commit the regenerated bundle.
+ *
  * Usage:
- *   pnpm exec tsx packages/core/scripts/generate-llms-full.ts
+ *   pnpm --filter @rcrsr/rill run docs:llms-full
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { resolveProjectRoot } from './resolve-project-root.js';
 
 const FRAGMENTS_DIR = 'docs/llm';
 const OUTPUT_FILE = 'docs/ref-llms-full.txt';
@@ -44,8 +50,7 @@ export function buildLlmsFullContent(projectRoot: string): string {
   const fragments = FRAGMENT_ORDER.map((name) => {
     const fragmentPath = path.join(fragmentsDir, `${name}.txt`);
     if (!fs.existsSync(fragmentPath)) {
-      console.error(`ERROR: Fragment not found: ${fragmentPath}`);
-      process.exit(1);
+      throw new Error(`Fragment not found: ${fragmentPath}`);
     }
     return fs.readFileSync(fragmentPath, 'utf-8').replace(/\n+$/, '');
   });
@@ -54,10 +59,7 @@ export function buildLlmsFullContent(projectRoot: string): string {
 }
 
 function main(): void {
-  const coreDir = path.resolve(
-    path.dirname(new URL(import.meta.url).pathname),
-    '..'
-  );
+  const coreDir = resolveProjectRoot(import.meta.url);
   const projectRoot = path.resolve(coreDir, '..', '..');
   const outputPath = path.join(projectRoot, OUTPUT_FILE);
 
@@ -71,4 +73,15 @@ function main(): void {
   console.log(`Content length: ${content.length} characters`);
 }
 
-main();
+// Only run as a side effect when executed directly (`tsx generate-llms-full.ts`),
+// not when tests/ref-llms-full-drift.test.ts imports buildLlmsFullContent —
+// otherwise the import would overwrite the committed bundle before the test
+// compares against it.
+if (import.meta.filename === process.argv[1]) {
+  try {
+    main();
+  } catch (e) {
+    console.error(`ERROR: ${e instanceof Error ? e.message : String(e)}`);
+    process.exit(1);
+  }
+}

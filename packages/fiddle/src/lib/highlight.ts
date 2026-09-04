@@ -122,8 +122,14 @@ function opensUnterminatedTripleQuote(lineText: string): boolean {
   let i = 0;
   while (i < lineText.length) {
     const ch = lineText[i];
-    if (!inTriple && ch === '#') {
-      // Line comment: nothing after this point is string content.
+    if (
+      !inTriple &&
+      ch === '#' &&
+      !(lineText[i + 1] !== undefined && /[A-Z]/.test(lineText[i + 1]!))
+    ) {
+      // Line comment: nothing after this point is string content. A `#`
+      // immediately followed by an uppercase ASCII letter starts an atom
+      // literal (e.g. `#TODO`), not a comment.
       break;
     }
     if (ch === '"' && lineText.slice(i, i + 3) === '"""') {
@@ -134,9 +140,36 @@ function opensUnterminatedTripleQuote(lineText: string): boolean {
     if (!inTriple && (ch === '"' || ch === "'")) {
       const quote = ch;
       let j = i + 1;
-      while (j < lineText.length && lineText[j] !== quote) {
-        if (lineText[j] === '\\') {
+      let depth = 0;
+      while (j < lineText.length) {
+        const cj = lineText[j];
+        if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        if (depth === 0 && cj === '{' && lineText[j + 1] === '{') {
+          // {{ outside interpolation is an escaped literal brace, not a
+          // depth-incrementing open (mirrors readers.ts readString).
+          j += 2;
+          continue;
+        }
+        if (depth === 0 && cj === '}' && lineText[j + 1] === '}') {
+          // }} outside interpolation is likewise an escaped literal brace.
+          j += 2;
+          continue;
+        }
+        if (cj === '{') {
+          depth++;
           j++;
+          continue;
+        }
+        if (cj === '}' && depth > 0) {
+          depth--;
+          j++;
+          continue;
+        }
+        if (cj === quote && depth === 0) {
+          break;
         }
         j++;
       }
@@ -160,6 +193,7 @@ function opensUnterminatedTripleQuote(lineText: string): boolean {
  * @param lineText - Line text to scan
  */
 function findUnterminatedQuoteStart(lineText: string): number | null {
+  const opensUnterminatedTriple = opensUnterminatedTripleQuote(lineText);
   let i = 0;
   while (i < lineText.length) {
     const ch = lineText[i];
@@ -175,7 +209,7 @@ function findUnterminatedQuoteStart(lineText: string): number | null {
       // A closed `"""a"""` pair is consumed and scanning continues, so a
       // trailing unterminated single/double-quote string on the same line
       // is still found below.
-      if (opensUnterminatedTripleQuote(lineText)) {
+      if (opensUnterminatedTriple) {
         return null;
       }
       const close = lineText.indexOf('"""', i + 3);
@@ -190,6 +224,17 @@ function findUnterminatedQuoteStart(lineText: string): number | null {
       while (j < lineText.length) {
         const cj = lineText[j];
         if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        if (depth === 0 && cj === '{' && lineText[j + 1] === '{') {
+          // {{ outside interpolation is an escaped literal brace, not a
+          // depth-incrementing open (mirrors readers.ts readString).
+          j += 2;
+          continue;
+        }
+        if (depth === 0 && cj === '}' && lineText[j + 1] === '}') {
+          // }} outside interpolation is likewise an escaped literal brace.
           j += 2;
           continue;
         }
@@ -345,9 +390,11 @@ function makeSyntheticToken(
  * For single-line strings the text includes surrounding quotes.
  * For triple-quote continuation lines the text is raw line content.
  *
- * Escape rules:
- * - Single-line: `\X` skips the next char; any lone `{` starts interpolation.
- * - Triple-quote: `{{` is an escaped brace; any lone `{` starts interpolation.
+ * Escape rules (mirror readers.ts readString / readTripleQuoteString):
+ * - Single-line: `\X` skips the next char; `{{`/`}}` are escaped literal
+ *   braces; any other lone `{` starts interpolation.
+ * - Triple-quote: `{{`/`}}` are escaped literal braces; any other lone `{`
+ *   starts interpolation.
  *
  * @param text - Source text to scan
  * @param isTriple - True when using triple-quote escape rules
@@ -361,13 +408,13 @@ function containsInterpolation(text: string, isTriple: boolean): boolean {
       i += 2;
       continue;
     }
-    if (isTriple && ch === '{' && text[i + 1] === '{') {
-      // Triple-quote: {{ is escaped
+    if (ch === '{' && text[i + 1] === '{') {
+      // `{{` is an escaped literal brace
       i += 2;
       continue;
     }
-    if (isTriple && ch === '}' && text[i + 1] === '}') {
-      // Triple-quote: }} is escaped
+    if (ch === '}' && text[i + 1] === '}') {
+      // `}}` is an escaped literal brace
       i += 2;
       continue;
     }
@@ -476,14 +523,14 @@ function splitStringToken(
       continue;
     }
 
-    if (isTriple && ch === '{' && src[i + 1] === '{') {
-      // Triple-quote escaped brace
+    if (ch === '{' && src[i + 1] === '{') {
+      // `{{` is an escaped literal brace (mirrors readers.ts readString)
       i += 2;
       continue;
     }
 
-    if (isTriple && ch === '}' && src[i + 1] === '}') {
-      // Triple-quote escaped closing brace
+    if (ch === '}' && src[i + 1] === '}') {
+      // `}}` is an escaped literal brace
       i += 2;
       continue;
     }

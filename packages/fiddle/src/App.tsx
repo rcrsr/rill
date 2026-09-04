@@ -178,8 +178,10 @@ export function App(): JSX.Element {
       logs: [],
     });
 
-    // Cancel any run still in flight before starting the new one, so a
-    // stale worker never overwrites a fresher result.
+    // Defensive cleanup: isRunningRef.current gates re-entry above, so by the
+    // time a later run reaches this line, the previous run's promise has
+    // already settled and its cancel() is a no-op. This just guards against
+    // future changes to that gating.
     activeRunRef.current?.cancel();
 
     const { promise, cancel } = runInWorker(sourceRef.current);
