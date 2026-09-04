@@ -107,6 +107,8 @@ function matchExistenceCheck(
 
   const variable = postfix.primary as VariableNode;
   if (variable.existenceCheck === null) return null;
+  if (variable.existenceCheck.typeRef !== null) return null;
+  if (variable.defaultValue !== null) return null;
 
   return { negated, variable };
 }

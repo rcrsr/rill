@@ -124,6 +124,24 @@ describe('USE_DEFAULT_OPERATOR', () => {
     expect(result).toHaveLength(1);
     expect(result[0]).toMatchObject({ code: 'USE_DEFAULT_OPERATOR' });
   });
+
+  it('does not fire when the existence check is type-qualified', () => {
+    const source = '$dict.?field&string ? $dict.field ! "default"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [useDefaultOperator]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('does not fire when the existence check variable also carries a ?? default', () => {
+    const source = '($dict.?field ?? false) ? $dict.field ! "default"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [useDefaultOperator]);
+
+    expect(result).toEqual([]);
+  });
 });
 
 describe('COMPLEX_CONDITION', () => {
