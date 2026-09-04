@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Documentation correctness:** Host API and integration documentation corrected to match the implementation, including error-statement syntax and API exports. Removed a dead CHANGELOG link from generated content. ([#334](https://github.com/rcrsr/rill/pull/334))
 - **DX tooling defects:** Resolved 14 open defects in the example harness, build scripts, standards checker, lint rules, CI workflows, and git-hook configuration. ([#245](https://github.com/rcrsr/rill/pull/245))
 - **Runtime and type-system defects:** Resolved 28 correctness defects across stream closures, iterators and slicing, argument binding, error recovery, the type system, temporal values, and string handling. Highlights: a stream-closure deadlock and a partial-consume hang, `take`/`skip` off-by-one on host streams, prototype pollution reaching `Object.prototype` through dict access, an uncatchable host timeout, and a raw `RangeError` escaping `guard` from out-of-range datetimes. ([#330](https://github.com/rcrsr/rill/pull/330))
 - **NAMING_SNAKE_CASE autofix:** Now rewrites all capture references when fixing the name, and withholds the fix when a rename would create dangling references across scopes, collide with an existing name, or break dynamic dict-key access. DiagnosticFix gains an optional additionalEdits array to carry the reference-site edits. ([#163](https://github.com/rcrsr/rill/pull/163))

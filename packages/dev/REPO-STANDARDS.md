@@ -430,6 +430,7 @@ registry. Record that once against the section rather than element by element.
 | STD-REL-5 | Publish is idempotent: skips versions already on the registry, and tolerates a registry-side conflict rather than failing the job. | Repository publishes nothing. |
 | STD-REL-6 | Publish scripts set `set -o pipefail` when piping publish output. | Repository publishes nothing. |
 | STD-REL-7 | Creates a GitHub Release, skipping if one already exists. | Repository publishes nothing. |
+| STD-REL-8 | Every published package's manifest declares `repository`, so provenance has a source to bind to. | Repository publishes nothing. |
 
 **On STD-REL-5.** A pre-publish existence check alone races against a
 concurrent publish. Handle the registry's conflict response as success, not

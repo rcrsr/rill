@@ -81,13 +81,15 @@ function parseJsonLines(stdout: string): Array<Record<string, unknown>> {
 describe('test-examples.ts fixture: marker-and-callable.md', () => {
   const fixture = path.join(fixturesDir, 'marker-and-callable.md');
 
-  it('runs Case A (executable lines ahead of a trailing marker), fails Case B (unapplied callable), passes Case C, and exits 1', () => {
+  it('runs Case A (marked block executes and halts as expected), fails Case B (unapplied callable), passes Case C, and exits 1', () => {
     const run = runCli([fixture]);
 
     expect(run.status).toBe(1);
 
-    // 3 rill fences total: Case A passes (marker line no longer skips the
-    // whole block), Case B fails on the unapplied callable, Case C passes.
+    // 3 rill fences total: Case A passes (the `# Error:` marker no longer
+    // skips the block — it runs, halts on the bogus method call, and the
+    // halt satisfies the marker's expectation), Case B fails on the
+    // unapplied callable, Case C passes.
     const summary = parseSummary(run);
     expect(summary).toEqual({ passed: 2, failed: 1, skipped: 0, total: 3 });
   });
@@ -101,6 +103,30 @@ describe('test-examples.ts fixture: marker-and-callable.md', () => {
     expect(failures).toHaveLength(1);
     expect(failures[0]?.message).toMatch(/unapplied callable/i);
     expect(String(failures[0]?.file)).toContain('marker-and-callable.md');
+  });
+});
+
+describe('test-examples.ts fixture: expected-halt.md', () => {
+  const fixture = path.join(fixturesDir, 'expected-halt.md');
+
+  it('passes the block that genuinely halts, fails the one that completes despite its marker, and exits 1', () => {
+    const run = runCli([fixture]);
+
+    expect(run.status).toBe(1);
+
+    const summary = parseSummary(run);
+    expect(summary).toEqual({ passed: 1, failed: 1, skipped: 0, total: 2 });
+  });
+
+  it('reports the non-halting block with an expected-execution-to-halt message in --json output', () => {
+    const { status, stdout } = runCli(['--json', fixture]);
+
+    expect(status).toBe(1);
+
+    const failures = parseJsonLines(stdout);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.message).toMatch(/expected execution to halt/i);
+    expect(String(failures[0]?.file)).toContain('expected-halt.md');
   });
 });
 

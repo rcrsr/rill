@@ -648,6 +648,8 @@ if (isScriptCallable(value)) {
 Use `AbortSignal` to cancel long-running scripts:
 
 ```typescript
+import { RuntimeHaltSignal } from '@rcrsr/rill';
+
 const controller = new AbortController();
 
 const ctx = createRuntimeContext({
@@ -669,24 +671,33 @@ setTimeout(() => controller.abort(), 1000);
 try {
   await execute(ast, ctx);
 } catch (err) {
-  if (err instanceof AbortError) {
+  if (err instanceof RuntimeHaltSignal) {
     console.log('Execution cancelled');
   }
 }
 ```
 
-### AbortError
+### RuntimeHaltSignal
+
+Abort does not raise a catchable `RuntimeError`. It throws a non-catchable `RuntimeHaltSignal` (`catchable: false`) that propagates past `guard` and `retry` straight to the host. The signal carries an invalid `RillValue` tagged with the `#DISPOSED` atom, not an `errorId` or `code` — there is no `HALT_ATOM_TO_ERROR_ID` mapping for `#DISPOSED`, so the raw signal is what reaches the `catch` block.
 
 ```typescript
-import { AbortError } from '@rcrsr/rill';
+import { RuntimeHaltSignal } from '@rcrsr/rill';
 
 try {
   await execute(ast, ctx);
 } catch (err) {
-  if (err instanceof AbortError) {
-    console.log(err.code);    // 'RUNTIME_ABORTED'
-    console.log(err.message); // 'Execution aborted'
+  if (err instanceof RuntimeHaltSignal) {
+    console.log('Execution cancelled');
   }
+}
+```
+
+The simplest host-side discriminator is the controller itself, since the signal carries no error code to branch on:
+
+```typescript
+if (controller.signal.aborted) {
+  console.log('Execution cancelled');
 }
 ```
 
@@ -907,7 +918,7 @@ const ctx = createRuntimeContext({
       params: [{ name: 'input', type: { kind: 'string' } }],
       fn: (args) => {
         // If this returns "error: invalid input",
-        // execution halts with AutoExceptionError
+        // execution halts with a non-catchable RuntimeHaltSignal (atom #R999)
         return externalProcess(args[0]);
       },
     },
@@ -941,7 +952,7 @@ See [Extension Backend Selection](integration-backends.md) for backend selection
 All rill errors extend `RillError` with structured information:
 
 ```typescript
-import { RuntimeError, ParseError, AbortError, TimeoutError } from '@rcrsr/rill';
+import { RuntimeError, ParseError, TimeoutError, RuntimeHaltSignal } from '@rcrsr/rill';
 
 try {
   const ast = parse(source);
@@ -951,36 +962,21 @@ try {
     console.log('Parse error:', err.message);
     console.log('Location:', err.location);
   } else if (err instanceof RuntimeError) {
-    console.log('Runtime error:', err.code);
+    console.log('Runtime error:', err.errorId);
     console.log('Message:', err.message);
     console.log('Location:', err.location);
     console.log('Context:', err.context);
-  } else if (err instanceof AbortError) {
-    console.log('Execution cancelled');
   } else if (err instanceof TimeoutError) {
     console.log('Operation timed out');
+  } else if (err instanceof RuntimeHaltSignal) {
+    console.log('Execution cancelled or auto-exception triggered');
   }
 }
 ```
 
 ### Error Codes
 
-| Code | Description |
-|------|-------------|
-| `PARSE_UNEXPECTED_TOKEN` | Unexpected token in source |
-| `PARSE_INVALID_SYNTAX` | Invalid syntax |
-| `PARSE_INVALID_TYPE` | Invalid type annotation |
-| `RUNTIME_UNDEFINED_VARIABLE` | Variable not defined |
-| `RUNTIME_UNDEFINED_FUNCTION` | Function not defined |
-| `RUNTIME_UNDEFINED_METHOD` | Method not defined (built-in only) |
-| `RUNTIME_TYPE_ERROR` | Type mismatch (includes host function parameter validation) |
-| `RUNTIME_TIMEOUT` | Operation timed out |
-| `RUNTIME_ABORTED` | Execution cancelled |
-| `RUNTIME_INVALID_PATTERN` | Invalid regex pattern |
-| `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
-| `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
-| `RUNTIME_ERROR_RAISED` | Error statement executed |
-| `RILL-R004` | `serializeValue()` called on non-serializable type (closure, iterator, vector, type value, tuple, ordered) |
+`ParseError` and `RuntimeError` carry an `errorId` from four ranges — `RILL-L001`–`RILL-L005` (lexer), `RILL-P001`–`RILL-P022` (parse), `RILL-R001`–`RILL-R083` (runtime), `RILL-C001`–`RILL-C004` (checker). Abort and auto-exception surface as a non-catchable `RuntimeHaltSignal` (atoms `#DISPOSED` and `#R999`) with no `errorId`. An unhandled `error` statement also halts as `RuntimeHaltSignal` internally, but the runtime converts it to a coded `RuntimeError` (`errorId: RILL-R016`) before it reaches the host. Per ADR-0047, this document does not maintain a per-code description table; see [Error Reference](ref-errors.md) for the complete, generated list of codes with causes and resolutions.
 
 ## See Also
 

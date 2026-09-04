@@ -451,6 +451,154 @@ function runCheckStandardsFixtureTests() {
       ok_.stdout
     );
   }
+
+  // (g) grep_noncomment: a stripped-check token that appears only inside a
+  // `#` comment must not read as the real thing. STD-CI-4 (frozen-lockfile)
+  // is the probe; the same helper backs STD-REL-1/3/4/5/6/7.
+  {
+    const ciCommentOnly =
+      'name: CI\n' +
+      'permissions:\n' +
+      '  contents: read\n' +
+      'concurrency:\n' +
+      '  group: ci-${{ github.ref }}\n' +
+      'on: push\n' +
+      'jobs:\n' +
+      '  build:\n' +
+      '    runs-on: ubuntu-latest\n' +
+      '    steps:\n' +
+      '      # pnpm install --frozen-lockfile\n' +
+      '      - run: pnpm install\n';
+    const rootCommentOnly = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.github/workflows/ci.yml': ciCommentOnly,
+    });
+    const commentOnly = runCheckStandards(rootCommentOnly);
+    check(
+      /FAIL\s+STD-CI-4\s/.test(commentOnly.stdout),
+      'grep_noncomment: a token present only inside a # comment fails STD-CI-4',
+      commentOnly.stdout
+    );
+
+    const ciReal = ciCommentOnly.replace(
+      '      # pnpm install --frozen-lockfile\n' +
+        '      - run: pnpm install\n',
+      '      - run: pnpm install --frozen-lockfile\n'
+    );
+    const rootReal = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      '.github/workflows/ci.yml': ciReal,
+    });
+    const real = runCheckStandards(rootReal);
+    check(
+      /ok\s+STD-CI-4\s/.test(real.stdout),
+      'grep_noncomment: the same token outside a comment passes STD-CI-4',
+      real.stdout
+    );
+  }
+
+  // (h) STD-HOOK-4: presence of a `pre-push:` key alone is not enough; the
+  // block it introduces must carry both a typecheck and a test invocation.
+  {
+    const lefthookNoTest =
+      'pre-push:\n' +
+      '  commands:\n' +
+      '    typecheck:\n' +
+      '      run: pnpm typecheck\n';
+    const rootNoTest = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      'lefthook.yml': lefthookNoTest,
+    });
+    const noTest = runCheckStandards(rootNoTest);
+    check(
+      /FAIL\s+STD-HOOK-4\s/.test(noTest.stdout),
+      'STD-HOOK-4: a pre-push block with typecheck but no test invocation fails',
+      noTest.stdout
+    );
+    check(
+      /no test invocation/.test(noTest.stdout),
+      'STD-HOOK-4: the failure detail names the missing invocation',
+      noTest.stdout
+    );
+
+    const lefthookComplete =
+      'pre-push:\n' +
+      '  commands:\n' +
+      '    typecheck:\n' +
+      '      run: pnpm typecheck\n' +
+      '    test:\n' +
+      '      run: pnpm test\n';
+    const rootComplete = writeFixtureTree({
+      'package.json': MINIMAL_PKG,
+      'lefthook.yml': lefthookComplete,
+    });
+    const complete = runCheckStandards(rootComplete);
+    check(
+      /ok\s+STD-HOOK-4\s/.test(complete.stdout),
+      'STD-HOOK-4: a pre-push block with both invocations passes',
+      complete.stdout
+    );
+  }
+
+  // (i) STD-REL-8 (published packages declare repository, renumbered off the
+  // STD-REL-3 collision): zero publishable manifests reports `--`, never a
+  // vacuous ok, and a publishable manifest with no `repository` field fails.
+  {
+    const releaseYml =
+      'name: Release\n' +
+      'on:\n' +
+      '  push:\n' +
+      '    tags:\n' +
+      "      - 'v*'\n" +
+      'permissions:\n' +
+      '  id-token: write\n' +
+      'jobs:\n' +
+      '  publish:\n' +
+      '    runs-on: ubuntu-latest\n' +
+      '    steps:\n' +
+      '      - run: |\n' +
+      '          set -o pipefail\n' +
+      '          npm publish --provenance 2>&1 | tee out.log || grep -qi EPUBLISHCONFLICT out.log\n' +
+      '      - run: gh release create\n';
+
+    const rootNoPublishable = writeFixtureTree({
+      'package.json': MINIMAL_PKG, // private: true, so PUB_COUNT stays 0
+      '.github/workflows/release.yml': releaseYml,
+    });
+    const noPublishable = runCheckStandards(rootNoPublishable);
+    check(
+      /--\s+STD-REL-8\s/.test(noPublishable.stdout),
+      'STD-REL-8: zero publishable manifests reports -- (skip), not a vacuous ok',
+      noPublishable.stdout
+    );
+    check(
+      !/ok\s+STD-REL-8\s/.test(noPublishable.stdout),
+      'STD-REL-8: zero publishable manifests never reports ok',
+      noPublishable.stdout
+    );
+
+    const rootNoRepo = writeFixtureTree({
+      'package.json': JSON.stringify({ name: 'fixture' }), // publishable, no repository
+      '.github/workflows/release.yml': releaseYml,
+    });
+    const noRepo = runCheckStandards(rootNoRepo);
+    check(
+      /FAIL\s+STD-REL-8\s/.test(noRepo.stdout),
+      'STD-REL-8: a publishable manifest with no repository field fails',
+      noRepo.stdout
+    );
+
+    // (j) Regression guard against the STD-REL-3/STD-REL-8 ID collision
+    // reappearing: exactly one STD-REL-3 line per run.
+    const rel3Lines = (
+      noRepo.stdout.match(/^\s*(ok|FAIL|--)\s+STD-REL-3\s/gm) || []
+    ).length;
+    check(
+      rel3Lines === 1,
+      'STD-REL-3 is reported exactly once per run (no ID collision with STD-REL-8)',
+      `found ${rel3Lines} STD-REL-3 lines:\n${noRepo.stdout}`
+    );
+  }
 }
 
 // ============================================================

@@ -59,13 +59,13 @@ Capture mid-chain with `=>` to store and continue:
 ```text
 # good: capture and continue
 prompt("Read file") => $raw -> log -> .contains("ERROR") ? {
-  error("Failed: {$raw}")
+  error "Failed: {$raw}"
 }
 
 # less clear: separate statements
 prompt("Read file") => $raw
 $raw -> log
-$raw -> .contains("ERROR") ? { error("Failed: {$raw}") }
+$raw -> .contains("ERROR") ? { error "Failed: {$raw}" }
 ```
 
 ### Use explicit capture before branching
@@ -370,7 +370,7 @@ $str -> .empty ? "empty"
 ### Validate early with conditionals
 
 ```text
-$input -> .empty ? { error("Input required") }
+$input -> .empty ? { error "Input required" }
 
 # continue with validated input
 process($input)
@@ -382,7 +382,7 @@ process($input)
 prompt("...") => $result
 
 $result -> .contains(":::ERROR:::") ? {
-  error("Operation failed: {$result}")
+  error "Operation failed: {$result}"
 }
 
 $result -> .contains(":::DONE:::") ? {
@@ -635,7 +635,7 @@ $data
 prompt("analyze {$file}")
   => $result
   -> log
-  -> .contains("ERROR") ? { error($result) }
+  -> .contains("ERROR") ? { error "{$result}" }
 
 # good: conditional continuation
 value -> is_valid

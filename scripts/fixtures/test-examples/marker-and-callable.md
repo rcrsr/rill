@@ -3,17 +3,18 @@
 Hand-built cases for validating `scripts/test-examples.ts` marker-line
 splitting (issue #240) and the unapplied-callable check (issue #132).
 
-## Case A: executable lines ahead of a trailing marker now run
+## Case A: a block with a trailing `# Error:` marker runs and must halt
 
 Previously the whole block was skipped because it contained a
-`# Error:` marker anywhere in the text. Now only the trailing marked
-line is exempt — the lines before it must execute and produce a real
-result.
+`# Error:` marker anywhere in the text. Now the marker is left in
+place — the rill lexer already treats `#` as a comment, so the full
+block (including the marked line) executes natively, and the runner
+asserts that it halts.
 
 ```rill
 5 => $x
 $x + 1
-$x -> .not_a_real_method   # Error: bogus method demo, never executed
+$x -> .not_a_real_method   # Error: bogus method demo, must halt
 ```
 
 ## Case B: a block ending in a bare closure fails
