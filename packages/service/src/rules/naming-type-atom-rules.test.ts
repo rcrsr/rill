@@ -417,6 +417,37 @@ describe('ATOM_UNREGISTERED', () => {
       []
     );
   });
+
+  it('does not fire for the pre-registered #IGNORE atom', () => {
+    const source = '#IGNORE\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [atomUnregistered])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire for a pre-registered RILL-R0xx runtime atom', () => {
+    const source = '#RILL_R010\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [atomUnregistered])).toEqual(
+      []
+    );
+  });
+
+  it('fires for an atom not in the pre-registered runtime set', () => {
+    const source = '#R004\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [atomUnregistered]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'ATOM_UNREGISTERED',
+      severity: 'warning',
+    });
+  });
 });
 
 describe('STATUS_PROBE_NO_FIELD', () => {
@@ -431,7 +462,7 @@ describe('STATUS_PROBE_NO_FIELD', () => {
       code: 'STATUS_PROBE_NO_FIELD',
       severity: 'info',
       message:
-        'Bare .! returns the whole status record. Project a field with .!code, .!message, or .!provider.',
+        'Bare .! only yields a boolean invalid-test. Project a field with .!code, .!message, or .!provider to read the status record.',
       fix: null,
     });
   });

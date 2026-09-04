@@ -146,6 +146,43 @@ describe('SPACING_OPERATOR', () => {
       []
     );
   });
+
+  it('does not fire when a multi-line pipe chain span includes a trailing comment containing "->"', () => {
+    const source = '$x -> $y\n# a -> b\n-> log\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingOperator])).toEqual(
+      []
+    );
+  });
+
+  it('still reports a truly unspaced operator on a real code line even when the span also contains a comment', () => {
+    const source = '$x\n# a -> b\n->$y\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingOperator]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_OPERATOR',
+      message: "Pipe operator '->' should have spaces on both sides",
+      fix: null,
+    });
+  });
+
+  it('does not let an in-span #UPPER atom suppress a real adjacent violation', () => {
+    const source = '#TYPE_MISMATCH+2\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingOperator]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'SPACING_OPERATOR',
+      message: "Operator '+' should have spaces on both sides",
+      fix: null,
+    });
+  });
 });
 
 describe('SPACING_BRACES', () => {

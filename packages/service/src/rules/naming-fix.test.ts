@@ -42,6 +42,37 @@ describe('NAMING_SNAKE_CASE fix: reference-aware capture rename', () => {
   });
 });
 
+describe('NAMING_SNAKE_CASE fix: dynamic field-key reference (.$var)', () => {
+  it('rewrites a .$var dynamic-key site as a disjoint, segment-width edit', () => {
+    const source = '5 => $userName\ndict[a: 1] => $d\n$d.$userName -> log\n';
+    const parsed = parse(source);
+
+    const result = runRules(parsed, source, createDefaultConfig(), [
+      namingSnakeCase,
+    ]);
+
+    const diagnostic = result.find((d) => d.message.includes("'userName'"));
+    expect(diagnostic).toBeDefined();
+    const fix = diagnostic?.fix;
+    expect(fix).not.toBeNull();
+    expect(fix?.additionalEdits?.length).toBe(1);
+
+    const dynamicKeyEdit = fix?.additionalEdits?.[0];
+    expect(dynamicKeyEdit?.replacement).toBe('.$user_name');
+    // Segment span covers only `.$userName`, not the whole `$d.$userName`
+    // Variable node - anchored at the `.` token, not at `$d`.
+    expect(dynamicKeyEdit?.range).toEqual({
+      start: { line: 3, column: 3, offset: 34 },
+      end: { line: 3, column: 13, offset: 44 },
+    });
+
+    // Disjoint from the primary (declaration) edit.
+    expect(dynamicKeyEdit!.range.start.offset).toBeGreaterThanOrEqual(
+      fix!.range.end.offset
+    );
+  });
+});
+
 describe('NAMING_SNAKE_CASE fix: closure-call callee and argument in the same call', () => {
   it('rewrites the callee and the argument as disjoint $name-width edits', () => {
     const source = '|x|($x) => $userName\n$userName($userName)\n';
@@ -163,6 +194,41 @@ describe('NAMING_SNAKE_CASE fix: dict key withheld on dynamic field access', () 
     );
     expect(dictKeyDiagnostic).toBeDefined();
     expect(dictKeyDiagnostic?.fix).toBeNull();
+  });
+});
+
+describe('NAMING_SNAKE_CASE fix: withheld on nested-scope reference', () => {
+  it('withholds the fix when the name is also referenced inside a sibling closure body', () => {
+    const source =
+      '"a" => $userName\n|x| ($userName -> log) => $f\n$userName -> log\n';
+    const parsed = parse(source);
+
+    const result = runRules(parsed, source, createDefaultConfig(), [
+      namingSnakeCase,
+    ]);
+
+    const userNameDiagnostic = result.find((d) =>
+      d.message.includes("'userName'")
+    );
+    expect(userNameDiagnostic).toBeDefined();
+    expect(userNameDiagnostic?.fix).toBeNull();
+  });
+
+  it('still emits additionalEdits when every reference is in flat, single scope', () => {
+    const source = '5 => $userName\n$userName -> log\n$userName -> .len\n';
+    const parsed = parse(source);
+
+    const result = runRules(parsed, source, createDefaultConfig(), [
+      namingSnakeCase,
+    ]);
+
+    const userNameDiagnostic = result.find((d) =>
+      d.message.includes("'userName'")
+    );
+    expect(userNameDiagnostic).toBeDefined();
+    const fix = userNameDiagnostic?.fix;
+    expect(fix).not.toBeNull();
+    expect(fix?.additionalEdits?.length).toBe(2);
   });
 });
 

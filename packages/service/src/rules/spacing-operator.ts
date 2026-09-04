@@ -15,6 +15,7 @@ import type { Diagnostic, Rule, RuleContext } from './types.js';
 import {
   extractContextLine,
   extractSpanText,
+  maskComments,
   maskStringLiterals,
 } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -33,7 +34,7 @@ function checkOperatorSpacing(
   span: SourceSpan,
   source: string
 ): boolean {
-  const text = maskStringLiterals(extractSpanText(span, source));
+  const text = maskComments(maskStringLiterals(extractSpanText(span, source)));
 
   let fromIndex = 0;
   let index = text.indexOf(operator, fromIndex);

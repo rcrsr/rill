@@ -26,6 +26,10 @@ export const closureBareDollar: Rule = {
       return [];
     }
 
+    if (context.facts.script.dictBoundClosures.has(closureNode)) {
+      return [];
+    }
+
     const hasBareReference =
       context.facts.bySubtree.get(closureNode.body)?.hasBareDollar === true;
 

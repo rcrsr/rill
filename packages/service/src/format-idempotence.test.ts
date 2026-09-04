@@ -22,6 +22,22 @@ import { formatDocument } from './format-document.js';
 describe('formatDocument idempotence over the full language corpus', () => {
   const snippets = loadCorpusSnippets();
 
+  it('formats a triple-quote string with trailing interior whitespace idempotently', () => {
+    const source = '"""\nindented line   \nmore text\n""" -> log\n1 => $x  \n';
+
+    const parsed = parseWithRecovery(source);
+    const firstEdits = formatDocument(parsed, source);
+    expect(firstEdits).toHaveLength(1);
+    const once = firstEdits[0]?.newText ?? '';
+
+    const reparsed = parseWithRecovery(once);
+    const secondEdits = formatDocument(reparsed, once);
+    expect(secondEdits).toHaveLength(1);
+    const twice = secondEdits[0]?.newText ?? '';
+
+    expect(twice).toBe(once);
+  });
+
   it('loads a non-empty corpus snippet set', () => {
     // Guards against a silently-empty glob making the idempotence check
     // below pass vacuously.

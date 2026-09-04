@@ -4,9 +4,11 @@
  * This is a conservative normalizer, not a full canonical pretty-printer:
  * well-formed regions have trailing per-line whitespace trimmed and CRLF
  * line endings normalized to LF; nothing else is rewritten (no re-spacing
- * of operators, no re-indentation). Malformed regions produced by parser
- * error recovery (`RecoveryErrorNode`, `PartialExpressionNode`) are spliced
- * back byte-for-byte from the original source and are never touched.
+ * of operators, no re-indentation). Verbatim regions — malformed spans
+ * produced by parser error recovery (`RecoveryErrorNode`,
+ * `PartialExpressionNode`) and string literal interiors (`StringLiteralNode`)
+ * — are spliced back byte-for-byte from the original source and are never
+ * touched.
  *
  * This scope keeps the two hard constraints trivially provable: applying
  * the normalization twice is a no-op (idempotence), and every byte of the
@@ -18,8 +20,12 @@ import { walkAst } from '@rcrsr/rill';
 import type { ASTNode, ParseResult } from '@rcrsr/rill';
 import type { Position, TextEdit } from './types.js';
 
-/** A byte-offset range identifying a malformed (unparseable) source region. */
-interface MalformedRegion {
+/**
+ * A byte-offset range identifying a source region that must be spliced back
+ * verbatim rather than normalized: a malformed (unparseable) region, or a
+ * string literal whose interior must be byte-preserved.
+ */
+interface VerbatimRegion {
   readonly startOffset: number;
   readonly endOffset: number;
 }
@@ -48,18 +54,19 @@ export function formatDocument(
 
 /**
  * Rebuilds `source` by normalizing well-formed regions and splicing
- * malformed regions back verbatim, in source order.
+ * verbatim regions (malformed spans and string literals) back byte-for-byte,
+ * in source order.
  */
 function renderFormattedSource(ast: ASTNode, source: string): string {
-  const malformedRegions = collectMalformedRegions(ast);
+  const verbatimRegions = collectVerbatimRegions(ast);
 
   let result = '';
   let cursor = 0;
-  for (const region of malformedRegions) {
-    // A gap immediately preceding a malformed region does not end at a real
-    // line boundary when it lacks a trailing `\n` (the malformed region
+  for (const region of verbatimRegions) {
+    // A gap immediately preceding a verbatim region does not end at a real
+    // line boundary when it lacks a trailing `\n` (the verbatim region
     // continues the same line). Trimming that gap's last "line" would strip
-    // inline separator whitespace and fuse the gap to the malformed region.
+    // inline separator whitespace and fuse the gap to the verbatim region.
     const gap = source.slice(cursor, region.startOffset);
     result += normalizeWhitespace(gap, gap.endsWith('\n'));
     result += source.slice(region.startOffset, region.endOffset);
@@ -71,22 +78,30 @@ function renderFormattedSource(ast: ASTNode, source: string): string {
 
 /**
  * Walks `ast` and returns the merged, non-overlapping spans of every
- * `RecoveryErrorNode` and `PartialExpressionNode`, sorted by source order.
- * A malformed node's typed children (if any) are never surfaced as
- * separate regions: the entire malformed node's span is treated as one
- * opaque, verbatim block.
+ * `RecoveryErrorNode`, `PartialExpressionNode`, and `StringLiteralNode`,
+ * sorted by source order. A verbatim node's typed children (if any) are
+ * never surfaced as separate regions: the entire node's span is treated
+ * as one opaque, verbatim block.
+ *
+ * `StringLiteralNode` spans are included so multi-line/triple-quote string
+ * interiors are never touched by trailing-whitespace trimming: a line break
+ * inside a string literal is data, not a source line boundary.
  *
  * Parser recovery can emit malformed nodes whose spans nest or partially
  * overlap (e.g. a `PartialExpressionNode` and the `RecoveryErrorNode` that
  * follows it sharing a boundary byte). Adjacent/overlapping regions are
- * merged into a single covering span so every malformed byte stays inside
+ * merged into a single covering span so every verbatim byte stays inside
  * exactly one verbatim block, rather than falling through to whitespace
  * normalization.
  */
-function collectMalformedRegions(ast: ASTNode): MalformedRegion[] {
-  const regions: MalformedRegion[] = [];
+function collectVerbatimRegions(ast: ASTNode): VerbatimRegion[] {
+  const regions: VerbatimRegion[] = [];
   walkAst(ast, (node) => {
-    if (node.type === 'RecoveryError' || node.type === 'PartialExpression') {
+    if (
+      node.type === 'RecoveryError' ||
+      node.type === 'PartialExpression' ||
+      node.type === 'StringLiteral'
+    ) {
       regions.push({
         startOffset: node.span.start.offset,
         endOffset: node.span.end.offset,
@@ -95,7 +110,7 @@ function collectMalformedRegions(ast: ASTNode): MalformedRegion[] {
   });
   regions.sort((a, b) => a.startOffset - b.startOffset);
 
-  const merged: MalformedRegion[] = [];
+  const merged: VerbatimRegion[] = [];
   for (const region of regions) {
     const last = merged[merged.length - 1];
     if (last !== undefined && region.startOffset <= last.endOffset) {

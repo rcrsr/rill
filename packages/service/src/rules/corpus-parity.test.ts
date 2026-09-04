@@ -25,7 +25,7 @@
  *   - INDENT_CONTINUATION firings carry the synthetic
  *     `{ column: 1, offset: 0 }` location and a trimmed continuation-line
  *     context, never routed through `extractContextLine`;
- *   - ATOM_UNREGISTERED only fires for atom names outside the 15-name
+ *   - ATOM_UNREGISTERED only fires for atom names outside the 35-name
  *     `BUILTIN_ATOMS` snapshot, and never for a name inside it.
  *
  * To regenerate the golden fixture after an intentional rule change, run:
@@ -137,7 +137,16 @@ describe('non-null-fix rules emit a well-formed DiagnosticFix', () => {
     'UNNECESSARY_ASSERTION',
   ]);
 
-  it('every NAMING_SNAKE_CASE / UNNECESSARY_ASSERTION corpus firing carries a complete fix', () => {
+  // NAMING_SNAKE_CASE may withhold its fix (fix: null) when a rename cannot be
+  // proven safe from the flat reference log — a reference to the captured name
+  // inside a nested closure/collection-op body could bind to a different
+  // declaration, so the rule keeps the diagnostic and drops the fix rather than
+  // rewrite a reference that may not belong to this capture. UNNECESSARY_ASSERTION
+  // has no such ambiguity and always carries a fix. Every fix that IS present, for
+  // either code, must be well-formed.
+  const WITHHOLDABLE_FIX_CODES = new Set(['NAMING_SNAKE_CASE']);
+
+  it('every present NAMING_SNAKE_CASE / UNNECESSARY_ASSERTION fix is well-formed, and withholds only where documented', () => {
     const golden = loadGolden();
     const fixFirings = golden
       .flatMap((entry) => entry.diagnostics)
@@ -145,10 +154,20 @@ describe('non-null-fix rules emit a well-formed DiagnosticFix', () => {
 
     expect(fixFirings.length).toBeGreaterThan(0);
 
+    // UNNECESSARY_ASSERTION never withholds; NAMING_SNAKE_CASE keeps at least one
+    // fix so a regression that silently drops every rename fix is still caught.
+    for (const code of NON_NULL_FIX_CODES) {
+      const withFix = fixFirings.filter(
+        (d) => d.code === code && d.fix !== null
+      );
+      expect(withFix.length).toBeGreaterThan(0);
+    }
     for (const diagnostic of fixFirings) {
-      expect(diagnostic.fix).not.toBeNull();
+      if (!WITHHOLDABLE_FIX_CODES.has(diagnostic.code)) {
+        expect(diagnostic.fix).not.toBeNull();
+      }
       const fix = diagnostic.fix;
-      if (fix === null) continue; // narrowed above; satisfies noUncheckedIndexedAccess-style checks
+      if (fix === null) continue; // documented withhold path, or narrowing for the checks below
       expect(typeof fix.description).toBe('string');
       expect(fix.description.length).toBeGreaterThan(0);
       expect(fix.applicable).toBe(true);
