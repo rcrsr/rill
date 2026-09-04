@@ -245,5 +245,15 @@ describe('Rill Language: sort primitive', () => {
         expect.objectContaining({ errorId: 'RILL-R002' })
       );
     });
+
+    it('ordered input to seq halts with RILL-R002 instead of iterating as a dict', async () => {
+      // [SPEC] ordered values are plain objects but not dict-iterable; the
+      // isOrdered guard in getIterableElements halts before the generic
+      // dict path would silently mis-iterate them (same pattern as the
+      // datetime guard assertion above).
+      await expect(run('ordered[a: 1] -> seq({ $ })')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R002' })
+      );
+    });
   });
 });

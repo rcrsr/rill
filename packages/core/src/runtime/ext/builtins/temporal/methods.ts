@@ -200,7 +200,10 @@ export const mDtAdd: RillMethod = (receiver, args, _ctx, location) => {
   // Then apply milliseconds
   resultMs += d.ms;
 
-  if (Number.isNaN(resultMs)) {
+  // JS Date only represents timestamps within ±8,640,000,000,000,000ms
+  // (±100,000,000 days) of the epoch. Arithmetic can stay finite yet land
+  // outside that range, which later formats as Invalid Date / NaN fields.
+  if (!Number.isFinite(resultMs) || Math.abs(resultMs) > 8640000000000000) {
     throwTypeHalt(
       { location, fn: 'datetime' },
       'INVALID_INPUT',
