@@ -44,6 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`RillError` category and message fixes:** RILL-R078 through RILL-R081 now report `category: 'runtime'` on the public `RillError` instead of `'parse'`, matching where the errors are actually raised. Consumers will see a behavior change: code checking `category === 'parse'` for these four IDs must check `'runtime'` instead. `RillError` gains a public `rawMessage` field holding the message as constructed, before the " at {line}:{column}" location suffix is appended; `toData().message` now returns `rawMessage` instead of the truncated, location-suffixed `Error.message`. ([#247](https://github.com/rcrsr/rill/pull/247))
 - **Stdlib correctness:** Fixed 12 defects in string, datetime, error, and parser. ([#332](https://github.com/rcrsr/rill/pull/332))
 - **Fiddle and docs correctness:** Ctrl/Cmd+Enter executes scripts, Web Worker timeout prevents runaway hangs, output panel fixed, atom literal documentation corrected. Syntax highlighter now disambiguates atom literals (`#TODO`) from line comments and tracks interpolation depth while skipping string content, so an unmatched `{` or `}` inside a string no longer misdetects the string's end. ([#335](https://github.com/rcrsr/rill/pull/335))
+- **Parser and runtime error-halting:** Eight defects in parser, runtime, types, and stdlib that previously crashed or silently misparsed now halt with registered error IDs. ([#397](https://github.com/rcrsr/rill/pull/397))
 
 ## 0.20.0 - 2026-07-30
 
