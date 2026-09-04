@@ -958,6 +958,11 @@ const ELLIPSIS_LINE_RE = /^[ \t]*#[ \t]+\.\.\./;
 // a comment (preceded by line-start or whitespace), not a literal "# Error:"
 // occurring inside a quoted string on an otherwise-executable line.
 const ERROR_MARKER_LINE_RE = /(^|\s)# (Error|ERROR|error):/;
+// A rill error code, e.g. `RILL-R010` or `RILL_P007`. When a `# Error:`
+// marker's text carries one, testBlock additionally asserts the caught
+// error message contains it — a cheap strengthening on top of the baseline
+// halt-only assertion, since marker prose otherwise varies across docs.
+const ERROR_CODE_TOKEN_RE = /RILL[-_][RPLC]\d+/;
 
 // True if the line's `# Error:`-style marker sits inside an unclosed string
 // literal rather than starting a real comment, e.g. `"see # Error: docs"`.
@@ -969,15 +974,18 @@ function markerInsideStringLiteral(line: string): boolean {
   return quoteCount % 2 === 1;
 }
 
-function isMarkerLine(line: string): boolean {
-  if (ELLIPSIS_LINE_RE.test(line)) return true;
-  return ERROR_MARKER_LINE_RE.test(line) && !markerInsideStringLiteral(line);
-}
-
-// Strip a contiguous run of marker lines (ellipsis continuations or expected-error
-// demonstrations) from the trailing edge of the block, walking backward past blank
-// lines. Only trailing markers are exempt from execution — a marker line followed by
-// further executable code is left untouched, and only that trailing line is skipped.
+// Strip a contiguous run of ellipsis continuation lines (`# ...`) from the
+// trailing edge of the block, walking backward past blank lines. These are
+// pure narrative markers with no rill semantics, so they cannot be left in
+// the code the way `# Error:` markers can. Only trailing ellipsis lines are
+// exempt from execution — one followed by further executable code is left
+// untouched, and only that trailing line is skipped.
+//
+// `# Error:`-style markers are NOT stripped here. The rill lexer already
+// treats `#` as a comment-to-end-of-line, so a block containing one parses
+// and runs natively whether the marker sits inline after real code or on
+// its own line — stripping it would throw away the halt the marker exists
+// to document. See `blockExpectsHalt` for how those markers are handled.
 function stripTrailingMarkerLines(code: string): {
   executable: string;
   trimmed: boolean;
@@ -989,7 +997,7 @@ function stripTrailingMarkerLines(code: string): {
   for (let i = lines.length - 1; i >= 0; i--) {
     const line = lines[i]!;
     if (line.trim() === '') continue;
-    if (isMarkerLine(line)) {
+    if (ELLIPSIS_LINE_RE.test(line)) {
       end = i;
       trimmed = true;
       continue;
@@ -998,6 +1006,34 @@ function stripTrailingMarkerLines(code: string): {
   }
 
   return { executable: lines.slice(0, end).join('\n'), trimmed };
+}
+
+// True if any line of the (ellipsis-stripped) code carries a genuine
+// `# Error:`-style marker — i.e. execution of this block is documented to
+// halt. Used to flip the pass/fail polarity in testBlock: a thrown error is
+// the expected outcome, and completing without one is the failure.
+function blockExpectsHalt(code: string): boolean {
+  return code
+    .split('\n')
+    .some(
+      (line) =>
+        ERROR_MARKER_LINE_RE.test(line) && !markerInsideStringLiteral(line)
+    );
+}
+
+// Pull a strict `RILL-[RPLC]NNN` / `RILL_[RPLC]NNN` error code out of a
+// block's `# Error:` marker text, if the marker names one. Baseline halt
+// assertion doesn't need this — it's an optional, cheap strengthening for
+// the common case where the marker already documents the exact code.
+function expectedErrorCodeToken(code: string): string | null {
+  for (const line of code.split('\n')) {
+    if (!ERROR_MARKER_LINE_RE.test(line) || markerInsideStringLiteral(line)) {
+      continue;
+    }
+    const match = ERROR_CODE_TOKEN_RE.exec(line);
+    if (match) return match[0];
+  }
+  return null;
 }
 
 // Check if block should be skipped (pseudo-code, syntax demos)
@@ -1024,36 +1060,47 @@ function shouldSkipBlock(code: string): string | null {
   return null;
 }
 
-// Determine what to run for a block: strip a trailing run of marker lines (ellipsis
-// continuations or expected-error demonstrations) and only skip the whole block when
-// nothing executable remains once those trailing lines are removed.
+// Determine what to run for a block: strip a trailing run of ellipsis
+// continuation lines and only skip the whole block when nothing executable
+// remains once those trailing lines are removed. `# Error:` markers are
+// never stripped and never cause a skip — they flip `expectHalt` instead, so
+// testBlock runs the code and asserts it halts rather than exempting it.
 function analyzeBlock(code: string): {
   skipReason: string | null;
   executableCode: string;
+  expectHalt: boolean;
 } {
   const wholeBlockReason = shouldSkipBlock(code);
   if (wholeBlockReason) {
-    return { skipReason: wholeBlockReason, executableCode: code };
+    return {
+      skipReason: wholeBlockReason,
+      executableCode: code,
+      expectHalt: false,
+    };
   }
 
   const { executable, trimmed } = stripTrailingMarkerLines(code);
   if (!trimmed) {
-    return { skipReason: null, executableCode: code };
+    return {
+      skipReason: null,
+      executableCode: code,
+      expectHalt: blockExpectsHalt(code),
+    };
   }
 
   if (executable.trim() === '') {
-    const reason = code
-      .split('\n')
-      .some(
-        (line) =>
-          ERROR_MARKER_LINE_RE.test(line) && !markerInsideStringLiteral(line)
-      )
-      ? 'expected error example'
-      : 'contains ellipsis placeholder';
-    return { skipReason: reason, executableCode: code };
+    return {
+      skipReason: 'contains ellipsis placeholder',
+      executableCode: code,
+      expectHalt: false,
+    };
   }
 
-  return { skipReason: null, executableCode: executable };
+  return {
+    skipReason: null,
+    executableCode: executable,
+    expectHalt: blockExpectsHalt(executable),
+  };
 }
 
 // Common mock variables for examples - only input variables, not ones typically assigned
@@ -1153,10 +1200,12 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
   // Process frontmatter first
   const { code, variables: frontmatterVars } = processFrontmatter(block.code);
 
-  // Check for skip conditions on the processed code. A trailing run of marker
-  // lines (ellipsis continuations, expected-error demonstrations) is exempt from
-  // execution, but any executable lines ahead of it still run.
-  const { skipReason, executableCode } = analyzeBlock(code);
+  // Check for skip conditions on the processed code. A trailing run of
+  // ellipsis continuation lines is exempt from execution, but any executable
+  // lines ahead of it still run. `# Error:` markers are never stripped and
+  // never skip — they flip expectHalt below, so the block still runs and is
+  // asserted to halt.
+  const { skipReason, executableCode, expectHalt } = analyzeBlock(code);
   if (skipReason) {
     return { block, success: true, skipped: true, skipReason };
   }
@@ -1210,11 +1259,37 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
         errorColumn: undefined,
       };
     }
+    if (expectHalt) {
+      return {
+        block,
+        success: false,
+        error:
+          'Expected execution to halt (block carries a `# Error:` marker), but the block completed',
+        errorColumn: undefined,
+      };
+    }
     return { block, success: true };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     const errorColumn =
       err instanceof RillError ? err.location?.column : undefined;
+
+    if (expectHalt) {
+      // Baseline assertion is halt-only — marker text is inconsistent across
+      // docs, so we don't require it to match. When the marker does carry a
+      // strict rill error code, assert the caught message contains it as a
+      // cheap strengthening.
+      const expectedToken = expectedErrorCodeToken(executableCode);
+      if (expectedToken && !errorMessage.includes(expectedToken)) {
+        return {
+          block,
+          success: false,
+          error: `Expected halt to mention ${expectedToken}, but got: ${errorMessage}`,
+          errorColumn,
+        };
+      }
+      return { block, success: true };
+    }
 
     // Track unknown functions
     const unknownMatch = errorMessage.match(

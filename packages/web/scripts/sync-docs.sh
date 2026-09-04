@@ -112,6 +112,7 @@ declare -A LINK_MAP=(
   ["ref-config-api.md"]="/docs/reference/config-api/"
   ["ref-grammar.ebnf"]="/ref-grammar.ebnf"
   ["index.md"]="/docs/"
+  ["../CHANGELOG.md"]="https://github.com/rcrsr/rill/blob/main/CHANGELOG.md"
 )
 
 echo "Syncing docs from $DOCS_DIR to $CONTENT_DIR"

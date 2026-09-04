@@ -12,6 +12,15 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+### Added
+
+- **`STD-REL-8`: every published package's manifest declares `repository`, so provenance has a source to bind to.** Renumbered off the check that previously double-claimed `STD-REL-3` alongside the canonical publishes-with-provenance element, which meant only one of the two `check-standards.sh` calls for that ID was ever visible in a run's output. `STD-REL-3` continues to mean "publishes with provenance"; the repository-declaration check now reports under its own ID. A `packages/dev/REPO-STANDARDS.md` row documents it, N/A under the same "repository publishes nothing" condition as the rest of §7. `STD-REL-8` also now reports `--` (skip), never `ok`, when a repository has zero publishable manifests — the loop that decides it previously never ran its body in that case, so "nothing to check" and "checked, nothing failed" read identically as a vacuous `ok`.
+
+### Fixed
+
+- **`STD-HOOK-4` now checks the `pre-push` block's contents, not just the key's presence.** A `lefthook.yml` carrying an empty or partial `pre-push:` block (for example, a typecheck step with no test step) previously passed on the key alone. The check now slices the block from `pre-push:` to the next top-level key and requires both a typecheck and a test invocation inside it, naming whichever is missing in the failure detail.
+- **`STD-CI-4`, `STD-REL-1`, `STD-REL-3`, `STD-REL-4`, `STD-REL-5`, `STD-REL-6`, and `STD-REL-7` no longer match their token inside a `#` comment.** Each ran a raw `grep -q` over the workflow file, so a removed step or a stale example left behind in a comment (`# frozen-lockfile`, `# EPUBLISHCONFLICT`) read as the real thing and reported `ok` for a workflow that no longer does what the comment describes. All seven now route through a new shared `grep_noncomment` helper that joins backslash continuations and drops full comment lines before matching, the same shape already used for the `STD-PROC-7` label-sync read.
+
 ## 0.2.4 - 2026-08-27
 
 ### Added

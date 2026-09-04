@@ -84,13 +84,13 @@ Errors halt execution. No try/catch, no error recovery stack. Validate before ac
 
 ```text
 # Guard early
-$input -> .empty ? error("Input required")
+$input -> .empty ? error "Input required"
 
 # Assert constraints
 $data -> assert :?list "Expected list"
 
 # Check patterns in results
-$response -> .contains("ERROR") ? error("Failed: {$response}")
+$response -> .contains("ERROR") ? error "Failed: {$response}"
 ```
 
 **Mainstream habit to break:** Wrapping operations in try/catch. In rill, validate inputs and check outputs with conditionals.
@@ -244,7 +244,7 @@ $str -> .empty ? "no" ! "yes"
 | `x = value` | `value => $x` or `value -> transform` |
 | `null` / `undefined` | `??` default, `.?` existence check |
 | Truthiness (`if ""`) | `.empty`, `== 0`, `:?type` |
-| `try { } catch { }` | `assert`, conditionals, `error()` |
+| `try { } catch { }` | `assert`, conditionals, `error` |
 | `for (i = 0; ...)` | `seq`, `fan`, `filter`, `fold`, `acc` |
 | `count += 1` in loop | `fold(0) { $@ + 1 }` or `$` accumulator |
 | `a === b` (reference) | `==` always compares by value |
