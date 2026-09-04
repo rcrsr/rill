@@ -168,16 +168,16 @@ has_script() { node -e "process.exit(((require('./package.json').scripts)||{})['
 # STD-SCRIPT reachability check runs: join backslash continuations with sed,
 # then drop lines that are comments once joined.
 grep_noncomment() {
-  local flag=""
+  local flags=()
   if [ "$1" = "-i" ]; then
-    flag="-i"
+    flags=(-i)
     shift
   fi
   local pattern="$1"
   shift
   sed -e :a -e '/\\$/N; s/\\\n//; ta' "$@" 2>/dev/null |
     grep -v '^[[:space:]]*#' |
-    grep -q $flag -- "$pattern"
+    grep -q ${flags[@]+"${flags[@]}"} -- "$pattern"
 }
 
 # has_ts <dir> — does the directory hold TypeScript of its own? Read find to
@@ -1201,11 +1201,19 @@ else
   # already owns. Two elements sharing one ID meant only the second `ok`/`bad`
   # call for that ID survived in a reader's mental model of the run.
   NOREPO=""
+  BADJSON=""
   PUB_COUNT=0
   for f in "${MANIFESTS[@]}"; do
     [ "$WORKSPACE" -eq 1 ] && [ "$f" = package.json ] && continue
+    # A malformed manifest throws inside JSON.parse and Node exits 1 by
+    # default on an uncaught exception -- indistinguishable from the explicit
+    # "no repository field" exit(1) below. Catch the parse and exit 3 so a
+    # broken manifest is reported separately, mirroring HAVE_RULES's
+    # PARSE_ERROR sentinel above.
     node -e 'const fs = require("fs");
-      const p = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      let p;
+      try { p = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); }
+      catch (e) { process.exit(3); }
       if (p.private) process.exit(0);
       process.exit(p.repository ? 2 : 1)' "$f" 2>/dev/null
     rc=$?
@@ -1214,6 +1222,9 @@ else
     elif [ "$rc" -eq 1 ]; then
       PUB_COUNT=$((PUB_COUNT + 1))
       NOREPO="$NOREPO$f "
+    elif [ "$rc" -eq 3 ]; then
+      PUB_COUNT=$((PUB_COUNT + 1))
+      BADJSON="$BADJSON$f "
     fi
   done
   # An empty MANIFESTS-minus-private set never enters the branch that sets
@@ -1221,6 +1232,9 @@ else
   # the loop reported a vacuous ok. PUB_COUNT distinguishes them.
   if [ "$PUB_COUNT" -eq 0 ]; then
     skip "STD-REL-8" "published packages declare repository" "no publishable packages"
+  elif [ -n "$BADJSON" ]; then
+    bad "STD-REL-8" "published packages declare repository" \
+      "could not parse as JSON: $BADJSON"
   elif [ -z "$NOREPO" ]; then
     ok "STD-REL-8" "published packages declare repository"
   else
@@ -1565,10 +1579,14 @@ if [ -f lefthook.yml ]; then
   if [ -z "$PREPUSH_BLOCK" ]; then
     bad "STD-HOOK-4" "pre-push runs typecheck and tests" "no pre-push block"
   else
+    # Strip full-line comments before testing for the invocations, same as
+    # grep_noncomment above: a stray comment naming `typecheck` or `test`
+    # (e.g. a removed step) must not read as a real invocation.
+    PREPUSH_NONCOMMENT="$(printf '%s\n' "$PREPUSH_BLOCK" | grep -v '^[[:space:]]*#')"
     HAS_TC=0
     HAS_TEST=0
-    printf '%s\n' "$PREPUSH_BLOCK" | grep -q 'typecheck' && HAS_TC=1
-    printf '%s\n' "$PREPUSH_BLOCK" | grep -Eq '(^|[^a-zA-Z])test([^a-zA-Z]|$)' && HAS_TEST=1
+    printf '%s\n' "$PREPUSH_NONCOMMENT" | grep -q 'typecheck' && HAS_TC=1
+    printf '%s\n' "$PREPUSH_NONCOMMENT" | grep -Eq '(^|[^a-zA-Z])tests?([^a-zA-Z]|$)' && HAS_TEST=1
     if [ "$HAS_TC" -eq 1 ] && [ "$HAS_TEST" -eq 1 ]; then
       ok "STD-HOOK-4" "pre-push runs typecheck and tests"
     elif [ "$HAS_TC" -eq 0 ] && [ "$HAS_TEST" -eq 0 ]; then

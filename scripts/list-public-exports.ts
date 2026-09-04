@@ -44,8 +44,7 @@ function loadProject(api: API): Project {
   const snapshot = api.updateSnapshot({ openProjects: [configPath] });
   const project = snapshot.getProject(configPath);
   if (!project) {
-    console.error(`Cannot load project for ${configPath}`);
-    process.exit(1);
+    throw new Error(`Cannot load project for ${configPath}`);
   }
   return project;
 }
@@ -104,13 +103,11 @@ function main(): void {
     const checker = project.checker;
     const entryFile = project.program.getSourceFile(ENTRY);
     if (!entryFile) {
-      console.error(`Cannot load ${ENTRY}`);
-      process.exit(1);
+      throw new Error(`Cannot load ${ENTRY}`);
     }
     const moduleSymbol = checker.getSymbolAtLocation(entryFile);
     if (!moduleSymbol) {
-      console.error('No module symbol for entry file');
-      process.exit(1);
+      throw new Error('No module symbol for entry file');
     }
 
     const exports = checker.getExportsOfModule(moduleSymbol);
