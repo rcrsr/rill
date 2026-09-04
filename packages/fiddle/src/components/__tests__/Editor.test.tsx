@@ -77,7 +77,10 @@ describe('Editor', () => {
 
   describe('keyboard shortcuts', () => {
     it('triggers onRun when Cmd+Enter is pressed', async () => {
-      const { container } = render(<Editor {...defaultProps} />);
+      const inputValue = "log('hello')";
+      const { container } = render(
+        <Editor {...defaultProps} value={inputValue} />
+      );
 
       // Find CodeMirror editor instance
       const cmEditor = container.querySelector('.cm-content');
@@ -99,10 +102,27 @@ describe('Editor', () => {
 
       // Note: Due to CodeMirror's event handling, we may need integration tests
       // for full keyboard shortcut verification
+      //
+      // The doc-unchanged assertion below verifies Mod-Enter did not fall
+      // through to defaultKeymap's insertBlankLine. jsdom resolves "Mod" as
+      // metaKey on this test platform, so under the pre-fix trailing
+      // keymap.of([{key: 'Mod-Enter', ...}]) the Mod-Enter binding still won
+      // in this specific (meta) case and this assertion passed even before
+      // the fix. See the Ctrl+Enter case below, where jsdom's Mod resolution
+      // does NOT match ctrlKey and the equivalent assertion does fail
+      // pre-fix (confirmed by temporarily reverting Editor.tsx), which is
+      // the in-harness red-green confirmation for this pair of tests. Manual
+      // verification in a real browser remains the authoritative check for
+      // keymap precedence on the platform's actual Mod key.
+      const view = EditorView.findFromDOM(cmEditor as HTMLElement);
+      expect(view?.state.doc.toString()).toBe(inputValue);
     });
 
     it('triggers onRun when Ctrl+Enter is pressed', async () => {
-      const { container } = render(<Editor {...defaultProps} />);
+      const inputValue = "log('hello')";
+      const { container } = render(
+        <Editor {...defaultProps} value={inputValue} />
+      );
 
       const cmEditor = container.querySelector('.cm-content');
       expect(cmEditor).toBeDefined();
@@ -119,6 +139,15 @@ describe('Editor', () => {
           await new Promise((resolve) => setTimeout(resolve, 0));
         });
       }
+
+      // This assertion was confirmed to fail against the pre-fix Editor.tsx
+      // (trailing keymap.of([{key: 'Mod-Enter', ...}]) after defaultKeymap):
+      // jsdom's Mod resolution does not match ctrlKey here, so Ctrl-Enter
+      // fell through to defaultKeymap's insertBlankLine and inserted a
+      // newline before this assertion was added. See the Cmd+Enter case
+      // above for why that variant does not fail pre-fix in this harness.
+      const view = EditorView.findFromDOM(cmEditor as HTMLElement);
+      expect(view?.state.doc.toString()).toBe(inputValue);
     });
   });
 

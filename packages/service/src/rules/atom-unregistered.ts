@@ -10,14 +10,13 @@ import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 /**
- * Atoms pre-registered by the runtime. This is a fixed snapshot copied from
- * the runtime atom registry, not derived from it live. Names are stored
- * without the leading '#'.
+ * Atoms pre-registered by the runtime. This is a fixed 35-name snapshot
+ * copied by hand from the runtime atom registry, not derived from it live.
+ * Names are stored without the leading '#'.
  */
 const BUILTIN_ATOMS: ReadonlySet<string> = new Set([
   'ok',
   'R001',
-  'R999',
   'TIMEOUT',
   'AUTH',
   'FORBIDDEN',
@@ -29,7 +28,28 @@ const BUILTIN_ATOMS: ReadonlySet<string> = new Set([
   'INVALID_INPUT',
   'PROTOCOL',
   'DISPOSED',
+  'IGNORE',
+  'R999',
   'TYPE_MISMATCH',
+  'RILL_R016',
+  'RILL_R002',
+  'RILL_R003',
+  'RILL_R010',
+  'RILL_R036',
+  'RILL_R037',
+  'RILL_R038',
+  'RILL_R040',
+  'RILL_R041',
+  'RILL_R042',
+  'RILL_R044',
+  'RILL_R054',
+  'RILL_R055',
+  'RILL_R056',
+  'RILL_R057',
+  'RILL_R058',
+  'RILL_R061',
+  'RILL_R082',
+  'RILL_R083',
 ]);
 
 export const atomUnregistered: Rule = {

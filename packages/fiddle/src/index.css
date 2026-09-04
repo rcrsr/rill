@@ -648,6 +648,98 @@ body {
   opacity: 0.8;
 }
 
+.output-error-status-code {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--neon-red);
+  margin-bottom: var(--space-sm);
+}
+
+.output-error-status-message {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-sm);
+  line-height: 1.6;
+}
+
+.output-error-status-provider {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-bottom: var(--space-sm);
+}
+
+.output-error-status-trace {
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--void-raised);
+  border-radius: 6px;
+  border: 1px solid var(--void-border);
+}
+
+.output-error-status-trace-label {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-bottom: var(--space-xs);
+}
+
+.output-error-status-trace-frame {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.output-error-status-trace-kind {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--neon-red);
+}
+
+.output-error-status-trace-fn {
+  color: var(--neon-purple);
+}
+
+.output-error-status-trace-site {
+  color: var(--text-dim);
+}
+
+/* Live notice banners */
+.copy-link-notice,
+.decode-notice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--neon-red);
+  background: rgba(var(--neon-red-rgb), 0.08);
+  border-bottom: 1px solid rgba(var(--neon-red-rgb), 0.2);
+}
+
+.decode-notice-dismiss {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--void-border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.decode-notice-dismiss:hover {
+  color: var(--text-primary);
+  border-color: var(--neon-cyan);
+}
+
 /* ============================================================
  * REDUCED MOTION
  * ============================================================ */

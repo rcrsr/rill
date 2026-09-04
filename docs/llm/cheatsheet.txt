@@ -67,7 +67,11 @@ All copies are deep. All comparisons are by value. No object identity.
     Lists:        list[1, 2, 3]
                   list[...$xs, 4]       # spread
     Dicts:        dict[name: "alice", age: 30]
-                  dict[$keyVar: value]  # variable key
+                  dict[1: "one", 2: "two"]  # number keys (incl. negative: dict[-1: "neg"])
+                  dict[true: "yes", false: "no"]  # boolean keys
+                  dict[list["a", "b"]: 1]  # multi-key: dict[a: 1, b: 1]
+                  dict[$keyVar: value]  # variable key (must eval to string)
+                  dict[("{$a}{$b}"): value]  # computed key (must eval to string)
     Tuples:       tuple[1, 2, 3]
     Ordered:      ordered[a: 1, b: 2]   # named-arg unpacking
     Closures:     |x| ($x + 1)          # explicit

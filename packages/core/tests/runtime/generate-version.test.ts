@@ -64,6 +64,16 @@ describe('Version Generation', () => {
       const testScriptPath = path.join(scriptsDir, 'generate-version.ts');
       await fs.writeFile(testScriptPath, scriptContent, 'utf-8');
 
+      const helperContent = await fs.readFile(
+        path.join(__dirname, '../../scripts/resolve-project-root.ts'),
+        'utf-8'
+      );
+      await fs.writeFile(
+        path.join(scriptsDir, 'resolve-project-root.ts'),
+        helperContent,
+        'utf-8'
+      );
+
       const tsxPath = path.join(__dirname, '../../../../node_modules/.bin/tsx');
       return new Promise((resolve) => {
         const proc = spawn(tsxPath, [testScriptPath], {

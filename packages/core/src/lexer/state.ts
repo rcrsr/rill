@@ -25,6 +25,13 @@ export interface LexerState {
    * `$@`, which the type alone cannot tell apart.
    */
   prevTokenValue: string | undefined;
+  /**
+   * True once the first non-whitespace character has been consumed. Used to
+   * detect frontmatter delimiters at actual file start while tolerating
+   * leading blank lines, without re-scanning consumed source on every `---`
+   * match (see tokenizer.ts).
+   */
+  sawNonWhitespace: boolean;
 }
 
 export function createLexerState(
@@ -40,6 +47,7 @@ export function createLexerState(
     inFrontmatter: false,
     prevTokenType: undefined,
     prevTokenValue: undefined,
+    sawNonWhitespace: false,
   };
 }
 
@@ -67,6 +75,15 @@ export function advance(state: LexerState): string {
     state.column = 1;
   } else {
     state.column++;
+    if (
+      !state.sawNonWhitespace &&
+      ch !== '' &&
+      ch !== ' ' &&
+      ch !== '\t' &&
+      ch !== '\r'
+    ) {
+      state.sawNonWhitespace = true;
+    }
   }
   return ch;
 }

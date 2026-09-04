@@ -252,24 +252,35 @@ async function evaluateArgs(
   const savedPipeValue = s.ctx.pipeValue;
   const args: RillValue[] = [];
   const sourceId = s.ctx.sourceId;
-  for (const arg of argExprs) {
-    const isSpread = arg.type === 'SpreadArg';
-    const expr = isSpread ? arg.expression : arg;
-    const evaluated = await evaluateExpression(s, expr);
-    let gated: RillValue;
-    if (
-      evaluated !== null &&
-      typeof evaluated === 'object' &&
-      (evaluated as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !== undefined
-    ) {
-      gated = haltSlowPath(evaluated, isSpread ? '...' : 'arg', expr, sourceId);
-    } else {
-      gated = evaluated;
+  try {
+    for (const arg of argExprs) {
+      const isSpread = arg.type === 'SpreadArg';
+      const expr = isSpread ? arg.expression : arg;
+      const evaluated = await evaluateExpression(s, expr);
+      let gated: RillValue;
+      if (
+        evaluated !== null &&
+        typeof evaluated === 'object' &&
+        (evaluated as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !== undefined
+      ) {
+        gated = haltSlowPath(
+          evaluated,
+          isSpread ? '...' : 'arg',
+          expr,
+          sourceId
+        );
+      } else {
+        gated = evaluated;
+      }
+      args.push(gated);
     }
-    args.push(gated);
+    return args;
+  } finally {
+    // Restore pipeValue on every exit path. When an argument expression
+    // throws (e.g. a nested pipe chain halts before a surrounding `??`),
+    // the intermediate value must not be left leaked in ctx.pipeValue.
+    s.ctx.pipeValue = savedPipeValue;
   }
-  s.ctx.pipeValue = savedPipeValue;
-  return args;
 }
 
 /** Dispatch by kind, without frame enrichment. */
@@ -419,8 +430,18 @@ async function invokeFnCallable(
     return s.ctx.createDisposedResult();
   }
 
+  // Inject the bound dict as the sole receiver argument only for
+  // property/receiver-style callables (`isProperty`). Every callable stored
+  // in a dict gets a `boundDict` (bindDictCallables in types/runtime.ts), but
+  // a plain zero-param application callable must still be called with zero
+  // args — otherwise `$d.fn()` on a `params: []` callable would pass 1 arg
+  // (RILL-R045) and a defaults-only callable would take the dict as its first
+  // param (RILL-R001). The `isProperty` flag is the receiver contract locked
+  // by tests/runtime/host-integration.test.ts.
   const effectiveArgs =
-    callable.boundDict && args.length === 0 ? [callable.boundDict] : args;
+    callable.boundDict && callable.isProperty && args.length === 0
+      ? [callable.boundDict]
+      : args;
 
   let fnArgs: Record<string, RillValue>;
   if (isApplicationCallable(callable) && callable.params !== undefined) {
@@ -694,8 +715,24 @@ async function invokeStream(
       )
         break;
       current = next as unknown as RillStream;
-    } catch {
-      break;
+    } catch (err) {
+      // The one designated clean-end signal: `createRillStream`'s `next`
+      // marks its context `{ alreadyConsumed: true }` when this exact
+      // reference (or a stale prior step of it) was already driven to
+      // completion by an earlier call - e.g. invoking `$s()` a second time,
+      // or invoking it after `take`/`skip` already advanced the same
+      // binding. That is idempotent, not a failure: fall through to
+      // resolveFn() below. Every other throw - halts, control-flow signals
+      // (break/return/yield), and ordinary JS errors from a buggy `.next`
+      // callable (e.g. an extension bug) - is a genuine failure and
+      // propagates rather than being swallowed as a silent stream end.
+      if (
+        err instanceof RillError &&
+        err.context?.['alreadyConsumed'] === true
+      ) {
+        break;
+      }
+      throw err;
     }
   }
   return resolveFn();

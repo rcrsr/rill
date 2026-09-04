@@ -18,6 +18,7 @@ import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
 import { MAX_ITER, makeGenericIterator } from '../shared.js';
+import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
 export const CORE_FUNCTIONS: Record<string, RillFunction> = {
@@ -116,10 +117,19 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       }
       if (isDict(input)) {
         const keys = Object.keys(input).sort();
-        return keys.map((key, index) => ({
-          index,
-          key,
+        const stringEntries = keys.map((key) => ({
+          key: key as RillValue,
           value: input[key]!,
+        }));
+        // Number/boolean keys follow the sorted string keys, in insertion order.
+        const typedEntries = typedKeyEntries(input).map((e) => ({
+          key: e.key as RillValue,
+          value: e.value,
+        }));
+        return [...stringEntries, ...typedEntries].map((e, index) => ({
+          index,
+          key: e.key,
+          value: e.value,
         }));
       }
       return [];
@@ -165,14 +175,17 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      return makeGenericIterator(start as RillValue, (current) => {
-        const c = current as number;
-        const done = step > 0 ? c >= end : step < 0 ? c <= end : true;
+      // Carry an integer step index rather than the accumulated float value:
+      // start + i * step avoids compounding floating-point drift across steps.
+      return makeGenericIterator(0 as RillValue, (current) => {
+        const i = current as number;
+        const c = start + i * step;
+        const done = step > 0 ? c >= end : c <= end;
         if (done) return { done: true };
         return {
           done: false,
           value: c as RillValue,
-          next: (c + step) as RillValue,
+          next: (i + 1) as RillValue,
         };
       });
     },

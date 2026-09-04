@@ -64,7 +64,7 @@ jobs:
           # download would run arbitrary code in the job that holds
           # NPM_TOKEN and id-token: write.
           set -euo pipefail
-          HUGO_VERSION="0.152.2"
+          HUGO_VERSION="0.155.3"
           ASSET="hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz"
           BASE_URL="https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}"
           curl -fsSL -o "$ASSET" "${BASE_URL}/${ASSET}"

@@ -242,10 +242,11 @@ describe('createTestContext', () => {
   });
 
   describe('EC-10: binding generation failure propagates ExtensionBindingError', () => {
-    it('throws ExtensionBindingError when binding generation fails', () => {
-      // callable() creates untyped callables with params=undefined.
-      // The binding generator calls c.params.map() which throws on undefined.
-      // This triggers the catch block that wraps errors in ExtensionBindingError.
+    it('binds an untyped callable() value without throwing (bug #279)', () => {
+      // callable() creates untyped callables with params=undefined. The binding
+      // generator previously dereferenced c.params.map() and threw a raw
+      // TypeError, wrapped as ExtensionBindingError. Untyped callables now bind
+      // gracefully as an untyped ext resource instead of failing.
       const untypedCallable = callable(() => null);
 
       expect(() =>
@@ -254,7 +255,7 @@ describe('createTestContext', () => {
             value: untypedCallable as RillValue,
           },
         })
-      ).toThrow(ExtensionBindingError);
+      ).not.toThrow();
     });
 
     it('has the correct code property', () => {

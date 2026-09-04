@@ -34,6 +34,36 @@ export function maxDayInMonth(year: number, month: number): number {
   return DAYS_IN_MONTH[month]!;
 }
 
+/**
+ * Build a unix ms timestamp from calendar components using setUTCFullYear,
+ * which avoids Date.UTC's legacy two-digit-year rule (years 0-99 mapped to
+ * 1900-1999). Halts with #INVALID_INPUT if the resulting timestamp is NaN.
+ */
+export function componentsToUnix(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  ms: number,
+  location?: SourceLocation
+): number {
+  const d = new Date(0);
+  d.setUTCFullYear(year, month - 1, day);
+  d.setUTCHours(hour, minute, second, ms);
+  const unix = d.getTime();
+  if (Number.isNaN(unix)) {
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
+      `Invalid datetime components: year=${year}, month=${month}, day=${day}`,
+      'runtime'
+    );
+  }
+  return unix;
+}
+
 function validateComponent(
   name: string,
   value: number,
@@ -139,7 +169,23 @@ export function constructDatetime(
         'runtime'
       );
     }
-    const ms = Date.parse(input);
+    // Validate the calendar portion (YYYY-MM-DD) explicitly: Date.parse
+    // accepts impossible dates like 2024-02-30 by rolling them forward.
+    const y = Number(input.slice(0, 4));
+    const mo = Number(input.slice(5, 7));
+    const da = Number(input.slice(8, 10));
+    validateComponent('month', mo, 1, 12, location);
+    validateComponent('day', da, 1, maxDayInMonth(y, mo), location);
+
+    // An offset-less datetime-with-time (has a time part but no trailing Z
+    // or +HH:MM/-HH:MM offset) is otherwise parsed in the host's local
+    // timezone by Date.parse, which is non-deterministic across
+    // environments. Anchor it to UTC instead, matching the date-only form.
+    const hasTime = input.length > 10;
+    const hasOffset = /(?:Z|[+-]\d{2}:\d{2})$/.test(input);
+    const normalizedInput = hasTime && !hasOffset ? `${input}Z` : input;
+
+    const ms = Date.parse(normalizedInput);
     if (Number.isNaN(ms)) {
       throwTypeHalt(
         { location, fn: 'datetime' },
@@ -223,7 +269,16 @@ export function constructDatetime(
   validateComponent('second', second, 0, 59, location);
   validateComponent('ms', ms, 0, 999, location);
 
-  const unix = Date.UTC(year, month - 1, day, hour, minute, second, ms);
+  const unix = componentsToUnix(
+    year,
+    month,
+    day,
+    hour,
+    minute,
+    second,
+    ms,
+    location
+  );
   return { __rill_datetime: true, unix } as unknown as RillValue;
 }
 
@@ -249,7 +304,8 @@ const DURATION_PARAM_KEYS = new Set([
 function validateDurationParam(
   name: string,
   value: RillValue,
-  location?: SourceLocation
+  location?: SourceLocation,
+  requireInteger = false
 ): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     throwTypeHalt(
@@ -265,6 +321,15 @@ function validateDurationParam(
       { location, fn: 'duration' },
       'INVALID_INPUT',
       `duration ${name} must be non-negative: ${value}`,
+      'runtime',
+      { parameter: name }
+    );
+  }
+  if (requireInteger && !Number.isInteger(value)) {
+    throwTypeHalt(
+      { location, fn: 'duration' },
+      'INVALID_INPUT',
+      `duration ${name} must be an integer: ${value}`,
       'runtime',
       { parameter: name }
     );
@@ -295,13 +360,13 @@ export function constructDuration(
 
   const years =
     args['years'] !== undefined && args['years'] !== null && args['years'] !== 0
-      ? validateDurationParam('years', args['years'], location)
+      ? validateDurationParam('years', args['years'], location, true)
       : 0;
   const months =
     args['months'] !== undefined &&
     args['months'] !== null &&
     args['months'] !== 0
-      ? validateDurationParam('months', args['months'], location)
+      ? validateDurationParam('months', args['months'], location, true)
       : 0;
   const days =
     args['days'] !== undefined && args['days'] !== null && args['days'] !== 0

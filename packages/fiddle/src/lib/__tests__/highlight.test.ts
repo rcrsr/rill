@@ -541,6 +541,14 @@ describe('string interpolation sub-highlighting', () => {
       expect(tags).toContain('bracket');
       expect(tags).toContain('variableName');
     });
+
+    it('treats {{ and }} as escaped literal braces in a single-line string', () => {
+      // "a{{b}}c" — {{ and }} are escaped literal braces, not interpolation,
+      // matching readers.ts readString. The whole string is a single token.
+      const tags = tokenizeLine('"a{{b}}c"');
+      expect(tags).not.toContain('bracket');
+      expect(tags).toEqual(['string']);
+    });
   });
 
   describe('arithmetic expression inside interpolation', () => {
@@ -749,6 +757,39 @@ describe('integration', () => {
     it('sets inTripleQuoteString even when the opening line has an odd number of embedded quotes', () => {
       const state = highlighter.startState(2);
       const openTags = processLine(state, '"""She said "hi');
+
+      expect(state.inTripleQuoteString).toBe(true);
+      expect(openTags).toContain('string');
+
+      const contentTags = processLine(state, 'more content');
+      expect(contentTags).toContain('string');
+    });
+
+    it('does not flip to string mode for a closed """a""" pair followed by an in-progress double-quote', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '"""a""" "b');
+
+      expect(state.inTripleQuoteString).toBe(false);
+
+      const nextTags = processLine(state, '42');
+      expect(nextTags).toContain('number');
+    });
+
+    it('does not enter triple-quote mode for a triple-quote inside a comment', () => {
+      const state = highlighter.startState(2);
+      // `~` is an invalid character, forcing tokenize() to throw for a
+      // reason unrelated to the triple-quote in the trailing comment.
+      processLine(state, '~ # """');
+
+      expect(state.inTripleQuoteString).toBe(false);
+
+      const nextTags = processLine(state, '42');
+      expect(nextTags).toContain('number');
+    });
+
+    it('still enters multi-line string mode for a genuine unterminated triple-quote opener', () => {
+      const state = highlighter.startState(2);
+      const openTags = processLine(state, '"""genuinely unterminated');
 
       expect(state.inTripleQuoteString).toBe(true);
       expect(openTags).toContain('string');

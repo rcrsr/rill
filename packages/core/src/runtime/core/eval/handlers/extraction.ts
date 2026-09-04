@@ -32,6 +32,8 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { resolveTypeRef } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
+import { setDictField } from '../shared.js';
+import { setTypedKey } from '../../types/dict-keys.js';
 
 /**
  * Evaluate destructure operator: destruct<$a, $b, $c>
@@ -93,7 +95,9 @@ export async function evaluateDestructure(
       }
 
       const dictInput = input as Record<string, RillValue>;
-      if (!(elem.key in dictInput)) {
+      // Own-key gate: an inherited member (constructor, __proto__, ...) must
+      // not satisfy a destructure key.
+      if (!Object.hasOwn(dictInput, elem.key)) {
         throwCatchableHostHalt(
           {
             location: elem.span.start,
@@ -326,6 +330,13 @@ function applySlice<T extends RillValue[] | string>(
   stop: number | null,
   step: number | null
 ): T {
+  // Strings slice by Unicode code point, not UTF-16 code unit: an astral
+  // character such as "😀" occupies a single index and is never split into a
+  // lone surrogate. Index into this array (and use its length as the bound)
+  // instead of the raw string, then join back for the string result.
+  const codePoints = typeof input === 'string' ? Array.from(input) : null;
+  const effectiveLen = codePoints ? codePoints.length : len;
+
   const actualStep = step ?? 1;
 
   if (actualStep === 0) {
@@ -336,29 +347,46 @@ function applySlice<T extends RillValue[] | string>(
     );
   }
 
+  // Bounds must be integers: a fractional bound generates fractional indices
+  // whose `input[i]` reads are `undefined`, which would leak into the result
+  // list. Halt with a catchable #INVALID_INPUT instead (matching take(1.5)).
+  for (const [label, bound] of [
+    ['start', start],
+    ['stop', stop],
+    ['step', step],
+  ] as const) {
+    if (bound !== null && !Number.isInteger(bound)) {
+      throwCatchableHostHalt(
+        { sourceId: s.ctx.sourceId, fn: 'applySlice' },
+        'INVALID_INPUT',
+        `Slice ${label} must be an integer, got ${bound}`
+      );
+    }
+  }
+
   const normalizeIndex = (
     idx: number | null,
     defaultVal: number,
     forStep: number
   ): number => {
     if (idx === null) return defaultVal;
-    let normalized = idx < 0 ? len + idx : idx;
+    let normalized = idx < 0 ? effectiveLen + idx : idx;
     if (forStep > 0) {
-      normalized = Math.max(0, Math.min(len, normalized));
+      normalized = Math.max(0, Math.min(effectiveLen, normalized));
     } else {
-      normalized = Math.max(-1, Math.min(len - 1, normalized));
+      normalized = Math.max(-1, Math.min(effectiveLen - 1, normalized));
     }
     return normalized;
   };
 
   const actualStart = normalizeIndex(
     start,
-    actualStep > 0 ? 0 : len - 1,
+    actualStep > 0 ? 0 : effectiveLen - 1,
     actualStep
   );
   const actualStop = normalizeIndex(
     stop,
-    actualStep > 0 ? len : -1,
+    actualStep > 0 ? effectiveLen : -1,
     actualStep
   );
 
@@ -376,7 +404,7 @@ function applySlice<T extends RillValue[] | string>(
   if (Array.isArray(input)) {
     return indices.map((i) => input[i]) as T;
   } else {
-    return indices.map((i) => input[i]).join('') as T;
+    return indices.map((i) => codePoints![i]).join('') as T;
   }
 }
 
@@ -440,13 +468,23 @@ export async function evaluateCollectionLiteral(
         s,
         node.entries
       )) {
-        result[key] = value;
+        if (typeof key === 'number' || typeof key === 'boolean') {
+          // Number/boolean keys go to the typed-key sidecar.
+          setTypedKey(result, key, value);
+        } else {
+          // Safe assignment so a `__proto__` key becomes an own field rather
+          // than reparenting the dict via the prototype setter.
+          setDictField(result, String(key), value);
+        }
       }
       return result;
     }
 
     case 'OrderedLiteral': {
-      const pairs = await evaluateDictLiteralEntries(s, node.entries);
+      // Ordered literals keep string keys; stringify any typed key.
+      const pairs = (await evaluateDictLiteralEntries(s, node.entries)).map(
+        ([key, value]) => [String(key), value] as [string, RillValue]
+      );
       return createOrdered(pairs);
     }
   }
@@ -486,15 +524,17 @@ export async function evaluateListLiteralElements(
 }
 
 /**
- * Evaluate dict/ordered literal entries, returning [key, value] pairs.
- * Keys are always strings (number/boolean keys are stringified).
+ * Evaluate dict/ordered literal entries, returning [key, value] pairs. Number
+ * and boolean keys are returned with their original type; the DictLiteral
+ * caller routes them to the typed-key sidecar, while the OrderedLiteral caller
+ * stringifies them.
  * Spread entries (...$other) expand inline (dict keys merged).
  */
 async function evaluateDictLiteralEntries(
   s: EvalState,
   entries: DictEntryNode[]
-): Promise<[string, RillValue][]> {
-  const result: [string, RillValue][] = [];
+): Promise<[RillValue, RillValue][]> {
+  const result: [RillValue, RillValue][] = [];
   for (const entry of entries) {
     // Spread entry: key is a string starting with '...' is not how parser marks it.
     // The parser uses ListSpread for element spreads in list/tuple.
@@ -502,12 +542,13 @@ async function evaluateDictLiteralEntries(
     // where kind === 'variable'. Handle simple string/number/boolean keys only here
     // since the collection literal parser does not support multi-key or computed keys.
     const key = entry.key;
-    let stringKey: string;
+    let stringKey: string | number | boolean;
 
     if (typeof key === 'string') {
       stringKey = key;
     } else if (typeof key === 'number' || typeof key === 'boolean') {
-      stringKey = String(key);
+      // Preserve the typed key; the DictLiteral caller sends it to the sidecar.
+      stringKey = key;
     } else {
       // Object key (DictKeyVariable or DictKeyComputed) — evaluate like evaluateDict
       if ('kind' in key) {

@@ -115,13 +115,15 @@ Parser.prototype.parseConditionalRest = function (
     }
   }
 
+  const end = elseBranch !== null ? elseBranch.span.end : thenBranch.span.end;
+
   return {
     type: 'Conditional',
     input: null,
     condition,
     thenBranch,
     elseBranch,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, end),
   };
 };
 

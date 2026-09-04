@@ -161,6 +161,25 @@ pkg_has() {
 
 has_script() { node -e "process.exit(((require('./package.json').scripts)||{})['$1']?0:1)" 2>/dev/null; }
 
+# grep_noncomment [-i] <pattern> <file> — grep a file with full-line comments
+# stripped first, so a token that appears only inside a `#` comment (a removed
+# step, a stale example) does not read as the real thing. Same join-then-drop
+# shape as the STD-PROC-7 label-sync read below and the ci.yml scan the
+# STD-SCRIPT reachability check runs: join backslash continuations with sed,
+# then drop lines that are comments once joined.
+grep_noncomment() {
+  local flags=()
+  if [ "$1" = "-i" ]; then
+    flags=(-i)
+    shift
+  fi
+  local pattern="$1"
+  shift
+  sed -e :a -e '/\\$/N; s/\\\n//; ta' "$@" 2>/dev/null |
+    grep -v '^[[:space:]]*#' |
+    grep -q ${flags[@]+"${flags[@]}"} -- "$pattern"
+}
+
 # has_ts <dir> — does the directory hold TypeScript of its own? Read find to
 # completion into a variable rather than piping it into `grep -q`: grep exits at
 # the first line it needs, find dies of SIGPIPE, and under `pipefail` that
@@ -597,7 +616,7 @@ else
     ok "STD-CI-8" "every pin carries its version comment" ||
     bad "STD-CI-8" "every pin carries its version comment" "bare SHA, no # comment: $NOCOMMENT"
 
-  grep -q 'frozen-lockfile' .github/workflows/ci.yml 2>/dev/null &&
+  grep_noncomment 'frozen-lockfile' .github/workflows/ci.yml &&
     ok "STD-CI-4" "install uses --frozen-lockfile" ||
     bad "STD-CI-4" "install uses --frozen-lockfile" "not found in ci.yml"
 
@@ -1110,15 +1129,15 @@ section "§7 Release workflow"
 
 REL=.github/workflows/release.yml
 if [ ! -f "$REL" ]; then
-  skip "STD-REL-1..7" "release workflow" "no release.yml; N/A if the repo publishes nothing"
+  skip "STD-REL-1..8" "release workflow" "no release.yml; N/A if the repo publishes nothing"
 else
-  grep -q "tags:" "$REL" &&
+  grep_noncomment "tags:" "$REL" &&
     ok "STD-REL-1" "triggered by a version tag" ||
     bad "STD-REL-1" "triggered by a version tag" "no tag trigger in $REL"
 
   # Recorded, because STD-SUP-2 is the same assertion read from §9 and settles
   # on this result rather than on a grep of its own.
-  if grep -q 'provenance' "$REL"; then
+  if grep_noncomment 'provenance' "$REL"; then
     PROVENANCE=1
     ok "STD-REL-3" "publishes with provenance"
   else
@@ -1126,27 +1145,27 @@ else
     bad "STD-REL-3" "publishes with provenance" "no --provenance in $REL"
   fi
 
-  grep -q 'id-token: *write' "$REL" &&
+  grep_noncomment 'id-token: *write' "$REL" &&
     ok "STD-REL-4" "grants id-token: write" ||
     bad "STD-REL-4" "grants id-token: write" "provenance needs id-token: write"
 
-  grep -qi 'EPUBLISHCONFLICT' "$REL" &&
+  grep_noncomment -i 'EPUBLISHCONFLICT' "$REL" &&
     ok "STD-REL-5" "tolerates a registry-side conflict" ||
     bad "STD-REL-5" "tolerates a registry-side conflict" \
       "no conflict fallback; the npm view pre-check alone races a concurrent publish"
 
   # STD-REL-5 introduces the pipe that makes this load-bearing. Checked as a
   # pair, because REL-5 without REL-6 is worse than neither.
-  if grep -q 'set -o pipefail' "$REL"; then
+  if grep_noncomment 'set -o pipefail' "$REL"; then
     ok "STD-REL-6" "publish sets pipefail"
-  elif grep -qi 'EPUBLISHCONFLICT' "$REL"; then
+  elif grep_noncomment -i 'EPUBLISHCONFLICT' "$REL"; then
     bad "STD-REL-6" "publish sets pipefail" \
       "the conflict fallback pipes into tee, so a failed publish reports success"
   else
     bad "STD-REL-6" "publish sets pipefail" "no pipefail in $REL"
   fi
 
-  grep -q 'release view\|release create' "$REL" &&
+  grep_noncomment 'release view\|release create' "$REL" &&
     ok "STD-REL-7" "creates a GitHub Release idempotently" ||
     bad "STD-REL-7" "creates a GitHub Release idempotently" "no gh release step"
 
@@ -1177,18 +1196,51 @@ else
   # walking only the package tree passes having checked nothing. The workspace
   # root is excluded in the other layout, where it aggregates and publishes
   # nothing, and requiring `repository` of it tested a field no element names.
+  # Own ID, STD-REL-8 -- this used to double-claim STD-REL-3, which the
+  # publishes-with-provenance check above (also cross-referenced by STD-SUP-2)
+  # already owns. Two elements sharing one ID meant only the second `ok`/`bad`
+  # call for that ID survived in a reader's mental model of the run.
   NOREPO=""
+  BADJSON=""
+  PUB_COUNT=0
   for f in "${MANIFESTS[@]}"; do
     [ "$WORKSPACE" -eq 1 ] && [ "$f" = package.json ] && continue
+    # A malformed manifest throws inside JSON.parse and Node exits 1 by
+    # default on an uncaught exception -- indistinguishable from the explicit
+    # "no repository field" exit(1) below. Catch the parse and exit 3 so a
+    # broken manifest is reported separately, mirroring HAVE_RULES's
+    # PARSE_ERROR sentinel above.
     node -e 'const fs = require("fs");
-      const p = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+      let p;
+      try { p = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); }
+      catch (e) { process.exit(3); }
       if (p.private) process.exit(0);
-      process.exit(p.repository ? 0 : 1)' "$f" 2>/dev/null || NOREPO="$NOREPO$f "
+      process.exit(p.repository ? 2 : 1)' "$f" 2>/dev/null
+    rc=$?
+    if [ "$rc" -eq 2 ]; then
+      PUB_COUNT=$((PUB_COUNT + 1))
+    elif [ "$rc" -eq 1 ]; then
+      PUB_COUNT=$((PUB_COUNT + 1))
+      NOREPO="$NOREPO$f "
+    elif [ "$rc" -eq 3 ]; then
+      PUB_COUNT=$((PUB_COUNT + 1))
+      BADJSON="$BADJSON$f "
+    fi
   done
-  [ -z "$NOREPO" ] &&
-    ok "STD-REL-3" "published packages declare repository" ||
-    bad "STD-REL-3" "published packages declare repository" \
+  # An empty MANIFESTS-minus-private set never enters the branch that sets
+  # NOREPO, so "no failures found" and "nothing to check" looked identical and
+  # the loop reported a vacuous ok. PUB_COUNT distinguishes them.
+  if [ "$PUB_COUNT" -eq 0 ]; then
+    skip "STD-REL-8" "published packages declare repository" "no publishable packages"
+  elif [ -n "$BADJSON" ]; then
+    bad "STD-REL-8" "published packages declare repository" \
+      "could not parse as JSON: $BADJSON"
+  elif [ -z "$NOREPO" ]; then
+    ok "STD-REL-8" "published packages declare repository"
+  else
+    bad "STD-REL-8" "published packages declare repository" \
       "provenance has no source to bind to in: $NOREPO"
+  fi
 fi
 
 # ---------------------------------------------------------------------------
@@ -1515,9 +1567,39 @@ if [ -f lefthook.yml ]; then
       bad "STD-HOOK-2" "pre-commit formats before linting" "lint runs first; format would undo its fixes"
   fi
 
-  grep -q 'pre-push:' lefthook.yml &&
-    ok "STD-HOOK-4" "pre-push runs typecheck and tests" ||
+  # Presence of the key alone passed a pre-push block that ran neither command
+  # it names. Slice the block itself, from the `pre-push:` line to the next
+  # column-0 key (same in_b shape as the pnpm-workspace.yaml globs parse
+  # above), and require both invocations inside that slice specifically.
+  PREPUSH_BLOCK="$(awk '
+    /^pre-push:/ { in_b = 1; next }
+    in_b && /^[^[:space:]#]/ { in_b = 0 }
+    in_b { print }
+  ' lefthook.yml)"
+  if [ -z "$PREPUSH_BLOCK" ]; then
     bad "STD-HOOK-4" "pre-push runs typecheck and tests" "no pre-push block"
+  else
+    # Strip full-line comments before testing for the invocations, same as
+    # grep_noncomment above: a stray comment naming `typecheck` or `test`
+    # (e.g. a removed step) must not read as a real invocation.
+    PREPUSH_NONCOMMENT="$(printf '%s\n' "$PREPUSH_BLOCK" | grep -v '^[[:space:]]*#')"
+    HAS_TC=0
+    HAS_TEST=0
+    printf '%s\n' "$PREPUSH_NONCOMMENT" | grep -q 'typecheck' && HAS_TC=1
+    printf '%s\n' "$PREPUSH_NONCOMMENT" | grep -Eq '(^|[^a-zA-Z])tests?([^a-zA-Z]|$)' && HAS_TEST=1
+    if [ "$HAS_TC" -eq 1 ] && [ "$HAS_TEST" -eq 1 ]; then
+      ok "STD-HOOK-4" "pre-push runs typecheck and tests"
+    elif [ "$HAS_TC" -eq 0 ] && [ "$HAS_TEST" -eq 0 ]; then
+      bad "STD-HOOK-4" "pre-push runs typecheck and tests" \
+        "pre-push block has neither a typecheck nor a test invocation"
+    elif [ "$HAS_TC" -eq 0 ]; then
+      bad "STD-HOOK-4" "pre-push runs typecheck and tests" \
+        "pre-push block has no typecheck invocation"
+    else
+      bad "STD-HOOK-4" "pre-push runs typecheck and tests" \
+        "pre-push block has no test invocation"
+    fi
+  fi
 
   has_script prepare &&
     ok "STD-HOOK-1" "hook manager installed via prepare" ||

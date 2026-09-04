@@ -46,6 +46,41 @@ describe('formatDocument', () => {
     });
   });
 
+  describe('string literal passthrough', () => {
+    it('preserves trailing whitespace on an interior line of a triple-quote string, and still trims a following code line', () => {
+      const source =
+        '"""\nindented line   \nmore text\n""" -> log\n1 => $x  \n';
+      const parsed = toParseResult(source);
+      expect(parsed.ast.statements[0]?.type).toBe('Statement');
+
+      const [edit] = formatDocument(parsed, source);
+      const newText = edit?.newText ?? '';
+
+      // The trailing spaces on the interior line of the string are data,
+      // not end-of-line whitespace, and must be byte-preserved.
+      expect(newText).toContain('indented line   \n');
+      // A genuine code line's trailing whitespace outside the string is
+      // still trimmed.
+      expect(newText).toContain('1 => $x\n');
+      expect(newText).not.toContain('1 => $x  \n');
+    });
+
+    it('is idempotent for a triple-quote string with trailing interior whitespace', () => {
+      const source =
+        '"""\nindented line   \nmore text\n""" -> log\n1 => $x  \n';
+      const parsed = toParseResult(source);
+
+      const [firstEdit] = formatDocument(parsed, source);
+      const firstText = firstEdit?.newText ?? '';
+
+      const reparsed = toParseResult(firstText);
+      const [secondEdit] = formatDocument(reparsed, firstText);
+      const secondText = secondEdit?.newText ?? '';
+
+      expect(secondText).toBe(firstText);
+    });
+  });
+
   describe('malformed input passthrough', () => {
     it('preserves a whole-document RecoveryErrorNode verbatim', () => {
       const source = 'foo(1\nbar(2\n\n"after"\n';

@@ -37,8 +37,39 @@ describe('NAMING_SNAKE_CASE fix: reference-aware capture rename', () => {
     expect(fix?.replacement).toContain('$user_name');
     expect(fix?.range).toEqual({
       start: { line: 1, column: 6, offset: 5 },
-      end: { line: 2, column: 1, offset: 15 },
+      end: { line: 1, column: 15, offset: 14 },
     });
+  });
+});
+
+describe('NAMING_SNAKE_CASE fix: dynamic field-key reference (.$var)', () => {
+  it('rewrites a .$var dynamic-key site as a disjoint, segment-width edit', () => {
+    const source = '5 => $userName\ndict[a: 1] => $d\n$d.$userName -> log\n';
+    const parsed = parse(source);
+
+    const result = runRules(parsed, source, createDefaultConfig(), [
+      namingSnakeCase,
+    ]);
+
+    const diagnostic = result.find((d) => d.message.includes("'userName'"));
+    expect(diagnostic).toBeDefined();
+    const fix = diagnostic?.fix;
+    expect(fix).not.toBeNull();
+    expect(fix?.additionalEdits?.length).toBe(1);
+
+    const dynamicKeyEdit = fix?.additionalEdits?.[0];
+    expect(dynamicKeyEdit?.replacement).toBe('.$user_name');
+    // Segment span covers only `.$userName`, not the whole `$d.$userName`
+    // Variable node - anchored at the `.` token, not at `$d`.
+    expect(dynamicKeyEdit?.range).toEqual({
+      start: { line: 3, column: 3, offset: 34 },
+      end: { line: 3, column: 13, offset: 44 },
+    });
+
+    // Disjoint from the primary (declaration) edit.
+    expect(dynamicKeyEdit!.range.start.offset).toBeGreaterThanOrEqual(
+      fix!.range.end.offset
+    );
   });
 });
 
@@ -166,6 +197,41 @@ describe('NAMING_SNAKE_CASE fix: dict key withheld on dynamic field access', () 
   });
 });
 
+describe('NAMING_SNAKE_CASE fix: withheld on nested-scope reference', () => {
+  it('withholds the fix when the name is also referenced inside a sibling closure body', () => {
+    const source =
+      '"a" => $userName\n|x| ($userName -> log) => $f\n$userName -> log\n';
+    const parsed = parse(source);
+
+    const result = runRules(parsed, source, createDefaultConfig(), [
+      namingSnakeCase,
+    ]);
+
+    const userNameDiagnostic = result.find((d) =>
+      d.message.includes("'userName'")
+    );
+    expect(userNameDiagnostic).toBeDefined();
+    expect(userNameDiagnostic?.fix).toBeNull();
+  });
+
+  it('still emits additionalEdits when every reference is in flat, single scope', () => {
+    const source = '5 => $userName\n$userName -> log\n$userName -> .len\n';
+    const parsed = parse(source);
+
+    const result = runRules(parsed, source, createDefaultConfig(), [
+      namingSnakeCase,
+    ]);
+
+    const userNameDiagnostic = result.find((d) =>
+      d.message.includes("'userName'")
+    );
+    expect(userNameDiagnostic).toBeDefined();
+    const fix = userNameDiagnostic?.fix;
+    expect(fix).not.toBeNull();
+    expect(fix?.additionalEdits?.length).toBe(2);
+  });
+});
+
 describe('NAMING_SNAKE_CASE fix: reference-free capture rename', () => {
   it('produces a fix with no additionalEdits when the capture is never referenced', () => {
     const source = '5 => $userName\n';
@@ -184,9 +250,9 @@ describe('NAMING_SNAKE_CASE fix: reference-free capture rename', () => {
       applicable: true,
       range: {
         start: { line: 1, column: 6, offset: 5 },
-        end: { line: 2, column: 1, offset: 15 },
+        end: { line: 1, column: 15, offset: 14 },
       },
-      replacement: '$user_name\n',
+      replacement: '$user_name',
     });
   });
 });

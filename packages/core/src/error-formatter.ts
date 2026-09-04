@@ -40,7 +40,7 @@ interface SourceSnippet {
 }
 
 function splitLines(text: string): string[] {
-  return text.split('\n');
+  return text.split(/\r?\n/);
 }
 
 /**
@@ -97,7 +97,12 @@ function renderSnippet(
   gutterWidth: number
 ): string[] {
   const gutter = String(lineNum).padStart(gutterWidth);
-  const caretCol = Math.max(0, column - 1);
+  // column counts UTF-16 code units, but astral characters (surrogate
+  // pairs, e.g. emoji) render as a single visual column. Compute the
+  // caret offset as the code-point count of the line prefix so the
+  // caret lands under the correct visual column for astral characters.
+  const prefixEnd = Math.max(0, column - 1);
+  const caretCol = Array.from(sourceLine.slice(0, prefixEnd)).length;
   return [
     `  ${gutter} | ${sourceLine}`,
     `  ${' '.repeat(gutterWidth)} | ${' '.repeat(caretCol)}^`,

@@ -258,4 +258,66 @@ describe('Parser Syntax Errors', () => {
       expect(ast4.type).toBe('Script');
     });
   });
+
+  describe('describeToken labels for NEWLINE/EOF in error messages', () => {
+    it('reports a mid-pipe newline as "newline", not a raw \\n', () => {
+      const source = '"x" ->\n';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+        const [header] = parseErr.message.split('\n');
+
+        expect(parseErr.message).toContain('newline');
+        expect(header).not.toMatch(/got: \n/);
+      }
+    });
+
+    it('reports a missing pipe target at end of input as "end of input"', () => {
+      const source = '"x" ->';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.message).toContain('end of input');
+      }
+    });
+
+    it('reports a slice bound error on a newline as "newline"', () => {
+      const source = '"x" -> slice<\n';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+        const [header] = parseErr.message.split('\n');
+
+        expect(parseErr.message).toContain('newline');
+        expect(header).not.toMatch(/got: \n/);
+      }
+    });
+
+    it('reports a slice bound error at end of input as "end of input"', () => {
+      const source = '"x" -> slice<';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.message).toContain('end of input');
+      }
+    });
+  });
 });

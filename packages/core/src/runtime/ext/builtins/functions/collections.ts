@@ -5,6 +5,12 @@ import {
   isDict,
   isScriptCallable,
 } from '../../../core/callable.js';
+import {
+  isDatetime,
+  isDuration,
+  isOrdered,
+  isVector,
+} from '../../../core/types/guards.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { RuntimeError } from '../../../../types.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
@@ -19,6 +25,7 @@ import { createChildContext } from '../../../core/context.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
 import { MAX_ITER, chunkSlice } from '../shared.js';
+import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
 /**
  * Default key extractor for sort(dict, ...).
@@ -609,10 +616,33 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
+      // Brand guard — datetime/duration/ordered/vector are plain objects
+      // but not dict-sortable.
+      if (
+        isDatetime(input) ||
+        isDuration(input) ||
+        isOrdered(input) ||
+        isVector(input)
+      ) {
+        throwTypeHalt(
+          site,
+          'TYPE_MISMATCH',
+          `sort: cannot sort ${inferType(input)}`,
+          'runtime'
+        );
+      }
+
       // ── Dict path ─────────────────────────────────────────────────────────
       if (isDict(input)) {
         const dictInput = input as Record<string, RillValue>;
-        const entries = Object.entries(dictInput) as [string, RillValue][];
+        // Combine string keys with number/boolean (typed) keys; the extractor
+        // sees each key with its real type so `{ $.key }` sorts numerically.
+        const entries: [RillValue, RillValue][] = [
+          ...(Object.entries(dictInput) as [string, RillValue][]),
+          ...typedKeyEntries(dictInput).map(
+            (e) => [e.key, e.value] as [RillValue, RillValue]
+          ),
+        ];
         const keyFn = keyFnArg ?? DICT_DEFAULT_KEY_FN;
 
         // Pre-extract sort keys asynchronously (extractor halts propagate naturally).
@@ -635,7 +665,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
                 'runtime'
               );
             }
-            return { pair: [k, v] as [string, RillValue], key };
+            // Ordered keys are strings; stringify any typed key for the result.
+            return { pair: [String(k), v] as [string, RillValue], key };
           })
         );
 

@@ -80,6 +80,13 @@ function buildNestedSource(
 ): string {
   if (isCallable(value)) {
     const c = value as RillCallable;
+    // An untyped callable (e.g. from the public `callable()` factory) may carry
+    // no declared params. Treat undefined params as an empty declaration and
+    // resolve it directly via the ext resolver rather than emitting a typed
+    // signature we cannot construct.
+    if (c.params === undefined) {
+      return `use<ext:${path}>`;
+    }
     const paramStr = c.params.map(formatParam).join(', ');
     const returnSuffix = ` :${formatStructure(c.returnType.structure)}`;
     return `use<ext:${path}>:|${paramStr}|${returnSuffix}`;

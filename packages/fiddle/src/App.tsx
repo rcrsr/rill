@@ -17,9 +17,7 @@ import { Output } from './components/Output.js';
 import { Toolbar } from './components/Toolbar.js';
 import { SplitPane } from './components/SplitPane.js';
 import type { ExecutionState } from './lib/execution.js';
-import { contextResolver } from '@rcrsr/rill';
-import { executeRill } from './lib/execution.js';
-import { DEMO_CONTEXT_VALUES } from './lib/context.js';
+import { runInWorker } from './lib/execution-runner.js';
 import { loadEditorState, persistEditorState } from './lib/persistence.js';
 import { readSourceFromURL, copyLinkToClipboard } from './lib/sharing.js';
 import type { CodeExample } from './lib/examples.js';
@@ -87,6 +85,9 @@ export function App(): JSX.Element {
   useEffect(() => {
     sourceRef.current = source;
   }, [source]);
+  // Holds the cancel() for the in-flight worker run, so a new run (or
+  // unmount) can tear down a stale worker instead of leaking it.
+  const activeRunRef = useRef<{ cancel: () => void } | null>(null);
 
   // ============================================================
   // CLEANUP TIMERS ON UNMOUNT
@@ -97,6 +98,12 @@ export function App(): JSX.Element {
       if (copyFeedbackTimerRef.current !== null) {
         clearTimeout(copyFeedbackTimerRef.current);
       }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      activeRunRef.current?.cancel();
     };
   }, []);
 
@@ -171,16 +178,16 @@ export function App(): JSX.Element {
       logs: [],
     });
 
-    // Build resolver config with context scheme wired to demo values
-    const resolverConfig = {
-      resolvers: {
-        context: (resource: string) =>
-          contextResolver(resource, DEMO_CONTEXT_VALUES),
-      },
-      configurations: { resolvers: { context: DEMO_CONTEXT_VALUES } },
-    };
+    // Defensive cleanup: isRunningRef.current gates re-entry above, so by the
+    // time a later run reaches this line, the previous run's promise has
+    // already settled and its cancel() is a no-op. This just guards against
+    // future changes to that gating.
+    activeRunRef.current?.cancel();
 
-    executeRill(sourceRef.current, resolverConfig)
+    const { promise, cancel } = runInWorker(sourceRef.current);
+    activeRunRef.current = { cancel };
+
+    promise
       .then((result) => {
         isRunningRef.current = false;
         setExecutionState(result);
@@ -189,7 +196,7 @@ export function App(): JSX.Element {
         }
       })
       .catch((err: unknown) => {
-        // executeRill converts errors into an error state internally, so a
+        // runInWorker converts errors into an error state internally, so a
         // rejection here is unexpected. Surface it rather than leaving the
         // UI stuck on 'running' forever.
         isRunningRef.current = false;

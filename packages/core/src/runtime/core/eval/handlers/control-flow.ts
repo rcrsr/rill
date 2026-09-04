@@ -364,9 +364,23 @@ async function evaluateBlockBody(
   let lastValue: RillValue = parentPipeValue;
 
   for (const stmt of node.statements) {
-    // Each statement gets fresh child context with parent's $
-    // This ensures siblings don't share $ - each sees the block's $
-    const stmtCtx = createChildContext(blockCtx);
+    // Each statement gets a fresh child context with parent's $ - this
+    // ensures siblings don't share $ (each sees the block's $) - but shares
+    // the block's own variables/variableTypes maps directly (one hop, not a
+    // per-statement copy). A prior sibling's capture already lives in that
+    // shared map, so `setVariable`'s own-scope check
+    // (`s.ctx.variables.has(name)`) sees a same-block re-capture as an
+    // own-scope reassignment rather than a cross-scope write to an outer
+    // variable. Names inherited from enclosing scopes still are not in this
+    // map, so reassigning a genuinely outer variable from this child scope
+    // still halts via setVariable's outer-variable guard walking to
+    // blockCtx's parent. Writes land directly in the shared map, which is
+    // exactly the "promote unconditionally to block scope" behavior a
+    // same-block re-capture needs - no copy-back required either.
+    const stmtCtx = createChildContext(blockCtx, {
+      variables: blockCtx.variables,
+      variableTypes: blockCtx.variableTypes,
+    });
     stmtCtx.pipeValue = parentPipeValue; // Always parent's $, not previous sibling's
 
     const savedCtx = s.ctx;
@@ -375,18 +389,6 @@ async function evaluateBlockBody(
       lastValue = await executeStatement(s, stmt);
     } finally {
       s.ctx = savedCtx;
-    }
-
-    // Variables captured via :> need to be promoted to block scope
-    // so they're visible to later siblings
-    for (const [name, value] of stmtCtx.variables) {
-      if (!blockCtx.variables.has(name)) {
-        blockCtx.variables.set(name, value);
-        const varType = stmtCtx.variableTypes.get(name);
-        if (varType !== undefined) {
-          blockCtx.variableTypes.set(name, varType);
-        }
-      }
     }
   }
 

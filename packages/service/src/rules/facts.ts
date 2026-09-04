@@ -47,7 +47,9 @@ import type {
   CaptureNode,
   ClosureCallNode,
   ClosureNode,
+  DictEntryNode,
   PipeChainNode,
+  SourceSpan,
   TypeConstructorNode,
   VariableNode,
 } from '@rcrsr/rill';
@@ -81,6 +83,15 @@ export interface ReferenceEntry {
   readonly closureOrOpDepth: number;
   /** Count of Closure/Block/GroupedExpr/collection-op ancestors strictly above this node. */
   readonly bindingScopeDepth: number;
+  /**
+   * Source span of the reference site itself, when it is narrower than
+   * `node.span` - currently only set for a dynamic field-key segment
+   * (`.$var`) inside a `Variable` node's access chain, where `node` is the
+   * enclosing `Variable` (the chain's head) but the actual reference text is
+   * the `.$var` segment further along the chain. Absent for `Variable`- and
+   * `ClosureCall`-node references, which use `node.span` directly.
+   */
+  readonly span?: SourceSpan;
 }
 
 /** Precomputed boolean facts and capture-log window for one AST subtree. */
@@ -129,6 +140,15 @@ export interface ScriptFacts {
   readonly paramNames: ReadonlySet<string>;
   /** Every literal (`.field`) field name accessed via a Variable's access chain, script-wide. */
   readonly literalFieldAccessNames: ReadonlySet<string>;
+  /**
+   * Closure literals that are the direct value of a `DictEntry` - the
+   * documented dict-bound closure idiom (`dict[k: { $... }]`), where a bare
+   * `$` inside the closure body binds late to whatever the entry is invoked
+   * with, not to a definition-time value. Populated when a `DictEntry`'s
+   * value unwraps (through a pipe-less `PipeChain` and a method-less
+   * `PostfixExpr`) to a `Closure` primary.
+   */
+  readonly dictBoundClosures: ReadonlySet<ASTNode>;
 }
 
 /** Result of a single fact-collection pass over an AST. */
@@ -189,6 +209,24 @@ function getPipeHeadVariableName(chain: PipeChainNode): string | null {
   if (variable.accessChain.length > 0) return null;
 
   return variable.name;
+}
+
+/**
+ * Unwrap a `DictEntry`'s value to the `Closure` node it holds, when the
+ * value is nothing but that closure - a pipe-less `PipeChain` whose head is
+ * a method-less `PostfixExpr` wrapping a `Closure` primary. Returns null for
+ * any other shape (a piped expression, a closure with trailing methods,
+ * etc.), which is not the dict-bound closure idiom.
+ */
+function dictBoundClosureFromEntry(entry: DictEntryNode): ClosureNode | null {
+  const value = entry.value;
+  if (value.type !== 'PipeChain') return null;
+  if (value.pipes.length > 0) return null;
+  const head = value.head;
+  if (head.type !== 'PostfixExpr') return null;
+  if (head.methods.length > 0) return null;
+  if (head.primary.type !== 'Closure') return null;
+  return head.primary;
 }
 
 // ============================================================
@@ -306,6 +344,7 @@ export function collectFacts(root: ASTNode): AstFacts {
   let hasDynamicFieldAccess = false;
   const paramNames = new Set<string>();
   const literalFieldAccessNames = new Set<string>();
+  const dictBoundClosures = new Set<ASTNode>();
 
   const stack: Accumulator[] = [];
   let currentClosureDepth = 0;
@@ -373,6 +412,24 @@ export function collectFacts(root: ASTNode): AstFacts {
         });
       }
 
+      if (node.type === 'Variable') {
+        for (const access of node.accessChain) {
+          if (
+            'kind' in access &&
+            access.kind === 'variable' &&
+            access.variableName !== null
+          ) {
+            referenceLog.push({
+              name: access.variableName,
+              node,
+              closureOrOpDepth: currentClosureOrOpDepth,
+              bindingScopeDepth: currentBindingScopeDepth,
+              span: access.span,
+            });
+          }
+        }
+      }
+
       if (node.type === 'ClosureCall') {
         referenceLog.push({
           name: node.name,
@@ -420,6 +477,13 @@ export function collectFacts(root: ASTNode): AstFacts {
 
       if (node.type === 'ClosureParam') {
         paramNames.add(node.name);
+      }
+
+      if (node.type === 'DictEntry') {
+        const closure = dictBoundClosureFromEntry(node);
+        if (closure) {
+          dictBoundClosures.add(closure);
+        }
       }
 
       for (const field of literalFieldAccessNamesSelf(node)) {
@@ -505,6 +569,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       hasDynamicFieldAccess,
       paramNames,
       literalFieldAccessNames,
+      dictBoundClosures,
     },
   };
 }

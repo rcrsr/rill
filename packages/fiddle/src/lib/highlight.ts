@@ -101,6 +101,87 @@ const TYPE_NAME_VALUES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Detect whether a line genuinely opens a triple-quoted string with no
+ * matching close on the same line.
+ *
+ * Scans left-to-right toggling an in/out-of-triple-quote flag on each `"""`
+ * sequence and reports whether the line ends inside one. A `#` outside a
+ * triple-quote starts a line comment — the rest of the line (including any
+ * `"""` it contains) is not scanned. A single- or double-quoted string is
+ * skipped wholesale so a `#` or `"""` inside it isn't misread.
+ *
+ * Used to narrow multi-line-string recovery to the genuine case: a line
+ * where tokenize() failed for an unrelated reason but happens to contain a
+ * closed `"""a"""` pair should not be treated as opening a multi-line
+ * string.
+ *
+ * @param lineText - Line text to scan
+ */
+function opensUnterminatedTripleQuote(lineText: string): boolean {
+  let inTriple = false;
+  let i = 0;
+  while (i < lineText.length) {
+    const ch = lineText[i];
+    if (
+      !inTriple &&
+      ch === '#' &&
+      !(lineText[i + 1] !== undefined && /[A-Z]/.test(lineText[i + 1]!))
+    ) {
+      // Line comment: nothing after this point is string content. A `#`
+      // immediately followed by an uppercase ASCII letter starts an atom
+      // literal (e.g. `#TODO`), not a comment.
+      break;
+    }
+    if (ch === '"' && lineText.slice(i, i + 3) === '"""') {
+      inTriple = !inTriple;
+      i += 3;
+      continue;
+    }
+    if (!inTriple && (ch === '"' || ch === "'")) {
+      const quote = ch;
+      let j = i + 1;
+      let depth = 0;
+      while (j < lineText.length) {
+        const cj = lineText[j];
+        if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        if (depth === 0 && cj === '{' && lineText[j + 1] === '{') {
+          // {{ outside interpolation is an escaped literal brace, not a
+          // depth-incrementing open (mirrors readers.ts readString).
+          j += 2;
+          continue;
+        }
+        if (depth === 0 && cj === '}' && lineText[j + 1] === '}') {
+          // }} outside interpolation is likewise an escaped literal brace.
+          j += 2;
+          continue;
+        }
+        if (cj === '{') {
+          depth++;
+          j++;
+          continue;
+        }
+        if (cj === '}' && depth > 0) {
+          depth--;
+          j++;
+          continue;
+        }
+        if (cj === quote && depth === 0) {
+          break;
+        }
+        j++;
+      }
+      i = j < lineText.length ? j + 1 : lineText.length;
+      continue;
+    }
+    i++;
+  }
+  return inTriple;
+}
+
+/**
  * Find the start of a single- or double-quoted string left unterminated at
  * end of line (excluding triple-quote strings, handled separately).
  *
@@ -112,6 +193,7 @@ const TYPE_NAME_VALUES: ReadonlySet<string> = new Set([
  * @param lineText - Line text to scan
  */
 function findUnterminatedQuoteStart(lineText: string): number | null {
+  const opensUnterminatedTriple = opensUnterminatedTripleQuote(lineText);
   let i = 0;
   while (i < lineText.length) {
     const ch = lineText[i];
@@ -120,11 +202,19 @@ function findUnterminatedQuoteStart(lineText: string): number | null {
       continue;
     }
     if (ch === '"' && lineText.slice(i, i + 3) === '"""') {
-      // A triple-quote opener anywhere on the line means this is
-      // triple-quote territory. Defer entirely to the caller's existing
-      // multi-line triple-quote fallback rather than scanning the
-      // remaining `"` characters as single-quote pairs.
-      return null;
+      // Only a genuine unterminated triple-quote opener defers to the
+      // caller's multi-line triple-quote fallback — the same narrowing
+      // getTokensForLine applies to the RILL-L001 catch below: don't take
+      // the fallback path for reasons broader than the case it exists for.
+      // A closed `"""a"""` pair is consumed and scanning continues, so a
+      // trailing unterminated single/double-quote string on the same line
+      // is still found below.
+      if (opensUnterminatedTriple) {
+        return null;
+      }
+      const close = lineText.indexOf('"""', i + 3);
+      i = close === -1 ? lineText.length : close + 3;
+      continue;
     }
     if (ch === '"' || ch === "'") {
       const quote = ch;
@@ -134,6 +224,17 @@ function findUnterminatedQuoteStart(lineText: string): number | null {
       while (j < lineText.length) {
         const cj = lineText[j];
         if (cj === '\\') {
+          j += 2;
+          continue;
+        }
+        if (depth === 0 && cj === '{' && lineText[j + 1] === '{') {
+          // {{ outside interpolation is an escaped literal brace, not a
+          // depth-incrementing open (mirrors readers.ts readString).
+          j += 2;
+          continue;
+        }
+        if (depth === 0 && cj === '}' && lineText[j + 1] === '}') {
+          // }} outside interpolation is likewise an escaped literal brace.
           j += 2;
           continue;
         }
@@ -289,9 +390,11 @@ function makeSyntheticToken(
  * For single-line strings the text includes surrounding quotes.
  * For triple-quote continuation lines the text is raw line content.
  *
- * Escape rules:
- * - Single-line: `\X` skips the next char; any lone `{` starts interpolation.
- * - Triple-quote: `{{` is an escaped brace; any lone `{` starts interpolation.
+ * Escape rules (mirror readers.ts readString / readTripleQuoteString):
+ * - Single-line: `\X` skips the next char; `{{`/`}}` are escaped literal
+ *   braces; any other lone `{` starts interpolation.
+ * - Triple-quote: `{{`/`}}` are escaped literal braces; any other lone `{`
+ *   starts interpolation.
  *
  * @param text - Source text to scan
  * @param isTriple - True when using triple-quote escape rules
@@ -305,13 +408,13 @@ function containsInterpolation(text: string, isTriple: boolean): boolean {
       i += 2;
       continue;
     }
-    if (isTriple && ch === '{' && text[i + 1] === '{') {
-      // Triple-quote: {{ is escaped
+    if (ch === '{' && text[i + 1] === '{') {
+      // `{{` is an escaped literal brace
       i += 2;
       continue;
     }
-    if (isTriple && ch === '}' && text[i + 1] === '}') {
-      // Triple-quote: }} is escaped
+    if (ch === '}' && text[i + 1] === '}') {
+      // `}}` is an escaped literal brace
       i += 2;
       continue;
     }
@@ -420,14 +523,14 @@ function splitStringToken(
       continue;
     }
 
-    if (isTriple && ch === '{' && src[i + 1] === '{') {
-      // Triple-quote escaped brace
+    if (ch === '{' && src[i + 1] === '{') {
+      // `{{` is an escaped literal brace (mirrors readers.ts readString)
       i += 2;
       continue;
     }
 
-    if (isTriple && ch === '}' && src[i + 1] === '}') {
-      // Triple-quote escaped closing brace
+    if (ch === '}' && src[i + 1] === '}') {
+      // `}}` is an escaped literal brace
       i += 2;
       continue;
     }
@@ -676,8 +779,14 @@ export const rillHighlighter: StreamParser<RillHighlightState> = {
         state.lineComplete = false;
 
         // Opening """ without a closing """ on the same line causes tokenize to throw
-        // (RILL-L004 unterminated string), returning []. Enter multi-line string mode.
-        if (state.lineTokens.length === 0 && stream.string.includes('"""')) {
+        // (RILL-L004 unterminated string), returning []. Enter multi-line string mode
+        // only when the line genuinely opens an unterminated triple-quote — getTokensForLine
+        // also returns [] for unrelated tokenize errors, and a stray """ inside a comment
+        // or a closed """a""" pair on such a line must not flip the doc into string mode.
+        if (
+          state.lineTokens.length === 0 &&
+          opensUnterminatedTripleQuote(stream.string)
+        ) {
           state.inTripleQuoteString = true;
           stream.skipToEnd();
           if (!state.lineComplete) {

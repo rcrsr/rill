@@ -10,6 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { tokenize } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 // Performance threshold: 500% regression tolerance
@@ -66,4 +67,18 @@ describe('Rill Runtime: Performance Regression', () => {
     const maxAllowed = BASELINE_MS * (1 + REGRESSION_THRESHOLD);
     expect(avgMs).toBeLessThanOrEqual(maxAllowed);
   }, 60000); // 60s timeout for 1000 iterations
+
+  it('tokenizes leading whitespace before frontmatter delimiters in linear time', () => {
+    // Regression guard: the frontmatter-start check must not re-slice and
+    // trim the consumed source on every top-level `---` match. That made
+    // tokenization cost proportional to leadingWhitespace x occurrences
+    // instead of a constant per-token cost.
+    const source = ' '.repeat(200_000) + '---\n'.repeat(10_000);
+
+    const start = performance.now();
+    tokenize(source);
+    const duration = performance.now() - start;
+
+    expect(duration).toBeLessThan(2000);
+  }, 10000);
 });

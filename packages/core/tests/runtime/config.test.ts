@@ -9,7 +9,6 @@ import {
   getStatus,
   RuntimeError,
   RuntimeHaltSignal,
-  TimeoutError,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
@@ -48,30 +47,45 @@ describe('Rill Runtime: Configuration', () => {
       expect(result).toBe('done');
     });
 
-    it('throws TimeoutError when function exceeds timeout', async () => {
+    // A timeout now surfaces as a catchable RuntimeHaltSignal (bug #270) so
+    // that `guard`/`retry` can recover it. Uncaught, it still halts execution.
+    it('halts with a catchable timeout halt when function exceeds timeout', async () => {
       const slowFn = mockAsyncFn(200, 'done');
-      await expect(
-        run('slowFn()', {
-          functions: { slowFn },
-          timeout: 50,
-        })
-      ).rejects.toThrow(TimeoutError);
+      let caught: unknown;
+      try {
+        await run('slowFn()', { functions: { slowFn }, timeout: 50 });
+      } catch (e) {
+        caught = e;
+      }
+      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+      const signal = caught as RuntimeHaltSignal;
+      expect(signal.catchable).toBe(true);
+      expect(getStatus(signal.value).message).toContain('timed out');
     });
 
-    it('TimeoutError has correct properties', async () => {
+    it('timeout halt carries function name and timeout duration', async () => {
       const slowFn = mockAsyncFn(200, 'done');
+      let caught: unknown;
       try {
-        await run('slowFn()', {
-          functions: { slowFn },
-          timeout: 50,
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(TimeoutError);
-        const timeoutErr = err as TimeoutError;
-        expect(timeoutErr.timeoutMs).toBe(50);
-        expect(timeoutErr.functionName).toBe('slowFn');
+        await run('slowFn()', { functions: { slowFn }, timeout: 50 });
+      } catch (e) {
+        caught = e;
       }
+      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+      const status = getStatus((caught as RuntimeHaltSignal).value);
+      const raw = status.raw as Record<string, unknown>;
+      expect(raw.functionName).toBe('slowFn');
+      expect(raw.timeoutMs).toBe(50);
+      expect(status.message).toContain('50ms');
+    });
+
+    it('guard recovers a timeout to its invalid value', async () => {
+      const slowFn = mockAsyncFn(200, 'done');
+      const result = await run('guard { slowFn() } => $r  $r.!message', {
+        functions: { slowFn },
+        timeout: 50,
+      });
+      expect(result).toContain('timed out');
     });
 
     it('does not apply timeout to sync functions', async () => {
@@ -229,13 +243,22 @@ describe('Rill Runtime: Configuration', () => {
     it('timeout fires before autoException when function is slow', async () => {
       const verySlowFn = mockAsyncFn(500, 'ERROR: failed');
 
-      await expect(
-        run('verySlowFn()', {
+      let caught: unknown;
+      try {
+        await run('verySlowFn()', {
           functions: { verySlowFn },
           timeout: 50,
           autoExceptions: ['ERROR'],
-        })
-      ).rejects.toThrow(TimeoutError);
+        });
+      } catch (e) {
+        caught = e;
+      }
+      // The timeout wins the race: a catchable timeout halt, not the
+      // (non-catchable) autoException halt.
+      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+      const signal = caught as RuntimeHaltSignal;
+      expect(signal.catchable).toBe(true);
+      expect(getStatus(signal.value).message).toContain('timed out');
     });
   });
 

@@ -179,31 +179,41 @@ export async function evaluateRetryBlock(
     return invalid;
   }
 
-  let lastInvalid: RillValue | undefined;
+  let lastHaltValue: RillValue | undefined;
+  const caughtFrames: ReturnType<typeof createTraceFrame>[] = [];
   for (let attempt = 0; attempt < node.attempts; attempt++) {
     try {
       return await evaluateBody(s, node.body);
     } catch (e) {
       if (e instanceof RuntimeHaltSignal && shouldCatch(e, onCodes)) {
-        const frame = createTraceFrame({
-          site: formatAccessSite(getNodeLocation(s, node), s.ctx.sourceId),
-          kind: 'guard-caught',
-          fn: 'retry',
-        });
-        // Accumulate frames across attempts: attempt 1 seeds
-        // lastInvalid from the thrown value; subsequent attempts
-        // append to the running accumulator, so N exhausted
-        // attempts produce N guard-caught frames.
-        lastInvalid = appendTraceFrame(lastInvalid ?? e.value, frame);
+        // The returned value must describe the FINAL failure, not the
+        // first, so only the raw thrown value (code/message) and a single
+        // new frame are recorded per attempt - O(1) work here, not a
+        // full replay of every frame collected so far.
+        caughtFrames.push(
+          createTraceFrame({
+            site: formatAccessSite(getNodeLocation(s, node), s.ctx.sourceId),
+            kind: 'guard-caught',
+            fn: 'retry',
+          })
+        );
+        lastHaltValue = e.value;
         continue;
       }
       throw e;
     }
   }
 
-  // All attempts exhausted; lastInvalid is populated because the
-  // loop ran at least once (RETRY_MIN_ATTEMPTS guards the path).
-  return lastInvalid as RillValue;
+  // All attempts exhausted; lastHaltValue is populated because the
+  // loop ran at least once (RETRY_MIN_ATTEMPTS guards the path). Build the
+  // final trace once, replaying every guard-caught frame on top of the
+  // LAST attempt's thrown value so its code/message win while every
+  // attempt's frame is preserved.
+  let lastInvalid = lastHaltValue as RillValue;
+  for (const f of caughtFrames) {
+    lastInvalid = appendTraceFrame(lastInvalid, f);
+  }
+  return lastInvalid;
 }
 
 /**

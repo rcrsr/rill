@@ -149,6 +149,8 @@ Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a nam
 
 `#TIMEOUT -> string` converts a `:atom` value to its string name. `"TIMEOUT" -> atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Error Reference](ref-errors.md) for pre-registered atoms.
 
+`#NAME` only lexes as an atom when an ASCII uppercase letter follows `#`; see [Comments](#comments) for the full carve-out and contrast pairs.
+
 ### Functions
 
 | Syntax | Description |
@@ -244,8 +246,16 @@ $d.error
 # Result: 1
 ```
 
+A bare `true`/`false` key is a boolean literal key, distinct from the string key `"true"`/`"false"`. Member access (`.true`) reads the string key, so a boolean key is reached by dispatch instead:
+
 ```rill
 dict[true: 1] => $d
+true -> $d
+# Result: 1
+```
+
+```rill
+dict["true": 1] => $d
 $d.true
 # Result: 1
 ```
@@ -742,6 +752,26 @@ Single-line comments start with `#`:
 # This is a comment
 "hello"  # inline comment
 ```
+
+A `#` followed by an ASCII uppercase letter starts an atom literal, not a comment; every other `#` starts a comment.
+
+| Form | Lexes as |
+|------|----------|
+| `#TODO` | atom (`:atom` value) |
+| `#Note` | atom (`:atom` value) |
+| `# TODO` | comment |
+| `# Note` | comment |
+| `#todo` | comment |
+
+```text
+#TODO      # atom literal (uppercase letter follows #)
+#Note      # atom literal (uppercase letter follows #)
+# TODO     # comment (space follows #)
+# Note     # comment (space follows #)
+#todo      # comment (lowercase letter follows #)
+```
+
+See [Atom Literals](#atom-literals) for the `#NAME` syntax this carve-out enables.
 
 ---
 

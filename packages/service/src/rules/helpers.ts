@@ -241,3 +241,42 @@ export function maskStringLiterals(text: string): string {
     (_match, contents: string) => `"${' '.repeat(contents.length)}"`
   );
 }
+
+// ============================================================
+// COMMENT MASKING
+// ============================================================
+
+/**
+ * Replaces the interior of every line comment in `text` with spaces,
+ * preserving all other characters, offsets, and newlines exactly. Mirrors
+ * the lexer's comment rule: a `#` starts a comment running through
+ * end-of-line, unless immediately followed by an uppercase letter
+ * (`[A-Z]`), which marks an atom literal such as `#TYPE_MISMATCH` rather
+ * than a comment. Spacing rules test operator regexes against a node's
+ * raw span text; without masking, an operator-like substring inside a
+ * trailing comment (e.g. `$x -> $y # a -> b`) produces a false-positive
+ * diagnostic. Call this after `maskStringLiterals` so a `#` inside a
+ * string literal is already blanked and cannot be misread as a comment
+ * start.
+ */
+export function maskComments(text: string): string {
+  let result = '';
+  let i = 0;
+  const len = text.length;
+
+  while (i < len) {
+    const ch = text[i];
+    if (ch === '#' && !(i + 1 < len && /[A-Z]/.test(text[i + 1] as string))) {
+      // Blank through end-of-line (exclusive), preserving the newline.
+      while (i < len && text[i] !== '\n') {
+        result += ' ';
+        i++;
+      }
+      continue;
+    }
+    result += ch;
+    i++;
+  }
+
+  return result;
+}

@@ -42,6 +42,28 @@ describe('CLOSURE_BARE_DOLLAR', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('does not fire on a bare $ closure that is a dict entry value', () => {
+    const source = 'dict[double: || { $ * 2 }] => $handlers\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [closureBareDollar]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('still fires on a bare $ closure stored outside a dict entry', () => {
+    const source = '(|| { $ * 2 }) => $f\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [closureBareDollar]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'CLOSURE_BARE_DOLLAR',
+      severity: 'warning',
+    });
+  });
 });
 
 describe('CLOSURE_BRACES', () => {

@@ -14,6 +14,7 @@ import { ParseError, TOKEN_TYPES } from '../types.js';
 import { type ParserState, check, peek, expect, current } from './state.js';
 import { VALID_TYPE_NAMES } from '../constants.js';
 import { ERROR_IDS } from '../error-registry.js';
+import type { Token } from '../types.js';
 
 // ============================================================
 // VALID TYPE NAMES
@@ -66,9 +67,7 @@ export function isHostCall(state: ParserState): boolean {
   }
 
   // Simple case: identifier(
-  let simpleOffset = 1;
-  while (peek(state, simpleOffset).type === TOKEN_TYPES.NEWLINE) simpleOffset++;
-  if (peek(state, simpleOffset).type === TOKEN_TYPES.LPAREN) {
+  if (peek(state, 1).type === TOKEN_TYPES.LPAREN) {
     return true;
   }
 
@@ -84,9 +83,8 @@ export function isHostCall(state: ParserState): boolean {
     offset++; // skip identifier/keyword
   }
 
-  // If we consumed at least one ::, skip newlines then check for (
+  // If we consumed at least one ::, check for (
   if (offset > 1) {
-    while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
     return peek(state, offset).type === TOKEN_TYPES.LPAREN;
   }
 
@@ -101,9 +99,7 @@ export function isHostCall(state: ParserState): boolean {
 export function isClosureCall(state: ParserState): boolean {
   if (!check(state, TOKEN_TYPES.DOLLAR)) return false;
   if (peek(state, 1).type !== TOKEN_TYPES.IDENTIFIER) return false;
-  let offset = 2;
-  while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
-  return peek(state, offset).type === TOKEN_TYPES.LPAREN;
+  return peek(state, 2).type === TOKEN_TYPES.LPAREN;
 }
 
 /**
@@ -125,7 +121,6 @@ export function isClosureCallWithAccess(state: ParserState): boolean {
     offset++; // skip identifier
   }
 
-  while (peek(state, offset).type === TOKEN_TYPES.NEWLINE) offset++;
   return peek(state, offset).type === TOKEN_TYPES.LPAREN;
 }
 
@@ -161,6 +156,18 @@ export function isAnnotationAccess(state: ParserState): boolean {
   return (
     check(state, TOKEN_TYPES.DOT) && peek(state, 1).type === TOKEN_TYPES.CARET
   );
+}
+
+/**
+ * Describe a token for "got: <token>" style parse error messages.
+ * NEWLINE and EOF tokens carry non-printable/empty `.value`s, so they get
+ * human-readable labels instead of being interpolated raw.
+ * @internal
+ */
+export function describeToken(token: Token): string {
+  if (token.type === TOKEN_TYPES.NEWLINE) return 'newline';
+  if (token.type === TOKEN_TYPES.EOF) return 'end of input';
+  return token.value;
 }
 
 /**

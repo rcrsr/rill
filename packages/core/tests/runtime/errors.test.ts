@@ -361,6 +361,55 @@ describe('Rill Runtime: Error Taxonomy', () => {
 
       expect(error.context).toEqual(context);
     });
+
+    it('createError returns a ParseError instance for a parse-category ID', () => {
+      const error = createError('RILL-P001', {
+        token: '}',
+        expected: ')',
+      });
+
+      expect(error).toBeInstanceOf(ParseError);
+      expect(error).toBeInstanceOf(RillError);
+    });
+
+    it('createError returns a RuntimeError instance for a runtime-category ID', () => {
+      const error = createError('RILL-R005', { name: 'foo' });
+
+      expect(error).toBeInstanceOf(RuntimeError);
+      expect(error).toBeInstanceOf(RillError);
+    });
+
+    it('createError returns a ParseError instance for a legacy syntax-parse ID', () => {
+      const error = createError('RILL-R078', {});
+
+      expect(error).toBeInstanceOf(ParseError);
+      expect(error).toBeInstanceOf(RillError);
+    });
+
+    it('createError omits location metadata for an unlocated parse-category ID', () => {
+      const error = createError('RILL-P001', {
+        token: '}',
+        expected: ')',
+      });
+
+      expect(error).toBeInstanceOf(ParseError);
+      expect(error.location).toBeUndefined();
+      expect(error.message).not.toContain(' at ');
+      expect(error.message).toBe('Unexpected token }, expected )');
+    });
+
+    it('createError includes location metadata for a located parse-category ID', () => {
+      const location: SourceLocation = { line: 2, column: 4, offset: 10 };
+      const error = createError(
+        'RILL-P001',
+        { token: '}', expected: ')' },
+        location
+      );
+
+      expect(error).toBeInstanceOf(ParseError);
+      expect(error.location).toEqual(location);
+      expect(error.message).toContain('at 2:4');
+    });
   });
 
   describe('Error Constructor Validation Tests', () => {

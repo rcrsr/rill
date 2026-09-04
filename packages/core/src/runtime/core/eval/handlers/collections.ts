@@ -19,6 +19,7 @@ import {
   isDatetime,
   isDuration,
   isIterator,
+  isOrdered,
   isStream,
   isVector,
 } from '../../types/guards.js';
@@ -26,6 +27,7 @@ import type { RillStream } from '../../types/structures.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { BreakSignal } from '../../signals.js';
 import { isCallable, isDict } from '../../callable.js';
+import { typedKeyEntries } from '../../types/dict-keys.js';
 import {
   throwCatchableHostHalt,
   throwFatalHostHalt,
@@ -104,13 +106,32 @@ export async function getIterableElements(
   if (isIterator(input)) {
     return expandIterator(input, evaluator, node, limit);
   }
+  // Ordered guard: ordered values are plain objects but not dict-iterable
+  // catchable: user supplied wrong type
+  if (isOrdered(input)) {
+    throwCatchableHostHalt(
+      {
+        location: node.span.start,
+        sourceId: ctx.sourceId,
+        fn: 'getIterableElements',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
+    );
+  }
   if (isDict(input)) {
-    // Dict iteration: sorted keys, each element is { key, value }
+    // Dict iteration: sorted string keys first, then number/boolean keys
+    // (in insertion order), each element is { key, value }.
     const keys = Object.keys(input).sort();
-    return keys.map((key) => ({
-      key,
+    const stringEntries = keys.map((key) => ({
+      key: key as RillValue,
       value: (input as Record<string, RillValue>)[key]!,
     }));
+    const typedEntries = typedKeyEntries(input).map((e) => ({
+      key: e.key as RillValue,
+      value: e.value,
+    }));
+    return [...stringEntries, ...typedEntries];
   }
   // Non-iterable [RILL-R002] — catchable: user supplied wrong type
   throwCatchableHostHalt(
@@ -187,7 +208,11 @@ async function expandIterator(
     current = nextIterator as Record<string, RillValue>;
   }
 
-  if (count >= limit) {
+  // The loop halts either because the iterator is exhausted (done) or because
+  // count reached the limit. Only the latter — more elements remaining past the
+  // ceiling — is an overrun. Exactly `limit` elements that fully consume the
+  // iterator is within bounds; the (limit+1)th element triggers the halt.
+  if (count >= limit && !current['done']) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
       {
@@ -317,7 +342,9 @@ async function expandStream(
     throw e;
   }
 
-  if (count >= limit) {
+  // Exactly `limit` elements that fully drain the stream (done) is within
+  // bounds; only a stream still producing past the ceiling is an overrun.
+  if (count >= limit && !current.done) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
       {

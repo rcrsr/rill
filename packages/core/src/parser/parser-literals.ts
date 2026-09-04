@@ -57,7 +57,8 @@ declare module './parser.js' {
     parseStringParts(
       raw: string,
       baseLocation: SourceLocation,
-      isTokenMultiline: boolean
+      isTripleQuote: boolean,
+      openingNewlineConsumed: boolean
     ): (string | InterpolationNode)[];
     parseInterpolationExpr(
       source: string,
@@ -174,10 +175,20 @@ Parser.prototype.parseString = function (this: Parser): StringLiteralNode {
   const token = advance(this.state);
   const raw = token.value;
 
-  // Token is multiline if it spans multiple lines (detects """\\n... case)
-  const isTokenMultiline = token.span.end.line > token.span.start.line;
+  // Only triple-quoted strings use a 3-character delimiter and may skip a
+  // leading newline (Python-style); single-quoted strings never span lines.
+  const startOffset = token.span.start.offset;
+  const isTripleQuote =
+    this.state.source.slice(startOffset, startOffset + 3) === '"""';
+  const openingNewlineConsumed =
+    isTripleQuote && this.state.source[startOffset + 3] === '\n';
 
-  const parts = this.parseStringParts(raw, token.span.start, isTokenMultiline);
+  const parts = this.parseStringParts(
+    raw,
+    token.span.start,
+    isTripleQuote,
+    openingNewlineConsumed
+  );
 
   return {
     type: 'StringLiteral',
@@ -191,7 +202,8 @@ Parser.prototype.parseStringParts = function (
   this: Parser,
   raw: string,
   baseLocation: SourceLocation,
-  isTokenMultiline: boolean
+  isTripleQuote: boolean,
+  openingNewlineConsumed: boolean
 ): (string | InterpolationNode)[] {
   const parts: (string | InterpolationNode)[] = [];
   let i = 0;
@@ -209,18 +221,16 @@ Parser.prototype.parseStringParts = function (
         if (literal) parts.push(literal);
       }
 
+      // Brace-escaping ({{, }}) does not apply inside interpolation: every {
+      // and } here is real rill code (nested blocks, dicts, closures), so
+      // each brace must be counted, not speculatively swallowed as a
+      // literal pair. Swallowing a pair whose first brace actually closes a
+      // nested construct desyncs depth and misreports the interpolation as
+      // unterminated. Matches the lexer's own interpolation scan.
       const exprStart = i + 1;
       let depth = 1;
       i++;
       while (i < raw.length && depth > 0) {
-        if (raw[i] === '{' && raw[i + 1] === '{') {
-          i += 2;
-          continue;
-        }
-        if (raw[i] === '}' && raw[i + 1] === '}') {
-          i += 2;
-          continue;
-        }
         if (raw[i] === '{') depth++;
         else if (raw[i] === '}') depth--;
         i++;
@@ -245,38 +255,45 @@ Parser.prototype.parseStringParts = function (
 
       // Calculate the actual position of the interpolation in the source
       // baseLocation is the string token start (the opening quote(s))
-      // For single-quote strings: raw starts immediately after opening "
-      // For triple-quote strings: raw starts on the line after """ (opening newline is skipped)
+      // Delimiter length is 1 for " and 3 for """. The +1 line / delimiter+1
+      // offset adjustment for a consumed opening newline only applies when
+      // the lexer actually skipped one (Python-style, """ strings only).
       //
       // We need to map the position in raw to absolute source location
       const beforeInterp = raw.slice(0, exprStart);
       const newlines = (beforeInterp.match(/\n/g) || []).length;
       const lastNewlinePos = beforeInterp.lastIndexOf('\n');
+      const quoteLen = isTripleQuote ? 3 : 1;
 
       let interpLine: number;
       let interpColumn: number;
       let interpOffset: number;
 
-      // Check if this is a multiline string token (spans multiple lines in source)
-      // For triple-quote strings that had opening newline skipped, isTokenMultiline is true
-      const contentStartsOnNextLine = isTokenMultiline && newlines === 0;
+      // Interpolation lands on the first content line, immediately after a
+      // consumed opening newline (i.e. """ followed directly by \n).
+      const contentStartsOnNextLine = openingNewlineConsumed && newlines === 0;
 
       if (newlines > 0) {
         // Has newlines in raw content before interpolation
-        interpLine = baseLocation.line + (isTokenMultiline ? 1 : 0) + newlines;
+        interpLine =
+          baseLocation.line + (openingNewlineConsumed ? 1 : 0) + newlines;
         interpColumn = beforeInterp.length - lastNewlinePos;
         interpOffset =
-          baseLocation.offset + (isTokenMultiline ? 4 : 1) + exprStart;
+          baseLocation.offset +
+          quoteLen +
+          (openingNewlineConsumed ? 1 : 0) +
+          exprStart;
       } else if (contentStartsOnNextLine) {
         // Triple-quote string with skipped opening newline, but interpolation on first content line
         interpLine = baseLocation.line + 1;
         interpColumn = 1 + exprStart;
-        interpOffset = baseLocation.offset + 4 + exprStart;
+        interpOffset = baseLocation.offset + quoteLen + 1 + exprStart;
       } else {
-        // Single-line string or interpolation on same line as opening quote
+        // Interpolation starts on the same line as the opening delimiter,
+        // whether that delimiter is " or """.
         interpLine = baseLocation.line;
-        interpColumn = baseLocation.column + 1 + exprStart;
-        interpOffset = baseLocation.offset + 1 + exprStart;
+        interpColumn = baseLocation.column + quoteLen + exprStart;
+        interpOffset = baseLocation.offset + quoteLen + exprStart;
       }
 
       const interpolation = this.parseInterpolationExpr(exprSource, {

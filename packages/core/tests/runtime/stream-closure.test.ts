@@ -248,4 +248,73 @@ describe('Stream Closure Execution', () => {
       expect(chunks).toEqual([1, 2, 3]);
     });
   });
+
+  // ============================================================
+  // REGRESSION: concurrent yields and partial-consume resolve
+  // ============================================================
+
+  describe('concurrent yields and partial-consume resolve', () => {
+    /**
+     * Reject after `ms` so a genuine deadlock fails the test loudly instead of
+     * hanging until the suite-level timeout. The winning path is always `run`.
+     */
+    function withTimeout<T>(
+      p: Promise<T>,
+      ms: number,
+      label: string
+    ): Promise<T> {
+      return Promise.race([
+        p,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`timed out: ${label}`)), ms)
+        ),
+      ]);
+    }
+
+    // Bug #272: fan runs body executions concurrently, so multiple push()
+    // calls arrive before the consumer pulls. A single-slot channel dropped
+    // all but the last and deadlocked; the FIFO queue must deliver every chunk.
+    it('delivers every chunk when fan yields concurrently (no lost chunks, no deadlock)', async () => {
+      const script = `
+        || { list[1, 2, 3] -> fan({ $ -> yield }) -> "ok" } :stream(number):string => $gen
+        $gen() -> seq({ $ })
+      `;
+      const result = (await withTimeout(
+        run(script),
+        5000,
+        'fan+yield'
+      )) as unknown as RillValue[];
+      // fan is unordered — assert the set, not the order.
+      expect([...result].sort()).toEqual([1, 2, 3]);
+    });
+
+    it('delivers every chunk for a larger concurrent fan', async () => {
+      const script = `
+        || { list[1, 2, 3, 4, 5] -> fan({ $ -> yield }) -> "ok" } :stream(number):string => $gen
+        $gen() -> seq({ $ })
+      `;
+      const result = (await withTimeout(
+        run(script),
+        5000,
+        'fan+yield x5'
+      )) as unknown as RillValue[];
+      expect([...result].sort((a, b) => (a as number) - (b as number))).toEqual(
+        [1, 2, 3, 4, 5]
+      );
+    });
+
+    // Bug #273: resolving a partially consumed stream must not block forever on
+    // a body parked inside push(). Cancelling the channel unblocks the body so
+    // it runs to its resolution.
+    it('resolves a partially consumed stream without hanging', async () => {
+      const script = `
+        || { range(1, 6) -> seq({ $ -> yield }) -> "done" } :stream(number):string => $gen
+        $gen() => $s
+        $s -> take(3) => $c
+        $s()
+      `;
+      const result = await withTimeout(run(script), 5000, 'take(3)+resolve');
+      expect(result).toBe('done');
+    });
+  });
 });

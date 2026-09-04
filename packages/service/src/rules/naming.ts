@@ -81,8 +81,18 @@ function toSnakeCase(name: string): string {
  * arithmetic over already-computed facts, not a binding-identity lookup, so
  * it doesn't cross the rules/scope firewall (`src/rules/**` may not import
  * `src/scope/`).
+ *
+ * A reference entry for a dynamic field-key segment (`.$var` inside another
+ * variable's access chain) carries its own `span` - the segment's own
+ * `.$var`-width span, not the enclosing variable's - since `entry.node` for
+ * that case is the chain's head `Variable`, not the segment itself. That
+ * span is used as-is when present, in place of the `1 + name.length`
+ * arithmetic below.
  */
 function referenceSpan(entry: ReferenceEntry): SourceSpan {
+  if (entry.span) {
+    return entry.span;
+  }
   const { start } = entry.node.span;
   const width = 1 + entry.name.length;
   return {
@@ -136,6 +146,12 @@ type NamingFixKind = 'capture' | 'param' | 'dictKey';
  *   `referenceLog` is name-only, so rewriting every reference to `name`
  *   would also rewrite references to a same-named parameter that shadows
  *   the capture in its own closure body.
+ * - `capture` when any `referenceLog` entry for `name` has
+ *   `closureOrOpDepth > 0`: the reference sits inside a nested
+ *   closure/collection-op body, where the flat, name-only reference list
+ *   cannot prove the reference binds to the capture being renamed rather
+ *   than a same-named sibling/nested declaration (mirrors
+ *   `collectDisqualifiedNames` in `throwaway-capture.ts`).
  * - `capture`/`param` when `toSnakeCase(name)` collides with an existing
  *   capture: renaming would merge two distinct variables.
  * - `dictKey` when the script has any dynamically-keyed field access
@@ -193,6 +209,13 @@ function buildFix(
       }
 
       if (paramNames.has(name)) {
+        return null;
+      }
+
+      const referencedInNestedScope = referenceLog.some(
+        (entry) => entry.name === name && entry.closureOrOpDepth > 0
+      );
+      if (referencedInNestedScope) {
         return null;
       }
     }

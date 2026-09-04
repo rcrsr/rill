@@ -608,22 +608,24 @@ describe('Streams: Boundary Conditions', () => {
 
   // BC-3: Stream at ceiling
   // The expandStream loop counts the initial pending step (no value) plus each
-  // chunk step. With DEFAULT_MAX_ITERATIONS=10000, the effective data ceiling
-  // is 9998 chunks (initial step + 9998 data steps + final done = 9999 iterations).
+  // chunk step. With DEFAULT_MAX_ITERATIONS=10000, a stream that fully drains
+  // in exactly 10000 iterations is within bounds: 9999 chunks (initial step +
+  // 9999 data steps = 10000 iterations, then the done step exits the loop).
+  // The ceiling halt fires only when elements remain past the ceiling.
   describe('BC-3: stream at ceiling', () => {
-    it('processes 9998 chunks without error', async () => {
-      const chunks = Array.from({ length: 9998 }, (_, i) => i);
+    it('processes 9999 chunks without error', async () => {
+      const chunks = Array.from({ length: 9999 }, (_, i) => i);
       const result = await run('make_stream() -> fold(0, { $@ + 1 })', {
         functions: { make_stream: makeStreamFn(chunks) },
       });
-      expect(result).toBe(9998);
+      expect(result).toBe(9999);
     });
   });
 
   // BC-4: Stream at ceiling + 1
   describe('BC-4: stream at ceiling + 1', () => {
-    it('halts with RILL-R010 at 9999 chunks', async () => {
-      const chunks = Array.from({ length: 9999 }, (_, i) => i);
+    it('halts with RILL-R010 at 10000 chunks', async () => {
+      const chunks = Array.from({ length: 10000 }, (_, i) => i);
       await expect(
         run('make_stream() -> seq({ $ })', {
           functions: { make_stream: makeStreamFn(chunks) },

@@ -22,9 +22,9 @@ The lexer converts source text into a flat sequence of tokens. Each token carrie
 |-------|-----------|-------|
 | `"hello"` | STRING | hello |
 | `42` | NUMBER | 42 |
-| `->` | PIPE | -> |
-| `$name` | VARIABLE | name |
-| `.len` | DOT_ACCESS | len |
+| `->` | ARROW | -> |
+| `$name` | DOLLAR | name |
+| `.len` | METHOD_NAME | len |
 
 The lexer handles string interpolation by splitting `"Hello {$name}"` into string parts and expression tokens. Triple-quoted strings (`"""..."""`) and escape sequences are resolved at this stage.
 
@@ -44,7 +44,7 @@ Becomes an AST where each `->` creates a pipe node connecting its left operand t
 
 The parser resolves operator precedence, groups blocks (`{ }`), and validates syntax (balanced braces, correct operator usage). It does not check types or variable existence.
 
-**Error category:** `RILL-P001` through `RILL-P010` (unexpected tokens, unclosed blocks, invalid expressions).
+**Error category:** `RILL-P001` through `RILL-P022` (non-contiguous; unexpected tokens, unclosed blocks, invalid expressions).
 
 ## Stage 3: Runtime
 
@@ -62,7 +62,7 @@ The runtime walks the AST and evaluates each node. It manages:
 
 The runtime enforces rill's type safety rules: no implicit coercion, no null values, no truthiness. Every type mismatch produces a `RuntimeError` with a specific error code.
 
-**Error category:** `RILL-R001` through `RILL-R061` (type errors, undefined variables, limit violations).
+**Error category:** `RILL-R001` through `RILL-R083` (non-contiguous; type errors, undefined variables, limit violations).
 
 ## Host Integration Point
 

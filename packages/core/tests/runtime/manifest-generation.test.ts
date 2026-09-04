@@ -37,6 +37,7 @@ import {
   anyTypeValue,
   createRuntimeContext,
   generateManifest,
+  parse,
   structureToTypeValue,
 } from '@rcrsr/rill';
 
@@ -234,8 +235,9 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      // formatValue for string returns the raw string value (unquoted)
-      expect(manifest).toContain('= world');
+      // String defaults are emitted as quoted rill string literals so the
+      // manifest re-parses as a valid rill file.
+      expect(manifest).toContain('= "world"');
     });
 
     it('serializes description annotation in manifest (AC-38)', () => {
@@ -524,6 +526,119 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(manifest).not.toMatch(/"range"/);
       expect(manifest).not.toMatch(/"json"/);
       expect(manifest).not.toMatch(/"enumerate"/);
+    });
+  });
+
+  describe('Bug #278: string defaults and descriptions are emitted as valid rill', () => {
+    it('emits a string default as a quoted rill literal, not a bare word', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          greet: {
+            params: [
+              {
+                name: 'name',
+                type: { kind: 'string' },
+                defaultValue: 'World',
+                annotations: {},
+              },
+            ],
+            fn: (args) => `Hello ${args['name']}`,
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      // Previously emitted `= World` (a bare identifier) which failed to parse
+      // with "Expected literal, got: World".
+      expect(manifest).toContain('= "World"');
+      expect(manifest).not.toMatch(/=\s+World\b(?!")/);
+    });
+
+    it('escapes quotes and backslashes inside a string default literal', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'q',
+                type: { kind: 'string' },
+                defaultValue: 'a "quoted" \\ value',
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['q'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('= "a \\"quoted\\" \\\\ value"');
+    });
+
+    it('escapes double quotes in parameter and closure descriptions', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'x',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: { description: 'the "x" value' },
+              },
+            ],
+            fn: (args) => args['x'],
+            annotations: { description: 'a "described" function' },
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      // Both the closure-level and param-level descriptions escape their quotes,
+      // so they cannot terminate the surrounding annotation string early.
+      expect(manifest).toContain(
+        '^(description: "a \\"described\\" function")'
+      );
+      expect(manifest).toContain('^(description: "the \\"x\\" value")');
+    });
+
+    it('re-parses a typed manifest whose closure description contains escaped quotes', () => {
+      // A typed function with an explicit return type serializes to the
+      // parseable closure-type form `^(description: "...") |name: type|:ret`.
+      // The escaped quotes in the description keep the annotation string from
+      // terminating early, so the whole manifest is a valid rill file.
+      const ctx = createRuntimeContext({
+        functions: {
+          greet: {
+            params: [
+              {
+                name: 'name',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => `Hello ${args['name']}`,
+            annotations: { description: 'greet "someone"' },
+            returnType: structureToTypeValue({ kind: 'string' }),
+          },
+          echo: {
+            params: [
+              {
+                name: 'msg',
+                type: { kind: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['msg'],
+            returnType: structureToTypeValue({ kind: 'number' }),
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('greet \\"someone\\"');
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 

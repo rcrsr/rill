@@ -12,7 +12,7 @@ import {
   execute,
   createRuntimeContext,
   toCallable,
-  AbortError,
+  RuntimeHaltSignal,
   type ExtensionFactoryResult,
 } from '@rcrsr/rill';
 
@@ -44,7 +44,7 @@ try {
   const result = await execute(ast, ctx);
   console.log('Result:', result.result);
 } catch (err) {
-  if (err instanceof AbortError) {
+  if (err instanceof RuntimeHaltSignal) {
     console.log('Cancelled');
   } else {
     throw err;
@@ -63,7 +63,7 @@ import {
   createRuntimeContext,
   callable,
   structureToTypeValue,
-  AbortError,
+  RuntimeHaltSignal,
   type RillValue,
 } from '@rcrsr/rill';
 
@@ -122,7 +122,7 @@ try {
   const result = await execute(ast, ctx);
   console.log('Result:', result.result);
 } catch (err) {
-  if (err instanceof AbortError) {
+  if (err instanceof RuntimeHaltSignal) {
     console.log('Cancelled');
   } else {
     throw err;
@@ -136,26 +136,37 @@ try {
 
 ```typescript
 // Parsing
-export { parse, ParseError, tokenize, LexerError };
+export { parse, parseWithRecovery, parseTypeRef, createParserState, tokenize, LexerError };
+export { KEYWORDS };
+export type { ParseResult, RecoveryErrorNode, ErrorNode, ParseOptions };
 
 // Execution
 export { execute, createRuntimeContext, createStepper, generateManifest };
 export type { RuntimeContext, RuntimeOptions, ExecutionResult };
 export type { ExecutionStepper, StepResult };
 
+// Execution context (advanced use)
+export { createChildContext, getVariable, hasVariable };
+export { getCallStack, pushCallFrame, popCallFrame };
+export { invokeCallable };
+export type { ControlFlowContext, DispatchContext, LifecycleContext, MetadataContext, ResolverContext, ScopeContext };
+export type { FieldComparisonCallbacks, CallFrame };
+
 // Resolvers
-export { moduleResolver, extResolver };
+export { moduleResolver, extResolver, contextResolver };
 export type { SchemeResolver, ResolverResult };
 
 // Callable types
-export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicationCallable };
-export type { RillCallable, ScriptCallable, RuntimeCallable, ApplicationCallable, CallableFn };
+export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicationCallable, hydrateFieldDefaults };
+export type { RillCallable, ScriptCallable, ApplicationCallable, CallableFn };
 
 // Host function types
 export type { RillParam, RillFunction };
 export type { TypeStructure };
 export type { TypeDefinition, TypeProtocol };
 export type { RillTypeValue };
+export type { MarshalOptions };
+export { marshalArgs };
 
 // Stream helpers
 export { createRillStream, isRillStream };
@@ -163,14 +174,48 @@ export type { RillStream };
 
 // Value types
 export type { RillValue };
+export type { RillAtomValue, RillDatetime, RillDuration, RillFieldDef, RillIterator, RillTuple, RillVector };
+export type { TraceKind };
 
 // Value conversion
 export { toNative };
 export type { NativeResult, NativeValue, NativeArray, NativePlainObject };
 
+// Value construction and inspection
+export { copyValue, createOrdered, createTuple, createVector };
+export {
+  getStatus,
+  isAtom,
+  isDatetime,
+  isDuration,
+  isInvalid,
+  isIterator,
+  isStream,
+  isTuple,
+  isTypeValue,
+  isVacant,
+  isVector,
+};
+export {
+  commonType,
+  compareStructuredFields,
+  formatRillLiteral,
+  formatStructure,
+  inferStructure,
+  structureEquals,
+  structureMatches,
+};
+export { BUILT_IN_TYPES, deepEquals, deserializeValue, formatValue, inferType, serializeValue };
+export { anyTypeValue, isEmpty, structureToTypeValue };
+export { formatHalt };
+
+// Field descriptors
+export { buildFieldDescriptor };
+export type { ConfigFieldDescriptor };
+
 // Introspection
-export { getFunctions, getLanguageReference, getDocumentationCoverage };
-export type { FunctionMetadata, ParamMetadata, DocumentationCoverageResult };
+export { getFunctions, getLanguageReference, getDocumentationCoverage, introspectHandlerFromAST };
+export type { FunctionMetadata, ParamMetadata, DocumentationCoverageResult, HandlerMetadataStatic, HandlerParamStatic };
 
 // Version information
 export { VERSION, VERSION_INFO };
@@ -178,20 +223,23 @@ export type { VersionInfo };
 
 // Callbacks
 export type { RuntimeCallbacks, ObservabilityCallbacks };
-export type { StepStartEvent, StepEndEvent, FunctionCallEvent, FunctionReturnEvent };
+export type { StepStartEvent, StepEndEvent, HostCallEvent, FunctionReturnEvent };
 export type { CaptureEvent, ErrorEvent };
 
 // Errors
-export { RillError, RuntimeError, ParseError, AbortError, TimeoutError, AutoExceptionError };
-export { RILL_ERROR_CODES };
-export type { RillErrorCode };
+export { RillError, RuntimeError, ParseError, TimeoutError };
+export { formatRillError, formatRillErrorJson, createError, renderMessage, getHelpUrl };
+export { ERROR_HANDLING_PATTERNS };
+export type { ErrorHandlingExample, ErrorHandlingPattern, ErrorExample, ErrorRegistry };
+export type { ErrorCategory, ErrorDefinition, ErrorSeverity };
+export type { FormatErrorOptions, FormatErrorJsonOptions, SourceMap };
 
 // Utilities
-export { isDict, isReservedMethod, RESERVED_DICT_METHODS };
+export { isDict };
 export type { SourceLocation, SourceSpan };
 
 // Control flow (for advanced use)
-export { BreakSignal, ReturnSignal };
+export { BreakSignal, ReturnSignal, YieldSignal, ControlSignal, RuntimeHaltSignal };
 
 // Syntax highlighting
 export { TOKEN_HIGHLIGHT_MAP };
@@ -201,7 +249,8 @@ export type { HighlightCategory };
 export { ERROR_REGISTRY };
 
 // Language and tooling metadata
-export { BUILTIN_FUNCTIONS, KEYWORDS };
+export { BUILTIN_FUNCTIONS, BUILTIN_METHODS, KEYWORDS, TOKEN_TYPES, VALID_TYPE_NAMES };
+export type { Token, TokenType };
 
 // Extension types
 export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, ExtensionManifest, ExtensionConfigSchema };
@@ -209,11 +258,105 @@ export type { ExtensionFactoryCtx };
 
 // Extension utilities
 export { toCallable, createTestContext, emitExtensionEvent };
+export { ExtensionBindingError };
 
 // Atom registry (read-only access at top level)
 export { resolveAtom, atomName };
-export type { RillAtom, RillStatus, InvalidMeta, TraceFrame };
-export { formatHalt };
+export type { InvalidateMeta, TraceFrame };
+
+// AST node types
+export { isPipeChainNode };
+export type {
+  AnnotatedExprNode,
+  AnnotatedStatementNode,
+  AnnotationAccessNode,
+  AnnotationArg,
+  ArithHead,
+  AssertNode,
+  ASTNode,
+  AtomLiteralNode,
+  BinaryExprNode,
+  BinaryOp,
+  BlockNode,
+  BodyNode,
+  BoolLiteralNode,
+  BracketAccess,
+  BreakNode,
+  CaptureNode,
+  ChainTerminator,
+  ClosureCallNode,
+  ClosureNode,
+  ClosureParamNode,
+  ClosureSigLiteralNode,
+  ConditionalNode,
+  DestructNode,
+  DestructPatternNode,
+  DestructureNode,
+  DictEntryNode,
+  DictKeyComputed,
+  DictKeyVariable,
+  DictLiteralNode,
+  DictNode,
+  DoWhileLoopNode,
+  ExistenceCheck,
+  ExpressionNode,
+  FieldAccess,
+  FieldAccessAlternatives,
+  FieldAccessAnnotation,
+  FieldAccessBlock,
+  FieldAccessComputed,
+  FieldAccessLiteral,
+  FieldAccessVariable,
+  FrontmatterNode,
+  GroupedExprNode,
+  GuardBlockNode,
+  HostCallNode,
+  HostRefNode,
+  InterpolationNode,
+  InvokeNode,
+  ListLiteralNode,
+  ListSpreadNode,
+  LiteralNode,
+  MethodCallNode,
+  NamedArgNode,
+  NumberLiteralNode,
+  OrderedLiteralNode,
+  PartialExpressionNode,
+  PassNode,
+  PipeChainNode,
+  PipeInvokeNode,
+  PipeTargetNode,
+  PostfixExprNode,
+  PrimaryNode,
+  PropertyAccess,
+  RetryBlockNode,
+  ReturnNode,
+  ScriptNode,
+  SimplePrimaryNode,
+  SliceBoundNode,
+  SliceNode,
+  SpreadArgNode,
+  StatementNode,
+  StatusProbeNode,
+  StringLiteralNode,
+  TimeoutBlockNode,
+  TupleLiteralNode,
+  TypeAssertionNode,
+  TypeCheckNode,
+  TypeConstructorNode,
+  TypeNameExprNode,
+  UnaryExprNode,
+  UseExprNode,
+  UseIdentifier,
+  VariableNode,
+  WhileLoopNode,
+  YieldNode,
+};
+export type { NodeType };
+export type { FieldArg, RillTypeName, TypeRef };
+
+// AST traversal
+export { nodeAtPosition, walkAst };
 
 ```
 
@@ -318,9 +461,10 @@ for (const token of tokens) {
 | `bool` | Boolean literals (`true`, `false`) |
 | `comment` | Line comments |
 | `variableName` | Variables (`$`), identifiers, `_` |
+| `functionName` | Method names after a dot (`METHOD_NAME`, e.g. `len` in `.len`) |
 | `punctuation` | Structural characters (`.`, `,`, `:`) |
 | `bracket` | Delimiters (`(`, `)`, `{`, `}`, `[`, `]`) |
-| `meta` | Frontmatter delimiters |
+| `meta` | Atom literals (`#NAME`) and frontmatter delimiters (`---`) |
 
 ### Token Changes in Explicit-Literal Syntax
 
@@ -353,32 +497,34 @@ Highlighters that mapped the removed tokens must update to the replacement token
 `ERROR_REGISTRY` provides structured access to all error definitions. Use this to build diagnostic tools or format error messages with links.
 
 ```typescript
-import { ERROR_REGISTRY } from '@rcrsr/rill';
+import { ERROR_REGISTRY, getHelpUrl } from '@rcrsr/rill';
 
 const entry = ERROR_REGISTRY.get('RILL-P008');
-console.log(entry?.description);  // "Bare bracket literal"
-console.log(entry?.helpUrl);      // "https://rill.run/docs/reference/errors/#rill-p008"
+console.log(entry?.description);  // "Bare bracket at expression start"
+console.log(getHelpUrl('RILL-P008', '0.4.1'));  // "https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-p008"
 ```
+
+`getHelpUrl(errorId, version)` is a standalone function, not a method on `ERROR_REGISTRY`. It returns `https://github.com/rcrsr/rill/blob/v{version}/docs/ref-errors.md#{lowercased-errorId}`, or `''` if `errorId` or `version` fails validation.
 
 ### Methods
 
 | Method | Returns | Description |
 |--------|---------|-------------|
-| `get(code)` | `ErrorEntry \| undefined` | Look up an error by code |
-| `all()` | `ErrorEntry[]` | All registered error entries |
+| `get(code)` | `ErrorDefinition \| undefined` | Look up an error by code |
+| `has(code)` | `boolean` | Whether an error code is registered |
+| `size` | `number` | Total count of registered error definitions |
+| `entries()` | `IterableIterator<[string, ErrorDefinition]>` | Iterate all `[code, definition]` pairs |
 
 ### Error Code Ranges
 
 | Range | Category |
 |-------|----------|
 | `RILL-L001` – `RILL-L005` | Lexer errors |
-| `RILL-P001` – `RILL-P005`, `RILL-P007` – `RILL-P010` | Parse errors |
-| `RILL-R001` – `RILL-R016` | Runtime errors |
+| `RILL-P001` – `RILL-P022` | Parse errors (non-contiguous) |
+| `RILL-R001` – `RILL-R083` | Runtime errors (non-contiguous) |
 | `RILL-C001` – `RILL-C004` | Check errors |
 
-Note: `RILL-P006` (deprecated capture arrow syntax) was removed. `RILL-P007` through `RILL-P010` cover explicit-literal-syntax violations.
-
-See [Error Reference](ref-errors.md) for full error descriptions and resolution strategies.
+Ranges list outer bounds only; gaps exist within each range. See [Error Reference](ref-errors.md) for the authoritative list of assigned codes and full error descriptions and resolution strategies.
 
 ## parseWithRecovery
 

@@ -2,8 +2,9 @@
  * Ordered Protocol Module
  *
  * TypeDefinition for the 'ordered' built-in type.
- * Allowed imports: ../structures.js, ../guards.js, ./shared.js,
- * ../operations.js, ../callable.js, ../constructors.js, ../../../types.js
+ * Allowed imports: ../structures.js, ../guards.js, ../dict-keys.js,
+ * ./shared.js, ../operations.js, ../callable.js, ../constructors.js,
+ * ../../../types.js
  *
  * MUST NOT import from ../registrations.js or sibling protocols/*.
  */
@@ -11,6 +12,7 @@
 import type { RillValue, RillOrdered } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isOrdered } from '../guards.js';
+import { setDictField } from '../dict-keys.js';
 import {
   formatNested,
   compareElements,
@@ -46,7 +48,7 @@ const orderedConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const o = v as unknown as RillOrdered;
     const result: Record<string, RillValue> = {};
     for (const [key, value] of o.entries) {
-      result[key] = value;
+      setDictField(result, key, value);
     }
     return result;
   },
