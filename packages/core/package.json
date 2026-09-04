@@ -26,8 +26,8 @@
     "docs"
   ],
   "scripts": {
-    "build": "tsx scripts/generate-version.ts && tsx scripts/generate-docs-bundle.ts && tsc --build",
-    "build:dev": "tsx scripts/generate-version.ts && tsx scripts/generate-docs-bundle.ts && tsc --build tsconfig.dev.json",
+    "build": "tsx scripts/generate-version.ts && tsx scripts/generate-llms-full.ts && tsx scripts/generate-docs-bundle.ts && tsc --build",
+    "build:dev": "tsx scripts/generate-version.ts && tsx scripts/generate-llms-full.ts && tsx scripts/generate-docs-bundle.ts && tsc --build tsconfig.dev.json",
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
     "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/ ../../README.md",

@@ -12,6 +12,8 @@
  * - Empty source shows no error; output remains idle
  * - Rapid re-execution guard prevents duplicates
  * - First visit loads Hello World
+ * - Run button disabled while a worker run is in flight
+ * - A resolved timeout ExecutionState renders as an error
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -19,8 +21,36 @@ import { StrictMode } from 'react';
 import { render, cleanup, waitFor, act } from '@testing-library/react';
 import { App } from '../App.js';
 import * as persistence from '../lib/persistence.js';
-import * as execution from '../lib/execution.js';
+import * as runner from '../lib/execution-runner.js';
 import * as sharing from '../lib/sharing.js';
+import type { ExecutionState } from '../lib/execution.js';
+
+/** Wraps a resolved ExecutionState into the { promise, cancel } shape runInWorker returns. */
+function immediateRun(state: ExecutionState): {
+  promise: Promise<ExecutionState>;
+  cancel: () => void;
+} {
+  return { promise: Promise.resolve(state), cancel: vi.fn() };
+}
+
+/** Wraps a delayed ExecutionState into the { promise, cancel } shape runInWorker returns. */
+function delayedRun(
+  state: ExecutionState,
+  delayMs: number
+): { promise: Promise<ExecutionState>; cancel: () => void } {
+  const promise = new Promise<ExecutionState>((resolve) => {
+    setTimeout(() => resolve(state), delayMs);
+  });
+  return { promise, cancel: vi.fn() };
+}
+
+/** Wraps an ExecutionState into a { promise, cancel } pair that never settles. */
+function pendingRun(): {
+  promise: Promise<ExecutionState>;
+  cancel: () => void;
+} {
+  return { promise: new Promise<ExecutionState>(() => {}), cancel: vi.fn() };
+}
 
 describe('App', () => {
   let originalLocalStorage: Storage;
@@ -132,15 +162,17 @@ describe('App', () => {
     });
 
     it('Editor onRun callback triggers identical execution to Run button', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValue({
-        status: 'success',
-        result: '"Test"',
-        error: null,
-        duration: 10,
-        logs: [],
-      });
+      runSpy.mockReturnValue(
+        immediateRun({
+          status: 'success',
+          result: '"Test"',
+          error: null,
+          duration: 10,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -152,7 +184,7 @@ describe('App', () => {
         runButton.click();
 
         await waitFor(() => {
-          expect(executeSpy).toHaveBeenCalledTimes(1);
+          expect(runSpy).toHaveBeenCalledTimes(1);
         });
       }
     });
@@ -187,7 +219,7 @@ describe('App', () => {
     });
 
     it('does NOT auto-execute when loading example', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
       const { container } = render(<App />);
 
@@ -207,8 +239,8 @@ describe('App', () => {
           expect(editor).toBeDefined();
         });
 
-        // executeRill should NOT be called
-        expect(executeSpy).not.toHaveBeenCalled();
+        // runInWorker should NOT be called
+        expect(runSpy).not.toHaveBeenCalled();
       }
     });
   });
@@ -219,25 +251,27 @@ describe('App', () => {
 
   describe('error handling', () => {
     it('error with line location highlights gutter line in editor', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'error',
-        result: null,
-        error: {
-          message: 'Variable not defined',
-          category: 'runtime',
-          line: 3,
-          column: 5,
-          errorId: 'RUNTIME-001',
-          statusCode: null,
-          statusMessage: null,
-          statusProvider: null,
-          statusTrace: null,
-        },
-        duration: 12,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'error',
+          result: null,
+          error: {
+            message: 'Variable not defined',
+            category: 'runtime',
+            line: 3,
+            column: 5,
+            errorId: 'RUNTIME-001',
+            statusCode: null,
+            statusMessage: null,
+            statusProvider: null,
+            statusTrace: null,
+          },
+          duration: 12,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -261,25 +295,27 @@ describe('App', () => {
     });
 
     it('running valid code after error clears error display', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'error',
-        result: null,
-        error: {
-          message: 'Test error',
-          category: 'runtime',
-          line: 1,
-          column: 5,
-          errorId: 'TEST-001',
-          statusCode: null,
-          statusMessage: null,
-          statusProvider: null,
-          statusTrace: null,
-        },
-        duration: 10,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'error',
+          result: null,
+          error: {
+            message: 'Test error',
+            category: 'runtime',
+            line: 1,
+            column: 5,
+            errorId: 'TEST-001',
+            statusCode: null,
+            statusMessage: null,
+            statusProvider: null,
+            statusTrace: null,
+          },
+          duration: 10,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -296,13 +332,15 @@ describe('App', () => {
           expect(errorDisplay).toBeDefined();
         });
 
-        executeSpy.mockResolvedValueOnce({
-          status: 'success',
-          result: '"Hello"',
-          error: null,
-          duration: 5,
-          logs: [],
-        });
+        runSpy.mockReturnValueOnce(
+          immediateRun({
+            status: 'success',
+            result: '"Hello"',
+            error: null,
+            duration: 5,
+            logs: [],
+          })
+        );
 
         runButton.click();
 
@@ -314,25 +352,27 @@ describe('App', () => {
     });
 
     it('clears error gutter on re-run', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'error',
-        result: null,
-        error: {
-          message: 'Test error',
-          category: 'runtime',
-          line: 2,
-          column: 1,
-          errorId: 'TEST-002',
-          statusCode: null,
-          statusMessage: null,
-          statusProvider: null,
-          statusTrace: null,
-        },
-        duration: 10,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'error',
+          result: null,
+          error: {
+            message: 'Test error',
+            category: 'runtime',
+            line: 2,
+            column: 1,
+            errorId: 'TEST-002',
+            statusCode: null,
+            statusMessage: null,
+            statusProvider: null,
+            statusTrace: null,
+          },
+          duration: 10,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -348,13 +388,15 @@ describe('App', () => {
           expect(errorDisplay).toBeDefined();
         });
 
-        executeSpy.mockResolvedValueOnce({
-          status: 'success',
-          result: '"OK"',
-          error: null,
-          duration: 5,
-          logs: [],
-        });
+        runSpy.mockReturnValueOnce(
+          immediateRun({
+            status: 'success',
+            result: '"OK"',
+            error: null,
+            duration: 5,
+            logs: [],
+          })
+        );
 
         runButton.click();
 
@@ -366,15 +408,17 @@ describe('App', () => {
     });
 
     it('empty source shows no error and output remains idle', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'idle',
-        result: null,
-        error: null,
-        duration: null,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'idle',
+          result: null,
+          error: null,
+          duration: null,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -389,7 +433,7 @@ describe('App', () => {
         runButton.click();
 
         await waitFor(() => {
-          expect(executeSpy).toHaveBeenCalled();
+          expect(runSpy).toHaveBeenCalled();
         });
 
         const errorDisplay = container.querySelector('.output-error');
@@ -402,6 +446,47 @@ describe('App', () => {
         expect(outputPanel).toBeDefined();
       }
     });
+
+    it('renders a resolved timeout ExecutionState as an error', async () => {
+      const runSpy = vi.spyOn(runner, 'runInWorker');
+
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'error',
+          result: null,
+          error: {
+            message: 'Execution exceeded the 5000ms time limit',
+            category: 'runtime',
+            line: null,
+            column: null,
+            errorId: null,
+            statusCode: null,
+            statusMessage: null,
+            statusProvider: null,
+            statusTrace: null,
+          },
+          duration: null,
+          logs: [],
+        })
+      );
+
+      const { container } = render(<App />);
+
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
+      expect(runButton).toBeDefined();
+
+      if (runButton) {
+        runButton.click();
+
+        await waitFor(() => {
+          const errorDisplay = container.querySelector('.output-error');
+          expect(errorDisplay).toBeDefined();
+          expect(errorDisplay?.textContent).toContain('time limit');
+        });
+      }
+    });
   });
 
   // ============================================================
@@ -410,21 +495,19 @@ describe('App', () => {
 
   describe('rapid re-execution', () => {
     it('clicking Run multiple times does not produce duplicate outputs', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => {
-              resolve({
-                status: 'success',
-                result: '"Test"',
-                error: null,
-                duration: 100,
-                logs: [],
-              });
-            }, 100);
-          })
+      runSpy.mockImplementation(() =>
+        delayedRun(
+          {
+            status: 'success',
+            result: '"Test"',
+            error: null,
+            duration: 100,
+            logs: [],
+          },
+          100
+        )
       );
 
       const { container } = render(<App />);
@@ -446,26 +529,24 @@ describe('App', () => {
           { timeout: 200 }
         );
 
-        expect(executeSpy).toHaveBeenCalledTimes(1);
+        expect(runSpy).toHaveBeenCalledTimes(1);
       }
     });
 
     it('disables Run button while status is running', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => {
-              resolve({
-                status: 'success',
-                result: '"Test"',
-                error: null,
-                duration: 50,
-                logs: [],
-              });
-            }, 50);
-          })
+      runSpy.mockImplementation(() =>
+        delayedRun(
+          {
+            status: 'success',
+            result: '"Test"',
+            error: null,
+            duration: 50,
+            logs: [],
+          },
+          50
+        )
       );
 
       const { container } = render(<App />);
@@ -489,6 +570,31 @@ describe('App', () => {
           },
           { timeout: 100 }
         );
+      }
+    });
+
+    it('disables Run button while a worker run is in flight (pending promise)', async () => {
+      const runSpy = vi.spyOn(runner, 'runInWorker');
+
+      runSpy.mockReturnValue(pendingRun());
+
+      const { container } = render(<App />);
+
+      const runButton = container.querySelector(
+        '.toolbar-run'
+      ) as HTMLButtonElement;
+      expect(runButton).toBeDefined();
+
+      if (runButton) {
+        expect(runButton.disabled).toBe(false);
+
+        act(() => {
+          runButton.click();
+        });
+
+        await waitFor(() => {
+          expect(runButton.disabled).toBe(true);
+        });
       }
     });
   });
@@ -551,15 +657,17 @@ describe('App', () => {
 
   describe('re-execution output clearing', () => {
     it('re-execution clears previous output before showing new result', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'success',
-        result: '"First Result"',
-        error: null,
-        duration: 10,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'success',
+          result: '"First Result"',
+          error: null,
+          duration: 10,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -575,13 +683,15 @@ describe('App', () => {
           expect(result?.textContent).toContain('First Result');
         });
 
-        executeSpy.mockResolvedValueOnce({
-          status: 'success',
-          result: '"Second Result"',
-          error: null,
-          duration: 12,
-          logs: [],
-        });
+        runSpy.mockReturnValueOnce(
+          immediateRun({
+            status: 'success',
+            result: '"Second Result"',
+            error: null,
+            duration: 12,
+            logs: [],
+          })
+        );
 
         runButton.click();
 
@@ -594,25 +704,27 @@ describe('App', () => {
     });
 
     it('re-execution clears previous error before showing new result', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'error',
-        result: null,
-        error: {
-          message: 'Previous Error',
-          category: 'runtime',
-          line: 1,
-          column: 1,
-          errorId: 'ERR-001',
-          statusCode: null,
-          statusMessage: null,
-          statusProvider: null,
-          statusTrace: null,
-        },
-        duration: 10,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'error',
+          result: null,
+          error: {
+            message: 'Previous Error',
+            category: 'runtime',
+            line: 1,
+            column: 1,
+            errorId: 'ERR-001',
+            statusCode: null,
+            statusMessage: null,
+            statusProvider: null,
+            statusTrace: null,
+          },
+          duration: 10,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -628,13 +740,15 @@ describe('App', () => {
           expect(error?.textContent).toContain('Previous Error');
         });
 
-        executeSpy.mockResolvedValueOnce({
-          status: 'success',
-          result: '"New Result"',
-          error: null,
-          duration: 8,
-          logs: [],
-        });
+        runSpy.mockReturnValueOnce(
+          immediateRun({
+            status: 'success',
+            result: '"New Result"',
+            error: null,
+            duration: 8,
+            logs: [],
+          })
+        );
 
         runButton.click();
 
@@ -649,15 +763,17 @@ describe('App', () => {
     });
 
     it('re-execution shows loading state while clearing previous output', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'success',
-        result: '"First"',
-        error: null,
-        duration: 5,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'success',
+          result: '"First"',
+          error: null,
+          duration: 5,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -673,19 +789,17 @@ describe('App', () => {
           expect(result).toBeDefined();
         });
 
-        executeSpy.mockImplementation(
-          () =>
-            new Promise((resolve) => {
-              setTimeout(() => {
-                resolve({
-                  status: 'success',
-                  result: '"Second"',
-                  error: null,
-                  duration: 50,
-                  logs: [],
-                });
-              }, 50);
-            })
+        runSpy.mockImplementation(() =>
+          delayedRun(
+            {
+              status: 'success',
+              result: '"Second"',
+              error: null,
+              duration: 50,
+              logs: [],
+            },
+            50
+          )
         );
 
         runButton.click();
@@ -735,16 +849,18 @@ describe('App', () => {
   // ============================================================
 
   describe('pure execution updater', () => {
-    it('under StrictMode, a single Run click calls executeRill exactly once', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+    it('under StrictMode, a single Run click calls runInWorker exactly once', async () => {
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValue({
-        status: 'success',
-        result: '"Test"',
-        error: null,
-        duration: 10,
-        logs: [],
-      });
+      runSpy.mockReturnValue(
+        immediateRun({
+          status: 'success',
+          result: '"Test"',
+          error: null,
+          duration: 10,
+          logs: [],
+        })
+      );
 
       const { container } = render(
         <StrictMode>
@@ -762,7 +878,7 @@ describe('App', () => {
       });
 
       await waitFor(() => {
-        expect(executeSpy).toHaveBeenCalledTimes(1);
+        expect(runSpy).toHaveBeenCalledTimes(1);
       });
     });
   });
@@ -940,15 +1056,17 @@ describe('App', () => {
 
   describe('integration', () => {
     it('Run button triggers execution and updates output', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'success',
-        result: '"Integration Test"',
-        error: null,
-        duration: 15,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'success',
+          result: '"Integration Test"',
+          error: null,
+          duration: 15,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 
@@ -977,25 +1095,27 @@ describe('App', () => {
     });
 
     it('handles component communication via state', async () => {
-      const executeSpy = vi.spyOn(execution, 'executeRill');
+      const runSpy = vi.spyOn(runner, 'runInWorker');
 
-      executeSpy.mockResolvedValueOnce({
-        status: 'error',
-        result: null,
-        error: {
-          message: 'Communication test error',
-          category: 'parse',
-          line: 3,
-          column: 10,
-          errorId: 'COMM-001',
-          statusCode: null,
-          statusMessage: null,
-          statusProvider: null,
-          statusTrace: null,
-        },
-        duration: 8,
-        logs: [],
-      });
+      runSpy.mockReturnValueOnce(
+        immediateRun({
+          status: 'error',
+          result: null,
+          error: {
+            message: 'Communication test error',
+            category: 'parse',
+            line: 3,
+            column: 10,
+            errorId: 'COMM-001',
+            statusCode: null,
+            statusMessage: null,
+            statusProvider: null,
+            statusTrace: null,
+          },
+          duration: 8,
+          logs: [],
+        })
+      );
 
       const { container } = render(<App />);
 

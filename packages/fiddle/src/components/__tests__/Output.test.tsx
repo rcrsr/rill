@@ -4,7 +4,7 @@
  * Test coverage for Output component:
  * - Component renders without errors
  * - Log output capture
- * - Empty result message
+ * - Result values render verbatim (including "null" and "{}")
  * - Re-execution clears previous output
  * - Syntax error display
  * - Parse error display
@@ -158,21 +158,22 @@ describe('Output', () => {
       expect(resultElement?.textContent).toContain('final result');
     });
 
-    it('script with log() calls and null result - logs section shows entries', () => {
-      const stateLogsNullResult: ExecutionState = {
+    it('script with log() calls and a real result - logs section shows entries and result renders verbatim', () => {
+      const stateLogsWithResult: ExecutionState = {
         status: 'success',
-        result: 'null',
+        result: '"hello"',
         error: null,
         duration: 30,
         logs: ['log output only'],
       };
-      const { container } = render(<Output state={stateLogsNullResult} />);
+      const { container } = render(<Output state={stateLogsWithResult} />);
       const logsEntries = container.querySelectorAll('.output-logs-entry');
       const resultElement = container.querySelector('.output-result');
 
       expect(logsEntries.length).toBe(1);
       expect(logsEntries[0]?.textContent).toContain('log output only');
-      expect(resultElement?.textContent).toContain('No output');
+      expect(resultElement?.textContent).toContain('"hello"');
+      expect(container.textContent).not.toContain('No output');
     });
 
     it('script with log() calls that errors - logs shown above error', () => {
@@ -280,7 +281,7 @@ describe('Output', () => {
   // ============================================================
 
   describe('empty result', () => {
-    it('displays "No output" when result is null', () => {
+    it('renders the string "null" verbatim rather than "No output" (ADR-0037: native conversion always returns a populated value)', () => {
       const stateWithNull: ExecutionState = {
         status: 'success',
         result: 'null',
@@ -290,7 +291,22 @@ describe('Output', () => {
       };
       const { container } = render(<Output state={stateWithNull} />);
       const resultElement = container.querySelector('.output-result');
-      expect(resultElement?.textContent).toContain('No output');
+      expect(resultElement?.textContent).toContain('null');
+      expect(container.textContent).not.toContain('No output');
+    });
+
+    it('renders an empty-object result verbatim', () => {
+      const stateWithEmptyObject: ExecutionState = {
+        status: 'success',
+        result: '{}',
+        error: null,
+        duration: 20,
+        logs: [],
+      };
+      const { container } = render(<Output state={stateWithEmptyObject} />);
+      const resultElement = container.querySelector('.output-result');
+      expect(resultElement?.textContent).toContain('{}');
+      expect(container.textContent).not.toContain('No output');
     });
 
     it('displays nothing when status is idle', () => {

@@ -169,6 +169,10 @@ Slice (`slice<start:stop:step>`):
     tuple[1, 2, 3] -> $fn(...)         # positional spread: $fn(1, 2, 3)
     ordered[a: 10, b: 2] -> $fn(...)   # named spread: keys must match param order
     tuple[...$list, 3] -> $fn(...)     # spread in tuple then into call
+    tuple[1, 2, 3] => $args
+    $args -> $fn(...)                  # spread stored tuple
+    ordered[a: 1, b: 2] => $named
+    $named -> $fn(...)                 # spread stored ordered
 
 ## Modules
 

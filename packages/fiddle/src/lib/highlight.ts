@@ -101,6 +101,54 @@ const TYPE_NAME_VALUES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Detect whether a line genuinely opens a triple-quoted string with no
+ * matching close on the same line.
+ *
+ * Scans left-to-right toggling an in/out-of-triple-quote flag on each `"""`
+ * sequence and reports whether the line ends inside one. A `#` outside a
+ * triple-quote starts a line comment — the rest of the line (including any
+ * `"""` it contains) is not scanned. A single- or double-quoted string is
+ * skipped wholesale so a `#` or `"""` inside it isn't misread.
+ *
+ * Used to narrow multi-line-string recovery to the genuine case: a line
+ * where tokenize() failed for an unrelated reason but happens to contain a
+ * closed `"""a"""` pair should not be treated as opening a multi-line
+ * string.
+ *
+ * @param lineText - Line text to scan
+ */
+function opensUnterminatedTripleQuote(lineText: string): boolean {
+  let inTriple = false;
+  let i = 0;
+  while (i < lineText.length) {
+    const ch = lineText[i];
+    if (!inTriple && ch === '#') {
+      // Line comment: nothing after this point is string content.
+      break;
+    }
+    if (ch === '"' && lineText.slice(i, i + 3) === '"""') {
+      inTriple = !inTriple;
+      i += 3;
+      continue;
+    }
+    if (!inTriple && (ch === '"' || ch === "'")) {
+      const quote = ch;
+      let j = i + 1;
+      while (j < lineText.length && lineText[j] !== quote) {
+        if (lineText[j] === '\\') {
+          j++;
+        }
+        j++;
+      }
+      i = j < lineText.length ? j + 1 : lineText.length;
+      continue;
+    }
+    i++;
+  }
+  return inTriple;
+}
+
+/**
  * Find the start of a single- or double-quoted string left unterminated at
  * end of line (excluding triple-quote strings, handled separately).
  *
@@ -120,11 +168,19 @@ function findUnterminatedQuoteStart(lineText: string): number | null {
       continue;
     }
     if (ch === '"' && lineText.slice(i, i + 3) === '"""') {
-      // A triple-quote opener anywhere on the line means this is
-      // triple-quote territory. Defer entirely to the caller's existing
-      // multi-line triple-quote fallback rather than scanning the
-      // remaining `"` characters as single-quote pairs.
-      return null;
+      // Only a genuine unterminated triple-quote opener defers to the
+      // caller's multi-line triple-quote fallback — the same narrowing
+      // getTokensForLine applies to the RILL-L001 catch below: don't take
+      // the fallback path for reasons broader than the case it exists for.
+      // A closed `"""a"""` pair is consumed and scanning continues, so a
+      // trailing unterminated single/double-quote string on the same line
+      // is still found below.
+      if (opensUnterminatedTripleQuote(lineText)) {
+        return null;
+      }
+      const close = lineText.indexOf('"""', i + 3);
+      i = close === -1 ? lineText.length : close + 3;
+      continue;
     }
     if (ch === '"' || ch === "'") {
       const quote = ch;
@@ -676,8 +732,14 @@ export const rillHighlighter: StreamParser<RillHighlightState> = {
         state.lineComplete = false;
 
         // Opening """ without a closing """ on the same line causes tokenize to throw
-        // (RILL-L004 unterminated string), returning []. Enter multi-line string mode.
-        if (state.lineTokens.length === 0 && stream.string.includes('"""')) {
+        // (RILL-L004 unterminated string), returning []. Enter multi-line string mode
+        // only when the line genuinely opens an unterminated triple-quote — getTokensForLine
+        // also returns [] for unrelated tokenize errors, and a stray """ inside a comment
+        // or a closed """a""" pair on such a line must not flip the doc into string mode.
+        if (
+          state.lineTokens.length === 0 &&
+          opensUnterminatedTripleQuote(stream.string)
+        ) {
           state.inTripleQuoteString = true;
           stream.skipToEnd();
           if (!state.lineComplete) {

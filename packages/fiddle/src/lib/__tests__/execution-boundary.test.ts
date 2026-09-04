@@ -5,8 +5,10 @@
  * the fiddle handles extreme cases gracefully.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { executeRill } from '../execution.js';
+import { runInWorker, type RunnerWorker } from '../execution-runner.js';
+import type { ExecutionState } from '../execution.js';
 
 describe('executeRill', () => {
   describe('boundary conditions', () => {
@@ -233,6 +235,58 @@ describe('executeRill', () => {
         expect(result.error).toBe(null);
         expect(result.duration).not.toBe(null);
         expect(result.duration).toBeGreaterThanOrEqual(0);
+      });
+
+      it('resolves to a timeout error state and terminates the worker when it never replies', async () => {
+        const terminate = vi.fn();
+        const mockWorker: RunnerWorker = {
+          postMessage: vi.fn(),
+          terminate,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        };
+
+        const { promise } = runInWorker('42', () => mockWorker, 10);
+        const result = await promise;
+
+        expect(result.status).toBe('error');
+        expect(result.error).not.toBe(null);
+        expect(result.error?.category).toBe('runtime');
+        expect(result.error?.message).toContain('10ms');
+        expect(terminate).toHaveBeenCalled();
+      });
+
+      it('resolves with the posted ExecutionState and terminates the worker on reply', async () => {
+        const terminate = vi.fn();
+        const postedState: ExecutionState = {
+          status: 'success',
+          result: '42',
+          error: null,
+          duration: 1,
+          logs: [],
+        };
+
+        let messageListener:
+          | ((event: MessageEvent<ExecutionState>) => void)
+          | undefined;
+        const mockWorker: RunnerWorker = {
+          postMessage: vi.fn(() => {
+            messageListener?.({
+              data: postedState,
+            } as MessageEvent<ExecutionState>);
+          }),
+          terminate,
+          addEventListener: vi.fn((_type, listener) => {
+            messageListener = listener;
+          }),
+          removeEventListener: vi.fn(),
+        };
+
+        const { promise } = runInWorker('42', () => mockWorker, 5000);
+        const result = await promise;
+
+        expect(result).toEqual(postedState);
+        expect(terminate).toHaveBeenCalled();
       });
 
       it('handles do-while loop with break before exceeding limit', async () => {

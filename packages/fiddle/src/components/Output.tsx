@@ -6,8 +6,8 @@
  * success result, or structured error display.
  *
  * Features:
- * - Formatted result display
- * - "No output" for null results
+ * - Formatted result display (native conversion always returns a
+ *   populated value, per ADR-0037, so the result is rendered verbatim)
  * - Error display with line number and help links
  * - ARIA labels for screen reader support
  */
@@ -90,7 +90,7 @@ export const Output = React.memo(function Output({
             )}
             <div className="output-result">
               {hasLogs && <div className="output-result-label">Result</div>}
-              {result === 'null' ? 'No output' : result}
+              {result}
             </div>
           </>
         )}
