@@ -129,12 +129,8 @@ export function Editor({
       lineNumbers(),
       indentUnit.of('  '),
       EditorState.tabSize.of(2),
-      keymap.of([...createTabKeyBinding(), ...defaultKeymap]),
-      // Brand dark theme (always dark)
-      createThemeExtension(true),
-      StreamLanguage.define(rillHighlighter),
-      errorLineField,
       keymap.of([
+        ...createTabKeyBinding(),
         {
           key: 'Mod-Enter',
           run: () => {
@@ -142,7 +138,12 @@ export function Editor({
             return true;
           },
         },
+        ...defaultKeymap,
       ]),
+      // Brand dark theme (always dark)
+      createThemeExtension(true),
+      StreamLanguage.define(rillHighlighter),
+      errorLineField,
       EditorView.updateListener.of((update) => {
         if (update.docChanged) {
           const newValue = update.state.doc.toString();

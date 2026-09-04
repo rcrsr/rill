@@ -34,6 +34,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --config ../../.oxlintrc.json src/ tests/",
     "docs:errors": "tsx scripts/generate-error-docs.ts",
+    "docs:llms-full": "tsx scripts/generate-llms-full.ts",
     "check": "pnpm run build && pnpm run test && pnpm run test:examples && pnpm run lint"
   },
   "repository": {

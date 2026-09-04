@@ -35,7 +35,7 @@ import { EXECUTION_TIMEOUT_MS } from './constants.js';
  * Structured error from failed execution
  */
 /** A single frame in the call stack */
-export interface FiddleCallFrame {
+interface FiddleCallFrame {
   /** Source line number (1-based) */
   line: number;
   /** Source column number (1-based) */

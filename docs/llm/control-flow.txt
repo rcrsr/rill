@@ -36,6 +36,8 @@ Iteration limit (default 10,000):
     0 -> while ($ < 50) do<limit: 100> { $ + 1 }
     $items -> fan({ slow($) }, dict[concurrency: 3])
 
+Invalid annotation keys produce a runtime error.
+
 ## Break and return
 
 `break` exits a loop or `seq`/`acc` body, returning collected results so far:
