@@ -305,8 +305,15 @@ describe('ref-llms-full: Control Flow', () => {
     expect(await run('false ? "yes" ! "no"')).toBe('no');
   });
 
-  it('cond ? then (else returns null)', async () => {
-    expect(await run('false ? "yes"')).toBe(null);
+  it('cond ? then (no else returns current $)', async () => {
+    expect(await run('5 -> { false ? "yes" }')).toBe(5);
+  });
+
+  it('cond ? then (no else, unbound $ halts)', async () => {
+    await expect(run('false ? "yes"')).rejects.toHaveProperty(
+      'errorId',
+      'RILL-R005'
+    );
   });
 
   it('piped conditional', async () => {

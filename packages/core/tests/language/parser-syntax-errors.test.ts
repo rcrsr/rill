@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
 import type { ScriptNode, DictNode, StatementNode } from '@rcrsr/rill';
+import { run } from '../helpers/runtime.js';
 
 describe('Parser Syntax Errors', () => {
   describe('Dict literal key validation - Success Cases', () => {
@@ -200,6 +201,38 @@ describe('Parser Syntax Errors', () => {
 
         expect(parseErr.message).toContain('Expected :');
       }
+    });
+  });
+
+  describe('isDictStart depth scan over compound bracket openers', () => {
+    it('parses and evaluates a plain-bracket multi-key dict whose key contains a nested dict[...] literal', async () => {
+      const result = await run('[[dict[a: "k"].a, "b"]: 1]');
+      expect(result).toEqual({ k: 1, b: 1 });
+    });
+
+    it('parses and evaluates a plain-bracket multi-key dict whose key contains a nested list[...] literal', async () => {
+      const result = await run('[[list["x","y"].join(""), "b"]: 2]');
+      expect(result).toEqual({ xy: 2, b: 2 });
+    });
+
+    it('parses and evaluates a plain-bracket multi-key dict whose key contains a nested tuple[...] literal', async () => {
+      const result = await run('[[tuple[1,2] -> list -> .join(","), "b"]: 3]');
+      expect(result).toEqual({ '1,2': 3, b: 3 });
+    });
+
+    it('parses and evaluates a plain-bracket multi-key dict whose key contains a nested ordered[...] literal', async () => {
+      const result = await run('[[ordered[a: "z"] -> dict -> .a, "b"]: 4]');
+      expect(result).toEqual({ z: 4, b: 4 });
+    });
+
+    it('leaves the keyword-prefixed multi-key form unregressed', async () => {
+      const result = await run('dict[list["a", "b"]: "val"]');
+      expect(result).toEqual({ a: 'val', b: 'val' });
+    });
+
+    it('still parses a plain bracket literal with no colon as a list, not a dict', async () => {
+      const result = await run('[1, 2, 3]');
+      expect(result).toEqual([1, 2, 3]);
     });
   });
 

@@ -180,6 +180,23 @@ function toNativeValue(value: RillValue): NativeValue {
 /** Reserved dict method names that cannot be overridden */
 const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
 
+/**
+ * Brand keys used internally to discriminate runtime value shapes
+ * (atom, tuple, vector, datetime, duration, ordered, type value, callable).
+ * A dict key colliding with one of these would let user data masquerade
+ * as a branded runtime value, so dict literals reject them as keys.
+ */
+export const RESERVED_BRAND_KEYS = [
+  '__type',
+  '__rill_atom',
+  '__rill_tuple',
+  '__rill_vector',
+  '__rill_datetime',
+  '__rill_duration',
+  '__rill_ordered',
+  '__rill_type',
+] as const;
+
 export { anyTypeValue } from './types/any-type.js';
 
 /**
@@ -220,4 +237,9 @@ export function hasCollectionFields(type: TypeStructure): boolean {
 /** Check if a key name is reserved */
 export function isReservedMethod(name: string): boolean {
   return (RESERVED_DICT_METHODS as readonly string[]).includes(name);
+}
+
+/** Check if a key name collides with a reserved brand key */
+export function isReservedBrandKey(name: string): boolean {
+  return (RESERVED_BRAND_KEYS as readonly string[]).includes(name);
 }

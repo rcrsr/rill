@@ -5,7 +5,7 @@ Conditionals, loops, branching, and the collection-operator picker.
 ## Conditional
 
     cond ? then_expr ! else_expr
-    cond ? then_expr                   # without else: returns current $ when false
+    cond ? then_expr                   # without else: returns current $ when false; halts RILL-R005 if $ unbound
 
 Piped form (`$` becomes condition):
 

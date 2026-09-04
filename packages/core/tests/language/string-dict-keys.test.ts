@@ -218,4 +218,50 @@ describe('Rill Language: String Literal Dict Keys', () => {
       expect(assertion).toBe('value');
     });
   });
+
+  describe('Reserved Brand Keys', () => {
+    const brandKeys = [
+      '__type',
+      '__rill_atom',
+      '__rill_tuple',
+      '__rill_vector',
+      '__rill_datetime',
+      '__rill_duration',
+      '__rill_ordered',
+      '__rill_type',
+    ];
+
+    for (const key of brandKeys) {
+      it(`halts with RILL-R002 for reserved brand key '${key}' as a plain dict key`, async () => {
+        await expect(run(`dict[${key}: "x"]`)).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R002'
+        );
+        await expect(run(`dict[${key}: "x"]`)).rejects.toThrow(
+          new RegExp(`Cannot use reserved brand key '${key}' as dict key`, 'i')
+        );
+      });
+    }
+
+    it('halts with RILL-R002 when a variable resolves to a reserved brand key', async () => {
+      const script = `"__type" => $k\ndict[static: 0, $k: "x"]`;
+      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R002');
+      await expect(run(script)).rejects.toThrow(
+        /Cannot use reserved brand key '__type' as dict key/i
+      );
+    });
+
+    it('halts with RILL-R002 when a computed key evaluates to a reserved brand key', async () => {
+      const script = `"__type" => $k\ndict[static: 0, ($k): "x"]`;
+      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R002');
+      await expect(run(script)).rejects.toThrow(
+        /Cannot use reserved brand key '__type' as dict key/i
+      );
+    });
+
+    it('still allows a normal dict key that is not reserved', async () => {
+      const result = await run('dict[foo: 1]');
+      expect(result).toEqual({ foo: 1 });
+    });
+  });
 });

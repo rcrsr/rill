@@ -10,8 +10,26 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 const EMOJI = '😀'; // U+1F600, 2 UTF-16 code units, 1 code point
+
+/** True if `s` contains an unpaired UTF-16 surrogate half. */
+function hasLoneSurrogate(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    const code = s.charCodeAt(i);
+    const isHigh = code >= 0xd800 && code <= 0xdbff;
+    const isLow = code >= 0xdc00 && code <= 0xdfff;
+    if (isHigh) {
+      const next = s.charCodeAt(i + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return true;
+      i++;
+    } else if (isLow) {
+      return true;
+    }
+  }
+  return false;
+}
 
 describe('#296: string ops count by code point', () => {
   it('.len counts an astral character once', async () => {
@@ -70,5 +88,64 @@ describe('#296: string ops count by code point', () => {
       caught = e;
     }
     expect(caught).toBeDefined();
+  });
+});
+
+describe('#340: regex string methods run in Unicode (u) mode', () => {
+  it('.match matches a whole astral character, not a lone surrogate', async () => {
+    const result = await run(`"${EMOJI}" -> .match(".")`);
+    expect(result).toEqual({ matched: EMOJI, index: 0, groups: [] });
+    expect(hasLoneSurrogate((result as { matched: string }).matched)).toBe(
+      false
+    );
+  });
+
+  it('.match reports the index as a code-point offset', async () => {
+    const result = await run(`"a${EMOJI}b" -> .match("b")`);
+    expect(result).toEqual({ matched: 'b', index: 2, groups: [] });
+  });
+
+  it('.is_match matches an astral character against a single-dot pattern', async () => {
+    expect(await run(`"${EMOJI}" -> .is_match("^.$")`)).toBe(true);
+  });
+
+  it('.replace replaces a whole astral character with no lone surrogate left behind', async () => {
+    expect(await run(`"${EMOJI}" -> .replace(".", "X")`)).toBe('X');
+  });
+
+  it('.replace_all replaces every astral character at code-point boundaries', async () => {
+    const result = await run(`"a${EMOJI}b${EMOJI}c" -> .replace_all(".", "X")`);
+    expect(result).toBe('XXXXX');
+    expect(hasLoneSurrogate(result as string)).toBe(false);
+  });
+
+  it('.replace_all leaves astral characters intact when matched and reinserted', async () => {
+    const result = await run(`"a${EMOJI}b" -> .replace_all("a", "")`);
+    expect(result).toBe(`${EMOJI}b`);
+    expect(hasLoneSurrogate(result as string)).toBe(false);
+  });
+
+  it('.replace halts INVALID_INPUT for a pattern invalid only under u mode', async () => {
+    await expectHalt(() => run(`"a" -> .replace("\\\\-", "x")`), {
+      code: 'INVALID_INPUT',
+    });
+  });
+
+  it('.replace_all halts INVALID_INPUT for a pattern invalid only under u mode', async () => {
+    await expectHalt(() => run(`"a" -> .replace_all("\\\\-", "x")`), {
+      code: 'INVALID_INPUT',
+    });
+  });
+
+  it('.match halts INVALID_INPUT for a pattern invalid only under u mode', async () => {
+    await expectHalt(() => run(`"a" -> .match("\\\\-")`), {
+      code: 'INVALID_INPUT',
+    });
+  });
+
+  it('.is_match halts INVALID_INPUT for a pattern invalid only under u mode', async () => {
+    await expectHalt(() => run(`"a" -> .is_match("\\\\-")`), {
+      code: 'INVALID_INPUT',
+    });
   });
 });

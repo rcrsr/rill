@@ -73,6 +73,38 @@ describe('Rill Language: -> Conversion Operator', () => {
       const result = await run('tuple["a", "b", "c"] -> list');
       expect(result).toEqual(['a', 'b', 'c']);
     });
+
+    it('converts tuple[1, 2] to list[1, 2]', async () => {
+      const result = await run('tuple[1, 2] -> list');
+      expect(result).toEqual([1, 2]);
+    });
+
+    it('halts with RILL-R002 converting a heterogeneous tuple to list', async () => {
+      await expect(run('tuple[1, "a"] -> list')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R002'
+      );
+    });
+
+    it('reports the same message as the equivalent heterogeneous list literal', async () => {
+      let tupleMessage: string | undefined;
+      let listMessage: string | undefined;
+      try {
+        await run('tuple[1, "a"] -> list');
+      } catch (err) {
+        tupleMessage = (err as Error).message;
+      }
+      try {
+        await run('list[1, "a"]');
+      } catch (err) {
+        listMessage = (err as Error).message;
+      }
+      expect(tupleMessage).toBeDefined();
+      expect(listMessage).toBeDefined();
+      // The tuple->list halt carries a source location suffix that the bare
+      // list-literal RuntimeError does not; compare the shared message body.
+      expect(tupleMessage).toContain(listMessage);
+    });
   });
 
   describe('ordered -> dict (AC-12)', () => {
