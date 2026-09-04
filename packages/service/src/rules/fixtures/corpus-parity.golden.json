@@ -119,7 +119,7 @@
         },
         "severity": "info",
         "code": "STATUS_PROBE_NO_FIELD",
-        "message": "Bare .! returns the whole status record. Project a field with .!code, .!message, or .!provider.",
+        "message": "Bare .! only yields a boolean invalid-test. Project a field with .!code, .!message, or .!provider to read the status record.",
         "context": "$x.!",
         "fix": null
       }
@@ -11416,18 +11416,6 @@
     "file": "collection-operators.test.ts",
     "diagnostics": [
       {
-        "location": {
-          "line": 1,
-          "column": 21,
-          "offset": 20
-        },
-        "severity": "warning",
-        "code": "ATOM_UNREGISTERED",
-        "message": "Atom #IGNORE is not a runtime builtin; ensure the host registers it via registerErrorCode.",
-        "context": "5 -> pass<on_error: #IGNORE> { log($) }",
-        "fix": null
-      },
-      {
         "code": "IMPLICIT_DOLLAR_FUNCTION",
         "message": "Prefer pipe syntax '-> log' over explicit 'log($)'",
         "severity": "info",
@@ -11477,20 +11465,7 @@
   {
     "index": 889,
     "file": "collection-operators.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 21,
-          "offset": 20
-        },
-        "severity": "warning",
-        "code": "ATOM_UNREGISTERED",
-        "message": "Atom #IGNORE is not a runtime builtin; ensure the host registers it via registerErrorCode.",
-        "context": "5 -> pass<on_error: #IGNORE> { \"not_a_number\":number }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 890,
@@ -11510,20 +11485,7 @@
   {
     "index": 893,
     "file": "collection-operators.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 21,
-          "offset": 20
-        },
-        "severity": "warning",
-        "code": "ATOM_UNREGISTERED",
-        "message": "Atom #IGNORE is not a runtime builtin; ensure the host registers it via registerErrorCode.",
-        "context": "5 -> pass<on_error: #IGNORE> { throw_noncatchable() }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 894,
@@ -13003,18 +12965,6 @@
         },
         "context": "dict[name: \"test\"] => $data",
         "fix": null
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 22,
-          "offset": 58
-        },
-        "context": "\"missing\" => $key",
-        "fix": null
       }
     ]
   },
@@ -13941,38 +13891,12 @@
   {
     "index": 1188,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 1,
-          "column": 16,
-          "offset": 15
-        },
-        "context": "\"x\" -> dict[x: ||{ $ -> .upper }]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1189,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 1,
-          "column": 24,
-          "offset": 23
-        },
-        "context": "\"hello\" -> dict[hello: ||{ \"{$}!\" }]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1190,
@@ -14163,20 +14087,7 @@
   {
     "index": 1217,
     "file": "dict-dispatch.test.ts",
-    "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 1,
-          "column": 29,
-          "offset": 28
-        },
-        "context": "\"x\" -> dict[list[\"x\", \"y\"]: ||{ $ -> .upper }]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1218,
@@ -14578,20 +14489,7 @@
   {
     "index": 1277,
     "file": "dict-key-form.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 22,
-          "offset": 21
-        },
-        "severity": "warning",
-        "code": "ATOM_UNREGISTERED",
-        "message": "Atom #IGNORE is not a runtime builtin; ensure the host registers it via registerErrorCode.",
-        "context": "42 -> pass<on_error: #IGNORE> { $1 }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1278,
@@ -15473,7 +15371,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15503,7 +15401,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$idx' is captured but never referenced",
+        "message": "'$idx' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15533,7 +15431,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$idx' is captured but never referenced",
+        "message": "'$idx' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15563,7 +15461,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15593,7 +15491,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key1' is captured but never referenced",
+        "message": "'$key1' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15623,7 +15521,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key2' is captured but never referenced",
+        "message": "'$key2' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15953,7 +15851,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -15995,7 +15893,7 @@
       },
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$field' is captured but never referenced",
+        "message": "'$field' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 3,
@@ -16025,7 +15923,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16097,7 +15995,7 @@
       },
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$field' is captured but never referenced",
+        "message": "'$field' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 3,
@@ -16163,7 +16061,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16223,7 +16121,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$idx' is captured but never referenced",
+        "message": "'$idx' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16283,7 +16181,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$idx' is captured but never referenced",
+        "message": "'$idx' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16313,7 +16211,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16403,7 +16301,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -16433,7 +16331,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -18301,18 +18199,6 @@
         },
         "context": "\"x\" => $key",
         "fix": null
-      },
-      {
-        "code": "USE_DEFAULT_OPERATOR",
-        "message": "Use ?? for defaults instead of conditionals: $dict.field ?? \"default\"",
-        "severity": "info",
-        "location": {
-          "line": 4,
-          "column": 9,
-          "offset": 57
-        },
-        "context": "($data.?$key&number) ? \"number field exists\" ! \"not found\"",
-        "fix": null
       }
     ]
   },
@@ -18682,7 +18568,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$k1' is captured but never referenced",
+        "message": "'$k1' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -18742,7 +18628,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$k1' is captured but never referenced",
+        "message": "'$k1' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -18772,7 +18658,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$k1' is captured but never referenced",
+        "message": "'$k1' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -18784,7 +18670,7 @@
       },
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$k2' is captured but never referenced",
+        "message": "'$k2' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 3,
@@ -18826,7 +18712,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$navKey' is captured but never referenced",
+        "message": "'$navKey' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -18861,7 +18747,24 @@
               "offset": 28
             }
           },
-          "replacement": "$nav_key"
+          "replacement": "$nav_key",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "column": 16,
+                  "offset": 131
+                },
+                "end": {
+                  "line": 4,
+                  "column": 24,
+                  "offset": 139
+                }
+              },
+              "replacement": ".$nav_key"
+            }
+          ]
         }
       },
       {
@@ -18902,7 +18805,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$varKey' is captured but never referenced",
+        "message": "'$varKey' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 2,
@@ -18937,7 +18840,24 @@
               "offset": 29
             }
           },
-          "replacement": "$var_key"
+          "replacement": "$var_key",
+          "additionalEdits": [
+            {
+              "range": {
+                "start": {
+                  "line": 4,
+                  "column": 16,
+                  "offset": 133
+                },
+                "end": {
+                  "line": 4,
+                  "column": 24,
+                  "offset": 141
+                }
+              },
+              "replacement": ".$var_key"
+            }
+          ]
         }
       },
       {
@@ -19137,56 +19057,17 @@
   {
     "index": 1552,
     "file": "existence-check.test.ts",
-    "diagnostics": [
-      {
-        "code": "USE_DEFAULT_OPERATOR",
-        "message": "Use ?? for defaults instead of conditionals: $dict.field ?? \"default\"",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 9,
-          "offset": 50
-        },
-        "context": "($result.?type) ? \"has type\" ! \"no type\"",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1553,
     "file": "existence-check.test.ts",
-    "diagnostics": [
-      {
-        "code": "USE_DEFAULT_OPERATOR",
-        "message": "Use ?? for defaults instead of conditionals: $dict.field ?? \"default\"",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 9,
-          "offset": 47
-        },
-        "context": "($result.?type) ? \"has type\" ! \"no type\"",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1554,
     "file": "existence-check.test.ts",
-    "diagnostics": [
-      {
-        "code": "USE_DEFAULT_OPERATOR",
-        "message": "Use ?? for defaults instead of conditionals: $dict.field ?? \"default\"",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 9,
-          "offset": 72
-        },
-        "context": "($result.?type && $result.?reason) ? \"both exist\" ! \"missing\"",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1555,
@@ -20451,20 +20332,7 @@
   {
     "index": 1745,
     "file": "guard-retry.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 16,
-          "offset": 15
-        },
-        "severity": "warning",
-        "code": "ATOM_UNREGISTERED",
-        "message": "Atom #RILL_R038 is not a runtime builtin; ensure the host registers it via registerErrorCode.",
-        "context": "guard<on: list[#RILL_R038]> { \"a\" -> number } ?? 0",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1746,
@@ -21599,18 +21467,6 @@
     "file": "iterators.test.ts",
     "diagnostics": [
       {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 5,
-          "column": 17,
-          "offset": 94
-        },
-        "context": "next: || { $countdown($.value + 1) }",
-        "fix": null
-      },
-      {
         "code": "PREFER_MAP",
         "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
         "severity": "info",
@@ -21627,38 +21483,12 @@
   {
     "index": 1866,
     "file": "iterators.test.ts",
-    "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 5,
-          "column": 17,
-          "offset": 94
-        },
-        "context": "next: || { $counter($.value + 1) }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1867,
     "file": "iterators.test.ts",
-    "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 5,
-          "column": 17,
-          "offset": 94
-        },
-        "context": "next: || { $counter($.value + 1) }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1868,
@@ -21885,20 +21715,7 @@
   {
     "index": 1871,
     "file": "iterators.test.ts",
-    "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 5,
-          "column": 17,
-          "offset": 94
-        },
-        "context": "next: || { $counter($.value + 1) }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 1872,
@@ -21914,55 +21731,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'emptyIter' should use snake_case (e.g., 'empty_iter')",
         "context": "|n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter",
-        "fix": {
-          "description": "Rename 'emptyIter' to 'empty_iter'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 60,
-              "offset": 60
-            },
-            "end": {
-              "line": 2,
-              "column": 70,
-              "offset": 70
-            }
-          },
-          "replacement": "$empty_iter",
-          "additionalEdits": [
-            {
-              "range": {
-                "start": {
-                  "line": 2,
-                  "column": 40,
-                  "offset": 40
-                },
-                "end": {
-                  "line": 2,
-                  "column": 50,
-                  "offset": 50
-                }
-              },
-              "replacement": "$empty_iter"
-            },
-            {
-              "range": {
-                "start": {
-                  "line": 3,
-                  "column": 9,
-                  "offset": 79
-                },
-                "end": {
-                  "line": 3,
-                  "column": 19,
-                  "offset": 89
-                }
-              },
-              "replacement": "$empty_iter"
-            }
-          ]
-        }
+        "fix": null
       },
       {
         "code": "PREFER_MAP",
@@ -21992,55 +21761,7 @@
         "code": "NAMING_SNAKE_CASE",
         "message": "Captured variable 'emptyIter' should use snake_case (e.g., 'empty_iter')",
         "context": "|n| dict[done: true, next: ||{ $emptyIter(0) }] => $emptyIter",
-        "fix": {
-          "description": "Rename 'emptyIter' to 'empty_iter'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 60,
-              "offset": 60
-            },
-            "end": {
-              "line": 2,
-              "column": 70,
-              "offset": 70
-            }
-          },
-          "replacement": "$empty_iter",
-          "additionalEdits": [
-            {
-              "range": {
-                "start": {
-                  "line": 2,
-                  "column": 40,
-                  "offset": 40
-                },
-                "end": {
-                  "line": 2,
-                  "column": 50,
-                  "offset": 50
-                }
-              },
-              "replacement": "$empty_iter"
-            },
-            {
-              "range": {
-                "start": {
-                  "line": 3,
-                  "column": 9,
-                  "offset": 79
-                },
-                "end": {
-                  "line": 3,
-                  "column": 19,
-                  "offset": 89
-                }
-              },
-              "replacement": "$empty_iter"
-            }
-          ]
-        }
+        "fix": null
       }
     ]
   },
@@ -25487,56 +25208,17 @@
   {
     "index": 2308,
     "file": "parameterized-existence.test.ts",
-    "diagnostics": [
-      {
-        "code": "USE_DEFAULT_OPERATOR",
-        "message": "Use ?? for defaults instead of conditionals: $dict.field ?? \"default\"",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 9,
-          "offset": 53
-        },
-        "context": "($data.?items&list(number)) ? \"has numbers\" ! \"no numbers\"",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2309,
     "file": "parameterized-existence.test.ts",
-    "diagnostics": [
-      {
-        "code": "USE_DEFAULT_OPERATOR",
-        "message": "Use ?? for defaults instead of conditionals: $dict.field ?? \"default\"",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 9,
-          "offset": 54
-        },
-        "context": "($data.?items&list(number)) ? \"has numbers\" ! \"no numbers\"",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2310,
     "file": "parameterized-existence.test.ts",
-    "diagnostics": [
-      {
-        "code": "USE_DEFAULT_OPERATOR",
-        "message": "Use ?? for defaults instead of conditionals: $dict.field ?? \"default\"",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 9,
-          "offset": 57
-        },
-        "context": "($data.?config&dict(key: string)) ? \"valid config\" ! \"bad config\"",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2311,
@@ -26037,20 +25719,7 @@
   {
     "index": 2392,
     "file": "pass-async.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 39,
-          "offset": 38
-        },
-        "severity": "warning",
-        "code": "ATOM_UNREGISTERED",
-        "message": "Atom #IGNORE is not a runtime builtin; ensure the host registers it via registerErrorCode.",
-        "context": "\"data\" -> pass<async: true, on_error: #IGNORE> { \"a\" -> number }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2393,
@@ -26110,20 +25779,7 @@
   {
     "index": 2404,
     "file": "pass-async.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 36,
-          "offset": 35
-        },
-        "severity": "warning",
-        "code": "ATOM_UNREGISTERED",
-        "message": "Atom #IGNORE is not a runtime builtin; ensure the host registers it via registerErrorCode.",
-        "context": "\"v\" -> pass<async: true, on_error: #IGNORE> { bad_type_suppressed() }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2405,
@@ -28270,18 +27926,6 @@
     "file": "ref-llms-full-assertions.test.ts",
     "diagnostics": [
       {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 1,
-          "column": 24,
-          "offset": 23
-        },
-        "context": "dict[count: 3, double: ||{ $.count * 2 }] => $obj",
-        "fix": null
-      },
-      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $obj -> ...' instead of separate statements",
         "severity": "info",
@@ -28355,7 +27999,7 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
+        "message": "'$key' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
           "line": 1,
@@ -30117,18 +29761,6 @@
     "file": "spread.test.ts",
     "diagnostics": [
       {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 4,
-          "column": 18,
-          "offset": 57
-        },
-        "context": "greet: || { \"I am {$.name}\" }",
-        "fix": null
-      },
-      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $obj -> ...' instead of separate statements",
         "severity": "info",
@@ -30146,18 +29778,6 @@
     "index": 2841,
     "file": "spread.test.ts",
     "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 5,
-          "column": 16,
-          "offset": 77
-        },
-        "context": "str: || { \"{$.name}: {$.count} items\" }",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $obj -> ...' instead of separate statements",
@@ -30243,18 +29863,6 @@
     "file": "spread.test.ts",
     "diagnostics": [
       {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 6,
-          "column": 18,
-          "offset": 114
-        },
-        "context": "str: || { $.name }",
-        "fix": null
-      },
-      {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $obj -> ...' instead of separate statements",
         "severity": "info",
@@ -30290,18 +29898,6 @@
     "index": 2847,
     "file": "spread.test.ts",
     "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 4,
-          "column": 19,
-          "offset": 57
-        },
-        "context": "method: || { $.name }",
-        "fix": null
-      },
       {
         "code": "CAPTURE_INLINE_CHAIN",
         "message": "Consider inline capture: '=> $obj -> ...' instead of separate statements",
@@ -30865,7 +30461,7 @@
         },
         "severity": "info",
         "code": "STATUS_PROBE_NO_FIELD",
-        "message": "Bare .! returns the whole status record. Project a field with .!code, .!message, or .!provider.",
+        "message": "Bare .! only yields a boolean invalid-test. Project a field with .!code, .!message, or .!provider to read the status record.",
         "context": "$v.!",
         "fix": null
       }
@@ -30883,7 +30479,7 @@
         },
         "severity": "info",
         "code": "STATUS_PROBE_NO_FIELD",
-        "message": "Bare .! returns the whole status record. Project a field with .!code, .!message, or .!provider.",
+        "message": "Bare .! only yields a boolean invalid-test. Project a field with .!code, .!message, or .!provider to read the status record.",
         "context": "\"hello\".!",
         "fix": null
       }
@@ -32229,20 +31825,7 @@
   {
     "index": 3011,
     "file": "string-dict-keys.test.ts",
-    "diagnostics": [
-      {
-        "code": "CLOSURE_BARE_DOLLAR",
-        "message": "Bare $ in stored closure has ambiguous binding. Use explicit capture: $ => $item",
-        "severity": "warning",
-        "location": {
-          "line": 1,
-          "column": 28,
-          "offset": 27
-        },
-        "context": "\"status\" -> dict[\"status\": ||{ $ -> .upper }]",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3012,
@@ -34965,20 +34548,7 @@
   {
     "index": 3319,
     "file": "timeout.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 16,
-          "offset": 15
-        },
-        "severity": "warning",
-        "code": "ATOM_UNREGISTERED",
-        "message": "Atom #RILL_R083 is not a runtime builtin; ensure the host registers it via registerErrorCode.",
-        "context": "guard<on: list[#RILL_R083]> { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { guard_idle_fn() } } ?? \"idle_timeout\"",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3320,
@@ -37568,18 +37138,6 @@
           "offset": 49
         },
         "context": "dict[run: ||{ 42 }] -> dict(closure) => $d",
-        "fix": null
-      },
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$key' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 3,
-          "column": 18,
-          "offset": 69
-        },
-        "context": "\"run\" => $key",
         "fix": null
       }
     ]

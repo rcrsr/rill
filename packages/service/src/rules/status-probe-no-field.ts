@@ -1,7 +1,7 @@
 /**
- * Suggests selecting a field on `.!` probes. Bare `.!` yields the whole
- * status record; `.!code`, `.!message`, or `.!provider` are usually what
- * callers want.
+ * Suggests selecting a field on `.!` probes. Bare `.!` yields a boolean
+ * invalid-test, not the status record; `.!code`, `.!message`, or
+ * `.!provider` are usually what callers want to read the record fields.
  */
 
 import type { ASTNode, StatusProbeNode } from '@rcrsr/rill';
@@ -25,7 +25,7 @@ export const statusProbeNoField: Rule = {
         severity: 'info',
         code: 'STATUS_PROBE_NO_FIELD',
         message:
-          'Bare .! returns the whole status record. Project a field with .!code, .!message, or .!provider.',
+          'Bare .! only yields a boolean invalid-test. Project a field with .!code, .!message, or .!provider to read the status record.',
         context: extractContextLine(probe.span.start.line, context.source),
         fix: null,
       },

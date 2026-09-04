@@ -58,7 +58,8 @@ export const useEmptyMethod: Rule = {
       right.type === 'PostfixExpr' && isEmptyStringLiteral(right.primary);
 
     if (leftIsEmpty || rightIsEmpty) {
-      const suggestedMethod = binaryNode.op === '==' ? '.empty' : '.empty -> !';
+      const suggestedMethod =
+        binaryNode.op === '==' ? '.empty' : '!($str -> .empty)';
 
       return [
         {

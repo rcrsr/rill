@@ -32,7 +32,7 @@ describe('USE_EMPTY_METHOD', () => {
     });
   });
 
-  it('fires on != "" comparison, suggesting .empty -> !', () => {
+  it('fires on != "" comparison, suggesting !($str -> .empty)', () => {
     const source = '$x != ""\n';
     const parsed = toParseResult(source);
 
@@ -43,7 +43,7 @@ describe('USE_EMPTY_METHOD', () => {
       code: 'USE_EMPTY_METHOD',
       severity: 'warning',
       message:
-        'Use .empty -> ! for emptiness checks instead of comparing with ""',
+        'Use !($str -> .empty) for emptiness checks instead of comparing with ""',
       fix: null,
     });
   });

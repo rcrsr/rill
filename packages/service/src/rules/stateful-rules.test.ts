@@ -43,6 +43,17 @@ describe('AVOID_REASSIGNMENT', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('does not fire when sibling bare-Block loops each capture the same local name', () => {
+    const source =
+      '[1, 2, 3] -> seq({ $ + 1 => $x })\n' +
+      '[4, 5, 6] -> seq({ $ + 2 => $x })\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [avoidReassignment]);
+
+    expect(result).toEqual([]);
+  });
 });
 
 describe('LOOP_OUTER_CAPTURE', () => {
@@ -81,6 +92,38 @@ describe('LOOP_OUTER_CAPTURE', () => {
     const result = runRules(parsed, source, makeConfig(), [loopOuterCapture]);
 
     expect(result).toEqual([]);
+  });
+
+  it('does not fire when sibling bare-Block loops each capture the same local name', () => {
+    const source =
+      '[1, 2, 3] -> seq({ $ + 1 => $x })\n' +
+      '[4, 5, 6] -> seq({ $ + 2 => $x })\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [loopOuterCapture]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('does not fire when sibling while-loop bodies each capture the same local name', () => {
+    const source =
+      '0 -> while ($ < 3) do { $x + 1 => $x }\n' +
+      '0 -> while ($ < 5) do { $x + 2 => $x }\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [loopOuterCapture]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('still fires when a script-level variable is mutated inside a loop (regression guard)', () => {
+    const source = '0 => $count\n[1, 2, 3] -> seq({ $count + 1 => $count })\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [loopOuterCapture]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'LOOP_OUTER_CAPTURE' });
   });
 });
 

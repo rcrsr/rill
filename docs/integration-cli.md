@@ -166,7 +166,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `GUARD_OVER_TRY_CATCH` | errors | info | Branching on `.!` is manual try/catch |
 | `PRESENCE_OVER_NULL_GUARD` | errors | info | Nil-checking conditional instead of `??` |
 | `RETRY_TRIVIAL` | errors | warning | `retry<limit: N>` with N <= 1 has no effect |
-| `STATUS_PROBE_NO_FIELD` | errors | info | Bare `.!` returns the whole status record |
+| `STATUS_PROBE_NO_FIELD` | errors | info | Bare `.!` only yields a boolean invalid-test, not the status record |
 | `CAPTURE_INLINE_CHAIN` | flow | info | Capture breaks a pipe chain |
 | `CAPTURE_BEFORE_BRANCH` | flow | info | Capture value before branching |
 | `LOOP_ACCUMULATOR` | loops | info | Use accumulator `$@` pattern |

@@ -63,6 +63,16 @@ describe('THROWAWAY_CAPTURE', () => {
   });
 
   describe('stays silent', () => {
+    it('on a capture referenced only as a dynamic field key (.$var)', () => {
+      const source =
+        'dict[a: 1] => $d\n"a" => $key\n$d.$key -> log\n$d -> log\n';
+      const parsed = toParseResult(source);
+
+      const result = runRules(parsed, source, makeConfig(), [throwawayCapture]);
+
+      expect(result).toEqual([]);
+    });
+
     it('on a capture immediately chained into the next statement', () => {
       const source = '"hello" => $greeting\n$greeting -> .upper\n';
       const parsed = toParseResult(source);

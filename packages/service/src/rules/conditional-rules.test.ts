@@ -87,6 +87,43 @@ describe('USE_DEFAULT_OPERATOR', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('does not fire when the existence check condition has unrelated branches', () => {
+    const source = '$dict.?field ? "found" ! "not found"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [useDefaultOperator]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('does not fire when the branches reference a different field than the one checked', () => {
+    const source = '$dict.?field ? $dict.other ! "default"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [useDefaultOperator]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('does not fire when the branches reference a different variable than the one checked', () => {
+    const source = '$dict.?field ? $other.field ! "default"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [useDefaultOperator]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('fires on the negated existence check with matching branches swapped', () => {
+    const source = '(!$dict.?field) ? "default" ! $dict.field\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [useDefaultOperator]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'USE_DEFAULT_OPERATOR' });
+  });
 });
 
 describe('COMPLEX_CONDITION', () => {
