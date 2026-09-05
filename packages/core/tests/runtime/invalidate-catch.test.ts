@@ -21,6 +21,8 @@ import {
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
+import { ERROR_IDS } from '../../src/error-registry.js';
+import { RuntimeError } from '../../src/error-classes.js';
 
 /**
  * Asserts the thrown error is an abort halt:
@@ -115,6 +117,33 @@ describe('RuntimeContext.invalidate (IR-11)', () => {
     });
     const status = getStatus(result);
     expect(status.message).toBe('too many requests');
+  });
+
+  it('rejects the reserved status code "ok": ctx.invalidate throws a host error rather than minting the #ok sentinel', () => {
+    const ctx = createRuntimeContext({});
+    expect(() =>
+      ctx.invalidate(new Error('boom'), {
+        code: 'ok',
+        provider: 'test',
+      })
+    ).toThrow(/reserved status code "ok"/);
+    try {
+      ctx.invalidate(new Error('boom'), { code: 'ok', provider: 'test' });
+      expect.unreachable('expected invalidate to throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(RuntimeError);
+      expect((err as RuntimeError).errorId).toBe(ERROR_IDS.RILL_R084);
+    }
+  });
+
+  it('other registered codes are unaffected by the reserved-sentinel rejection', () => {
+    const ctx = createRuntimeContext({});
+    expect(() =>
+      ctx.invalidate(new Error('auth failure'), {
+        code: 'AUTH',
+        provider: 'idp',
+      })
+    ).not.toThrow();
   });
 });
 

@@ -47,6 +47,7 @@ import {
 } from '../../types/operations.js';
 import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { checkType, structureToTypeValue } from '../../values.js';
+import { setDictField } from '../../types/dict-keys.js';
 import { getVariable } from '../../context.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -207,7 +208,7 @@ async function buildCollectionType(
             fieldDef.annotations = {};
           }
         }
-        fields[arg.name!] = fieldDef;
+        setDictField(fields, arg.name!, fieldDef);
       }
       const structure: TypeStructure = { kind: 'dict', fields };
       return Object.freeze({

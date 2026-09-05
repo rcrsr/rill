@@ -19,7 +19,7 @@ import {
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
-import { run } from '../helpers/runtime.js';
+import { run, runWithContext } from '../helpers/runtime.js';
 
 /** Host function returning a fresh RillStream over the given chunks. */
 function makeStreamFn(chunks: RillValue[]): RillFunction {
@@ -216,5 +216,109 @@ describe('take/skip enforce stream chunk-type homogeneity (#342)', () => {
       mixedTypeStream
     );
     expect(result).toBe(true);
+  });
+});
+
+/** Host function returning a fresh RillStream over 5 chunks, whose dispose
+ * hook increments a shared counter. createRillStream's own `disposed` guard
+ * makes the hook idempotent, so any code path that calls it more than once
+ * (e.g. a subsequent runtime ctx.dispose()) must not move the counter. */
+function makeCountingStreamFn(counter: { count: number }): RillFunction {
+  return {
+    params: [] as { name: string; type: TypeStructure }[],
+    returnType: anyTypeValue,
+    fn: (): RillStream =>
+      createRillStream({
+        chunks: (async function* () {
+          for (const v of [1, 2, 3, 4, 5]) yield v;
+        })(),
+        resolve: async () => null,
+        dispose: () => {
+          counter.count++;
+        },
+      }),
+  };
+}
+
+describe('take() disposes a host stream exactly once (#391)', () => {
+  it('take(1) disposes exactly once on early stop', async () => {
+    const counter = { count: 0 };
+    await run('s() -> take(1)', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(counter.count).toBe(1);
+  });
+
+  it('take(2) disposes exactly once on early stop', async () => {
+    const counter = { count: 0 };
+    await run('s() -> take(2)', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(counter.count).toBe(1);
+  });
+
+  it('take(2) -> seq({ $ }) disposes exactly once', async () => {
+    const counter = { count: 0 };
+    await run('s() -> take(2) -> seq({ $ })', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(counter.count).toBe(1);
+  });
+
+  it('take(10) beyond length disposes exactly once on full drain', async () => {
+    const counter = { count: 0 };
+    await run('s() -> take(10)', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(counter.count).toBe(1);
+  });
+
+  it('stop_when disposes exactly once (unchanged by this fix)', async () => {
+    const counter = { count: 0 };
+    await run('s() -> stop_when({ $ > 1 })', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(counter.count).toBe(1);
+  });
+
+  it('seq with an early break disposes exactly once (unchanged by this fix)', async () => {
+    const counter = { count: 0 };
+    await run('s() -> seq({ ($ > 2) ? break ! $ })', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(counter.count).toBe(1);
+  });
+
+  it('a subsequent ctx.dispose() does not increment the counter again', async () => {
+    const counter = { count: 0 };
+    const { context } = await runWithContext('s() -> take(1)', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(counter.count).toBe(1);
+    await context.dispose();
+    expect(counter.count).toBe(1);
+  });
+});
+
+const emptyStream = { functions: { e: makeStreamFn([]) } };
+
+describe('.first() and sort() on a fresh host stream (#354)', () => {
+  it('.first() steps the stream once instead of routing through isDict', async () => {
+    expect(await run('s() -> .first() -> .value', streamOf12345)).toBe(1);
+  });
+
+  it('.first() -> .next() steps to the second chunk', async () => {
+    expect(
+      await run('s() -> .first() -> .next() -> .value', streamOf12345)
+    ).toBe(2);
+  });
+
+  it('.first() on an empty stream reports done', async () => {
+    expect(await run('e() -> .first() -> .done', emptyStream)).toBe(true);
+  });
+
+  it('sort materializes stream chunks via the list path', async () => {
+    const result = await run('s() -> sort', streamOf12345);
+    expect(result).toEqual([1, 2, 3, 4, 5]);
   });
 });

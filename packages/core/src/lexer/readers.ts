@@ -332,7 +332,9 @@ export function readIdentifier(state: LexerState): Token {
     value += advance(state);
   }
 
-  const type = KEYWORDS[value] ?? TOKEN_TYPES.IDENTIFIER;
+  const type = Object.hasOwn(KEYWORDS, value)
+    ? (KEYWORDS[value] as TokenType)
+    : TOKEN_TYPES.IDENTIFIER;
   return makeToken(type, value, start, currentLocation(state));
 }
 

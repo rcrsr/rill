@@ -18,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { RuntimeError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Evaluator Base Class', () => {
   describe('RuntimeError from base class methods (EC-1)', () => {
@@ -115,26 +115,31 @@ describe('Rill Runtime: Evaluator Base Class', () => {
   });
 
   describe('TimeoutError for async operations (EC-3)', () => {
-    // Bug #270: a timeout is now a catchable RuntimeHaltSignal, so its
-    // diagnostic lives on the halt's status message rather than on a
-    // TimeoutError instance.
+    // Bug #270: a timeout is a catchable halt whose atom (RILL_R012) is
+    // registered and mapped to a host-facing error ID, so an unguarded
+    // timeout escapes run() as a RuntimeError coded RILL-R012.
     it('halts with a catchable timeout halt when async function exceeds timeout', async () => {
-      await expectHaltMessage(
-        () =>
-          run('slowFunc()', {
-            timeout: 10,
-            functions: {
-              slowFunc: {
-                params: [],
-                fn: async () => {
-                  await new Promise((r) => setTimeout(r, 100));
-                  return 'done';
-                },
+      let caught: unknown;
+      try {
+        await run('slowFunc()', {
+          timeout: 10,
+          functions: {
+            slowFunc: {
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 100));
+                return 'done';
               },
             },
-          }),
-        /timed out/
-      );
+          },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
+      expect((caught as RuntimeError).message).toMatch(/timed out/);
     });
 
     it('completes successfully when async function within timeout', async () => {
@@ -156,8 +161,6 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     it('timeout halt carries function name in its status payload', async () => {
       const { getStatus } =
         await import('../../src/runtime/core/types/status.js');
-      const { RuntimeHaltSignal } =
-        await import('../../src/runtime/core/eval/handlers/access.js');
       let caught: unknown;
       try {
         await run('mySlowFunc()', {
@@ -176,43 +179,48 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         caught = err;
       }
-      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-      const status = getStatus(
-        (caught as InstanceType<typeof RuntimeHaltSignal>).value
-      );
+      expect(caught).toBeInstanceOf(RuntimeError);
+      const runtimeErr = caught as RuntimeError;
+      expect(runtimeErr.errorId).toBe('RILL-R012');
+      const status = getStatus(runtimeErr.haltValue!);
       const raw = status.raw as Record<string, unknown>;
       expect(raw.functionName).toBe('mySlowFunc');
       expect(status.message).toContain('timed out');
     });
 
     it('halts with a catchable timeout halt in nested async calls', async () => {
-      await expectHaltMessage(
-        () =>
-          run('outer()', {
-            timeout: 10,
-            functions: {
-              outer: {
-                params: [],
-                fn: async (args, ctx) => {
-                  // Call another async function that will timeout
-                  const innerFn = ctx.functions.get('inner');
-                  if (innerFn && 'fn' in innerFn) {
-                    return await innerFn.fn([], ctx);
-                  }
-                  return 'no-inner';
-                },
-              },
-              inner: {
-                params: [],
-                fn: async () => {
-                  await new Promise((r) => setTimeout(r, 100));
-                  return 'done';
-                },
+      let caught: unknown;
+      try {
+        await run('outer()', {
+          timeout: 10,
+          functions: {
+            outer: {
+              params: [],
+              fn: async (args, ctx) => {
+                // Call another async function that will timeout
+                const innerFn = ctx.functions.get('inner');
+                if (innerFn && 'fn' in innerFn) {
+                  return await innerFn.fn([], ctx);
+                }
+                return 'no-inner';
               },
             },
-          }),
-        /timed out/
-      );
+            inner: {
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 100));
+                return 'done';
+              },
+            },
+          },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
+      expect((caught as RuntimeError).message).toMatch(/timed out/);
     });
 
     it('timeout applies per function call, not total execution', async () => {

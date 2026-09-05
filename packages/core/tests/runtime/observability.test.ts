@@ -3,7 +3,12 @@
  * Tests for event callbacks
  */
 
-import { atomName, getStatus, RuntimeHaltSignal } from '@rcrsr/rill';
+import {
+  atomName,
+  getStatus,
+  RuntimeError,
+  RuntimeHaltSignal,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createEventCollector, mockAsyncFn, run } from '../helpers/runtime.js';
@@ -262,13 +267,13 @@ describe('Rill Runtime: Observability', () => {
         // Expected
       }
 
-      // Bug #270: a timeout is now a catchable RuntimeHaltSignal.
+      // Bug #270: a timeout is a catchable halt whose atom is mapped to a
+      // host-facing error ID, so it escapes as a RuntimeError.
       expect(events.error).toHaveLength(1);
       const fired = events.error[0]?.error;
-      expect(fired).toBeInstanceOf(RuntimeHaltSignal);
-      expect(getStatus((fired as RuntimeHaltSignal).value).message).toContain(
-        'timed out'
-      );
+      expect(fired).toBeInstanceOf(RuntimeError);
+      expect((fired as RuntimeError).errorId).toBe('RILL-R012');
+      expect((fired as RuntimeError).message).toContain('timed out');
     });
   });
 

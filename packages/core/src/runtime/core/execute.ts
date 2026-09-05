@@ -571,9 +571,13 @@ const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
   RILL_R057: ERROR_IDS.RILL_R057,
   RILL_R058: ERROR_IDS.RILL_R058,
   RILL_R061: ERROR_IDS.RILL_R061,
+  // builtins.ts collection-operator atoms.
+  RILL_R040: ERROR_IDS.RILL_R040,
   // timeout<total:> and timeout<idle:> catchable halt codes.
   RILL_R082: ERROR_IDS.RILL_R082,
   RILL_R083: ERROR_IDS.RILL_R083,
+  // createRuntimeContext({ timeout }) host-level execution timeout.
+  RILL_R012: ERROR_IDS.RILL_R012,
 };
 
 /**

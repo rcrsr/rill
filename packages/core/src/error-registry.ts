@@ -140,6 +140,7 @@ export const ERROR_IDS = {
   RILL_R081: 'RILL-R081',
   RILL_R082: 'RILL-R082',
   RILL_R083: 'RILL-R083',
+  RILL_R084: 'RILL-R084',
   RILL_C001: 'RILL-C001',
   RILL_C002: 'RILL-C002',
   RILL_C003: 'RILL-C003',
@@ -2099,6 +2100,23 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Idle timeout with guard recovery',
         code: 'guard { timeout<idle: 200ms> { $stream } }',
+      },
+    ],
+  },
+
+  {
+    errorId: ERROR_IDS.RILL_R084,
+    category: 'runtime',
+    description: 'Reserved status code used as invalidation code',
+    messageTemplate: 'cannot invalidate with reserved status code "ok"',
+    cause:
+      'invalidate() (or an equivalent host-boundary call) was given "ok" as the invalidation code. "ok" is reserved for the valid-value sentinel and cannot be minted as an error/invalid status.',
+    resolution:
+      'Use a different code for the invalidation, or return the value as valid instead of invalidating it.',
+    examples: [
+      {
+        description: 'Host attempts to invalidate with the reserved "ok" code',
+        code: '# Host code: ctx.invalidate({ code: "ok" })  # rejected',
       },
     ],
   },

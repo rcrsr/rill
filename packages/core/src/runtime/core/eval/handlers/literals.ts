@@ -141,7 +141,7 @@ async function evaluateAnnotations(
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
       const namedArg = arg as NamedArgNode;
-      result[namedArg.name] = await evalExpr(namedArg.value);
+      setDictField(result, namedArg.name, await evalExpr(namedArg.value));
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
       const spreadArg = arg as SpreadArgNode;

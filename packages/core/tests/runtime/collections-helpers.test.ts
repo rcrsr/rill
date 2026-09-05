@@ -152,6 +152,17 @@ describe('collections handlers', () => {
       );
       expect(result).toEqual([2, 4, 6, 8]);
     });
+
+    it('halts with RILL-R001 on fractional concurrency', async () => {
+      await expect(
+        run('list[1, 2, 3] -> fan({ $ }, dict[concurrency: 0.5])')
+      ).rejects.toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R001',
+          message: expect.stringMatching(/positive integer/i),
+        })
+      );
+    });
   });
 
   describe('builtin dispatch: fold (sequential reduction)', () => {
@@ -191,6 +202,24 @@ describe('collections handlers', () => {
     it('raises error when predicate does not return bool', async () => {
       await expect(run('list[1, 2, 3] -> filter({ $ * 2 })')).rejects.toThrow(
         /predicate must return bool/i
+      );
+    });
+
+    it('respects concurrency option', async () => {
+      const result = await run(
+        'list[1, 2, 3, 4] -> filter({ $ > 1 }, dict[concurrency: 2])'
+      );
+      expect(result).toEqual([2, 3, 4]);
+    });
+
+    it('halts with RILL-R001 on fractional concurrency', async () => {
+      await expect(
+        run('list[1, 2, 3] -> filter({ $ > 1 }, dict[concurrency: 0.5])')
+      ).rejects.toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R001',
+          message: expect.stringMatching(/positive integer/i),
+        })
       );
     });
   });

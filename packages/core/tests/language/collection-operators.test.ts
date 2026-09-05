@@ -928,10 +928,10 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       });
     });
 
-    it('AC-ERR-11: start_when(42) with non-callable predicate raises #RILL_R040', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> start_when(42)'), {
-        code: 'RILL_R040',
-      });
+    it('AC-ERR-11: start_when(42) with non-callable predicate raises RILL-R040', async () => {
+      await expect(run('list[1, 2, 3] -> start_when(42)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R040' })
+      );
     });
 
     // ── stop_when ────────────────────────────────────────────────────────────

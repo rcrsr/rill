@@ -748,7 +748,7 @@ describe('Callable reflection via ^ operator', () => {
       expect(result).toBe('Says hello');
     });
 
-    it('returns {} when annotations.description is absent (AC-23)', async () => {
+    it('returns an empty string when annotations.description is absent (AC-23)', async () => {
       const result = await run('$myFn.^description', {
         variables: {
           myFn: {
@@ -762,8 +762,8 @@ describe('Callable reflection via ^ operator', () => {
           } satisfies ApplicationCallable,
         },
       });
-      // No description annotation: ^description returns {}
-      expect(result).toEqual({});
+      // No description annotation: ^description returns ""
+      expect(result).toBe('');
     });
 
     it('does not throw RILL-R003 when ^ applied to callable (AC-4)', async () => {

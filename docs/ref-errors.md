@@ -1403,9 +1403,9 @@ use<db:users>  # no resolver registered for "db"
 
 ### rill-r056
 
-**Description:** Resolver callback threw an error
+**Description:** Resolver threw, or returned a malformed result
 
-**Cause:** The registered resolver function for the given scheme threw an exception.
+**Cause:** The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, an absent `value` field for `kind: 'value'`, or a missing/non-string `text` field for `kind: 'source'`).
 
 **Resolution:** Inspect the original error message in the RILL-R056 detail and fix the resolver implementation.
 

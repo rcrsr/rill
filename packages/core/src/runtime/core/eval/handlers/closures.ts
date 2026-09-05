@@ -10,7 +10,6 @@ import type {
   MethodCallNode,
   InvokeNode,
   PipeInvokeNode,
-  VariableNode,
   SourceLocation,
   SourceSpan,
   ExpressionNode,
@@ -73,12 +72,7 @@ import {
 } from '../../types/halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import {
-  getNodeLocation,
-  checkAborted,
-  withTimeout,
-  accessDictField,
-} from '../shared.js';
+import { getNodeLocation, checkAborted, withTimeout } from '../shared.js';
 import { evaluateExpression } from './core.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { assertType } from './types.js';
@@ -976,61 +970,6 @@ function declaresZeroParams(value: RillCallable): boolean {
   );
 }
 
-/** Evaluate $.field as property access on the pipe value. */
-export async function evaluatePipePropertyAccess(
-  s: EvalState,
-  node: VariableNode,
-  pipeInput: RillValue
-): Promise<RillValue> {
-  let value = pipeInput;
-
-  for (const access of node.accessChain) {
-    if (value === null) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluatePipePropertyAccess',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        'Cannot access property on null'
-      );
-    }
-
-    if ('accessKind' in access) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluatePipePropertyAccess',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        'Bracket access not supported in this context'
-      );
-    }
-
-    if (access.kind === 'literal') {
-      const field = access.field;
-      value = await accessDictField(s, value, field, getNodeLocation(s, node));
-    } else {
-      throwFatalHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluatePipePropertyAccess',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Field access kind '${(access as { kind: string }).kind}' not supported in this context`
-      );
-    }
-  }
-
-  if (value === null && node.defaultValue) {
-    value = await evaluateBodyExpression(s, node.defaultValue);
-  }
-  return value;
-}
-
 /** Evaluate pipe invoke: value -> (args). */
 export async function evaluatePipeInvoke(
   s: EvalState,
@@ -1171,6 +1110,7 @@ export async function evaluateMethod(
   if (
     isDict(receiver) &&
     args.length === 0 &&
+    !node.hasParens &&
     Object.hasOwn(receiver, node.name)
   ) {
     return receiver[node.name] as RillValue;
@@ -1375,7 +1315,7 @@ export async function evaluateAnnotationAccess(
   }
 
   if (key === 'description') {
-    return value.annotations['description'] ?? {};
+    return value.annotations['description'] ?? '';
   }
   if (key === 'input') {
     if (value.params === undefined) {

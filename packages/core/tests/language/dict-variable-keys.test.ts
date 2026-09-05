@@ -575,3 +575,120 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
     });
   });
 });
+
+describe('Dynamic field access on dicts with typed (number/boolean) keys', () => {
+  describe('Variable key ($d.$k)', () => {
+    it('resolves a number key through the typed-key sidecar', async () => {
+      const code = `
+        dict[1: "one"] => $d
+        1 => $k
+        $d.$k
+      `;
+      expect(await run(code)).toBe('one');
+    });
+
+    it('resolves a boolean key through the typed-key sidecar', async () => {
+      const code = `
+        dict[true: "t"] => $b
+        true => $kb
+        $b.$kb
+      `;
+      expect(await run(code)).toBe('t');
+    });
+
+    it('existence check reports true for a present typed key', async () => {
+      const code = `
+        dict[1: "one"] => $d
+        1 => $k
+        $d.?$k
+      `;
+      expect(await run(code)).toBe(true);
+    });
+
+    it('keeps number-key list indexing unchanged', async () => {
+      const code = `
+        list[9, 8] => $l
+        1 => $i
+        $l.$i
+      `;
+      expect(await run(code)).toBe(8);
+    });
+
+    it('halts with the bracket-path missing-key error when the typed key is absent', async () => {
+      const code = `
+        dict[1: "one"] => $d
+        2 => $k
+        $d.$k
+      `;
+      try {
+        await run(code);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R009');
+        expect(err.message).toMatch(/Undefined dict key: 2/i);
+      }
+    });
+
+    it('is guard-catchable when the typed key is absent', async () => {
+      const code = `
+        dict[1: "one"] => $d
+        2 => $k
+        guard { $d.$k } => $result
+        $result.!
+      `;
+      expect(await run(code)).toBe(true);
+    });
+  });
+
+  describe('Computed key ($d.(expr))', () => {
+    it('resolves a number key through the typed-key sidecar', async () => {
+      const code = `
+        dict[1: "one"] => $d
+        $d.(1)
+      `;
+      expect(await run(code)).toBe('one');
+    });
+
+    it('resolves a boolean key through the typed-key sidecar', async () => {
+      const code = `
+        dict[true: "t"] => $b
+        $b.(true)
+      `;
+      expect(await run(code)).toBe('t');
+    });
+
+    it('halts with the bracket-path missing-key error when the typed key is absent', async () => {
+      const code = `
+        dict[1: "one"] => $d
+        $d.(2)
+      `;
+      try {
+        await run(code);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId', 'RILL-R009');
+        expect(err.message).toMatch(/Undefined dict key: 2/i);
+      }
+    });
+
+    it('is guard-catchable when the typed key is absent', async () => {
+      const code = `
+        dict[1: "one"] => $d
+        guard { $d.(2) } => $result
+        $result.!
+      `;
+      expect(await run(code)).toBe(true);
+    });
+  });
+
+  describe('Bracket access parity ($d[$k])', () => {
+    it('matches the dynamic-key result for the same dict and key', async () => {
+      const code = `
+        dict[1: "one"] => $d
+        1 => $k
+        $d[$k]
+      `;
+      expect(await run(code)).toBe('one');
+    });
+  });
+});

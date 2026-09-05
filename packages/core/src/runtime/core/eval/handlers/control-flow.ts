@@ -78,7 +78,7 @@ export async function evaluateConditional(
 
   let conditionResult: boolean;
   if (node.condition) {
-    const conditionValue = await evaluateBodyExpression(s, node.condition);
+    const conditionValue = await evaluateBody(s, node.condition);
     // Condition must be boolean
     if (typeof conditionValue !== 'boolean') {
       throwCatchableHostHalt(
@@ -317,7 +317,7 @@ export async function evaluateDoWhileLoop(
       }
       s.ctx.pipeValue = value;
 
-      const conditionValue = await evaluateBodyExpression(s, node.condition);
+      const conditionValue = await evaluateBody(s, node.condition);
       // Condition must be boolean
       if (typeof conditionValue !== 'boolean') {
         throwCatchableHostHalt(
@@ -580,8 +580,9 @@ export async function evaluateBody(
 /**
  * Evaluate a body node as an expression (catches ReturnSignal).
  *
- * Used when a body needs to be treated as an expression
- * (e.g., conditional condition, do-while condition).
+ * Used when a body needs to be treated as an expression whose
+ * ReturnSignal should resolve to a value rather than propagate
+ * (see other call sites of this function for current usages).
  *
  * Catches ReturnSignal and returns its value.
  * Other signals (BreakSignal) and errors propagate up.
