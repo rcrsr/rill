@@ -18,6 +18,7 @@ import {
   advance,
   expect,
   makeSpan,
+  skipNewlines,
   skipNewlinesIfFollowedBy,
 } from './state.js';
 import { isMethodCallWithArgs } from './helpers.js';
@@ -280,7 +281,9 @@ Parser.prototype.parseComputedOrAlternatives = function (
     }
   }
 
+  skipNewlines(this.state);
   const expression = this.parsePipeChain();
+  skipNewlines(this.state);
   const closeParen = expect(
     this.state,
     TOKEN_TYPES.RPAREN,

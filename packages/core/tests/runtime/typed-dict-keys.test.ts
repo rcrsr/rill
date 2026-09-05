@@ -17,8 +17,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { formatValue, deepEquals } from '@rcrsr/rill';
+import { formatValue, deepEquals, toNative } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Type-aware dict keys (#266)', () => {
   describe('1. coexistence of number and string keys', () => {
@@ -60,6 +61,20 @@ describe('Type-aware dict keys (#266)', () => {
       await expect(run('dict["1": "a"] => $d\n1 -> $d')).rejects.toThrow(
         /not found/
       );
+    });
+
+    it('a typed-key value fails a uniform valueType check when it mismatches', async () => {
+      expect(await run('dict[1: "a"]:?dict(number)')).toBe(false);
+    });
+
+    it('a typed-key value halts on a uniform valueType assertion mismatch', async () => {
+      await expectHalt(() => run('dict[1: "a"]:dict(number)'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('a typed-key value passes a uniform valueType check when it matches', async () => {
+      expect(await run('dict[1: 5]:?dict(number)')).toBe(true);
     });
 
     it('bracket access is type-aware', async () => {
@@ -185,6 +200,36 @@ describe('Type-aware dict keys (#266)', () => {
         await run('dict[1: "a", "1": "b"] => $d\n$d => $e\n$e -> .len')
       ).toBe(2);
     });
+
+    it('a typed closure parameter keeps a number typed key alongside declared fields', async () => {
+      expect(
+        await run(
+          '|d: dict(name: string)| ($d.keys) => $f\ndict[1: "a", name: "x"] -> $f'
+        )
+      ).toEqual(['name', 1]);
+    });
+
+    it('an untyped closure parameter already keeps a number typed key', async () => {
+      expect(
+        await run('|d| ($d.keys) => $g\ndict[1: "a", name: "x"] -> $g')
+      ).toEqual(['name', 1]);
+    });
+
+    it('a typed closure parameter keeps a boolean typed key alongside declared fields', async () => {
+      expect(
+        await run(
+          '|d: dict(name: string)| ($d.keys) => $h\ndict[true: "t", name: "x"] -> $h'
+        )
+      ).toEqual(['name', true]);
+    });
+
+    it('a typed closure parameter with no typed keys is unaffected', async () => {
+      expect(
+        await run(
+          '|d: dict(name: string)| ($d.keys) => $i\ndict[name: "x"] -> $i'
+        )
+      ).toEqual(['name']);
+    });
   });
 
   describe('7. string-keyed dicts are unchanged', () => {
@@ -235,6 +280,21 @@ describe('Type-aware dict keys (#266)', () => {
     it('is not empty and reports the right length', async () => {
       expect(await run('dict[1: "a"] -> .empty')).toBe(false);
       expect(await run('dict[1: "a"] -> .len')).toBe(1);
+    });
+  });
+
+  describe('native output includes typed-key values', () => {
+    it('toNative carries both the typed key and the string key', async () => {
+      const value = await run('dict[1: "a", b: 2]');
+      const native = toNative(value);
+      expect(native.value).toMatchObject({ '1': 'a', b: 2 });
+      expect(native.rillTypeSignature).toBe('dict(1: string, b: number)');
+    });
+
+    it('toNative carries a boolean typed key', async () => {
+      const value = await run('dict[true: "a"]');
+      const native = toNative(value);
+      expect(native.value).toMatchObject({ true: 'a' });
     });
   });
 });

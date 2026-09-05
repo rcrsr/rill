@@ -51,6 +51,7 @@ import {
   emptyForType,
 } from './types/constructors.js';
 import { hasCollectionFields } from './values.js';
+import { copyTypedKeys } from './types/dict-keys.js';
 import { ERROR_IDS } from '../../error-registry.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
@@ -411,6 +412,9 @@ export function hydrateStructure(
     const result: Record<string, RillValue> = policy.keepExtras
       ? { ...dictValue }
       : {};
+    if (policy.keepExtras) {
+      copyTypedKeys(dictValue, result);
+    }
     for (const [fieldName, fieldDef] of Object.entries(t.fields!)) {
       if (fieldName in dictValue) {
         result[fieldName] = hydrateStructure(
@@ -538,6 +542,15 @@ export function hydrateStructure(
       __rill_tuple: true as const,
       entries: resultEntries,
     });
+  }
+
+  if (type.kind === 'union') {
+    const members = (type as { kind: 'union'; members: TypeStructure[] })
+      .members;
+    const match = members.find((member) => structureMatches(value, member));
+    if (match) {
+      return hydrateStructure(value, match, policy);
+    }
   }
 
   return value;

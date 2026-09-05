@@ -370,6 +370,43 @@ $loop(5)`;
         expect(await run(script)).toBe(5);
       });
 
+      it('closure literal followed by a newline then a parenthesized expression is two statements', async () => {
+        // Regression test: a closure body's closing brace followed by a
+        // newline and an unrelated parenthesized expression must not be
+        // treated as a same-statement postfix invocation of the closure.
+        const script = `|x| { $x * 2 }\n(5)`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(5);
+      });
+
+      it('closure literal followed by a newline then a property access is two statements', async () => {
+        const script = `|| { 1 }\n.len`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        await expect(run(script)).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R005'
+        );
+      });
+
+      it('bare block followed by newline then parenthesized expression stays two statements', async () => {
+        const script = `{ $ * 2 }\n(5)`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(5);
+      });
+
+      it('same-line return type annotation still parses after a closure body', async () => {
+        const script = `|x| ($x):number => $f\n$f(5)`;
+        expect(await run(script)).toBe(5);
+      });
+
+      it('return type annotation on the line after the closure body still parses', async () => {
+        const script = `|x| ($x)\n:number => $f\n$f(5)`;
+        expect(await run(script)).toBe(5);
+      });
+
       it('allows postfix invocation after conditional with non-block then-branch', async () => {
         // Verify that postfix invocation still works when then-branch is NOT a block.
         // (cond) ? value followed by (args) should parse as invocation if value is callable.
@@ -378,6 +415,56 @@ $loop(5)`;
 (true ? $double ! $double)(5)`;
         // Conditional returns $double, then (5) invokes it as postfix
         expect(await run(script)).toBe(10);
+      });
+    });
+
+    describe('Conditional without else-branch does not consume a leading newline speculatively', () => {
+      it('a bare then-branch followed by newline and a minus-prefixed line is two statements', async () => {
+        const script = 'true ? 5\n- 1';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(-1);
+      });
+
+      it('a then/else conditional followed by newline and a minus-prefixed line is unaffected', async () => {
+        const script = 'true ? 5 ! 3\n- 1';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(-1);
+      });
+
+      it('a plain number followed by newline and a minus-prefixed line is unaffected', async () => {
+        const script = '5\n- 1';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(-1);
+      });
+
+      it('a bare then-branch followed by newline and an && continuation does not join into one expression', async () => {
+        const script = 'true ? true\n&& false';
+        try {
+          parse(script);
+          expect.unreachable('expected parse to throw');
+        } catch (error) {
+          expect(error).toHaveProperty('errorId', 'RILL-P001');
+        }
+      });
+
+      it('a bare then-branch followed by newline and a *-prefixed line does not join into one expression', async () => {
+        const script = 'true ? 2\n* 3';
+        try {
+          parse(script);
+          expect.unreachable('expected parse to throw');
+        } catch (error) {
+          expect(error).toHaveProperty('errorId', 'RILL-P001');
+        }
+      });
+
+      it('a bare then-branch followed by newline then a bang else-marker still forms one conditional', async () => {
+        const script = 'true ? 5\n! 3';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(1);
+        expect(await run(script)).toBe(5);
       });
     });
   });

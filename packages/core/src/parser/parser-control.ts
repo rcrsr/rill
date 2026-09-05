@@ -100,8 +100,7 @@ Parser.prototype.parseConditionalRest = function (
   const thenBranch = this.parseBody();
 
   let elseBranch: BodyNode | ConditionalNode | null = null;
-  // Site 4: Add skipNewlines before ! check (safe because we're inside conditional)
-  skipNewlines(this.state);
+  skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.BANG);
   if (check(this.state, TOKEN_TYPES.BANG)) {
     advance(this.state);
 
@@ -271,7 +270,9 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
     );
   }
   advance(this.state); // consume `(`
+  skipNewlines(this.state);
   const condition = this.parseExpression();
+  skipNewlines(this.state);
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
 
   // parseExpression() itself only ever produces PipeChainNode on a
@@ -318,7 +319,9 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
     );
   }
   advance(this.state); // consume `(`
+  skipNewlines(this.state);
   const condition: ExpressionNode = this.parseExpression();
+  skipNewlines(this.state);
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
 
   skipNewlines(this.state);

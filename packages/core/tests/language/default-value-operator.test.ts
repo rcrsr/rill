@@ -388,6 +388,42 @@ describe('Default Value Operator (??)', () => {
       `);
       expect(result).toBe('x');
     });
+
+    it('returns fallback for an empty string reached via -> .field (pipe target)', async () => {
+      const result = await run(`
+        dict[a: ""] -> .a ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
+
+    it('returns fallback for an empty string reached via -> .method (pipe target)', async () => {
+      const result = await run(`
+        "" -> .upper ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
+
+    it('returns fallback for a bare empty string as the pipe target', async () => {
+      const result = await run(`
+        ("") ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
+
+    it('returns fallback for a bare empty list as the pipe target', async () => {
+      const result = await run(`
+        (list[]) ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
+
+    it('still returns the field value via a variable path when empty is not vacant for that field', async () => {
+      const result = await run(`
+        dict[a: ""] => $d
+        $d.a ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
   });
 
   describe('Vacancy trigger on invalid LHS', () => {
@@ -471,6 +507,45 @@ describe('Default Value Operator (??)', () => {
         $x.? ?? "fallback"
       `);
       expect(result).toBe('hello');
+    });
+  });
+
+  describe('Intermediate access-chain steps do not short-circuit on empty', () => {
+    it('evaluates .empty on an empty list variable instead of defaulting early', async () => {
+      const result = await run(`
+        list[] => $l
+        $l.empty ?? false
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('evaluates .empty on an empty dict variable instead of defaulting early', async () => {
+      const result = await run(`
+        dict[] => $d
+        $d.empty ?? false
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('evaluates .empty on an empty list nested behind an intermediate field', async () => {
+      const result = await run(`
+        dict[a: list[]] => $d
+        $d.a.empty ?? false
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('evaluates .empty when the empty list is the pipe target itself', async () => {
+      const result = await run('list[] -> .empty ?? false');
+      expect(result).toBe(true);
+    });
+
+    it('still applies the default when the final step resolves to a genuinely vacant value', async () => {
+      const result = await run(`
+        dict[a: dict[]] => $d
+        $d.a.missing ?? "fallback"
+      `);
+      expect(result).toBe('fallback');
     });
   });
 });
