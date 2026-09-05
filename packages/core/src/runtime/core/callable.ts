@@ -545,6 +545,10 @@ export function hydrateStructure(
   }
 
   if (type.kind === 'union') {
+    // First structural match wins, in declaration order. When two members
+    // overlap structurally, the same value hydrates differently depending on
+    // which is declared first; declare union members non-overlapping (or
+    // most-specific-first) for predictable hydration.
     const members = (type as { kind: 'union'; members: TypeStructure[] })
       .members;
     const match = members.find((member) => structureMatches(value, member));
