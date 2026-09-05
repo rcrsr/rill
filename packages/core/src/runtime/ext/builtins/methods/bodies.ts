@@ -17,8 +17,7 @@ import { isEmpty } from '../../../core/values.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { throwCatchableHostHalt } from '../../../core/types/halt.js';
 import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
-import { getEvalState } from '../../../core/eval/state.js';
-import { invokeCallable as invokeCallableState } from '../../../core/eval/handlers/closures.js';
+import { invokeCallable as invokeCallableState } from '../../../core/eval/index.js';
 import {
   type RillMethod,
   makeListIterator,
@@ -124,7 +123,6 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
   // internal fields (__rill_stream, next, ...) instead of stepping it.
   if (isStream(receiver)) {
     const loc = location ?? { line: 0, column: 0, offset: 0 };
-    const evaluator = getEvalState(ctx);
     const nextRaw = (receiver as unknown as Record<string, unknown>)[
       'next'
     ] as RillValue;
@@ -135,13 +133,7 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
         'Stream .next must be a closure'
       );
     }
-    return (await invokeCallableState(
-      evaluator,
-      nextRaw,
-      [],
-      loc,
-      'next'
-    )) as RillValue;
+    return (await invokeCallableState(nextRaw, [], ctx, loc)) as RillValue;
   }
   if (isIterator(receiver)) return receiver;
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
@@ -464,7 +456,7 @@ export const mGe: RillMethod = (receiver, args, ctx, location) =>
  * then number/boolean keys (each surfaced with its original type).
  */
 export const mKeys: RillMethod = (receiver) =>
-  isDict(receiver)
+  isDict(receiver) && !isStream(receiver)
     ? [
         ...Object.keys(receiver).sort(),
         ...typedKeyEntries(receiver).map((e) => e.key),
@@ -473,7 +465,7 @@ export const mKeys: RillMethod = (receiver) =>
 
 /** Get all values of a dict as a list, sorted string keys first then typed keys. */
 export const mValues: RillMethod = (receiver) =>
-  isDict(receiver)
+  isDict(receiver) && !isStream(receiver)
     ? [
         ...Object.keys(receiver)
           .sort()
@@ -484,7 +476,7 @@ export const mValues: RillMethod = (receiver) =>
 
 /** Get all entries of a dict as a list of [key, value] pairs. */
 export const mEntries: RillMethod = (receiver) =>
-  isDict(receiver)
+  isDict(receiver) && !isStream(receiver)
     ? [
         ...Object.keys(receiver)
           .sort()

@@ -752,13 +752,13 @@ Builds a `RillStream` from an `AsyncIterable` of chunk values and a resolution c
 
 `dispose` runs exactly once, whichever way a collection operator stops reading the stream:
 
-- The operator drains every chunk (`seq`, `fan`, `skip`, or a `take(n)` larger than the stream).
-- The operator stops early (`take(n)`, `stop_when`, or a `break` in `seq`/`acc`).
+- The operator drains every chunk (`seq`, `fan`, `skip`, `stop_when`, or a `take(n)` larger than the stream).
+- The operator stops early (`take(n)`, or a `break` in `seq`/`acc`).
 - The consuming expression halts.
 
 `dispose` runs before the consuming expression returns, so a host that opens a socket or file per stream releases it on every path. It never runs more than once.
 
-A stream stepped by hand with `.first()` and `.next()` is disposed only when a step reaches the end of the chunks. A hand-stepped chain abandoned before that point, or a stream that no expression consumes, is not disposed; the host remains responsible for those resources.
+A stream stepped by hand with `.first()` and `.next()` is disposed only when a step reaches the end of the chunks. A hand-stepped chain abandoned before that point is not disposed; the host remains responsible for that resource. A stream assigned inside a block is disposed on the enclosing block's scope exit even if no expression ever consumed it; only a stream that is the script's own top-level result, with no enclosing block, is left for the host to dispose.
 
 ```typescript
 import { createRillStream } from '@rcrsr/rill';

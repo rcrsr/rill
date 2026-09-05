@@ -693,7 +693,7 @@ export function marshalArgs(
       }
     }
 
-    result[param.name] = value;
+    setDictField(result, param.name, value);
   }
 
   return result;

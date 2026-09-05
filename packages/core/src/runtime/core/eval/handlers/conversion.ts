@@ -287,7 +287,7 @@ async function convertToOrderedWithSig(
   for (const field of resolvedFields) {
     const fieldName = field.name!;
 
-    if (fieldName in dictInput) {
+    if (Object.hasOwn(dictInput, fieldName)) {
       let fieldValue: RillValue = dictInput[fieldName]!;
       fieldValue = hydrateNested(s, fieldValue, field.type, node);
       assertType(s, fieldValue, field.type, node.span.start);

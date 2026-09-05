@@ -29,7 +29,7 @@ import { isCallable } from '../../callable.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { evaluateExpression } from './core.js';
-import { checkAutoExceptions } from '../shared.js';
+import { checkAutoExceptions, setDictField } from '../shared.js';
 
 /** Default maximum loop iterations */
 const DEFAULT_MAX_ITERATIONS = 10000;
@@ -112,7 +112,11 @@ export async function evaluateAnnotations(
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
       const namedArg = arg as NamedArgNode;
-      result[namedArg.name] = await evaluateExpression(s, namedArg.value);
+      setDictField(
+        result,
+        namedArg.name,
+        await evaluateExpression(s, namedArg.value)
+      );
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
       const spreadArg = arg as SpreadArgNode;
