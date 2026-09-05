@@ -122,6 +122,33 @@ export function resolvedCompareValue(
 }
 
 // ============================================================
+// LATE-BINDING: inferElementType
+// ============================================================
+
+/**
+ * Late-bound dispatcher for homogeneous-element-type inference.
+ * Wired by initInferElementType(inferElementType) after registrations.ts
+ * builds the type dispatcher. Throws RILL-R002 on mixed-type elements.
+ */
+let _inferElementType: ((elements: RillValue[]) => unknown) | undefined;
+
+export function initInferElementType(
+  fn: (elements: RillValue[]) => unknown
+): void {
+  _inferElementType = fn;
+}
+
+/** Validate that a set of elements share a common structural type. */
+export function resolvedInferElementType(elements: RillValue[]): void {
+  if (_inferElementType === undefined) {
+    throw new Error(
+      'inferElementType called before initInferElementType: bootstrap order violation'
+    );
+  }
+  _inferElementType(elements);
+}
+
+// ============================================================
 // COMPARISON UTILITIES
 // ============================================================
 

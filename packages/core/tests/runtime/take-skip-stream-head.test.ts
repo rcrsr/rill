@@ -37,6 +37,7 @@ function makeStreamFn(chunks: RillValue[]): RillFunction {
 }
 
 const streamOf12345 = { functions: { s: makeStreamFn([1, 2, 3, 4, 5]) } };
+const mixedTypeStream = { functions: { s: makeStreamFn([1, 'a', 2]) } };
 
 /**
  * Host function returning a custom iterator that never carries a `value`
@@ -166,5 +167,54 @@ describe('take/skip on a value-less custom iterator halts recoverably at MAX_ITE
     await expect(
       run('valueless_iter() -> take(5)', valuelessIter)
     ).rejects.toThrow(/exceeded.*step limit/);
+  });
+});
+
+describe('take/skip enforce stream chunk-type homogeneity (#342)', () => {
+  it('take over a mixed number/string stream halts #TYPE_MISMATCH', async () => {
+    const result = await run(
+      `
+        guard {
+          s() -> take(3)
+        } => $r
+        $r.! ? ($r.!code == #TYPE_MISMATCH) ! false
+      `,
+      mixedTypeStream
+    );
+    expect(result).toBe(true);
+  });
+
+  it('skip over a mixed number/string stream halts #TYPE_MISMATCH', async () => {
+    const result = await run(
+      `
+        guard {
+          s() -> skip(1)
+        } => $r
+        $r.! ? ($r.!code == #TYPE_MISMATCH) ! false
+      `,
+      mixedTypeStream
+    );
+    expect(result).toBe(true);
+  });
+
+  it('take over a homogeneous stream returns the expected head', async () => {
+    expect(await run('s() -> take(2)', streamOf12345)).toEqual([1, 2]);
+  });
+
+  it('skip over a homogeneous stream returns the expected tail', async () => {
+    expect(await run('s() -> skip(2)', streamOf12345)).toEqual([3, 4, 5]);
+  });
+
+  it('seq over the same mixed stream halts with the same #TYPE_MISMATCH', async () => {
+    const result = await run(
+      `
+        guard {
+          s() -> seq({ $ })
+        } => $r
+        $r.! ? ($r.!code == #TYPE_MISMATCH) ! false
+      `,
+      mixedTypeStream
+    );
+    expect(result).toBe(true);
   });
 });

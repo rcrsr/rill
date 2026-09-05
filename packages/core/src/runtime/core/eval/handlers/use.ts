@@ -160,6 +160,56 @@ export async function evaluateUseExpr(
       );
     }
 
+    // Validate resolver result shape — a resolver that resolves successfully
+    // but returns a malformed object must halt the same way a throwing
+    // resolver does, so no undefined/unshaped value leaks into the runtime.
+    if (typeof result !== 'object' || result === null) {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateUseExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R056],
+        `Resolver error for '${key}': resolver result must be an object, got ${result === null ? 'null' : typeof result}`
+      );
+    }
+    const rawResult = result as Record<string, unknown>;
+    const kind = rawResult['kind'];
+    if (kind !== 'value' && kind !== 'source') {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateUseExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R056],
+        `Resolver error for '${key}': resolver result must have kind 'value' or 'source', got ${JSON.stringify(kind)}`
+      );
+    }
+    if (kind === 'value' && rawResult['value'] === undefined) {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateUseExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R056],
+        `Resolver error for '${key}': resolver result with kind 'value' is missing a 'value' field`
+      );
+    }
+    if (kind === 'source' && typeof rawResult['text'] !== 'string') {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateUseExpr',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R056],
+        `Resolver error for '${key}': resolver result with kind 'source' is missing a string 'text' field`
+      );
+    }
+
     // Handle result — key is still in-flight for the source execution path
     if (result.kind === 'value') {
       // Record where these callables came from, keyed on the resource in

@@ -141,6 +141,21 @@ export async function evaluateConditional(
     }
   }
 
+  // No else branch and condition was false: fall through to the (possibly
+  // restored) pipe value. Mirrors evaluatePass's unbound-$ halt so a
+  // false, else-less conditional doesn't silently produce a raw null.
+  if (s.ctx.pipeValue === null) {
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateConditional',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R005],
+      "Variable '$' not defined",
+      { variable: '$' }
+    );
+  }
   return s.ctx.pipeValue;
 }
 

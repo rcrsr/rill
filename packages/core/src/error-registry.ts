@@ -1600,10 +1600,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R056,
     category: 'runtime',
-    description: 'Resolver callback threw an error',
+    description: 'Resolver threw, or returned a malformed result',
     messageTemplate: "Resolver error for '{scheme}:{resource}': {message}",
     cause:
-      'The registered resolver function for the given scheme threw an exception.',
+      'The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, a `value`/`text` field that is absent or the wrong type).',
     resolution:
       'Inspect the original error message in the RILL-R056 detail and fix the resolver implementation.',
     examples: [

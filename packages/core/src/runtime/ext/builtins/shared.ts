@@ -6,7 +6,11 @@ import { callable, isCallable } from '../../core/callable.js';
 import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import { checkAborted } from '../../core/eval/shared.js';
 import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/closures.js';
-import { throwCatchableHostHalt } from '../../core/types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwTypeHalt,
+} from '../../core/types/halt.js';
+import { inferType } from '../../core/types/registrations.js';
 
 /**
  * Walk an iterator or stream until `cap` value-bearing elements have been
@@ -50,6 +54,7 @@ export async function walkIteratorSteps(
 
   let produced = 0;
   let steps = 0;
+  let expectedType: string | undefined;
   while (produced < cap) {
     checkAborted(evaluator);
     if (current['done']) break;
@@ -93,6 +98,18 @@ export async function walkIteratorSteps(
 
     // Count this step toward `cap` only when it produced a value.
     if (val !== undefined) {
+      const actualType = inferType(val as RillValue);
+      if (expectedType === undefined) {
+        expectedType = actualType;
+      } else if (actualType !== expectedType) {
+        throwTypeHalt(
+          site,
+          'TYPE_MISMATCH',
+          `Chunk type mismatch: expected ${expectedType}, got ${actualType}`,
+          'runtime',
+          { expectedType, actualType }
+        );
+      }
       elements.push(val as RillValue);
       produced++;
     }

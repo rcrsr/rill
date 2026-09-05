@@ -16,7 +16,7 @@ import {
 import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import { MAX_ITER, makeGenericIterator } from '../shared.js';
 import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
@@ -47,10 +47,19 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: anyTypeValue,
-    fn: (args, ctx) => {
+    fn: (args, ctx, location) => {
       // log is in UNTYPED_BUILTINS (allows excess args), receives positional array cast as Record.
       // Use index 0 for the message value.
-      const value = (args as unknown as RillValue[])[0] ?? null;
+      const positional = args as unknown as RillValue[];
+      if (positional.length === 0) {
+        throwCatchableHostHalt(
+          { location, sourceId: (ctx as RuntimeContext).sourceId, fn: 'log' },
+          ERROR_ATOMS[ERROR_IDS.RILL_R044],
+          "Missing argument for parameter 'message'",
+          { functionName: 'log', paramName: 'message' }
+        );
+      }
+      const value = positional[0] ?? null;
       const message = formatValue(value);
       (ctx as RuntimeContext).callbacks.onLog(message);
       return value;

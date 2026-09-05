@@ -34,6 +34,7 @@ import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
 import { setDictField } from '../shared.js';
 import { setTypedKey } from '../../types/dict-keys.js';
+import { assertUsableDictKey } from './literals.js';
 
 /**
  * Evaluate destructure operator: destruct<$a, $b, $c>
@@ -546,6 +547,7 @@ async function evaluateDictLiteralEntries(
 
     if (typeof key === 'string') {
       stringKey = key;
+      assertUsableDictKey(s, stringKey, entry.span);
     } else if (typeof key === 'number' || typeof key === 'boolean') {
       // Preserve the typed key; the DictLiteral caller sends it to the sidecar.
       stringKey = key;
@@ -576,8 +578,10 @@ async function evaluateDictLiteralEntries(
           const computed = await evaluateExpression(s, key.expression);
           stringKey = String(computed);
         }
+        assertUsableDictKey(s, stringKey, entry.span);
       } else {
         stringKey = String(key);
+        assertUsableDictKey(s, stringKey, entry.span);
       }
     }
 
