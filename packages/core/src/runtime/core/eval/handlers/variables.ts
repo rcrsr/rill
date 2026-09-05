@@ -57,7 +57,11 @@ import type { EvalState } from '../state.js';
 import { accessHaltGateFast } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, accessDictField } from '../shared.js';
-import { getTypedKey, hasTypedKey } from '../../types/dict-keys.js';
+import {
+  getTypedKey,
+  getTypedKeyMap,
+  hasTypedKey,
+} from '../../types/dict-keys.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluatePipeChain } from './core.js';
 import {
@@ -844,6 +848,32 @@ async function evaluateFieldAccessVariable(
     }
   }
 
+  // Number/boolean keys on a dict that carries a typed-key sidecar resolve
+  // against it, mirroring the bracket-access path. A dict with no typed keys
+  // falls through to the string-key rules below, so a boolean key on a plain
+  // dict still halts with the key-type error.
+  if (
+    isDict(value) &&
+    (typeof keyValue === 'number' || typeof keyValue === 'boolean') &&
+    getTypedKeyMap(value) !== undefined
+  ) {
+    if (!hasTypedKey(value, keyValue)) {
+      if (allowMissing) {
+        return null;
+      }
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateFieldAccessVariable',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
+        `Undefined dict key: ${keyValue}`
+      );
+    }
+    return getTypedKey(value, keyValue) as RillValue;
+  }
+
   // Validate key type
   if (typeof keyValue === 'boolean') {
     throwCatchableHostHalt(
@@ -1000,6 +1030,31 @@ async function evaluateFieldAccessComputed(
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
       `Computed key evaluated to dict, expected string or number`
     );
+  }
+
+  // Number/boolean keys on a dict that carries a typed-key sidecar resolve
+  // against it, mirroring the bracket-access path. A dict with no typed keys
+  // falls through to the existing key-type rules below.
+  if (
+    isDict(value) &&
+    (typeof keyValue === 'number' || typeof keyValue === 'boolean') &&
+    getTypedKeyMap(value) !== undefined
+  ) {
+    if (!hasTypedKey(value, keyValue)) {
+      if (allowMissing) {
+        return null;
+      }
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateFieldAccessComputed',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
+        `Undefined dict key: ${keyValue}`
+      );
+    }
+    return getTypedKey(value, keyValue) as RillValue;
   }
 
   // Other invalid types (boolean, list)

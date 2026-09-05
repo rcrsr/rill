@@ -51,7 +51,7 @@ import {
   emptyForType,
 } from './types/constructors.js';
 import { hasCollectionFields } from './values.js';
-import { copyTypedKeys } from './types/dict-keys.js';
+import { copyTypedKeys, setDictField } from './types/dict-keys.js';
 import { ERROR_IDS } from '../../error-registry.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
@@ -416,23 +416,27 @@ export function hydrateStructure(
       copyTypedKeys(dictValue, result);
     }
     for (const [fieldName, fieldDef] of Object.entries(t.fields!)) {
-      if (fieldName in dictValue) {
-        result[fieldName] = hydrateStructure(
-          dictValue[fieldName]!,
-          fieldDef.type,
-          policy
+      if (Object.hasOwn(dictValue, fieldName)) {
+        setDictField(
+          result,
+          fieldName,
+          hydrateStructure(dictValue[fieldName]!, fieldDef.type, policy)
         );
       } else if (fieldDef.defaultValue !== undefined) {
-        result[fieldName] = hydrateStructure(
-          copyValue(fieldDef.defaultValue),
-          fieldDef.type,
-          policy
+        setDictField(
+          result,
+          fieldName,
+          hydrateStructure(
+            copyValue(fieldDef.defaultValue),
+            fieldDef.type,
+            policy
+          )
         );
       } else if (hasCollectionFields(fieldDef.type)) {
-        result[fieldName] = hydrateStructure(
-          emptyForType(fieldDef.type),
-          fieldDef.type,
-          policy
+        setDictField(
+          result,
+          fieldName,
+          hydrateStructure(emptyForType(fieldDef.type), fieldDef.type, policy)
         );
       } else {
         policy.onMissingField({

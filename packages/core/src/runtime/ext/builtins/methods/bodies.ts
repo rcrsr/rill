@@ -1,4 +1,4 @@
-import { isDict } from '../../../core/callable.js';
+import { isDict, isCallable } from '../../../core/callable.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue, RillVector } from '../../../core/types/structures.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
@@ -8,7 +8,7 @@ import {
   formatValue,
   inferType,
 } from '../../../core/types/registrations.js';
-import { isIterator, isVector } from '../../../core/types/guards.js';
+import { isIterator, isStream, isVector } from '../../../core/types/guards.js';
 import {
   typedKeyEntries,
   typedKeyCount,
@@ -17,6 +17,8 @@ import { isEmpty } from '../../../core/values.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { throwCatchableHostHalt } from '../../../core/types/halt.js';
 import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
+import { getEvalState } from '../../../core/eval/state.js';
+import { invokeCallable as invokeCallableState } from '../../../core/eval/handlers/closures.js';
 import {
   type RillMethod,
   makeListIterator,
@@ -52,23 +54,23 @@ export const mLen: RillMethod = (receiver) => {
 export const mTrim: RillMethod = (receiver) => formatValue(receiver).trim();
 
 /** Get first element of list or first char of string */
-export const mHead: RillMethod = (receiver, _args, _ctx, location) => {
+export const mHead: RillMethod = (receiver, _args, ctx, location) => {
   if (Array.isArray(receiver)) {
     if (receiver.length === 0) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        'Cannot get head of empty list',
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'head' },
+        'RILL_R002',
+        'Cannot get head of empty list'
       );
     }
     return receiver[0]!;
   }
   if (typeof receiver === 'string') {
     if (receiver.length === 0) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        'Cannot get head of empty string',
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'head' },
+        'RILL_R002',
+        'Cannot get head of empty string'
       );
     }
     // First code point, never a lone surrogate half of an astral character.
@@ -82,23 +84,23 @@ export const mHead: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Get last element of list or last char of string */
-export const mTail: RillMethod = (receiver, _args, _ctx, location) => {
+export const mTail: RillMethod = (receiver, _args, ctx, location) => {
   if (Array.isArray(receiver)) {
     if (receiver.length === 0) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        'Cannot get tail of empty list',
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'tail' },
+        'RILL_R002',
+        'Cannot get tail of empty list'
       );
     }
     return receiver[receiver.length - 1]!;
   }
   if (typeof receiver === 'string') {
     if (receiver.length === 0) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        'Cannot get tail of empty string',
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'tail' },
+        'RILL_R002',
+        'Cannot get tail of empty string'
       );
     }
     // Last code point, never a lone surrogate half of an astral character.
@@ -114,7 +116,33 @@ export const mTail: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Get iterator at first position for any collection */
-export const mFirst: RillMethod = (receiver, _args, _ctx, location) => {
+export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
+  // Streams must be checked before isIterator/isDict: a fresh host stream's
+  // pending head step has no `value` field (so isIterator returns false),
+  // but it is still a plain object and would otherwise fall through to the
+  // isDict branch below, silently treating the stream itself as a dict of
+  // internal fields (__rill_stream, next, ...) instead of stepping it.
+  if (isStream(receiver)) {
+    const loc = location ?? { line: 0, column: 0, offset: 0 };
+    const evaluator = getEvalState(ctx);
+    const nextRaw = (receiver as unknown as Record<string, unknown>)[
+      'next'
+    ] as RillValue;
+    if (!isCallable(nextRaw)) {
+      throwCatchableHostHalt(
+        { location: loc, sourceId: ctx.sourceId, fn: 'first' },
+        'RILL_R002',
+        'Stream .next must be a closure'
+      );
+    }
+    return (await invokeCallableState(
+      evaluator,
+      nextRaw,
+      [],
+      loc,
+      'next'
+    )) as RillValue;
+  }
   if (isIterator(receiver)) return receiver;
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
   if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
@@ -142,10 +170,10 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
       );
     }
     if (idx < 0 || idx >= receiver.length) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        `List index out of bounds: ${idx}`,
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'RILL_R002',
+        `List index out of bounds: ${idx}`
       );
     }
     return receiver[idx]!;
@@ -162,20 +190,20 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
     }
     if (isBmpOnly(receiver)) {
       if (idx < 0 || idx >= receiver.length) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R002,
-          `String index out of bounds: ${idx}`,
-          location
+        throwCatchableHostHalt(
+          { location, sourceId: ctx.sourceId, fn: 'at' },
+          'RILL_R002',
+          `String index out of bounds: ${idx}`
         );
       }
       return receiver.charAt(idx);
     }
     const cps = [...receiver];
     if (idx < 0 || idx >= cps.length) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        `String index out of bounds: ${idx}`,
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'RILL_R002',
+        `String index out of bounds: ${idx}`
       );
     }
     return cps[idx]!;

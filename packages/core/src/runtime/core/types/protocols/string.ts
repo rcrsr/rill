@@ -13,6 +13,7 @@ import type { TypeDefinition } from './types.js';
 import { resolveAtom } from '../atom-registry.js';
 import { RuntimeError } from '../../../../types.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
+import { throwTypeHalt } from '../halt.js';
 
 // ============================================================
 // FORMAT
@@ -76,7 +77,16 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     );
   },
   atom: (v: RillValue): RillValue => {
-    const atom = resolveAtom(v as string);
+    const s = v as string;
+    if (s === 'ok') {
+      throwTypeHalt(
+        { fn: 'string-to-atom' },
+        'INVALID_INPUT',
+        'cannot convert reserved status code "ok" to atom',
+        'runtime'
+      );
+    }
+    const atom = resolveAtom(s);
     return { __rill_atom: true, atom } as unknown as RillValue;
   },
 };

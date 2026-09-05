@@ -47,8 +47,9 @@ describe('Rill Runtime: Configuration', () => {
       expect(result).toBe('done');
     });
 
-    // A timeout now surfaces as a catchable RuntimeHaltSignal (bug #270) so
-    // that `guard`/`retry` can recover it. Uncaught, it still halts execution.
+    // A timeout is a catchable halt (bug #270) so that `guard`/`retry` can
+    // recover it. Its atom (RILL_R012) is mapped to a host-facing error ID,
+    // so uncaught it escapes run() as a RuntimeError coded RILL-R012.
     it('halts with a catchable timeout halt when function exceeds timeout', async () => {
       const slowFn = mockAsyncFn(200, 'done');
       let caught: unknown;
@@ -57,10 +58,9 @@ describe('Rill Runtime: Configuration', () => {
       } catch (e) {
         caught = e;
       }
-      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-      const signal = caught as RuntimeHaltSignal;
-      expect(signal.catchable).toBe(true);
-      expect(getStatus(signal.value).message).toContain('timed out');
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
+      expect((caught as RuntimeError).message).toContain('timed out');
     });
 
     it('timeout halt carries function name and timeout duration', async () => {
@@ -71,8 +71,10 @@ describe('Rill Runtime: Configuration', () => {
       } catch (e) {
         caught = e;
       }
-      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-      const status = getStatus((caught as RuntimeHaltSignal).value);
+      expect(caught).toBeInstanceOf(RuntimeError);
+      const runtimeErr = caught as RuntimeError;
+      expect(runtimeErr.errorId).toBe('RILL-R012');
+      const status = getStatus(runtimeErr.haltValue!);
       const raw = status.raw as Record<string, unknown>;
       expect(raw.functionName).toBe('slowFn');
       expect(raw.timeoutMs).toBe(50);
@@ -254,11 +256,11 @@ describe('Rill Runtime: Configuration', () => {
         caught = e;
       }
       // The timeout wins the race: a catchable timeout halt, not the
-      // (non-catchable) autoException halt.
-      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-      const signal = caught as RuntimeHaltSignal;
-      expect(signal.catchable).toBe(true);
-      expect(getStatus(signal.value).message).toContain('timed out');
+      // (non-catchable) autoException halt. Uncaught, it escapes as a
+      // RuntimeError coded RILL-R012.
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
+      expect((caught as RuntimeError).message).toContain('timed out');
     });
   });
 

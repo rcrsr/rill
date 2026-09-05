@@ -89,17 +89,18 @@ describe('full corpus run', () => {
   });
 
   it('fires CONDITION_TYPE on exactly the corpus snippets the language spec calls non-boolean', () => {
-    // The corpus is the acceptance oracle for CONDITION_TYPE: these three
-    // snippets are the language's own "errors (not boolean)" cases, so they
-    // are independent true positives. Drifting to zero means the rule went
-    // dead in practice; drifting upward means it false-positives on
+    // The corpus is the acceptance oracle for CONDITION_TYPE: these four
+    // snippets are the language's own "errors (not boolean)" cases (three
+    // in ref-llms-full-assertions.test.ts, one in conditionals.test.ts), so
+    // they are independent true positives. Drifting to zero means the rule
+    // went dead in practice; drifting upward means it false-positives on
     // protected spec code. Both are defects, and neither is visible to a
     // hand-written fixture.
     const hits = results
       .flatMap((result) => result.diagnostics)
       .filter((diagnostic) => diagnostic.code === 'CONDITION_TYPE');
 
-    expect(hits).toHaveLength(3);
+    expect(hits).toHaveLength(4);
   });
 });
 

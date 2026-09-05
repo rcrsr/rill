@@ -233,6 +233,8 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   // timeout<total:> and timeout<idle:> halt atoms.
   [ERROR_ATOMS[ERROR_IDS.RILL_R082], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R083], 'runtime'],
+  // createRuntimeContext({ timeout }) host-level execution timeout.
+  [ERROR_ATOMS[ERROR_IDS.RILL_R012], 'runtime'],
 ];
 
 for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {

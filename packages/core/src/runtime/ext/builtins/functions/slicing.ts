@@ -1,7 +1,11 @@
 import type { RillFunction } from '../../../core/callable.js';
 import { callable, isCallable } from '../../../core/callable.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
-import { throwCatchableHostHalt } from '../../../core/types/halt.js';
+import {
+  RuntimeHaltSignal,
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+} from '../../../core/types/halt.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
 import {
@@ -97,6 +101,35 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           loc,
           (ctx as RuntimeContext).sourceId
         );
+
+        // Host streams (not plain iterators) may hold resources released via
+        // an idempotent dispose hook. take() only ever consumes a prefix, so
+        // dispose here whether that prefix stopped the stream early or fully
+        // drained it; the idempotency guard on the hook itself (see
+        // createRillStream) keeps a later ctx.dispose() from double-firing.
+        if (isStream(input)) {
+          const disposeFn = (
+            input as unknown as Record<string, (() => void) | undefined>
+          )['__rill_stream_dispose'];
+          if (typeof disposeFn === 'function') {
+            try {
+              disposeFn();
+            } catch (e) {
+              if (
+                e instanceof RuntimeHaltSignal ||
+                e instanceof ControlSignal
+              ) {
+                throw e;
+              }
+              throwFatalHostHalt(
+                site,
+                'RILL_R002',
+                e instanceof Error ? e.message : String(e)
+              );
+            }
+          }
+        }
+
         return elements;
       }
 

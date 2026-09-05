@@ -53,7 +53,6 @@ import {
   evaluateHostRef,
   evaluateHostCall,
   evaluateYield,
-  evaluatePipePropertyAccess,
   evaluatePipeInvoke,
   evaluateClosureCallWithPipe,
   evaluateClosureCall,
@@ -713,9 +712,12 @@ async function evaluatePipeTarget(
       return evaluateTypeCheck(s, target, input);
 
     case 'Variable': {
-      // $.field is property access on pipe value, not closure invocation
+      // $.field is property access on pipe value, not closure invocation.
+      // ctx.pipeValue is already set to input above, so evaluateVariableAsync
+      // resolves the access chain against it without re-invoking any
+      // callable field it returns.
       if (target.isPipeVar && !target.name && target.accessChain.length > 0) {
-        return evaluatePipePropertyAccess(s, target, input);
+        return evaluateVariableAsync(s, target);
       }
       // Variable in pipe chain: evaluate and invoke if callable
       const value = await evaluateVariableAsync(s, target);

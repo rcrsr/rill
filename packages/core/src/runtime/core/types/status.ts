@@ -22,6 +22,8 @@ import {
 } from './atom-registry.js';
 import { appendFrame, type TraceFrame } from './trace.js';
 import { typedKeyCount } from './dict-keys.js';
+import { RuntimeError } from '../../../types.js';
+import { ERROR_IDS } from '../../../error-registry.js';
 
 // ============================================================
 // TYPES
@@ -216,6 +218,12 @@ export function invalidate(
   meta: InvalidateMeta,
   frame: TraceFrame
 ): RillValue {
+  if (meta.code === 'ok') {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R084,
+      'cannot invalidate with reserved status code "ok"'
+    );
+  }
   const priorStatus = getStatus(base);
   const code = resolveAtom(meta.code);
   // Cast is local to the invalidate() call site: the public InvalidateMeta

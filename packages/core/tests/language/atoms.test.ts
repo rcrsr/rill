@@ -26,6 +26,16 @@ import {
   resolveAtom,
   type RillAtomValue,
 } from '@rcrsr/rill';
+import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
+import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
+
+/** Run a script and return its final value. */
+async function runScript(src: string): Promise<unknown> {
+  const ast = parse(src);
+  const ctx = createRuntimeContext({});
+  const { result } = await execute(ast, ctx);
+  return result;
+}
 
 /**
  * Unwraps a script's first statement and returns the head primary of its
@@ -208,6 +218,40 @@ describe('-> atom pipe target (AC-8, AC-9, AC-37, AC-38)', () => {
     const { result } = await execute(ast, ctx);
     expect(isAtom(result as never)).toBe(true);
     expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+  });
+
+  it('the reserved sentinel "ok" halts #INVALID_INPUT rather than minting the #ok atom, when unguarded', async () => {
+    await expect(runScript('"ok" -> atom')).rejects.toBeInstanceOf(
+      RuntimeHaltSignal
+    );
+  });
+
+  it('`guard { "ok" -> atom }` catches the reserved-sentinel halt as an invalid #INVALID_INPUT value', async () => {
+    const src = `guard { "ok" -> atom }`;
+    const result = await runScript(src);
+    expect(isInvalid(result as never)).toBe(true);
+    expect(getStatus(result as never).code).toBe(resolveAtom('INVALID_INPUT'));
+  });
+
+  it('`.!code -> string` on the caught halt reports "INVALID_INPUT"', async () => {
+    const src = `
+      guard { "ok" -> atom } => $r
+      $r.!code -> string
+    `;
+    const result = await runScript(src);
+    expect(result).toBe('INVALID_INPUT');
+  });
+
+  it('other registered names are unaffected by the reserved-sentinel guard', async () => {
+    const fooAst = parse('"FOO" -> atom');
+    const timeoutAst = parse('"TIMEOUT" -> atom');
+    const ctx = createRuntimeContext({});
+    const { result: fooResult } = await execute(fooAst, ctx);
+    const { result: timeoutResult } = await execute(timeoutAst, ctx);
+    expect(isAtom(fooResult as never)).toBe(true);
+    expect((fooResult as RillAtomValue).atom).toBe(resolveAtom('R001'));
+    expect(isAtom(timeoutResult as never)).toBe(true);
+    expect((timeoutResult as RillAtomValue).atom).toBe(resolveAtom('TIMEOUT'));
   });
 });
 

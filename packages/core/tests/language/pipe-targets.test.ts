@@ -317,6 +317,40 @@ $val -> |x| { $x -> .len }`;
     });
   });
 
+  describe('Pipe Property Access ($.field)', () => {
+    it('resolves a string method identically to a block form', async () => {
+      expect(await run('"hello" -> $.upper')).toBe('HELLO');
+      expect(await run('"hello" -> { $.upper }')).toBe('HELLO');
+    });
+
+    it('resolves a string property', async () => {
+      expect(await run('"hello" -> $.len')).toBe(5);
+    });
+
+    it('resolves a list property', async () => {
+      expect(await run('list[1, 2] -> $.len')).toBe(2);
+    });
+
+    it('invokes a method explicitly with call syntax', async () => {
+      expect(await run('"hello" -> { $.upper() }')).toBe('HELLO');
+    });
+
+    it('resolves a dict field unchanged', async () => {
+      expect(await run('dict[a: 1] -> $.a')).toBe(1);
+    });
+
+    it('returns a callable field un-invoked', async () => {
+      const script = `dict[f: |x| { $x * 2 }] -> $.f => $fn
+$fn(3)`;
+      expect(await run(script)).toBe(6);
+    });
+
+    it('returns a callable field that can be invoked with pipe-invoke syntax', async () => {
+      const script = `dict[f: |x| { $x * 2 }] -> $.f -> $(3)`;
+      expect(await run(script)).toBe(6);
+    });
+  });
+
   // ============================================================
   // PIPE BINDING RULE (IR-8)
   // ============================================================

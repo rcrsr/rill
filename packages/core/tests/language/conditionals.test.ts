@@ -525,4 +525,32 @@ while ($ < 3)`);
       });
     });
   });
+
+  describe('Return Inside Condition', () => {
+    it('return inside an explicit condition exits the enclosing closure', async () => {
+      const script = `
+        |x| {
+          (($x > 0) ? ("early" -> return) ! false) ? "then" ! "else"
+        } => $f
+        $f(1)
+      `;
+      expect(await run(script)).toBe('early');
+    });
+
+    it('return inside a condition that resolves false still evaluates normally', async () => {
+      const script = `
+        |x| {
+          (($x > 0) ? ("early" -> return) ! false) ? "then" ! "else"
+        } => $f
+        $f(-1)
+      `;
+      expect(await run(script)).toBe('else');
+    });
+
+    it('non-boolean condition still halts with "Conditional expression must be boolean"', async () => {
+      await expect(run('"hello" ? "yes" ! "no"')).rejects.toThrow(
+        'Conditional expression must be boolean'
+      );
+    });
+  });
 });

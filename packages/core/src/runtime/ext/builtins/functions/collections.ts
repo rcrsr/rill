@@ -9,6 +9,7 @@ import {
   isDatetime,
   isDuration,
   isOrdered,
+  isStream,
   isVector,
 } from '../../../core/types/guards.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
@@ -192,14 +193,18 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
               location
             );
           }
-          if (!Number.isFinite(concurrencyOpt) || concurrencyOpt <= 0) {
+          if (
+            !Number.isFinite(concurrencyOpt) ||
+            !Number.isInteger(concurrencyOpt) ||
+            concurrencyOpt <= 0
+          ) {
             throw new RuntimeError(
               ERROR_IDS.RILL_R001,
-              `fan: options.concurrency must be a positive number, got ${concurrencyOpt}`,
+              `fan: options.concurrency must be a positive integer, got ${concurrencyOpt}`,
               location
             );
           }
-          concurrency = Math.floor(concurrencyOpt);
+          concurrency = concurrencyOpt;
         }
       }
 
@@ -498,14 +503,18 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
               location
             );
           }
-          if (!Number.isFinite(concurrencyOpt) || concurrencyOpt <= 0) {
+          if (
+            !Number.isFinite(concurrencyOpt) ||
+            !Number.isInteger(concurrencyOpt) ||
+            concurrencyOpt <= 0
+          ) {
             throw new RuntimeError(
               ERROR_IDS.RILL_R001,
-              `filter: options.concurrency must be a positive number, got ${concurrencyOpt}`,
+              `filter: options.concurrency must be a positive integer, got ${concurrencyOpt}`,
               location
             );
           }
-          concurrency = Math.floor(concurrencyOpt);
+          concurrency = concurrencyOpt;
         }
       }
 
@@ -633,7 +642,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       }
 
       // ── Dict path ─────────────────────────────────────────────────────────
-      if (isDict(input)) {
+      // Streams are dict-shaped (next, __rill_stream, ...) but must fall
+      // through to the list path below, which materializes their chunks via
+      // getIterableElements instead of sorting the stream's internal fields.
+      if (isDict(input) && !isStream(input)) {
         const dictInput = input as Record<string, RillValue>;
         // Combine string keys with number/boolean (typed) keys; the extractor
         // sees each key with its real type so `{ $.key }` sorts numerically.
