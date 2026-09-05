@@ -520,6 +520,26 @@ export async function resolveTypeRef(
 }
 
 /**
+ * Determine whether a TypeStructure carries sub-fields that require
+ * deep structural matching (via structureMatches) rather than a bare
+ * type-name comparison. Covers collection shapes (element, fields,
+ * elements, members, valueType) as well as closure shapes (params, ret)
+ * and stream shapes (chunk, ret).
+ */
+function hasStructuralSubFields(structure: TypeStructure): boolean {
+  return (
+    'element' in structure ||
+    'fields' in structure ||
+    'elements' in structure ||
+    'members' in structure ||
+    'valueType' in structure ||
+    'params' in structure ||
+    'ret' in structure ||
+    'chunk' in structure
+  );
+}
+
+/**
  * Assert that a value is of the expected type.
  * Returns the value unchanged if assertion passes, throws on mismatch.
  * Accepts a bare RillTypeName or a full TypeStructure.
@@ -535,13 +555,7 @@ export function assertType(
 ): RillValue {
   // Structural path: expected is a TypeStructure object
   if (typeof expected !== 'string') {
-    const hasSubFields =
-      'element' in expected ||
-      'fields' in expected ||
-      'elements' in expected ||
-      'members' in expected ||
-      'valueType' in expected;
-    if (hasSubFields) {
+    if (hasStructuralSubFields(expected)) {
       if (!structureMatches(value, expected)) {
         const expectedStr = formatStructure(expected);
         const actualStr = formatStructure(inferStructure(value));
@@ -620,13 +634,7 @@ export async function evaluateTypeCheck(
   const resolved = await resolveTypeRef(s, node.typeRef, (name) =>
     getVariable(s.ctx, name)
   );
-  const hasSubFields =
-    'element' in resolved.structure ||
-    'fields' in resolved.structure ||
-    'elements' in resolved.structure ||
-    'members' in resolved.structure ||
-    'valueType' in resolved.structure;
-  if (hasSubFields) {
+  if (hasStructuralSubFields(resolved.structure)) {
     return structureMatches(value, resolved.structure);
   }
   return checkType(value, resolved.typeName);

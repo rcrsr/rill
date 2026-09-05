@@ -35,7 +35,7 @@ import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
 } from './types/registrations.js';
-import { setDictField } from './types/dict-keys.js';
+import { setDictField, typedKeyEntries } from './types/dict-keys.js';
 import type {
   RillTypeValue,
   RillValue,
@@ -78,7 +78,16 @@ export type NativeValue =
 /** Array of NativeValue */
 export type NativeArray = NativeValue[];
 
-/** Plain object with string keys and NativeValue values */
+/**
+ * Plain object with string keys and NativeValue values.
+ *
+ * A dict with number or boolean keys additionally carries a reserved
+ * `__rill_typed_keys` field: an array of `{ key, value }` entries holding the
+ * original number/boolean key alongside its native value. String keys of the
+ * same spelling (e.g. `"1"`) are unaffected and still surface as ordinary own
+ * fields on the object. The field is omitted entirely when the dict has no
+ * number/boolean keys.
+ */
 export type NativePlainObject = { [key: string]: NativeValue };
 
 /** Structured result from toNative conversion */
@@ -87,7 +96,11 @@ export interface NativeResult {
   rillTypeName: string;
   /** Human-readable type signature, e.g. "string", "list(number)", "|x: number| :string" */
   rillTypeSignature: string;
-  /** Native JS representation. Non-native types produce descriptor objects. */
+  /**
+   * Native JS representation. Non-native types produce descriptor objects.
+   * Dicts with number/boolean keys carry those keys under the reserved
+   * `__rill_typed_keys` field; see {@link NativePlainObject}.
+   */
   value: NativeValue;
 }
 
@@ -95,6 +108,8 @@ export interface NativeResult {
  * Convert a RillValue to a NativeResult for host consumption.
  * Non-representable types (closures, vectors, type values, iterators) produce descriptor objects.
  * Tuples convert to native arrays. Ordered values convert to plain objects.
+ * Dict number/boolean keys surface under the reserved `__rill_typed_keys` field
+ * (see {@link NativePlainObject}); string keys are unaffected.
  */
 export function toNative(value: RillValue): NativeResult {
   const rillTypeName = inferType(value);
@@ -174,6 +189,16 @@ function toNativeValue(value: RillValue): NativeValue {
   for (const [k, v] of Object.entries(dict)) {
     setDictField(result, k, toNativeValue(v));
   }
+  // Number/boolean keys are held in a non-enumerable sidecar, so
+  // Object.entries above skips them. Surface them, with their original
+  // number/boolean key, under a reserved sidecar field.
+  const typedEntries = typedKeyEntries(dict).map(({ key, value: v }) => ({
+    key,
+    value: toNativeValue(v),
+  }));
+  if (typedEntries.length > 0) {
+    setDictField(result, '__rill_typed_keys', typedEntries);
+  }
   return result;
 }
 
@@ -200,6 +225,7 @@ const RESERVED_BRAND_KEYS = [
   '__rill_stream_dispose',
   '__rill_stream_chunk_type',
   '__rill_stream_ret_type',
+  '__rill_typed_keys',
 ] as const;
 
 export { anyTypeValue } from './types/any-type.js';

@@ -31,7 +31,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
-import { isInvalid, isTuple, isTypeValue } from '../../types/guards.js';
+import { isVacant, isTuple, isTypeValue } from '../../types/guards.js';
 import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
@@ -296,7 +296,7 @@ export async function evaluatePostfixExpr(
       }
     }
 
-    if (expr.defaultValue !== null && isInvalid(value)) {
+    if (expr.defaultValue !== null && isVacant(value)) {
       return evaluateBody(s, expr.defaultValue);
     }
 
@@ -819,7 +819,7 @@ async function evaluatePipeTarget(
             value = await evaluateMethod(s, method, value);
           }
         }
-        if (target.defaultValue !== null && isInvalid(value)) {
+        if (target.defaultValue !== null && isVacant(value)) {
           return evaluateBody(s, target.defaultValue);
         }
         return value;

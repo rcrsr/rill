@@ -103,6 +103,30 @@ describe('Existence Check', () => {
     });
   });
 
+  describe('across a newline continuation', () => {
+    it('returns true when field exists after a newline continuation', async () => {
+      const result = await run(`
+        dict[a: 1] => $d
+        $d
+        .?a
+      `);
+      expect(result).toBe(true);
+    });
+
+    // Pins parser-variables.ts's pre-existing `.?` newline-continuation
+    // handling (skipNewlinesIfFollowedBy for DOT_QUESTION), not the
+    // parser-expr.ts postfix/pipe-target-dot changes, which only peek for a
+    // plain DOT token.
+    it('returns false when field does not exist after a newline continuation', async () => {
+      const result = await run(`
+        dict[a: 1] => $d
+        $d.a
+        .?b
+      `);
+      expect(result).toBe(false);
+    });
+  });
+
   describe('Error Contracts', () => {
     it('EC-4: throws error when $ is not followed by variable name', async () => {
       await expect(

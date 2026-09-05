@@ -37,6 +37,7 @@ import {
   current,
   peek,
   skipNewlines,
+  skipNewlinesIfFollowedBy,
   makeSpan,
 } from './state.js';
 import {
@@ -542,7 +543,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else if (check(this.state, TOKEN_TYPES.LPAREN)) {
     // Parse computed key: (expression)
     advance(this.state); // consume (
+    skipNewlines(this.state);
     const expression = this.parsePipeChain();
+    skipNewlines(this.state);
     if (!check(this.state, TOKEN_TYPES.RPAREN)) {
       throw new ParseError(
         ERROR_IDS.RILL_P005,
@@ -793,8 +796,7 @@ function validateYieldInClosure(
 function parseClosureReturnTypeTarget(
   parser: Parser
 ): TypeRef | TypeConstructorNode | undefined {
-  skipNewlines(parser.state);
-  if (!check(parser.state, TOKEN_TYPES.COLON)) {
+  if (!skipNewlinesIfFollowedBy(parser.state, TOKEN_TYPES.COLON)) {
     return undefined;
   }
   advance(parser.state); // consume ':'

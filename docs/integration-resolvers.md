@@ -318,7 +318,7 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 | number | `"number"` | number |
 | bool | `"bool"` | boolean |
 | list | `"list"` | array |
-| dict | `"dict"` | plain object |
+| dict | `"dict"` | plain object (see note below) |
 | tuple | `"tuple"` | array of entry values |
 | ordered | `"ordered"` | plain object with insertion-order keys |
 | closure | `"closure"` | descriptor: `{ signature: string }` |
@@ -327,6 +327,13 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 | iterator | `"iterator"` | descriptor: `{ done: boolean }` |
 
 `value` is always a `NativeValue` — it is never `undefined`. JavaScript `null` is a valid `NativeValue` (rill null maps to JS null).
+
+An all-string-key dict converts unchanged. A dict carrying any number or boolean key adds a reserved `__rill_typed_keys` string property. Its value is an array of `{ key, value }` entries, where `key` keeps its JS `number`/`boolean` type. String keys stay plain properties, so existing hosts reading only string keys are unaffected.
+
+```typescript
+const result = toNative(dictValue); // dict[1: "a", "1": "b"]
+// result.value -> { "1": "b", __rill_typed_keys: [{ key: 1, value: "a" }] }
+```
 
 ### Descriptor shapes
 

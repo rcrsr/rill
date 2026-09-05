@@ -388,6 +388,8 @@ type NativeValue =
   | NativeArray | NativePlainObject;
 ```
 
+A dict with a number or boolean key adds a reserved `__rill_typed_keys` field to its `NativePlainObject`. This field is the lossless carrier for those keys. See [Resolver Registration](integration-resolvers.md) for the field's shape and a conversion example.
+
 ### Descriptor shapes for non-native types
 
 | Rill type | `value` shape |
