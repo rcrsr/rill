@@ -32067,6 +32067,11 @@
   {
     "index": 3040,
     "file": "string-dict-keys.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3041,
+    "file": "string-dict-keys.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -32083,7 +32088,7 @@
     ]
   },
   {
-    "index": 3041,
+    "index": 3042,
     "file": "string-dict-keys.test.ts",
     "diagnostics": [
       {
@@ -32101,12 +32106,12 @@
     ]
   },
   {
-    "index": 3042,
+    "index": 3043,
     "file": "string-dict-keys.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3043,
+    "index": 3044,
     "file": "string-dict-keys.test.ts",
     "diagnostics": [
       {
@@ -32124,13 +32129,8 @@
     ]
   },
   {
-    "index": 3044,
-    "file": "string-dict-keys.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3045,
-    "file": "strings.test.ts",
+    "file": "string-dict-keys.test.ts",
     "diagnostics": []
   },
   {
@@ -32171,6 +32171,11 @@
   {
     "index": 3053,
     "file": "strings.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3054,
+    "file": "strings.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -32185,11 +32190,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3054,
-    "file": "strings.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3055,
@@ -32234,6 +32234,11 @@
   {
     "index": 3063,
     "file": "strings.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3064,
+    "file": "strings.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -32248,11 +32253,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3064,
-    "file": "strings.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3065,
@@ -32317,6 +32317,11 @@
   {
     "index": 3077,
     "file": "strings.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3078,
+    "file": "strings.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -32333,17 +32338,17 @@
     ]
   },
   {
-    "index": 3078,
-    "file": "strings.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3079,
     "file": "strings.test.ts",
     "diagnostics": []
   },
   {
     "index": 3080,
+    "file": "strings.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3081,
     "file": "strings.test.ts",
     "diagnostics": [
       {
@@ -32361,7 +32366,7 @@
     ]
   },
   {
-    "index": 3081,
+    "index": 3082,
     "file": "strings.test.ts",
     "diagnostics": [
       {
@@ -32379,11 +32384,6 @@
     ]
   },
   {
-    "index": 3082,
-    "file": "strings.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3083,
     "file": "strings.test.ts",
     "diagnostics": []
@@ -32395,6 +32395,11 @@
   },
   {
     "index": 3085,
+    "file": "strings.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3086,
     "file": "strings.test.ts",
     "diagnostics": [
       {
@@ -32412,12 +32417,12 @@
     ]
   },
   {
-    "index": 3086,
+    "index": 3087,
     "file": "strings.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3087,
+    "index": 3088,
     "file": "strings.test.ts",
     "diagnostics": [
       {
@@ -32435,7 +32440,7 @@
     ]
   },
   {
-    "index": 3088,
+    "index": 3089,
     "file": "strings.test.ts",
     "diagnostics": [
       {
@@ -32453,12 +32458,12 @@
     ]
   },
   {
-    "index": 3089,
+    "index": 3090,
     "file": "strings.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3090,
+    "index": 3091,
     "file": "strings.test.ts",
     "diagnostics": [
       {
@@ -32474,11 +32479,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3091,
-    "file": "strings.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3092,
@@ -32498,6 +32498,11 @@
   {
     "index": 3095,
     "file": "strings.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3096,
+    "file": "strings.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -32512,11 +32517,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3096,
-    "file": "strings.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3097,
@@ -32565,7 +32565,7 @@
   },
   {
     "index": 3106,
-    "file": "structural-type-boundaries.test.ts",
+    "file": "strings.test.ts",
     "diagnostics": []
   },
   {
@@ -32691,6 +32691,11 @@
   {
     "index": 3131,
     "file": "structural-type-boundaries.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3132,
+    "file": "structural-type-boundaries.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -32707,7 +32712,7 @@
     ]
   },
   {
-    "index": 3132,
+    "index": 3133,
     "file": "structural-type-boundaries.test.ts",
     "diagnostics": [
       {
@@ -32737,7 +32742,7 @@
     ]
   },
   {
-    "index": 3133,
+    "index": 3134,
     "file": "structural-type-boundaries.test.ts",
     "diagnostics": [
       {
@@ -32779,7 +32784,7 @@
     ]
   },
   {
-    "index": 3134,
+    "index": 3135,
     "file": "structural-type-boundaries.test.ts",
     "diagnostics": [
       {
@@ -32809,18 +32814,13 @@
     ]
   },
   {
-    "index": 3135,
-    "file": "structural-type-boundaries.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3136,
     "file": "structural-type-boundaries.test.ts",
     "diagnostics": []
   },
   {
     "index": 3137,
-    "file": "structural-type-defaults.test.ts",
+    "file": "structural-type-boundaries.test.ts",
     "diagnostics": []
   },
   {
@@ -33031,20 +33031,7 @@
   {
     "index": 3179,
     "file": "structural-type-defaults.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$t' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 30,
-          "offset": 29
-        },
-        "context": "tuple(string, number = 0) => $t",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3180,
@@ -33074,6 +33061,24 @@
         "severity": "info",
         "location": {
           "line": 1,
+          "column": 30,
+          "offset": 29
+        },
+        "context": "tuple(string, number = 0) => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3182,
+    "file": "structural-type-defaults.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$t' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
           "column": 26,
           "offset": 25
         },
@@ -33083,7 +33088,7 @@
     ]
   },
   {
-    "index": 3182,
+    "index": 3183,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": [
       {
@@ -33101,7 +33106,7 @@
     ]
   },
   {
-    "index": 3183,
+    "index": 3184,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": [
       {
@@ -33119,7 +33124,7 @@
     ]
   },
   {
-    "index": 3184,
+    "index": 3185,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": [
       {
@@ -33137,7 +33142,7 @@
     ]
   },
   {
-    "index": 3185,
+    "index": 3186,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": [
       {
@@ -33155,7 +33160,7 @@
     ]
   },
   {
-    "index": 3186,
+    "index": 3187,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": [
       {
@@ -33173,7 +33178,7 @@
     ]
   },
   {
-    "index": 3187,
+    "index": 3188,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": [
       {
@@ -33186,24 +33191,6 @@
           "offset": 33
         },
         "context": "ordered(a: string, b: number) => $t",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 3188,
-    "file": "structural-type-defaults.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$t' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 39,
-          "offset": 38
-        },
-        "context": "tuple(string, number, bool = true) => $t",
         "fix": null
       }
     ]
@@ -33236,6 +33223,24 @@
         "severity": "info",
         "location": {
           "line": 1,
+          "column": 39,
+          "offset": 38
+        },
+        "context": "tuple(string, number, bool = true) => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3191,
+    "file": "structural-type-defaults.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$t' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
           "column": 41,
           "offset": 40
         },
@@ -33245,12 +33250,12 @@
     ]
   },
   {
-    "index": 3191,
+    "index": 3192,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3192,
+    "index": 3193,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": [
       {
@@ -33268,7 +33273,7 @@
     ]
   },
   {
-    "index": 3193,
+    "index": 3194,
     "file": "structural-type-defaults.test.ts",
     "diagnostics": [
       {
@@ -33284,11 +33289,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3194,
-    "file": "structural-type-defaults.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3195,
@@ -33322,7 +33322,7 @@
   },
   {
     "index": 3201,
-    "file": "structural-type-errors.test.ts",
+    "file": "structural-type-defaults.test.ts",
     "diagnostics": []
   },
   {
@@ -33378,6 +33378,11 @@
   {
     "index": 3212,
     "file": "structural-type-errors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3213,
+    "file": "structural-type-errors.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -33394,7 +33399,7 @@
     ]
   },
   {
-    "index": 3213,
+    "index": 3214,
     "file": "structural-type-errors.test.ts",
     "diagnostics": [
       {
@@ -33410,11 +33415,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3214,
-    "file": "structural-type-errors.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3215,
@@ -33478,7 +33478,7 @@
   },
   {
     "index": 3227,
-    "file": "structural-type-identity.test.ts",
+    "file": "structural-type-errors.test.ts",
     "diagnostics": []
   },
   {
@@ -33564,6 +33564,11 @@
   {
     "index": 3244,
     "file": "structural-type-identity.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3245,
+    "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -33580,7 +33585,7 @@
     ]
   },
   {
-    "index": 3245,
+    "index": 3246,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33598,17 +33603,17 @@
     ]
   },
   {
-    "index": 3246,
-    "file": "structural-type-identity.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3247,
     "file": "structural-type-identity.test.ts",
     "diagnostics": []
   },
   {
     "index": 3248,
+    "file": "structural-type-identity.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3249,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33626,27 +33631,9 @@
     ]
   },
   {
-    "index": 3249,
-    "file": "structural-type-identity.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3250,
     "file": "structural-type-identity.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 32,
-          "offset": 32
-        },
-        "context": "|x: string| :string => $a",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3251,
@@ -33730,10 +33717,10 @@
         "severity": "info",
         "location": {
           "line": 2,
-          "column": 41,
-          "offset": 41
+          "column": 32,
+          "offset": 32
         },
-        "context": "|x: string, y: number| :bool => $a",
+        "context": "|x: string| :string => $a",
         "fix": null
       }
     ]
@@ -33766,6 +33753,24 @@
         "severity": "info",
         "location": {
           "line": 2,
+          "column": 41,
+          "offset": 41
+        },
+        "context": "|x: string, y: number| :bool => $a",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3258,
+    "file": "structural-type-identity.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
+        "severity": "info",
+        "location": {
+          "line": 2,
           "column": 38,
           "offset": 38
         },
@@ -33775,7 +33780,7 @@
     ]
   },
   {
-    "index": 3258,
+    "index": 3259,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33793,7 +33798,7 @@
     ]
   },
   {
-    "index": 3259,
+    "index": 3260,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33811,7 +33816,7 @@
     ]
   },
   {
-    "index": 3260,
+    "index": 3261,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33829,7 +33834,7 @@
     ]
   },
   {
-    "index": 3261,
+    "index": 3262,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33847,12 +33852,12 @@
     ]
   },
   {
-    "index": 3262,
+    "index": 3263,
     "file": "structural-type-identity.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3263,
+    "index": 3264,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33870,12 +33875,12 @@
     ]
   },
   {
-    "index": 3264,
+    "index": 3265,
     "file": "structural-type-identity.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3265,
+    "index": 3266,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33893,11 +33898,6 @@
     ]
   },
   {
-    "index": 3266,
-    "file": "structural-type-identity.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3267,
     "file": "structural-type-identity.test.ts",
     "diagnostics": []
@@ -33909,6 +33909,11 @@
   },
   {
     "index": 3269,
+    "file": "structural-type-identity.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3270,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33971,7 +33976,7 @@
     ]
   },
   {
-    "index": 3270,
+    "index": 3271,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -33989,7 +33994,7 @@
     ]
   },
   {
-    "index": 3271,
+    "index": 3272,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34052,7 +34057,7 @@
     ]
   },
   {
-    "index": 3272,
+    "index": 3273,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34068,11 +34073,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3273,
-    "file": "structural-type-identity.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3274,
@@ -34127,6 +34127,11 @@
   {
     "index": 3284,
     "file": "structural-type-identity.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3285,
+    "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -34143,7 +34148,7 @@
     ]
   },
   {
-    "index": 3285,
+    "index": 3286,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34161,7 +34166,7 @@
     ]
   },
   {
-    "index": 3286,
+    "index": 3287,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34179,7 +34184,7 @@
     ]
   },
   {
-    "index": 3287,
+    "index": 3288,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34197,7 +34202,7 @@
     ]
   },
   {
-    "index": 3288,
+    "index": 3289,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34215,7 +34220,7 @@
     ]
   },
   {
-    "index": 3289,
+    "index": 3290,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34233,7 +34238,7 @@
     ]
   },
   {
-    "index": 3290,
+    "index": 3291,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34251,7 +34256,7 @@
     ]
   },
   {
-    "index": 3291,
+    "index": 3292,
     "file": "structural-type-identity.test.ts",
     "diagnostics": [
       {
@@ -34267,11 +34272,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3292,
-    "file": "throttling.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3293,
@@ -34390,7 +34390,7 @@
   },
   {
     "index": 3316,
-    "file": "timeout.test.ts",
+    "file": "throttling.test.ts",
     "diagnostics": []
   },
   {
@@ -34405,6 +34405,11 @@
   },
   {
     "index": 3319,
+    "file": "timeout.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3320,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34422,7 +34427,7 @@
     ]
   },
   {
-    "index": 3320,
+    "index": 3321,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34440,11 +34445,6 @@
     ]
   },
   {
-    "index": 3321,
-    "file": "timeout.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3322,
     "file": "timeout.test.ts",
     "diagnostics": []
@@ -34452,20 +34452,7 @@
   {
     "index": 3323,
     "file": "timeout.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 1,
-          "offset": 0
-        },
-        "severity": "info",
-        "code": "GUARD_BARE",
-        "message": "Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.",
-        "context": "guard { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { idle_slow() } }",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3324,
@@ -34488,7 +34475,20 @@
   {
     "index": 3325,
     "file": "timeout.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "info",
+        "code": "GUARD_BARE",
+        "message": "Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.",
+        "context": "guard { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { idle_slow() } }",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3326,
@@ -34497,6 +34497,11 @@
   },
   {
     "index": 3327,
+    "file": "timeout.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3328,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34514,7 +34519,7 @@
     ]
   },
   {
-    "index": 3328,
+    "index": 3329,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34532,7 +34537,7 @@
     ]
   },
   {
-    "index": 3329,
+    "index": 3330,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34562,7 +34567,7 @@
     ]
   },
   {
-    "index": 3330,
+    "index": 3331,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34580,7 +34585,7 @@
     ]
   },
   {
-    "index": 3331,
+    "index": 3332,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34598,7 +34603,7 @@
     ]
   },
   {
-    "index": 3332,
+    "index": 3333,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34616,7 +34621,7 @@
     ]
   },
   {
-    "index": 3333,
+    "index": 3334,
     "file": "timeout.test.ts",
     "diagnostics": [
       {
@@ -34634,32 +34639,14 @@
     ]
   },
   {
-    "index": 3334,
+    "index": 3335,
     "file": "timeout.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3335,
+    "index": 3336,
     "file": "to-shape-removed.test.ts",
     "diagnostics": []
-  },
-  {
-    "index": 3336,
-    "file": "trace-frames.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 3,
-          "column": 7,
-          "offset": 25
-        },
-        "severity": "info",
-        "code": "GUARD_BARE",
-        "message": "Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.",
-        "context": "guard { $x.a }",
-        "fix": null
-      }
-    ]
   },
   {
     "index": 3337,
@@ -34682,10 +34669,28 @@
   {
     "index": 3338,
     "file": "trace-frames.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 3,
+          "column": 7,
+          "offset": 25
+        },
+        "severity": "info",
+        "code": "GUARD_BARE",
+        "message": "Bare guard catches every error. Prefer guard<on: list[#X, ...]> to make recoverability explicit.",
+        "context": "guard { $x.a }",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3339,
+    "file": "trace-frames.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3340,
     "file": "trace-frames.test.ts",
     "diagnostics": [
       {
@@ -34715,12 +34720,12 @@
     ]
   },
   {
-    "index": 3340,
+    "index": 3341,
     "file": "trace-frames.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3341,
+    "index": 3342,
     "file": "trace-frames.test.ts",
     "diagnostics": [
       {
@@ -34738,7 +34743,7 @@
     ]
   },
   {
-    "index": 3342,
+    "index": 3343,
     "file": "trace-frames.test.ts",
     "diagnostics": [
       {
@@ -34756,17 +34761,17 @@
     ]
   },
   {
-    "index": 3343,
-    "file": "trace-frames.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3344,
     "file": "trace-frames.test.ts",
     "diagnostics": []
   },
   {
     "index": 3345,
+    "file": "trace-frames.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3346,
     "file": "trace-frames.test.ts",
     "diagnostics": [
       {
@@ -34784,11 +34789,6 @@
     ]
   },
   {
-    "index": 3346,
-    "file": "trace-frames.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3347,
     "file": "trace-frames.test.ts",
     "diagnostics": []
@@ -34800,7 +34800,7 @@
   },
   {
     "index": 3349,
-    "file": "type-assertions.test.ts",
+    "file": "trace-frames.test.ts",
     "diagnostics": []
   },
   {
@@ -34956,6 +34956,11 @@
   {
     "index": 3380,
     "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3381,
+    "file": "type-assertions.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -34970,11 +34975,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3381,
-    "file": "type-assertions.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3382,
@@ -35009,6 +35009,11 @@
   {
     "index": 3388,
     "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3389,
+    "file": "type-assertions.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -35023,11 +35028,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3389,
-    "file": "type-assertions.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3390,
@@ -35062,6 +35062,11 @@
   {
     "index": 3396,
     "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3397,
+    "file": "type-assertions.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -35078,7 +35083,7 @@
     ]
   },
   {
-    "index": 3397,
+    "index": 3398,
     "file": "type-assertions.test.ts",
     "diagnostics": [
       {
@@ -35110,11 +35115,6 @@
         }
       }
     ]
-  },
-  {
-    "index": 3398,
-    "file": "type-assertions.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3399,
@@ -35139,6 +35139,11 @@
   {
     "index": 3403,
     "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3404,
+    "file": "type-assertions.test.ts",
     "diagnostics": [
       {
         "location": {
@@ -35169,11 +35174,6 @@
         }
       }
     ]
-  },
-  {
-    "index": 3404,
-    "file": "type-assertions.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3405,
@@ -35203,20 +35203,7 @@
   {
     "index": 3410,
     "file": "type-assertions.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$t' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 30,
-          "offset": 29
-        },
-        "context": "tuple(string, number = 0) => $t",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3411,
@@ -35246,10 +35233,10 @@
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 26,
-          "offset": 25
+          "column": 30,
+          "offset": 29
         },
-        "context": "tuple(string, number) => $t",
+        "context": "tuple(string, number = 0) => $t",
         "fix": null
       }
     ]
@@ -35275,10 +35262,28 @@
   {
     "index": 3414,
     "file": "type-assertions.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$t' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 26,
+          "offset": 25
+        },
+        "context": "tuple(string, number) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3415,
+    "file": "type-assertions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3416,
     "file": "type-assertions.test.ts",
     "diagnostics": [
       {
@@ -35294,11 +35299,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3416,
-    "file": "type-assertions.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3417,
@@ -35327,7 +35327,7 @@
   },
   {
     "index": 3422,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-assertions.test.ts",
     "diagnostics": []
   },
   {
@@ -35488,6 +35488,11 @@
   {
     "index": 3454,
     "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3455,
+    "file": "type-ref-arg-unification.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -35502,11 +35507,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3455,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3456,
@@ -35546,6 +35546,11 @@
   {
     "index": 3463,
     "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3464,
+    "file": "type-ref-arg-unification.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -35560,11 +35565,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3464,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3465,
@@ -35608,7 +35608,7 @@
   },
   {
     "index": 3473,
-    "file": "type-values.test.ts",
+    "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
@@ -35689,6 +35689,11 @@
   {
     "index": 3489,
     "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3490,
+    "file": "type-values.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -35705,7 +35710,7 @@
     ]
   },
   {
-    "index": 3490,
+    "index": 3491,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -35723,7 +35728,7 @@
     ]
   },
   {
-    "index": 3491,
+    "index": 3492,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -35741,7 +35746,7 @@
     ]
   },
   {
-    "index": 3492,
+    "index": 3493,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -35759,7 +35764,7 @@
     ]
   },
   {
-    "index": 3493,
+    "index": 3494,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -35775,11 +35780,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3494,
-    "file": "type-values.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3495,
@@ -35804,6 +35804,11 @@
   {
     "index": 3499,
     "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3500,
+    "file": "type-values.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -35820,7 +35825,7 @@
     ]
   },
   {
-    "index": 3500,
+    "index": 3501,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -35836,11 +35841,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3501,
-    "file": "type-values.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3502,
@@ -35865,6 +35865,11 @@
   {
     "index": 3506,
     "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3507,
+    "file": "type-values.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -35881,7 +35886,7 @@
     ]
   },
   {
-    "index": 3507,
+    "index": 3508,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -35899,7 +35904,7 @@
     ]
   },
   {
-    "index": 3508,
+    "index": 3509,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -35917,7 +35922,7 @@
     ]
   },
   {
-    "index": 3509,
+    "index": 3510,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -35947,11 +35952,6 @@
     ]
   },
   {
-    "index": 3510,
-    "file": "type-values.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3511,
     "file": "type-values.test.ts",
     "diagnostics": []
@@ -35979,6 +35979,11 @@
   {
     "index": 3516,
     "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3517,
+    "file": "type-values.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -35995,7 +36000,7 @@
     ]
   },
   {
-    "index": 3517,
+    "index": 3518,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -36013,7 +36018,7 @@
     ]
   },
   {
-    "index": 3518,
+    "index": 3519,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -36055,7 +36060,7 @@
     ]
   },
   {
-    "index": 3519,
+    "index": 3520,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -36085,7 +36090,7 @@
     ]
   },
   {
-    "index": 3520,
+    "index": 3521,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -36101,11 +36106,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3521,
-    "file": "type-values.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3522,
@@ -36130,6 +36130,11 @@
   {
     "index": 3526,
     "file": "type-values.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3527,
+    "file": "type-values.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -36146,7 +36151,7 @@
     ]
   },
   {
-    "index": 3527,
+    "index": 3528,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -36176,7 +36181,7 @@
     ]
   },
   {
-    "index": 3528,
+    "index": 3529,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -36192,11 +36197,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3529,
-    "file": "type-values.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3530,
@@ -36220,21 +36220,8 @@
   },
   {
     "index": 3534,
-    "file": "type-var-positions.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$t' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 11,
-          "offset": 10
-        },
-        "context": "number => $t",
-        "fix": null
-      }
-    ]
+    "file": "type-values.test.ts",
+    "diagnostics": []
   },
   {
     "index": 3535,
@@ -36267,7 +36254,7 @@
           "column": 11,
           "offset": 10
         },
-        "context": "string => $t",
+        "context": "number => $t",
         "fix": null
       }
     ]
@@ -36285,7 +36272,7 @@
           "column": 11,
           "offset": 10
         },
-        "context": "number => $t",
+        "context": "string => $t",
         "fix": null
       }
     ]
@@ -36317,6 +36304,24 @@
         "message": "'$t' is captured but never referenced",
         "severity": "info",
         "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "number => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3540,
+    "file": "type-var-positions.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$t' is captured but never referenced",
+        "severity": "info",
+        "location": {
           "line": 2,
           "column": 19,
           "offset": 19
@@ -36327,7 +36332,7 @@
     ]
   },
   {
-    "index": 3540,
+    "index": 3541,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36345,7 +36350,7 @@
     ]
   },
   {
-    "index": 3541,
+    "index": 3542,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36363,7 +36368,7 @@
     ]
   },
   {
-    "index": 3542,
+    "index": 3543,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36417,7 +36422,7 @@
     ]
   },
   {
-    "index": 3543,
+    "index": 3544,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36435,7 +36440,7 @@
     ]
   },
   {
-    "index": 3544,
+    "index": 3545,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36465,7 +36470,7 @@
     ]
   },
   {
-    "index": 3545,
+    "index": 3546,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36495,7 +36500,7 @@
     ]
   },
   {
-    "index": 3546,
+    "index": 3547,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36525,7 +36530,7 @@
     ]
   },
   {
-    "index": 3547,
+    "index": 3548,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36555,7 +36560,7 @@
     ]
   },
   {
-    "index": 3548,
+    "index": 3549,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36585,7 +36590,7 @@
     ]
   },
   {
-    "index": 3549,
+    "index": 3550,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36639,7 +36644,7 @@
     ]
   },
   {
-    "index": 3550,
+    "index": 3551,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36657,7 +36662,7 @@
     ]
   },
   {
-    "index": 3551,
+    "index": 3552,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36675,17 +36680,17 @@
     ]
   },
   {
-    "index": 3552,
-    "file": "type-var-positions.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3553,
     "file": "type-var-positions.test.ts",
     "diagnostics": []
   },
   {
     "index": 3554,
+    "file": "type-var-positions.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3555,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36703,7 +36708,7 @@
     ]
   },
   {
-    "index": 3555,
+    "index": 3556,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36749,7 +36754,7 @@
     ]
   },
   {
-    "index": 3556,
+    "index": 3557,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -36767,7 +36772,7 @@
     ]
   },
   {
-    "index": 3557,
+    "index": 3558,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -36785,12 +36790,12 @@
     ]
   },
   {
-    "index": 3558,
+    "index": 3559,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3559,
+    "index": 3560,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -36808,7 +36813,7 @@
     ]
   },
   {
-    "index": 3560,
+    "index": 3561,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -36826,7 +36831,7 @@
     ]
   },
   {
-    "index": 3561,
+    "index": 3562,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -36844,13 +36849,8 @@
     ]
   },
   {
-    "index": 3562,
-    "file": "typed-atom-migration.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3563,
-    "file": "unified-dispatch.test.ts",
+    "file": "typed-atom-migration.test.ts",
     "diagnostics": []
   },
   {
@@ -36916,6 +36916,11 @@
   {
     "index": 3576,
     "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3577,
+    "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -36932,7 +36937,7 @@
     ]
   },
   {
-    "index": 3577,
+    "index": 3578,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -36962,7 +36967,7 @@
     ]
   },
   {
-    "index": 3578,
+    "index": 3579,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -36978,11 +36983,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3579,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3580,
@@ -37047,6 +37047,11 @@
   {
     "index": 3592,
     "file": "unified-dispatch.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3593,
+    "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
         "code": "CLOSURE_BARE_DOLLAR",
@@ -37061,11 +37066,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3593,
-    "file": "unified-dispatch.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3594,
@@ -37094,7 +37094,7 @@
   },
   {
     "index": 3599,
-    "file": "uniform-value-type.test.ts",
+    "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
@@ -37215,6 +37215,11 @@
   {
     "index": 3623,
     "file": "uniform-value-type.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3624,
+    "file": "uniform-value-type.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -37229,11 +37234,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3624,
-    "file": "union-types.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3625,
@@ -37318,6 +37318,11 @@
   {
     "index": 3641,
     "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3642,
+    "file": "union-types.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -37334,7 +37339,7 @@
     ]
   },
   {
-    "index": 3642,
+    "index": 3643,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37347,24 +37352,6 @@
           "offset": 6
         },
         "context": "42 => $x:string|number",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 3643,
-    "file": "union-types.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$x' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 9,
-          "offset": 8
-        },
-        "context": "true => $x:string|number",
         "fix": null
       }
     ]
@@ -37397,10 +37384,10 @@
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 12,
-          "offset": 11
+          "column": 9,
+          "offset": 8
         },
-        "context": "\"hello\" => $x:string|number",
+        "context": "true => $x:string|number",
         "fix": null
       }
     ]
@@ -37419,30 +37406,6 @@
           "offset": 11
         },
         "context": "\"hello\" => $x:string|number",
-        "fix": null
-      },
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $x -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 12,
-          "offset": 39
-        },
-        "context": "\"world\" => $x",
-        "fix": null
-      },
-      {
-        "code": "AVOID_REASSIGNMENT",
-        "message": "Variable reassignment detected: '$x' first defined at line 1. Prefer new variable or functional style.",
-        "severity": "warning",
-        "location": {
-          "line": 2,
-          "column": 12,
-          "offset": 39
-        },
-        "context": "\"world\" => $x",
         "fix": null
       }
     ]
@@ -37469,6 +37432,48 @@
         "severity": "info",
         "location": {
           "line": 2,
+          "column": 12,
+          "offset": 39
+        },
+        "context": "\"world\" => $x",
+        "fix": null
+      },
+      {
+        "code": "AVOID_REASSIGNMENT",
+        "message": "Variable reassignment detected: '$x' first defined at line 1. Prefer new variable or functional style.",
+        "severity": "warning",
+        "location": {
+          "line": 2,
+          "column": 12,
+          "offset": 39
+        },
+        "context": "\"world\" => $x",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3648,
+    "file": "union-types.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$x' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "context": "\"hello\" => $x:string|number",
+        "fix": null
+      },
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $x -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 2,
           "column": 7,
           "offset": 34
         },
@@ -37490,7 +37495,7 @@
     ]
   },
   {
-    "index": 3648,
+    "index": 3649,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37532,7 +37537,7 @@
     ]
   },
   {
-    "index": 3649,
+    "index": 3650,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37574,7 +37579,7 @@
     ]
   },
   {
-    "index": 3650,
+    "index": 3651,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37614,11 +37619,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3651,
-    "file": "union-types.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3652,
@@ -37638,6 +37638,11 @@
   {
     "index": 3655,
     "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3656,
+    "file": "union-types.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -37654,7 +37659,7 @@
     ]
   },
   {
-    "index": 3656,
+    "index": 3657,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37672,7 +37677,7 @@
     ]
   },
   {
-    "index": 3657,
+    "index": 3658,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37690,7 +37695,7 @@
     ]
   },
   {
-    "index": 3658,
+    "index": 3659,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37708,17 +37713,17 @@
     ]
   },
   {
-    "index": 3659,
-    "file": "union-types.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3660,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
     "index": 3661,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3662,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37736,12 +37741,12 @@
     ]
   },
   {
-    "index": 3662,
+    "index": 3663,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3663,
+    "index": 3664,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -37757,11 +37762,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3664,
-    "file": "union-types.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3665,
@@ -37826,48 +37826,7 @@
   {
     "index": 3677,
     "file": "union-types.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$T' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 2,
-          "column": 17,
-          "offset": 17
-        },
-        "context": "bool => $T",
-        "fix": null
-      },
-      {
-        "location": {
-          "line": 2,
-          "column": 17,
-          "offset": 17
-        },
-        "severity": "error",
-        "code": "NAMING_SNAKE_CASE",
-        "message": "Captured variable 'T' should use snake_case (e.g., 't')",
-        "context": "bool => $T",
-        "fix": {
-          "description": "Rename 'T' to 't'",
-          "applicable": true,
-          "range": {
-            "start": {
-              "line": 2,
-              "column": 17,
-              "offset": 17
-            },
-            "end": {
-              "line": 2,
-              "column": 19,
-              "offset": 19
-            }
-          },
-          "replacement": "$t"
-        }
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3678,
@@ -37917,6 +37876,52 @@
   },
   {
     "index": 3679,
+    "file": "union-types.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$T' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 2,
+          "column": 17,
+          "offset": 17
+        },
+        "context": "bool => $T",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 2,
+          "column": 17,
+          "offset": 17
+        },
+        "severity": "error",
+        "code": "NAMING_SNAKE_CASE",
+        "message": "Captured variable 'T' should use snake_case (e.g., 't')",
+        "context": "bool => $T",
+        "fix": {
+          "description": "Rename 'T' to 't'",
+          "applicable": true,
+          "range": {
+            "start": {
+              "line": 2,
+              "column": 17,
+              "offset": 17
+            },
+            "end": {
+              "line": 2,
+              "column": 19,
+              "offset": 19
+            }
+          },
+          "replacement": "$t"
+        }
+      }
+    ]
+  },
+  {
+    "index": 3680,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -37934,7 +37939,7 @@
     ]
   },
   {
-    "index": 3680,
+    "index": 3681,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -37964,7 +37969,7 @@
     ]
   },
   {
-    "index": 3681,
+    "index": 3682,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -37977,24 +37982,6 @@
         "code": "USE_UNTYPED_HOST_REF",
         "message": "use<host:app.fetch> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
         "context": "use<host:app.fetch>",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 3682,
-    "file": "use-expr.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 1,
-          "offset": 0
-        },
-        "severity": "warning",
-        "code": "USE_UNTYPED_HOST_REF",
-        "message": "use<host:fn> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
-        "context": "use<host:fn>:|x: string|",
         "fix": null
       }
     ]
@@ -38020,10 +38007,28 @@
   {
     "index": 3684,
     "file": "use-expr.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "warning",
+        "code": "USE_UNTYPED_HOST_REF",
+        "message": "use<host:fn> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
+        "context": "use<host:fn>:|x: string|",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3685,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3686,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38039,11 +38044,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3686,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3687,
@@ -38073,6 +38073,11 @@
   {
     "index": 3692,
     "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3693,
+    "file": "use-expr.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -38101,7 +38106,7 @@
     ]
   },
   {
-    "index": 3693,
+    "index": 3694,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38119,12 +38124,12 @@
     ]
   },
   {
-    "index": 3694,
+    "index": 3695,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3695,
+    "index": 3696,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38142,12 +38147,12 @@
     ]
   },
   {
-    "index": 3696,
+    "index": 3697,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3697,
+    "index": 3698,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38165,17 +38170,17 @@
     ]
   },
   {
-    "index": 3698,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3699,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
     "index": 3700,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3701,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38191,11 +38196,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3701,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3702,
@@ -38240,20 +38240,7 @@
   {
     "index": 3710,
     "file": "use-expr.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 1,
-          "offset": 0
-        },
-        "severity": "warning",
-        "code": "USE_UNTYPED_HOST_REF",
-        "message": "use<host:api> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
-        "context": "use<host:api>",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3711,
@@ -38278,27 +38265,15 @@
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$id' is captured but never referenced",
-        "severity": "info",
         "location": {
           "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "42 => $id",
-        "fix": null
-      },
-      {
-        "location": {
-          "line": 2,
           "column": 1,
-          "offset": 10
+          "offset": 0
         },
         "severity": "warning",
-        "code": "USE_DYNAMIC_IDENTIFIER",
-        "message": "Dynamic use<> identifier (use<$id>) is not recommended in permissive mode; prefer static use<scheme:resource>",
-        "context": "use<$id>",
+        "code": "USE_UNTYPED_HOST_REF",
+        "message": "use<host:api> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
+        "context": "use<host:api>",
         "fix": null
       }
     ]
@@ -38343,6 +38318,36 @@
         "severity": "info",
         "location": {
           "line": 1,
+          "column": 7,
+          "offset": 6
+        },
+        "context": "42 => $id",
+        "fix": null
+      },
+      {
+        "location": {
+          "line": 2,
+          "column": 1,
+          "offset": 10
+        },
+        "severity": "warning",
+        "code": "USE_DYNAMIC_IDENTIFIER",
+        "message": "Dynamic use<> identifier (use<$id>) is not recommended in permissive mode; prefer static use<scheme:resource>",
+        "context": "use<$id>",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3715,
+    "file": "use-expr.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$id' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
           "column": 14,
           "offset": 13
         },
@@ -38364,7 +38369,7 @@
     ]
   },
   {
-    "index": 3715,
+    "index": 3716,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38380,11 +38385,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3716,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3717,
@@ -38449,6 +38449,11 @@
   {
     "index": 3729,
     "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3730,
+    "file": "use-expr.test.ts",
     "diagnostics": [
       {
         "location": {
@@ -38501,7 +38506,7 @@
     ]
   },
   {
-    "index": 3730,
+    "index": 3731,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38531,17 +38536,17 @@
     ]
   },
   {
-    "index": 3731,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3732,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
     "index": 3733,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3734,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38559,7 +38564,7 @@
     ]
   },
   {
-    "index": 3734,
+    "index": 3735,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38577,12 +38582,12 @@
     ]
   },
   {
-    "index": 3735,
+    "index": 3736,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3736,
+    "index": 3737,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -38598,11 +38603,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3737,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3738,
@@ -38631,7 +38631,7 @@
   },
   {
     "index": 3743,
-    "file": "vacancy-coerce.test.ts",
+    "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
@@ -38646,6 +38646,11 @@
   },
   {
     "index": 3746,
+    "file": "vacancy-coerce.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3747,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38663,7 +38668,7 @@
     ]
   },
   {
-    "index": 3747,
+    "index": 3748,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38681,7 +38686,7 @@
     ]
   },
   {
-    "index": 3748,
+    "index": 3749,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38699,7 +38704,7 @@
     ]
   },
   {
-    "index": 3749,
+    "index": 3750,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38717,7 +38722,7 @@
     ]
   },
   {
-    "index": 3750,
+    "index": 3751,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38735,12 +38740,12 @@
     ]
   },
   {
-    "index": 3751,
+    "index": 3752,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3752,
+    "index": 3753,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38758,7 +38763,7 @@
     ]
   },
   {
-    "index": 3753,
+    "index": 3754,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38776,7 +38781,7 @@
     ]
   },
   {
-    "index": 3754,
+    "index": 3755,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38794,12 +38799,12 @@
     ]
   },
   {
-    "index": 3755,
+    "index": 3756,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3756,
+    "index": 3757,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -38817,7 +38822,7 @@
     ]
   },
   {
-    "index": 3757,
+    "index": 3758,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -38835,7 +38840,7 @@
     ]
   },
   {
-    "index": 3758,
+    "index": 3759,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -38853,7 +38858,7 @@
     ]
   },
   {
-    "index": 3759,
+    "index": 3760,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -38871,7 +38876,7 @@
     ]
   },
   {
-    "index": 3760,
+    "index": 3761,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -38889,7 +38894,7 @@
     ]
   },
   {
-    "index": 3761,
+    "index": 3762,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -38907,7 +38912,7 @@
     ]
   },
   {
-    "index": 3762,
+    "index": 3763,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -38920,24 +38925,6 @@
           "offset": 11
         },
         "context": "\"HELLO\" => $s",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 3763,
-    "file": "variable-method-calls.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $list -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 16,
-          "offset": 15
-        },
-        "context": "list[1,2,3] => $list",
         "fix": null
       }
     ]
@@ -38970,10 +38957,10 @@
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 11,
-          "offset": 10
+          "column": 16,
+          "offset": 15
         },
-        "context": "list[] => $list",
+        "context": "list[1,2,3] => $list",
         "fix": null
       }
     ]
@@ -38988,10 +38975,10 @@
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 12,
-          "offset": 11
+          "column": 11,
+          "offset": 10
         },
-        "context": "list[1] => $list",
+        "context": "list[] => $list",
         "fix": null
       }
     ]
@@ -39002,14 +38989,14 @@
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "message": "Consider inline capture: '=> $list -> ...' instead of separate statements",
         "severity": "info",
         "location": {
           "line": 1,
           "column": 12,
           "offset": 11
         },
-        "context": "\"hello\" => $v",
+        "context": "list[1] => $list",
         "fix": null
       }
     ]
@@ -39042,10 +39029,10 @@
         "severity": "info",
         "location": {
           "line": 1,
-          "column": 15,
-          "offset": 14
+          "column": 12,
+          "offset": 11
         },
-        "context": "\"  test  \" => $v",
+        "context": "\"hello\" => $v",
         "fix": null
       }
     ]
@@ -39070,6 +39057,24 @@
   },
   {
     "index": 3771,
+    "file": "variable-method-calls.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "context": "\"  test  \" => $v",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3772,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -39099,7 +39104,7 @@
     ]
   },
   {
-    "index": 3772,
+    "index": 3773,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -39124,24 +39129,6 @@
           "offset": 28
         },
         "context": "\"test\" => $v",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 3773,
-    "file": "variables.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$x' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "\"hello\" => $x -> .upper",
         "fix": null
       }
     ]
@@ -39177,13 +39164,31 @@
           "column": 12,
           "offset": 11
         },
-        "context": "\"hello\" => $x",
+        "context": "\"hello\" => $x -> .upper",
         "fix": null
       }
     ]
   },
   {
     "index": 3776,
+    "file": "variables.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$x' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "context": "\"hello\" => $x",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3777,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39213,7 +39218,7 @@
     ]
   },
   {
-    "index": 3777,
+    "index": 3778,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39243,7 +39248,7 @@
     ]
   },
   {
-    "index": 3778,
+    "index": 3779,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39273,7 +39278,7 @@
     ]
   },
   {
-    "index": 3779,
+    "index": 3780,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39291,12 +39296,12 @@
     ]
   },
   {
-    "index": 3780,
+    "index": 3781,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3781,
+    "index": 3782,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39314,7 +39319,7 @@
     ]
   },
   {
-    "index": 3782,
+    "index": 3783,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39332,7 +39337,7 @@
     ]
   },
   {
-    "index": 3783,
+    "index": 3784,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39350,7 +39355,7 @@
     ]
   },
   {
-    "index": 3784,
+    "index": 3785,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39368,7 +39373,7 @@
     ]
   },
   {
-    "index": 3785,
+    "index": 3786,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39410,7 +39415,7 @@
     ]
   },
   {
-    "index": 3786,
+    "index": 3787,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39428,12 +39433,12 @@
     ]
   },
   {
-    "index": 3787,
+    "index": 3788,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3788,
+    "index": 3789,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39451,7 +39456,7 @@
     ]
   },
   {
-    "index": 3789,
+    "index": 3790,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39467,11 +39472,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3790,
-    "file": "variables.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3791,
@@ -39511,6 +39511,11 @@
   {
     "index": 3798,
     "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3799,
+    "file": "variables.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -39527,7 +39532,7 @@
     ]
   },
   {
-    "index": 3799,
+    "index": 3800,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39545,7 +39550,7 @@
     ]
   },
   {
-    "index": 3800,
+    "index": 3801,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39563,12 +39568,12 @@
     ]
   },
   {
-    "index": 3801,
+    "index": 3802,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3802,
+    "index": 3803,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39586,7 +39591,7 @@
     ]
   },
   {
-    "index": 3803,
+    "index": 3804,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39604,11 +39609,6 @@
     ]
   },
   {
-    "index": 3804,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3805,
     "file": "variables.test.ts",
     "diagnostics": []
@@ -39620,6 +39620,11 @@
   },
   {
     "index": 3807,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3808,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39637,11 +39642,6 @@
     ]
   },
   {
-    "index": 3808,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3809,
     "file": "variables.test.ts",
     "diagnostics": []
@@ -39653,6 +39653,11 @@
   },
   {
     "index": 3811,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3812,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39670,7 +39675,7 @@
     ]
   },
   {
-    "index": 3812,
+    "index": 3813,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -39700,7 +39705,7 @@
     ]
   },
   {
-    "index": 3813,
+    "index": 3814,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -39728,11 +39733,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3814,
-    "file": "vectors.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3815,
@@ -39807,6 +39807,11 @@
   {
     "index": 3829,
     "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3830,
+    "file": "vectors.test.ts",
     "diagnostics": [
       {
         "code": "PREFER_MAP",
@@ -39821,11 +39826,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3830,
-    "file": "vectors.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3831,
@@ -39930,6 +39930,11 @@
   {
     "index": 3851,
     "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3852,
+    "file": "vectors.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -39944,11 +39949,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3852,
-    "file": "vectors.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3853,
@@ -39972,6 +39972,11 @@
   },
   {
     "index": 3857,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3858,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -40079,32 +40084,14 @@
     ]
   },
   {
-    "index": 3858,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3859,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
     "index": 3860,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$x' is captured and used only once, away from its capture; consider inlining instead",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 6,
-          "offset": 5
-        },
-        "context": "1 => $x",
-        "fix": null
-      }
-    ]
+    "file": "vectors.test.ts",
+    "diagnostics": []
   },
   {
     "index": 3861,
@@ -40119,7 +40106,7 @@
           "column": 6,
           "offset": 5
         },
-        "context": "3 => $x",
+        "context": "1 => $x",
         "fix": null
       }
     ]
@@ -40148,6 +40135,24 @@
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
+        "message": "'$x' is captured and used only once, away from its capture; consider inlining instead",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 6,
+          "offset": 5
+        },
+        "context": "3 => $x",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3864,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
         "message": "'$a' is captured and used only once, away from its capture; consider inlining instead",
         "severity": "info",
         "location": {
@@ -40161,7 +40166,7 @@
     ]
   },
   {
-    "index": 3864,
+    "index": 3865,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40179,7 +40184,7 @@
     ]
   },
   {
-    "index": 3865,
+    "index": 3866,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40197,7 +40202,7 @@
     ]
   },
   {
-    "index": 3866,
+    "index": 3867,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40215,7 +40220,7 @@
     ]
   },
   {
-    "index": 3867,
+    "index": 3868,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40233,7 +40238,7 @@
     ]
   },
   {
-    "index": 3868,
+    "index": 3869,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40251,7 +40256,7 @@
     ]
   },
   {
-    "index": 3869,
+    "index": 3870,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40269,11 +40274,6 @@
     ]
   },
   {
-    "index": 3870,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3871,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
@@ -40285,6 +40285,11 @@
   },
   {
     "index": 3873,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3874,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40302,12 +40307,12 @@
     ]
   },
   {
-    "index": 3874,
+    "index": 3875,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3875,
+    "index": 3876,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40325,7 +40330,7 @@
     ]
   },
   {
-    "index": 3876,
+    "index": 3877,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -40341,11 +40346,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3877,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3878,
@@ -40375,6 +40375,11 @@
   {
     "index": 3883,
     "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3884,
+    "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
         "code": "THROWAWAY_CAPTURE",
@@ -40401,11 +40406,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3884,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3885,
@@ -40450,6 +40450,11 @@
   {
     "index": 3893,
     "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3894,
+    "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -40466,12 +40471,12 @@
     ]
   },
   {
-    "index": 3894,
+    "index": 3895,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3895,
+    "index": 3896,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
