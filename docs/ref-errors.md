@@ -15,7 +15,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
 - [Parse Errors (RILL-P001 - RILL-P022)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R083)](#runtime-errors)
+- [Runtime Errors (RILL-R001 - RILL-R087)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -1902,6 +1902,75 @@ guard { timeout<total: 500ms> { $app.slow() } }
 ```text
 # Idle timeout with guard recovery
 guard { timeout<idle: 200ms> { $stream } }
+```
+
+---
+
+### rill-r084
+
+**Description:** Wildcard policy rule declares transforms
+
+**Cause:** A "*" policy rule carried in or out entries. Wildcard rules are access-control only, because one transform signature cannot fit every method it would wrap.
+
+**Resolution:** Drop the in/out entries from the "*" rule and declare transforms on the specific methods that need them.
+
+**Example:**
+
+```text
+# Wildcard restricted to an access decision
+# policy: { "kb": { "*": { "access": "deny" } } }
+```
+
+---
+
+### rill-r085
+
+**Description:** Transform reference cannot be resolved
+
+**Cause:** A policy in/out entry named a transform that is missing from the mounted extensions, is not written as "extension.method", or does not name a callable.
+
+**Resolution:** Write the reference as "extension.method", mount the extension that provides it, and confirm the named member is a callable.
+
+**Example:**
+
+```text
+# Transform reference naming a mounted callable
+# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }
+```
+
+---
+
+### rill-r086
+
+**Description:** Call denied by policy
+
+**Cause:** The dispatch-boundary filter matched a rule whose access is "deny", or matched a policed extension whose method could not be identified.
+
+**Resolution:** Recover via guard { ... } or a ?? fallback, or grant the method an "access": "allow" rule in the host policy.
+
+**Example:**
+
+```text
+# Denied call recovered with guard
+guard { $kb.delete() } => $r
+$r.! ? "not permitted" ! $r
+```
+
+---
+
+### rill-r087
+
+**Description:** Policy transform cycle detected
+
+**Cause:** A policy transform re-entered itself, directly or through another policed method whose own transforms call back into it.
+
+**Resolution:** Break the cycle so a transform does not call a method whose in/out chain reaches that same transform.
+
+**Example:**
+
+```text
+# Transform that must not call back into its own method
+# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }
 ```
 
 ---

@@ -186,6 +186,26 @@ export {
 } from './runtime/core/resolvers.js';
 
 // ============================================================
+// DISPATCH-BOUNDARY POLICY
+// ============================================================
+
+export {
+  createConfigFilterResolver,
+  getExtensionIdentity,
+  resolvePolicy,
+} from './runtime/core/policy/index.js';
+
+export type {
+  ExtensionIdentity,
+  ExtensionMethodPolicy,
+  Filter,
+  FilterResolver,
+  MethodPolicyRule,
+  PolicyConfig,
+  ResolvedPolicy,
+} from './runtime/core/policy/index.js';
+
+// ============================================================
 // CONTEXT FACTORY
 // ============================================================
 
