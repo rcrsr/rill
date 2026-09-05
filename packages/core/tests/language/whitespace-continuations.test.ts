@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse, ParseError } from '@rcrsr/rill';
+import { anyTypeValue, parse, ParseError } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
 
@@ -217,6 +217,128 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     it('AC-14: empty-param || with multiple newlines before body evaluates correctly', async () => {
       const result = await run('||\n\n\n{ "hello" } => $fn\n$fn()');
       expect(result).toBe('hello');
+    });
+  });
+
+  describe('G7: Parenthesized expressions across newlines', () => {
+    it('grouped expression with newline after ( and before ) evaluates correctly', async () => {
+      const result = await run('(\n  1 + 2\n)');
+      expect(result).toBe(3);
+    });
+
+    it('grouped expression with newline only before ) evaluates correctly', async () => {
+      const result = await run('(1\n)');
+      expect(result).toBe(1);
+    });
+
+    it('while condition with newline after ( evaluates correctly', async () => {
+      const result = await run('0 -> while (\n$ < 3) do { $ + 1 }');
+      expect(result).toBe(3);
+    });
+
+    it('do-while condition with newline after ( evaluates correctly', async () => {
+      const result = await run('0 -> do { $ + 1 } while (\n$ < 3)');
+      expect(result).toBe(3);
+    });
+
+    it('computed dict key with newline after ( evaluates correctly', async () => {
+      const result = await run('dict[(\n"a"): 1]');
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('computed field access with newlines around expression evaluates correctly', async () => {
+      const result = await run('dict[key: "value"] => $obj\n$obj.(\n"key"\n)');
+      expect(result).toBe('value');
+    });
+
+    it('identity call with newline after ( still parses and executes', async () => {
+      const result = await run('identity(\n  "x"\n)', {
+        functions: {
+          identity: {
+            params: [
+              {
+                name: 'value',
+                type: undefined,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (args) => args.value,
+          },
+        },
+      });
+      expect(result).toBe('x');
+    });
+
+    it('list literal with newline after [ still parses and executes', async () => {
+      const result = await run('list[\n  1\n]');
+      expect(result).toEqual([1]);
+    });
+
+    it('unclosed grouped expression still throws ParseError RILL-P005', () => {
+      try {
+        parse('(1');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+        expect(parseErr.errorId).toBe('RILL-P005');
+      }
+    });
+  });
+
+  describe('G8: Postfix and pipe-target method chains across newlines', () => {
+    it('literal followed by newline then .method parses as one statement', async () => {
+      const script = parse('"hello"\n.upper');
+      expect(script.statements).toHaveLength(1);
+      const result = await run('"hello"\n.upper');
+      expect(result).toBe('HELLO');
+    });
+
+    it('function call followed by newline then .method parses as one chain', async () => {
+      const result = await run('identity("x")\n  .len', {
+        functions: {
+          identity: {
+            params: [
+              {
+                name: 'value',
+                type: undefined,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (args) => args.value,
+          },
+        },
+      });
+      expect(result).toBe(1);
+    });
+
+    it('pipe-target method chain continues across newline', async () => {
+      const result = await run('"  x  " -> .trim\n  .upper');
+      expect(result).toBe('X');
+    });
+
+    it('variable-rooted method chain continues across multiple newlines', async () => {
+      const result = await run('"a,b" => $s\n$s\n  .split(",")\n  .len');
+      expect(result).toBe(2);
+    });
+
+    it('variable followed directly by newline then .method still works', async () => {
+      const result = await run('"hello" => $s\n$s\n.upper');
+      expect(result).toBe('HELLO');
+    });
+
+    it('closure literal followed by newline then .method remains two statements', async () => {
+      const script = parse('|x| { $x * 2 }\n.len');
+      expect(script.statements).toHaveLength(2);
+    });
+
+    it('closure literal captured to a variable is unaffected by the postfix guard', async () => {
+      const result = await run('|x| { $x * 2 } => $double\n5 -> $double');
+      expect(result).toBe(10);
     });
   });
 

@@ -442,8 +442,14 @@ function createMatchesCallbacks(
         return value.entries.every(([, v]) => structureMatches(v, valueType));
       }
       if (isDict(value)) {
-        const vals = Object.values(value as Record<string, RillValue>);
-        return vals.every((v) => structureMatches(v, valueType));
+        const dict = value as Record<string, RillValue>;
+        const vals = Object.values(dict);
+        if (!vals.every((v) => structureMatches(v, valueType))) return false;
+        // Number/boolean keys are stored outside the string-keyed record,
+        // so they must be checked separately to enforce a uniform valueType.
+        return typedKeyEntries(dict).every(({ value: v }) =>
+          structureMatches(v, valueType)
+        );
       }
       return false;
     },

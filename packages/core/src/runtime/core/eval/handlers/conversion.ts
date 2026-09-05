@@ -279,6 +279,7 @@ async function convertToOrderedWithSig(
     if (fieldName in dictInput) {
       let fieldValue: RillValue = dictInput[fieldName]!;
       fieldValue = hydrateNested(s, fieldValue, field.type, node);
+      assertType(s, fieldValue, field.type, node.span.start);
       entries.push([fieldName, fieldValue]);
     } else if (field.defaultValue !== undefined) {
       entries.push([
@@ -368,6 +369,7 @@ async function convertToDictWithSig(
       let fieldValue: RillValue = dictInput[fieldName]!;
       if (resolvedField !== undefined) {
         fieldValue = hydrateNested(s, fieldValue, resolvedField.type, node);
+        assertType(s, fieldValue, resolvedField.type, node.span.start);
       }
       result[fieldName] = fieldValue;
     } else {
@@ -464,7 +466,14 @@ async function convertToTupleWithSig(
 
     if (i < inputEntries.length) {
       // Element present in input: recurse into nested types
-      result.push(hydrateNested(s, inputEntries[i]!, element.type, node));
+      const elementValue = hydrateNested(
+        s,
+        inputEntries[i]!,
+        element.type,
+        node
+      );
+      assertType(s, elementValue, element.type, node.span.start);
+      result.push(elementValue);
     } else if (element.defaultValue !== undefined) {
       // Missing trailing element with default: deep copy and hydrate
       result.push(

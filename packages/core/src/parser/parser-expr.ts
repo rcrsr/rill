@@ -716,8 +716,22 @@ Parser.prototype.parsePostfixExprBase = function (
       (primary.thenBranch?.type === 'PipeChain' &&
         primary.thenBranch.terminator !== null));
 
+  // A closure literal primary never gets the newline-skip below: `|x| { ... }`
+  // followed by a newline then `.method` must remain two statements, not a
+  // continuation of the closure body into a method chain. Same-line
+  // invocation (`|x| { ... }()`) is unaffected since it never hits a newline.
+  const isClosurePrimary = primary.type === 'Closure';
+
   // Mutable state object shared with dispatch handlers.
   const loopState: PostfixLoopState = { primary, methods, receiverEnd };
+
+  // Only skip newlines when the next real token is a dot: this lets a method
+  // chain continue on the next line (`expr\n.method`) without letting a
+  // newline before `(` be consumed, which would misparse a new statement as
+  // an invocation of the previous line's expression.
+  if (!shouldStopPostfix && !isClosurePrimary) {
+    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
+  }
 
   while (
     !shouldStopPostfix &&
@@ -761,6 +775,9 @@ Parser.prototype.parsePostfixExprBase = function (
           `Internal parser error: missing postfix handler for token type '${tokenType}'`
         );
       }
+    }
+    if (!isClosurePrimary) {
+      skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
     }
   }
 
@@ -1204,7 +1221,11 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
   const methods: (MethodCallNode | AnnotationAccessNode)[] = [];
   const start = current(this.state).span.start;
 
-  // Collect all chained method calls and annotation accesses
+  // Collect all chained method calls and annotation accesses. A newline is
+  // only skipped when the next real token is a dot, so the chain can
+  // continue on the next line (`-> .trim\n  .upper`) without consuming
+  // newlines that belong to a following statement.
+  skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
   while (check(this.state, TOKEN_TYPES.DOT)) {
     if (isAnnotationAccess(this.state)) {
       const dotStart = current(this.state).span.start;
@@ -1223,6 +1244,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     } else {
       methods.push(this.parseMethodCall(null));
     }
+    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
   }
 
   if (check(this.state, TOKEN_TYPES.QUESTION)) {
@@ -1530,7 +1552,9 @@ Parser.prototype.parseCapture = function (this: Parser): CaptureNode {
 Parser.prototype.parseGrouped = function (this: Parser): GroupedExprNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+  skipNewlines(this.state);
   const expression = this.parsePipeChain();
+  skipNewlines(this.state);
   const rparen = expect(
     this.state,
     TOKEN_TYPES.RPAREN,

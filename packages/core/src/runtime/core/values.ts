@@ -35,7 +35,7 @@ import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
 } from './types/registrations.js';
-import { setDictField } from './types/dict-keys.js';
+import { setDictField, typedKeyEntries } from './types/dict-keys.js';
 import type {
   RillTypeValue,
   RillValue,
@@ -173,6 +173,11 @@ function toNativeValue(value: RillValue): NativeValue {
   const result: { [key: string]: NativeValue } = {};
   for (const [k, v] of Object.entries(dict)) {
     setDictField(result, k, toNativeValue(v));
+  }
+  // Number/boolean keys are held in a non-enumerable sidecar, so
+  // Object.entries above skips them. Surface them under their string form.
+  for (const { key, value: v } of typedKeyEntries(dict)) {
+    setDictField(result, String(key), toNativeValue(v));
   }
   return result;
 }

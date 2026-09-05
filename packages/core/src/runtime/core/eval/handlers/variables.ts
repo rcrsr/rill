@@ -288,10 +288,13 @@ export async function evaluateVariableAsync(
 
   // Apply access chain ($.field, $var.field, etc.)
   for (const access of node.accessChain) {
-    // `??` widens from `=== null` to `isVacant(value)`.
-    // Vacancy fires the default branch for empty OR invalid values; an
-    // invalid LHS with a default short-circuits instead of halting.
-    if (isVacant(value)) {
+    // An intermediate step's LHS short-circuits to the default only when
+    // it is null or carries an invalid status — a structurally empty but
+    // valid value (empty list, empty dict, empty string) must still flow
+    // into the next access step (e.g. `.empty`) rather than trigger the
+    // default early. Only the final result's vacancy (empty OR invalid)
+    // triggers `??`, handled after the loop.
+    if (value === null || isInvalid(value)) {
       // Use default value if available
       if (node.defaultValue) {
         return evaluateBody(s, node.defaultValue);
