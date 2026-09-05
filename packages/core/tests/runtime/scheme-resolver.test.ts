@@ -286,6 +286,17 @@ describe('Rill Runtime: malformed resolver result validation', () => {
     ).rejects.toHaveProperty('errorId', 'RILL-R056');
   });
 
+  it("halts with RILL-R056 when kind is 'value' but the value field is explicitly undefined", async () => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => ({ kind: 'value', value: undefined }),
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
   it("returns the value when kind is 'value' with a value field present", async () => {
     const result = await run('use<module:greetings>', {
       resolvers: {

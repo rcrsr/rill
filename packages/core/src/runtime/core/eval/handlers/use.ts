@@ -186,7 +186,7 @@ export async function evaluateUseExpr(
         `Resolver error for '${key}': resolver result must have kind 'value' or 'source', got ${JSON.stringify(kind)}`
       );
     }
-    if (kind === 'value' && !('value' in rawResult)) {
+    if (kind === 'value' && rawResult['value'] === undefined) {
       throwCatchableHostHalt(
         {
           location: getNodeLocation(s, node),

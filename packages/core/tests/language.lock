@@ -76,7 +76,7 @@ e1776847da8b931f5773e5bcdb70998f18eec1dc87520d7916b90bd996abef56  packages/core/
 e40bcd948d58b2e0a9468e7a5a36b88c1192ea774358965a6b17f9407e6e680e  packages/core/tests/language/status-probe.test.ts
 1aa5819b840beab076a5b2584949a5d42f87c2b1203714259686696e8ccb6fdf  packages/core/tests/language/stream-type-parsing.test.ts
 e8bce774c3d41e1d092ec0b8312dc87f75366f1d590ca423af010ba737905b07  packages/core/tests/language/streams.test.ts
-7cdc17c2df6ff6c4eb9a410cf84324abd5cc407fbd56d1ba930ae1954d8742b8  packages/core/tests/language/string-dict-keys.test.ts
+e9b44e46262d0ff8444bd9da4a1a7ec5cf911394735d6252307c89cb7b8e8224  packages/core/tests/language/string-dict-keys.test.ts
 d8dda2e6f41f17d5a499763050302948777d1fd21f56cfb2dad776898005a191  packages/core/tests/language/strings.test.ts
 a7c0bfece09536674f2143fbb5553a9738751f0c42c687ead17bfc3ce33dc63b  packages/core/tests/language/structural-type-boundaries.test.ts
 229b4ae6b80d12fa3b5c6877ba3b3564a0eac48ecc419f160cdf446c4cf18c7b  packages/core/tests/language/structural-type-defaults.test.ts

@@ -87,7 +87,7 @@ The else branch (`! ...`) is optional:
 
 ```rill
 true ? "executed"                   # "executed"
-5 -> { false ? "skipped" }          # 5: when false, returns the current $
+5 -> (false ? "skipped")            # 5: when false, returns the current $
 ```
 
 Without an else branch, a false condition returns the current `$`. If no `$` is bound, the conditional halts with `RILL-R005`, the same way bare `pass` does:

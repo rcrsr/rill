@@ -479,7 +479,7 @@ async function evaluateDictMultiKeyFromList(
  * value shapes (__type, __rill_atom, __rill_tuple, etc.). Halts catchably
  * when the key is unusable; a no-op otherwise.
  */
-function assertUsableDictKey(
+export function assertUsableDictKey(
   s: EvalState,
   stringKey: string,
   span: { readonly start: SourceLocation }

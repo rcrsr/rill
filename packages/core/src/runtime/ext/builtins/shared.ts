@@ -105,7 +105,7 @@ export async function walkIteratorSteps(
         throwTypeHalt(
           site,
           'TYPE_MISMATCH',
-          `Stream chunk type mismatch: expected ${expectedType}, got ${actualType}`,
+          `Chunk type mismatch: expected ${expectedType}, got ${actualType}`,
           'runtime',
           { expectedType, actualType }
         );

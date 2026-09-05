@@ -186,7 +186,7 @@ const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
  * A dict key colliding with one of these would let user data masquerade
  * as a branded runtime value, so dict literals reject them as keys.
  */
-export const RESERVED_BRAND_KEYS = [
+const RESERVED_BRAND_KEYS = [
   '__type',
   '__rill_atom',
   '__rill_tuple',
@@ -195,6 +195,11 @@ export const RESERVED_BRAND_KEYS = [
   '__rill_duration',
   '__rill_ordered',
   '__rill_type',
+  '__rill_stream',
+  '__rill_stream_resolve',
+  '__rill_stream_dispose',
+  '__rill_stream_chunk_type',
+  '__rill_stream_ret_type',
 ] as const;
 
 export { anyTypeValue } from './types/any-type.js';

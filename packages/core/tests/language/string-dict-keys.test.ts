@@ -229,6 +229,11 @@ describe('Rill Language: String Literal Dict Keys', () => {
       '__rill_duration',
       '__rill_ordered',
       '__rill_type',
+      '__rill_stream',
+      '__rill_stream_resolve',
+      '__rill_stream_dispose',
+      '__rill_stream_chunk_type',
+      '__rill_stream_ret_type',
     ];
 
     for (const key of brandKeys) {
@@ -261,6 +266,23 @@ describe('Rill Language: String Literal Dict Keys', () => {
 
     it('still allows a normal dict key that is not reserved', async () => {
       const result = await run('dict[foo: 1]');
+      expect(result).toEqual({ foo: 1 });
+    });
+
+    for (const key of brandKeys) {
+      it(`halts with RILL-R002 for reserved brand key '${key}' in an ordered[] literal`, async () => {
+        await expect(run(`ordered[${key}: "x"]`)).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R002'
+        );
+        await expect(run(`ordered[${key}: "x"]`)).rejects.toThrow(
+          new RegExp(`Cannot use reserved brand key '${key}' as dict key`, 'i')
+        );
+      });
+    }
+
+    it('still allows a normal key in an ordered[] literal', async () => {
+      const result = await run('ordered[foo: 1] -> dict');
       expect(result).toEqual({ foo: 1 });
     });
   });
