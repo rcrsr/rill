@@ -193,6 +193,19 @@ function isKeyValueStart(state: ParserState, tokenTypes: string[]): boolean {
 }
 
 /**
+ * Compound bracket opener tokens the lexer emits for `dict[`, `list[`, `tuple[`,
+ * `ordered[`, plus the plain `[`. All five close with a single RBRACKET.
+ * @internal
+ */
+const BRACKET_OPENERS: string[] = [
+  TOKEN_TYPES.LBRACKET,
+  TOKEN_TYPES.LIST_LBRACKET,
+  TOKEN_TYPES.DICT_LBRACKET,
+  TOKEN_TYPES.TUPLE_LBRACKET,
+  TOKEN_TYPES.ORDERED_LBRACKET,
+];
+
+/**
  * Check for dict start: identifier followed by colon OR list literal followed by colon
  * @internal
  */
@@ -228,7 +241,7 @@ export function isDictStart(state: ParserState): boolean {
 
     while (pos < state.tokens.length) {
       const token = state.tokens[pos];
-      if (token?.type === TOKEN_TYPES.LBRACKET) {
+      if (token && BRACKET_OPENERS.includes(token.type)) {
         depth++;
       } else if (token?.type === TOKEN_TYPES.RBRACKET) {
         depth--;
@@ -269,11 +282,7 @@ export function isLiteralStart(state: ParserState): boolean {
     TOKEN_TYPES.NUMBER,
     TOKEN_TYPES.TRUE,
     TOKEN_TYPES.FALSE,
-    TOKEN_TYPES.LBRACKET,
-    TOKEN_TYPES.LIST_LBRACKET,
-    TOKEN_TYPES.DICT_LBRACKET,
-    TOKEN_TYPES.TUPLE_LBRACKET,
-    TOKEN_TYPES.ORDERED_LBRACKET
+    ...BRACKET_OPENERS
   );
 }
 

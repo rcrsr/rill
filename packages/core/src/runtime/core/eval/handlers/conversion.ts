@@ -25,6 +25,7 @@
  */
 
 import type { ASTNode, TypeConstructorNode } from '../../../../types.js';
+import { RuntimeError } from '../../../../types.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type {
   RillValue,
@@ -189,6 +190,22 @@ export function applyConversion(
         ERROR_ATOMS[ERROR_IDS.RILL_R038],
         message,
         { value: input }
+      );
+    }
+
+    // Heterogeneous tuple -> list conversions raise RILL-R002 from the
+    // protocol's homogeneity check. Preserve that error id and message
+    // instead of falling through to the generic RILL-R036 remap below,
+    // for parity with the list-literal path's error.
+    if (err instanceof RuntimeError && err.errorId === ERROR_IDS.RILL_R002) {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'convertType',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        err.rawMessage
       );
     }
 

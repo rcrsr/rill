@@ -86,8 +86,14 @@ Methods that return booleans work directly as conditions:
 The else branch (`! ...`) is optional:
 
 ```rill
-true ? "executed"                   # only runs if true
-false ? "skipped"                   # returns empty string
+true ? "executed"                   # "executed"
+5 -> (false ? "skipped")            # 5: when false, returns the current $
+```
+
+Without an else branch, a false condition returns the current `$`. If no `$` is bound, the conditional halts with `RILL-R005`, the same way bare `pass` does:
+
+```text
+false ? "skipped"                   # Error: RILL-R005 Variable '$' not defined
 ```
 
 ### Else-If Chains

@@ -234,7 +234,7 @@ export const mReplace: RillMethod = (receiver, args, ctx, location) => {
   const replacement = formatValue(args[1] ?? '');
   let re: RegExp;
   try {
-    re = new RegExp(pattern);
+    re = new RegExp(pattern, 'u');
   } catch (e) {
     throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'replace' },
@@ -252,7 +252,7 @@ export const mReplaceAll: RillMethod = (receiver, args, ctx, location) => {
   const replacement = formatValue(args[1] ?? '');
   let re: RegExp;
   try {
-    re = new RegExp(pattern, 'g');
+    re = new RegExp(pattern, 'gu');
   } catch (e) {
     throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: '.replace_all' },
@@ -276,7 +276,7 @@ export const mMatch: RillMethod = (receiver, args, ctx, location) => {
   const pattern = formatValue(args[0] ?? '');
   let re: RegExp;
   try {
-    re = new RegExp(pattern);
+    re = new RegExp(pattern, 'u');
   } catch (e) {
     throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'match' },
@@ -286,9 +286,15 @@ export const mMatch: RillMethod = (receiver, args, ctx, location) => {
   }
   const m = re.exec(str);
   if (!m) return {};
+  // m.index is a UTF-16 code-unit offset; convert to a code-point offset so
+  // the result is consistent with .len and .at on astral strings, matching
+  // the isBmpOnly/Array.from idiom used by indexOf.
+  const index = isBmpOnly(str)
+    ? m.index
+    : Array.from(str.slice(0, m.index)).length;
   return {
     matched: m[0],
-    index: m.index,
+    index,
     groups: m.slice(1).map((g) => g ?? ''),
   };
 };
@@ -302,7 +308,7 @@ export const mIsMatch: RillMethod = (receiver, args, ctx, location) => {
   const pattern = formatValue(args[0] ?? '');
   let re: RegExp;
   try {
-    re = new RegExp(pattern);
+    re = new RegExp(pattern, 'u');
   } catch (e) {
     throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'isMatch' },

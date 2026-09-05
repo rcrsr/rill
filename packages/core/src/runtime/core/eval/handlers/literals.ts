@@ -47,7 +47,11 @@ import { isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
 import { deepEquals, formatValue } from '../../types/registrations.js';
 import { isTypeValue, isVector } from '../../types/guards.js';
-import { anyTypeValue, isReservedMethod } from '../../values.js';
+import {
+  anyTypeValue,
+  isReservedBrandKey,
+  isReservedMethod,
+} from '../../values.js';
 import {
   isCallable,
   type ScriptCallable,
@@ -470,6 +474,46 @@ async function evaluateDictMultiKeyFromList(
 }
 
 /**
+ * Reject dict keys that collide with reserved method names (keys, values,
+ * entries) or reserved brand keys used internally to discriminate runtime
+ * value shapes (__type, __rill_atom, __rill_tuple, etc.). Halts catchably
+ * when the key is unusable; a no-op otherwise.
+ */
+export function assertUsableDictKey(
+  s: EvalState,
+  stringKey: string,
+  span: { readonly start: SourceLocation }
+): void {
+  if (isReservedMethod(stringKey)) {
+    throwCatchableHostHalt(
+      {
+        location: span.start,
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateDict',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Cannot use reserved method name '${stringKey}' as dict key`,
+      {
+        key: stringKey,
+        reservedMethods: ['keys', 'values', 'entries'],
+      }
+    );
+  }
+
+  if (isReservedBrandKey(stringKey)) {
+    throwCatchableHostHalt(
+      {
+        location: span.start,
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateDict',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Cannot use reserved brand key '${stringKey}' as dict key`
+    );
+  }
+}
+
+/**
  * Evaluate dict literal.
  * All callables in the dict are bound to the containing dict via boundDict property.
  *
@@ -522,21 +566,7 @@ export async function evaluateDict(
           // Use resolved string as dict key
           const stringKey = varValue;
 
-          if (isReservedMethod(stringKey)) {
-            throwCatchableHostHalt(
-              {
-                location: entry.span.start,
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateDict',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              `Cannot use reserved method name '${stringKey}' as dict key`,
-              {
-                key: stringKey,
-                reservedMethods: ['keys', 'values', 'entries'],
-              }
-            );
-          }
+          assertUsableDictKey(s, stringKey, entry.span);
 
           // Evaluate value and store with resolved key
           if (isBlockExpr(entry.value)) {
@@ -603,21 +633,7 @@ export async function evaluateDict(
           // Use resolved string as dict key
           const stringKey = computedValue;
 
-          if (isReservedMethod(stringKey)) {
-            throwCatchableHostHalt(
-              {
-                location: entry.span.start,
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateDict',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              `Cannot use reserved method name '${stringKey}' as dict key`,
-              {
-                key: stringKey,
-                reservedMethods: ['keys', 'values', 'entries'],
-              }
-            );
-          }
+          assertUsableDictKey(s, stringKey, entry.span);
 
           // Evaluate value and store with resolved key
           if (isBlockExpr(entry.value)) {
@@ -662,21 +678,7 @@ export async function evaluateDict(
           continue;
         }
         const stringKey = String(key);
-        if (isReservedMethod(stringKey)) {
-          throwCatchableHostHalt(
-            {
-              location: entry.span.start,
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateDict',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R002],
-            `Cannot use reserved method name '${stringKey}' as dict key`,
-            {
-              key: stringKey,
-              reservedMethods: ['keys', 'values', 'entries'],
-            }
-          );
-        }
+        assertUsableDictKey(s, stringKey, entry.span);
         // Apply last-write-wins semantics
         setDictField(result, stringKey, value);
       }
@@ -692,17 +694,8 @@ export async function evaluateDict(
         : undefined;
     const stringKey = typedKey === undefined ? String(entry.key) : undefined;
 
-    if (stringKey !== undefined && isReservedMethod(stringKey)) {
-      throwCatchableHostHalt(
-        {
-          location: entry.span.start,
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateDict',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Cannot use reserved method name '${stringKey}' as dict key`,
-        { key: stringKey, reservedMethods: ['keys', 'values', 'entries'] }
-      );
+    if (stringKey !== undefined) {
+      assertUsableDictKey(s, stringKey, entry.span);
     }
 
     const store = (value: RillValue): void => {

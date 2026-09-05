@@ -18,6 +18,13 @@ describe('Rill Runtime: Conditionals', () => {
       expect(await run('false -> ? "yes"')).toBe(false);
     });
 
+    it('halts on false without else when $ is not bound', async () => {
+      // Explicit condition form has no piped $ to fall through to
+      await expect(run('false ? "yes"')).rejects.toThrow(
+        "Variable '$' not defined"
+      );
+    });
+
     it('executes then branch on true with else', async () => {
       expect(await run('true ? "yes" ! "no"')).toBe('yes');
     });

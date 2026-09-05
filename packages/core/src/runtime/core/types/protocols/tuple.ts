@@ -18,6 +18,7 @@ import {
   compareByDeepEquals,
   throwNotSerializable,
   resolvedCompareValue,
+  resolvedInferElementType,
 } from './shared.js';
 
 // ============================================================
@@ -88,8 +89,16 @@ function eqTuple(a: RillValue, b: RillValue): boolean {
 // CONVERT-TO
 // ============================================================
 
+function tupleToList(v: RillValue): RillValue {
+  const entries = (v as unknown as RillTuple).entries;
+  // Validate homogeneity: all entries must share the same structural type,
+  // matching the check the list-literal path applies.
+  resolvedInferElementType(entries);
+  return entries;
+}
+
 const tupleConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  list: (v: RillValue): RillValue => (v as unknown as RillTuple).entries,
+  list: tupleToList,
   string: (v: RillValue): RillValue => formatTuple(v),
 };
 

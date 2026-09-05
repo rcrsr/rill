@@ -219,6 +219,105 @@ describe('Rill Runtime: moduleResolver', () => {
   });
 });
 
+describe('Rill Runtime: malformed resolver result validation', () => {
+  it('halts with RILL-R056 when resolver resolves to an empty object', async () => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => ({}),
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
+  it('halts with RILL-R056 when resolver returns an unrecognized kind', async () => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => ({ kind: 'bogus' }),
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
+  it("halts with RILL-R056 when kind is 'value' but the value field is absent", async () => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => ({ kind: 'value' }),
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
+  it('halts with RILL-R056 when resolver resolves to null', async () => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => null,
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
+  it('halts with RILL-R056 when resolver resolves to undefined', async () => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => undefined,
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
+  it('halts with RILL-R056 when resolver resolves to a primitive', async () => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => 42,
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
+  it("halts with RILL-R056 when kind is 'value' but the value field is explicitly undefined", async () => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => ({ kind: 'value', value: undefined }),
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
+  it("returns the value when kind is 'value' with a value field present", async () => {
+    const result = await run('use<module:greetings>', {
+      resolvers: {
+        module: (): unknown => ({ kind: 'value', value: 42 }),
+      } as unknown as Record<string, SchemeResolver>,
+      parseSource: (text: string) => parse(text),
+    });
+    expect(result).toBe(42);
+  });
+
+  it("executes normally when kind is 'source' with a valid text field", async () => {
+    const result = await run('use<module:greetings>', {
+      resolvers: {
+        module: (): ResolverResult => ({ kind: 'source', text: '"hi"' }),
+      },
+      parseSource: (text: string) => parse(text),
+    });
+    expect(result).toBe('hi');
+  });
+});
+
 // ============================================================
 // extResolver tests (covers IR-5, EC-4, EC-5)
 // ============================================================
