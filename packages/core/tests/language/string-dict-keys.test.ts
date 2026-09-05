@@ -234,6 +234,7 @@ describe('Rill Language: String Literal Dict Keys', () => {
       '__rill_stream_dispose',
       '__rill_stream_chunk_type',
       '__rill_stream_ret_type',
+      '__rill_typed_keys',
     ];
 
     for (const key of brandKeys) {

@@ -284,17 +284,42 @@ describe('Type-aware dict keys (#266)', () => {
   });
 
   describe('native output includes typed-key values', () => {
-    it('toNative carries both the typed key and the string key', async () => {
+    it('toNative surfaces typed keys under __rill_typed_keys, not as string fields', async () => {
       const value = await run('dict[1: "a", b: 2]');
       const native = toNative(value);
-      expect(native.value).toMatchObject({ '1': 'a', b: 2 });
+      const nativeValue = native.value as Record<string, unknown>;
+      expect(nativeValue.b).toBe(2);
+      expect(Object.prototype.hasOwnProperty.call(nativeValue, '1')).toBe(
+        false
+      );
+      expect(nativeValue.__rill_typed_keys).toEqual([{ key: 1, value: 'a' }]);
       expect(native.rillTypeSignature).toBe('dict(1: string, b: number)');
     });
 
-    it('toNative carries a boolean typed key', async () => {
+    it('a string key colliding with a typed key is unaffected by the sidecar', async () => {
+      const value = await run('dict[1: "a", "1": "b"]');
+      const native = toNative(value);
+      const nativeValue = native.value as Record<string, unknown>;
+      expect(nativeValue['1']).toBe('b');
+      expect(nativeValue.__rill_typed_keys).toEqual([{ key: 1, value: 'a' }]);
+    });
+
+    it('toNative carries a boolean typed key under __rill_typed_keys', async () => {
       const value = await run('dict[true: "a"]');
       const native = toNative(value);
-      expect(native.value).toMatchObject({ true: 'a' });
+      const nativeValue = native.value as Record<string, unknown>;
+      expect(nativeValue.__rill_typed_keys).toEqual([
+        { key: true, value: 'a' },
+      ]);
+    });
+
+    it('an all-string-keyed dict has no __rill_typed_keys field', async () => {
+      const value = await run('dict[a: 1]');
+      const native = toNative(value);
+      const nativeValue = native.value as Record<string, unknown>;
+      expect(
+        Object.prototype.hasOwnProperty.call(nativeValue, '__rill_typed_keys')
+      ).toBe(false);
     });
   });
 });

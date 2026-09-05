@@ -417,7 +417,7 @@ describe('Default Value Operator (??)', () => {
       expect(result).toBe('d');
     });
 
-    it('still returns the field value via a variable path when empty is not vacant for that field', async () => {
+    it('returns fallback for an empty string reached via a variable path', async () => {
       const result = await run(`
         dict[a: ""] => $d
         $d.a ?? "d"

@@ -103,6 +103,26 @@ describe('Existence Check', () => {
     });
   });
 
+  describe('across a newline continuation', () => {
+    it('returns true when field exists after a newline continuation', async () => {
+      const result = await run(`
+        dict[a: 1] => $d
+        $d
+        .?a
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when field does not exist after a newline continuation', async () => {
+      const result = await run(`
+        dict[a: 1] => $d
+        $d.a
+        .?b
+      `);
+      expect(result).toBe(false);
+    });
+  });
+
   describe('Error Contracts', () => {
     it('EC-4: throws error when $ is not followed by variable name', async () => {
       await expect(
