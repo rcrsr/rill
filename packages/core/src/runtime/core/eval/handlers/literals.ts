@@ -51,6 +51,7 @@ import {
   anyTypeValue,
   isReservedBrandKey,
   isReservedMethod,
+  RESERVED_DICT_METHODS,
 } from '../../values.js';
 import {
   isCallable,
@@ -496,16 +497,7 @@ export function assertUsableDictKey(
       `Cannot use reserved method name '${stringKey}' as dict key`,
       {
         key: stringKey,
-        reservedMethods: [
-          'len',
-          'first',
-          'empty',
-          'eq',
-          'ne',
-          'keys',
-          'values',
-          'entries',
-        ],
+        reservedMethods: [...RESERVED_DICT_METHODS],
       }
     );
   }

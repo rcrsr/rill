@@ -85,12 +85,22 @@ function mapDecodedIndexToSourceOffset(
   if (breakpoints === undefined || breakpoints.length === 0) {
     return decodedIndex;
   }
-  let delta = 0;
-  for (const breakpoint of breakpoints) {
-    if (breakpoint > decodedIndex) break;
-    delta++;
+  // breakpoints is built in ascending order (readString pushes
+  // value.length after each escape, and value only grows), so the count of
+  // breakpoints at or before decodedIndex — the delta to add back — is the
+  // standard "rightmost insertion point" binary search rather than a linear
+  // scan, which matters for strings with many escapes and interpolations.
+  let lo = 0;
+  let hi = breakpoints.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (breakpoints[mid]! > decodedIndex) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
   }
-  return decodedIndex + delta;
+  return decodedIndex + lo;
 }
 
 // Declaration merging to add methods to Parser interface
@@ -411,12 +421,61 @@ Parser.prototype.parseStringParts = function (
       const contentStartsOnNextLine = openingNewlineConsumed && newlines === 0;
 
       if (newlines > 0) {
-        // Has newlines in raw content before interpolation
-        interpLine =
-          baseLocation.line + (openingNewlineConsumed ? 1 : 0) + newlines;
-        interpColumn = beforeInterp.length - lastNewlinePos;
-        interpOffset =
-          baseLocation.offset + quoteLen + openingNewlineWidth + exprStart;
+        // Has newlines in raw content before interpolation. A decoded '\n'
+        // is not always a real source line break: for double-quoted
+        // strings (escapeBreakpoints defined) a literal raw newline is a
+        // lexer error, so every decoded '\n' that lands exactly at an
+        // escape breakpoint was produced by decoding a \n escape — two
+        // characters on the *same* source line, not a line break. Triple-
+        // quoted strings never decode escapes (escapeBreakpoints is always
+        // undefined there), so every decoded newline they contain is real.
+        const escapeNewlineOffsets = new Set<number>();
+        if (escapeBreakpoints) {
+          for (const bp of escapeBreakpoints) {
+            if (bp - 1 < exprStart && raw[bp - 1] === '\n') {
+              escapeNewlineOffsets.add(bp - 1);
+            }
+          }
+        }
+
+        let realNewlines = newlines;
+        let lastRealNewlinePos = lastNewlinePos;
+        if (escapeNewlineOffsets.size > 0) {
+          realNewlines = 0;
+          lastRealNewlinePos = -1;
+          for (let idx = 0; idx < beforeInterp.length; idx++) {
+            if (beforeInterp[idx] === '\n' && !escapeNewlineOffsets.has(idx)) {
+              realNewlines++;
+              lastRealNewlinePos = idx;
+            }
+          }
+        }
+
+        const sourceExprStart = mapDecodedIndexToSourceOffset(
+          exprStart,
+          escapeBreakpoints
+        );
+
+        if (realNewlines > 0) {
+          const sourceLastNewlinePos = mapDecodedIndexToSourceOffset(
+            lastRealNewlinePos,
+            escapeBreakpoints
+          );
+          interpLine =
+            baseLocation.line + (openingNewlineConsumed ? 1 : 0) + realNewlines;
+          interpColumn = sourceExprStart - sourceLastNewlinePos;
+          interpOffset =
+            baseLocation.offset +
+            quoteLen +
+            openingNewlineWidth +
+            sourceExprStart;
+        } else {
+          // Every decoded newline before the interpolation came from a \n
+          // escape; the interpolation is still on the opening source line.
+          interpLine = baseLocation.line;
+          interpColumn = baseLocation.column + quoteLen + sourceExprStart;
+          interpOffset = baseLocation.offset + quoteLen + sourceExprStart;
+        }
       } else if (contentStartsOnNextLine) {
         // Triple-quote string with skipped opening newline, but interpolation on first content line
         interpLine = baseLocation.line + 1;
@@ -1445,7 +1504,7 @@ Parser.prototype.parseCollectionLiteral = function (
         !check(this.state, TOKEN_TYPES.LIST_LBRACKET) &&
         !check(this.state, TOKEN_TYPES.LBRACKET) &&
         !check(this.state, TOKEN_TYPES.DICT_LBRACKET) &&
-        !check(this.state, TOKEN_TYPES.MINUS)
+        !isNegativeNumber(this.state)
       ) {
         throw new ParseError(
           ERROR_IDS.RILL_P004,

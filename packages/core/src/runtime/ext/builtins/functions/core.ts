@@ -112,7 +112,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         name: 'items',
         type: {
           kind: 'union',
-          members: [{ kind: 'list' }, { kind: 'dict' }, { kind: 'string' }],
+          members: [{ kind: 'list' }, { kind: 'dict' }],
         },
         defaultValue: undefined,
         annotations: {},

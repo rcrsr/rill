@@ -278,9 +278,8 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Non-enumerable types', () => {
-      it('returns empty array for non-enumerable type', async () => {
-        const result = await run(`enumerate("hello")`);
-        expect(result).toEqual([]);
+      it('halts with a type mismatch for a non-enumerable type', async () => {
+        await expect(run(`enumerate("hello")`)).rejects.toThrow(/type/i);
       });
     });
   });

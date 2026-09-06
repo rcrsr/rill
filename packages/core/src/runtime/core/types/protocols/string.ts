@@ -64,7 +64,20 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
         `cannot convert string "${str}" to number`
       );
     }
-    return Number(str);
+    const result = Number(str);
+    // The DECIMAL guard above rejects the literal "Infinity"/"-Infinity",
+    // but an overflow string like "1e309" still matches it and evaluates
+    // to Infinity under Number(), so finiteness must be checked after
+    // conversion too — rill numbers are always finite.
+    if (!Number.isFinite(result)) {
+      throwTypeHalt(
+        { fn: 'string-to-number' },
+        'INVALID_INPUT',
+        `cannot convert string "${str}" to number: result is not finite`,
+        'runtime'
+      );
+    }
+    return result;
   },
   bool: (v: RillValue): RillValue => {
     const s = v as string;

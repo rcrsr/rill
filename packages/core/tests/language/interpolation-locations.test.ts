@@ -71,7 +71,9 @@ abc{$x +}
 
   it('reports correct location for error after escape sequences', () => {
     // String: "\\n{$x +}"
-    // The escape sequence \n becomes actual newline in parsed string
+    // The escape sequence \n decodes to an actual newline character, but
+    // the source itself is a single physical line: \n is two source
+    // characters (backslash, n), not a real line break.
     const source = '"\\n{$x +}"';
 
     try {
@@ -81,9 +83,28 @@ abc{$x +}
       expect(err).toBeInstanceOf(ParseError);
       const parseErr = err as ParseError;
 
-      // Escape sequence \n becomes newline, so error reports line 2
-      expect(parseErr.location?.line).toBe(2);
-      expect(parseErr.location?.column).toBe(6);
+      // The decoded \n is not a real source line break, so the error stays
+      // on line 1, at the correct source column for the escaped prefix.
+      expect(parseErr.location?.line).toBe(1);
+      expect(parseErr.location?.column).toBe(9);
+    }
+  });
+
+  it('reports correct location for a multi-interpolation string with an escape before the second interpolation', () => {
+    // String: "{$a}\\n{$x +}"
+    // A valid first interpolation is followed by a literal segment
+    // containing an escaped newline, then a syntax error in the second
+    // interpolation. The escaped newline must not shift the reported line.
+    const source = '"{$a}\\n{$x +}"';
+
+    try {
+      parse(source);
+      expect.fail('Should have thrown ParseError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      const parseErr = err as ParseError;
+
+      expect(parseErr.location?.line).toBe(1);
     }
   });
 

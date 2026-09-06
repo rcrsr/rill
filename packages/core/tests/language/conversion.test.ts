@@ -13,6 +13,7 @@ import { describe, expect, it } from 'vitest';
 
 import { isTuple, ParseError, parse, VALID_TYPE_NAMES } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 // Helper to check if a value is an ordered collection
 function isOrdered(value: unknown): boolean {
@@ -157,6 +158,13 @@ describe('Rill Language: -> Conversion Operator', () => {
     it('converts "-10" to negative number', async () => {
       const result = await run('"-10" -> number');
       expect(result).toBe(-10);
+    });
+
+    it('halts converting an overflow numeric string instead of producing Infinity', async () => {
+      await expectHalt(() => run('"1e309" -> number'), {
+        code: 'INVALID_INPUT',
+        messagePattern: /not finite/i,
+      });
     });
   });
 
