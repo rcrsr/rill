@@ -380,31 +380,58 @@ export const mRepeat: RillMethod = (receiver, args, ctx, location) => {
 };
 
 /**
- * Build a code-point-aware pad for padStart/padEnd. Measures `str` and `fill`
- * in code points (not UTF-16 code units) so astral characters count as one
- * unit and are never split across a surrogate pair boundary.
+ * Code point count of `str`. ASCII/BMP-only strings (the common case) use
+ * `.length` directly instead of materializing the full code-point array.
+ */
+function codePointLength(str: string): number {
+  return isBmpOnly(str) ? str.length : Array.from(str).length;
+}
+
+/**
+ * UTF-16 offset of the boundary after `count` code points in `str`. Walks
+ * code units (not full code points) so it never materializes the string as
+ * an array; a surrogate pair is always consumed as a single unit.
+ */
+function codePointOffset(str: string, count: number): number {
+  if (isBmpOnly(str)) return count;
+  let offset = 0;
+  for (let seen = 0; seen < count && offset < str.length; seen++) {
+    const code = str.charCodeAt(offset);
+    const isHighSurrogate = code >= 0xd800 && code <= 0xdbff;
+    offset += isHighSurrogate && offset + 1 < str.length ? 2 : 1;
+  }
+  return offset;
+}
+
+/**
+ * Build a code-point-aware pad for padStart/padEnd. Measures `strLength` and
+ * `fill` in code points (not UTF-16 code units) so astral characters count as
+ * one unit and are never split across a surrogate pair boundary.
  */
 function buildCodePointPad(
-  str: string,
+  strLength: number,
   length: number,
   fill: string,
   ctx: RuntimeContext,
   location: SourceLocation | undefined,
   fnName: 'pad_start' | 'pad_end'
 ): string {
-  const strCodePoints = Array.from(str);
-  const shortfall = length - strCodePoints.length;
+  const shortfall = length - strLength;
   if (shortfall <= 0) return '';
-  const fillCodePoints = Array.from(fill);
-  if (fillCodePoints.length === 0) return '';
+  const fillLength = codePointLength(fill);
+  if (fillLength === 0) return '';
   try {
     // Repeat the fill (as a whole string, so no surrogate pair is ever
     // split) enough times to cover the shortfall, then trim to the exact
     // code-point count. Native `repeat` throws RangeError fast for an
     // over-large result instead of looping to build it byte by byte.
-    const repetitions = Math.ceil(shortfall / fillCodePoints.length);
+    // The trim walks `repeated` in a bounded code-unit scan rather than
+    // materializing every code point into a boxed array, so a large
+    // shortfall stays a single native `.slice()` instead of an O(n)
+    // allocation of individual string objects.
+    const repetitions = Math.ceil(shortfall / fillLength);
     const repeated = fill.repeat(repetitions);
-    return Array.from(repeated).slice(0, shortfall).join('');
+    return repeated.slice(0, codePointOffset(repeated, shortfall));
   } catch (e) {
     if (e instanceof RangeError) {
       throwCatchableHostHalt(
@@ -420,18 +447,34 @@ function buildCodePointPad(
 /** Pad start to length with fill string */
 export const mPadStart: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
-  const length = typeof args[0] === 'number' ? args[0] : Array.from(str).length;
+  const strLength = codePointLength(str);
+  const length = typeof args[0] === 'number' ? args[0] : strLength;
   const fill = typeof args[1] === 'string' ? args[1] : ' ';
-  const pad = buildCodePointPad(str, length, fill, ctx, location, 'pad_start');
+  const pad = buildCodePointPad(
+    strLength,
+    length,
+    fill,
+    ctx,
+    location,
+    'pad_start'
+  );
   return pad + str;
 };
 
 /** Pad end to length with fill string */
 export const mPadEnd: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
-  const length = typeof args[0] === 'number' ? args[0] : Array.from(str).length;
+  const strLength = codePointLength(str);
+  const length = typeof args[0] === 'number' ? args[0] : strLength;
   const fill = typeof args[1] === 'string' ? args[1] : ' ';
-  const pad = buildCodePointPad(str, length, fill, ctx, location, 'pad_end');
+  const pad = buildCodePointPad(
+    strLength,
+    length,
+    fill,
+    ctx,
+    location,
+    'pad_end'
+  );
   return str + pad;
 };
 

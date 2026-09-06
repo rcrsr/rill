@@ -189,7 +189,8 @@ export function constructDatetime(
     if (hasTime) {
       const hh = Number(input.slice(11, 13));
       const mm = Number(input.slice(14, 16));
-      const ss = input.length >= 19 ? Number(input.slice(17, 19)) : 0;
+      const hasSeconds = input[16] === ':';
+      const ss = hasSeconds ? Number(input.slice(17, 19)) : 0;
       validateComponent('hour', hh, 0, 23, location);
       validateComponent('minute', mm, 0, 59, location);
       validateComponent('second', ss, 0, 59, location);
