@@ -75,11 +75,11 @@ seq([1, 2, 3], { $ * 2 })
 
 ### Dict Iteration
 
-When iterating over a dict, `$` contains `key` and `value` fields.
+When iterating over a dict, `$` contains `key` and `value` fields. Iteration visits keys in dict's canonical order (see [Types](topic-types.md)).
 
 ```rill
 [name: "alice", age: 30] -> seq({ "{$.key}: {$.value}" })
-# Result: ["name: alice", "age: 30"]
+# Result: ["age: 30", "name: alice"]
 
 [a: 1, b: 2, c: 3] -> seq({ $.value * 2 })
 # Result: [2, 4, 6]

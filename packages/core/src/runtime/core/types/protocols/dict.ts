@@ -18,6 +18,7 @@ import { isDict } from '../guards.js';
 import {
   getTypedKeyMap,
   typedKeyEntries,
+  orderedDictEntries,
   setDictField,
   type TypedKey,
 } from '../dict-keys.js';
@@ -55,12 +56,13 @@ function formatTypedKey(key: TypedKey): string {
 
 function formatDict(v: RillValue): string {
   const dict = v as Record<string, RillValue>;
-  const parts = Object.entries(dict).map(
-    ([k, val]) => `${formatStringKey(k)}: ${formatNested(val)}`
-  );
-  for (const { key, value } of typedKeyEntries(dict)) {
-    parts.push(`${formatTypedKey(key)}: ${formatNested(value)}`);
-  }
+  const parts = orderedDictEntries(dict).map(({ key, value }) => {
+    const formattedKey =
+      typeof key === 'string'
+        ? formatStringKey(key)
+        : formatTypedKey(key as TypedKey);
+    return `${formattedKey}: ${formatNested(value)}`;
+  });
   return `dict[${parts.join(', ')}]`;
 }
 

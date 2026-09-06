@@ -51,6 +51,33 @@ function formatParam(param: RillParam): string {
   return `${param.name}: ${typeName}`;
 }
 
+/** Matches a bare snake_case identifier per the lexer's identifier grammar. */
+const BARE_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * Format a dict key, quoting it as a rill string literal when it is not a
+ * valid bare identifier (e.g. `"user-id"` rather than `user-id`).
+ */
+function formatDictKey(key: string): string {
+  return BARE_IDENTIFIER_RE.test(key) ? key : JSON.stringify(key);
+}
+
+/**
+ * Format a `use<ext:path>` reference. The static `scheme:seg1.seg2` form
+ * requires every dot-separated segment to be a bare identifier; a path
+ * with a non-identifier segment (e.g. `user-id`) instead uses the
+ * computed form `use<("ext:path")>`, which carries the same scheme and
+ * resource as an ordinary string literal.
+ */
+function formatUseRef(path: string): string {
+  const isBarePath = path
+    .split('.')
+    .every((segment) => BARE_IDENTIFIER_RE.test(segment));
+  return isBarePath
+    ? `use<ext:${path}>`
+    : `use<(${JSON.stringify(`ext:${path}`)})>`;
+}
+
 /**
  * Check if a RillValue is a plain dict (not a callable, tuple, vector, etc.).
  */
@@ -85,11 +112,11 @@ function buildNestedSource(
     // resolve it directly via the ext resolver rather than emitting a typed
     // signature we cannot construct.
     if (c.params === undefined) {
-      return `use<ext:${path}>`;
+      return formatUseRef(path);
     }
     const paramStr = c.params.map(formatParam).join(', ');
     const returnSuffix = ` :${formatStructure(c.returnType.structure)}`;
-    return `use<ext:${path}>:|${paramStr}|${returnSuffix}`;
+    return `${formatUseRef(path)}:|${paramStr}|${returnSuffix}`;
   }
 
   if (isPlainDict(value)) {
@@ -99,13 +126,13 @@ function buildNestedSource(
     const parts = entries.map(([key, child]) => {
       const childPath = path.length > 0 ? `${path}.${key}` : key;
       const childSource = buildNestedSource(child, childPath, childIndent);
-      return `${childIndent}${key}: ${childSource}`;
+      return `${childIndent}${formatDictKey(key)}: ${childSource}`;
     });
     return `[\n${parts.join(',\n')}\n${indent}]`;
   }
 
   // Scalar, list, tuple, vector: resolve directly via ext resolver
-  return `use<ext:${path}>`;
+  return formatUseRef(path);
 }
 
 /**
@@ -115,21 +142,33 @@ function buildNestedSource(
  * @throws {ExtensionBindingError} when binding generation fails
  */
 function buildExtensionBindings(extensions: Record<string, RillValue>): string {
-  try {
-    const entries = Object.entries(extensions);
-    if (entries.length === 0) return '[:]';
+  const entries = Object.entries(extensions);
+  let bindingSource: string;
 
-    const parts = entries.map(([name, value]) => {
-      const source = buildNestedSource(value, name, '');
-      return `  ${name}: ${source}`;
-    });
-    return `[\n${parts.join(',\n')}\n]`;
+  try {
+    if (entries.length === 0) {
+      bindingSource = '[:]';
+    } else {
+      const parts = entries.map(([name, value]) => {
+        const source = buildNestedSource(value, name, '');
+        return `  ${formatDictKey(name)}: ${source}`;
+      });
+      bindingSource = `[\n${parts.join(',\n')}\n]`;
+    }
+
+    // Eager-parse the generated source so a generation defect (e.g. a
+    // reserved-word parameter name) surfaces here, synchronously, rather
+    // than as a RILL-R056 the first time a consumer calls execute().
+    parseSource(bindingSource);
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
+    const keys = entries.map(([name]) => name).join(', ');
     throw new ExtensionBindingError(
-      `Failed to generate extension bindings: ${reason}`
+      `Failed to generate extension bindings: ${reason} (bindings: ${keys})`
     );
   }
+
+  return bindingSource;
 }
 
 // ============================================================

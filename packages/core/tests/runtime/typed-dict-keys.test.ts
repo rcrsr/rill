@@ -129,6 +129,86 @@ describe('Type-aware dict keys (#266)', () => {
     });
   });
 
+  describe('canonical key ordering: strings sorted, then numbers ascending, then booleans (false, true)', () => {
+    const mixed = 'dict[true: "t", 2: "b", "z": 1, 1: "a", false: "f", "a": 2]';
+
+    it('.keys sorts string keys, then numbers ascending, then false before true', async () => {
+      expect(await run(`${mixed} -> .keys`)).toEqual([
+        'a',
+        'z',
+        1,
+        2,
+        false,
+        true,
+      ]);
+    });
+
+    it('.values follows the same canonical order as .keys', async () => {
+      expect(await run(`${mixed} -> .values`)).toEqual([
+        2,
+        1,
+        'a',
+        'b',
+        'f',
+        't',
+      ]);
+    });
+
+    it('.entries follows the same canonical order as .keys', async () => {
+      expect(await run(`${mixed} -> .entries`)).toEqual([
+        ['a', 2],
+        ['z', 1],
+        [1, 'a'],
+        [2, 'b'],
+        [false, 'f'],
+        [true, 't'],
+      ]);
+    });
+
+    it('enumerate follows the same canonical order as .keys', async () => {
+      expect(await run(`${mixed} -> enumerate -> fan({ $.key })`)).toEqual([
+        'a',
+        'z',
+        1,
+        2,
+        false,
+        true,
+      ]);
+    });
+
+    it('seq({ $.key }) follows the same canonical order as .keys', async () => {
+      expect(await run(`${mixed} -> seq({ $.key })`)).toEqual([
+        'a',
+        'z',
+        1,
+        2,
+        false,
+        true,
+      ]);
+    });
+
+    it('-> string sorts string keys regardless of insertion order', async () => {
+      const first = await run('dict[b: 1, a: 2] -> string');
+      const second = await run('dict[a: 2, b: 1] -> string');
+      expect(first).toBe(second);
+      expect(first).toBe('dict[a: 2, b: 1]');
+    });
+
+    it('insertion order does not affect .keys/.entries/enumerate/-> string for equal dicts', async () => {
+      const a = 'dict[true: "t", 2: "b", "z": 1, 1: "a", false: "f", "a": 2]';
+      const b = 'dict["a": 2, false: "f", 1: "a", "z": 1, 2: "b", true: "t"]';
+
+      expect(await run(`${a} -> .keys`)).toEqual(await run(`${b} -> .keys`));
+      expect(await run(`${a} -> .entries`)).toEqual(
+        await run(`${b} -> .entries`)
+      );
+      expect(await run(`${a} -> enumerate`)).toEqual(
+        await run(`${b} -> enumerate`)
+      );
+      expect(await run(`${a} -> string`)).toBe(await run(`${b} -> string`));
+    });
+  });
+
   describe('4. equality respects (type, value) key identity', () => {
     it('equal number-keyed dicts compare equal', async () => {
       const a = await run('dict[1: "a"]');

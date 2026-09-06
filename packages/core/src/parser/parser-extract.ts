@@ -18,6 +18,7 @@ import {
   advance,
   expect,
   current,
+  previous,
   makeSpan,
   withRecursionDepth,
 } from './state.js';
@@ -64,7 +65,7 @@ Parser.prototype.parseDestructure = function (this: Parser): DestructureNode {
   return {
     type: 'Destructure',
     elements,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -90,7 +91,7 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
       key: null,
       typeRef: null,
       nested,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     };
   }
 
@@ -106,7 +107,7 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
       key: null,
       typeRef: null,
       nested: null,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     };
   }
 
@@ -129,7 +130,7 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
       key: keyToken.value,
       typeRef,
       nested: null,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     };
   }
 
@@ -149,7 +150,7 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
     key: null,
     typeRef,
     nested: null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 }
 
@@ -181,7 +182,7 @@ Parser.prototype.parseDestructTarget = function (this: Parser): DestructNode {
   return {
     type: 'Destruct',
     elements,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -263,7 +264,7 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
     start: sliceStart,
     stop: sliceStop,
     step: sliceStep,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 

@@ -667,7 +667,7 @@ type CallableFn = (
 | `ctx` | `RuntimeContextLike` | Runtime context for the current execution. Provides access to variables, abort signal, and callbacks |
 | `location` | `SourceLocation \| undefined` | Source location of the call site. Present when the call originates from a rill script; undefined in programmatic calls |
 
-**Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details.
+**Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details. A return value that is not a `RillValue`—including one nested inside a returned array or plain object—halts at the call boundary with `RILL-R085`.
 
 **Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]`; their internal type cast is unchanged.
 
@@ -856,6 +856,8 @@ The output format is a rill dict literal. The dict is the last expression and be
 ```
 
 An empty function map returns `[:]`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.
+
+Parameter defaults are never emitted—not every `RillValue` round-trips through a rill literal, so a default that cannot be serialized to an admissible rill form is omitted rather than risking an unparseable entry; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 
 ---
 

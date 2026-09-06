@@ -50,6 +50,7 @@ import {
   advance,
   expect,
   current,
+  previous,
   makeSpan,
   peek,
   skipNewlines,
@@ -465,7 +466,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       span: head.span,
     };
     const loop = this.parseLoopWithInput(headAsPipeChain);
-    const span = makeSpan(head.span.start, current(this.state).span.end);
+    const span = makeSpan(head.span.start, previous(this.state).span.end);
     head = this.wrapLoopInPostfixExpr(loop, span);
   }
 
@@ -480,7 +481,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       span: head.span,
     };
     const conditional = this.parseConditionalWithCondition(headAsPipeChain);
-    const span = makeSpan(head.span.start, current(this.state).span.end);
+    const span = makeSpan(head.span.start, previous(this.state).span.end);
     head = this.wrapConditionalInPostfixExpr(conditional, span);
   }
 
@@ -579,7 +580,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION) &&
     pipes.length > 0
   ) {
-    const span = makeSpan(start, current(this.state).span.end);
+    const span = makeSpan(start, previous(this.state).span.end);
     const chainAsCondition: PipeChainNode = {
       type: 'PipeChain',
       head,
@@ -588,7 +589,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       span,
     };
     const conditional = this.parseConditionalWithCondition(chainAsCondition);
-    const resultSpan = makeSpan(start, current(this.state).span.end);
+    const resultSpan = makeSpan(start, previous(this.state).span.end);
     return {
       type: 'PipeChain',
       head: this.wrapConditionalInPostfixExpr(conditional, resultSpan),
@@ -619,7 +620,10 @@ Parser.prototype.parsePostfixExpr = function (this: Parser): PostfixExprNode {
   // Site 3: Add newline lookahead before ? check
   if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION)) {
     const conditional = this.parseConditionalWithCondition(postfixExpr);
-    const span = makeSpan(postfixExpr.span.start, current(this.state).span.end);
+    const span = makeSpan(
+      postfixExpr.span.start,
+      previous(this.state).span.end
+    );
     return this.wrapConditionalInPostfixExpr(conditional, span);
   }
 
@@ -930,7 +934,7 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
       type: 'AnnotatedExpr',
       annotations,
       expression,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     } satisfies AnnotatedExprNode;
   }
 
@@ -1254,7 +1258,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
       primary: makePipeVarPrimary(methods[0]!.span),
       methods,
       defaultValue: null,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     };
     return this.parseConditionalWithCondition(postfixExpr);
   }
@@ -1282,7 +1286,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     primary: makePipeVarPrimary(methods[0]!.span),
     methods,
     defaultValue: null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   } as PostfixExprNode;
 };
 
@@ -1831,7 +1835,7 @@ Parser.prototype.parseClosureSigLiteral = function (
     type: 'ClosureSigLiteral',
     params,
     returnType,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -1932,7 +1936,7 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
       key: keyToken.value,
       keyForm: 'identifier',
       value,
-      span: makeSpan(entryStart, current(this.state).span.end),
+      span: makeSpan(entryStart, previous(this.state).span.end),
     } satisfies DictEntryNode);
 
     skipNewlines(this.state);

@@ -147,6 +147,225 @@ describe('Parser Spans', () => {
         )
       ).toBe('.upper');
     });
+
+    it('Statement/PipeChain/PostfixExpr span ends at the conditional, not trailing content', () => {
+      const source = 'true ? 1 ! 2\n"x"';
+      const ast = parse(source);
+
+      for (const type of ['Statement', 'PipeChain', 'PostfixExpr']) {
+        const node = findFirstOfType(ast, type);
+        expect(node, `expected to find ${type}`).toBeTruthy();
+        expect(
+          sliceSpan(
+            source,
+            (
+              node as {
+                span: { start: { offset: number }; end: { offset: number } };
+              }
+            ).span
+          ),
+          `${type} span`
+        ).toBe('true ? 1 ! 2');
+      }
+    });
+
+    it('TypeAssertion span ends at the type name, not trailing content', () => {
+      const source = '5:number\n"x"';
+      const ast = parse(source);
+
+      const typeAssertion = findFirstOfType(ast, 'TypeAssertion');
+      expect(typeAssertion).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            typeAssertion as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('5:number');
+    });
+
+    it('DictEntry spans end before the comma or closing bracket, not trailing content', () => {
+      const source = 'dict[a: 1, b: 2]';
+      const ast = parse(source);
+
+      const dictEntries: unknown[] = [];
+      function collectDictEntries(node: unknown): void {
+        if (!node || typeof node !== 'object') return;
+        if (
+          'type' in node &&
+          (node as { type: unknown }).type === 'DictEntry'
+        ) {
+          dictEntries.push(node);
+        }
+        for (const value of Object.values(node)) {
+          if (Array.isArray(value)) {
+            for (const item of value) collectDictEntries(item);
+          } else {
+            collectDictEntries(value);
+          }
+        }
+      }
+      collectDictEntries(ast);
+
+      expect(dictEntries.length).toBe(2);
+      const spans = dictEntries.map((entry) =>
+        sliceSpan(
+          source,
+          (
+            entry as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      );
+      expect(spans).toEqual(['a: 1', 'b: 2']);
+    });
+
+    it('NamedArg span ends at the argument value, not trailing content', () => {
+      const source = '^(description: "d", other: 1) 5';
+      const ast = parse(source);
+
+      const namedArgs: unknown[] = [];
+      function collectNamedArgs(node: unknown): void {
+        if (!node || typeof node !== 'object') return;
+        if ('type' in node && (node as { type: unknown }).type === 'NamedArg') {
+          namedArgs.push(node);
+        }
+        for (const value of Object.values(node)) {
+          if (Array.isArray(value)) {
+            for (const item of value) collectNamedArgs(item);
+          } else {
+            collectNamedArgs(value);
+          }
+        }
+      }
+      collectNamedArgs(ast);
+
+      expect(namedArgs.length).toBe(2);
+      const spans = namedArgs.map((arg) =>
+        sliceSpan(
+          source,
+          (
+            arg as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      );
+      expect(spans).toEqual(['description: "d"', 'other: 1']);
+    });
+
+    it('Destruct/DestructPattern spans end before the trailing pipe target, not trailing content', () => {
+      const source = 'list[1,2] -> destruct<$a, $b>\n"x"';
+      const ast = parse(source);
+
+      const destruct = findFirstOfType(ast, 'Destruct');
+      expect(destruct).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            destruct as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('destruct<$a, $b>');
+
+      const destructPattern = findFirstOfType(ast, 'DestructPattern');
+      expect(destructPattern).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            destructPattern as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('$a');
+    });
+
+    it('ClosureParam span ends at the default value, not trailing content', () => {
+      const source = '|x: number = 1, y| { $x }';
+      const ast = parse(source);
+
+      const closureParam = findFirstOfType(ast, 'ClosureParam');
+      expect(closureParam).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            closureParam as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('x: number = 1');
+    });
+
+    it('Error span ends at the message, not trailing content', () => {
+      const source = 'error "boom"\n"y"';
+      const ast = parse(source);
+
+      const errorNode = findFirstOfType(ast, 'Error');
+      expect(errorNode).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            errorNode as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('error "boom"');
+    });
+
+    it('UseExpr span ends at the closing >, not trailing content', () => {
+      const source = 'use<ext:foo>\n"x"';
+      const ast = parse(source);
+
+      const useExpr = findFirstOfType(ast, 'UseExpr');
+      expect(useExpr).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            useExpr as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('use<ext:foo>');
+    });
+
+    it('Closure span with a return type target retains the documented current()-lookahead exception', () => {
+      // parseClosureReturnTypeTarget leaves the parser positioned after the
+      // return type, and the Closure span end intentionally reads current()
+      // there rather than previous() (see parser-literals.ts). This is a
+      // deliberate, commented exception rather than the last-consumed-token
+      // bug the sibling tests above guard against, so the span includes the
+      // trailing newline up to (but not including) the next statement.
+      const source = '|| { 1 }:number\n"x"';
+      const ast = parse(source);
+
+      const closure = findFirstOfType(ast, 'Closure');
+      expect(closure).toBeTruthy();
+      const closureSlice = sliceSpan(
+        source,
+        (
+          closure as {
+            span: { start: { offset: number }; end: { offset: number } };
+          }
+        ).span
+      );
+      expect(closureSlice).not.toContain('"x"');
+      expect(closureSlice).toBe('|| { 1 }:number\n');
+    });
   });
 
   describe('Statement and Conditional span ends', () => {

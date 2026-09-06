@@ -35,6 +35,7 @@ import {
   advance,
   expect,
   current,
+  previous,
   isAtEnd,
   skipNewlines,
   skipNewlinesIfFollowedBy,
@@ -292,7 +293,7 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
     body,
     condition,
     annotations,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -354,7 +355,7 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
     condition,
     body,
     annotations,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -554,7 +555,7 @@ Parser.prototype.parseAssert = function (this: Parser): AssertNode {
     type: 'Assert',
     condition,
     message,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -605,7 +606,7 @@ Parser.prototype.parseError = function (
   return {
     type: 'Error',
     message,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 

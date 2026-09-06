@@ -138,7 +138,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
           if (next) {
             return await next.fn([], ctx);
           }
-          return null;
+          return '';
         };
       };
 
@@ -178,7 +178,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
           if (next) {
             return await next.fn([], ctx);
           }
-          return null;
+          return '';
         };
       };
 
@@ -294,7 +294,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
             params: [],
             fn: (_args, ctx) => {
               ctxAfterCall = ctx;
-              return null;
+              return '';
             },
           },
         },
@@ -313,7 +313,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
             params: [],
             fn: (_args, ctx) => {
               frameLocation = ctx.callStack[0]?.location;
-              return null;
+              return '';
             },
           },
         },
@@ -334,7 +334,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
             params: [],
             fn: (_args, ctx) => {
               functionName = ctx.callStack[0]?.functionName;
-              return null;
+              return '';
             },
           },
         },
