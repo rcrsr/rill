@@ -388,7 +388,7 @@ Path element types: string keys for dict lookup, number indexes for list access 
 Terminal closures receive `$` bound to the final path key.
 
 ```text
-["name", "first"] -> [name: dict[first: "Alice"]]              # "Alice" (dict path)
+["name", "given"] -> [name: dict[given: "Alice"]]              # "Alice" (dict path)
 [0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2 (list path)
 ["users", 0, "name"] -> [users: list[dict[name: "Alice"]]]    # "Alice" (mixed path)
 ["req", "draft"] -> [req: dict[draft: { "key={$}" }]]         # "key=draft" (terminal closure)
@@ -468,7 +468,7 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `identity` | `value: any` | `any` | Returns input unchanged |
 | `log` | `message: any` | `any` | Print to console, pass through |
 | `json` | `value: any` | `string` | Convert to JSON string |
-| `enumerate` | `items: list\|dict\|string` | `list` | Add index to elements |
+| `enumerate` | `items: list\|dict` | `list` | Add index to elements |
 | `range` | `start: number, stop: number, step: number = 1` | `iterator` | Generate number sequence |
 | `repeat` | `value: any, count: number` | `iterator` | Repeat value n times |
 | `chain` | `value: any, transform: any` | `any` | Apply closure(s) sequentially |

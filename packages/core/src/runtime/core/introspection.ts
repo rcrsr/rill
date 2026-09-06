@@ -70,7 +70,10 @@ export interface ParamMetadata {
  * Returns flat list combining host functions, built-ins, and script closures.
  * Namespaced functions preserve `::` separator in name field.
  * Malformed entries silently skipped (valid entries returned).
- * Script closures: reads `^(doc: "...")` annotation for description.
+ * Script closures: reads `^(description: "...")` (including the bare-string
+ * shorthand) or, when absent, the legacy `^(doc: "...")` annotation for description.
+ * Script closures: returnType reflects the closure's declared/inferred return type,
+ * falling back to 'any' only when genuinely unspecified.
  * Script closures: excludes nested closures in dicts/lists.
  *
  * Order: host functions, then built-ins, then script closures.
@@ -143,13 +146,16 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
   for (const [name, value] of ctx.variables.entries()) {
     try {
       if (isScriptCallable(value)) {
-        // Extract description from ^(doc: "...") annotation
+        // Extract description: prefer annotations.description (covers both
+        // the explicit `description: "..."` named arg and the `^("...")`
+        // shorthand, which the parser expands to the same key), falling
+        // back to the legacy `^(doc: "...")` annotation.
         let description = '';
-        if (value.annotations && 'doc' in value.annotations) {
-          const docValue = value.annotations['doc'];
-          if (typeof docValue === 'string') {
-            description = docValue;
-          }
+        const descValue = value.annotations['description'];
+        if (typeof descValue === 'string') {
+          description = descValue;
+        } else if (typeof value.annotations['doc'] === 'string') {
+          description = value.annotations['doc'];
         }
 
         // Convert params to ParamMetadata using RillParam.type
@@ -167,7 +173,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
           name,
           description,
           params,
-          returnType: 'any',
+          returnType: formatStructure(value.returnType.structure),
         });
       }
     } catch {

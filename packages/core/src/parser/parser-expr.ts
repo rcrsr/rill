@@ -70,6 +70,7 @@ import {
   parseBareHostCall,
   VALID_TYPE_NAMES,
   describeToken,
+  expectVariableName,
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
@@ -1522,11 +1523,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
 Parser.prototype.parseCapture = function (this: Parser): CaptureNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.DOLLAR, 'Expected $');
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected variable name'
-  );
+  const nameToken = expectVariableName(this.state, 'Expected variable name');
 
   let typeRef: CaptureNode['typeRef'] = null;
   let end = nameToken.span.end;

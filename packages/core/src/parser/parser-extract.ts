@@ -21,7 +21,12 @@ import {
   makeSpan,
   withRecursionDepth,
 } from './state.js';
-import { isDictStart, isNegativeNumber, describeToken } from './helpers.js';
+import {
+  isDictStart,
+  isNegativeNumber,
+  describeToken,
+  expectVariableName,
+} from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -109,11 +114,7 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
     const keyToken = advance(this.state);
     advance(this.state);
     expect(this.state, TOKEN_TYPES.DOLLAR, 'Expected $');
-    const nameToken = expect(
-      this.state,
-      TOKEN_TYPES.IDENTIFIER,
-      'Expected variable name'
-    );
+    const nameToken = expectVariableName(this.state, 'Expected variable name');
 
     let typeRef: TypeRef | null = null;
     if (check(this.state, TOKEN_TYPES.COLON)) {
@@ -133,11 +134,7 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
   }
 
   expect(this.state, TOKEN_TYPES.DOLLAR, 'Expected $, identifier:, or _');
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected variable name'
-  );
+  const nameToken = expectVariableName(this.state, 'Expected variable name');
 
   let typeRef: TypeRef | null = null;
   if (check(this.state, TOKEN_TYPES.COLON)) {

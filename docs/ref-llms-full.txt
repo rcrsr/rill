@@ -588,8 +588,8 @@ Atoms, status sidecars, `guard`, `retry`, vacancy, and recovery patterns.
 
 | Failure | Caused by | Caught by |
 |---|---|---|
-| Runtime error (uncatchable) | `error`, `assert`, divide-by-zero, OOB index, missing field, failed conversion, parameter type mismatch | nothing — propagates |
-| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion or extension `ctx.invalidate`) | `guard { }`, `retry<limit: N> { }` |
+| Runtime error (uncatchable) | `error`, `assert`, parameter type mismatch | nothing — propagates |
+| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index (`RILL-R042`), missing field (`RILL-R007`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
 
 ## Assert and error
 
@@ -667,7 +667,7 @@ Filtered form (catches only matching atoms):
       $app.fetch($url)
     }
 
-`guard` does NOT catch halts from `error`, `assert`, or runtime errors (divide-by-zero, OOB, missing field, failed conversion). Those propagate.
+`guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index (`RILL-R042`), missing field access (`RILL-R007`), and failed conversion (`RILL-R038`) — these behave like any other access halt.
 
 ## Retry
 
@@ -806,10 +806,12 @@ In closure params (validates input structure):
     $data.?$key&number              # variable existence + type check
     $data.?($expr)&list             # computed existence + type check
 
-Built-in methods take priority over dict keys:
+The 8 dict method names are reserved and cannot be used as dict keys:
 
-    dict[len: "fake"].len           # returns dict length, not "fake"
-    dict[len: "fake"]["len"]        # bracket access returns "fake"
+    len   first   empty   eq   ne   keys   values   entries
+
+    dict[len: "fake"]                # halts: reserved method name 'len'
+    dict[label: "fake"].len          # fine: dict length (non-reserved key)
 
 ## Tuple lexicographic comparison
 
@@ -1021,7 +1023,7 @@ Type-aware (key matched by value AND type):
 
 Pipe a list of keys/indexes:
 
-    list["name", "first"] -> dict[name: dict[first: "Alice"]]  # "Alice"
+    list["name", "given"] -> dict[name: dict[given: "Alice"]]  # "Alice"
     list[0, 1] -> list[list[1,2,3], list[4,5,6]]               # 2
     list[] -> dict[a: 1]                                       # dict[a: 1] (empty path = unchanged)
     list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"   # "default"

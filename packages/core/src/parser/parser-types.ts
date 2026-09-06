@@ -23,7 +23,11 @@ import {
   skipNewlines,
   withRecursionDepth,
 } from './state.js';
-import { VALID_TYPE_NAMES, parseTypeName } from './helpers.js';
+import {
+  VALID_TYPE_NAMES,
+  parseTypeName,
+  expectVariableName,
+} from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 /**
@@ -180,9 +184,8 @@ function parseSingleType(
 
   if (check(state, TOKEN_TYPES.DOLLAR)) {
     advance(state); // consume $
-    const nameToken = expect(
+    const nameToken = expectVariableName(
       state,
-      TOKEN_TYPES.IDENTIFIER,
       'Expected variable name after $'
     );
     return { kind: 'dynamic', varName: nameToken.value };

@@ -98,6 +98,11 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
       const result = await run('dict[a: 10, b: 20] => $d\n$d.a');
       expect(result).toBe(10);
     });
+
+    it('parses a negative-number key', async () => {
+      const result = await run('-1 -> dict[-1: "x"]');
+      expect(result).toBe('x');
+    });
   });
 
   // ============================================================
@@ -173,6 +178,13 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
       expect(entries[1]![0]).toBe('a');
       expect(entries[2]![0]).toBe('m');
     });
+
+    it('parses a negative-number key', async () => {
+      const result = await run('ordered[-1: "x"]');
+      expect(isOrdered(result)).toBe(true);
+      const entries = orderedEntries(result);
+      expect(entries).toEqual([['-1', 'x']]);
+    });
   });
 
   // ============================================================
@@ -214,6 +226,14 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
 
     it('throws ParseError for dict[ entry without key: value (EC-3)', () => {
       expect(() => parse('dict[1]')).toThrow(ParseError);
+    });
+
+    it('throws ParseError for dict[ entry with a negative number but no colon', () => {
+      expect(() => parse('dict[-1]')).toThrow(ParseError);
+    });
+
+    it('throws ParseError for ordered[ entry without key: value', () => {
+      expect(() => parse('ordered[1]')).toThrow(ParseError);
     });
 
     it('throws ParseError for tuple[ with key: value pair (EC-4)', () => {

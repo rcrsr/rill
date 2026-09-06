@@ -238,13 +238,17 @@ export async function evaluateBinaryExpr(
   }
   const right = resolvedRight;
 
+  let result: number;
   switch (op) {
     case '+':
-      return left + right;
+      result = left + right;
+      break;
     case '-':
-      return left - right;
+      result = left - right;
+      break;
     case '*':
-      return left * right;
+      result = left * right;
+      break;
     case '/':
       if (right === 0) {
         throwCatchableHostHalt(
@@ -257,7 +261,8 @@ export async function evaluateBinaryExpr(
           'Division by zero'
         );
       }
-      return left / right;
+      result = left / right;
+      break;
     case '%':
       if (right === 0) {
         throwCatchableHostHalt(
@@ -270,8 +275,23 @@ export async function evaluateBinaryExpr(
           'Modulo by zero'
         );
       }
-      return left % right;
+      result = left % right;
+      break;
   }
+
+  if (!Number.isFinite(result)) {
+    throwCatchableHostHalt(
+      {
+        location: node.span.start,
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateArithmetic',
+      },
+      'INVALID_INPUT',
+      `Arithmetic (${op}) produced non-finite result (${result})`
+    );
+  }
+
+  return result;
 }
 
 /**

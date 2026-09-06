@@ -504,8 +504,7 @@ tuple-element = "..." , expression           (* spread: inline tuple elements *)
      ordered[...$other]              -- spread from another ordered *)
 ordered       = "ordered" , "[" , ordered-element , { "," , ordered-element } , "]" ;
 ordered-element = "..." , expression         (* spread: inline ordered elements *)
-              | dict-key , ":" , expression  (* key-value pair *)
-              | expression ;                 (* positional element *)
+              | dict-key , ":" , expression ; (* key-value pair *)
 
 (* ============================================================ *)
 (* VARIABLES                                                    *)
@@ -715,7 +714,7 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
       0 -> ["first", "second"]                     -- "first"
 
    3. List -> dict/list: hierarchical navigation (path dispatch)
-      ["name", "first"] -> [name: [first: "Alice"]]  -- "Alice"
+      ["name", "given"] -> [name: [given: "Alice"]]  -- "Alice"
       [0, 1] -> [[1, 2], [3, 4]]                  -- 4
       ["users", 0, "name"] -> [users: [[name: "X"]]] -- "X"
 

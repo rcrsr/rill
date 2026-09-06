@@ -44,6 +44,42 @@ describe('Rill Language: Datetime Type', () => {
       expect(result).toBe(50);
     });
 
+    it('round-trips a negative year through .iso() and datetime()', async () => {
+      const result = await run(
+        'datetime(...dict[year: -50, month: 6, day: 15]) -> .iso() => $iso\n' +
+          'datetime($iso) -> .year'
+      );
+      expect(result).toBe(-50);
+    });
+
+    it('formats a negative year as a signed 6-digit extended year', async () => {
+      const result = await run(
+        'datetime(...dict[year: -50, month: 6, day: 15]) -> .iso()'
+      );
+      expect(result).toBe('-000050-06-15T00:00:00Z');
+    });
+
+    it('round-trips a year >= 10000 through .iso() and datetime()', async () => {
+      const result = await run(
+        'datetime(...dict[year: 10000, month: 1, day: 1]) -> .iso() => $iso\n' +
+          'datetime($iso) -> .year'
+      );
+      expect(result).toBe(10000);
+    });
+
+    it('formats a year >= 10000 as a signed 6-digit extended year', async () => {
+      const result = await run(
+        'datetime(...dict[year: 10000, month: 1, day: 1]) -> .iso()'
+      );
+      expect(result).toBe('+010000-01-01T00:00:00Z');
+    });
+
+    it('rejects an unsigned extended-year date-only string as #INVALID_INPUT', async () => {
+      await expectHalt(() => run('datetime("10000-01-01")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
     it('an offset-less datetime-with-time string is anchored to UTC', async () => {
       const result = await run(
         'datetime("2026-03-13T08:00:00") -> .unix => $a\n' +

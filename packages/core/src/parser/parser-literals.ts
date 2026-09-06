@@ -24,6 +24,7 @@ import type {
   RecoveryErrorNode,
   SourceLocation,
   StringLiteralNode,
+  Token,
   TupleLiteralNode,
   TypeConstructorNode,
   TypeRef,
@@ -43,12 +44,64 @@ import {
 } from './state.js';
 import {
   ATOM_NAME_SHAPE,
+  expectVariableName,
   isDictStart,
   isNegativeNumber,
   VALID_TYPE_NAMES,
 } from './helpers.js';
 import { parseTypeRef, parseFieldArgList } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
+
+// The lexer's readString() attaches this decoded-index-to-source-offset
+// breakpoint list to a STRING token when the string contains at least one
+// backslash escape. Token itself stays a plain { type, value, span } shape
+// (packages/core/src/token-types.ts) — this is a local, additive view onto
+// that same object rather than a change to the shared interface.
+interface StringTokenEscapeMap {
+  readonly escapeBreakpoints?: readonly number[];
+}
+
+/**
+ * Translates an index into a lexer-decoded string (post escape-decoding)
+ * back into the equivalent offset within the raw source text of that
+ * string's body.
+ *
+ * Each backslash escape (\n, \r, \t, \\, \") collapses a 2-character raw
+ * sequence into a single decoded character, so a decoded-string index
+ * undercounts the true source offset by one per escape that precedes it.
+ * `breakpoints` holds, in ascending order, the decoded length recorded
+ * immediately after each escape was appended; counting how many of those
+ * breakpoints are at or before `decodedIndex` gives the cumulative
+ * undercount to add back.
+ *
+ * Triple-quoted strings never decode escapes (readTripleQuoteString keeps
+ * them raw), so `breakpoints` is always undefined on that path and this
+ * function is a no-op identity translation for it.
+ */
+function mapDecodedIndexToSourceOffset(
+  decodedIndex: number,
+  breakpoints: readonly number[] | undefined
+): number {
+  if (breakpoints === undefined || breakpoints.length === 0) {
+    return decodedIndex;
+  }
+  // breakpoints is built in ascending order (readString pushes
+  // value.length after each escape, and value only grows), so the count of
+  // breakpoints at or before decodedIndex — the delta to add back — is the
+  // standard "rightmost insertion point" binary search rather than a linear
+  // scan, which matters for strings with many escapes and interpolations.
+  let lo = 0;
+  let hi = breakpoints.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (breakpoints[mid]! > decodedIndex) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return decodedIndex + lo;
+}
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -60,7 +113,8 @@ declare module './parser.js' {
       raw: string,
       baseLocation: SourceLocation,
       isTripleQuote: boolean,
-      openingNewlineWidth: number
+      openingNewlineWidth: number,
+      escapeBreakpoints?: readonly number[]
     ): (string | InterpolationNode)[];
     parseInterpolationExpr(
       source: string,
@@ -239,11 +293,15 @@ Parser.prototype.parseString = function (this: Parser): StringLiteralNode {
     }
   }
 
+  const escapeBreakpoints = (token as Token & StringTokenEscapeMap)
+    .escapeBreakpoints;
+
   const parts = this.parseStringParts(
     raw,
     token.span.start,
     isTripleQuote,
-    openingNewlineWidth
+    openingNewlineWidth,
+    escapeBreakpoints
   );
 
   return {
@@ -259,7 +317,8 @@ Parser.prototype.parseStringParts = function (
   raw: string,
   baseLocation: SourceLocation,
   isTripleQuote: boolean,
-  openingNewlineWidth: number
+  openingNewlineWidth: number,
+  escapeBreakpoints?: readonly number[]
 ): (string | InterpolationNode)[] {
   const parts: (string | InterpolationNode)[] = [];
   let i = 0;
@@ -362,12 +421,61 @@ Parser.prototype.parseStringParts = function (
       const contentStartsOnNextLine = openingNewlineConsumed && newlines === 0;
 
       if (newlines > 0) {
-        // Has newlines in raw content before interpolation
-        interpLine =
-          baseLocation.line + (openingNewlineConsumed ? 1 : 0) + newlines;
-        interpColumn = beforeInterp.length - lastNewlinePos;
-        interpOffset =
-          baseLocation.offset + quoteLen + openingNewlineWidth + exprStart;
+        // Has newlines in raw content before interpolation. A decoded '\n'
+        // is not always a real source line break: for double-quoted
+        // strings (escapeBreakpoints defined) a literal raw newline is a
+        // lexer error, so every decoded '\n' that lands exactly at an
+        // escape breakpoint was produced by decoding a \n escape — two
+        // characters on the *same* source line, not a line break. Triple-
+        // quoted strings never decode escapes (escapeBreakpoints is always
+        // undefined there), so every decoded newline they contain is real.
+        const escapeNewlineOffsets = new Set<number>();
+        if (escapeBreakpoints) {
+          for (const bp of escapeBreakpoints) {
+            if (bp - 1 < exprStart && raw[bp - 1] === '\n') {
+              escapeNewlineOffsets.add(bp - 1);
+            }
+          }
+        }
+
+        let realNewlines = newlines;
+        let lastRealNewlinePos = lastNewlinePos;
+        if (escapeNewlineOffsets.size > 0) {
+          realNewlines = 0;
+          lastRealNewlinePos = -1;
+          for (let idx = 0; idx < beforeInterp.length; idx++) {
+            if (beforeInterp[idx] === '\n' && !escapeNewlineOffsets.has(idx)) {
+              realNewlines++;
+              lastRealNewlinePos = idx;
+            }
+          }
+        }
+
+        const sourceExprStart = mapDecodedIndexToSourceOffset(
+          exprStart,
+          escapeBreakpoints
+        );
+
+        if (realNewlines > 0) {
+          const sourceLastNewlinePos = mapDecodedIndexToSourceOffset(
+            lastRealNewlinePos,
+            escapeBreakpoints
+          );
+          interpLine =
+            baseLocation.line + (openingNewlineConsumed ? 1 : 0) + realNewlines;
+          interpColumn = sourceExprStart - sourceLastNewlinePos;
+          interpOffset =
+            baseLocation.offset +
+            quoteLen +
+            openingNewlineWidth +
+            sourceExprStart;
+        } else {
+          // Every decoded newline before the interpolation came from a \n
+          // escape; the interpolation is still on the opening source line.
+          interpLine = baseLocation.line;
+          interpColumn = baseLocation.column + quoteLen + sourceExprStart;
+          interpOffset = baseLocation.offset + quoteLen + sourceExprStart;
+        }
       } else if (contentStartsOnNextLine) {
         // Triple-quote string with skipped opening newline, but interpolation on first content line
         interpLine = baseLocation.line + 1;
@@ -376,10 +484,19 @@ Parser.prototype.parseStringParts = function (
           baseLocation.offset + quoteLen + openingNewlineWidth + exprStart;
       } else {
         // Interpolation starts on the same line as the opening delimiter,
-        // whether that delimiter is " or """.
+        // whether that delimiter is " or """. Triple-quoted strings never
+        // decode escapes (escapeBreakpoints is always undefined for them),
+        // so mapDecodedIndexToSourceOffset is a no-op there; for
+        // double-quoted strings it corrects exprStart — an index into the
+        // lexer's escape-decoded value — back to its offset in the raw
+        // source, undoing the one-column-per-preceding-escape undercount.
+        const sourceExprStart = mapDecodedIndexToSourceOffset(
+          exprStart,
+          escapeBreakpoints
+        );
         interpLine = baseLocation.line;
-        interpColumn = baseLocation.column + quoteLen + exprStart;
-        interpOffset = baseLocation.offset + quoteLen + exprStart;
+        interpColumn = baseLocation.column + quoteLen + sourceExprStart;
+        interpOffset = baseLocation.offset + quoteLen + sourceExprStart;
       }
 
       const interpolation = this.parseInterpolationExpr(exprSource, {
@@ -605,14 +722,10 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     // Parse variable key: $variableName
     advance(this.state); // consume $
-    if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P001,
-        'Expected variable name after $',
-        current(this.state).span.start
-      );
-    }
-    const varToken = advance(this.state);
+    const varToken = expectVariableName(
+      this.state,
+      'Expected variable name after $'
+    );
     key = {
       kind: 'variable',
       variableName: varToken.value,
@@ -1159,11 +1272,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
   }
 
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected parameter name'
-  );
+  const nameToken = expectVariableName(this.state, 'Expected parameter name');
 
   if (
     VALID_TYPE_NAMES.includes(
@@ -1394,7 +1503,8 @@ Parser.prototype.parseCollectionLiteral = function (
         !check(this.state, TOKEN_TYPES.LPAREN) &&
         !check(this.state, TOKEN_TYPES.LIST_LBRACKET) &&
         !check(this.state, TOKEN_TYPES.LBRACKET) &&
-        !check(this.state, TOKEN_TYPES.DICT_LBRACKET)
+        !check(this.state, TOKEN_TYPES.DICT_LBRACKET) &&
+        !isNegativeNumber(this.state)
       ) {
         throw new ParseError(
           ERROR_IDS.RILL_P004,

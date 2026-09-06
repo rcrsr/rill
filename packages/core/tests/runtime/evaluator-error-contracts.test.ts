@@ -1234,7 +1234,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from multiple dict entries (first value fails)', async () => {
         try {
-          await run('dict[first: $undefined, second: 42]');
+          await run('dict[alpha: $undefined, beta: 42]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);

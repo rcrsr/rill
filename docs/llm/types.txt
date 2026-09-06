@@ -64,10 +64,12 @@ In closure params (validates input structure):
     $data.?$key&number              # variable existence + type check
     $data.?($expr)&list             # computed existence + type check
 
-Built-in methods take priority over dict keys:
+The 8 dict method names are reserved and cannot be used as dict keys:
 
-    dict[len: "fake"].len           # returns dict length, not "fake"
-    dict[len: "fake"]["len"]        # bracket access returns "fake"
+    len   first   empty   eq   ne   keys   values   entries
+
+    dict[len: "fake"]                # halts: reserved method name 'len'
+    dict[label: "fake"].len          # fine: dict length (non-reserved key)
 
 ## Tuple lexicographic comparison
 
