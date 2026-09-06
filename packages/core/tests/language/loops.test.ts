@@ -689,21 +689,24 @@ describe('Rill Runtime: Loops', () => {
   });
 
   // ============================================================
-  // AC-NOD-16: while and do as variable names fail parsing
+  // while and do as variable names
   // ============================================================
 
-  describe('Reserved Keywords: while and do as variable names [AC-NOD-16]', () => {
-    it('[AC-NOD-16] $while fails parsing with invalid-identifier error', () => {
-      expect(() => parse('$while')).toThrow();
+  describe('Keyword-named variables: while and do', () => {
+    it('$while parses as a variable reference', () => {
+      expect(() => parse('$while')).not.toThrow();
     });
 
-    it('[AC-NOD-16] $do fails parsing with invalid-identifier error', () => {
-      expect(() => parse('$do')).toThrow();
+    it('$do parses as a variable reference', () => {
+      expect(() => parse('$do')).not.toThrow();
     });
 
-    it('[AC-NOD-16] while as capture target fails parsing', () => {
-      // "val" => $while — $while requires IDENTIFIER after $
-      expect(() => parse('"val" => $while')).toThrow();
+    it('while as capture target parses and reads back', async () => {
+      // "val" => $while — capture-target parsing accepts value-context
+      // keyword names, matching bare variable reads.
+      expect(() => parse('"val" => $while')).not.toThrow();
+      const result = await run('"val" => $while\n$while');
+      expect(result).toBe('val');
     });
   });
 

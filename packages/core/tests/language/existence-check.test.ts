@@ -132,7 +132,7 @@ describe('Existence Check', () => {
       await expect(
         run(`
           dict[x: 1] => $data
-          $data.?$true
+          $data.?$@
         `)
       ).rejects.toThrow('Expected variable name after .?$');
     });

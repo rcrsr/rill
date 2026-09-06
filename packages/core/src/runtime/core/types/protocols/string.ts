@@ -55,11 +55,10 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     // integer or fractional digits, optional scientific-notation exponent.
     // This rejects hex/octal/binary prefixes (0x, 0o, 0b), surrounding
     // whitespace, and the bare "NaN" word that Number() would otherwise
-    // silently accept. "Infinity"/"-Infinity" stay accepted (unpadded), the
-    // one non-decimal token bare Number() already parsed here.
+    // silently accept. "Infinity"/"-Infinity" are rejected by the same
+    // guard: rill numbers are always finite.
     const DECIMAL = /^-?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
-    const isInfinity = str === 'Infinity' || str === '-Infinity';
-    if (!isInfinity && !DECIMAL.test(str)) {
+    if (!DECIMAL.test(str)) {
       throw new RuntimeError(
         ERROR_IDS.RILL_R064,
         `cannot convert string "${str}" to number`

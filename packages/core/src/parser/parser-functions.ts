@@ -29,7 +29,7 @@ import {
   peek,
   skipNewlines,
 } from './state.js';
-import { isIdentifierOrKeyword } from './helpers.js';
+import { isIdentifierOrKeyword, expectVariableName } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -212,11 +212,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
 Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.DOLLAR, 'Expected $');
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected variable name'
-  );
+  const nameToken = expectVariableName(this.state, 'Expected variable name');
 
   // Parse optional .property chain: $math.double(), $obj.nested.method()
   const accessChain: string[] = [];
@@ -331,9 +327,8 @@ Parser.prototype.parseTypeOperation = function (
   // Disambiguation: $identifier → dynamic type reference
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     advance(this.state); // consume $
-    const nameToken = expect(
+    const nameToken = expectVariableName(
       this.state,
-      TOKEN_TYPES.IDENTIFIER,
       'Expected variable name after $'
     );
     const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };
@@ -379,9 +374,8 @@ Parser.prototype.parsePostfixTypeOperation = function (
   // Disambiguation: $identifier → dynamic type reference
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     advance(this.state); // consume $
-    const nameToken = expect(
+    const nameToken = expectVariableName(
       this.state,
-      TOKEN_TYPES.IDENTIFIER,
       'Expected variable name after $'
     );
     const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };

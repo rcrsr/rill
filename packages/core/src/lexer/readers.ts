@@ -183,10 +183,22 @@ export function readString(state: LexerState): Token {
   advance(state); // consume opening "
 
   let value = '';
+  // Every decoded escape (\n, \r, \t, \\, \") shrinks a 2-character raw
+  // sequence into a single decoded character, so an index into `value`
+  // undercounts the matching offset in the raw source by one per escape
+  // that precedes it. Record the decoded length immediately after each
+  // escape is appended so a decoded-string index can later be translated
+  // back to its true source offset (see parser-literals.ts's
+  // mapDecodedIndexToSourceOffset). Escape decoding is suspended once an
+  // interpolation's braceDepth > 0 (below), so breakpoints only ever land
+  // in the literal segments of the string, which is exactly where the
+  // parser needs to translate positions.
+  const escapeBreakpoints: number[] = [];
   while (!isAtEnd(state) && peek(state) !== '"') {
     if (peek(state) === '\\') {
       advance(state); // consume backslash
       value += processEscape(state);
+      escapeBreakpoints.push(value.length);
     } else if (peek(state) === '{') {
       // Check for brace escaping ({{) outside interpolation
       if (peek(state, 1) === '{') {
@@ -236,7 +248,11 @@ export function readString(state: LexerState): Token {
 
   if (peek(state) === '"') {
     advance(state); // consume closing "
-    return makeToken(TOKEN_TYPES.STRING, value, start, currentLocation(state));
+    const token: Token & { escapeBreakpoints?: readonly number[] } = {
+      ...makeToken(TOKEN_TYPES.STRING, value, start, currentLocation(state)),
+      ...(escapeBreakpoints.length > 0 ? { escapeBreakpoints } : {}),
+    };
+    return token;
   }
 
   // If we reach here, EOF was reached before closing "

@@ -159,6 +159,48 @@ describe('Rill Runtime: Arithmetic', () => {
         'Arithmetic requires number, got string'
       );
     });
+
+    it('halts #INVALID_INPUT when multiplication overflows to Infinity', async () => {
+      await expectHalt(() => run('"1e308" -> number => $x\n($x * 10)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('halts #INVALID_INPUT when addition overflows to -Infinity', async () => {
+      await expectHalt(() => run('"-1e308" -> number => $x\n($x + $x)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('still evaluates finite arithmetic after the overflow check', async () => {
+      expect(await run('(5 + 3)')).toBe(8);
+      expect(await run('(6 * 7)')).toBe(42);
+      expect(await run('(20 / 4)')).toBe(5);
+    });
+  });
+
+  describe('String to Number Conversion', () => {
+    it('halts converting "Infinity" to number', async () => {
+      await expect(run('"Infinity" -> number')).rejects.toThrow(
+        'cannot convert string "Infinity" to number'
+      );
+    });
+
+    it('halts converting "-Infinity" to number', async () => {
+      await expect(run('"-Infinity" -> number')).rejects.toThrow(
+        'cannot convert string "-Infinity" to number'
+      );
+    });
+
+    it('halts converting "NaN" to number', async () => {
+      await expect(run('"NaN" -> number')).rejects.toThrow(
+        'cannot convert string "NaN" to number'
+      );
+    });
+
+    it('still converts clean decimal strings to number', async () => {
+      expect(await run('"3.5" -> number')).toBe(3.5);
+    });
   });
 
   describe('In Conditionals', () => {

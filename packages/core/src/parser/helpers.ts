@@ -11,7 +11,14 @@ import type {
   SourceSpan,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { type ParserState, check, peek, expect, current } from './state.js';
+import {
+  type ParserState,
+  check,
+  peek,
+  expect,
+  current,
+  advance,
+} from './state.js';
 import { VALID_TYPE_NAMES } from '../constants.js';
 import { ERROR_IDS } from '../error-registry.js';
 import type { Token } from '../types.js';
@@ -34,6 +41,48 @@ export const ATOM_NAME_SHAPE = /^[A-Z][A-Z0-9_]*$/;
 // ============================================================
 // LOOKAHEAD PREDICATES
 // ============================================================
+
+/**
+ * Value-context keyword token types that may also serve as a variable or
+ * closure-parameter name. These are the same keywords the lexer already
+ * retokenizes to METHOD_NAME after a dot in method-call position; here the
+ * `$` sigil (variables) and the parameter position (closure params) are
+ * equally unambiguous, so the parser accepts either token type directly
+ * instead of adding a lexer retokenization pass.
+ * @internal
+ */
+const VALUE_CONTEXT_KEYWORD_TYPES: readonly string[] = [
+  TOKEN_TYPES.TRUE,
+  TOKEN_TYPES.FALSE,
+  TOKEN_TYPES.BREAK,
+  TOKEN_TYPES.RETURN,
+  TOKEN_TYPES.YIELD,
+  TOKEN_TYPES.PASS,
+  TOKEN_TYPES.ASSERT,
+  TOKEN_TYPES.ERROR,
+  TOKEN_TYPES.GUARD,
+  TOKEN_TYPES.RETRY,
+  TOKEN_TYPES.WHILE,
+  TOKEN_TYPES.DO,
+];
+
+/**
+ * Expect a variable or closure-parameter name: an IDENTIFIER, or any
+ * value-context keyword token (true, false, break, return, yield, pass,
+ * assert, error, guard, retry, while, do). Keywords are valid names in
+ * these positions because there is no ambiguity with their keyword usage.
+ * @internal
+ */
+export function expectVariableName(state: ParserState, message: string): Token {
+  const token = current(state);
+  if (
+    token.type === TOKEN_TYPES.IDENTIFIER ||
+    VALUE_CONTEXT_KEYWORD_TYPES.includes(token.type)
+  ) {
+    return advance(state);
+  }
+  return expect(state, TOKEN_TYPES.IDENTIFIER, message);
+}
 
 /**
  * Check if token can be used as an identifier in function names

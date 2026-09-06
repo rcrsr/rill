@@ -202,8 +202,24 @@ function toNativeValue(value: RillValue): NativeValue {
   return result;
 }
 
-/** Reserved dict method names that cannot be overridden */
-const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
+/**
+ * Reserved dict method names that cannot be overridden.
+ * Must match the full key set of DICT_METHODS in
+ * runtime/ext/builtins/methods/tables.ts (len, first, empty, eq, ne, keys,
+ * values, entries). Kept as a literal array rather than an import because
+ * core/ must not import from ext/; a runtime-level parity test guards
+ * against drift between the two.
+ */
+export const RESERVED_DICT_METHODS = [
+  'len',
+  'first',
+  'empty',
+  'eq',
+  'ne',
+  'keys',
+  'values',
+  'entries',
+] as const;
 
 /**
  * Brand keys used internally to discriminate runtime value shapes

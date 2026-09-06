@@ -195,6 +195,15 @@ describe('Rill Language: sort primitive', () => {
       );
     });
 
+    it('mixed-type dict keys via the default extractor halt with #TYPE_MISMATCH', async () => {
+      // [SPEC] dict[b: 1, 2: "x"] mixes a string key and a number key.
+      // With no key_fn argument, sort falls back to the default key extractor,
+      // which must halt on the mixed key types rather than sorting.
+      await expectHalt(() => run('dict[b: 1, 2: "x"] -> sort'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
     it('AC-ERR-2 / EC-2: extractor returning vacant value halts with #INVALID_INPUT', async () => {
       // [SPEC] $.score on a dict missing that field raises RILL-R009, not null.
       // Host-inject null as the extractor return value to reach sort's INVALID_INPUT check.

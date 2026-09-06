@@ -474,10 +474,11 @@ async function evaluateDictMultiKeyFromList(
 }
 
 /**
- * Reject dict keys that collide with reserved method names (keys, values,
- * entries) or reserved brand keys used internally to discriminate runtime
- * value shapes (__type, __rill_atom, __rill_tuple, etc.). Halts catchably
- * when the key is unusable; a no-op otherwise.
+ * Reject dict keys that collide with reserved method names (len, first,
+ * empty, eq, ne, keys, values, entries) or reserved brand keys used
+ * internally to discriminate runtime value shapes (__type, __rill_atom,
+ * __rill_tuple, etc.). Halts catchably when the key is unusable; a no-op
+ * otherwise.
  */
 export function assertUsableDictKey(
   s: EvalState,
@@ -495,7 +496,16 @@ export function assertUsableDictKey(
       `Cannot use reserved method name '${stringKey}' as dict key`,
       {
         key: stringKey,
-        reservedMethods: ['keys', 'values', 'entries'],
+        reservedMethods: [
+          'len',
+          'first',
+          'empty',
+          'eq',
+          'ne',
+          'keys',
+          'values',
+          'entries',
+        ],
       }
     );
   }
@@ -517,7 +527,8 @@ export function assertUsableDictKey(
  * Evaluate dict literal.
  * All callables in the dict are bound to the containing dict via boundDict property.
  *
- * Reserved method names (keys, values, entries) cannot be used as dict keys.
+ * Reserved method names (len, first, empty, eq, ne, keys, values, entries)
+ * cannot be used as dict keys.
  * Multi-key entries (tuple keys) expand to multiple entries with shared value.
  * Errors from value evaluation propagate to caller.
  */

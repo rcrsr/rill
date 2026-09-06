@@ -21,7 +21,7 @@ import {
   skipNewlines,
   skipNewlinesIfFollowedBy,
 } from './state.js';
-import { isMethodCallWithArgs } from './helpers.js';
+import { isMethodCallWithArgs, expectVariableName } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { ParseError } from '../error-classes.js';
@@ -79,11 +79,7 @@ Parser.prototype.parseVariable = function (this: Parser): VariableNode {
     return this.makeVariableWithAccess(null, true, start);
   }
 
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected variable name'
-  );
+  const nameToken = expectVariableName(this.state, 'Expected variable name');
 
   return this.makeVariableWithAccess(nameToken.value, false, start);
 };
@@ -211,7 +207,7 @@ Parser.prototype.parseFieldAccessElement = function (
     const errorMsg = isExistenceCheck
       ? 'Expected variable name after .?$'
       : 'Expected variable name after .$';
-    const nameToken = expect(this.state, TOKEN_TYPES.IDENTIFIER, errorMsg);
+    const nameToken = expectVariableName(this.state, errorMsg);
     return {
       kind: 'variable',
       variableName: nameToken.value,

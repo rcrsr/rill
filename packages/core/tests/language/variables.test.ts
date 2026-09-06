@@ -117,6 +117,27 @@ describe('Rill Runtime: Variables', () => {
       expect(context.variables.get('x')).toBe('a');
       expect(context.variables.get('y')).toBe('b');
     });
+
+    describe('keyword names as variable names', () => {
+      const keywordNames = [
+        'true',
+        'false',
+        'break',
+        'return',
+        'yield',
+        'pass',
+        'assert',
+        'error',
+        'guard',
+        'retry',
+        'while',
+        'do',
+      ];
+
+      it.each(keywordNames)('allows $%s as a variable name', async (kw) => {
+        expect(await run(`$${kw} + 1`, { variables: { [kw]: 5 } })).toBe(6);
+      });
+    });
   });
 
   describe('Pipe Variable ($)', () => {
@@ -260,6 +281,47 @@ describe('Rill Runtime: Variables', () => {
       expect(variable!.accessChain[1]).toHaveProperty('field', 'name');
       expect(variable!.accessChain[2]).toHaveProperty('accessKind', 'bracket');
       expect(variable!.accessChain[3]).toHaveProperty('field', 'value');
+    });
+  });
+
+  describe('keyword names as closure parameter names', () => {
+    const keywordNames = [
+      'true',
+      'false',
+      'break',
+      'return',
+      'yield',
+      'pass',
+      'assert',
+      'error',
+      'guard',
+      'retry',
+      'while',
+      'do',
+    ];
+
+    it.each(keywordNames)(
+      'allows %s as a closure parameter name',
+      async (kw) => {
+        expect(await run(`|${kw}| ($${kw} * 2) => $f\n5 -> $f()`)).toBe(10);
+      }
+    );
+  });
+
+  describe('keyword names in other $-variable positions', () => {
+    it('allows a keyword as a capture target', async () => {
+      expect(await run('"x" => $error\n$error')).toBe('x');
+    });
+
+    it('allows a closure call through a keyword-named variable', async () => {
+      expect(await run('|x| ($x) => $do\n$do("y")')).toBe('y');
+    });
+
+    it('allows keyword names as destruct targets', async () => {
+      const { context } = await runWithContext(
+        'list[1, 2] -> destruct<$guard, $retry>'
+      );
+      expect(context.variables.get('retry')).toBe(2);
     });
   });
 });
