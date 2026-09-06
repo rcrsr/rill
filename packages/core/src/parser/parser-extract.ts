@@ -220,27 +220,36 @@ Parser.prototype.parseSlice = function (this: Parser): SliceNode {
       sliceStart = this.parseSliceBound();
     }
 
-    if (!check(this.state, TOKEN_TYPES.COLON)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P001,
-        "slice requires at least one ':' separator",
-        current(this.state).span.start
-      );
-    }
-
-    advance(this.state); // consume first :
-
-    if (
-      !check(this.state, TOKEN_TYPES.COLON) &&
-      !check(this.state, TOKEN_TYPES.GT)
-    ) {
-      sliceStop = this.parseSliceBound();
-    }
-
-    if (check(this.state, TOKEN_TYPES.COLON)) {
-      advance(this.state);
+    // Handle :: after a start value as shorthand for empty stop and a step
+    // separator (e.g., slice<1::2> means [1::2])
+    if (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
+      advance(this.state); // consume ::
       if (!check(this.state, TOKEN_TYPES.GT)) {
         sliceStep = this.parseSliceBound();
+      }
+    } else {
+      if (!check(this.state, TOKEN_TYPES.COLON)) {
+        throw new ParseError(
+          ERROR_IDS.RILL_P001,
+          "slice requires at least one ':' separator",
+          current(this.state).span.start
+        );
+      }
+
+      advance(this.state); // consume first :
+
+      if (
+        !check(this.state, TOKEN_TYPES.COLON) &&
+        !check(this.state, TOKEN_TYPES.GT)
+      ) {
+        sliceStop = this.parseSliceBound();
+      }
+
+      if (check(this.state, TOKEN_TYPES.COLON)) {
+        advance(this.state);
+        if (!check(this.state, TOKEN_TYPES.GT)) {
+          sliceStep = this.parseSliceBound();
+        }
       }
     }
   }

@@ -524,6 +524,7 @@ async function invokeRegularScriptCallable(
   if (
     params.length === 1 &&
     args.length === 1 &&
+    args[0] !== undefined &&
     params[0]!.type === undefined
   ) {
     const only = params[0]!;

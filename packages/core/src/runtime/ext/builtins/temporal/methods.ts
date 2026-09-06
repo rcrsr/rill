@@ -447,9 +447,25 @@ export const mDurMultiply: RillMethod = (receiver, args, _ctx, location) => {
       location
     );
   }
+  const months = dur.months * n;
+  const ms = dur.ms * n;
+  if (!Number.isFinite(months) || !Number.isFinite(ms)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      'duration.multiply() would produce a non-finite result',
+      location
+    );
+  }
+  if (!Number.isInteger(months)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      'duration.multiply() would produce a fractional month value',
+      location
+    );
+  }
   return {
     __rill_duration: true,
-    months: dur.months * n,
-    ms: dur.ms * n,
+    months,
+    ms,
   } as unknown as RillValue;
 };

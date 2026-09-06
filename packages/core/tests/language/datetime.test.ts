@@ -482,6 +482,33 @@ describe('Rill Language: Datetime Type', () => {
       });
     });
 
+    it('an hour of 24 in string form halts #INVALID_INPUT instead of rolling to the next day', async () => {
+      await expectHalt(() => run('datetime("2024-01-01T24:00:00")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('a string-form hour of 24 halts with the same component detail as the named-component form', async () => {
+      await expectHaltMessage(
+        () => run('datetime("2024-01-01T24:00:00")'),
+        'Invalid datetime component hour: 24'
+      );
+      await expectHaltMessage(
+        () => run('datetime(...dict[year: 2024, month: 1, day: 1, hour: 24])'),
+        'Invalid datetime component hour: 24'
+      );
+    });
+
+    it('an hour of 23:59:59 in string form is accepted at the day boundary', async () => {
+      const result = await run('datetime("2024-01-01T23:59:59Z") -> .hour');
+      expect(result).toBe(23);
+    });
+
+    it('a date-only string is unaffected by time-of-day validation', async () => {
+      const result = await run('datetime("2024-01-01") -> .day');
+      expect(result).toBe(1);
+    });
+
     it('duration(months: 1.5) halts at construction', async () => {
       await expectHaltMessage(
         () => run('duration(...dict[months: 1.5])'),

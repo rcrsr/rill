@@ -39,6 +39,7 @@ import {
   skipNewlines,
   skipNewlinesIfFollowedBy,
   makeSpan,
+  reportError,
 } from './state.js';
 import {
   ATOM_NAME_SHAPE,
@@ -59,7 +60,7 @@ declare module './parser.js' {
       raw: string,
       baseLocation: SourceLocation,
       isTripleQuote: boolean,
-      openingNewlineConsumed: boolean
+      openingNewlineWidth: number
     ): (string | InterpolationNode)[];
     parseInterpolationExpr(
       source: string,
@@ -107,6 +108,12 @@ Parser.prototype.parseAtomLiteral = function (
 
   if (!ATOM_NAME_SHAPE.test(name)) {
     const message = `Invalid atom name '#${name}'; expected [A-Z][A-Z0-9_]*`;
+    // Record the error on the parser's error collection so
+    // parseWithRecovery reports success: false for shape-invalid atoms.
+    // Without this call, parser.errors remains empty and the caller
+    // incorrectly reports a successful parse despite a RecoveryErrorNode
+    // in the AST.
+    reportError(this.state, ERROR_IDS.RILL_P004, message, token.span.start);
     return {
       type: 'RecoveryError',
       message,
@@ -154,6 +161,41 @@ Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
     return this.parseTupleOrDict();
   }
 
+  // Negative number literal: -42
+  if (isNegativeNumber(this.state)) {
+    const start = current(this.state).span.start;
+    advance(this.state); // consume MINUS
+    const numToken = advance(this.state); // consume NUMBER
+    return {
+      type: 'NumberLiteral',
+      value: -parseFloat(numToken.value),
+      span: makeSpan(start, numToken.span.end),
+    };
+  }
+
+  // Atom literal: #NAME
+  if (check(this.state, TOKEN_TYPES.ATOM)) {
+    return this.parseAtomLiteral();
+  }
+
+  // Keyword-prefixed collection literals: list[...], dict[...], tuple[...], ordered[...]
+  if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
+    advance(this.state);
+    return this.parseCollectionLiteral('list');
+  }
+  if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
+    advance(this.state);
+    return this.parseCollectionLiteral('dict');
+  }
+  if (check(this.state, TOKEN_TYPES.TUPLE_LBRACKET)) {
+    advance(this.state);
+    return this.parseCollectionLiteral('tuple');
+  }
+  if (check(this.state, TOKEN_TYPES.ORDERED_LBRACKET)) {
+    advance(this.state);
+    return this.parseCollectionLiteral('ordered');
+  }
+
   const token = current(this.state);
   let hint = '';
   if (token.type === TOKEN_TYPES.ASSIGN) {
@@ -181,14 +223,27 @@ Parser.prototype.parseString = function (this: Parser): StringLiteralNode {
   const startOffset = token.span.start.offset;
   const isTripleQuote =
     this.state.source.slice(startOffset, startOffset + 3) === '"""';
-  const openingNewlineConsumed =
-    isTripleQuote && this.state.source[startOffset + 3] === '\n';
+  // The lexer skips a Python-style opening newline after the delimiter,
+  // consuming a CRLF pair (\r\n) as a unit or a bare LF (\n) alone. The
+  // parser must consume the matching width here so offset/line math for
+  // any interpolation later in the string stays aligned with the lexer.
+  let openingNewlineWidth = 0;
+  if (isTripleQuote) {
+    if (
+      this.state.source[startOffset + 3] === '\r' &&
+      this.state.source[startOffset + 4] === '\n'
+    ) {
+      openingNewlineWidth = 2;
+    } else if (this.state.source[startOffset + 3] === '\n') {
+      openingNewlineWidth = 1;
+    }
+  }
 
   const parts = this.parseStringParts(
     raw,
     token.span.start,
     isTripleQuote,
-    openingNewlineConsumed
+    openingNewlineWidth
   );
 
   return {
@@ -204,7 +259,7 @@ Parser.prototype.parseStringParts = function (
   raw: string,
   baseLocation: SourceLocation,
   isTripleQuote: boolean,
-  openingNewlineConsumed: boolean
+  openingNewlineWidth: number
 ): (string | InterpolationNode)[] {
   const parts: (string | InterpolationNode)[] = [];
   let i = 0;
@@ -232,6 +287,34 @@ Parser.prototype.parseStringParts = function (
       let depth = 1;
       i++;
       while (i < raw.length && depth > 0) {
+        if (raw[i] === '"') {
+          // Mirrors the nested-string skip in lexer/readers.ts: a nested
+          // string literal's own brace characters don't belong to the
+          // interpolation's depth count, so skip the whole literal (or, for
+          // a nested triple-quote, the whole triple-quoted unit) instead of
+          // counting braces inside it.
+          if (raw[i + 1] === '"' && raw[i + 2] === '"') {
+            i += 3;
+            while (
+              i < raw.length &&
+              !(raw[i] === '"' && raw[i + 1] === '"' && raw[i + 2] === '"')
+            ) {
+              i++;
+            }
+            if (i < raw.length) i += 3;
+          } else {
+            i++; // consume opening "
+            while (i < raw.length && raw[i] !== '"') {
+              if (raw[i] === '\\') {
+                i += 2;
+              } else {
+                i++;
+              }
+            }
+            if (i < raw.length) i++; // consume closing "
+          }
+          continue;
+        }
         if (raw[i] === '{') depth++;
         else if (raw[i] === '}') depth--;
         i++;
@@ -256,15 +339,19 @@ Parser.prototype.parseStringParts = function (
 
       // Calculate the actual position of the interpolation in the source
       // baseLocation is the string token start (the opening quote(s))
-      // Delimiter length is 1 for " and 3 for """. The +1 line / delimiter+1
-      // offset adjustment for a consumed opening newline only applies when
-      // the lexer actually skipped one (Python-style, """ strings only).
+      // Delimiter length is 1 for " and 3 for """. The line/offset
+      // adjustment for a consumed opening newline only applies when the
+      // lexer actually skipped one (Python-style, """ strings only), and
+      // that skipped newline is 1 source character for a bare \n or 2 for
+      // a \r\n pair — openingNewlineWidth carries that count so a CRLF
+      // opening still maps the offset to the right source character.
       //
       // We need to map the position in raw to absolute source location
       const beforeInterp = raw.slice(0, exprStart);
       const newlines = (beforeInterp.match(/\n/g) || []).length;
       const lastNewlinePos = beforeInterp.lastIndexOf('\n');
       const quoteLen = isTripleQuote ? 3 : 1;
+      const openingNewlineConsumed = openingNewlineWidth > 0;
 
       let interpLine: number;
       let interpColumn: number;
@@ -280,15 +367,13 @@ Parser.prototype.parseStringParts = function (
           baseLocation.line + (openingNewlineConsumed ? 1 : 0) + newlines;
         interpColumn = beforeInterp.length - lastNewlinePos;
         interpOffset =
-          baseLocation.offset +
-          quoteLen +
-          (openingNewlineConsumed ? 1 : 0) +
-          exprStart;
+          baseLocation.offset + quoteLen + openingNewlineWidth + exprStart;
       } else if (contentStartsOnNextLine) {
         // Triple-quote string with skipped opening newline, but interpolation on first content line
         interpLine = baseLocation.line + 1;
         interpColumn = 1 + exprStart;
-        interpOffset = baseLocation.offset + quoteLen + 1 + exprStart;
+        interpOffset =
+          baseLocation.offset + quoteLen + openingNewlineWidth + exprStart;
       } else {
         // Interpolation starts on the same line as the opening delimiter,
         // whether that delimiter is " or """.

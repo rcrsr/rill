@@ -247,6 +247,15 @@ export const mLower: RillMethod = (receiver) =>
 export const mUpper: RillMethod = (receiver) =>
   formatValue(receiver).toUpperCase();
 
+/**
+ * Escape `$` as `$$` in a replacement string so JS `String.prototype.replace`
+ * treats it as a literal dollar sign instead of interpreting replacement
+ * patterns like $&, $1, $<name>, or $`.
+ */
+function escapeReplacementDollars(replacement: string): string {
+  return replacement.replace(/\$/g, '$$$$');
+}
+
 /** Replace first regex match. Invalid pattern halts with INVALID_INPUT. */
 export const mReplace: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
@@ -262,7 +271,7 @@ export const mReplace: RillMethod = (receiver, args, ctx, location) => {
       `replace: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
     );
   }
-  return str.replace(re, replacement);
+  return str.replace(re, escapeReplacementDollars(replacement));
 };
 
 /** Replace all regex matches. Invalid pattern halts with INVALID_INPUT. */
@@ -280,7 +289,7 @@ export const mReplaceAll: RillMethod = (receiver, args, ctx, location) => {
       `.replace_all: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
     );
   }
-  return str.replace(re, replacement);
+  return str.replace(re, escapeReplacementDollars(replacement));
 };
 
 /** Check if string contains substring */
@@ -370,42 +379,60 @@ export const mRepeat: RillMethod = (receiver, args, ctx, location) => {
   }
 };
 
-/** Pad start to length with fill string */
-export const mPadStart: RillMethod = (receiver, args, ctx, location) => {
-  const str = formatValue(receiver);
-  const length = typeof args[0] === 'number' ? args[0] : str.length;
-  const fill = typeof args[1] === 'string' ? args[1] : ' ';
+/**
+ * Build a code-point-aware pad for padStart/padEnd. Measures `str` and `fill`
+ * in code points (not UTF-16 code units) so astral characters count as one
+ * unit and are never split across a surrogate pair boundary.
+ */
+function buildCodePointPad(
+  str: string,
+  length: number,
+  fill: string,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined,
+  fnName: 'pad_start' | 'pad_end'
+): string {
+  const strCodePoints = Array.from(str);
+  const shortfall = length - strCodePoints.length;
+  if (shortfall <= 0) return '';
+  const fillCodePoints = Array.from(fill);
+  if (fillCodePoints.length === 0) return '';
   try {
-    return str.padStart(length, fill);
+    // Repeat the fill (as a whole string, so no surrogate pair is ever
+    // split) enough times to cover the shortfall, then trim to the exact
+    // code-point count. Native `repeat` throws RangeError fast for an
+    // over-large result instead of looping to build it byte by byte.
+    const repetitions = Math.ceil(shortfall / fillCodePoints.length);
+    const repeated = fill.repeat(repetitions);
+    return Array.from(repeated).slice(0, shortfall).join('');
   } catch (e) {
     if (e instanceof RangeError) {
       throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'pad_start' },
+        { location, sourceId: ctx.sourceId, fn: fnName },
         'INVALID_INPUT',
-        `pad_start: length ${length} produces a string too large to allocate`
+        `${fnName}: length ${length} produces a string too large to allocate`
       );
     }
     throw e;
   }
+}
+
+/** Pad start to length with fill string */
+export const mPadStart: RillMethod = (receiver, args, ctx, location) => {
+  const str = formatValue(receiver);
+  const length = typeof args[0] === 'number' ? args[0] : Array.from(str).length;
+  const fill = typeof args[1] === 'string' ? args[1] : ' ';
+  const pad = buildCodePointPad(str, length, fill, ctx, location, 'pad_start');
+  return pad + str;
 };
 
 /** Pad end to length with fill string */
 export const mPadEnd: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
-  const length = typeof args[0] === 'number' ? args[0] : str.length;
+  const length = typeof args[0] === 'number' ? args[0] : Array.from(str).length;
   const fill = typeof args[1] === 'string' ? args[1] : ' ';
-  try {
-    return str.padEnd(length, fill);
-  } catch (e) {
-    if (e instanceof RangeError) {
-      throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'pad_end' },
-        'INVALID_INPUT',
-        `pad_end: length ${length} produces a string too large to allocate`
-      );
-    }
-    throw e;
-  }
+  const pad = buildCodePointPad(str, length, fill, ctx, location, 'pad_end');
+  return str + pad;
 };
 
 /** Equality check (deep structural comparison) */

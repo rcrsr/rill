@@ -113,6 +113,71 @@ function processEscape(state: LexerState): string {
   }
 }
 
+/**
+ * Skips a `"`-delimited nested string literal encountered while scanning an
+ * interpolation's brace depth, honoring `\"` escapes, and returns the
+ * consumed text (both delimiters included). Assumes the current character
+ * is the opening `"` and it is not the start of a triple-quote sequence.
+ *
+ * Interpolation text can itself contain string literals (e.g.
+ * `{$x.eq("}")}`), and those literals may contain brace characters that
+ * must not be mistaken for the interpolation's own `{`/`}`. Skipping the
+ * whole nested literal as a unit keeps brace-depth counting in sync with
+ * the actual interpolation boundaries.
+ */
+function skipNestedDoubleQuotedString(state: LexerState): string {
+  let text = advance(state); // consume opening "
+  while (!isAtEnd(state) && peek(state) !== '"') {
+    if (peek(state) === '\\') {
+      text += advance(state); // consume backslash
+      if (!isAtEnd(state)) {
+        text += advance(state); // consume escaped character
+      }
+    } else {
+      text += advance(state);
+    }
+  }
+  if (!isAtEnd(state)) {
+    text += advance(state); // consume closing "
+  }
+  return text;
+}
+
+/**
+ * Skips a `"""`-delimited nested triple-quote string literal encountered
+ * while scanning an interpolation's brace depth, and returns the consumed
+ * text (both delimiters included). Assumes the current character is the
+ * first `"` of the opening triple-quote sequence. Triple-quote strings do
+ * not process backslash escapes, so this only has to search for the
+ * matching closing `"""`.
+ */
+function skipNestedTripleQuotedString(state: LexerState): string {
+  let text = advance(state) + advance(state) + advance(state); // consume opening """
+  while (
+    !isAtEnd(state) &&
+    !(peek(state) === '"' && peek(state, 1) === '"' && peek(state, 2) === '"')
+  ) {
+    text += advance(state);
+  }
+  if (!isAtEnd(state)) {
+    text += advance(state) + advance(state) + advance(state); // consume closing """
+  }
+  return text;
+}
+
+/**
+ * Skips a nested string literal (single- or triple-quoted) encountered
+ * while scanning an interpolation's brace depth from within a
+ * single-quoted outer string. Dispatches to the triple-quote form when the
+ * current position starts a `"""` sequence, otherwise the plain form.
+ */
+function skipNestedStringInInterpolation(state: LexerState): string {
+  if (peek(state) === '"' && peek(state, 1) === '"' && peek(state, 2) === '"') {
+    return skipNestedTripleQuotedString(state);
+  }
+  return skipNestedDoubleQuotedString(state);
+}
+
 export function readString(state: LexerState): Token {
   const start = currentLocation(state);
   advance(state); // consume opening "
@@ -143,6 +208,12 @@ export function readString(state: LexerState): Token {
       // and runs the scanner past the end of the string.
       let braceDepth = 1;
       while (!isAtEnd(state) && braceDepth > 0) {
+        if (peek(state) === '"') {
+          // A nested string literal's own braces don't belong to the
+          // interpolation's depth count, so skip the whole literal.
+          value += skipNestedStringInInterpolation(state);
+          continue;
+        }
         const ch = advance(state);
         value += ch;
         if (ch === '{') braceDepth++;
@@ -182,8 +253,13 @@ export function readTripleQuoteString(state: LexerState): Token {
   advance(state); // consume second "
   advance(state); // consume third "
 
-  // Skip opening newline if present (Python-style)
-  if (peek(state) === '\n') {
+  // Skip opening newline if present (Python-style). A CRLF pair must be
+  // consumed as a unit so the carriage return doesn't leak into the string
+  // value.
+  if (peek(state) === '\r' && peek(state, 1) === '\n') {
+    advance(state);
+    advance(state);
+  } else if (peek(state) === '\n') {
     advance(state);
   }
 
@@ -224,7 +300,9 @@ export function readTripleQuoteString(state: LexerState): Token {
       value += advance(state); // consume {
       let braceDepth = 1;
       while (!isAtEnd(state) && braceDepth > 0) {
-        // Check for """ inside interpolation
+        // Check for """ inside interpolation. Unlike the single-quote outer
+        // string, a nested triple-quote is never skipped here: it stays a
+        // hard error rather than a valid nested literal.
         if (
           peek(state) === '"' &&
           peek(state, 1) === '"' &&
@@ -235,6 +313,13 @@ export function readTripleQuoteString(state: LexerState): Token {
             'Triple-quotes not allowed in interpolation',
             currentLocation(state)
           );
+        }
+
+        if (peek(state) === '"') {
+          // A nested (non-triple) string literal's own braces don't belong
+          // to the interpolation's depth count, so skip the whole literal.
+          value += skipNestedDoubleQuotedString(state);
+          continue;
         }
 
         const ch = advance(state);
@@ -268,6 +353,22 @@ export function readNumber(state: LexerState): Token {
     while (!isAtEnd(state) && isDigit(peek(state))) {
       value += advance(state);
     }
+  }
+
+  const trailing = peek(state);
+  if (trailing === '_') {
+    throw new LexerError(
+      ERROR_IDS.RILL_L003,
+      'digit separators are not supported',
+      currentLocation(state)
+    );
+  }
+  if (isIdentifierStart(trailing)) {
+    throw new LexerError(
+      ERROR_IDS.RILL_L003,
+      `malformed number literal: unexpected '${trailing}' after number`,
+      currentLocation(state)
+    );
   }
 
   return makeToken(TOKEN_TYPES.NUMBER, value, start, currentLocation(state));
@@ -374,6 +475,14 @@ export function readVariable(state: LexerState): Token {
   // Check if followed by identifier (named variable like $foo)
   if (isIdentifierStart(peek(state))) {
     return makeToken(TOKEN_TYPES.DOLLAR, '$', start, currentLocation(state));
+  }
+
+  if (isDigit(peek(state))) {
+    throw new LexerError(
+      ERROR_IDS.RILL_L003,
+      'Invalid variable name: $ must be followed by a letter or _',
+      currentLocation(state)
+    );
   }
 
   // Lone $ is the pipe variable (current item in iteration)

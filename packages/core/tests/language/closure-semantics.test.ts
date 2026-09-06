@@ -520,6 +520,38 @@ describe('Rill Runtime: Closure Semantics', () => {
       }
     });
 
+    it('spreading an empty tuple into a one-untyped-param closure reports the missing parameter, not an undefined variable', async () => {
+      try {
+        await run(`
+          |x|($x) => $f
+          tuple[] -> $f(...)
+        `);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId');
+        expect(err).toHaveProperty(
+          'message',
+          expect.stringMatching(/Missing argument for parameter 'x'/)
+        );
+      }
+    });
+
+    it('spreading an empty dict into a one-untyped-param closure reports the missing parameter, not an undefined variable', async () => {
+      try {
+        await run(`
+          |x|($x) => $f
+          dict[] -> $f(...)
+        `);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toHaveProperty('errorId');
+        expect(err).toHaveProperty(
+          'message',
+          expect.stringMatching(/Missing argument for parameter 'x'/)
+        );
+      }
+    });
+
     it('EC-3: undefined variable in closure body throws RUNTIME_UNDEFINED_VARIABLE', async () => {
       // Closure body references undefined variable at call time
       try {

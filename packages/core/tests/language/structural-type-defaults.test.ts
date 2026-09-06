@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isTuple } from '@rcrsr/rill';
+import { isTuple, parse, ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
 
@@ -802,6 +802,60 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect(entries).toHaveLength(1);
       expect(entries[0]![0]).toBe('a');
       expect(entries[0]![1]).toEqual({ x: 10 });
+    });
+  });
+
+  // ============================================================
+  // Additional literal forms accepted as structural type field
+  // defaults: negative numbers, atom literals, and the
+  // keyword-prefixed collection literals.
+  // ============================================================
+
+  describe('additional literal forms in field default position', () => {
+    it('negative number default hydrates a missing field', async () => {
+      const result = await run('dict[] -> dict(offset: number = -7)');
+      expect(result).toEqual({ offset: -7 });
+    });
+
+    it('atom literal default hydrates a missing field', async () => {
+      const result = await run(
+        'dict[] -> dict(status: atom = #TIMEOUT) => $d\n$d.status -> string'
+      );
+      expect(result).toBe('TIMEOUT');
+    });
+
+    it('keyword list literal default hydrates a missing field', async () => {
+      const result = await run('dict[] -> dict(items: list = list[1, 2])');
+      expect(result).toEqual({ items: [1, 2] });
+    });
+
+    it('keyword dict literal default hydrates a missing field', async () => {
+      const result = await run('dict[] -> dict(cfg: dict = dict[a: 1])');
+      expect(result).toEqual({ cfg: { a: 1 } });
+    });
+
+    it('keyword tuple literal default hydrates a missing field', async () => {
+      const result = await run('dict[] -> dict(pair: tuple = tuple[1, "a"])');
+      const pair = (result as Record<string, unknown>).pair;
+      expect(isTuple(pair)).toBe(true);
+      expect((pair as { entries: unknown[] }).entries).toEqual([1, 'a']);
+    });
+
+    it('keyword ordered literal default hydrates a missing field', async () => {
+      const result = await run(
+        'dict[] -> dict(items: ordered = ordered[x: 1])'
+      );
+      const items = (result as Record<string, unknown>).items;
+      expect(isOrdered(items)).toBe(true);
+      expect(orderedEntries(items)).toEqual([['x', 1]]);
+    });
+
+    it('an expression is still rejected as a field default', () => {
+      expect(() => parse('dict(a: number = 1 + 1)')).toThrow(ParseError);
+    });
+
+    it('a variable reference is still rejected as a field default', () => {
+      expect(() => parse('dict(a: number = $x)')).toThrow(ParseError);
     });
   });
 });

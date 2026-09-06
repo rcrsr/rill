@@ -852,6 +852,21 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       ]);
     });
 
+    it('batch halts with #TYPE_MISMATCH when options is not a dict', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> batch(2, "x")'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('batch halts with #TYPE_MISMATCH when drop_partial is not a boolean', async () => {
+      await expectHalt(
+        () => run('list[1, 2, 3] -> batch(2, dict[drop_partial: 1])'),
+        {
+          code: 'TYPE_MISMATCH',
+        }
+      );
+    });
+
     it('AC-ERR-3: batch(0) raises #INVALID_INPUT', async () => {
       await expectHalt(() => run('list[1, 2, 3] -> batch(0)'), {
         code: 'INVALID_INPUT',

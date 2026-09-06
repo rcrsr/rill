@@ -364,6 +364,70 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   });
 
   // ============================================================
+  // Additional literal forms accepted as closure parameter defaults:
+  // negative numbers, atom literals, and the keyword-prefixed collection
+  // literals (list[...], dict[...], tuple[...], ordered[...]).
+  // ============================================================
+
+  describe('additional literal forms parse and evaluate as closure parameter defaults', () => {
+    it('negative number default: |x: number = -42|', async () => {
+      const ast = parse('|x: number = -42|{ $x }');
+      expect(ast.statements).toHaveLength(1);
+      const result = await run('|x: number = -42|{ $x } => $fn\n$fn()');
+      expect(result).toBe(-42);
+    });
+
+    it('atom literal default: |x: atom = #TIMEOUT|', async () => {
+      const ast = parse('|x: atom = #TIMEOUT|{ $x }');
+      expect(ast.statements).toHaveLength(1);
+      const result = await run(
+        '|x: atom = #TIMEOUT|{ $x -> string } => $fn\n$fn()'
+      );
+      expect(result).toBe('TIMEOUT');
+    });
+
+    it('keyword list literal default: |x: list = list[1, 2, 3]|', async () => {
+      const ast = parse('|x: list = list[1, 2, 3]|{ $x }');
+      expect(ast.statements).toHaveLength(1);
+      const result = await run('|x: list = list[1, 2, 3]|{ $x } => $fn\n$fn()');
+      expect(result).toEqual([1, 2, 3]);
+    });
+
+    it('keyword dict literal default: |x: dict = dict[a: 1]|', async () => {
+      const ast = parse('|x: dict = dict[a: 1]|{ $x }');
+      expect(ast.statements).toHaveLength(1);
+      const result = await run('|x: dict = dict[a: 1]|{ $x } => $fn\n$fn()');
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('keyword tuple literal default: |x: tuple = tuple[1, "a"]|', async () => {
+      const ast = parse('|x: tuple = tuple[1, "a"]|{ $x }');
+      expect(ast.statements).toHaveLength(1);
+      const result = await run(
+        '|x: tuple = tuple[1, "a"]|{ $x -> string } => $fn\n$fn()'
+      );
+      expect(typeof result).toBe('string');
+    });
+
+    it('keyword ordered literal default: |x: ordered = ordered[a: 1]|', async () => {
+      const ast = parse('|x: ordered = ordered[a: 1]|{ $x }');
+      expect(ast.statements).toHaveLength(1);
+      const result = await run(
+        '|x: ordered = ordered[a: 1]|{ $x -> string } => $fn\n$fn()'
+      );
+      expect(typeof result).toBe('string');
+    });
+
+    it('expression is still rejected as a default: |x: number = $x + 1|', () => {
+      expect(() => parse('|x: number = $x + 1|{ $x }')).toThrow(ParseError);
+    });
+
+    it('function call is still rejected as a default: |x: number = f()|', () => {
+      expect(() => parse('|x: number = f()|{ $x }')).toThrow(ParseError);
+    });
+  });
+
+  // ============================================================
   // AC-25: Dict type with all fields having defaults — existing
   //         behavior unchanged (regression guard)
   // ============================================================
