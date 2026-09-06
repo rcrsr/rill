@@ -207,6 +207,18 @@ list[$s, $t]`;
       const script = `"value: {"a\\nb" -> .len}"`;
       expect(await run(script)).toBe('value: 3');
     });
+
+    it('does not mistake a brace inside a nested string literal for the interpolation close', async () => {
+      // The nested string literal "}" contains a `}` that must not be
+      // counted toward the interpolation's own brace depth.
+      const script = `"result: {"}" -> .len}"`;
+      expect(await run(script)).toBe('result: 1');
+    });
+
+    it('skips a nested triple-quoted string (with braces) inside a single-quoted outer string', async () => {
+      const script = `"value: {"""a {{ b }} c""" -> .len}"`;
+      expect(await run(script)).toBe('value: 9');
+    });
   });
 
   describe('Expression Interpolation', () => {
@@ -344,6 +356,20 @@ hello
       );
     });
 
+    it('still throws LexerError for nested triple-quotes even when a brace precedes them', async () => {
+      // A nested (non-triple) string is skipped as a unit inside a
+      // triple-quote's interpolation, but a nested triple-quote stays a
+      // hard error rather than being skipped.
+      await expect(run('"""{"a" -> .len} {"""nested"""}"""')).rejects.toThrow(
+        'Triple-quotes not allowed in interpolation'
+      );
+    });
+
+    it('does not mistake a brace inside a nested (non-triple) string for the interpolation close, inside a triple-quote string', async () => {
+      const script = `"""result: {"}" -> .len}"""`;
+      expect(await run(script)).toBe('result: 1');
+    });
+
     it('throws ParseError for empty interpolation (AC-8)', async () => {
       await expect(run('"""{   }"""')).rejects.toThrow(
         'Empty string interpolation'
@@ -424,6 +450,51 @@ hello
       const script = `"""
 \nhello"""`;
       expect(await run(script)).toBe('\nhello');
+    });
+  });
+
+  describe('CRLF Opening Newline in Triple-Quote Strings', () => {
+    it('strips a CRLF opening newline', async () => {
+      const script = '"""\r\nhello\r\n"""';
+      expect(await run(script)).toBe('hello\r\n');
+    });
+
+    it('strips a bare LF opening newline unchanged', async () => {
+      const script = '"""\nhello\n"""';
+      expect(await run(script)).toBe('hello\n');
+    });
+
+    it('locates an interpolation correctly when the opening newline is CRLF', async () => {
+      const { parse } = await import('@rcrsr/rill');
+      // Source: """\r\n{1}"""
+      // indices: 0=" 1=" 2=" 3=\r 4=\n 5={ 6=1 7=} 8=" 9=" 10="
+      // The literal `1` sits at offset 6, line 2, column 2 once the CRLF
+      // opening newline is consumed as a two-character unit.
+      const script = '"""\r\n{1}"""';
+      const ast = parse(script);
+      const stmt = ast.statements[0];
+      expect(stmt?.type).toBe('Statement');
+      if (stmt?.type !== 'Statement') return;
+      const expr = stmt.expression;
+      expect(expr?.type).toBe('PipeChain');
+      if (expr?.type !== 'PipeChain') return;
+      const head = expr.head;
+      expect(head?.type).toBe('PostfixExpr');
+      if (head?.type !== 'PostfixExpr') return;
+      const stringNode = head.primary;
+      expect(stringNode?.type).toBe('StringLiteral');
+      if (stringNode?.type !== 'StringLiteral') return;
+      const interpolation = stringNode.parts[0];
+      expect(interpolation).toBeTypeOf('object');
+      if (typeof interpolation !== 'object') return;
+      expect(interpolation.type).toBe('Interpolation');
+      expect(interpolation.expression.span.start).toEqual({
+        line: 2,
+        column: 2,
+        offset: 6,
+      });
+
+      expect(await run(script)).toBe('1');
     });
   });
 });

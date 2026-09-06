@@ -255,5 +255,23 @@ describe('Rill Runtime: Literals', () => {
         'Heredoc syntax (<<EOF) was removed, use triple-quote strings (""") instead'
       );
     });
+
+    it('throws LexerError when $ is followed by a digit', async () => {
+      await expect(run('$1')).rejects.toThrow(
+        'Invalid variable name: $ must be followed by a letter or _'
+      );
+    });
+
+    it('throws LexerError for digit separators in a number literal', async () => {
+      await expect(run('1_000')).rejects.toThrow(
+        'digit separators are not supported'
+      );
+    });
+
+    it('throws LexerError when a number is immediately followed by an identifier character', async () => {
+      await expect(run('1abc')).rejects.toThrow(
+        "malformed number literal: unexpected 'a' after number"
+      );
+    });
   });
 });

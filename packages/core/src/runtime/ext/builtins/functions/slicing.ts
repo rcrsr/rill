@@ -10,6 +10,7 @@ import {
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
 import {
+  isDict,
   isDuration,
   isIterator,
   isStream,
@@ -388,11 +389,25 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       // Read options: drop_partial (default false) and idle_flush (duration, optional).
       let dropPartial = false;
       if (options !== null && options !== undefined) {
+        if (!isDict(options)) {
+          throwCatchableHostHalt(
+            site,
+            'TYPE_MISMATCH',
+            `batch: options must be a dict, got ${inferType(options)}`
+          );
+        }
         const optDict = options as Record<string, RillValue>;
 
         const dp = optDict['drop_partial'];
         if (dp !== undefined && dp !== null) {
-          dropPartial = dp === true;
+          if (typeof dp !== 'boolean') {
+            throwCatchableHostHalt(
+              site,
+              'TYPE_MISMATCH',
+              `batch: drop_partial must be a boolean, got ${inferType(dp)}`
+            );
+          }
+          dropPartial = dp as boolean;
         }
 
         // idle_flush must be a duration when provided.

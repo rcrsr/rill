@@ -4,8 +4,17 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isInvalid } from '@rcrsr/rill';
+import { isInvalid, isTuple } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+
+function isOrdered(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_ordered' in value &&
+    (value as Record<string, unknown>).__rill_ordered === true
+  );
+}
 
 describe('Default Value Operator (??)', () => {
   describe('Variable Access Chains', () => {
@@ -546,6 +555,57 @@ describe('Default Value Operator (??)', () => {
         $d.a.missing ?? "fallback"
       `);
       expect(result).toBe('fallback');
+    });
+  });
+
+  // ============================================================
+  // ?? accepts any expression on its right-hand side, so the
+  // literal forms newly accepted in restricted default-value
+  // positions (closure param and structural type field defaults)
+  // already worked here. These are regression guards confirming
+  // that behavior is unchanged.
+  // ============================================================
+
+  describe('Additional literal forms on the right-hand side', () => {
+    it('negative number default', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        $data.b ?? -7
+      `);
+      expect(result).toBe(-7);
+    });
+
+    it('atom literal default', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        ($data.b ?? #TIMEOUT) -> string
+      `);
+      expect(result).toBe('TIMEOUT');
+    });
+
+    it('keyword tuple literal default', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        $data.b ?? tuple[1, "a"]
+      `);
+      expect(isTuple(result)).toBe(true);
+    });
+
+    it('keyword ordered literal default', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        $data.b ?? ordered[x: 1]
+      `);
+      expect(isOrdered(result)).toBe(true);
+    });
+
+    it('an arbitrary expression still works on the right-hand side (?? is not literal-restricted)', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        1 => $x
+        $data.b ?? ($x + 1)
+      `);
+      expect(result).toBe(2);
     });
   });
 });

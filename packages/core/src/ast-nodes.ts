@@ -382,7 +382,12 @@ export type LiteralNode =
   | BoolLiteralNode
   | ListLiteralNode
   | DictNode
-  | ClosureNode;
+  | ClosureNode
+  | AtomLiteralNode
+  | DictLiteralNode
+  | TupleLiteralNode
+  | OrderedLiteralNode
+  | RecoveryErrorNode;
 
 export interface StringLiteralNode extends BaseNode {
   readonly type: 'StringLiteral';

@@ -23,9 +23,11 @@ import {
   execute,
   isAtom,
   parse,
+  parseWithRecovery,
   resolveAtom,
   type RillAtomValue,
 } from '@rcrsr/rill';
+import { ERROR_IDS } from '../../src/error-registry.js';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 
@@ -94,19 +96,27 @@ describe('Atom literals (#NAME)', () => {
   });
 
   describe('Parse-time malformed atom (EC-12)', () => {
-    it('produces a RecoveryErrorNode for a mixed-case atom (#Timeout)', () => {
+    it('throws on strict parse for a mixed-case atom (#Timeout)', () => {
       // readAtom accepts any identifier character after the uppercase
       // first letter, so #Timeout tokenises successfully. The parser's
-      // ATOM_NAME_SHAPE regex then rejects it and emits a RecoveryErrorNode
-      // in the AST (evaluator later resolves this to #R001 per EC-12).
-      const primary = firstPrimary('#Timeout');
+      // ATOM_NAME_SHAPE regex then rejects it; strict parse reports the
+      // shape violation and throws instead of silently returning a
+      // RecoveryErrorNode.
+      expect(() => firstPrimary('#Timeout')).toThrow(/Invalid atom name/);
+    });
+
+    it('produces a RecoveryErrorNode with a RILL_P004 diagnostic under recovery parsing', () => {
+      const result = parseWithRecovery('#Timeout');
+      expect(result.success).toBe(false);
+      expect(result.errors[0]?.errorId).toBe(ERROR_IDS.RILL_P004);
+      const stmt = result.ast.statements[0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const expr = (stmt as any).expression;
+      const primary = expr.head.primary;
       expect(primary).toMatchObject({
         type: 'RecoveryError',
         text: '#Timeout',
       });
-      expect((primary as { message: string }).message).toMatch(
-        /Invalid atom name/
-      );
     });
 
     it('parses a well-formed atom as AtomLiteralNode (no recovery)', () => {

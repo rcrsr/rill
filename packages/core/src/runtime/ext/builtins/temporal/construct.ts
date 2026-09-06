@@ -182,6 +182,19 @@ export function constructDatetime(
     // timezone by Date.parse, which is non-deterministic across
     // environments. Anchor it to UTC instead, matching the date-only form.
     const hasTime = input.length > 10;
+
+    // Validate the time-of-day portion explicitly: Date.parse accepts
+    // out-of-range values like T24:00:00 and rolls them into the next day,
+    // whereas the named-component form rejects hour 24 outright.
+    if (hasTime) {
+      const hh = Number(input.slice(11, 13));
+      const mm = Number(input.slice(14, 16));
+      const hasSeconds = input[16] === ':';
+      const ss = hasSeconds ? Number(input.slice(17, 19)) : 0;
+      validateComponent('hour', hh, 0, 23, location);
+      validateComponent('minute', mm, 0, 59, location);
+      validateComponent('second', ss, 0, 59, location);
+    }
     const hasOffset = /(?:Z|[+-]\d{2}:\d{2})$/.test(input);
     const normalizedInput = hasTime && !hasOffset ? `${input}Z` : input;
 

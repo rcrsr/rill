@@ -407,6 +407,25 @@ interpolation"""`;
     });
   });
 
+  describe('Atom literal shape validation', () => {
+    it('reports RILL_P004 for a shape-invalid atom in expression position', () => {
+      const source = `#Foo`;
+      const result = parseWithRecovery(source);
+
+      expect(result.success).toBe(false);
+      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors[0]?.errorId).toBe(ERROR_IDS.RILL_P004);
+      const recoveryNodes = findNodesByType(result.ast, 'RecoveryError');
+      expect(recoveryNodes.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('throws on strict parse for a shape-invalid atom', () => {
+      const source = `#Foo`;
+
+      expect(() => parse(source)).toThrow(ParseError);
+    });
+  });
+
   describe('Boundary cases', () => {
     it('returns an empty valid script for empty source, with no recovery nodes', () => {
       const result = parseWithRecovery('');

@@ -130,6 +130,49 @@ Second: {$b +}
     }
   });
 
+  it('does not let a brace inside a nested string literal desync the interpolation-close scan', () => {
+    // The first interpolation's nested string literal `"}"` contains a `}`
+    // that must not be counted as the interpolation's own closing brace.
+    // If it were miscounted, the second interpolation's reported location
+    // would be shifted from where it actually starts in the source.
+    const source = '"{"}" -> .len}{$x +}"';
+
+    try {
+      parse(source);
+      expect.fail('Should have thrown ParseError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      const parseErr = err as ParseError;
+
+      expect(parseErr.location).toEqual({ line: 1, column: 20, offset: 19 });
+    }
+  });
+
+  it('reports the same location for a later interpolation error whether or not an earlier interpolation holds a nested string with braces', () => {
+    // Line 1: """
+    // Line 2: First: {"}" -> .len}
+    // Line 3: Second: {$b +}
+    // Line 4: """
+    // Matches the location asserted for the equivalent {$a} case above,
+    // confirming the nested-string skip in the first interpolation does not
+    // shift where the second interpolation is located.
+    const source = `"""
+First: {"}" -> .len}
+Second: {$b +}
+"""`;
+
+    try {
+      parse(source);
+      expect.fail('Should have thrown ParseError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      const parseErr = err as ParseError;
+
+      expect(parseErr.location?.line).toBe(3);
+      expect(parseErr.location?.column).toBe(14);
+    }
+  });
+
   it('handles triple-quote string with newlines before interpolation', () => {
     // Line 1: """
     // Line 2: (empty)
