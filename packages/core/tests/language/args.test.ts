@@ -94,7 +94,7 @@ describe('explicit spread call syntax', () => {
           ],
           fn: (args) => {
             received = args['x'];
-            return null;
+            return '';
           },
         },
       },
@@ -117,7 +117,7 @@ describe('explicit spread call syntax', () => {
           ],
           fn: (args) => {
             received = args['x'];
-            return null;
+            return '';
           },
         },
       },
@@ -316,7 +316,7 @@ describe('explicit spread call syntax', () => {
           ],
           fn: (args) => {
             received = args['opts'] as Record<string, unknown>;
-            return null;
+            return '';
           },
         },
       },
@@ -345,7 +345,7 @@ describe('explicit spread call syntax', () => {
           ],
           fn: (args) => {
             received = args['opts'] as Record<string, unknown>;
-            return null;
+            return '';
           },
         },
       },
@@ -404,7 +404,7 @@ describe('explicit spread call syntax', () => {
           ],
           fn: (args) => {
             received = args['opts'] as Record<string, unknown>;
-            return null;
+            return '';
           },
         },
       },
@@ -444,7 +444,7 @@ describe('explicit spread call syntax', () => {
           ],
           fn: (args) => {
             received = args['opts'] as Record<string, unknown>;
-            return null;
+            return '';
           },
         },
       },

@@ -813,6 +813,8 @@ The 8 dict method names are reserved and cannot be used as dict keys:
     dict[len: "fake"]                # halts: reserved method name 'len'
     dict[label: "fake"].len          # fine: dict length (non-reserved key)
 
+`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule).
+
 ## Tuple lexicographic comparison
 
 Tuples support `<`, `>`, `<=`, `>=`, `==`, `!=`. Comparison walks elements left to right; the first differing position decides. Each element compares using its own type's protocol. Empty `tuple[]` equals `tuple[]`.
@@ -1185,7 +1187,7 @@ Built-ins are called bare (no `$`):
 
 ## sort
 
-Stable ascending sort. List sort returns `list`. Dict sort returns `ordered` because rill dicts have no insertion order, so a sorted dict is materialized as `ordered` key-value entries.
+Stable ascending sort. List sort returns `list`. Dict sort returns `ordered` because rill dicts iterate in a canonical order, so a value-sorted dict is materialized as ordered key-value entries.
 
     list[3, 1, 2] -> sort                          # list[1, 2, 3]
     list["banana", "fig", "apple"] -> sort({ $ -> .len })   # list["fig", "apple", "banana"]

@@ -24,10 +24,17 @@ import type { BodyNode, SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
 import {
+  isAtom,
   isCallable as _isCallableGuard,
+  isDatetime,
   isDict,
+  isDuration,
+  isIterator,
   isOrdered,
+  isStream,
   isTuple,
+  isTypeValue,
+  isVector,
 } from './types/guards.js';
 import type {
   TypeStructure,
@@ -697,4 +704,143 @@ export function marshalArgs(
   }
 
   return result;
+}
+
+/**
+ * Validates a raw JavaScript value returned by a host function, ensuring it
+ * is representable in the rill value model before it flows further through
+ * the runtime.
+ *
+ * Deep-walks arrays and plain objects. Any recognized rill value brand
+ * (atom, tuple, vector, ordered value, type value, datetime, duration,
+ * callable, stream, iterator, field descriptor) stops descent at that node.
+ * Anything else that cannot be represented -- undefined, null, symbol,
+ * bigint, a raw function, Date, Map, Set, or any other non-plain class
+ * instance -- throws a fatal RuntimeError. This is a host-contract
+ * violation, not a catchable script error.
+ *
+ * @param result - The raw value returned by the host function
+ * @param functionName - Name of the host function, for the error message
+ * @param location - Call-site location, for error reporting
+ */
+export function validateHostResult(
+  result: unknown,
+  functionName: string,
+  location?: SourceLocation
+): void {
+  walkHostResult(result, functionName, '<root>', location);
+}
+
+/** Identity predicate for the field_descriptor brand (mirrors the private
+ * helper in types/protocols/field-descriptor.ts, which is not exported). */
+function isFieldDescriptorValue(value: object): boolean {
+  return (
+    '__rill_field_descriptor' in value &&
+    (value as Record<string, unknown>)['__rill_field_descriptor'] === true
+  );
+}
+
+/** True when `value`'s prototype is `Object.prototype` or `null`, i.e. it is
+ * a plain object literal rather than a class instance. */
+function isPlainObject(value: object): boolean {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/** Human-readable label for the JS shape of an unrepresentable value. */
+function jsTypeLabel(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (value === null) return 'null';
+  const t = typeof value;
+  if (t === 'symbol') return 'symbol';
+  if (t === 'bigint') return 'bigint';
+  if (t === 'function') return 'function';
+  if (value instanceof Date) return 'Date';
+  if (value instanceof Map) return 'Map';
+  if (value instanceof Set) return 'Set';
+  if (t === 'object') {
+    const ctorName = (value as { constructor?: { name?: string } }).constructor
+      ?.name;
+    return ctorName && ctorName !== 'Object' ? ctorName : 'object';
+  }
+  return t;
+}
+
+function throwHostResultError(
+  functionName: string,
+  path: string,
+  value: unknown,
+  location: SourceLocation | undefined
+): never {
+  throw new RuntimeError(
+    ERROR_IDS.RILL_R085,
+    `Host function '${functionName}' returned an invalid value at ${path}: ${jsTypeLabel(value)}`,
+    location
+  );
+}
+
+function walkHostResult(
+  value: unknown,
+  functionName: string,
+  path: string,
+  location: SourceLocation | undefined
+): void {
+  if (value === undefined || value === null) {
+    throwHostResultError(functionName, path, value, location);
+  }
+
+  const t = typeof value;
+  if (t === 'string' || t === 'number' || t === 'boolean') {
+    return;
+  }
+  if (t === 'symbol' || t === 'bigint' || t === 'function') {
+    throwHostResultError(functionName, path, value, location);
+  }
+
+  // Remaining case: t === 'object'
+  const obj = value as object;
+  const rillValue = value as RillValue;
+
+  if (
+    isAtom(rillValue) ||
+    isTuple(rillValue) ||
+    isVector(rillValue) ||
+    isOrdered(rillValue) ||
+    isTypeValue(rillValue) ||
+    isDatetime(rillValue) ||
+    isDuration(rillValue) ||
+    isCallable(rillValue) ||
+    isStream(rillValue) ||
+    isIterator(rillValue) ||
+    isFieldDescriptorValue(obj)
+  ) {
+    return;
+  }
+
+  if (value instanceof Date || value instanceof Map || value instanceof Set) {
+    throwHostResultError(functionName, path, value, location);
+  }
+
+  if (Array.isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      walkHostResult(value[i], functionName, `${path}[${i}]`, location);
+    }
+    return;
+  }
+
+  if (isPlainObject(obj)) {
+    for (const key of Object.keys(obj as Record<string, unknown>)) {
+      const childPath = path === '<root>' ? `.${key}` : `${path}.${key}`;
+      walkHostResult(
+        (obj as Record<string, unknown>)[key],
+        functionName,
+        childPath,
+        location
+      );
+    }
+    return;
+  }
+
+  // Non-plain class instance: reject
+  throwHostResultError(functionName, path, value, location);
 }

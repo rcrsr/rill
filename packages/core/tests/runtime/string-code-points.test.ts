@@ -105,6 +105,24 @@ describe('#340: regex string methods run in Unicode (u) mode', () => {
     expect(result).toEqual({ matched: 'b', index: 2, groups: [] });
   });
 
+  it('.match reports a code-point index with a non-zero astral prefix', async () => {
+    const result = await run(`"${EMOJI}a" -> .match("a") -> .index`);
+    expect(result).toBe(1);
+  });
+
+  it('.match reports a code-point index and groups with a two-astral prefix', async () => {
+    const result = await run(
+      `"${EMOJI}${EMOJI}ab" -> .match("(a)(b)") -> .index`
+    );
+    expect(result).toBe(2);
+    const withGroups = await run(`"${EMOJI}${EMOJI}ab" -> .match("(a)(b)")`);
+    expect(withGroups).toEqual({
+      matched: 'ab',
+      index: 2,
+      groups: ['a', 'b'],
+    });
+  });
+
   it('.is_match matches an astral character against a single-dot pattern', async () => {
     expect(await run(`"${EMOJI}" -> .is_match("^.$")`)).toBe(true);
   });

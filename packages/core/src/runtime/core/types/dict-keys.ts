@@ -143,6 +143,42 @@ export function typedKeyEntries(
 }
 
 /**
+ * All of a dict's entries in canonical display/iteration order: string keys
+ * (`Object.keys(dict).sort()` order), then number keys ascending numeric,
+ * then boolean keys with `false` before `true`. Each key keeps its original
+ * JS type (string, number, or boolean) so callers can distinguish
+ * `dict["1": ...]` from `dict[1: ...]`.
+ *
+ * This is the single ordering authority for dict key/value/entry surfaces
+ * (`.keys`/`.values`/`.entries`, `enumerate`, collection iteration,
+ * `formatDict`) — those call sites must route through this function rather
+ * than re-deriving the order locally.
+ */
+export function orderedDictEntries(
+  dict: object
+): ReadonlyArray<{ key: RillValue; value: RillValue }> {
+  const stringEntries = Object.keys(dict)
+    .sort()
+    .map((key) => ({
+      key: key as RillValue,
+      value: (dict as Record<string, RillValue>)[key]!,
+    }));
+  const map = getTypedKeyMap(dict);
+  const numberEntries: Array<{ key: RillValue; value: RillValue }> = [];
+  const booleanEntries: Array<{ key: RillValue; value: RillValue }> = [];
+  if (map !== undefined) {
+    for (const entry of map.values()) {
+      const target =
+        typeof entry.key === 'number' ? numberEntries : booleanEntries;
+      target.push({ key: entry.key as RillValue, value: entry.value });
+    }
+  }
+  numberEntries.sort((a, b) => (a.key as number) - (b.key as number));
+  booleanEntries.sort((a, b) => Number(a.key) - Number(b.key));
+  return [...stringEntries, ...numberEntries, ...booleanEntries];
+}
+
+/**
  * Copy the sidecar from `src` onto `dst`, deep-copying each value with the
  * supplied `copyFn` (identity if omitted). No-op when `src` has no typed keys.
  */

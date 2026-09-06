@@ -33,11 +33,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { RillAtomValue, RillDatetime, RillValue } from '@rcrsr/rill';
 import {
   anyTypeValue,
   createRuntimeContext,
   generateManifest,
   parse,
+  resolveAtom,
   structureToTypeValue,
 } from '@rcrsr/rill';
 
@@ -64,6 +66,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(typeof manifest).toBe('string');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('returns string without writing to disk (pure function)', () => {
@@ -80,6 +83,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       const m1 = generateManifest(ctx);
       const m2 = generateManifest(ctx);
       expect(m1).toBe(m2);
+      expect(() => parse(m1)).not.toThrow();
     });
   });
 
@@ -103,6 +107,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest.trimEnd()).not.toMatch(/-> export$/);
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('empty manifest does not end with -> export', () => {
@@ -111,6 +116,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       ctx.functions.clear();
       const manifest = generateManifest(ctx);
       expect(manifest.trimEnd()).not.toMatch(/-> export$/);
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('manifest file is valid rill without -> export (AC-36)', () => {
@@ -132,6 +138,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest.trimEnd()).not.toMatch(/-> export$/);
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -141,6 +148,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       ctx.functions.clear();
       const manifest = generateManifest(ctx);
       expect(manifest).toBe('[:]');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('empty manifest is a valid rill file', async () => {
@@ -191,6 +199,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(manifest).toContain('"alpha"');
       expect(manifest).toContain('"beta"');
       expect(manifest).toContain('"gamma"');
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -215,9 +224,10 @@ describe('Rill Runtime: Manifest Generation', () => {
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('name: string');
       expect(manifest).toContain('|:string');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('serializes default value using = value syntax (AC-39)', () => {
+    it('omits default values from the manifest entry (not every RillValue round-trips through a rill literal)', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
@@ -235,9 +245,11 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      // String defaults are emitted as quoted rill string literals so the
-      // manifest re-parses as a valid rill file.
-      expect(manifest).toContain('= "world"');
+      // Default values are intentionally not serialized into the manifest;
+      // the signature carries name and type only.
+      expect(manifest).toContain('name: string');
+      expect(manifest).not.toContain('= "world"');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('serializes description annotation in manifest (AC-38)', () => {
@@ -261,6 +273,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('Greets a user');
       expect(manifest).toContain('The name to greet');
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -286,6 +299,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(manifest).toContain('"echo"');
       expect(manifest).toContain('message: string');
       expect(manifest).toContain(':string');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('structured function with description appears in manifest (AC-38)', () => {
@@ -308,6 +322,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('Echoes the message');
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -347,6 +362,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(manifest).toContain('"typed"');
       expect(manifest).toContain('x: number');
       expect(manifest).toContain('y: string');
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -377,6 +393,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       const manifest = generateManifest(ctx);
       expect(typeof manifest).toBe('string');
       expect(manifest).toContain('"add"');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('manifest entries use closure syntax |params|', () => {
@@ -399,6 +416,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       const manifest = generateManifest(ctx);
       // Closure signature format: |params|
       expect(manifest).toMatch(/\|.*\|/);
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -415,6 +433,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('||');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('zero-param manifest contains the function name', () => {
@@ -430,6 +449,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('"ping"');
       expect(manifest.trimEnd()).not.toMatch(/-> export$/);
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -453,6 +473,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('val: any');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('type: undefined param (any-typed) also serializes as any', () => {
@@ -474,6 +495,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('val: any');
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -497,6 +519,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('data: dict');
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
@@ -526,11 +549,12 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(manifest).not.toMatch(/"range"/);
       expect(manifest).not.toMatch(/"json"/);
       expect(manifest).not.toMatch(/"enumerate"/);
+      expect(() => parse(manifest)).not.toThrow();
     });
   });
 
-  describe('Bug #278: string defaults and descriptions are emitted as valid rill', () => {
-    it('emits a string default as a quoted rill literal, not a bare word', () => {
+  describe('Bug #278: descriptions are emitted as valid rill; default values never break parsing', () => {
+    it('drops a string default value from the manifest entry rather than emitting a bare word', () => {
       const ctx = createRuntimeContext({
         functions: {
           greet: {
@@ -549,12 +573,15 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       // Previously emitted `= World` (a bare identifier) which failed to parse
-      // with "Expected literal, got: World".
-      expect(manifest).toContain('= "World"');
-      expect(manifest).not.toMatch(/=\s+World\b(?!")/);
+      // with "Expected literal, got: World". Default values are now omitted
+      // entirely, so the failure mode cannot recur.
+      expect(manifest).toContain('name: string');
+      expect(manifest).not.toContain('= "World"');
+      expect(manifest).not.toMatch(/=\s+World\b/);
+      expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('escapes quotes and backslashes inside a string default literal', () => {
+    it('a default value containing quotes and backslashes does not appear in the manifest and does not break parsing', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -572,7 +599,9 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('= "a \\"quoted\\" \\\\ value"');
+      expect(manifest).toContain('q: string');
+      expect(manifest).not.toContain('quoted');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('escapes double quotes in parameter and closure descriptions', () => {
@@ -600,6 +629,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         '^(description: "a \\"described\\" function")'
       );
       expect(manifest).toContain('^(description: "the \\"x\\" value")');
+      expect(() => parse(manifest)).not.toThrow();
     });
 
     it('re-parses a typed manifest whose closure description contains escaped quotes', () => {
@@ -638,6 +668,377 @@ describe('Rill Runtime: Manifest Generation', () => {
       });
       const manifest = generateManifest(ctx);
       expect(manifest).toContain('greet \\"someone\\"');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+  });
+
+  describe('Parseable manifests for every default value kind and param/return type shape', () => {
+    it('a bool default value does not break parsing', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'flag',
+                type: { kind: 'bool' },
+                defaultValue: true,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['flag'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('flag: bool');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a large-exponent number default value does not break parsing', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'n',
+                type: { kind: 'number' },
+                defaultValue: 1e23,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['n'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('n: number');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('an atom default value does not break parsing', () => {
+      const atomDefault: RillAtomValue = {
+        __rill_atom: true,
+        atom: resolveAtom('TIMEOUT'),
+      };
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'code',
+                type: { kind: 'atom' },
+                defaultValue: atomDefault,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['code'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('code: atom');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a datetime default value does not break parsing', () => {
+      const datetimeDefault: RillDatetime = {
+        __rill_datetime: true,
+        unix: Date.now(),
+      };
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'at',
+                type: { kind: 'datetime' },
+                defaultValue: datetimeDefault,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['at'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('at: datetime');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a union-typed param collapses to any and still parses', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'value',
+                type: {
+                  kind: 'union',
+                  members: [{ kind: 'string' }, { kind: 'number' }],
+                },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['value'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('value: any');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a nested closure-typed param collapses to closure and still parses', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'q',
+                type: {
+                  kind: 'closure',
+                  params: [{ name: 'n', type: { kind: 'number' } }],
+                  ret: { kind: 'string' },
+                } as never,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['q'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('q: closure');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a closure nested inside a list element type collapses to closure and still parses', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'cbs',
+                type: {
+                  kind: 'list',
+                  element: {
+                    kind: 'closure',
+                    params: [{ name: 'n', type: { kind: 'number' } }],
+                    ret: { kind: 'string' },
+                  },
+                } as never,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['cbs'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('cbs: list(closure)');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a closure nested inside a dict field type collapses to closure and still parses', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'handlers',
+                type: {
+                  kind: 'dict',
+                  fields: {
+                    onDone: {
+                      name: 'onDone',
+                      type: {
+                        kind: 'closure',
+                        params: [{ name: 'n', type: { kind: 'number' } }],
+                        ret: { kind: 'string' },
+                      },
+                    },
+                  },
+                } as never,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['handlers'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('handlers: dict(onDone: closure)');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a dict field default value is omitted and does not break parsing', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'opts',
+                type: {
+                  kind: 'dict',
+                  fields: {
+                    cb: {
+                      name: 'cb',
+                      type: { kind: 'closure' },
+                      defaultValue: {
+                        __rill_closure: true,
+                      } as unknown as RillValue,
+                    },
+                  },
+                } as never,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['opts'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('opts: dict(cb: closure)');
+      expect(manifest).not.toContain('=');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a tuple element default value is omitted and does not break parsing', () => {
+      const atomDefault: RillAtomValue = {
+        __rill_atom: true,
+        atom: resolveAtom('TIMEOUT'),
+      };
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'pair',
+                type: {
+                  kind: 'tuple',
+                  elements: [
+                    {
+                      type: { kind: 'atom' },
+                      defaultValue: atomDefault,
+                    },
+                  ],
+                } as never,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['pair'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('pair: tuple(atom)');
+      expect(manifest).not.toContain('=');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('an ordered field default value is omitted and does not break parsing', () => {
+      const atomDefault: RillAtomValue = {
+        __rill_atom: true,
+        atom: resolveAtom('TIMEOUT'),
+      };
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'rec',
+                type: {
+                  kind: 'ordered',
+                  fields: [
+                    {
+                      name: 'code',
+                      type: { kind: 'atom' },
+                      defaultValue: atomDefault,
+                    },
+                  ],
+                } as never,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['rec'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('rec: ordered(code: atom)');
+      expect(manifest).not.toContain('=');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a closure nested inside a stream ret type collapses to closure and still parses', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 's',
+                type: {
+                  kind: 'stream',
+                  chunk: { kind: 'number' },
+                  ret: {
+                    kind: 'closure',
+                    params: [{ name: 'n', type: { kind: 'number' } }],
+                    ret: { kind: 'string' },
+                  },
+                } as never,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['s'],
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('s: stream(number)');
+      expect(manifest).not.toContain('stream(number):');
+      expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('a plain number param and return type round-trips unchanged', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'x',
+                type: { kind: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['x'],
+            returnType: structureToTypeValue({ kind: 'number' }),
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+      expect(manifest).toContain('x: number');
+      expect(manifest).toContain(':number');
       expect(() => parse(manifest)).not.toThrow();
     });
   });

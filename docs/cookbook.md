@@ -820,7 +820,7 @@ Filter out failures after collection:
 ] => $results
 
 $results -> filter({ $.ok })
-# Result: list[dict[url: "a", ok: true, data: "response"], dict[url: "c", ok: true, data: "response2"]]
+# Result: list[dict[data: "response", ok: true, url: "a"], dict[data: "response2", ok: true, url: "c"]]
 ```
 
 ### Detect and Branch on `.!code`

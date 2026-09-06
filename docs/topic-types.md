@@ -303,6 +303,8 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 | `.values` | All values as list |
 | `.entries` | List of `[key, value]` pairs |
 
+`.keys`, `.values`, and `.entries` all return dict's canonical order (see Ordered, below).
+
 ```rill
 [name: "test", count: 42] -> .keys      # ["count", "name"]
 [name: "test", count: 42] -> .values    # [42, "test"]
@@ -367,7 +369,7 @@ ordered[a: 1, b: "hello"] -> $fmt(...)
 # Result: "1-hello"
 ```
 
-Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
+Key order in `ordered` is the insertion order. `dict` has no insertion order to preserve; it iterates in a canonical order instead — string keys sorted lexically, then number keys ascending, then boolean keys with `false` before `true`.
 
 `ordered` converts to a plain object via `toNative()`. The `NativeResult.value` field holds `{ key: value, ... }`.
 

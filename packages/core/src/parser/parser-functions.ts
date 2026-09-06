@@ -25,6 +25,7 @@ import {
   advance,
   expect,
   current,
+  previous,
   makeSpan,
   peek,
   skipNewlines,
@@ -112,7 +113,7 @@ export function parseSpreadOrArg(
       check(parser.state, TOKEN_TYPES.RPAREN) ||
       check(parser.state, TOKEN_TYPES.COMMA)
     ) {
-      const spreadSpan = makeSpan(start, current(parser.state).span.start);
+      const spreadSpan = makeSpan(start, previous(parser.state).span.end);
       const varNode: VariableNode = {
         type: 'Variable',
         name: null,
@@ -147,7 +148,7 @@ export function parseSpreadOrArg(
     return {
       type: 'SpreadArg',
       expression,
-      span: makeSpan(start, current(parser.state).span.end),
+      span: makeSpan(start, previous(parser.state).span.end),
     } satisfies SpreadArgNode;
   }
 
@@ -332,7 +333,7 @@ Parser.prototype.parseTypeOperation = function (
       'Expected variable name after $'
     );
     const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };
-    const span = makeSpan(start, current(this.state).span.end);
+    const span = makeSpan(start, previous(this.state).span.end);
     if (isCheck) {
       return { type: 'TypeCheck', operand: null, typeRef, span };
     }
@@ -343,7 +344,7 @@ Parser.prototype.parseTypeOperation = function (
   // parseTypeRef handles static and union kinds; dynamic ($var) is already
   // handled above, so the result here is always static or union.
   const typeRef = parseTypeRef(this.state);
-  const span = makeSpan(start, current(this.state).span.end);
+  const span = makeSpan(start, previous(this.state).span.end);
 
   if (isCheck) {
     return { type: 'TypeCheck', operand: null, typeRef, span };
@@ -368,7 +369,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
     primary,
     methods: [],
     defaultValue: null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   });
 
   // Disambiguation: $identifier → dynamic type reference
@@ -380,7 +381,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
     );
     const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };
     const operand = makeOperand();
-    const span = makeSpan(start, current(this.state).span.end);
+    const span = makeSpan(start, previous(this.state).span.end);
     if (isCheck) {
       return { type: 'TypeCheck', operand, typeRef, span };
     }
@@ -392,7 +393,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
   // handled above, so the result here is always static or union.
   const typeRef = parseTypeRef(this.state);
   const operand = makeOperand();
-  const span = makeSpan(start, current(this.state).span.end);
+  const span = makeSpan(start, previous(this.state).span.end);
 
   if (isCheck) {
     return { type: 'TypeCheck', operand, typeRef, span };
