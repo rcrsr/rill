@@ -537,7 +537,7 @@ closure-call = "$" , identifier , "(" , [ arguments ] , ")" ;
    field-access is scoped to "$"-prefixed variable chains ("." only follows a
    variable or a preceding property-access), but bracket-access is a general
    postfix operator (see postfix-expr) valid after any postfix-eligible
-   primary -- a literal, a grouped expression, or a call result -- not only
+   primary -- a literal or a grouped expression -- not only
    after "$data..." chains:
      list[1,2,3][0]            -- literal list, then index
      [1,2,3][0]                -- shorthand list literal, then index

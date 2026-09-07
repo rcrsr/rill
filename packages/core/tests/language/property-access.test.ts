@@ -505,4 +505,26 @@ describe('implicit $ property access bug', () => {
       });
     });
   });
+
+  describe('postfix index access `[i]` after a pipe-target dot chain (issue #396)', () => {
+    it('"$x -> .items[0]" parses as one statement', () => {
+      const script = 'dict[items: list[10,20,30]] => $x\n$x -> .items[0]';
+      const ast = parse(script);
+      expect(ast.statements.length).toBe(2);
+    });
+
+    it('"$x -> .items[0]" evaluates to the indexed element', async () => {
+      const result = await run(
+        'dict[items: list[10,20,30]] => $x\n$x -> .items[0]'
+      );
+      expect(result).toBe(10);
+    });
+
+    it('"$x -> .items[0]" evaluates identically to $x.items[0]', async () => {
+      const script = 'dict[items: list[10,20,30]] => $x\n$x -> .items[0]';
+      const variableChainScript =
+        'dict[items: list[10,20,30]] => $x\n$x.items[0]';
+      expect(await run(script)).toBe(await run(variableChainScript));
+    });
+  });
 });

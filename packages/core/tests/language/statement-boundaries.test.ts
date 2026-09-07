@@ -494,5 +494,25 @@ $loop(5)`;
         expect(ast.statements.length).toBe(2);
       });
     });
+
+    describe('Postfix index access `[i]` joins onto an existence-check receiver (issue #396)', () => {
+      it.each(['$d.?a[0]', '$d.?a.b[0]'])(
+        '"%s" parses as exactly one statement',
+        (src) => {
+          const ast = parse(`dict[a: dict[b: true]] => $d\n${src}`);
+          expect(ast.statements.length).toBe(2);
+        }
+      );
+
+      it('"$d.?a[0]" halts with RILL-R002 (cannot index a boolean)', async () => {
+        let error: unknown;
+        try {
+          await run('dict[a: true] => $d\n$d.?a[0]');
+        } catch (err) {
+          error = err;
+        }
+        expect(error).toHaveProperty('errorId', 'RILL-R002');
+      });
+    });
   });
 });

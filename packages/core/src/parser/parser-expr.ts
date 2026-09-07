@@ -1264,16 +1264,34 @@ const primaryDispatchTable: Record<string, (this: Parser) => PrimaryNode> = {
 
 // Handler: -> .method(...) or -> .^annotation  (possibly chained)
 Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
-  const methods: (MethodCallNode | AnnotationAccessNode)[] = [];
+  const methods: (MethodCallNode | AnnotationAccessNode | IndexAccessNode)[] =
+    [];
   const start = current(this.state).span.start;
 
-  // Collect all chained method calls and annotation accesses. A newline is
-  // only skipped when the next real token is a dot, so the chain can
-  // continue on the next line (`-> .trim\n  .upper`) without consuming
-  // newlines that belong to a following statement.
+  // Collect all chained method calls, annotation accesses, and bracket
+  // indexes. A newline is only skipped when the next real token is a dot,
+  // so the chain can continue on the next line (`-> .trim\n  .upper`)
+  // without consuming newlines that belong to a following statement.
   skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
-  while (check(this.state, TOKEN_TYPES.DOT)) {
-    if (isAnnotationAccess(this.state)) {
+  while (
+    check(this.state, TOKEN_TYPES.DOT) ||
+    check(this.state, TOKEN_TYPES.LBRACKET)
+  ) {
+    if (check(this.state, TOKEN_TYPES.LBRACKET)) {
+      const openBracket = advance(this.state); // consume [
+      const index = this.parsePipeChain();
+      const closeBracket = expect(
+        this.state,
+        TOKEN_TYPES.RBRACKET,
+        'Expected ] after index expression',
+        ERROR_IDS.RILL_P005
+      );
+      methods.push({
+        type: 'IndexAccess',
+        index,
+        span: makeSpan(openBracket.span.start, closeBracket.span.end),
+      });
+    } else if (isAnnotationAccess(this.state)) {
       const dotStart = current(this.state).span.start;
       advance(this.state); // consume .
       advance(this.state); // consume ^
@@ -1316,8 +1334,11 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     } as PostfixExprNode;
   }
 
-  // Single method: return as-is
-  if (methods.length === 1) {
+  // Single method: return as-is. The first entry is always a MethodCallNode
+  // or AnnotationAccessNode — dispatch into this function only happens on a
+  // leading DOT token, so an IndexAccessNode (which can only follow a
+  // preceding method/annotation) can never be the sole entry.
+  if (methods.length === 1 && methods[0]!.type !== 'IndexAccess') {
     return methods[0]!;
   }
 

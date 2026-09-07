@@ -7,6 +7,7 @@
 
 import type {
   AnnotatedStatementNode,
+  AnnotationAccessNode,
   AnnotationArg,
   ASTNode,
   BinaryExprNode,
@@ -154,6 +155,11 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
       return expressionEquals(
         (a as IndexAccessNode).index,
         (b as IndexAccessNode).index
+      );
+
+    case 'AnnotationAccess':
+      return (
+        (a as AnnotationAccessNode).key === (b as AnnotationAccessNode).key
       );
 
     case 'PipeInvoke':
