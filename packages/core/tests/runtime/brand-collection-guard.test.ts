@@ -37,6 +37,16 @@
  *   `.entries` (a pre-existing, separate leniency in the
  *   `skipReceiverValidation` fallback scan, out of this task's scope), so
  *   it is not usable as the parity baseline for those three methods.
+ *
+ * `vector` is a fifth branded shape (`__rill_vector`) guarded the same way
+ * in `mFirst`/`mKeys`/`mValues`/`mEntries`, but is exercised in its own
+ * `describe` block below rather than the shared `BRANDS` table: vector is
+ * not constructable from rill syntax (it only arrives via a host-provided
+ * variable, mirroring `tests/language/anonymous-typed-closure.test.ts`),
+ * and `getIterableElements` guards it directly with `RILL-R003` rather
+ * than the `RILL-R002` the other three brands share with a bare number
+ * receiver for `seq`/`fold`/`filter`/`take`, so it does not fit the same
+ * parity assertions.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -53,12 +63,15 @@ const BRANDS: Record<string, { expr: string; dictFallbackErrorId: string }> = {
 };
 
 /** Run source and capture the rejection, failing the test if it resolves. */
-async function haltOf(source: string): Promise<{
+async function haltOf(
+  source: string,
+  options?: Parameters<typeof run>[1]
+): Promise<{
   errorId?: string;
   message?: string;
 }> {
   try {
-    const result = await run(source);
+    const result = await run(source, options);
     throw new Error(
       `expected '${source}' to halt, but it resolved to ${JSON.stringify(result)}`
     );
@@ -66,6 +79,15 @@ async function haltOf(source: string): Promise<{
     return e as { errorId?: string; message?: string };
   }
 }
+
+/** vector values carry the `__rill_vector` marker; not constructable via rill
+ * syntax, so provided as a host variable (mirrors the pattern in
+ * tests/language/anonymous-typed-closure.test.ts). */
+const VECTOR_VAL = {
+  __rill_vector: true,
+  data: new Float32Array([1, 2]),
+  model: 'test',
+};
 
 describe('brand-value guards against the generic dict path', () => {
   describe.each(Object.entries(BRANDS))(
@@ -120,6 +142,42 @@ describe('brand-value guards against the generic dict path', () => {
       });
     }
   );
+
+  // vector is not constructable via rill syntax, so it is exercised outside
+  // the BRANDS table above (which drives its cases from a parseable rill
+  // expression). Unlike atom/datetime/duration, vector is guarded directly
+  // in getIterableElements and in the mFirst/mKeys/mValues/mEntries fallback,
+  // so every one of these operators raises the same RILL-R003, not the
+  // RILL-R002 the other three brands share with a bare number receiver.
+  describe('vector receiver', () => {
+    it('.first() halts instead of returning a dict iterator', async () => {
+      const brandHalt = await haltOf('$v -> .first()', {
+        variables: { v: VECTOR_VAL },
+      });
+      expect(brandHalt.errorId).toBe('RILL-R003');
+    });
+
+    it('.keys halts instead of returning []', async () => {
+      const brandHalt = await haltOf('$v -> .keys', {
+        variables: { v: VECTOR_VAL },
+      });
+      expect(brandHalt.errorId).toBe('RILL-R003');
+    });
+
+    it('.values halts instead of returning []', async () => {
+      const brandHalt = await haltOf('$v -> .values', {
+        variables: { v: VECTOR_VAL },
+      });
+      expect(brandHalt.errorId).toBe('RILL-R003');
+    });
+
+    it('.entries halts instead of returning []', async () => {
+      const brandHalt = await haltOf('$v -> .entries', {
+        variables: { v: VECTOR_VAL },
+      });
+      expect(brandHalt.errorId).toBe('RILL-R003');
+    });
+  });
 
   // sort(dict, ...) guards datetime/duration/ordered/vector receivers
   // directly in ext/builtins/functions/collections.ts (throwTypeHalt,

@@ -299,7 +299,7 @@ export function createStepper(
         rejectBreakAsHalt(error, {
           location: stmt.span.start,
           sourceId: context.sourceId,
-          fn: 'execute',
+          fn: 'script',
         });
 
         // Extension-boundary reshape wrapper. Unhandled

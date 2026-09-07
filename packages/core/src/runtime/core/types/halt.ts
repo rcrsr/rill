@@ -399,10 +399,10 @@ export function throwErrorHalt(
  * `break` is control-flow syntax meaningful only inside constructs that
  * consume it (`seq`, `acc`, `while`, `for`). When a `BreakSignal` reaches
  * a reject site that does not consume break — a parallel body (`fan`,
- * `filter`, `sort`), a predicate closure, a `retry` body, or the
- * top-level statement stepper — it is the script's own control-flow
- * misuse, a programmer error rather than an operational failure `guard`
- * / `retry` should be able to swallow. The halt is therefore built via
+ * `filter`, `sort`), a predicate closure, or the top-level statement
+ * stepper — it is the script's own control-flow misuse, a programmer
+ * error rather than an operational failure `guard` / `retry` should be
+ * able to swallow. The halt is therefore built via
  * `throwFatalHostHalt`, which is non-catchable: control-flow signals
  * remain a separate hierarchy from catchable halts, so recovery blocks
  * never absorb a misplaced `break`.
@@ -413,7 +413,7 @@ export function throwErrorHalt(
  *
  * @param e     The value caught at a reject site.
  * @param site  Site descriptor; `site.fn` names the construct in the
- *              halt message (e.g. `"fan"`, `"filter"`, `"retry"`).
+ *              halt message (e.g. `"fan"`, `"filter"`).
  * @throws RuntimeHaltSignal (fatal, non-catchable) when `e instanceof BreakSignal`.
  */
 export function rejectBreakAsHalt(e: unknown, site: TypeHaltSite): void {

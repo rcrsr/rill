@@ -659,7 +659,6 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         }
       } catch (e) {
         rejectBreakAsHalt(e, site);
-        if (e instanceof ControlSignal) throw e;
         throw e;
       }
 
@@ -749,7 +748,6 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         }
       } catch (e) {
         rejectBreakAsHalt(e, site);
-        if (e instanceof ControlSignal) throw e;
         throw e;
       }
 

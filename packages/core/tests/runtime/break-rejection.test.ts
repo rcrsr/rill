@@ -117,4 +117,11 @@ describe('regression: seq and while still consume their OWN break unchanged', ()
     `);
     expect(result).toBe(5);
   });
+
+  it('seq wrapping a retry body still consumes a break that passes through retry', async () => {
+    const result = await run(
+      'list[1,2,3,4,5] -> seq({ retry<limit:3> { ($==3) ? break ! $ } })'
+    );
+    expect(result).toEqual([1, 2]);
+  });
 });

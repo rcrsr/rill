@@ -285,27 +285,28 @@ export async function invokeCallable(
   checkAborted(s);
 
   s.ctx.callDepth.value++;
-  if (s.ctx.callDepth.value > s.ctx.maxCallDepth) {
-    throwFatalHostHalt(
-      {
-        location: callLocation,
-        sourceId: s.ctx.sourceId,
-        fn: 'invokeCallable',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R010],
-      `Call depth exceeded ${s.ctx.maxCallDepth}`,
-      { limit: s.ctx.maxCallDepth, depth: s.ctx.callDepth.value }
-    );
-  }
-
-  // Yield one microtask so every call level resumes on a fresh native
-  // stack. A recursion path with no suspension point between levels (a
-  // dict-bound property closure re-reading its own field, for one) would
-  // otherwise grow the JS stack in lockstep with call depth and overflow
-  // with a raw RangeError before the depth ceiling above can fire.
-  await Promise.resolve();
 
   try {
+    if (s.ctx.callDepth.value > s.ctx.maxCallDepth) {
+      throwFatalHostHalt(
+        {
+          location: callLocation,
+          sourceId: s.ctx.sourceId,
+          fn: 'invokeCallable',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R010],
+        `Call depth exceeded ${s.ctx.maxCallDepth}`,
+        { limit: s.ctx.maxCallDepth, depth: s.ctx.callDepth.value }
+      );
+    }
+
+    // Yield one microtask so every call level resumes on a fresh native
+    // stack. A recursion path with no suspension point between levels (a
+    // dict-bound property closure re-reading its own field, for one) would
+    // otherwise grow the JS stack in lockstep with call depth and overflow
+    // with a raw RangeError before the depth ceiling above can fire.
+    await Promise.resolve();
+
     if (internal === true) {
       let result: RillValue;
       if (callable.kind === 'script') {

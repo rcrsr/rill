@@ -55,7 +55,8 @@ function isBrandedNonDict(receiver: RillValue): boolean {
     isAtom(receiver) ||
     isTypeValue(receiver) ||
     isDatetime(receiver) ||
-    isDuration(receiver)
+    isDuration(receiver) ||
+    isVector(receiver)
   );
 }
 

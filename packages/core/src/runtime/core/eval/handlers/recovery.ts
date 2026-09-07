@@ -49,7 +49,7 @@ import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
-import { rejectBreakAsHalt, throwCatchableHostHalt } from '../../types/halt.js';
+import { throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { RuntimeContext, TimeoutScheduler } from '../../types/runtime.js';
 import { ControlSignal } from '../../signals.js';
@@ -200,11 +200,6 @@ export async function evaluateRetryBlock(
         lastHaltValue = e.value;
         continue;
       }
-      rejectBreakAsHalt(e, {
-        location: getNodeLocation(s, node),
-        sourceId: s.ctx.sourceId,
-        fn: 'retry',
-      });
       throw e;
     }
   }
