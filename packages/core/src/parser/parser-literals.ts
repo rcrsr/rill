@@ -37,6 +37,7 @@ import {
   expect,
   current,
   peek,
+  previous,
   skipNewlines,
   skipNewlinesIfFollowedBy,
   makeSpan,
@@ -847,7 +848,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     key,
     value,
     ...(keyForm !== undefined ? { keyForm } : {}),
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -917,7 +918,7 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
       type: 'TypeConstructor',
       constructorName: 'stream',
       args,
-      span: makeSpan(start, current(parser.state).span.end),
+      span: makeSpan(start, previous(parser.state).span.end),
     };
   }
 
@@ -1039,6 +1040,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       params: [],
       body,
       returnTypeTarget,
+      // current() is intentional lookahead here, not the last-consumed-token
+      // idiom: it reads the token position parseClosureReturnTypeTarget left
+      // the cursor at after consuming the return type target.
       span: makeSpan(
         start,
         returnTypeTarget ? current(this.state).span.end : body.span.end
@@ -1174,6 +1178,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
         params: [firstParam, secondParam],
         body,
         returnTypeTarget,
+        // current() is intentional lookahead here, not the last-consumed-token
+        // idiom: it reads the token position parseClosureReturnTypeTarget left
+        // the cursor at after consuming the return type target.
         span: makeSpan(
           start,
           returnTypeTarget ? current(this.state).span.end : body.span.end
@@ -1200,6 +1207,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       params: [param],
       body,
       returnTypeTarget,
+      // current() is intentional lookahead here, not the last-consumed-token
+      // idiom: it reads the token position parseClosureReturnTypeTarget left
+      // the cursor at after consuming the return type target.
       span: makeSpan(
         start,
         returnTypeTarget ? current(this.state).span.end : body.span.end
@@ -1229,6 +1239,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     params,
     body,
     returnTypeTarget,
+    // current() is intentional lookahead here, not the last-consumed-token
+    // idiom: it reads the token position parseClosureReturnTypeTarget left
+    // the cursor at after consuming the return type target.
     span: makeSpan(
       start,
       returnTypeTarget ? current(this.state).span.end : body.span.end
@@ -1312,7 +1325,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     typeRef,
     defaultValue,
     annotations,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 

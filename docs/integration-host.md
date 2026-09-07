@@ -101,7 +101,17 @@ functions: {
 
 - Return new values instead of modifying inputs
 - Return `RillValue` types (string, number, boolean, array, object, or `RillCallable`)
-- Avoid returning `null` or `undefined`—use empty string `''` or empty array `[]` instead
+- Use empty string `''` or empty array `[]` instead of returning nothing
+
+Returning `undefined`, `null`, a `bigint`, a `Symbol`, a `Date`, a `Map`, a `Set`, a raw function, or any other non-plain class instance halts execution at the call boundary with `RILL-R085`, fatal and not recoverable via `guard` or `??`. The same holds when one of these values is nested inside a returned array or plain object—the walk descends into every element and field. The error message names the host function and the offending path and JavaScript type, for example `Host function 'fetchUser' returned an invalid value at .createdAt: Date`.
+
+Returning a non-finite number (`NaN`, `Infinity`, `-Infinity`)—including one nested inside a returned array or plain object—halts at the call boundary with a catchable `#INVALID_INPUT` halt, recoverable via `guard` and `??`, unlike the shape violations above, which are fatal `RILL-R085`. The message names the host function, the offending path, and the value, for example `Host function 'fetchRatio' returned a non-finite number at <root>: NaN`.
+
+```text
+# Error: #INVALID_INPUT — fetchRatio returned NaN
+guard { fetchRatio() } => $result
+$result ?? -1
+```
 
 ## Value Types
 

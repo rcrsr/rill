@@ -280,6 +280,8 @@ Type constructors are primary expressions that produce structural type values. T
 | Tuple field with annotation | `tuple(^(...) T, ...)` | `tuple(^("x") number, ^("y") number)` |
 | Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
 | Closure sig with param default | `\|p: T = literal\| :R` | `\|x: string = "gpt-4"\| :string` |
+| Closure sig, zero params | `\|\|:R` | `\|\|:string` |
+| Closure sig with annotated param | `\|^(...) p: T\|:R` | `\|^("label") x: string\|:int` |
 | Annotation default | `\|p: dict(k: T = literal)\|` | `\|a: dict(b: number = 5)\|` |
 
 When using `-> type` to convert a value, the runtime applies two default behaviors for collection-typed fields:

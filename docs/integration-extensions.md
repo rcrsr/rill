@@ -578,7 +578,7 @@ fn: async (args, ctx) => {
 
 ## Testing Extensions
 
-Use `createTestContext` to wire extensions for testing without config infrastructure:
+Use `createTestContext` to wire extensions for testing without config infrastructure. Extension functions follow the same return-value contract as any host function—see [Return Values](integration-host.md#return-values) for the types that halt (`RILL-R085` for shape violations, catchable `#INVALID_INPUT` for non-finite numbers).
 
 ```typescript
 import { createTestContext, toCallable, execute, parse } from '@rcrsr/rill';
@@ -599,6 +599,8 @@ const context = createTestContext({
 const result = await execute(parse('myExt.greet("World")'), context);
 // result.result === "Hello, World!"
 ```
+
+`createTestContext` throws `ExtensionBindingError` at construction—before any script runs—when a binding's generated source fails to parse: a closure-signature parameter with a `dict` type whose field name is not a bare identifier, or a reserved-word parameter name, each surface this way.
 
 ---
 

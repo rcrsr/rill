@@ -7,6 +7,7 @@ import { Parser } from './parser.js';
 import type {
   AnnotatedExprNode,
   AnnotationAccessNode,
+  AnnotationArg,
   ArithHead,
   BinaryOp,
   BlockNode,
@@ -50,6 +51,7 @@ import {
   advance,
   expect,
   current,
+  previous,
   makeSpan,
   peek,
   skipNewlines,
@@ -465,7 +467,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       span: head.span,
     };
     const loop = this.parseLoopWithInput(headAsPipeChain);
-    const span = makeSpan(head.span.start, current(this.state).span.end);
+    const span = makeSpan(head.span.start, previous(this.state).span.end);
     head = this.wrapLoopInPostfixExpr(loop, span);
   }
 
@@ -480,7 +482,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       span: head.span,
     };
     const conditional = this.parseConditionalWithCondition(headAsPipeChain);
-    const span = makeSpan(head.span.start, current(this.state).span.end);
+    const span = makeSpan(head.span.start, previous(this.state).span.end);
     head = this.wrapConditionalInPostfixExpr(conditional, span);
   }
 
@@ -579,7 +581,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION) &&
     pipes.length > 0
   ) {
-    const span = makeSpan(start, current(this.state).span.end);
+    const span = makeSpan(start, previous(this.state).span.end);
     const chainAsCondition: PipeChainNode = {
       type: 'PipeChain',
       head,
@@ -588,7 +590,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
       span,
     };
     const conditional = this.parseConditionalWithCondition(chainAsCondition);
-    const resultSpan = makeSpan(start, current(this.state).span.end);
+    const resultSpan = makeSpan(start, previous(this.state).span.end);
     return {
       type: 'PipeChain',
       head: this.wrapConditionalInPostfixExpr(conditional, resultSpan),
@@ -619,7 +621,10 @@ Parser.prototype.parsePostfixExpr = function (this: Parser): PostfixExprNode {
   // Site 3: Add newline lookahead before ? check
   if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION)) {
     const conditional = this.parseConditionalWithCondition(postfixExpr);
-    const span = makeSpan(postfixExpr.span.start, current(this.state).span.end);
+    const span = makeSpan(
+      postfixExpr.span.start,
+      previous(this.state).span.end
+    );
     return this.wrapConditionalInPostfixExpr(conditional, span);
   }
 
@@ -856,11 +861,19 @@ function isClosureSigLiteralStart(state: {
   const t0 = state.tokens[state.pos];
   const t1 = state.tokens[state.pos + 1];
   const t2 = state.tokens[state.pos + 2];
-  if (!t0 || !t1 || !t2) return false;
+  if (!t0 || !t1) return false;
+  // `||:ret` — empty param list closure sig literal.
+  if (t0.type === TOKEN_TYPES.OR && t1.type === TOKEN_TYPES.COLON) {
+    return true;
+  }
+  if (!t2) return false;
+  const isAnnotatedFirstParam =
+    t0.type === TOKEN_TYPES.PIPE_BAR && t1.type === TOKEN_TYPES.CARET;
   if (
-    t0.type !== TOKEN_TYPES.PIPE_BAR ||
-    t1.type !== TOKEN_TYPES.IDENTIFIER ||
-    t2.type !== TOKEN_TYPES.COLON
+    !isAnnotatedFirstParam &&
+    (t0.type !== TOKEN_TYPES.PIPE_BAR ||
+      t1.type !== TOKEN_TYPES.IDENTIFIER ||
+      t2.type !== TOKEN_TYPES.COLON)
   ) {
     return false;
   }
@@ -930,7 +943,7 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
       type: 'AnnotatedExpr',
       annotations,
       expression,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     } satisfies AnnotatedExprNode;
   }
 
@@ -1254,7 +1267,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
       primary: makePipeVarPrimary(methods[0]!.span),
       methods,
       defaultValue: null,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     };
     return this.parseConditionalWithCondition(postfixExpr);
   }
@@ -1282,7 +1295,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     primary: makePipeVarPrimary(methods[0]!.span),
     methods,
     defaultValue: null,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   } as PostfixExprNode;
 };
 
@@ -1790,32 +1803,75 @@ Parser.prototype.parseClosureSigLiteral = function (
 ): ClosureSigLiteralNode {
   const start = current(this.state).span.start;
 
-  // Consume opening |
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
-  skipNewlines(this.state);
+  const params: {
+    name: string;
+    typeExpr: ExpressionNode;
+    annotations?: AnnotationArg[];
+  }[] = [];
 
-  const params: { name: string; typeExpr: ExpressionNode }[] = [];
+  if (check(this.state, TOKEN_TYPES.OR)) {
+    // `||:ret` — empty param list.
+    advance(this.state);
+    skipNewlines(this.state);
+  } else {
+    // Consume opening |
+    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
+    skipNewlines(this.state);
 
-  // Parse param-type-list: name: typeExpr [, name: typeExpr]*
-  while (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
-    const nameToken = expect(
-      this.state,
-      TOKEN_TYPES.IDENTIFIER,
-      'Expected parameter name'
-    );
-    expect(this.state, TOKEN_TYPES.COLON, 'Expected : after parameter name');
-    skipNewlines(this.state);
-    const typeExpr = this.parseExpression();
-    params.push({ name: nameToken.value, typeExpr });
-    skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
+    // Parse param-type-list: [^(annots)] name: typeExpr [, [^(annots)] name: typeExpr]*
+    while (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
+      let annotations: AnnotationArg[] | undefined;
+      while (check(this.state, TOKEN_TYPES.CARET)) {
+        advance(this.state); // consume ^
+        expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
+        const block = this.parseAnnotationArgs();
+        expect(
+          this.state,
+          TOKEN_TYPES.RPAREN,
+          'Expected )',
+          ERROR_IDS.RILL_P005
+        );
+        skipNewlines(this.state);
+
+        annotations = annotations ? annotations.concat(block) : block;
+
+        // Guard: annotation must be followed by a field
+        if (check(this.state, TOKEN_TYPES.PIPE_BAR)) {
+          throw new ParseError(
+            ERROR_IDS.RILL_P014,
+            'Expected field after annotation',
+            current(this.state).span.start
+          );
+        }
+      }
+
+      const nameToken = expect(
+        this.state,
+        TOKEN_TYPES.IDENTIFIER,
+        'Expected parameter name'
+      );
+      expect(this.state, TOKEN_TYPES.COLON, 'Expected : after parameter name');
       skipNewlines(this.state);
+      const typeExpr = this.parseExpression();
+      const param: {
+        name: string;
+        typeExpr: ExpressionNode;
+        annotations?: AnnotationArg[];
+      } = { name: nameToken.value, typeExpr };
+      if (annotations) {
+        param.annotations = annotations;
+      }
+      params.push(param);
+      skipNewlines(this.state);
+      if (check(this.state, TOKEN_TYPES.COMMA)) {
+        advance(this.state);
+        skipNewlines(this.state);
+      }
     }
-  }
 
-  // Consume closing |
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
+    // Consume closing |
+    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
+  }
 
   // Consume : before return type
   expect(
@@ -1831,7 +1887,7 @@ Parser.prototype.parseClosureSigLiteral = function (
     type: 'ClosureSigLiteral',
     params,
     returnType,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -1932,7 +1988,7 @@ Parser.prototype.parsePassBlock = function (this: Parser): PassBlockNode {
       key: keyToken.value,
       keyForm: 'identifier',
       value,
-      span: makeSpan(entryStart, current(this.state).span.end),
+      span: makeSpan(entryStart, previous(this.state).span.end),
     } satisfies DictEntryNode);
 
     skipNewlines(this.state);

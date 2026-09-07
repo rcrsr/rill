@@ -944,11 +944,13 @@ type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg
 
    Examples:
    |x: number| :string             -- closure taking number, returning string
-   |a: number, b: number| :number  -- two-param closure *)
+   |a: number, b: number| :number  -- two-param closure
+   ||:string                       -- zero-param closure; param-type-list may be empty
+   |^("label") x: string|:int      -- annotated param, mirrors closure-param *)
 
 closure-sig-lit  = "|" , param-type-list , "|" , ":" , expression ;
 param-type-list  = [ param-type-item , { "," , param-type-item } ] ;
-param-type-item  = identifier , ":" , expression , [ "=" , literal ] ;
+param-type-item  = [ annotation ] , identifier , ":" , expression , [ "=" , literal ] ;
 
 (* ============================================================ *)
 (* CONTROL FLOW                                                 *)

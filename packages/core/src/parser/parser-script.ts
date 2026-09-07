@@ -23,6 +23,7 @@ import {
   advance,
   expect,
   current,
+  previous,
   isAtEnd,
   skipNewlines,
   makeSpan,
@@ -173,6 +174,9 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
     type: 'Script',
     frontmatter,
     statements,
+    // current() intentional: the statement loop above only exits via
+    // isAtEnd(), so current() is always the EOF token here — the source's
+    // terminal position, not an unconsumed lookahead token to skip past.
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -343,7 +347,7 @@ Parser.prototype.parseFrontmatter = function (this: Parser): FrontmatterNode {
   return {
     type: 'Frontmatter',
     content,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -488,7 +492,7 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
     return {
       type: 'SpreadArg',
       expression,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     } satisfies SpreadArgNode;
   }
 
@@ -499,7 +503,7 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
       type: 'NamedArg',
       name: 'description',
       value,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     } satisfies NamedArgNode;
   }
 
@@ -523,6 +527,6 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
     type: 'NamedArg',
     name: nameToken.value,
     value,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   } satisfies NamedArgNode;
 };

@@ -46,6 +46,8 @@ $lt.^type.name
 | `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
 | `\|p: T\| :R` | `\|x: number\| :string` | Closure signature type |
+| `\|\|:R` | `\|\|:string` | Closure signature type, zero params |
+| `\|^(...) p: T\|:R` | `\|^("label") x: string\|:int` | Closure signature type, annotated param |
 | `stream(T):R` | `stream(string):number` | Stream type with chunk type T and resolution type R |
 
 ### Default Values in Type Constructors

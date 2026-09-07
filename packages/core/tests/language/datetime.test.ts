@@ -493,7 +493,7 @@ describe('Rill Language: Datetime Type', () => {
           run('datetime(...dict[unix: getNaN()])', {
             functions: { getNaN },
           }),
-        'Invalid datetime component unix'
+        "Host function 'getNaN' returned a non-finite number at <root>: NaN"
       );
     });
 
@@ -508,7 +508,7 @@ describe('Rill Language: Datetime Type', () => {
           run('datetime(...dict[unix: getInf()])', {
             functions: { getInf },
           }),
-        'Invalid datetime component unix'
+        "Host function 'getInf' returned a non-finite number at <root>: Infinity"
       );
     });
 

@@ -30,6 +30,7 @@ import {
   isApplicationCallable,
   isDict,
   marshalArgs,
+  validateHostResult,
 } from '../../callable.js';
 import { getVariable, UNVALIDATED_METHOD_PARAMS } from '../../context.js';
 import { markExtensionThrow } from '../../extension-throw.js';
@@ -380,8 +381,10 @@ async function invokeFnCallable(
   const raw = callable.fn(fnArgs, s.ctx, callLocation);
   const dispatchPromise = raw instanceof Promise ? raw : Promise.resolve(raw);
   s.ctx.trackInflight(dispatchPromise);
+  let result: RillValue;
   try {
-    return await dispatchPromise;
+    result = await dispatchPromise;
+    validateHostResult(result, functionName, callLocation);
   } catch (e) {
     // Enrichment site 1: extension-dispatch boundary.
     // Tag every thrown value as extension-originated first, then enrich
@@ -420,6 +423,8 @@ async function invokeFnCallable(
     }
     throw e;
   }
+
+  return result;
 }
 
 /** Create closure execution context with defining scope as parent. */

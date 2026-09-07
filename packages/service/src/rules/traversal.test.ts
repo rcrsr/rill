@@ -266,4 +266,22 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
     const { viaRules, viaCore } = computeParity('list[1, 2]:?list(number)\n');
     expect(viaRules).toEqual(viaCore);
   });
+
+  it('ClosureSigLiteral with a parameter annotation', () => {
+    const { viaRules, viaCore } = computeParity(
+      '|^("label") x: string| :number\n'
+    );
+    expect(viaRules).toEqual(viaCore);
+    // The annotation's NamedArg node ("description" -> "label") must be
+    // reachable as a ClosureSigLiteral child, not skipped by either
+    // traversal.
+    const annotationNodes = viaCore.filter(
+      (node) => node.type === 'NamedArg' && node.name === 'description'
+    );
+    expect(annotationNodes).toHaveLength(1);
+    expect(annotationNodes[0]).toMatchObject({
+      type: 'NamedArg',
+      name: 'description',
+    });
+  });
 });

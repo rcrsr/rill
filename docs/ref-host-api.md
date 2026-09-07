@@ -667,7 +667,7 @@ type CallableFn = (
 | `ctx` | `RuntimeContextLike` | Runtime context for the current execution. Provides access to variables, abort signal, and callbacks |
 | `location` | `SourceLocation \| undefined` | Source location of the call site. Present when the call originates from a rill script; undefined in programmatic calls |
 
-**Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details.
+**Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details. A return value that is not a `RillValue`—including one nested inside a returned array or plain object—halts at the call boundary with `RILL-R085`. A returned non-finite number (`NaN`, `Infinity`, `-Infinity`) halts catchably with `#INVALID_INPUT` instead. See [Return Values](integration-host.md#return-values) for the full contract.
 
 **Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]`; their internal type cast is unchanged.
 
@@ -850,12 +850,17 @@ The output format is a rill dict literal. The dict is the last expression and be
 
 ```text
 [
-  "greet": |name: string|:string,
+  "greet": |^("who") name: string|:string,
   "fetch": |url: string|:dict,
+  "now": ||:number,
 ]
 ```
 
 An empty function map returns `[:]`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.
+
+Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
+
+Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 
 ---
 

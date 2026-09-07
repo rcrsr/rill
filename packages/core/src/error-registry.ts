@@ -141,6 +141,7 @@ export const ERROR_IDS = {
   RILL_R082: 'RILL-R082',
   RILL_R083: 'RILL-R083',
   RILL_R084: 'RILL-R084',
+  RILL_R085: 'RILL-R085',
   RILL_C001: 'RILL-C001',
   RILL_C002: 'RILL-C002',
   RILL_C003: 'RILL-C003',
@@ -2117,6 +2118,24 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Host attempts to invalidate with the reserved "ok" code',
         code: '# Host code: ctx.invalidate({ code: "ok" })  # rejected',
+      },
+    ],
+  },
+
+  {
+    errorId: ERROR_IDS.RILL_R085,
+    category: 'runtime',
+    description: 'Host function returned an invalid value',
+    messageTemplate:
+      "Host function '{functionName}' returned an invalid value at {path}: {jsType}",
+    cause:
+      'A host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
+    resolution:
+      'Convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.',
+    examples: [
+      {
+        description: 'Host function returns an unsupported JavaScript value',
+        code: '# Host code: registerFunction("bad", () => new Map())  # rejected',
       },
     ],
   },

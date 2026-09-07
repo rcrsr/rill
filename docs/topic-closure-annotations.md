@@ -536,6 +536,17 @@ $fn.^input
 
 The returned `ordered` type has `structure.fields[0].annotations` equal to `{ description: "label" }`.
 
+### Annotations in Closure Signature Literals
+
+A bodyless closure signature literal carries the same per-param annotations as a closure definition:
+
+```rill
+|^("label") x: string|:number => $t
+$t
+```
+
+The result is a `closure` type value. `structure.params[0].annotations` equals `{ description: "label" }`, the same forwarding rule as `.^input`.
+
 ---
 
 ## See Also

@@ -27,7 +27,7 @@ import type { RillStream } from '../../types/structures.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { BreakSignal } from '../../signals.js';
 import { isCallable, isDict } from '../../callable.js';
-import { typedKeyEntries } from '../../types/dict-keys.js';
+import { orderedDictEntries } from '../../types/dict-keys.js';
 import {
   throwCatchableHostHalt,
   throwFatalHostHalt,
@@ -120,18 +120,12 @@ export async function getIterableElements(
     );
   }
   if (isDict(input)) {
-    // Dict iteration: sorted string keys first, then number/boolean keys
-    // (in insertion order), each element is { key, value }.
-    const keys = Object.keys(input).sort();
-    const stringEntries = keys.map((key) => ({
-      key: key as RillValue,
-      value: (input as Record<string, RillValue>)[key]!,
-    }));
-    const typedEntries = typedKeyEntries(input).map((e) => ({
-      key: e.key as RillValue,
+    // Dict iteration: canonical key order (sorted string keys, then number
+    // keys ascending, then boolean keys), each element is { key, value }.
+    return orderedDictEntries(input).map((e) => ({
+      key: e.key,
       value: e.value,
     }));
-    return [...stringEntries, ...typedEntries];
   }
   // Non-iterable [RILL-R002] — catchable: user supplied wrong type
   throwCatchableHostHalt(

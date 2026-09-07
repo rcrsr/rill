@@ -10,7 +10,7 @@ import {
 } from '../../../core/types/registrations.js';
 import { isIterator, isStream, isVector } from '../../../core/types/guards.js';
 import {
-  typedKeyEntries,
+  orderedDictEntries,
   typedKeyCount,
 } from '../../../core/types/dict-keys.js';
 import { isEmpty } from '../../../core/values.js';
@@ -522,37 +522,24 @@ export const mGe: RillMethod = (receiver, args, ctx, location) =>
   orderedCompare(receiver, args, ctx, location, 'ge') >= 0;
 
 /**
- * Get all keys of a dict as a list. String keys (sorted) come first,
- * then number/boolean keys (each surfaced with its original type).
+ * Get all keys of a dict as a list, in canonical order: sorted string keys,
+ * then number keys ascending, then boolean keys (false before true).
  */
 export const mKeys: RillMethod = (receiver) =>
   isDict(receiver) && !isStream(receiver)
-    ? [
-        ...Object.keys(receiver).sort(),
-        ...typedKeyEntries(receiver).map((e) => e.key),
-      ]
+    ? orderedDictEntries(receiver).map((e) => e.key)
     : [];
 
-/** Get all values of a dict as a list, sorted string keys first then typed keys. */
+/** Get all values of a dict as a list, in canonical key order. */
 export const mValues: RillMethod = (receiver) =>
   isDict(receiver) && !isStream(receiver)
-    ? [
-        ...Object.keys(receiver)
-          .sort()
-          .map((key) => receiver[key]!),
-        ...typedKeyEntries(receiver).map((e) => e.value),
-      ]
+    ? orderedDictEntries(receiver).map((e) => e.value)
     : [];
 
-/** Get all entries of a dict as a list of [key, value] pairs. */
+/** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
 export const mEntries: RillMethod = (receiver) =>
   isDict(receiver) && !isStream(receiver)
-    ? [
-        ...Object.keys(receiver)
-          .sort()
-          .map((key) => [key, receiver[key]!] as RillValue),
-        ...typedKeyEntries(receiver).map((e) => [e.key, e.value] as RillValue),
-      ]
+    ? orderedDictEntries(receiver).map((e) => [e.key, e.value] as RillValue)
     : [];
 
 /** Check if list contains value (deep equality) */

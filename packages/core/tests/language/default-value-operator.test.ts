@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isInvalid, isTuple } from '@rcrsr/rill';
+import { isInvalid, isTuple, toCallable } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 function isOrdered(value: unknown): boolean {
@@ -320,8 +320,11 @@ describe('Default Value Operator (??)', () => {
           a: {
             params: [],
             fn: () => ({
-              b: () => ({
-                c: () => ({}), // d missing
+              b: toCallable({
+                params: [],
+                fn: () => ({
+                  c: toCallable({ params: [], fn: () => ({}) }), // d missing
+                }),
               }),
             }),
           },

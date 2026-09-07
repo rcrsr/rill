@@ -408,12 +408,12 @@ describe('Rill Language: Duration Type', () => {
         returnType: { kind: 'number' },
         fn: () => Infinity,
       };
-      await expect(
-        run('duration(0, 0, 0, 2) -> .multiply(getInf())', {
-          functions: { getInf },
-        })
-      ).rejects.toThrow(
-        'duration.multiply() would produce a non-finite result'
+      await expectHaltMessage(
+        () =>
+          run('duration(0, 0, 0, 2) -> .multiply(getInf())', {
+            functions: { getInf },
+          }),
+        "Host function 'getInf' returned a non-finite number at <root>: Infinity"
       );
     });
 
@@ -447,7 +447,7 @@ describe('Rill Language: Duration Type', () => {
       };
       await expectHaltMessage(
         () => run('duration(0, 0, getNaN())', { functions: { getNaN } }),
-        'duration days must be a finite number'
+        "Host function 'getNaN' returned a non-finite number at <root>: NaN"
       );
     });
 
@@ -459,7 +459,7 @@ describe('Rill Language: Duration Type', () => {
       };
       await expectHaltMessage(
         () => run('duration(0, 0, 0, getInf())', { functions: { getInf } }),
-        'duration hours must be a finite number'
+        "Host function 'getInf' returned a non-finite number at <root>: Infinity"
       );
     });
   });
