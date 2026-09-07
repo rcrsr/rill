@@ -309,6 +309,9 @@ function getChildren(node: ASTNode): ASTNode[] {
     case 'Invoke':
       return [...node.args];
 
+    case 'IndexAccess':
+      return [node.index];
+
     case 'AnnotationAccess':
       return [];
 

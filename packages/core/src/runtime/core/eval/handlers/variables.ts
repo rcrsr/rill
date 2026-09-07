@@ -235,6 +235,110 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
 }
 
 /**
+ * Apply bracket-index access (`receiver[indexExpr]`) to a list or dict
+ * receiver, evaluating `indexExpr` as a pipe chain to obtain the index/key.
+ *
+ * Shared by the `$var[i]` access-chain path (evaluateVariableAsync) and the
+ * postfix `expr[i]` method-chain path (evaluatePostfixExpr / the pipe-target
+ * PostfixExpr case in core.ts) so both surfaces halt identically:
+ * - List: negative-index normalization, out-of-bounds halts via RILL_R009.
+ * - Dict: number/boolean keys resolve via the typed-key sidecar
+ *   (hasTypedKey/getTypedKey); string keys use an own-key gate so inherited
+ *   JS members never resolve as dict fields.
+ * - Any other receiver type (including tuple and string) halts with
+ *   'Cannot index <type>' via RILL_R002 — no element access is defined for
+ *   those types.
+ *
+ * `location` and `fn` are supplied by the caller so trace frames match the
+ * calling context exactly (e.g. 'evaluateVariableAsync' for the $var[i]
+ * path).
+ */
+export async function applyBracketIndex(
+  s: EvalState,
+  receiver: RillValue,
+  indexExpr: ExpressionNode,
+  location: SourceLocation | undefined,
+  fn: string
+): Promise<RillValue> {
+  // Bracket-index expressions are parsed inline while building a live
+  // access/method chain (never via the statement-level recovery path), so
+  // they only ever hold a PipeChainNode; PartialExpressionNode is reserved
+  // for parser error recovery.
+  if (!isPipeChainNode(indexExpr)) {
+    throwFatalHostHalt(
+      { location, sourceId: s.ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Bracket access expression must be a pipe chain'
+    );
+  }
+  const indexValue = await evaluatePipeChain(s, indexExpr);
+
+  if (Array.isArray(receiver)) {
+    if (typeof indexValue !== 'number') {
+      throwCatchableHostHalt(
+        { location, sourceId: s.ctx.sourceId, fn },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `List index must be number, got ${inferType(indexValue)}`
+      );
+    }
+    let index = indexValue;
+    // Handle negative indices
+    if (index < 0) {
+      index = receiver.length + index;
+    }
+    const result = receiver[index];
+    if (result === undefined) {
+      throwCatchableHostHalt(
+        { location, sourceId: s.ctx.sourceId, fn },
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
+        `List index out of bounds: ${indexValue}`
+      );
+    }
+    return result;
+  } else if (isDict(receiver)) {
+    // Number/boolean bracket keys resolve against the typed-key sidecar,
+    // keeping $d[1] distinct from $d["1"].
+    if (typeof indexValue === 'number' || typeof indexValue === 'boolean') {
+      if (!hasTypedKey(receiver, indexValue)) {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Undefined dict key: ${indexValue}`
+        );
+      }
+      return getTypedKey(receiver, indexValue) as RillValue;
+    } else {
+      if (typeof indexValue !== 'string') {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          `Dict key must be string, got ${inferType(indexValue)}`
+        );
+      }
+      // Own-key gate: inherited JS members (constructor, __proto__, ...)
+      // must not resolve as dict fields.
+      const result = Object.hasOwn(receiver, indexValue)
+        ? (receiver as Record<string, RillValue>)[indexValue]
+        : undefined;
+      if (result === undefined) {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Undefined dict key: ${indexValue}`
+        );
+      }
+      return result;
+    }
+  } else {
+    throwCatchableHostHalt(
+      { location, sourceId: s.ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Cannot index ${inferType(receiver)}`
+    );
+  }
+}
+
+/**
  * Evaluate variable access asynchronously.
  * Async variant that supports access chains ($.field, $var.field).
  *
@@ -326,110 +430,17 @@ export async function evaluateVariableAsync(
 
     // Check if this is a bracket access
     if ('accessKind' in access) {
-      // Bracket access: [expr]. This expression is parsed inline while
-      // building a live access chain (never via the statement-level
-      // recovery path), so it only ever holds a PipeChainNode;
-      // PartialExpressionNode is reserved for parser error recovery.
-      if (!isPipeChainNode(access.expression)) {
-        throwFatalHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateVariableAsync',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          'Bracket access expression must be a pipe chain'
-        );
-      }
-      const indexValue = await evaluatePipeChain(s, access.expression);
-
-      if (Array.isArray(value)) {
-        if (typeof indexValue !== 'number') {
-          throwCatchableHostHalt(
-            {
-              location: getNodeLocation(s, node),
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateVariableAsync',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R002],
-            `List index must be number, got ${inferType(indexValue)}`
-          );
-        }
-        let index = indexValue;
-        // Handle negative indices
-        if (index < 0) {
-          index = value.length + index;
-        }
-        const result = value[index];
-        if (result === undefined) {
-          throwCatchableHostHalt(
-            {
-              location: getNodeLocation(s, node),
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateVariableAsync',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R009],
-            `List index out of bounds: ${indexValue}`
-          );
-        }
-        value = result;
-      } else if (isDict(value)) {
-        // Number/boolean bracket keys resolve against the typed-key sidecar,
-        // keeping $d[1] distinct from $d["1"].
-        if (typeof indexValue === 'number' || typeof indexValue === 'boolean') {
-          if (!hasTypedKey(value, indexValue)) {
-            throwCatchableHostHalt(
-              {
-                location: getNodeLocation(s, node),
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateVariableAsync',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R009],
-              `Undefined dict key: ${indexValue}`
-            );
-          }
-          value = getTypedKey(value, indexValue) as RillValue;
-        } else {
-          if (typeof indexValue !== 'string') {
-            throwCatchableHostHalt(
-              {
-                location: getNodeLocation(s, node),
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateVariableAsync',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              `Dict key must be string, got ${inferType(indexValue)}`
-            );
-          }
-          // Own-key gate: inherited JS members (constructor, __proto__, ...)
-          // must not resolve as dict fields.
-          const result = Object.hasOwn(value, indexValue)
-            ? (value as Record<string, RillValue>)[indexValue]
-            : undefined;
-          if (result === undefined) {
-            throwCatchableHostHalt(
-              {
-                location: getNodeLocation(s, node),
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateVariableAsync',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R009],
-              `Undefined dict key: ${indexValue}`
-            );
-          }
-          value = result;
-        }
-      } else {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateVariableAsync',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Cannot index ${inferType(value)}`
-        );
-      }
+      // Bracket access: [expr]. Delegates to the shared applyBracketIndex
+      // helper (list negative-index normalization, dict typed-key lookup,
+      // and the 'Cannot index <type>' fallback) so this path stays in sync
+      // with the postfix expr[i] path in core.ts.
+      value = await applyBracketIndex(
+        s,
+        value,
+        access.expression,
+        getNodeLocation(s, node),
+        'evaluateVariableAsync'
+      );
       continue;
     }
 

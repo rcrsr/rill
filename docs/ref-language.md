@@ -213,6 +213,13 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.?field&type` | Existence + type check |
 | `$data.^key` | Annotation reflection |
 
+`[index]` is a postfix operator: it applies after any expression yielding an indexable value, not only a `$`-variable.
+
+```rill
+list[1, 2, 3][0]
+# Result: 1
+```
+
 ### Reserved Words as Member Names
 
 Reserved words are legal member names immediately after a dot. The lexer retypes any keyword token following `.` or `.?` to a member name. These words never trigger their statement parsing.

@@ -467,5 +467,32 @@ $loop(5)`;
         expect(await run(script)).toBe(5);
       });
     });
+
+    describe('Postfix index access `[i]` joins onto its receiver on the same line (issue #396)', () => {
+      // Primary provenance check: each of these must parse as ONE statement.
+      // A regression that silently re-splits `expr[i]` into two statements
+      // (a bare receiver statement, then an orphaned `[i]` tuple-literal
+      // statement) would otherwise still produce a plausible-looking value
+      // for some of these, masking the split. Statement count is the
+      // discriminator that catches that failure mode even when the value
+      // looks right.
+      it.each([
+        'list[1,2,3][0]',
+        '[1,2,3][0]',
+        'dict[a: 1]["a"]',
+        'tuple[1,2][0]',
+        '"abc"[0]',
+        '(list[1,2,3])[0]',
+      ])('"%s" parses as exactly one statement', (src) => {
+        const ast = parse(src);
+        expect(ast.statements.length).toBe(1);
+      });
+
+      it('a receiver followed by "[i]" on the next line remains two statements', () => {
+        const script = 'list[1,2,3]\n[0]';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+      });
+    });
   });
 });

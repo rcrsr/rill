@@ -19,6 +19,7 @@ import type {
   ExpressionNode,
   WhileLoopNode,
   GroupedExprNode,
+  IndexAccessNode,
   InvokeNode,
   MethodCallNode,
   PassBlockNode,
@@ -110,7 +111,12 @@ type CommonConstruct =
  */
 interface PostfixLoopState {
   primary: PrimaryNode;
-  methods: (MethodCallNode | InvokeNode | AnnotationAccessNode)[];
+  methods: (
+    | MethodCallNode
+    | InvokeNode
+    | AnnotationAccessNode
+    | IndexAccessNode
+  )[];
   receiverEnd: SourceLocation;
 }
 
@@ -694,6 +700,26 @@ const postfixDispatchTable: Record<
     loopState.methods.push(invoke);
     loopState.receiverEnd = invoke.span.end;
   },
+  [TOKEN_TYPES.LBRACKET]: function (
+    this: Parser,
+    loopState: PostfixLoopState
+  ): void {
+    const openBracket = advance(this.state); // consume [
+    const index = this.parsePipeChain();
+    const closeBracket = expect(
+      this.state,
+      TOKEN_TYPES.RBRACKET,
+      'Expected ] after index expression',
+      ERROR_IDS.RILL_P005
+    );
+    const indexAccess: IndexAccessNode = {
+      type: 'IndexAccess',
+      index,
+      span: makeSpan(openBracket.span.start, closeBracket.span.end),
+    };
+    loopState.methods.push(indexAccess);
+    loopState.receiverEnd = closeBracket.span.end;
+  },
 };
 
 Parser.prototype.parsePostfixExprBase = function (
@@ -707,7 +733,12 @@ Parser.prototype.parsePostfixExprBase = function (
     primary = this.parsePostfixTypeOperation(primary, start);
   }
 
-  const methods: (MethodCallNode | InvokeNode | AnnotationAccessNode)[] = [];
+  const methods: (
+    | MethodCallNode
+    | InvokeNode
+    | AnnotationAccessNode
+    | IndexAccessNode
+  )[] = [];
 
   // Track the end of the receiver for method calls
   let receiverEnd = primary.span.end;
@@ -744,7 +775,8 @@ Parser.prototype.parsePostfixExprBase = function (
     (isAnnotationAccess(this.state) ||
       isMethodCall(this.state) ||
       check(this.state, TOKEN_TYPES.LPAREN) ||
-      check(this.state, TOKEN_TYPES.DOT_BANG))
+      check(this.state, TOKEN_TYPES.DOT_BANG) ||
+      check(this.state, TOKEN_TYPES.LBRACKET))
   ) {
     if (isAnnotationAccess(this.state)) {
       const dotStart = current(this.state).span.start;

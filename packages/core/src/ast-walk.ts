@@ -106,6 +106,8 @@ function astChildren(node: ASTNode): ASTNode[] {
       return [...node.args];
     case 'AnnotationAccess':
       return [];
+    case 'IndexAccess':
+      return [node.index];
     case 'HostCall':
       return [...node.args];
     case 'HostRef':

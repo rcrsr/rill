@@ -57,7 +57,11 @@ import {
   evaluateClosureCallWithPipe,
   evaluateClosureCall,
 } from './closures.js';
-import { handleCapture, evaluateVariableAsync } from './variables.js';
+import {
+  handleCapture,
+  evaluateVariableAsync,
+  applyBracketIndex,
+} from './variables.js';
 import {
   evaluateWhileLoop,
   evaluateDoWhileLoop,
@@ -289,6 +293,14 @@ export async function evaluatePostfixExpr(
           value,
           method.key,
           method.span.start
+        );
+      } else if (method.type === 'IndexAccess') {
+        value = await applyBracketIndex(
+          s,
+          value,
+          method.index,
+          getNodeLocation(s, method),
+          'evaluatePostfixExpr'
         );
       } else {
         value = await evaluateMethod(s, method, value);
@@ -816,6 +828,14 @@ async function evaluatePipeTarget(
               value,
               method.key,
               method.span.start
+            );
+          } else if (method.type === 'IndexAccess') {
+            value = await applyBracketIndex(
+              s,
+              value,
+              method.index,
+              getNodeLocation(s, method),
+              'evaluatePipeChain'
             );
           } else {
             value = await evaluateMethod(s, method, value);

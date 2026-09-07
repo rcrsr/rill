@@ -297,7 +297,12 @@ export function isPipeChainNode(node: ExpressionNode): node is PipeChainNode {
 export interface PostfixExprNode extends BaseNode {
   readonly type: 'PostfixExpr';
   readonly primary: PrimaryNode;
-  readonly methods: (MethodCallNode | InvokeNode | AnnotationAccessNode)[];
+  readonly methods: (
+    | MethodCallNode
+    | InvokeNode
+    | AnnotationAccessNode
+    | IndexAccessNode
+  )[];
   readonly defaultValue: BodyNode | null;
 }
 
@@ -754,6 +759,12 @@ export interface InvokeNode extends BaseNode {
   readonly args: (ExpressionNode | SpreadArgNode)[];
 }
 
+/** Postfix bracket-index access: expr[index] */
+export interface IndexAccessNode extends BaseNode {
+  readonly type: 'IndexAccess';
+  readonly index: ExpressionNode;
+}
+
 /** Annotation reflection access on expressions: expr.^key */
 export interface AnnotationAccessNode extends BaseNode {
   readonly type: 'AnnotationAccess';
@@ -1153,6 +1164,7 @@ export type ASTNode =
   | PostfixExprNode
   | MethodCallNode
   | InvokeNode
+  | IndexAccessNode
   | AnnotationAccessNode
   | HostCallNode
   | HostRefNode

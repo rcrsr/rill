@@ -27,6 +27,7 @@ import type {
   GroupedExprNode,
   InterpolationNode,
   InvokeNode,
+  IndexAccessNode,
   PipeInvokeNode,
   MethodCallNode,
   NumberLiteralNode,
@@ -148,6 +149,12 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
 
     case 'Invoke':
       return invokeEquals(a, b as InvokeNode);
+
+    case 'IndexAccess':
+      return expressionEquals(
+        (a as IndexAccessNode).index,
+        (b as IndexAccessNode).index
+      );
 
     case 'PipeInvoke':
       return pipeInvokeEquals(a, b as PipeInvokeNode);
