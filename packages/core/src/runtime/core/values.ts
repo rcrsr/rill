@@ -57,6 +57,7 @@ export const inferType: (value: RillValue) => string = registryInferType;
  * Returns true if the value matches the expected type, false otherwise.
  */
 export function checkType(value: RillValue, expected: RillTypeName): boolean {
+  if (expected === 'any') return true;
   return inferType(value) === expected;
 }
 

@@ -16,11 +16,13 @@ import type { SourceLocation } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import {
+  isAtom,
   isDatetime,
   isDuration,
   isIterator,
   isOrdered,
   isStream,
+  isTypeValue,
   isVector,
 } from '../../types/guards.js';
 import type { RillStream } from '../../types/structures.js';
@@ -109,6 +111,19 @@ export async function getIterableElements(
   // Ordered guard: ordered values are plain objects but not dict-iterable
   // catchable: user supplied wrong type
   if (isOrdered(input)) {
+    throwCatchableHostHalt(
+      {
+        location: node.span.start,
+        sourceId: ctx.sourceId,
+        fn: 'getIterableElements',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
+    );
+  }
+  // Atom/type-value guard: these are plain objects but not dict-iterable
+  // catchable: user supplied wrong type
+  if (isAtom(input) || isTypeValue(input)) {
     throwCatchableHostHalt(
       {
         location: node.span.start,
