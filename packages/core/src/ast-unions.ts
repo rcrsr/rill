@@ -17,6 +17,7 @@ export type NodeType =
   | 'PostfixExpr'
   | 'MethodCall'
   | 'Invoke'
+  | 'IndexAccess'
   | 'AnnotationAccess'
   | 'HostCall'
   | 'HostRef'

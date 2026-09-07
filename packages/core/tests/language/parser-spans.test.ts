@@ -187,6 +187,66 @@ describe('Parser Spans', () => {
       ).toBe('5:number');
     });
 
+    it('IndexAccess span covers the brackets and their content, not trailing content', () => {
+      const source = 'list[1,2,3][0]\n99';
+      const ast = parse(source);
+
+      const indexAccess = findFirstOfType(ast, 'IndexAccess');
+      expect(indexAccess).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            indexAccess as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('[0]');
+    });
+
+    it('PostfixExpr span with a trailing IndexAccess ends at the closing bracket, not trailing content', () => {
+      const source = 'list[1,2,3][0]\n99';
+      const ast = parse(source);
+
+      const postfixExpr = findFirstOfType(ast, 'PostfixExpr');
+      expect(postfixExpr).toBeTruthy();
+      expect(
+        sliceSpan(
+          source,
+          (
+            postfixExpr as {
+              span: { start: { offset: number }; end: { offset: number } };
+            }
+          ).span
+        )
+      ).toBe('list[1,2,3][0]');
+    });
+
+    it.each([
+      { src: 'dict[a: 1]["a"]', bracket: '["a"]' },
+      { src: 'tuple[1,2][0]', bracket: '[0]' },
+      { src: '"abc"[0]', bracket: '[0]' },
+      { src: '(list[1,2,3])[0]', bracket: '[0]' },
+    ])(
+      'IndexAccess span in "$src" covers exactly "$bracket" (issue #396)',
+      ({ src, bracket }) => {
+        const ast = parse(src);
+        const indexAccess = findFirstOfType(ast, 'IndexAccess');
+        expect(indexAccess).toBeTruthy();
+        expect(
+          sliceSpan(
+            src,
+            (
+              indexAccess as {
+                span: { start: { offset: number }; end: { offset: number } };
+              }
+            ).span
+          )
+        ).toBe(bracket);
+      }
+    );
+
     it('DictEntry spans end before the comma or closing bracket, not trailing content', () => {
       const source = 'dict[a: 1, b: 2]';
       const ast = parse(source);

@@ -197,6 +197,19 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
     expect(viaRules).toEqual(viaCore);
   });
 
+  it('Postfix index access nested inside another index access', () => {
+    // `[$i]` is a postfix `IndexAccessNode` in `PostfixExprNode.methods`
+    // (distinct from `Variable.accessChain`'s `BracketAccess`, covered
+    // above), so the capture `$i` inside it must be reachable by both
+    // traversals for scope resolution to see it at all.
+    const { viaRules, viaCore } = computeParity('list[1, 2, 3][$i]\n');
+    expect(viaRules).toEqual(viaCore);
+    const variableNodes = viaCore.filter(
+      (node) => node.type === 'Variable' && node.name === 'i'
+    );
+    expect(variableNodes).toHaveLength(1);
+  });
+
   it('Variable block access chain segment', () => {
     const { viaRules, viaCore } = computeParity('$data.{ "key" }\n');
     expect(viaRules).toEqual(viaCore);

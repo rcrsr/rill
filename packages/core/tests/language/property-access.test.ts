@@ -7,7 +7,13 @@ import {
   TOKEN_TYPES,
   tokenize,
 } from '@rcrsr/rill';
-import type { ResolverResult, SchemeResolver } from '@rcrsr/rill';
+import type {
+  PipeChainNode,
+  PostfixExprNode,
+  ResolverResult,
+  SchemeResolver,
+  StatementNode,
+} from '@rcrsr/rill';
 
 import { run as runWithOptions } from '../helpers/runtime.js';
 
@@ -15,6 +21,28 @@ async function run(code: string) {
   const ctx = createRuntimeContext({});
   const result = await execute(parse(code), ctx);
   return result.result;
+}
+
+/**
+ * Structural provenance helper for postfix `[i]` index access: pulls the
+ * single statement's PostfixExpr out and returns its terminal postfix
+ * method's `type`. This discriminates a genuine `IndexAccess` postfix
+ * method from a source that merely *evaluates* to the right-looking value
+ * because it silently split into two statements (a bare receiver, then an
+ * orphaned bracketed literal standing alone as its own statement).
+ */
+function terminalPostfixMethodType(ast: {
+  statements: readonly StatementNode[];
+}): string | undefined {
+  const stmt = ast.statements[0];
+  if (stmt?.type !== 'Statement') return undefined;
+  const expr = stmt.expression;
+  if (expr?.type !== 'PipeChain') return undefined;
+  const head = (expr as PipeChainNode).head;
+  if (head?.type !== 'PostfixExpr') return undefined;
+  const methods = (head as PostfixExprNode).methods;
+  if (methods.length === 0) return undefined;
+  return methods[methods.length - 1]?.type;
 }
 
 /** All 12 KEYWORDS-table keyword names (packages/core/src/lexer/operators.ts). */
@@ -370,6 +398,133 @@ describe('implicit $ property access bug', () => {
           expect(result).toBe(5);
         });
       });
+    });
+  });
+
+  describe('postfix index access `[i]` on a literal receiver (issue #396)', () => {
+    describe('structural provenance: terminal postfix method is IndexAccess', () => {
+      it.each([
+        'list[1,2,3][0]',
+        'dict[a: 1]["a"]',
+        'tuple[1,2][0]',
+        '"abc"[0]',
+        '(list[1,2,3])[0]',
+      ])(
+        '"%s" is a PostfixExpr whose last postfix method is IndexAccess',
+        (src) => {
+          const ast = parse(src);
+          expect(terminalPostfixMethodType(ast)).toBe('IndexAccess');
+        }
+      );
+    });
+
+    describe('value assertions for working cases', () => {
+      it('list[1,2,3][0] evaluates to 1', async () => {
+        expect(await run('list[1,2,3][0]')).toBe(1);
+      });
+
+      it('dict[a: 1]["a"] evaluates to 1', async () => {
+        expect(await run('dict[a: 1]["a"]')).toBe(1);
+      });
+
+      it('(list[1,2,3])[0] evaluates to 1', async () => {
+        expect(await run('(list[1,2,3])[0]')).toBe(1);
+      });
+    });
+
+    describe('parity with the variable-chain form', () => {
+      it('list[1,2,3][0] evaluates identically to list[1,2,3] => $l then $l[0]', async () => {
+        const postfixResult = await run('list[1,2,3][0]');
+        const variableChainResult = await run('list[1,2,3] => $l\n$l[0]');
+        expect(postfixResult).toBe(1);
+        expect(postfixResult).toBe(variableChainResult);
+      });
+
+      it('an out-of-bounds index halts with the same error code on both forms', async () => {
+        const postfixCtx = createRuntimeContext({});
+        const variableChainCtx = createRuntimeContext({});
+        let postfixError: unknown;
+        let variableChainError: unknown;
+        try {
+          await execute(parse('list[1,2,3][10]'), postfixCtx);
+        } catch (err) {
+          postfixError = err;
+        }
+        try {
+          await execute(parse('list[1,2,3] => $l\n$l[10]'), variableChainCtx);
+        } catch (err) {
+          variableChainError = err;
+        }
+        expect(postfixError).toHaveProperty('errorId', 'RILL-R009');
+        expect(variableChainError).toHaveProperty('errorId', 'RILL-R009');
+        expect((postfixError as { errorId: string }).errorId).toBe(
+          (variableChainError as { errorId: string }).errorId
+        );
+      });
+    });
+
+    describe('halt parity for non-indexable receivers (tuple, string)', () => {
+      it('tuple[1,2][0] halts with the same error code as tuple[1,2] => $t then $t[0]', async () => {
+        let postfixError: unknown;
+        let variableChainError: unknown;
+        try {
+          await run('tuple[1,2][0]');
+        } catch (err) {
+          postfixError = err;
+        }
+        try {
+          await run('tuple[1,2] => $t\n$t[0]');
+        } catch (err) {
+          variableChainError = err;
+        }
+        expect(postfixError).toHaveProperty('errorId', 'RILL-R002');
+        expect(variableChainError).toHaveProperty('errorId', 'RILL-R002');
+        expect((postfixError as { errorId: string }).errorId).toBe(
+          (variableChainError as { errorId: string }).errorId
+        );
+      });
+
+      it('"abc"[0] halts with the same error code as "abc" => $s then $s[0]', async () => {
+        let postfixError: unknown;
+        let variableChainError: unknown;
+        try {
+          await run('"abc"[0]');
+        } catch (err) {
+          postfixError = err;
+        }
+        try {
+          await run('"abc" => $s\n$s[0]');
+        } catch (err) {
+          variableChainError = err;
+        }
+        expect(postfixError).toHaveProperty('errorId', 'RILL-R002');
+        expect(variableChainError).toHaveProperty('errorId', 'RILL-R002');
+        expect((postfixError as { errorId: string }).errorId).toBe(
+          (variableChainError as { errorId: string }).errorId
+        );
+      });
+    });
+  });
+
+  describe('postfix index access `[i]` after a pipe-target dot chain (issue #396)', () => {
+    it('"$x -> .items[0]" parses as one statement', () => {
+      const script = 'dict[items: list[10,20,30]] => $x\n$x -> .items[0]';
+      const ast = parse(script);
+      expect(ast.statements.length).toBe(2);
+    });
+
+    it('"$x -> .items[0]" evaluates to the indexed element', async () => {
+      const result = await run(
+        'dict[items: list[10,20,30]] => $x\n$x -> .items[0]'
+      );
+      expect(result).toBe(10);
+    });
+
+    it('"$x -> .items[0]" evaluates identically to $x.items[0]', async () => {
+      const script = 'dict[items: list[10,20,30]] => $x\n$x -> .items[0]';
+      const variableChainScript =
+        'dict[items: list[10,20,30]] => $x\n$x.items[0]';
+      expect(await run(script)).toBe(await run(variableChainScript));
     });
   });
 });

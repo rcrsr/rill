@@ -174,10 +174,14 @@ postfix-expr  = primary , [ postfix-type-op ]
                         , { ( "." , method-name , [ "(" , [ arguments ] , ")" ] )
                           | annotation-access
                           | invoke
+                          | bracket-access
                           | status-probe } ;
               (* invoke: trailing "(" args ")" applied to a primary that is callable
                  (e.g. host-name(...) is parsed via host-call; bare invocation chains
                  like (closure-expr)(args) attach an InvokeNode in the postfix loop).
+                 bracket-access: trailing "[" pipe-chain "]" applied to any primary
+                 in the postfix loop, not only "$"-prefixed variable chains (see the
+                 property-access comment below for the full set of example forms).
                  postfix-type-op: ":type" assertion or ":?type" check applied directly
                  after a primary expression (see type-assertion / type-check). The
                  parser admits AT MOST ONE postfix-type-op, and only immediately after
@@ -530,6 +534,17 @@ closure-call = "$" , identifier , "(" , [ arguments ] , ")" ;
    $data.items.($i + 1)     -- computed expression
    $data.{get_key()}        -- block returning key
    $data.user.(nick || name) -- alternatives (try left-to-right)
+   field-access is scoped to "$"-prefixed variable chains ("." only follows a
+   variable or a preceding property-access), but bracket-access is a general
+   postfix operator (see postfix-expr) valid after any postfix-eligible
+   primary -- a literal or a grouped expression -- not only
+   after "$data..." chains:
+     list[1,2,3][0]            -- literal list, then index
+     [1,2,3][0]                -- shorthand list literal, then index
+     dict[a: 1]["a"]           -- literal dict, then bracket key
+     tuple[1,2][0]             -- literal tuple, then index
+     "abc"[0]                  -- string literal, then index
+     (list[1,2,3])[0]          -- grouped expression, then index
 *)
 property-access = field-access | bracket-access ;
 
@@ -539,7 +554,9 @@ field-access  = "." , ( identifier
                       | "{" , block , "}"             (* block returning key *)
                       | "(" , identifier , { "||" , identifier } , ")" ) ; (* alternatives *)
 
-bracket-access = "[" , pipe-chain , "]" ;             (* index access, supports negative *)
+bracket-access = "[" , pipe-chain , "]" ;             (* index access, supports negative;
+                                                          general postfix operator, see
+                                                          postfix-expr and the comment above *)
 
 (* Default value if property is missing: $data.name ?? "Anonymous" *)
 default-value = "??" , body ;
