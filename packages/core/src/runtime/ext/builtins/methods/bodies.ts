@@ -8,7 +8,14 @@ import {
   formatValue,
   inferType,
 } from '../../../core/types/registrations.js';
-import { isIterator, isStream, isVector } from '../../../core/types/guards.js';
+import {
+  isIterator,
+  isOrdered,
+  isStream,
+  isTuple,
+  isVector,
+  orderedValueEntries,
+} from '../../../core/types/guards.js';
 import {
   orderedDictEntries,
   typedKeyCount,
@@ -43,6 +50,7 @@ export const mLen: RillMethod = (receiver) => {
     return isBmpOnly(receiver) ? receiver.length : [...receiver].length;
   }
   if (Array.isArray(receiver)) return receiver.length;
+  if (isOrdered(receiver)) return receiver.entries.length;
   if (receiver && typeof receiver === 'object') {
     return Object.keys(receiver).length + typedKeyCount(receiver);
   }
@@ -199,6 +207,23 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
       );
     }
     return cps[idx]!;
+  }
+  if (isTuple(receiver)) {
+    if (!Number.isInteger(idx)) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'INVALID_INPUT',
+        `Tuple index must be an integer, got ${idx}`
+      );
+    }
+    if (idx < 0 || idx >= receiver.entries.length) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'RILL_R002',
+        `Tuple index out of bounds: ${idx}`
+      );
+    }
+    return receiver.entries[idx]!;
   }
   throw new RuntimeError(
     ERROR_IDS.RILL_R003,
@@ -525,22 +550,32 @@ export const mGe: RillMethod = (receiver, args, ctx, location) =>
  * Get all keys of a dict as a list, in canonical order: sorted string keys,
  * then number keys ascending, then boolean keys (false before true).
  */
-export const mKeys: RillMethod = (receiver) =>
-  isDict(receiver) && !isStream(receiver)
+export const mKeys: RillMethod = (receiver) => {
+  // Ordered values dispatch before isDict: the JS wrapper object also
+  // satisfies isDict's structural shape check.
+  if (isOrdered(receiver)) return orderedValueEntries(receiver).map(([k]) => k);
+  return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => e.key)
     : [];
+};
 
 /** Get all values of a dict as a list, in canonical key order. */
-export const mValues: RillMethod = (receiver) =>
-  isDict(receiver) && !isStream(receiver)
+export const mValues: RillMethod = (receiver) => {
+  if (isOrdered(receiver))
+    return orderedValueEntries(receiver).map(([, v]) => v);
+  return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => e.value)
     : [];
+};
 
 /** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
-export const mEntries: RillMethod = (receiver) =>
-  isDict(receiver) && !isStream(receiver)
+export const mEntries: RillMethod = (receiver) => {
+  if (isOrdered(receiver))
+    return orderedValueEntries(receiver).map(([k, v]) => [k, v] as RillValue);
+  return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => [e.key, e.value] as RillValue)
     : [];
+};
 
 /** Check if list contains value (deep equality) */
 export const mHas: RillMethod = (receiver, args, _ctx, location) => {

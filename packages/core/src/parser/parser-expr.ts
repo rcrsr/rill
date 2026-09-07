@@ -19,6 +19,8 @@ import type {
   ExpressionNode,
   WhileLoopNode,
   GroupedExprNode,
+  HostCallNode,
+  HostRefNode,
   IndexAccessNode,
   InvokeNode,
   MethodCallNode,
@@ -26,6 +28,7 @@ import type {
   TimeoutBlockNode,
   DictNode,
   DictEntryNode,
+  ExistenceCheck,
   PipeChainNode,
   PipeTargetNode,
   PostfixExprNode,
@@ -36,6 +39,7 @@ import type {
   SourceSpan,
   SpreadArgNode,
   StatusProbeNode,
+  TypeConstructorNode,
   TypeNameExprNode,
   UnaryExprNode,
   UseExprNode,
@@ -170,6 +174,7 @@ declare module './parser.js' {
       loopState: PostfixLoopState,
       start: SourceLocation
     ): void;
+    parsePostfixColon(loopState: PostfixLoopState, start: SourceLocation): void;
     parsePassBlock(): PassBlockNode;
     parseTimeoutBlock(): TimeoutBlockNode;
   }
@@ -683,6 +688,30 @@ Parser.prototype.parsePostfixDotBang = function (
   loopState.receiverEnd = probeEnd;
 };
 
+// Handler: :type / :?type — postfix type assertion or type check.
+// Wraps accumulated primary+methods so far as the operand; resets methods
+// array. Mirrors parsePostfixDotBang's probe-reset pattern so a trailing
+// `.method` chain continues on the TypeAssertion/TypeCheck result
+// (`$x:number.foo`) and a leading index/method chain is captured as the
+// operand (`list[1,2,3][0]:number`).
+Parser.prototype.parsePostfixColon = function (
+  this: Parser,
+  loopState: PostfixLoopState,
+  start: SourceLocation
+): void {
+  const operand: PostfixExprNode = {
+    type: 'PostfixExpr',
+    primary: loopState.primary,
+    methods: [...loopState.methods],
+    defaultValue: null,
+    span: makeSpan(start, loopState.receiverEnd),
+  };
+  const typeOp = this.parsePostfixTypeOperation(operand);
+  loopState.primary = typeOp;
+  loopState.methods.length = 0;
+  loopState.receiverEnd = typeOp.span.end;
+};
+
 // Handler: (...) — invoke expression
 // Dispatch table for the postfix loop inside parsePostfixExprBase.
 // Multi-token guards (isAnnotationAccess, isMethodCall) are evaluated before this table.
@@ -692,6 +721,7 @@ const postfixDispatchTable: Record<
   (this: Parser, loopState: PostfixLoopState, start: SourceLocation) => void
 > = {
   [TOKEN_TYPES.DOT_BANG]: Parser.prototype.parsePostfixDotBang,
+  [TOKEN_TYPES.COLON]: Parser.prototype.parsePostfixColon,
   [TOKEN_TYPES.LPAREN]: function (
     this: Parser,
     loopState: PostfixLoopState
@@ -726,12 +756,7 @@ Parser.prototype.parsePostfixExprBase = function (
   this: Parser
 ): PostfixExprNode {
   const start = current(this.state).span.start;
-  let primary: PrimaryNode = this.parsePrimary();
-
-  // Check for postfix type assertion: expr:type or expr:?type
-  if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.COLON)) {
-    primary = this.parsePostfixTypeOperation(primary, start);
-  }
+  const primary: PrimaryNode = this.parsePrimary();
 
   const methods: (
     | MethodCallNode
@@ -762,12 +787,17 @@ Parser.prototype.parsePostfixExprBase = function (
   // Mutable state object shared with dispatch handlers.
   const loopState: PostfixLoopState = { primary, methods, receiverEnd };
 
+  // Terminal existence check (.?field), set when the loop hits DOT_QUESTION.
+  // Attached to the returned node; the loop always breaks right after.
+  let existenceCheck: ExistenceCheck | null = null;
+
   // Only skip newlines when the next real token is a dot: this lets a method
   // chain continue on the next line (`expr\n.method`) without letting a
   // newline before `(` be consumed, which would misparse a new statement as
   // an invocation of the previous line's expression.
   if (!shouldStopPostfix && !isClosurePrimary) {
     skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
+    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.COLON);
   }
 
   while (
@@ -776,8 +806,30 @@ Parser.prototype.parsePostfixExprBase = function (
       isMethodCall(this.state) ||
       check(this.state, TOKEN_TYPES.LPAREN) ||
       check(this.state, TOKEN_TYPES.DOT_BANG) ||
-      check(this.state, TOKEN_TYPES.LBRACKET))
+      check(this.state, TOKEN_TYPES.LBRACKET) ||
+      check(this.state, TOKEN_TYPES.COLON) ||
+      check(this.state, TOKEN_TYPES.DOT_QUESTION))
   ) {
+    if (check(this.state, TOKEN_TYPES.DOT_QUESTION)) {
+      // Terminal: .?field (optionally & typeRef) ends the postfix chain,
+      // mirroring parseAccessChain's DOT_QUESTION handling.
+      const dotToken = advance(this.state);
+      const finalAccess = this.parseFieldAccessElement(
+        true,
+        dotToken.span.start
+      );
+      if (!finalAccess) {
+        break;
+      }
+      let typeRef: ExistenceCheck['typeRef'] = null;
+      if (check(this.state, TOKEN_TYPES.AMPERSAND)) {
+        advance(this.state);
+        typeRef = parseTypeRef(this.state);
+      }
+      existenceCheck = { finalAccess, typeRef };
+      loopState.receiverEnd = previous(this.state).span.end;
+      break;
+    }
     if (isAnnotationAccess(this.state)) {
       const dotStart = current(this.state).span.start;
       advance(this.state); // consume .
@@ -816,20 +868,27 @@ Parser.prototype.parsePostfixExprBase = function (
     }
     if (!isClosurePrimary) {
       skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
+      skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.COLON);
     }
   }
 
-  const lastNode: { span: SourceSpan } =
-    loopState.methods.length > 0
-      ? loopState.methods[loopState.methods.length - 1]!
-      : loopState.primary;
+  // A terminal existence check consumes tokens beyond the last method/
+  // primary span, so its receiverEnd (tracked in the loop) is the
+  // authoritative end position when present.
+  const endLocation = existenceCheck
+    ? loopState.receiverEnd
+    : (loopState.methods.length > 0
+        ? loopState.methods[loopState.methods.length - 1]!
+        : loopState.primary
+      ).span.end;
 
   return {
     type: 'PostfixExpr',
     primary: loopState.primary,
     methods: loopState.methods,
     defaultValue: null,
-    span: makeSpan(start, lastNode.span.end),
+    existenceCheck,
+    span: makeSpan(start, endLocation),
   };
 };
 
@@ -1480,6 +1539,46 @@ const pipeTargetDispatchTable: Record<
 // PIPE TARGET PARSING
 // ============================================================
 
+/**
+ * Attaches a trailing `[i]` bracket index (or chain of them) to a pipe
+ * target that has no `.method` chain of its own — a bare/namespaced host
+ * call, a parameterized type constructor, or a bare type-keyword target.
+ * `list[3,1,2] -> sort[0]` yields `1`. Only same-line brackets are
+ * collected; a newline before `[` starts a new statement instead, matching
+ * parsePipeTargetDot's dot-chain rule.
+ */
+function attachPipeTargetIndex(
+  this: Parser,
+  primary: HostCallNode | HostRefNode | TypeConstructorNode | TypeNameExprNode
+): PipeTargetNode {
+  if (!check(this.state, TOKEN_TYPES.LBRACKET)) {
+    return primary;
+  }
+  const methods: IndexAccessNode[] = [];
+  while (check(this.state, TOKEN_TYPES.LBRACKET)) {
+    const openBracket = advance(this.state); // consume [
+    const index = this.parsePipeChain();
+    const closeBracket = expect(
+      this.state,
+      TOKEN_TYPES.RBRACKET,
+      'Expected ] after index expression',
+      ERROR_IDS.RILL_P005
+    );
+    methods.push({
+      type: 'IndexAccess',
+      index,
+      span: makeSpan(openBracket.span.start, closeBracket.span.end),
+    });
+  }
+  return {
+    type: 'PostfixExpr',
+    primary,
+    methods,
+    defaultValue: null,
+    span: makeSpan(primary.span.start, methods[methods.length - 1]!.span.end),
+  } satisfies PostfixExprNode;
+}
+
 Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   // Legacy convert operator: -> :>type (retired; emit migration error RILL-R078)
   // Must precede the COLON entry in pipeTargetDispatchTable.
@@ -1536,7 +1635,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
   ) {
     const name = current(this.state).value;
-    return this.parseTypeConstructor(name);
+    return attachPipeTargetIndex.call(this, this.parseTypeConstructor(name));
   }
 
   // Bare type keyword as pipe target: -> string, -> number, -> bool, ...
@@ -1549,28 +1648,37 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.LPAREN
   ) {
     const token = advance(this.state);
-    return {
+    const typeNameExpr: TypeNameExprNode = {
       type: 'TypeNameExpr',
       typeName: token.value as RillTypeName,
       span: token.span,
-    } satisfies TypeNameExprNode;
+    };
+    return attachPipeTargetIndex.call(this, typeNameExpr);
   }
 
   // Function call with parens
   if (isHostCall(this.state)) {
-    return this.parseHostCall();
+    return attachPipeTargetIndex.call(this, this.parseHostCall());
   }
 
   // Bare function name: "-> greet" or "-> ns::func"
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-    return parseBareHostCall(this.state);
+    return attachPipeTargetIndex.call(this, parseBareHostCall(this.state));
   }
 
   // Common constructs
   const common = this.parseCommonConstruct();
   if (common) {
     if (check(this.state, TOKEN_TYPES.COLON)) {
-      return this.parsePostfixTypeOperation(common, common.span.start);
+      const operand: PostfixExprNode = {
+        type: 'PostfixExpr',
+        primary: common,
+        methods: [],
+        defaultValue: null,
+        existenceCheck: null,
+        span: common.span,
+      };
+      return this.parsePostfixTypeOperation(operand);
     }
     return common;
   }

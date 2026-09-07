@@ -369,6 +369,20 @@ For direct element access (not iteration), use `.head` and `.tail`:
 | `.head` | Element directly | Error |
 | `.first()` | Iterator | Done iterator |
 
+### Iterators are not indexable
+
+An iterator has no positional index. Indexing one halts with `RILL-R002` (Cannot index iterator). Materialize it with `seq({ $ })` first, or use `take(n)` / `.first()`.
+
+```text
+# Error: RILL-R002 — Cannot index iterator
+range(0, 5)[2]
+```
+
+```rill
+range(0, 5) -> seq({ $ })[2]
+# Result: 2
+```
+
 ---
 
 ## Examples

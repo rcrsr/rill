@@ -4,8 +4,8 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 99 files.
-114a74dbf8d5842d2a7e5c3cb6da18703cdfec851d8a79327bdd79b397517aad  packages/core/tests/language/access-halt.test.ts
+# 100 files.
+5676c3ea01e0f9430fe66298bbc9036bb7c7d6dd68c4a106be7ae95d95e8cb3a  packages/core/tests/language/access-halt.test.ts
 1121f6bbc87db54826b89e5040cf34fd20b23b2528449c397d0ae6b64e353ac9  packages/core/tests/language/annotations.test.ts
 5e3022aec149d60b6e9d0ce1f7e3c319225f9591cd629022e99ed1cab6903656  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
 ad9b4eb1bf5d6fbd806410b87aac72069b53f9f32839e4dd0ee9cb292baec52b  packages/core/tests/language/anonymous-typed-closure.test.ts
@@ -42,7 +42,7 @@ f3f2b63cb906aedaa26891516ac6bb69fbc440180b1f14f78195fdd7d18a3e21  packages/core/
 41b6c8bb3603f7bfcf714d1d1ddff7bd2c4cf9da36b3b6a55bc26dd713826e2b  packages/core/tests/language/dynamic-field-access.test.ts
 dbb24e53ce61f201146505ed39c04c3588ec585890b190e4f9f4ccfd55317d13  packages/core/tests/language/error.test.ts
 f8c64bf706a636d1498b1577df78b38cf6751349ebf9b84ad76706a5414403ed  packages/core/tests/language/existence-check-dynamic.test.ts
-1b10f1dcef04d38fd5757487bc072d704f6949d0b3fb329b83a2d228dd9b8767  packages/core/tests/language/existence-check.test.ts
+29e1873f25a5ffebef618561fe5710922394b04c64501f32bb5315707f9ddcd2  packages/core/tests/language/existence-check.test.ts
 b5f3a23b9a5a5e58bc57f768d6df365a695c1aaba65f75f6aeedf40f50c92c67  packages/core/tests/language/expressions.test.ts
 31b0234d7853be26d60b0188b35c1d5561fa3d091be75e7e4a7f7cec33cc9f5e  packages/core/tests/language/extraction.test.ts
 a5d9355ff1f70166d7eb4d5196b8a32f9bbeebf5eb21715ac2ccfdbdc5422282  packages/core/tests/language/frontmatter.test.ts
@@ -62,6 +62,7 @@ f7030ab398b5597291c75a6e74d8dc2f52eda8de29f6c278f1e7f235793a00d1  packages/core/
 2a41c8e907dcdb0166248049fd5922845b7ed951f175c3e93abbec3bd40cc309  packages/core/tests/language/loops.test.ts
 f54694971a03457c2805f84d164373faf712918c2f32b360e1c25bfd9b33f9e0  packages/core/tests/language/methods.test.ts
 ed404735fa34e11a9c0880dd6187af1f482addd2c734c3e2e651edab1b9eba25  packages/core/tests/language/namespaced-functions.test.ts
+0790543a2b74c4c56541ff2121250e2fcf17578b4ed3db723ce7fecff67f9734  packages/core/tests/language/ordered-access.test.ts
 64d8075cfe283580891878262eeb406f2252b569224e21df4ef13ed144ff6b26  packages/core/tests/language/parameterized-destruct.test.ts
 44d12a1b923c10ce80a55d4bcdb44b23c64e77bcee186dfdde3e90d5a00ac8a0  packages/core/tests/language/parameterized-existence.test.ts
 bc3664e466f94693324c1fa5946aa92ee141873cfcb4473a2ae05136308d7530  packages/core/tests/language/parser-recovery.test.ts
@@ -70,13 +71,13 @@ bc3664e466f94693324c1fa5946aa92ee141873cfcb4473a2ae05136308d7530  packages/core/
 a04fa84a471343be912e2eece097e01db03817a64af8e239f2aeb3f774614dca  packages/core/tests/language/pass-async.test.ts
 428a3173097027c24d8a63c1b973414c44e5e637ee1fd407c12802aae5cf3916  packages/core/tests/language/pass-parsing.test.ts
 068b23273128f1cf97b4831884c623e646d672cf2b89afb39a3043897d2a5f4b  packages/core/tests/language/pass.test.ts
-ab50b9e041a2cd197a20587e55407c786d35bda887b481a347d2225cba9be97d  packages/core/tests/language/pipe-targets.test.ts
-455ff43a151871c22bb791073ee80b9ded957c80e27b8ce10845af876793ed11  packages/core/tests/language/property-access.test.ts
+d0f633258f2e471fe7a903f11700cde23729a490b257c7fa0776e58c3cb474ab  packages/core/tests/language/pipe-targets.test.ts
+284d0bc672399605939d66abc00f09e084d652adc86f53fc896e688f190470b3  packages/core/tests/language/property-access.test.ts
 6fd2e1a37a4cb5d50bcbe1fa5dd278339452db8da3c117e0743c75c19e978216  packages/core/tests/language/ref-llms-full-assertions.test.ts
 6176f0dada7075f1f1766672729878e37f8b0a714118281457a3307423c8d52f  packages/core/tests/language/scope-isolation.test.ts
 edb736f0f5003ce22b2ed396ed0c1d02aa82ae0944cba37811d5297a580139e6  packages/core/tests/language/sort.test.ts
 e1776847da8b931f5773e5bcdb70998f18eec1dc87520d7916b90bd996abef56  packages/core/tests/language/spread.test.ts
-de57d976d6263158f82ab13c0670a0b015341cbe8ca63ea3953537f0a9534541  packages/core/tests/language/statement-boundaries.test.ts
+0eb5f00fc305f5d2dbaac4d88b6da75bc9f9fdbbf9c150845464826cacc56480  packages/core/tests/language/statement-boundaries.test.ts
 e40bcd948d58b2e0a9468e7a5a36b88c1192ea774358965a6b17f9407e6e680e  packages/core/tests/language/status-probe.test.ts
 1aa5819b840beab076a5b2584949a5d42f87c2b1203714259686696e8ccb6fdf  packages/core/tests/language/stream-type-parsing.test.ts
 e8bce774c3d41e1d092ec0b8312dc87f75366f1d590ca423af010ba737905b07  packages/core/tests/language/streams.test.ts

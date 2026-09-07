@@ -127,6 +127,23 @@ describe('Existence Check', () => {
     });
   });
 
+  describe('Postfix Existence Check (after index/method chain)', () => {
+    it('returns true for a field that exists after a bracket index chain', async () => {
+      const result = await run(`list[dict[a: 1]][0].?a`);
+      expect(result).toBe(true);
+    });
+
+    it('returns false for a field that does not exist after a bracket index chain', async () => {
+      const result = await run(`list[dict[a: 1]][0].?b`);
+      expect(result).toBe(false);
+    });
+
+    it('returns true when the field exists and matches the &type qualifier', async () => {
+      const result = await run(`list[dict[a: 1]][0].?a & number`);
+      expect(result).toBe(true);
+    });
+  });
+
   describe('Error Contracts', () => {
     it('EC-4: throws error when $ is not followed by variable name', async () => {
       await expect(

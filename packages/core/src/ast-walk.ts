@@ -97,6 +97,14 @@ function astChildren(node: ASTNode): ASTNode[] {
     }
     case 'PostfixExpr': {
       const children: ASTNode[] = [node.primary, ...node.methods];
+      if (node.existenceCheck) {
+        children.push(
+          ...propertyAccessChildren(node.existenceCheck.finalAccess)
+        );
+        if (node.existenceCheck.typeRef !== null) {
+          children.push(...typeRefChildren(node.existenceCheck.typeRef));
+        }
+      }
       if (node.defaultValue !== null) children.push(node.defaultValue);
       return children;
     }

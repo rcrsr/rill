@@ -797,6 +797,7 @@ In closure params (validates input structure):
 
     $data.field                     # dict field
     $data[0], $data[-1]             # list index (negative from end)
+    tuple[1,"a"][1]  # "a" — tuple and ordered index by position; ordered also by key
     $data.$key                      # variable as key
     $data.($i + 1)                  # computed key
     $data.(a || b)                  # try keys left to right
@@ -822,6 +823,8 @@ Tuples support `<`, `>`, `<=`, `>=`, `==`, `!=`. Comparison walks elements left 
     tuple[1, 2] < tuple[1, 3]              # true
     tuple[2, 1] > tuple[1, 9]              # true
     tuple[1, 2] == tuple[1, 2]             # true
+
+Index a tuple with `[i]` or `.at(i)`; `.1` is a parse error.
 
 Dicts have NO comparison protocol. Use tuples for multi-key ordering, including with `sort({ tuple[$.a, $.b] })`.
 
@@ -1204,6 +1207,8 @@ Multi-key sort uses `tuple[...]` projection. Tuples compare lexicographically le
 Descending order: pipe through `.reverse` after sort. `.reverse` is list-only; dict sort returns `ordered` and does not support `.reverse`.
 
     list[3, 1, 2] -> sort -> .reverse              # list[3, 2, 1]
+
+    list[3,1,2] -> sort[0]  # 1  (index a pipe-target result)
 
 Iterators are dicts structurally. `range(0, 5) -> sort` takes the dict path. Materialize first if you want list semantics.
 

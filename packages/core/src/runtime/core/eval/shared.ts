@@ -12,6 +12,7 @@ import type { ASTNode, SourceLocation } from '../../../types.js';
 import { isCallable, isDict } from '../callable.js';
 import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
+import { isOrdered } from '../types/guards.js';
 import {
   throwAbortHalt,
   throwAutoExceptionHalt,
@@ -146,6 +147,25 @@ export async function accessDictField(
   location?: SourceLocation,
   allowMissing = false
 ): Promise<RillValue> {
+  // Ordered values dispatch before isDict: the JS wrapper object also
+  // satisfies isDict's structural shape check. No iterator branch is added
+  // here — iterator field reads (.done, .value, .next) are legitimate dict
+  // field accesses and must keep falling through to the dict path below.
+  if (isOrdered(value)) {
+    const entry = value.entries.find(([key]) => key === field);
+    if (entry === undefined) {
+      if (allowMissing) {
+        return null;
+      }
+      throwCatchableHostHalt(
+        { location, sourceId: s.ctx.sourceId, fn: 'accessDictField' },
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
+        `Undefined ordered key: ${field}`
+      );
+    }
+    return entry[1];
+  }
+
   if (!isDict(value)) {
     throwCatchableHostHalt(
       { location, sourceId: s.ctx.sourceId, fn: 'accessDictField' },

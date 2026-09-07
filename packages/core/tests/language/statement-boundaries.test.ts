@@ -514,5 +514,38 @@ $loop(5)`;
         expect(error).toHaveProperty('errorId', 'RILL-R002');
       });
     });
+
+    describe('Postfix index access `[i]` joins onto a bare/host-call pipe target', () => {
+      it('"list[3,1,2] -> sort[0]" parses as exactly one statement', () => {
+        const ast = parse('list[3,1,2] -> sort[0]');
+        expect(ast.statements.length).toBe(1);
+      });
+
+      it('a bare host-call pipe target followed by "[i]" on the next line remains two statements', async () => {
+        const script = `list[3,1,2] -> sort
+[0]`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toEqual([0]);
+      });
+    });
+
+    describe('Postfix type operation `:type` joins onto its receiver across a newline', () => {
+      it.each(['5\n:number', '5\n:?number'])(
+        '"%s" parses as exactly one statement',
+        (src) => {
+          const ast = parse(src);
+          expect(ast.statements.length).toBe(1);
+        }
+      );
+
+      it('"5\\n:number" evaluates identically to "5:number" on one line', async () => {
+        expect(await run('5\n:number')).toBe(await run('5:number'));
+      });
+
+      it('"5\\n:?number" evaluates identically to "5:?number" on one line', async () => {
+        expect(await run('5\n:?number')).toBe(await run('5:?number'));
+      });
+    });
   });
 });

@@ -12,7 +12,6 @@ import type {
   PipeChainNode,
   PipeInvokeNode,
   PostfixExprNode,
-  PrimaryNode,
   SourceSpan,
   SpreadArgNode,
   TypeAssertionNode,
@@ -46,8 +45,7 @@ declare module './parser.js' {
     parseMethodCall(receiverSpan?: SourceSpan | null): MethodCallNode;
     parseTypeOperation(): TypeAssertionNode | TypeCheckNode;
     parsePostfixTypeOperation(
-      primary: PrimaryNode,
-      start: { line: number; column: number; offset: number }
+      operand: PostfixExprNode
     ): TypeAssertionNode | TypeCheckNode;
   }
 }
@@ -354,23 +352,15 @@ Parser.prototype.parseTypeOperation = function (
 
 Parser.prototype.parsePostfixTypeOperation = function (
   this: Parser,
-  primary: PrimaryNode,
-  start: { line: number; column: number; offset: number }
+  operand: PostfixExprNode
 ): TypeAssertionNode | TypeCheckNode {
+  const start = operand.span.start;
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
 
   const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
   if (isCheck) {
     advance(this.state);
   }
-
-  const makeOperand = (): PostfixExprNode => ({
-    type: 'PostfixExpr' as const,
-    primary,
-    methods: [],
-    defaultValue: null,
-    span: makeSpan(start, previous(this.state).span.end),
-  });
 
   // Disambiguation: $identifier → dynamic type reference
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
@@ -380,7 +370,6 @@ Parser.prototype.parsePostfixTypeOperation = function (
       'Expected variable name after $'
     );
     const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };
-    const operand = makeOperand();
     const span = makeSpan(start, previous(this.state).span.end);
     if (isCheck) {
       return { type: 'TypeCheck', operand, typeRef, span };
@@ -392,7 +381,6 @@ Parser.prototype.parsePostfixTypeOperation = function (
   // parseTypeRef handles static and union kinds; dynamic ($var) is already
   // handled above, so the result here is always static or union.
   const typeRef = parseTypeRef(this.state);
-  const operand = makeOperand();
   const span = makeSpan(start, previous(this.state).span.end);
 
   if (isCheck) {

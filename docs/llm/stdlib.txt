@@ -122,6 +122,8 @@ Descending order: pipe through `.reverse` after sort. `.reverse` is list-only; d
 
     list[3, 1, 2] -> sort -> .reverse              # list[3, 2, 1]
 
+    list[3,1,2] -> sort[0]  # 1  (index a pipe-target result)
+
 Iterators are dicts structurally. `range(0, 5) -> sort` takes the dict path. Materialize first if you want list semantics.
 
     range(0, 5) -> seq({ $ }) -> sort              # list[0, 1, 2, 3, 4]
