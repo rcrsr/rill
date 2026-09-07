@@ -191,6 +191,27 @@ describe('walkAst', () => {
     expect(visited.has(nestedDefault!)).toBe(true);
   });
 
+  it('visits the annotation nested inside a closure-signature literal parameter', () => {
+    // Regression: astChildren() previously yielded only each param's typeExpr
+    // for ClosureSigLiteral, so a per-param `^(...)` annotation was
+    // unreachable by walkAst.
+    const source = `|^("label") x: string|:number => $sig`;
+    const ast = parse(source);
+
+    const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
+    const annotationArg = oracle.find(
+      (node) =>
+        node.type === 'NamedArg' &&
+        (node as unknown as { name: string }).name === 'description'
+    );
+    expect(annotationArg).toBeDefined();
+
+    const visited = new Set<ASTNode>();
+    walkAst(ast, (node) => visited.add(node));
+
+    expect(visited.has(annotationArg!)).toBe(true);
+  });
+
   it('visits PartialExpression and RecoveryError nodes produced by parseWithRecovery', () => {
     const source = `error(1 + 2))\n"after"`;
     const result = parseWithRecovery(source);

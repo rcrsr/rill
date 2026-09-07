@@ -313,37 +313,15 @@ function serializeParam(p: RillParam): string {
 }
 
 /**
- * True when any param carries a non-empty `description` annotation.
- *
- * The bodyless closure-signature grammar (`|name: type, ...|:ret`) is
- * recognized by a fixed-shape lookahead — `|` immediately followed by a bare
- * `identifier :` — and its param parser expects a bare identifier with no
- * `^(...)` prefix. A `^(description: "...")` annotation on a parameter would
- * either misroute the whole entry to the ordinary (body-requiring) closure
- * parser or fail outright once the sig-literal parser reaches it, so
- * annotated params must use the real-closure-literal fallback instead.
- */
-function hasAnyParamDescription(params: readonly RillParam[]): boolean {
-  return params.some((p) => {
-    const desc = p.annotations['description'];
-    return typeof desc === 'string' && desc.length > 0;
-  });
-}
-
-/**
  * Serialize a typed ApplicationCallable entry into a rill closure type signature string.
  *
  * Format: `^(description: "...") |param: type|:returnType`
  * - Closure-level description annotation prefix included only when description is present.
  * - Return type suffix always emitted (including `:any`) so the signature matches
  *   the bodyless `|params| :ret` grammar unconditionally.
- * - Two cases fall back to a real (trivially bodied) closure literal —
- *   `|params|{pass}:ret` — instead of the bodyless closure-signature form:
- *   - Empty param list: the parser lexes `||` as a single token and only
- *     recognizes the bodyless grammar when at least one `name: type` param
- *     is present, so a zero-param `||:ret` never parses.
- *   - Any param carries a description annotation (see
- *     `hasAnyParamDescription`), which the bodyless grammar cannot parse.
+ * - The bodyless closure-signature form is emitted unconditionally, including
+ *   `||:ret` for a zero-param entry and `^(description: "...")` prefixes on
+ *   individual params (see `serializeParam`).
  */
 function serializeClosureSignature(
   params: readonly RillParam[],
@@ -359,11 +337,6 @@ function serializeClosureSignature(
 
   const retStr = serializeSignatureType(returnType);
   const paramStr = params.map(serializeParam).join(', ');
-
-  if (params.length === 0 || hasAnyParamDescription(params)) {
-    parts.push(`|${paramStr}|{pass}:${retStr}`);
-    return parts.join('');
-  }
 
   // Bodyless closure-signature form
   parts.push(`|${paramStr}|`);

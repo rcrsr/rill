@@ -27,6 +27,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 /**
  * Asserts the thrown error is an abort halt:
@@ -1710,5 +1711,75 @@ describe('Host function return-value validation (RILL-R085)', () => {
         })
       ).rejects.toHaveProperty('errorId', 'RILL-R085');
     });
+  });
+});
+
+describe('Host function return-value validation (non-finite numbers)', () => {
+  function numberFn(returnValue: number): RillFunction {
+    return {
+      params: [],
+      returnType: { kind: 'number' },
+      fn: () => returnValue,
+    };
+  }
+
+  it('a host function returning NaN halts naming the function and value', async () => {
+    await expectHaltMessage(
+      () => run('getNaN()', { functions: { getNaN: numberFn(NaN) } }),
+      "Host function 'getNaN' returned a non-finite number at <root>: NaN"
+    );
+  });
+
+  it('a host function returning Infinity halts naming the function and value', async () => {
+    await expectHaltMessage(
+      () => run('getInf()', { functions: { getInf: numberFn(Infinity) } }),
+      "Host function 'getInf' returned a non-finite number at <root>: Infinity"
+    );
+  });
+
+  it('a host function returning -Infinity halts naming the function and value', async () => {
+    await expectHaltMessage(
+      () =>
+        run('getNegInf()', { functions: { getNegInf: numberFn(-Infinity) } }),
+      "Host function 'getNegInf' returned a non-finite number at <root>: -Infinity"
+    );
+  });
+
+  it('NaN nested in a returned plain object reports the field path', async () => {
+    const badFn: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: () => ({ field: NaN }) as unknown as RillValue,
+    };
+    await expectHaltMessage(
+      () => run('badFn()', { functions: { badFn } }),
+      "Host function 'badFn' returned a non-finite number at .field: NaN"
+    );
+  });
+
+  it('NaN nested in a returned array reports the indexed path', async () => {
+    const badFn: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: () => [1, NaN] as unknown as RillValue,
+    };
+    await expectHaltMessage(
+      () => run('badFn()', { functions: { badFn } }),
+      "Host function 'badFn' returned a non-finite number at <root>[1]: NaN"
+    );
+  });
+
+  it('guard recovers the halt as a catchable invalid value', async () => {
+    const result = await run('guard { getNaN() } => $r\n$r.!', {
+      functions: { getNaN: numberFn(NaN) },
+    });
+    expect(result).toBe(true);
+  });
+
+  it('guard { ... } ?? fallback resolves the halt to the fallback value', async () => {
+    const result = await run('guard { getNaN() } ?? 0', {
+      functions: { getNaN: numberFn(NaN) },
+    });
+    expect(result).toBe(0);
   });
 });

@@ -578,7 +578,7 @@ fn: async (args, ctx) => {
 
 ## Testing Extensions
 
-Use `createTestContext` to wire extensions for testing without config infrastructure. Extension functions follow the same return-value contract as any host function—see [Return Values](integration-host.md#return-values) for the types that halt with `RILL-R085`.
+Use `createTestContext` to wire extensions for testing without config infrastructure. Extension functions follow the same return-value contract as any host function—see [Return Values](integration-host.md#return-values) for the types that halt (`RILL-R085` for shape violations, catchable `#INVALID_INPUT` for non-finite numbers).
 
 ```typescript
 import { createTestContext, toCallable, execute, parse } from '@rcrsr/rill';

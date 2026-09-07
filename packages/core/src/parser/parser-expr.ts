@@ -7,6 +7,7 @@ import { Parser } from './parser.js';
 import type {
   AnnotatedExprNode,
   AnnotationAccessNode,
+  AnnotationArg,
   ArithHead,
   BinaryOp,
   BlockNode,
@@ -860,11 +861,19 @@ function isClosureSigLiteralStart(state: {
   const t0 = state.tokens[state.pos];
   const t1 = state.tokens[state.pos + 1];
   const t2 = state.tokens[state.pos + 2];
-  if (!t0 || !t1 || !t2) return false;
+  if (!t0 || !t1) return false;
+  // `||:ret` — empty param list closure sig literal.
+  if (t0.type === TOKEN_TYPES.OR && t1.type === TOKEN_TYPES.COLON) {
+    return true;
+  }
+  if (!t2) return false;
+  const isAnnotatedFirstParam =
+    t0.type === TOKEN_TYPES.PIPE_BAR && t1.type === TOKEN_TYPES.CARET;
   if (
-    t0.type !== TOKEN_TYPES.PIPE_BAR ||
-    t1.type !== TOKEN_TYPES.IDENTIFIER ||
-    t2.type !== TOKEN_TYPES.COLON
+    !isAnnotatedFirstParam &&
+    (t0.type !== TOKEN_TYPES.PIPE_BAR ||
+      t1.type !== TOKEN_TYPES.IDENTIFIER ||
+      t2.type !== TOKEN_TYPES.COLON)
   ) {
     return false;
   }
@@ -1794,32 +1803,75 @@ Parser.prototype.parseClosureSigLiteral = function (
 ): ClosureSigLiteralNode {
   const start = current(this.state).span.start;
 
-  // Consume opening |
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
-  skipNewlines(this.state);
+  const params: {
+    name: string;
+    typeExpr: ExpressionNode;
+    annotations?: AnnotationArg[];
+  }[] = [];
 
-  const params: { name: string; typeExpr: ExpressionNode }[] = [];
+  if (check(this.state, TOKEN_TYPES.OR)) {
+    // `||:ret` — empty param list.
+    advance(this.state);
+    skipNewlines(this.state);
+  } else {
+    // Consume opening |
+    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |');
+    skipNewlines(this.state);
 
-  // Parse param-type-list: name: typeExpr [, name: typeExpr]*
-  while (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
-    const nameToken = expect(
-      this.state,
-      TOKEN_TYPES.IDENTIFIER,
-      'Expected parameter name'
-    );
-    expect(this.state, TOKEN_TYPES.COLON, 'Expected : after parameter name');
-    skipNewlines(this.state);
-    const typeExpr = this.parseExpression();
-    params.push({ name: nameToken.value, typeExpr });
-    skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
+    // Parse param-type-list: [^(annots)] name: typeExpr [, [^(annots)] name: typeExpr]*
+    while (!check(this.state, TOKEN_TYPES.PIPE_BAR)) {
+      let annotations: AnnotationArg[] | undefined;
+      while (check(this.state, TOKEN_TYPES.CARET)) {
+        advance(this.state); // consume ^
+        expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
+        const block = this.parseAnnotationArgs();
+        expect(
+          this.state,
+          TOKEN_TYPES.RPAREN,
+          'Expected )',
+          ERROR_IDS.RILL_P005
+        );
+        skipNewlines(this.state);
+
+        annotations = annotations ? annotations.concat(block) : block;
+
+        // Guard: annotation must be followed by a field
+        if (check(this.state, TOKEN_TYPES.PIPE_BAR)) {
+          throw new ParseError(
+            ERROR_IDS.RILL_P014,
+            'Expected field after annotation',
+            current(this.state).span.start
+          );
+        }
+      }
+
+      const nameToken = expect(
+        this.state,
+        TOKEN_TYPES.IDENTIFIER,
+        'Expected parameter name'
+      );
+      expect(this.state, TOKEN_TYPES.COLON, 'Expected : after parameter name');
       skipNewlines(this.state);
+      const typeExpr = this.parseExpression();
+      const param: {
+        name: string;
+        typeExpr: ExpressionNode;
+        annotations?: AnnotationArg[];
+      } = { name: nameToken.value, typeExpr };
+      if (annotations) {
+        param.annotations = annotations;
+      }
+      params.push(param);
+      skipNewlines(this.state);
+      if (check(this.state, TOKEN_TYPES.COMMA)) {
+        advance(this.state);
+        skipNewlines(this.state);
+      }
     }
-  }
 
-  // Consume closing |
-  expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
+    // Consume closing |
+    expect(this.state, TOKEN_TYPES.PIPE_BAR, 'Expected |', ERROR_IDS.RILL_P005);
+  }
 
   // Consume : before return type
   expect(

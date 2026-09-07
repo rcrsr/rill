@@ -60,6 +60,7 @@ import {
 import { hasCollectionFields } from './values.js';
 import { copyTypedKeys, setDictField } from './types/dict-keys.js';
 import { ERROR_IDS } from '../../error-registry.js';
+import { throwCatchableHostHalt } from './types/halt.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -795,6 +796,18 @@ function walkHostResult(
   }
 
   const t = typeof value;
+  if (t === 'number' && !Number.isFinite(value)) {
+    const label = Number.isNaN(value)
+      ? 'NaN'
+      : value === Infinity
+        ? 'Infinity'
+        : '-Infinity';
+    throwCatchableHostHalt(
+      { location, fn: 'walkHostResult' },
+      'INVALID_INPUT',
+      `Host function '${functionName}' returned a non-finite number at ${path}: ${label}`
+    );
+  }
   if (t === 'string' || t === 'number' || t === 'boolean') {
     return;
   }

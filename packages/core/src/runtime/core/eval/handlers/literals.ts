@@ -133,7 +133,7 @@ async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
  *
  * @internal
  */
-async function evaluateAnnotations(
+export async function evaluateAnnotations(
   annotations: AnnotationArg[],
   evalExpr: (expr: ExpressionNode) => Promise<RillValue>
 ): Promise<Record<string, RillValue>> {

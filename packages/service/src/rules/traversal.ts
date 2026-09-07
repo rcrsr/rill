@@ -427,7 +427,13 @@ function getChildren(node: ASTNode): ASTNode[] {
       return fieldArgsChildren(node.args);
 
     case 'ClosureSigLiteral':
-      return [...node.params.map((param) => param.typeExpr), node.returnType];
+      return [
+        ...node.params.flatMap((param) => [
+          ...(param.annotations ?? []),
+          param.typeExpr,
+        ]),
+        node.returnType,
+      ];
 
     case 'UseExpr': {
       const children: ASTNode[] = [];

@@ -52,6 +52,7 @@ import { getVariable } from '../../context.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { evaluateAnnotations } from './annotations.js';
+import { evaluateAnnotations as evaluateAnnotationArgs } from './literals.js';
 import {
   evaluatePrimary,
   evaluatePostfixExpr,
@@ -746,7 +747,15 @@ export async function evaluateClosureSigLiteral(
   for (const param of node.params) {
     const paramVal: RillValue = await evaluateExpression(s, param.typeExpr);
     const paramType = await resolveTypeExpr(paramVal);
-    params.push({ name: param.name, type: paramType });
+    if (param.annotations?.length) {
+      const annotations = await evaluateAnnotationArgs(
+        param.annotations,
+        (expr) => evaluateExpression(s, expr)
+      );
+      params.push({ name: param.name, type: paramType, annotations });
+    } else {
+      params.push({ name: param.name, type: paramType });
+    }
   }
 
   // Evaluate return type (required -- parser enforces this at parse time)

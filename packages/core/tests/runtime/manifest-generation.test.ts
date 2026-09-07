@@ -37,7 +37,9 @@ import type { RillAtomValue, RillDatetime, RillValue } from '@rcrsr/rill';
 import {
   anyTypeValue,
   createRuntimeContext,
+  execute,
   generateManifest,
+  isTypeValue,
   parse,
   resolveAtom,
   structureToTypeValue,
@@ -450,6 +452,42 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(manifest).toContain('"ping"');
       expect(manifest.trimEnd()).not.toMatch(/-> export$/);
       expect(() => parse(manifest)).not.toThrow();
+    });
+
+    it('bodyless form is emitted unconditionally, with no {pass} fallback, for zero-param and annotated-param entries', async () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          ping: {
+            params: [],
+            fn: () => 'pong',
+            returnType: anyTypeValue,
+          },
+          greet: {
+            params: [
+              {
+                name: 'name',
+                type: { kind: 'string' },
+                defaultValue: undefined,
+                annotations: { description: 'd' },
+              },
+            ],
+            fn: (args) => `Hello ${args['name']}`,
+            returnType: anyTypeValue,
+          },
+        },
+      });
+      const manifest = generateManifest(ctx);
+
+      expect(manifest).not.toContain('{pass}');
+      expect(manifest).toContain('||:');
+      expect(manifest).toContain('^(description: "d")');
+      expect(() => parse(manifest)).not.toThrow();
+
+      const result = await execute(parse(manifest), ctx);
+      const dict = result.result as Record<string, RillValue>;
+      for (const value of Object.values(dict)) {
+        expect(isTypeValue(value)).toBe(true);
+      }
     });
   });
 
