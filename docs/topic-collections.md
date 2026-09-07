@@ -576,6 +576,17 @@ Pipe through `.reverse` after sorting to get descending order. `.reverse` is a z
 # Result: [3, 2, 1]
 ```
 
+### Indexing the sorted result
+
+A bare operator or host-call pipe target can be indexed directly with `[i]`; the index applies to the call's result.
+
+```rill
+list[3, 1, 2] -> sort[0]
+# Result: 1
+```
+
+This is the same postfix `[i]` that follows `-> .reverse[0]`.
+
 ### Iterator Materialization
 
 `range(...)` iterators are structurally dicts in rill. A direct `range -> sort` takes the dict path. Use `seq({ $ })` to materialize as a list first.

@@ -175,7 +175,9 @@ postfix-expr  = primary , [ postfix-type-op ]
                           | annotation-access
                           | invoke
                           | bracket-access
-                          | status-probe } ;
+                          | status-probe
+                          | existence-check }
+                        , [ postfix-type-op ] ;
               (* invoke: trailing "(" args ")" applied to a primary that is callable
                  (e.g. host-name(...) is parsed via host-call; bare invocation chains
                  like (closure-expr)(args) attach an InvokeNode in the postfix loop).
@@ -183,10 +185,11 @@ postfix-expr  = primary , [ postfix-type-op ]
                  in the postfix loop, not only "$"-prefixed variable chains (see the
                  property-access comment below for the full set of example forms).
                  postfix-type-op: ":type" assertion or ":?type" check applied directly
-                 after a primary expression (see type-assertion / type-check). The
-                 parser admits AT MOST ONE postfix-type-op, and only immediately after
-                 the primary (before any other postfix is collected). It cannot appear
-                 between or after method calls / invokes / status probes. *)
+                 after a primary expression (see type-assertion / type-check), or after
+                 the full postfix chain (e.g. list[1,2,3][0]:number). existence-check
+                 (".?field") is likewise valid after any postfix operator, not only at
+                 the end of a "$"-variable chain (e.g. list[dict[a:1]][0].?a). *)
+postfix-type-op = type-assertion | type-check ;
 
 (* Status probe: ".!" reads outcome metadata from a host call or value.
    - Bare ".!" returns a bool: false when the value is valid, true when invalid.

@@ -304,6 +304,13 @@ export interface PostfixExprNode extends BaseNode {
     | IndexAccessNode
   )[];
   readonly defaultValue: BodyNode | null;
+  /**
+   * Terminal existence check on the accumulated primary+methods chain:
+   * expr.?field (optionally &type). Mirrors VariableNode.existenceCheck;
+   * when set, methods after it are not collected — the check ends the
+   * postfix chain.
+   */
+  readonly existenceCheck?: ExistenceCheck | null;
 }
 
 export type PrimaryNode =

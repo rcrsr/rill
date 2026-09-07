@@ -514,5 +514,20 @@ $loop(5)`;
         expect(error).toHaveProperty('errorId', 'RILL-R002');
       });
     });
+
+    describe('Postfix index access `[i]` joins onto a bare/host-call pipe target', () => {
+      it('"list[3,1,2] -> sort[0]" parses as exactly one statement', () => {
+        const ast = parse('list[3,1,2] -> sort[0]');
+        expect(ast.statements.length).toBe(1);
+      });
+
+      it('a bare host-call pipe target followed by "[i]" on the next line remains two statements', async () => {
+        const script = `list[3,1,2] -> sort
+[0]`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toEqual([0]);
+      });
+    });
   });
 });

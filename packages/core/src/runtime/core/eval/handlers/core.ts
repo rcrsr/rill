@@ -61,6 +61,7 @@ import {
   handleCapture,
   evaluateVariableAsync,
   applyBracketIndex,
+  evaluateExistenceCheck,
 } from './variables.js';
 import {
   evaluateWhileLoop,
@@ -305,6 +306,13 @@ export async function evaluatePostfixExpr(
       } else {
         value = await evaluateMethod(s, method, value);
       }
+    }
+
+    // Terminal existence check (expr.?field): returns boolean instead of
+    // the accessed value. Mirrors evaluateVariableAsync's existenceCheck
+    // handling via the shared evaluateExistenceCheck helper.
+    if (expr.existenceCheck) {
+      return evaluateExistenceCheck(s, value, expr.existenceCheck, expr);
     }
 
     if (expr.defaultValue !== null && isVacant(value)) {
@@ -817,10 +825,28 @@ async function evaluatePipeTarget(
     }
 
     case 'PostfixExpr': {
-      // Chained methods on pipe value: -> .a.b.c (optionally -> .a.b.c ?? default)
-      // The primary is implicit $ (pipe value)
+      // Chained methods/indexes on a pipe target. Two shapes reach here:
+      //  - -> .a.b.c (optionally -> .a.b.c ?? default): primary is the
+      //    synthetic pipe-var placeholder, so the receiver is the pipe
+      //    value itself.
+      //  - -> sort[0], -> list(number)[0], -> string[0]: primary is a real
+      //    host call / type constructor / type-name target, evaluated
+      //    through evaluatePipeTarget (inPipeTarget=true binding) before
+      //    the trailing index/method chain applies to its result.
       try {
-        let value = input;
+        const primary = target.primary;
+        const isSyntheticPipeVar =
+          primary.type === 'Variable' &&
+          primary.isPipeVar &&
+          primary.name === null &&
+          primary.accessChain.length === 0;
+        // Non-synthetic primaries only ever reach parsePipeTarget's
+        // attachPipeTargetIndex path (HostCall, HostRef, TypeConstructor,
+        // TypeNameExpr) — all members of PipeTargetNode, narrower than the
+        // general PrimaryNode this field is typed for elsewhere.
+        let value = isSyntheticPipeVar
+          ? input
+          : await evaluatePipeTarget(s, primary as PipeTargetNode, input);
         for (const method of target.methods) {
           if (method.type === 'AnnotationAccess') {
             value = await evaluateAnnotationAccess(
@@ -840,6 +866,14 @@ async function evaluatePipeTarget(
           } else {
             value = await evaluateMethod(s, method, value);
           }
+        }
+        if (target.existenceCheck) {
+          return evaluateExistenceCheck(
+            s,
+            value,
+            target.existenceCheck,
+            target
+          );
         }
         if (target.defaultValue !== null && isVacant(value)) {
           return evaluateBody(s, target.defaultValue);

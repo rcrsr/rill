@@ -212,6 +212,27 @@ describe('walkAst', () => {
     expect(visited.has(annotationArg!)).toBe(true);
   });
 
+  it('visits the computed-key expression nested inside a PostfixExpr terminal existence check', () => {
+    // Regression: astChildren() previously never descended into
+    // PostfixExprNode.existenceCheck (finalAccess / typeRef), so an
+    // expression nested inside a computed key on a postfix `.?(...)`
+    // (index-then-existence-check, e.g. `list[1][0].?("k")`) was
+    // unreachable. The only StringLiteral in this fixture is the nested
+    // computed-key expression, so finding it at all proves descent reached
+    // existenceCheck.finalAccess.
+    const source = `list[1][0].?("k")`;
+    const ast = parse(source);
+
+    const oracle = [...collectNodesReflectively(ast)] as ASTNode[];
+    const nestedDefault = oracle.find((node) => node.type === 'StringLiteral');
+    expect(nestedDefault).toBeDefined();
+
+    const visited = new Set<ASTNode>();
+    walkAst(ast, (node) => visited.add(node));
+
+    expect(visited.has(nestedDefault!)).toBe(true);
+  });
+
   it('visits PartialExpression and RecoveryError nodes produced by parseWithRecovery', () => {
     const source = `error(1 + 2))\n"after"`;
     const result = parseWithRecovery(source);

@@ -220,6 +220,20 @@ list[1, 2, 3][0]
 # Result: 1
 ```
 
+`.?field` and a `:type` / `:?type` assertion may follow any postfix operator, the same as after `$var[i]`:
+
+```rill
+list[dict[a: 1]][0].?a
+# Result: true
+```
+
+```rill
+list[1, 2, 3][0]:number
+# Result: 1
+```
+
+Tuples and `ordered` values index the same way as lists.
+
 ### Reserved Words as Member Names
 
 Reserved words are legal member names immediately after a dot. The lexer retypes any keyword token following `.` or `.?` to a member name. These words never trigger their statement parsing.

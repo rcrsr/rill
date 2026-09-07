@@ -312,4 +312,8 @@ export const TUPLE_METHODS = Object.freeze({
 
 export const ORDERED_METHODS = Object.freeze({
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  len: buildMethodEntry('len', SIG_LEN, mLen),
+  keys: buildMethodEntry('keys', '||:list', mKeys, true),
+  values: buildMethodEntry('values', '||:list', mValues, true),
+  entries: buildMethodEntry('entries', '||:list', mEntries, true),
 });

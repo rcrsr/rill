@@ -463,25 +463,12 @@ describe('implicit $ property access bug', () => {
       });
     });
 
-    describe('halt parity for non-indexable receivers (tuple, string)', () => {
-      it('tuple[1,2][0] halts with the same error code as tuple[1,2] => $t then $t[0]', async () => {
-        let postfixError: unknown;
-        let variableChainError: unknown;
-        try {
-          await run('tuple[1,2][0]');
-        } catch (err) {
-          postfixError = err;
-        }
-        try {
-          await run('tuple[1,2] => $t\n$t[0]');
-        } catch (err) {
-          variableChainError = err;
-        }
-        expect(postfixError).toHaveProperty('errorId', 'RILL-R002');
-        expect(variableChainError).toHaveProperty('errorId', 'RILL-R002');
-        expect((postfixError as { errorId: string }).errorId).toBe(
-          (variableChainError as { errorId: string }).errorId
-        );
+    describe('halt parity for non-indexable receivers (string)', () => {
+      it('tuple[1,2][0] evaluates identically to tuple[1,2] => $t then $t[0]', async () => {
+        const postfixResult = await run('tuple[1,2][0]');
+        const variableChainResult = await run('tuple[1,2] => $t\n$t[0]');
+        expect(postfixResult).toBe(1);
+        expect(postfixResult).toBe(variableChainResult);
       });
 
       it('"abc"[0] halts with the same error code as "abc" => $s then $s[0]', async () => {
@@ -525,6 +512,25 @@ describe('implicit $ property access bug', () => {
       const variableChainScript =
         'dict[items: list[10,20,30]] => $x\n$x.items[0]';
       expect(await run(script)).toBe(await run(variableChainScript));
+    });
+  });
+
+  describe('postfix type assertion/check `:type` after an index/method chain (issue #407)', () => {
+    it('list[1,2,3][0]:number passes and returns the indexed value', async () => {
+      expect(await run('list[1,2,3][0]:number')).toBe(1);
+    });
+
+    it('list[1,2,3][0]:?string is a type check that returns false on mismatch', async () => {
+      expect(await run('list[1,2,3][0]:?string')).toBe(false);
+    });
+
+    it('list[1,2,3][0]:string halts with a type mismatch', async () => {
+      await expect(run('list[1,2,3][0]:string')).rejects.toThrow();
+    });
+
+    it('$x:number.foo — a postfix type assertion followed by a method chain — is unaffected', async () => {
+      const script = 'dict[foo: "bar"] => $x\n$x:dict.foo';
+      expect(await run(script)).toBe('bar');
     });
   });
 });
