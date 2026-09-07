@@ -217,7 +217,7 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       });
     });
 
-    describe('non-indexable receiver halts with RILL-R002', () => {
+    describe('tuple indexing, and non-indexable receivers halt with RILL-R002', () => {
       it('tuple is indexable by number: tuple[1,2][0] evaluates to 1', async () => {
         await expect(runOrThrow('tuple[1,2][0]')).resolves.toBe(1);
       });

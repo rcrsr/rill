@@ -48,7 +48,6 @@ import {
   isOrdered,
   isTuple,
   isIterator,
-  orderedEntries,
 } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import { getVariable, hasVariable } from '../../context.js';
@@ -305,7 +304,7 @@ export async function applyBracketIndex(
   } else if (isOrdered(receiver)) {
     // Ordered values dispatch before isDict: the JS wrapper object also
     // satisfies isDict's structural shape check.
-    const entries = orderedEntries(receiver);
+    const entries = receiver.entries;
     if (typeof indexValue === 'string') {
       const entry = entries.find(([key]) => key === indexValue);
       if (entry === undefined) {
@@ -441,10 +440,9 @@ export async function evaluateExistenceCheck(
     // Ordered values dispatch before isDict: the JS wrapper object also
     // satisfies isDict's structural shape check.
     if (isOrdered(value)) {
-      const entry = orderedEntries(value).find(
-        ([key]) => key === finalAccess.field
-      );
-      if (entry === undefined) return false;
+      const entry = value.entries.find(([key]) => key === finalAccess.field);
+      if (entry === undefined || entry[1] === null || entry[1] === undefined)
+        return false;
       if (typeRef !== null) return await matchesType(entry[1]);
       return true;
     }
@@ -486,6 +484,17 @@ export async function evaluateExistenceCheck(
         ERROR_ATOMS[ERROR_IDS.RILL_R005],
         `Variable '${varName}' is undefined`
       );
+    }
+
+    // Ordered values dispatch before isDict: the JS wrapper object also
+    // satisfies isDict's structural shape check.
+    if (isOrdered(value)) {
+      if (typeof keyValue !== 'string') return false;
+      const entry = value.entries.find(([key]) => key === keyValue);
+      if (entry === undefined || entry[1] === null || entry[1] === undefined)
+        return false;
+      if (typeRef !== null) return await matchesType(entry[1]);
+      return true;
     }
 
     // Check if key exists in dict or list
@@ -552,6 +561,17 @@ export async function evaluateExistenceCheck(
       );
     }
     const keyValue = await evaluatePipeChain(s, finalAccess.expression);
+
+    // Ordered values dispatch before isDict: the JS wrapper object also
+    // satisfies isDict's structural shape check.
+    if (isOrdered(value)) {
+      if (typeof keyValue !== 'string') return false;
+      const entry = value.entries.find(([key]) => key === keyValue);
+      if (entry === undefined || entry[1] === null || entry[1] === undefined)
+        return false;
+      if (typeRef !== null) return await matchesType(entry[1]);
+      return true;
+    }
 
     // Number/boolean computed keys resolve against the typed-key sidecar.
     if (
@@ -1049,6 +1069,29 @@ async function evaluateFieldAccessVariable(
       }
       return result;
     }
+    if (isOrdered(value)) {
+      const entries = value.entries;
+      let index = keyValue;
+      if (index < 0) {
+        index = entries.length + index;
+      }
+      const entry = entries[index];
+      if (entry === undefined) {
+        if (allowMissing) {
+          return null;
+        }
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateFieldAccessVariable',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Ordered index out of bounds: ${keyValue}`
+        );
+      }
+      return entry[1];
+    }
     // Number key on a non-list target.
     if (allowMissing) {
       return null;
@@ -1231,6 +1274,29 @@ async function evaluateFieldAccessComputed(
         );
       }
       return result;
+    }
+    if (isOrdered(value)) {
+      const entries = value.entries;
+      let index = keyValue;
+      if (index < 0) {
+        index = entries.length + index;
+      }
+      const entry = entries[index];
+      if (entry === undefined) {
+        if (allowMissing) {
+          return null;
+        }
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateFieldAccessComputed',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Ordered index out of bounds: ${keyValue}`
+        );
+      }
+      return entry[1];
     }
     // Number key on a non-list target.
     if (allowMissing) {

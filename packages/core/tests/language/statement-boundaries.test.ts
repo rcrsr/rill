@@ -529,5 +529,23 @@ $loop(5)`;
         expect(await run(script)).toEqual([0]);
       });
     });
+
+    describe('Postfix type operation `:type` joins onto its receiver across a newline', () => {
+      it.each(['5\n:number', '5\n:?number'])(
+        '"%s" parses as exactly one statement',
+        (src) => {
+          const ast = parse(src);
+          expect(ast.statements.length).toBe(1);
+        }
+      );
+
+      it('"5\\n:number" evaluates identically to "5:number" on one line', async () => {
+        expect(await run('5\n:number')).toBe(await run('5:number'));
+      });
+
+      it('"5\\n:?number" evaluates identically to "5:?number" on one line', async () => {
+        expect(await run('5\n:?number')).toBe(await run('5:?number'));
+      });
+    });
   });
 });

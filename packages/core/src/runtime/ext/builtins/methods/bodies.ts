@@ -14,7 +14,7 @@ import {
   isStream,
   isTuple,
   isVector,
-  orderedEntries,
+  orderedValueEntries,
 } from '../../../core/types/guards.js';
 import {
   orderedDictEntries,
@@ -553,7 +553,7 @@ export const mGe: RillMethod = (receiver, args, ctx, location) =>
 export const mKeys: RillMethod = (receiver) => {
   // Ordered values dispatch before isDict: the JS wrapper object also
   // satisfies isDict's structural shape check.
-  if (isOrdered(receiver)) return orderedEntries(receiver).map(([k]) => k);
+  if (isOrdered(receiver)) return orderedValueEntries(receiver).map(([k]) => k);
   return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => e.key)
     : [];
@@ -561,7 +561,8 @@ export const mKeys: RillMethod = (receiver) => {
 
 /** Get all values of a dict as a list, in canonical key order. */
 export const mValues: RillMethod = (receiver) => {
-  if (isOrdered(receiver)) return orderedEntries(receiver).map(([, v]) => v);
+  if (isOrdered(receiver))
+    return orderedValueEntries(receiver).map(([, v]) => v);
   return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => e.value)
     : [];
@@ -570,7 +571,7 @@ export const mValues: RillMethod = (receiver) => {
 /** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
 export const mEntries: RillMethod = (receiver) => {
   if (isOrdered(receiver))
-    return orderedEntries(receiver).map(([k, v]) => [k, v] as RillValue);
+    return orderedValueEntries(receiver).map(([k, v]) => [k, v] as RillValue);
   return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => [e.key, e.value] as RillValue)
     : [];

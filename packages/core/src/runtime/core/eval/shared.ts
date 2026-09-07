@@ -12,7 +12,7 @@ import type { ASTNode, SourceLocation } from '../../../types.js';
 import { isCallable, isDict } from '../callable.js';
 import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
-import { isOrdered, orderedEntries } from '../types/guards.js';
+import { isOrdered } from '../types/guards.js';
 import {
   throwAbortHalt,
   throwAutoExceptionHalt,
@@ -152,7 +152,7 @@ export async function accessDictField(
   // here — iterator field reads (.done, .value, .next) are legitimate dict
   // field accesses and must keep falling through to the dict path below.
   if (isOrdered(value)) {
-    const entry = orderedEntries(value).find(([key]) => key === field);
+    const entry = value.entries.find(([key]) => key === field);
     if (entry === undefined) {
       if (allowMissing) {
         return null;

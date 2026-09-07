@@ -102,11 +102,11 @@ export function isTypeValue(value: RillValue): value is RillTypeValue {
 /**
  * Entries of a RillOrdered value as `[key, value]` pairs, dropping the
  * optional third element (default value) that closure-parameter reflection
- * (`.^input`) carries. The single accessor for ordered-entry reads so
- * eval/handlers and ext/builtins/methods share one traversal rather than
- * each re-deriving it from `.entries`.
+ * (`.^input`) carries. Use this for multi-entry reads (`.keys()`, `.values()`,
+ * `.entries()`); single-key lookups scan `.entries` directly instead of
+ * calling this helper, to avoid the O(n) allocation it produces.
  */
-export function orderedEntries(value: RillOrdered): [string, RillValue][] {
+export function orderedValueEntries(value: RillOrdered): [string, RillValue][] {
   return value.entries.map(([key, v]) => [key, v]);
 }
 

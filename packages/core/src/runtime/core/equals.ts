@@ -349,6 +349,7 @@ function postfixExprEquals(a: PostfixExprNode, b: PostfixExprNode): boolean {
   if (!astEquals(a.primary as ASTNode, b.primary as ASTNode)) return false;
   // Methods array can contain MethodCallNode or InvokeNode
   if (!arrayEquals(a.methods, b.methods, astEqualsPair)) return false;
+  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
   return existenceCheckEquals(
     a.existenceCheck ?? null,
     b.existenceCheck ?? null

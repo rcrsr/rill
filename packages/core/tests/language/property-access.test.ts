@@ -463,7 +463,7 @@ describe('implicit $ property access bug', () => {
       });
     });
 
-    describe('halt parity for non-indexable receivers (string)', () => {
+    describe('access parity for tuple indexing and non-indexable receivers (string)', () => {
       it('tuple[1,2][0] evaluates identically to tuple[1,2] => $t then $t[0]', async () => {
         const postfixResult = await run('tuple[1,2][0]');
         const variableChainResult = await run('tuple[1,2] => $t\n$t[0]');
