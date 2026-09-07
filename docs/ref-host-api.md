@@ -857,7 +857,7 @@ The output format is a rill dict literal. The dict is the last expression and be
 
 An empty function map returns `[:]`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.
 
-Parameter defaults are never emitted—not every `RillValue` round-trips through a rill literal, so a default that cannot be serialized to an admissible rill form is omitted rather than risking an unparseable entry; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
+Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 
 ---
 

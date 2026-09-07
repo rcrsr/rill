@@ -711,13 +711,17 @@ export function marshalArgs(
  * is representable in the rill value model before it flows further through
  * the runtime.
  *
- * Deep-walks arrays and plain objects. Any recognized rill value brand
- * (atom, tuple, vector, ordered value, type value, datetime, duration,
- * callable, stream, iterator, field descriptor) stops descent at that node.
- * Anything else that cannot be represented -- undefined, null, symbol,
- * bigint, a raw function, Date, Map, Set, or any other non-plain class
- * instance -- throws a fatal RuntimeError. This is a host-contract
- * violation, not a catchable script error.
+ * Deep-walks arrays and plain objects, tracking the current recursion
+ * ancestor path (added before descending into children, removed after)
+ * to reject cycles without flagging a diamond-shaped but acyclic
+ * structure (the same nested object reachable from two sibling fields).
+ * Any recognized rill value brand (atom, tuple, vector, ordered value,
+ * type value, datetime, duration, callable, stream, iterator, field
+ * descriptor) stops descent at that node. Anything else that cannot be
+ * represented -- undefined, null, symbol, bigint, a raw function, Date,
+ * Map, Set, a cyclic reference, or any other non-plain class instance --
+ * throws a fatal RuntimeError. This is a host-contract violation, not a
+ * catchable script error.
  *
  * @param result - The raw value returned by the host function
  * @param functionName - Name of the host function, for the error message
@@ -728,7 +732,7 @@ export function validateHostResult(
   functionName: string,
   location?: SourceLocation
 ): void {
-  walkHostResult(result, functionName, '<root>', location);
+  walkHostResult(result, functionName, '<root>', location, new WeakSet());
 }
 
 /** Identity predicate for the field_descriptor brand (mirrors the private
@@ -783,7 +787,8 @@ function walkHostResult(
   value: unknown,
   functionName: string,
   path: string,
-  location: SourceLocation | undefined
+  location: SourceLocation | undefined,
+  seen: WeakSet<object>
 ): void {
   if (value === undefined || value === null) {
     throwHostResultError(functionName, path, value, location);
@@ -800,6 +805,10 @@ function walkHostResult(
   // Remaining case: t === 'object'
   const obj = value as object;
   const rillValue = value as RillValue;
+
+  if (seen.has(obj)) {
+    throwHostResultError(functionName, path, value, location);
+  }
 
   if (
     isAtom(rillValue) ||
@@ -822,22 +831,27 @@ function walkHostResult(
   }
 
   if (Array.isArray(value)) {
+    seen.add(obj);
     for (let i = 0; i < value.length; i++) {
-      walkHostResult(value[i], functionName, `${path}[${i}]`, location);
+      walkHostResult(value[i], functionName, `${path}[${i}]`, location, seen);
     }
+    seen.delete(obj);
     return;
   }
 
   if (isPlainObject(obj)) {
+    seen.add(obj);
     for (const key of Object.keys(obj as Record<string, unknown>)) {
       const childPath = path === '<root>' ? `.${key}` : `${path}.${key}`;
       walkHostResult(
         (obj as Record<string, unknown>)[key],
         functionName,
         childPath,
-        location
+        location,
+        seen
       );
     }
+    seen.delete(obj);
     return;
   }
 

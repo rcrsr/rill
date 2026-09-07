@@ -384,6 +384,7 @@ async function invokeFnCallable(
   let result: RillValue;
   try {
     result = await dispatchPromise;
+    validateHostResult(result, functionName, callLocation);
   } catch (e) {
     // Enrichment site 1: extension-dispatch boundary.
     // Tag every thrown value as extension-originated first, then enrich
@@ -423,7 +424,6 @@ async function invokeFnCallable(
     throw e;
   }
 
-  validateHostResult(result, functionName, callLocation);
   return result;
 }
 

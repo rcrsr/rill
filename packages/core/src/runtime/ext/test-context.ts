@@ -17,6 +17,7 @@ import type { RillCallable, RillParam } from '../core/callable.js';
 import { isCallable } from '../core/callable.js';
 import type { RillValue } from '../core/types/structures.js';
 import { formatStructure } from '../core/types/operations.js';
+import { quoteRillString } from '../core/types/format-string.js';
 import { RuntimeError } from '../../types.js';
 import { ERROR_IDS } from '../../error-registry.js';
 
@@ -59,7 +60,7 @@ const BARE_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
  * valid bare identifier (e.g. `"user-id"` rather than `user-id`).
  */
 function formatDictKey(key: string): string {
-  return BARE_IDENTIFIER_RE.test(key) ? key : JSON.stringify(key);
+  return BARE_IDENTIFIER_RE.test(key) ? key : quoteRillString(key);
 }
 
 /**
@@ -75,7 +76,7 @@ function formatUseRef(path: string): string {
     .every((segment) => BARE_IDENTIFIER_RE.test(segment));
   return isBarePath
     ? `use<ext:${path}>`
-    : `use<(${JSON.stringify(`ext:${path}`)})>`;
+    : `use<(${quoteRillString(`ext:${path}`)})>`;
 }
 
 /**

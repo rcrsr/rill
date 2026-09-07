@@ -600,7 +600,7 @@ const result = await execute(parse('myExt.greet("World")'), context);
 // result.result === "Hello, World!"
 ```
 
-`createTestContext` throws `ExtensionBindingError` at construction—before any script runs—when a binding's generated source fails to parse: a closure-signature parameter with an unsupported type, a non-identifier dict key, or a reserved-word parameter name each surface this way.
+`createTestContext` throws `ExtensionBindingError` at construction—before any script runs—when a binding's generated source fails to parse: a closure-signature parameter with a `dict` type whose field name is not a bare identifier, or a reserved-word parameter name, each surface this way.
 
 ---
 

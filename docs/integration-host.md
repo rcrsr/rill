@@ -103,7 +103,7 @@ functions: {
 - Return `RillValue` types (string, number, boolean, array, object, or `RillCallable`)
 - Use empty string `''` or empty array `[]` instead of returning nothing
 
-Returning `undefined`, `null`, a `Symbol`, a `Date`, a `Map`, a `Set`, or any other non-plain class instance halts execution at the call boundary with `RILL-R085`, fatal and not recoverable via `guard` or `??`. The same holds when one of these values is nested inside a returned array or plain object—the walk descends into every element and field. The error message names the host function and the offending path and JavaScript type, for example `Host function 'fetchUser' returned an invalid value at .createdAt: Date`.
+Returning `undefined`, `null`, a `bigint`, a `Symbol`, a `Date`, a `Map`, a `Set`, a raw function, or any other non-plain class instance halts execution at the call boundary with `RILL-R085`, fatal and not recoverable via `guard` or `??`. The same holds when one of these values is nested inside a returned array or plain object—the walk descends into every element and field. The error message names the host function and the offending path and JavaScript type, for example `Host function 'fetchUser' returned an invalid value at .createdAt: Date`.
 
 ## Value Types
 

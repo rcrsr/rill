@@ -666,7 +666,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
           },
         ],
         returnType: anyTypeValue,
-        fn: (args: Record<string, RillValue>): null => {
+        fn: (args: Record<string, RillValue>): string => {
           captured.push(args['value'] ?? null);
           return '';
         },
@@ -690,7 +690,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
           },
         ],
         returnType: anyTypeValue,
-        fn: (args: Record<string, RillValue>): null => {
+        fn: (args: Record<string, RillValue>): string => {
           captured.push(args['value'] ?? null);
           return '';
         },

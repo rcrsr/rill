@@ -1541,6 +1541,36 @@ describe('Host function return-value validation (RILL-R085)', () => {
       expect(err.message).toContain('[1]');
       expect(err.message).toContain('undefined');
     });
+
+    it('a self-referential object halts with RILL-R085 at the cyclic path', async () => {
+      const err = await expectR085(
+        {
+          badFn: badFn(() => {
+            const o: Record<string, unknown> = {};
+            o['self'] = o;
+            return o;
+          }),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('.self');
+    });
+
+    it('a self-referential array halts with RILL-R085 at the cyclic path', async () => {
+      const err = await expectR085(
+        {
+          badFn: badFn(() => {
+            const a: unknown[] = [1];
+            a.push(a);
+            return a;
+          }),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('[1]');
+    });
   });
 
   describe('accepts every representable return shape', () => {
@@ -1560,6 +1590,19 @@ describe('Host function return-value validation (RILL-R085)', () => {
       await expect(
         run('echo()', { functions: { echo: badFn(() => ({ a: 1 })) } })
       ).resolves.toEqual({ a: 1 });
+    });
+
+    it('accepts a diamond-shaped (non-cyclic) result: the same object referenced from two sibling fields', async () => {
+      await expect(
+        run('echo()', {
+          functions: {
+            echo: badFn(() => {
+              const shared = { x: 1, y: 2 };
+              return { a: shared, b: shared };
+            }),
+          },
+        })
+      ).resolves.toEqual({ a: { x: 1, y: 2 }, b: { x: 1, y: 2 } });
     });
 
     it('accepts a list', async () => {
