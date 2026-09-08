@@ -476,6 +476,8 @@ $factorial(5)    # 120
 
 The closure references `$factorial` before it exists. Late binding resolves `$factorial` when the closure executes.
 
+Recursion is bounded. Nested closure calls deeper than the `maxCallDepth` runtime option (default 1000) halt with `RILL-R010`, the same fatal halt a loop raises when it exceeds its iteration limit. A recursive closure with no base case halts instead of exhausting the host process.
+
 ### Mutual Recursion
 
 ```rill

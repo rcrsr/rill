@@ -9,10 +9,14 @@ import {
   inferType,
 } from '../../../core/types/registrations.js';
 import {
+  isAtom,
+  isDatetime,
+  isDuration,
   isIterator,
   isOrdered,
   isStream,
   isTuple,
+  isTypeValue,
   isVector,
   orderedValueEntries,
 } from '../../../core/types/guards.js';
@@ -38,6 +42,23 @@ import {
 // Defined as named RillMethod constants so they can be shared
 // across type groups (e.g. len appears in string, list, dict).
 // ============================================================
+
+/**
+ * True for branded values (:atom, ^type, datetime, duration) that satisfy
+ * `isDict`'s plain-object structural check but are not actually dicts.
+ * Methods dispatched with `skipReceiverValidation: true` bypass the generic
+ * RILL-R003 dispatch guard, so call sites that fall back to `isDict(receiver)`
+ * must check this first or a brand value silently leaks into the dict path.
+ */
+function isBrandedNonDict(receiver: RillValue): boolean {
+  return (
+    isAtom(receiver) ||
+    isTypeValue(receiver) ||
+    isDatetime(receiver) ||
+    isDuration(receiver) ||
+    isVector(receiver)
+  );
+}
 
 /** Get length of string, list, or dict */
 export const mLen: RillMethod = (receiver) => {
@@ -146,6 +167,13 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
   if (isIterator(receiver)) return receiver;
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
   if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
+  if (isBrandedNonDict(receiver) || isOrdered(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
+      location
+    );
+  }
   if (isDict(receiver))
     return makeDictIterator(receiver as Record<string, RillValue>, 0);
   throw new RuntimeError(
@@ -550,28 +578,49 @@ export const mGe: RillMethod = (receiver, args, ctx, location) =>
  * Get all keys of a dict as a list, in canonical order: sorted string keys,
  * then number keys ascending, then boolean keys (false before true).
  */
-export const mKeys: RillMethod = (receiver) => {
+export const mKeys: RillMethod = (receiver, _args, _ctx, location) => {
   // Ordered values dispatch before isDict: the JS wrapper object also
   // satisfies isDict's structural shape check.
   if (isOrdered(receiver)) return orderedValueEntries(receiver).map(([k]) => k);
+  if (isBrandedNonDict(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `keys() requires dict receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
   return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => e.key)
     : [];
 };
 
 /** Get all values of a dict as a list, in canonical key order. */
-export const mValues: RillMethod = (receiver) => {
+export const mValues: RillMethod = (receiver, _args, _ctx, location) => {
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([, v]) => v);
+  if (isBrandedNonDict(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `values() requires dict receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
   return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => e.value)
     : [];
 };
 
 /** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
-export const mEntries: RillMethod = (receiver) => {
+export const mEntries: RillMethod = (receiver, _args, _ctx, location) => {
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([k, v]) => [k, v] as RillValue);
+  if (isBrandedNonDict(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `entries() requires dict receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
   return isDict(receiver) && !isStream(receiver)
     ? orderedDictEntries(receiver).map((e) => [e.key, e.value] as RillValue)
     : [];

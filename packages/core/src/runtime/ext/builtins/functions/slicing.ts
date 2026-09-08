@@ -2,6 +2,7 @@ import type { RillFunction } from '../../../core/callable.js';
 import { callable, isCallable } from '../../../core/callable.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import {
+  rejectBreakAsHalt,
   RuntimeHaltSignal,
   throwCatchableHostHalt,
   throwFatalHostHalt,
@@ -657,7 +658,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           result.push(element);
         }
       } catch (e) {
-        if (e instanceof ControlSignal) throw e;
+        rejectBreakAsHalt(e, site);
         throw e;
       }
 
@@ -746,7 +747,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           if (testResult) break;
         }
       } catch (e) {
-        if (e instanceof ControlSignal) throw e;
+        rejectBreakAsHalt(e, site);
         throw e;
       }
 

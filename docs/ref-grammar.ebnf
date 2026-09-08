@@ -170,25 +170,28 @@ assert-statement = "assert" , expression , [ string ] ;
 
 error-statement = "error" , string ;
 
-postfix-expr  = primary , [ postfix-type-op ]
+postfix-expr  = primary
                         , { ( "." , method-name , [ "(" , [ arguments ] , ")" ] )
                           | annotation-access
                           | invoke
                           | bracket-access
                           | status-probe
-                          | existence-check }
-                        , [ postfix-type-op ] ;
+                          | existence-check
+                          | postfix-type-op } ;
               (* invoke: trailing "(" args ")" applied to a primary that is callable
                  (e.g. host-name(...) is parsed via host-call; bare invocation chains
                  like (closure-expr)(args) attach an InvokeNode in the postfix loop).
                  bracket-access: trailing "[" pipe-chain "]" applied to any primary
                  in the postfix loop, not only "$"-prefixed variable chains (see the
                  property-access comment below for the full set of example forms).
-                 postfix-type-op: ":type" assertion or ":?type" check applied directly
-                 after a primary expression (see type-assertion / type-check), or after
-                 the full postfix chain (e.g. list[1,2,3][0]:number). existence-check
-                 (".?field") is likewise valid after any postfix operator, not only at
-                 the end of a "$"-variable chain (e.g. list[dict[a:1]][0].?a). *)
+                 postfix-type-op: ":type" assertion or ":?type" check (see
+                 type-assertion / type-check) is one alternative inside the postfix
+                 loop itself, not a separate leading-or-trailing slot -- it can appear
+                 immediately after primary ("value":string.upper), mid-chain between
+                 other postfix operators, or after the full chain
+                 (list[1,2,3][0]:number). existence-check (".?field") is likewise
+                 valid after any postfix operator, not only at the end of a
+                 "$"-variable chain (e.g. list[dict[a:1]][0].?a). *)
 postfix-type-op = type-assertion | type-check ;
 
 (* Status probe: ".!" reads outcome metadata from a host call or value.
@@ -540,14 +543,14 @@ closure-call = "$" , identifier , "(" , [ arguments ] , ")" ;
    field-access is scoped to "$"-prefixed variable chains ("." only follows a
    variable or a preceding property-access), but bracket-access is a general
    postfix operator (see postfix-expr) valid after any postfix-eligible
-   primary -- a literal or a grouped expression -- not only
-   after "$data..." chains:
+   expression -- not only after "$data..." chains:
      list[1,2,3][0]            -- literal list, then index
      [1,2,3][0]                -- shorthand list literal, then index
      dict[a: 1]["a"]           -- literal dict, then bracket key
      tuple[1,2][0]             -- literal tuple, then index
      "abc"[0]                  -- string literal, then index
      (list[1,2,3])[0]          -- grouped expression, then index
+     get_list()[0]             -- call result, then index
 *)
 property-access = field-access | bracket-access ;
 

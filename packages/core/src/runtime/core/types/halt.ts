@@ -25,6 +25,7 @@ import { atomName } from './atom-registry.js';
 import { createTraceFrame, TRACE_KINDS, type TraceKind } from './trace.js';
 import type { RillValue } from './structures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
+import { BreakSignal } from '../signals.js';
 
 // ============================================================
 // RUNTIME HALT SIGNAL
@@ -385,4 +386,42 @@ export function throwErrorHalt(
     invalid = appendTraceFrame(invalid, wrapFrame);
   }
   throw new RuntimeHaltSignal(invalid, false);
+}
+
+// ============================================================
+// BREAK-REJECTION HELPER
+// ============================================================
+
+/**
+ * Converts an escaped `BreakSignal` into a coded, non-catchable fatal
+ * halt; otherwise returns normally so the caller re-throws `e` unchanged.
+ *
+ * `break` is control-flow syntax meaningful only inside constructs that
+ * consume it (`seq`, `acc`, `while`, `for`). When a `BreakSignal` reaches
+ * a reject site that does not consume break — a parallel body (`fan`,
+ * `filter`, `sort`), a predicate closure, or the top-level statement
+ * stepper — it is the script's own control-flow misuse, a programmer
+ * error rather than an operational failure `guard` / `retry` should be
+ * able to swallow. The halt is therefore built via
+ * `throwFatalHostHalt`, which is non-catchable: control-flow signals
+ * remain a separate hierarchy from catchable halts, so recovery blocks
+ * never absorb a misplaced `break`.
+ *
+ * Callers wrap a body-closure invocation in try/catch and call this
+ * helper first in the catch clause; any error that is not a
+ * `BreakSignal` falls through for the caller to re-throw as-is.
+ *
+ * @param e     The value caught at a reject site.
+ * @param site  Site descriptor; `site.fn` names the construct in the
+ *              halt message (e.g. `"fan"`, `"filter"`).
+ * @throws RuntimeHaltSignal (fatal, non-catchable) when `e instanceof BreakSignal`.
+ */
+export function rejectBreakAsHalt(e: unknown, site: TypeHaltSite): void {
+  if (e instanceof BreakSignal) {
+    throwFatalHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `break not supported in ${site.fn}`
+    );
+  }
 }

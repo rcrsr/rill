@@ -284,7 +284,68 @@ export async function invokeCallable(
 ): Promise<RillValue> {
   checkAborted(s);
 
-  if (internal === true) {
+  s.ctx.callDepth.value++;
+
+  try {
+    if (s.ctx.callDepth.value > s.ctx.maxCallDepth) {
+      throwFatalHostHalt(
+        {
+          location: callLocation,
+          sourceId: s.ctx.sourceId,
+          fn: 'invokeCallable',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R010],
+        `Call depth exceeded ${s.ctx.maxCallDepth}`,
+        { limit: s.ctx.maxCallDepth, depth: s.ctx.callDepth.value }
+      );
+    }
+
+    // Yield one microtask so every call level resumes on a fresh native
+    // stack. A recursion path with no suspension point between levels (a
+    // dict-bound property closure re-reading its own field, for one) would
+    // otherwise grow the JS stack in lockstep with call depth and overflow
+    // with a raw RangeError before the depth ceiling above can fire.
+    await Promise.resolve();
+
+    if (internal === true) {
+      let result: RillValue;
+      if (callable.kind === 'script') {
+        result = await invokeScriptCallable(s, callable, args, callLocation);
+      } else {
+        result = await invokeFnCallable(
+          s,
+          callable,
+          args,
+          callLocation,
+          functionName
+        );
+      }
+      if (isStream(result)) {
+        trackStream(s, result as RillStream);
+      }
+      return result;
+    }
+
+    if (callLocation) {
+      // Route through invocationStrategy.invoke — single frame-enrichment site.
+      // BoundArguments.params (arguments-binder.ts) is out of scope for the
+      // (RillValue | undefined)[] threading; the cast lands at this boundary.
+      const bound: BoundArguments = {
+        params: new Map((args as RillValue[]).map((v, i) => [String(i), v])),
+      };
+      const result = await getInvocationStrategy(s).invoke(
+        callable,
+        bound,
+        callLocation,
+        functionName
+      );
+      if (isStream(result)) {
+        trackStream(s, result as RillStream);
+      }
+      return result;
+    }
+
+    // No call-site location: dispatch directly without a frame.
     let result: RillValue;
     if (callable.kind === 'script') {
       result = await invokeScriptCallable(s, callable, args, callLocation);
@@ -301,44 +362,9 @@ export async function invokeCallable(
       trackStream(s, result as RillStream);
     }
     return result;
+  } finally {
+    s.ctx.callDepth.value--;
   }
-
-  if (callLocation) {
-    // Route through invocationStrategy.invoke — single frame-enrichment site.
-    // BoundArguments.params (arguments-binder.ts) is out of scope for the
-    // (RillValue | undefined)[] threading; the cast lands at this boundary.
-    const bound: BoundArguments = {
-      params: new Map((args as RillValue[]).map((v, i) => [String(i), v])),
-    };
-    const result = await getInvocationStrategy(s).invoke(
-      callable,
-      bound,
-      callLocation,
-      functionName
-    );
-    if (isStream(result)) {
-      trackStream(s, result as RillStream);
-    }
-    return result;
-  }
-
-  // No call-site location: dispatch directly without a frame.
-  let result: RillValue;
-  if (callable.kind === 'script') {
-    result = await invokeScriptCallable(s, callable, args, callLocation);
-  } else {
-    result = await invokeFnCallable(
-      s,
-      callable,
-      args,
-      callLocation,
-      functionName
-    );
-  }
-  if (isStream(result)) {
-    trackStream(s, result as RillStream);
-  }
-  return result;
 }
 
 /** Invoke runtime or application callable (native function). */

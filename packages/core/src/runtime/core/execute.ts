@@ -54,7 +54,11 @@ import type {
 import type { RillValue } from './types/structures.js';
 import { getStatus, invalidate } from './types/status.js';
 import { atomName, registerErrorCode } from './types/atom-registry.js';
-import { RuntimeHaltSignal, throwFatalHostHalt } from './types/halt.js';
+import {
+  rejectBreakAsHalt,
+  RuntimeHaltSignal,
+  throwFatalHostHalt,
+} from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
 import { formatAccessSite } from './eval/handlers/access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
@@ -286,6 +290,17 @@ export function createStepper(
             captured,
           };
         }
+
+        // A `break` statement that reaches the top-level statement stepper
+        // was never consumed by a break-accepting construct (seq, acc,
+        // while, for): the script broke out of nothing. Convert the raw
+        // BreakSignal into a coded fatal halt instead of letting it escape
+        // execute() unconverted; any other error falls through unchanged.
+        rejectBreakAsHalt(error, {
+          location: stmt.span.start,
+          sourceId: context.sourceId,
+          fn: 'script',
+        });
 
         // Extension-boundary reshape wrapper. Unhandled
         // throws from extension-provided host functions (non-RillError)

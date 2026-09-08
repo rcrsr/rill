@@ -476,6 +476,24 @@ export async function evaluateAssert(
     );
   }
 
+  // Assertion passed. Statement form with no bound $ (e.g. inside a
+  // parameterless closure body) must halt rather than silently returning
+  // a raw null. Mirrors evaluatePass's and evaluateConditional's
+  // unbound-$ guard; the pipe-target form (input !== undefined) is
+  // unaffected since valueToReturn came from input, not pipeValue.
+  if (input === undefined && s.ctx.pipeValue === null) {
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateAssert',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R005],
+      "Variable '$' not defined",
+      { variable: '$' }
+    );
+  }
+
   // Assertion passed, return original pipe value unchanged
   return valueToReturn;
 }

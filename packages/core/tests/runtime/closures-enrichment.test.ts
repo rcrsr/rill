@@ -23,6 +23,7 @@ import {
   BreakSignal,
   getStatus,
   ReturnSignal,
+  RuntimeError,
   RuntimeHaltSignal,
   type RillFunction,
   type RillValue,
@@ -142,14 +143,18 @@ describe('EC-8: RuntimeHaltSignal trace-frame enrichment', () => {
 });
 
 // ============================================================
-// EC-9: BreakSignal re-thrown unchanged through enrichment sites
+// EC-9: BreakSignal re-thrown unchanged through enrichment sites,
+// converted to a coded fatal halt at the top-level statement boundary
 // ============================================================
 
 describe('EC-9: BreakSignal passthrough at enrichment sites', () => {
-  it('BreakSignal thrown from a host function propagates out of run() unchanged', async () => {
-    // BreakSignal is NOT a RuntimeHaltSignal, so enrichment sites re-throw
-    // it unchanged after markExtensionThrow. execute.ts then re-throws it
-    // through reshapeUnhandledThrow (which returns undefined for BreakSignal).
+  it('BreakSignal thrown from a host function surfaces as a coded RuntimeError, not the raw signal', async () => {
+    // BreakSignal is NOT a RuntimeHaltSignal, so enrichment sites re-throw it
+    // unchanged after markExtensionThrow. The signal reaches the top-level
+    // statement stepper unmodified; the stepper's catch clause then routes
+    // it through rejectBreakAsHalt (before reshapeUnhandledThrow runs),
+    // converting it to a fatal, non-catchable halt rather than letting the
+    // raw signal escape run().
     let caught: unknown;
     try {
       await run('thrower()', {
@@ -167,11 +172,12 @@ describe('EC-9: BreakSignal passthrough at enrichment sites', () => {
       caught = e;
     }
 
-    expect(caught).toBeInstanceOf(BreakSignal);
-    expect((caught as BreakSignal).value).toBe('break-payload');
+    expect(caught).not.toBeInstanceOf(BreakSignal);
+    expect(caught).toBeInstanceOf(RuntimeError);
+    expect((caught as RuntimeError).errorId).toBe('RILL-R002');
   });
 
-  it('BreakSignal identity is preserved (same instance re-thrown)', async () => {
+  it('any escaped BreakSignal instance converts the same way (not identity-preserved past the top-level boundary)', async () => {
     const sentinel = new BreakSignal('sentinel');
     let caught: unknown;
     try {
@@ -190,7 +196,9 @@ describe('EC-9: BreakSignal passthrough at enrichment sites', () => {
       caught = e;
     }
 
-    expect(caught).toBe(sentinel);
+    expect(caught).not.toBe(sentinel);
+    expect(caught).toBeInstanceOf(RuntimeError);
+    expect((caught as RuntimeError).errorId).toBe('RILL-R002');
   });
 });
 

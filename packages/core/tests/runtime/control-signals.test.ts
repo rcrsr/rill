@@ -13,6 +13,7 @@ import {
   BreakSignal,
   ControlSignal,
   ReturnSignal,
+  RuntimeError,
   RuntimeHaltSignal,
   YieldSignal,
 } from '@rcrsr/rill';
@@ -161,18 +162,15 @@ describe('ControlSignal abstract enforcement [EC-2]', () => {
 // ============================================================
 
 describe('break at outermost statement boundary [BC-NOD-4]', () => {
-  it('propagates BreakSignal out of execute() when no enclosing loop exists', async () => {
-    // reshapeUnhandledThrow returns undefined for BreakSignal (preserves
-    // pre-migration behavior), so the signal propagates as a rejected promise.
-    // Use an explicit value "1 -> break" to avoid the unbound-$ error that
-    // a bare `break` (which desugars to `$ -> break`) triggers when pipeValue=null.
-    await expect(run('1 -> break')).rejects.toBeInstanceOf(BreakSignal);
-  });
-
-  it('propagated BreakSignal carries the value at the throw site', async () => {
-    // "1 -> break" evaluates 1 then throws BreakSignal(1).
+  it('converts to a coded RuntimeError instead of escaping as a raw BreakSignal', async () => {
+    // The top-level statement stepper routes an escaped BreakSignal through
+    // rejectBreakAsHalt before reshapeUnhandledThrow runs, converting it to a
+    // fatal, non-catchable halt. Use an explicit value "1 -> break" to avoid
+    // the unbound-$ error that a bare `break` (which desugars to `$ -> break`)
+    // triggers when pipeValue=null.
     const err = await run('1 -> break').catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(BreakSignal);
-    expect((err as BreakSignal).value).toBe(1);
+    expect(err).not.toBeInstanceOf(BreakSignal);
+    expect(err).toBeInstanceOf(RuntimeError);
+    expect((err as RuntimeError).errorId).toBe('RILL-R002');
   });
 });

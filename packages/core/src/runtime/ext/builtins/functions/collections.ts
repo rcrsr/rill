@@ -14,7 +14,7 @@ import {
 } from '../../../core/types/guards.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { RuntimeError } from '../../../../types.js';
-import { throwTypeHalt } from '../../../core/types/halt.js';
+import { rejectBreakAsHalt, throwTypeHalt } from '../../../core/types/halt.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
 import { createOrdered } from '../../../core/types/constructors.js';
@@ -221,6 +221,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return [];
       }
 
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'fan',
+      };
+
       if (concurrency === undefined) {
         // Unbounded parallel: Promise.all over all elements
         const promises = elements.map((element) => {
@@ -228,7 +234,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           childCtx.pipeValue = element;
           return invokeCallable(body, [element], childCtx, location);
         });
-        return Promise.all(promises);
+        try {
+          return await Promise.all(promises);
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
+        }
       }
 
       // Batched parallel execution
@@ -239,8 +250,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           childCtx.pipeValue = element;
           return invokeCallable(body, [element], childCtx, location);
         });
-        const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
+        try {
+          const batchResults = await Promise.all(batchPromises);
+          results.push(...batchResults);
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
+        }
       }
 
       return results;
@@ -400,6 +416,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       let accumulator: RillValue = seed;
       let iterCount = 0;
 
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'fold',
+      };
+
       for (const element of elements) {
         iterCount++;
         if (iterCount > MAX_ITER) {
@@ -426,13 +448,17 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         const invokeArgs: RillValue[] = isTwoTypeBody
           ? [element, accumulator]
           : [element];
-        const result = await invokeCallable(
-          closureToInvoke,
-          invokeArgs,
-          childCtx,
-          location
-        );
-        accumulator = result;
+        try {
+          accumulator = await invokeCallable(
+            closureToInvoke,
+            invokeArgs,
+            childCtx,
+            location
+          );
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
+        }
       }
 
       return accumulator;
@@ -531,6 +557,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return [];
       }
 
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'filter',
+      };
+
       /** Run the predicate for a single element and return keep/discard result. */
       const runPredicate = async (element: RillValue) => {
         const childCtx = createChildContext(ctx as RuntimeContext);
@@ -553,16 +585,26 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       if (concurrency === undefined) {
         // Unbounded parallel: Promise.all over all elements
-        const results = await Promise.all(elements.map(runPredicate));
-        return results.filter((r) => r.keep).map((r) => r.element);
+        try {
+          const results = await Promise.all(elements.map(runPredicate));
+          return results.filter((r) => r.keep).map((r) => r.element);
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
+        }
       }
 
       // Batched parallel execution preserving source order
       const kept: RillValue[] = [];
       for (const batch of chunkSlice(elements, concurrency)) {
-        const batchResults = await Promise.all(batch.map(runPredicate));
-        for (const r of batchResults) {
-          if (r.keep) kept.push(r.element);
+        try {
+          const batchResults = await Promise.all(batch.map(runPredicate));
+          for (const r of batchResults) {
+            if (r.keep) kept.push(r.element);
+          }
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
         }
       }
 
@@ -663,12 +705,18 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             const entry: RillValue = { key: k, value: v };
             const childCtx = createChildContext(ctx as RuntimeContext);
             childCtx.pipeValue = entry;
-            const key = await invokeCallable(
-              keyFn as Parameters<typeof invokeCallable>[0],
-              [entry],
-              childCtx,
-              location
-            );
+            let key: RillValue;
+            try {
+              key = await invokeCallable(
+                keyFn as Parameters<typeof invokeCallable>[0],
+                [entry],
+                childCtx,
+                location
+              );
+            } catch (e) {
+              rejectBreakAsHalt(e, site);
+              throw e;
+            }
             if (key === null) {
               throwTypeHalt(
                 site,
@@ -732,12 +780,18 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         elements.map(async (el) => {
           const childCtx = createChildContext(ctx as RuntimeContext);
           childCtx.pipeValue = el;
-          const key = await invokeCallable(
-            keyFnArg as Parameters<typeof invokeCallable>[0],
-            [el],
-            childCtx,
-            location
-          );
+          let key: RillValue;
+          try {
+            key = await invokeCallable(
+              keyFnArg as Parameters<typeof invokeCallable>[0],
+              [el],
+              childCtx,
+              location
+            );
+          } catch (e) {
+            rejectBreakAsHalt(e, site);
+            throw e;
+          }
           if (key === null) {
             throwTypeHalt(
               site,

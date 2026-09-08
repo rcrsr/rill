@@ -56,7 +56,7 @@ const ROOT_BASELINE =
   'functions,typeMethodDicts,leafTypes,unvalidatedMethodReceivers,' +
   'callbacks,observability,pipeValue,timeout,autoExceptions,signal,' +
   'invalidate,catch,dispose,isDisposed,createDisposedResult,trackInflight,' +
-  'maxCallStackDepth,annotationStack,callStack,' +
+  'maxCallStackDepth,callDepth,maxCallDepth,annotationStack,callStack,' +
   'metadata,hostContext,immediateAnnotation,' +
   'resolvers,resolverConfigs,resolvingSchemes,parseSource,' +
   'timezone,nowMs,scheduler';
@@ -66,14 +66,14 @@ const CHILD_BASELINE =
   'functions,typeMethodDicts,leafTypes,unvalidatedMethodReceivers,' +
   'callbacks,observability,pipeValue,timeout,autoExceptions,signal,' +
   'invalidate,catch,dispose,isDisposed,createDisposedResult,trackInflight,' +
-  'maxCallStackDepth,annotationStack,callStack,' +
+  'maxCallStackDepth,callDepth,maxCallDepth,annotationStack,callStack,' +
   'metadata,hostContext,immediateAnnotation,' +
   'resolvers,resolverConfigs,resolvingSchemes,parseSource,' +
   'timezone,nowMs,scheduler,' +
   'sourceId,sourceText';
 
-const ROOT_FIELD_COUNT = 34;
-const CHILD_FIELD_COUNT = 36;
+const ROOT_FIELD_COUNT = 36;
+const CHILD_FIELD_COUNT = 38;
 
 // ============================================================
 // AC-E1: compile-time field-presence guard
@@ -106,6 +106,8 @@ function _acE1FieldPresence(ctx: RuntimeContext): void {
     createDisposedResult,
     trackInflight,
     maxCallStackDepth,
+    callDepth,
+    maxCallDepth,
     annotationStack,
     callStack,
     metadata,
@@ -144,6 +146,8 @@ function _acE1FieldPresence(ctx: RuntimeContext): void {
   void createDisposedResult;
   void trackInflight;
   void maxCallStackDepth;
+  void callDepth;
+  void maxCallDepth;
   void annotationStack;
   void callStack;
   void metadata;
