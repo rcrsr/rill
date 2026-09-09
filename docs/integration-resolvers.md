@@ -417,7 +417,7 @@ const ctx = createRuntimeContext({
         { name: 'name', type: { kind: 'string' }, annotations: { description: 'Person to greet' } },
       ],
       description: 'Generate a greeting message',
-      fn: (args) => `Hello, ${args[0]}!`,
+      fn: (args) => `Hello, ${args.name}!`,
     },
   },
 });
@@ -522,11 +522,11 @@ const ctx = createRuntimeContext({
     documented: {
       params: [{ name: 'x', type: { kind: 'string' }, annotations: { description: 'Input value' } }],
       description: 'A documented function',
-      fn: (args) => args[0],
+      fn: (args) => args.x,
     },
     undocumented: {
       params: [{ name: 'x', type: { kind: 'string' } }],
-      fn: (args) => args[0],
+      fn: (args) => args.x,
     },
   },
 });

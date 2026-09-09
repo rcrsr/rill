@@ -1878,6 +1878,28 @@ describe('Host function return-value validation (RILL-R085)', () => {
       expect(err.message).toContain("'badFn'");
       expect(err.message).toContain('stream');
     });
+
+    it('a forged stream head marker without a callable __rill_stream_resolve halts with RILL-R085', async () => {
+      const inner: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => 'called',
+      };
+      const genuineNext = toCallable(inner);
+      const err = await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: genuineNext,
+            __rill_stream_head: true,
+          })),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('stream');
+    });
   });
 
   describe('is not recoverable by guard or retry', () => {

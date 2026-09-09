@@ -888,7 +888,14 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<{
       if (typeof stream.done !== 'boolean' || !isCallable(stream.next))
         return false;
       if (stream.done) return true;
-      return 'value' in stream || '__rill_stream_head' in stream;
+      if ('__rill_stream_head' in stream) {
+        return (
+          typeof (stream as unknown as Record<string, unknown>)[
+            '__rill_stream_resolve'
+          ] === 'function'
+        );
+      }
+      return 'value' in stream;
     },
   },
 ];

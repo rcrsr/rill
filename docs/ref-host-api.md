@@ -674,10 +674,12 @@ type CallableFn = (
 ### Typed dict keys
 
 ```typescript
+import { getTypedKeyEntries } from '@rcrsr/rill';
+
 const fn: CallableFn = (args) => {
   const someDict = args.someDict; // dict[1: "a", "1": "b"]
   Object.keys(someDict); // -> ["1"], the number key 1 is missing
-  getTypedKeyEntries(someDict); // -> [{ key: 1, value: "a" }]
+  return getTypedKeyEntries(someDict); // -> [{ key: 1, value: "a" }]
 };
 ```
 
