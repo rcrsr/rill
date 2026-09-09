@@ -192,7 +192,7 @@ describe('Stream Invocation', () => {
     expect(result).toBe(true);
   });
 
-  it('propagates resolution failure as error (EC-13)', async () => {
+  it('propagates resolution failure as error', async () => {
     await expect(
       run(
         `

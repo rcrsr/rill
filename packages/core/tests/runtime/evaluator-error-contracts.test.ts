@@ -458,6 +458,54 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         expect(status.trace[0]?.site.length).toBeGreaterThan(0);
       });
 
+      it('tuple ordering compare halt carries a real origin site for length mismatch', async () => {
+        const { RuntimeHaltSignal } =
+          await import('../../src/runtime/core/eval/handlers/access.js');
+        const { getStatus } =
+          await import('../../src/runtime/core/types/status.js');
+        const { resolveAtom } =
+          await import('../../src/runtime/core/types/atom-registry.js');
+        let caught: unknown;
+        try {
+          await run('tuple[1] < tuple[1, 2]');
+        } catch (e) {
+          caught = e;
+        }
+        expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+        const signal = caught as InstanceType<typeof RuntimeHaltSignal>;
+        const status = getStatus(signal.value);
+        expect(status.code).toBe(resolveAtom('TYPE_MISMATCH'));
+        expect(status.trace[0]?.site).toMatch(/:\d+:\d+$/);
+        expect(status.trace[0]?.site).not.toBe('<unknown>');
+        expect(signal.location).toBeDefined();
+        expect(signal.location?.line).toEqual(expect.any(Number));
+        expect(signal.location?.column).toEqual(expect.any(Number));
+      });
+
+      it('tuple ordering compare halt carries a real origin site for slot-incompatible types', async () => {
+        const { RuntimeHaltSignal } =
+          await import('../../src/runtime/core/eval/handlers/access.js');
+        const { getStatus } =
+          await import('../../src/runtime/core/types/status.js');
+        const { resolveAtom } =
+          await import('../../src/runtime/core/types/atom-registry.js');
+        let caught: unknown;
+        try {
+          await run('tuple[1] < tuple["a"]');
+        } catch (e) {
+          caught = e;
+        }
+        expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+        const signal = caught as InstanceType<typeof RuntimeHaltSignal>;
+        const status = getStatus(signal.value);
+        expect(status.code).toBe(resolveAtom('TYPE_MISMATCH'));
+        expect(status.trace[0]?.site).toMatch(/:\d+:\d+$/);
+        expect(status.trace[0]?.site).not.toBe('<unknown>');
+        expect(signal.location).toBeDefined();
+        expect(signal.location?.line).toEqual(expect.any(Number));
+        expect(signal.location?.column).toEqual(expect.any(Number));
+      });
+
       it('type assertion failure with list expected, got dict', async () => {
         await expectHalt(() => run('dict[a: 1] :list'), {
           code: 'TYPE_MISMATCH',

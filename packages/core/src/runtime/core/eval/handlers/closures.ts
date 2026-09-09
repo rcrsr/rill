@@ -50,7 +50,7 @@ import {
   formatStructure,
 } from '../../types/operations.js';
 import { anyTypeValue, structureToTypeValue } from '../../values.js';
-import { YieldSignal } from '../../signals.js';
+import { ControlSignal, YieldSignal } from '../../signals.js';
 import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
 import {
@@ -69,6 +69,7 @@ import {
   throwTypeHalt,
   throwCatchableHostHalt,
   throwFatalHostHalt,
+  makeUnhandledHostThrowInvalid,
   RuntimeHaltSignal,
 } from '../../types/halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
@@ -404,53 +405,103 @@ async function invokeFnCallable(
     fnArgs = effectiveArgs as unknown as Record<string, RillValue>;
   }
 
-  const raw = callable.fn(fnArgs, s.ctx, callLocation);
-  const dispatchPromise = raw instanceof Promise ? raw : Promise.resolve(raw);
-  s.ctx.trackInflight(dispatchPromise);
   let result: RillValue;
   try {
+    // Sync host-fn throws and rejected dispatch promises must reach the same
+    // catch: the raw builder call, the Promise wrapping, and the inflight
+    // tracking all live inside this try so a synchronous host throw enters
+    // the same enrichment/reshape path as an async rejection.
+    const raw = callable.fn(fnArgs, s.ctx, callLocation);
+    const dispatchPromise = raw instanceof Promise ? raw : Promise.resolve(raw);
+    s.ctx.trackInflight(dispatchPromise);
     result = await dispatchPromise;
     validateHostResult(result, functionName, callLocation);
   } catch (e) {
     // Enrichment site 1: extension-dispatch boundary.
-    // Tag every thrown value as extension-originated first, then enrich
-    // either RuntimeHaltSignal payloads or unmigrated RuntimeError sites
-    // with call-site metadata.
-    markExtensionThrow(e);
-    if (e instanceof RuntimeHaltSignal) {
-      const enriched = appendTraceFrame(
-        e.value,
-        createTraceFrame({
-          site: formatCallSite(callLocation, s.ctx.sourceId),
-          kind: TRACE_KINDS.HOST,
-          fn: functionName,
-        })
-      );
-      const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
-      markExtensionThrow(newSignal);
-      throw newSignal;
-    }
-    if (e instanceof RuntimeError && !e.location && callLocation) {
-      // Extensions that throw RuntimeError without a location lose call-site
-      // attribution at the host boundary. Rewrap with the call-site span so
-      // host-visible error metadata stays consistent across migrated and
-      // unmigrated throw sites.
-      const span: SourceSpan = { start: callLocation, end: callLocation };
-      const enriched = new RuntimeError(
-        e.errorId,
-        e.toData().message,
-        callLocation,
-        e.context ? { ...e.context } : undefined,
-        span,
-        e.sourceId
-      );
-      markExtensionThrow(enriched);
-      throw enriched;
-    }
-    throw e;
+    return reshapeHostThrow(e, callLocation, s.ctx.sourceId, functionName);
   }
 
   return result;
+}
+
+/**
+ * Reshape a throw from a native function dispatch host boundary into the
+ * shared `#R999` invalid value, or re-throw per the host-boundary contract.
+ * Tags every thrown value as extension-originated first, then either
+ * enriches a `RuntimeHaltSignal` or an unmigrated location-less
+ * `RuntimeError` with call-site metadata, lets every other `RillError` and
+ * every `ControlSignal` propagate unconverted, and materializes anything
+ * else (a raw `Error`, a non-object throw) as a `#R999` invalid so it never
+ * escapes `execute()` raw. A stream's `resolve()` throw is not passed
+ * through this function; it propagates unreshaped from `invokeStream`.
+ */
+function reshapeHostThrow(
+  e: unknown,
+  callLocation: SourceLocation | undefined,
+  sourceId: string | undefined,
+  functionName: string
+): RillValue {
+  markExtensionThrow(e);
+
+  // Control-flow signals (break/return/yield) are not halts; re-throw
+  // uniformly via the ControlSignal base class so every subclass —
+  // including future ones — passes through unconverted.
+  if (e instanceof ControlSignal) {
+    throw e;
+  }
+
+  if (e instanceof RuntimeHaltSignal) {
+    const enriched = appendTraceFrame(
+      e.value,
+      createTraceFrame({
+        site: formatCallSite(callLocation, sourceId),
+        kind: TRACE_KINDS.HOST,
+        fn: functionName,
+      })
+    );
+    const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
+    markExtensionThrow(newSignal);
+    throw newSignal;
+  }
+  if (e instanceof RuntimeError && !e.location && callLocation) {
+    // Extensions that throw RuntimeError without a location lose call-site
+    // attribution at the host boundary. Rewrap with the call-site span so
+    // host-visible error metadata stays consistent across migrated and
+    // unmigrated throw sites.
+    const span: SourceSpan = { start: callLocation, end: callLocation };
+    const enriched = new RuntimeError(
+      e.errorId,
+      e.toData().message,
+      callLocation,
+      e.context ? { ...e.context } : undefined,
+      span,
+      e.sourceId
+    );
+    markExtensionThrow(enriched);
+    throw enriched;
+  }
+
+  // Any other RillError (a RuntimeError that already carries a location,
+  // TimeoutError, ParseError, LexerError) carries its own halt contract;
+  // propagate unchanged.
+  if (e instanceof RillError) {
+    throw e;
+  }
+
+  // Everything else — a non-RillError `Error` thrown synchronously or via
+  // a rejected dispatch promise, or a non-object throw (`throw null`,
+  // `throw "str"`) that `markExtensionThrow`'s WeakSet cannot tag —
+  // materializes here as a `#R999` invalid value instead of escaping
+  // raw. Returned (not thrown) so the call resolves normally, matching
+  // the reshape-by-value contract at the script's top-level boundary.
+  return makeUnhandledHostThrowInvalid(
+    {
+      location: callLocation,
+      sourceId,
+      fn: functionName,
+    },
+    e
+  );
 }
 
 /** Create closure execution context with defining scope as parent. */
@@ -643,7 +694,8 @@ async function invokeRegularScriptCallable(
 /** Drain stream and return its resolution value. */
 async function invokeStream(
   s: EvalState,
-  stream: RillStream
+  stream: RillStream,
+  callLocation?: SourceLocation
 ): Promise<RillValue> {
   const resolveFn = (
     stream as unknown as Record<string, (() => Promise<RillValue>) | undefined>
@@ -689,7 +741,16 @@ async function invokeStream(
       throw err;
     }
   }
-  return resolveFn();
+
+  // A throw from `resolve()` itself is NOT reshaped here: it propagates as
+  // a raw rejection exactly as before this validation was added (locked
+  // by the streams language spec). Only the RESOLVED VALUE is validated
+  // below — a resolve() that returns raw null/undefined/a
+  // non-representable value must halt (RILL-R085) rather than leak into
+  // `$s()`/`.len`.
+  const resolution = await resolveFn();
+  validateHostResult(resolution, 'stream.resolve', callLocation);
+  return resolution;
 }
 
 /** Evaluate host function call: functionName(args).
@@ -948,7 +1009,7 @@ export async function evaluateClosureCallWithPipe(
   }
 
   if (isStream(value)) {
-    return invokeStream(s, value as RillStream);
+    return invokeStream(s, value as RillStream, getNodeLocation(s, node));
   }
   if (!isCallable(value)) {
     throwCatchableHostHalt(
@@ -1238,7 +1299,7 @@ async function evaluateInvoke(
   receiver: RillValue
 ): Promise<RillValue> {
   if (isStream(receiver)) {
-    return invokeStream(s, receiver as RillStream);
+    return invokeStream(s, receiver as RillStream, getNodeLocation(s, node));
   }
   if (!isCallable(receiver)) {
     throwCatchableHostHalt(

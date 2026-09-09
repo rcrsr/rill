@@ -24,14 +24,18 @@ import type {
   GroupedExprNode,
   ArithHead,
 } from '../../../../types.js';
-import { throwCatchableHostHalt } from '../../types/halt.js';
+import {
+  throwCatchableHostHalt,
+  RuntimeHaltSignal,
+  enrichHaltOriginLocation,
+} from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { BUILT_IN_TYPES } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
 import { isCallable } from '../../callable.js';
 import type { EvalState } from '../state.js';
-import { haltSlowPath } from './access.js';
+import { accessHaltGate, haltSlowPath } from './access.js';
 import { STATUS_SYM, type RillStatus } from '../../types/status.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { invokeCallable } from './closures.js';
@@ -314,6 +318,21 @@ function evaluateBinaryComparison(
   const reg = findRegistration(typeName);
 
   if (op === '==' || op === '!=') {
+    // Access-halt gate at the operator site: an invalid operand halts
+    // before dispatching to the comparison protocol, rather than
+    // silently comparing the sidecar-carrying dict shape. Gating here
+    // (not inside the shared deepEquals/protocol.eq primitive) keeps
+    // the change scoped to this operator.
+    const gatedLeft = accessHaltGate(left, {
+      location: node.left.span.start,
+      sourceId: s.ctx.sourceId,
+      fn: op,
+    });
+    const gatedRight = accessHaltGate(right, {
+      location: node.right.span.start,
+      sourceId: s.ctx.sourceId,
+      fn: op,
+    });
     if (!reg || !reg.protocol.eq) {
       throwCatchableHostHalt(
         {
@@ -325,7 +344,7 @@ function evaluateBinaryComparison(
         `Cannot compare ${typeName} using ${op}`
       );
     }
-    const eqResult = reg.protocol.eq(left, right);
+    const eqResult = reg.protocol.eq(gatedLeft, gatedRight);
     return op === '==' ? eqResult : !eqResult;
   }
 
@@ -342,7 +361,15 @@ function evaluateBinaryComparison(
       `Cannot compare ${typeName} with ${rightTypeName} using ${op}`
     );
   }
-  const cmp = reg.protocol.compare(left, right);
+  let cmp: number;
+  try {
+    cmp = reg.protocol.compare(left, right);
+  } catch (e) {
+    if (e instanceof RuntimeHaltSignal) {
+      throw enrichHaltOriginLocation(e, node.span.start, s.ctx.sourceId);
+    }
+    throw e;
+  }
   switch (op) {
     case '<':
       return cmp < 0;
