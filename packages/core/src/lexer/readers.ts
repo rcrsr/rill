@@ -235,7 +235,7 @@ export function readString(state: LexerState): Token {
       // Handle }} escaping outside interpolation
       value += advance(state); // consume first }
       value += advance(state); // consume second }
-    } else if (peek(state) === '\n') {
+    } else if (peek(state) === '\n' || peek(state) === '\r') {
       throw new LexerError(
         ERROR_IDS.RILL_L001,
         'Unterminated string literal',

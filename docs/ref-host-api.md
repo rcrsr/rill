@@ -852,7 +852,7 @@ The output format is a rill dict literal. The dict is the last expression and be
 [
   "greet": |^("who") name: string|:string,
   "fetch": |url: string|:dict,
-  "now": ||:number,
+  "now": ||:number
 ]
 ```
 

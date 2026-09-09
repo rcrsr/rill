@@ -812,4 +812,94 @@ describe('Rill Runtime: Loops', () => {
       expect(result).toBe('ok');
     });
   });
+
+  describe('Postfix chaining on a loop result', () => {
+    it('a do-while loop at primary position chains onto a postfix type assertion', async () => {
+      // Bare `expr do { } while (cond)` (no `->`) parses as one statement,
+      // reusing wrapLoopInPostfixExpr; chaining `:number` exercises the
+      // fix without depending on how `$` is seeded for the bare form.
+      const ast = parse('5 do { $ + 1 } while ($ < 10) : number');
+      expect(ast.statements).toHaveLength(1);
+    });
+
+    it('a do-while loop seeded via -> chains a method call into one statement', () => {
+      const ast = parse('5 -> do { $ + 1 } while ($ < 10) : number');
+      expect(ast.statements).toHaveLength(1);
+    });
+
+    it('a do-while loop seeded via -> chains a postfix type assertion and evaluates it', async () => {
+      const result = await run('5 -> do { $ + 1 } while ($ < 10) : number');
+      expect(result).toBe(10);
+    });
+
+    it('a while loop as a pipe target chains a postfix type assertion into one statement', () => {
+      const ast = parse('0 -> while ($ < 3) do { $ + 1 } : number');
+      expect(ast.statements).toHaveLength(1);
+    });
+
+    it('a while loop as a pipe target chains a postfix type assertion and evaluates it', async () => {
+      const result = await run('0 -> while ($ < 3) do { $ + 1 } : number');
+      expect(result).toBe(3);
+    });
+
+    it('without the fix, a seeded do-while loop followed by :number used to split into two statements', () => {
+      // Regression guard: before the fix, `wrapLoopInPostfixExpr`'s result
+      // was assigned directly to `head` without re-entering the postfix
+      // dispatch loop, so a trailing `:number` silently started a second,
+      // unrelated statement.
+      const ast = parse('5 -> do { $ + 1 } while ($ < 10) : number');
+      expect(ast.statements).toHaveLength(1);
+    });
+  });
+
+  describe('while/do newline matrix [#433]', () => {
+    it('while (cond) do { body } all on one line', async () => {
+      expect(await run('0 -> while ($ < 3) do { $ + 1 }')).toBe(3);
+    });
+
+    it('a newline between the condition and `do` is allowed', async () => {
+      expect(await run('0 -> while ($ < 3)\ndo { $ + 1 }')).toBe(3);
+    });
+
+    it('a newline between `do` and the body block is allowed', async () => {
+      expect(await run('0 -> while ($ < 3) do\n{ $ + 1 }')).toBe(3);
+    });
+
+    it('newlines both before and after `do` are allowed', async () => {
+      expect(await run('0 -> while ($ < 3)\ndo\n{ $ + 1 }')).toBe(3);
+    });
+
+    it('a newline between `do<limit: N>` and the body block is allowed', async () => {
+      expect(await run('0 -> while ($ < 3) do<limit: 10>\n{ $ + 1 }')).toBe(3);
+    });
+
+    it('a newline between `do` and the do-while body block is allowed', async () => {
+      expect(await run('5 -> do\n{ $ + 1 } while ($ < 3)')).toBe(6);
+    });
+
+    it('while (cond) followed by a newline and a bare { body } parses without `do`', async () => {
+      expect(await run('0 -> while ($ < 3)\n{ $ + 1 }')).toBe(3);
+    });
+
+    it('the do-less and `do`-carrying newline forms produce equivalent node shapes', () => {
+      const withDo = parse('0 -> while ($ < 3)\ndo { $ + 1 }');
+      const withoutDo = parse('0 -> while ($ < 3)\n{ $ + 1 }');
+      // Both forms must resolve to the same WhileLoopNode shape (condition,
+      // body, annotations), independent of source spans which differ because
+      // the source text lengths differ.
+      const stripSpans = (node: unknown): unknown =>
+        JSON.parse(
+          JSON.stringify(node, (key, value) =>
+            key === 'span' ? undefined : value
+          )
+        );
+      expect(stripSpans(withoutDo.statements)).toEqual(
+        stripSpans(withDo.statements)
+      );
+    });
+
+    it('while (cond) { body } on the same line (no newline) still requires `do`', () => {
+      expect(() => parse('0 -> while ($ < 3) { $ + 1 }')).toThrow(ParseError);
+    });
+  });
 });

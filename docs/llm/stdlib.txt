@@ -84,7 +84,6 @@ Example:
 | `now()` | current datetime |
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration(y, m, d, h)` | construct duration |
-| `atom(name)` | string to atom |
 | `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
 | `sort(dict, key_fn?)` | stable ascending sort of dict entries; returns `ordered[[key, value]]` |
 
@@ -92,6 +91,8 @@ Built-ins are called bare (no `$`):
 
     log("hello")                       # not $log("hello")
     range(0, 5) -> seq({ $ * 2 })
+
+atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" -> atom yields #TIMEOUT. There is no atom(name) call form -- it halts RILL-R006 Unknown function: atom. Unregistered names collapse to the #R001 fallback.
 
 ## enumerate example
 

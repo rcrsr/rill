@@ -42,7 +42,7 @@ import type {
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTypeValue, isStream } from '../../types/guards.js';
+import { isTypeValue, isStream, isOrdered } from '../../types/guards.js';
 import {
   paramToFieldDef,
   inferStructure,
@@ -74,7 +74,12 @@ import {
 } from '../../types/halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, checkAborted, withTimeout } from '../shared.js';
+import {
+  getNodeLocation,
+  checkAborted,
+  withTimeout,
+  accessDictField,
+} from '../shared.js';
 import { evaluateExpression } from './core.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { assertType } from './types.js';
@@ -451,6 +456,9 @@ function reshapeHostThrow(
   }
 
   if (e instanceof RuntimeHaltSignal) {
+    // Genuine host-fn dispatch boundary: `callable.fn` is the native
+    // function object registered by the host/extension, so `host` is the
+    // correct origin kind here.
     const enriched = appendTraceFrame(
       e.value,
       createTraceFrame({
@@ -654,14 +662,19 @@ async function invokeRegularScriptCallable(
   } catch (e) {
     // Enrichment site 2: script-callable boundary.
     // Tag every thrown value as extension-originated first, then enrich
-    // RuntimeHaltSignal payloads with a host-kind trace frame.
+    // RuntimeHaltSignal payloads with a trace frame recording this call
+    // boundary. `evaluateBodyExpression` here runs a script-authored
+    // closure body, not a host/extension function, so the origin is
+    // `access` (the existing kind used elsewhere for propagating a halt
+    // across a non-host runtime boundary, e.g. `protocols/shared.ts`'s
+    // `haltOnNestedInvalid`) rather than `host`.
     markExtensionThrow(e);
     if (e instanceof RuntimeHaltSignal) {
       const enriched = appendTraceFrame(
         e.value,
         createTraceFrame({
           site: formatCallSite(callLocation, callableCtx.sourceId),
-          kind: TRACE_KINDS.HOST,
+          kind: TRACE_KINDS.ACCESS,
           fn: 'invokeRegularScriptCallable',
         })
       );
@@ -1156,7 +1169,9 @@ export async function evaluateMethod(
       const result = typeMethod.fn(methodArgs, s.ctx, callLocation);
       return result instanceof Promise ? await result : result;
     } catch (e) {
-      // Enrichment site 3: type-method boundary.
+      // Enrichment site 3: type-method boundary. `typeMethod.fn` is a
+      // built-in type method (host-registered `RillFunction`), so `host`
+      // is the correct origin kind here.
       if (e instanceof RuntimeHaltSignal) {
         const enriched = appendTraceFrame(
           e.value,
@@ -1262,7 +1277,11 @@ export async function evaluateMethod(
           );
           return result instanceof Promise ? await result : result;
         } catch (e) {
-          // Enrichment site 4: fallback-method boundary.
+          // Enrichment site 4: fallback-method boundary. `fallbackMethod.fn`
+          // is a built-in fallback method (host-registered
+          // `RillFunction`), so `host` is the correct origin kind here —
+          // same category as the type-method boundary above, not the
+          // script-callable boundary in `invokeRegularScriptCallable`.
           const callLocation = getNodeLocation(s, node);
           if (e instanceof RuntimeHaltSignal) {
             const enriched = appendTraceFrame(
@@ -1279,6 +1298,22 @@ export async function evaluateMethod(
         }
       }
     }
+  }
+  if (
+    isDict(receiver) &&
+    !isOrdered(receiver) &&
+    !Object.hasOwn(receiver, node.name)
+  ) {
+    // A dict receiver with no field of this name at all (not merely a
+    // non-callable one) routes through the same dict-field-access halt
+    // used by `$d.bogus` (accessDictField), so a literal-chain access
+    // (`dict[a: 1].bogus`) and a variable access (`$d.bogus`) both halt
+    // RILL_R009 instead of this generic unknown-method RILL_R007. A field
+    // that DOES exist but is non-callable and was invoked with parens
+    // (`$d.a(1)` where `a` is a plain number) still falls through to the
+    // generic RILL_R007 below — that is a method-call shape error, not a
+    // missing-field error. Non-dict receivers fall through unchanged too.
+    return accessDictField(s, receiver, node.name, getNodeLocation(s, node));
   }
   throwCatchableHostHalt(
     {

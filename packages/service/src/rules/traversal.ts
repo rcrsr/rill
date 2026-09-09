@@ -207,9 +207,12 @@ function getChildren(node: ASTNode): ASTNode[] {
     case 'PostfixExpr': {
       const children: ASTNode[] = [node.primary, ...node.methods];
       if (node.existenceCheck) {
-        children.push(
-          ...propertyAccessChildren(node.existenceCheck.finalAccess)
-        );
+        // A bare `.?` probe carries no final access.
+        if (node.existenceCheck.finalAccess) {
+          children.push(
+            ...propertyAccessChildren(node.existenceCheck.finalAccess)
+          );
+        }
         if (node.existenceCheck.typeRef) {
           children.push(...typeRefChildren(node.existenceCheck.typeRef));
         }
@@ -294,9 +297,12 @@ function getChildren(node: ASTNode): ASTNode[] {
         children.push(...propertyAccessChildren(access));
       }
       if (node.existenceCheck) {
-        children.push(
-          ...propertyAccessChildren(node.existenceCheck.finalAccess)
-        );
+        // A bare `.?` probe carries no final access.
+        if (node.existenceCheck.finalAccess) {
+          children.push(
+            ...propertyAccessChildren(node.existenceCheck.finalAccess)
+          );
+        }
         if (node.existenceCheck.typeRef) {
           children.push(...typeRefChildren(node.existenceCheck.typeRef));
         }

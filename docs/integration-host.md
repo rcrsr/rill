@@ -239,7 +239,7 @@ use<ext:llm> => $llm
 [name: "string", age: "number", active: "bool"] => $schema
 
 $llm.generate("Extract user info from the following text: Alice, 30, active.", [
-  schema: $schema,
+  schema: $schema
 ]) => $result
 
 $result.data.name    # "Alice"
@@ -259,7 +259,7 @@ The `fn` property in `RillFunction` uses the `CallableFn` type:
 
 ```typescript
 type CallableFn = (
-  args: RillValue[],
+  args: Record<string, RillValue>,
   ctx: RuntimeContextLike,
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
@@ -267,9 +267,11 @@ type CallableFn = (
 
 | Parameter | Description |
 |-----------|-------------|
-| `args` | Positional arguments passed to the function (already validated against `params`) |
+| `args` | Named arguments keyed by parameter name (already validated against `params`) |
 | `ctx` | Runtime context with variables, pipeValue, and session metadata |
 | `location` | Source location of the call site (for error reporting) |
+
+Untyped callables created via `callable()` (no `params`) still receive `RillValue[]`.
 
 ### Session Metadata in Host Functions
 
@@ -292,8 +294,8 @@ functions: {
     params: [{ name: 'msg', type: { kind: 'string' } }],
     fn: (args, ctx) => {
       const correlationId = ctx.metadata?.correlationId ?? 'unknown';
-      console.log(`[${correlationId}] ${args[0]}`);
-      return args[0];
+      console.log(`[${correlationId}] ${args.msg}`);
+      return args.msg;
     },
   },
 }
@@ -539,7 +541,7 @@ Example output for a context with `greet` and `repeat` functions:
 ```text
 [
   "greet": |name: string|:string,
-  "repeat": |count: number = 3, text: string|:string,
+  "repeat": |count: number = 3, text: string|:string
 ]
 ```
 

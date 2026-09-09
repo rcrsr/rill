@@ -94,6 +94,8 @@ All copies are deep. All comparisons are by value. No object identity.
 
 CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.
 
+Unregistered atoms collapse to the #R001 fallback: for any two names the host never registered, #FOO == #BAR is true and both render as #R001. Register atoms via the host/extension. See errors for pre-registered atoms.
+
 ## Pipes and `$` binding
 
 `$` is the current piped value. Its meaning depends on context:
@@ -277,7 +279,7 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
            $r ?? "fallback"
 
     Wrong: try { JSON.parse(s) } catch { null }
-    Right: guard { $s -> :dict } => $out
+    Right: guard { $app.parse_json($s) } => $out   # JSON parsing is host-provided; rill has no built-in parser
            $out.! ? "parse failed" ! $out
 
 ## Null and undefined
@@ -459,7 +461,9 @@ All operators accept any callable as the body argument:
     -> seq({ $ * 2 })           # block, $ is current element
     -> seq(|x| ($x * 2))        # inline closure
     -> seq($double)             # variable closure
-    -> seq(log)                 # built-in function
+    -> seq({ log($) })          # built-in wrapped in a closure
+
+A bare built-in or host name -- seq(log) -- does NOT reference a callable here. In argument position it parses as a zero-arg call log(). Wrap it in a closure.
 
 ## Iterating dicts and strings
 
@@ -1170,7 +1174,6 @@ Example:
 | `now()` | current datetime |
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration(y, m, d, h)` | construct duration |
-| `atom(name)` | string to atom |
 | `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
 | `sort(dict, key_fn?)` | stable ascending sort of dict entries; returns `ordered[[key, value]]` |
 
@@ -1178,6 +1181,8 @@ Built-ins are called bare (no `$`):
 
     log("hello")                       # not $log("hello")
     range(0, 5) -> seq({ $ * 2 })
+
+atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" -> atom yields #TIMEOUT. There is no atom(name) call form -- it halts RILL-R006 Unknown function: atom. Unregistered names collapse to the #R001 fallback.
 
 ## enumerate example
 

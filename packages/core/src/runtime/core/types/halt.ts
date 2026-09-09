@@ -300,12 +300,20 @@ export function throwTypeHalt(
  * recover them. The builder allocates only when thrown; it is not on
  * the hot path and runs only when abort is detected.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` because
+ * `checkAborted` fires from runtime-authored plumbing rather than a
+ * script- or extension-level operation. Pass an explicit kind when a
+ * caller's abort check sits at a different boundary.
+ *
  * @throws RuntimeHaltSignal with code=`#DISPOSED`, catchable=false.
  */
-export function throwAbortHalt(site: TypeHaltSite): never {
+export function throwAbortHalt(
+  site: TypeHaltSite,
+  kind: TraceKind = TRACE_KINDS.HOST
+): never {
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   const invalid = invalidate(
@@ -341,20 +349,26 @@ export function throwAbortHalt(site: TypeHaltSite): never {
  * string pipe values. Violating these preconditions yields a
  * degenerate but still well-formed invalid.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` because
+ * auto-exceptions fire from runtime-authored pattern matching rather than
+ * a script- or extension-level operation.
+ *
  * @param site            Site descriptor (location, sourceId, fn).
  * @param pattern         Regex source that matched (non-empty string).
  * @param matchedValue    String value that triggered the match.
+ * @param kind            Trace-frame kind; defaults to `"host"`.
  * @throws RuntimeHaltSignal with code=`#R999`, catchable=false.
  */
 export function throwAutoExceptionHalt(
   site: TypeHaltSite,
   pattern: string,
-  matchedValue: string
+  matchedValue: string,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): never {
   const message = `auto-exception: pattern ${pattern} matched ${JSON.stringify(matchedValue)}`;
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   const invalid = invalidate(
@@ -393,21 +407,30 @@ export function throwAutoExceptionHalt(
  * `raw.message` so `.!message` surfaces it. Additional fields flow through
  * untouched.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` because the
+ * overwhelming majority of sites are runtime-authored operator-level
+ * failures (unknown function/variable/method, invalid call arguments).
+ * Pass an explicit kind when the failure genuinely originates elsewhere
+ * (e.g. `"access"` when propagating a halt encountered while evaluating
+ * script-defined code at a call boundary).
+ *
  * @param site      Site descriptor (location, sourceId, fn).
  * @param code      Atom name in underscore form (e.g. `"RILL_R006"`).
  * @param message   Human-readable error description.
  * @param raw       Optional provider-specific payload (merged with message).
+ * @param kind      Trace-frame kind; defaults to `"host"`.
  * @throws RuntimeHaltSignal with catchable=true.
  */
 export function throwCatchableHostHalt(
   site: TypeHaltSite,
   code: string,
   message: string,
-  raw?: Record<string, unknown>
+  raw?: Record<string, unknown>,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): never {
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   const invalid = invalidate(
@@ -444,21 +467,27 @@ export function throwCatchableHostHalt(
  * `raw` accepts arbitrary provider metadata; `message` is stored under
  * `raw.message` so `.!message` surfaces it.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` for the same
+ * reason as `throwCatchableHostHalt` — the overwhelming majority of sites
+ * are runtime-authored failures, not script- or extension-level ones.
+ *
  * @param site      Site descriptor (location, sourceId, fn).
  * @param code      Atom name in underscore form (e.g. `"RILL_R010"`).
  * @param message   Human-readable error description.
  * @param raw       Optional provider-specific payload (merged with message).
+ * @param kind      Trace-frame kind; defaults to `"host"`.
  * @throws RuntimeHaltSignal with catchable=false.
  */
 export function throwFatalHostHalt(
   site: TypeHaltSite,
   code: string,
   message: string,
-  raw?: Record<string, unknown>
+  raw?: Record<string, unknown>,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): never {
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   const invalid = invalidate(
@@ -498,19 +527,25 @@ export function throwFatalHostHalt(
  * When `interpolated === false`, no wrap frame is appended; the trace
  * carries only the standard host frame.
  *
+ * `kind` selects the origin frame's trace-frame kind; defaults to
+ * `"host"` because `error "..."` is a script-authored statement evaluated
+ * by runtime-authored plumbing (`evaluateError`), not an extension call.
+ *
  * @param site           Site descriptor (location, sourceId, fn).
  * @param message        Already-evaluated error message string.
  * @param interpolated   True when the source message used interpolation.
+ * @param kind           Trace-frame kind; defaults to `"host"`.
  * @throws RuntimeHaltSignal with code=`#RILL_R016`, catchable=false.
  */
 export function throwErrorHalt(
   site: TypeHaltSite,
   message: string,
-  interpolated: boolean
+  interpolated: boolean,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): never {
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   let invalid = invalidate(
@@ -579,12 +614,19 @@ export function sanitizeThrowMessage(message: string): string {
  * reshape site so the `#R999` invalid-value shape (atom, provider, trace
  * frame) is defined once.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` because every
+ * current call site sits at a genuine extension-dispatch boundary (a
+ * native host function or built-in type/fallback method throwing
+ * synchronously or rejecting).
+ *
  * @param site    Site descriptor (location, sourceId, fn).
  * @param thrown  The value caught at the dispatch boundary.
+ * @param kind    Trace-frame kind; defaults to `"host"`.
  */
 export function makeUnhandledHostThrowInvalid(
   site: TypeHaltSite,
-  thrown: unknown
+  thrown: unknown,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): RillValue {
   const raw =
     thrown instanceof Error
@@ -592,7 +634,7 @@ export function makeUnhandledHostThrowInvalid(
       : { original: String(thrown) };
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   return invalidate(

@@ -25,6 +25,7 @@ import {
   current,
   previous,
   isAtEnd,
+  reportError,
   skipNewlines,
   makeSpan,
 } from './state.js';
@@ -337,12 +338,32 @@ Parser.prototype.parseFrontmatter = function (this: Parser): FrontmatterNode {
   const contentEnd = current(this.state).span.start.offset;
   const content = this.state.source.slice(contentStart, contentEnd).trim();
 
-  expect(
+  const closingDelim = expect(
     this.state,
     TOKEN_TYPES.FRONTMATTER_DELIM,
     'Expected closing ---',
     ERROR_IDS.RILL_P005
   );
+
+  // A closing delimiter with more than three dashes (e.g. `----`) tokenizes
+  // as a FRONTMATTER_DELIM (the first three dashes) followed immediately by
+  // a stray token for each extra dash: a MINUS for a single leftover dash,
+  // or another FRONTMATTER_DELIM when three or more dashes remain (e.g.
+  // `------` is two FRONTMATTER_DELIM tokens back to back). Detect that
+  // adjacency here and report it as a malformed delimiter instead of
+  // letting the leftover token fall through to statement parsing, where it
+  // produces an unrelated "unexpected token" error further down the line.
+  if (
+    check(this.state, TOKEN_TYPES.MINUS, TOKEN_TYPES.FRONTMATTER_DELIM) &&
+    current(this.state).span.start.offset === closingDelim.span.end.offset
+  ) {
+    reportError(
+      this.state,
+      ERROR_IDS.RILL_P023,
+      "Malformed frontmatter closing delimiter: expected exactly '---', found extra '-'",
+      current(this.state).span.start
+    );
+  }
 
   return {
     type: 'Frontmatter',
@@ -466,17 +487,21 @@ Parser.prototype.parseAnnotationArgs = function (
   this: Parser
 ): AnnotationArg[] {
   const args: AnnotationArg[] = [];
+  skipNewlines(this.state);
 
   if (check(this.state, TOKEN_TYPES.RPAREN)) {
     return args; // Empty annotation list
   }
 
   args.push(this.parseAnnotationArg());
+  skipNewlines(this.state);
 
   while (check(this.state, TOKEN_TYPES.COMMA)) {
     advance(this.state); // consume comma
+    skipNewlines(this.state);
     if (check(this.state, TOKEN_TYPES.RPAREN)) break; // trailing comma
     args.push(this.parseAnnotationArg());
+    skipNewlines(this.state);
   }
 
   return args;

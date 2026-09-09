@@ -1058,6 +1058,18 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           expect(runtimeErr.errorId).toBe('RILL-R002');
         }
       });
+
+      it('names the received type when destructuring a tuple with a list pattern', async () => {
+        try {
+          await run('tuple[1, 2] -> destruct<$a, $b, $c>');
+          expect.fail('Should have thrown');
+        } catch (err) {
+          expect(err).toBeInstanceOf(RuntimeError);
+          const runtimeErr = err as RuntimeError;
+          expect(runtimeErr.errorId).toBe('RILL-R002');
+          expect(runtimeErr.message).toContain('requires list, got tuple');
+        }
+      });
     });
 
     describe('EC-13: Slice on wrong type', () => {
@@ -1094,6 +1106,20 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           const runtimeErr = err as RuntimeError;
           expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('dict');
+        }
+      });
+
+      it('names the received type when slicing a tuple', async () => {
+        try {
+          await run('tuple[1, 2, 3] -> slice<0:2>');
+          expect.fail('Should have thrown');
+        } catch (err) {
+          expect(err).toBeInstanceOf(RuntimeError);
+          const runtimeErr = err as RuntimeError;
+          expect(runtimeErr.errorId).toBe('RILL-R002');
+          expect(runtimeErr.message).toContain(
+            'Slice requires list or string, got tuple'
+          );
         }
       });
 

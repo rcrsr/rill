@@ -329,6 +329,11 @@ export async function evaluatePostfixExpr(
     //
     // RILL-R007 / RILL_R007: missing method or field on a value.
     // RILL-R008 / RILL_R008: annotation key not found (evaluateAnnotationAccess).
+    // RILL-R009 / RILL_R009: missing dict field. `evaluateMethod` routes a
+    // dict receiver's genuinely-missing field through the dict-field-access
+    // halt (accessDictField) instead of the generic unknown-method halt, so
+    // this atom must be recognized here too (already recognized by the
+    // dynamic path-traversal catch below for the same "vacant" semantics).
     if (expr.defaultValue !== null) {
       if (
         matchesErrorId(
@@ -340,6 +345,11 @@ export async function evaluatePostfixExpr(
           error,
           ERROR_IDS.RILL_R008,
           ERROR_ATOMS[ERROR_IDS.RILL_R008]
+        ) ||
+        matchesErrorId(
+          error,
+          ERROR_IDS.RILL_R009,
+          ERROR_ATOMS[ERROR_IDS.RILL_R009]
         )
       ) {
         return evaluateBody(s, expr.defaultValue);
@@ -881,8 +891,9 @@ async function evaluatePipeTarget(
         return value;
       } catch (error) {
         // Mirrors evaluatePostfixExpr's recovery: a missing method/field
-        // (RILL_R007) or missing annotation key (RILL_R008) falls back to
-        // the default value when one is present.
+        // (RILL_R007), missing dict field (RILL_R009), or missing
+        // annotation key (RILL_R008) falls back to the default value when
+        // one is present.
         if (
           target.defaultValue !== null &&
           (matchesErrorId(
@@ -894,6 +905,11 @@ async function evaluatePipeTarget(
               error,
               ERROR_IDS.RILL_R008,
               ERROR_ATOMS[ERROR_IDS.RILL_R008]
+            ) ||
+            matchesErrorId(
+              error,
+              ERROR_IDS.RILL_R009,
+              ERROR_ATOMS[ERROR_IDS.RILL_R009]
             ))
         ) {
           return evaluateBody(s, target.defaultValue);

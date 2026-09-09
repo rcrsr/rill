@@ -62,6 +62,7 @@ export const ERROR_IDS = {
   RILL_P020: 'RILL-P020',
   RILL_P021: 'RILL-P021',
   RILL_P022: 'RILL-P022',
+  RILL_P023: 'RILL-P023',
   RILL_R001: 'RILL-R001',
   RILL_R002: 'RILL-R002',
   RILL_R003: 'RILL-R003',
@@ -713,6 +714,22 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Unclosed use<>',
         code: 'use<module:resource  # Error: missing >',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P023,
+    category: 'parse',
+    description: 'Malformed frontmatter closing delimiter',
+    messageTemplate:
+      "Malformed frontmatter closing delimiter: expected exactly '---', found extra '-'",
+    cause:
+      "The frontmatter block's closing delimiter has more than three dashes.",
+    resolution: "Write the closing delimiter as exactly three dashes: '---'.",
+    examples: [
+      {
+        description: 'Closing delimiter with an extra dash',
+        code: '---\nmodel: opus\n----\nlog(1)',
       },
     ],
   },

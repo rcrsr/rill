@@ -84,6 +84,8 @@ All copies are deep. All comparisons are by value. No object identity.
 
 CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.
 
+Unregistered atoms collapse to the #R001 fallback: for any two names the host never registered, #FOO == #BAR is true and both render as #R001. Register atoms via the host/extension. See errors for pre-registered atoms.
+
 ## Pipes and `$` binding
 
 `$` is the current piped value. Its meaning depends on context:

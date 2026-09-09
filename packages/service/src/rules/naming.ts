@@ -294,6 +294,12 @@ export const namingSnakeCase: Rule = {
           return [];
         }
 
+        // `...$expr` spread entries are encoded with the literal key '...'
+        // and no keyForm; there is no name to check.
+        if (key === '...' && entryNode.keyForm === undefined) {
+          return [];
+        }
+
         if (!isSnakeCase(key)) {
           const fix = buildFix(context, 'dictKey', key, entryNode.span);
           return [

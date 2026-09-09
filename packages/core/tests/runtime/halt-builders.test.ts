@@ -593,6 +593,90 @@ describe('RuntimeHaltSignal.message and .errorId derivation', () => {
   });
 });
 
+// ============================================================
+// Trace-frame kind threading (issue #431 part 1)
+// ============================================================
+
+describe('trace-frame kind parameter — defaults to host, overridable per call site', () => {
+  it('throwAbortHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'checkAborted' };
+
+    const defaulted = catchHalt(() => throwAbortHalt(site));
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwAbortHalt(site, TRACE_KINDS.ACCESS)
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+
+  it('throwAutoExceptionHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'checkAutoExceptions' };
+
+    const defaulted = catchHalt(() =>
+      throwAutoExceptionHalt(site, 'timeout', 'value')
+    );
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwAutoExceptionHalt(site, 'timeout', 'value', TRACE_KINDS.ACCESS)
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+
+  it('throwCatchableHostHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'evaluateCallExpr' };
+
+    const defaulted = catchHalt(() =>
+      throwCatchableHostHalt(site, 'RILL_R006', 'not found')
+    );
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwCatchableHostHalt(
+        site,
+        'RILL_R006',
+        'not found',
+        undefined,
+        TRACE_KINDS.ACCESS
+      )
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+
+  it('throwFatalHostHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'checkIterationLimit' };
+
+    const defaulted = catchHalt(() =>
+      throwFatalHostHalt(site, 'RILL_R010', 'limit exceeded')
+    );
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwFatalHostHalt(
+        site,
+        'RILL_R010',
+        'limit exceeded',
+        undefined,
+        TRACE_KINDS.ACCESS
+      )
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+
+  it('throwErrorHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'evaluateError' };
+
+    const defaulted = catchHalt(() => throwErrorHalt(site, 'oh no', false));
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwErrorHalt(site, 'oh no', false, TRACE_KINDS.ACCESS)
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+});
+
 describe('empty raw payload — trace frame still constructed [BC-NOD-5]', () => {
   it('throwCatchableHostHalt with no raw arg still produces a trace frame', () => {
     const site: TypeHaltSite = { ...SITE, fn: 'evaluateCallExpr' };

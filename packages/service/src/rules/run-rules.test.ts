@@ -81,7 +81,9 @@ describe('runRules', () => {
 
   describe('malformed AST regions do not abort traversal', () => {
     it('does not throw on a RecoveryErrorNode input and returns survivable findings', () => {
-      const source = '1 => $a\n$ ->\n2 => $b\n';
+      // A trailing `->` continues onto the next line, so the malformed
+      // region needs a token no pipe target accepts.
+      const source = '1 => $a\n$ -> )\n2 => $b\n';
       const parsed = parseWithRecovery(source);
 
       let result: Diagnostic[] = [];
@@ -90,7 +92,7 @@ describe('runRules', () => {
       }).not.toThrow();
 
       // Both captures are dead, so the survivable findings are the two
-      // THROWAWAY_CAPTURE hits either side of the malformed `$ ->` region.
+      // THROWAWAY_CAPTURE hits either side of the malformed `$ -> )` region.
       expect(result.map((diagnostic) => diagnostic.code)).toEqual([
         'THROWAWAY_CAPTURE',
         'THROWAWAY_CAPTURE',

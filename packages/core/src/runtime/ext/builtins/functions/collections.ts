@@ -19,7 +19,7 @@ import {
   throwCatchableHostHalt,
   throwTypeHalt,
 } from '../../../core/types/halt.js';
-import { isInvalid } from '../../../core/types/status.js';
+import { isInvalid, isVacant } from '../../../core/types/status.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
 import { createOrdered } from '../../../core/types/constructors.js';
@@ -210,6 +210,16 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             );
           }
           concurrency = concurrencyOpt;
+        }
+
+        for (const key of Object.keys(options as Record<string, RillValue>)) {
+          if (key !== 'concurrency') {
+            throw new RuntimeError(
+              ERROR_IDS.RILL_R001,
+              `fan: unknown option '${key}'; recognized options are 'concurrency'`,
+              location
+            );
+          }
         }
       }
 
@@ -547,6 +557,16 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           }
           concurrency = concurrencyOpt;
         }
+
+        for (const key of Object.keys(options as Record<string, RillValue>)) {
+          if (key !== 'concurrency') {
+            throw new RuntimeError(
+              ERROR_IDS.RILL_R001,
+              `filter: unknown option '${key}'; recognized options are 'concurrency'`,
+              location
+            );
+          }
+        }
       }
 
       const node = {
@@ -729,7 +749,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
               rejectBreakAsHalt(e, site);
               throw e;
             }
-            if (key === null) {
+            if (isVacant(key)) {
               throwTypeHalt(
                 site,
                 'INVALID_INPUT',
@@ -804,7 +824,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             rejectBreakAsHalt(e, site);
             throw e;
           }
-          if (key === null) {
+          if (isVacant(key)) {
             throwTypeHalt(
               site,
               'INVALID_INPUT',
