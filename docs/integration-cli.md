@@ -6,7 +6,7 @@
 |------|---------|
 | [`rill-exec`](#rill-exec) | Execute a rill script file with positional arguments |
 | [`rill-eval`](#rill-eval) | Evaluate a single rill expression (no file context) |
-| [`rill-check`](#rill-check) | Static analysis and lint validation with 34 rules |
+| [`rill-check`](#rill-check) | Static analysis and lint validation with 42 rules |
 | [`rill-run`](#rill-run) | Config-driven execution with extensions and modules |
 
 ## rill-exec
@@ -173,6 +173,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `PREFER_DO_WHILE` | loops | info | Consider do-while for init-then-loop |
 | `USE_EACH` | loops | info | Use `each` instead of while loop |
 | `BREAK_IN_PARALLEL` | collections | error | `break` inside `map` or `filter` |
+| `BARE_CALLABLE_BODY` | collections | warning | Bare builtin or host name as a collection-op body is a zero-arg call, not a callable |
 | `PREFER_MAP` | collections | info | Use `map` when body has no side effects |
 | `FOLD_INTERMEDIATES` | collections | info | `acc` used only for its final value |
 | `FILTER_NEGATION` | collections | warning | Negated filter condition |

@@ -14,7 +14,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P022)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P023)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R085)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
@@ -469,6 +469,26 @@ use<module:>  # Error: missing resource after colon
 ```text
 # Unclosed use<>
 use<module:resource  # Error: missing >
+```
+
+---
+
+### rill-p023
+
+**Description:** Malformed frontmatter closing delimiter
+
+**Cause:** The frontmatter block's closing delimiter has more than three dashes.
+
+**Resolution:** Write the closing delimiter as exactly three dashes: '---'.
+
+**Example:**
+
+```text
+# Closing delimiter with an extra dash
+---
+model: opus
+----
+log(1)
 ```
 
 ---
