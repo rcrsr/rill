@@ -368,4 +368,85 @@ describe('Rill Runtime: Whitespace Continuations', () => {
       expect(result).toBe('hello');
     });
   });
+
+  describe('G9: Trailing connective token at end of line continues the statement', () => {
+    it('trailing -> continues onto the pipe target on the next line', async () => {
+      const result = await run('"hello" ->\n.upper');
+      expect(result).toBe('HELLO');
+    });
+
+    it('trailing => continues onto the captured variable on the next line', async () => {
+      const result = await run('5 =>\n$x\n$x + 1');
+      expect(result).toBe(6);
+    });
+
+    it('trailing ? continues onto the then-branch on the next line', async () => {
+      const result = await run('true ?\n1 ! 2');
+      expect(result).toBe(1);
+    });
+
+    it('trailing ! continues onto the else-branch on the next line', async () => {
+      const result = await run('false ? 1 !\n2');
+      expect(result).toBe(2);
+    });
+
+    // Both halves of the `.`/`:` continuation pair are supported: a leading
+    // operator on the next line and a trailing operator before the newline.
+    it('leading . on the next line continues the access chain', async () => {
+      const result = await run('dict[name: "alice"] => $user\n$user\n.name');
+      expect(result).toBe('alice');
+    });
+
+    it('leading : on the next line continues the type assertion', async () => {
+      const result = await run('"hello" => $x\n$x\n:string');
+      expect(result).toBe('hello');
+    });
+
+    it('trailing . before the newline continues onto the field name', async () => {
+      const result = await run('dict[name: "alice"] => $user\n$user.\nname');
+      expect(result).toBe('alice');
+    });
+
+    it('trailing . before the newline continues onto the method name on a literal', async () => {
+      const result = await run('"hello" -> .\nupper');
+      expect(result).toBe('HELLO');
+    });
+
+    it('trailing : before the newline continues onto the capture type', async () => {
+      const result = await run('"a" => $x:\nstring\n$x');
+      expect(result).toBe('a');
+    });
+
+    it('trailing : before the newline continues onto the postfix type assertion', async () => {
+      const result = await run('"hello" => $x\n$x:\nstring');
+      expect(result).toBe('hello');
+    });
+
+    it('trailing : inside a dict entry continues onto the value', async () => {
+      const result = await run('dict[a:\n1]');
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('trailing ^( continues onto the annotation entries', async () => {
+      const result = await run(
+        '^(\ndescription: "d"\n) |x| ($x) => $f\n1 -> $f'
+      );
+      expect(result).toBe(1);
+    });
+
+    it('trailing .! continues onto the optional field name on the next line', () => {
+      const script = parse('$x.!\ncode');
+      expect(script.statements).toHaveLength(1);
+      const head = script.statements[0]!.expression.head as {
+        primary: { type: string; field?: string };
+      };
+      expect(head.primary.type).toBe('StatusProbe');
+      expect(head.primary.field).toBe('code');
+    });
+
+    it('trailing ^ continues onto the annotation key on the next line (non-variable receiver)', () => {
+      const script = parse('(5).^\nkey');
+      expect(script.statements).toHaveLength(1);
+    });
+  });
 });

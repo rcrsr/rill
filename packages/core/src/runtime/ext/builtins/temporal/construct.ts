@@ -265,20 +265,38 @@ export function constructDatetime(
       { component: 'year' }
     );
   }
-  if (month === undefined || month === null || typeof month !== 'number') {
+  if (month === undefined || month === null) {
     throwTypeHalt(
       { location, fn: 'datetime' },
       'INVALID_INPUT',
-      `Invalid datetime component month: ${formatValue(month ?? null)}`,
+      'datetime() named-component form requires month, but it was not provided',
       'runtime',
       { component: 'month' }
     );
   }
-  if (day === undefined || day === null || typeof day !== 'number') {
+  if (typeof month !== 'number') {
     throwTypeHalt(
       { location, fn: 'datetime' },
       'INVALID_INPUT',
-      `Invalid datetime component day: ${formatValue(day ?? null)}`,
+      `Invalid datetime component month: ${formatValue(month)}`,
+      'runtime',
+      { component: 'month' }
+    );
+  }
+  if (day === undefined || day === null) {
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
+      'datetime() named-component form requires day, but it was not provided',
+      'runtime',
+      { component: 'day' }
+    );
+  }
+  if (typeof day !== 'number') {
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
+      `Invalid datetime component day: ${formatValue(day)}`,
       'runtime',
       { component: 'day' }
     );
@@ -490,6 +508,29 @@ function applyOffset(
     s: shifted.getUTCSeconds(),
     ms: shifted.getUTCMilliseconds(),
   };
+}
+
+/**
+ * Validate a UTC offset intended for ISO 8601 suffix formatting. The
+ * suffix is a fixed `+HH:MM`/`-HH:MM` shape whose hour field must fit
+ * 00-23; an offset of 24 hours or more (or non-finite) would otherwise
+ * silently produce a malformed suffix like `+30:00` instead of halting.
+ */
+export function validateIsoOffset(
+  offsetHours: number,
+  location?: SourceLocation,
+  fn = 'iso'
+): number {
+  if (!Number.isFinite(offsetHours) || Math.abs(offsetHours) >= 24) {
+    throwTypeHalt(
+      { location, fn },
+      'INVALID_INPUT',
+      `Invalid timezone offset: ${offsetHours} hours (must be less than 24 in magnitude)`,
+      'runtime',
+      { offsetHours }
+    );
+  }
+  return offsetHours;
 }
 
 /** Format timezone offset string like "+05:30" or "Z" */

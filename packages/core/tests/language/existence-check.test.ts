@@ -144,6 +144,37 @@ describe('Existence Check', () => {
     });
   });
 
+  describe('Bare Existence Check (.?)', () => {
+    it('returns true when the receiver is a valid value', async () => {
+      const result = await run(`
+        5 => $x
+        $x.?
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('returns false when the receiver is an invalid value caught by guard', async () => {
+      const result = await run(`
+        guard { 1 -> :string } => $x
+        $x.?
+      `);
+      expect(result).toBe(false);
+    });
+
+    it('returns true for a bare probe on the pipe variable', async () => {
+      const result = await run(`5 -> ($.?)`);
+      expect(result).toBe(true);
+    });
+
+    it('leaves .?field access unchanged when a field is present', async () => {
+      const result = await run(`
+        dict[type: "blocked"] => $result
+        $result.?type
+      `);
+      expect(result).toBe(true);
+    });
+  });
+
   describe('Error Contracts', () => {
     it('EC-4: throws error when $ is not followed by variable name', async () => {
       await expect(
@@ -161,6 +192,36 @@ describe('Existence Check', () => {
           $data.?name&invalid
         `)
       ).rejects.toThrow('Invalid type: invalid');
+    });
+  });
+
+  describe('Chaining after a postfix-position .?field probe', () => {
+    it('continues a method chain after .?field on a bracket-index chain', async () => {
+      const result = await run(`list[dict[a: 1]][0].?a.^type`);
+      expect(result).toEqual(expect.objectContaining({ typeName: 'bool' }));
+    });
+
+    it('returns true for the .?field probe before the chained method runs', async () => {
+      const result = await run(`list[dict[a: 1]][0].?a.eq(true)`);
+      expect(result).toBe(true);
+    });
+
+    it('returns false for a missing field before the chained method runs', async () => {
+      const result = await run(`list[dict[a: 1]][0].?b.eq(true)`);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('.? followed by a non-identifier token (postfix position)', () => {
+    it('throws a registered parse error naming the missing field name', async () => {
+      await expect(run(`list[dict[a: 1]][0].?+1`)).rejects.toThrow(
+        "Expected field name after '.?'"
+      );
+    });
+
+    it('is unaffected for a bare .? at end of statement', async () => {
+      const result = await run(`list[dict[a: 1]][0].?`);
+      expect(result).toEqual({ a: 1 });
     });
   });
 });

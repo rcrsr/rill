@@ -66,7 +66,8 @@ import {
 } from '../../types/halt.js';
 import { ControlSignal } from '../../signals.js';
 import { resolveAtom } from '../../types/atom-registry.js';
-import { isAtom } from '../../types/guards.js';
+import { isAtom, isOrdered, orderedValueEntries } from '../../types/guards.js';
+import { isDict } from '../../callable.js';
 import type { EvalState } from '../state.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import {
@@ -82,6 +83,7 @@ import {
   getTypedKey,
   hasTypedKey,
   typedKeyEntries,
+  orderedDictEntries,
 } from '../../types/dict-keys.js';
 import {
   evaluateExpression,
@@ -530,6 +532,43 @@ export async function evaluateDict(
 ): Promise<Record<string, RillValue>> {
   const result: Record<string, RillValue> = {};
   for (const entry of node.entries) {
+    // Spread entry: the parser encodes `...$expr` as a DictEntry whose key is
+    // the literal '...' marker with no keyForm (a real `["...": x]` string key
+    // always carries keyForm, so the two cannot collide). A later key with the
+    // same name overrides the spread value in place.
+    if (entry.key === '...' && entry.keyForm === undefined) {
+      const spreadValue = await evaluateExpression(s, entry.value);
+      let pairs: [RillValue, RillValue][];
+      if (isOrdered(spreadValue)) {
+        pairs = [...orderedValueEntries(spreadValue)];
+      } else if (isDict(spreadValue)) {
+        pairs = orderedDictEntries(spreadValue).map(
+          ({ key, value }) => [key, value] as [RillValue, RillValue]
+        );
+      } else {
+        throwCatchableHostHalt(
+          {
+            location: entry.span.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateDict',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          `Spread in dict literal requires dict or ordered, got ${typeof spreadValue}`,
+          { got: typeof spreadValue }
+        );
+      }
+      for (const [k, v] of pairs) {
+        if (typeof k === 'number' || typeof k === 'boolean') {
+          setTypedKey(result, k, v);
+        } else {
+          const stringKey = String(k);
+          assertUsableDictKey(s, stringKey, entry.span);
+          setDictField(result, stringKey, v);
+        }
+      }
+      continue;
+    }
+
     // Multi-key entries: expand to multiple key-value pairs
     if (typeof entry.key === 'object') {
       // Check for new key types (variable/computed keys)

@@ -209,12 +209,30 @@ interface TokenizeOptions {
   includeComments?: boolean;
 }
 
+const BOM = '﻿';
+
 export function tokenize(
   source: string,
   baseLocation?: SourceLocation,
   options?: TokenizeOptions
 ): Token[] {
   const state = createLexerState(source, baseLocation);
+
+  // Skip a leading UTF-8 byte-order-mark only at the very start of a
+  // top-level source file (no baseLocation, i.e. not a sub-parse such as a
+  // string interpolation). A BOM anywhere else in the source remains an
+  // "Unexpected character" error.
+  if (baseLocation === undefined && peek(state) === BOM) {
+    advance(state);
+    // The BOM is invisible, not source content: don't let it disqualify a
+    // frontmatter delimiter that immediately follows from being recognized
+    // as being at file start (see the `---` handling in nextToken below),
+    // and don't let advance()'s column bookkeeping treat it as the first
+    // visible character on the line.
+    state.sawNonWhitespace = false;
+    state.column = 1;
+  }
+
   const tokens: Token[] = [];
   let token: Token;
 

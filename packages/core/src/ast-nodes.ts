@@ -628,11 +628,16 @@ export interface VariableNode extends BaseNode {
 
 /**
  * Existence check configuration.
- * For .?path (just exists) or .?path&type (exists AND type matches).
+ * For .?path (just exists), .?path&type (exists AND type matches), or a bare
+ * .? probe (finalAccess: null) that checks the receiver itself rather than a
+ * field/index on it.
  */
 export interface ExistenceCheck {
-  /** The final field/index being checked for existence */
-  readonly finalAccess: FieldAccess;
+  /**
+   * The final field/index being checked for existence, or null for a bare
+   * `.?` probe that checks the validity of the receiver itself.
+   */
+  readonly finalAccess: FieldAccess | null;
   /** Optional type check: returns true only if exists AND matches type */
   readonly typeRef: TypeRef | null;
 }

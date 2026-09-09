@@ -436,6 +436,15 @@ export async function evaluateExistenceCheck(
     return structureMatches(fieldValue, resolved.structure);
   };
 
+  // Bare `.?` probe: no field/key follows, so the check is against the
+  // receiver itself (the accumulated access-chain result) rather than a
+  // field on it. Returns whether the receiver is a valid value (and, when
+  // type-qualified, whether it also matches that type).
+  if (finalAccess === null) {
+    if (value === null || isInvalid(value)) return false;
+    return await matchesType(value);
+  }
+
   if (finalAccess.kind === 'literal') {
     // Ordered values dispatch before isDict: the JS wrapper object also
     // satisfies isDict's structural shape check.

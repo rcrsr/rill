@@ -272,5 +272,25 @@ single: 'also quoted'
       expect(ast.frontmatter?.content).toContain("'also quoted'");
       expect(await run(script)).toBe(5);
     });
+
+    it('rejects a closing delimiter with an extra dash', () => {
+      const script = `---
+model: opus
+----
+"hello"`;
+      expect(() => parse(script)).toThrow(
+        /malformed frontmatter closing delimiter/i
+      );
+    });
+
+    it('rejects a closing delimiter with several extra dashes', () => {
+      const script = `---
+model: opus
+------
+"hello"`;
+      expect(() => parse(script)).toThrow(
+        /malformed frontmatter closing delimiter/i
+      );
+    });
   });
 });

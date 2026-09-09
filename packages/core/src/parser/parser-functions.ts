@@ -271,6 +271,7 @@ Parser.prototype.parseMethodCall = function (
 ): MethodCallNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.DOT, 'Expected .');
+  skipNewlines(this.state);
   if (!check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
     const token = current(this.state);
     throw new ParseError(
@@ -317,6 +318,7 @@ Parser.prototype.parseTypeOperation = function (
 ): TypeAssertionNode | TypeCheckNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+  skipNewlines(this.state);
 
   const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
   if (isCheck) {
@@ -356,6 +358,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
 ): TypeAssertionNode | TypeCheckNode {
   const start = operand.span.start;
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+  skipNewlines(this.state);
 
   const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
   if (isCheck) {

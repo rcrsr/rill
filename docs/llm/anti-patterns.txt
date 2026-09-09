@@ -90,7 +90,7 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
            $r ?? "fallback"
 
     Wrong: try { JSON.parse(s) } catch { null }
-    Right: guard { $s -> :dict } => $out
+    Right: guard { $app.parse_json($s) } => $out   # JSON parsing is host-provided; rill has no built-in parser
            $out.! ? "parse failed" ! $out
 
 ## Null and undefined

@@ -161,4 +161,54 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       expect(stmt.expression.pipes[0]!.type).toBe('TypeNameExpr');
     });
   });
+
+  describe('Postfix chaining after a pass block', () => {
+    it('a bracketless pass block at primary position chains a method call into one statement', () => {
+      const ast = parse('pass { "hello" }.upper');
+      expect(ast.statements).toHaveLength(1);
+
+      const head = ast.statements[0]!.expression.head;
+      expect(head.type).toBe('PostfixExpr');
+      expect(head.primary.type).toBe('PassBlock');
+      expect(head.methods).toHaveLength(1);
+      expect(head.methods[0]!.type).toBe('MethodCall');
+      expect(head.methods[0]!.name).toBe('upper');
+    });
+
+    it('a bracketless pass block as a pipe target chains a method call into one statement', () => {
+      const ast = parse('5 -> pass { $ } . upper');
+      expect(ast.statements).toHaveLength(1);
+
+      const pipeExpr = ast.statements[0]!.expression.pipes[0]!;
+      expect(pipeExpr.type).toBe('PostfixExpr');
+      expect(pipeExpr.primary.type).toBe('PassBlock');
+      expect(pipeExpr.methods).toHaveLength(1);
+      expect(pipeExpr.methods[0]!.type).toBe('MethodCall');
+      expect(pipeExpr.methods[0]!.name).toBe('upper');
+    });
+
+    it('a pass<> block with options as a pipe target chains a method call into one statement', () => {
+      const script = '5 -> pass<on_error: #IGNORE> { $ * 2 } . upper';
+      const ast = parse(script);
+      expect(ast.statements).toHaveLength(1);
+
+      const pipeExpr = ast.statements[0]!.expression.pipes[0]!;
+      expect(pipeExpr.type).toBe('PostfixExpr');
+      expect(pipeExpr.primary.type).toBe('PassBlock');
+      expect(pipeExpr.methods).toHaveLength(1);
+      expect(pipeExpr.methods[0]!.type).toBe('MethodCall');
+      expect(pipeExpr.methods[0]!.name).toBe('upper');
+    });
+
+    it('a pass block as a pipe target chains an index access into one statement', () => {
+      const ast = parse('5 -> pass { list[$, $] } [0]');
+      expect(ast.statements).toHaveLength(1);
+
+      const pipeExpr = ast.statements[0]!.expression.pipes[0]!;
+      expect(pipeExpr.type).toBe('PostfixExpr');
+      expect(pipeExpr.primary.type).toBe('PassBlock');
+      expect(pipeExpr.methods).toHaveLength(1);
+      expect(pipeExpr.methods[0]!.type).toBe('IndexAccess');
+    });
+  });
 });

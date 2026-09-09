@@ -362,7 +362,15 @@ function existenceCheckEquals(
 ): boolean {
   if (a === null && b === null) return true;
   if (a === null || b === null) return false;
-  if (!fieldAccessEquals(a.finalAccess, b.finalAccess)) return false;
+  if (a.finalAccess === null && b.finalAccess !== null) return false;
+  if (a.finalAccess !== null && b.finalAccess === null) return false;
+  if (
+    a.finalAccess !== null &&
+    b.finalAccess !== null &&
+    !fieldAccessEquals(a.finalAccess, b.finalAccess)
+  ) {
+    return false;
+  }
   if (a.typeRef === null && b.typeRef === null) return true;
   if (a.typeRef === null || b.typeRef === null) return false;
   return typeRefEquals(a.typeRef, b.typeRef);

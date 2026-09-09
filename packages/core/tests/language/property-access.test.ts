@@ -533,4 +533,24 @@ describe('implicit $ property access bug', () => {
       expect(await run(script)).toBe('bar');
     });
   });
+
+  describe('postfix chaining after a same-line capture (=>)', () => {
+    it('a capture target cannot be indexed: $a[0] is a parse error', () => {
+      expect(() => parse('5 => $a[0]')).toThrow(ParseError);
+    });
+
+    it('a capture target cannot have a method call chained on: $a.upper is a parse error', () => {
+      expect(() => parse('"x" => $a.upper')).toThrow(ParseError);
+    });
+
+    it('the capture still parses fine when the chain resumes on the pipe, not the capture', async () => {
+      const result = await run('list["a", "b"] => $items -> .len');
+      expect(result).toBe(2);
+    });
+
+    it('the capture still parses fine when postfix access is a separate, later statement', async () => {
+      const result = await run('list["a", "b"] => $items\n$items[0]');
+      expect(result).toBe('a');
+    });
+  });
 });

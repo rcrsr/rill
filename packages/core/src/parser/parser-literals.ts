@@ -42,6 +42,7 @@ import {
   skipNewlinesIfFollowedBy,
   makeSpan,
   reportError,
+  type ParserState,
 } from './state.js';
 import {
   ATOM_NAME_SHAPE,
@@ -581,9 +582,9 @@ Parser.prototype.parseTuple = function (
   skipNewlines(this.state);
 
   while (check(this.state, TOKEN_TYPES.COMMA)) {
-    advance(this.state);
+    const comma = advance(this.state);
     skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.RBRACKET)) break;
+    rejectTrailingComma(this.state, comma, 'tuple');
     elements.push(this.parseTupleElement());
     skipNewlines(this.state);
   }
@@ -682,14 +683,14 @@ Parser.prototype.parseDict = function (
   start: SourceLocation
 ): DictNode {
   const entries: DictEntryNode[] = [];
-  entries.push(this.parseDictEntry());
+  entries.push(parseDictEntryOrSpread(this));
   skipNewlines(this.state);
 
   while (check(this.state, TOKEN_TYPES.COMMA)) {
-    advance(this.state);
+    const comma = advance(this.state);
     skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.RBRACKET)) break;
-    entries.push(this.parseDictEntry());
+    rejectTrailingComma(this.state, comma, 'dict');
+    entries.push(parseDictEntryOrSpread(this));
     skipNewlines(this.state);
   }
 
@@ -841,6 +842,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   }
 
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+  skipNewlines(this.state);
   const value = this.parseExpression();
 
   return {
@@ -1334,6 +1336,44 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
 // ============================================================
 
 /**
+ * A comma immediately followed by the closing bracket is a trailing comma.
+ * The grammar allows none, in literals, calls, or parameter lists alike.
+ * @internal
+ */
+function rejectTrailingComma(
+  state: ParserState,
+  comma: Token,
+  collectionType: string
+): void {
+  if (check(state, TOKEN_TYPES.RBRACKET)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      `trailing comma is not allowed in ${collectionType} literal`,
+      comma.span.start
+    );
+  }
+}
+
+/**
+ * One entry of a dict literal: either `...expr` (a spread, encoded as a
+ * DictEntry whose key is the literal `'...'` marker, the same encoding
+ * `parseCollectionLiteral` uses for ordered spread) or a `key: value` pair.
+ * @internal
+ */
+function parseDictEntryOrSpread(parser: Parser): DictEntryNode {
+  if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
+    const { spreadStart, expression } = parseSpreadOperand(parser);
+    return {
+      type: 'DictEntry',
+      key: '...',
+      value: expression,
+      span: makeSpan(spreadStart, expression.span.end),
+    };
+  }
+  return parser.parseDictEntry();
+}
+
+/**
  * Parse the shared prefix of a spread element inside a keyword-prefixed
  * collection literal: consumes ELLIPSIS, skips newlines, guards against a
  * missing operand, then parses the spread expression.
@@ -1454,8 +1494,9 @@ Parser.prototype.parseCollectionLiteral = function (
       }
 
       if (check(this.state, TOKEN_TYPES.COMMA)) {
-        advance(this.state);
+        const comma = advance(this.state);
         skipNewlines(this.state);
+        rejectTrailingComma(this.state, comma, collectionType);
       } else {
         break;
       }
@@ -1541,8 +1582,9 @@ Parser.prototype.parseCollectionLiteral = function (
     }
 
     if (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
+      const comma = advance(this.state);
       skipNewlines(this.state);
+      rejectTrailingComma(this.state, comma, collectionType);
     } else {
       break;
     }

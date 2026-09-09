@@ -426,6 +426,16 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           // option has no effect on the current synchronous path.
           // Future async streaming support will wire this to createIdleTicker.
         }
+
+        for (const key of Object.keys(optDict)) {
+          if (key !== 'drop_partial' && key !== 'idle_flush') {
+            throwCatchableHostHalt(
+              site,
+              'INVALID_INPUT',
+              `batch: unknown option '${key}'; recognized options are 'drop_partial' and 'idle_flush'`
+            );
+          }
+        }
       }
 
       const node = {

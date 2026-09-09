@@ -230,9 +230,15 @@ $parts -> seq({ "{$}!" })`;
   });
 
   describe('Parser Behavior', () => {
-    it('rejects pipe on newline (-> requires target on same line)', async () => {
+    it('a trailing -> at end of line continues onto the next line', async () => {
       const script = `"hello" ->
 .len`;
+      expect(await run(script)).toBe(5);
+    });
+
+    it('rejects a trailing -> with nothing to continue onto', async () => {
+      const script = `"hello" ->
+`;
       await expect(run(script)).rejects.toThrow();
     });
 
@@ -545,6 +551,39 @@ $loop(5)`;
 
       it('"5\\n:?number" evaluates identically to "5:?number" on one line', async () => {
         expect(await run('5\n:?number')).toBe(await run('5:?number'));
+      });
+    });
+
+    describe('Trailing connective tokens: continuation vs. genuine boundary', () => {
+      it('a bare capture $name is still a complete statement on its own', async () => {
+        const ast = parse('5 => $x\n$x');
+        expect(ast.statements).toHaveLength(2);
+      });
+
+      it('a conditional with no trailing ? or ! is a complete statement', async () => {
+        const ast = parse('true ? 1 ! 2\n"next"');
+        expect(ast.statements).toHaveLength(2);
+      });
+
+      it('a bare status probe .! with no trailing newline ambiguity parses as one statement', () => {
+        const ast = parse('$x.!');
+        expect(ast.statements).toHaveLength(1);
+      });
+
+      it('rejects a trailing => with nothing to capture into', async () => {
+        const script = `5 =>
+`;
+        await expect(run(script)).rejects.toThrow();
+      });
+
+      it('rejects a trailing ? with no then-branch to continue onto', async () => {
+        const script = `true ?
+`;
+        await expect(run(script)).rejects.toThrow();
+      });
+
+      it('rejects a bare capture target followed directly by an index (no postfix on captures)', () => {
+        expect(() => parse('5 => $a[0]')).toThrow();
       });
     });
   });

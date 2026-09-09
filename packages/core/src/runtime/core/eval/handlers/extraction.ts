@@ -26,6 +26,8 @@ import type { RillValue } from '../../types/structures.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import { inferElementType } from '../../types/operations.js';
 import { isDict } from '../../callable.js';
+import { isOrdered, orderedValueEntries } from '../../types/guards.js';
+import { inferType } from '../../types/registrations.js';
 import { getVariable } from '../../context.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -33,7 +35,7 @@ import { resolveTypeRef } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
 import { setDictField } from '../shared.js';
-import { setTypedKey } from '../../types/dict-keys.js';
+import { setTypedKey, orderedDictEntries } from '../../types/dict-keys.js';
 import { assertUsableDictKey } from './literals.js';
 
 /**
@@ -150,7 +152,7 @@ export async function evaluateDestructure(
           fn: 'evaluateDestructure',
         },
         ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Positional destructure requires list, got ${isDictInput ? 'dict' : typeof input}`
+        `Positional destructure requires list, got ${inferType(input)}`
       );
     }
 
@@ -241,7 +243,7 @@ export async function evaluateSlice(
         fn: 'evaluateSlice',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Slice requires list or string, got ${isDict(input) ? 'dict' : typeof input}`
+      `Slice requires list or string, got ${inferType(input)}`
     );
   }
 
@@ -535,14 +537,46 @@ async function evaluateDictLiteralEntries(
   s: EvalState,
   entries: DictEntryNode[]
 ): Promise<[RillValue, RillValue][]> {
-  const result: [RillValue, RillValue][] = [];
+  // Keyed by a type-qualified encoding so a spread-introduced key that a
+  // later literal key (or a later spread) overrides keeps its original
+  // position — matching plain-object/Map override semantics — instead of
+  // being appended again at the end.
+  const merged = new Map<string, [RillValue, RillValue]>();
+  const setMergedEntry = (key: RillValue, value: RillValue): void => {
+    merged.set(`${typeof key}:${String(key)}`, [key, value]);
+  };
+
   for (const entry of entries) {
-    // Spread entry: key is a string starting with '...' is not how parser marks it.
-    // The parser uses ListSpread for element spreads in list/tuple.
-    // For dict/ordered, spread is encoded as a DictEntry with an object key
-    // where kind === 'variable'. Handle simple string/number/boolean keys only here
-    // since the collection literal parser does not support multi-key or computed keys.
     const key = entry.key;
+
+    // Spread entry: the parser encodes `...$expr` as a DictEntry with the
+    // literal key '...' and no keyForm (a real `["...": x]` string key
+    // always carries keyForm, so this check cannot collide with it).
+    if (key === '...' && entry.keyForm === undefined) {
+      const spreadValue = await evaluateExpression(s, entry.value);
+      if (isOrdered(spreadValue)) {
+        for (const [k, v] of orderedValueEntries(spreadValue)) {
+          setMergedEntry(k, v);
+        }
+      } else if (isDict(spreadValue)) {
+        for (const { key: k, value: v } of orderedDictEntries(spreadValue)) {
+          setMergedEntry(k, v);
+        }
+      } else {
+        throwCatchableHostHalt(
+          {
+            location: entry.span?.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateDictLiteralEntries',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          `Spread in dict/ordered literal requires dict or ordered, got ${typeof spreadValue}`,
+          { got: typeof spreadValue }
+        );
+      }
+      continue;
+    }
+
     let stringKey: string | number | boolean;
 
     if (typeof key === 'string') {
@@ -586,7 +620,7 @@ async function evaluateDictLiteralEntries(
     }
 
     const value = await evaluateExpression(s, entry.value);
-    result.push([stringKey, value]);
+    setMergedEntry(stringKey, value);
   }
-  return result;
+  return [...merged.values()];
 }

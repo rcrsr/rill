@@ -64,7 +64,7 @@ export const spacingMember: Rule = {
         (a): a is FieldAccess =>
           !('accessKind' in a && a.accessKind === 'bracket')
       ),
-      ...(variableNode.existenceCheck
+      ...(variableNode.existenceCheck?.finalAccess
         ? [variableNode.existenceCheck.finalAccess]
         : []),
     ];

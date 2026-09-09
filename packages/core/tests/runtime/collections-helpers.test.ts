@@ -163,6 +163,19 @@ describe('collections handlers', () => {
         })
       );
     });
+
+    it('halts with RILL-R001 on an unknown option key', async () => {
+      await expect(
+        run('list[1, 2, 3] -> fan({ $ }, dict[batch_size: 2])')
+      ).rejects.toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R001',
+          message: expect.stringMatching(
+            /fan: unknown option 'batch_size'; recognized options are 'concurrency'/
+          ),
+        })
+      );
+    });
   });
 
   describe('builtin dispatch: fold (sequential reduction)', () => {
@@ -219,6 +232,19 @@ describe('collections handlers', () => {
         expect.objectContaining({
           errorId: 'RILL-R001',
           message: expect.stringMatching(/positive integer/i),
+        })
+      );
+    });
+
+    it('halts with RILL-R001 on an unknown option key', async () => {
+      await expect(
+        run('list[1, 2, 3] -> filter({ $ > 1 }, dict[batch_size: 2])')
+      ).rejects.toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R001',
+          message: expect.stringMatching(
+            /filter: unknown option 'batch_size'; recognized options are 'concurrency'/
+          ),
         })
       );
     });

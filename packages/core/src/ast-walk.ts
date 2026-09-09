@@ -98,9 +98,11 @@ function astChildren(node: ASTNode): ASTNode[] {
     case 'PostfixExpr': {
       const children: ASTNode[] = [node.primary, ...node.methods];
       if (node.existenceCheck) {
-        children.push(
-          ...propertyAccessChildren(node.existenceCheck.finalAccess)
-        );
+        if (node.existenceCheck.finalAccess !== null) {
+          children.push(
+            ...propertyAccessChildren(node.existenceCheck.finalAccess)
+          );
+        }
         if (node.existenceCheck.typeRef !== null) {
           children.push(...typeRefChildren(node.existenceCheck.typeRef));
         }
@@ -130,9 +132,11 @@ function astChildren(node: ASTNode): ASTNode[] {
         children.push(...propertyAccessChildren(access));
       }
       if (node.existenceCheck !== null) {
-        children.push(
-          ...propertyAccessChildren(node.existenceCheck.finalAccess)
-        );
+        if (node.existenceCheck.finalAccess !== null) {
+          children.push(
+            ...propertyAccessChildren(node.existenceCheck.finalAccess)
+          );
+        }
         if (node.existenceCheck.typeRef !== null) {
           children.push(...typeRefChildren(node.existenceCheck.typeRef));
         }
@@ -456,6 +460,7 @@ function ownsOffset(node: ASTNode, offset: number): boolean {
   }
   return (
     variable.existenceCheck !== null &&
+    variable.existenceCheck.finalAccess !== null &&
     accessSegmentContains(variable.existenceCheck.finalAccess, offset)
   );
 }

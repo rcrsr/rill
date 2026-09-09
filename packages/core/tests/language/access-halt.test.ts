@@ -237,4 +237,39 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       });
     });
   });
+
+  describe('dict unknown-field/method routing (issue #431)', () => {
+    // A dict receiver with no matching field or method must halt through
+    // the same dict-field-access path (RILL-R009) whether the receiver is
+    // a literal-chain expression or a captured variable. Any other type
+    // must still halt with the generic unknown-method RILL-R007.
+
+    it('literal-chain dict[a: 1].bogus halts with RILL-R009 (Dict has no field)', async () => {
+      await expect(runOrThrow('dict[a: 1].bogus')).rejects.toMatchObject({
+        errorId: 'RILL-R009',
+        message: expect.stringContaining("Dict has no field 'bogus'"),
+      });
+    });
+
+    it('variable-chain $d.bogus halts with RILL-R009 (Dict has no field)', async () => {
+      await expect(
+        runOrThrow('dict[a: 1] => $d\n$d.bogus')
+      ).rejects.toMatchObject({
+        errorId: 'RILL-R009',
+        message: expect.stringContaining("Dict has no field 'bogus'"),
+      });
+    });
+
+    it('non-dict receiver "abc".bogus still halts with RILL-R007 (Unknown method)', async () => {
+      await expect(runOrThrow('"abc".bogus')).rejects.toMatchObject({
+        errorId: 'RILL-R007',
+      });
+    });
+
+    it('non-dict receiver 5.bogus still halts with RILL-R007 (Unknown method)', async () => {
+      await expect(runOrThrow('5.bogus')).rejects.toMatchObject({
+        errorId: 'RILL-R007',
+      });
+    });
+  });
 });

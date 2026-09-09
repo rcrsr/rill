@@ -154,7 +154,7 @@ function classifyVariable(
 ): LocatedTarget {
   const segment =
     findAccessSegmentAt(variable.accessChain, offset) ??
-    (variable.existenceCheck !== null
+    (variable.existenceCheck?.finalAccess
       ? findAccessSegmentAt([variable.existenceCheck.finalAccess], offset)
       : null);
   if (segment !== null) {
