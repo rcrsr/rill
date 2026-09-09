@@ -27,11 +27,10 @@ import {
 } from '../../types/guards.js';
 import type { RillStream } from '../../types/structures.js';
 import type { RuntimeContext } from '../../types/runtime.js';
-import { BreakSignal, ControlSignal } from '../../signals.js';
+import { BreakSignal } from '../../signals.js';
 import { isCallable, isDict } from '../../callable.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
 import {
-  RuntimeHaltSignal,
   throwCatchableHostHalt,
   throwFatalHostHalt,
   throwTypeHalt,
@@ -363,8 +362,14 @@ export async function walkStreamOrIteratorElements(
     while (!current['done'] && count < limit) {
       checkAborted(evaluator);
       // The pending head has no `value` key; every non-done step
-      // (including the initial produced chunk) carries one.
-      if ('value' in current) {
+      // (including the initial produced chunk) carries one. Streams accept
+      // any step with a `value` key (so `validateStreamChunk` can reject an
+      // explicit `undefined`); iterators, matching `expandIterator`, only
+      // treat `value !== undefined` as a produced element.
+      const hasValue = streamInput
+        ? 'value' in current
+        : current['value'] !== undefined;
+      if (hasValue) {
         const val = current['value'];
         const index = results.length;
         if (streamInput) {
@@ -472,6 +477,12 @@ async function expandStream(
   let count = 0;
   let expectedType: string | undefined;
 
+  const site = {
+    location: node.span.start,
+    sourceId: evaluator.ctx.sourceId,
+    fn: 'expandStream',
+  };
+
   try {
     while (!current.done && count < limit) {
       checkAborted(evaluator);
@@ -483,21 +494,13 @@ async function expandStream(
         // not the raw step count (which also counts the value-less
         // pending head step).
         const chunkIndex = elements.length;
-        validateStreamChunk(val, chunkIndex, {
-          location: node.span.start,
-          sourceId: evaluator.ctx.sourceId,
-          fn: 'expandStream',
-        });
+        validateStreamChunk(val, chunkIndex, site);
         const actualType = inferType(val as RillValue);
         if (expectedType === undefined) {
           expectedType = actualType;
         } else if (actualType !== expectedType) {
           throwTypeHalt(
-            {
-              location: node.span.start,
-              sourceId: evaluator.ctx.sourceId,
-              fn: 'stream-chunk',
-            },
+            site,
             'TYPE_MISMATCH',
             `Stream chunk type mismatch: expected ${expectedType}, got ${actualType} at index ${chunkIndex}`,
             'runtime',
@@ -513,11 +516,7 @@ async function expandStream(
       if (nextClosure === undefined || !isCallable(nextClosure)) {
         // fatal: stream invariant violation, not user-recoverable
         throwFatalHostHalt(
-          {
-            location: node.span.start,
-            sourceId: evaluator.ctx.sourceId,
-            fn: 'expandStream',
-          },
+          site,
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Stream .next must be a closure'
         );
@@ -537,19 +536,11 @@ async function expandStream(
       // access uses so it surfaces as a catchable halt carrying the
       // original message/trace instead of being cast into a malformed
       // stream step and misreported as a `.next` protocol violation.
-      accessHaltGate(nextStep as RillValue, {
-        location: node.span.start,
-        sourceId: evaluator.ctx.sourceId,
-        fn: 'expandStream',
-      });
+      accessHaltGate(nextStep as RillValue, site);
       if (typeof nextStep !== 'object' || nextStep === null) {
         // fatal: stream invariant violation, not user-recoverable
         throwFatalHostHalt(
-          {
-            location: node.span.start,
-            sourceId: evaluator.ctx.sourceId,
-            fn: 'expandStream',
-          },
+          site,
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Stream .next must return a stream step'
         );
@@ -557,30 +548,22 @@ async function expandStream(
       current = nextStep as RillStream;
     }
   } catch (e) {
-    if (e instanceof RuntimeHaltSignal || e instanceof ControlSignal) {
-      // Dispose stream resources (idempotent) before re-throwing.
-      const disposeFn = (
-        stream as unknown as Record<string, (() => void) | undefined>
-      )['__rill_stream_dispose'];
-      if (typeof disposeFn === 'function') {
-        try {
-          disposeFn();
-        } catch (disposeErr) {
-          // fatal: dispose failures are not user-recoverable
-          throwFatalHostHalt(
-            {
-              location: node.span.start,
-              sourceId: evaluator.ctx.sourceId,
-              fn: 'expandStream',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R002],
-            disposeErr instanceof Error
-              ? disposeErr.message
-              : String(disposeErr)
-          );
-        }
+    // Dispose stream resources (idempotent) before re-throwing, regardless
+    // of the error kind, for symmetry with `walkStreamOrIteratorElements`.
+    const disposeFn = (
+      stream as unknown as Record<string, (() => void) | undefined>
+    )['__rill_stream_dispose'];
+    if (typeof disposeFn === 'function') {
+      try {
+        disposeFn();
+      } catch (disposeErr) {
+        // fatal: dispose failures are not user-recoverable
+        throwFatalHostHalt(
+          site,
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          disposeErr instanceof Error ? disposeErr.message : String(disposeErr)
+        );
       }
-      throw e;
     }
     throw e;
   }
@@ -590,11 +573,7 @@ async function expandStream(
   if (count >= limit && !current.done) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
-      {
-        location: node.span.start,
-        sourceId: evaluator.ctx.sourceId,
-        fn: 'expandStream',
-      },
+      site,
       ERROR_ATOMS[ERROR_IDS.RILL_R010],
       `Stream expansion exceeded ${limit} iterations`,
       { limit, iterations: count }
