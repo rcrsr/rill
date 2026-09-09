@@ -1804,6 +1804,27 @@ describe('Host function return-value validation (RILL-R085)', () => {
         'badFn()'
       );
     });
+
+    it('a forged stream missing the value field halts with RILL-R085 even with a genuine callable next', async () => {
+      const inner: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => 'called',
+      };
+      const genuineNext = toCallable(inner);
+      const err = await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: genuineNext,
+          })),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('stream');
+    });
   });
 
   describe('is not recoverable by guard or retry', () => {

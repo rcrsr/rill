@@ -175,7 +175,9 @@ export interface RillAtomValue {
  * - __rill_stream: true - discriminator for stream detection
  * - done: boolean - whether all chunks have been consumed
  * - next: callable - function to advance to the next stream step
- * - value?: any - current chunk value (present when done is false)
+ * - value?: any - current chunk value; present on produced steps when done is
+ *   false, absent on the pending head step (no chunk produced yet) and on the
+ *   terminal done step
  */
 export interface RillStream extends Record<string, RillValue> {
   readonly __rill_stream: true;

@@ -803,7 +803,10 @@ function throwHostResultError(
  * that never see host-forged input. Here, at the host-result boundary, a
  * matched brand additionally has its required fields verified before it is
  * accepted, mirroring how `isIterator` (guards.ts ~159-167) already checks
- * `done`/`next`/`value`.
+ * `done`/`next`/`value`. The `stream` row is the exception: it accepts a
+ * non-done step without `value` only when it carries the hidden
+ * `__rill_stream_resolve` construction marker (the runtime's own pending
+ * head from `constructors.ts`), which `isIterator` has no equivalent for.
  *
  * Cross-file invariant: this table must stay exhaustive over the brand
  * guards checked below. Adding a new branded guard to that list requires
@@ -880,7 +883,10 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<{
     test: isStream,
     valid: (v) => {
       const stream = v as RillStream;
-      return typeof stream.done === 'boolean' && isCallable(stream.next);
+      if (typeof stream.done !== 'boolean' || !isCallable(stream.next))
+        return false;
+      if (stream.done) return true;
+      return 'value' in stream || '__rill_stream_resolve' in stream;
     },
   },
 ];
