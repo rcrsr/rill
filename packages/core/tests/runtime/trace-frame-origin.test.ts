@@ -12,8 +12,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
-import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
+import {
+  createRuntimeContext,
+  execute,
+  parse,
+  getStatus,
+  isInvalid,
+} from '@rcrsr/rill';
 
 async function run(src: string): Promise<unknown> {
   const ctx = createRuntimeContext({});

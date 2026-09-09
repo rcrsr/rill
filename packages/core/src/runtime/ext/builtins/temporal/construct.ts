@@ -521,7 +521,12 @@ export function validateIsoOffset(
   location?: SourceLocation,
   fn = 'iso'
 ): number {
-  if (!Number.isFinite(offsetHours) || Math.abs(offsetHours) >= 24) {
+  // Validate against the rounded minute total that formatOffsetSuffix
+  // actually formats, not the raw hour magnitude: an offset like 23.999
+  // passes `< 24` but rounds to 1440 minutes, which formatOffsetSuffix
+  // would render as the invalid "+24:00" suffix.
+  const totalMinutes = Math.round(Math.abs(offsetHours) * 60);
+  if (!Number.isFinite(offsetHours) || totalMinutes >= 24 * 60) {
     throwTypeHalt(
       { location, fn },
       'INVALID_INPUT',

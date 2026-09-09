@@ -45,7 +45,11 @@ import type {
 } from '../../../../types.js';
 import { isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
-import { deepEquals, formatValue } from '../../types/registrations.js';
+import {
+  deepEquals,
+  formatValue,
+  inferType,
+} from '../../types/registrations.js';
 import { isTypeValue, isVector } from '../../types/guards.js';
 import {
   anyTypeValue,
@@ -553,8 +557,8 @@ export async function evaluateDict(
             fn: 'evaluateDict',
           },
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Spread in dict literal requires dict or ordered, got ${typeof spreadValue}`,
-          { got: typeof spreadValue }
+          `Spread in dict literal requires dict or ordered, got ${inferType(spreadValue)}`,
+          { got: inferType(spreadValue) }
         );
       }
       for (const [k, v] of pairs) {

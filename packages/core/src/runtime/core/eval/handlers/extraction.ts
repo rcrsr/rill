@@ -570,8 +570,8 @@ async function evaluateDictLiteralEntries(
             fn: 'evaluateDictLiteralEntries',
           },
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Spread in dict/ordered literal requires dict or ordered, got ${typeof spreadValue}`,
-          { got: typeof spreadValue }
+          `Spread in dict/ordered literal requires dict or ordered, got ${inferType(spreadValue)}`,
+          { got: inferType(spreadValue) }
         );
       }
       continue;

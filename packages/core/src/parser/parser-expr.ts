@@ -1560,6 +1560,39 @@ const pipeTargetDispatchTable: Record<
     );
   },
   [TOKEN_TYPES.DOT]: Parser.prototype.parsePipeTargetDot,
+  // Bare presence probe on the piped value: `$value -> .?`. Mirrors the
+  // postfix DOT_QUESTION handling in runPostfixDispatchLoop, but here the
+  // receiver is the implicit pipe var rather than an accumulated primary.
+  // A field/key may still follow (`-> .?field`); only the fieldless form is
+  // handled inline since a following field turns this into a two-token
+  // chain identical to parsePipeTargetDot's shape.
+  [TOKEN_TYPES.DOT_QUESTION]: function (this: Parser): PipeTargetNode {
+    const dotToken = advance(this.state);
+    const finalAccess = this.parseFieldAccessElement(true, dotToken.span.start);
+    if (!finalAccess) {
+      if (!check(this.state, TOKEN_TYPES.NEWLINE) && !isAtEnd(this.state)) {
+        throw new ParseError(
+          ERROR_IDS.RILL_P006,
+          "Expected field name after '.?'",
+          dotToken.span.start
+        );
+      }
+    }
+    let typeRef: ExistenceCheck['typeRef'] = null;
+    if (check(this.state, TOKEN_TYPES.AMPERSAND)) {
+      advance(this.state);
+      typeRef = parseTypeRef(this.state);
+    }
+    const span = makeSpan(dotToken.span.start, previous(this.state).span.end);
+    return {
+      type: 'PostfixExpr',
+      primary: makePipeVarPrimary(span),
+      methods: [],
+      defaultValue: null,
+      existenceCheck: { finalAccess, typeRef },
+      span,
+    } satisfies PostfixExprNode;
+  },
   [TOKEN_TYPES.STRING]: function (this: Parser) {
     return this.parseString();
   },

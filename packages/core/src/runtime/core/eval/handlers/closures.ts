@@ -42,7 +42,7 @@ import type {
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTypeValue, isStream } from '../../types/guards.js';
+import { isTypeValue, isStream, isOrdered } from '../../types/guards.js';
 import {
   paramToFieldDef,
   inferStructure,
@@ -1299,7 +1299,11 @@ export async function evaluateMethod(
       }
     }
   }
-  if (isDict(receiver) && !Object.hasOwn(receiver, node.name)) {
+  if (
+    isDict(receiver) &&
+    !isOrdered(receiver) &&
+    !Object.hasOwn(receiver, node.name)
+  ) {
     // A dict receiver with no field of this name at all (not merely a
     // non-callable one) routes through the same dict-field-access halt
     // used by `$d.bogus` (accessDictField), so a literal-chain access
