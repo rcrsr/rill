@@ -42,7 +42,8 @@ export async function walkIteratorSteps(
   cap: number,
   evaluator: EvalState,
   location: { line: number; column: number; offset: number },
-  sourceId: string | undefined
+  sourceId: string | undefined,
+  stopAtCap: boolean = false
 ): Promise<{ elements: RillValue[]; tail: Record<string, unknown> }> {
   const elements: RillValue[] = [];
   let current = start;
@@ -67,6 +68,35 @@ export async function walkIteratorSteps(
     }
     steps++;
     const val = current['value'];
+
+    // Count this step toward `cap` only when it produced a value, and do so
+    // before advancing: `take()` needs to stop without pulling the next
+    // chunk once it has what it needs.
+    if (val !== undefined) {
+      const actualType = inferType(val as RillValue);
+      if (expectedType === undefined) {
+        expectedType = actualType;
+      } else if (actualType !== expectedType) {
+        throwTypeHalt(
+          site,
+          'TYPE_MISMATCH',
+          `Chunk type mismatch: expected ${expectedType}, got ${actualType}`,
+          'runtime',
+          { expectedType, actualType }
+        );
+      }
+      elements.push(val as RillValue);
+      produced++;
+    }
+
+    // `take()` (stopAtCap: true) stops as soon as the cap is reached,
+    // without pulling another step from the source. `skip()` (stopAtCap:
+    // false, the default) keeps its existing tail-positioning semantics: it
+    // always advances past the last produced value so the returned tail
+    // resumes immediately after it.
+    if (stopAtCap && produced === cap) {
+      break;
+    }
 
     // Advance to the next step regardless of whether this step carried a
     // value: the value-less stream head still has to be stepped over to
@@ -95,24 +125,6 @@ export async function walkIteratorSteps(
       );
     }
     current = nextStep as Record<string, unknown>;
-
-    // Count this step toward `cap` only when it produced a value.
-    if (val !== undefined) {
-      const actualType = inferType(val as RillValue);
-      if (expectedType === undefined) {
-        expectedType = actualType;
-      } else if (actualType !== expectedType) {
-        throwTypeHalt(
-          site,
-          'TYPE_MISMATCH',
-          `Chunk type mismatch: expected ${expectedType}, got ${actualType}`,
-          'runtime',
-          { expectedType, actualType }
-        );
-      }
-      elements.push(val as RillValue);
-      produced++;
-    }
   }
 
   return { elements, tail: current };

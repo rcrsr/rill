@@ -14,13 +14,51 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
+  createRillStream,
   createRuntimeContext,
+  execute,
+  parse,
+  RuntimeHaltSignal,
   type ExtensionEvent,
+  type RillFunction,
   type RillValue,
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import { run } from '../helpers/runtime.js';
+
+/**
+ * Builds a `make_stream` host function whose underlying `AsyncIterable`
+ * produces one chunk and then throws on the second `next()` call,
+ * simulating a genuine mid-stream host failure. Tracks whether the
+ * stream's `dispose` hook fired.
+ */
+function makeMidStreamThrowFn(disposed: { called: boolean }): RillFunction {
+  return {
+    params: [],
+    fn: () =>
+      createRillStream({
+        chunks: {
+          [Symbol.asyncIterator]() {
+            let i = 0;
+            return {
+              async next() {
+                if (i === 0) {
+                  i++;
+                  return { value: 1, done: false };
+                }
+                throw new Error('mid-stream boom');
+              },
+            };
+          },
+        },
+        resolve: async () => 0,
+        dispose: () => {
+          disposed.called = true;
+        },
+      }),
+  };
+}
 
 describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
   describe('IR-13: basic lifecycle', () => {
@@ -228,6 +266,60 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
       // Subsequent dispose does not wait; completes immediately.
       await ctx.dispose();
       expect(ctx.isDisposed()).toBe(true);
+    });
+  });
+
+  describe('mid-stream host throw disposes and halts (not silently swallowed)', () => {
+    it('a stream that throws inside seq disposes and halts the statement', async () => {
+      const disposed = { called: false };
+      let markRan = false;
+      const ctx = createRuntimeContext({
+        functions: {
+          make_stream: makeMidStreamThrowFn(disposed),
+          mark: { params: [], fn: () => ((markRan = true), null) },
+        },
+      });
+      const script = parse(
+        'make_stream() -> seq({ $ }) => $r\nmark() => $after'
+      );
+
+      let caught: unknown;
+      try {
+        await execute(script, ctx);
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(disposed.called).toBe(true);
+      expect(markRan).toBe(false);
+      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+      expect((caught as Error).message).toContain('mid-stream boom');
+    });
+
+    it('a stream that throws inside fold disposes and halts the statement', async () => {
+      const disposed = { called: false };
+      let markRan = false;
+      const ctx = createRuntimeContext({
+        functions: {
+          make_stream: makeMidStreamThrowFn(disposed),
+          mark: { params: [], fn: () => ((markRan = true), null) },
+        },
+      });
+      const script = parse(
+        'make_stream() -> fold(0, { $@ + $ }) => $r\nmark() => $after'
+      );
+
+      let caught: unknown;
+      try {
+        await execute(script, ctx);
+      } catch (e) {
+        caught = e;
+      }
+
+      expect(disposed.called).toBe(true);
+      expect(markRan).toBe(false);
+      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+      expect((caught as Error).message).toContain('mid-stream boom');
     });
   });
 });
