@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+- **Toolchain refreshed:** vitest 4.1.11 to 5.0.0 (with matching `@vitest/coverage-v8`), oxlint to 1.82.0, oxfmt to 0.67.0, knip to 6.35.0, `@types/node` to 26.5.0, lefthook to 2.1.12, tsx to 4.23.13, plus in-range refreshes across the fiddle front-end dependencies (happy-dom 20.14.0, `@testing-library/react` 16.3.3, `@vitejs/plugin-react` 6.1.1, `@types/react-dom` 19.2.7). Two vitest 5 changes needed source adjustments: config files are no longer searched in parent directories, so `packages/core` and `packages/service` gain a `vitest.config.ts` that re-exports the root config and keeps the `@rcrsr/rill` source alias in effect for their tests; and global assignments now write through to the happy-dom window, so the fiddle tests stub `localStorage` via `vi.stubGlobal` instead of assigning it. `@rcrsr/rill-dev` 0.2.5 ships the refreshed baseline.
+
 ## 0.21.0 - 2026-09-09
 
 ### Added

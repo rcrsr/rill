@@ -16,8 +16,6 @@ import {
 } from '../persistence.js';
 
 describe('persistence boundary conditions', () => {
-  // Store original localStorage
-  const originalLocalStorage = globalThis.localStorage;
   // Store original window.innerWidth
   const originalInnerWidth = window.innerWidth;
 
@@ -33,8 +31,6 @@ describe('persistence boundary conditions', () => {
   });
 
   afterEach(() => {
-    // Restore localStorage after each test
-    globalThis.localStorage = originalLocalStorage;
     // Restore window.innerWidth
     Object.defineProperty(window, 'innerWidth', {
       writable: true,

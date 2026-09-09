@@ -12,6 +12,12 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+## 0.2.5 - 2026-09-09
+
+### Changed
+
+- **Baseline refreshed to the current shared-tooling pins:** `baseline.json` now records `@types/node ^26.5.0`, `knip ^6.35.0`, `lefthook ^2.1.12`, `oxfmt ^0.67.0`, `oxlint ^1.82.0`, and `vitest ^5.0.0`, matching rill's tree after a dev-dependency sweep. Consumers reading `@rcrsr/rill-dev/baseline.json` resolve `STD-DEP-1` and `STD-PM-2` against the same ranges rill pins today. The `vitest` range crosses a major: vitest 5 no longer searches parent directories for a config file, so a consumer that runs `vitest run` from a package directory and relies on a root `vitest.config.ts` needs a per-package config that re-exports it. No checker logic changed.
+
 ### Added
 
 - **`STD-REL-8`: every published package's manifest declares `repository`, so provenance has a source to bind to.** Renumbered off the check that previously double-claimed `STD-REL-3` alongside the canonical publishes-with-provenance element, which meant only one of the two `check-standards.sh` calls for that ID was ever visible in a run's output. `STD-REL-3` continues to mean "publishes with provenance"; the repository-declaration check now reports under its own ID. A `packages/dev/REPO-STANDARDS.md` row documents it, N/A under the same "repository publishes nothing" condition as the rest of §7. `STD-REL-8` also now reports `--` (skip), never `ok`, when a repository has zero publishable manifests — the loop that decides it previously never ran its body in that case, so "nothing to check" and "checked, nothing failed" read identically as a vacuous `ok`. ([#334](https://github.com/rcrsr/rill/pull/334))
