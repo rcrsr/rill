@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.21.0 - 2026-09-09
+
 ### Added
 
 - **`BARE_CALLABLE_BODY` checker rule:** The language service now warns when a bare builtin or host function name is passed as the body of `seq`, `fan`, `fold`, `filter`, or `acc`, as in `seq(log)`. A bare name in argument position parses as a zero-argument call, so the operator receives that call's result rather than a callable and halts at runtime with a body-must-be-a-closure error. The rule inspects only the body slot, so a zero-argument call in `fold`'s initial-value slot does not fire. The suggested fixes are a closure wrapper, a `$variable` reference, or a namespaced `ns::name` reference. The registry now holds 42 rules. ([#445](https://github.com/rcrsr/rill/pull/445))
