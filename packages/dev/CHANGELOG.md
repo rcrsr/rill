@@ -16,7 +16,7 @@ the language version. Language changes are recorded in the
 
 ### Changed
 
-- **Baseline refreshed to the current shared-tooling pins:** `baseline.json` now records `@types/node ^26.5.0`, `knip ^6.35.0`, `lefthook ^2.1.12`, `oxfmt ^0.67.0`, `oxlint ^1.82.0`, and `vitest ^5.0.0`, matching rill's tree after a dev-dependency sweep. Consumers reading `@rcrsr/rill-dev/baseline.json` resolve `STD-DEP-1` and `STD-PM-2` against the same ranges rill pins today. The `vitest` range crosses a major: vitest 5 no longer searches parent directories for a config file, so a consumer that runs `vitest run` from a package directory and relies on a root `vitest.config.ts` needs a per-package config that re-exports it. No checker logic changed.
+- **Baseline refreshed to the current shared-tooling pins:** `baseline.json` now records `@types/node ^26.5.0`, `knip ^6.35.0`, `lefthook ^2.1.12`, `oxfmt ^0.67.0`, `oxlint ^1.82.0`, and `vitest ^5.0.0`, matching rill's tree after a dev-dependency sweep. Consumers reading `@rcrsr/rill-dev/baseline.json` resolve `STD-DEP-1` and `STD-PM-2` against the same ranges rill pins today. The `vitest` range crosses a major: vitest 5 no longer searches parent directories for a config file, so a consumer that runs `vitest run` from a package directory and relies on a root `vitest.config.ts` needs a per-package config that re-exports it. No checker logic changed. ([#448](https://github.com/rcrsr/rill/pull/448))
 
 ### Added
 
