@@ -220,6 +220,14 @@ export function createRillStream(options: {
     enumerable: false,
   });
 
+  // Mark this object as the pending head so brand-shape checks can
+  // distinguish it from produced/done steps. Identity-only: never read
+  // to gate resolution or to advance/stale a step.
+  Object.defineProperty(stream, '__rill_stream_head', {
+    value: true,
+    enumerable: false,
+  });
+
   if (dispose) {
     Object.defineProperty(stream, '__rill_stream_dispose', {
       value: () => {

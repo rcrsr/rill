@@ -17,7 +17,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { formatValue, deepEquals, toNative } from '@rcrsr/rill';
+import {
+  createRillStream,
+  deepEquals,
+  formatValue,
+  getTypedKeyEntries,
+  toNative,
+} from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
@@ -400,6 +406,48 @@ describe('Type-aware dict keys (#266)', () => {
       expect(
         Object.prototype.hasOwnProperty.call(nativeValue, '__rill_typed_keys')
       ).toBe(false);
+    });
+  });
+
+  describe('getTypedKeyEntries (#434)', () => {
+    it('returns number and boolean entries, excluding string keys', async () => {
+      const value = await run('dict[1: "a", true: "b", name: "c"]');
+      const entries = getTypedKeyEntries(value);
+      expect(entries).toHaveLength(2);
+
+      const numberEntry = entries.find((e) => typeof e.key === 'number');
+      const booleanEntry = entries.find((e) => typeof e.key === 'boolean');
+      expect(numberEntry).toEqual({ key: 1, value: 'a' });
+      expect(booleanEntry).toEqual({ key: true, value: 'b' });
+    });
+
+    it('returns [] for a dict with only string keys', async () => {
+      const value = await run('dict[a: 1, b: 2]');
+      expect(getTypedKeyEntries(value)).toEqual([]);
+    });
+
+    it('returns [] for non-dict inputs without throwing', async () => {
+      const stream = createRillStream({
+        chunks: (async function* () {
+          yield 1;
+        })(),
+        resolve: async () => null,
+      });
+
+      expect(() => getTypedKeyEntries(null)).not.toThrow();
+      expect(getTypedKeyEntries(null)).toEqual([]);
+
+      expect(() => getTypedKeyEntries('hello')).not.toThrow();
+      expect(getTypedKeyEntries('hello')).toEqual([]);
+
+      expect(() => getTypedKeyEntries(5)).not.toThrow();
+      expect(getTypedKeyEntries(5)).toEqual([]);
+
+      expect(() => getTypedKeyEntries([1, 2, 3])).not.toThrow();
+      expect(getTypedKeyEntries([1, 2, 3])).toEqual([]);
+
+      expect(() => getTypedKeyEntries(stream)).not.toThrow();
+      expect(getTypedKeyEntries(stream)).toEqual([]);
     });
   });
 });

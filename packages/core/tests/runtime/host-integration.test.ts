@@ -10,6 +10,7 @@ import {
   createRillStream,
   createRuntimeContext,
   getStatus,
+  getTypedKeyEntries,
   inferStructure,
   isApplicationCallable,
   isCallable,
@@ -165,6 +166,36 @@ describe('Rill Runtime: Host Integration', () => {
         },
       });
       expect(result).toBe('custom-type');
+    });
+
+    it('a host function with a typed dict param receives typed keys readable via getTypedKeyEntries (#434)', async () => {
+      let captured: RillValue | undefined;
+      await run('read_dict(dict[1: "a", true: "b", name: "c"])', {
+        functions: {
+          read_dict: {
+            params: [
+              {
+                name: 'data',
+                type: {
+                  kind: 'dict',
+                  fields: { name: { type: { kind: 'string' } } },
+                },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => {
+              captured = args['data'] as RillValue;
+              return '';
+            },
+          },
+        },
+      });
+
+      const entries = getTypedKeyEntries(captured as RillValue);
+      expect(entries).toHaveLength(2);
+      expect(entries.find((e) => e.key === 1)?.value).toBe('a');
+      expect(entries.find((e) => e.key === true)?.value).toBe('b');
     });
   });
 
@@ -1818,6 +1849,50 @@ describe('Host function return-value validation (RILL-R085)', () => {
             __rill_stream: true,
             done: false,
             next: genuineNext,
+          })),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('stream');
+    });
+
+    it('a forged stream faking __rill_stream_resolve (but lacking the head marker) still halts with RILL-R085', async () => {
+      const inner: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => 'called',
+      };
+      const genuineNext = toCallable(inner);
+      const err = await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: genuineNext,
+            __rill_stream_resolve: () => 'forged',
+          })),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('stream');
+    });
+
+    it('a forged stream head marker without a callable __rill_stream_resolve halts with RILL-R085', async () => {
+      const inner: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => 'called',
+      };
+      const genuineNext = toCallable(inner);
+      const err = await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: genuineNext,
+            __rill_stream_head: true,
           })),
         },
         'badFn()'

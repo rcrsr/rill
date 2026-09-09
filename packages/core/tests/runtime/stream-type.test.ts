@@ -320,6 +320,45 @@ describe('createRillStream', () => {
         'Stream already consumed; cannot re-iterate'
       );
     });
+
+    it('holds the pending head before first .next(), then iterates and resolves end-to-end, with __rill_stream_head absent from enumeration', async () => {
+      const chunks = asyncIterableFrom(['a', 'b']);
+      const stream = createRillStream({
+        chunks,
+        resolve: async () => 'resolved',
+      });
+
+      // Held before first .next() call: enumerable own keys must not
+      // include the non-enumerable head marker.
+      expect(Object.keys(stream)).not.toContain('__rill_stream_head');
+
+      const step1 = (await stream.next.fn(
+        {},
+        {} as never
+      )) as unknown as RillStream;
+      expect(step1.done).toBe(false);
+      expect(step1.value).toBe('a');
+
+      const step2 = (await step1.next.fn(
+        {},
+        {} as never
+      )) as unknown as RillStream;
+      expect(step2.done).toBe(false);
+      expect(step2.value).toBe('b');
+
+      const step3 = (await step2.next.fn(
+        {},
+        {} as never
+      )) as unknown as RillStream;
+      expect(step3.done).toBe(true);
+
+      const resolveFn = (
+        stream as unknown as {
+          __rill_stream_resolve: () => Promise<RillValue>;
+        }
+      )['__rill_stream_resolve'];
+      expect(await resolveFn()).toBe('resolved');
+    });
   });
 
   describe('resolve', () => {

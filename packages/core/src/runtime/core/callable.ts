@@ -805,8 +805,10 @@ function throwHostResultError(
  * accepted, mirroring how `isIterator` (guards.ts ~159-167) already checks
  * `done`/`next`/`value`. The `stream` row is the exception: it accepts a
  * non-done step without `value` only when it carries the hidden
- * `__rill_stream_resolve` construction marker (the runtime's own pending
- * head from `constructors.ts`), which `isIterator` has no equivalent for.
+ * `__rill_stream_head` identity marker (the runtime's own pending head from
+ * `constructors.ts`, attached purely to distinguish it from produced/done
+ * steps — it is never consulted to gate resolution or advance a step),
+ * which `isIterator` has no equivalent for.
  *
  * Cross-file invariant: this table must stay exhaustive over the brand
  * guards checked below. Adding a new branded guard to that list requires
@@ -886,7 +888,14 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<{
       if (typeof stream.done !== 'boolean' || !isCallable(stream.next))
         return false;
       if (stream.done) return true;
-      return 'value' in stream || '__rill_stream_resolve' in stream;
+      if ('__rill_stream_head' in stream) {
+        return (
+          typeof (stream as unknown as Record<string, unknown>)[
+            '__rill_stream_resolve'
+          ] === 'function'
+        );
+      }
+      return 'value' in stream;
     },
   },
 ];

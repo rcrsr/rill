@@ -335,6 +335,8 @@ const result = toNative(dictValue); // dict[1: "a", "1": "b"]
 // result.value -> { "1": "b", __rill_typed_keys: [{ key: 1, value: "a" }] }
 ```
 
+`__rill_typed_keys` is a shape of `toNative()`'s output only. A dict a host function receives directly as an `args` value (see [CallableFn](ref-host-api.md#callablefn)) is a live `RillValue`, not a `toNative()` result — its number- and boolean-keyed entries sit under a non-enumerable Symbol sidecar on the object, invisible to `Object.entries`, `JSON.stringify`, and object spread. Read them with `getTypedKeyEntries()` instead of reaching for `__rill_typed_keys` on the live value.
+
 ### Descriptor shapes
 
 Non-native rill types produce descriptor objects in `value` instead of primitive values:
@@ -415,7 +417,7 @@ const ctx = createRuntimeContext({
         { name: 'name', type: { kind: 'string' }, annotations: { description: 'Person to greet' } },
       ],
       description: 'Generate a greeting message',
-      fn: (args) => `Hello, ${args[0]}!`,
+      fn: (args) => `Hello, ${args.name}!`,
     },
   },
 });
@@ -520,11 +522,11 @@ const ctx = createRuntimeContext({
     documented: {
       params: [{ name: 'x', type: { kind: 'string' }, annotations: { description: 'Input value' } }],
       description: 'A documented function',
-      fn: (args) => args[0],
+      fn: (args) => args.x,
     },
     undocumented: {
       params: [{ name: 'x', type: { kind: 'string' } }],
-      fn: (args) => args[0],
+      fn: (args) => args.x,
     },
   },
 });
