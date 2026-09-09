@@ -59,9 +59,13 @@ describe('Rill Runtime: error context isolation', () => {
       // The propagated error is not the same object as the original.
       expect(caught).not.toBe(original);
 
-      // The rewrap preserves the original error message; it does not go
-      // missing when the error is cloned via withContext.
-      expect((caught as RillError).message).toBe(original?.message);
+      // The rewrap preserves the original error's raw message; it does not
+      // go missing when the error is cloned via withContext. `.message`
+      // itself now carries the call-site location suffix, because a
+      // `RuntimeError` thrown without a location is rewrapped with the
+      // call site's location at the closures.ts extension-dispatch
+      // boundary (the same enrichment already applied to async throws).
+      expect((caught as RillError).rawMessage).toBe(original?.rawMessage);
     });
   });
 

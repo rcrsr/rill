@@ -266,19 +266,21 @@ describe('Rill Runtime: annotations handler error contracts', () => {
       await expect(run(script)).rejects.toThrow(/Undefined variable/);
     });
 
-    it('propagates custom function errors from annotated statement', async () => {
-      await expect(
-        run('^(limit: 10) fail()', {
-          functions: {
-            fail: {
-              params: [],
-              fn: () => {
-                throw new Error('Custom error');
-              },
+    it('reshapes a custom function error from an annotated statement into a #R999 invalid value', async () => {
+      // A generic (non-Rill) `Error` thrown synchronously by a host function
+      // is materialized at the extension-dispatch boundary as a `#R999`
+      // invalid value instead of escaping run() as a raw rejection.
+      const result = await run('^(limit: 10) fail()', {
+        functions: {
+          fail: {
+            params: [],
+            fn: () => {
+              throw new Error('Custom error');
             },
           },
-        })
-      ).rejects.toThrow('Custom error');
+        },
+      });
+      expect(atomName(getStatus(result as RillValue).code)).toBe('R999');
     });
 
     it('propagates abort halt from annotated statement', async () => {
@@ -330,7 +332,12 @@ describe('Rill Runtime: annotations handler error contracts', () => {
       );
     });
 
-    it('propagates errors from annotation function calls', async () => {
+    it('resolves normally when the annotation value function throws (limit value goes unused)', async () => {
+      // A generic Error thrown synchronously by a host function is
+      // materialized at the extension-dispatch boundary as a #R999 invalid
+      // value instead of a raw rejection. `limit` never reads it further
+      // (this statement never iterates), so the invalid value is simply
+      // discarded; the statement resolves to "test" rather than rejecting.
       await expect(
         run('^(limit: fail()) "test"', {
           functions: {
@@ -342,7 +349,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
             },
           },
         })
-      ).rejects.toThrow('Annotation error');
+      ).resolves.toBe('test');
     });
 
     it('throws error for invalid spread annotation type', async () => {
@@ -375,7 +382,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
       );
     });
 
-    it('propagates errors from complex annotation expressions', async () => {
+    it('resolves normally when a complex annotation expression throws (limit value goes unused)', async () => {
       await expect(
         run('^(limit: getLimit()) "test"', {
           functions: {
@@ -387,7 +394,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
             },
           },
         })
-      ).rejects.toThrow('Failed to get limit');
+      ).resolves.toBe('test');
     });
 
     it('preserves error location from annotation evaluation', async () => {

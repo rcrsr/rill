@@ -7,6 +7,7 @@ import {
   anyTypeValue,
   atomName,
   callable,
+  createRillStream,
   createRuntimeContext,
   getStatus,
   inferStructure,
@@ -1695,6 +1696,116 @@ describe('Host function return-value validation (RILL-R085)', () => {
     });
   });
 
+  describe('rejects forged brand objects that only fake the discriminator key', () => {
+    /** Local copy of the sibling describe's echoThrough: same shape, own scope. */
+    async function echoThrough(expr: string): Promise<RillValue> {
+      return run(`${expr} -> echo()`, {
+        functions: {
+          echo: {
+            params: [
+              {
+                name: 'x',
+                type: { kind: 'any' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (args) => args['x'] as RillValue,
+          },
+        },
+      });
+    }
+
+    it('a well-formed datetime brand still passes', async () => {
+      const result = await echoThrough('now()');
+      expect(result).toHaveProperty('__rill_datetime', true);
+    });
+
+    it('a forged datetime with a non-numeric unix halts with RILL-R085 at validation, not a garbage .iso()', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => ({ __rill_datetime: true, unix: 'x' })) },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('datetime');
+    });
+
+    it('a forged duration with negative months halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_duration: true,
+            months: -1,
+            ms: 0,
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged atom with a non-string name halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_atom: true,
+            atom: { __rill_atom: true, name: 1, kind: 'x' },
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged typevalue with a non-string typeName halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_type: true,
+            typeName: 1,
+            structure: { kind: 'number' },
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged vector with non-Float32Array data halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_vector: true,
+            data: [1, 2, 3],
+            model: 'test',
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged ordered value with non-array entries halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({ __rill_ordered: true, entries: 'nope' })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged stream with a non-callable next halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: 'not-callable',
+            value: 1,
+          })),
+        },
+        'badFn()'
+      );
+    });
+  });
+
   describe('is not recoverable by guard or retry', () => {
     it('guard does not intercept the halt — it propagates to the caller', async () => {
       await expect(
@@ -1710,6 +1821,71 @@ describe('Host function return-value validation (RILL-R085)', () => {
           functions: { badFn: badFn(() => undefined) },
         })
       ).rejects.toHaveProperty('errorId', 'RILL-R085');
+    });
+  });
+
+  describe('stream resolve() results and throws pass the same host-boundary gate', () => {
+    /** Minimal single-value async iterable for a host stream's `chunks`. */
+    function asyncIterableFrom(values: RillValue[]): AsyncIterable<RillValue> {
+      return {
+        [Symbol.asyncIterator]() {
+          let index = 0;
+          return {
+            async next() {
+              if (index < values.length) {
+                return { value: values[index++]!, done: false as const };
+              }
+              return { value: undefined, done: true as const };
+            },
+          };
+        },
+      };
+    }
+
+    function makeStreamFn(resolve: () => Promise<RillValue>): RillFunction {
+      return {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () =>
+          createRillStream({
+            chunks: asyncIterableFrom([1]),
+            resolve,
+          }),
+      };
+    }
+
+    it('a resolve() returning null halts $s() with RILL-R085 instead of leaking null', async () => {
+      const err = await expectR085(
+        {
+          make_stream: makeStreamFn(async () => null as unknown as RillValue),
+        },
+        'make_stream() => $s\n$s()'
+      );
+      expect(err.message).toContain('resolve');
+    });
+
+    it('a throwing resolve() propagates as a raw rejected Error, not a reshaped invalid', async () => {
+      const err = await run('make_stream() => $s\n$s()', {
+        functions: {
+          make_stream: makeStreamFn(async () => {
+            throw new Error('resolve exploded');
+          }),
+        },
+      }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe('resolve exploded');
+    });
+
+    it('a throwing resolve() is NOT caught by guard — it still rejects raw', async () => {
+      const err = await run('guard { make_stream() => $s\n$s() } => $r\n$r', {
+        functions: {
+          make_stream: makeStreamFn(async () => {
+            throw new Error('resolve exploded');
+          }),
+        },
+      }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe('resolve exploded');
     });
   });
 });

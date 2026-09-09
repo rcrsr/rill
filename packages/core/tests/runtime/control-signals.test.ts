@@ -12,6 +12,9 @@ import { describe, expect, it } from 'vitest';
 import {
   BreakSignal,
   ControlSignal,
+  createRuntimeContext,
+  createStepper,
+  parse,
   ReturnSignal,
   RuntimeError,
   RuntimeHaltSignal,
@@ -172,5 +175,58 @@ describe('break at outermost statement boundary [BC-NOD-4]', () => {
     expect(err).not.toBeInstanceOf(BreakSignal);
     expect(err).toBeInstanceOf(RuntimeError);
     expect((err as RuntimeError).errorId).toBe('RILL-R002');
+  });
+});
+
+// ============================================================
+// Stepper termination on top-level break/return signals
+// ============================================================
+
+describe('createStepper: top-level break/return termination', () => {
+  it('a top-level break escapes step() as a fatal RuntimeHaltSignal, converted to RuntimeError only at execute()', async () => {
+    // The stepper's own try/catch converts the raw BreakSignal into a
+    // RuntimeHaltSignal via rejectBreakAsHalt and rethrows the signal
+    // unchanged, so callers driving the stepper directly still observe
+    // the pre-conversion signal. execute() (used by run()) wraps the
+    // stepper loop in its own try/catch that performs the RuntimeError
+    // conversion.
+    const ast = parse('1 -> break');
+    const ctx = createRuntimeContext();
+    const stepper = createStepper(ast, ctx);
+
+    const err = await stepper.step().catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(BreakSignal);
+    expect(err).toBeInstanceOf(RuntimeHaltSignal);
+
+    // The stepper must reach a done state after the halt so a
+    // subsequent step() cannot re-execute the same statement (it
+    // short-circuits at the `isDone` guard instead of re-running the
+    // break statement and re-throwing).
+    expect(stepper.done).toBe(true);
+    const replay = await stepper.step();
+    expect(replay.done).toBe(true);
+
+    // getResult() surfaces the halt's invalid value, not a stale
+    // pre-halt lastValue.
+    expect(stepper.getResult().result).toBe((err as RuntimeHaltSignal).value);
+
+    // run() (execute()) still converts the same script to the coded
+    // RuntimeError, confirming top-level break keeps its existing
+    // host-facing contract.
+    const runErr = await run('1 -> break').catch((e: unknown) => e);
+    expect(runErr).toBeInstanceOf(RuntimeError);
+    expect((runErr as RuntimeError).errorId).toBe('RILL-R002');
+  });
+
+  it('a top-level return marks the stepper done and captures the returned value', async () => {
+    const ast = parse('42 -> return');
+    const ctx = createRuntimeContext();
+    const stepper = createStepper(ast, ctx);
+
+    const result = await stepper.step();
+    expect(result.done).toBe(true);
+    expect(result.value).toBe(42);
+    expect(stepper.done).toBe(true);
+    expect(stepper.getResult().result).toBe(42);
   });
 });

@@ -14,7 +14,12 @@ import {
 } from '../../../core/types/guards.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { RuntimeError } from '../../../../types.js';
-import { rejectBreakAsHalt, throwTypeHalt } from '../../../core/types/halt.js';
+import {
+  rejectBreakAsHalt,
+  throwCatchableHostHalt,
+  throwTypeHalt,
+} from '../../../core/types/halt.js';
+import { isInvalid } from '../../../core/types/status.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
 import { createOrdered } from '../../../core/types/constructors.js';
@@ -24,7 +29,7 @@ import { invokeCallable } from '../../../core/eval/index.js';
 import { BreakSignal } from '../../../core/signals.js';
 import { createChildContext } from '../../../core/context.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import { MAX_ITER, chunkSlice } from '../shared.js';
 import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
@@ -573,6 +578,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           childCtx,
           location
         );
+        if (isInvalid(result)) {
+          throwCatchableHostHalt(
+            site,
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            'filter: predicate returned an invalid value'
+          );
+        }
         if (typeof result !== 'boolean') {
           throw new RuntimeError(
             ERROR_IDS.RILL_R001,

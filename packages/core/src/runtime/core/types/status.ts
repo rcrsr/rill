@@ -267,6 +267,39 @@ export function appendTraceFrame(
 }
 
 /**
+ * Replaces the `site` field of an invalid value's origin trace frame
+ * (`trace[0]`), preserving that frame's `kind`, `fn`, and `wrapped`, and
+ * leaving every other frame and status field untouched. Returns `value`
+ * unchanged when the trace is empty.
+ *
+ * Used to backfill a real source location onto a halt's origin frame
+ * when the frame was first recorded with a placeholder site (no location
+ * available at construction time) and a real location becomes available
+ * later at a call boundary.
+ */
+export function withOriginSite(value: RillValue, site: string): RillValue {
+  const prior = getStatus(value);
+  if (prior.trace.length === 0) return value;
+  const originFrame = prior.trace[0]!;
+  const newOriginFrame: TraceFrame = Object.freeze({
+    site,
+    kind: originFrame.kind,
+    fn: originFrame.fn,
+    wrapped: originFrame.wrapped,
+  });
+  const newTrace = prior.trace.slice();
+  newTrace[0] = newOriginFrame;
+  const newStatus: RillStatus = Object.freeze({
+    code: prior.code,
+    message: prior.message,
+    provider: prior.provider,
+    raw: prior.raw,
+    trace: Object.freeze(newTrace),
+  });
+  return attachStatus(value, newStatus);
+}
+
+/**
  * Merges additional fields into an invalid value's `raw` payload.
  * Returns a new RillValue carrying the extended status. Existing
  * fields are preserved unless overwritten by `extension`.

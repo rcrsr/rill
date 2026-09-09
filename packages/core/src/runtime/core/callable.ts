@@ -38,8 +38,14 @@ import {
 } from './types/guards.js';
 import type {
   TypeStructure,
+  RillAtomValue,
+  RillDatetime,
+  RillDuration,
+  RillOrdered,
+  RillStream,
   RillTypeValue,
   RillValue,
+  RillVector,
 } from './types/structures.js';
 import type {
   DictStructure,
@@ -775,14 +781,109 @@ function throwHostResultError(
   functionName: string,
   path: string,
   value: unknown,
-  location: SourceLocation | undefined
+  location: SourceLocation | undefined,
+  reason?: string
 ): never {
+  const detail = reason
+    ? `${reason}: ${jsTypeLabel(value)}`
+    : jsTypeLabel(value);
   throw new RuntimeError(
     ERROR_IDS.RILL_R085,
-    `Host function '${functionName}' returned an invalid value at ${path}: ${jsTypeLabel(value)}`,
+    `Host function '${functionName}' returned an invalid value at ${path}: ${detail}`,
     location
   );
 }
+
+/**
+ * Validation-local strict shape checks for branded host results.
+ *
+ * The isXxx guards in `types/guards.ts` (~33-147) intentionally check ONLY
+ * brand-key presence — they have callers beyond validation (method dispatch,
+ * formatValue, inferType), so tightening them there would ripple into paths
+ * that never see host-forged input. Here, at the host-result boundary, a
+ * matched brand additionally has its required fields verified before it is
+ * accepted, mirroring how `isIterator` (guards.ts ~159-167) already checks
+ * `done`/`next`/`value`.
+ *
+ * Cross-file invariant: this table must stay exhaustive over the brand
+ * guards checked below. Adding a new branded guard to that list requires
+ * adding a matching row here, or a forged host object with the right
+ * discriminator key and garbage fields slips past validation.
+ */
+const BRAND_SHAPE_CHECKS: ReadonlyArray<{
+  test: (v: RillValue) => boolean;
+  valid: (v: RillValue) => boolean;
+  label: string;
+}> = [
+  {
+    label: 'atom',
+    test: isAtom,
+    valid: (v) => {
+      const atom = (v as RillAtomValue).atom;
+      return (
+        typeof atom === 'object' &&
+        atom !== null &&
+        (atom as { __rill_atom?: unknown }).__rill_atom === true &&
+        typeof (atom as { name?: unknown }).name === 'string' &&
+        typeof (atom as { kind?: unknown }).kind === 'string'
+      );
+    },
+  },
+  {
+    label: 'vector',
+    test: isVector,
+    valid: (v) => {
+      const vector = v as RillVector;
+      return (
+        vector.data instanceof Float32Array && typeof vector.model === 'string'
+      );
+    },
+  },
+  {
+    label: 'datetime',
+    test: isDatetime,
+    valid: (v) => Number.isFinite((v as RillDatetime).unix),
+  },
+  {
+    label: 'duration',
+    test: isDuration,
+    valid: (v) => {
+      const duration = v as RillDuration;
+      return (
+        Number.isFinite(duration.months) &&
+        duration.months >= 0 &&
+        Number.isFinite(duration.ms) &&
+        duration.ms >= 0
+      );
+    },
+  },
+  {
+    label: 'ordered',
+    test: isOrdered,
+    valid: (v) => Array.isArray((v as RillOrdered).entries),
+  },
+  {
+    label: 'typevalue',
+    test: isTypeValue,
+    valid: (v) => {
+      const typeValue = v as RillTypeValue;
+      return (
+        typeof typeValue.typeName === 'string' &&
+        typeof typeValue.structure === 'object' &&
+        typeValue.structure !== null &&
+        typeof (typeValue.structure as { kind?: unknown }).kind === 'string'
+      );
+    },
+  },
+  {
+    label: 'stream',
+    test: isStream,
+    valid: (v) => {
+      const stream = v as RillStream;
+      return typeof stream.done === 'boolean' && isCallable(stream.next);
+    },
+  },
+];
 
 function walkHostResult(
   value: unknown,
@@ -824,19 +925,27 @@ function walkHostResult(
   }
 
   if (
-    isAtom(rillValue) ||
     isTuple(rillValue) ||
-    isVector(rillValue) ||
-    isOrdered(rillValue) ||
-    isTypeValue(rillValue) ||
-    isDatetime(rillValue) ||
-    isDuration(rillValue) ||
     isCallable(rillValue) ||
-    isStream(rillValue) ||
     isIterator(rillValue) ||
     isFieldDescriptorValue(obj)
   ) {
     return;
+  }
+
+  for (const check of BRAND_SHAPE_CHECKS) {
+    if (check.test(rillValue)) {
+      if (!check.valid(rillValue)) {
+        throwHostResultError(
+          functionName,
+          path,
+          value,
+          location,
+          `malformed ${check.label} brand`
+        );
+      }
+      return;
+    }
   }
 
   if (value instanceof Date || value instanceof Map || value instanceof Set) {

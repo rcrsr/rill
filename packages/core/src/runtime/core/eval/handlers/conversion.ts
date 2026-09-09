@@ -26,7 +26,11 @@
 
 import type { ASTNode, TypeConstructorNode } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import { RuntimeHaltSignal, throwCatchableHostHalt } from '../../types/halt.js';
+import {
+  RuntimeHaltSignal,
+  throwCatchableHostHalt,
+  enrichHaltOriginLocation,
+} from '../../types/halt.js';
 import { ControlSignal } from '../../signals.js';
 import type {
   RillValue,
@@ -181,7 +185,14 @@ export function applyConversion(
     // it unchanged instead of remapping it to the generic RILL_R036 code
     // below, which would discard its atom and message. ControlSignal
     // subclasses (break/return/yield) always re-throw as well.
-    if (err instanceof RuntimeHaltSignal || err instanceof ControlSignal) {
+    if (err instanceof RuntimeHaltSignal) {
+      throw enrichHaltOriginLocation(
+        err,
+        getNodeLocation(s, node),
+        s.ctx.sourceId
+      );
+    }
+    if (err instanceof ControlSignal) {
       throw err;
     }
 

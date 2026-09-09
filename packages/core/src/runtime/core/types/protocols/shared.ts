@@ -31,6 +31,7 @@ import {
 } from '../guards.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
 import { setDictField } from '../dict-keys.js';
+import { isInvalid } from '../status.js';
 
 // ============================================================
 // LATE-BINDING: formatNested
@@ -200,6 +201,17 @@ export function serializeListElement(v: RillValue): unknown {
   if (typeof v === 'string') return v;
   if (typeof v === 'number') return v;
   if (typeof v === 'boolean') return v;
+  // A nested invalid value is structurally a plain dict (spread base +
+  // non-enumerable status sidecar), so without this check it would fall
+  // through to the plain-dict branch below and silently serialize as
+  // `{}`, discarding the invalid status. Gate here so json() halts
+  // instead of losing the failure.
+  if (isInvalid(v)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R067,
+      'invalid values are not JSON-serializable'
+    );
+  }
   if (Array.isArray(v)) return v.map(serializeListElement);
   if (isCallable(v))
     throw new RuntimeError(

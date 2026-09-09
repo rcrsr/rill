@@ -20,7 +20,7 @@
  */
 
 import { expect } from 'vitest';
-import { RuntimeHaltSignal } from '@rcrsr/rill';
+import { RuntimeError, RuntimeHaltSignal, type RillValue } from '@rcrsr/rill';
 import { getStatus } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 
@@ -32,8 +32,31 @@ interface HaltExpectation {
 }
 
 /**
- * Asserts that `exec` throws a `RuntimeHaltSignal` whose invalid value
- * carries the expected atom code and (optionally) a matching message.
+ * Extracts the invalid `RillValue` carried by a caught halt, whether it
+ * escaped as a raw `RuntimeHaltSignal` (uncaught inside a nested call, or
+ * an atom excluded from host-boundary conversion) or was rematerialised
+ * into a `RuntimeError` at the host boundary (`convertHaltToRuntimeError`
+ * in `execute.ts`, which attaches the original invalid under the
+ * non-enumerable `haltValue` property). Both shapes carry the same status
+ * sidecar, so callers can assert on `status.code` / `status.message`
+ * without caring which shape the halt surfaced as.
+ */
+function extractHaltInvalid(caught: unknown): RillValue {
+  if (caught instanceof RuntimeHaltSignal) {
+    return caught.value;
+  }
+  if (caught instanceof RuntimeError && caught.haltValue !== undefined) {
+    return caught.haltValue;
+  }
+  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+  throw new Error('unreachable: expect() above always throws');
+}
+
+/**
+ * Asserts that `exec` throws a halt (a raw `RuntimeHaltSignal`, or a
+ * `RuntimeError` rematerialised from one at the host boundary) whose
+ * invalid value carries the expected atom code and (optionally) a
+ * matching message.
  */
 export async function expectHalt(
   exec: () => Promise<unknown>,
@@ -45,9 +68,7 @@ export async function expectHalt(
   } catch (e) {
     caught = e;
   }
-  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-  const signal = caught as RuntimeHaltSignal;
-  const status = getStatus(signal.value);
+  const status = getStatus(extractHaltInvalid(caught));
   if (
     expected.code !== 'R001' &&
     resolveAtom(expected.code) === resolveAtom('R001')
@@ -67,9 +88,10 @@ export async function expectHalt(
 }
 
 /**
- * Asserts that `exec` throws a `RuntimeHaltSignal` whose invalid value's
- * status message matches `pattern`. Use when the original test asserted
- * only on message content (e.g. `rejects.toThrow(/expected string/)`).
+ * Asserts that `exec` throws a halt (raw or rematerialised, see
+ * `expectHalt`) whose invalid value's status message matches `pattern`.
+ * Use when the original test asserted only on message content (e.g.
+ * `rejects.toThrow(/expected string/)`).
  */
 export async function expectHaltMessage(
   exec: () => Promise<unknown>,
@@ -81,9 +103,7 @@ export async function expectHaltMessage(
   } catch (e) {
     caught = e;
   }
-  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-  const signal = caught as RuntimeHaltSignal;
-  const status = getStatus(signal.value);
+  const status = getStatus(extractHaltInvalid(caught));
   if (pattern instanceof RegExp) {
     expect(status.message).toMatch(pattern);
   } else {
