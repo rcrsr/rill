@@ -548,11 +548,11 @@ export function throwErrorHalt(
 /**
  * Sanitize a caught Error's message before embedding it in `raw.message`:
  * strip trailing location suffixes and multi-line stack traces, keeping
- * only the first line. Mirrors the sanitizers in `context.ts` and
- * `execute.ts` so reshape output is consistent across every boundary
- * that reshapes an unhandled host throw.
+ * only the first line. Exported so `context.ts` shares this implementation
+ * instead of keeping its own copy, keeping reshape output consistent across
+ * every boundary that reshapes an unhandled host throw.
  */
-function sanitizeThrowMessage(message: string): string {
+export function sanitizeThrowMessage(message: string): string {
   const firstLine = message.split('\n', 1)[0] ?? '';
   return firstLine.trim();
 }

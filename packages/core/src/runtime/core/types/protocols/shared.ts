@@ -31,7 +31,9 @@ import {
 } from '../guards.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
 import { setDictField } from '../dict-keys.js';
-import { isInvalid } from '../status.js';
+import { isInvalid, appendTraceFrame } from '../status.js';
+import { RuntimeHaltSignal } from '../halt.js';
+import { createTraceFrame, TRACE_KINDS } from '../trace.js';
 
 // ============================================================
 // LATE-BINDING: formatNested
@@ -172,9 +174,30 @@ export function compareElements(
   return true;
 }
 
+/**
+ * Halt on a nested invalid value reached while deep-comparing container
+ * elements. Mirrors the top-level `accessHaltGate` behavior (append an
+ * access-kind trace frame, throw a catchable RuntimeHaltSignal carrying the
+ * invalid value) so `dict[a: $x] == dict[a: $y]`, where `$x`/`$y` are
+ * distinct invalid values, halts instead of comparing by the shared `{}`
+ * structural shape.
+ */
+function haltOnNestedInvalid(v: RillValue): void {
+  if (!isInvalid(v)) return;
+  const frame = createTraceFrame({
+    site: '<unknown>',
+    kind: TRACE_KINDS.ACCESS,
+    fn: '==',
+  });
+  const next = appendTraceFrame(v, frame);
+  throw new RuntimeHaltSignal(next, true);
+}
+
 /** Element comparator for tuple and list entries: handles undefined, delegates to deepEquals. */
 export function compareByDeepEquals(a: unknown, b: unknown): boolean {
   if (a === undefined || b === undefined) return a === b;
+  haltOnNestedInvalid(a as RillValue);
+  haltOnNestedInvalid(b as RillValue);
   return resolvedDeepEquals(a as RillValue, b as RillValue);
 }
 
@@ -184,6 +207,8 @@ export function compareOrderedEntry(a: unknown, b: unknown): boolean {
   const bEntry = b as [string, RillValue] | undefined;
   if (aEntry === undefined || bEntry === undefined) return false;
   if (aEntry[0] !== bEntry[0]) return false;
+  haltOnNestedInvalid(aEntry[1]);
+  haltOnNestedInvalid(bEntry[1]);
   return resolvedDeepEquals(aEntry[1], bEntry[1]);
 }
 

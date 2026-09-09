@@ -425,16 +425,15 @@ async function invokeFnCallable(
 }
 
 /**
- * Reshape a throw from a host boundary — a native function dispatch or a
- * stream `resolve()` — into the shared `#R999` invalid value, or re-throw
- * per the host-boundary contract. Tags every thrown value as
- * extension-originated first, then either enriches a `RuntimeHaltSignal` or
- * an unmigrated location-less `RuntimeError` with call-site metadata, lets
- * every other `RillError` and every `ControlSignal` propagate unconverted,
- * and materializes anything else (a raw `Error`, a non-object throw) as a
- * `#R999` invalid so it never escapes `execute()` raw. Shared by
- * `invokeFnCallable` and `invokeStream`'s `resolve()` consumption so both
- * call sites reshape a throwing host boundary identically.
+ * Reshape a throw from a native function dispatch host boundary into the
+ * shared `#R999` invalid value, or re-throw per the host-boundary contract.
+ * Tags every thrown value as extension-originated first, then either
+ * enriches a `RuntimeHaltSignal` or an unmigrated location-less
+ * `RuntimeError` with call-site metadata, lets every other `RillError` and
+ * every `ControlSignal` propagate unconverted, and materializes anything
+ * else (a raw `Error`, a non-object throw) as a `#R999` invalid so it never
+ * escapes `execute()` raw. A stream's `resolve()` throw is not passed
+ * through this function; it propagates unreshaped from `invokeStream`.
  */
 function reshapeHostThrow(
   e: unknown,

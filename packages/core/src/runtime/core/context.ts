@@ -23,7 +23,7 @@ import {
   formatHalt,
   type InvalidateMeta,
 } from './types/status.js';
-import { RuntimeHaltSignal } from './types/halt.js';
+import { RuntimeHaltSignal, sanitizeThrowMessage } from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
 import {
   validateDefaultValueType,
@@ -175,7 +175,7 @@ function bindLifecycleMethods(
         return draft.invalidate(err, {
           code: 'R999',
           provider: 'catch',
-          raw: { message: sanitizeMessage(err.message) },
+          raw: { message: sanitizeThrowMessage(err.message) },
         });
       }
       return draft.invalidate(err, detected);
@@ -242,19 +242,10 @@ function mergeMetaWithError(error: unknown, meta: InvalidMeta): InvalidateMeta {
     return {
       code: meta.code,
       provider: meta.provider,
-      raw: { ...existingRaw, message: sanitizeMessage(error.message) },
+      raw: { ...existingRaw, message: sanitizeThrowMessage(error.message) },
     };
   }
   return meta;
-}
-
-/**
- * Strip stack traces and trailing whitespace from error messages before
- * embedding them in `raw.message` to avoid leaking host-internal detail.
- */
-function sanitizeMessage(message: string): string {
-  const firstLine = message.split('\n', 1)[0] ?? '';
-  return firstLine.trim();
 }
 
 /**
@@ -330,7 +321,7 @@ function describeDeferredHalt(reason: unknown): string {
     const formatted = formatHalt(reason.value);
     return formatted.length > 0 ? formatted : 'runtime halt';
   }
-  if (reason instanceof Error) return sanitizeMessage(reason.message);
+  if (reason instanceof Error) return sanitizeThrowMessage(reason.message);
   return String(reason);
 }
 
