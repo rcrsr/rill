@@ -187,7 +187,7 @@ describe('BARE_CALLABLE_BODY', () => {
   });
 
   it('fires on the body arg of fold, not the seed arg', () => {
-    const source = 'list[1,2] -> fold(0, log)\n';
+    const source = 'list[1,2] -> fold(get_seed, log)\n';
     const parsed = toParseResult(source);
 
     const result = runRules(parsed, source, makeConfig(), [bareCallableBody]);
@@ -256,6 +256,7 @@ describe('with all collection rules on', () => {
       preferMap,
       filterNegation,
       methodShorthand,
+      bareCallableBody,
     ]);
 
     expect(result).toEqual([]);

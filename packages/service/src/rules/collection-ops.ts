@@ -13,6 +13,7 @@ import type {
   BodyNode,
   ClosureNode,
   HostCallNode,
+  PostfixExprNode,
 } from '@rcrsr/rill';
 
 // ============================================================
@@ -46,20 +47,30 @@ export function isCollectionOpCall(
 }
 
 /**
- * Resolve the body argument of a collection-op call.
+ * Unwrap a collection-op arg to its `PostfixExpr`.
  * Each arg is wrapped in a `PipeChain` whose head is a `PostfixExpr` whose
- * primary is the actual value. Args are scanned left-to-right; the first
- * whose primary is a `Closure` or `Block` is returned. Returns null when
- * no such arg exists (e.g. `seq($fn)` where the arg is a Variable).
+ * `.primary` holds the actual value. Returns null when the arg doesn't
+ * match this shape (e.g. it has pipes).
+ */
+function unwrapArgPrimary(arg: ASTNode): PostfixExprNode | null {
+  if (arg.type !== 'PipeChain' || arg.pipes.length !== 0) return null;
+  const head = arg.head;
+  if (head.type !== 'PostfixExpr') return null;
+  return head;
+}
+
+/**
+ * Resolve the body argument of a collection-op call.
+ * Args are scanned left-to-right; the first whose primary is a `Closure` or
+ * `Block` is returned. Returns null when no such arg exists (e.g.
+ * `seq($fn)` where the arg is a Variable).
  */
 export function getCollectionOpBody(
   node: HostCallNode
 ): ClosureNode | BlockNode | null {
   for (const arg of node.args) {
-    if (arg.type !== 'PipeChain') continue;
-    if (arg.pipes.length !== 0) continue;
-    const head = arg.head;
-    if (head.type !== 'PostfixExpr') continue;
+    const head = unwrapArgPrimary(arg);
+    if (!head) continue;
     const primary = head.primary;
     if (primary.type === 'Closure' || primary.type === 'Block') {
       return primary;
@@ -71,7 +82,7 @@ export function getCollectionOpBody(
 /**
  * Resolve a bare zero-arg host call sitting in the body slot of a
  * collection-op call, e.g. `seq(foo)` where `foo` should have been
- * `seq({ foo })` or `seq(|x|(foo($x)))`.
+ * `seq({ foo($) })` or `seq(|x|(foo($x)))`.
  * Only the last arg is inspected: `fold`/`acc` take `(initial, body)`, and a
  * bare zero-arg call is legitimate in the initial slot (`fold(zero, ...)`).
  * Only the last arg is ever the body slot, so scanning earlier args would
@@ -80,9 +91,8 @@ export function getCollectionOpBody(
 export function getBareCallableArg(node: HostCallNode): HostCallNode | null {
   const arg = node.args[node.args.length - 1];
   if (!arg) return null;
-  if (arg.type !== 'PipeChain' || arg.pipes.length !== 0) return null;
-  const head = arg.head;
-  if (head.type !== 'PostfixExpr' || head.methods.length !== 0) return null;
+  const head = unwrapArgPrimary(arg);
+  if (!head || head.methods.length !== 0) return null;
   const primary = head.primary;
   if (primary.type !== 'HostCall' || primary.args.length !== 0) return null;
   return primary;
