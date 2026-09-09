@@ -68,6 +68,26 @@ export function getCollectionOpBody(
   return null;
 }
 
+/**
+ * Resolve a bare zero-arg host call sitting in the body slot of a
+ * collection-op call, e.g. `seq(foo)` where `foo` should have been
+ * `seq({ foo })` or `seq(|x|(foo($x)))`.
+ * Only the last arg is inspected: `fold`/`acc` take `(initial, body)`, and a
+ * bare zero-arg call is legitimate in the initial slot (`fold(zero, ...)`).
+ * Only the last arg is ever the body slot, so scanning earlier args would
+ * misfire on that initial-value case.
+ */
+export function getBareCallableArg(node: HostCallNode): HostCallNode | null {
+  const arg = node.args[node.args.length - 1];
+  if (!arg) return null;
+  if (arg.type !== 'PipeChain' || arg.pipes.length !== 0) return null;
+  const head = arg.head;
+  if (head.type !== 'PostfixExpr' || head.methods.length !== 0) return null;
+  const primary = head.primary;
+  if (primary.type !== 'HostCall' || primary.args.length !== 0) return null;
+  return primary;
+}
+
 /** True for callables that execute the closure in parallel (`fan`, `filter`). */
 export function isParallelOp(name: CollectionOpName): boolean {
   return PARALLEL_OPS.has(name);

@@ -8,11 +8,11 @@ import { RULES } from './rules.js';
 import type { CheckConfig } from './types.js';
 
 describe('createDefaultConfig', () => {
-  it('returns all 41 rules set to on', () => {
+  it('returns all 42 rules set to on', () => {
     const config = createDefaultConfig();
     const codes = Object.keys(config.rules);
 
-    expect(codes.length).toBe(41);
+    expect(codes.length).toBe(42);
     for (const rule of RULES) {
       expect(config.rules[rule.code]).toBe('on');
     }

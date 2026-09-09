@@ -8,20 +8,20 @@ import { RULES } from './rules.js';
 import type { CheckConfig } from './types.js';
 
 describe('registry/config/validator key equality', () => {
-  it('exposes exactly 41 rule codes with no duplicates in the registry', () => {
+  it('exposes exactly 42 rule codes with no duplicates in the registry', () => {
     const codes = RULES.map((rule) => rule.code);
     const uniqueCodes = new Set(codes);
 
-    expect(codes.length).toBe(41);
-    expect(uniqueCodes.size).toBe(41);
+    expect(codes.length).toBe(42);
+    expect(uniqueCodes.size).toBe(42);
   });
 
-  it('exposes exactly 41 rule codes with no duplicates in the default config', () => {
+  it('exposes exactly 42 rule codes with no duplicates in the default config', () => {
     const codes = Object.keys(createDefaultConfig().rules);
     const uniqueCodes = new Set(codes);
 
-    expect(codes.length).toBe(41);
-    expect(uniqueCodes.size).toBe(41);
+    expect(codes.length).toBe(42);
+    expect(uniqueCodes.size).toBe(42);
   });
 
   it('validates the full registry code set as known with no unknowns', () => {
@@ -37,12 +37,12 @@ describe('registry/config/validator key equality', () => {
     );
   });
 
-  it('reports the same set of 41 codes across RULES, createDefaultConfig, and validateRuleCodes', () => {
+  it('reports the same set of 42 codes across RULES, createDefaultConfig, and validateRuleCodes', () => {
     const registryCodes = new Set(RULES.map((rule) => rule.code));
     const configCodes = new Set(Object.keys(createDefaultConfig().rules));
 
-    expect(registryCodes.size).toBe(41);
-    expect(configCodes.size).toBe(41);
+    expect(registryCodes.size).toBe(42);
+    expect(configCodes.size).toBe(42);
     expect(configCodes).toEqual(registryCodes);
 
     // The validator's known-set is derived from RULES; probe it by asserting
