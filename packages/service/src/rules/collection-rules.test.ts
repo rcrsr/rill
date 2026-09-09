@@ -7,6 +7,7 @@ import { breakInParallel } from './break-in-parallel.js';
 import { preferMap } from './prefer-map.js';
 import { filterNegation } from './filter-negation.js';
 import { methodShorthand } from './method-shorthand.js';
+import { bareCallableBody } from './bare-callable-body.js';
 
 /** Wraps a well-formed AST built with `parse` in a `ParseResult` shape. */
 function toParseResult(source: string): ParseResult {
@@ -158,6 +159,92 @@ describe('METHOD_SHORTHAND', () => {
   });
 });
 
+describe('BARE_CALLABLE_BODY', () => {
+  it('fires when a bare host function name is used as a seq body', () => {
+    const source = 'list[1,2] -> seq(log)\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [bareCallableBody]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'BARE_CALLABLE_BODY',
+      severity: 'warning',
+    });
+  });
+
+  it('fires when a bare host function name is used as a fan body', () => {
+    const source = 'list[1,2] -> fan(identity)\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [bareCallableBody]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'BARE_CALLABLE_BODY',
+      severity: 'warning',
+    });
+  });
+
+  it('fires on the body arg of fold, not the seed arg', () => {
+    const source = 'list[1,2] -> fold(get_seed, log)\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [bareCallableBody]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'BARE_CALLABLE_BODY',
+      severity: 'warning',
+    });
+  });
+
+  it('does not fire when the body is a block', () => {
+    const source = 'seq({ $ -> log })\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [bareCallableBody])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire when the body is a closure', () => {
+    const source = 'seq(|x|(log($x)))\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [bareCallableBody])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire when the body is a variable reference', () => {
+    const source = 'seq($fn)\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [bareCallableBody])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire when the body is a namespaced host reference', () => {
+    const source = 'fan(ns::helper)\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [bareCallableBody])).toEqual(
+      []
+    );
+  });
+
+  it('does not fire on a bare zero-arg call in the init arg of fold when the body is a closure', () => {
+    const source = 'fold(get_seed, { $@ + $ })\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [bareCallableBody])).toEqual(
+      []
+    );
+  });
+});
+
 describe('with all collection rules on', () => {
   it('emits zero diagnostics on a clean, idiomatic script', () => {
     const source =
@@ -169,6 +256,7 @@ describe('with all collection rules on', () => {
       preferMap,
       filterNegation,
       methodShorthand,
+      bareCallableBody,
     ]);
 
     expect(result).toEqual([]);
