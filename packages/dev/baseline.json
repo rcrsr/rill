@@ -63,7 +63,7 @@
     "vitest": "^4.1.11"
   },
   "publishedVersions": {
-    "@rcrsr/rill": "0.20.0",
-    "@rcrsr/rill-language-service": "0.20.0"
+    "@rcrsr/rill": "0.21.0",
+    "@rcrsr/rill-language-service": "0.21.0"
   }
 }
