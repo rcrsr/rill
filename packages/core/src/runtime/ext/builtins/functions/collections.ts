@@ -8,6 +8,7 @@ import {
 import {
   isDatetime,
   isDuration,
+  isIterator,
   isOrdered,
   isStream,
   isVector,
@@ -28,7 +29,10 @@ import { anyTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { BreakSignal } from '../../../core/signals.js';
 import { createChildContext } from '../../../core/context.js';
-import { getIterableElements } from '../../../core/eval/handlers/collections.js';
+import {
+  getIterableElements,
+  walkStreamOrIteratorElements,
+} from '../../../core/eval/handlers/collections.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import { MAX_ITER, chunkSlice } from '../shared.js';
 import { typedKeyEntries } from '../../../core/types/dict-keys.js';
@@ -91,6 +95,33 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
+
+      // Stream/iterator inputs are walked lazily one raw step at a time so a
+      // `break` in the body bounds how many steps are pulled from an
+      // infinite source, instead of materializing it up front.
+      if (isStream(input) || isIterator(input)) {
+        const { results } = await walkStreamOrIteratorElements(
+          input,
+          ctx as RuntimeContext,
+          node,
+          'seq',
+          async (element) => {
+            const childCtx = createChildContext(ctx as RuntimeContext);
+            childCtx.pipeValue = element;
+            const closureToInvoke = isScriptCallable(body)
+              ? { ...body, definingScope: childCtx }
+              : body;
+            return invokeCallable(
+              closureToInvoke,
+              [element],
+              childCtx,
+              location
+            );
+          }
+        );
+        return results;
+      }
+
       const elements = await getIterableElements(
         input,
         ctx as RuntimeContext,
@@ -322,6 +353,47 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
+
+      // Stream/iterator inputs are walked lazily one raw step at a time so a
+      // `break` in the body bounds how many steps are pulled from an
+      // infinite source, instead of materializing it up front.
+      if (isStream(input) || isIterator(input)) {
+        let lazyAccumulator: RillValue = seed;
+        const { results: lazyResults } = await walkStreamOrIteratorElements(
+          input,
+          ctx as RuntimeContext,
+          node,
+          'acc',
+          async (element) => {
+            const childCtx = createChildContext(ctx as RuntimeContext);
+            childCtx.variables.set('@', lazyAccumulator);
+            childCtx.pipeValue = element;
+            const closureToInvoke = isScriptCallable(body)
+              ? { ...body, definingScope: childCtx }
+              : body;
+            // Two-type closures |elem_type, acc_type|{ body } declare '@' as
+            // second param. Pass accumulator as second arg so marshalArgs
+            // can bind and type-check it.
+            const isTwoTypeBody =
+              isScriptCallable(body) &&
+              body.params.length === 2 &&
+              body.params[1]?.name === '@';
+            const invokeArgs: RillValue[] = isTwoTypeBody
+              ? [element, lazyAccumulator]
+              : [element];
+            const result = await invokeCallable(
+              closureToInvoke,
+              invokeArgs,
+              childCtx,
+              location
+            );
+            lazyAccumulator = result;
+            return result;
+          }
+        );
+        return lazyResults;
+      }
+
       const elements = await getIterableElements(
         input,
         ctx as RuntimeContext,

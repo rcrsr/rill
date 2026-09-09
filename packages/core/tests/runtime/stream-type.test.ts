@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  anyTypeValue,
   callable,
   createRillStream,
   isStream,
@@ -21,11 +22,13 @@ import {
   formatValue,
   inferStructure,
   structureEquals,
+  type RillFunction,
   type RillValue,
   type RillStream,
   type TypeStructure,
 } from '@rcrsr/rill';
 import { YieldSignal } from '@rcrsr/rill';
+import { run } from '../helpers/runtime.js';
 
 // ============================================================
 // HELPERS
@@ -770,5 +773,123 @@ describe('inferStructure typed stream', () => {
     };
     expect(s.chunk).toEqual({ kind: 'number' });
     expect(s.ret).toBeUndefined();
+  });
+});
+
+// ============================================================
+// expandStream CHUNK VALIDATION (#440)
+// ============================================================
+
+/** Host function returning a fresh RillStream over the given raw chunks. */
+function makeRawChunkStreamFn(chunks: unknown[]): RillFunction {
+  return {
+    params: [] as { name: string; type: TypeStructure }[],
+    returnType: anyTypeValue,
+    fn: (): RillStream =>
+      createRillStream({
+        chunks: (async function* () {
+          for (const v of chunks) yield v as RillValue;
+        })(),
+        resolve: async () => null,
+      }),
+  };
+}
+
+/** Host function returning a RillStream driven by an async generator that
+ * yields `undefined` for its second chunk before continuing. */
+function makeUndefinedMidSequenceStreamFn(): RillFunction {
+  return {
+    params: [] as { name: string; type: TypeStructure }[],
+    returnType: anyTypeValue,
+    fn: (): RillStream =>
+      createRillStream({
+        chunks: (async function* () {
+          yield 1;
+          yield undefined as unknown as RillValue;
+          yield 3;
+        })(),
+        resolve: async () => null,
+      }),
+  };
+}
+
+describe('expandStream chunk validation (#440)', () => {
+  it('halts #INVALID_INPUT with the chunk index for a NaN chunk', async () => {
+    const result = await run(
+      `
+        guard {
+          s() -> fold(0, { $@ + $ })
+        } => $r
+        $r.! ? ($r.!code == #INVALID_INPUT) ! false
+      `,
+      { functions: { s: makeRawChunkStreamFn([1, NaN]) } }
+    );
+    expect(result).toBe(true);
+  });
+
+  it('NaN chunk halt message names the chunk index', async () => {
+    await expect(
+      run('s() -> fold(0, { $@ + $ })', {
+        functions: { s: makeRawChunkStreamFn([1, NaN]) },
+      })
+    ).rejects.toThrow(/index 1/);
+  });
+
+  it('halts #INVALID_INPUT with the chunk index for a null chunk', async () => {
+    const result = await run(
+      `
+        guard {
+          s() -> fold(0, { $@ + $ })
+        } => $r
+        $r.! ? ($r.!code == #INVALID_INPUT) ! false
+      `,
+      { functions: { s: makeRawChunkStreamFn([1, null]) } }
+    );
+    expect(result).toBe(true);
+  });
+
+  it('halts #INVALID_INPUT with the chunk index for a callable chunk', async () => {
+    const result = await run(
+      `
+        guard {
+          s() -> fold(0, { $@ + $ })
+        } => $r
+        $r.! ? ($r.!code == #INVALID_INPUT) ! false
+      `,
+      {
+        functions: {
+          s: makeRawChunkStreamFn([1, callable(() => null)]),
+        },
+      }
+    );
+    expect(result).toBe(true);
+  });
+
+  it('halts #INVALID_INPUT (not a silent drop) for a chunk that is undefined mid-sequence', async () => {
+    const result = await run(
+      `
+        guard {
+          s() -> fold(0, { $@ + $ })
+        } => $r
+        $r.! ? ($r.!code == #INVALID_INPUT) ! false
+      `,
+      { functions: { s: makeUndefinedMidSequenceStreamFn() } }
+    );
+    expect(result).toBe(true);
+  });
+
+  it('undefined mid-sequence halt names its chunk index instead of yielding one fewer element', async () => {
+    await expect(
+      run('s() -> fold(0, { $@ + $ })', {
+        functions: { s: makeUndefinedMidSequenceStreamFn() },
+      })
+    ).rejects.toThrow(/index 1/);
+  });
+
+  it('a plain homogeneous stream still expands fully (head step is not miscounted as a chunk)', async () => {
+    const result = await run('s() -> fold(0, { $@ + $ })', {
+      functions: { s: makeRawChunkStreamFn([1, 2, 3, 4, 5]) },
+    });
+    expect(result).toBe(15);
   });
 });

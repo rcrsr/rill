@@ -300,6 +300,62 @@ describe('take() disposes a host stream exactly once (#391)', () => {
   });
 });
 
+/** Host function returning a stream whose generator throws while producing
+ * the 3rd chunk. A correct take(2) must resolve without ever pulling that
+ * chunk. */
+function makeThrowingThirdChunkStreamFn(): RillFunction {
+  return {
+    params: [] as { name: string; type: TypeStructure }[],
+    returnType: anyTypeValue,
+    fn: (): RillStream =>
+      createRillStream({
+        chunks: (async function* () {
+          yield 1;
+          yield 2;
+          throw new Error('3rd chunk must never be pulled by take(2)');
+        })(),
+        resolve: async () => null,
+      }),
+  };
+}
+
+describe('take() never pulls beyond its cap (#417)', () => {
+  it('take(2) resolves without touching a 3rd chunk that throws', async () => {
+    const result = await run('s() -> take(2)', {
+      functions: { s: makeThrowingThirdChunkStreamFn() },
+    });
+    expect(result).toEqual([1, 2]);
+  });
+
+  it('take(2) on a 3-chunk stream disposes once and observes exactly 2 chunks', async () => {
+    const disposeCounter = { count: 0 };
+    const observedChunks: number[] = [];
+    await run('s() -> take(2)', {
+      functions: {
+        s: {
+          params: [] as { name: string; type: TypeStructure }[],
+          returnType: anyTypeValue,
+          fn: (): RillStream =>
+            createRillStream({
+              chunks: (async function* () {
+                for (const v of [1, 2, 3]) {
+                  observedChunks.push(v);
+                  yield v;
+                }
+              })(),
+              resolve: async () => null,
+              dispose: () => {
+                disposeCounter.count++;
+              },
+            }),
+        } as RillFunction,
+      },
+    });
+    expect(disposeCounter.count).toBe(1);
+    expect(observedChunks).toEqual([1, 2]);
+  });
+});
+
 const emptyStream = { functions: { e: makeStreamFn([]) } };
 
 describe('.first() and sort() on a fresh host stream (#354)', () => {

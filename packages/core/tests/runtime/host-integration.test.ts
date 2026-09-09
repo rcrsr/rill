@@ -1909,6 +1909,132 @@ describe('Host function return-value validation (RILL-R085)', () => {
       expect((err as Error).message).toBe('resolve exploded');
     });
   });
+
+  describe('mid-stream host throw inside seq/fold disposes and halts, not silently swallowed', () => {
+    /**
+     * A `make_stream` host function whose underlying `AsyncIterable`
+     * produces one chunk and then throws on the second `next()` call —
+     * a genuine mid-stream host failure, distinct from the `resolve()`
+     * throws exercised above. Tracks whether `dispose` fired.
+     */
+    function makeMidStreamThrowFn(disposed: { called: boolean }): RillFunction {
+      return {
+        params: [],
+        fn: () =>
+          createRillStream({
+            chunks: asyncIterableThatThrowsAfterOne(),
+            resolve: async () => 0,
+            dispose: () => {
+              disposed.called = true;
+            },
+          }),
+      };
+    }
+
+    /** AsyncIterable yielding one chunk, then throwing on the next pull. */
+    function asyncIterableThatThrowsAfterOne(): AsyncIterable<RillValue> {
+      return {
+        [Symbol.asyncIterator]() {
+          let i = 0;
+          return {
+            async next() {
+              if (i === 0) {
+                i++;
+                return { value: 1, done: false as const };
+              }
+              throw new Error('mid-stream boom');
+            },
+          };
+        },
+      };
+    }
+
+    it('a throw inside seq disposes the stream and halts (uncaught)', async () => {
+      const disposed = { called: false };
+      const err = await run('make_stream() -> seq({ $ })', {
+        functions: { make_stream: makeMidStreamThrowFn(disposed) },
+      }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      expect((err as Error).message).toContain('mid-stream boom');
+      expect(disposed.called).toBe(true);
+    });
+
+    it('a throw inside seq disposes the stream and prevents the next statement from running', async () => {
+      const disposed = { called: false };
+      let markRan = false;
+      const err = await run(
+        'make_stream() -> seq({ $ }) => $r\nmark() => $after',
+        {
+          functions: {
+            make_stream: makeMidStreamThrowFn(disposed),
+            mark: {
+              params: [],
+              fn: () => {
+                markRan = true;
+                return null;
+              },
+            },
+          },
+        }
+      ).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      expect(disposed.called).toBe(true);
+      expect(markRan).toBe(false);
+    });
+
+    it('a throw inside seq is recoverable via guard, carrying the original message', async () => {
+      const disposed = { called: false };
+      const result = await run(
+        'guard { make_stream() -> seq({ $ }) } => $r\n$r.!message',
+        { functions: { make_stream: makeMidStreamThrowFn(disposed) } }
+      );
+      expect(result).toContain('mid-stream boom');
+      expect(disposed.called).toBe(true);
+    });
+
+    it('a throw inside fold disposes the stream and halts (uncaught)', async () => {
+      const disposed = { called: false };
+      const err = await run('make_stream() -> fold(0, { $@ + $ })', {
+        functions: { make_stream: makeMidStreamThrowFn(disposed) },
+      }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      expect((err as Error).message).toContain('mid-stream boom');
+      expect(disposed.called).toBe(true);
+    });
+
+    it('a throw inside fold disposes the stream and prevents the next statement from running', async () => {
+      const disposed = { called: false };
+      let markRan = false;
+      const err = await run(
+        'make_stream() -> fold(0, { $@ + $ }) => $r\nmark() => $after',
+        {
+          functions: {
+            make_stream: makeMidStreamThrowFn(disposed),
+            mark: {
+              params: [],
+              fn: () => {
+                markRan = true;
+                return null;
+              },
+            },
+          },
+        }
+      ).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      expect(disposed.called).toBe(true);
+      expect(markRan).toBe(false);
+    });
+
+    it('a throw inside fold is recoverable via guard, carrying the original message', async () => {
+      const disposed = { called: false };
+      const result = await run(
+        'guard { make_stream() -> fold(0, { $@ + $ }) } => $r\n$r.!message',
+        { functions: { make_stream: makeMidStreamThrowFn(disposed) } }
+      );
+      expect(result).toContain('mid-stream boom');
+      expect(disposed.called).toBe(true);
+    });
+  });
 });
 
 describe('Host function return-value validation (non-finite numbers)', () => {

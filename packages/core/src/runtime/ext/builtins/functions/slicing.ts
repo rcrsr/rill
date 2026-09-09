@@ -140,7 +140,8 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
             clamped,
             evaluator,
             loc,
-            (ctx as RuntimeContext).sourceId
+            (ctx as RuntimeContext).sourceId,
+            true
           );
           return elements;
         } finally {
