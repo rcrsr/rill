@@ -53,13 +53,11 @@ function pendingRun(): {
 }
 
 describe('App', () => {
-  let originalLocalStorage: Storage;
-
   beforeEach(() => {
-    // Mock localStorage
-    originalLocalStorage = global.localStorage;
+    // Mock localStorage. happy-dom exposes window.localStorage as a getter-only
+    // property, so it must be stubbed rather than assigned.
     const storage = new Map<string, string>();
-    global.localStorage = {
+    vi.stubGlobal('localStorage', {
       getItem: (key: string) => storage.get(key) ?? null,
       setItem: (key: string, value: string) => storage.set(key, value),
       removeItem: (key: string) => storage.delete(key),
@@ -68,11 +66,11 @@ describe('App', () => {
       get length() {
         return storage.size;
       },
-    } as Storage;
+    } as Storage);
   });
 
   afterEach(() => {
-    global.localStorage = originalLocalStorage;
+    vi.unstubAllGlobals();
     cleanup();
     vi.restoreAllMocks();
   });

@@ -185,7 +185,7 @@ describe('EC-3: builder does not validate inputs (doc-only)', () => {
     const fs = await import('node:fs/promises');
     const path = await import('node:path');
     const source = await fs.readFile(
-      path.resolve(process.cwd(), 'src/runtime/core/types/halt.ts'),
+      path.resolve(import.meta.dirname, '../../src/runtime/core/types/halt.ts'),
       'utf8'
     );
     expect(source).toContain('Caller responsibility:');
