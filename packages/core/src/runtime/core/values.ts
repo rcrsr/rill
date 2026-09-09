@@ -17,6 +17,7 @@ import type { RillCallable } from './callable.js';
 import {
   isCallable as _isCallableGuard,
   isDatetime,
+  isDict,
   isDuration,
   isIterator,
   isOrdered,
@@ -35,7 +36,10 @@ import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
 } from './types/registrations.js';
-import { setDictField, typedKeyEntries } from './types/dict-keys.js';
+import {
+  setDictField,
+  typedKeyEntries as internalTypedKeyEntries,
+} from './types/dict-keys.js';
 import type {
   RillTypeValue,
   RillValue,
@@ -119,6 +123,32 @@ export function toNative(value: RillValue): NativeResult {
   return { rillTypeName, rillTypeSignature, value: nativeValue };
 }
 
+/**
+ * Number/boolean-keyed entries of a dict, preserving each key's JS type.
+ *
+ * `toNative()` is insufficient for a host that needs to read a dict's typed
+ * keys while keeping the value a live RillValue: it recursively coerces the
+ * whole dict (and every nested value) into native descriptors, destroying
+ * the RillValue shapes a host may still need to hand back into the runtime
+ * (e.g. to a closure or another host call). This accessor reads the typed
+ * keys in place, without converting anything.
+ *
+ * Returns `[]` — never `undefined` — for any non-dict RillValue (`null`, a
+ * primitive, a list, or any branded value such as a stream, vector,
+ * datetime, duration, ordered value, or type value), and for a dict with no
+ * number/boolean keys. The `isDict` guard alone is not enough to exclude
+ * branded objects (several call sites elsewhere pair it with an explicit
+ * `!isStream(...)` check for the same reason), so this also confirms via
+ * `inferType`, which dispatches through the same identity checks that put
+ * dict last as a fallback and so classifies branded values correctly.
+ */
+export function getTypedKeyEntries(
+  value: RillValue
+): ReadonlyArray<{ key: number | boolean; value: RillValue }> {
+  if (!isDict(value) || inferType(value) !== 'dict') return [];
+  return internalTypedKeyEntries(value);
+}
+
 function toNativeValue(value: RillValue): NativeValue {
   if (value === null) return null;
   if (typeof value === 'string') return value;
@@ -193,10 +223,12 @@ function toNativeValue(value: RillValue): NativeValue {
   // Number/boolean keys are held in a non-enumerable sidecar, so
   // Object.entries above skips them. Surface them, with their original
   // number/boolean key, under a reserved sidecar field.
-  const typedEntries = typedKeyEntries(dict).map(({ key, value: v }) => ({
-    key,
-    value: toNativeValue(v),
-  }));
+  const typedEntries = internalTypedKeyEntries(dict).map(
+    ({ key, value: v }) => ({
+      key,
+      value: toNativeValue(v),
+    })
+  );
   if (typedEntries.length > 0) {
     setDictField(result, '__rill_typed_keys', typedEntries);
   }
@@ -239,6 +271,7 @@ const RESERVED_BRAND_KEYS = [
   '__rill_type',
   '__rill_stream',
   '__rill_stream_resolve',
+  '__rill_stream_head',
   '__rill_stream_dispose',
   '__rill_stream_chunk_type',
   '__rill_stream_ret_type',

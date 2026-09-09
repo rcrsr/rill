@@ -671,6 +671,18 @@ type CallableFn = (
 
 **Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]`; their internal type cast is unchanged.
 
+### Typed dict keys
+
+```typescript
+const fn: CallableFn = (args) => {
+  const someDict = args.someDict; // dict[1: "a", "1": "b"]
+  Object.keys(someDict); // -> ["1"], the number key 1 is missing
+  getTypedKeyEntries(someDict); // -> [{ key: 1, value: "a" }]
+};
+```
+
+A dict value in `args` is a live `RillValue`; its number- and boolean-keyed entries do not appear in `Object.keys`/`Object.entries`. See `getTypedKeyEntries()`, which returns each such entry with its original `number`/`boolean` key type, without converting the dict.
+
 ---
 
 ## RillFunction

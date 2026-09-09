@@ -178,12 +178,17 @@ export interface RillAtomValue {
  * - value?: any - current chunk value; present on produced steps when done is
  *   false, absent on the pending head step (no chunk produced yet) and on the
  *   terminal done step
+ * - __rill_stream_head?: true - non-enumerable, present only on the pending
+ *   head object returned by `createRillStream`. Pure identity discriminator
+ *   used by host-boundary brand-shape validation to accept a value-less,
+ *   non-done step; never read to gate resolution or to advance/stale a step
  */
 export interface RillStream extends Record<string, RillValue> {
   readonly __rill_stream: true;
   readonly done: boolean;
   readonly next: CallableMarker;
   readonly value?: RillValue;
+  readonly __rill_stream_head?: true;
 }
 
 /** Any value that can flow through Rill */
