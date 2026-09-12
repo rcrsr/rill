@@ -18,7 +18,7 @@ const ctx = createRuntimeContext({
     prompt: {
       params: [{ name: 'text', type: { kind: 'string' } }],
       fn: async (args) => {
-        return await callYourLLM(args[0]);
+        return await callYourLLM(args.text);
       },
     },
   },
@@ -41,6 +41,8 @@ The `createRuntimeContext()` function accepts these options:
 | `timeout` | `number` | Timeout in ms for async functions |
 | `autoExceptions` | `string[]` | Regex patterns that halt execution |
 | `signal` | `AbortSignal` | Cancellation signal |
+| `maxCallDepth` | `number` | Maximum nested closure-call depth before a fatal `RILL-R010` halt (default 1000) |
+| `maxCallStackDepth` | `number` | Maximum stored call-stack trace frames (default 100); trims trace history, never halts execution — distinct from `maxCallDepth` above |
 | `requireDescriptions` | `boolean` | Require descriptions for all functions and parameters |
 | `resolvers` | `Record<string, SchemeResolver> \| undefined` | Scheme-to-resolver map for `use<scheme:...>` imports |
 | `configurations` | `{ resolvers?: Record<string, unknown> } \| undefined` | Per-scheme config data passed to each resolver |
@@ -60,7 +62,7 @@ functions: {
   addItem: {
     params: [{ name: 'list', type: { kind: 'list' } }],
     fn: (args) => {
-      const list = args[0] as unknown[];
+      const list = args.list as unknown[];
       list.push('new');  // DON'T DO THIS
       return list;
     },
@@ -72,7 +74,7 @@ functions: {
   addItem: {
     params: [{ name: 'list', type: { kind: 'list' } }],
     fn: (args) => {
-      const list = args[0] as unknown[];
+      const list = args.list as unknown[];
       return [...list, 'new'];  // Create new array
     },
   },
@@ -90,7 +92,7 @@ functions: {
   process: {
     params: [{ name: 'input', type: { kind: 'string' } }],
     fn: (args) => {
-      const frozen = deepFreeze(args[0]);
+      const frozen = deepFreeze(args.input);
       return transform(frozen);  // Any mutation throws
     },
   },
@@ -101,7 +103,17 @@ functions: {
 
 - Return new values instead of modifying inputs
 - Return `RillValue` types (string, number, boolean, array, object, or `RillCallable`)
-- Avoid returning `null` or `undefined`—use empty string `''` or empty array `[]` instead
+- Use empty string `''` or empty array `[]` instead of returning nothing
+
+Returning `undefined`, `null`, a `bigint`, a `Symbol`, a `Date`, a `Map`, a `Set`, a raw function, or any other non-plain class instance halts execution at the call boundary with `RILL-R085`, fatal and not recoverable via `guard` or `??`. The same holds when one of these values is nested inside a returned array or plain object—the walk descends into every element and field. The error message names the host function and the offending path and JavaScript type, for example `Host function 'fetchUser' returned an invalid value at .createdAt: Date`.
+
+Returning a non-finite number (`NaN`, `Infinity`, `-Infinity`)—including one nested inside a returned array or plain object—halts at the call boundary with a catchable `#INVALID_INPUT` halt, recoverable via `guard` and `??`, unlike the shape violations above, which are fatal `RILL-R085`. The message names the host function, the offending path, and the value, for example `Host function 'fetchRatio' returned a non-finite number at <root>: NaN`.
+
+```text
+# Error: #INVALID_INPUT — fetchRatio returned NaN
+guard { fetchRatio() } => $result
+$result ?? -1
+```
 
 ## Value Types
 
@@ -124,14 +136,14 @@ const ctx = createRuntimeContext({
         { name: 'a', type: { kind: 'number' } },
         { name: 'b', type: { kind: 'number' } },
       ],
-      fn: (args) => args[0] + args[1],
+      fn: (args) => args.a + args.b,
     },
 
     // Async function
     fetch: {
       params: [{ name: 'url', type: { kind: 'string' } }],
       fn: async (args, ctx, location) => {
-        const response = await fetch(args[0]);
+        const response = await fetch(args.url);
         return await response.text();
       },
     },
@@ -140,7 +152,7 @@ const ctx = createRuntimeContext({
     getVar: {
       params: [{ name: 'name', type: { kind: 'string' } }],
       fn: (args, ctx) => {
-        return ctx.variables.get(args[0]) ?? null;
+        return ctx.variables.get(args.name) ?? null;
       },
     },
 
@@ -148,10 +160,10 @@ const ctx = createRuntimeContext({
     validate: {
       params: [{ name: 'value', type: { kind: 'string' } }],
       fn: (args, ctx, location) => {
-        if (!args[0]) {
+        if (!args.value) {
           throw new Error(`Validation failed at line ${location?.line}`);
         }
-        return args[0];
+        return args.value;
       },
     },
   },
@@ -171,35 +183,35 @@ const ctx = createRuntimeContext({
         { name: 'a', type: { kind: 'number' } },
         { name: 'b', type: { kind: 'number' } },
       ],
-      fn: (args) => args[0] + args[1],
+      fn: (args) => args.a + args.b,
     },
     'math::multiply': {
       params: [
         { name: 'a', type: { kind: 'number' } },
         { name: 'b', type: { kind: 'number' } },
       ],
-      fn: (args) => args[0] * args[1],
+      fn: (args) => args.a * args.b,
     },
     'str::upper': {
       params: [{ name: 'text', type: { kind: 'string' } }],
-      fn: (args) => args[0].toUpperCase(),
+      fn: (args) => args.text.toUpperCase(),
     },
     'str::lower': {
       params: [{ name: 'text', type: { kind: 'string' } }],
-      fn: (args) => args[0].toLowerCase(),
+      fn: (args) => args.text.toLowerCase(),
     },
 
     // Multi-level namespaces
     'io::file::read': {
       params: [{ name: 'path', type: { kind: 'string' } }],
-      fn: async (args) => fs.readFile(args[0], 'utf-8'),
+      fn: async (args) => fs.readFile(args.path, 'utf-8'),
     },
     'io::file::write': {
       params: [
         { name: 'path', type: { kind: 'string' } },
         { name: 'content', type: { kind: 'string' } },
       ],
-      fn: async (args) => fs.writeFile(args[0], args[1]),
+      fn: async (args) => fs.writeFile(args.path, args.content),
     },
   },
 });
@@ -227,7 +239,7 @@ use<ext:llm> => $llm
 [name: "string", age: "number", active: "bool"] => $schema
 
 $llm.generate("Extract user info from the following text: Alice, 30, active.", [
-  schema: $schema,
+  schema: $schema
 ]) => $result
 
 $result.data.name    # "Alice"
@@ -247,7 +259,7 @@ The `fn` property in `RillFunction` uses the `CallableFn` type:
 
 ```typescript
 type CallableFn = (
-  args: RillValue[],
+  args: Record<string, RillValue>,
   ctx: RuntimeContextLike,
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
@@ -255,9 +267,11 @@ type CallableFn = (
 
 | Parameter | Description |
 |-----------|-------------|
-| `args` | Positional arguments passed to the function (already validated against `params`) |
+| `args` | Named arguments keyed by parameter name (already validated against `params`) |
 | `ctx` | Runtime context with variables, pipeValue, and session metadata |
 | `location` | Source location of the call site (for error reporting) |
+
+Untyped callables created via `callable()` (no `params`) still receive `RillValue[]`.
 
 ### Session Metadata in Host Functions
 
@@ -280,8 +294,8 @@ functions: {
     params: [{ name: 'msg', type: { kind: 'string' } }],
     fn: (args, ctx) => {
       const correlationId = ctx.metadata?.correlationId ?? 'unknown';
-      console.log(`[${correlationId}] ${args[0]}`);
-      return args[0];
+      console.log(`[${correlationId}] ${args.msg}`);
+      return args.msg;
     },
   },
 }
@@ -306,9 +320,9 @@ const ctx = createRuntimeContext({
         { name: 'count', type: { kind: 'number' }, defaultValue: 1 },
       ],
       fn: (args) => {
-        // args[0] guaranteed to be string
-        // args[1] guaranteed to be number (or default)
-        return args[0].repeat(args[1]);
+        // args.str guaranteed to be string
+        // args.count guaranteed to be number (or default)
+        return args.str.repeat(args.count);
       },
     },
   },
@@ -351,7 +365,7 @@ functions: {
       { name: 'name', type: { kind: 'string' } },
       { name: 'greeting', type: { kind: 'string' }, defaultValue: 'Hello' },
     ],
-    fn: (args) => `${args[1]}, ${args[0]}!`,
+    fn: (args) => `${args.greeting}, ${args.name}!`,
   },
 }
 ```
@@ -383,9 +397,9 @@ functions: {
       },
     ],
     fn: (args) => {
-      // args[0] is always a tuple with 2 elements
+      // args.point is always a tuple with 2 elements
       // If caller passed (42,), runtime fills element 1 with "unnamed"
-      const point = args[0] as { __rill_tuple: true; entries: unknown[] };
+      const point = args.point as { __rill_tuple: true; entries: unknown[] };
       return `${point.entries[1]}: ${point.entries[0]}`;
     },
   },
@@ -464,7 +478,7 @@ const ctx = createRuntimeContext({
       ],
       description: 'Generate a greeting message',
       returnType: { kind: 'string' },
-      fn: (args) => `Hello, ${args[0]}!`,
+      fn: (args) => `Hello, ${args.name}!`,
     },
   },
 });
@@ -483,7 +497,7 @@ const ctx = createRuntimeContext({
   functions: {
     greet: {
       signature: '|name: string| :string',
-      fn: (args) => `Hello, ${args[0]}!`,
+      fn: (args) => `Hello, ${args.name}!`,
     },
   },
 });
@@ -497,7 +511,7 @@ Signature strings support the full rill closure annotation syntax, including par
 functions: {
   repeat: {
     signature: '|^("Times to repeat") count: number = 3, text: string| :string',
-    fn: (args) => String(args[1]).repeat(args[0]),
+    fn: (args) => String(args.text).repeat(args.count),
   },
 }
 ```
@@ -527,7 +541,7 @@ Example output for a context with `greet` and `repeat` functions:
 ```text
 [
   "greet": |name: string|:string,
-  "repeat": |count: number = 3, text: string|:string,
+  "repeat": |count: number = 3, text: string|:string
 ]
 ```
 
@@ -547,6 +561,7 @@ Hosts can create first-class callable values that scripts can store, pass, and i
 import { callable, isCallable, isApplicationCallable } from '@rcrsr/rill';
 
 // Create a callable
+// Untyped callable: params is undefined, args is RillValue[] (no marshaling)
 const greet = callable((args) => `Hello, ${args[0]}!`);
 
 // Use in variables
@@ -582,6 +597,7 @@ const ctx = createRuntimeContext({
       lastName: 'Doe',
       // Auto-invokes on access, receives bound dict
       fullName: callable((args) => {
+        // Property-style callable: args[0] is the bound dict this callable was accessed from, not a positional argument
         const dict = args[0] as Record<string, RillValue>;
         return `${dict.firstName} ${dict.lastName}`;
       }, true),
@@ -601,6 +617,7 @@ const ctx = createRuntimeContext({
   variables: {
     math: {
       add: callable((args) => {
+        // Untyped callable: params is undefined, args is RillValue[] (no marshaling)
         const a = typeof args[0] === 'number' ? args[0] : 0;
         const b = typeof args[1] === 'number' ? args[1] : 0;
         return a + b;
@@ -716,7 +733,7 @@ functions: {
   fetchData: {
     params: [{ name: 'url', type: { kind: 'string' } }],
     fn: async (args, ctx) => {
-      const response = await fetch(args[0] as string, {
+      const response = await fetch(args.url as string, {
         signal: ctx.signal,  // propagate abort to the fetch
       });
       return await response.text();
@@ -919,7 +936,7 @@ const ctx = createRuntimeContext({
       fn: (args) => {
         // If this returns "error: invalid input",
         // execution halts with a non-catchable RuntimeHaltSignal (atom #R999)
-        return externalProcess(args[0]);
+        return externalProcess(args.input);
       },
     },
   },

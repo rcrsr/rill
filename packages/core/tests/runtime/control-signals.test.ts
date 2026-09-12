@@ -12,7 +12,11 @@ import { describe, expect, it } from 'vitest';
 import {
   BreakSignal,
   ControlSignal,
+  createRuntimeContext,
+  createStepper,
+  parse,
   ReturnSignal,
+  RuntimeError,
   RuntimeHaltSignal,
   YieldSignal,
 } from '@rcrsr/rill';
@@ -161,18 +165,68 @@ describe('ControlSignal abstract enforcement [EC-2]', () => {
 // ============================================================
 
 describe('break at outermost statement boundary [BC-NOD-4]', () => {
-  it('propagates BreakSignal out of execute() when no enclosing loop exists', async () => {
-    // reshapeUnhandledThrow returns undefined for BreakSignal (preserves
-    // pre-migration behavior), so the signal propagates as a rejected promise.
-    // Use an explicit value "1 -> break" to avoid the unbound-$ error that
-    // a bare `break` (which desugars to `$ -> break`) triggers when pipeValue=null.
-    await expect(run('1 -> break')).rejects.toBeInstanceOf(BreakSignal);
+  it('converts to a coded RuntimeError instead of escaping as a raw BreakSignal', async () => {
+    // The top-level statement stepper routes an escaped BreakSignal through
+    // rejectBreakAsHalt before reshapeUnhandledThrow runs, converting it to a
+    // fatal, non-catchable halt. Use an explicit value "1 -> break" to avoid
+    // the unbound-$ error that a bare `break` (which desugars to `$ -> break`)
+    // triggers when pipeValue=null.
+    const err = await run('1 -> break').catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(BreakSignal);
+    expect(err).toBeInstanceOf(RuntimeError);
+    expect((err as RuntimeError).errorId).toBe('RILL-R002');
+  });
+});
+
+// ============================================================
+// Stepper termination on top-level break/return signals
+// ============================================================
+
+describe('createStepper: top-level break/return termination', () => {
+  it('a top-level break escapes step() as a fatal RuntimeHaltSignal, converted to RuntimeError only at execute()', async () => {
+    // The stepper's own try/catch converts the raw BreakSignal into a
+    // RuntimeHaltSignal via rejectBreakAsHalt and rethrows the signal
+    // unchanged, so callers driving the stepper directly still observe
+    // the pre-conversion signal. execute() (used by run()) wraps the
+    // stepper loop in its own try/catch that performs the RuntimeError
+    // conversion.
+    const ast = parse('1 -> break');
+    const ctx = createRuntimeContext();
+    const stepper = createStepper(ast, ctx);
+
+    const err = await stepper.step().catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(BreakSignal);
+    expect(err).toBeInstanceOf(RuntimeHaltSignal);
+
+    // The stepper must reach a done state after the halt so a
+    // subsequent step() cannot re-execute the same statement (it
+    // short-circuits at the `isDone` guard instead of re-running the
+    // break statement and re-throwing).
+    expect(stepper.done).toBe(true);
+    const replay = await stepper.step();
+    expect(replay.done).toBe(true);
+
+    // getResult() surfaces the halt's invalid value, not a stale
+    // pre-halt lastValue.
+    expect(stepper.getResult().result).toBe((err as RuntimeHaltSignal).value);
+
+    // run() (execute()) still converts the same script to the coded
+    // RuntimeError, confirming top-level break keeps its existing
+    // host-facing contract.
+    const runErr = await run('1 -> break').catch((e: unknown) => e);
+    expect(runErr).toBeInstanceOf(RuntimeError);
+    expect((runErr as RuntimeError).errorId).toBe('RILL-R002');
   });
 
-  it('propagated BreakSignal carries the value at the throw site', async () => {
-    // "1 -> break" evaluates 1 then throws BreakSignal(1).
-    const err = await run('1 -> break').catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(BreakSignal);
-    expect((err as BreakSignal).value).toBe(1);
+  it('a top-level return marks the stepper done and captures the returned value', async () => {
+    const ast = parse('42 -> return');
+    const ctx = createRuntimeContext();
+    const stepper = createStepper(ast, ctx);
+
+    const result = await stepper.step();
+    expect(result.done).toBe(true);
+    expect(result.value).toBe(42);
+    expect(stepper.done).toBe(true);
+    expect(stepper.getResult().result).toBe(42);
   });
 });

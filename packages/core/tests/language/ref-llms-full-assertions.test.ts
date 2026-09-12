@@ -664,7 +664,7 @@ describe('ref-llms-full: Dispatch Operators', () => {
 
   it('hierarchical dispatch: nested dict', async () => {
     expect(
-      await run('list["name", "first"] -> dict[name: dict[first: "Alice"]]')
+      await run('list["name", "given"] -> dict[name: dict[given: "Alice"]]')
     ).toBe('Alice');
   });
 

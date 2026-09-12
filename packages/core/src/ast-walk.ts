@@ -97,6 +97,16 @@ function astChildren(node: ASTNode): ASTNode[] {
     }
     case 'PostfixExpr': {
       const children: ASTNode[] = [node.primary, ...node.methods];
+      if (node.existenceCheck) {
+        if (node.existenceCheck.finalAccess !== null) {
+          children.push(
+            ...propertyAccessChildren(node.existenceCheck.finalAccess)
+          );
+        }
+        if (node.existenceCheck.typeRef !== null) {
+          children.push(...typeRefChildren(node.existenceCheck.typeRef));
+        }
+      }
       if (node.defaultValue !== null) children.push(node.defaultValue);
       return children;
     }
@@ -106,6 +116,8 @@ function astChildren(node: ASTNode): ASTNode[] {
       return [...node.args];
     case 'AnnotationAccess':
       return [];
+    case 'IndexAccess':
+      return [node.index];
     case 'HostCall':
       return [...node.args];
     case 'HostRef':
@@ -120,9 +132,11 @@ function astChildren(node: ASTNode): ASTNode[] {
         children.push(...propertyAccessChildren(access));
       }
       if (node.existenceCheck !== null) {
-        children.push(
-          ...propertyAccessChildren(node.existenceCheck.finalAccess)
-        );
+        if (node.existenceCheck.finalAccess !== null) {
+          children.push(
+            ...propertyAccessChildren(node.existenceCheck.finalAccess)
+          );
+        }
         if (node.existenceCheck.typeRef !== null) {
           children.push(...typeRefChildren(node.existenceCheck.typeRef));
         }
@@ -209,7 +223,13 @@ function astChildren(node: ASTNode): ASTNode[] {
     case 'TypeConstructor':
       return fieldArgsChildren(node.args);
     case 'ClosureSigLiteral':
-      return [...node.params.map((param) => param.typeExpr), node.returnType];
+      return [
+        ...node.params.flatMap((param) => [
+          ...(param.annotations ?? []),
+          param.typeExpr,
+        ]),
+        node.returnType,
+      ];
     case 'AnnotatedStatement':
       return [...node.annotations, node.statement];
     case 'AnnotatedExpr':
@@ -440,6 +460,7 @@ function ownsOffset(node: ASTNode, offset: number): boolean {
   }
   return (
     variable.existenceCheck !== null &&
+    variable.existenceCheck.finalAccess !== null &&
     accessSegmentContains(variable.existenceCheck.finalAccess, offset)
   );
 }

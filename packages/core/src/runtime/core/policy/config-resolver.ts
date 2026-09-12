@@ -36,7 +36,7 @@ import { ERROR_IDS } from '../../../error-registry.js';
  * The `"*"` rule is access-control only. Transforms conform to the
  * signature of the method they wrap, and one signature cannot cover a
  * heterogeneous set of methods; deny needs no signature. A `"*"` rule
- * carrying `in` or `out` is rejected (RILL-R084).
+ * carrying `in` or `out` is rejected (RILL-R086).
  *
  * ## Scope
  *
@@ -49,8 +49,8 @@ import { ERROR_IDS } from '../../../error-registry.js';
  * @param extensions - Map of mounted extension names to their values
  *                     (the RillValue dicts returned by extension factories)
  * @returns Deeply frozen ResolvedPolicy with references replaced by callables
- * @throws RuntimeError RILL-R084 if a wildcard rule declares transforms
- * @throws RuntimeError RILL-R085 if a transform reference can't be resolved
+ * @throws RuntimeError RILL-R086 if a wildcard rule declares transforms
+ * @throws RuntimeError RILL-R087 if a transform reference can't be resolved
  */
 export function resolvePolicy(
   config: PolicyConfig,
@@ -69,7 +69,7 @@ export function resolvePolicy(
         // to reference.
         if (hasTransforms(rule)) {
           throw new RuntimeError(
-            ERROR_IDS.RILL_R084,
+            ERROR_IDS.RILL_R086,
             `Wildcard rule "*" on extension "${extName}" cannot have ` +
               `in/out transforms. Wildcard is access-control only.`,
             undefined,
@@ -129,7 +129,7 @@ function resolveRule(
  * Each reference is "extName.method" format. Looks up the extension
  * dict, then the method on it.
  *
- * @throws RuntimeError (RILL-R085) if the extension or method is not found
+ * @throws RuntimeError (RILL-R087) if the extension or method is not found
  */
 function resolveTransforms(
   refs: readonly string[],
@@ -186,7 +186,7 @@ function resolveTransforms(
 
 function invalidReference(ref: string, reason: string): RuntimeError {
   return new RuntimeError(
-    ERROR_IDS.RILL_R085,
+    ERROR_IDS.RILL_R087,
     `Transform reference "${ref}": ${reason}`,
     undefined,
     { reference: ref, reason }

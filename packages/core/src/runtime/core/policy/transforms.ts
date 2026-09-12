@@ -45,7 +45,7 @@ export type TransformInvoker = (
  * @param invoke - Dispatches a single transform
  * @param inFlight - Transforms already running in this context tree
  * @param site - Halt site used when a cycle is detected
- * @throws RILL-R087 (catchable) if a transform re-enters itself
+ * @throws RILL-R089 (catchable) if a transform re-enters itself
  */
 export async function applyTransforms(
   transforms: readonly RillCallable[],
@@ -62,7 +62,7 @@ export async function applyTransforms(
       const ref = describe(transform);
       throwCatchableHostHalt(
         site,
-        ERROR_ATOMS[ERROR_IDS.RILL_R087],
+        ERROR_ATOMS[ERROR_IDS.RILL_R089],
         `Policy transform cycle detected: ${ref} is already running`,
         { reference: ref }
       );

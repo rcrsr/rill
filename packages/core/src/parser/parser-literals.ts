@@ -24,6 +24,7 @@ import type {
   RecoveryErrorNode,
   SourceLocation,
   StringLiteralNode,
+  Token,
   TupleLiteralNode,
   TypeConstructorNode,
   TypeRef,
@@ -36,17 +37,73 @@ import {
   expect,
   current,
   peek,
+  previous,
   skipNewlines,
+  skipNewlinesIfFollowedBy,
   makeSpan,
+  reportError,
+  type ParserState,
 } from './state.js';
 import {
   ATOM_NAME_SHAPE,
+  expectVariableName,
   isDictStart,
   isNegativeNumber,
   VALID_TYPE_NAMES,
 } from './helpers.js';
 import { parseTypeRef, parseFieldArgList } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
+
+// The lexer's readString() attaches this decoded-index-to-source-offset
+// breakpoint list to a STRING token when the string contains at least one
+// backslash escape. Token itself stays a plain { type, value, span } shape
+// (packages/core/src/token-types.ts) — this is a local, additive view onto
+// that same object rather than a change to the shared interface.
+interface StringTokenEscapeMap {
+  readonly escapeBreakpoints?: readonly number[];
+}
+
+/**
+ * Translates an index into a lexer-decoded string (post escape-decoding)
+ * back into the equivalent offset within the raw source text of that
+ * string's body.
+ *
+ * Each backslash escape (\n, \r, \t, \\, \") collapses a 2-character raw
+ * sequence into a single decoded character, so a decoded-string index
+ * undercounts the true source offset by one per escape that precedes it.
+ * `breakpoints` holds, in ascending order, the decoded length recorded
+ * immediately after each escape was appended; counting how many of those
+ * breakpoints are at or before `decodedIndex` gives the cumulative
+ * undercount to add back.
+ *
+ * Triple-quoted strings never decode escapes (readTripleQuoteString keeps
+ * them raw), so `breakpoints` is always undefined on that path and this
+ * function is a no-op identity translation for it.
+ */
+function mapDecodedIndexToSourceOffset(
+  decodedIndex: number,
+  breakpoints: readonly number[] | undefined
+): number {
+  if (breakpoints === undefined || breakpoints.length === 0) {
+    return decodedIndex;
+  }
+  // breakpoints is built in ascending order (readString pushes
+  // value.length after each escape, and value only grows), so the count of
+  // breakpoints at or before decodedIndex — the delta to add back — is the
+  // standard "rightmost insertion point" binary search rather than a linear
+  // scan, which matters for strings with many escapes and interpolations.
+  let lo = 0;
+  let hi = breakpoints.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (breakpoints[mid]! > decodedIndex) {
+      hi = mid;
+    } else {
+      lo = mid + 1;
+    }
+  }
+  return decodedIndex + lo;
+}
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -58,7 +115,8 @@ declare module './parser.js' {
       raw: string,
       baseLocation: SourceLocation,
       isTripleQuote: boolean,
-      openingNewlineConsumed: boolean
+      openingNewlineWidth: number,
+      escapeBreakpoints?: readonly number[]
     ): (string | InterpolationNode)[];
     parseInterpolationExpr(
       source: string,
@@ -106,6 +164,12 @@ Parser.prototype.parseAtomLiteral = function (
 
   if (!ATOM_NAME_SHAPE.test(name)) {
     const message = `Invalid atom name '#${name}'; expected [A-Z][A-Z0-9_]*`;
+    // Record the error on the parser's error collection so
+    // parseWithRecovery reports success: false for shape-invalid atoms.
+    // Without this call, parser.errors remains empty and the caller
+    // incorrectly reports a successful parse despite a RecoveryErrorNode
+    // in the AST.
+    reportError(this.state, ERROR_IDS.RILL_P004, message, token.span.start);
     return {
       type: 'RecoveryError',
       message,
@@ -153,6 +217,41 @@ Parser.prototype.parseLiteral = function (this: Parser): LiteralNode {
     return this.parseTupleOrDict();
   }
 
+  // Negative number literal: -42
+  if (isNegativeNumber(this.state)) {
+    const start = current(this.state).span.start;
+    advance(this.state); // consume MINUS
+    const numToken = advance(this.state); // consume NUMBER
+    return {
+      type: 'NumberLiteral',
+      value: -parseFloat(numToken.value),
+      span: makeSpan(start, numToken.span.end),
+    };
+  }
+
+  // Atom literal: #NAME
+  if (check(this.state, TOKEN_TYPES.ATOM)) {
+    return this.parseAtomLiteral();
+  }
+
+  // Keyword-prefixed collection literals: list[...], dict[...], tuple[...], ordered[...]
+  if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
+    advance(this.state);
+    return this.parseCollectionLiteral('list');
+  }
+  if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
+    advance(this.state);
+    return this.parseCollectionLiteral('dict');
+  }
+  if (check(this.state, TOKEN_TYPES.TUPLE_LBRACKET)) {
+    advance(this.state);
+    return this.parseCollectionLiteral('tuple');
+  }
+  if (check(this.state, TOKEN_TYPES.ORDERED_LBRACKET)) {
+    advance(this.state);
+    return this.parseCollectionLiteral('ordered');
+  }
+
   const token = current(this.state);
   let hint = '';
   if (token.type === TOKEN_TYPES.ASSIGN) {
@@ -180,14 +279,31 @@ Parser.prototype.parseString = function (this: Parser): StringLiteralNode {
   const startOffset = token.span.start.offset;
   const isTripleQuote =
     this.state.source.slice(startOffset, startOffset + 3) === '"""';
-  const openingNewlineConsumed =
-    isTripleQuote && this.state.source[startOffset + 3] === '\n';
+  // The lexer skips a Python-style opening newline after the delimiter,
+  // consuming a CRLF pair (\r\n) as a unit or a bare LF (\n) alone. The
+  // parser must consume the matching width here so offset/line math for
+  // any interpolation later in the string stays aligned with the lexer.
+  let openingNewlineWidth = 0;
+  if (isTripleQuote) {
+    if (
+      this.state.source[startOffset + 3] === '\r' &&
+      this.state.source[startOffset + 4] === '\n'
+    ) {
+      openingNewlineWidth = 2;
+    } else if (this.state.source[startOffset + 3] === '\n') {
+      openingNewlineWidth = 1;
+    }
+  }
+
+  const escapeBreakpoints = (token as Token & StringTokenEscapeMap)
+    .escapeBreakpoints;
 
   const parts = this.parseStringParts(
     raw,
     token.span.start,
     isTripleQuote,
-    openingNewlineConsumed
+    openingNewlineWidth,
+    escapeBreakpoints
   );
 
   return {
@@ -203,7 +319,8 @@ Parser.prototype.parseStringParts = function (
   raw: string,
   baseLocation: SourceLocation,
   isTripleQuote: boolean,
-  openingNewlineConsumed: boolean
+  openingNewlineWidth: number,
+  escapeBreakpoints?: readonly number[]
 ): (string | InterpolationNode)[] {
   const parts: (string | InterpolationNode)[] = [];
   let i = 0;
@@ -231,6 +348,34 @@ Parser.prototype.parseStringParts = function (
       let depth = 1;
       i++;
       while (i < raw.length && depth > 0) {
+        if (raw[i] === '"') {
+          // Mirrors the nested-string skip in lexer/readers.ts: a nested
+          // string literal's own brace characters don't belong to the
+          // interpolation's depth count, so skip the whole literal (or, for
+          // a nested triple-quote, the whole triple-quoted unit) instead of
+          // counting braces inside it.
+          if (raw[i + 1] === '"' && raw[i + 2] === '"') {
+            i += 3;
+            while (
+              i < raw.length &&
+              !(raw[i] === '"' && raw[i + 1] === '"' && raw[i + 2] === '"')
+            ) {
+              i++;
+            }
+            if (i < raw.length) i += 3;
+          } else {
+            i++; // consume opening "
+            while (i < raw.length && raw[i] !== '"') {
+              if (raw[i] === '\\') {
+                i += 2;
+              } else {
+                i++;
+              }
+            }
+            if (i < raw.length) i++; // consume closing "
+          }
+          continue;
+        }
         if (raw[i] === '{') depth++;
         else if (raw[i] === '}') depth--;
         i++;
@@ -255,15 +400,19 @@ Parser.prototype.parseStringParts = function (
 
       // Calculate the actual position of the interpolation in the source
       // baseLocation is the string token start (the opening quote(s))
-      // Delimiter length is 1 for " and 3 for """. The +1 line / delimiter+1
-      // offset adjustment for a consumed opening newline only applies when
-      // the lexer actually skipped one (Python-style, """ strings only).
+      // Delimiter length is 1 for " and 3 for """. The line/offset
+      // adjustment for a consumed opening newline only applies when the
+      // lexer actually skipped one (Python-style, """ strings only), and
+      // that skipped newline is 1 source character for a bare \n or 2 for
+      // a \r\n pair — openingNewlineWidth carries that count so a CRLF
+      // opening still maps the offset to the right source character.
       //
       // We need to map the position in raw to absolute source location
       const beforeInterp = raw.slice(0, exprStart);
       const newlines = (beforeInterp.match(/\n/g) || []).length;
       const lastNewlinePos = beforeInterp.lastIndexOf('\n');
       const quoteLen = isTripleQuote ? 3 : 1;
+      const openingNewlineConsumed = openingNewlineWidth > 0;
 
       let interpLine: number;
       let interpColumn: number;
@@ -274,26 +423,82 @@ Parser.prototype.parseStringParts = function (
       const contentStartsOnNextLine = openingNewlineConsumed && newlines === 0;
 
       if (newlines > 0) {
-        // Has newlines in raw content before interpolation
-        interpLine =
-          baseLocation.line + (openingNewlineConsumed ? 1 : 0) + newlines;
-        interpColumn = beforeInterp.length - lastNewlinePos;
-        interpOffset =
-          baseLocation.offset +
-          quoteLen +
-          (openingNewlineConsumed ? 1 : 0) +
-          exprStart;
+        // Has newlines in raw content before interpolation. A decoded '\n'
+        // is not always a real source line break: for double-quoted
+        // strings (escapeBreakpoints defined) a literal raw newline is a
+        // lexer error, so every decoded '\n' that lands exactly at an
+        // escape breakpoint was produced by decoding a \n escape — two
+        // characters on the *same* source line, not a line break. Triple-
+        // quoted strings never decode escapes (escapeBreakpoints is always
+        // undefined there), so every decoded newline they contain is real.
+        const escapeNewlineOffsets = new Set<number>();
+        if (escapeBreakpoints) {
+          for (const bp of escapeBreakpoints) {
+            if (bp - 1 < exprStart && raw[bp - 1] === '\n') {
+              escapeNewlineOffsets.add(bp - 1);
+            }
+          }
+        }
+
+        let realNewlines = newlines;
+        let lastRealNewlinePos = lastNewlinePos;
+        if (escapeNewlineOffsets.size > 0) {
+          realNewlines = 0;
+          lastRealNewlinePos = -1;
+          for (let idx = 0; idx < beforeInterp.length; idx++) {
+            if (beforeInterp[idx] === '\n' && !escapeNewlineOffsets.has(idx)) {
+              realNewlines++;
+              lastRealNewlinePos = idx;
+            }
+          }
+        }
+
+        const sourceExprStart = mapDecodedIndexToSourceOffset(
+          exprStart,
+          escapeBreakpoints
+        );
+
+        if (realNewlines > 0) {
+          const sourceLastNewlinePos = mapDecodedIndexToSourceOffset(
+            lastRealNewlinePos,
+            escapeBreakpoints
+          );
+          interpLine =
+            baseLocation.line + (openingNewlineConsumed ? 1 : 0) + realNewlines;
+          interpColumn = sourceExprStart - sourceLastNewlinePos;
+          interpOffset =
+            baseLocation.offset +
+            quoteLen +
+            openingNewlineWidth +
+            sourceExprStart;
+        } else {
+          // Every decoded newline before the interpolation came from a \n
+          // escape; the interpolation is still on the opening source line.
+          interpLine = baseLocation.line;
+          interpColumn = baseLocation.column + quoteLen + sourceExprStart;
+          interpOffset = baseLocation.offset + quoteLen + sourceExprStart;
+        }
       } else if (contentStartsOnNextLine) {
         // Triple-quote string with skipped opening newline, but interpolation on first content line
         interpLine = baseLocation.line + 1;
         interpColumn = 1 + exprStart;
-        interpOffset = baseLocation.offset + quoteLen + 1 + exprStart;
+        interpOffset =
+          baseLocation.offset + quoteLen + openingNewlineWidth + exprStart;
       } else {
         // Interpolation starts on the same line as the opening delimiter,
-        // whether that delimiter is " or """.
+        // whether that delimiter is " or """. Triple-quoted strings never
+        // decode escapes (escapeBreakpoints is always undefined for them),
+        // so mapDecodedIndexToSourceOffset is a no-op there; for
+        // double-quoted strings it corrects exprStart — an index into the
+        // lexer's escape-decoded value — back to its offset in the raw
+        // source, undoing the one-column-per-preceding-escape undercount.
+        const sourceExprStart = mapDecodedIndexToSourceOffset(
+          exprStart,
+          escapeBreakpoints
+        );
         interpLine = baseLocation.line;
-        interpColumn = baseLocation.column + quoteLen + exprStart;
-        interpOffset = baseLocation.offset + quoteLen + exprStart;
+        interpColumn = baseLocation.column + quoteLen + sourceExprStart;
+        interpOffset = baseLocation.offset + quoteLen + sourceExprStart;
       }
 
       const interpolation = this.parseInterpolationExpr(exprSource, {
@@ -377,9 +582,9 @@ Parser.prototype.parseTuple = function (
   skipNewlines(this.state);
 
   while (check(this.state, TOKEN_TYPES.COMMA)) {
-    advance(this.state);
+    const comma = advance(this.state);
     skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.RBRACKET)) break;
+    rejectTrailingComma(this.state, comma, 'tuple');
     elements.push(this.parseTupleElement());
     skipNewlines(this.state);
   }
@@ -478,14 +683,14 @@ Parser.prototype.parseDict = function (
   start: SourceLocation
 ): DictNode {
   const entries: DictEntryNode[] = [];
-  entries.push(this.parseDictEntry());
+  entries.push(parseDictEntryOrSpread(this));
   skipNewlines(this.state);
 
   while (check(this.state, TOKEN_TYPES.COMMA)) {
-    advance(this.state);
+    const comma = advance(this.state);
     skipNewlines(this.state);
-    if (check(this.state, TOKEN_TYPES.RBRACKET)) break;
-    entries.push(this.parseDictEntry());
+    rejectTrailingComma(this.state, comma, 'dict');
+    entries.push(parseDictEntryOrSpread(this));
     skipNewlines(this.state);
   }
 
@@ -519,14 +724,10 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     // Parse variable key: $variableName
     advance(this.state); // consume $
-    if (!check(this.state, TOKEN_TYPES.IDENTIFIER)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P001,
-        'Expected variable name after $',
-        current(this.state).span.start
-      );
-    }
-    const varToken = advance(this.state);
+    const varToken = expectVariableName(
+      this.state,
+      'Expected variable name after $'
+    );
     key = {
       kind: 'variable',
       variableName: varToken.value,
@@ -542,7 +743,9 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else if (check(this.state, TOKEN_TYPES.LPAREN)) {
     // Parse computed key: (expression)
     advance(this.state); // consume (
+    skipNewlines(this.state);
     const expression = this.parsePipeChain();
+    skipNewlines(this.state);
     if (!check(this.state, TOKEN_TYPES.RPAREN)) {
       throw new ParseError(
         ERROR_IDS.RILL_P005,
@@ -639,6 +842,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   }
 
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+  skipNewlines(this.state);
   const value = this.parseExpression();
 
   return {
@@ -646,7 +850,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
     key,
     value,
     ...(keyForm !== undefined ? { keyForm } : {}),
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -716,7 +920,7 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
       type: 'TypeConstructor',
       constructorName: 'stream',
       args,
-      span: makeSpan(start, current(parser.state).span.end),
+      span: makeSpan(start, previous(parser.state).span.end),
     };
   }
 
@@ -793,8 +997,7 @@ function validateYieldInClosure(
 function parseClosureReturnTypeTarget(
   parser: Parser
 ): TypeRef | TypeConstructorNode | undefined {
-  skipNewlines(parser.state);
-  if (!check(parser.state, TOKEN_TYPES.COLON)) {
+  if (!skipNewlinesIfFollowedBy(parser.state, TOKEN_TYPES.COLON)) {
     return undefined;
   }
   advance(parser.state); // consume ':'
@@ -839,6 +1042,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       params: [],
       body,
       returnTypeTarget,
+      // current() is intentional lookahead here, not the last-consumed-token
+      // idiom: it reads the token position parseClosureReturnTypeTarget left
+      // the cursor at after consuming the return type target.
       span: makeSpan(
         start,
         returnTypeTarget ? current(this.state).span.end : body.span.end
@@ -974,6 +1180,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
         params: [firstParam, secondParam],
         body,
         returnTypeTarget,
+        // current() is intentional lookahead here, not the last-consumed-token
+        // idiom: it reads the token position parseClosureReturnTypeTarget left
+        // the cursor at after consuming the return type target.
         span: makeSpan(
           start,
           returnTypeTarget ? current(this.state).span.end : body.span.end
@@ -1000,6 +1209,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       params: [param],
       body,
       returnTypeTarget,
+      // current() is intentional lookahead here, not the last-consumed-token
+      // idiom: it reads the token position parseClosureReturnTypeTarget left
+      // the cursor at after consuming the return type target.
       span: makeSpan(
         start,
         returnTypeTarget ? current(this.state).span.end : body.span.end
@@ -1029,6 +1241,9 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     params,
     body,
     returnTypeTarget,
+    // current() is intentional lookahead here, not the last-consumed-token
+    // idiom: it reads the token position parseClosureReturnTypeTarget left
+    // the cursor at after consuming the return type target.
     span: makeSpan(
       start,
       returnTypeTarget ? current(this.state).span.end : body.span.end
@@ -1072,11 +1287,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
   }
 
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected parameter name'
-  );
+  const nameToken = expectVariableName(this.state, 'Expected parameter name');
 
   if (
     VALID_TYPE_NAMES.includes(
@@ -1116,13 +1327,51 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     typeRef,
     defaultValue,
     annotations,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
 // ============================================================
 // KEYWORD-PREFIXED COLLECTION LITERAL PARSING
 // ============================================================
+
+/**
+ * A comma immediately followed by the closing bracket is a trailing comma.
+ * The grammar allows none, in literals, calls, or parameter lists alike.
+ * @internal
+ */
+function rejectTrailingComma(
+  state: ParserState,
+  comma: Token,
+  collectionType: string
+): void {
+  if (check(state, TOKEN_TYPES.RBRACKET)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      `trailing comma is not allowed in ${collectionType} literal`,
+      comma.span.start
+    );
+  }
+}
+
+/**
+ * One entry of a dict literal: either `...expr` (a spread, encoded as a
+ * DictEntry whose key is the literal `'...'` marker, the same encoding
+ * `parseCollectionLiteral` uses for ordered spread) or a `key: value` pair.
+ * @internal
+ */
+function parseDictEntryOrSpread(parser: Parser): DictEntryNode {
+  if (check(parser.state, TOKEN_TYPES.ELLIPSIS)) {
+    const { spreadStart, expression } = parseSpreadOperand(parser);
+    return {
+      type: 'DictEntry',
+      key: '...',
+      value: expression,
+      span: makeSpan(spreadStart, expression.span.end),
+    };
+  }
+  return parser.parseDictEntry();
+}
 
 /**
  * Parse the shared prefix of a spread element inside a keyword-prefixed
@@ -1245,8 +1494,9 @@ Parser.prototype.parseCollectionLiteral = function (
       }
 
       if (check(this.state, TOKEN_TYPES.COMMA)) {
-        advance(this.state);
+        const comma = advance(this.state);
         skipNewlines(this.state);
+        rejectTrailingComma(this.state, comma, collectionType);
       } else {
         break;
       }
@@ -1307,7 +1557,8 @@ Parser.prototype.parseCollectionLiteral = function (
         !check(this.state, TOKEN_TYPES.LPAREN) &&
         !check(this.state, TOKEN_TYPES.LIST_LBRACKET) &&
         !check(this.state, TOKEN_TYPES.LBRACKET) &&
-        !check(this.state, TOKEN_TYPES.DICT_LBRACKET)
+        !check(this.state, TOKEN_TYPES.DICT_LBRACKET) &&
+        !isNegativeNumber(this.state)
       ) {
         throw new ParseError(
           ERROR_IDS.RILL_P004,
@@ -1331,8 +1582,9 @@ Parser.prototype.parseCollectionLiteral = function (
     }
 
     if (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
+      const comma = advance(this.state);
       skipNewlines(this.state);
+      rejectTrailingComma(this.state, comma, collectionType);
     } else {
       break;
     }

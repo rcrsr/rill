@@ -62,6 +62,7 @@ export const ERROR_IDS = {
   RILL_P020: 'RILL-P020',
   RILL_P021: 'RILL-P021',
   RILL_P022: 'RILL-P022',
+  RILL_P023: 'RILL-P023',
   RILL_R001: 'RILL-R001',
   RILL_R002: 'RILL-R002',
   RILL_R003: 'RILL-R003',
@@ -144,6 +145,8 @@ export const ERROR_IDS = {
   RILL_R085: 'RILL-R085',
   RILL_R086: 'RILL-R086',
   RILL_R087: 'RILL-R087',
+  RILL_R088: 'RILL-R088',
+  RILL_R089: 'RILL-R089',
   RILL_C001: 'RILL-C001',
   RILL_C002: 'RILL-C002',
   RILL_C003: 'RILL-C003',
@@ -715,6 +718,22 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Unclosed use<>',
         code: 'use<module:resource  # Error: missing >',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P023,
+    category: 'parse',
+    description: 'Malformed frontmatter closing delimiter',
+    messageTemplate:
+      "Malformed frontmatter closing delimiter: expected exactly '---', found extra '-'",
+    cause:
+      "The frontmatter block's closing delimiter has more than three dashes.",
+    resolution: "Write the closing delimiter as exactly three dashes: '---'.",
+    examples: [
+      {
+        description: 'Closing delimiter with an extra dash',
+        code: '---\nmodel: opus\n----\nlog(1)',
       },
     ],
   },
@@ -2106,8 +2125,44 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
     ],
   },
+
   {
     errorId: ERROR_IDS.RILL_R084,
+    category: 'runtime',
+    description: 'Reserved status code used as invalidation code',
+    messageTemplate: 'cannot invalidate with reserved status code "ok"',
+    cause:
+      'invalidate() (or an equivalent host-boundary call) was given "ok" as the invalidation code. "ok" is reserved for the valid-value sentinel and cannot be minted as an error/invalid status.',
+    resolution:
+      'Use a different code for the invalidation, or return the value as valid instead of invalidating it.',
+    examples: [
+      {
+        description: 'Host attempts to invalidate with the reserved "ok" code',
+        code: '# Host code: ctx.invalidate({ code: "ok" })  # rejected',
+      },
+    ],
+  },
+
+  {
+    errorId: ERROR_IDS.RILL_R085,
+    category: 'runtime',
+    description: 'Host function returned an invalid value',
+    messageTemplate:
+      "Host function '{functionName}' returned an invalid value at {path}: {jsType}",
+    cause:
+      'A host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
+    resolution:
+      'Convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.',
+    examples: [
+      {
+        description: 'Host function returns an unsupported JavaScript value',
+        code: '# Host code: registerFunction("bad", () => new Map())  # rejected',
+      },
+    ],
+  },
+
+  {
+    errorId: ERROR_IDS.RILL_R086,
     category: 'runtime',
     description: 'Wildcard policy rule declares transforms',
     messageTemplate:
@@ -2124,7 +2179,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: ERROR_IDS.RILL_R085,
+    errorId: ERROR_IDS.RILL_R087,
     category: 'runtime',
     description: 'Transform reference cannot be resolved',
     messageTemplate:
@@ -2141,7 +2196,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: ERROR_IDS.RILL_R086,
+    errorId: ERROR_IDS.RILL_R088,
     category: 'runtime',
     description: 'Call denied by policy',
     messageTemplate: 'Call to {path} denied by policy',
@@ -2157,7 +2212,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     ],
   },
   {
-    errorId: ERROR_IDS.RILL_R087,
+    errorId: ERROR_IDS.RILL_R089,
     category: 'runtime',
     description: 'Policy transform cycle detected',
     messageTemplate:

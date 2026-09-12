@@ -303,6 +303,8 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 | `.values` | All values as list |
 | `.entries` | List of `[key, value]` pairs |
 
+`.keys`, `.values`, and `.entries` all return dict's canonical order (see Ordered, below).
+
 ```rill
 [name: "test", count: 42] -> .keys      # ["count", "name"]
 [name: "test", count: 42] -> .values    # [42, "test"]
@@ -367,7 +369,44 @@ ordered[a: 1, b: "hello"] -> $fmt(...)
 # Result: "1-hello"
 ```
 
-Key order in `ordered` is the insertion order. This differs from `dict`, which is unordered.
+### Element and Entry Access
+
+Access an ordered value by key with `["key"]` or `.key`, exactly like a dict, or by position with an integer index. `.keys`, `.values`, `.entries`, `.len`, and the `.?key` existence check read the entries in insertion order.
+
+```rill
+ordered[a: 1, b: 2] => $o
+$o["a"]
+# Result: 1
+```
+
+```rill
+ordered[a: 1, b: 2] => $o
+$o.a
+# Result: 1
+```
+
+```rill
+ordered[a: 1, b: 2][0]
+# Result: 1
+```
+
+```rill
+ordered[a: 1, b: 2] -> .keys
+# Result: list["a", "b"]
+```
+
+```rill
+ordered[a: 1, b: 2] -> .values
+# Result: list[1, 2]
+```
+
+```rill
+ordered[a: 1, b: 2] => $o
+$o.?a
+# Result: true
+```
+
+Key order in `ordered` is the insertion order. `dict` has no insertion order to preserve; it iterates in a canonical order instead — string keys sorted lexically, then number keys ascending, then boolean keys with `false` before `true`.
 
 `ordered` converts to a plain object via `toNative()`. The `NativeResult.value` field holds `{ key: value, ... }`.
 
@@ -393,6 +432,34 @@ ordered(^("X coordinate") x: number, ^("Y coordinate") y: number)
 ## Tuples
 
 Tuples are positional containers created with `tuple[...]` syntax.
+
+### Element Access
+
+Index a tuple by position with `[i]` (negative indexes count from the end), or with `.at(i)`. Indexing applies directly to a `tuple[...]` literal as well as to a captured tuple.
+
+```rill
+tuple[1, "a"] => $t
+$t[1]
+# Result: "a"
+```
+
+```rill
+tuple[1, "a"] -> .at(1)
+# Result: "a"
+```
+
+```rill
+tuple[1, "a"][1]
+# Result: "a"
+```
+
+Dot-number access (`$t.1`) is not supported and is a parse error; use `$t[1]`.
+
+```text
+# Error: dot-number is not a valid access form
+tuple[1, "a"] => $t
+$t.1
+```
 
 ### Lexicographic Comparison
 

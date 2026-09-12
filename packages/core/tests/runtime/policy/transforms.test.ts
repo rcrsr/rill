@@ -74,7 +74,7 @@ describe('applyTransforms', () => {
 
     await expectHalt(
       () => applyTransforms([looping], 'x', reentrant, inFlight, SITE),
-      { code: 'RILL_R087', messagePattern: /cycle detected/ }
+      { code: 'RILL_R089', messagePattern: /cycle detected/ }
     );
   });
 
@@ -88,7 +88,7 @@ describe('applyTransforms', () => {
 
     await expectHalt(
       () => applyTransforms([redact], 'x', reentrant, inFlight, SITE),
-      { code: 'RILL_R087', messagePattern: /filter\.redact/ }
+      { code: 'RILL_R089', messagePattern: /filter\.redact/ }
     );
   });
 

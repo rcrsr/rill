@@ -1195,13 +1195,55 @@ describe('Rill Runtime: Annotations', () => {
       await expect(run(script)).rejects.toThrow(/Annotation 'first' not found/);
     });
 
-    it('unannotated block-closure .^description returns empty record (EC-3)', async () => {
-      // Block-closure with no annotation: ^description returns {} rather than throwing
+    it('unannotated block-closure .^description returns empty string', async () => {
+      // Block-closure with no annotation: ^description returns "" rather than throwing
       const script = `
         { $ * 2 } => $fn
         $fn.^description
       `;
-      expect(await run(script)).toEqual({});
+      expect(await run(script)).toBe('');
+    });
+
+    it('unannotated .^description returns a typed empty string, not a missing-annotation halt', async () => {
+      const script = `
+        |x| ($x) => $f
+        $f.^description
+      `;
+      expect(await run(script)).toBe('');
+
+      const isStringScript = `
+        |x| ($x) => $f
+        $f.^description:?string
+      `;
+      expect(await run(isStringScript)).toBe(true);
+
+      const emptyScript = `
+        |x| ($x) => $f
+        $f.^description -> .empty
+      `;
+      expect(await run(emptyScript)).toBe(true);
+
+      const coalesceScript = `
+        |x| ($x) => $f
+        $f.^description ?? "none"
+      `;
+      expect(await run(coalesceScript)).toBe('none');
+    });
+
+    it('description-annotated closure .^description returns the annotation string', async () => {
+      const script = `
+        ^("hi") |x| ($x) => $g
+        $g.^description
+      `;
+      expect(await run(script)).toBe('hi');
+    });
+
+    it('unrelated absent annotation key still halts with RILL-R003', async () => {
+      const script = `
+        |x| ($x) => $f
+        $f.^doc
+      `;
+      await expect(run(script)).rejects.toThrow(/Annotation 'doc' not found/);
     });
 
     it('nested closure annotation not found (EC-6)', async () => {

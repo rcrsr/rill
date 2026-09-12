@@ -31,6 +31,9 @@ import {
 } from '../guards.js';
 import { ERROR_IDS } from '../../../../error-registry.js';
 import { setDictField } from '../dict-keys.js';
+import { isInvalid, appendTraceFrame } from '../status.js';
+import { RuntimeHaltSignal } from '../halt.js';
+import { createTraceFrame, TRACE_KINDS } from '../trace.js';
 
 // ============================================================
 // LATE-BINDING: formatNested
@@ -171,9 +174,30 @@ export function compareElements(
   return true;
 }
 
+/**
+ * Halt on a nested invalid value reached while deep-comparing container
+ * elements. Mirrors the top-level `accessHaltGate` behavior (append an
+ * access-kind trace frame, throw a catchable RuntimeHaltSignal carrying the
+ * invalid value) so `dict[a: $x] == dict[a: $y]`, where `$x`/`$y` are
+ * distinct invalid values, halts instead of comparing by the shared `{}`
+ * structural shape.
+ */
+function haltOnNestedInvalid(v: RillValue): void {
+  if (!isInvalid(v)) return;
+  const frame = createTraceFrame({
+    site: '<unknown>',
+    kind: TRACE_KINDS.ACCESS,
+    fn: '==',
+  });
+  const next = appendTraceFrame(v, frame);
+  throw new RuntimeHaltSignal(next, true);
+}
+
 /** Element comparator for tuple and list entries: handles undefined, delegates to deepEquals. */
 export function compareByDeepEquals(a: unknown, b: unknown): boolean {
   if (a === undefined || b === undefined) return a === b;
+  haltOnNestedInvalid(a as RillValue);
+  haltOnNestedInvalid(b as RillValue);
   return resolvedDeepEquals(a as RillValue, b as RillValue);
 }
 
@@ -183,6 +207,8 @@ export function compareOrderedEntry(a: unknown, b: unknown): boolean {
   const bEntry = b as [string, RillValue] | undefined;
   if (aEntry === undefined || bEntry === undefined) return false;
   if (aEntry[0] !== bEntry[0]) return false;
+  haltOnNestedInvalid(aEntry[1]);
+  haltOnNestedInvalid(bEntry[1]);
   return resolvedDeepEquals(aEntry[1], bEntry[1]);
 }
 
@@ -200,6 +226,17 @@ export function serializeListElement(v: RillValue): unknown {
   if (typeof v === 'string') return v;
   if (typeof v === 'number') return v;
   if (typeof v === 'boolean') return v;
+  // A nested invalid value is structurally a plain dict (spread base +
+  // non-enumerable status sidecar), so without this check it would fall
+  // through to the plain-dict branch below and silently serialize as
+  // `{}`, discarding the invalid status. Gate here so json() halts
+  // instead of losing the failure.
+  if (isInvalid(v)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R067,
+      'invalid values are not JSON-serializable'
+    );
+  }
   if (Array.isArray(v)) return v.map(serializeListElement);
   if (isCallable(v))
     throw new RuntimeError(

@@ -3,9 +3,12 @@ import type { RuntimeContext } from '../../core/types/runtime.js';
 import type { SourceLocation } from '../../../types.js';
 import type { EvalState } from '../../core/eval/state.js';
 import { callable, isCallable } from '../../core/callable.js';
+import { isStream } from '../../core/types/guards.js';
 import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import { checkAborted } from '../../core/eval/shared.js';
 import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/closures.js';
+import { validateStreamChunk } from '../../core/eval/handlers/collections.js';
+import { accessHaltGate } from '../../core/eval/handlers/access.js';
 import {
   throwCatchableHostHalt,
   throwTypeHalt,
@@ -42,10 +45,15 @@ export async function walkIteratorSteps(
   cap: number,
   evaluator: EvalState,
   location: { line: number; column: number; offset: number },
-  sourceId: string | undefined
+  sourceId: string | undefined,
+  stopAtCap: boolean = false
 ): Promise<{ elements: RillValue[]; tail: Record<string, unknown> }> {
   const elements: RillValue[] = [];
   let current = start;
+  // The `__rill_stream` discriminator persists across every step a stream
+  // produces (see createRillStream), so checking it once up front correctly
+  // classifies every subsequent step too.
+  const streamInput = isStream(start as unknown as RillValue);
   const site = {
     location,
     sourceId: sourceId ?? '<unknown>',
@@ -67,6 +75,43 @@ export async function walkIteratorSteps(
     }
     steps++;
     const val = current['value'];
+    // Streams accept any step with a `value` key (so `validateStreamChunk`
+    // can reject an explicit `undefined`); iterators, matching
+    // expandIterator, only treat `value !== undefined` as a produced
+    // element.
+    const hasValue = streamInput ? 'value' in current : val !== undefined;
+
+    // Count this step toward `cap` only when it produced a value, and do so
+    // before advancing: `take()` needs to stop without pulling the next
+    // chunk once it has what it needs.
+    if (hasValue) {
+      if (streamInput) {
+        validateStreamChunk(val as RillValue | undefined, produced, site);
+      }
+      const actualType = inferType(val as RillValue);
+      if (expectedType === undefined) {
+        expectedType = actualType;
+      } else if (actualType !== expectedType) {
+        throwTypeHalt(
+          site,
+          'TYPE_MISMATCH',
+          `Chunk type mismatch: expected ${expectedType}, got ${actualType}`,
+          'runtime',
+          { expectedType, actualType }
+        );
+      }
+      elements.push(val as RillValue);
+      produced++;
+    }
+
+    // `take()` (stopAtCap: true) stops as soon as the cap is reached,
+    // without pulling another step from the source. `skip()` (stopAtCap:
+    // false, the default) keeps its existing tail-positioning semantics: it
+    // always advances past the last produced value so the returned tail
+    // resumes immediately after it.
+    if (stopAtCap && produced === cap) {
+      break;
+    }
 
     // Advance to the next step regardless of whether this step carried a
     // value: the value-less stream head still has to be stepped over to
@@ -87,6 +132,15 @@ export async function walkIteratorSteps(
       location,
       'next'
     );
+    // A mid-stream host throw inside `.next` (e.g. the underlying
+    // AsyncIterable's `next()` rejecting) reshapes to an invalid `RillValue`
+    // at the extension dispatch boundary rather than throwing directly (see
+    // `reshapeHostThrow` in closures.ts). Route it through the same
+    // access-halt gate `expandStream`/`walkStreamOrIteratorElements` use so
+    // it surfaces as a catchable halt carrying the original message/trace
+    // instead of being cast into a malformed step and misreported as a
+    // `.next` protocol violation.
+    accessHaltGate(nextStep as RillValue, site);
     if (typeof nextStep !== 'object' || nextStep === null) {
       throwCatchableHostHalt(
         site,
@@ -95,24 +149,6 @@ export async function walkIteratorSteps(
       );
     }
     current = nextStep as Record<string, unknown>;
-
-    // Count this step toward `cap` only when it produced a value.
-    if (val !== undefined) {
-      const actualType = inferType(val as RillValue);
-      if (expectedType === undefined) {
-        expectedType = actualType;
-      } else if (actualType !== expectedType) {
-        throwTypeHalt(
-          site,
-          'TYPE_MISMATCH',
-          `Chunk type mismatch: expected ${expectedType}, got ${actualType}`,
-          'runtime',
-          { expectedType, actualType }
-        );
-      }
-      elements.push(val as RillValue);
-      produced++;
-    }
   }
 
   return { elements, tail: current };

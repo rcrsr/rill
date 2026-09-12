@@ -2,13 +2,14 @@
  * Rill Runtime Tests: number ordering reflexivity and string->number strictness
  *
  * Part A: compareNumber uses relational logic, not subtraction, so equal
- * values (including equal infinities) compare equal. Infinity - Infinity is
- * NaN, which previously made every ordering operator return false and broke
- * reflexivity of <= / >=.
+ * values compare equal even at the extremes of the finite range. A prior
+ * subtraction-based comparison could produce NaN for values near
+ * Number.MAX_VALUE, which broke reflexivity of <= / >=.
  *
  * Part B: string -> number accepts only clean decimal/float strings. Hex/
- * octal/binary prefixes and surrounding whitespace, which bare Number()
- * would accept, now halt with the standard conversion error.
+ * octal/binary prefixes, surrounding whitespace, and the non-finite tokens
+ * "NaN"/"Infinity"/"-Infinity" (which bare Number() would accept) all halt
+ * with the standard conversion error, since rill numbers are always finite.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -16,28 +17,38 @@ import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
 
 describe('number ordering reflexivity (Part A)', () => {
-  it('Infinity <= Infinity is true', async () => {
-    const result = await run('"Infinity" -> number => $i\n($i <= $i)');
+  it('MAX_VALUE <= MAX_VALUE is true', async () => {
+    const result = await run(
+      '"1.7976931348623157e308" -> number => $i\n($i <= $i)'
+    );
     expect(result).toBe(true);
   });
 
-  it('Infinity >= Infinity is true', async () => {
-    const result = await run('"Infinity" -> number => $i\n($i >= $i)');
+  it('MAX_VALUE >= MAX_VALUE is true', async () => {
+    const result = await run(
+      '"1.7976931348623157e308" -> number => $i\n($i >= $i)'
+    );
     expect(result).toBe(true);
   });
 
-  it('Infinity == Infinity is true', async () => {
-    const result = await run('"Infinity" -> number => $i\n($i == $i)');
+  it('MAX_VALUE == MAX_VALUE is true', async () => {
+    const result = await run(
+      '"1.7976931348623157e308" -> number => $i\n($i == $i)'
+    );
     expect(result).toBe(true);
   });
 
-  it('-Infinity <= -Infinity is true', async () => {
-    const result = await run('"-Infinity" -> number => $i\n($i <= $i)');
+  it('-MAX_VALUE <= -MAX_VALUE is true', async () => {
+    const result = await run(
+      '"-1.7976931348623157e308" -> number => $i\n($i <= $i)'
+    );
     expect(result).toBe(true);
   });
 
-  it('Infinity < Infinity is false', async () => {
-    const result = await run('"Infinity" -> number => $i\n($i < $i)');
+  it('MAX_VALUE < MAX_VALUE is false', async () => {
+    const result = await run(
+      '"1.7976931348623157e308" -> number => $i\n($i < $i)'
+    );
     expect(result).toBe(false);
   });
 
@@ -46,9 +57,9 @@ describe('number ordering reflexivity (Part A)', () => {
     expect(result).toBe(true);
   });
 
-  it('ordinary ordering still works: -Infinity < Infinity', async () => {
+  it('ordinary ordering still works: -MAX_VALUE < MAX_VALUE', async () => {
     const result = await run(
-      '"-Infinity" -> number => $lo\n"Infinity" -> number => $hi\n($lo < $hi)'
+      '"-1.7976931348623157e308" -> number => $lo\n"1.7976931348623157e308" -> number => $hi\n($lo < $hi)'
     );
     expect(result).toBe(true);
   });
@@ -98,11 +109,16 @@ describe('string -> number strict parsing (Part B)', () => {
     );
   });
 
-  // Preserved: "Infinity"/"-Infinity" (unpadded) still convert (Part A relies
-  // on this), matching prior bare Number() behavior.
-  it('converts "Infinity" to a value equal to itself under <=', async () => {
-    const result = await run('"Infinity" -> number => $i\n($i <= $i)');
-    expect(result).toBe(true);
+  it('rejects unpadded "Infinity"', async () => {
+    await expect(run('"Infinity" -> number')).rejects.toThrow(
+      /cannot convert string "Infinity" to number/
+    );
+  });
+
+  it('rejects unpadded "-Infinity"', async () => {
+    await expect(run('"-Infinity" -> number')).rejects.toThrow(
+      /cannot convert string "-Infinity" to number/
+    );
   });
 
   // Preserved valid conversions

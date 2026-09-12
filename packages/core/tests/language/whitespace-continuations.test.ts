@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse, ParseError } from '@rcrsr/rill';
+import { anyTypeValue, parse, ParseError } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
 
@@ -220,6 +220,128 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     });
   });
 
+  describe('G7: Parenthesized expressions across newlines', () => {
+    it('grouped expression with newline after ( and before ) evaluates correctly', async () => {
+      const result = await run('(\n  1 + 2\n)');
+      expect(result).toBe(3);
+    });
+
+    it('grouped expression with newline only before ) evaluates correctly', async () => {
+      const result = await run('(1\n)');
+      expect(result).toBe(1);
+    });
+
+    it('while condition with newline after ( evaluates correctly', async () => {
+      const result = await run('0 -> while (\n$ < 3) do { $ + 1 }');
+      expect(result).toBe(3);
+    });
+
+    it('do-while condition with newline after ( evaluates correctly', async () => {
+      const result = await run('0 -> do { $ + 1 } while (\n$ < 3)');
+      expect(result).toBe(3);
+    });
+
+    it('computed dict key with newline after ( evaluates correctly', async () => {
+      const result = await run('dict[(\n"a"): 1]');
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('computed field access with newlines around expression evaluates correctly', async () => {
+      const result = await run('dict[key: "value"] => $obj\n$obj.(\n"key"\n)');
+      expect(result).toBe('value');
+    });
+
+    it('identity call with newline after ( still parses and executes', async () => {
+      const result = await run('identity(\n  "x"\n)', {
+        functions: {
+          identity: {
+            params: [
+              {
+                name: 'value',
+                type: undefined,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (args) => args.value,
+          },
+        },
+      });
+      expect(result).toBe('x');
+    });
+
+    it('list literal with newline after [ still parses and executes', async () => {
+      const result = await run('list[\n  1\n]');
+      expect(result).toEqual([1]);
+    });
+
+    it('unclosed grouped expression still throws ParseError RILL-P005', () => {
+      try {
+        parse('(1');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+        expect(parseErr.errorId).toBe('RILL-P005');
+      }
+    });
+  });
+
+  describe('G8: Postfix and pipe-target method chains across newlines', () => {
+    it('literal followed by newline then .method parses as one statement', async () => {
+      const script = parse('"hello"\n.upper');
+      expect(script.statements).toHaveLength(1);
+      const result = await run('"hello"\n.upper');
+      expect(result).toBe('HELLO');
+    });
+
+    it('function call followed by newline then .method parses as one chain', async () => {
+      const result = await run('identity("x")\n  .len', {
+        functions: {
+          identity: {
+            params: [
+              {
+                name: 'value',
+                type: undefined,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (args) => args.value,
+          },
+        },
+      });
+      expect(result).toBe(1);
+    });
+
+    it('pipe-target method chain continues across newline', async () => {
+      const result = await run('"  x  " -> .trim\n  .upper');
+      expect(result).toBe('X');
+    });
+
+    it('variable-rooted method chain continues across multiple newlines', async () => {
+      const result = await run('"a,b" => $s\n$s\n  .split(",")\n  .len');
+      expect(result).toBe(2);
+    });
+
+    it('variable followed directly by newline then .method still works', async () => {
+      const result = await run('"hello" => $s\n$s\n.upper');
+      expect(result).toBe('HELLO');
+    });
+
+    it('closure literal followed by newline then .method remains two statements', async () => {
+      const script = parse('|x| { $x * 2 }\n.len');
+      expect(script.statements).toHaveLength(2);
+    });
+
+    it('closure literal captured to a variable is unaffected by the postfix guard', async () => {
+      const result = await run('|x| { $x * 2 } => $double\n5 -> $double');
+      expect(result).toBe(10);
+    });
+  });
+
   describe('Regression Guards', () => {
     it('AC-15: single-line addition still evaluates correctly', async () => {
       const result = await run('5 + 3');
@@ -244,6 +366,87 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     it('AC-15: single-line type assertion still works', async () => {
       const result = await run('"hello":string');
       expect(result).toBe('hello');
+    });
+  });
+
+  describe('G9: Trailing connective token at end of line continues the statement', () => {
+    it('trailing -> continues onto the pipe target on the next line', async () => {
+      const result = await run('"hello" ->\n.upper');
+      expect(result).toBe('HELLO');
+    });
+
+    it('trailing => continues onto the captured variable on the next line', async () => {
+      const result = await run('5 =>\n$x\n$x + 1');
+      expect(result).toBe(6);
+    });
+
+    it('trailing ? continues onto the then-branch on the next line', async () => {
+      const result = await run('true ?\n1 ! 2');
+      expect(result).toBe(1);
+    });
+
+    it('trailing ! continues onto the else-branch on the next line', async () => {
+      const result = await run('false ? 1 !\n2');
+      expect(result).toBe(2);
+    });
+
+    // Both halves of the `.`/`:` continuation pair are supported: a leading
+    // operator on the next line and a trailing operator before the newline.
+    it('leading . on the next line continues the access chain', async () => {
+      const result = await run('dict[name: "alice"] => $user\n$user\n.name');
+      expect(result).toBe('alice');
+    });
+
+    it('leading : on the next line continues the type assertion', async () => {
+      const result = await run('"hello" => $x\n$x\n:string');
+      expect(result).toBe('hello');
+    });
+
+    it('trailing . before the newline continues onto the field name', async () => {
+      const result = await run('dict[name: "alice"] => $user\n$user.\nname');
+      expect(result).toBe('alice');
+    });
+
+    it('trailing . before the newline continues onto the method name on a literal', async () => {
+      const result = await run('"hello" -> .\nupper');
+      expect(result).toBe('HELLO');
+    });
+
+    it('trailing : before the newline continues onto the capture type', async () => {
+      const result = await run('"a" => $x:\nstring\n$x');
+      expect(result).toBe('a');
+    });
+
+    it('trailing : before the newline continues onto the postfix type assertion', async () => {
+      const result = await run('"hello" => $x\n$x:\nstring');
+      expect(result).toBe('hello');
+    });
+
+    it('trailing : inside a dict entry continues onto the value', async () => {
+      const result = await run('dict[a:\n1]');
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('trailing ^( continues onto the annotation entries', async () => {
+      const result = await run(
+        '^(\ndescription: "d"\n) |x| ($x) => $f\n1 -> $f'
+      );
+      expect(result).toBe(1);
+    });
+
+    it('trailing .! continues onto the optional field name on the next line', () => {
+      const script = parse('$x.!\ncode');
+      expect(script.statements).toHaveLength(1);
+      const head = script.statements[0]!.expression.head as {
+        primary: { type: string; field?: string };
+      };
+      expect(head.primary.type).toBe('StatusProbe');
+      expect(head.primary.field).toBe('code');
+    });
+
+    it('trailing ^ continues onto the annotation key on the next line (non-variable receiver)', () => {
+      const script = parse('(5).^\nkey');
+      expect(script.statements).toHaveLength(1);
     });
   });
 });

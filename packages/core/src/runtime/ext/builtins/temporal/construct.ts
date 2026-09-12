@@ -7,9 +7,18 @@ import { formatValue } from '../../../core/types/registrations.js';
 // DATETIME CONSTRUCTION HELPERS
 // ============================================================
 
-/** ISO 8601 regex: YYYY-MM-DDTHH:MM:SS[.mmm][Z|+HH:MM|-HH:MM] */
+/**
+ * ISO 8601 regex: [+-]YYYY(YY)-MM-DDTHH:MM:SS[.mmm][Z|+HH:MM|-HH:MM]
+ * The year is either exactly 4 unsigned digits (the default range) or an
+ * explicitly signed 4-or-more digit extended year, matching how
+ * formatIso/formatDate emit years outside 0-9999. A sign-less year with
+ * more than 4 digits is rejected rather than admitted: Date.parse does not
+ * treat an unsigned extended year as ECMA-262 extended-year format (that
+ * form requires the sign), so it would otherwise fall back to a
+ * timezone-dependent legacy parse.
+ */
 const ISO_8601_RE =
-  /^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
+  /^(?:\d{4}|[+-]\d{4,})-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
 
 /** Valid datetime named component keys */
 const DATETIME_COMPONENT_KEYS = new Set([
@@ -171,9 +180,14 @@ export function constructDatetime(
     }
     // Validate the calendar portion (YYYY-MM-DD) explicitly: Date.parse
     // accepts impossible dates like 2024-02-30 by rolling them forward.
-    const y = Number(input.slice(0, 4));
-    const mo = Number(input.slice(5, 7));
-    const da = Number(input.slice(8, 10));
+    // The year field may carry a leading sign and more than 4 digits (see
+    // ISO_8601_RE), so every fixed offset below the year is shifted by
+    // yearOffset, the number of characters beyond the default 4-digit year.
+    const yearStr = input.slice(0, input.indexOf('-', 1));
+    const yearOffset = yearStr.length - 4;
+    const y = Number(yearStr);
+    const mo = Number(input.slice(5 + yearOffset, 7 + yearOffset));
+    const da = Number(input.slice(8 + yearOffset, 10 + yearOffset));
     validateComponent('month', mo, 1, 12, location);
     validateComponent('day', da, 1, maxDayInMonth(y, mo), location);
 
@@ -181,7 +195,22 @@ export function constructDatetime(
     // or +HH:MM/-HH:MM offset) is otherwise parsed in the host's local
     // timezone by Date.parse, which is non-deterministic across
     // environments. Anchor it to UTC instead, matching the date-only form.
-    const hasTime = input.length > 10;
+    const hasTime = input.length > 10 + yearOffset;
+
+    // Validate the time-of-day portion explicitly: Date.parse accepts
+    // out-of-range values like T24:00:00 and rolls them into the next day,
+    // whereas the named-component form rejects hour 24 outright.
+    if (hasTime) {
+      const hh = Number(input.slice(11 + yearOffset, 13 + yearOffset));
+      const mm = Number(input.slice(14 + yearOffset, 16 + yearOffset));
+      const hasSeconds = input[16 + yearOffset] === ':';
+      const ss = hasSeconds
+        ? Number(input.slice(17 + yearOffset, 19 + yearOffset))
+        : 0;
+      validateComponent('hour', hh, 0, 23, location);
+      validateComponent('minute', mm, 0, 59, location);
+      validateComponent('second', ss, 0, 59, location);
+    }
     const hasOffset = /(?:Z|[+-]\d{2}:\d{2})$/.test(input);
     const normalizedInput = hasTime && !hasOffset ? `${input}Z` : input;
 
@@ -236,20 +265,38 @@ export function constructDatetime(
       { component: 'year' }
     );
   }
-  if (month === undefined || month === null || typeof month !== 'number') {
+  if (month === undefined || month === null) {
     throwTypeHalt(
       { location, fn: 'datetime' },
       'INVALID_INPUT',
-      `Invalid datetime component month: ${formatValue(month ?? null)}`,
+      'datetime() named-component form requires month, but it was not provided',
       'runtime',
       { component: 'month' }
     );
   }
-  if (day === undefined || day === null || typeof day !== 'number') {
+  if (typeof month !== 'number') {
     throwTypeHalt(
       { location, fn: 'datetime' },
       'INVALID_INPUT',
-      `Invalid datetime component day: ${formatValue(day ?? null)}`,
+      `Invalid datetime component month: ${formatValue(month)}`,
+      'runtime',
+      { component: 'month' }
+    );
+  }
+  if (day === undefined || day === null) {
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
+      'datetime() named-component form requires day, but it was not provided',
+      'runtime',
+      { component: 'day' }
+    );
+  }
+  if (typeof day !== 'number') {
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'INVALID_INPUT',
+      `Invalid datetime component day: ${formatValue(day)}`,
       'runtime',
       { component: 'day' }
     );
@@ -421,6 +468,21 @@ function padNum(n: number, width: number): string {
 }
 
 /**
+ * Format a datetime year field, sign-aware. Years within 0-9999 keep the
+ * plain unsigned 4-digit form used today. Negative years, and years >=
+ * 10000, use the ISO 8601 extended year form (explicit sign + 6-digit
+ * absolute value), matching how the JS Date extended year notation
+ * round-trips through Date.parse.
+ */
+function formatYear(year: number): string {
+  if (year >= 0 && year <= 9999) {
+    return padNum(year, 4);
+  }
+  const sign = year < 0 ? '-' : '+';
+  return `${sign}${padNum(Math.abs(year), 6)}`;
+}
+
+/**
  * Apply an offset in hours to a UTC ms timestamp and return a Date-like
  * breakdown. The offset may be fractional (e.g. 5.5 for +05:30).
  */
@@ -448,6 +510,34 @@ function applyOffset(
   };
 }
 
+/**
+ * Validate a UTC offset intended for ISO 8601 suffix formatting. The
+ * suffix is a fixed `+HH:MM`/`-HH:MM` shape whose hour field must fit
+ * 00-23; an offset of 24 hours or more (or non-finite) would otherwise
+ * silently produce a malformed suffix like `+30:00` instead of halting.
+ */
+export function validateIsoOffset(
+  offsetHours: number,
+  location?: SourceLocation,
+  fn = 'iso'
+): number {
+  // Validate against the rounded minute total that formatOffsetSuffix
+  // actually formats, not the raw hour magnitude: an offset like 23.999
+  // passes `< 24` but rounds to 1440 minutes, which formatOffsetSuffix
+  // would render as the invalid "+24:00" suffix.
+  const totalMinutes = Math.round(Math.abs(offsetHours) * 60);
+  if (!Number.isFinite(offsetHours) || totalMinutes >= 24 * 60) {
+    throwTypeHalt(
+      { location, fn },
+      'INVALID_INPUT',
+      `Invalid timezone offset: ${offsetHours} hours (must be less than 24 in magnitude)`,
+      'runtime',
+      { offsetHours }
+    );
+  }
+  return offsetHours;
+}
+
 /** Format timezone offset string like "+05:30" or "Z" */
 function formatOffsetSuffix(offsetHours: number): string {
   if (offsetHours === 0) return 'Z';
@@ -463,7 +553,7 @@ export function formatIso(utcMs: number, offsetHours: number): string {
   const p = applyOffset(utcMs, offsetHours);
   const suffix = formatOffsetSuffix(offsetHours);
   return (
-    `${padNum(p.y, 4)}-${padNum(p.mo, 2)}-${padNum(p.d, 2)}` +
+    `${formatYear(p.y)}-${padNum(p.mo, 2)}-${padNum(p.d, 2)}` +
     `T${padNum(p.h, 2)}:${padNum(p.mi, 2)}:${padNum(p.s, 2)}` +
     (p.ms > 0 ? `.${padNum(p.ms, 3)}` : '') +
     suffix
@@ -473,7 +563,7 @@ export function formatIso(utcMs: number, offsetHours: number): string {
 /** Format as "YYYY-MM-DD" */
 export function formatDate(utcMs: number, offsetHours: number): string {
   const p = applyOffset(utcMs, offsetHours);
-  return `${padNum(p.y, 4)}-${padNum(p.mo, 2)}-${padNum(p.d, 2)}`;
+  return `${formatYear(p.y)}-${padNum(p.mo, 2)}-${padNum(p.d, 2)}`;
 }
 
 /** Format as "HH:MM:SS" */

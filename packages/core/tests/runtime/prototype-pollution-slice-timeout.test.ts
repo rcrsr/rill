@@ -11,6 +11,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
+  RuntimeError,
   RuntimeHaltSignal,
   getStatus,
   toNative,
@@ -158,6 +159,37 @@ describe('setDictField rebuild sites: toNative() and JSON serialization', () => 
   });
 });
 
+describe('setDictField rebuild sites: hydrateStructure and convertToDictWithSig', () => {
+  it('hydrateStructure fills a missing __proto__-named field as an own property', async () => {
+    const result = await run(
+      '|d: dict(__proto__: number = 1)| ($d) => $f\n$f(dict[])'
+    );
+    const native = toNative(result as RillValue);
+    const value = native.value as Record<string, unknown>;
+    expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
+    expect(Object.hasOwn(value, '__proto__')).toBe(true);
+    expect(value['__proto__']).toBe(1);
+  });
+
+  it('convertToDictWithSig copies a present __proto__-named field as an own property', async () => {
+    const result = await run('dict[__proto__: 1] -> dict(__proto__: number)');
+    const native = toNative(result as RillValue);
+    const value = native.value as Record<string, unknown>;
+    expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
+    expect(Object.hasOwn(value, '__proto__')).toBe(true);
+    expect(value['__proto__']).toBe(1);
+  });
+
+  it('convertToDictWithSig fills a missing __proto__-named field from its default as an own property', async () => {
+    const result = await run('dict[] -> dict(__proto__: number = 1)');
+    const native = toNative(result as RillValue);
+    const value = native.value as Record<string, unknown>;
+    expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
+    expect(Object.hasOwn(value, '__proto__')).toBe(true);
+    expect(value['__proto__']).toBe(1);
+  });
+});
+
 describe('#268: fractional slice bounds halt', () => {
   it('a fractional step halts with an integer-bound error', async () => {
     await expectHaltMessage(
@@ -187,7 +219,7 @@ describe('#268: fractional slice bounds halt', () => {
 });
 
 describe('#270: timeout timer + catchability', () => {
-  it('a timeout surfaces as a catchable RuntimeHaltSignal', async () => {
+  it('an unguarded timeout escapes as a RuntimeError coded RILL-R012', async () => {
     const slowFn = mockAsyncFn(200, 'done');
     let caught: unknown;
     try {
@@ -195,20 +227,18 @@ describe('#270: timeout timer + catchability', () => {
     } catch (e) {
       caught = e;
     }
-    expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-    expect((caught as RuntimeHaltSignal).catchable).toBe(true);
-    expect(getStatus((caught as RuntimeHaltSignal).value).message).toContain(
-      'timed out'
-    );
+    expect(caught).toBeInstanceOf(RuntimeError);
+    expect((caught as RuntimeError).errorId).toBe('RILL-R012');
+    expect((caught as RuntimeError).message).toContain('timed out');
   });
 
-  it('guard recovers a timeout', async () => {
+  it('guard recovers a timeout and reports it as #RILL_R012', async () => {
     const slowFn = mockAsyncFn(200, 'done');
     const result = await run(
-      'guard { slowFn() } => $r  $r.! ? "recovered" ! "no-halt"',
+      'guard { slowFn() } => $r  $r.! ? ($r.!code == #RILL_R012) ! false',
       { functions: { slowFn }, timeout: 20 }
     );
-    expect(result).toBe('recovered');
+    expect(result).toBe(true);
   });
 
   it('clears the timer when the wrapped call settles first (no dangling timer)', async () => {

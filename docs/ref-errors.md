@@ -14,8 +14,8 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P022)](#parse-errors)
-- [Runtime Errors (RILL-R001 - RILL-R087)](#runtime-errors)
+- [Parse Errors (RILL-P001 - RILL-P023)](#parse-errors)
+- [Runtime Errors (RILL-R001 - RILL-R089)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
 ---
@@ -469,6 +469,26 @@ use<module:>  # Error: missing resource after colon
 ```text
 # Unclosed use<>
 use<module:resource  # Error: missing >
+```
+
+---
+
+### rill-p023
+
+**Description:** Malformed frontmatter closing delimiter
+
+**Cause:** The frontmatter block's closing delimiter has more than three dashes.
+
+**Resolution:** Write the closing delimiter as exactly three dashes: '---'.
+
+**Example:**
+
+```text
+# Closing delimiter with an extra dash
+---
+model: opus
+----
+log(1)
 ```
 
 ---
@@ -1403,9 +1423,9 @@ use<db:users>  # no resolver registered for "db"
 
 ### rill-r056
 
-**Description:** Resolver callback threw an error
+**Description:** Resolver threw, or returned a malformed result
 
-**Cause:** The registered resolver function for the given scheme threw an exception.
+**Cause:** The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, a `value`/`text` field that is absent or the wrong type).
 
 **Resolution:** Inspect the original error message in the RILL-R056 detail and fix the resolver implementation.
 
@@ -1908,6 +1928,40 @@ guard { timeout<idle: 200ms> { $stream } }
 
 ### rill-r084
 
+**Description:** Reserved status code used as invalidation code
+
+**Cause:** invalidate() (or an equivalent host-boundary call) was given "ok" as the invalidation code. "ok" is reserved for the valid-value sentinel and cannot be minted as an error/invalid status.
+
+**Resolution:** Use a different code for the invalidation, or return the value as valid instead of invalidating it.
+
+**Example:**
+
+```text
+# Host attempts to invalidate with the reserved "ok" code
+# Host code: ctx.invalidate({ code: "ok" })  # rejected
+```
+
+---
+
+### rill-r085
+
+**Description:** Host function returned an invalid value
+
+**Cause:** A host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.
+
+**Resolution:** Convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.
+
+**Example:**
+
+```text
+# Host function returns an unsupported JavaScript value
+# Host code: registerFunction("bad", () => new Map())  # rejected
+```
+
+---
+
+### rill-r086
+
 **Description:** Wildcard policy rule declares transforms
 
 **Cause:** A "*" policy rule carried in or out entries. Wildcard rules are access-control only, because one transform signature cannot fit every method it would wrap.
@@ -1923,7 +1977,7 @@ guard { timeout<idle: 200ms> { $stream } }
 
 ---
 
-### rill-r085
+### rill-r087
 
 **Description:** Transform reference cannot be resolved
 
@@ -1940,7 +1994,7 @@ guard { timeout<idle: 200ms> { $stream } }
 
 ---
 
-### rill-r086
+### rill-r088
 
 **Description:** Call denied by policy
 
@@ -1958,7 +2012,7 @@ $r.! ? "not permitted" ! $r
 
 ---
 
-### rill-r087
+### rill-r089
 
 **Description:** Policy transform cycle detected
 

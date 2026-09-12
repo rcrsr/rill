@@ -12,7 +12,7 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
     it('returns nested value for dict path (AC-1)', async () => {
       // AC-1: Dict path returns nested value
       const result = await run(
-        'list["name", "first"] -> dict[name: dict[first: "Alice"]]'
+        'list["name", "given"] -> dict[name: dict[given: "Alice"]]'
       );
       expect(result).toBe('Alice');
     });

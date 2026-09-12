@@ -3,7 +3,7 @@
  *
  * Runs `runRules` against every statically-extractable snippet in the
  * protected core language test corpus (via `corpus-loader.ts`) to assert
- * structural invariants: no snippet throws, the full 41-rule registry
+ * structural invariants: no snippet throws, the full 42-rule registry
  * executes, and emitted diagnostics stay sorted by line then column. It
  * also reproduces purpose-built per-rule firing scenarios and
  * severity-resolution behavior.
@@ -72,9 +72,9 @@ describe('full corpus run', () => {
     expect(loadCorpusSnippets().length).toBeGreaterThan(fileNames.length);
   });
 
-  it('registers the complete 41-rule set and passes it through to runRules', () => {
-    expect(RULES.length).toBe(41);
-    expect(Object.keys(createDefaultConfig().rules)).toHaveLength(41);
+  it('registers the complete 42-rule set and passes it through to runRules', () => {
+    expect(RULES.length).toBe(42);
+    expect(Object.keys(createDefaultConfig().rules)).toHaveLength(42);
   });
 
   it('never throws while parsing and checking any corpus snippet', () => {
@@ -89,17 +89,18 @@ describe('full corpus run', () => {
   });
 
   it('fires CONDITION_TYPE on exactly the corpus snippets the language spec calls non-boolean', () => {
-    // The corpus is the acceptance oracle for CONDITION_TYPE: these three
-    // snippets are the language's own "errors (not boolean)" cases, so they
-    // are independent true positives. Drifting to zero means the rule went
-    // dead in practice; drifting upward means it false-positives on
+    // The corpus is the acceptance oracle for CONDITION_TYPE: these four
+    // snippets are the language's own "errors (not boolean)" cases (three
+    // in ref-llms-full-assertions.test.ts, one in conditionals.test.ts), so
+    // they are independent true positives. Drifting to zero means the rule
+    // went dead in practice; drifting upward means it false-positives on
     // protected spec code. Both are defects, and neither is visible to a
     // hand-written fixture.
     const hits = results
       .flatMap((result) => result.diagnostics)
       .filter((diagnostic) => diagnostic.code === 'CONDITION_TYPE');
 
-    expect(hits).toHaveLength(3);
+    expect(hits).toHaveLength(4);
   });
 });
 

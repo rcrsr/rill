@@ -317,6 +317,40 @@ $val -> |x| { $x -> .len }`;
     });
   });
 
+  describe('Pipe Property Access ($.field)', () => {
+    it('resolves a string method identically to a block form', async () => {
+      expect(await run('"hello" -> $.upper')).toBe('HELLO');
+      expect(await run('"hello" -> { $.upper }')).toBe('HELLO');
+    });
+
+    it('resolves a string property', async () => {
+      expect(await run('"hello" -> $.len')).toBe(5);
+    });
+
+    it('resolves a list property', async () => {
+      expect(await run('list[1, 2] -> $.len')).toBe(2);
+    });
+
+    it('invokes a method explicitly with call syntax', async () => {
+      expect(await run('"hello" -> { $.upper() }')).toBe('HELLO');
+    });
+
+    it('resolves a dict field unchanged', async () => {
+      expect(await run('dict[a: 1] -> $.a')).toBe(1);
+    });
+
+    it('returns a callable field un-invoked', async () => {
+      const script = `dict[f: |x| { $x * 2 }] -> $.f => $fn
+$fn(3)`;
+      expect(await run(script)).toBe(6);
+    });
+
+    it('returns a callable field that can be invoked with pipe-invoke syntax', async () => {
+      const script = `dict[f: |x| { $x * 2 }] -> $.f -> $(3)`;
+      expect(await run(script)).toBe(6);
+    });
+  });
+
   // ============================================================
   // PIPE BINDING RULE (IR-8)
   // ============================================================
@@ -462,6 +496,47 @@ $val -> |x| { $x -> .len }`;
       await expect(
         run('"val" -> collect2($undefinedVar, 1)', { functions: { collect2 } })
       ).rejects.toThrow();
+    });
+  });
+
+  describe('Postfix Index After a Bare/Host-Call Pipe Target (-> fn[i])', () => {
+    it('indexes the result of a bare builtin call', async () => {
+      expect(await run('list[3,1,2] -> sort[0]')).toBe(1);
+    });
+
+    it('indexes from the end of the result of a bare builtin call', async () => {
+      expect(await run('list[3,1,2] -> sort[-1]')).toBe(3);
+    });
+
+    it('indexes the result of an arg-bearing builtin call', async () => {
+      // Explicit $ placement supplies the sole arg directly, avoiding the
+      // pipe auto-prepend arity conflict a bare "identity(list[...])" would hit.
+      expect(await run('list[3, 1, 2] -> identity($)[0]')).toBe(3);
+    });
+
+    it('indexes the result of an arg-bearing host-call target', async () => {
+      const collect2: RillFunction = {
+        params: [
+          {
+            name: 'a',
+            type: { kind: 'any' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+          {
+            name: 'b',
+            type: { kind: 'any' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        fn: (args: Record<string, RillValue>): RillValue[] =>
+          [args['a'], args['b']] as RillValue[],
+      };
+      const result = await run('"piped" -> collect2(1)[0]', {
+        functions: { collect2 },
+      });
+      expect(result).toBe('piped');
     });
   });
 });

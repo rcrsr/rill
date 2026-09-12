@@ -55,6 +55,7 @@ In closure params (validates input structure):
 
     $data.field                     # dict field
     $data[0], $data[-1]             # list index (negative from end)
+    tuple[1,"a"][1]  # "a" — tuple and ordered index by position; ordered also by key
     $data.$key                      # variable as key
     $data.($i + 1)                  # computed key
     $data.(a || b)                  # try keys left to right
@@ -64,10 +65,14 @@ In closure params (validates input structure):
     $data.?$key&number              # variable existence + type check
     $data.?($expr)&list             # computed existence + type check
 
-Built-in methods take priority over dict keys:
+The 8 dict method names are reserved and cannot be used as dict keys:
 
-    dict[len: "fake"].len           # returns dict length, not "fake"
-    dict[len: "fake"]["len"]        # bracket access returns "fake"
+    len   first   empty   eq   ne   keys   values   entries
+
+    dict[len: "fake"]                # halts: reserved method name 'len'
+    dict[label: "fake"].len          # fine: dict length (non-reserved key)
+
+`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule).
 
 ## Tuple lexicographic comparison
 
@@ -76,6 +81,8 @@ Tuples support `<`, `>`, `<=`, `>=`, `==`, `!=`. Comparison walks elements left 
     tuple[1, 2] < tuple[1, 3]              # true
     tuple[2, 1] > tuple[1, 9]              # true
     tuple[1, 2] == tuple[1, 2]             # true
+
+Index a tuple with `[i]` or `.at(i)`; `.1` is a parse error.
 
 Dicts have NO comparison protocol. Use tuples for multi-key ordering, including with `sort({ tuple[$.a, $.b] })`.
 

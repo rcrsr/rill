@@ -83,7 +83,7 @@ describe('filter integration', () => {
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.delete()'), ctx),
       {
-        code: 'RILL_R086',
+        code: 'RILL_R088',
         messagePattern: /denied by policy/,
       }
     );
@@ -101,7 +101,7 @@ describe('filter integration', () => {
     await expectHalt(
       () => execute(parse('use<ext:kb> => $anything\n$anything.delete()'), ctx),
       {
-        code: 'RILL_R086',
+        code: 'RILL_R088',
         messagePattern: /denied by policy/,
       }
     );
@@ -120,7 +120,7 @@ describe('filter integration', () => {
           ctx
         ),
       {
-        code: 'RILL_R086',
+        code: 'RILL_R088',
         messagePattern: /denied by policy/,
       }
     );
@@ -215,7 +215,7 @@ describe('filter integration', () => {
           createTestContext(config, extensions)
         ),
       {
-        code: 'RILL_R086',
+        code: 'RILL_R088',
         messagePattern: /denied by policy/,
       }
     );
@@ -260,7 +260,7 @@ describe('filter integration', () => {
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.client.purge()'), ctx),
       {
-        code: 'RILL_R086',
+        code: 'RILL_R088',
         messagePattern: /denied by policy/,
       }
     );
@@ -303,7 +303,7 @@ describe('filter integration', () => {
           )
         ),
       {
-        code: 'RILL_R086',
+        code: 'RILL_R088',
         messagePattern: /denied by policy/,
       }
     );
@@ -319,7 +319,7 @@ describe('filter integration', () => {
     await expectHalt(
       () => execute(parse('use<ext:greet> => $greet\n$greet()'), ctx),
       {
-        code: 'RILL_R086',
+        code: 'RILL_R088',
         messagePattern: /denied by policy/,
       }
     );

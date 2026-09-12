@@ -17,8 +17,6 @@ import {
 } from '../persistence.js';
 
 describe('persistence', () => {
-  // Store original localStorage
-  const originalLocalStorage = globalThis.localStorage;
   // Store original window.innerWidth
   const originalInnerWidth = window.innerWidth;
 
@@ -34,8 +32,6 @@ describe('persistence', () => {
   });
 
   afterEach(() => {
-    // Restore localStorage after each test
-    globalThis.localStorage = originalLocalStorage;
     // Restore window.innerWidth
     Object.defineProperty(window, 'innerWidth', {
       writable: true,

@@ -16,6 +16,7 @@
 import { describe, expect, it } from 'vitest';
 import { ERROR_REGISTRY, type ErrorDefinition } from '@rcrsr/rill';
 import { ErrorRegistryImpl } from '../../src/error-registry.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../src/error-registry.js';
 
 function makeDefinition(
   overrides: Partial<ErrorDefinition> = {}
@@ -67,6 +68,14 @@ describe('ErrorRegistryImpl category self-check', () => {
     expect(() => new ErrorRegistryImpl([matched])).not.toThrow(
       /declares category/
     );
+  });
+
+  it('RILL-R085 is registered with category runtime and a derived RILL_R085 atom', () => {
+    const definition = ERROR_REGISTRY.get(ERROR_IDS.RILL_R085);
+
+    expect(definition).toBeDefined();
+    expect(definition?.category).toBe('runtime');
+    expect(ERROR_ATOMS[ERROR_IDS.RILL_R085]).toBe('RILL_R085');
   });
 
   it('every shipped error definition has a category matching its ID letter', () => {

@@ -16,6 +16,7 @@ import {
   formatIso,
   formatDate,
   formatTime,
+  validateIsoOffset,
 } from './construct.js';
 
 // ============================================================
@@ -83,9 +84,10 @@ export const mDtZero: RillMethod = () => {
 };
 
 /** .iso(offset?) - full ISO 8601 with timezone indicator */
-export const mDtIso: RillMethod = (receiver, args) => {
+export const mDtIso: RillMethod = (receiver, args, _ctx, location) => {
   const dt = receiver as unknown as RillDatetime;
   const offset = typeof args[0] === 'number' ? args[0] : 0;
+  validateIsoOffset(offset, location, 'iso');
   return formatIso(dt.unix, offset);
 };
 
@@ -131,6 +133,7 @@ function getTimezoneOffset(
 export const mDtLocalIso: RillMethod = (receiver, _args, ctx, location) => {
   const dt = receiver as unknown as RillDatetime;
   const offset = getTimezoneOffset(ctx, location);
+  validateIsoOffset(offset, location, 'local_iso');
   return formatIso(dt.unix, offset);
 };
 
@@ -447,9 +450,25 @@ export const mDurMultiply: RillMethod = (receiver, args, _ctx, location) => {
       location
     );
   }
+  const months = dur.months * n;
+  const ms = dur.ms * n;
+  if (!Number.isFinite(months) || !Number.isFinite(ms)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      'duration.multiply() would produce a non-finite result',
+      location
+    );
+  }
+  if (!Number.isInteger(months)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      'duration.multiply() would produce a fractional month value',
+      location
+    );
+  }
   return {
     __rill_duration: true,
-    months: dur.months * n,
-    ms: dur.ms * n,
+    months,
+    ms,
   } as unknown as RillValue;
 };

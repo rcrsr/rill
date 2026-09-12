@@ -75,11 +75,11 @@ seq([1, 2, 3], { $ * 2 })
 
 ### Dict Iteration
 
-When iterating over a dict, `$` contains `key` and `value` fields.
+When iterating over a dict, `$` contains `key` and `value` fields. Iteration visits keys in dict's canonical order (see [Types](topic-types.md)).
 
 ```rill
 [name: "alice", age: 30] -> seq({ "{$.key}: {$.value}" })
-# Result: ["name: alice", "age: 30"]
+# Result: ["age: 30", "name: alice"]
 
 [a: 1, b: 2, c: 3] -> seq({ $.value * 2 })
 # Result: [2, 4, 6]
@@ -535,7 +535,7 @@ An empty stream returns `[]`.
 
 ### Dict Form
 
-Dict sort returns an `ordered` collection. The default key is the entry key string.
+Dict sort returns an `ordered` collection. The default key is the entry key, compared by its own native type — number keys sort numerically (`1, 2, 10`) and string keys sort lexically (`"1", "10", "2"`). A dict whose keys mix types halts with `#TYPE_MISMATCH`, so sort mixed-type keys with an explicit key function.
 
 ```rill
 # Default: sort by key (alphabetical)
@@ -575,6 +575,17 @@ Pipe through `.reverse` after sorting to get descending order. `.reverse` is a z
 [3, 1, 2] -> sort -> .reverse
 # Result: [3, 2, 1]
 ```
+
+### Indexing the sorted result
+
+A bare operator or host-call pipe target can be indexed directly with `[i]`; the index applies to the call's result.
+
+```rill
+list[3, 1, 2] -> sort[0]
+# Result: 1
+```
+
+This is the same postfix `[i]` that follows `-> .reverse[0]`.
 
 ### Iterator Materialization
 

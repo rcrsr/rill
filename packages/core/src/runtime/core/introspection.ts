@@ -6,9 +6,12 @@
  */
 
 import type { RuntimeContext } from './types/runtime.js';
-import type { RillValue } from './types/structures.js';
-import { formatStructure } from './types/operations.js';
-import { formatValue } from './types/registrations.js';
+import type { RillValue, TypeStructure } from './types/structures.js';
+import {
+  compareStructuredFields,
+  formatStructure,
+} from './types/operations.js';
+import type { FieldComparisonCallbacks } from './types/operations.js';
 import { escapeRillStringBody } from './types/format-string.js';
 import {
   isApplicationCallable,
@@ -70,7 +73,10 @@ export interface ParamMetadata {
  * Returns flat list combining host functions, built-ins, and script closures.
  * Namespaced functions preserve `::` separator in name field.
  * Malformed entries silently skipped (valid entries returned).
- * Script closures: reads `^(doc: "...")` annotation for description.
+ * Script closures: reads `^(description: "...")` (including the bare-string
+ * shorthand) or, when absent, the legacy `^(doc: "...")` annotation for description.
+ * Script closures: returnType reflects the closure's declared/inferred return type,
+ * falling back to 'any' only when genuinely unspecified.
  * Script closures: excludes nested closures in dicts/lists.
  *
  * Order: host functions, then built-ins, then script closures.
@@ -143,13 +149,16 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
   for (const [name, value] of ctx.variables.entries()) {
     try {
       if (isScriptCallable(value)) {
-        // Extract description from ^(doc: "...") annotation
+        // Extract description: prefer annotations.description (covers both
+        // the explicit `description: "..."` named arg and the `^("...")`
+        // shorthand, which the parser expands to the same key), falling
+        // back to the legacy `^(doc: "...")` annotation.
         let description = '';
-        if (value.annotations && 'doc' in value.annotations) {
-          const docValue = value.annotations['doc'];
-          if (typeof docValue === 'string') {
-            description = docValue;
-          }
+        const descValue = value.annotations['description'];
+        if (typeof descValue === 'string') {
+          description = descValue;
+        } else if (typeof value.annotations['doc'] === 'string') {
+          description = value.annotations['doc'];
         }
 
         // Convert params to ParamMetadata using RillParam.type
@@ -167,7 +176,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
           name,
           description,
           params,
-          returnType: 'any',
+          returnType: formatStructure(value.returnType.structure),
         });
       }
     } catch {
@@ -181,27 +190,110 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
 }
 
 /**
- * Serialize a default value as a rill literal suitable for emission into a
- * parseable manifest. String values are wrapped in double quotes with their
- * contents escaped; all other value kinds delegate to `formatValue`, whose
- * output already parses (numbers, booleans, collections).
+ * Field-comparison callbacks for `serializeSignatureType`'s dict/tuple/ordered
+ * branch. Mirrors `formatStructure`'s `formatCallbacks`, but routes each
+ * field's type back through `serializeSignatureType` instead of
+ * `formatStructure` so the union/closure collapse applies at every nesting
+ * depth, not just the top level.
  */
-function serializeDefaultValue(value: RillValue): string {
-  if (typeof value === 'string') {
-    return `"${escapeRillStringBody(value)}"`;
+const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
+  onValueType(valueType) {
+    return serializeSignatureType(valueType);
+  },
+  onValueTypeMismatch: () => null,
+  onBothEmpty: () => null,
+  onFieldPresenceMismatch: () => null,
+  onDictFields(fields) {
+    const parts = Object.keys(fields)
+      .sort()
+      .map((k) => `${k}: ${serializeSignatureType(fields[k]!.type)}`);
+    return parts.join(', ');
+  },
+  onTupleElements(elements) {
+    const parts = elements.map((field) => serializeSignatureType(field.type));
+    return parts.join(', ');
+  },
+  onOrderedFields(fields) {
+    const parts = fields.map(
+      (field) => `${field.name}: ${serializeSignatureType(field.type)}`
+    );
+    return parts.join(', ');
+  },
+};
+
+/**
+ * Serialize a `TypeStructure` into a type-ref string that is always valid in
+ * a bodyless `|params| :ret` closure type signature.
+ *
+ * `formatStructure` renders union members joined by bare `|` and closures as
+ * `|params| :ret` — both forms are ambiguous or unparseable when embedded
+ * inside the `|...|` delimiters of a manifest closure signature, so they
+ * collapse to `any` / `closure` here instead. Every other structure already
+ * round-trips through `formatStructure` (e.g. `string`, `list(number)`,
+ * `dict`).
+ *
+ * The collapse is recursive: `list`, `dict`, `tuple`, `ordered`, and `stream`
+ * walk their element/field/chunk sub-structures through this same function,
+ * so a nested closure or union (e.g. a callback list's element type)
+ * collapses too, not just one carried directly by a param or return type.
+ * `stream`'s resolution type (`ret`) is omitted rather than recursed into —
+ * see the `stream` branch below for why.
+ */
+function serializeSignatureType(structure: TypeStructure): string {
+  if (structure.kind === 'union') return 'any';
+  if (structure.kind === 'closure') return 'closure';
+
+  if (structure.kind === 'list') {
+    const element = (structure as { element?: TypeStructure }).element;
+    if (element === undefined) return 'list';
+    return `list(${serializeSignatureType(element)})`;
   }
-  return formatValue(value);
+
+  if (
+    structure.kind === 'dict' ||
+    structure.kind === 'tuple' ||
+    structure.kind === 'ordered'
+  ) {
+    const inner = compareStructuredFields(
+      structure,
+      structure,
+      signatureFieldCallbacks,
+      null
+    );
+    if (inner === null) return structure.kind;
+    return `${structure.kind}(${inner})`;
+  }
+
+  if (structure.kind === 'stream') {
+    // The `stream(<chunk>):<ret>` resolution-type suffix is grammar owned by
+    // a real closure's own trailing return-type-target parse (used only
+    // right after a closure body); the bodyless `|params|:ret` signature
+    // grammar parses every type — including this one, when it appears as a
+    // param type or return type — through the ordinary expression/type-ref
+    // parser, which does not recognize that suffix at all. Emitting it here
+    // would leave a dangling `:<ret>` the parser cannot attach anywhere, so
+    // the resolution type is intentionally omitted rather than collapsing
+    // the whole `stream(...)` to `any`.
+    const t = structure as { kind: 'stream'; chunk?: TypeStructure };
+    if (t.chunk === undefined) return 'stream';
+    return `stream(${serializeSignatureType(t.chunk)})`;
+  }
+
+  return formatStructure(structure);
 }
 
 /**
  * Serialize a single RillParam into rill closure parameter syntax.
  *
- * Format: `^(description: "...") name: type = default`
+ * Format: `^(description: "...") name: type`
  * - Annotation prefix included only when annotations.description is present.
  * - Type defaults to `any` when param.type is undefined.
- * - Default value appended as `= value` when param.defaultValue is defined.
- *   String defaults are emitted as quoted, escaped rill string literals so the
- *   manifest remains a valid rill file.
+ *
+ * Default values are intentionally not emitted: not every `RillValue`
+ * (e.g. datetime, atom) round-trips through a rill literal, so appending
+ * `= <value>` risked emitting a manifest entry that could not be parsed
+ * back. The manifest is a type signature, not a call site — omitting
+ * defaults keeps every entry guaranteed-parseable.
  */
 function serializeParam(p: RillParam): string {
   const parts: string[] = [];
@@ -213,13 +305,9 @@ function serializeParam(p: RillParam): string {
   }
 
   // Name and type
-  const typeName = p.type !== undefined ? formatStructure(p.type) : 'any';
+  const typeName =
+    p.type !== undefined ? serializeSignatureType(p.type) : 'any';
   parts.push(`${p.name}: ${typeName}`);
-
-  // Default value
-  if (p.defaultValue !== undefined) {
-    parts.push(` = ${serializeDefaultValue(p.defaultValue)}`);
-  }
 
   return parts.join('');
 }
@@ -229,12 +317,15 @@ function serializeParam(p: RillParam): string {
  *
  * Format: `^(description: "...") |param: type|:returnType`
  * - Closure-level description annotation prefix included only when description is present.
- * - Return type suffix included only when returnType is not `any`.
- * - Empty param list renders as `||`.
+ * - Return type suffix always emitted (including `:any`) so the signature matches
+ *   the bodyless `|params| :ret` grammar unconditionally.
+ * - The bodyless closure-signature form is emitted unconditionally, including
+ *   `||:ret` for a zero-param entry and `^(description: "...")` prefixes on
+ *   individual params (see `serializeParam`).
  */
 function serializeClosureSignature(
   params: readonly RillParam[],
-  returnType: string,
+  returnType: TypeStructure,
   description: string | undefined
 ): string {
   const parts: string[] = [];
@@ -244,14 +335,12 @@ function serializeClosureSignature(
     parts.push(`^(description: "${escapeRillStringBody(description)}") `);
   }
 
-  // Parameter list
+  const retStr = serializeSignatureType(returnType);
   const paramStr = params.map(serializeParam).join(', ');
-  parts.push(`|${paramStr}|`);
 
-  // Optional return type
-  if (returnType !== 'any') {
-    parts.push(`:${returnType}`);
-  }
+  // Bodyless closure-signature form
+  parts.push(`|${paramStr}|`);
+  parts.push(`:${retStr}`);
 
   return parts.join('');
 }
@@ -289,7 +378,7 @@ export function generateManifest(ctx: RuntimeContext): string {
 
     const signature = serializeClosureSignature(
       callable.params,
-      formatStructure(callable.returnType.structure),
+      callable.returnType.structure,
       (callable.annotations?.['description'] as string) ?? undefined
     );
 

@@ -31,7 +31,7 @@ All operators chain with `->`. Error contracts apply identically to list and str
 
 **Signature:** `take(n: int): list[T]`
 
-`take` returns the first `n` elements of a list, iterator, or stream as a list. Input after position `n` is discarded. `take` is eager: it materializes the result immediately.
+`take` returns the first `n` elements of a list, iterator, or stream as a list. Input after position `n` is discarded. `take` is eager: it materializes the result immediately. On a host stream, `take` disposes the source once it has collected `n` elements, releasing host resources the same way `break` does (see [Collection Operators](topic-collections.md)).
 
 ```rill
 range(1, 11) -> take(5)

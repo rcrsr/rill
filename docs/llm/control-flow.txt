@@ -100,7 +100,9 @@ All operators accept any callable as the body argument:
     -> seq({ $ * 2 })           # block, $ is current element
     -> seq(|x| ($x * 2))        # inline closure
     -> seq($double)             # variable closure
-    -> seq(log)                 # built-in function
+    -> seq({ log($) })          # built-in wrapped in a closure
+
+A bare built-in or host name -- seq(log) -- does NOT reference a callable here. In argument position it parses as a zero-arg call log(). Wrap it in a closure.
 
 ## Iterating dicts and strings
 

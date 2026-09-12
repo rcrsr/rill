@@ -395,6 +395,28 @@ describe('Rill Language: Duration Type', () => {
       ).rejects.toThrow('duration.multiply() requires non-negative number');
     });
 
+    it('halts on fractional month result from multiply', async () => {
+      // duration(months: 1) -> .multiply(0.5)
+      await expect(run('duration(0, 1) -> .multiply(0.5)')).rejects.toThrow(
+        'duration.multiply() would produce a fractional month value'
+      );
+    });
+
+    it('halts on non-finite result from multiply', async () => {
+      const getInf: RillFunction = {
+        params: [],
+        returnType: { kind: 'number' },
+        fn: () => Infinity,
+      };
+      await expectHaltMessage(
+        () =>
+          run('duration(0, 0, 0, 2) -> .multiply(getInf())', {
+            functions: { getInf },
+          }),
+        "Host function 'getInf' returned a non-finite number at <root>: Infinity"
+      );
+    });
+
     it('halts on .total_ms for calendar duration with RILL-R003 [AC-E10]', async () => {
       // duration(months: 1) -> .total_ms
       await expect(run('duration(0, 1) -> .total_ms')).rejects.toThrow(
@@ -425,7 +447,7 @@ describe('Rill Language: Duration Type', () => {
       };
       await expectHaltMessage(
         () => run('duration(0, 0, getNaN())', { functions: { getNaN } }),
-        'duration days must be a finite number'
+        "Host function 'getNaN' returned a non-finite number at <root>: NaN"
       );
     });
 
@@ -437,7 +459,7 @@ describe('Rill Language: Duration Type', () => {
       };
       await expectHaltMessage(
         () => run('duration(0, 0, 0, getInf())', { functions: { getInf } }),
-        'duration hours must be a finite number'
+        "Host function 'getInf' returned a non-finite number at <root>: Infinity"
       );
     });
   });

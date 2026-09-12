@@ -213,6 +213,27 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.?field&type` | Existence + type check |
 | `$data.^key` | Annotation reflection |
 
+`[index]` is a postfix operator: it applies after any expression yielding an indexable value, not only a `$`-variable.
+
+```rill
+list[1, 2, 3][0]
+# Result: 1
+```
+
+`.?field` and a `:type` / `:?type` assertion may follow any postfix operator, the same as after `$var[i]`:
+
+```rill
+list[dict[a: 1]][0].?a
+# Result: true
+```
+
+```rill
+list[1, 2, 3][0]:number
+# Result: 1
+```
+
+Tuples and `ordered` values index the same way as lists.
+
 ### Reserved Words as Member Names
 
 Reserved words are legal member names immediately after a dot. The lexer retypes any keyword token following `.` or `.?` to a member name. These words never trigger their statement parsing.
@@ -280,6 +301,8 @@ Type constructors are primary expressions that produce structural type values. T
 | Tuple field with annotation | `tuple(^(...) T, ...)` | `tuple(^("x") number, ^("y") number)` |
 | Closure sig | `\|p: T\| :R` | `\|x: number\| :string` |
 | Closure sig with param default | `\|p: T = literal\| :R` | `\|x: string = "gpt-4"\| :string` |
+| Closure sig, zero params | `\|\|:R` | `\|\|:string` |
+| Closure sig with annotated param | `\|^(...) p: T\|:R` | `\|^("label") x: string\|:int` |
 | Annotation default | `\|p: dict(k: T = literal)\|` | `\|a: dict(b: number = 5)\|` |
 
 When using `-> type` to convert a value, the runtime applies two default behaviors for collection-typed fields:
@@ -388,7 +411,7 @@ Path element types: string keys for dict lookup, number indexes for list access 
 Terminal closures receive `$` bound to the final path key.
 
 ```text
-["name", "first"] -> [name: dict[first: "Alice"]]              # "Alice" (dict path)
+["name", "given"] -> [name: dict[given: "Alice"]]              # "Alice" (dict path)
 [0, 1] -> list[list[1, 2, 3], list[4, 5, 6]]                      # 2 (list path)
 ["users", 0, "name"] -> [users: list[dict[name: "Alice"]]]    # "Alice" (mixed path)
 ["req", "draft"] -> [req: dict[draft: { "key={$}" }]]         # "key=draft" (terminal closure)
@@ -468,7 +491,7 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `identity` | `value: any` | `any` | Returns input unchanged |
 | `log` | `message: any` | `any` | Print to console, pass through |
 | `json` | `value: any` | `string` | Convert to JSON string |
-| `enumerate` | `items: list\|dict\|string` | `list` | Add index to elements |
+| `enumerate` | `items: list\|dict` | `list` | Add index to elements |
 | `range` | `start: number, stop: number, step: number = 1` | `iterator` | Generate number sequence |
 | `repeat` | `value: any, count: number` | `iterator` | Repeat value n times |
 | `chain` | `value: any, transform: any` | `any` | Apply closure(s) sequentially |

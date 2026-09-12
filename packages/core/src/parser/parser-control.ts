@@ -35,11 +35,13 @@ import {
   advance,
   expect,
   current,
+  previous,
   isAtEnd,
   skipNewlines,
   skipNewlinesIfFollowedBy,
   makeSpan,
   reportError,
+  type ParserState,
 } from './state.js';
 import { ATOM_NAME_SHAPE } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -73,6 +75,48 @@ type OnCodeListResult =
 // CONDITIONALS
 // ============================================================
 
+// Tokens that would continue a branch's postfix-expr into a wider
+// binary/arithmetic/logical/comparison expression. The conditional-branch
+// grammar restricts each branch to block | grouped-expr | postfix-expr, so
+// parseBody() only ever returns one of those three shapes; it never
+// produces a BinaryExpr itself. Without this check, a branch like
+// `1 + 1` silently parses only the `1` as the then-branch and leaves
+// `+ 1` dangling for the next construct to misparse (e.g. as part of a
+// following unary `!` statement). Immediate adjacency (no intervening
+// NEWLINE token) is required to trigger the error, so a branch legitimately
+// ending at end-of-line is unaffected.
+const BRANCH_CONTINUATION_TOKENS = [
+  TOKEN_TYPES.PLUS,
+  TOKEN_TYPES.MINUS,
+  TOKEN_TYPES.STAR,
+  TOKEN_TYPES.SLASH,
+  TOKEN_TYPES.PERCENT,
+  TOKEN_TYPES.EQ,
+  TOKEN_TYPES.NE,
+  TOKEN_TYPES.LT,
+  TOKEN_TYPES.GT,
+  TOKEN_TYPES.LE,
+  TOKEN_TYPES.GE,
+  TOKEN_TYPES.AND,
+  TOKEN_TYPES.OR,
+] as const;
+
+/**
+ * Raises a parse error when a just-parsed conditional branch is immediately
+ * followed by a binary operator, which would only be reachable by parsing
+ * the branch as a full expression instead of the grammar-restricted
+ * block | grouped-expr | postfix-expr shape.
+ */
+function assertBranchShapeBoundary(state: ParserState): void {
+  if (check(state, ...BRANCH_CONTINUATION_TOKENS)) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P006,
+      'conditional branch must be a block, grouped expression, or postfix expression; wrap in parentheses',
+      current(state).span.start
+    );
+  }
+}
+
 Parser.prototype.parsePipedConditional = function (
   this: Parser
 ): ConditionalNode {
@@ -97,15 +141,22 @@ Parser.prototype.parseConditionalRest = function (
   condition: BodyNode | null,
   start: { line: number; column: number; offset: number }
 ): ConditionalNode {
+  // A trailing `?` at end of line continues onto the then-branch on the
+  // next line.
+  skipNewlines(this.state);
   const thenBranch = this.parseBody();
+  assertBranchShapeBoundary(this.state);
 
   let elseBranch: BodyNode | ConditionalNode | null = null;
-  // Site 4: Add skipNewlines before ! check (safe because we're inside conditional)
-  skipNewlines(this.state);
+  skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.BANG);
   if (check(this.state, TOKEN_TYPES.BANG)) {
     advance(this.state);
+    // A trailing `!` at end of line continues onto the else-branch on the
+    // next line.
+    skipNewlines(this.state);
 
     const elseBody = this.parseBody();
+    assertBranchShapeBoundary(this.state);
 
     // Site 5: Add newline lookahead before ? check for else-if
     if (skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.QUESTION)) {
@@ -250,6 +301,8 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
     expect(this.state, TOKEN_TYPES.DO, 'Expected `do`');
   }
 
+  // A newline between `do`/`do<opts>` and the body block is allowed.
+  skipNewlines(this.state);
   const body = this.parseBlock();
 
   // Require trailing `while (cond)`.
@@ -271,7 +324,9 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
     );
   }
   advance(this.state); // consume `(`
+  skipNewlines(this.state);
   const condition = this.parseExpression();
+  skipNewlines(this.state);
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
 
   // parseExpression() itself only ever produces PipeChainNode on a
@@ -291,7 +346,7 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
     body,
     condition,
     annotations,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -299,11 +354,15 @@ Parser.prototype.parseLoop = function (this: Parser): DoWhileLoopNode {
  * Parse a while loop: `while ( cond ) do [<limit: N>] { body }`.
  *
  * Precondition: current token is WHILE.
- * Produces a WhileLoopNode. Trailing `do` / `do<limit: N>` is required.
+ * Produces a WhileLoopNode. `do` / `do<limit: N>` is required on the same
+ * line as `while (cond)`. Across a newline, a bare `{ body }` is accepted
+ * as shorthand for `do { body }`: `while (cond)\n{ body }` and
+ * `while (cond)\ndo { body }` parse to equivalent nodes. `while (cond) {
+ * body }` on one line still requires `do`.
  *
  * Error contracts:
- *   missing `(cond)`  → RILL-P004
- *   missing `do`      → RILL-P004
+ *   missing `(cond)`        → RILL-P004
+ *   missing `do` and no `{` → RILL-P004
  */
 Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
   const start = current(this.state).span.start;
@@ -318,15 +377,28 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
     );
   }
   advance(this.state); // consume `(`
+  skipNewlines(this.state);
   const condition: ExpressionNode = this.parseExpression();
+  skipNewlines(this.state);
   expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
 
-  skipNewlines(this.state);
+  // `do` / `do<opts>` is required, except when a newline separates
+  // `while (cond)` from a bare `{` block: `while (cond)\n{ body }` is then
+  // accepted as shorthand for `while (cond)\ndo { body }` — the two forms
+  // parse to equivalent nodes. On the same line, `do` still stays
+  // mandatory: `while (cond) { body }` remains a RILL-P004 error.
+  const hadNewlineBeforeDo = check(this.state, TOKEN_TYPES.NEWLINE);
+  const bareBlockFollowsNewline =
+    hadNewlineBeforeDo &&
+    skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.LBRACE);
+  if (!bareBlockFollowsNewline) {
+    skipNewlines(this.state);
+  }
 
-  // Require `do` or `do<opts>`.
   if (
     !check(this.state, TOKEN_TYPES.DO) &&
-    !check(this.state, TOKEN_TYPES.DO_LANGLE)
+    !check(this.state, TOKEN_TYPES.DO_LANGLE) &&
+    !(bareBlockFollowsNewline && check(this.state, TOKEN_TYPES.LBRACE))
   ) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
@@ -340,10 +412,13 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
     const doStart = current(this.state).span.start;
     advance(this.state); // consume do<
     annotations = parseConstructOptions(this, doStart);
-  } else {
+  } else if (check(this.state, TOKEN_TYPES.DO)) {
     advance(this.state); // consume `do`
   }
+  // else: bare `{` stands in for `do {` — nothing to consume here.
 
+  // A newline between `do`/`do<opts>` and the body block is allowed.
+  skipNewlines(this.state);
   const body = this.parseBlock();
 
   return {
@@ -351,7 +426,7 @@ Parser.prototype.parseWhileLoop = function (this: Parser): WhileLoopNode {
     condition,
     body,
     annotations,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -551,7 +626,7 @@ Parser.prototype.parseAssert = function (this: Parser): AssertNode {
     type: 'Assert',
     condition,
     message,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -602,7 +677,7 @@ Parser.prototype.parseError = function (
   return {
     type: 'Error',
     message,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 

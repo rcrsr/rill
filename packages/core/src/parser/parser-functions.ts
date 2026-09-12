@@ -12,7 +12,6 @@ import type {
   PipeChainNode,
   PipeInvokeNode,
   PostfixExprNode,
-  PrimaryNode,
   SourceSpan,
   SpreadArgNode,
   TypeAssertionNode,
@@ -25,11 +24,12 @@ import {
   advance,
   expect,
   current,
+  previous,
   makeSpan,
   peek,
   skipNewlines,
 } from './state.js';
-import { isIdentifierOrKeyword } from './helpers.js';
+import { isIdentifierOrKeyword, expectVariableName } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -45,8 +45,7 @@ declare module './parser.js' {
     parseMethodCall(receiverSpan?: SourceSpan | null): MethodCallNode;
     parseTypeOperation(): TypeAssertionNode | TypeCheckNode;
     parsePostfixTypeOperation(
-      primary: PrimaryNode,
-      start: { line: number; column: number; offset: number }
+      operand: PostfixExprNode
     ): TypeAssertionNode | TypeCheckNode;
   }
 }
@@ -112,7 +111,7 @@ export function parseSpreadOrArg(
       check(parser.state, TOKEN_TYPES.RPAREN) ||
       check(parser.state, TOKEN_TYPES.COMMA)
     ) {
-      const spreadSpan = makeSpan(start, current(parser.state).span.start);
+      const spreadSpan = makeSpan(start, previous(parser.state).span.end);
       const varNode: VariableNode = {
         type: 'Variable',
         name: null,
@@ -147,7 +146,7 @@ export function parseSpreadOrArg(
     return {
       type: 'SpreadArg',
       expression,
-      span: makeSpan(start, current(parser.state).span.end),
+      span: makeSpan(start, previous(parser.state).span.end),
     } satisfies SpreadArgNode;
   }
 
@@ -212,11 +211,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
 Parser.prototype.parseClosureCall = function (this: Parser): ClosureCallNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.DOLLAR, 'Expected $');
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected variable name'
-  );
+  const nameToken = expectVariableName(this.state, 'Expected variable name');
 
   // Parse optional .property chain: $math.double(), $obj.nested.method()
   const accessChain: string[] = [];
@@ -276,6 +271,7 @@ Parser.prototype.parseMethodCall = function (
 ): MethodCallNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.DOT, 'Expected .');
+  skipNewlines(this.state);
   if (!check(this.state, TOKEN_TYPES.IDENTIFIER, TOKEN_TYPES.METHOD_NAME)) {
     const token = current(this.state);
     throw new ParseError(
@@ -322,6 +318,7 @@ Parser.prototype.parseTypeOperation = function (
 ): TypeAssertionNode | TypeCheckNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+  skipNewlines(this.state);
 
   const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
   if (isCheck) {
@@ -331,13 +328,12 @@ Parser.prototype.parseTypeOperation = function (
   // Disambiguation: $identifier → dynamic type reference
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     advance(this.state); // consume $
-    const nameToken = expect(
+    const nameToken = expectVariableName(
       this.state,
-      TOKEN_TYPES.IDENTIFIER,
       'Expected variable name after $'
     );
     const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };
-    const span = makeSpan(start, current(this.state).span.end);
+    const span = makeSpan(start, previous(this.state).span.end);
     if (isCheck) {
       return { type: 'TypeCheck', operand: null, typeRef, span };
     }
@@ -348,7 +344,7 @@ Parser.prototype.parseTypeOperation = function (
   // parseTypeRef handles static and union kinds; dynamic ($var) is already
   // handled above, so the result here is always static or union.
   const typeRef = parseTypeRef(this.state);
-  const span = makeSpan(start, current(this.state).span.end);
+  const span = makeSpan(start, previous(this.state).span.end);
 
   if (isCheck) {
     return { type: 'TypeCheck', operand: null, typeRef, span };
@@ -358,35 +354,26 @@ Parser.prototype.parseTypeOperation = function (
 
 Parser.prototype.parsePostfixTypeOperation = function (
   this: Parser,
-  primary: PrimaryNode,
-  start: { line: number; column: number; offset: number }
+  operand: PostfixExprNode
 ): TypeAssertionNode | TypeCheckNode {
+  const start = operand.span.start;
   expect(this.state, TOKEN_TYPES.COLON, 'Expected :');
+  skipNewlines(this.state);
 
   const isCheck = check(this.state, TOKEN_TYPES.QUESTION);
   if (isCheck) {
     advance(this.state);
   }
 
-  const makeOperand = (): PostfixExprNode => ({
-    type: 'PostfixExpr' as const,
-    primary,
-    methods: [],
-    defaultValue: null,
-    span: makeSpan(start, current(this.state).span.end),
-  });
-
   // Disambiguation: $identifier → dynamic type reference
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     advance(this.state); // consume $
-    const nameToken = expect(
+    const nameToken = expectVariableName(
       this.state,
-      TOKEN_TYPES.IDENTIFIER,
       'Expected variable name after $'
     );
     const typeRef = { kind: 'dynamic' as const, varName: nameToken.value };
-    const operand = makeOperand();
-    const span = makeSpan(start, current(this.state).span.end);
+    const span = makeSpan(start, previous(this.state).span.end);
     if (isCheck) {
       return { type: 'TypeCheck', operand, typeRef, span };
     }
@@ -397,8 +384,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
   // parseTypeRef handles static and union kinds; dynamic ($var) is already
   // handled above, so the result here is always static or union.
   const typeRef = parseTypeRef(this.state);
-  const operand = makeOperand();
-  const span = makeSpan(start, current(this.state).span.end);
+  const span = makeSpan(start, previous(this.state).span.end);
 
   if (isCheck) {
     return { type: 'TypeCheck', operand, typeRef, span };

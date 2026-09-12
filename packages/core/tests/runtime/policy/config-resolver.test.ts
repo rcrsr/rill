@@ -93,7 +93,7 @@ describe('resolvePolicy', () => {
 
   it('reports a malformed wildcard as a wildcard problem, not a bad reference', () => {
     // Resolving transforms before validating the wildcard would surface
-    // RILL-R085 for the unresolvable reference and hide the real defect.
+    // RILL-R087 for the unresolvable reference and hide the real defect.
     expect(() =>
       resolvePolicy(
         { kb: { '*': { access: 'deny', out: ['nonexistent.method'] } } },

@@ -45,12 +45,17 @@ import type {
 } from '../../../../types.js';
 import { isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
-import { deepEquals, formatValue } from '../../types/registrations.js';
+import {
+  deepEquals,
+  formatValue,
+  inferType,
+} from '../../types/registrations.js';
 import { isTypeValue, isVector } from '../../types/guards.js';
 import {
   anyTypeValue,
   isReservedBrandKey,
   isReservedMethod,
+  RESERVED_DICT_METHODS,
 } from '../../values.js';
 import {
   isCallable,
@@ -65,7 +70,8 @@ import {
 } from '../../types/halt.js';
 import { ControlSignal } from '../../signals.js';
 import { resolveAtom } from '../../types/atom-registry.js';
-import { isAtom } from '../../types/guards.js';
+import { isAtom, isOrdered, orderedValueEntries } from '../../types/guards.js';
+import { isDict } from '../../callable.js';
 import type { EvalState } from '../state.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import {
@@ -81,6 +87,7 @@ import {
   getTypedKey,
   hasTypedKey,
   typedKeyEntries,
+  orderedDictEntries,
 } from '../../types/dict-keys.js';
 import {
   evaluateExpression,
@@ -132,7 +139,7 @@ async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
  *
  * @internal
  */
-async function evaluateAnnotations(
+export async function evaluateAnnotations(
   annotations: AnnotationArg[],
   evalExpr: (expr: ExpressionNode) => Promise<RillValue>
 ): Promise<Record<string, RillValue>> {
@@ -141,7 +148,7 @@ async function evaluateAnnotations(
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
       const namedArg = arg as NamedArgNode;
-      result[namedArg.name] = await evalExpr(namedArg.value);
+      setDictField(result, namedArg.name, await evalExpr(namedArg.value));
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
       const spreadArg = arg as SpreadArgNode;
@@ -474,10 +481,11 @@ async function evaluateDictMultiKeyFromList(
 }
 
 /**
- * Reject dict keys that collide with reserved method names (keys, values,
- * entries) or reserved brand keys used internally to discriminate runtime
- * value shapes (__type, __rill_atom, __rill_tuple, etc.). Halts catchably
- * when the key is unusable; a no-op otherwise.
+ * Reject dict keys that collide with reserved method names (len, first,
+ * empty, eq, ne, keys, values, entries) or reserved brand keys used
+ * internally to discriminate runtime value shapes (__type, __rill_atom,
+ * __rill_tuple, etc.). Halts catchably when the key is unusable; a no-op
+ * otherwise.
  */
 export function assertUsableDictKey(
   s: EvalState,
@@ -495,7 +503,7 @@ export function assertUsableDictKey(
       `Cannot use reserved method name '${stringKey}' as dict key`,
       {
         key: stringKey,
-        reservedMethods: ['keys', 'values', 'entries'],
+        reservedMethods: [...RESERVED_DICT_METHODS],
       }
     );
   }
@@ -517,7 +525,8 @@ export function assertUsableDictKey(
  * Evaluate dict literal.
  * All callables in the dict are bound to the containing dict via boundDict property.
  *
- * Reserved method names (keys, values, entries) cannot be used as dict keys.
+ * Reserved method names (len, first, empty, eq, ne, keys, values, entries)
+ * cannot be used as dict keys.
  * Multi-key entries (tuple keys) expand to multiple entries with shared value.
  * Errors from value evaluation propagate to caller.
  */
@@ -527,6 +536,43 @@ export async function evaluateDict(
 ): Promise<Record<string, RillValue>> {
   const result: Record<string, RillValue> = {};
   for (const entry of node.entries) {
+    // Spread entry: the parser encodes `...$expr` as a DictEntry whose key is
+    // the literal '...' marker with no keyForm (a real `["...": x]` string key
+    // always carries keyForm, so the two cannot collide). A later key with the
+    // same name overrides the spread value in place.
+    if (entry.key === '...' && entry.keyForm === undefined) {
+      const spreadValue = await evaluateExpression(s, entry.value);
+      let pairs: [RillValue, RillValue][];
+      if (isOrdered(spreadValue)) {
+        pairs = [...orderedValueEntries(spreadValue)];
+      } else if (isDict(spreadValue)) {
+        pairs = orderedDictEntries(spreadValue).map(
+          ({ key, value }) => [key, value] as [RillValue, RillValue]
+        );
+      } else {
+        throwCatchableHostHalt(
+          {
+            location: entry.span.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateDict',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          `Spread in dict literal requires dict or ordered, got ${inferType(spreadValue)}`,
+          { got: inferType(spreadValue) }
+        );
+      }
+      for (const [k, v] of pairs) {
+        if (typeof k === 'number' || typeof k === 'boolean') {
+          setTypedKey(result, k, v);
+        } else {
+          const stringKey = String(k);
+          assertUsableDictKey(s, stringKey, entry.span);
+          setDictField(result, stringKey, v);
+        }
+      }
+      continue;
+    }
+
     // Multi-key entries: expand to multiple key-value pairs
     if (typeof entry.key === 'object') {
       // Check for new key types (variable/computed keys)

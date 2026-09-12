@@ -39,7 +39,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             params: [],
             fn: (_args, ctx) => {
               capturedStack = [...ctx.callStack];
-              return null;
+              return '';
             },
           },
         },
@@ -58,7 +58,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             params: [],
             fn: (_args, ctx) => {
               capturedLocation = ctx.callStack[0]?.location ?? null;
-              return null;
+              return '';
             },
           },
         },
@@ -77,7 +77,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             params: [],
             fn: (_args, ctx) => {
               capturedName = ctx.callStack[0]?.functionName;
-              return null;
+              return '';
             },
           },
         },
@@ -113,7 +113,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             params: [],
             fn: (_args, c) => {
               ctx = c;
-              return null;
+              return '';
             },
           },
         },
@@ -137,7 +137,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             ],
             fn: (_args, c) => {
               ctx = c;
-              return null;
+              return '';
             },
           },
         },
@@ -163,7 +163,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
               params: [],
               fn: (_args, c) => {
                 ctx = c;
-                return null;
+                return '';
               },
             },
           },
@@ -222,14 +222,14 @@ describe('Rill Runtime: Call Stack Integration', () => {
             params: [],
             fn: (_args, ctx) => {
               depth2 = ctx.callStack.length;
-              return null;
+              return '';
             },
           },
           level1: {
             params: [],
             fn: (_args, ctx) => {
               depth1 = ctx.callStack.length;
-              return null;
+              return '';
             },
           },
         },
@@ -249,7 +249,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             params: [],
             fn: (_args, ctx) => {
               capturedStack = [...ctx.callStack];
-              return null;
+              return '';
             },
           },
         },
@@ -278,7 +278,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             ],
             fn: (_args, ctx) => {
               capturedStack = [...ctx.callStack];
-              return null;
+              return '';
             },
           },
         },
@@ -298,7 +298,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             params: [],
             fn: (_args, ctx) => {
               callSiteLocation = ctx.callStack[0]?.location ?? null;
-              return null;
+              return '';
             },
           },
         },

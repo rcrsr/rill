@@ -24,6 +24,7 @@ import {
   getLanguageReference,
   type RuntimeContext,
 } from '@rcrsr/rill';
+import { runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Introspection API', () => {
   describe('Happy Path Tests', () => {
@@ -469,6 +470,52 @@ describe('Rill Runtime: Introspection API', () => {
 
         expect(func?.params[0]?.description).toBe('This param has docs');
         expect(func?.params[1]?.description).toBe('');
+      });
+    });
+
+    describe('Script closures: returnType and description', () => {
+      it('reports the declared return type instead of hardcoding any', async () => {
+        const { context } = await runWithContext(
+          '|x: number|{ $x * 2 }:number => $double'
+        );
+
+        const functions = getFunctions(context);
+        const double = functions.find((f) => f.name === 'double');
+
+        expect(double?.returnType).toBe('number');
+      });
+
+      it('falls back to any when no return type is declared', async () => {
+        const { context } = await runWithContext(
+          '|x: number| ($x * 2) => $untyped'
+        );
+
+        const functions = getFunctions(context);
+        const untyped = functions.find((f) => f.name === 'untyped');
+
+        expect(untyped?.returnType).toBe('any');
+      });
+
+      it('reads description from the ^("...") shorthand annotation', async () => {
+        const { context } = await runWithContext(
+          '^("Doubles a number") |x: number|{ $x * 2 }:number => $double'
+        );
+
+        const functions = getFunctions(context);
+        const double = functions.find((f) => f.name === 'double');
+
+        expect(double?.description).toBe('Doubles a number');
+      });
+
+      it('reads description from the explicit description: annotation', async () => {
+        const { context } = await runWithContext(
+          '^(description: "Doubles a number") |x: number|{ $x * 2 }:number => $double'
+        );
+
+        const functions = getFunctions(context);
+        const double = functions.find((f) => f.name === 'double');
+
+        expect(double?.description).toBe('Doubles a number');
       });
     });
   });

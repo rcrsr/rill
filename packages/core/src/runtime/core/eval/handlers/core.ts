@@ -31,7 +31,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
-import { isInvalid, isTuple, isTypeValue } from '../../types/guards.js';
+import { isVacant, isTuple, isTypeValue } from '../../types/guards.js';
 import { isCallable, isDict, isScriptCallable } from '../../callable.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
@@ -53,12 +53,16 @@ import {
   evaluateHostRef,
   evaluateHostCall,
   evaluateYield,
-  evaluatePipePropertyAccess,
   evaluatePipeInvoke,
   evaluateClosureCallWithPipe,
   evaluateClosureCall,
 } from './closures.js';
-import { handleCapture, evaluateVariableAsync } from './variables.js';
+import {
+  handleCapture,
+  evaluateVariableAsync,
+  applyBracketIndex,
+  evaluateExistenceCheck,
+} from './variables.js';
 import {
   evaluateWhileLoop,
   evaluateDoWhileLoop,
@@ -291,12 +295,27 @@ export async function evaluatePostfixExpr(
           method.key,
           method.span.start
         );
+      } else if (method.type === 'IndexAccess') {
+        value = await applyBracketIndex(
+          s,
+          value,
+          method.index,
+          getNodeLocation(s, method),
+          'evaluatePostfixExpr'
+        );
       } else {
         value = await evaluateMethod(s, method, value);
       }
     }
 
-    if (expr.defaultValue !== null && isInvalid(value)) {
+    // Terminal existence check (expr.?field): returns boolean instead of
+    // the accessed value. Mirrors evaluateVariableAsync's existenceCheck
+    // handling via the shared evaluateExistenceCheck helper.
+    if (expr.existenceCheck) {
+      return evaluateExistenceCheck(s, value, expr.existenceCheck, expr);
+    }
+
+    if (expr.defaultValue !== null && isVacant(value)) {
       return evaluateBody(s, expr.defaultValue);
     }
 
@@ -310,6 +329,11 @@ export async function evaluatePostfixExpr(
     //
     // RILL-R007 / RILL_R007: missing method or field on a value.
     // RILL-R008 / RILL_R008: annotation key not found (evaluateAnnotationAccess).
+    // RILL-R009 / RILL_R009: missing dict field. `evaluateMethod` routes a
+    // dict receiver's genuinely-missing field through the dict-field-access
+    // halt (accessDictField) instead of the generic unknown-method halt, so
+    // this atom must be recognized here too (already recognized by the
+    // dynamic path-traversal catch below for the same "vacant" semantics).
     if (expr.defaultValue !== null) {
       if (
         matchesErrorId(
@@ -321,6 +345,11 @@ export async function evaluatePostfixExpr(
           error,
           ERROR_IDS.RILL_R008,
           ERROR_ATOMS[ERROR_IDS.RILL_R008]
+        ) ||
+        matchesErrorId(
+          error,
+          ERROR_IDS.RILL_R009,
+          ERROR_ATOMS[ERROR_IDS.RILL_R009]
         )
       ) {
         return evaluateBody(s, expr.defaultValue);
@@ -713,9 +742,12 @@ async function evaluatePipeTarget(
       return evaluateTypeCheck(s, target, input);
 
     case 'Variable': {
-      // $.field is property access on pipe value, not closure invocation
+      // $.field is property access on pipe value, not closure invocation.
+      // ctx.pipeValue is already set to input above, so evaluateVariableAsync
+      // resolves the access chain against it without re-invoking any
+      // callable field it returns.
       if (target.isPipeVar && !target.name && target.accessChain.length > 0) {
-        return evaluatePipePropertyAccess(s, target, input);
+        return evaluateVariableAsync(s, target);
       }
       // Variable in pipe chain: evaluate and invoke if callable
       const value = await evaluateVariableAsync(s, target);
@@ -803,10 +835,28 @@ async function evaluatePipeTarget(
     }
 
     case 'PostfixExpr': {
-      // Chained methods on pipe value: -> .a.b.c (optionally -> .a.b.c ?? default)
-      // The primary is implicit $ (pipe value)
+      // Chained methods/indexes on a pipe target. Two shapes reach here:
+      //  - -> .a.b.c (optionally -> .a.b.c ?? default): primary is the
+      //    synthetic pipe-var placeholder, so the receiver is the pipe
+      //    value itself.
+      //  - -> sort[0], -> list(number)[0], -> string[0]: primary is a real
+      //    host call / type constructor / type-name target, evaluated
+      //    through evaluatePipeTarget (inPipeTarget=true binding) before
+      //    the trailing index/method chain applies to its result.
       try {
-        let value = input;
+        const primary = target.primary;
+        const isSyntheticPipeVar =
+          primary.type === 'Variable' &&
+          primary.isPipeVar &&
+          primary.name === null &&
+          primary.accessChain.length === 0;
+        // Non-synthetic primaries only ever reach parsePipeTarget's
+        // attachPipeTargetIndex path (HostCall, HostRef, TypeConstructor,
+        // TypeNameExpr) — all members of PipeTargetNode, narrower than the
+        // general PrimaryNode this field is typed for elsewhere.
+        let value = isSyntheticPipeVar
+          ? input
+          : await evaluatePipeTarget(s, primary as PipeTargetNode, input);
         for (const method of target.methods) {
           if (method.type === 'AnnotationAccess') {
             value = await evaluateAnnotationAccess(
@@ -815,18 +865,35 @@ async function evaluatePipeTarget(
               method.key,
               method.span.start
             );
+          } else if (method.type === 'IndexAccess') {
+            value = await applyBracketIndex(
+              s,
+              value,
+              method.index,
+              getNodeLocation(s, method),
+              'evaluatePipeChain'
+            );
           } else {
             value = await evaluateMethod(s, method, value);
           }
         }
-        if (target.defaultValue !== null && isInvalid(value)) {
+        if (target.existenceCheck) {
+          return evaluateExistenceCheck(
+            s,
+            value,
+            target.existenceCheck,
+            target
+          );
+        }
+        if (target.defaultValue !== null && isVacant(value)) {
           return evaluateBody(s, target.defaultValue);
         }
         return value;
       } catch (error) {
         // Mirrors evaluatePostfixExpr's recovery: a missing method/field
-        // (RILL_R007) or missing annotation key (RILL_R008) falls back to
-        // the default value when one is present.
+        // (RILL_R007), missing dict field (RILL_R009), or missing
+        // annotation key (RILL_R008) falls back to the default value when
+        // one is present.
         if (
           target.defaultValue !== null &&
           (matchesErrorId(
@@ -838,6 +905,11 @@ async function evaluatePipeTarget(
               error,
               ERROR_IDS.RILL_R008,
               ERROR_ATOMS[ERROR_IDS.RILL_R008]
+            ) ||
+            matchesErrorId(
+              error,
+              ERROR_IDS.RILL_R009,
+              ERROR_ATOMS[ERROR_IDS.RILL_R009]
             ))
         ) {
           return evaluateBody(s, target.defaultValue);

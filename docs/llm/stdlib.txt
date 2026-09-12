@@ -84,7 +84,6 @@ Example:
 | `now()` | current datetime |
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration(y, m, d, h)` | construct duration |
-| `atom(name)` | string to atom |
 | `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
 | `sort(dict, key_fn?)` | stable ascending sort of dict entries; returns `ordered[[key, value]]` |
 
@@ -92,6 +91,8 @@ Built-ins are called bare (no `$`):
 
     log("hello")                       # not $log("hello")
     range(0, 5) -> seq({ $ * 2 })
+
+atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" -> atom yields #TIMEOUT. There is no atom(name) call form -- it halts RILL-R006 Unknown function: atom. Unregistered names collapse to the #R001 fallback.
 
 ## enumerate example
 
@@ -104,7 +105,7 @@ Built-ins are called bare (no `$`):
 
 ## sort
 
-Stable ascending sort. List sort returns `list`. Dict sort returns `ordered` because rill dicts have no insertion order, so a sorted dict is materialized as `ordered` key-value entries.
+Stable ascending sort. List sort returns `list`. Dict sort returns `ordered` because rill dicts iterate in a canonical order, so a sorted dict is materialized as ordered key-value entries.
 
     list[3, 1, 2] -> sort                          # list[1, 2, 3]
     list["banana", "fig", "apple"] -> sort({ $ -> .len })   # list["fig", "apple", "banana"]
@@ -121,6 +122,8 @@ Multi-key sort uses `tuple[...]` projection. Tuples compare lexicographically le
 Descending order: pipe through `.reverse` after sort. `.reverse` is list-only; dict sort returns `ordered` and does not support `.reverse`.
 
     list[3, 1, 2] -> sort -> .reverse              # list[3, 2, 1]
+
+    list[3,1,2] -> sort[0]  # 1  (index a pipe-target result)
 
 Iterators are dicts structurally. `range(0, 5) -> sort` takes the dict path. Materialize first if you want list semantics.
 

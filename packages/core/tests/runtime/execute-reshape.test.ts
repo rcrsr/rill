@@ -6,13 +6,16 @@
  * through the public `run` / `runFull` APIs from tests/helpers/runtime.ts.
  *
  * Coverage map:
- *   EC-11   ControlSignal (BreakSignal/ReturnSignal/YieldSignal) propagates unchanged
+ *   EC-11   ControlSignal (ReturnSignal/YieldSignal) propagates unchanged;
+ *           a bare BreakSignal reaching the top-level statement stepper
+ *           converts to a coded fatal halt instead of escaping raw.
  *   EC-12   RuntimeHaltSignal propagates to convertHaltToRuntimeError
  *   EC-13   RillError at extension boundary propagates unchanged
  *   EC-14 / EC-NOD-4   Generic JS Error from extension dispatch reshapes to #R999
  *   EC-NOD-3   Non-catchable RuntimeHaltSignal propagates through guard to host
  *   AC-NOD-6   convertHaltToRuntimeError message/errorId baseline
- *   BC-NOD-4   ControlSignal at outermost statement boundary propagates
+ *   BC-NOD-4   a top-level `break` (no enclosing break-accepting construct)
+ *              surfaces as a coded, non-catchable RuntimeError
  */
 
 import { describe, expect, it } from 'vitest';
@@ -21,33 +24,37 @@ import {
   ControlSignal,
   getStatus,
   isInvalid,
+  resolveAtom,
   RillError,
   RuntimeError,
+  RuntimeHaltSignal,
   type RillFunction,
   type RillValue,
   YieldSignal,
 } from '@rcrsr/rill';
-import { run, runFull } from '../helpers/runtime.js';
+import { run, runFull, runWithContext } from '../helpers/runtime.js';
 
 // ============================================================
 // EC-11: ControlSignal reaches reshapeUnhandledThrow → propagates
 // ============================================================
 //
-// reshapeUnhandledThrow returns undefined for any instanceof ControlSignal.
-// The signal continues unwinding past execute() and surfaces as a rejected
-// promise. YieldSignal is exercised via a stream context where an outer
-// break is issued; break and return are exercised at the statement boundary.
+// reshapeUnhandledThrow returns undefined for any instanceof ControlSignal,
+// so ReturnSignal and YieldSignal continue unwinding past execute() and
+// surface as a rejected promise. A bare BreakSignal is intercepted one step
+// earlier, before reshapeUnhandledThrow runs: the statement stepper's catch
+// clause converts it into a coded fatal RuntimeHaltSignal (RILL_R002) via
+// rejectBreakAsHalt, which then flows through convertHaltToRuntimeError like
+// any other fatal halt.
 
 describe('EC-11: ControlSignal propagates through reshapeUnhandledThrow', () => {
-  it('BreakSignal at outermost boundary rejects with BreakSignal instance', async () => {
-    // "1 -> break" evaluates 1 then throws BreakSignal(1) which reshapeUnhandledThrow
-    // returns undefined for, so it propagates as a rejected promise.
-    await expect(run('1 -> break')).rejects.toBeInstanceOf(BreakSignal);
-  });
-
-  it('BreakSignal is an instance of ControlSignal', async () => {
+  it('BreakSignal at outermost boundary surfaces as a coded RuntimeError, not a raw signal', async () => {
+    // "1 -> break" evaluates 1 then throws BreakSignal(1). The top-level
+    // stepper converts it to a fatal halt before it ever reaches
+    // reshapeUnhandledThrow, so the host sees RuntimeError, not BreakSignal.
     const err = await run('1 -> break').catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(ControlSignal);
+    expect(err).not.toBeInstanceOf(BreakSignal);
+    expect(err).toBeInstanceOf(RuntimeError);
+    expect((err as RuntimeError).errorId).toBe('RILL-R002');
   });
 
   it('ReturnSignal at script level is caught by execute() as script-level return', async () => {
@@ -366,40 +373,90 @@ describe('AC-NOD-6: convertHaltToRuntimeError output baseline', () => {
 });
 
 // ============================================================
-// BC-NOD-4: ControlSignal at outermost statement boundary
+// Call-site materialization: invokeFnCallable returns the invalid value
+// directly, so same-statement `=>`, `??`, and `guard` observe it without
+// waiting for the statement-boundary fallback (reshapeUnhandledThrow).
 // ============================================================
 //
-// BreakSignal thrown at the outermost statement boundary (no enclosing loop)
-// reaches reshapeUnhandledThrow which returns undefined for it (preserves
-// pre-migration behavior). The signal propagates as a rejected promise.
-// This mirrors the test in control-signals.test.ts and provides the coverage
-// required by the execute-reshape task spec.
+// h_throw_async is an async host function that always rejects with a plain
+// (non-RillError) Error, exercising the invokeFnCallable catch block's
+// final branch (`makeUnhandledHostThrowInvalid`).
 
-describe('BC-NOD-4: ControlSignal at outermost statement boundary', () => {
-  it('"1 -> break" rejects with BreakSignal (reshapeUnhandledThrow returns undefined)', async () => {
-    await expect(run('1 -> break')).rejects.toBeInstanceOf(BreakSignal);
+describe('call-site materialization: invalid observed at the same statement', () => {
+  const throwingHost: RillFunction = {
+    params: [],
+    returnType: { type: 'any' } as RillValue,
+    fn: async () => {
+      throw new Error('call-site throw');
+    },
+  };
+
+  it('h_throw_async() => $g binds an invalid value ($g.! truthy)', async () => {
+    const { context } = await runWithContext('h_throw_async() => $g', {
+      functions: { h_throw_async: throwingHost },
+    });
+    const g = context.variables.get('g');
+    expect(g).toBeDefined();
+    expect(isInvalid(g as RillValue)).toBe(true);
   });
 
-  it('propagated BreakSignal carries the value from the throw site', async () => {
+  it('h_throw_async() ?? "fallback" resolves to the fallback', async () => {
+    const result = await run('h_throw_async() ?? "fallback"', {
+      functions: { h_throw_async: throwingHost },
+    });
+    expect(result).toBe('fallback');
+  });
+
+  it('guard { h_throw_async() } => $out yields $out.! (invalid)', async () => {
+    const { context } = await runWithContext(
+      'guard { h_throw_async() } => $out',
+      { functions: { h_throw_async: throwingHost } }
+    );
+    const out = context.variables.get('out');
+    expect(out).toBeDefined();
+    expect(isInvalid(out as RillValue)).toBe(true);
+  });
+
+  it('bare-statement h_throw_async() still surfaces as #R999 (unchanged outcome)', async () => {
+    const result = await run('h_throw_async()', {
+      functions: { h_throw_async: throwingHost },
+    });
+    expect(isInvalid(result)).toBe(true);
+    const status = getStatus(result);
+    const { atomName } = await import('@rcrsr/rill');
+    expect(atomName(status.code)).toBe('R999');
+    expect(status.provider).toBe('extension');
+  });
+});
+
+// ============================================================
+// BC-NOD-4: top-level break at the outermost statement boundary
+// ============================================================
+//
+// A `break` reaching the outermost statement boundary (no enclosing
+// break-accepting construct) is the script's own control-flow misuse: it
+// broke out of nothing. The stepper's catch clause routes it through
+// rejectBreakAsHalt before reshapeUnhandledThrow runs, so it never escapes
+// as a raw BreakSignal — it surfaces as a coded, non-catchable RuntimeError.
+
+describe('BC-NOD-4: top-level break surfaces as a coded RuntimeError', () => {
+  it('"1 -> break" rejects with a RuntimeError, not a raw BreakSignal', async () => {
     const err = await run('1 -> break').catch((e: unknown) => e);
-    expect(err).toBeInstanceOf(BreakSignal);
-    expect((err as BreakSignal).value).toBe(1);
+    expect(err).not.toBeInstanceOf(BreakSignal);
+    await expect(run('1 -> break')).rejects.toBeInstanceOf(RuntimeError);
   });
 
-  it('reshapeUnhandledThrow does not convert BreakSignal to an invalid value', async () => {
-    // If reshapeUnhandledThrow had reshaped it, the promise would resolve
-    // (not reject) with an invalid. We verify it rejects instead.
-    let resolved = false;
-    let rejected = false;
-    await run('1 -> break')
-      .then(() => {
-        resolved = true;
-      })
-      .catch(() => {
-        rejected = true;
-      });
-    expect(resolved).toBe(false);
-    expect(rejected).toBe(true);
+  it('the converted RuntimeError carries errorId RILL-R002', async () => {
+    const err = await run('1 -> break').catch((e: unknown) => e);
+    expect((err as RuntimeError).errorId).toBe('RILL-R002');
+  });
+
+  it('a guard wrapping the bare break does not swallow or recover it', async () => {
+    // RILL_R002 is thrown as a fatal (non-catchable) halt, so guard's
+    // catchable check rejects it and it still reaches the host.
+    const err = await run('guard { 1 -> break }').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RuntimeError);
+    expect((err as RuntimeError).errorId).toBe('RILL-R002');
   });
 
   it('YieldSignal propagates unchanged at statement boundary (no stream context)', async () => {
@@ -422,5 +479,102 @@ describe('BC-NOD-4: ControlSignal at outermost statement boundary', () => {
     // returns undefined and it propagates to the host.
     expect(err).toBeInstanceOf(YieldSignal);
     expect(err).toBeInstanceOf(ControlSignal);
+  });
+});
+
+// ============================================================
+// Allowlist-backed halt resolution: `convertHaltToRuntimeError`
+// resolves a halt's atom code against the explicit
+// `HALT_ATOM_TO_ERROR_ID` allowlist, not a blanket registry lookup.
+// ============================================================
+//
+// Scripts below split into two groups: allowlisted `RILL-R0xx` atoms
+// (built directly via a halt-builder atom, e.g. `ERROR_ATOMS[ERROR_IDS.RILL_R002]`)
+// still rematerialise into a coded `RuntimeError`. Generic taxonomy
+// atoms (`TYPE_MISMATCH`, `INVALID_INPUT`) have no allowlist entry and
+// keep escaping as a raw, catchable `RuntimeHaltSignal` — this is the
+// locked contract asserted by the type-assertion and comparison
+// language-spec tests, so it is not converted here.
+
+describe('allowlist-backed halt resolution', () => {
+  it('sort(5) (allowlisted RILL_R002) surfaces as a coded RuntimeError with a location', async () => {
+    const err = await run('sort(5)').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(RuntimeError);
+    const runtimeErr = err as RuntimeError;
+    expect(runtimeErr.errorId).toBeTruthy();
+    expect(runtimeErr.message).not.toBe('runtime halt');
+    expect(runtimeErr.location).toBeDefined();
+  });
+
+  const unallowlistedScripts = [
+    '"x":number',
+    'tuple[1] < tuple[1,2]',
+    '"1e309" -> number',
+    'dict[a: "x"]:dict(a:number)',
+    'list[1,2,3] -> take(1.5)',
+  ];
+
+  for (const src of unallowlistedScripts) {
+    it(`${src} (unallowlisted generic-taxonomy atom) keeps escaping as a raw RuntimeHaltSignal`, async () => {
+      const err = await run(src).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+    });
+  }
+
+  it('an aborted execution still propagates its #DISPOSED halt unconverted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    const err = await run('"hello"', { signal: controller.signal }).catch(
+      (e: unknown) => e
+    );
+
+    // #DISPOSED is an explicit exclusion: abort halts keep escaping as a
+    // raw, non-catchable RuntimeHaltSignal rather than rematerialising
+    // into a RuntimeError.
+    expect(err).not.toBeInstanceOf(RuntimeError);
+    const status = getStatus((err as { value: RillValue }).value);
+    const { atomName } = await import('@rcrsr/rill');
+    expect(atomName(status.code)).toBe('DISPOSED');
+  });
+});
+
+// ============================================================
+// applyConversion's converter-catch clause enriches a rethrown
+// RuntimeHaltSignal's origin trace frame with the conversion site's
+// location, rather than leaving a placeholder site behind.
+// ============================================================
+
+function extractConversionHaltInvalid(caught: unknown): RillValue {
+  if (caught instanceof RuntimeHaltSignal) {
+    return caught.value;
+  }
+  if (caught instanceof RuntimeError && caught.haltValue !== undefined) {
+    return caught.haltValue;
+  }
+  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+  throw new Error('unreachable: expect() above always throws');
+}
+
+describe('applyConversion enriches the rethrown halt origin location', () => {
+  it('"1e309" -> number halts #INVALID_INPUT with a located trace origin', async () => {
+    const caught = await run('"1e309" -> number').catch((e: unknown) => e);
+    const status = getStatus(extractConversionHaltInvalid(caught));
+    expect(status.code).toBe(resolveAtom('INVALID_INPUT'));
+    expect(status.message).toMatch(/not finite/i);
+    expect(status.trace[0]?.site).toMatch(/:\d+:\d+$/);
+    if (caught instanceof RuntimeHaltSignal) {
+      expect(caught.location).toBeDefined();
+    }
+  });
+
+  it('"ok" -> atom halts #INVALID_INPUT with a located trace origin', async () => {
+    const caught = await run('"ok" -> atom').catch((e: unknown) => e);
+    const status = getStatus(extractConversionHaltInvalid(caught));
+    expect(status.code).toBe(resolveAtom('INVALID_INPUT'));
+    expect(status.trace[0]?.site).toMatch(/:\d+:\d+$/);
+    if (caught instanceof RuntimeHaltSignal) {
+      expect(caught.location).toBeDefined();
+    }
   });
 });

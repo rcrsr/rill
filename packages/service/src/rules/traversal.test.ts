@@ -197,6 +197,19 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
     expect(viaRules).toEqual(viaCore);
   });
 
+  it('Postfix index access nested inside another index access', () => {
+    // `[$i]` is a postfix `IndexAccessNode` in `PostfixExprNode.methods`
+    // (distinct from `Variable.accessChain`'s `BracketAccess`, covered
+    // above), so the capture `$i` inside it must be reachable by both
+    // traversals for scope resolution to see it at all.
+    const { viaRules, viaCore } = computeParity('list[1, 2, 3][$i]\n');
+    expect(viaRules).toEqual(viaCore);
+    const variableNodes = viaCore.filter(
+      (node) => node.type === 'Variable' && node.name === 'i'
+    );
+    expect(variableNodes).toHaveLength(1);
+  });
+
   it('Variable block access chain segment', () => {
     const { viaRules, viaCore } = computeParity('$data.{ "key" }\n');
     expect(viaRules).toEqual(viaCore);
@@ -265,5 +278,23 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
   it('TypeCheck with a parameterized typeRef', () => {
     const { viaRules, viaCore } = computeParity('list[1, 2]:?list(number)\n');
     expect(viaRules).toEqual(viaCore);
+  });
+
+  it('ClosureSigLiteral with a parameter annotation', () => {
+    const { viaRules, viaCore } = computeParity(
+      '|^("label") x: string| :number\n'
+    );
+    expect(viaRules).toEqual(viaCore);
+    // The annotation's NamedArg node ("description" -> "label") must be
+    // reachable as a ClosureSigLiteral child, not skipped by either
+    // traversal.
+    const annotationNodes = viaCore.filter(
+      (node) => node.type === 'NamedArg' && node.name === 'description'
+    );
+    expect(annotationNodes).toHaveLength(1);
+    expect(annotationNodes[0]).toMatchObject({
+      type: 'NamedArg',
+      name: 'description',
+    });
   });
 });

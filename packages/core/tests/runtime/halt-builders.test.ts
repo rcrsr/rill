@@ -17,12 +17,14 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  enrichHaltOriginLocation,
   RuntimeHaltSignal,
   throwAbortHalt,
   throwAutoExceptionHalt,
   throwCatchableHostHalt,
   throwErrorHalt,
   throwFatalHostHalt,
+  throwTypeHalt,
   type TypeHaltSite,
 } from '../../src/runtime/core/types/halt.js';
 import { getStatus, invalidate } from '../../src/runtime/core/types/status.js';
@@ -183,7 +185,7 @@ describe('EC-3: builder does not validate inputs (doc-only)', () => {
     const fs = await import('node:fs/promises');
     const path = await import('node:path');
     const source = await fs.readFile(
-      path.resolve(process.cwd(), 'src/runtime/core/types/halt.ts'),
+      path.resolve(import.meta.dirname, '../../src/runtime/core/types/halt.ts'),
       'utf8'
     );
     expect(source).toContain('Caller responsibility:');
@@ -436,6 +438,244 @@ describe('already-invalid payload — builder always invalidates a fresh {} base
 // ============================================================
 // Empty status payload (BC-NOD-5)
 // ============================================================
+
+describe('RuntimeHaltSignal.message and .errorId derivation', () => {
+  it('message is never the literal string "runtime halt" for a registered code', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'checkIterationLimit' };
+    const signal = catchHalt(() =>
+      throwFatalHostHalt(site, 'RILL_R010', 'iteration limit exceeded')
+    );
+
+    expect(signal.message).not.toBe('runtime halt');
+    expect(signal.message).toBe('#RILL_R010: iteration limit exceeded');
+  });
+
+  it('errorId resolves to the registered host-facing error ID when the atom is registered', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'checkIterationLimit' };
+    const signal = catchHalt(() =>
+      throwFatalHostHalt(site, 'RILL_R010', 'iteration limit exceeded')
+    );
+
+    expect(signal.errorId).toBe('RILL-R010');
+  });
+
+  it('message is never the literal string "runtime halt" for an unregistered generic-taxonomy atom', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'evaluateTypeAssertion' };
+    const signal = catchHalt(() =>
+      throwTypeHalt(
+        site,
+        'TYPE_MISMATCH',
+        'expected number, got string',
+        'runtime'
+      )
+    );
+
+    expect(signal.message).not.toBe('runtime halt');
+    expect(signal.message).toBe('#TYPE_MISMATCH: expected number, got string');
+  });
+
+  it('errorId is undefined for an unregistered generic-taxonomy atom (TYPE_MISMATCH / INVALID_INPUT)', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'evaluateTypeAssertion' };
+    const typeMismatch = catchHalt(() =>
+      throwTypeHalt(
+        site,
+        'TYPE_MISMATCH',
+        'expected number, got string',
+        'runtime'
+      )
+    );
+    const invalidInput = catchHalt(() =>
+      throwCatchableHostHalt(site, 'INVALID_INPUT', 'n must be an integer')
+    );
+
+    expect(typeMismatch.errorId).toBeUndefined();
+    expect(invalidInput.errorId).toBeUndefined();
+  });
+
+  it('enrichHaltOriginLocation backfills an undefined location with a real one', () => {
+    const site: TypeHaltSite = { fn: 'compareTuple' };
+    const signal = catchHalt(() =>
+      throwTypeHalt(
+        site,
+        'TYPE_MISMATCH',
+        'expected tuple, got list',
+        'runtime'
+      )
+    );
+
+    expect(signal.location).toBeUndefined();
+
+    const enriched = enrichHaltOriginLocation(
+      signal,
+      { line: 3, column: 7, offset: 0 },
+      'file.rill'
+    );
+
+    expect(enriched.location).toEqual({
+      sourceId: 'file.rill',
+      line: 3,
+      column: 7,
+    });
+  });
+
+  it('enrichHaltOriginLocation preserves trace length and the origin frame kind/fn', () => {
+    const site: TypeHaltSite = { fn: 'compareTuple' };
+    const signal = catchHalt(() =>
+      throwTypeHalt(
+        site,
+        'TYPE_MISMATCH',
+        'expected tuple, got list',
+        'runtime'
+      )
+    );
+    const before = getStatus(signal.value).trace;
+
+    const enriched = enrichHaltOriginLocation(
+      signal,
+      { line: 3, column: 7, offset: 0 },
+      'file.rill'
+    );
+    const after = getStatus(enriched.value).trace;
+
+    expect(after.length).toBe(before.length);
+    expect(after[0]!.kind).toBe(before[0]!.kind);
+    expect(after[0]!.fn).toBe(before[0]!.fn);
+  });
+
+  it('enrichHaltOriginLocation returns the signal unchanged when the origin site already parses', () => {
+    const signal = catchHalt(() =>
+      throwFatalHostHalt(SITE, 'RILL_R010', 'iteration limit exceeded')
+    );
+
+    const enriched = enrichHaltOriginLocation(
+      signal,
+      { line: 99, column: 99, offset: 0 },
+      'other.rill'
+    );
+
+    expect(enriched).toBe(signal);
+    expect(enriched.location).toEqual(signal.location);
+  });
+
+  it('enrichHaltOriginLocation preserves catchable=true', () => {
+    const site: TypeHaltSite = { fn: 'compareTuple' };
+    const signal = catchHalt(() =>
+      throwTypeHalt(
+        site,
+        'TYPE_MISMATCH',
+        'expected tuple, got list',
+        'runtime'
+      )
+    );
+
+    const enriched = enrichHaltOriginLocation(
+      signal,
+      { line: 3, column: 7, offset: 0 },
+      'file.rill'
+    );
+
+    expect(enriched.catchable).toBe(true);
+  });
+
+  it('enrichHaltOriginLocation preserves catchable=false', () => {
+    const site: TypeHaltSite = { fn: 'checkAutoExceptions' };
+    const signal = catchHalt(() =>
+      throwAutoExceptionHalt(site, 'abc', 'abcdef')
+    );
+
+    const enriched = enrichHaltOriginLocation(
+      signal,
+      { line: 3, column: 7, offset: 0 },
+      'file.rill'
+    );
+
+    expect(enriched.catchable).toBe(false);
+  });
+});
+
+// ============================================================
+// Trace-frame kind threading (issue #431 part 1)
+// ============================================================
+
+describe('trace-frame kind parameter — defaults to host, overridable per call site', () => {
+  it('throwAbortHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'checkAborted' };
+
+    const defaulted = catchHalt(() => throwAbortHalt(site));
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwAbortHalt(site, TRACE_KINDS.ACCESS)
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+
+  it('throwAutoExceptionHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'checkAutoExceptions' };
+
+    const defaulted = catchHalt(() =>
+      throwAutoExceptionHalt(site, 'timeout', 'value')
+    );
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwAutoExceptionHalt(site, 'timeout', 'value', TRACE_KINDS.ACCESS)
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+
+  it('throwCatchableHostHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'evaluateCallExpr' };
+
+    const defaulted = catchHalt(() =>
+      throwCatchableHostHalt(site, 'RILL_R006', 'not found')
+    );
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwCatchableHostHalt(
+        site,
+        'RILL_R006',
+        'not found',
+        undefined,
+        TRACE_KINDS.ACCESS
+      )
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+
+  it('throwFatalHostHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'checkIterationLimit' };
+
+    const defaulted = catchHalt(() =>
+      throwFatalHostHalt(site, 'RILL_R010', 'limit exceeded')
+    );
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwFatalHostHalt(
+        site,
+        'RILL_R010',
+        'limit exceeded',
+        undefined,
+        TRACE_KINDS.ACCESS
+      )
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+
+  it('throwErrorHalt defaults to host and accepts an explicit override', () => {
+    const site: TypeHaltSite = { ...SITE, fn: 'evaluateError' };
+
+    const defaulted = catchHalt(() => throwErrorHalt(site, 'oh no', false));
+    expect(getStatus(defaulted.value).trace[0]!.kind).toBe('host');
+
+    const overridden = catchHalt(() =>
+      throwErrorHalt(site, 'oh no', false, TRACE_KINDS.ACCESS)
+    );
+    expect(getStatus(overridden.value).trace[0]!.kind).toBe('access');
+  });
+});
 
 describe('empty raw payload — trace frame still constructed [BC-NOD-5]', () => {
   it('throwCatchableHostHalt with no raw arg still produces a trace frame', () => {

@@ -16,11 +16,14 @@ import {
   createRuntimeContext,
   execute,
   parse,
+  parseWithRecovery,
   RuntimeHaltSignal,
   type RillValue,
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
+import { ERROR_IDS } from '../../src/error-registry.js';
+import { RuntimeError } from '../../src/error-classes.js';
 
 /**
  * Asserts the thrown error is an abort halt:
@@ -115,6 +118,33 @@ describe('RuntimeContext.invalidate (IR-11)', () => {
     });
     const status = getStatus(result);
     expect(status.message).toBe('too many requests');
+  });
+
+  it('rejects the reserved status code "ok": ctx.invalidate throws a host error rather than minting the #ok sentinel', () => {
+    const ctx = createRuntimeContext({});
+    expect(() =>
+      ctx.invalidate(new Error('boom'), {
+        code: 'ok',
+        provider: 'test',
+      })
+    ).toThrow(/reserved status code "ok"/);
+    try {
+      ctx.invalidate(new Error('boom'), { code: 'ok', provider: 'test' });
+      expect.unreachable('expected invalidate to throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(RuntimeError);
+      expect((err as RuntimeError).errorId).toBe(ERROR_IDS.RILL_R084);
+    }
+  });
+
+  it('other registered codes are unaffected by the reserved-sentinel rejection', () => {
+    const ctx = createRuntimeContext({});
+    expect(() =>
+      ctx.invalidate(new Error('auth failure'), {
+        code: 'AUTH',
+        provider: 'idp',
+      })
+    ).not.toThrow();
   });
 });
 
@@ -226,6 +256,73 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
     expect(seen[0]).toBeInstanceOf(Error);
     expect((seen[0] as Error).message).toBe('classify-me');
     expect(getStatus(result).code).toBe(resolveAtom('AUTH'));
+  });
+});
+
+describe('Non-access invalid-value halts', () => {
+  /** Runs a script through parseWithRecovery + execute and returns its value. */
+  async function runRecovered(src: string): Promise<unknown> {
+    const parsed = parseWithRecovery(src);
+    const ctx = createRuntimeContext({});
+    const { result } = await execute(parsed.ast, ctx);
+    return result;
+  }
+
+  // String interpolation of an invalid value is deliberately NOT gated:
+  // `tests/language/trace-frames.test.ts` AC-13 locks the opposite
+  // contract (interpolating `$x` stringifies the invalid via
+  // `formatValue`, performing no access, so the halt comes from the
+  // enclosing statement, not the interpolation itself). Adding a
+  // halt-on-interpolation gate here would regress that protected test;
+  // this sub-site is out of scope for this fix.
+
+  it('== on an invalid operand halts catchably rather than comparing the dict-shaped sidecar', async () => {
+    const src = `
+      #AB0x => $x
+      guard { $x == $x }
+    `;
+    const result = await runRecovered(src);
+    expect(isInvalid(result as never)).toBe(true);
+  });
+
+  it('!= on an invalid operand halts catchably', async () => {
+    const src = `
+      #AB0x => $x
+      guard { $x != $x }
+    `;
+    const result = await runRecovered(src);
+    expect(isInvalid(result as never)).toBe(true);
+  });
+
+  it('json() on a nested invalid value halts catchably instead of emitting {}', async () => {
+    const src = `
+      #AB0x => $x
+      guard { json(dict[a: $x]) }
+    `;
+    const result = await runRecovered(src);
+    expect(isInvalid(result as never)).toBe(true);
+  });
+
+  it('json() on a directly-invalid argument halts catchably', async () => {
+    const src = `
+      #AB0x => $x
+      guard { json($x) }
+    `;
+    const result = await runRecovered(src);
+    expect(isInvalid(result as never)).toBe(true);
+  });
+
+  it('filter predicate reporting an invalid value halts catchably instead of reporting "got dict"', async () => {
+    const src = `
+      #AB0x => $x
+      guard { list[1] -> filter({ $x }) }
+    `;
+    const result = await runRecovered(src);
+    expect(isInvalid(result as never)).toBe(true);
+    const status = getStatus(result as never);
+    expect(status.raw as unknown as { message?: string }).toMatchObject({
+      message: 'filter: predicate returned an invalid value',
+    });
   });
 });
 

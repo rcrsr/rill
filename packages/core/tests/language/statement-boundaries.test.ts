@@ -230,9 +230,15 @@ $parts -> seq({ "{$}!" })`;
   });
 
   describe('Parser Behavior', () => {
-    it('rejects pipe on newline (-> requires target on same line)', async () => {
+    it('a trailing -> at end of line continues onto the next line', async () => {
       const script = `"hello" ->
 .len`;
+      expect(await run(script)).toBe(5);
+    });
+
+    it('rejects a trailing -> with nothing to continue onto', async () => {
+      const script = `"hello" ->
+`;
       await expect(run(script)).rejects.toThrow();
     });
 
@@ -370,6 +376,43 @@ $loop(5)`;
         expect(await run(script)).toBe(5);
       });
 
+      it('closure literal followed by a newline then a parenthesized expression is two statements', async () => {
+        // Regression test: a closure body's closing brace followed by a
+        // newline and an unrelated parenthesized expression must not be
+        // treated as a same-statement postfix invocation of the closure.
+        const script = `|x| { $x * 2 }\n(5)`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(5);
+      });
+
+      it('closure literal followed by a newline then a property access is two statements', async () => {
+        const script = `|| { 1 }\n.len`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        await expect(run(script)).rejects.toHaveProperty(
+          'errorId',
+          'RILL-R005'
+        );
+      });
+
+      it('bare block followed by newline then parenthesized expression stays two statements', async () => {
+        const script = `{ $ * 2 }\n(5)`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(5);
+      });
+
+      it('same-line return type annotation still parses after a closure body', async () => {
+        const script = `|x| ($x):number => $f\n$f(5)`;
+        expect(await run(script)).toBe(5);
+      });
+
+      it('return type annotation on the line after the closure body still parses', async () => {
+        const script = `|x| ($x)\n:number => $f\n$f(5)`;
+        expect(await run(script)).toBe(5);
+      });
+
       it('allows postfix invocation after conditional with non-block then-branch', async () => {
         // Verify that postfix invocation still works when then-branch is NOT a block.
         // (cond) ? value followed by (args) should parse as invocation if value is callable.
@@ -378,6 +421,169 @@ $loop(5)`;
 (true ? $double ! $double)(5)`;
         // Conditional returns $double, then (5) invokes it as postfix
         expect(await run(script)).toBe(10);
+      });
+    });
+
+    describe('Conditional without else-branch does not consume a leading newline speculatively', () => {
+      it('a bare then-branch followed by newline and a minus-prefixed line is two statements', async () => {
+        const script = 'true ? 5\n- 1';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(-1);
+      });
+
+      it('a then/else conditional followed by newline and a minus-prefixed line is unaffected', async () => {
+        const script = 'true ? 5 ! 3\n- 1';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(-1);
+      });
+
+      it('a plain number followed by newline and a minus-prefixed line is unaffected', async () => {
+        const script = '5\n- 1';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toBe(-1);
+      });
+
+      it('a bare then-branch followed by newline and an && continuation does not join into one expression', async () => {
+        const script = 'true ? true\n&& false';
+        try {
+          parse(script);
+          expect.unreachable('expected parse to throw');
+        } catch (error) {
+          expect(error).toHaveProperty('errorId', 'RILL-P001');
+        }
+      });
+
+      it('a bare then-branch followed by newline and a *-prefixed line does not join into one expression', async () => {
+        const script = 'true ? 2\n* 3';
+        try {
+          parse(script);
+          expect.unreachable('expected parse to throw');
+        } catch (error) {
+          expect(error).toHaveProperty('errorId', 'RILL-P001');
+        }
+      });
+
+      it('a bare then-branch followed by newline then a bang else-marker still forms one conditional', async () => {
+        const script = 'true ? 5\n! 3';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(1);
+        expect(await run(script)).toBe(5);
+      });
+    });
+
+    describe('Postfix index access `[i]` joins onto its receiver on the same line (issue #396)', () => {
+      // Primary provenance check: each of these must parse as ONE statement.
+      // A regression that silently re-splits `expr[i]` into two statements
+      // (a bare receiver statement, then an orphaned `[i]` tuple-literal
+      // statement) would otherwise still produce a plausible-looking value
+      // for some of these, masking the split. Statement count is the
+      // discriminator that catches that failure mode even when the value
+      // looks right.
+      it.each([
+        'list[1,2,3][0]',
+        '[1,2,3][0]',
+        'dict[a: 1]["a"]',
+        'tuple[1,2][0]',
+        '"abc"[0]',
+        '(list[1,2,3])[0]',
+      ])('"%s" parses as exactly one statement', (src) => {
+        const ast = parse(src);
+        expect(ast.statements.length).toBe(1);
+      });
+
+      it('a receiver followed by "[i]" on the next line remains two statements', () => {
+        const script = 'list[1,2,3]\n[0]';
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+      });
+    });
+
+    describe('Postfix index access `[i]` joins onto an existence-check receiver (issue #396)', () => {
+      it.each(['$d.?a[0]', '$d.?a.b[0]'])(
+        '"%s" parses as exactly one statement',
+        (src) => {
+          const ast = parse(`dict[a: dict[b: true]] => $d\n${src}`);
+          expect(ast.statements.length).toBe(2);
+        }
+      );
+
+      it('"$d.?a[0]" halts with RILL-R002 (cannot index a boolean)', async () => {
+        let error: unknown;
+        try {
+          await run('dict[a: true] => $d\n$d.?a[0]');
+        } catch (err) {
+          error = err;
+        }
+        expect(error).toHaveProperty('errorId', 'RILL-R002');
+      });
+    });
+
+    describe('Postfix index access `[i]` joins onto a bare/host-call pipe target', () => {
+      it('"list[3,1,2] -> sort[0]" parses as exactly one statement', () => {
+        const ast = parse('list[3,1,2] -> sort[0]');
+        expect(ast.statements.length).toBe(1);
+      });
+
+      it('a bare host-call pipe target followed by "[i]" on the next line remains two statements', async () => {
+        const script = `list[3,1,2] -> sort
+[0]`;
+        const ast = parse(script);
+        expect(ast.statements.length).toBe(2);
+        expect(await run(script)).toEqual([0]);
+      });
+    });
+
+    describe('Postfix type operation `:type` joins onto its receiver across a newline', () => {
+      it.each(['5\n:number', '5\n:?number'])(
+        '"%s" parses as exactly one statement',
+        (src) => {
+          const ast = parse(src);
+          expect(ast.statements.length).toBe(1);
+        }
+      );
+
+      it('"5\\n:number" evaluates identically to "5:number" on one line', async () => {
+        expect(await run('5\n:number')).toBe(await run('5:number'));
+      });
+
+      it('"5\\n:?number" evaluates identically to "5:?number" on one line', async () => {
+        expect(await run('5\n:?number')).toBe(await run('5:?number'));
+      });
+    });
+
+    describe('Trailing connective tokens: continuation vs. genuine boundary', () => {
+      it('a bare capture $name is still a complete statement on its own', async () => {
+        const ast = parse('5 => $x\n$x');
+        expect(ast.statements).toHaveLength(2);
+      });
+
+      it('a conditional with no trailing ? or ! is a complete statement', async () => {
+        const ast = parse('true ? 1 ! 2\n"next"');
+        expect(ast.statements).toHaveLength(2);
+      });
+
+      it('a bare status probe .! with no trailing newline ambiguity parses as one statement', () => {
+        const ast = parse('$x.!');
+        expect(ast.statements).toHaveLength(1);
+      });
+
+      it('rejects a trailing => with nothing to capture into', async () => {
+        const script = `5 =>
+`;
+        await expect(run(script)).rejects.toThrow();
+      });
+
+      it('rejects a trailing ? with no then-branch to continue onto', async () => {
+        const script = `true ?
+`;
+        await expect(run(script)).rejects.toThrow();
+      });
+
+      it('rejects a bare capture target followed directly by an index (no postfix on captures)', () => {
+        expect(() => parse('5 => $a[0]')).toThrow();
       });
     });
   });

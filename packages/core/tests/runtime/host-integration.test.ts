@@ -7,8 +7,10 @@ import {
   anyTypeValue,
   atomName,
   callable,
+  createRillStream,
   createRuntimeContext,
   getStatus,
+  getTypedKeyEntries,
   inferStructure,
   isApplicationCallable,
   isCallable,
@@ -16,6 +18,7 @@ import {
   parse,
   RuntimeHaltSignal,
   structureToTypeValue,
+  toCallable,
   toNative,
   type ApplicationCallable,
   type RillFunction,
@@ -26,6 +29,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 /**
  * Asserts the thrown error is an abort halt:
@@ -163,6 +167,36 @@ describe('Rill Runtime: Host Integration', () => {
       });
       expect(result).toBe('custom-type');
     });
+
+    it('a host function with a typed dict param receives typed keys readable via getTypedKeyEntries (#434)', async () => {
+      let captured: RillValue | undefined;
+      await run('read_dict(dict[1: "a", true: "b", name: "c"])', {
+        functions: {
+          read_dict: {
+            params: [
+              {
+                name: 'data',
+                type: {
+                  kind: 'dict',
+                  fields: { name: { type: { kind: 'string' } } },
+                },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => {
+              captured = args['data'] as RillValue;
+              return '';
+            },
+          },
+        },
+      });
+
+      const entries = getTypedKeyEntries(captured as RillValue);
+      expect(entries).toHaveLength(2);
+      expect(entries.find((e) => e.key === 1)?.value).toBe('a');
+      expect(entries.find((e) => e.key === true)?.value).toBe('b');
+    });
   });
 
   describe('Function Call-Site Location', () => {
@@ -205,7 +239,7 @@ describe('Rill Runtime: Host Integration', () => {
             ],
             fn: (_args, _ctx, location) => {
               if (location) locations.push(location);
-              return null;
+              return 0;
             },
           },
         },
@@ -431,7 +465,7 @@ describe('Rill Runtime: Host Integration', () => {
           fn: (): RillValue => {
             firstRan = true;
             controller.abort();
-            return null;
+            return 0;
           },
         };
 
@@ -748,7 +782,7 @@ describe('Callable reflection via ^ operator', () => {
       expect(result).toBe('Says hello');
     });
 
-    it('returns {} when annotations.description is absent (AC-23)', async () => {
+    it('returns an empty string when annotations.description is absent (AC-23)', async () => {
       const result = await run('$myFn.^description', {
         variables: {
           myFn: {
@@ -762,8 +796,8 @@ describe('Callable reflection via ^ operator', () => {
           } satisfies ApplicationCallable,
         },
       });
-      // No description annotation: ^description returns {}
-      expect(result).toEqual({});
+      // No description annotation: ^description returns ""
+      expect(result).toBe('');
     });
 
     it('does not throw RILL-R003 when ^ applied to callable (AC-4)', async () => {
@@ -1023,7 +1057,7 @@ describe('Spread marshaling: host function (ApplicationCallable)', () => {
       annotations: {},
       fn: (args) => {
         Object.assign(capturedArgs, args);
-        return null;
+        return 0;
       },
     };
     return { capturedArgs, fn };
@@ -1161,7 +1195,7 @@ describe('AC-3: Host function receives Record<string, RillValue> with named keys
           ],
           fn: (args) => {
             receivedArgs = args;
-            return null;
+            return 0;
           },
         },
       },
@@ -1231,7 +1265,7 @@ describe('AC-5: Block closure sets $ to pipe value post-marshaling', () => {
           ],
           fn: (args) => {
             capturedDollar = args['value'] ?? null;
-            return null;
+            return 0;
           },
         },
       },
@@ -1257,7 +1291,7 @@ describe('AC-6: Named-param closure does not modify $', () => {
             params: [],
             fn: (_args, ctx) => {
               capturedDollar = ctx.pipeValue;
-              return null;
+              return 0;
             },
           },
         },
@@ -1430,5 +1464,720 @@ describe('AC-16: Untyped callable (params undefined) skips marshaling, works as 
       expect(value.months).toBe(18);
       expect(value.ms).toBe(0);
     });
+  });
+});
+
+describe('Host function return-value validation (RILL-R085)', () => {
+  class NotAPlainClass {
+    tag = 'not-plain';
+  }
+
+  function badFn(returnValue: () => unknown): RillFunction {
+    return {
+      params: [],
+      returnType: anyTypeValue,
+      fn: () => returnValue() as RillValue,
+    };
+  }
+
+  async function expectR085(
+    functions: Record<string, RillFunction>,
+    call: string
+  ): Promise<Error> {
+    let caught: unknown;
+    try {
+      await run(call, { functions });
+      expect.fail('Should have thrown RILL-R085');
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toHaveProperty('errorId', 'RILL-R085');
+    return caught as Error;
+  }
+
+  describe('rejects unrepresentable return shapes', () => {
+    it('undefined halts with RILL-R085 naming the function and root path', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => undefined) },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('<root>');
+      expect(err.message).toContain('undefined');
+    });
+
+    it('null halts with RILL-R085', async () => {
+      const err = await expectR085({ badFn: badFn(() => null) }, 'badFn()');
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('null');
+    });
+
+    it('a symbol halts with RILL-R085', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => Symbol('x')) },
+        'badFn()'
+      );
+      expect(err.message).toContain('symbol');
+    });
+
+    it('a Date halts with RILL-R085', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => new Date(0)) },
+        'badFn()'
+      );
+      expect(err.message).toContain('Date');
+    });
+
+    it('a Map halts with RILL-R085', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => new Map()) },
+        'badFn()'
+      );
+      expect(err.message).toContain('Map');
+    });
+
+    it('a Set halts with RILL-R085', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => new Set()) },
+        'badFn()'
+      );
+      expect(err.message).toContain('Set');
+    });
+
+    it('a bigint halts with RILL-R085', async () => {
+      const err = await expectR085({ badFn: badFn(() => 10n) }, 'badFn()');
+      expect(err.message).toContain('bigint');
+    });
+
+    it('a non-plain class instance halts with RILL-R085', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => new NotAPlainClass()) },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+    });
+
+    it('a plain object nesting undefined at a string key halts with RILL-R085 and reports the nested path', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => ({ a: undefined })) },
+        'badFn()'
+      );
+      expect(err.message).toContain('.a');
+      expect(err.message).toContain('undefined');
+    });
+
+    it('an array nesting undefined halts with RILL-R085 and reports the indexed path', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => [1, undefined]) },
+        'badFn()'
+      );
+      expect(err.message).toContain('[1]');
+      expect(err.message).toContain('undefined');
+    });
+
+    it('a self-referential object halts with RILL-R085 at the cyclic path', async () => {
+      const err = await expectR085(
+        {
+          badFn: badFn(() => {
+            const o: Record<string, unknown> = {};
+            o['self'] = o;
+            return o;
+          }),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('.self');
+    });
+
+    it('a self-referential array halts with RILL-R085 at the cyclic path', async () => {
+      const err = await expectR085(
+        {
+          badFn: badFn(() => {
+            const a: unknown[] = [1];
+            a.push(a);
+            return a;
+          }),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('[1]');
+    });
+  });
+
+  describe('accepts every representable return shape', () => {
+    it('accepts string, number, and boolean primitives', async () => {
+      await expect(
+        run('echo()', { functions: { echo: badFn(() => 'ok') } })
+      ).resolves.toBe('ok');
+      await expect(
+        run('echo()', { functions: { echo: badFn(() => 42) } })
+      ).resolves.toBe(42);
+      await expect(
+        run('echo()', { functions: { echo: badFn(() => true) } })
+      ).resolves.toBe(true);
+    });
+
+    it('accepts a plain dict', async () => {
+      await expect(
+        run('echo()', { functions: { echo: badFn(() => ({ a: 1 })) } })
+      ).resolves.toEqual({ a: 1 });
+    });
+
+    it('accepts a diamond-shaped (non-cyclic) result: the same object referenced from two sibling fields', async () => {
+      await expect(
+        run('echo()', {
+          functions: {
+            echo: badFn(() => {
+              const shared = { x: 1, y: 2 };
+              return { a: shared, b: shared };
+            }),
+          },
+        })
+      ).resolves.toEqual({ a: { x: 1, y: 2 }, b: { x: 1, y: 2 } });
+    });
+
+    it('accepts a list', async () => {
+      await expect(
+        run('echo()', { functions: { echo: badFn(() => [1, 2, 3]) } })
+      ).resolves.toEqual([1, 2, 3]);
+    });
+
+    it('accepts a callable produced via toCallable', async () => {
+      const inner: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => 'called',
+      };
+      const returned = toCallable(inner);
+      const result = await run('echo()', {
+        functions: { echo: badFn(() => returned) },
+      });
+      expect(isCallable(result)).toBe(true);
+    });
+
+    // Echo-through cases: the value is constructed by rill script syntax and
+    // passed as an argument, so the host function returns a genuine rill
+    // value of that brand rather than a hand-built fixture.
+    async function echoThrough(expr: string): Promise<RillValue> {
+      return run(`${expr} -> echo()`, {
+        functions: {
+          echo: {
+            params: [
+              {
+                name: 'x',
+                type: { kind: 'any' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (args) => args['x'] as RillValue,
+          },
+        },
+      });
+    }
+
+    it('accepts an atom', async () => {
+      const result = await echoThrough('"TIMEOUT" -> atom');
+      expect(result).toHaveProperty('__rill_atom', true);
+    });
+
+    it('accepts a datetime', async () => {
+      const result = await echoThrough('now()');
+      expect(result).toHaveProperty('__rill_datetime', true);
+    });
+
+    it('accepts a duration', async () => {
+      const result = await echoThrough('duration(1, 2)');
+      expect(result).toHaveProperty('__rill_duration', true);
+    });
+
+    it('accepts a tuple', async () => {
+      const result = await echoThrough('tuple[1, 2]');
+      expect(result).toHaveProperty('__rill_tuple', true);
+    });
+
+    it('accepts an ordered value', async () => {
+      const result = await echoThrough('ordered[a: 1]');
+      expect(result).toHaveProperty('__rill_ordered', true);
+    });
+
+    it('accepts an iterator', async () => {
+      const result = await echoThrough('range(0, 3)');
+      expect(result).toHaveProperty('next');
+      expect(isCallable((result as Record<string, RillValue>)['next'])).toBe(
+        true
+      );
+    });
+
+    it('accepts a stream', async () => {
+      // The runtime materializes the returned stream into a list by the time
+      // the script result resolves; what matters here is that passing the
+      // live RillStream through the host boundary does not halt with
+      // RILL-R085 (isStream is checked before descent in validateHostResult).
+      const result = await echoThrough('range(0, 5) -> batch(2)');
+      expect(result).toEqual([[0, 1], [2, 3], [4]]);
+    });
+
+    it('accepts a dict carrying typed (non-string) keys', async () => {
+      const result = await echoThrough('dict[1: "number one", "1": "string"]');
+      expect(result).toEqual({ '1': 'string' });
+    });
+  });
+
+  describe('rejects forged brand objects that only fake the discriminator key', () => {
+    /** Local copy of the sibling describe's echoThrough: same shape, own scope. */
+    async function echoThrough(expr: string): Promise<RillValue> {
+      return run(`${expr} -> echo()`, {
+        functions: {
+          echo: {
+            params: [
+              {
+                name: 'x',
+                type: { kind: 'any' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (args) => args['x'] as RillValue,
+          },
+        },
+      });
+    }
+
+    it('a well-formed datetime brand still passes', async () => {
+      const result = await echoThrough('now()');
+      expect(result).toHaveProperty('__rill_datetime', true);
+    });
+
+    it('a forged datetime with a non-numeric unix halts with RILL-R085 at validation, not a garbage .iso()', async () => {
+      const err = await expectR085(
+        { badFn: badFn(() => ({ __rill_datetime: true, unix: 'x' })) },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('datetime');
+    });
+
+    it('a forged duration with negative months halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_duration: true,
+            months: -1,
+            ms: 0,
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged atom with a non-string name halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_atom: true,
+            atom: { __rill_atom: true, name: 1, kind: 'x' },
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged typevalue with a non-string typeName halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_type: true,
+            typeName: 1,
+            structure: { kind: 'number' },
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged vector with non-Float32Array data halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_vector: true,
+            data: [1, 2, 3],
+            model: 'test',
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged ordered value with non-array entries halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({ __rill_ordered: true, entries: 'nope' })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged stream with a non-callable next halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: 'not-callable',
+            value: 1,
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged stream missing the value field halts with RILL-R085 even with a genuine callable next', async () => {
+      const inner: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => 'called',
+      };
+      const genuineNext = toCallable(inner);
+      const err = await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: genuineNext,
+          })),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('stream');
+    });
+
+    it('a forged stream faking __rill_stream_resolve (but lacking the head marker) still halts with RILL-R085', async () => {
+      const inner: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => 'called',
+      };
+      const genuineNext = toCallable(inner);
+      const err = await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: genuineNext,
+            __rill_stream_resolve: () => 'forged',
+          })),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('stream');
+    });
+
+    it('a forged stream head marker without a callable __rill_stream_resolve halts with RILL-R085', async () => {
+      const inner: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => 'called',
+      };
+      const genuineNext = toCallable(inner);
+      const err = await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_stream: true,
+            done: false,
+            next: genuineNext,
+            __rill_stream_head: true,
+          })),
+        },
+        'badFn()'
+      );
+      expect(err.message).toContain("'badFn'");
+      expect(err.message).toContain('stream');
+    });
+  });
+
+  describe('is not recoverable by guard or retry', () => {
+    it('guard does not intercept the halt — it propagates to the caller', async () => {
+      await expect(
+        run('guard { badFn() } => $r\n$r', {
+          functions: { badFn: badFn(() => null) },
+        })
+      ).rejects.toHaveProperty('errorId', 'RILL-R085');
+    });
+
+    it('retry does not intercept the halt — it propagates to the caller', async () => {
+      await expect(
+        run('retry<limit: 2> { badFn() } => $r\n$r', {
+          functions: { badFn: badFn(() => undefined) },
+        })
+      ).rejects.toHaveProperty('errorId', 'RILL-R085');
+    });
+  });
+
+  describe('stream resolve() results and throws pass the same host-boundary gate', () => {
+    /** Minimal single-value async iterable for a host stream's `chunks`. */
+    function asyncIterableFrom(values: RillValue[]): AsyncIterable<RillValue> {
+      return {
+        [Symbol.asyncIterator]() {
+          let index = 0;
+          return {
+            async next() {
+              if (index < values.length) {
+                return { value: values[index++]!, done: false as const };
+              }
+              return { value: undefined, done: true as const };
+            },
+          };
+        },
+      };
+    }
+
+    function makeStreamFn(resolve: () => Promise<RillValue>): RillFunction {
+      return {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () =>
+          createRillStream({
+            chunks: asyncIterableFrom([1]),
+            resolve,
+          }),
+      };
+    }
+
+    it('a resolve() returning null halts $s() with RILL-R085 instead of leaking null', async () => {
+      const err = await expectR085(
+        {
+          make_stream: makeStreamFn(async () => null as unknown as RillValue),
+        },
+        'make_stream() => $s\n$s()'
+      );
+      expect(err.message).toContain('resolve');
+    });
+
+    it('a throwing resolve() propagates as a raw rejected Error, not a reshaped invalid', async () => {
+      const err = await run('make_stream() => $s\n$s()', {
+        functions: {
+          make_stream: makeStreamFn(async () => {
+            throw new Error('resolve exploded');
+          }),
+        },
+      }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe('resolve exploded');
+    });
+
+    it('a throwing resolve() is NOT caught by guard — it still rejects raw', async () => {
+      const err = await run('guard { make_stream() => $s\n$s() } => $r\n$r', {
+        functions: {
+          make_stream: makeStreamFn(async () => {
+            throw new Error('resolve exploded');
+          }),
+        },
+      }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(Error);
+      expect((err as Error).message).toBe('resolve exploded');
+    });
+  });
+
+  describe('mid-stream host throw inside seq/fold disposes and halts, not silently swallowed', () => {
+    /**
+     * A `make_stream` host function whose underlying `AsyncIterable`
+     * produces one chunk and then throws on the second `next()` call —
+     * a genuine mid-stream host failure, distinct from the `resolve()`
+     * throws exercised above. Tracks whether `dispose` fired.
+     */
+    function makeMidStreamThrowFn(disposed: { called: boolean }): RillFunction {
+      return {
+        params: [],
+        fn: () =>
+          createRillStream({
+            chunks: asyncIterableThatThrowsAfterOne(),
+            resolve: async () => 0,
+            dispose: () => {
+              disposed.called = true;
+            },
+          }),
+      };
+    }
+
+    /** AsyncIterable yielding one chunk, then throwing on the next pull. */
+    function asyncIterableThatThrowsAfterOne(): AsyncIterable<RillValue> {
+      return {
+        [Symbol.asyncIterator]() {
+          let i = 0;
+          return {
+            async next() {
+              if (i === 0) {
+                i++;
+                return { value: 1, done: false as const };
+              }
+              throw new Error('mid-stream boom');
+            },
+          };
+        },
+      };
+    }
+
+    it('a throw inside seq disposes the stream and halts (uncaught)', async () => {
+      const disposed = { called: false };
+      const err = await run('make_stream() -> seq({ $ })', {
+        functions: { make_stream: makeMidStreamThrowFn(disposed) },
+      }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      expect((err as Error).message).toContain('mid-stream boom');
+      expect(disposed.called).toBe(true);
+    });
+
+    it('a throw inside seq disposes the stream and prevents the next statement from running', async () => {
+      const disposed = { called: false };
+      let markRan = false;
+      const err = await run(
+        'make_stream() -> seq({ $ }) => $r\nmark() => $after',
+        {
+          functions: {
+            make_stream: makeMidStreamThrowFn(disposed),
+            mark: {
+              params: [],
+              fn: () => {
+                markRan = true;
+                return null;
+              },
+            },
+          },
+        }
+      ).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      expect(disposed.called).toBe(true);
+      expect(markRan).toBe(false);
+    });
+
+    it('a throw inside seq is recoverable via guard, carrying the original message', async () => {
+      const disposed = { called: false };
+      const result = await run(
+        'guard { make_stream() -> seq({ $ }) } => $r\n$r.!message',
+        { functions: { make_stream: makeMidStreamThrowFn(disposed) } }
+      );
+      expect(result).toContain('mid-stream boom');
+      expect(disposed.called).toBe(true);
+    });
+
+    it('a throw inside fold disposes the stream and halts (uncaught)', async () => {
+      const disposed = { called: false };
+      const err = await run('make_stream() -> fold(0, { $@ + $ })', {
+        functions: { make_stream: makeMidStreamThrowFn(disposed) },
+      }).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      expect((err as Error).message).toContain('mid-stream boom');
+      expect(disposed.called).toBe(true);
+    });
+
+    it('a throw inside fold disposes the stream and prevents the next statement from running', async () => {
+      const disposed = { called: false };
+      let markRan = false;
+      const err = await run(
+        'make_stream() -> fold(0, { $@ + $ }) => $r\nmark() => $after',
+        {
+          functions: {
+            make_stream: makeMidStreamThrowFn(disposed),
+            mark: {
+              params: [],
+              fn: () => {
+                markRan = true;
+                return null;
+              },
+            },
+          },
+        }
+      ).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(RuntimeHaltSignal);
+      expect(disposed.called).toBe(true);
+      expect(markRan).toBe(false);
+    });
+
+    it('a throw inside fold is recoverable via guard, carrying the original message', async () => {
+      const disposed = { called: false };
+      const result = await run(
+        'guard { make_stream() -> fold(0, { $@ + $ }) } => $r\n$r.!message',
+        { functions: { make_stream: makeMidStreamThrowFn(disposed) } }
+      );
+      expect(result).toContain('mid-stream boom');
+      expect(disposed.called).toBe(true);
+    });
+  });
+});
+
+describe('Host function return-value validation (non-finite numbers)', () => {
+  function numberFn(returnValue: number): RillFunction {
+    return {
+      params: [],
+      returnType: { kind: 'number' },
+      fn: () => returnValue,
+    };
+  }
+
+  it('a host function returning NaN halts naming the function and value', async () => {
+    await expectHaltMessage(
+      () => run('getNaN()', { functions: { getNaN: numberFn(NaN) } }),
+      "Host function 'getNaN' returned a non-finite number at <root>: NaN"
+    );
+  });
+
+  it('a host function returning Infinity halts naming the function and value', async () => {
+    await expectHaltMessage(
+      () => run('getInf()', { functions: { getInf: numberFn(Infinity) } }),
+      "Host function 'getInf' returned a non-finite number at <root>: Infinity"
+    );
+  });
+
+  it('a host function returning -Infinity halts naming the function and value', async () => {
+    await expectHaltMessage(
+      () =>
+        run('getNegInf()', { functions: { getNegInf: numberFn(-Infinity) } }),
+      "Host function 'getNegInf' returned a non-finite number at <root>: -Infinity"
+    );
+  });
+
+  it('NaN nested in a returned plain object reports the field path', async () => {
+    const badFn: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: () => ({ field: NaN }) as unknown as RillValue,
+    };
+    await expectHaltMessage(
+      () => run('badFn()', { functions: { badFn } }),
+      "Host function 'badFn' returned a non-finite number at .field: NaN"
+    );
+  });
+
+  it('NaN nested in a returned array reports the indexed path', async () => {
+    const badFn: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: () => [1, NaN] as unknown as RillValue,
+    };
+    await expectHaltMessage(
+      () => run('badFn()', { functions: { badFn } }),
+      "Host function 'badFn' returned a non-finite number at <root>[1]: NaN"
+    );
+  });
+
+  it('guard recovers the halt as a catchable invalid value', async () => {
+    const result = await run('guard { getNaN() } => $r\n$r.!', {
+      functions: { getNaN: numberFn(NaN) },
+    });
+    expect(result).toBe(true);
+  });
+
+  it('guard { ... } ?? fallback resolves the halt to the fallback value', async () => {
+    const result = await run('guard { getNaN() } ?? 0', {
+      functions: { getNaN: numberFn(NaN) },
+    });
+    expect(result).toBe(0);
   });
 });

@@ -8,12 +8,19 @@ import {
 import {
   isDatetime,
   isDuration,
+  isIterator,
   isOrdered,
+  isStream,
   isVector,
 } from '../../../core/types/guards.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { RuntimeError } from '../../../../types.js';
-import { throwTypeHalt } from '../../../core/types/halt.js';
+import {
+  rejectBreakAsHalt,
+  throwCatchableHostHalt,
+  throwTypeHalt,
+} from '../../../core/types/halt.js';
+import { isInvalid, isVacant } from '../../../core/types/status.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
 import { createOrdered } from '../../../core/types/constructors.js';
@@ -22,8 +29,11 @@ import { anyTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { BreakSignal } from '../../../core/signals.js';
 import { createChildContext } from '../../../core/context.js';
-import { getIterableElements } from '../../../core/eval/handlers/collections.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
+import {
+  getIterableElements,
+  walkStreamOrIteratorElements,
+} from '../../../core/eval/handlers/collections.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import { MAX_ITER, chunkSlice } from '../shared.js';
 import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
@@ -85,6 +95,33 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
+
+      // Stream/iterator inputs are walked lazily one raw step at a time so a
+      // `break` in the body bounds how many steps are pulled from an
+      // infinite source, instead of materializing it up front.
+      if (isStream(input) || isIterator(input)) {
+        const { results } = await walkStreamOrIteratorElements(
+          input,
+          ctx as RuntimeContext,
+          node,
+          'seq',
+          async (element) => {
+            const childCtx = createChildContext(ctx as RuntimeContext);
+            childCtx.pipeValue = element;
+            const closureToInvoke = isScriptCallable(body)
+              ? { ...body, definingScope: childCtx }
+              : body;
+            return invokeCallable(
+              closureToInvoke,
+              [element],
+              childCtx,
+              location
+            );
+          }
+        );
+        return results;
+      }
+
       const elements = await getIterableElements(
         input,
         ctx as RuntimeContext,
@@ -192,14 +229,28 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
               location
             );
           }
-          if (!Number.isFinite(concurrencyOpt) || concurrencyOpt <= 0) {
+          if (
+            !Number.isFinite(concurrencyOpt) ||
+            !Number.isInteger(concurrencyOpt) ||
+            concurrencyOpt <= 0
+          ) {
             throw new RuntimeError(
               ERROR_IDS.RILL_R001,
-              `fan: options.concurrency must be a positive number, got ${concurrencyOpt}`,
+              `fan: options.concurrency must be a positive integer, got ${concurrencyOpt}`,
               location
             );
           }
-          concurrency = Math.floor(concurrencyOpt);
+          concurrency = concurrencyOpt;
+        }
+
+        for (const key of Object.keys(options as Record<string, RillValue>)) {
+          if (key !== 'concurrency') {
+            throw new RuntimeError(
+              ERROR_IDS.RILL_R001,
+              `fan: unknown option '${key}'; recognized options are 'concurrency'`,
+              location
+            );
+          }
         }
       }
 
@@ -216,6 +267,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return [];
       }
 
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'fan',
+      };
+
       if (concurrency === undefined) {
         // Unbounded parallel: Promise.all over all elements
         const promises = elements.map((element) => {
@@ -223,7 +280,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           childCtx.pipeValue = element;
           return invokeCallable(body, [element], childCtx, location);
         });
-        return Promise.all(promises);
+        try {
+          return await Promise.all(promises);
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
+        }
       }
 
       // Batched parallel execution
@@ -234,8 +296,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           childCtx.pipeValue = element;
           return invokeCallable(body, [element], childCtx, location);
         });
-        const batchResults = await Promise.all(batchPromises);
-        results.push(...batchResults);
+        try {
+          const batchResults = await Promise.all(batchPromises);
+          results.push(...batchResults);
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
+        }
       }
 
       return results;
@@ -286,6 +353,47 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
+
+      // Stream/iterator inputs are walked lazily one raw step at a time so a
+      // `break` in the body bounds how many steps are pulled from an
+      // infinite source, instead of materializing it up front.
+      if (isStream(input) || isIterator(input)) {
+        let lazyAccumulator: RillValue = seed;
+        const { results: lazyResults } = await walkStreamOrIteratorElements(
+          input,
+          ctx as RuntimeContext,
+          node,
+          'acc',
+          async (element) => {
+            const childCtx = createChildContext(ctx as RuntimeContext);
+            childCtx.variables.set('@', lazyAccumulator);
+            childCtx.pipeValue = element;
+            const closureToInvoke = isScriptCallable(body)
+              ? { ...body, definingScope: childCtx }
+              : body;
+            // Two-type closures |elem_type, acc_type|{ body } declare '@' as
+            // second param. Pass accumulator as second arg so marshalArgs
+            // can bind and type-check it.
+            const isTwoTypeBody =
+              isScriptCallable(body) &&
+              body.params.length === 2 &&
+              body.params[1]?.name === '@';
+            const invokeArgs: RillValue[] = isTwoTypeBody
+              ? [element, lazyAccumulator]
+              : [element];
+            const result = await invokeCallable(
+              closureToInvoke,
+              invokeArgs,
+              childCtx,
+              location
+            );
+            lazyAccumulator = result;
+            return result;
+          }
+        );
+        return lazyResults;
+      }
+
       const elements = await getIterableElements(
         input,
         ctx as RuntimeContext,
@@ -395,6 +503,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       let accumulator: RillValue = seed;
       let iterCount = 0;
 
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'fold',
+      };
+
       for (const element of elements) {
         iterCount++;
         if (iterCount > MAX_ITER) {
@@ -421,13 +535,17 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         const invokeArgs: RillValue[] = isTwoTypeBody
           ? [element, accumulator]
           : [element];
-        const result = await invokeCallable(
-          closureToInvoke,
-          invokeArgs,
-          childCtx,
-          location
-        );
-        accumulator = result;
+        try {
+          accumulator = await invokeCallable(
+            closureToInvoke,
+            invokeArgs,
+            childCtx,
+            location
+          );
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
+        }
       }
 
       return accumulator;
@@ -498,14 +616,28 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
               location
             );
           }
-          if (!Number.isFinite(concurrencyOpt) || concurrencyOpt <= 0) {
+          if (
+            !Number.isFinite(concurrencyOpt) ||
+            !Number.isInteger(concurrencyOpt) ||
+            concurrencyOpt <= 0
+          ) {
             throw new RuntimeError(
               ERROR_IDS.RILL_R001,
-              `filter: options.concurrency must be a positive number, got ${concurrencyOpt}`,
+              `filter: options.concurrency must be a positive integer, got ${concurrencyOpt}`,
               location
             );
           }
-          concurrency = Math.floor(concurrencyOpt);
+          concurrency = concurrencyOpt;
+        }
+
+        for (const key of Object.keys(options as Record<string, RillValue>)) {
+          if (key !== 'concurrency') {
+            throw new RuntimeError(
+              ERROR_IDS.RILL_R001,
+              `filter: unknown option '${key}'; recognized options are 'concurrency'`,
+              location
+            );
+          }
         }
       }
 
@@ -522,6 +654,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return [];
       }
 
+      const site = {
+        location,
+        sourceId: (ctx as RuntimeContext).sourceId,
+        fn: 'filter',
+      };
+
       /** Run the predicate for a single element and return keep/discard result. */
       const runPredicate = async (element: RillValue) => {
         const childCtx = createChildContext(ctx as RuntimeContext);
@@ -532,6 +670,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           childCtx,
           location
         );
+        if (isInvalid(result)) {
+          throwCatchableHostHalt(
+            site,
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            'filter: predicate returned an invalid value'
+          );
+        }
         if (typeof result !== 'boolean') {
           throw new RuntimeError(
             ERROR_IDS.RILL_R001,
@@ -544,16 +689,26 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       if (concurrency === undefined) {
         // Unbounded parallel: Promise.all over all elements
-        const results = await Promise.all(elements.map(runPredicate));
-        return results.filter((r) => r.keep).map((r) => r.element);
+        try {
+          const results = await Promise.all(elements.map(runPredicate));
+          return results.filter((r) => r.keep).map((r) => r.element);
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
+        }
       }
 
       // Batched parallel execution preserving source order
       const kept: RillValue[] = [];
       for (const batch of chunkSlice(elements, concurrency)) {
-        const batchResults = await Promise.all(batch.map(runPredicate));
-        for (const r of batchResults) {
-          if (r.keep) kept.push(r.element);
+        try {
+          const batchResults = await Promise.all(batch.map(runPredicate));
+          for (const r of batchResults) {
+            if (r.keep) kept.push(r.element);
+          }
+        } catch (e) {
+          rejectBreakAsHalt(e, site);
+          throw e;
         }
       }
 
@@ -633,7 +788,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       }
 
       // ── Dict path ─────────────────────────────────────────────────────────
-      if (isDict(input)) {
+      // Streams are dict-shaped (next, __rill_stream, ...) but must fall
+      // through to the list path below, which materializes their chunks via
+      // getIterableElements instead of sorting the stream's internal fields.
+      if (isDict(input) && !isStream(input)) {
         const dictInput = input as Record<string, RillValue>;
         // Combine string keys with number/boolean (typed) keys; the extractor
         // sees each key with its real type so `{ $.key }` sorts numerically.
@@ -651,13 +809,19 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             const entry: RillValue = { key: k, value: v };
             const childCtx = createChildContext(ctx as RuntimeContext);
             childCtx.pipeValue = entry;
-            const key = await invokeCallable(
-              keyFn as Parameters<typeof invokeCallable>[0],
-              [entry],
-              childCtx,
-              location
-            );
-            if (key === null) {
+            let key: RillValue;
+            try {
+              key = await invokeCallable(
+                keyFn as Parameters<typeof invokeCallable>[0],
+                [entry],
+                childCtx,
+                location
+              );
+            } catch (e) {
+              rejectBreakAsHalt(e, site);
+              throw e;
+            }
+            if (isVacant(key)) {
               throwTypeHalt(
                 site,
                 'INVALID_INPUT',
@@ -720,13 +884,19 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         elements.map(async (el) => {
           const childCtx = createChildContext(ctx as RuntimeContext);
           childCtx.pipeValue = el;
-          const key = await invokeCallable(
-            keyFnArg as Parameters<typeof invokeCallable>[0],
-            [el],
-            childCtx,
-            location
-          );
-          if (key === null) {
+          let key: RillValue;
+          try {
+            key = await invokeCallable(
+              keyFnArg as Parameters<typeof invokeCallable>[0],
+              [el],
+              childCtx,
+              location
+            );
+          } catch (e) {
+            rejectBreakAsHalt(e, site);
+            throw e;
+          }
+          if (isVacant(key)) {
             throwTypeHalt(
               site,
               'INVALID_INPUT',

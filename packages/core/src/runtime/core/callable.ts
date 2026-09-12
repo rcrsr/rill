@@ -24,15 +24,28 @@ import type { BodyNode, SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import { astEquals } from './equals.js';
 import {
+  isAtom,
   isCallable as _isCallableGuard,
+  isDatetime,
   isDict,
+  isDuration,
+  isIterator,
   isOrdered,
+  isStream,
   isTuple,
+  isTypeValue,
+  isVector,
 } from './types/guards.js';
 import type {
   TypeStructure,
+  RillAtomValue,
+  RillDatetime,
+  RillDuration,
+  RillOrdered,
+  RillStream,
   RillTypeValue,
   RillValue,
+  RillVector,
 } from './types/structures.js';
 import type {
   DictStructure,
@@ -51,7 +64,9 @@ import {
   emptyForType,
 } from './types/constructors.js';
 import { hasCollectionFields } from './values.js';
+import { copyTypedKeys, setDictField } from './types/dict-keys.js';
 import { ERROR_IDS } from '../../error-registry.js';
+import { throwCatchableHostHalt } from './types/halt.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -411,24 +426,31 @@ export function hydrateStructure(
     const result: Record<string, RillValue> = policy.keepExtras
       ? { ...dictValue }
       : {};
+    if (policy.keepExtras) {
+      copyTypedKeys(dictValue, result);
+    }
     for (const [fieldName, fieldDef] of Object.entries(t.fields!)) {
-      if (fieldName in dictValue) {
-        result[fieldName] = hydrateStructure(
-          dictValue[fieldName]!,
-          fieldDef.type,
-          policy
+      if (Object.hasOwn(dictValue, fieldName)) {
+        setDictField(
+          result,
+          fieldName,
+          hydrateStructure(dictValue[fieldName]!, fieldDef.type, policy)
         );
       } else if (fieldDef.defaultValue !== undefined) {
-        result[fieldName] = hydrateStructure(
-          copyValue(fieldDef.defaultValue),
-          fieldDef.type,
-          policy
+        setDictField(
+          result,
+          fieldName,
+          hydrateStructure(
+            copyValue(fieldDef.defaultValue),
+            fieldDef.type,
+            policy
+          )
         );
       } else if (hasCollectionFields(fieldDef.type)) {
-        result[fieldName] = hydrateStructure(
-          emptyForType(fieldDef.type),
-          fieldDef.type,
-          policy
+        setDictField(
+          result,
+          fieldName,
+          hydrateStructure(emptyForType(fieldDef.type), fieldDef.type, policy)
         );
       } else {
         policy.onMissingField({
@@ -538,6 +560,19 @@ export function hydrateStructure(
       __rill_tuple: true as const,
       entries: resultEntries,
     });
+  }
+
+  if (type.kind === 'union') {
+    // First structural match wins, in declaration order. When two members
+    // overlap structurally, the same value hydrates differently depending on
+    // which is declared first; declare union members non-overlapping (or
+    // most-specific-first) for predictable hydration.
+    const members = (type as { kind: 'union'; members: TypeStructure[] })
+      .members;
+    const match = members.find((member) => structureMatches(value, member));
+    if (match) {
+      return hydrateStructure(value, match, policy);
+    }
   }
 
   return value;
@@ -672,8 +707,291 @@ export function marshalArgs(
       }
     }
 
-    result[param.name] = value;
+    setDictField(result, param.name, value);
   }
 
   return result;
+}
+
+/**
+ * Validates a raw JavaScript value returned by a host function, ensuring it
+ * is representable in the rill value model before it flows further through
+ * the runtime.
+ *
+ * Deep-walks arrays and plain objects, tracking the current recursion
+ * ancestor path (added before descending into children, removed after)
+ * to reject cycles without flagging a diamond-shaped but acyclic
+ * structure (the same nested object reachable from two sibling fields).
+ * Any recognized rill value brand (atom, tuple, vector, ordered value,
+ * type value, datetime, duration, callable, stream, iterator, field
+ * descriptor) stops descent at that node. Anything else that cannot be
+ * represented -- undefined, null, symbol, bigint, a raw function, Date,
+ * Map, Set, a cyclic reference, or any other non-plain class instance --
+ * throws a fatal RuntimeError. This is a host-contract violation, not a
+ * catchable script error.
+ *
+ * @param result - The raw value returned by the host function
+ * @param functionName - Name of the host function, for the error message
+ * @param location - Call-site location, for error reporting
+ */
+export function validateHostResult(
+  result: unknown,
+  functionName: string,
+  location?: SourceLocation
+): void {
+  walkHostResult(result, functionName, '<root>', location, new WeakSet());
+}
+
+/** Identity predicate for the field_descriptor brand (mirrors the private
+ * helper in types/protocols/field-descriptor.ts, which is not exported). */
+function isFieldDescriptorValue(value: object): boolean {
+  return (
+    '__rill_field_descriptor' in value &&
+    (value as Record<string, unknown>)['__rill_field_descriptor'] === true
+  );
+}
+
+/** True when `value`'s prototype is `Object.prototype` or `null`, i.e. it is
+ * a plain object literal rather than a class instance. */
+function isPlainObject(value: object): boolean {
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/** Human-readable label for the JS shape of an unrepresentable value. */
+function jsTypeLabel(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (value === null) return 'null';
+  const t = typeof value;
+  if (t === 'symbol') return 'symbol';
+  if (t === 'bigint') return 'bigint';
+  if (t === 'function') return 'function';
+  if (value instanceof Date) return 'Date';
+  if (value instanceof Map) return 'Map';
+  if (value instanceof Set) return 'Set';
+  if (t === 'object') {
+    const ctorName = (value as { constructor?: { name?: string } }).constructor
+      ?.name;
+    return ctorName && ctorName !== 'Object' ? ctorName : 'object';
+  }
+  return t;
+}
+
+function throwHostResultError(
+  functionName: string,
+  path: string,
+  value: unknown,
+  location: SourceLocation | undefined,
+  reason?: string
+): never {
+  const detail = reason
+    ? `${reason}: ${jsTypeLabel(value)}`
+    : jsTypeLabel(value);
+  throw new RuntimeError(
+    ERROR_IDS.RILL_R085,
+    `Host function '${functionName}' returned an invalid value at ${path}: ${detail}`,
+    location
+  );
+}
+
+/**
+ * Validation-local strict shape checks for branded host results.
+ *
+ * The isXxx guards in `types/guards.ts` (~33-147) intentionally check ONLY
+ * brand-key presence — they have callers beyond validation (method dispatch,
+ * formatValue, inferType), so tightening them there would ripple into paths
+ * that never see host-forged input. Here, at the host-result boundary, a
+ * matched brand additionally has its required fields verified before it is
+ * accepted, mirroring how `isIterator` (guards.ts ~159-167) already checks
+ * `done`/`next`/`value`. The `stream` row is the exception: it accepts a
+ * non-done step without `value` only when it carries the hidden
+ * `__rill_stream_head` identity marker (the runtime's own pending head from
+ * `constructors.ts`, attached purely to distinguish it from produced/done
+ * steps — it is never consulted to gate resolution or advance a step),
+ * which `isIterator` has no equivalent for.
+ *
+ * Cross-file invariant: this table must stay exhaustive over the brand
+ * guards checked below. Adding a new branded guard to that list requires
+ * adding a matching row here, or a forged host object with the right
+ * discriminator key and garbage fields slips past validation.
+ */
+const BRAND_SHAPE_CHECKS: ReadonlyArray<{
+  test: (v: RillValue) => boolean;
+  valid: (v: RillValue) => boolean;
+  label: string;
+}> = [
+  {
+    label: 'atom',
+    test: isAtom,
+    valid: (v) => {
+      const atom = (v as RillAtomValue).atom;
+      return (
+        typeof atom === 'object' &&
+        atom !== null &&
+        (atom as { __rill_atom?: unknown }).__rill_atom === true &&
+        typeof (atom as { name?: unknown }).name === 'string' &&
+        typeof (atom as { kind?: unknown }).kind === 'string'
+      );
+    },
+  },
+  {
+    label: 'vector',
+    test: isVector,
+    valid: (v) => {
+      const vector = v as RillVector;
+      return (
+        vector.data instanceof Float32Array && typeof vector.model === 'string'
+      );
+    },
+  },
+  {
+    label: 'datetime',
+    test: isDatetime,
+    valid: (v) => Number.isFinite((v as RillDatetime).unix),
+  },
+  {
+    label: 'duration',
+    test: isDuration,
+    valid: (v) => {
+      const duration = v as RillDuration;
+      return (
+        Number.isFinite(duration.months) &&
+        duration.months >= 0 &&
+        Number.isFinite(duration.ms) &&
+        duration.ms >= 0
+      );
+    },
+  },
+  {
+    label: 'ordered',
+    test: isOrdered,
+    valid: (v) => Array.isArray((v as RillOrdered).entries),
+  },
+  {
+    label: 'typevalue',
+    test: isTypeValue,
+    valid: (v) => {
+      const typeValue = v as RillTypeValue;
+      return (
+        typeof typeValue.typeName === 'string' &&
+        typeof typeValue.structure === 'object' &&
+        typeValue.structure !== null &&
+        typeof (typeValue.structure as { kind?: unknown }).kind === 'string'
+      );
+    },
+  },
+  {
+    label: 'stream',
+    test: isStream,
+    valid: (v) => {
+      const stream = v as RillStream;
+      if (typeof stream.done !== 'boolean' || !isCallable(stream.next))
+        return false;
+      if (stream.done) return true;
+      if ('__rill_stream_head' in stream) {
+        return (
+          typeof (stream as unknown as Record<string, unknown>)[
+            '__rill_stream_resolve'
+          ] === 'function'
+        );
+      }
+      return 'value' in stream;
+    },
+  },
+];
+
+function walkHostResult(
+  value: unknown,
+  functionName: string,
+  path: string,
+  location: SourceLocation | undefined,
+  seen: WeakSet<object>
+): void {
+  if (value === undefined || value === null) {
+    throwHostResultError(functionName, path, value, location);
+  }
+
+  const t = typeof value;
+  if (t === 'number' && !Number.isFinite(value)) {
+    const label = Number.isNaN(value)
+      ? 'NaN'
+      : value === Infinity
+        ? 'Infinity'
+        : '-Infinity';
+    throwCatchableHostHalt(
+      { location, fn: 'walkHostResult' },
+      'INVALID_INPUT',
+      `Host function '${functionName}' returned a non-finite number at ${path}: ${label}`
+    );
+  }
+  if (t === 'string' || t === 'number' || t === 'boolean') {
+    return;
+  }
+  if (t === 'symbol' || t === 'bigint' || t === 'function') {
+    throwHostResultError(functionName, path, value, location);
+  }
+
+  // Remaining case: t === 'object'
+  const obj = value as object;
+  const rillValue = value as RillValue;
+
+  if (seen.has(obj)) {
+    throwHostResultError(functionName, path, value, location);
+  }
+
+  if (
+    isTuple(rillValue) ||
+    isCallable(rillValue) ||
+    isIterator(rillValue) ||
+    isFieldDescriptorValue(obj)
+  ) {
+    return;
+  }
+
+  for (const check of BRAND_SHAPE_CHECKS) {
+    if (check.test(rillValue)) {
+      if (!check.valid(rillValue)) {
+        throwHostResultError(
+          functionName,
+          path,
+          value,
+          location,
+          `malformed ${check.label} brand`
+        );
+      }
+      return;
+    }
+  }
+
+  if (value instanceof Date || value instanceof Map || value instanceof Set) {
+    throwHostResultError(functionName, path, value, location);
+  }
+
+  if (Array.isArray(value)) {
+    seen.add(obj);
+    for (let i = 0; i < value.length; i++) {
+      walkHostResult(value[i], functionName, `${path}[${i}]`, location, seen);
+    }
+    seen.delete(obj);
+    return;
+  }
+
+  if (isPlainObject(obj)) {
+    seen.add(obj);
+    for (const key of Object.keys(obj as Record<string, unknown>)) {
+      const childPath = path === '<root>' ? `.${key}` : `${path}.${key}`;
+      walkHostResult(
+        (obj as Record<string, unknown>)[key],
+        functionName,
+        childPath,
+        location,
+        seen
+      );
+    }
+    seen.delete(obj);
+    return;
+  }
+
+  // Non-plain class instance: reject
+  throwHostResultError(functionName, path, value, location);
 }

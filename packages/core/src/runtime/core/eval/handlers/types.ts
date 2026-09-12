@@ -47,10 +47,12 @@ import {
 } from '../../types/operations.js';
 import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { checkType, structureToTypeValue } from '../../values.js';
+import { setDictField } from '../../types/dict-keys.js';
 import { getVariable } from '../../context.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { evaluateAnnotations } from './annotations.js';
+import { evaluateAnnotations as evaluateAnnotationArgs } from './literals.js';
 import {
   evaluatePrimary,
   evaluatePostfixExpr,
@@ -207,7 +209,7 @@ async function buildCollectionType(
             fieldDef.annotations = {};
           }
         }
-        fields[arg.name!] = fieldDef;
+        setDictField(fields, arg.name!, fieldDef);
       }
       const structure: TypeStructure = { kind: 'dict', fields };
       return Object.freeze({
@@ -520,6 +522,26 @@ export async function resolveTypeRef(
 }
 
 /**
+ * Determine whether a TypeStructure carries sub-fields that require
+ * deep structural matching (via structureMatches) rather than a bare
+ * type-name comparison. Covers collection shapes (element, fields,
+ * elements, members, valueType) as well as closure shapes (params, ret)
+ * and stream shapes (chunk, ret).
+ */
+function hasStructuralSubFields(structure: TypeStructure): boolean {
+  return (
+    'element' in structure ||
+    'fields' in structure ||
+    'elements' in structure ||
+    'members' in structure ||
+    'valueType' in structure ||
+    'params' in structure ||
+    'ret' in structure ||
+    'chunk' in structure
+  );
+}
+
+/**
  * Assert that a value is of the expected type.
  * Returns the value unchanged if assertion passes, throws on mismatch.
  * Accepts a bare RillTypeName or a full TypeStructure.
@@ -535,13 +557,7 @@ export function assertType(
 ): RillValue {
   // Structural path: expected is a TypeStructure object
   if (typeof expected !== 'string') {
-    const hasSubFields =
-      'element' in expected ||
-      'fields' in expected ||
-      'elements' in expected ||
-      'members' in expected ||
-      'valueType' in expected;
-    if (hasSubFields) {
+    if (hasStructuralSubFields(expected)) {
       if (!structureMatches(value, expected)) {
         const expectedStr = formatStructure(expected);
         const actualStr = formatStructure(inferStructure(value));
@@ -620,13 +636,7 @@ export async function evaluateTypeCheck(
   const resolved = await resolveTypeRef(s, node.typeRef, (name) =>
     getVariable(s.ctx, name)
   );
-  const hasSubFields =
-    'element' in resolved.structure ||
-    'fields' in resolved.structure ||
-    'elements' in resolved.structure ||
-    'members' in resolved.structure ||
-    'valueType' in resolved.structure;
-  if (hasSubFields) {
+  if (hasStructuralSubFields(resolved.structure)) {
     return structureMatches(value, resolved.structure);
   }
   return checkType(value, resolved.typeName);
@@ -737,7 +747,15 @@ export async function evaluateClosureSigLiteral(
   for (const param of node.params) {
     const paramVal: RillValue = await evaluateExpression(s, param.typeExpr);
     const paramType = await resolveTypeExpr(paramVal);
-    params.push({ name: param.name, type: paramType });
+    if (param.annotations?.length) {
+      const annotations = await evaluateAnnotationArgs(
+        param.annotations,
+        (expr) => evaluateExpression(s, expr)
+      );
+      params.push({ name: param.name, type: paramType, annotations });
+    } else {
+      params.push({ name: param.name, type: paramType });
+    }
   }
 
   // Evaluate return type (required -- parser enforces this at parse time)

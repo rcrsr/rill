@@ -388,6 +388,8 @@ type NativeValue =
   | NativeArray | NativePlainObject;
 ```
 
+A dict with a number or boolean key adds a reserved `__rill_typed_keys` field to its `NativePlainObject`. This field is the lossless carrier for those keys. See [Resolver Registration](integration-resolvers.md) for the field's shape and a conversion example.
+
 ### Descriptor shapes for non-native types
 
 | Rill type | `value` shape |
@@ -665,9 +667,23 @@ type CallableFn = (
 | `ctx` | `RuntimeContextLike` | Runtime context for the current execution. Provides access to variables, abort signal, and callbacks |
 | `location` | `SourceLocation \| undefined` | Source location of the call site. Present when the call originates from a rill script; undefined in programmatic calls |
 
-**Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details.
+**Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details. A return value that is not a `RillValue`—including one nested inside a returned array or plain object—halts at the call boundary with `RILL-R085`. A returned non-finite number (`NaN`, `Infinity`, `-Infinity`) halts catchably with `#INVALID_INPUT` instead. See [Return Values](integration-host.md#return-values) for the full contract.
 
 **Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]`; their internal type cast is unchanged.
+
+### Typed dict keys
+
+```typescript
+import { getTypedKeyEntries } from '@rcrsr/rill';
+
+const fn: CallableFn = (args) => {
+  const someDict = args.someDict; // dict[1: "a", "1": "b"]
+  Object.keys(someDict); // -> ["1"], the number key 1 is missing
+  return getTypedKeyEntries(someDict); // -> [{ key: 1, value: "a" }]
+};
+```
+
+A dict value in `args` is a live `RillValue`; its number- and boolean-keyed entries do not appear in `Object.keys`/`Object.entries`. See `getTypedKeyEntries()`, which returns each such entry with its original `number`/`boolean` key type, without converting the dict.
 
 ---
 
@@ -742,9 +758,21 @@ Builds a `RillStream` from an `AsyncIterable` of chunk values and a resolution c
 |-----------|------|-------------|
 | `chunks` | `AsyncIterable<RillValue>` | Async source of chunk values. Each yielded value is one stream step |
 | `resolve` | `() => Promise<RillValue>` | Called once when all chunks are consumed. Returns the final resolved value |
-| `dispose` | `() => void` | Optional cleanup function. Called when the stream is exhausted |
+| `dispose` | `() => void` | Optional cleanup function. Runs exactly once when consumption ends — see Stream disposal below |
 | `chunkType` | `TypeStructure` | Optional structural type descriptor for chunk values |
 | `retType` | `TypeStructure` | Optional structural type descriptor for the resolved return value |
+
+### Stream disposal
+
+`dispose` runs exactly once, whichever way a collection operator stops reading the stream:
+
+- The operator drains every chunk (`seq`, `fan`, `skip`, `stop_when`, or a `take(n)` larger than the stream).
+- The operator stops early (`take(n)`, or a `break` in `seq`/`acc`).
+- The consuming expression halts.
+
+`dispose` runs before the consuming expression returns, so a host that opens a socket or file per stream releases it on every path. It never runs more than once.
+
+A stream stepped by hand with `.first()` and `.next()` is disposed only when a step reaches the end of the chunks. A hand-stepped chain abandoned before that point is not disposed; the host remains responsible for that resource. A stream assigned inside a block is disposed on the enclosing block's scope exit even if no expression ever consumed it; only a stream that is the script's own top-level result, with no enclosing block, is left for the host to dispose.
 
 ```typescript
 import { createRillStream } from '@rcrsr/rill';
@@ -836,12 +864,17 @@ The output format is a rill dict literal. The dict is the last expression and be
 
 ```text
 [
-  "greet": |name: string|:string,
+  "greet": |^("who") name: string|:string,
   "fetch": |url: string|:dict,
+  "now": ||:number
 ]
 ```
 
 An empty function map returns `[:]`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.
+
+Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
+
+Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 
 ---
 
@@ -1162,5 +1195,5 @@ try {
 - [Extensions](integration-extensions.md): Reusable function packages
 - [Modules](integration-modules.md): Module convention
 - [Host API Types](ref-host-api-types.md): TypeStructure, TypeDefinition, TypeProtocol
-- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 41 rule codes
+- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 42 rule codes
 

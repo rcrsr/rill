@@ -6,8 +6,8 @@ Atoms, status sidecars, `guard`, `retry`, vacancy, and recovery patterns.
 
 | Failure | Caused by | Caught by |
 |---|---|---|
-| Runtime error (uncatchable) | `error`, `assert`, divide-by-zero, OOB index, missing field, failed conversion, parameter type mismatch | nothing — propagates |
-| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion or extension `ctx.invalidate`) | `guard { }`, `retry<limit: N> { }` |
+| Runtime error (uncatchable) | `error`, `assert`, parameter type mismatch | nothing — propagates |
+| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index (`RILL-R042`), missing field (`RILL-R007`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
 
 ## Assert and error
 
@@ -85,7 +85,7 @@ Filtered form (catches only matching atoms):
       $app.fetch($url)
     }
 
-`guard` does NOT catch halts from `error`, `assert`, or runtime errors (divide-by-zero, OOB, missing field, failed conversion). Those propagate.
+`guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index (`RILL-R042`), missing field access (`RILL-R007`), and failed conversion (`RILL-R038`) — these behave like any other access halt.
 
 ## Retry
 

@@ -246,6 +246,15 @@ export interface ControlFlowContext {
   /** Maximum call stack depth */
   readonly maxCallStackDepth: number;
   /**
+   * Shared, boxed call-depth counter for invokeCallable recursion bounding.
+   * Boxed (not a bare number) so createChildContext shares the same
+   * reference across scope boundaries — a per-context copy would not
+   * bound recursion once a child context is created.
+   */
+  readonly callDepth: { value: number };
+  /** Maximum recursive invokeCallable call depth before a fatal halt */
+  readonly maxCallDepth: number;
+  /**
    * Annotation stack for statement annotations.
    * Each entry is a dict of annotation key-value pairs.
    * Annotations do not inherit — each annotated statement carries only its own annotations.
@@ -338,6 +347,8 @@ export interface RuntimeOptions {
   requireDescriptions?: boolean;
   /** Maximum call stack depth (default: 100) */
   maxCallStackDepth?: number;
+  /** Maximum recursive invokeCallable call depth before a fatal halt (default: 1000) */
+  maxCallDepth?: number;
   /** Arbitrary string metadata passed through to the runtime context */
   metadata?: Record<string, string>;
   /** Arbitrary host-provided values accessible by extensions at call time */

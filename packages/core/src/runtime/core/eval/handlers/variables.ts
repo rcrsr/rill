@@ -32,6 +32,7 @@
  */
 
 import type {
+  ASTNode,
   VariableNode,
   CaptureNode,
   RillTypeName,
@@ -42,7 +43,12 @@ import type {
 import { RuntimeError, isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTypeValue } from '../../types/guards.js';
+import {
+  isTypeValue,
+  isOrdered,
+  isTuple,
+  isIterator,
+} from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import { getVariable, hasVariable } from '../../context.js';
 import { isDict, isCallable } from '../../callable.js';
@@ -57,7 +63,11 @@ import type { EvalState } from '../state.js';
 import { accessHaltGateFast } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation, accessDictField } from '../shared.js';
-import { getTypedKey, hasTypedKey } from '../../types/dict-keys.js';
+import {
+  getTypedKey,
+  getTypedKeyMap,
+  hasTypedKey,
+} from '../../types/dict-keys.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluatePipeChain } from './core.js';
 import {
@@ -231,6 +241,403 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
 }
 
 /**
+ * Apply bracket-index access (`receiver[indexExpr]`) to a list or dict
+ * receiver, evaluating `indexExpr` as a pipe chain to obtain the index/key.
+ *
+ * Shared by the `$var[i]` access-chain path (evaluateVariableAsync) and the
+ * postfix `expr[i]` method-chain path (evaluatePostfixExpr / the pipe-target
+ * PostfixExpr case in core.ts) so both surfaces halt identically:
+ * - List: negative-index normalization, out-of-bounds halts via RILL_R009.
+ * - Dict: number/boolean keys resolve via the typed-key sidecar
+ *   (hasTypedKey/getTypedKey); string keys use an own-key gate so inherited
+ *   JS members never resolve as dict fields.
+ * - Any other receiver type (including tuple and string) halts with
+ *   'Cannot index <type>' via RILL_R002 — no element access is defined for
+ *   those types.
+ *
+ * `location` and `fn` are supplied by the caller so trace frames match the
+ * calling context exactly (e.g. 'evaluateVariableAsync' for the $var[i]
+ * path).
+ */
+export async function applyBracketIndex(
+  s: EvalState,
+  receiver: RillValue,
+  indexExpr: ExpressionNode,
+  location: SourceLocation | undefined,
+  fn: string
+): Promise<RillValue> {
+  // Bracket-index expressions are parsed inline while building a live
+  // access/method chain (never via the statement-level recovery path), so
+  // they only ever hold a PipeChainNode; PartialExpressionNode is reserved
+  // for parser error recovery.
+  if (!isPipeChainNode(indexExpr)) {
+    throwFatalHostHalt(
+      { location, sourceId: s.ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Bracket access expression must be a pipe chain'
+    );
+  }
+  const indexValue = await evaluatePipeChain(s, indexExpr);
+
+  if (Array.isArray(receiver)) {
+    if (typeof indexValue !== 'number') {
+      throwCatchableHostHalt(
+        { location, sourceId: s.ctx.sourceId, fn },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `List index must be number, got ${inferType(indexValue)}`
+      );
+    }
+    let index = indexValue;
+    // Handle negative indices
+    if (index < 0) {
+      index = receiver.length + index;
+    }
+    const result = receiver[index];
+    if (result === undefined) {
+      throwCatchableHostHalt(
+        { location, sourceId: s.ctx.sourceId, fn },
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
+        `List index out of bounds: ${indexValue}`
+      );
+    }
+    return result;
+  } else if (isOrdered(receiver)) {
+    // Ordered values dispatch before isDict: the JS wrapper object also
+    // satisfies isDict's structural shape check.
+    const entries = receiver.entries;
+    if (typeof indexValue === 'string') {
+      const entry = entries.find(([key]) => key === indexValue);
+      if (entry === undefined) {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Undefined ordered key: ${indexValue}`
+        );
+      }
+      return entry[1];
+    }
+    if (typeof indexValue === 'number') {
+      let index = indexValue;
+      if (index < 0) {
+        index = entries.length + index;
+      }
+      const entry = entries[index];
+      if (entry === undefined) {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Ordered index out of bounds: ${indexValue}`
+        );
+      }
+      return entry[1];
+    }
+    throwCatchableHostHalt(
+      { location, sourceId: s.ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Ordered index must be string or number, got ${inferType(indexValue)}`
+    );
+  } else if (isTuple(receiver)) {
+    if (typeof indexValue !== 'number') {
+      throwCatchableHostHalt(
+        { location, sourceId: s.ctx.sourceId, fn },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Tuple index must be number, got ${inferType(indexValue)}`
+      );
+    }
+    let index = indexValue;
+    if (index < 0) {
+      index = receiver.entries.length + index;
+    }
+    const result = receiver.entries[index];
+    if (result === undefined) {
+      throwCatchableHostHalt(
+        { location, sourceId: s.ctx.sourceId, fn },
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
+        `Tuple index out of bounds: ${indexValue}`
+      );
+    }
+    return result;
+  } else if (isIterator(receiver)) {
+    // Must precede isDict: an iterator is structurally a dict.
+    throwCatchableHostHalt(
+      { location, sourceId: s.ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Cannot index iterator'
+    );
+  } else if (isDict(receiver)) {
+    // Number/boolean bracket keys resolve against the typed-key sidecar,
+    // keeping $d[1] distinct from $d["1"].
+    if (typeof indexValue === 'number' || typeof indexValue === 'boolean') {
+      if (!hasTypedKey(receiver, indexValue)) {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Undefined dict key: ${indexValue}`
+        );
+      }
+      return getTypedKey(receiver, indexValue) as RillValue;
+    } else {
+      if (typeof indexValue !== 'string') {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          `Dict key must be string, got ${inferType(indexValue)}`
+        );
+      }
+      // Own-key gate: inherited JS members (constructor, __proto__, ...)
+      // must not resolve as dict fields.
+      const result = Object.hasOwn(receiver, indexValue)
+        ? (receiver as Record<string, RillValue>)[indexValue]
+        : undefined;
+      if (result === undefined) {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Undefined dict key: ${indexValue}`
+        );
+      }
+      return result;
+    }
+  } else {
+    throwCatchableHostHalt(
+      { location, sourceId: s.ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Cannot index ${inferType(receiver)}`
+    );
+  }
+}
+
+/**
+ * Evaluate an existence check (`.?field`) against an already-resolved
+ * access-chain value, returning whether the final path element exists
+ * (and, when `typeRef` is set, whether it matches that type).
+ *
+ * Extracted from the inline `node.existenceCheck` branch of
+ * evaluateVariableAsync so other access-chain evaluators can reuse the
+ * same logic against a resolved receiver and node for location info.
+ */
+export async function evaluateExistenceCheck(
+  s: EvalState,
+  value: RillValue,
+  existenceCheck: NonNullable<VariableNode['existenceCheck']>,
+  node: ASTNode
+): Promise<boolean> {
+  const finalAccess = existenceCheck.finalAccess;
+  const typeRef = existenceCheck.typeRef;
+
+  // Helper: check type match using structural resolution (mismatch returns false)
+  const matchesType = async (fieldValue: RillValue): Promise<boolean> => {
+    if (typeRef === null) return true;
+    const resolved = await resolveTypeRef(
+      s,
+      typeRef,
+      (name: string) => getVariable(s.ctx, name) as RillValue
+    );
+    return structureMatches(fieldValue, resolved.structure);
+  };
+
+  // Bare `.?` probe: no field/key follows, so the check is against the
+  // receiver itself (the accumulated access-chain result) rather than a
+  // field on it. Returns whether the receiver is a valid value (and, when
+  // type-qualified, whether it also matches that type).
+  if (finalAccess === null) {
+    if (value === null || isInvalid(value)) return false;
+    return await matchesType(value);
+  }
+
+  if (finalAccess.kind === 'literal') {
+    // Ordered values dispatch before isDict: the JS wrapper object also
+    // satisfies isDict's structural shape check.
+    if (isOrdered(value)) {
+      const entry = value.entries.find(([key]) => key === finalAccess.field);
+      if (entry === undefined || entry[1] === null || entry[1] === undefined)
+        return false;
+      if (typeRef !== null) return await matchesType(entry[1]);
+      return true;
+    }
+    // Check if literal field exists in dict
+    if (isDict(value)) {
+      const fieldValue = Object.hasOwn(value, finalAccess.field)
+        ? (value as Record<string, RillValue>)[finalAccess.field]
+        : undefined;
+      const exists = fieldValue !== undefined && fieldValue !== null;
+
+      // If type-qualified check, verify type matches
+      if (exists && typeRef !== null) {
+        return await matchesType(fieldValue);
+      }
+
+      return exists;
+    }
+    return false;
+  }
+
+  if (finalAccess.kind === 'variable') {
+    // Resolve variable to get key
+    let keyValue: RillValue | undefined;
+    if (finalAccess.variableName === null) {
+      keyValue = s.ctx.pipeValue ?? undefined;
+    } else {
+      keyValue = getVariable(s.ctx, finalAccess.variableName);
+    }
+
+    // Variable undefined
+    if (keyValue === undefined) {
+      const varName = finalAccess.variableName ?? '$';
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateExistenceCheck',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R005],
+        `Variable '${varName}' is undefined`
+      );
+    }
+
+    // Ordered values dispatch before isDict: the JS wrapper object also
+    // satisfies isDict's structural shape check.
+    if (isOrdered(value)) {
+      if (typeof keyValue !== 'string') return false;
+      const entry = value.entries.find(([key]) => key === keyValue);
+      if (entry === undefined || entry[1] === null || entry[1] === undefined)
+        return false;
+      if (typeRef !== null) return await matchesType(entry[1]);
+      return true;
+    }
+
+    // Check if key exists in dict or list
+    if (isDict(value)) {
+      // Number/boolean keys resolve against the typed-key sidecar.
+      if (typeof keyValue === 'number' || typeof keyValue === 'boolean') {
+        if (!hasTypedKey(value, keyValue)) return false;
+        const fieldValue = getTypedKey(value, keyValue);
+        if (fieldValue === undefined || fieldValue === null) return false;
+        if (typeRef !== null) return await matchesType(fieldValue);
+        return true;
+      }
+      // Key variable non-string
+      if (typeof keyValue !== 'string') {
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateExistenceCheck',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          `Existence check key must be string, got ${inferType(keyValue)}`
+        );
+      }
+
+      const fieldValue = Object.hasOwn(value, keyValue)
+        ? (value as Record<string, RillValue>)[keyValue]
+        : undefined;
+      const exists = fieldValue !== undefined && fieldValue !== null;
+
+      // If type-qualified check, verify type matches
+      if (exists && typeRef !== null) {
+        return await matchesType(fieldValue);
+      }
+
+      return exists;
+    }
+
+    if (Array.isArray(value)) {
+      if (typeof keyValue === 'number') {
+        const index = keyValue < 0 ? value.length + keyValue : keyValue;
+        return index >= 0 && index < value.length;
+      }
+      return false;
+    }
+
+    return false;
+  }
+
+  if (finalAccess.kind === 'computed') {
+    // Evaluate the computed expression. Parsed inline while
+    // building a live access chain (never via the statement-level
+    // recovery path), so it only ever holds a PipeChainNode;
+    // PartialExpressionNode is reserved for parser error recovery.
+    if (!isPipeChainNode(finalAccess.expression)) {
+      throwFatalHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateExistenceCheck',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        'Existence check computed key expression must be a pipe chain'
+      );
+    }
+    const keyValue = await evaluatePipeChain(s, finalAccess.expression);
+
+    // Ordered values dispatch before isDict: the JS wrapper object also
+    // satisfies isDict's structural shape check.
+    if (isOrdered(value)) {
+      if (typeof keyValue !== 'string') return false;
+      const entry = value.entries.find(([key]) => key === keyValue);
+      if (entry === undefined || entry[1] === null || entry[1] === undefined)
+        return false;
+      if (typeRef !== null) return await matchesType(entry[1]);
+      return true;
+    }
+
+    // Number/boolean computed keys resolve against the typed-key sidecar.
+    if (
+      isDict(value) &&
+      (typeof keyValue === 'number' || typeof keyValue === 'boolean')
+    ) {
+      if (!hasTypedKey(value, keyValue)) return false;
+      const fieldValue = getTypedKey(value, keyValue);
+      if (fieldValue === undefined || fieldValue === null) return false;
+      if (typeRef !== null) return await matchesType(fieldValue);
+      return true;
+    }
+
+    // Computed key non-string
+    if (typeof keyValue !== 'string') {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateExistenceCheck',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Existence check key evaluated to ${inferType(keyValue)}, expected string`
+      );
+    }
+
+    // Check if computed key exists in dict
+    if (isDict(value)) {
+      const fieldValue = Object.hasOwn(value, keyValue)
+        ? (value as Record<string, RillValue>)[keyValue]
+        : undefined;
+      const exists = fieldValue !== undefined && fieldValue !== null;
+
+      // If type-qualified check, verify type matches
+      if (exists && typeRef !== null) {
+        return await matchesType(fieldValue);
+      }
+
+      return exists;
+    }
+
+    return false;
+  }
+
+  // For other access kinds (block, alternatives, annotation), not supported
+  throwCatchableHostHalt(
+    {
+      location: getNodeLocation(s, node),
+      sourceId: s.ctx.sourceId,
+      fn: 'evaluateExistenceCheck',
+    },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    `Existence check not yet supported for ${finalAccess.kind} access`
+  );
+}
+
+/**
  * Evaluate variable access asynchronously.
  * Async variant that supports access chains ($.field, $var.field).
  *
@@ -288,10 +695,13 @@ export async function evaluateVariableAsync(
 
   // Apply access chain ($.field, $var.field, etc.)
   for (const access of node.accessChain) {
-    // `??` widens from `=== null` to `isVacant(value)`.
-    // Vacancy fires the default branch for empty OR invalid values; an
-    // invalid LHS with a default short-circuits instead of halting.
-    if (isVacant(value)) {
+    // An intermediate step's LHS short-circuits to the default only when
+    // it is null or carries an invalid status — a structurally empty but
+    // valid value (empty list, empty dict, empty string) must still flow
+    // into the next access step (e.g. `.empty`) rather than trigger the
+    // default early. Only the final result's vacancy (empty OR invalid)
+    // triggers `??`, handled after the loop.
+    if (value === null || isInvalid(value)) {
       // Use default value if available
       if (node.defaultValue) {
         return evaluateBody(s, node.defaultValue);
@@ -319,110 +729,17 @@ export async function evaluateVariableAsync(
 
     // Check if this is a bracket access
     if ('accessKind' in access) {
-      // Bracket access: [expr]. This expression is parsed inline while
-      // building a live access chain (never via the statement-level
-      // recovery path), so it only ever holds a PipeChainNode;
-      // PartialExpressionNode is reserved for parser error recovery.
-      if (!isPipeChainNode(access.expression)) {
-        throwFatalHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateVariableAsync',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          'Bracket access expression must be a pipe chain'
-        );
-      }
-      const indexValue = await evaluatePipeChain(s, access.expression);
-
-      if (Array.isArray(value)) {
-        if (typeof indexValue !== 'number') {
-          throwCatchableHostHalt(
-            {
-              location: getNodeLocation(s, node),
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateVariableAsync',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R002],
-            `List index must be number, got ${inferType(indexValue)}`
-          );
-        }
-        let index = indexValue;
-        // Handle negative indices
-        if (index < 0) {
-          index = value.length + index;
-        }
-        const result = value[index];
-        if (result === undefined) {
-          throwCatchableHostHalt(
-            {
-              location: getNodeLocation(s, node),
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateVariableAsync',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R009],
-            `List index out of bounds: ${indexValue}`
-          );
-        }
-        value = result;
-      } else if (isDict(value)) {
-        // Number/boolean bracket keys resolve against the typed-key sidecar,
-        // keeping $d[1] distinct from $d["1"].
-        if (typeof indexValue === 'number' || typeof indexValue === 'boolean') {
-          if (!hasTypedKey(value, indexValue)) {
-            throwCatchableHostHalt(
-              {
-                location: getNodeLocation(s, node),
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateVariableAsync',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R009],
-              `Undefined dict key: ${indexValue}`
-            );
-          }
-          value = getTypedKey(value, indexValue) as RillValue;
-        } else {
-          if (typeof indexValue !== 'string') {
-            throwCatchableHostHalt(
-              {
-                location: getNodeLocation(s, node),
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateVariableAsync',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              `Dict key must be string, got ${inferType(indexValue)}`
-            );
-          }
-          // Own-key gate: inherited JS members (constructor, __proto__, ...)
-          // must not resolve as dict fields.
-          const result = Object.hasOwn(value, indexValue)
-            ? (value as Record<string, RillValue>)[indexValue]
-            : undefined;
-          if (result === undefined) {
-            throwCatchableHostHalt(
-              {
-                location: getNodeLocation(s, node),
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateVariableAsync',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R009],
-              `Undefined dict key: ${indexValue}`
-            );
-          }
-          value = result;
-        }
-      } else {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateVariableAsync',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Cannot index ${inferType(value)}`
-        );
-      }
+      // Bracket access: [expr]. Delegates to the shared applyBracketIndex
+      // helper (list negative-index normalization, dict typed-key lookup,
+      // and the 'Cannot index <type>' fallback) so this path stays in sync
+      // with the postfix expr[i] path in core.ts.
+      value = await applyBracketIndex(
+        s,
+        value,
+        access.expression,
+        getNodeLocation(s, node),
+        'evaluateVariableAsync'
+      );
       continue;
     }
 
@@ -580,180 +897,7 @@ export async function evaluateVariableAsync(
   // Handle existence check (.?field): return boolean instead of value
   if (node.existenceCheck) {
     // value now contains the result of the access chain (without the final field)
-    // Check if the final field exists in value
-    const finalAccess = node.existenceCheck.finalAccess;
-    const typeRef = node.existenceCheck.typeRef;
-
-    // Helper: check type match using structural resolution (mismatch returns false)
-    const matchesType = async (fieldValue: RillValue): Promise<boolean> => {
-      if (typeRef === null) return true;
-      const resolved = await resolveTypeRef(
-        s,
-        typeRef,
-        (name: string) => getVariable(s.ctx, name) as RillValue
-      );
-      return structureMatches(fieldValue, resolved.structure);
-    };
-
-    if (finalAccess.kind === 'literal') {
-      // Check if literal field exists in dict
-      if (isDict(value)) {
-        const fieldValue = Object.hasOwn(value, finalAccess.field)
-          ? (value as Record<string, RillValue>)[finalAccess.field]
-          : undefined;
-        const exists = fieldValue !== undefined && fieldValue !== null;
-
-        // If type-qualified check, verify type matches
-        if (exists && typeRef !== null) {
-          return await matchesType(fieldValue);
-        }
-
-        return exists;
-      }
-      return false;
-    }
-
-    if (finalAccess.kind === 'variable') {
-      // Resolve variable to get key
-      let keyValue: RillValue | undefined;
-      if (finalAccess.variableName === null) {
-        keyValue = s.ctx.pipeValue ?? undefined;
-      } else {
-        keyValue = getVariable(s.ctx, finalAccess.variableName);
-      }
-
-      // Variable undefined
-      if (keyValue === undefined) {
-        const varName = finalAccess.variableName ?? '$';
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateExistenceCheck',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R005],
-          `Variable '${varName}' is undefined`
-        );
-      }
-
-      // Check if key exists in dict or list
-      if (isDict(value)) {
-        // Number/boolean keys resolve against the typed-key sidecar.
-        if (typeof keyValue === 'number' || typeof keyValue === 'boolean') {
-          if (!hasTypedKey(value, keyValue)) return false;
-          const fieldValue = getTypedKey(value, keyValue);
-          if (fieldValue === undefined || fieldValue === null) return false;
-          if (typeRef !== null) return await matchesType(fieldValue);
-          return true;
-        }
-        // Key variable non-string
-        if (typeof keyValue !== 'string') {
-          throwCatchableHostHalt(
-            {
-              location: getNodeLocation(s, node),
-              sourceId: s.ctx.sourceId,
-              fn: 'evaluateExistenceCheck',
-            },
-            ERROR_ATOMS[ERROR_IDS.RILL_R002],
-            `Existence check key must be string, got ${inferType(keyValue)}`
-          );
-        }
-
-        const fieldValue = Object.hasOwn(value, keyValue)
-          ? (value as Record<string, RillValue>)[keyValue]
-          : undefined;
-        const exists = fieldValue !== undefined && fieldValue !== null;
-
-        // If type-qualified check, verify type matches
-        if (exists && typeRef !== null) {
-          return await matchesType(fieldValue);
-        }
-
-        return exists;
-      }
-
-      if (Array.isArray(value)) {
-        if (typeof keyValue === 'number') {
-          const index = keyValue < 0 ? value.length + keyValue : keyValue;
-          return index >= 0 && index < value.length;
-        }
-        return false;
-      }
-
-      return false;
-    }
-
-    if (finalAccess.kind === 'computed') {
-      // Evaluate the computed expression. Parsed inline while
-      // building a live access chain (never via the statement-level
-      // recovery path), so it only ever holds a PipeChainNode;
-      // PartialExpressionNode is reserved for parser error recovery.
-      if (!isPipeChainNode(finalAccess.expression)) {
-        throwFatalHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateExistenceCheck',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          'Existence check computed key expression must be a pipe chain'
-        );
-      }
-      const keyValue = await evaluatePipeChain(s, finalAccess.expression);
-
-      // Number/boolean computed keys resolve against the typed-key sidecar.
-      if (
-        isDict(value) &&
-        (typeof keyValue === 'number' || typeof keyValue === 'boolean')
-      ) {
-        if (!hasTypedKey(value, keyValue)) return false;
-        const fieldValue = getTypedKey(value, keyValue);
-        if (fieldValue === undefined || fieldValue === null) return false;
-        if (typeRef !== null) return await matchesType(fieldValue);
-        return true;
-      }
-
-      // Computed key non-string
-      if (typeof keyValue !== 'string') {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateExistenceCheck',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Existence check key evaluated to ${inferType(keyValue)}, expected string`
-        );
-      }
-
-      // Check if computed key exists in dict
-      if (isDict(value)) {
-        const fieldValue = Object.hasOwn(value, keyValue)
-          ? (value as Record<string, RillValue>)[keyValue]
-          : undefined;
-        const exists = fieldValue !== undefined && fieldValue !== null;
-
-        // If type-qualified check, verify type matches
-        if (exists && typeRef !== null) {
-          return await matchesType(fieldValue);
-        }
-
-        return exists;
-      }
-
-      return false;
-    }
-
-    // For other access kinds (block, alternatives, annotation), not supported
-    throwCatchableHostHalt(
-      {
-        location: getNodeLocation(s, node),
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateExistenceCheck',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Existence check not yet supported for ${finalAccess.kind} access`
-    );
+    return evaluateExistenceCheck(s, value, node.existenceCheck, node);
   }
 
   // apply default value when the final result is
@@ -841,6 +985,32 @@ async function evaluateFieldAccessVariable(
     }
   }
 
+  // Number/boolean keys on a dict that carries a typed-key sidecar resolve
+  // against it, mirroring the bracket-access path. A dict with no typed keys
+  // falls through to the string-key rules below, so a boolean key on a plain
+  // dict still halts with the key-type error.
+  if (
+    isDict(value) &&
+    (typeof keyValue === 'number' || typeof keyValue === 'boolean') &&
+    getTypedKeyMap(value) !== undefined
+  ) {
+    if (!hasTypedKey(value, keyValue)) {
+      if (allowMissing) {
+        return null;
+      }
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateFieldAccessVariable',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
+        `Undefined dict key: ${keyValue}`
+      );
+    }
+    return getTypedKey(value, keyValue) as RillValue;
+  }
+
   // Validate key type
   if (typeof keyValue === 'boolean') {
     throwCatchableHostHalt(
@@ -907,6 +1077,29 @@ async function evaluateFieldAccessVariable(
         );
       }
       return result;
+    }
+    if (isOrdered(value)) {
+      const entries = value.entries;
+      let index = keyValue;
+      if (index < 0) {
+        index = entries.length + index;
+      }
+      const entry = entries[index];
+      if (entry === undefined) {
+        if (allowMissing) {
+          return null;
+        }
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateFieldAccessVariable',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Ordered index out of bounds: ${keyValue}`
+        );
+      }
+      return entry[1];
     }
     // Number key on a non-list target.
     if (allowMissing) {
@@ -999,6 +1192,31 @@ async function evaluateFieldAccessComputed(
     );
   }
 
+  // Number/boolean keys on a dict that carries a typed-key sidecar resolve
+  // against it, mirroring the bracket-access path. A dict with no typed keys
+  // falls through to the existing key-type rules below.
+  if (
+    isDict(value) &&
+    (typeof keyValue === 'number' || typeof keyValue === 'boolean') &&
+    getTypedKeyMap(value) !== undefined
+  ) {
+    if (!hasTypedKey(value, keyValue)) {
+      if (allowMissing) {
+        return null;
+      }
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateFieldAccessComputed',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R009],
+        `Undefined dict key: ${keyValue}`
+      );
+    }
+    return getTypedKey(value, keyValue) as RillValue;
+  }
+
   // Other invalid types (boolean, list)
   if (typeof keyValue === 'boolean') {
     throwCatchableHostHalt(
@@ -1065,6 +1283,29 @@ async function evaluateFieldAccessComputed(
         );
       }
       return result;
+    }
+    if (isOrdered(value)) {
+      const entries = value.entries;
+      let index = keyValue;
+      if (index < 0) {
+        index = entries.length + index;
+      }
+      const entry = entries[index];
+      if (entry === undefined) {
+        if (allowMissing) {
+          return null;
+        }
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateFieldAccessComputed',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R009],
+          `Ordered index out of bounds: ${keyValue}`
+        );
+      }
+      return entry[1];
     }
     // Number key on a non-list target.
     if (allowMissing) {

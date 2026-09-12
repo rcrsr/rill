@@ -678,4 +678,113 @@ describe('Rill Runtime: Built-in Methods', () => {
       );
     });
   });
+
+  describe('.head / .tail / .at bounds and empty checks are catchable', () => {
+    it('.head on an empty list is catchable via guard', async () => {
+      const result = await run(`
+        guard { list[] -> .head } => $r
+        $r.!
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('.head on an empty string is catchable via guard', async () => {
+      const result = await run(`
+        guard { "" -> .head } => $r
+        $r.!
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('.tail on an empty list is catchable via guard', async () => {
+      const result = await run(`
+        guard { list[] -> .tail } => $r
+        $r.!
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('.tail on an empty string is catchable via guard', async () => {
+      const result = await run(`
+        guard { "" -> .tail } => $r
+        $r.!
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('.at out of bounds on a list is catchable via guard', async () => {
+      const result = await run(`
+        guard { list[1,2,3] -> .at(3) } => $r
+        $r.!
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('.at out of bounds on a string is catchable via guard', async () => {
+      const result = await run(`
+        guard { "abc" -> .at(3) } => $r
+        $r.!
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('.at with a fractional index remains catchable via guard (unchanged)', async () => {
+      const result = await run(`
+        guard { list[1] -> .at(1.5) } => $r
+        $r.!
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('caught .at out-of-bounds halt reports RILL_R002 via .!code -> string', async () => {
+      const result = await run(`
+        guard { list[1,2,3] -> .at(3) } => $r
+        $r.!code -> string
+      `);
+      expect(result).toBe('RILL_R002');
+    });
+
+    it('caught .head empty-list halt reports RILL_R002 via .!code -> string', async () => {
+      const result = await run(`
+        guard { list[] -> .head } => $r
+        $r.!code -> string
+      `);
+      expect(result).toBe('RILL_R002');
+    });
+
+    it('caught .tail empty-list halt reports RILL_R002 via .!code -> string', async () => {
+      const result = await run(`
+        guard { list[] -> .tail } => $r
+        $r.!code -> string
+      `);
+      expect(result).toBe('RILL_R002');
+    });
+
+    it('.head on an empty list halts uncaught with the expected message', async () => {
+      await expect(run('list[] -> .head')).rejects.toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R002',
+          rawMessage: 'Cannot get head of empty list',
+        })
+      );
+    });
+
+    it('.tail on an empty list halts uncaught with the expected message', async () => {
+      await expect(run('list[] -> .tail')).rejects.toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R002',
+          rawMessage: 'Cannot get tail of empty list',
+        })
+      );
+    });
+
+    it('.at out of bounds on a list halts uncaught with the expected message', async () => {
+      await expect(run('list[1,2,3] -> .at(3)')).rejects.toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-R002',
+          rawMessage: 'List index out of bounds: 3',
+        })
+      );
+    });
+  });
 });

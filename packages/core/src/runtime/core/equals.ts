@@ -7,6 +7,7 @@
 
 import type {
   AnnotatedStatementNode,
+  AnnotationAccessNode,
   AnnotationArg,
   ASTNode,
   BinaryExprNode,
@@ -27,6 +28,7 @@ import type {
   GroupedExprNode,
   InterpolationNode,
   InvokeNode,
+  IndexAccessNode,
   PipeInvokeNode,
   MethodCallNode,
   NumberLiteralNode,
@@ -42,6 +44,7 @@ import type {
   PartialExpressionNode,
   UnaryExprNode,
   ClosureCallNode,
+  ExistenceCheck,
   VariableNode,
   ListLiteralNode,
   DictLiteralNode,
@@ -148,6 +151,17 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
 
     case 'Invoke':
       return invokeEquals(a, b as InvokeNode);
+
+    case 'IndexAccess':
+      return expressionEquals(
+        (a as IndexAccessNode).index,
+        (b as IndexAccessNode).index
+      );
+
+    case 'AnnotationAccess':
+      return (
+        (a as AnnotationAccessNode).key === (b as AnnotationAccessNode).key
+      );
 
     case 'PipeInvoke':
       return pipeInvokeEquals(a, b as PipeInvokeNode);
@@ -334,7 +348,32 @@ function pipeChainEquals(a: PipeChainNode, b: PipeChainNode): boolean {
 function postfixExprEquals(a: PostfixExprNode, b: PostfixExprNode): boolean {
   if (!astEquals(a.primary as ASTNode, b.primary as ASTNode)) return false;
   // Methods array can contain MethodCallNode or InvokeNode
-  return arrayEquals(a.methods, b.methods, astEqualsPair);
+  if (!arrayEquals(a.methods, b.methods, astEqualsPair)) return false;
+  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
+  return existenceCheckEquals(
+    a.existenceCheck ?? null,
+    b.existenceCheck ?? null
+  );
+}
+
+function existenceCheckEquals(
+  a: ExistenceCheck | null,
+  b: ExistenceCheck | null
+): boolean {
+  if (a === null && b === null) return true;
+  if (a === null || b === null) return false;
+  if (a.finalAccess === null && b.finalAccess !== null) return false;
+  if (a.finalAccess !== null && b.finalAccess === null) return false;
+  if (
+    a.finalAccess !== null &&
+    b.finalAccess !== null &&
+    !fieldAccessEquals(a.finalAccess, b.finalAccess)
+  ) {
+    return false;
+  }
+  if (a.typeRef === null && b.typeRef === null) return true;
+  if (a.typeRef === null || b.typeRef === null) return false;
+  return typeRefEquals(a.typeRef, b.typeRef);
 }
 
 function stringLiteralEquals(

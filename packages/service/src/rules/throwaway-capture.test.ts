@@ -150,7 +150,7 @@ describe('THROWAWAY_CAPTURE', () => {
       // The use is on the very next line, so it is not "away from its
       // capture" even though it is not the head-primary. Adjacency is
       // statement membership, not head position.
-      const source = '#AB0x => $x\nguard { $x.field }\n';
+      const source = '#AB0X => $x\nguard { $x.field }\n';
       const parsed = toParseResult(source);
 
       const result = runRules(parsed, source, makeConfig(), [throwawayCapture]);

@@ -142,6 +142,39 @@ describe('Rill Runtime: Extraction Operators', () => {
         const result = await run(`list[1, 2, 3, 4, 5] -> slice<-3:-1>`);
         expect(result).toEqual([3, 4]);
       });
+
+      it('supports trailing :: as start with empty stop and a step', async () => {
+        const result = await run(`list[1, 2, 3, 4, 5] -> slice<1::2>`);
+        expect(result).toEqual([2, 4]);
+      });
+    });
+
+    describe('Sibling slice forms remain unchanged', () => {
+      it('parses start:stop:step', async () => {
+        const result = await run(`list[1, 2, 3, 4, 5] -> slice<1:2:3>`);
+        expect(result).toEqual([2]);
+      });
+
+      it('parses start: with no stop or step', async () => {
+        const result = await run(`list[1, 2, 3, 4, 5] -> slice<1:>`);
+        expect(result).toEqual([2, 3, 4, 5]);
+      });
+
+      it('parses start:stop with no step', async () => {
+        const result = await run(`list[1, 2, 3, 4, 5] -> slice<1:2>`);
+        expect(result).toEqual([2]);
+      });
+
+      it('parses leading ::step unchanged', async () => {
+        const result = await run(`list[1, 2, 3, 4, 5] -> slice<::2>`);
+        expect(result).toEqual([1, 3, 5]);
+      });
+
+      it('errors on slice<> with no separator', async () => {
+        await expect(run(`list[1, 2, 3] -> slice<>`)).rejects.toThrow(
+          /separator/i
+        );
+      });
     });
 
     describe('String slicing', () => {
@@ -245,9 +278,8 @@ describe('Rill Runtime: Extraction Operators', () => {
     });
 
     describe('Non-enumerable types', () => {
-      it('returns empty array for non-enumerable type', async () => {
-        const result = await run(`enumerate("hello")`);
-        expect(result).toEqual([]);
+      it('halts with a type mismatch for a non-enumerable type', async () => {
+        await expect(run(`enumerate("hello")`)).rejects.toThrow(/type/i);
       });
     });
   });

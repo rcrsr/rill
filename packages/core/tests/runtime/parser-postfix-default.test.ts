@@ -4,12 +4,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse } from '../packages/core/src/index.js';
+import { parse } from '../../src/index.js';
 import type {
   PostfixExprNode,
   PipeChainNode,
   StatementNode,
-} from '../packages/core/src/types.js';
+} from '../../src/types.js';
 
 describe('Parser: PostfixExprNode defaultValue', () => {
   describe('Parsing ?? after postfix expressions', () => {

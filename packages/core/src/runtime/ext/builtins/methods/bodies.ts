@@ -1,4 +1,4 @@
-import { isDict } from '../../../core/callable.js';
+import { isDict, isCallable } from '../../../core/callable.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue, RillVector } from '../../../core/types/structures.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
@@ -8,15 +8,27 @@ import {
   formatValue,
   inferType,
 } from '../../../core/types/registrations.js';
-import { isIterator, isVector } from '../../../core/types/guards.js';
 import {
-  typedKeyEntries,
+  isAtom,
+  isDatetime,
+  isDuration,
+  isIterator,
+  isOrdered,
+  isStream,
+  isTuple,
+  isTypeValue,
+  isVector,
+  orderedValueEntries,
+} from '../../../core/types/guards.js';
+import {
+  orderedDictEntries,
   typedKeyCount,
 } from '../../../core/types/dict-keys.js';
 import { isEmpty } from '../../../core/values.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { throwCatchableHostHalt } from '../../../core/types/halt.js';
 import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
+import { invokeCallable as invokeCallableState } from '../../../core/eval/index.js';
 import {
   type RillMethod,
   makeListIterator,
@@ -31,6 +43,23 @@ import {
 // across type groups (e.g. len appears in string, list, dict).
 // ============================================================
 
+/**
+ * True for branded values (:atom, ^type, datetime, duration) that satisfy
+ * `isDict`'s plain-object structural check but are not actually dicts.
+ * Methods dispatched with `skipReceiverValidation: true` bypass the generic
+ * RILL-R003 dispatch guard, so call sites that fall back to `isDict(receiver)`
+ * must check this first or a brand value silently leaks into the dict path.
+ */
+function isBrandedNonDict(receiver: RillValue): boolean {
+  return (
+    isAtom(receiver) ||
+    isTypeValue(receiver) ||
+    isDatetime(receiver) ||
+    isDuration(receiver) ||
+    isVector(receiver)
+  );
+}
+
 /** Get length of string, list, or dict */
 export const mLen: RillMethod = (receiver) => {
   // Strings measure length in Unicode code points, not UTF-16 code units, so
@@ -42,6 +71,7 @@ export const mLen: RillMethod = (receiver) => {
     return isBmpOnly(receiver) ? receiver.length : [...receiver].length;
   }
   if (Array.isArray(receiver)) return receiver.length;
+  if (isOrdered(receiver)) return receiver.entries.length;
   if (receiver && typeof receiver === 'object') {
     return Object.keys(receiver).length + typedKeyCount(receiver);
   }
@@ -52,23 +82,23 @@ export const mLen: RillMethod = (receiver) => {
 export const mTrim: RillMethod = (receiver) => formatValue(receiver).trim();
 
 /** Get first element of list or first char of string */
-export const mHead: RillMethod = (receiver, _args, _ctx, location) => {
+export const mHead: RillMethod = (receiver, _args, ctx, location) => {
   if (Array.isArray(receiver)) {
     if (receiver.length === 0) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        'Cannot get head of empty list',
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'head' },
+        'RILL_R002',
+        'Cannot get head of empty list'
       );
     }
     return receiver[0]!;
   }
   if (typeof receiver === 'string') {
     if (receiver.length === 0) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        'Cannot get head of empty string',
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'head' },
+        'RILL_R002',
+        'Cannot get head of empty string'
       );
     }
     // First code point, never a lone surrogate half of an astral character.
@@ -82,23 +112,23 @@ export const mHead: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Get last element of list or last char of string */
-export const mTail: RillMethod = (receiver, _args, _ctx, location) => {
+export const mTail: RillMethod = (receiver, _args, ctx, location) => {
   if (Array.isArray(receiver)) {
     if (receiver.length === 0) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        'Cannot get tail of empty list',
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'tail' },
+        'RILL_R002',
+        'Cannot get tail of empty list'
       );
     }
     return receiver[receiver.length - 1]!;
   }
   if (typeof receiver === 'string') {
     if (receiver.length === 0) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        'Cannot get tail of empty string',
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'tail' },
+        'RILL_R002',
+        'Cannot get tail of empty string'
       );
     }
     // Last code point, never a lone surrogate half of an astral character.
@@ -114,10 +144,36 @@ export const mTail: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Get iterator at first position for any collection */
-export const mFirst: RillMethod = (receiver, _args, _ctx, location) => {
+export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
+  // Streams must be checked before isIterator/isDict: a fresh host stream's
+  // pending head step has no `value` field (so isIterator returns false),
+  // but it is still a plain object and would otherwise fall through to the
+  // isDict branch below, silently treating the stream itself as a dict of
+  // internal fields (__rill_stream, next, ...) instead of stepping it.
+  if (isStream(receiver)) {
+    const loc = location ?? { line: 0, column: 0, offset: 0 };
+    const nextRaw = (receiver as unknown as Record<string, unknown>)[
+      'next'
+    ] as RillValue;
+    if (!isCallable(nextRaw)) {
+      throwCatchableHostHalt(
+        { location: loc, sourceId: ctx.sourceId, fn: 'first' },
+        'RILL_R002',
+        'Stream .next must be a closure'
+      );
+    }
+    return (await invokeCallableState(nextRaw, [], ctx, loc)) as RillValue;
+  }
   if (isIterator(receiver)) return receiver;
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
   if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
+  if (isBrandedNonDict(receiver) || isOrdered(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
+      location
+    );
+  }
   if (isDict(receiver))
     return makeDictIterator(receiver as Record<string, RillValue>, 0);
   throw new RuntimeError(
@@ -142,10 +198,10 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
       );
     }
     if (idx < 0 || idx >= receiver.length) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        `List index out of bounds: ${idx}`,
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'RILL_R002',
+        `List index out of bounds: ${idx}`
       );
     }
     return receiver[idx]!;
@@ -162,23 +218,40 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
     }
     if (isBmpOnly(receiver)) {
       if (idx < 0 || idx >= receiver.length) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R002,
-          `String index out of bounds: ${idx}`,
-          location
+        throwCatchableHostHalt(
+          { location, sourceId: ctx.sourceId, fn: 'at' },
+          'RILL_R002',
+          `String index out of bounds: ${idx}`
         );
       }
       return receiver.charAt(idx);
     }
     const cps = [...receiver];
     if (idx < 0 || idx >= cps.length) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        `String index out of bounds: ${idx}`,
-        location
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'RILL_R002',
+        `String index out of bounds: ${idx}`
       );
     }
     return cps[idx]!;
+  }
+  if (isTuple(receiver)) {
+    if (!Number.isInteger(idx)) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'INVALID_INPUT',
+        `Tuple index must be an integer, got ${idx}`
+      );
+    }
+    if (idx < 0 || idx >= receiver.entries.length) {
+      throwCatchableHostHalt(
+        { location, sourceId: ctx.sourceId, fn: 'at' },
+        'RILL_R002',
+        `Tuple index out of bounds: ${idx}`
+      );
+    }
+    return receiver.entries[idx]!;
   }
   throw new RuntimeError(
     ERROR_IDS.RILL_R003,
@@ -227,6 +300,15 @@ export const mLower: RillMethod = (receiver) =>
 export const mUpper: RillMethod = (receiver) =>
   formatValue(receiver).toUpperCase();
 
+/**
+ * Escape `$` as `$$` in a replacement string so JS `String.prototype.replace`
+ * treats it as a literal dollar sign instead of interpreting replacement
+ * patterns like $&, $1, $<name>, or $`.
+ */
+function escapeReplacementDollars(replacement: string): string {
+  return replacement.replace(/\$/g, '$$$$');
+}
+
 /** Replace first regex match. Invalid pattern halts with INVALID_INPUT. */
 export const mReplace: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
@@ -242,7 +324,7 @@ export const mReplace: RillMethod = (receiver, args, ctx, location) => {
       `replace: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
     );
   }
-  return str.replace(re, replacement);
+  return str.replace(re, escapeReplacementDollars(replacement));
 };
 
 /** Replace all regex matches. Invalid pattern halts with INVALID_INPUT. */
@@ -260,7 +342,7 @@ export const mReplaceAll: RillMethod = (receiver, args, ctx, location) => {
       `.replace_all: invalid regex pattern ${JSON.stringify(pattern)}: ${e instanceof Error ? e.message : String(e)}`
     );
   }
-  return str.replace(re, replacement);
+  return str.replace(re, escapeReplacementDollars(replacement));
 };
 
 /** Check if string contains substring */
@@ -350,42 +432,103 @@ export const mRepeat: RillMethod = (receiver, args, ctx, location) => {
   }
 };
 
-/** Pad start to length with fill string */
-export const mPadStart: RillMethod = (receiver, args, ctx, location) => {
-  const str = formatValue(receiver);
-  const length = typeof args[0] === 'number' ? args[0] : str.length;
-  const fill = typeof args[1] === 'string' ? args[1] : ' ';
+/**
+ * Code point count of `str`. ASCII/BMP-only strings (the common case) use
+ * `.length` directly instead of materializing the full code-point array.
+ */
+function codePointLength(str: string): number {
+  return isBmpOnly(str) ? str.length : Array.from(str).length;
+}
+
+/**
+ * UTF-16 offset of the boundary after `count` code points in `str`. Walks
+ * code units (not full code points) so it never materializes the string as
+ * an array; a surrogate pair is always consumed as a single unit.
+ */
+function codePointOffset(str: string, count: number): number {
+  if (isBmpOnly(str)) return count;
+  let offset = 0;
+  for (let seen = 0; seen < count && offset < str.length; seen++) {
+    const code = str.charCodeAt(offset);
+    const isHighSurrogate = code >= 0xd800 && code <= 0xdbff;
+    offset += isHighSurrogate && offset + 1 < str.length ? 2 : 1;
+  }
+  return offset;
+}
+
+/**
+ * Build a code-point-aware pad for padStart/padEnd. Measures `strLength` and
+ * `fill` in code points (not UTF-16 code units) so astral characters count as
+ * one unit and are never split across a surrogate pair boundary.
+ */
+function buildCodePointPad(
+  strLength: number,
+  length: number,
+  fill: string,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined,
+  fnName: 'pad_start' | 'pad_end'
+): string {
+  const shortfall = length - strLength;
+  if (shortfall <= 0) return '';
+  const fillLength = codePointLength(fill);
+  if (fillLength === 0) return '';
   try {
-    return str.padStart(length, fill);
+    // Repeat the fill (as a whole string, so no surrogate pair is ever
+    // split) enough times to cover the shortfall, then trim to the exact
+    // code-point count. Native `repeat` throws RangeError fast for an
+    // over-large result instead of looping to build it byte by byte.
+    // The trim walks `repeated` in a bounded code-unit scan rather than
+    // materializing every code point into a boxed array, so a large
+    // shortfall stays a single native `.slice()` instead of an O(n)
+    // allocation of individual string objects.
+    const repetitions = Math.ceil(shortfall / fillLength);
+    const repeated = fill.repeat(repetitions);
+    return repeated.slice(0, codePointOffset(repeated, shortfall));
   } catch (e) {
     if (e instanceof RangeError) {
       throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'pad_start' },
+        { location, sourceId: ctx.sourceId, fn: fnName },
         'INVALID_INPUT',
-        `pad_start: length ${length} produces a string too large to allocate`
+        `${fnName}: length ${length} produces a string too large to allocate`
       );
     }
     throw e;
   }
+}
+
+/** Pad start to length with fill string */
+export const mPadStart: RillMethod = (receiver, args, ctx, location) => {
+  const str = formatValue(receiver);
+  const strLength = codePointLength(str);
+  const length = typeof args[0] === 'number' ? args[0] : strLength;
+  const fill = typeof args[1] === 'string' ? args[1] : ' ';
+  const pad = buildCodePointPad(
+    strLength,
+    length,
+    fill,
+    ctx,
+    location,
+    'pad_start'
+  );
+  return pad + str;
 };
 
 /** Pad end to length with fill string */
 export const mPadEnd: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
-  const length = typeof args[0] === 'number' ? args[0] : str.length;
+  const strLength = codePointLength(str);
+  const length = typeof args[0] === 'number' ? args[0] : strLength;
   const fill = typeof args[1] === 'string' ? args[1] : ' ';
-  try {
-    return str.padEnd(length, fill);
-  } catch (e) {
-    if (e instanceof RangeError) {
-      throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'pad_end' },
-        'INVALID_INPUT',
-        `pad_end: length ${length} produces a string too large to allocate`
-      );
-    }
-    throw e;
-  }
+  const pad = buildCodePointPad(
+    strLength,
+    length,
+    fill,
+    ctx,
+    location,
+    'pad_end'
+  );
+  return str + pad;
 };
 
 /** Equality check (deep structural comparison) */
@@ -432,38 +575,56 @@ export const mGe: RillMethod = (receiver, args, ctx, location) =>
   orderedCompare(receiver, args, ctx, location, 'ge') >= 0;
 
 /**
- * Get all keys of a dict as a list. String keys (sorted) come first,
- * then number/boolean keys (each surfaced with its original type).
+ * Get all keys of a dict as a list, in canonical order: sorted string keys,
+ * then number keys ascending, then boolean keys (false before true).
  */
-export const mKeys: RillMethod = (receiver) =>
-  isDict(receiver)
-    ? [
-        ...Object.keys(receiver).sort(),
-        ...typedKeyEntries(receiver).map((e) => e.key),
-      ]
+export const mKeys: RillMethod = (receiver, _args, _ctx, location) => {
+  // Ordered values dispatch before isDict: the JS wrapper object also
+  // satisfies isDict's structural shape check.
+  if (isOrdered(receiver)) return orderedValueEntries(receiver).map(([k]) => k);
+  if (isBrandedNonDict(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `keys() requires dict receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  return isDict(receiver) && !isStream(receiver)
+    ? orderedDictEntries(receiver).map((e) => e.key)
     : [];
+};
 
-/** Get all values of a dict as a list, sorted string keys first then typed keys. */
-export const mValues: RillMethod = (receiver) =>
-  isDict(receiver)
-    ? [
-        ...Object.keys(receiver)
-          .sort()
-          .map((key) => receiver[key]!),
-        ...typedKeyEntries(receiver).map((e) => e.value),
-      ]
+/** Get all values of a dict as a list, in canonical key order. */
+export const mValues: RillMethod = (receiver, _args, _ctx, location) => {
+  if (isOrdered(receiver))
+    return orderedValueEntries(receiver).map(([, v]) => v);
+  if (isBrandedNonDict(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `values() requires dict receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  return isDict(receiver) && !isStream(receiver)
+    ? orderedDictEntries(receiver).map((e) => e.value)
     : [];
+};
 
-/** Get all entries of a dict as a list of [key, value] pairs. */
-export const mEntries: RillMethod = (receiver) =>
-  isDict(receiver)
-    ? [
-        ...Object.keys(receiver)
-          .sort()
-          .map((key) => [key, receiver[key]!] as RillValue),
-        ...typedKeyEntries(receiver).map((e) => [e.key, e.value] as RillValue),
-      ]
+/** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
+export const mEntries: RillMethod = (receiver, _args, _ctx, location) => {
+  if (isOrdered(receiver))
+    return orderedValueEntries(receiver).map(([k, v]) => [k, v] as RillValue);
+  if (isBrandedNonDict(receiver)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R003,
+      `entries() requires dict receiver, got ${inferType(receiver)}`,
+      location
+    );
+  }
+  return isDict(receiver) && !isStream(receiver)
+    ? orderedDictEntries(receiver).map((e) => [e.key, e.value] as RillValue)
     : [];
+};
 
 /** Check if list contains value (deep equality) */
 export const mHas: RillMethod = (receiver, args, _ctx, location) => {

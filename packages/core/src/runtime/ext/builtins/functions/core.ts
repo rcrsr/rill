@@ -18,7 +18,7 @@ import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import { MAX_ITER, makeGenericIterator } from '../shared.js';
-import { typedKeyEntries } from '../../../core/types/dict-keys.js';
+import { orderedDictEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
 export const CORE_FUNCTIONS: Record<string, RillFunction> = {
@@ -112,7 +112,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         name: 'items',
         type: {
           kind: 'union',
-          members: [{ kind: 'list' }, { kind: 'dict' }, { kind: 'string' }],
+          members: [{ kind: 'list' }, { kind: 'dict' }],
         },
         defaultValue: undefined,
         annotations: {},
@@ -125,17 +125,9 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         return input.map((value, index) => ({ index, value }));
       }
       if (isDict(input)) {
-        const keys = Object.keys(input).sort();
-        const stringEntries = keys.map((key) => ({
-          key: key as RillValue,
-          value: input[key]!,
-        }));
-        // Number/boolean keys follow the sorted string keys, in insertion order.
-        const typedEntries = typedKeyEntries(input).map((e) => ({
-          key: e.key as RillValue,
-          value: e.value,
-        }));
-        return [...stringEntries, ...typedEntries].map((e, index) => ({
+        // Canonical key order: sorted string keys, then number keys
+        // ascending, then boolean keys (false before true).
+        return orderedDictEntries(input).map((e, index) => ({
           index,
           key: e.key,
           value: e.value,
@@ -271,13 +263,21 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       const positional = args as unknown as RillValue[];
       let value: RillValue;
       let arg: RillValue;
+      let argSupplied: boolean;
       if (positional.length === 1 && ctx.pipeValue !== null) {
         value = ctx.pipeValue;
         arg = positional[0] ?? null;
+        argSupplied = positional.length > 0;
       } else {
         value = positional[0] ?? null;
         arg = positional[1] ?? null;
+        argSupplied = positional.length > 1;
       }
+      // A genuinely absent argument (no positional slot at all) is distinct
+      // from a supplied value that happens to be rill's null (which the type
+      // system reports as 'string'). Report the absence itself rather than
+      // running the missing slot through inferType's string fallback.
+      const argTypeName = argSupplied ? inferType(arg) : 'missing';
 
       if (Array.isArray(arg)) {
         // List of closures: fold left-to-right
@@ -307,7 +307,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
 
       throw new RuntimeError(
         ERROR_IDS.RILL_R040,
-        `chain: second argument must be a closure or list of closures, got ${inferType(arg)}`,
+        `chain: second argument must be a closure or list of closures, got ${argTypeName}`,
         location
       );
     },
@@ -352,15 +352,18 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       const positional = args as unknown as RillValue[];
       let seed: RillValue;
       let closureArg: RillValue;
+      let closureArgSupplied: boolean;
       if (
         positional.length === 1 &&
         (ctx as RuntimeContext).pipeValue !== null
       ) {
         seed = (ctx as RuntimeContext).pipeValue;
         closureArg = positional[0] ?? null;
+        closureArgSupplied = positional.length > 0;
       } else {
         seed = positional[0] ?? null;
         closureArg = positional[1] ?? null;
+        closureArgSupplied = positional.length > 1;
       }
 
       const site = {
@@ -370,10 +373,18 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       if (!isCallable(closureArg)) {
+        // A genuinely absent argument (no positional slot at all) is
+        // distinct from a supplied value that happens to be rill's null
+        // (which the type system reports as 'string'). Report the absence
+        // itself rather than running the missing slot through inferType's
+        // string fallback.
+        const closureTypeName = closureArgSupplied
+          ? inferType(closureArg)
+          : 'missing';
         throwCatchableHostHalt(
           site,
           'RILL_R006',
-          `iterate: closure must be a callable, got ${inferType(closureArg)}`
+          `iterate: closure must be a callable, got ${closureTypeName}`
         );
       }
 

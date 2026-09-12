@@ -1,10 +1,17 @@
 import type { RillFunction } from '../../../core/callable.js';
 import { callable, isCallable } from '../../../core/callable.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
-import { throwCatchableHostHalt } from '../../../core/types/halt.js';
+import {
+  rejectBreakAsHalt,
+  RuntimeHaltSignal,
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+  type TypeHaltSite,
+} from '../../../core/types/halt.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
 import {
+  isDict,
   isDuration,
   isIterator,
   isStream,
@@ -21,6 +28,36 @@ import {
   makeListIterator,
   walkIteratorSteps,
 } from '../shared.js';
+
+/**
+ * Release a host stream's resources via its idempotent dispose hook, if
+ * present. No-op for plain iterators (isStream returns false for those).
+ * Called from both the success and failure paths of take/skip's lazy walk so
+ * a walkIteratorSteps failure (invariant violation, chunk type mismatch)
+ * still disposes the stream before the halt propagates.
+ */
+async function disposeStreamInput(
+  input: RillValue,
+  site: TypeHaltSite
+): Promise<void> {
+  if (!isStream(input)) return;
+  const disposeFn = (
+    input as unknown as Record<string, (() => void) | undefined>
+  )['__rill_stream_dispose'];
+  if (typeof disposeFn !== 'function') return;
+  try {
+    disposeFn();
+  } catch (e) {
+    if (e instanceof RuntimeHaltSignal || e instanceof ControlSignal) {
+      throw e;
+    }
+    throwFatalHostHalt(
+      site,
+      'RILL_R002',
+      e instanceof Error ? e.message : String(e)
+    );
+  }
+}
 
 /** Slicing built-in functions: take, skip, cycle, batch, window, start_when, stop_when. */
 export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
@@ -90,14 +127,26 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       if (isStream(input) || isIterator(input)) {
         const loc = location ?? { line: 0, column: 0, offset: 0 };
         const evaluator = getEvalState(ctx as RuntimeContext);
-        const { elements } = await walkIteratorSteps(
-          input as unknown as Record<string, unknown>,
-          clamped,
-          evaluator,
-          loc,
-          (ctx as RuntimeContext).sourceId
-        );
-        return elements;
+
+        // Host streams (not plain iterators) may hold resources released via
+        // an idempotent dispose hook. take() only ever consumes a prefix, so
+        // dispose here whether that prefix stopped the stream early or fully
+        // drained it, or the walk itself halted; the idempotency guard on
+        // the hook itself (see createRillStream) keeps a later ctx.dispose()
+        // from double-firing.
+        try {
+          const { elements } = await walkIteratorSteps(
+            input as unknown as Record<string, unknown>,
+            clamped,
+            evaluator,
+            loc,
+            (ctx as RuntimeContext).sourceId,
+            true
+          );
+          return elements;
+        } finally {
+          await disposeStreamInput(input, site);
+        }
       }
 
       // All other iterables (dict, string): materialize then slice.
@@ -178,14 +227,24 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           return getIterableElements(input, ctx as RuntimeContext, node);
         }
 
-        // Walk n steps to skip them, then materialize the remainder.
-        const { tail } = await walkIteratorSteps(
-          input as unknown as Record<string, unknown>,
-          n,
-          evaluator,
-          loc,
-          (ctx as RuntimeContext).sourceId
-        );
+        // Walk n steps to skip them, then materialize the remainder. A
+        // successful walk leaves the stream open for the getIterableElements
+        // calls below to consume; only a failed walk (invariant violation,
+        // chunk type mismatch) needs to dispose here, since no further
+        // consumption of `input` will happen on that path.
+        let tail: Record<string, unknown>;
+        try {
+          ({ tail } = await walkIteratorSteps(
+            input as unknown as Record<string, unknown>,
+            n,
+            evaluator,
+            loc,
+            (ctx as RuntimeContext).sourceId
+          ));
+        } catch (e) {
+          await disposeStreamInput(input, site);
+          throw e;
+        }
 
         // If the iterator/stream is already done after skipping, return empty.
         if (tail['done']) {
@@ -332,11 +391,25 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       // Read options: drop_partial (default false) and idle_flush (duration, optional).
       let dropPartial = false;
       if (options !== null && options !== undefined) {
+        if (!isDict(options)) {
+          throwCatchableHostHalt(
+            site,
+            'TYPE_MISMATCH',
+            `batch: options must be a dict, got ${inferType(options)}`
+          );
+        }
         const optDict = options as Record<string, RillValue>;
 
         const dp = optDict['drop_partial'];
         if (dp !== undefined && dp !== null) {
-          dropPartial = dp === true;
+          if (typeof dp !== 'boolean') {
+            throwCatchableHostHalt(
+              site,
+              'TYPE_MISMATCH',
+              `batch: drop_partial must be a boolean, got ${inferType(dp)}`
+            );
+          }
+          dropPartial = dp as boolean;
         }
 
         // idle_flush must be a duration when provided.
@@ -353,6 +426,16 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           // iteration the idle timer cannot fire mid-collection, so the
           // option has no effect on the current synchronous path.
           // Future async streaming support will wire this to createIdleTicker.
+        }
+
+        for (const key of Object.keys(optDict)) {
+          if (key !== 'drop_partial' && key !== 'idle_flush') {
+            throwCatchableHostHalt(
+              site,
+              'INVALID_INPUT',
+              `batch: unknown option '${key}'; recognized options are 'drop_partial' and 'idle_flush'`
+            );
+          }
         }
       }
 
@@ -586,7 +669,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           result.push(element);
         }
       } catch (e) {
-        if (e instanceof ControlSignal) throw e;
+        rejectBreakAsHalt(e, site);
         throw e;
       }
 
@@ -675,7 +758,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           if (testResult) break;
         }
       } catch (e) {
-        if (e instanceof ControlSignal) throw e;
+        rejectBreakAsHalt(e, site);
         throw e;
       }
 

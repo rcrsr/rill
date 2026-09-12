@@ -98,6 +98,11 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
       const result = await run('dict[a: 10, b: 20] => $d\n$d.a');
       expect(result).toBe(10);
     });
+
+    it('parses a negative-number key', async () => {
+      const result = await run('-1 -> dict[-1: "x"]');
+      expect(result).toBe('x');
+    });
   });
 
   // ============================================================
@@ -173,6 +178,13 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
       expect(entries[1]![0]).toBe('a');
       expect(entries[2]![0]).toBe('m');
     });
+
+    it('parses a negative-number key', async () => {
+      const result = await run('ordered[-1: "x"]');
+      expect(isOrdered(result)).toBe(true);
+      const entries = orderedEntries(result);
+      expect(entries).toEqual([['-1', 'x']]);
+    });
   });
 
   // ============================================================
@@ -204,8 +216,109 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
   });
 
   // ============================================================
+  // SPREAD IN dict[] AND ordered[]
+  // ============================================================
+
+  describe('spread in dict[] and ordered[] literals', () => {
+    it('merges spread dict entries with literal entries, later keys overriding', async () => {
+      const result = await run('dict[a: 1, b: 1] => $d\ndict[...$d, b: 2]');
+      expect(result).toEqual({ a: 1, b: 2 });
+    });
+
+    it('spreads a dict into a dict literal, with no literal "..." key', async () => {
+      const result = await run('dict[a: 1] => $d\ndict[...$d, b: 2] -> .keys');
+      expect(result).toEqual(['a', 'b']);
+    });
+
+    it('spreads an ordered into a dict literal', async () => {
+      const result = await run('ordered[a: 1, b: 2] => $o\ndict[...$o, c: 3]');
+      expect(result).toEqual({ a: 1, b: 2, c: 3 });
+    });
+
+    it('halts with RILL-R002 when spreading a list into a dict literal', async () => {
+      await expect(
+        run('list[1, 2] => $l\ndict[...$l, a: 1]')
+      ).rejects.toHaveProperty('errorId', 'RILL-R002');
+    });
+
+    it('a quoted "..." string key is a real key, not a spread', async () => {
+      const result = await run('dict["...": 1] -> .keys');
+      expect(result).toEqual(['...']);
+    });
+
+    it('merges spread ordered entries with literal entries, preserving order', async () => {
+      const result = await run(
+        'ordered[a: 1, b: 1] => $o\nordered[...$o, b: 2]'
+      );
+      expect(isOrdered(result)).toBe(true);
+      expect(orderedEntries(result)).toEqual([
+        ['a', 1],
+        ['b', 2],
+      ]);
+    });
+
+    it('overrides an ordered spread key with a later literal key at the same position', async () => {
+      const result = await run(
+        'ordered[a: 1, b: 1, c: 1] => $o\nordered[...$o, b: 2]'
+      );
+      expect(isOrdered(result)).toBe(true);
+      expect(orderedEntries(result)).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['c', 1],
+      ]);
+    });
+
+    it('spreads a dict into an ordered literal', async () => {
+      const result = await run('dict[a: 1, b: 2] => $d\nordered[...$d, c: 3]');
+      expect(isOrdered(result)).toBe(true);
+      expect(orderedEntries(result)).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['c', 3],
+      ]);
+    });
+
+    it('halts with RILL-R002 when spreading a list into an ordered literal', async () => {
+      await expect(
+        run('list[1, 2] => $l\nordered[...$l, a: 1]')
+      ).rejects.toHaveProperty('errorId', 'RILL-R002');
+    });
+
+    it('halts with RILL-R002 when spreading a number into an ordered literal', async () => {
+      await expect(run('5 => $n\nordered[...$n]')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R002'
+      );
+    });
+  });
+
+  // ============================================================
   // PARSE ERRORS (EC-2, EC-3, EC-4)
   // ============================================================
+
+  describe('trailing commas are rejected in every literal form', () => {
+    it.each([
+      ['list', 'list[1, 2,]'],
+      ['dict', 'dict[a: 1,]'],
+      ['tuple', 'tuple[1,]'],
+      ['ordered', 'ordered[a: 1,]'],
+      ['bare tuple', '[1, 2,]'],
+      ['bare dict', '[a: 1,]'],
+    ])('throws ParseError for a trailing comma in a %s literal', (_, src) => {
+      expect(() => parse(src)).toThrow(ParseError);
+      expect(() => parse(src)).toThrow('trailing comma');
+    });
+
+    it('rejects a trailing comma after a newline-separated element', () => {
+      expect(() => parse('list[\n1,\n2,\n]')).toThrow('trailing comma');
+    });
+
+    it('still accepts multi-line literals with no trailing comma', async () => {
+      const result = await run('list[\n1,\n2\n]');
+      expect(result).toEqual([1, 2]);
+    });
+  });
 
   describe('parse errors for malformed literals', () => {
     it('throws ParseError for unclosed list[ (EC-2)', () => {
@@ -214,6 +327,14 @@ describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
 
     it('throws ParseError for dict[ entry without key: value (EC-3)', () => {
       expect(() => parse('dict[1]')).toThrow(ParseError);
+    });
+
+    it('throws ParseError for dict[ entry with a negative number but no colon', () => {
+      expect(() => parse('dict[-1]')).toThrow(ParseError);
+    });
+
+    it('throws ParseError for ordered[ entry without key: value', () => {
+      expect(() => parse('ordered[1]')).toThrow(ParseError);
     });
 
     it('throws ParseError for tuple[ with key: value pair (EC-4)', () => {

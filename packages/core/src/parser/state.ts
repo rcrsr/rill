@@ -103,6 +103,19 @@ export function current(state: ParserState): Token {
 }
 
 /** @internal */
+export function previous(state: ParserState): Token {
+  const token = state.tokens[state.pos - 1];
+  if (token) return token;
+  const last = state.tokens[state.tokens.length - 1];
+  if (last) return last;
+  throw new ParseError(ERROR_IDS.RILL_P002, 'Unexpected end of input', {
+    line: 1,
+    column: 1,
+    offset: 0,
+  });
+}
+
+/** @internal */
 export function peek(state: ParserState, offset = 0): Token {
   const idx = state.pos + offset;
   const token = state.tokens[idx];

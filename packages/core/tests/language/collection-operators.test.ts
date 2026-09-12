@@ -666,9 +666,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
           },
         ],
         returnType: anyTypeValue,
-        fn: (args: Record<string, RillValue>): null => {
+        fn: (args: Record<string, RillValue>): string => {
           captured.push(args['value'] ?? null);
-          return null;
+          return '';
         },
       };
       const result = await run('5 -> pass<on_error: #IGNORE> { log($) }', {
@@ -690,9 +690,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
           },
         ],
         returnType: anyTypeValue,
-        fn: (args: Record<string, RillValue>): null => {
+        fn: (args: Record<string, RillValue>): string => {
           captured.push(args['value'] ?? null);
-          return null;
+          return '';
         },
       };
       const result = await run('5 -> pass { log($) }', {
@@ -795,7 +795,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   describe('pass<...> parser validation (RILL_P004)', () => {
     it('AC-PASSPARSE-1: pass<> with empty options is a parse error (RILL-P004)', async () => {
       try {
-        await run('5 -> pass<> { log($) }', { functions: { log: () => null } });
+        await run('5 -> pass<> { log($) }', { functions: { log: () => '' } });
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -806,7 +806,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     it('AC-PASSPARSE-2: pass<unknown_key: #IGNORE> rejects unknown option key', async () => {
       await expect(
         run('5 -> pass<bad_key: #IGNORE> { log($) }', {
-          functions: { log: () => null },
+          functions: { log: () => '' },
         })
       ).rejects.toBeInstanceOf(ParseError);
     });
@@ -814,7 +814,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     it('AC-PASSPARSE-3: pass<on_error: 42> rejects non-atom value', async () => {
       await expect(
         run('5 -> pass<on_error: 42> { log($) }', {
-          functions: { log: () => null },
+          functions: { log: () => '' },
         })
       ).rejects.toBeInstanceOf(ParseError);
     });
@@ -822,7 +822,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     it('AC-PASSPARSE-4: pass<on_error: #INVALID_INPUT> rejects atom other than #IGNORE', async () => {
       await expect(
         run('5 -> pass<on_error: #INVALID_INPUT> { log($) }', {
-          functions: { log: () => null },
+          functions: { log: () => '' },
         })
       ).rejects.toBeInstanceOf(ParseError);
     });
@@ -850,6 +850,21 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
         [4, 5, 6],
         [7, 8, 9],
       ]);
+    });
+
+    it('batch halts with #TYPE_MISMATCH when options is not a dict', async () => {
+      await expectHalt(() => run('list[1, 2, 3] -> batch(2, "x")'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('batch halts with #TYPE_MISMATCH when drop_partial is not a boolean', async () => {
+      await expectHalt(
+        () => run('list[1, 2, 3] -> batch(2, dict[drop_partial: 1])'),
+        {
+          code: 'TYPE_MISMATCH',
+        }
+      );
     });
 
     it('AC-ERR-3: batch(0) raises #INVALID_INPUT', async () => {
@@ -928,10 +943,10 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       });
     });
 
-    it('AC-ERR-11: start_when(42) with non-callable predicate raises #RILL_R040', async () => {
-      await expectHalt(() => run('list[1, 2, 3] -> start_when(42)'), {
-        code: 'RILL_R040',
-      });
+    it('AC-ERR-11: start_when(42) with non-callable predicate raises RILL-R040', async () => {
+      await expect(run('list[1, 2, 3] -> start_when(42)')).rejects.toThrow(
+        expect.objectContaining({ errorId: 'RILL-R040' })
+      );
     });
 
     // ── stop_when ────────────────────────────────────────────────────────────

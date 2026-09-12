@@ -192,6 +192,7 @@ describe('Rill Runtime: Function Metadata', () => {
               definingScope: {} as unknown as RuntimeContext,
               annotations: {},
               isProperty: false,
+              returnType: anyTypeValue,
             },
           },
         });

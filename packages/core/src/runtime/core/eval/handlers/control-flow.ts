@@ -78,7 +78,7 @@ export async function evaluateConditional(
 
   let conditionResult: boolean;
   if (node.condition) {
-    const conditionValue = await evaluateBodyExpression(s, node.condition);
+    const conditionValue = await evaluateBody(s, node.condition);
     // Condition must be boolean
     if (typeof conditionValue !== 'boolean') {
       throwCatchableHostHalt(
@@ -317,7 +317,7 @@ export async function evaluateDoWhileLoop(
       }
       s.ctx.pipeValue = value;
 
-      const conditionValue = await evaluateBodyExpression(s, node.condition);
+      const conditionValue = await evaluateBody(s, node.condition);
       // Condition must be boolean
       if (typeof conditionValue !== 'boolean') {
         throwCatchableHostHalt(
@@ -476,6 +476,24 @@ export async function evaluateAssert(
     );
   }
 
+  // Assertion passed. Statement form with no bound $ (e.g. inside a
+  // parameterless closure body) must halt rather than silently returning
+  // a raw null. Mirrors evaluatePass's and evaluateConditional's
+  // unbound-$ guard; the pipe-target form (input !== undefined) is
+  // unaffected since valueToReturn came from input, not pipeValue.
+  if (input === undefined && s.ctx.pipeValue === null) {
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateAssert',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R005],
+      "Variable '$' not defined",
+      { variable: '$' }
+    );
+  }
+
   // Assertion passed, return original pipe value unchanged
   return valueToReturn;
 }
@@ -580,8 +598,9 @@ export async function evaluateBody(
 /**
  * Evaluate a body node as an expression (catches ReturnSignal).
  *
- * Used when a body needs to be treated as an expression
- * (e.g., conditional condition, do-while condition).
+ * Used when a body needs to be treated as an expression whose
+ * ReturnSignal should resolve to a value rather than propagate
+ * (see other call sites of this function for current usages).
  *
  * Catches ReturnSignal and returns its value.
  * Other signals (BreakSignal) and errors propagate up.

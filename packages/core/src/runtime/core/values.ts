@@ -17,6 +17,7 @@ import type { RillCallable } from './callable.js';
 import {
   isCallable as _isCallableGuard,
   isDatetime,
+  isDict,
   isDuration,
   isIterator,
   isOrdered,
@@ -35,7 +36,10 @@ import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
 } from './types/registrations.js';
-import { setDictField } from './types/dict-keys.js';
+import {
+  setDictField,
+  typedKeyEntries as internalTypedKeyEntries,
+} from './types/dict-keys.js';
 import type {
   RillTypeValue,
   RillValue,
@@ -57,6 +61,7 @@ export const inferType: (value: RillValue) => string = registryInferType;
  * Returns true if the value matches the expected type, false otherwise.
  */
 export function checkType(value: RillValue, expected: RillTypeName): boolean {
+  if (expected === 'any') return true;
   return inferType(value) === expected;
 }
 
@@ -78,7 +83,16 @@ export type NativeValue =
 /** Array of NativeValue */
 export type NativeArray = NativeValue[];
 
-/** Plain object with string keys and NativeValue values */
+/**
+ * Plain object with string keys and NativeValue values.
+ *
+ * A dict with number or boolean keys additionally carries a reserved
+ * `__rill_typed_keys` field: an array of `{ key, value }` entries holding the
+ * original number/boolean key alongside its native value. String keys of the
+ * same spelling (e.g. `"1"`) are unaffected and still surface as ordinary own
+ * fields on the object. The field is omitted entirely when the dict has no
+ * number/boolean keys.
+ */
 export type NativePlainObject = { [key: string]: NativeValue };
 
 /** Structured result from toNative conversion */
@@ -87,7 +101,11 @@ export interface NativeResult {
   rillTypeName: string;
   /** Human-readable type signature, e.g. "string", "list(number)", "|x: number| :string" */
   rillTypeSignature: string;
-  /** Native JS representation. Non-native types produce descriptor objects. */
+  /**
+   * Native JS representation. Non-native types produce descriptor objects.
+   * Dicts with number/boolean keys carry those keys under the reserved
+   * `__rill_typed_keys` field; see {@link NativePlainObject}.
+   */
   value: NativeValue;
 }
 
@@ -95,12 +113,40 @@ export interface NativeResult {
  * Convert a RillValue to a NativeResult for host consumption.
  * Non-representable types (closures, vectors, type values, iterators) produce descriptor objects.
  * Tuples convert to native arrays. Ordered values convert to plain objects.
+ * Dict number/boolean keys surface under the reserved `__rill_typed_keys` field
+ * (see {@link NativePlainObject}); string keys are unaffected.
  */
 export function toNative(value: RillValue): NativeResult {
   const rillTypeName = inferType(value);
   const rillTypeSignature = formatStructure(inferStructure(value));
   const nativeValue = toNativeValue(value);
   return { rillTypeName, rillTypeSignature, value: nativeValue };
+}
+
+/**
+ * Number/boolean-keyed entries of a dict, preserving each key's JS type.
+ *
+ * `toNative()` is insufficient for a host that needs to read a dict's typed
+ * keys while keeping the value a live RillValue: it recursively coerces the
+ * whole dict (and every nested value) into native descriptors, destroying
+ * the RillValue shapes a host may still need to hand back into the runtime
+ * (e.g. to a closure or another host call). This accessor reads the typed
+ * keys in place, without converting anything.
+ *
+ * Returns `[]` — never `undefined` — for any non-dict RillValue (`null`, a
+ * primitive, a list, or any branded value such as a stream, vector,
+ * datetime, duration, ordered value, or type value), and for a dict with no
+ * number/boolean keys. The `isDict` guard alone is not enough to exclude
+ * branded objects (several call sites elsewhere pair it with an explicit
+ * `!isStream(...)` check for the same reason), so this also confirms via
+ * `inferType`, which dispatches through the same identity checks that put
+ * dict last as a fallback and so classifies branded values correctly.
+ */
+export function getTypedKeyEntries(
+  value: RillValue
+): ReadonlyArray<{ key: number | boolean; value: RillValue }> {
+  if (!isDict(value) || inferType(value) !== 'dict') return [];
+  return internalTypedKeyEntries(value);
 }
 
 function toNativeValue(value: RillValue): NativeValue {
@@ -174,11 +220,39 @@ function toNativeValue(value: RillValue): NativeValue {
   for (const [k, v] of Object.entries(dict)) {
     setDictField(result, k, toNativeValue(v));
   }
+  // Number/boolean keys are held in a non-enumerable sidecar, so
+  // Object.entries above skips them. Surface them, with their original
+  // number/boolean key, under a reserved sidecar field.
+  const typedEntries = internalTypedKeyEntries(dict).map(
+    ({ key, value: v }) => ({
+      key,
+      value: toNativeValue(v),
+    })
+  );
+  if (typedEntries.length > 0) {
+    setDictField(result, '__rill_typed_keys', typedEntries);
+  }
   return result;
 }
 
-/** Reserved dict method names that cannot be overridden */
-const RESERVED_DICT_METHODS = ['keys', 'values', 'entries'] as const;
+/**
+ * Reserved dict method names that cannot be overridden.
+ * Must match the full key set of DICT_METHODS in
+ * runtime/ext/builtins/methods/tables.ts (len, first, empty, eq, ne, keys,
+ * values, entries). Kept as a literal array rather than an import because
+ * core/ must not import from ext/; a runtime-level parity test guards
+ * against drift between the two.
+ */
+export const RESERVED_DICT_METHODS = [
+  'len',
+  'first',
+  'empty',
+  'eq',
+  'ne',
+  'keys',
+  'values',
+  'entries',
+] as const;
 
 /**
  * Brand keys used internally to discriminate runtime value shapes
@@ -197,9 +271,11 @@ const RESERVED_BRAND_KEYS = [
   '__rill_type',
   '__rill_stream',
   '__rill_stream_resolve',
+  '__rill_stream_head',
   '__rill_stream_dispose',
   '__rill_stream_chunk_type',
   '__rill_stream_ret_type',
+  '__rill_typed_keys',
 ] as const;
 
 export { anyTypeValue } from './types/any-type.js';

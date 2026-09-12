@@ -4,7 +4,10 @@ import path from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      '@rcrsr/rill': path.resolve(__dirname, './packages/core/src/index.ts'),
+      '@rcrsr/rill': path.resolve(
+        import.meta.dirname,
+        './packages/core/src/index.ts'
+      ),
     },
   },
   test: {

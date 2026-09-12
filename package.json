@@ -1,9 +1,9 @@
 {
   "name": "rill-lang",
-  "version": "0.20.0",
+  "version": "0.21.0",
   "description": "Scripting designed for machine-generated code",
   "private": true,
-  "packageManager": "pnpm@11.18.0+sha512.33d83c77da82f49fba836925c6f1b841181ec3132b670639bd012f7075f5c7cf634c5f870147c19aae7478fac01df09d8892e880454896edd23ee9b33757563c",
+  "packageManager": "pnpm@12.3.4+sha512.961aa41fb077da3a04a441d9f8e15ebc0c96da8ef710b2eb67bf9ee7cb0610eabd48f1fd85f51cffe73846785fa0f87c56a3a872a1d893f8446741b5cce45457",
   "type": "module",
   "repository": {
     "type": "git",
@@ -51,18 +51,18 @@
   "license": "MIT",
   "engines": {
     "node": ">=22.16.0",
-    "pnpm": ">=11"
+    "pnpm": ">=12"
   },
   "devDependencies": {
     "@rcrsr/rill": "workspace:*",
     "@rcrsr/rill-dev": "workspace:*",
-    "@types/node": "^26.2.0",
-    "knip": "^6.32.2",
-    "lefthook": "^2.1.10",
-    "oxfmt": "^0.65.0",
-    "oxlint": "^1.80.0",
-    "tsx": "^4.23.12",
+    "@types/node": "^26.5.0",
+    "knip": "^6.35.0",
+    "lefthook": "^2.1.12",
+    "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.0"
   }
 }

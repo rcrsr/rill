@@ -23,7 +23,9 @@ import {
   advance,
   expect,
   current,
+  previous,
   isAtEnd,
+  reportError,
   skipNewlines,
   makeSpan,
 } from './state.js';
@@ -173,6 +175,9 @@ Parser.prototype.parseScript = function (this: Parser): ScriptNode {
     type: 'Script',
     frontmatter,
     statements,
+    // current() intentional: the statement loop above only exits via
+    // isAtEnd(), so current() is always the EOF token here — the source's
+    // terminal position, not an unconsumed lookahead token to skip past.
     span: makeSpan(start, current(this.state).span.end),
   };
 };
@@ -333,17 +338,37 @@ Parser.prototype.parseFrontmatter = function (this: Parser): FrontmatterNode {
   const contentEnd = current(this.state).span.start.offset;
   const content = this.state.source.slice(contentStart, contentEnd).trim();
 
-  expect(
+  const closingDelim = expect(
     this.state,
     TOKEN_TYPES.FRONTMATTER_DELIM,
     'Expected closing ---',
     ERROR_IDS.RILL_P005
   );
 
+  // A closing delimiter with more than three dashes (e.g. `----`) tokenizes
+  // as a FRONTMATTER_DELIM (the first three dashes) followed immediately by
+  // a stray token for each extra dash: a MINUS for a single leftover dash,
+  // or another FRONTMATTER_DELIM when three or more dashes remain (e.g.
+  // `------` is two FRONTMATTER_DELIM tokens back to back). Detect that
+  // adjacency here and report it as a malformed delimiter instead of
+  // letting the leftover token fall through to statement parsing, where it
+  // produces an unrelated "unexpected token" error further down the line.
+  if (
+    check(this.state, TOKEN_TYPES.MINUS, TOKEN_TYPES.FRONTMATTER_DELIM) &&
+    current(this.state).span.start.offset === closingDelim.span.end.offset
+  ) {
+    reportError(
+      this.state,
+      ERROR_IDS.RILL_P023,
+      "Malformed frontmatter closing delimiter: expected exactly '---', found extra '-'",
+      current(this.state).span.start
+    );
+  }
+
   return {
     type: 'Frontmatter',
     content,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };
 
@@ -462,17 +487,21 @@ Parser.prototype.parseAnnotationArgs = function (
   this: Parser
 ): AnnotationArg[] {
   const args: AnnotationArg[] = [];
+  skipNewlines(this.state);
 
   if (check(this.state, TOKEN_TYPES.RPAREN)) {
     return args; // Empty annotation list
   }
 
   args.push(this.parseAnnotationArg());
+  skipNewlines(this.state);
 
   while (check(this.state, TOKEN_TYPES.COMMA)) {
     advance(this.state); // consume comma
+    skipNewlines(this.state);
     if (check(this.state, TOKEN_TYPES.RPAREN)) break; // trailing comma
     args.push(this.parseAnnotationArg());
+    skipNewlines(this.state);
   }
 
   return args;
@@ -488,7 +517,7 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
     return {
       type: 'SpreadArg',
       expression,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     } satisfies SpreadArgNode;
   }
 
@@ -499,7 +528,7 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
       type: 'NamedArg',
       name: 'description',
       value,
-      span: makeSpan(start, current(this.state).span.end),
+      span: makeSpan(start, previous(this.state).span.end),
     } satisfies NamedArgNode;
   }
 
@@ -523,6 +552,6 @@ Parser.prototype.parseAnnotationArg = function (this: Parser): AnnotationArg {
     type: 'NamedArg',
     name: nameToken.value,
     value,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   } satisfies NamedArgNode;
 };

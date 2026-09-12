@@ -140,7 +140,6 @@
           - 'packages/core/src/constants.ts'
           - 'packages/core/src/index.ts'
           - 'packages/core/tests/runtime/**'
-          - 'tests/runtime/**'
 
 'area:types':
   - changed-files:
@@ -186,7 +185,6 @@
           - 'scripts/**'
           - 'packages/dev/**'
           - 'packages/core/scripts/**'
-          - 'tests/workspace/**'
           - '.claude/**'
           # Root and workspace toolchain inputs. A root-only deps or
           # interpreter-pin bump touches none of the source globs above, so it
@@ -196,7 +194,6 @@
           - 'pnpm-workspace.yaml'
           - 'tsconfig*.json'
           - 'vitest.config.ts'
-          - 'vitest.workspace.ts'
           - '.oxlintrc.json'
           - '.oxfmtrc.json'
           - 'knip.json'

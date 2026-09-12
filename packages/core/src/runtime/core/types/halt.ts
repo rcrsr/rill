@@ -20,11 +20,131 @@
  */
 
 import type { SourceLocation } from '../../../types.js';
-import { appendTraceFrame, getStatus, invalidate } from './status.js';
-import { atomName } from './atom-registry.js';
+import {
+  appendTraceFrame,
+  getStatus,
+  invalidate,
+  withOriginSite,
+} from './status.js';
+import { atomName, okAtom } from './atom-registry.js';
 import { createTraceFrame, TRACE_KINDS, type TraceKind } from './trace.js';
 import type { RillValue } from './structures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
+import { BreakSignal } from '../signals.js';
+
+// ============================================================
+// MESSAGE / ERROR-ID DERIVATION
+// ============================================================
+
+/**
+ * Lookup table resolving an atom's underscore name (e.g. `RILL_R006`) to
+ * its registered hyphen-form host error ID (e.g. `RILL-R006`). `ERROR_IDS`
+ * keys are exactly the registered atom names, so a plain index probe is
+ * the resolution: generic taxonomy atoms (`TYPE_MISMATCH`, `INVALID_INPUT`)
+ * and registry fallbacks (`R001`, `R999`) are not `RILL_*`-prefixed keys
+ * and correctly miss, yielding `undefined`.
+ */
+const ERROR_ID_BY_ATOM_NAME = ERROR_IDS as Readonly<Record<string, string>>;
+
+/**
+ * Derives the constructor message for a `RuntimeHaltSignal` from the
+ * carried value's status sidecar: `#<ATOM>: <message>` when a message is
+ * present, `#<ATOM>` alone otherwise. Falls back to the literal
+ * `'runtime halt'` only when the value carries no invalid status at all
+ * (the `#ok` sentinel) — a case that should never occur in practice
+ * since every halt builder invalidates its payload before throwing.
+ */
+function deriveHaltMessage(value: RillValue): string {
+  const status = getStatus(value);
+  if (status.code === okAtom()) return 'runtime halt';
+  const name = atomName(status.code);
+  return status.message.length > 0 ? `#${name}: ${status.message}` : `#${name}`;
+}
+
+/**
+ * Resolves the carried value's atom against the full `ERROR_IDS`
+ * registry (not `execute.ts`'s `HALT_ATOM_TO_ERROR_ID` allowlist — that
+ * table additionally gates which atoms `execute.ts` itself is willing to
+ * rematerialise as a `RuntimeError`). Returns `undefined` when the atom
+ * has no registered host-facing error ID (generic taxonomy atoms,
+ * `#R999`, `#DISPOSED`, and the `#ok` sentinel).
+ */
+function resolveHaltErrorId(value: RillValue): string | undefined {
+  const name = atomName(getStatus(value).code);
+  return ERROR_ID_BY_ATOM_NAME[name];
+}
+
+/**
+ * A trace frame's `site` is formatted by `formatSite` below as
+ * `<sourceId>:line:col`, `<sourceId>` alone, or a synthetic placeholder
+ * (`"<unknown>"` / `"<script>"`) when no real location exists. Parses the
+ * numeric suffix back out for host consumption; returns `undefined` when
+ * the site carries no line/column (synthesized nodes, type-layer helpers
+ * that pass no location).
+ */
+function parseLocationFromSite(site: string):
+  | {
+      readonly sourceId: string | undefined;
+      readonly line: number;
+      readonly column: number;
+    }
+  | undefined {
+  const m = site.match(/^(.*?):(\d+):(\d+)$/);
+  if (m === null) return undefined;
+  const sourceId =
+    m[1] === '<unknown>' || m[1] === '<script>' ? undefined : m[1];
+  return { sourceId, line: Number(m[2]), column: Number(m[3]) };
+}
+
+/**
+ * Resolves the carried value's first trace frame (the origin site, per
+ * origin-first frame ordering) into a host-readable location, or
+ * `undefined` when the value carries no trace frames or the origin frame
+ * has no parseable line/column.
+ */
+function resolveHaltLocation(value: RillValue):
+  | {
+      readonly sourceId: string | undefined;
+      readonly line: number;
+      readonly column: number;
+    }
+  | undefined {
+  const trace = getStatus(value).trace;
+  return trace.length > 0 ? parseLocationFromSite(trace[0]!.site) : undefined;
+}
+
+/**
+ * Rewraps `signal` with the origin trace frame's `site` replaced by a
+ * freshly formatted location, when doing so would improve on a
+ * placeholder. Never fabricates a new atom or trace frame count; it only
+ * rewrites `trace[0].site` via `withOriginSite`.
+ *
+ * Returns `signal` unchanged when:
+ * - the carried value's trace is empty (nothing to enrich), or
+ * - the origin frame's site already parses to a real location
+ *   (`parseLocationFromSite` succeeds), or
+ * - the newly formatted site would itself be a non-locating placeholder
+ *   (`location` is `undefined`, so `formatSite` falls back to
+ *   `sourceId ?? '<unknown>'`).
+ *
+ * Otherwise returns a new `RuntimeHaltSignal` wrapping the rewritten
+ * value, preserving `catchable`.
+ */
+export function enrichHaltOriginLocation(
+  signal: RuntimeHaltSignal,
+  location: SourceLocation | undefined,
+  sourceId: string | undefined
+): RuntimeHaltSignal {
+  const trace = getStatus(signal.value).trace;
+  if (trace.length === 0) return signal;
+  if (parseLocationFromSite(trace[0]!.site) !== undefined) return signal;
+  const newSite = formatSite(location, sourceId);
+  if (parseLocationFromSite(newSite) === undefined) return signal;
+  return new RuntimeHaltSignal(
+    withOriginSite(signal.value, newSite),
+    signal.catchable
+  );
+}
 
 // ============================================================
 // RUNTIME HALT SIGNAL
@@ -39,16 +159,50 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
  * `assert`). Guard and retry only catch
  * signals with `catchable === true`; non-catchable halts propagate
  * through recovery blocks unconditionally.
+ *
+ * `message`, `errorId`, and `location` are derived from the carried
+ * value's status sidecar so a signal that escapes `execute()` uncaught
+ * (an atom with no `HALT_ATOM_TO_ERROR_ID` entry in `execute.ts`) still
+ * surfaces an informative message, an origin site, and — where the atom
+ * is registered — a real error ID, instead of the literal string
+ * `'runtime halt'` with no way to identify the failure.
  */
 export class RuntimeHaltSignal extends Error {
   readonly value: RillValue;
   readonly catchable: boolean;
 
   constructor(value: RillValue, catchable: boolean) {
-    super('runtime halt');
+    super(deriveHaltMessage(value));
     this.name = 'RuntimeHaltSignal';
     this.value = value;
     this.catchable = catchable;
+  }
+
+  /**
+   * The registered host-facing error ID (hyphen form, e.g. `RILL-R006`)
+   * for the carried value's atom, or `undefined` when the atom has no
+   * registered mapping. Read-only derived property; not stored, so it
+   * always reflects the current `value` (which never changes after
+   * construction).
+   */
+  get errorId(): string | undefined {
+    return resolveHaltErrorId(this.value);
+  }
+
+  /**
+   * The origin site of the carried value's first trace frame, or
+   * `undefined` when no frame carries a parseable line/column. Read-only
+   * derived property; not stored, so it always reflects the current
+   * `value` (which never changes after construction).
+   */
+  get location():
+    | {
+        readonly sourceId: string | undefined;
+        readonly line: number;
+        readonly column: number;
+      }
+    | undefined {
+    return resolveHaltLocation(this.value);
   }
 }
 
@@ -146,12 +300,20 @@ export function throwTypeHalt(
  * recover them. The builder allocates only when thrown; it is not on
  * the hot path and runs only when abort is detected.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` because
+ * `checkAborted` fires from runtime-authored plumbing rather than a
+ * script- or extension-level operation. Pass an explicit kind when a
+ * caller's abort check sits at a different boundary.
+ *
  * @throws RuntimeHaltSignal with code=`#DISPOSED`, catchable=false.
  */
-export function throwAbortHalt(site: TypeHaltSite): never {
+export function throwAbortHalt(
+  site: TypeHaltSite,
+  kind: TraceKind = TRACE_KINDS.HOST
+): never {
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   const invalid = invalidate(
@@ -187,20 +349,26 @@ export function throwAbortHalt(site: TypeHaltSite): never {
  * string pipe values. Violating these preconditions yields a
  * degenerate but still well-formed invalid.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` because
+ * auto-exceptions fire from runtime-authored pattern matching rather than
+ * a script- or extension-level operation.
+ *
  * @param site            Site descriptor (location, sourceId, fn).
  * @param pattern         Regex source that matched (non-empty string).
  * @param matchedValue    String value that triggered the match.
+ * @param kind            Trace-frame kind; defaults to `"host"`.
  * @throws RuntimeHaltSignal with code=`#R999`, catchable=false.
  */
 export function throwAutoExceptionHalt(
   site: TypeHaltSite,
   pattern: string,
-  matchedValue: string
+  matchedValue: string,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): never {
   const message = `auto-exception: pattern ${pattern} matched ${JSON.stringify(matchedValue)}`;
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   const invalid = invalidate(
@@ -239,21 +407,30 @@ export function throwAutoExceptionHalt(
  * `raw.message` so `.!message` surfaces it. Additional fields flow through
  * untouched.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` because the
+ * overwhelming majority of sites are runtime-authored operator-level
+ * failures (unknown function/variable/method, invalid call arguments).
+ * Pass an explicit kind when the failure genuinely originates elsewhere
+ * (e.g. `"access"` when propagating a halt encountered while evaluating
+ * script-defined code at a call boundary).
+ *
  * @param site      Site descriptor (location, sourceId, fn).
  * @param code      Atom name in underscore form (e.g. `"RILL_R006"`).
  * @param message   Human-readable error description.
  * @param raw       Optional provider-specific payload (merged with message).
+ * @param kind      Trace-frame kind; defaults to `"host"`.
  * @throws RuntimeHaltSignal with catchable=true.
  */
 export function throwCatchableHostHalt(
   site: TypeHaltSite,
   code: string,
   message: string,
-  raw?: Record<string, unknown>
+  raw?: Record<string, unknown>,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): never {
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   const invalid = invalidate(
@@ -290,21 +467,27 @@ export function throwCatchableHostHalt(
  * `raw` accepts arbitrary provider metadata; `message` is stored under
  * `raw.message` so `.!message` surfaces it.
  *
+ * `kind` selects the trace-frame kind; defaults to `"host"` for the same
+ * reason as `throwCatchableHostHalt` — the overwhelming majority of sites
+ * are runtime-authored failures, not script- or extension-level ones.
+ *
  * @param site      Site descriptor (location, sourceId, fn).
  * @param code      Atom name in underscore form (e.g. `"RILL_R010"`).
  * @param message   Human-readable error description.
  * @param raw       Optional provider-specific payload (merged with message).
+ * @param kind      Trace-frame kind; defaults to `"host"`.
  * @throws RuntimeHaltSignal with catchable=false.
  */
 export function throwFatalHostHalt(
   site: TypeHaltSite,
   code: string,
   message: string,
-  raw?: Record<string, unknown>
+  raw?: Record<string, unknown>,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): never {
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   const invalid = invalidate(
@@ -344,19 +527,25 @@ export function throwFatalHostHalt(
  * When `interpolated === false`, no wrap frame is appended; the trace
  * carries only the standard host frame.
  *
+ * `kind` selects the origin frame's trace-frame kind; defaults to
+ * `"host"` because `error "..."` is a script-authored statement evaluated
+ * by runtime-authored plumbing (`evaluateError`), not an extension call.
+ *
  * @param site           Site descriptor (location, sourceId, fn).
  * @param message        Already-evaluated error message string.
  * @param interpolated   True when the source message used interpolation.
+ * @param kind           Trace-frame kind; defaults to `"host"`.
  * @throws RuntimeHaltSignal with code=`#RILL_R016`, catchable=false.
  */
 export function throwErrorHalt(
   site: TypeHaltSite,
   message: string,
-  interpolated: boolean
+  interpolated: boolean,
+  kind: TraceKind = TRACE_KINDS.HOST
 ): never {
   const frame = createTraceFrame({
     site: formatSite(site.location, site.sourceId),
-    kind: TRACE_KINDS.HOST,
+    kind,
     fn: site.fn,
   });
   let invalid = invalidate(
@@ -385,4 +574,114 @@ export function throwErrorHalt(
     invalid = appendTraceFrame(invalid, wrapFrame);
   }
   throw new RuntimeHaltSignal(invalid, false);
+}
+
+// ============================================================
+// UNHANDLED HOST THROW BUILDER
+// ============================================================
+
+/**
+ * Sanitize a caught Error's message before embedding it in `raw.message`:
+ * strip trailing location suffixes and multi-line stack traces, keeping
+ * only the first line. Exported so `context.ts` shares this implementation
+ * instead of keeping its own copy, keeping reshape output consistent across
+ * every boundary that reshapes an unhandled host throw.
+ */
+export function sanitizeThrowMessage(message: string): string {
+  const firstLine = message.split('\n', 1)[0] ?? '';
+  return firstLine.trim();
+}
+
+/**
+ * Build an invalid RillValue for an unhandled throw crossing the extension
+ * dispatch boundary — a non-`RillError` `Error` instance, or a non-object
+ * throw (`throw null`, `throw "str"`) that cannot be tagged by
+ * `markExtensionThrow`'s `WeakSet`.
+ *
+ * Returns the invalid value rather than throwing: like `ctx.invalidate`,
+ * the invalid RillValue flows onward as an ordinary call result. Nothing
+ * halts until a later access site reads it (the access-halt gate) or a
+ * status probe / `guard` inspects it, so a `guard`-wrapped call that
+ * hits this path resolves normally with the invalid value rather than
+ * unwinding via a thrown signal.
+ *
+ * Emits the `R999` atom with `provider="extension"` and a single
+ * `host`-kind trace frame. `Error` instances carry a sanitized
+ * `raw.message`; every other thrown value carries `raw.original =
+ * String(thrown)`.
+ *
+ * The single call-site builder shared by every extension-boundary
+ * reshape site so the `#R999` invalid-value shape (atom, provider, trace
+ * frame) is defined once.
+ *
+ * `kind` selects the trace-frame kind; defaults to `"host"` because every
+ * current call site sits at a genuine extension-dispatch boundary (a
+ * native host function or built-in type/fallback method throwing
+ * synchronously or rejecting).
+ *
+ * @param site    Site descriptor (location, sourceId, fn).
+ * @param thrown  The value caught at the dispatch boundary.
+ * @param kind    Trace-frame kind; defaults to `"host"`.
+ */
+export function makeUnhandledHostThrowInvalid(
+  site: TypeHaltSite,
+  thrown: unknown,
+  kind: TraceKind = TRACE_KINDS.HOST
+): RillValue {
+  const raw =
+    thrown instanceof Error
+      ? { message: sanitizeThrowMessage(thrown.message) }
+      : { original: String(thrown) };
+  const frame = createTraceFrame({
+    site: formatSite(site.location, site.sourceId),
+    kind,
+    fn: site.fn,
+  });
+  return invalidate(
+    {},
+    {
+      code: 'R999',
+      provider: 'extension',
+      raw,
+    },
+    frame
+  );
+}
+
+// ============================================================
+// BREAK-REJECTION HELPER
+// ============================================================
+
+/**
+ * Converts an escaped `BreakSignal` into a coded, non-catchable fatal
+ * halt; otherwise returns normally so the caller re-throws `e` unchanged.
+ *
+ * `break` is control-flow syntax meaningful only inside constructs that
+ * consume it (`seq`, `acc`, `while`, `for`). When a `BreakSignal` reaches
+ * a reject site that does not consume break — a parallel body (`fan`,
+ * `filter`, `sort`), a predicate closure, or the top-level statement
+ * stepper — it is the script's own control-flow misuse, a programmer
+ * error rather than an operational failure `guard` / `retry` should be
+ * able to swallow. The halt is therefore built via
+ * `throwFatalHostHalt`, which is non-catchable: control-flow signals
+ * remain a separate hierarchy from catchable halts, so recovery blocks
+ * never absorb a misplaced `break`.
+ *
+ * Callers wrap a body-closure invocation in try/catch and call this
+ * helper first in the catch clause; any error that is not a
+ * `BreakSignal` falls through for the caller to re-throw as-is.
+ *
+ * @param e     The value caught at a reject site.
+ * @param site  Site descriptor; `site.fn` names the construct in the
+ *              halt message (e.g. `"fan"`, `"filter"`).
+ * @throws RuntimeHaltSignal (fatal, non-catchable) when `e instanceof BreakSignal`.
+ */
+export function rejectBreakAsHalt(e: unknown, site: TypeHaltSite): void {
+  if (e instanceof BreakSignal) {
+    throwFatalHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `break not supported in ${site.fn}`
+    );
+  }
 }

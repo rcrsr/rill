@@ -10,7 +10,6 @@ import type {
   MethodCallNode,
   InvokeNode,
   PipeInvokeNode,
-  VariableNode,
   SourceLocation,
   SourceSpan,
   ExpressionNode,
@@ -31,6 +30,7 @@ import {
   isApplicationCallable,
   isDict,
   marshalArgs,
+  validateHostResult,
 } from '../../callable.js';
 import { getVariable, UNVALIDATED_METHOD_PARAMS } from '../../context.js';
 import { markExtensionThrow } from '../../extension-throw.js';
@@ -42,7 +42,7 @@ import type {
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTypeValue, isStream } from '../../types/guards.js';
+import { isTypeValue, isStream, isOrdered } from '../../types/guards.js';
 import {
   paramToFieldDef,
   inferStructure,
@@ -50,7 +50,7 @@ import {
   formatStructure,
 } from '../../types/operations.js';
 import { anyTypeValue, structureToTypeValue } from '../../values.js';
-import { YieldSignal } from '../../signals.js';
+import { ControlSignal, YieldSignal } from '../../signals.js';
 import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
 import {
@@ -69,6 +69,7 @@ import {
   throwTypeHalt,
   throwCatchableHostHalt,
   throwFatalHostHalt,
+  makeUnhandledHostThrowInvalid,
   RuntimeHaltSignal,
 } from '../../types/halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
@@ -318,104 +319,137 @@ export async function invokeCallable(
 ): Promise<RillValue> {
   checkAborted(s);
 
-  if (internal === true) {
-    const internalResult = await dispatchByKind(
-      s,
-      callable,
-      args,
-      callLocation,
-      functionName
-    );
-    if (isStream(internalResult)) {
-      trackStream(s, internalResult as RillStream);
-    }
-    return internalResult;
-  }
+  s.ctx.callDepth.value++;
 
-  // `functionName` carries the resolved path and is passed for diagnostics
-  // only. The resolver keys on the callable's own identity — see
-  // core/policy/identity.ts.
-  const filter =
-    getFilterResolver(s.ctx)?.(callable, functionName, s.ctx) ?? null;
-
-  const haltSite = {
-    location: callLocation,
-    sourceId: s.ctx.sourceId,
-    fn: 'invokeCallable',
-  };
-
-  let effectiveArgs = args;
-  if (filter !== null) {
-    if (filter.access === 'deny') {
-      const path = functionName ?? 'callable';
-      throwCatchableHostHalt(
-        haltSite,
-        ERROR_ATOMS[ERROR_IDS.RILL_R086],
-        `Call to ${path} denied by policy`,
-        { path }
+  try {
+    if (s.ctx.callDepth.value > s.ctx.maxCallDepth) {
+      throwFatalHostHalt(
+        {
+          location: callLocation,
+          sourceId: s.ctx.sourceId,
+          fn: 'invokeCallable',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R010],
+        `Call depth exceeded ${s.ctx.maxCallDepth}`,
+        { limit: s.ctx.maxCallDepth, depth: s.ctx.callDepth.value }
       );
     }
 
-    // in() rewrites the pipe value, which arrives as args[0]. A call with
-    // no arguments carries no pipe value, so there is nothing to rewrite;
-    // synthesizing one would change the call's arity.
-    if (filter.inTransforms.length > 0 && args.length > 0) {
-      const piped = await applyTransforms(
-        filter.inTransforms,
-        args[0] as RillValue,
+    // Yield one microtask so every call level resumes on a fresh native
+    // stack. A recursion path with no suspension point between levels (a
+    // dict-bound property closure re-reading its own field, for one) would
+    // otherwise grow the JS stack in lockstep with call depth and overflow
+    // with a raw RangeError before the depth ceiling above can fire.
+    await Promise.resolve();
+
+    if (internal === true) {
+      const internalResult = await dispatchByKind(
+        s,
+        callable,
+        args,
+        callLocation,
+        functionName
+      );
+      if (isStream(internalResult)) {
+        trackStream(s, internalResult as RillStream);
+      }
+      return internalResult;
+    }
+
+    // `functionName` carries the resolved path and is passed for diagnostics
+    // only. The resolver keys on the callable's own identity — see
+    // core/policy/identity.ts.
+    const filter =
+      getFilterResolver(s.ctx)?.(callable, functionName, s.ctx) ?? null;
+
+    const haltSite = {
+      location: callLocation,
+      sourceId: s.ctx.sourceId,
+      fn: 'invokeCallable',
+    };
+
+    let effectiveArgs = args;
+    if (filter !== null) {
+      if (filter.access === 'deny') {
+        const path = functionName ?? 'callable';
+        throwCatchableHostHalt(
+          haltSite,
+          ERROR_ATOMS[ERROR_IDS.RILL_R088],
+          `Call to ${path} denied by policy`,
+          { path }
+        );
+      }
+
+      // in() rewrites the pipe value, which arrives as args[0]. A call with
+      // no arguments carries no pipe value, so there is nothing to rewrite;
+      // synthesizing one would change the call's arity.
+      if (filter.inTransforms.length > 0 && args.length > 0) {
+        const piped = await applyTransforms(
+          filter.inTransforms,
+          args[0] as RillValue,
+          (transform, value) =>
+            invokeCallable(
+              s,
+              transform,
+              [value],
+              callLocation,
+              undefined,
+              true
+            ),
+          getInFlightTransforms(s.ctx),
+          haltSite
+        );
+        effectiveArgs = [piped, ...args.slice(1)];
+      }
+    }
+
+    let result: RillValue;
+    if (callLocation) {
+      // Route through invocationStrategy.invoke — single frame-enrichment site.
+      // BoundArguments.params (arguments-binder.ts) is out of scope for the
+      // (RillValue | undefined)[] threading; the cast lands at this boundary.
+      const bound: BoundArguments = {
+        params: new Map(
+          (effectiveArgs as RillValue[]).map((v, i) => [String(i), v])
+        ),
+      };
+      result = await getInvocationStrategy(s).invoke(
+        callable,
+        bound,
+        callLocation,
+        functionName
+      );
+    } else {
+      // No call-site location: dispatch directly without a frame.
+      result = await dispatchByKind(
+        s,
+        callable,
+        effectiveArgs,
+        callLocation,
+        functionName
+      );
+    }
+
+    // out() runs before trackStream so the tracked value is the transformed
+    // one, not the raw return the transform was meant to replace.
+    if (filter !== null && filter.outTransforms.length > 0) {
+      result = await applyTransforms(
+        filter.outTransforms,
+        result,
         (transform, value) =>
           invokeCallable(s, transform, [value], callLocation, undefined, true),
         getInFlightTransforms(s.ctx),
         haltSite
       );
-      effectiveArgs = [piped, ...args.slice(1)];
     }
-  }
 
-  let result: RillValue;
-  if (callLocation) {
-    // Route through invocationStrategy.invoke — single frame-enrichment site.
-    // BoundArguments.params (arguments-binder.ts) is out of scope for the
-    // (RillValue | undefined)[] threading; the cast lands at this boundary.
-    const bound: BoundArguments = {
-      params: new Map(
-        (effectiveArgs as RillValue[]).map((v, i) => [String(i), v])
-      ),
-    };
-    result = await getInvocationStrategy(s).invoke(
-      callable,
-      bound,
-      callLocation,
-      functionName
-    );
-  } else {
-    // No call-site location: dispatch directly without a frame.
-    result = await dispatchByKind(
-      s,
-      callable,
-      effectiveArgs,
-      callLocation,
-      functionName
-    );
+    if (isStream(result)) {
+      trackStream(s, result as RillStream);
+    }
+    return result;
+  } finally {
+    s.ctx.callDepth.value--;
   }
-
-  // out() runs before trackStream so the tracked value is the transformed
-  // one, not the raw return the transform was meant to replace.
-  if (filter !== null && filter.outTransforms.length > 0) {
-    result = await applyTransforms(
-      filter.outTransforms,
-      result,
-      (transform, value) =>
-        invokeCallable(s, transform, [value], callLocation, undefined, true),
-      getInFlightTransforms(s.ctx),
-      haltSite
-    );
-  }
-
-  if (isStream(result)) {
-    trackStream(s, result as RillStream);
-  }
-  return result;
 }
 
 /** Invoke runtime or application callable (native function). */
@@ -455,49 +489,106 @@ async function invokeFnCallable(
     fnArgs = effectiveArgs as unknown as Record<string, RillValue>;
   }
 
-  const raw = callable.fn(fnArgs, s.ctx, callLocation);
-  const dispatchPromise = raw instanceof Promise ? raw : Promise.resolve(raw);
-  s.ctx.trackInflight(dispatchPromise);
+  let result: RillValue;
   try {
-    return await dispatchPromise;
+    // Sync host-fn throws and rejected dispatch promises must reach the same
+    // catch: the raw builder call, the Promise wrapping, and the inflight
+    // tracking all live inside this try so a synchronous host throw enters
+    // the same enrichment/reshape path as an async rejection.
+    const raw = callable.fn(fnArgs, s.ctx, callLocation);
+    const dispatchPromise = raw instanceof Promise ? raw : Promise.resolve(raw);
+    s.ctx.trackInflight(dispatchPromise);
+    result = await dispatchPromise;
+    validateHostResult(result, functionName, callLocation);
   } catch (e) {
     // Enrichment site 1: extension-dispatch boundary.
-    // Tag every thrown value as extension-originated first, then enrich
-    // either RuntimeHaltSignal payloads or unmigrated RuntimeError sites
-    // with call-site metadata.
-    markExtensionThrow(e);
-    if (e instanceof RuntimeHaltSignal) {
-      const enriched = appendTraceFrame(
-        e.value,
-        createTraceFrame({
-          site: formatCallSite(callLocation, s.ctx.sourceId),
-          kind: TRACE_KINDS.HOST,
-          fn: functionName,
-        })
-      );
-      const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
-      markExtensionThrow(newSignal);
-      throw newSignal;
-    }
-    if (e instanceof RuntimeError && !e.location && callLocation) {
-      // Extensions that throw RuntimeError without a location lose call-site
-      // attribution at the host boundary. Rewrap with the call-site span so
-      // host-visible error metadata stays consistent across migrated and
-      // unmigrated throw sites.
-      const span: SourceSpan = { start: callLocation, end: callLocation };
-      const enriched = new RuntimeError(
-        e.errorId,
-        e.toData().message,
-        callLocation,
-        e.context ? { ...e.context } : undefined,
-        span,
-        e.sourceId
-      );
-      markExtensionThrow(enriched);
-      throw enriched;
-    }
+    return reshapeHostThrow(e, callLocation, s.ctx.sourceId, functionName);
+  }
+
+  return result;
+}
+
+/**
+ * Reshape a throw from a native function dispatch host boundary into the
+ * shared `#R999` invalid value, or re-throw per the host-boundary contract.
+ * Tags every thrown value as extension-originated first, then either
+ * enriches a `RuntimeHaltSignal` or an unmigrated location-less
+ * `RuntimeError` with call-site metadata, lets every other `RillError` and
+ * every `ControlSignal` propagate unconverted, and materializes anything
+ * else (a raw `Error`, a non-object throw) as a `#R999` invalid so it never
+ * escapes `execute()` raw. A stream's `resolve()` throw is not passed
+ * through this function; it propagates unreshaped from `invokeStream`.
+ */
+function reshapeHostThrow(
+  e: unknown,
+  callLocation: SourceLocation | undefined,
+  sourceId: string | undefined,
+  functionName: string
+): RillValue {
+  markExtensionThrow(e);
+
+  // Control-flow signals (break/return/yield) are not halts; re-throw
+  // uniformly via the ControlSignal base class so every subclass —
+  // including future ones — passes through unconverted.
+  if (e instanceof ControlSignal) {
     throw e;
   }
+
+  if (e instanceof RuntimeHaltSignal) {
+    // Genuine host-fn dispatch boundary: `callable.fn` is the native
+    // function object registered by the host/extension, so `host` is the
+    // correct origin kind here.
+    const enriched = appendTraceFrame(
+      e.value,
+      createTraceFrame({
+        site: formatCallSite(callLocation, sourceId),
+        kind: TRACE_KINDS.HOST,
+        fn: functionName,
+      })
+    );
+    const newSignal = new RuntimeHaltSignal(enriched, e.catchable);
+    markExtensionThrow(newSignal);
+    throw newSignal;
+  }
+  if (e instanceof RuntimeError && !e.location && callLocation) {
+    // Extensions that throw RuntimeError without a location lose call-site
+    // attribution at the host boundary. Rewrap with the call-site span so
+    // host-visible error metadata stays consistent across migrated and
+    // unmigrated throw sites.
+    const span: SourceSpan = { start: callLocation, end: callLocation };
+    const enriched = new RuntimeError(
+      e.errorId,
+      e.toData().message,
+      callLocation,
+      e.context ? { ...e.context } : undefined,
+      span,
+      e.sourceId
+    );
+    markExtensionThrow(enriched);
+    throw enriched;
+  }
+
+  // Any other RillError (a RuntimeError that already carries a location,
+  // TimeoutError, ParseError, LexerError) carries its own halt contract;
+  // propagate unchanged.
+  if (e instanceof RillError) {
+    throw e;
+  }
+
+  // Everything else — a non-RillError `Error` thrown synchronously or via
+  // a rejected dispatch promise, or a non-object throw (`throw null`,
+  // `throw "str"`) that `markExtensionThrow`'s WeakSet cannot tag —
+  // materializes here as a `#R999` invalid value instead of escaping
+  // raw. Returned (not thrown) so the call resolves normally, matching
+  // the reshape-by-value contract at the script's top-level boundary.
+  return makeUnhandledHostThrowInvalid(
+    {
+      location: callLocation,
+      sourceId,
+      fn: functionName,
+    },
+    e
+  );
 }
 
 /** Create closure execution context with defining scope as parent. */
@@ -602,6 +693,7 @@ async function invokeRegularScriptCallable(
   if (
     params.length === 1 &&
     args.length === 1 &&
+    args[0] !== undefined &&
     params[0]!.type === undefined
   ) {
     const only = params[0]!;
@@ -649,14 +741,19 @@ async function invokeRegularScriptCallable(
   } catch (e) {
     // Enrichment site 2: script-callable boundary.
     // Tag every thrown value as extension-originated first, then enrich
-    // RuntimeHaltSignal payloads with a host-kind trace frame.
+    // RuntimeHaltSignal payloads with a trace frame recording this call
+    // boundary. `evaluateBodyExpression` here runs a script-authored
+    // closure body, not a host/extension function, so the origin is
+    // `access` (the existing kind used elsewhere for propagating a halt
+    // across a non-host runtime boundary, e.g. `protocols/shared.ts`'s
+    // `haltOnNestedInvalid`) rather than `host`.
     markExtensionThrow(e);
     if (e instanceof RuntimeHaltSignal) {
       const enriched = appendTraceFrame(
         e.value,
         createTraceFrame({
           site: formatCallSite(callLocation, callableCtx.sourceId),
-          kind: TRACE_KINDS.HOST,
+          kind: TRACE_KINDS.ACCESS,
           fn: 'invokeRegularScriptCallable',
         })
       );
@@ -689,7 +786,8 @@ async function invokeRegularScriptCallable(
 /** Drain stream and return its resolution value. */
 async function invokeStream(
   s: EvalState,
-  stream: RillStream
+  stream: RillStream,
+  callLocation?: SourceLocation
 ): Promise<RillValue> {
   const resolveFn = (
     stream as unknown as Record<string, (() => Promise<RillValue>) | undefined>
@@ -735,7 +833,16 @@ async function invokeStream(
       throw err;
     }
   }
-  return resolveFn();
+
+  // A throw from `resolve()` itself is NOT reshaped here: it propagates as
+  // a raw rejection exactly as before this validation was added (locked
+  // by the streams language spec). Only the RESOLVED VALUE is validated
+  // below — a resolve() that returns raw null/undefined/a
+  // non-representable value must halt (RILL-R085) rather than leak into
+  // `$s()`/`.len`.
+  const resolution = await resolveFn();
+  validateHostResult(resolution, 'stream.resolve', callLocation);
+  return resolution;
 }
 
 /** Evaluate host function call: functionName(args).
@@ -994,7 +1101,7 @@ export async function evaluateClosureCallWithPipe(
   }
 
   if (isStream(value)) {
-    return invokeStream(s, value as RillStream);
+    return invokeStream(s, value as RillStream, getNodeLocation(s, node));
   }
   if (!isCallable(value)) {
     throwCatchableHostHalt(
@@ -1046,61 +1153,6 @@ function declaresZeroParams(value: RillCallable): boolean {
     (isApplicationCallable(value) &&
       (value.params === undefined || value.params.length === 0))
   );
-}
-
-/** Evaluate $.field as property access on the pipe value. */
-export async function evaluatePipePropertyAccess(
-  s: EvalState,
-  node: VariableNode,
-  pipeInput: RillValue
-): Promise<RillValue> {
-  let value = pipeInput;
-
-  for (const access of node.accessChain) {
-    if (value === null) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluatePipePropertyAccess',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        'Cannot access property on null'
-      );
-    }
-
-    if ('accessKind' in access) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluatePipePropertyAccess',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        'Bracket access not supported in this context'
-      );
-    }
-
-    if (access.kind === 'literal') {
-      const field = access.field;
-      value = await accessDictField(s, value, field, getNodeLocation(s, node));
-    } else {
-      throwFatalHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluatePipePropertyAccess',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Field access kind '${(access as { kind: string }).kind}' not supported in this context`
-      );
-    }
-  }
-
-  if (value === null && node.defaultValue) {
-    value = await evaluateBodyExpression(s, node.defaultValue);
-  }
-  return value;
 }
 
 /** Evaluate pipe invoke: value -> (args). */
@@ -1196,7 +1248,9 @@ export async function evaluateMethod(
       const result = typeMethod.fn(methodArgs, s.ctx, callLocation);
       return result instanceof Promise ? await result : result;
     } catch (e) {
-      // Enrichment site 3: type-method boundary.
+      // Enrichment site 3: type-method boundary. `typeMethod.fn` is a
+      // built-in type method (host-registered `RillFunction`), so `host`
+      // is the correct origin kind here.
       if (e instanceof RuntimeHaltSignal) {
         const enriched = appendTraceFrame(
           e.value,
@@ -1243,6 +1297,7 @@ export async function evaluateMethod(
   if (
     isDict(receiver) &&
     args.length === 0 &&
+    !node.hasParens &&
     Object.hasOwn(receiver, node.name)
   ) {
     return receiver[node.name] as RillValue;
@@ -1301,7 +1356,11 @@ export async function evaluateMethod(
           );
           return result instanceof Promise ? await result : result;
         } catch (e) {
-          // Enrichment site 4: fallback-method boundary.
+          // Enrichment site 4: fallback-method boundary. `fallbackMethod.fn`
+          // is a built-in fallback method (host-registered
+          // `RillFunction`), so `host` is the correct origin kind here —
+          // same category as the type-method boundary above, not the
+          // script-callable boundary in `invokeRegularScriptCallable`.
           const callLocation = getNodeLocation(s, node);
           if (e instanceof RuntimeHaltSignal) {
             const enriched = appendTraceFrame(
@@ -1318,6 +1377,22 @@ export async function evaluateMethod(
         }
       }
     }
+  }
+  if (
+    isDict(receiver) &&
+    !isOrdered(receiver) &&
+    !Object.hasOwn(receiver, node.name)
+  ) {
+    // A dict receiver with no field of this name at all (not merely a
+    // non-callable one) routes through the same dict-field-access halt
+    // used by `$d.bogus` (accessDictField), so a literal-chain access
+    // (`dict[a: 1].bogus`) and a variable access (`$d.bogus`) both halt
+    // RILL_R009 instead of this generic unknown-method RILL_R007. A field
+    // that DOES exist but is non-callable and was invoked with parens
+    // (`$d.a(1)` where `a` is a plain number) still falls through to the
+    // generic RILL_R007 below — that is a method-call shape error, not a
+    // missing-field error. Non-dict receivers fall through unchanged too.
+    return accessDictField(s, receiver, node.name, getNodeLocation(s, node));
   }
   throwCatchableHostHalt(
     {
@@ -1338,7 +1413,7 @@ async function evaluateInvoke(
   receiver: RillValue
 ): Promise<RillValue> {
   if (isStream(receiver)) {
-    return invokeStream(s, receiver as RillStream);
+    return invokeStream(s, receiver as RillStream, getNodeLocation(s, node));
   }
   if (!isCallable(receiver)) {
     throwCatchableHostHalt(
@@ -1447,7 +1522,7 @@ export async function evaluateAnnotationAccess(
   }
 
   if (key === 'description') {
-    return value.annotations['description'] ?? {};
+    return value.annotations['description'] ?? '';
   }
   if (key === 'input') {
     if (value.params === undefined) {

@@ -11,8 +11,17 @@ import type {
   LiteralNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { check, advance, expect, current, makeSpan, peek } from './state.js';
+import {
+  check,
+  advance,
+  expect,
+  current,
+  previous,
+  makeSpan,
+  peek,
+} from './state.js';
 import { parseTypeRef } from './parser-types.js';
+import { expectVariableName } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
@@ -40,9 +49,8 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     // Variable form: $varName
     advance(this.state); // consume $
-    const nameToken = expect(
+    const nameToken = expectVariableName(
       this.state,
-      TOKEN_TYPES.IDENTIFIER,
       'Expected variable name after $'
     );
     identifier = { kind: 'variable', name: nameToken.value };
@@ -187,6 +195,6 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
     identifier,
     typeRef,
     closureAnnotation,
-    span: makeSpan(start, current(this.state).span.end),
+    span: makeSpan(start, previous(this.state).span.end),
   };
 };

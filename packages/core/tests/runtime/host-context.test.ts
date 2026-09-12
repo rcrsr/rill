@@ -136,7 +136,7 @@ describe('Rill Runtime: hostContext', () => {
             ],
             fn: (_args, ctx) => {
               seen = (ctx as RuntimeContext).hostContext;
-              return null;
+              return '';
             },
           },
         },
@@ -168,7 +168,7 @@ true ? ("b" -> capture)`;
             ],
             fn: (_args, ctx) => {
               refs.push((ctx as RuntimeContext).hostContext);
-              return null;
+              return '';
             },
           },
         },

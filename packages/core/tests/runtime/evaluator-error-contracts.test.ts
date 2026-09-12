@@ -18,7 +18,7 @@
 import { describe, expect, it } from 'vitest';
 import { RuntimeError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Evaluator Base Class', () => {
   describe('RuntimeError from base class methods (EC-1)', () => {
@@ -115,26 +115,31 @@ describe('Rill Runtime: Evaluator Base Class', () => {
   });
 
   describe('TimeoutError for async operations (EC-3)', () => {
-    // Bug #270: a timeout is now a catchable RuntimeHaltSignal, so its
-    // diagnostic lives on the halt's status message rather than on a
-    // TimeoutError instance.
+    // Bug #270: a timeout is a catchable halt whose atom (RILL_R012) is
+    // registered and mapped to a host-facing error ID, so an unguarded
+    // timeout escapes run() as a RuntimeError coded RILL-R012.
     it('halts with a catchable timeout halt when async function exceeds timeout', async () => {
-      await expectHaltMessage(
-        () =>
-          run('slowFunc()', {
-            timeout: 10,
-            functions: {
-              slowFunc: {
-                params: [],
-                fn: async () => {
-                  await new Promise((r) => setTimeout(r, 100));
-                  return 'done';
-                },
+      let caught: unknown;
+      try {
+        await run('slowFunc()', {
+          timeout: 10,
+          functions: {
+            slowFunc: {
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 100));
+                return 'done';
               },
             },
-          }),
-        /timed out/
-      );
+          },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
+      expect((caught as RuntimeError).message).toMatch(/timed out/);
     });
 
     it('completes successfully when async function within timeout', async () => {
@@ -156,8 +161,6 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     it('timeout halt carries function name in its status payload', async () => {
       const { getStatus } =
         await import('../../src/runtime/core/types/status.js');
-      const { RuntimeHaltSignal } =
-        await import('../../src/runtime/core/eval/handlers/access.js');
       let caught: unknown;
       try {
         await run('mySlowFunc()', {
@@ -176,43 +179,48 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       } catch (err) {
         caught = err;
       }
-      expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-      const status = getStatus(
-        (caught as InstanceType<typeof RuntimeHaltSignal>).value
-      );
+      expect(caught).toBeInstanceOf(RuntimeError);
+      const runtimeErr = caught as RuntimeError;
+      expect(runtimeErr.errorId).toBe('RILL-R012');
+      const status = getStatus(runtimeErr.haltValue!);
       const raw = status.raw as Record<string, unknown>;
       expect(raw.functionName).toBe('mySlowFunc');
       expect(status.message).toContain('timed out');
     });
 
     it('halts with a catchable timeout halt in nested async calls', async () => {
-      await expectHaltMessage(
-        () =>
-          run('outer()', {
-            timeout: 10,
-            functions: {
-              outer: {
-                params: [],
-                fn: async (args, ctx) => {
-                  // Call another async function that will timeout
-                  const innerFn = ctx.functions.get('inner');
-                  if (innerFn && 'fn' in innerFn) {
-                    return await innerFn.fn([], ctx);
-                  }
-                  return 'no-inner';
-                },
-              },
-              inner: {
-                params: [],
-                fn: async () => {
-                  await new Promise((r) => setTimeout(r, 100));
-                  return 'done';
-                },
+      let caught: unknown;
+      try {
+        await run('outer()', {
+          timeout: 10,
+          functions: {
+            outer: {
+              params: [],
+              fn: async (args, ctx) => {
+                // Call another async function that will timeout
+                const innerFn = ctx.functions.get('inner');
+                if (innerFn && 'fn' in innerFn) {
+                  return await innerFn.fn([], ctx);
+                }
+                return 'no-inner';
               },
             },
-          }),
-        /timed out/
-      );
+            inner: {
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 100));
+                return 'done';
+              },
+            },
+          },
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
+      expect((caught as RuntimeError).message).toMatch(/timed out/);
     });
 
     it('timeout applies per function call, not total execution', async () => {
@@ -448,6 +456,54 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         const status = getStatus(signal.value);
         expect(status.trace.length).toBeGreaterThan(0);
         expect(status.trace[0]?.site.length).toBeGreaterThan(0);
+      });
+
+      it('tuple ordering compare halt carries a real origin site for length mismatch', async () => {
+        const { RuntimeHaltSignal } =
+          await import('../../src/runtime/core/eval/handlers/access.js');
+        const { getStatus } =
+          await import('../../src/runtime/core/types/status.js');
+        const { resolveAtom } =
+          await import('../../src/runtime/core/types/atom-registry.js');
+        let caught: unknown;
+        try {
+          await run('tuple[1] < tuple[1, 2]');
+        } catch (e) {
+          caught = e;
+        }
+        expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+        const signal = caught as InstanceType<typeof RuntimeHaltSignal>;
+        const status = getStatus(signal.value);
+        expect(status.code).toBe(resolveAtom('TYPE_MISMATCH'));
+        expect(status.trace[0]?.site).toMatch(/:\d+:\d+$/);
+        expect(status.trace[0]?.site).not.toBe('<unknown>');
+        expect(signal.location).toBeDefined();
+        expect(signal.location?.line).toEqual(expect.any(Number));
+        expect(signal.location?.column).toEqual(expect.any(Number));
+      });
+
+      it('tuple ordering compare halt carries a real origin site for slot-incompatible types', async () => {
+        const { RuntimeHaltSignal } =
+          await import('../../src/runtime/core/eval/handlers/access.js');
+        const { getStatus } =
+          await import('../../src/runtime/core/types/status.js');
+        const { resolveAtom } =
+          await import('../../src/runtime/core/types/atom-registry.js');
+        let caught: unknown;
+        try {
+          await run('tuple[1] < tuple["a"]');
+        } catch (e) {
+          caught = e;
+        }
+        expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+        const signal = caught as InstanceType<typeof RuntimeHaltSignal>;
+        const status = getStatus(signal.value);
+        expect(status.code).toBe(resolveAtom('TYPE_MISMATCH'));
+        expect(status.trace[0]?.site).toMatch(/:\d+:\d+$/);
+        expect(status.trace[0]?.site).not.toBe('<unknown>');
+        expect(signal.location).toBeDefined();
+        expect(signal.location?.line).toEqual(expect.any(Number));
+        expect(signal.location?.column).toEqual(expect.any(Number));
       });
 
       it('type assertion failure with list expected, got dict', async () => {
@@ -1002,6 +1058,18 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           expect(runtimeErr.errorId).toBe('RILL-R002');
         }
       });
+
+      it('names the received type when destructuring a tuple with a list pattern', async () => {
+        try {
+          await run('tuple[1, 2] -> destruct<$a, $b, $c>');
+          expect.fail('Should have thrown');
+        } catch (err) {
+          expect(err).toBeInstanceOf(RuntimeError);
+          const runtimeErr = err as RuntimeError;
+          expect(runtimeErr.errorId).toBe('RILL-R002');
+          expect(runtimeErr.message).toContain('requires list, got tuple');
+        }
+      });
     });
 
     describe('EC-13: Slice on wrong type', () => {
@@ -1038,6 +1106,20 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           const runtimeErr = err as RuntimeError;
           expect(runtimeErr.errorId).toBe('RILL-R002');
           expect(runtimeErr.message).toContain('dict');
+        }
+      });
+
+      it('names the received type when slicing a tuple', async () => {
+        try {
+          await run('tuple[1, 2, 3] -> slice<0:2>');
+          expect.fail('Should have thrown');
+        } catch (err) {
+          expect(err).toBeInstanceOf(RuntimeError);
+          const runtimeErr = err as RuntimeError;
+          expect(runtimeErr.errorId).toBe('RILL-R002');
+          expect(runtimeErr.message).toContain(
+            'Slice requires list or string, got tuple'
+          );
         }
       });
 
@@ -1226,7 +1308,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
 
       it('propagates error from multiple dict entries (first value fails)', async () => {
         try {
-          await run('dict[first: $undefined, second: 42]');
+          await run('dict[alpha: $undefined, beta: 42]');
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toBeInstanceOf(RuntimeError);

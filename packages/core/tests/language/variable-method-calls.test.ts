@@ -59,6 +59,28 @@ $l1 == $l2`;
     });
   });
 
+  describe('field access vs. method call on dict fields', () => {
+    it('returns the field for a bare field reference', async () => {
+      expect(await run('dict[a: 1] => $d\n$d.a')).toBe(1);
+    });
+
+    it('halts with unknown-method when a non-callable field is called with empty parens', async () => {
+      await expect(run('dict[a: 1] => $d\n$d.a()')).rejects.toThrow(
+        /Unknown method: a on type dict/
+      );
+    });
+
+    it('halts with unknown-method when a non-callable field is called with args', async () => {
+      await expect(run('dict[a: 1] => $d\n$d.a(1)')).rejects.toThrow(
+        /Unknown method: a on type dict/
+      );
+    });
+
+    it('still invokes a callable field with parens', async () => {
+      expect(await run('dict[f: |x|($x)] => $d\n$d.f(2)')).toBe(2);
+    });
+  });
+
   describe('consistency with pipe syntax', () => {
     it('$v.method equals $v -> .method', async () => {
       expect(await run('"hello" => $v\n$v.len')).toBe(

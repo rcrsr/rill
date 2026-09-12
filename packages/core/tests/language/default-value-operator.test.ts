@@ -4,8 +4,17 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isInvalid } from '@rcrsr/rill';
+import { isInvalid, isTuple, toCallable } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+
+function isOrdered(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_ordered' in value &&
+    (value as Record<string, unknown>).__rill_ordered === true
+  );
+}
 
 describe('Default Value Operator (??)', () => {
   describe('Variable Access Chains', () => {
@@ -311,8 +320,11 @@ describe('Default Value Operator (??)', () => {
           a: {
             params: [],
             fn: () => ({
-              b: () => ({
-                c: () => ({}), // d missing
+              b: toCallable({
+                params: [],
+                fn: () => ({
+                  c: toCallable({ params: [], fn: () => ({}) }), // d missing
+                }),
               }),
             }),
           },
@@ -387,6 +399,42 @@ describe('Default Value Operator (??)', () => {
         dict[a: dict[b: 5]] -> .a.missing ?? "x"
       `);
       expect(result).toBe('x');
+    });
+
+    it('returns fallback for an empty string reached via -> .field (pipe target)', async () => {
+      const result = await run(`
+        dict[a: ""] -> .a ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
+
+    it('returns fallback for an empty string reached via -> .method (pipe target)', async () => {
+      const result = await run(`
+        "" -> .upper ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
+
+    it('returns fallback for a bare empty string as the pipe target', async () => {
+      const result = await run(`
+        ("") ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
+
+    it('returns fallback for a bare empty list as the pipe target', async () => {
+      const result = await run(`
+        (list[]) ?? "d"
+      `);
+      expect(result).toBe('d');
+    });
+
+    it('returns fallback for an empty string reached via a variable path', async () => {
+      const result = await run(`
+        dict[a: ""] => $d
+        $d.a ?? "d"
+      `);
+      expect(result).toBe('d');
     });
   });
 
@@ -471,6 +519,96 @@ describe('Default Value Operator (??)', () => {
         $x.? ?? "fallback"
       `);
       expect(result).toBe('hello');
+    });
+  });
+
+  describe('Intermediate access-chain steps do not short-circuit on empty', () => {
+    it('evaluates .empty on an empty list variable instead of defaulting early', async () => {
+      const result = await run(`
+        list[] => $l
+        $l.empty ?? false
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('evaluates .empty on an empty dict variable instead of defaulting early', async () => {
+      const result = await run(`
+        dict[] => $d
+        $d.empty ?? false
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('evaluates .empty on an empty list nested behind an intermediate field', async () => {
+      const result = await run(`
+        dict[a: list[]] => $d
+        $d.a.empty ?? false
+      `);
+      expect(result).toBe(true);
+    });
+
+    it('evaluates .empty when the empty list is the pipe target itself', async () => {
+      const result = await run('list[] -> .empty ?? false');
+      expect(result).toBe(true);
+    });
+
+    it('still applies the default when the final step resolves to a genuinely vacant value', async () => {
+      const result = await run(`
+        dict[a: dict[]] => $d
+        $d.a.missing ?? "fallback"
+      `);
+      expect(result).toBe('fallback');
+    });
+  });
+
+  // ============================================================
+  // ?? accepts any expression on its right-hand side, so the
+  // literal forms newly accepted in restricted default-value
+  // positions (closure param and structural type field defaults)
+  // already worked here. These are regression guards confirming
+  // that behavior is unchanged.
+  // ============================================================
+
+  describe('Additional literal forms on the right-hand side', () => {
+    it('negative number default', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        $data.b ?? -7
+      `);
+      expect(result).toBe(-7);
+    });
+
+    it('atom literal default', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        ($data.b ?? #TIMEOUT) -> string
+      `);
+      expect(result).toBe('TIMEOUT');
+    });
+
+    it('keyword tuple literal default', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        $data.b ?? tuple[1, "a"]
+      `);
+      expect(isTuple(result)).toBe(true);
+    });
+
+    it('keyword ordered literal default', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        $data.b ?? ordered[x: 1]
+      `);
+      expect(isOrdered(result)).toBe(true);
+    });
+
+    it('an arbitrary expression still works on the right-hand side (?? is not literal-restricted)', async () => {
+      const result = await run(`
+        dict[a: 1] => $data
+        1 => $x
+        $data.b ?? ($x + 1)
+      `);
+      expect(result).toBe(2);
     });
   });
 });

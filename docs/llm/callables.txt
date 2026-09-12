@@ -132,7 +132,7 @@ Type-aware (key matched by value AND type):
 
 Pipe a list of keys/indexes:
 
-    list["name", "first"] -> dict[name: dict[first: "Alice"]]  # "Alice"
+    list["name", "given"] -> dict[name: dict[given: "Alice"]]  # "Alice"
     list[0, 1] -> list[list[1,2,3], list[4,5,6]]               # 2
     list[] -> dict[a: 1]                                       # dict[a: 1] (empty path = unchanged)
     list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"   # "default"

@@ -11,6 +11,7 @@
 // here has no consumer-visible meaning.
 import './atom-unregistered.js';
 import './avoid-reassignment.js';
+import './bare-callable-body.js';
 import './break-in-parallel.js';
 import './capture-before-branch.js';
 import './capture-inline-chain.js';

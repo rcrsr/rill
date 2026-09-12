@@ -94,6 +94,8 @@ All copies are deep. All comparisons are by value. No object identity.
 
 CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.
 
+Unregistered atoms collapse to the #R001 fallback: for any two names the host never registered, #FOO == #BAR is true and both render as #R001. Register atoms via the host/extension. See errors for pre-registered atoms.
+
 ## Pipes and `$` binding
 
 `$` is the current piped value. Its meaning depends on context:
@@ -277,7 +279,7 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
            $r ?? "fallback"
 
     Wrong: try { JSON.parse(s) } catch { null }
-    Right: guard { $s -> :dict } => $out
+    Right: guard { $app.parse_json($s) } => $out   # JSON parsing is host-provided; rill has no built-in parser
            $out.! ? "parse failed" ! $out
 
 ## Null and undefined
@@ -459,7 +461,9 @@ All operators accept any callable as the body argument:
     -> seq({ $ * 2 })           # block, $ is current element
     -> seq(|x| ($x * 2))        # inline closure
     -> seq($double)             # variable closure
-    -> seq(log)                 # built-in function
+    -> seq({ log($) })          # built-in wrapped in a closure
+
+A bare built-in or host name -- seq(log) -- does NOT reference a callable here. In argument position it parses as a zero-arg call log(). Wrap it in a closure.
 
 ## Iterating dicts and strings
 
@@ -588,8 +592,8 @@ Atoms, status sidecars, `guard`, `retry`, vacancy, and recovery patterns.
 
 | Failure | Caused by | Caught by |
 |---|---|---|
-| Runtime error (uncatchable) | `error`, `assert`, divide-by-zero, OOB index, missing field, failed conversion, parameter type mismatch | nothing — propagates |
-| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion or extension `ctx.invalidate`) | `guard { }`, `retry<limit: N> { }` |
+| Runtime error (uncatchable) | `error`, `assert`, parameter type mismatch | nothing — propagates |
+| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index (`RILL-R042`), missing field (`RILL-R007`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
 
 ## Assert and error
 
@@ -667,7 +671,7 @@ Filtered form (catches only matching atoms):
       $app.fetch($url)
     }
 
-`guard` does NOT catch halts from `error`, `assert`, or runtime errors (divide-by-zero, OOB, missing field, failed conversion). Those propagate.
+`guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index (`RILL-R042`), missing field access (`RILL-R007`), and failed conversion (`RILL-R038`) — these behave like any other access halt.
 
 ## Retry
 
@@ -797,6 +801,7 @@ In closure params (validates input structure):
 
     $data.field                     # dict field
     $data[0], $data[-1]             # list index (negative from end)
+    tuple[1,"a"][1]  # "a" — tuple and ordered index by position; ordered also by key
     $data.$key                      # variable as key
     $data.($i + 1)                  # computed key
     $data.(a || b)                  # try keys left to right
@@ -806,10 +811,14 @@ In closure params (validates input structure):
     $data.?$key&number              # variable existence + type check
     $data.?($expr)&list             # computed existence + type check
 
-Built-in methods take priority over dict keys:
+The 8 dict method names are reserved and cannot be used as dict keys:
 
-    dict[len: "fake"].len           # returns dict length, not "fake"
-    dict[len: "fake"]["len"]        # bracket access returns "fake"
+    len   first   empty   eq   ne   keys   values   entries
+
+    dict[len: "fake"]                # halts: reserved method name 'len'
+    dict[label: "fake"].len          # fine: dict length (non-reserved key)
+
+`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule).
 
 ## Tuple lexicographic comparison
 
@@ -818,6 +827,8 @@ Tuples support `<`, `>`, `<=`, `>=`, `==`, `!=`. Comparison walks elements left 
     tuple[1, 2] < tuple[1, 3]              # true
     tuple[2, 1] > tuple[1, 9]              # true
     tuple[1, 2] == tuple[1, 2]             # true
+
+Index a tuple with `[i]` or `.at(i)`; `.1` is a parse error.
 
 Dicts have NO comparison protocol. Use tuples for multi-key ordering, including with `sort({ tuple[$.a, $.b] })`.
 
@@ -1021,7 +1032,7 @@ Type-aware (key matched by value AND type):
 
 Pipe a list of keys/indexes:
 
-    list["name", "first"] -> dict[name: dict[first: "Alice"]]  # "Alice"
+    list["name", "given"] -> dict[name: dict[given: "Alice"]]  # "Alice"
     list[0, 1] -> list[list[1,2,3], list[4,5,6]]               # 2
     list[] -> dict[a: 1]                                       # dict[a: 1] (empty path = unchanged)
     list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"   # "default"
@@ -1163,7 +1174,6 @@ Example:
 | `now()` | current datetime |
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration(y, m, d, h)` | construct duration |
-| `atom(name)` | string to atom |
 | `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
 | `sort(dict, key_fn?)` | stable ascending sort of dict entries; returns `ordered[[key, value]]` |
 
@@ -1171,6 +1181,8 @@ Built-ins are called bare (no `$`):
 
     log("hello")                       # not $log("hello")
     range(0, 5) -> seq({ $ * 2 })
+
+atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" -> atom yields #TIMEOUT. There is no atom(name) call form -- it halts RILL-R006 Unknown function: atom. Unregistered names collapse to the #R001 fallback.
 
 ## enumerate example
 
@@ -1183,7 +1195,7 @@ Built-ins are called bare (no `$`):
 
 ## sort
 
-Stable ascending sort. List sort returns `list`. Dict sort returns `ordered` because rill dicts have no insertion order, so a sorted dict is materialized as `ordered` key-value entries.
+Stable ascending sort. List sort returns `list`. Dict sort returns `ordered` because rill dicts iterate in a canonical order, so a sorted dict is materialized as ordered key-value entries.
 
     list[3, 1, 2] -> sort                          # list[1, 2, 3]
     list["banana", "fig", "apple"] -> sort({ $ -> .len })   # list["fig", "apple", "banana"]
@@ -1200,6 +1212,8 @@ Multi-key sort uses `tuple[...]` projection. Tuples compare lexicographically le
 Descending order: pipe through `.reverse` after sort. `.reverse` is list-only; dict sort returns `ordered` and does not support `.reverse`.
 
     list[3, 1, 2] -> sort -> .reverse              # list[3, 2, 1]
+
+    list[3,1,2] -> sort[0]  # 1  (index a pipe-target result)
 
 Iterators are dicts structurally. `range(0, 5) -> sort` takes the dict path. Materialize first if you want list semantics.
 

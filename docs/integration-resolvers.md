@@ -318,7 +318,7 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 | number | `"number"` | number |
 | bool | `"bool"` | boolean |
 | list | `"list"` | array |
-| dict | `"dict"` | plain object |
+| dict | `"dict"` | plain object (see note below) |
 | tuple | `"tuple"` | array of entry values |
 | ordered | `"ordered"` | plain object with insertion-order keys |
 | closure | `"closure"` | descriptor: `{ signature: string }` |
@@ -327,6 +327,15 @@ type NativeValue = string | number | boolean | null | NativeValue[] | { [key: st
 | iterator | `"iterator"` | descriptor: `{ done: boolean }` |
 
 `value` is always a `NativeValue` — it is never `undefined`. JavaScript `null` is a valid `NativeValue` (rill null maps to JS null).
+
+An all-string-key dict converts unchanged. A dict carrying any number or boolean key adds a reserved `__rill_typed_keys` string property. Its value is an array of `{ key, value }` entries, where `key` keeps its JS `number`/`boolean` type. String keys stay plain properties, so existing hosts reading only string keys are unaffected.
+
+```typescript
+const result = toNative(dictValue); // dict[1: "a", "1": "b"]
+// result.value -> { "1": "b", __rill_typed_keys: [{ key: 1, value: "a" }] }
+```
+
+`__rill_typed_keys` is a shape of `toNative()`'s output only. A dict a host function receives directly as an `args` value (see [CallableFn](ref-host-api.md#callablefn)) is a live `RillValue`, not a `toNative()` result — its number- and boolean-keyed entries sit under a non-enumerable Symbol sidecar on the object, invisible to `Object.entries`, `JSON.stringify`, and object spread. Read them with `getTypedKeyEntries()` instead of reaching for `__rill_typed_keys` on the live value.
 
 ### Descriptor shapes
 
@@ -408,7 +417,7 @@ const ctx = createRuntimeContext({
         { name: 'name', type: { kind: 'string' }, annotations: { description: 'Person to greet' } },
       ],
       description: 'Generate a greeting message',
-      fn: (args) => `Hello, ${args[0]}!`,
+      fn: (args) => `Hello, ${args.name}!`,
     },
   },
 });
@@ -513,11 +522,11 @@ const ctx = createRuntimeContext({
     documented: {
       params: [{ name: 'x', type: { kind: 'string' }, annotations: { description: 'Input value' } }],
       description: 'A documented function',
-      fn: (args) => args[0],
+      fn: (args) => args.x,
     },
     undocumented: {
       params: [{ name: 'x', type: { kind: 'string' } }],
-      fn: (args) => args[0],
+      fn: (args) => args.x,
     },
   },
 });

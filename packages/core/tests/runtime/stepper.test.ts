@@ -3,7 +3,16 @@
  * Tests for createStepper and step-by-step execution
  */
 
-import { createRuntimeContext, createStepper, parse } from '@rcrsr/rill';
+import {
+  createRuntimeContext,
+  createStepper,
+  isInvalid,
+  parse,
+  RuntimeError,
+  RuntimeHaltSignal,
+  type RillFunction,
+  type RillValue,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 describe('Rill Runtime: Step Execution', () => {
@@ -251,7 +260,7 @@ describe('Rill Runtime: Step Execution', () => {
       await expect(stepper.step()).rejects.toThrow('Unknown method');
     });
 
-    it('stepper state unchanged after error', async () => {
+    it('marks the stepper done after a halt without advancing its index', async () => {
       const ast = parse('unknownFn()');
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
@@ -262,8 +271,80 @@ describe('Rill Runtime: Step Execution', () => {
         // Expected
       }
 
-      expect(stepper.done).toBe(false);
+      // The halted statement never completed, so the index does not
+      // advance past it. But the stepper itself is done: a caller running
+      // `while (!stepper.done) await stepper.step()` must not re-execute
+      // this statement and replay its host calls / onError callbacks.
+      expect(stepper.done).toBe(true);
       expect(stepper.index).toBe(0);
+    });
+
+    it('does not re-execute a halted statement on a follow-up step()', async () => {
+      let calls = 0;
+      const spyFn: RillFunction = {
+        params: [],
+        returnType: { type: 'any' } as RillValue,
+        fn: async () => {
+          calls++;
+          return 0;
+        },
+      };
+      const ctx = createRuntimeContext({
+        functions: { spy: spyFn },
+      });
+      const ast = parse('spy()\nunknownFn()');
+      const stepper = createStepper(ast, ctx);
+
+      await stepper.step(); // "spy()" runs fine
+      expect(calls).toBe(1);
+
+      try {
+        await stepper.step(); // "unknownFn()" halts
+      } catch {
+        // Expected
+      }
+
+      expect(stepper.done).toBe(true);
+
+      // A caller unaware of the halt (e.g. an outer try/catch around
+      // step()) must not be able to re-trigger the halted statement.
+      try {
+        await stepper.step();
+      } catch {
+        // Expected: stepper.step() returns a done StepResult once
+        // isDone is true, so this should not throw or re-run host calls.
+      }
+
+      expect(calls).toBe(1);
+    });
+
+    it('getResult() returns the halt invalid value after a caught step() halt', async () => {
+      const ast = parse('unknownFn()');
+      const ctx = createRuntimeContext();
+      const stepper = createStepper(ast, ctx);
+
+      let caught: unknown;
+      try {
+        await stepper.step();
+      } catch (error) {
+        caught = error;
+      }
+
+      // The caught error may be the raw signal or (when its atom maps
+      // to a host-facing error ID) the rematerialised RuntimeError that
+      // carries the original invalid under the non-enumerable
+      // `haltValue` property (see convertHaltToRuntimeError).
+      const haltValue =
+        caught instanceof RuntimeHaltSignal
+          ? caught.value
+          : caught instanceof RuntimeError
+            ? caught.haltValue
+            : undefined;
+      const result = stepper.getResult();
+      expect(result.result).not.toBeNull();
+      expect(result.result).toBe(haltValue);
+      expect(isInvalid(result.result)).toBe(true);
+      expect(stepper.done).toBe(true);
     });
   });
 });

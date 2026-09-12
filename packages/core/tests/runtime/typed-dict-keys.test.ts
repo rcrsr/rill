@@ -17,8 +17,15 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { formatValue, deepEquals } from '@rcrsr/rill';
+import {
+  createRillStream,
+  deepEquals,
+  formatValue,
+  getTypedKeyEntries,
+  toNative,
+} from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Type-aware dict keys (#266)', () => {
   describe('1. coexistence of number and string keys', () => {
@@ -60,6 +67,20 @@ describe('Type-aware dict keys (#266)', () => {
       await expect(run('dict["1": "a"] => $d\n1 -> $d')).rejects.toThrow(
         /not found/
       );
+    });
+
+    it('a typed-key value fails a uniform valueType check when it mismatches', async () => {
+      expect(await run('dict[1: "a"]:?dict(number)')).toBe(false);
+    });
+
+    it('a typed-key value halts on a uniform valueType assertion mismatch', async () => {
+      await expectHalt(() => run('dict[1: "a"]:dict(number)'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('a typed-key value passes a uniform valueType check when it matches', async () => {
+      expect(await run('dict[1: 5]:?dict(number)')).toBe(true);
     });
 
     it('bracket access is type-aware', async () => {
@@ -111,6 +132,86 @@ describe('Type-aware dict keys (#266)', () => {
       expect(
         formatValue(await run('dict[2: "b", 1: "a"] -> sort({ $.key })'))
       ).toBe('ordered[1: "a", 2: "b"]');
+    });
+  });
+
+  describe('canonical key ordering: strings sorted, then numbers ascending, then booleans (false, true)', () => {
+    const mixed = 'dict[true: "t", 2: "b", "z": 1, 1: "a", false: "f", "a": 2]';
+
+    it('.keys sorts string keys, then numbers ascending, then false before true', async () => {
+      expect(await run(`${mixed} -> .keys`)).toEqual([
+        'a',
+        'z',
+        1,
+        2,
+        false,
+        true,
+      ]);
+    });
+
+    it('.values follows the same canonical order as .keys', async () => {
+      expect(await run(`${mixed} -> .values`)).toEqual([
+        2,
+        1,
+        'a',
+        'b',
+        'f',
+        't',
+      ]);
+    });
+
+    it('.entries follows the same canonical order as .keys', async () => {
+      expect(await run(`${mixed} -> .entries`)).toEqual([
+        ['a', 2],
+        ['z', 1],
+        [1, 'a'],
+        [2, 'b'],
+        [false, 'f'],
+        [true, 't'],
+      ]);
+    });
+
+    it('enumerate follows the same canonical order as .keys', async () => {
+      expect(await run(`${mixed} -> enumerate -> fan({ $.key })`)).toEqual([
+        'a',
+        'z',
+        1,
+        2,
+        false,
+        true,
+      ]);
+    });
+
+    it('seq({ $.key }) follows the same canonical order as .keys', async () => {
+      expect(await run(`${mixed} -> seq({ $.key })`)).toEqual([
+        'a',
+        'z',
+        1,
+        2,
+        false,
+        true,
+      ]);
+    });
+
+    it('-> string sorts string keys regardless of insertion order', async () => {
+      const first = await run('dict[b: 1, a: 2] -> string');
+      const second = await run('dict[a: 2, b: 1] -> string');
+      expect(first).toBe(second);
+      expect(first).toBe('dict[a: 2, b: 1]');
+    });
+
+    it('insertion order does not affect .keys/.entries/enumerate/-> string for equal dicts', async () => {
+      const a = 'dict[true: "t", 2: "b", "z": 1, 1: "a", false: "f", "a": 2]';
+      const b = 'dict["a": 2, false: "f", 1: "a", "z": 1, 2: "b", true: "t"]';
+
+      expect(await run(`${a} -> .keys`)).toEqual(await run(`${b} -> .keys`));
+      expect(await run(`${a} -> .entries`)).toEqual(
+        await run(`${b} -> .entries`)
+      );
+      expect(await run(`${a} -> enumerate`)).toEqual(
+        await run(`${b} -> enumerate`)
+      );
+      expect(await run(`${a} -> string`)).toBe(await run(`${b} -> string`));
     });
   });
 
@@ -185,6 +286,36 @@ describe('Type-aware dict keys (#266)', () => {
         await run('dict[1: "a", "1": "b"] => $d\n$d => $e\n$e -> .len')
       ).toBe(2);
     });
+
+    it('a typed closure parameter keeps a number typed key alongside declared fields', async () => {
+      expect(
+        await run(
+          '|d: dict(name: string)| ($d.keys) => $f\ndict[1: "a", name: "x"] -> $f'
+        )
+      ).toEqual(['name', 1]);
+    });
+
+    it('an untyped closure parameter already keeps a number typed key', async () => {
+      expect(
+        await run('|d| ($d.keys) => $g\ndict[1: "a", name: "x"] -> $g')
+      ).toEqual(['name', 1]);
+    });
+
+    it('a typed closure parameter keeps a boolean typed key alongside declared fields', async () => {
+      expect(
+        await run(
+          '|d: dict(name: string)| ($d.keys) => $h\ndict[true: "t", name: "x"] -> $h'
+        )
+      ).toEqual(['name', true]);
+    });
+
+    it('a typed closure parameter with no typed keys is unaffected', async () => {
+      expect(
+        await run(
+          '|d: dict(name: string)| ($d.keys) => $i\ndict[name: "x"] -> $i'
+        )
+      ).toEqual(['name']);
+    });
   });
 
   describe('7. string-keyed dicts are unchanged', () => {
@@ -235,6 +366,88 @@ describe('Type-aware dict keys (#266)', () => {
     it('is not empty and reports the right length', async () => {
       expect(await run('dict[1: "a"] -> .empty')).toBe(false);
       expect(await run('dict[1: "a"] -> .len')).toBe(1);
+    });
+  });
+
+  describe('native output includes typed-key values', () => {
+    it('toNative surfaces typed keys under __rill_typed_keys, not as string fields', async () => {
+      const value = await run('dict[1: "a", b: 2]');
+      const native = toNative(value);
+      const nativeValue = native.value as Record<string, unknown>;
+      expect(nativeValue.b).toBe(2);
+      expect(Object.prototype.hasOwnProperty.call(nativeValue, '1')).toBe(
+        false
+      );
+      expect(nativeValue.__rill_typed_keys).toEqual([{ key: 1, value: 'a' }]);
+      expect(native.rillTypeSignature).toBe('dict(1: string, b: number)');
+    });
+
+    it('a string key colliding with a typed key is unaffected by the sidecar', async () => {
+      const value = await run('dict[1: "a", "1": "b"]');
+      const native = toNative(value);
+      const nativeValue = native.value as Record<string, unknown>;
+      expect(nativeValue['1']).toBe('b');
+      expect(nativeValue.__rill_typed_keys).toEqual([{ key: 1, value: 'a' }]);
+    });
+
+    it('toNative carries a boolean typed key under __rill_typed_keys', async () => {
+      const value = await run('dict[true: "a"]');
+      const native = toNative(value);
+      const nativeValue = native.value as Record<string, unknown>;
+      expect(nativeValue.__rill_typed_keys).toEqual([
+        { key: true, value: 'a' },
+      ]);
+    });
+
+    it('an all-string-keyed dict has no __rill_typed_keys field', async () => {
+      const value = await run('dict[a: 1]');
+      const native = toNative(value);
+      const nativeValue = native.value as Record<string, unknown>;
+      expect(
+        Object.prototype.hasOwnProperty.call(nativeValue, '__rill_typed_keys')
+      ).toBe(false);
+    });
+  });
+
+  describe('getTypedKeyEntries (#434)', () => {
+    it('returns number and boolean entries, excluding string keys', async () => {
+      const value = await run('dict[1: "a", true: "b", name: "c"]');
+      const entries = getTypedKeyEntries(value);
+      expect(entries).toHaveLength(2);
+
+      const numberEntry = entries.find((e) => typeof e.key === 'number');
+      const booleanEntry = entries.find((e) => typeof e.key === 'boolean');
+      expect(numberEntry).toEqual({ key: 1, value: 'a' });
+      expect(booleanEntry).toEqual({ key: true, value: 'b' });
+    });
+
+    it('returns [] for a dict with only string keys', async () => {
+      const value = await run('dict[a: 1, b: 2]');
+      expect(getTypedKeyEntries(value)).toEqual([]);
+    });
+
+    it('returns [] for non-dict inputs without throwing', async () => {
+      const stream = createRillStream({
+        chunks: (async function* () {
+          yield 1;
+        })(),
+        resolve: async () => null,
+      });
+
+      expect(() => getTypedKeyEntries(null)).not.toThrow();
+      expect(getTypedKeyEntries(null)).toEqual([]);
+
+      expect(() => getTypedKeyEntries('hello')).not.toThrow();
+      expect(getTypedKeyEntries('hello')).toEqual([]);
+
+      expect(() => getTypedKeyEntries(5)).not.toThrow();
+      expect(getTypedKeyEntries(5)).toEqual([]);
+
+      expect(() => getTypedKeyEntries([1, 2, 3])).not.toThrow();
+      expect(getTypedKeyEntries([1, 2, 3])).toEqual([]);
+
+      expect(() => getTypedKeyEntries(stream)).not.toThrow();
+      expect(getTypedKeyEntries(stream)).toEqual([]);
     });
   });
 });

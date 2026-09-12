@@ -16,11 +16,66 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { ERROR_ATOMS, ERROR_IDS } from '../../src/error-registry.js';
+// Side-effect import: execute.ts registers a second batch of RILL_R* halt
+// atoms (RILL_R001, RILL_R005-R009, RILL_R015, RILL_R043, RILL_R060) at
+// module load. Vitest isolates module graphs per test file, so without this
+// import those registrations never run and resolveAtom() for those codes
+// would silently fall back to #R001 in this file alone.
+import '../../src/runtime/core/execute.js';
 import {
   atomName,
   registerErrorCode,
   resolveAtom,
 } from '../../src/runtime/core/types/atom-registry.js';
+
+/**
+ * The `RILL_R*` keys that are actually registered as halt atoms, gathered
+ * from the two registration sites (`atom-registry.ts`'s
+ * `CORE_ATOM_REGISTRATIONS` and `execute.ts`'s `registerErrorCode` calls).
+ * `ERROR_ATOMS` maps every `ERROR_IDS` key (the full `RILL-Lxxx` /
+ * `RILL-Pxxx` / `RILL-Rxxx` / `RILL-Cxxx` surface), but only this subset is
+ * ever routed through the atom registry as an emitted halt atom.
+ *
+ * A mechanical scan of every emitter site to confirm this list is
+ * exhaustive is out of scope for this regression test; the chosen coverage
+ * is a per-atom round-trip through the registry for each id already known
+ * to be registered, which is what a reader relies on when adding a new
+ * `RILL_R*` id to either registration site.
+ */
+const REGISTERED_HALT_ATOM_IDS = [
+  // atom-registry.ts: CORE_ATOM_REGISTRATIONS
+  ERROR_IDS.RILL_R016,
+  ERROR_IDS.RILL_R002,
+  ERROR_IDS.RILL_R003,
+  ERROR_IDS.RILL_R010,
+  ERROR_IDS.RILL_R036,
+  ERROR_IDS.RILL_R037,
+  ERROR_IDS.RILL_R038,
+  ERROR_IDS.RILL_R040,
+  ERROR_IDS.RILL_R041,
+  ERROR_IDS.RILL_R042,
+  ERROR_IDS.RILL_R044,
+  ERROR_IDS.RILL_R054,
+  ERROR_IDS.RILL_R055,
+  ERROR_IDS.RILL_R056,
+  ERROR_IDS.RILL_R057,
+  ERROR_IDS.RILL_R058,
+  ERROR_IDS.RILL_R061,
+  ERROR_IDS.RILL_R082,
+  ERROR_IDS.RILL_R083,
+  ERROR_IDS.RILL_R012,
+  // execute.ts: registerErrorCode calls
+  ERROR_IDS.RILL_R043,
+  ERROR_IDS.RILL_R060,
+  ERROR_IDS.RILL_R001,
+  ERROR_IDS.RILL_R005,
+  ERROR_IDS.RILL_R006,
+  ERROR_IDS.RILL_R007,
+  ERROR_IDS.RILL_R008,
+  ERROR_IDS.RILL_R009,
+  ERROR_IDS.RILL_R015,
+] as const;
 
 describe('atom-registry', () => {
   describe('registerErrorCode (shape validation)', () => {
@@ -142,6 +197,29 @@ describe('atom-registry', () => {
     it('returns the bare uppercase name without the `#` sigil', () => {
       const atom = resolveAtom('TIMEOUT');
       expect(atomName(atom)).toBe('TIMEOUT');
+    });
+  });
+
+  describe('emitted halt atoms round-trip through the registry', () => {
+    it.each(
+      REGISTERED_HALT_ATOM_IDS.map((id) => [id, ERROR_ATOMS[id]] as const)
+    )(
+      '%s (#%s) resolves to itself, never the R001 fallback',
+      (_id, atomCode) => {
+        const resolved = atomName(resolveAtom(atomCode));
+        expect(resolved).toBe(atomCode);
+        expect(resolved).not.toBe('R001');
+      }
+    );
+
+    it('RILL_R012 is registered and does not fall back to R001', () => {
+      const atomCode = ERROR_ATOMS[ERROR_IDS.RILL_R012];
+      expect(atomName(resolveAtom(atomCode))).toBe(atomCode);
+    });
+
+    it('RILL_R040 is registered and does not fall back to R001', () => {
+      const atomCode = ERROR_ATOMS[ERROR_IDS.RILL_R040];
+      expect(atomName(resolveAtom(atomCode))).toBe(atomCode);
     });
   });
 });

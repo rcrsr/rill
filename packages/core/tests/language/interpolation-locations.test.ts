@@ -71,7 +71,9 @@ abc{$x +}
 
   it('reports correct location for error after escape sequences', () => {
     // String: "\\n{$x +}"
-    // The escape sequence \n becomes actual newline in parsed string
+    // The escape sequence \n decodes to an actual newline character, but
+    // the source itself is a single physical line: \n is two source
+    // characters (backslash, n), not a real line break.
     const source = '"\\n{$x +}"';
 
     try {
@@ -81,9 +83,28 @@ abc{$x +}
       expect(err).toBeInstanceOf(ParseError);
       const parseErr = err as ParseError;
 
-      // Escape sequence \n becomes newline, so error reports line 2
-      expect(parseErr.location?.line).toBe(2);
-      expect(parseErr.location?.column).toBe(6);
+      // The decoded \n is not a real source line break, so the error stays
+      // on line 1, at the correct source column for the escaped prefix.
+      expect(parseErr.location?.line).toBe(1);
+      expect(parseErr.location?.column).toBe(9);
+    }
+  });
+
+  it('reports correct location for a multi-interpolation string with an escape before the second interpolation', () => {
+    // String: "{$a}\\n{$x +}"
+    // A valid first interpolation is followed by a literal segment
+    // containing an escaped newline, then a syntax error in the second
+    // interpolation. The escaped newline must not shift the reported line.
+    const source = '"{$a}\\n{$x +}"';
+
+    try {
+      parse(source);
+      expect.fail('Should have thrown ParseError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      const parseErr = err as ParseError;
+
+      expect(parseErr.location?.line).toBe(1);
     }
   });
 
@@ -127,6 +148,49 @@ Second: {$b +}
       const parseErr = err as ParseError;
 
       expect(parseErr.location).toEqual({ line: 1, column: 11, offset: 10 });
+    }
+  });
+
+  it('does not let a brace inside a nested string literal desync the interpolation-close scan', () => {
+    // The first interpolation's nested string literal `"}"` contains a `}`
+    // that must not be counted as the interpolation's own closing brace.
+    // If it were miscounted, the second interpolation's reported location
+    // would be shifted from where it actually starts in the source.
+    const source = '"{"}" -> .len}{$x +}"';
+
+    try {
+      parse(source);
+      expect.fail('Should have thrown ParseError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      const parseErr = err as ParseError;
+
+      expect(parseErr.location).toEqual({ line: 1, column: 20, offset: 19 });
+    }
+  });
+
+  it('reports the same location for a later interpolation error whether or not an earlier interpolation holds a nested string with braces', () => {
+    // Line 1: """
+    // Line 2: First: {"}" -> .len}
+    // Line 3: Second: {$b +}
+    // Line 4: """
+    // Matches the location asserted for the equivalent {$a} case above,
+    // confirming the nested-string skip in the first interpolation does not
+    // shift where the second interpolation is located.
+    const source = `"""
+First: {"}" -> .len}
+Second: {$b +}
+"""`;
+
+    try {
+      parse(source);
+      expect.fail('Should have thrown ParseError');
+    } catch (err) {
+      expect(err).toBeInstanceOf(ParseError);
+      const parseErr = err as ParseError;
+
+      expect(parseErr.location?.line).toBe(3);
+      expect(parseErr.location?.column).toBe(14);
     }
   });
 

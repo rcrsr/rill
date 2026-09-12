@@ -156,9 +156,14 @@ function isVerboseDefaultPattern(node: ConditionalNode): boolean {
   const match = matchExistenceCheck(node.condition);
   if (!match) return false;
 
+  // A bare `.?` probe checks the receiver itself, not a field, so there is
+  // no `X.field` path for `??` to replace.
+  const finalAccess = match.variable.existenceCheck?.finalAccess;
+  if (!finalAccess) return false;
+
   const checkedPath: PropertyAccess[] = [
     ...match.variable.accessChain,
-    match.variable.existenceCheck!.finalAccess,
+    finalAccess,
   ];
 
   const resolvedBranch = match.negated ? node.elseBranch : node.thenBranch;

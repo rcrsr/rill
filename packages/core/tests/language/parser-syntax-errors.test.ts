@@ -294,7 +294,11 @@ describe('Parser Syntax Errors', () => {
 
   describe('describeToken labels for NEWLINE/EOF in error messages', () => {
     it('reports a mid-pipe newline as "newline", not a raw \\n', () => {
-      const source = '"x" ->\n';
+      // A trailing `->` at end of line is now a valid continuation onto the
+      // next line, so this uses `??` (nullish-coalesce default value),
+      // which still requires its operand on the same line, to exercise the
+      // NEWLINE branch of describeToken.
+      const source = '"x" ??\n';
 
       try {
         parse(source);
@@ -351,6 +355,57 @@ describe('Parser Syntax Errors', () => {
 
         expect(parseErr.message).toContain('end of input');
       }
+    });
+  });
+
+  describe('Conditional branch shape', () => {
+    it('rejects a then-branch that is a binary/arithmetic expression', () => {
+      const source = 'true ? 1 + 1 ! 2';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.errorId).toBe('RILL-P006');
+        expect(parseErr.message).toContain(
+          'conditional branch must be a block, grouped expression, or postfix expression'
+        );
+      }
+    });
+
+    it('rejects an else-branch that is a binary/arithmetic expression', () => {
+      const source = 'false ? 1 ! 2 + 2';
+
+      try {
+        parse(source);
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const parseErr = err as ParseError;
+
+        expect(parseErr.errorId).toBe('RILL-P006');
+        expect(parseErr.message).toContain(
+          'conditional branch must be a block, grouped expression, or postfix expression'
+        );
+      }
+    });
+
+    it('accepts a grouped expression as the then-branch', async () => {
+      const result = await run('true ? (1 + 1) ! 2');
+      expect(result).toBe(2);
+    });
+
+    it('accepts a block as the then-branch', async () => {
+      const result = await run('true ? { 1 + 1 } ! 2');
+      expect(result).toBe(2);
+    });
+
+    it('accepts a bare postfix expression as both branches', async () => {
+      const result = await run('true ? 5 ! 2');
+      expect(result).toBe(5);
     });
   });
 });

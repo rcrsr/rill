@@ -115,7 +115,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
             fn: (_args, ctx) => {
               const md = (ctx as RuntimeContext).metadata ?? {};
               Object.assign(collected, md);
-              return null;
+              return '';
             },
           },
         },
@@ -140,7 +140,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
             ],
             fn: (_args, ctx) => {
               seen = (ctx as RuntimeContext).metadata;
-              return null;
+              return '';
             },
           },
         },

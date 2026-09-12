@@ -105,6 +105,24 @@ describe('#340: regex string methods run in Unicode (u) mode', () => {
     expect(result).toEqual({ matched: 'b', index: 2, groups: [] });
   });
 
+  it('.match reports a code-point index with a non-zero astral prefix', async () => {
+    const result = await run(`"${EMOJI}a" -> .match("a") -> .index`);
+    expect(result).toBe(1);
+  });
+
+  it('.match reports a code-point index and groups with a two-astral prefix', async () => {
+    const result = await run(
+      `"${EMOJI}${EMOJI}ab" -> .match("(a)(b)") -> .index`
+    );
+    expect(result).toBe(2);
+    const withGroups = await run(`"${EMOJI}${EMOJI}ab" -> .match("(a)(b)")`);
+    expect(withGroups).toEqual({
+      matched: 'ab',
+      index: 2,
+      groups: ['a', 'b'],
+    });
+  });
+
   it('.is_match matches an astral character against a single-dot pattern', async () => {
     expect(await run(`"${EMOJI}" -> .is_match("^.$")`)).toBe(true);
   });
@@ -147,5 +165,71 @@ describe('#340: regex string methods run in Unicode (u) mode', () => {
     await expectHalt(() => run(`"a" -> .is_match("\\\\-")`), {
       code: 'INVALID_INPUT',
     });
+  });
+});
+
+describe('#356: pad_start/pad_end pad by code point, not code unit', () => {
+  it('.pad_start reaches the target length in code points for an astral receiver', async () => {
+    const result = await run(`"${EMOJI}" -> .pad_start(3, "x")`);
+    expect(result).toBe(`xx${EMOJI}`);
+    expect(Array.from(result as string)).toHaveLength(3);
+  });
+
+  it('.pad_end reaches the target length in code points for an astral receiver', async () => {
+    const result = await run(`"${EMOJI}" -> .pad_end(3, "x")`);
+    expect(result).toBe(`${EMOJI}xx`);
+    expect(Array.from(result as string)).toHaveLength(3);
+  });
+
+  it('.pad_start never splits an astral fill character across a surrogate pair', async () => {
+    const result = await run(`"a" -> .pad_start(3, "${EMOJI}")`);
+    expect(result).toBe(`${EMOJI}${EMOJI}a`);
+    expect(Array.from(result as string)).toHaveLength(3);
+    expect(hasLoneSurrogate(result as string)).toBe(false);
+  });
+
+  it('.pad_end never splits an astral fill character across a surrogate pair', async () => {
+    const result = await run(`"a" -> .pad_end(3, "${EMOJI}")`);
+    expect(result).toBe(`a${EMOJI}${EMOJI}`);
+    expect(Array.from(result as string)).toHaveLength(3);
+    expect(hasLoneSurrogate(result as string)).toBe(false);
+  });
+
+  it('.pad_start behaves as before for BMP-only strings', async () => {
+    expect(await run(`"7" -> .pad_start(3, "0")`)).toBe('007');
+  });
+
+  it('.pad_end behaves as before for BMP-only strings', async () => {
+    expect(await run(`"7" -> .pad_end(3, "0")`)).toBe('700');
+  });
+
+  it('.pad_start returns the receiver unchanged when already at or above length', async () => {
+    expect(await run(`"abc" -> .pad_start(2, "0")`)).toBe('abc');
+  });
+
+  it('.pad_start halts INVALID_INPUT for an over-large length', async () => {
+    await expectHalt(() => run(`"a" -> .pad_start(999999999999, "0")`), {
+      code: 'INVALID_INPUT',
+    });
+  });
+
+  it('.pad_end halts INVALID_INPUT for an over-large length', async () => {
+    await expectHalt(() => run(`"a" -> .pad_end(999999999999, "0")`), {
+      code: 'INVALID_INPUT',
+    });
+  });
+});
+
+describe('#357: replacement metacharacters are inserted literally', () => {
+  it('.replace inserts a literal "$&" instead of the matched substring', async () => {
+    expect(await run(`"ab" -> .replace("a", "$&")`)).toBe('$&b');
+  });
+
+  it('.replace_all inserts a literal "$1" instead of a capture group', async () => {
+    expect(await run(`"ab" -> .replace_all("a", "$1")`)).toBe('$1b');
+  });
+
+  it('.replace_all inserts a literal "$$" instead of a single "$"', async () => {
+    expect(await run(`"ab" -> .replace_all("a", "$$")`)).toBe('$$b');
   });
 });

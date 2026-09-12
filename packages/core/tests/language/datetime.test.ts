@@ -44,6 +44,42 @@ describe('Rill Language: Datetime Type', () => {
       expect(result).toBe(50);
     });
 
+    it('round-trips a negative year through .iso() and datetime()', async () => {
+      const result = await run(
+        'datetime(...dict[year: -50, month: 6, day: 15]) -> .iso() => $iso\n' +
+          'datetime($iso) -> .year'
+      );
+      expect(result).toBe(-50);
+    });
+
+    it('formats a negative year as a signed 6-digit extended year', async () => {
+      const result = await run(
+        'datetime(...dict[year: -50, month: 6, day: 15]) -> .iso()'
+      );
+      expect(result).toBe('-000050-06-15T00:00:00Z');
+    });
+
+    it('round-trips a year >= 10000 through .iso() and datetime()', async () => {
+      const result = await run(
+        'datetime(...dict[year: 10000, month: 1, day: 1]) -> .iso() => $iso\n' +
+          'datetime($iso) -> .year'
+      );
+      expect(result).toBe(10000);
+    });
+
+    it('formats a year >= 10000 as a signed 6-digit extended year', async () => {
+      const result = await run(
+        'datetime(...dict[year: 10000, month: 1, day: 1]) -> .iso()'
+      );
+      expect(result).toBe('+010000-01-01T00:00:00Z');
+    });
+
+    it('rejects an unsigned extended-year date-only string as #INVALID_INPUT', async () => {
+      await expectHalt(() => run('datetime("10000-01-01")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
     it('an offset-less datetime-with-time string is anchored to UTC', async () => {
       const result = await run(
         'datetime("2026-03-13T08:00:00") -> .unix => $a\n' +
@@ -457,7 +493,7 @@ describe('Rill Language: Datetime Type', () => {
           run('datetime(...dict[unix: getNaN()])', {
             functions: { getNaN },
           }),
-        'Invalid datetime component unix'
+        "Host function 'getNaN' returned a non-finite number at <root>: NaN"
       );
     });
 
@@ -472,7 +508,7 @@ describe('Rill Language: Datetime Type', () => {
           run('datetime(...dict[unix: getInf()])', {
             functions: { getInf },
           }),
-        'Invalid datetime component unix'
+        "Host function 'getInf' returned a non-finite number at <root>: Infinity"
       );
     });
 
@@ -480,6 +516,33 @@ describe('Rill Language: Datetime Type', () => {
       await expectHalt(() => run('datetime("2024-02-30T00:00:00Z")'), {
         code: 'INVALID_INPUT',
       });
+    });
+
+    it('an hour of 24 in string form halts #INVALID_INPUT instead of rolling to the next day', async () => {
+      await expectHalt(() => run('datetime("2024-01-01T24:00:00")'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('a string-form hour of 24 halts with the same component detail as the named-component form', async () => {
+      await expectHaltMessage(
+        () => run('datetime("2024-01-01T24:00:00")'),
+        'Invalid datetime component hour: 24'
+      );
+      await expectHaltMessage(
+        () => run('datetime(...dict[year: 2024, month: 1, day: 1, hour: 24])'),
+        'Invalid datetime component hour: 24'
+      );
+    });
+
+    it('an hour of 23:59:59 in string form is accepted at the day boundary', async () => {
+      const result = await run('datetime("2024-01-01T23:59:59Z") -> .hour');
+      expect(result).toBe(23);
+    });
+
+    it('a date-only string is unaffected by time-of-day validation', async () => {
+      const result = await run('datetime("2024-01-01") -> .day');
+      expect(result).toBe(1);
     });
 
     it('duration(months: 1.5) halts at construction', async () => {

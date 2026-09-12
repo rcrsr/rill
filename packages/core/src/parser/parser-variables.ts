@@ -18,9 +18,11 @@ import {
   advance,
   expect,
   makeSpan,
+  skipNewlines,
   skipNewlinesIfFollowedBy,
+  isAtEnd,
 } from './state.js';
-import { isMethodCallWithArgs } from './helpers.js';
+import { isMethodCallWithArgs, expectVariableName } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { ParseError } from '../error-classes.js';
@@ -78,11 +80,7 @@ Parser.prototype.parseVariable = function (this: Parser): VariableNode {
     return this.makeVariableWithAccess(null, true, start);
   }
 
-  const nameToken = expect(
-    this.state,
-    TOKEN_TYPES.IDENTIFIER,
-    'Expected variable name'
-  );
+  const nameToken = expectVariableName(this.state, 'Expected variable name');
 
   return this.makeVariableWithAccess(nameToken.value, false, start);
 };
@@ -163,12 +161,36 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
 
     if (check(this.state, TOKEN_TYPES.DOT_QUESTION)) {
       const dotToken = advance(this.state);
+      // A field/key element may be absent: bare `.?` checks the receiver
+      // itself rather than a field on it (finalAccess: null). A trailing
+      // `??` right after a bare `.?` is a pre-existing composition carve-out
+      // (`$x.? ?? fallback` behaves as `$x ?? fallback`, not as a boolean
+      // probe): leave existenceCheck unset and let the caller's `??`
+      // handling apply the default directly to the receiver. A bare `.?`
+      // followed only by a newline, EOF, or a closing `)` is a genuine
+      // probe on the receiver itself (`$x -> ($.?)`). Anything else
+      // following `.?` that isn't a recognized field-access element is a
+      // parse error naming the missing field name, rather than silently
+      // ending the statement and leaving the trailing tokens to misparse
+      // as a new statement.
       const finalAccess = this.parseFieldAccessElement(
         true,
         dotToken.span.start
       );
-      if (!finalAccess) {
+      if (!finalAccess && check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
         break;
+      }
+      if (
+        !finalAccess &&
+        !check(this.state, TOKEN_TYPES.NEWLINE) &&
+        !check(this.state, TOKEN_TYPES.RPAREN) &&
+        !isAtEnd(this.state)
+      ) {
+        throw new ParseError(
+          ERROR_IDS.RILL_P006,
+          "Expected field name after '.?'",
+          dotToken.span.start
+        );
       }
 
       let typeRef: ExistenceCheck['typeRef'] = null;
@@ -182,6 +204,7 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
     }
 
     const dotToken = advance(this.state);
+    skipNewlines(this.state);
 
     const access = this.parseFieldAccessElement(false, dotToken.span.start);
     if (!access) {
@@ -210,7 +233,7 @@ Parser.prototype.parseFieldAccessElement = function (
     const errorMsg = isExistenceCheck
       ? 'Expected variable name after .?$'
       : 'Expected variable name after .$';
-    const nameToken = expect(this.state, TOKEN_TYPES.IDENTIFIER, errorMsg);
+    const nameToken = expectVariableName(this.state, errorMsg);
     return {
       kind: 'variable',
       variableName: nameToken.value,
@@ -280,7 +303,9 @@ Parser.prototype.parseComputedOrAlternatives = function (
     }
   }
 
+  skipNewlines(this.state);
   const expression = this.parsePipeChain();
+  skipNewlines(this.state);
   const closeParen = expect(
     this.state,
     TOKEN_TYPES.RPAREN,

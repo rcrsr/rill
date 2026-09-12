@@ -297,8 +297,20 @@ export function isPipeChainNode(node: ExpressionNode): node is PipeChainNode {
 export interface PostfixExprNode extends BaseNode {
   readonly type: 'PostfixExpr';
   readonly primary: PrimaryNode;
-  readonly methods: (MethodCallNode | InvokeNode | AnnotationAccessNode)[];
+  readonly methods: (
+    | MethodCallNode
+    | InvokeNode
+    | AnnotationAccessNode
+    | IndexAccessNode
+  )[];
   readonly defaultValue: BodyNode | null;
+  /**
+   * Terminal existence check on the accumulated primary+methods chain:
+   * expr.?field (optionally &type). Mirrors VariableNode.existenceCheck;
+   * when set, methods after it are not collected — the check ends the
+   * postfix chain.
+   */
+  readonly existenceCheck?: ExistenceCheck | null;
 }
 
 export type PrimaryNode =
@@ -382,7 +394,12 @@ export type LiteralNode =
   | BoolLiteralNode
   | ListLiteralNode
   | DictNode
-  | ClosureNode;
+  | ClosureNode
+  | AtomLiteralNode
+  | DictLiteralNode
+  | TupleLiteralNode
+  | OrderedLiteralNode
+  | RecoveryErrorNode;
 
 export interface StringLiteralNode extends BaseNode {
   readonly type: 'StringLiteral';
@@ -481,7 +498,11 @@ export interface TypeConstructorNode extends BaseNode {
  */
 export interface ClosureSigLiteralNode extends BaseNode {
   readonly type: 'ClosureSigLiteral';
-  readonly params: { name: string; typeExpr: ExpressionNode }[];
+  readonly params: {
+    name: string;
+    typeExpr: ExpressionNode;
+    annotations?: AnnotationArg[];
+  }[];
   readonly returnType: PostfixExprNode;
 }
 
@@ -607,11 +628,16 @@ export interface VariableNode extends BaseNode {
 
 /**
  * Existence check configuration.
- * For .?path (just exists) or .?path&type (exists AND type matches).
+ * For .?path (just exists), .?path&type (exists AND type matches), or a bare
+ * .? probe (finalAccess: null) that checks the receiver itself rather than a
+ * field/index on it.
  */
 export interface ExistenceCheck {
-  /** The final field/index being checked for existence */
-  readonly finalAccess: FieldAccess;
+  /**
+   * The final field/index being checked for existence, or null for a bare
+   * `.?` probe that checks the validity of the receiver itself.
+   */
+  readonly finalAccess: FieldAccess | null;
   /** Optional type check: returns true only if exists AND matches type */
   readonly typeRef: TypeRef | null;
 }
@@ -743,6 +769,12 @@ export interface MethodCallNode extends BaseNode {
 export interface InvokeNode extends BaseNode {
   readonly type: 'Invoke';
   readonly args: (ExpressionNode | SpreadArgNode)[];
+}
+
+/** Postfix bracket-index access: expr[index] */
+export interface IndexAccessNode extends BaseNode {
+  readonly type: 'IndexAccess';
+  readonly index: ExpressionNode;
 }
 
 /** Annotation reflection access on expressions: expr.^key */
@@ -1144,6 +1176,7 @@ export type ASTNode =
   | PostfixExprNode
   | MethodCallNode
   | InvokeNode
+  | IndexAccessNode
   | AnnotationAccessNode
   | HostCallNode
   | HostRefNode

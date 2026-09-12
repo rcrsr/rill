@@ -588,7 +588,7 @@ $user.(name || nickname)         # "Al"
 Navigate nested data structures using a list of keys/indexes as a path:
 
 ```rill
-["name", "first"] -> [name: dict[first: "Alice", last: "Smith"]]
+["name", "given"] -> [name: dict[given: "Alice", last: "Smith"]]
 # Result: "Alice"
 ```
 

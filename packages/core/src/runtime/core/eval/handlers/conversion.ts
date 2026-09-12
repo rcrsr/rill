@@ -26,7 +26,12 @@
 
 import type { ASTNode, TypeConstructorNode } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
-import { throwCatchableHostHalt } from '../../types/halt.js';
+import {
+  RuntimeHaltSignal,
+  throwCatchableHostHalt,
+  enrichHaltOriginLocation,
+} from '../../types/halt.js';
+import { ControlSignal } from '../../signals.js';
 import type {
   RillValue,
   TypeStructure,
@@ -48,6 +53,7 @@ import type {
   HydrationPolicy,
 } from '../../callable.js';
 import { hydrateStructure } from '../../callable.js';
+import { setDictField } from '../../types/dict-keys.js';
 import { BUILT_IN_TYPES } from '../../types/registrations.js';
 
 import type { EvalState } from '../state.js';
@@ -174,6 +180,22 @@ export function applyConversion(
   try {
     return converter(input);
   } catch (err) {
+    // A converter that already raised a typed halt (e.g. the reserved
+    // "ok" -> atom rejection) is a catchable RuntimeHaltSignal; propagate
+    // it unchanged instead of remapping it to the generic RILL_R036 code
+    // below, which would discard its atom and message. ControlSignal
+    // subclasses (break/return/yield) always re-throw as well.
+    if (err instanceof RuntimeHaltSignal) {
+      throw enrichHaltOriginLocation(
+        err,
+        getNodeLocation(s, node),
+        s.ctx.sourceId
+      );
+    }
+    if (err instanceof ControlSignal) {
+      throw err;
+    }
+
     // Protocol converters throw RuntimeError (RILL-R064/R065/R066);
     // wrap with evaluator-level error codes for user-facing messages.
 
@@ -276,9 +298,10 @@ async function convertToOrderedWithSig(
   for (const field of resolvedFields) {
     const fieldName = field.name!;
 
-    if (fieldName in dictInput) {
+    if (Object.hasOwn(dictInput, fieldName)) {
       let fieldValue: RillValue = dictInput[fieldName]!;
       fieldValue = hydrateNested(s, fieldValue, field.type, node);
+      assertType(s, fieldValue, field.type, node.span.start);
       entries.push([fieldName, fieldValue]);
     } else if (field.defaultValue !== undefined) {
       entries.push([
@@ -363,34 +386,43 @@ async function convertToDictWithSig(
     const fieldName = arg.name;
     const resolvedField = resolvedFields[fieldName];
 
-    if (fieldName in dictInput) {
+    if (Object.hasOwn(dictInput, fieldName)) {
       // Field present in input: use it, recursing if the field type is a nested dict
       let fieldValue: RillValue = dictInput[fieldName]!;
       if (resolvedField !== undefined) {
         fieldValue = hydrateNested(s, fieldValue, resolvedField.type, node);
+        assertType(s, fieldValue, resolvedField.type, node.span.start);
       }
-      result[fieldName] = fieldValue;
+      setDictField(result, fieldName, fieldValue);
     } else {
       // Field missing from input: use default if available, else error
       if (
         resolvedField !== undefined &&
         resolvedField.defaultValue !== undefined
       ) {
-        result[fieldName] = hydrateNested(
-          s,
-          copyValue(resolvedField.defaultValue),
-          resolvedField.type,
-          node
+        setDictField(
+          result,
+          fieldName,
+          hydrateNested(
+            s,
+            copyValue(resolvedField.defaultValue),
+            resolvedField.type,
+            node
+          )
         );
       } else if (
         resolvedField !== undefined &&
         hasCollectionFields(resolvedField.type)
       ) {
-        result[fieldName] = hydrateNested(
-          s,
-          emptyForType(resolvedField.type),
-          resolvedField.type,
-          node
+        setDictField(
+          result,
+          fieldName,
+          hydrateNested(
+            s,
+            emptyForType(resolvedField.type),
+            resolvedField.type,
+            node
+          )
         );
       } else {
         throwCatchableHostHalt(
@@ -464,7 +496,14 @@ async function convertToTupleWithSig(
 
     if (i < inputEntries.length) {
       // Element present in input: recurse into nested types
-      result.push(hydrateNested(s, inputEntries[i]!, element.type, node));
+      const elementValue = hydrateNested(
+        s,
+        inputEntries[i]!,
+        element.type,
+        node
+      );
+      assertType(s, elementValue, element.type, node.span.start);
+      result.push(elementValue);
     } else if (element.defaultValue !== undefined) {
       // Missing trailing element with default: deep copy and hydrate
       result.push(
