@@ -404,3 +404,338 @@ describe('filter integration', () => {
     expect(result.result).toBe('blocked');
   });
 });
+
+/**
+ * A closure body runs in a context built by spreading the caller's rather
+ * than by createChildContext, so it used to carry no policy binding and
+ * every call inside one dispatched unfiltered. Since seq/fan/filter/fold
+ * bodies and every user closure run through that path, wrapping a call in
+ * `{ ... }` was a complete bypass.
+ */
+describe('filter integration: calls inside closure bodies', () => {
+  it('denies a denied method called from a closure body', async () => {
+    const ctx = createTestContext(
+      { kb: { delete: { access: 'deny' } } },
+      { kb: { delete: method('deleted') } as unknown as RillValue }
+    );
+
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb> => $kb\n|| ($kb.delete()) => $wrap\n$wrap()'),
+          ctx
+        ),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('denies a denied method called from a seq body', async () => {
+    const ctx = createTestContext(
+      { kb: { delete: { access: 'deny' } } },
+      { kb: { delete: method('deleted') } as unknown as RillValue }
+    );
+
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb> => $kb\nlist[1] -> seq({ $kb.delete() })'),
+          ctx
+        ),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('denies a denied method called from a nested closure body', async () => {
+    const ctx = createTestContext(
+      { kb: { delete: { access: 'deny' } } },
+      { kb: { delete: method('deleted') } as unknown as RillValue }
+    );
+
+    await expectHalt(
+      () =>
+        execute(
+          parse(
+            'use<ext:kb> => $kb\n|| ($kb.delete()) => $inner\n|| ($inner()) => $outer\n$outer()'
+          ),
+          ctx
+        ),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('denies a denied method called from a stream closure body', async () => {
+    // Stream closures build their context through the same helper, via
+    // eval/invocation/stream-closures.ts.
+    const ctx = createTestContext(
+      { kb: { delete: { access: 'deny' } } },
+      { kb: { delete: method('deleted') } as unknown as RillValue }
+    );
+
+    await expectHalt(
+      () =>
+        execute(
+          parse(
+            'use<ext:kb> => $kb\n|| { $kb.delete() -> yield\nreturn 1 }:stream(string):number => $sc\n$sc() => $s\n$s()'
+          ),
+          ctx
+        ),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('applies transforms to a call made from a closure body', async () => {
+    const ctx = createTestContext(
+      {
+        kb: { search: { access: 'allow', out: ['filter.redact'] } },
+      },
+      {
+        kb: { search: method('raw') } as unknown as RillValue,
+        filter: { redact: transform('redacted') } as unknown as RillValue,
+      }
+    );
+
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n|| ($kb.search()) => $wrap\n$wrap()'),
+      ctx
+    );
+    expect(result.result).toBe('redacted(raw)');
+  });
+});
+
+/**
+ * Branding walked dicts only, so a callable reached through a list index
+ * carried no identity, and no identity resolves to pass-through. A
+ * per-tenant client list is an ordinary extension shape, and it went
+ * unpoliced under a rule that denied everything.
+ */
+describe('filter integration: list-nested and tuple-nested members', () => {
+  it('denies a list-nested sub-client under a wildcard', async () => {
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' } } },
+      {
+        kb: {
+          clients: [{ purge: method('leaked') }],
+        } as unknown as RillValue,
+      }
+    );
+
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.clients[0].purge()'), ctx),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('matches an exact rule keyed on the indexed path', async () => {
+    const ctx = createTestContext(
+      {
+        kb: {
+          'clients[0].purge': { access: 'allow', out: ['filter.redact'] },
+        },
+      },
+      {
+        kb: {
+          clients: [{ purge: method('raw') }],
+        } as unknown as RillValue,
+        filter: { redact: transform('redacted') } as unknown as RillValue,
+      }
+    );
+
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.clients[0].purge()'),
+      ctx
+    );
+    expect(result.result).toBe('redacted(raw)');
+  });
+
+  it('brands each list element separately', async () => {
+    const ctx = createTestContext(
+      {
+        kb: {
+          'clients[0].purge': { access: 'allow' },
+          'clients[1].purge': { access: 'deny' },
+        },
+      },
+      {
+        kb: {
+          clients: [{ purge: method('first') }, { purge: method('second') }],
+        } as unknown as RillValue,
+      }
+    );
+
+    const allowed = await execute(
+      parse('use<ext:kb> => $kb\n$kb.clients[0].purge()'),
+      ctx
+    );
+    expect(allowed.result).toBe('first');
+
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb> => $kb\n$kb.clients[1].purge()'),
+          createTestContext(
+            {
+              kb: {
+                'clients[0].purge': { access: 'allow' },
+                'clients[1].purge': { access: 'deny' },
+              },
+            },
+            {
+              kb: {
+                clients: [
+                  { purge: method('first') },
+                  { purge: method('second') },
+                ],
+              } as unknown as RillValue,
+            }
+          )
+        ),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('denies a tuple-nested sub-client under a wildcard', async () => {
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' } } },
+      {
+        kb: {
+          pair: {
+            __rill_tuple: true,
+            entries: [{ purge: method('leaked') }],
+          },
+        } as unknown as RillValue,
+      }
+    );
+
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.pair[0].purge()'), ctx),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+
+  it('denies a member nested below a list under a wildcard', async () => {
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' } } },
+      {
+        kb: {
+          shards: [{ inner: { purge: method('leaked') } }],
+        } as unknown as RillValue,
+      }
+    );
+
+    await expectHalt(
+      () =>
+        execute(parse('use<ext:kb> => $kb\n$kb.shards[0].inner.purge()'), ctx),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+});
+
+/**
+ * The walk visits a bounded number of members. A bound that quietly
+ * stopped walking left everything past it unbranded, and unbranded means
+ * unpoliced, so exhausting the budget halts instead.
+ */
+describe('filter integration: branding budget', () => {
+  it('halts when an extension exceeds the branding budget', async () => {
+    const wide: Record<string, RillValue> = {};
+    for (let i = 0; i < 10_001; i++) {
+      wide[`m${i}`] = method('ok');
+    }
+
+    const ctx = createTestContext({ kb: { '*': { access: 'deny' } } }, {
+      kb: wide,
+    } as unknown as Record<string, RillValue>);
+
+    await expect(
+      execute(parse('use<ext:kb> => $kb\n$kb.m0()'), ctx)
+    ).rejects.toMatchObject({ errorId: 'RILL-R090' });
+  });
+
+  it('brands a deeply nested member the old depth bound would have skipped', async () => {
+    // 24 levels down, past the depth-16 bound this budget replaced.
+    let node: RillValue = { purge: method('leaked') } as unknown as RillValue;
+    const path: string[] = ['purge'];
+    for (let i = 0; i < 24; i++) {
+      node = { [`n${i}`]: node } as unknown as RillValue;
+      path.unshift(`n${i}`);
+    }
+
+    const ctx = createTestContext({ kb: { '*': { access: 'deny' } } }, {
+      kb: node,
+    } as unknown as Record<string, RillValue>);
+
+    await expectHalt(
+      () => execute(parse(`use<ext:kb> => $kb\n$kb.${path.join('.')}()`), ctx),
+      {
+        code: 'RILL_R088',
+        messagePattern: /denied by policy/,
+      }
+    );
+  });
+});
+
+/**
+ * in() rewrites the first argument whether or not it arrived through a
+ * pipe. Restricting it to piped calls would make dropping the pipe a
+ * one-edit bypass of the sanitizer.
+ */
+describe('filter integration: in() argument position', () => {
+  it('applies in() to an explicit first argument on a non-piped call', async () => {
+    const sink: { received?: RillValue } = {};
+    const ctx = createTestContext(
+      { llm: { summarize: { access: 'allow', in: ['filter.sanitize'] } } },
+      {
+        llm: { summarize: recorder(sink) } as unknown as RillValue,
+        filter: { sanitize: transform('safe') } as unknown as RillValue,
+      }
+    );
+
+    await execute(
+      parse('use<ext:llm> => $llm\n$llm.summarize("tainted input")'),
+      ctx
+    );
+    expect(sink.received).toBe('safe(tainted input)');
+  });
+
+  it('leaves a zero-argument call alone', async () => {
+    // There is no first argument to rewrite, and synthesizing one would
+    // change the call's arity.
+    const ctx = createTestContext(
+      { kb: { search: { access: 'allow', in: ['filter.sanitize'] } } },
+      {
+        kb: { search: method('result') } as unknown as RillValue,
+        filter: { sanitize: transform('safe') } as unknown as RillValue,
+      }
+    );
+
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.search()'),
+      ctx
+    );
+    expect(result.result).toBe('result');
+  });
+});

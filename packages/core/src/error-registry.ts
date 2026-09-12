@@ -147,6 +147,7 @@ export const ERROR_IDS = {
   RILL_R087: 'RILL-R087',
   RILL_R088: 'RILL-R088',
   RILL_R089: 'RILL-R089',
+  RILL_R090: 'RILL-R090',
   RILL_C001: 'RILL-C001',
   RILL_C002: 'RILL-C002',
   RILL_C003: 'RILL-C003',
@@ -2225,6 +2226,23 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Transform that must not call back into its own method',
         code: '# policy: { "kb": { "search": { "access": "allow", "out": ["filter.redact"] } } }',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_R090,
+    category: 'runtime',
+    description: 'Extension too large to brand for policy',
+    messageTemplate:
+      "Extension '{resource}' exceeds {limit} members and cannot be branded for policy",
+    cause:
+      'A use<scheme:resource> resolver returned a value with more members than the policy walk will visit. Branding every callable is what makes policy rules match, so a partial walk would leave the remainder silently unpoliced.',
+    resolution:
+      'Return a smaller extension value from the resolver, or split the extension across several resources that are resolved separately.',
+    examples: [
+      {
+        description: 'Resolver returning an extension of ordinary size',
+        code: '# Host code: registerResolver("ext", () => ({ kind: "value", value: kb }))',
       },
     ],
   },

@@ -77,6 +77,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
   getFilterResolver,
   getInFlightTransforms,
+  inheritPolicyState,
 } from '../../policy/registry.js';
 import { applyTransforms } from '../../policy/transforms.js';
 import {
@@ -380,9 +381,11 @@ export async function invokeCallable(
         );
       }
 
-      // in() rewrites the pipe value, which arrives as args[0]. A call with
-      // no arguments carries no pipe value, so there is nothing to rewrite;
-      // synthesizing one would change the call's arity.
+      // in() rewrites the first argument. That is where a piped value
+      // lands, but it is deliberately not restricted to piped calls:
+      // $kb.search("q") must be sanitized the same as "q" -> $kb.search(),
+      // or dropping the pipe is a one-edit bypass. A zero-argument call
+      // has no first argument, and synthesizing one would change arity.
       if (filter.inTransforms.length > 0 && args.length > 0) {
         const piped = await applyTransforms(
           filter.inTransforms,
@@ -612,6 +615,11 @@ export function createCallableContext(
   if (callable.boundDict) {
     callableCtx.pipeValue = callable.boundDict;
   }
+  // This context is spread from the caller's rather than built by
+  // createChildContext, so it gets no policy binding from there. Without
+  // this, every call made from inside a closure body would dispatch
+  // unfiltered, and seq/fan/filter/fold bodies all run through here.
+  inheritPolicyState(s.ctx, callableCtx);
   return callableCtx;
 }
 

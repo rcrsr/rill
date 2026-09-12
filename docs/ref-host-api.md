@@ -156,6 +156,11 @@ export type { FieldComparisonCallbacks, CallFrame };
 export { moduleResolver, extResolver, contextResolver };
 export type { SchemeResolver, ResolverResult };
 
+// Dispatch-boundary policy
+export { createConfigFilterResolver, resolvePolicy, getExtensionIdentity };
+export type { Filter, FilterResolver, ExtensionIdentity };
+export type { PolicyConfig, ExtensionMethodPolicy, MethodPolicyRule, ResolvedPolicy };
+
 // Callable types
 export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicationCallable, hydrateFieldDefaults };
 export type { RillCallable, ScriptCallable, ApplicationCallable, CallableFn };
@@ -1026,6 +1031,84 @@ const ctx = createRuntimeContext({
 ```
 
 `extResolver` returns `{ kind: 'value', value: RillValue }`.
+
+---
+
+## Dispatch-Boundary Policy
+
+Access control and input/output transforms for extension methods resolved through `use<scheme:resource>`. Configured with the `filterResolver` option on `createRuntimeContext`. See [Dispatch-Boundary Policy](integration-host.md#dispatch-boundary-policy) in the host integration guide for how the rules match and why a policy needs `"*"` to fail closed.
+
+### `resolvePolicy`
+
+```typescript
+function resolvePolicy(
+  config: PolicyConfig,
+  extensions: ReadonlyMap<string, RillValue>
+): ResolvedPolicy;
+```
+
+Resolves the `"extension.method"` strings in `in`/`out` rules to the callables they name, once, at setup. Halts with `RILL-R087` on a reference that names no mounted callable, and `RILL-R086` on a `"*"` rule carrying transforms.
+
+### `createConfigFilterResolver`
+
+```typescript
+function createConfigFilterResolver(policy: ResolvedPolicy): FilterResolver;
+```
+
+Builds a `FilterResolver` over a resolved policy. A factory rather than a bare function so the policy stays in the closure, out of reach of the extension code it governs.
+
+### `getExtensionIdentity`
+
+```typescript
+function getExtensionIdentity(
+  callable: RillCallable
+): ExtensionIdentity | undefined;
+```
+
+Where a callable was resolved from, or `undefined` for anything that did not come through `use<>`. This is the authorization key a custom `FilterResolver` should use: it is fixed when the extension resolves and does not move when a script renames or rebinds the variable holding it.
+
+### Types
+
+```typescript
+type FilterResolver = (
+  callable: RillCallable,
+  resolvedPath: string | undefined,
+  ctx: RuntimeContext
+) => Filter | null;
+
+interface Filter {
+  readonly access: 'allow' | 'deny';
+  readonly inTransforms: readonly RillCallable[];
+  readonly outTransforms: readonly RillCallable[];
+}
+
+interface ExtensionIdentity {
+  readonly extension: string;
+  readonly method: string;
+}
+
+interface MethodPolicyRule {
+  readonly access: 'allow' | 'deny';
+  readonly in?: readonly string[];
+  readonly out?: readonly string[];
+}
+
+type ExtensionMethodPolicy = Record<string, MethodPolicyRule>;
+type PolicyConfig = Record<string, ExtensionMethodPolicy>;
+
+interface ResolvedPolicy {
+  readonly rules: ReadonlyMap<string, ReadonlyMap<string, Filter>>;
+  readonly defaults: ReadonlyMap<string, Filter>;
+}
+```
+
+| Error | Raised when |
+|-------|-------------|
+| `RILL-R086` | A `"*"` rule declares `in` or `out` transforms |
+| `RILL-R087` | A transform reference cannot be resolved to a mounted callable |
+| `RILL-R088` | A call is denied by policy (catchable with `guard` or `??`) |
+| `RILL-R089` | A policy transform re-enters itself |
+| `RILL-R090` | An extension value exceeds the branding budget at `use<>` resolution |
 
 ---
 

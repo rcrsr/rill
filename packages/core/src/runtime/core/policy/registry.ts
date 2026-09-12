@@ -50,16 +50,42 @@ export function inheritPolicyState(
   if (state !== undefined) states.set(child, state);
 }
 
+/**
+ * Policy state governing this context.
+ *
+ * Checks the context's own entry first, then walks the parent chain. The
+ * walk is what makes the lookup fail closed: a context built by spreading
+ * another one (closure bodies, and any site added later) carries a
+ * `parent` link into the same tree, so it stays policed even if whoever
+ * wrote it never called `inheritPolicyState`. Keying only on the direct
+ * entry made every such site a silent bypass.
+ *
+ * The own entry is still checked first so an explicit inherit wins when a
+ * context's `parent` points into a different root's tree.
+ *
+ * Returned by reference, so the in-flight set is one set for the whole
+ * call tree rather than one per scope.
+ */
+function lookupPolicyState(ctx: RuntimeContext): PolicyState | undefined {
+  let current: RuntimeContext | undefined = ctx;
+  while (current !== undefined) {
+    const state = states.get(current);
+    if (state !== undefined) return state;
+    current = current.parent;
+  }
+  return undefined;
+}
+
 /** Resolver bound to this context, or undefined when none is configured. */
 export function getFilterResolver(
   ctx: RuntimeContext
 ): FilterResolver | undefined {
-  return states.get(ctx)?.resolver;
+  return lookupPolicyState(ctx)?.resolver;
 }
 
 /** In-flight transform set for this context tree. */
 export function getInFlightTransforms(
   ctx: RuntimeContext
 ): Set<RillCallable> | undefined {
-  return states.get(ctx)?.inFlightTransforms;
+  return lookupPolicyState(ctx)?.inFlightTransforms;
 }

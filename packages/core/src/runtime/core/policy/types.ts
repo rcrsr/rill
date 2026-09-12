@@ -25,9 +25,17 @@ export interface Filter {
   readonly access: 'allow' | 'deny';
 
   /**
-   * Transform callables applied to the pipe value (args[0]) before
-   * the method executes. Chained sequentially: output of one feeds
-   * into the next.
+   * Transform callables applied to the method's **first argument**
+   * before it executes. Chained sequentially: output of one feeds into
+   * the next.
+   *
+   * The first argument, not the pipe value specifically. A piped call
+   * puts the piped value there, but `$kb.search("q")` puts `"q"` there
+   * and it is sanitized just the same. Keying on the pipe would make
+   * "write the call without a pipe" a one-edit bypass.
+   *
+   * A zero-argument call has nothing in that position and is left alone.
+   * Synthesizing an argument would change the call's arity.
    */
   readonly inTransforms: readonly RillCallable[];
 
