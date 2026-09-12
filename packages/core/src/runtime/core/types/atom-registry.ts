@@ -235,6 +235,9 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   [ERROR_ATOMS[ERROR_IDS.RILL_R083], 'runtime'],
   // createRuntimeContext({ timeout }) host-level execution timeout.
   [ERROR_ATOMS[ERROR_IDS.RILL_R012], 'runtime'],
+  // Dispatch-boundary policy halt atoms: denied call and transform cycle.
+  [ERROR_ATOMS[ERROR_IDS.RILL_R088], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R089], 'runtime'],
 ];
 
 for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {

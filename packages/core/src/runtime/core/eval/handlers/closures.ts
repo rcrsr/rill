@@ -75,6 +75,12 @@ import {
 import { createTraceFrame, TRACE_KINDS } from '../../types/trace.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
+  getFilterResolver,
+  getInFlightTransforms,
+  inheritPolicyState,
+} from '../../policy/registry.js';
+import { applyTransforms } from '../../policy/transforms.js';
+import {
   getNodeLocation,
   checkAborted,
   withTimeout,
@@ -279,7 +285,31 @@ async function evaluateArgs(
   }
 }
 
-/** Invoke any callable; dispatches by kind. */
+/** Dispatch by kind, without frame enrichment. */
+async function dispatchByKind(
+  s: EvalState,
+  callable: RillCallable,
+  args: (RillValue | undefined)[],
+  callLocation?: SourceLocation,
+  functionName?: string
+): Promise<RillValue> {
+  return callable.kind === 'script'
+    ? invokeScriptCallable(s, callable, args, callLocation)
+    : invokeFnCallable(s, callable, args, callLocation, functionName);
+}
+
+/**
+ * Invoke any callable; dispatches by kind.
+ *
+ * All four call syntaxes (`$obj.method()`, `hostCall()`, `ns::name`,
+ * `receiver.method`) funnel here, which is why the policy filter runs at
+ * this one site: filtering anywhere else would leave the other syntaxes
+ * unsanitized.
+ *
+ * `internal: true` skips both the filter and frame enrichment. It is how
+ * policy transforms are dispatched, so a transform is not itself
+ * re-filtered on the way in.
+ */
 export async function invokeCallable(
   s: EvalState,
   callable: RillCallable,
@@ -314,56 +344,108 @@ export async function invokeCallable(
     await Promise.resolve();
 
     if (internal === true) {
-      let result: RillValue;
-      if (callable.kind === 'script') {
-        result = await invokeScriptCallable(s, callable, args, callLocation);
-      } else {
-        result = await invokeFnCallable(
-          s,
-          callable,
-          args,
-          callLocation,
-          functionName
-        );
-      }
-      if (isStream(result)) {
-        trackStream(s, result as RillStream);
-      }
-      return result;
-    }
-
-    if (callLocation) {
-      // Route through invocationStrategy.invoke — single frame-enrichment site.
-      // BoundArguments.params (arguments-binder.ts) is out of scope for the
-      // (RillValue | undefined)[] threading; the cast lands at this boundary.
-      const bound: BoundArguments = {
-        params: new Map((args as RillValue[]).map((v, i) => [String(i), v])),
-      };
-      const result = await getInvocationStrategy(s).invoke(
-        callable,
-        bound,
-        callLocation,
-        functionName
-      );
-      if (isStream(result)) {
-        trackStream(s, result as RillStream);
-      }
-      return result;
-    }
-
-    // No call-site location: dispatch directly without a frame.
-    let result: RillValue;
-    if (callable.kind === 'script') {
-      result = await invokeScriptCallable(s, callable, args, callLocation);
-    } else {
-      result = await invokeFnCallable(
+      const internalResult = await dispatchByKind(
         s,
         callable,
         args,
         callLocation,
         functionName
       );
+      if (isStream(internalResult)) {
+        trackStream(s, internalResult as RillStream);
+      }
+      return internalResult;
     }
+
+    // `functionName` carries the resolved path and is passed for diagnostics
+    // only. The resolver keys on the callable's own identity — see
+    // core/policy/identity.ts.
+    const filter =
+      getFilterResolver(s.ctx)?.(callable, functionName, s.ctx) ?? null;
+
+    const haltSite = {
+      location: callLocation,
+      sourceId: s.ctx.sourceId,
+      fn: 'invokeCallable',
+    };
+
+    let effectiveArgs = args;
+    if (filter !== null) {
+      if (filter.access === 'deny') {
+        const path = functionName ?? 'callable';
+        throwCatchableHostHalt(
+          haltSite,
+          ERROR_ATOMS[ERROR_IDS.RILL_R088],
+          `Call to ${path} denied by policy`,
+          { path }
+        );
+      }
+
+      // in() rewrites the first argument. That is where a piped value
+      // lands, but it is deliberately not restricted to piped calls:
+      // $kb.search("q") must be sanitized the same as "q" -> $kb.search(),
+      // or dropping the pipe is a one-edit bypass. A zero-argument call
+      // has no first argument, and synthesizing one would change arity.
+      if (filter.inTransforms.length > 0 && args.length > 0) {
+        const piped = await applyTransforms(
+          filter.inTransforms,
+          args[0] as RillValue,
+          (transform, value) =>
+            invokeCallable(
+              s,
+              transform,
+              [value],
+              callLocation,
+              undefined,
+              true
+            ),
+          getInFlightTransforms(s.ctx),
+          haltSite
+        );
+        effectiveArgs = [piped, ...args.slice(1)];
+      }
+    }
+
+    let result: RillValue;
+    if (callLocation) {
+      // Route through invocationStrategy.invoke — single frame-enrichment site.
+      // BoundArguments.params (arguments-binder.ts) is out of scope for the
+      // (RillValue | undefined)[] threading; the cast lands at this boundary.
+      const bound: BoundArguments = {
+        params: new Map(
+          (effectiveArgs as RillValue[]).map((v, i) => [String(i), v])
+        ),
+      };
+      result = await getInvocationStrategy(s).invoke(
+        callable,
+        bound,
+        callLocation,
+        functionName
+      );
+    } else {
+      // No call-site location: dispatch directly without a frame.
+      result = await dispatchByKind(
+        s,
+        callable,
+        effectiveArgs,
+        callLocation,
+        functionName
+      );
+    }
+
+    // out() runs before trackStream so the tracked value is the transformed
+    // one, not the raw return the transform was meant to replace.
+    if (filter !== null && filter.outTransforms.length > 0) {
+      result = await applyTransforms(
+        filter.outTransforms,
+        result,
+        (transform, value) =>
+          invokeCallable(s, transform, [value], callLocation, undefined, true),
+        getInFlightTransforms(s.ctx),
+        haltSite
+      );
+    }
+
     if (isStream(result)) {
       trackStream(s, result as RillStream);
     }
@@ -533,6 +615,11 @@ export function createCallableContext(
   if (callable.boundDict) {
     callableCtx.pipeValue = callable.boundDict;
   }
+  // This context is spread from the caller's rather than built by
+  // createChildContext, so it gets no policy binding from there. Without
+  // this, every call made from inside a closure body would dispatch
+  // unfiltered, and seq/fan/filter/fold bodies all run through here.
+  inheritPolicyState(s.ctx, callableCtx);
   return callableCtx;
 }
 

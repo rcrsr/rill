@@ -46,6 +46,7 @@ The `createRuntimeContext()` function accepts these options:
 | `requireDescriptions` | `boolean` | Require descriptions for all functions and parameters |
 | `resolvers` | `Record<string, SchemeResolver> \| undefined` | Scheme-to-resolver map for `use<scheme:...>` imports |
 | `configurations` | `{ resolvers?: Record<string, unknown> } \| undefined` | Per-scheme config data passed to each resolver |
+| `filterResolver` | `FilterResolver \| undefined` | Access control and transforms for extension method calls; see [Dispatch-Boundary Policy](#dispatch-boundary-policy) |
 | `checkerMode` | `'strict' \| 'permissive' \| undefined` | Type checker mode; default `'permissive'` |
 
 ## Host Function Contract
@@ -302,6 +303,112 @@ functions: {
 ```
 
 `ctx.metadata` is `undefined` when the script runs outside the agent harness (e.g., direct `execute()` calls).
+
+## Dispatch-Boundary Policy
+
+A script that resolves an extension through `use<scheme:resource>` can call every method on it. `filterResolver` lets the host decide, per method, whether the call is permitted and what happens to its input and output.
+
+The filter runs at the single site every call syntax funnels through, so `$kb.search()`, `kb::search()`, a bare `search()`, and a method reached through a rebound variable all hit the same rule.
+
+### Configuring a Policy
+
+Write the policy as data, resolve it once, and hand the resolver to the context:
+
+```typescript
+import {
+  createRuntimeContext,
+  createConfigFilterResolver,
+  resolvePolicy,
+  extResolver,
+} from '@rcrsr/rill';
+
+const extensions = { kb, filter };
+
+const policy = resolvePolicy(
+  {
+    kb: {
+      search: { access: 'allow', out: ['filter.redact'] },
+      delete: { access: 'deny' },
+      '*': { access: 'deny' },
+    },
+  },
+  new Map(Object.entries(extensions))
+);
+
+const ctx = createRuntimeContext({
+  filterResolver: createConfigFilterResolver(policy),
+  resolvers: { ext: extResolver },
+  configurations: { resolvers: { ext: extensions } },
+});
+```
+
+`resolvePolicy` turns the `"extension.method"` strings in `in`/`out` into the callables they name, once, at setup. A reference that names no mounted callable halts there with `RILL-R087` rather than on the first call that would have used it. A `"*"` rule carrying `in` or `out` halts with `RILL-R086`: one transform signature cannot fit every method it would wrap.
+
+### Rule Matching
+
+| Key | Meaning |
+|-----|---------|
+| `"search"` | Exact method name |
+| `"client.search"` | A method on a nested sub-client |
+| `"clients[0].purge"` | A method reached through a list or tuple index |
+| `"*"` | Default for methods on this extension with no exact rule |
+
+Matching order, per call:
+
+1. Callable carries no extension identity — pass through. Script closures, built-ins, and functions registered through `functions` are not extension methods and are never policed.
+2. Extension has no rules and no `"*"` — pass through.
+3. Extension is policed but the callable cannot be named as a method (the extension root is itself a callable) — deny.
+4. Exact rule for the method — use it.
+5. The extension's `"*"` rule — use it.
+6. Otherwise pass through.
+
+**Step 6 is why a policy must declare `"*"` to fail closed.** Listing `delete` as denied and nothing else leaves every other method on that extension allowed, including methods added to the extension later. Write the default first:
+
+```typescript
+kb: {
+  '*': { access: 'deny' },
+  search: { access: 'allow' },
+}
+```
+
+Rules key on where a callable was resolved from, not on the path the script writes. Renaming the capture variable, rebinding a method to a second variable, or reaching it through a different call syntax does not move it out from under its rule.
+
+### Transforms
+
+`in` rewrites the method's **first argument** before it executes; `out` rewrites the return value after. Both are lists, applied in order, each transform receiving the previous one's output.
+
+`in` is not restricted to piped calls. `$kb.search("q")` is sanitized the same as `"q" -> $kb.search()`, because keying on the pipe would make dropping it a one-edit bypass. A zero-argument call has no first argument and is left alone; synthesizing one would change the call's arity.
+
+Transforms are dispatched internally, so a transform is not itself filtered on the way in. A transform that re-enters itself, directly or through a policed method whose own chain reaches back, halts with `RILL-R089`.
+
+### What a Denied Call Does
+
+A denied call halts with `RILL-R088`, which is catchable:
+
+```rill
+guard { $kb.delete() } => $r
+$r.! ? "not permitted" ! $r
+```
+
+### Reach
+
+The resolver is held outside the `RuntimeContext`. Host and extension functions are handed the context, so a resolver reachable there would be readable and writable by the code it governs.
+
+Every callable reachable from a resolved `use<>` value is policed, including those nested in dicts, lists, and tuples. An extension whose value exceeds 10,000 members halts at resolution with `RILL-R090` rather than leaving the remainder unbranded and therefore unpoliced.
+
+### Writing Your Own Resolver
+
+`createConfigFilterResolver` is one implementation. `FilterResolver` is the interface, and it receives the callable itself, so a resolver can key on `callable.annotations` or anything else it carries:
+
+```typescript
+type FilterResolver = (
+  callable: RillCallable,
+  resolvedPath: string | undefined,
+  ctx: RuntimeContext
+) => Filter | null;
+```
+
+Return `null` to pass the call through unfiltered. `resolvedPath` is the script-facing call path and is suitable for diagnostics only: the script author picks the variable name it is built from. Use `getExtensionIdentity(callable)` for an authorization key. Resolvers run on every dispatch, so keep them to map lookups on pre-resolved data.
 
 ## Host Function Type Declarations
 
