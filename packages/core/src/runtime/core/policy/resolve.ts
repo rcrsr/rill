@@ -41,11 +41,18 @@ const DENY_UNIDENTIFIED: Filter = Object.freeze({
  * 6. Otherwise pass through. An unlisted method on a policed extension
  *    is allowed unless the host declared `"*"`; see {@link resolvePolicy}
  *    for why that switch is the host's to throw.
+ *
+ * The returned resolver also carries `policesExtension(ext)`, true exactly
+ * when the policy has rules or a default for `ext`; it shares the check
+ * in step 2.
  */
 export function createConfigFilterResolver(
   policy: ResolvedPolicy
 ): FilterResolver {
-  return (
+  const policesExtension = (extension: string): boolean =>
+    policy.rules.has(extension) || policy.defaults.has(extension);
+
+  const resolver = (
     callable: RillCallable,
     _resolvedPath: string | undefined,
     _ctx: RuntimeContext
@@ -54,15 +61,15 @@ export function createConfigFilterResolver(
     if (identity === undefined) return null;
 
     const { extension, method } = identity;
-    const extRules = policy.rules.get(extension);
-    const extDefault = policy.defaults.get(extension);
-    if (extRules === undefined && extDefault === undefined) return null;
+    if (!policesExtension(extension)) return null;
 
     if (method === '') return DENY_UNIDENTIFIED;
 
-    const exact = extRules?.get(method);
+    const exact = policy.rules.get(extension)?.get(method);
     if (exact !== undefined) return exact;
 
-    return extDefault ?? null;
+    return policy.defaults.get(extension) ?? null;
   };
+
+  return Object.assign(resolver, { policesExtension });
 }

@@ -1055,7 +1055,7 @@ Resolves the `"extension.method"` strings in `in`/`out` rules to the callables t
 function createConfigFilterResolver(policy: ResolvedPolicy): FilterResolver;
 ```
 
-Builds a `FilterResolver` over a resolved policy. A factory rather than a bare function so the policy stays in the closure, out of reach of the extension code it governs.
+Builds a `FilterResolver` over a resolved policy. A factory rather than a bare function so the policy stays in the closure, out of reach of the extension code it governs. The returned resolver implements `policesExtension`, which is true for an extension with rules or a `"*"` default.
 
 ### `getExtensionIdentity`
 
@@ -1065,16 +1065,20 @@ function getExtensionIdentity(
 ): ExtensionIdentity | undefined;
 ```
 
-Where a callable was resolved from, or `undefined` for anything that did not come through `use<>`. This is the authorization key a custom `FilterResolver` should use: it is fixed when the extension resolves and does not move when a script renames or rebinds the variable holding it.
+Where a callable was resolved from, or `undefined` for anything that did not come through `use<>`. Under a configured `filterResolver`, values derived from a branded call's result also carry an identity when the resolver polices that extension (see [Dispatch-Boundary Policy](integration-host.md#dispatch-boundary-policy)), with `()` appended to the calling method's path. This is the authorization key a custom `FilterResolver` should use: it is fixed when the extension resolves and does not move when a script renames or rebinds the variable holding it.
 
 ### Types
 
 ```typescript
-type FilterResolver = (
-  callable: RillCallable,
-  resolvedPath: string | undefined,
-  ctx: RuntimeContext
-) => Filter | null;
+interface FilterResolver {
+  (
+    callable: RillCallable,
+    resolvedPath: string | undefined,
+    ctx: RuntimeContext
+  ): Filter | null;
+
+  readonly policesExtension?: (extension: string) => boolean;
+}
 
 interface Filter {
   readonly access: 'allow' | 'deny';

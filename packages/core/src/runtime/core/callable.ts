@@ -739,7 +739,14 @@ export function validateHostResult(
   functionName: string,
   location?: SourceLocation
 ): void {
-  walkHostResult(result, functionName, '<root>', location, new WeakSet());
+  walkHostResult(
+    result,
+    functionName,
+    null,
+    undefined,
+    location,
+    new WeakSet()
+  );
 }
 
 /** Identity predicate for the field_descriptor brand (mirrors the private
@@ -900,15 +907,47 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<{
   },
 ];
 
+/** One container on the path from the result root to the value being walked. */
+interface HostPathFrame {
+  readonly parent: HostPathFrame | null;
+  readonly key: string | number;
+}
+
+/** Render the path of the value at `key` under `parent`. Runs only when an
+ * error message is built, so the walk allocates no path strings on success. */
+function renderHostPath(
+  parent: HostPathFrame | null,
+  key: string | number | undefined
+): string {
+  const segments: Array<string | number> = [];
+  if (key !== undefined) segments.push(key);
+  for (let f = parent; f !== null; f = f.parent) segments.push(f.key);
+  let path = '<root>';
+  for (let i = segments.length - 1; i >= 0; i--) {
+    const seg = segments[i]!;
+    if (typeof seg === 'number') path += `[${seg}]`;
+    else path = path === '<root>' ? `.${seg}` : `${path}.${seg}`;
+  }
+  return path;
+}
+
+/** Walk a host result. `parent` and `key` locate `value` lazily; `key` is
+ * undefined only for the root. */
 function walkHostResult(
   value: unknown,
   functionName: string,
-  path: string,
+  parent: HostPathFrame | null,
+  key: string | number | undefined,
   location: SourceLocation | undefined,
   seen: WeakSet<object>
 ): void {
   if (value === undefined || value === null) {
-    throwHostResultError(functionName, path, value, location);
+    throwHostResultError(
+      functionName,
+      renderHostPath(parent, key),
+      value,
+      location
+    );
   }
 
   const t = typeof value;
@@ -921,14 +960,19 @@ function walkHostResult(
     throwCatchableHostHalt(
       { location, fn: 'walkHostResult' },
       'INVALID_INPUT',
-      `Host function '${functionName}' returned a non-finite number at ${path}: ${label}`
+      `Host function '${functionName}' returned a non-finite number at ${renderHostPath(parent, key)}: ${label}`
     );
   }
   if (t === 'string' || t === 'number' || t === 'boolean') {
     return;
   }
   if (t === 'symbol' || t === 'bigint' || t === 'function') {
-    throwHostResultError(functionName, path, value, location);
+    throwHostResultError(
+      functionName,
+      renderHostPath(parent, key),
+      value,
+      location
+    );
   }
 
   // Remaining case: t === 'object'
@@ -936,7 +980,12 @@ function walkHostResult(
   const rillValue = value as RillValue;
 
   if (seen.has(obj)) {
-    throwHostResultError(functionName, path, value, location);
+    throwHostResultError(
+      functionName,
+      renderHostPath(parent, key),
+      value,
+      location
+    );
   }
 
   if (
@@ -953,7 +1002,7 @@ function walkHostResult(
       if (!check.valid(rillValue)) {
         throwHostResultError(
           functionName,
-          path,
+          renderHostPath(parent, key),
           value,
           location,
           `malformed ${check.label} brand`
@@ -964,13 +1013,19 @@ function walkHostResult(
   }
 
   if (value instanceof Date || value instanceof Map || value instanceof Set) {
-    throwHostResultError(functionName, path, value, location);
+    throwHostResultError(
+      functionName,
+      renderHostPath(parent, key),
+      value,
+      location
+    );
   }
 
   if (Array.isArray(value)) {
     seen.add(obj);
+    const frame = key === undefined ? null : { parent, key };
     for (let i = 0; i < value.length; i++) {
-      walkHostResult(value[i], functionName, `${path}[${i}]`, location, seen);
+      walkHostResult(value[i], functionName, frame, i, location, seen);
     }
     seen.delete(obj);
     return;
@@ -978,12 +1033,14 @@ function walkHostResult(
 
   if (isPlainObject(obj)) {
     seen.add(obj);
-    for (const key of Object.keys(obj as Record<string, unknown>)) {
-      const childPath = path === '<root>' ? `.${key}` : `${path}.${key}`;
+    const frame = key === undefined ? null : { parent, key };
+    const record = obj as Record<string, unknown>;
+    for (const childKey of Object.keys(record)) {
       walkHostResult(
-        (obj as Record<string, unknown>)[key],
+        record[childKey],
         functionName,
-        childPath,
+        frame,
+        childKey,
         location,
         seen
       );
@@ -993,5 +1050,10 @@ function walkHostResult(
   }
 
   // Non-plain class instance: reject
-  throwHostResultError(functionName, path, value, location);
+  throwHostResultError(
+    functionName,
+    renderHostPath(parent, key),
+    value,
+    location
+  );
 }

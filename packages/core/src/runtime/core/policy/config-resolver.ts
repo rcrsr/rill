@@ -41,9 +41,20 @@ import { ERROR_IDS } from '../../../error-registry.js';
  * ## Scope
  *
  * Policy applies to callables reached through `use<scheme:resource>`,
- * which is where extension identity is branded. Values injected through
+ * which is where extension identity is branded, and to callables returned
+ * from a branded call (including out() output), which inherit the
+ * extension and are addressed as `method()` or `method().member`. Script
+ * closures, `functions`-registered callables, and stream or iterator
+ * elements are not branded. Values injected through
  * `RuntimeOptions.variables` or registered as host `functions` carry no
  * extension identity and are not policed.
+ *
+ * ## Shared instances
+ *
+ * Brands derived from a policed call's result are process-global and
+ * first-wins. A singleton sub-client returned by both `a.o()` and `b.o()`
+ * keeps the brand of whichever call ran first, so an extension pair that
+ * shares an instance is policed under the first one's rules.
  *
  * @param config - Raw policy config from the host
  * @param extensions - Map of mounted extension names to their values
