@@ -47,7 +47,8 @@ export interface Filter {
 }
 
 /**
- * Pluggable filter resolver.
+ * Pluggable filter resolver: a callable that maps a callable to a Filter,
+ * optionally carrying an extension-level `policesExtension` hint.
  *
  * Called by invokeCallable on every non-internal dispatch. Returns a
  * Filter if a policy applies, or null to let the call pass through
@@ -63,11 +64,31 @@ export interface Filter {
  *
  * Implementations should be cheap (map lookups on pre-resolved data).
  */
-export type FilterResolver = (
-  callable: RillCallable,
-  resolvedPath: string | undefined,
-  ctx: RuntimeContext
-) => Filter | null;
+export interface FilterResolver {
+  (
+    callable: RillCallable,
+    resolvedPath: string | undefined,
+    ctx: RuntimeContext
+  ): Filter | null;
+
+  /**
+   * Optional extension-level hint used to skip call-time identity
+   * propagation.
+   *
+   * Returning `false` promises the resolver returns null for every
+   * callable whose identity extension is `extension`, including callables
+   * minted at call time. The answer must be a pure function of `extension`
+   * and stable for the lifetime of the resolver, because a callable minted
+   * while the answer is false stays unbranded permanently.
+   *
+   * Resolvers keyed on anything other than the extension brand (for
+   * example annotations) must omit it. Omitting it is always safe.
+   *
+   * It gates only call-time identity propagation, never the filter
+   * decision.
+   */
+  readonly policesExtension?: (extension: string) => boolean;
+}
 
 /**
  * Where a callable came from: recorded at `use<>` resolution or derived

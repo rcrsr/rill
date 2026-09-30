@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { resolvePolicy } from '../../../src/runtime/core/policy/config-resolver.js';
 import { toCallable } from '../../../src/runtime/core/callable.js';
 import { anyTypeValue } from '../../../src/runtime/core/values.js';
+import {
+  createConfigFilterResolver,
+  resolvePolicy as publicResolvePolicy,
+} from '../../../src/index.js';
 import type { RillValue } from '../../../src/runtime/core/types/structures.js';
 
 /** A single-argument transform callable returning a tagged string. */
@@ -212,5 +216,36 @@ describe('resolvePolicy', () => {
     expect(Object.isFrozen(rule)).toBe(true);
     expect(Object.isFrozen(rule.outTransforms)).toBe(true);
     expect(policy.rules.get('kb')?.get('search')?.access).toBe('allow');
+  });
+});
+
+describe('createConfigFilterResolver policesExtension', () => {
+  it('is true for an extension with rules only', () => {
+    const resolver = createConfigFilterResolver(
+      publicResolvePolicy({ kb: { search: { access: 'allow' } } }, new Map())
+    );
+    expect(resolver.policesExtension?.('kb')).toBe(true);
+  });
+
+  it('is true for an extension with a default only', () => {
+    const resolver = createConfigFilterResolver(
+      publicResolvePolicy({ kb: { '*': { access: 'deny' } } }, new Map())
+    );
+    expect(resolver.policesExtension?.('kb')).toBe(true);
+  });
+
+  it('is false for an extension the config does not mention', () => {
+    const resolver = createConfigFilterResolver(
+      publicResolvePolicy({ kb: { search: { access: 'allow' } } }, new Map())
+    );
+    expect(resolver.policesExtension?.('other')).toBe(false);
+  });
+
+  it('is false for any name under an empty config', () => {
+    const resolver = createConfigFilterResolver(
+      publicResolvePolicy({}, new Map())
+    );
+    expect(resolver.policesExtension?.('kb')).toBe(false);
+    expect(resolver.policesExtension?.('other')).toBe(false);
   });
 });

@@ -402,26 +402,34 @@ The resolver is held outside the `RuntimeContext`. Host and extension functions 
 
 Every callable reachable from a resolved `use<>` value is policed, including those nested in dicts, lists, and tuples. An extension whose value exceeds 10,000 members halts at resolution with `RILL-R090` rather than leaving the remainder unbranded and therefore unpoliced.
 
-Values returned from a branded call inherit the extension, including the output of `out` transforms. A method `open` that returns `dict[purge: <callable>]` therefore yields a `purge` addressable as `"open().purge"`, and it is denied by `"*"` unless a rule allows it. Not every callable is branded:
+When the resolver polices the calling extension, values returned from a branded call inherit that extension, including the output of `out` transforms. A method `open` that returns `dict[purge: <callable>]` therefore yields a `purge` addressable as `"open().purge"`, and it is denied by `"*"` unless a rule allows it. Not every callable is branded:
 
 - Script closures, built-ins, and callables registered through `functions` keep no extension identity.
 - A stream is skipped whole at call time, and the `value` an iterator yields is skipped, because those elements do not exist until consumed. A callable consumed from a stream is therefore not policed. An iterator's own callable members, such as `next`, are branded.
 
-A callable that already carries a `use<>` identity keeps it, and the first call-time identity wins over later ones. The call-time walk has no member budget, so its cost is paid on every policed call.
+A callable that already carries a `use<>` identity keeps it, and the first call-time identity wins over later ones. The call-time walk has no member budget, so its cost is paid on every call to a branded callable whose extension the resolver polices. The walk is skipped when `policesExtension(extension)` returns false, and a resolver without that method keeps walking. The hint affects only call-time branding; `use<>` branding and the `RILL-R090` budget are unchanged.
 
 Derived brands are process-global and first-wins. A singleton sub-client returned by two extensions keeps the brand of whichever call ran first, so give each extension its own instance.
+
+Because derived brands are process-global, two contexts that share extension instances but use different resolvers can disagree: a callable minted in the non-policing context stays unbranded when a host hands it to the policing one.
 
 ### Writing Your Own Resolver
 
 `createConfigFilterResolver` is one implementation. `FilterResolver` is the interface, and it receives the callable itself, so a resolver can key on `callable.annotations` or anything else it carries:
 
 ```typescript
-type FilterResolver = (
-  callable: RillCallable,
-  resolvedPath: string | undefined,
-  ctx: RuntimeContext
-) => Filter | null;
+interface FilterResolver {
+  (
+    callable: RillCallable,
+    resolvedPath: string | undefined,
+    ctx: RuntimeContext
+  ): Filter | null;
+
+  readonly policesExtension?: (extension: string) => boolean;
+}
 ```
+
+`policesExtension` is an optional hint that lets the runtime skip call-time branding for extensions the resolver never polices. Its `extension` argument is the first resource segment, the same value as `ExtensionIdentity.extension`. `createConfigFilterResolver` returns true for an extension with rules or a `"*"` default and false otherwise. Returning false means callables returned from calls into that extension carry no identity, so the resolver cannot police them later; return false only when the resolver will never police them. The answer must not change from false to true during the life of a context. It runs on every branded call, so keep it a map lookup. Under the config resolver, `getExtensionIdentity()` is `undefined` for callables returned by unpoliced extensions.
 
 Return `null` to pass the call through unfiltered. `resolvedPath` is the script-facing call path and is suitable for diagnostics only: the script author picks the variable name it is built from. Use `getExtensionIdentity(callable)` for an authorization key. Resolvers run on every dispatch, so keep them to map lookups on pre-resolved data.
 

@@ -458,15 +458,19 @@ export async function invokeCallable(
       );
     }
 
-    if (
-      resolver !== undefined &&
-      getExtensionIdentity(callable) !== undefined
-    ) {
-      propagateExtensionIdentity(
-        callable,
-        result,
-        createHostRegisteredCheck(s.ctx)
-      );
+    if (resolver !== undefined) {
+      const identity = getExtensionIdentity(callable);
+      // The skip trusts the resolver's extension-level answer.
+      if (
+        identity !== undefined &&
+        resolver.policesExtension?.(identity.extension) !== false
+      ) {
+        propagateExtensionIdentity(
+          callable,
+          result,
+          createHostRegisteredCheck(s.ctx)
+        );
+      }
     }
 
     if (isStream(result)) {

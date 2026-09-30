@@ -13,6 +13,7 @@ import { extResolver } from '../../../src/runtime/core/resolvers.js';
 import { toCallable } from '../../../src/runtime/core/callable.js';
 import { setTypedKey } from '../../../src/runtime/core/types/dict-keys.js';
 import { anyTypeValue } from '../../../src/runtime/core/values.js';
+import type { FilterResolver } from '../../../src/index.js';
 import type { PolicyConfig } from '../../../src/runtime/core/policy/types.js';
 import type { RillValue } from '../../../src/runtime/core/types/structures.js';
 import type { RillParam } from '../../../src/runtime/core/callable.js';
@@ -1216,14 +1217,133 @@ describe('filter integration: callables returned at call time', () => {
       fresh = method('made');
       return fresh;
     });
-    const ctx = buildContext({ other: { '*': { access: 'deny' } } }, {
-      kb: root,
-      other: { run: method('x') },
-    } as unknown as Record<string, RillValue>);
+    const ctx = createRuntimeContext({
+      filterResolver: () => null,
+      resolvers: { ext: extResolver },
+      configurations: { resolvers: { ext: { kb: root } } },
+    });
     await execute(parse('use<ext:kb> => $kb\n$kb() => $f\n1'), ctx);
     expect(getExtensionIdentity(fresh as never)).toEqual({
       extension: 'kb',
       method: '()',
+    });
+  });
+
+  describe('policesExtension hint', () => {
+    const script = 'use<ext:kb> => $kb\n$kb.make() => $f\n1';
+
+    function hintedContext(
+      resolver: FilterResolver,
+      kb: Record<string, RillValue>
+    ) {
+      return createRuntimeContext({
+        filterResolver: resolver,
+        resolvers: { ext: extResolver },
+        configurations: { resolvers: { ext: { kb } } },
+      });
+    }
+
+    function freshKb() {
+      const state: { fresh: RillValue } = { fresh: '' };
+      const kb = {
+        make: producer(() => {
+          state.fresh = method('made');
+          return state.fresh;
+        }),
+      } as unknown as Record<string, RillValue>;
+      return { state, kb };
+    }
+
+    it('leaves a call-time callable unbranded when the hint returns false', async () => {
+      const { state, kb } = freshKb();
+      const calls: string[] = [];
+      const resolver: FilterResolver = Object.assign(() => null, {
+        policesExtension: (extension: string): boolean => {
+          calls.push(extension);
+          return false;
+        },
+      });
+      await execute(parse(script), hintedContext(resolver, kb));
+      expect(getExtensionIdentity(state.fresh as never)).toBeUndefined();
+      expect(calls).toContain('kb');
+    });
+
+    it('brands a call-time callable when the resolver has no hint', async () => {
+      const { state, kb } = freshKb();
+      await execute(
+        parse(script),
+        hintedContext(() => null, kb)
+      );
+      expect(getExtensionIdentity(state.fresh as never)).toEqual({
+        extension: 'kb',
+        method: 'make()',
+      });
+    });
+
+    it('brands a call-time callable when the hint returns true', async () => {
+      const { state, kb } = freshKb();
+      const resolver: FilterResolver = Object.assign(() => null, {
+        policesExtension: (): boolean => true,
+      });
+      await execute(parse(script), hintedContext(resolver, kb));
+      expect(getExtensionIdentity(state.fresh as never)).toEqual({
+        extension: 'kb',
+        method: 'make()',
+      });
+    });
+
+    it('still enforces a deny filter when the hint returns false', async () => {
+      const { kb } = freshKb();
+      const resolver: FilterResolver = Object.assign(
+        () => ({
+          access: 'deny' as const,
+          inTransforms: [],
+          outTransforms: [],
+        }),
+        { policesExtension: (): boolean => false }
+      );
+      await expectHalt(
+        () =>
+          execute(
+            parse('use<ext:kb> => $kb\n$kb.make()'),
+            hintedContext(resolver, kb)
+          ),
+        { code: 'RILL_R088' }
+      );
+    });
+
+    it('brands when the hint returns a non-false value', async () => {
+      const { state, kb } = freshKb();
+      const resolver = Object.assign(() => null, {
+        policesExtension: () => undefined,
+      }) as unknown as FilterResolver;
+      await execute(parse(script), hintedContext(resolver, kb));
+      expect(getExtensionIdentity(state.fresh as never)).toEqual({
+        extension: 'kb',
+        method: 'make()',
+      });
+    });
+
+    it('keeps the use<> identity when the hint returns false', async () => {
+      const { kb } = freshKb();
+      const resolver: FilterResolver = Object.assign(() => null, {
+        policesExtension: (): boolean => false,
+      });
+      await execute(parse(script), hintedContext(resolver, kb));
+      expect(getExtensionIdentity(kb['make'] as never)).toEqual({
+        extension: 'kb',
+        method: 'make',
+      });
+    });
+
+    it('leaves a callable from an unpoliced extension unbranded under a config resolver', async () => {
+      const { state, kb } = freshKb();
+      const ctx = buildContext({ other: { '*': { access: 'deny' } } }, {
+        kb,
+        other: { run: method('x') },
+      } as unknown as Record<string, RillValue>);
+      await execute(parse(script), ctx);
+      expect(getExtensionIdentity(state.fresh as never)).toBeUndefined();
     });
   });
 
