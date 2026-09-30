@@ -94,6 +94,7 @@ import {
   evaluatePipeChain,
   evaluatePrimary,
 } from './core.js';
+import { copyExtensionIdentity } from '../../policy/identity.js';
 import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { invokeCallable } from './closures.js';
 import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
@@ -771,16 +772,17 @@ export async function evaluateDict(
   for (const key of Object.keys(result)) {
     const value = result[key];
     if (value !== undefined && isCallable(value)) {
-      setDictField(result, key, {
-        ...value,
-        boundDict: result,
-      });
+      const bound = { ...value, boundDict: result };
+      copyExtensionIdentity(value, bound);
+      setDictField(result, key, bound);
     }
   }
   // Bind callables stored under number/boolean keys as well.
   for (const { key, value } of typedKeyEntries(result)) {
     if (isCallable(value)) {
-      setTypedKey(result, key, { ...value, boundDict: result });
+      const bound = { ...value, boundDict: result };
+      copyExtensionIdentity(value, bound);
+      setTypedKey(result, key, bound);
     }
   }
 

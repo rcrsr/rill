@@ -36,7 +36,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync, execFileSync } = require('child_process');
+const { spawnSync } = require('child_process');
 
 const { generate, SHARED_TOOLING_DEPS } = require(
   path.join(__dirname, 'gen-baseline.cjs')
@@ -201,6 +201,9 @@ let gitLocalEnvNames;
 // by a fixture spawn they point `git init` and `git add` at the enclosing
 // repository. The name list comes from git itself and is cached after the
 // first call. Never mutates the source; throws if git cannot list the names.
+// Limit: GIT_CEILING_DIRECTORIES and GIT_DISCOVERY_ACROSS_FILESYSTEM also
+// affect repository discovery but are not in --local-env-vars, so they pass
+// through untouched.
 function cleanGitEnv(source = process.env) {
   if (!gitLocalEnvNames) {
     const result = spawnSync('git', ['rev-parse', '--local-env-vars'], {
@@ -926,18 +929,24 @@ function runLeakedGitEnvTests() {
       else process.env[n] = saved[n];
     }
   }
+}
 
-  const gitNames = execFileSync('git', ['rev-parse', '--local-env-vars'], {
-    encoding: 'utf8',
-  })
-    .split('\n')
-    .filter(Boolean);
+// cleanGitEnv unit checks. Independent of the fixture build, so a fixture
+// failure cannot skip them. The expected names are hard-coded rather than read
+// from `git rev-parse --local-env-vars`, which the function itself uses.
+function runCleanGitEnvTests() {
+  const gitNames = [
+    'GIT_DIR',
+    'GIT_WORK_TREE',
+    'GIT_INDEX_FILE',
+    'GIT_COMMON_DIR',
+  ];
   const input = { PATH: '/usr/bin:/bin' };
   for (const n of gitNames) input[n] = 'x';
   const snapshot = JSON.stringify(input);
   const cleaned = cleanGitEnv(input);
   check(
-    gitNames.length > 0 && gitNames.every((n) => !(n in cleaned)),
+    gitNames.every((n) => !(n in cleaned)),
     'cleanGitEnv: strips every git local-env name',
     Object.keys(cleaned).join(', ')
   );
@@ -960,6 +969,7 @@ try {
   runStalenessTests();
   runFreshnessTests();
   runContractTests();
+  runCleanGitEnvTests();
   runCheckStandardsFixtureTests();
   runLeakedGitEnvTests();
 } finally {

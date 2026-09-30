@@ -353,6 +353,8 @@ const ctx = createRuntimeContext({
 | `"clients[0].purge"` | A method reached through a list or tuple index |
 | `"client()"` | A callable returned by calling `client` |
 | `"client().search"` | A member of a value returned by calling `client` |
+| `"client()[0]"` | A list or tuple element of a value returned by calling `client` |
+| `"()"` | A callable returned by an extension whose root is itself a callable |
 | `"*"` | Default for methods on this extension with no exact rule |
 
 Matching order, per call:
@@ -402,10 +404,12 @@ Every callable reachable from a resolved `use<>` value is policed, including tho
 
 Values returned from a branded call inherit the extension, including the output of `out` transforms. A method `open` that returns `dict[purge: <callable>]` therefore yields a `purge` addressable as `"open().purge"`, and it is denied by `"*"` unless a rule allows it. Not every callable is branded:
 
-- Script closures and callables registered through `functions` keep no extension identity.
-- Elements inside a stream or iterator are not branded, because they do not exist until consumed.
+- Script closures, built-ins, and callables registered through `functions` keep no extension identity.
+- A stream is skipped whole at call time, and the `value` an iterator yields is skipped, because those elements do not exist until consumed. A callable consumed from a stream is therefore not policed. An iterator's own callable members, such as `next`, are branded.
 
-A callable that already carries a `use<>` identity keeps it, and the first call-time identity wins over later ones. There is no member budget at call time and it never halts with `RILL-R090`.
+A callable that already carries a `use<>` identity keeps it, and the first call-time identity wins over later ones. The call-time walk has no member budget, so its cost is paid on every policed call.
+
+Derived brands are process-global and first-wins. A singleton sub-client returned by two extensions keeps the brand of whichever call ran first, so give each extension its own instance.
 
 ### Writing Your Own Resolver
 

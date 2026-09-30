@@ -25,6 +25,7 @@
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 import { isCallable } from '../callable.js';
 import type { RillCallable } from '../callable.js';
+import { typedKeyEntries } from '../types/dict-keys.js';
 import { throwCatchableHostHalt } from '../types/halt.js';
 import type { TypeHaltSite } from '../types/halt.js';
 import {
@@ -54,6 +55,30 @@ const identities = new WeakMap<RillCallable, ExtensionIdentity>();
  * overwrite a `use<>` brand, in either order of arrival.
  */
 const derivedIdentities = new WeakMap<RillCallable, ExtensionIdentity>();
+// Hazard: this map is module-level, so a derived brand is process-global and
+// first-wins. A singleton sub-client returned by both `a.o()` and `b.o()`
+// keeps the brand of whichever call ran first.
+
+/**
+ * Carry both brands from one callable object to its copy.
+ *
+ * Both maps key on object identity, so any site that rebuilds a callable
+ * (`{ ...value, boundDict }`) would otherwise hand the script an unbranded,
+ * unpoliced twin. Existing brands on `to` are left alone.
+ */
+export function copyExtensionIdentity(
+  from: RillCallable,
+  to: RillCallable
+): void {
+  const identity = identities.get(from);
+  if (identity !== undefined && !identities.has(to)) {
+    identities.set(to, identity);
+  }
+  const derived = derivedIdentities.get(from);
+  if (derived !== undefined && !derivedIdentities.has(to)) {
+    derivedIdentities.set(to, derived);
+  }
+}
 
 /**
  * Members visited when branding one resolved value.
@@ -123,7 +148,7 @@ export function brandExtensionValue(
  * yields `()`, which is non-empty so it is never treated as unidentified.
  *
  * Skipped: script and runtime callables, callables the host registered
- * directly (`isHostRegistered`), and anything inside a stream or iterator.
+ * directly (`isHostRegistered`), streams, and an iterator's `value`.
  * There is no member budget and this never halts. A callable that already
  * carries either brand keeps it. Values are never copied or rebuilt.
  *
@@ -215,15 +240,22 @@ function walkAndBrand(
       continue;
     }
 
-    // Streams and iterators are lazy; their elements do not exist yet.
-    if (callTime && (isStream(member) || isIterator(member))) continue;
+    // Streams are lazy; their elements do not exist yet.
+    if (callTime && isStream(member)) continue;
 
     // Extension values may be self-referential (a client exposing its own
     // root). Without this the walk would not terminate.
     if (seen.has(member)) continue;
     seen.add(member);
 
+    // An iterator is a dict, so its callable members (`next` and any
+    // sibling) are branded; only `value`, the yielded element, is skipped.
+    // Each `next()` goes through the policed dispatch, which brands what it
+    // yields.
+    const skipPath =
+      callTime && isIterator(member) ? `${entry.path}.value` : undefined;
     for (const child of members(member, entry.path)) {
+      if (child.path === skipPath) continue;
       pending.push(child);
     }
   }
@@ -243,20 +275,22 @@ function members(
   });
 
   if (Array.isArray(value)) {
-    return value.map(indexed);
+    return value.filter(isWalkable).map(indexed);
   }
 
   if (isTuple(value)) {
-    return value.entries.map(indexed);
+    return value.entries.filter(isWalkable).map(indexed);
   }
 
   // Ordered values carry [key, value, ...] triples. The value is the
   // reachable member; the key is a string and never a callable.
   if (isOrdered(value)) {
-    return value.entries.map(([key, entryValue]) => ({
-      value: entryValue,
-      path: path === '' ? key : `${path}.${key}`,
-    }));
+    return value.entries
+      .filter(([, entryValue]) => isWalkable(entryValue))
+      .map(([key, entryValue]) => ({
+        value: entryValue,
+        path: path === '' ? key : `${path}.${key}`,
+      }));
   }
 
   if (!isDict(value)) return [];
@@ -264,10 +298,20 @@ function members(
   const out: { value: RillValue; path: string }[] = [];
   for (const key of Object.keys(value)) {
     const child = value[key];
-    if (child === undefined) continue;
+    if (child === undefined || !isWalkable(child)) continue;
     out.push({ value: child, path: path === '' ? key : `${path}.${key}` });
   }
+  // Number and boolean keys live in a sidecar, not in Object.keys.
+  for (const { key, value: child } of typedKeyEntries(value)) {
+    if (!isWalkable(child)) continue;
+    out.push({ value: child, path: `${path}[${String(key)}]` });
+  }
   return out;
+}
+
+/** Whether a value can be a callable or hold one; primitives never do. */
+function isWalkable(value: RillValue): boolean {
+  return typeof value === 'object' && value !== null;
 }
 
 /**

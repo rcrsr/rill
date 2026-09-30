@@ -479,17 +479,29 @@ export async function invokeCallable(
 }
 
 /**
- * Predicate for callables the host registered directly as `functions`.
- * The function table is indexed on the first lookup only, so a call whose
- * result holds no callable pays nothing.
+ * Set of registered function values per function table. Keyed on the table,
+ * which child contexts share, so it is built once per root context and
+ * rebuilt only if the table's size changes.
  */
+const hostFunctionTables = new WeakMap<
+  object,
+  { size: number; table: Set<unknown> }
+>();
+
+/** Predicate for callables the host registered directly as `functions`. */
 function createHostRegisteredCheck(
   ctx: DispatchContext
 ): (callable: RillCallable) => boolean {
-  let table: Set<unknown> | undefined;
   return (callable) => {
-    table ??= new Set<unknown>(ctx.functions.values());
-    return table.has(callable);
+    let cached = hostFunctionTables.get(ctx.functions);
+    if (cached === undefined || cached.size !== ctx.functions.size) {
+      cached = {
+        size: ctx.functions.size,
+        table: new Set(ctx.functions.values()),
+      };
+      hostFunctionTables.set(ctx.functions, cached);
+    }
+    return cached.table.has(callable);
   };
 }
 

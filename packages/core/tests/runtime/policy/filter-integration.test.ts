@@ -11,6 +11,7 @@ import { resolvePolicy } from '../../../src/runtime/core/policy/config-resolver.
 import { createConfigFilterResolver } from '../../../src/runtime/core/policy/resolve.js';
 import { extResolver } from '../../../src/runtime/core/resolvers.js';
 import { toCallable } from '../../../src/runtime/core/callable.js';
+import { setTypedKey } from '../../../src/runtime/core/types/dict-keys.js';
 import { anyTypeValue } from '../../../src/runtime/core/values.js';
 import type { PolicyConfig } from '../../../src/runtime/core/policy/types.js';
 import type { RillValue } from '../../../src/runtime/core/types/structures.js';
@@ -970,27 +971,109 @@ describe('filter integration: callables returned at call time', () => {
     const purge = method('purged');
     const shared = { purge } as unknown as RillValue;
     const ctx = buildContext(
-      { x: { '*': { access: 'deny' } } },
       {
-        kb: { echo: echo() },
+        kb: { get: { access: 'allow' } },
+        x: { '*': { access: 'deny' } },
+      },
+      {
+        kb: { get: producer(() => shared) },
         x: shared,
-      } as unknown as Record<string, RillValue>,
-      { variables: { shared } }
+      } as unknown as Record<string, RillValue>
     );
+
+    // The same callable instance first receives a call-time brand.
+    await execute(parse('use<ext:kb> => $kb\n$kb.get() => $e\n$e'), ctx);
+    expect(getExtensionIdentity(purge as never)).toEqual({
+      extension: 'kb',
+      method: 'get().purge',
+    });
+
+    // The later use<> brand takes precedence over it.
     await expectHalt(
-      () =>
-        execute(
-          parse(
-            'use<ext:kb> => $kb\n$kb.echo($shared) => $e\nuse<ext:x> => $x\n$x.purge()'
-          ),
-          ctx
-        ),
+      () => execute(parse('use<ext:x> => $x\n$x.purge()'), ctx),
       { code: 'RILL_R088' }
     );
     expect(getExtensionIdentity(purge as never)).toEqual({
       extension: 'x',
       method: 'purge',
     });
+  });
+
+  it('keeps the brand when a returned callable is stored in a dict literal', async () => {
+    const ctx = buildContext(
+      { kb: { '*': { access: 'deny' }, client: { access: 'allow' } } },
+      {
+        kb: { client: producer(subClient), purge: method('purged') },
+      } as unknown as Record<string, RillValue>
+    );
+    await expectHalt(
+      () =>
+        execute(
+          parse(
+            'use<ext:kb> => $kb\n$kb.client() => $c\ndict[f: $c.purge] => $d\n$d.f()'
+          ),
+          ctx
+        ),
+      { code: 'RILL_R088' }
+    );
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb> => $kb\ndict[p: $kb.purge] => $d\n$d.p()'),
+          ctx
+        ),
+      { code: 'RILL_R088' }
+    );
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb> => $kb\ndict[...$kb] => $d\n$d.purge()'),
+          ctx
+        ),
+      { code: 'RILL_R088' }
+    );
+  });
+
+  it('brands sibling callables of a returned iterator-shaped dict', async () => {
+    const iter = {
+      done: false,
+      value: 1,
+      next: method('n'),
+      purge: method('purged'),
+    } as unknown as RillValue;
+    const ctx = buildContext(
+      { kb: { '*': { access: 'deny' }, c: { access: 'allow' } } },
+      { kb: { c: producer(() => iter) } } as unknown as Record<
+        string,
+        RillValue
+      >
+    );
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.c().purge()'), ctx),
+      { code: 'RILL_R088' }
+    );
+  });
+
+  it('brands callables under number and boolean dict keys', async () => {
+    const typed = {} as Record<string, RillValue>;
+    setTypedKey(typed, 1, method('purged'));
+    setTypedKey(typed, true, method('purged'));
+    const ctx = buildContext(
+      { kb: { '*': { access: 'deny' }, t: { access: 'allow' } } },
+      { kb: { t: producer(() => typed as RillValue) } } as unknown as Record<
+        string,
+        RillValue
+      >
+    );
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.t() => $t\n$t[1]()'), ctx),
+      { code: 'RILL_R088' }
+    );
+    await expectHalt(
+      () =>
+        execute(parse('use<ext:kb> => $kb\n$kb.t() => $t\n$t[true]()'), ctx),
+      { code: 'RILL_R088' }
+    );
   });
 
   it('leaves script closures and host functions unpoliced when echoed', async () => {
@@ -1049,6 +1132,7 @@ describe('filter integration: callables returned at call time', () => {
           '*': { access: 'deny' },
           stream: { access: 'allow' },
           iter: { access: 'allow' },
+          'iter().next': { access: 'allow' },
         },
       },
       { kb: { stream, iter } } as unknown as Record<string, RillValue>

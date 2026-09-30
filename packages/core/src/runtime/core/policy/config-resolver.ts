@@ -49,6 +49,13 @@ import { ERROR_IDS } from '../../../error-registry.js';
  * `RuntimeOptions.variables` or registered as host `functions` carry no
  * extension identity and are not policed.
  *
+ * ## Shared instances
+ *
+ * Brands derived from a policed call's result are process-global and
+ * first-wins. A singleton sub-client returned by both `a.o()` and `b.o()`
+ * keeps the brand of whichever call ran first, so an extension pair that
+ * shares an instance is policed under the first one's rules.
+ *
  * @param config - Raw policy config from the host
  * @param extensions - Map of mounted extension names to their values
  *                     (the RillValue dicts returned by extension factories)
