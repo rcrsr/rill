@@ -620,17 +620,20 @@ else
     ok "STD-CI-4" "install uses --frozen-lockfile" ||
     bad "STD-CI-4" "install uses --frozen-lockfile" "not found in ci.yml"
 
-  # Both halves of the element. Reordering the two steps keeps `cache: 'pnpm'`
+  # Every part of the element. Reordering the two steps keeps `cache: 'pnpm'`
   # in the file and breaks the install: setup-node resolves the pnpm cache by
-  # running pnpm, which corepack is what puts on PATH.
-  COREPACK_LINE="$(grep -n 'corepack enable' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
+  # running pnpm, which pnpm/setup is what puts on PATH. Without
+  # `install: false`, pnpm/setup installs before setup-node has put the matrix
+  # Node on PATH, and without --frozen-lockfile.
+  PNPMSETUP_LINE="$(grep -n 'uses: *pnpm/setup@' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
   SETUPNODE_LINE="$(grep -n 'uses: *actions/setup-node' .github/workflows/ci.yml 2>/dev/null | head -1 | cut -d: -f1)"
   { grep -q "cache: *'pnpm'" .github/workflows/ci.yml 2>/dev/null &&
-    [ -n "$COREPACK_LINE" ] && [ -n "$SETUPNODE_LINE" ] &&
-    [ "$COREPACK_LINE" -lt "$SETUPNODE_LINE" ]; } &&
-    ok "STD-CI-3" "corepack enabled before setup-node, which caches pnpm" ||
-    bad "STD-CI-3" "corepack enabled before setup-node, which caches pnpm" \
-      "corepack line=${COREPACK_LINE:-none} setup-node line=${SETUPNODE_LINE:-none}, cache: 'pnpm' must also be set"
+    grep -q 'install: *false' .github/workflows/ci.yml 2>/dev/null &&
+    [ -n "$PNPMSETUP_LINE" ] && [ -n "$SETUPNODE_LINE" ] &&
+    [ "$PNPMSETUP_LINE" -lt "$SETUPNODE_LINE" ]; } &&
+    ok "STD-CI-3" "pnpm/setup runs before setup-node, which caches pnpm" ||
+    bad "STD-CI-3" "pnpm/setup runs before setup-node, which caches pnpm" \
+      "pnpm/setup line=${PNPMSETUP_LINE:-none} setup-node line=${SETUPNODE_LINE:-none}, install: false and cache: 'pnpm' must also be set"
 fi
 skip "STD-CI-2" "node matrix covers supported majors" "the supported set is an ecosystem decision"
 # STD-CI-9's N/A is "the repository consumes no ecosystem package, i.e. it is

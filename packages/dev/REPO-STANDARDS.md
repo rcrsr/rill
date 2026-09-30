@@ -137,7 +137,7 @@ gh api repos/<owner>/<repo>/branches/main/protection \
 |---|---|---|
 | STD-CI-1 | `.github/workflows/ci.yml` triggers on push to `main` and on pull request. | — |
 | STD-CI-2 | Node version matrix covers every supported major. The same matrix in every repository. | — |
-| STD-CI-3 | Corepack is enabled **before** `actions/setup-node`, and `setup-node` sets `cache: 'pnpm'`. | — |
+| STD-CI-3 | `pnpm/setup` runs **before** `actions/setup-node` with `install: false`, and `setup-node` sets `cache: 'pnpm'`. Not Corepack: its pnpm download does not retry, so one dropped registry connection fails the job. | — |
 | STD-CI-4 | Install uses `--frozen-lockfile`. | — |
 | STD-CI-5 | Every workflow declares a top-level `permissions:` block scoped to least privilege. | — |
 | STD-CI-6 | Every workflow declares a `concurrency:` group. Cancellation is scoped, not blanket: see the note below for where cancelling is wrong. | — |

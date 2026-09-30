@@ -12,6 +12,10 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+### Changed
+
+- **`STD-CI-3` requires `pnpm/setup` instead of Corepack:** The element now requires `pnpm/setup` to run before `actions/setup-node` with `install: false`, and `setup-node` must still set `cache: 'pnpm'`. Corepack downloads pnpm with no retry, so one dropped connection to the npm registry crashed the setup step before any repository code ran. `pnpm/setup` checks the download against npm's signature and retries it up to 3 times. This change is breaking for consumers: a workflow that still runs `corepack enable` fails `STD-CI-3` on the next upgrade. To migrate, replace the Corepack step in `ci.yml` with `pnpm/setup`, pinned by SHA per `STD-CI-8`, setting `install: false` and `node-version-file: false`. Keep `setup-node` and `cache: 'pnpm'` after it.
+
 ## 0.2.5 - 2026-09-09
 
 ### Changed
