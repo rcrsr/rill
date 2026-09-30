@@ -357,6 +357,8 @@ const ctx = createRuntimeContext({
 | `"()"` | A callable returned by an extension whose root is itself a callable |
 | `"*"` | Default for methods on this extension with no exact rule |
 
+An index in a key is the element's zero-based position in its list or tuple, counting every element. For an extension value `dict[clients: list[1, 2, dict[purge: <callable>]]]`, the key is `"clients[2].purge"`, matching the `[2]` in `$kb.clients[2].purge()`. Keys built from a call result follow the same rule: the third element of the value `client` returns is `"client()[2]"`.
+
 Matching order, per call:
 
 1. Callable carries no extension identity — pass through. Script closures, built-ins, and functions registered through `functions` are not extension methods and are never policed.

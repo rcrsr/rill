@@ -107,7 +107,8 @@ const MAX_BRAND_MEMBERS = 10_000;
  * Dicts, lists, tuples and ordered values are all walked. A resolver is
  * free to return `dict[clients: list[dict[purge: fn]]]`, and the callable
  * at `clients[0].purge` is as reachable from a script as any other, so it
- * is branded `"clients[0].purge"` and matches rules under that key.
+ * is branded `"clients[0].purge"` and matches rules under that key. An index
+ * segment is the element's real position, primitives included.
  *
  * A callable already branded keeps its first identity. Extensions may
  * share callable instances, and letting a later mount silently re-home
@@ -301,22 +302,23 @@ function members(
   out: PendingEntry[],
   skipValue: boolean
 ): void {
+  // A list or tuple element's segment is its own index, as a script writes
+  // it. Primitives are skipped but keep their position.
   if (Array.isArray(value)) {
-    // The index counts walkable children only, so primitives do not shift it.
-    let n = 0;
-    for (const child of value) {
+    for (let i = 0; i < value.length; i++) {
+      const child = value[i]!;
       if (isWalkable(child)) {
-        out.push({ value: child, parent, segment: n++, dotted: false });
+        out.push({ value: child, parent, segment: i, dotted: false });
       }
     }
     return;
   }
 
   if (isTuple(value)) {
-    let n = 0;
-    for (const child of value.entries) {
+    for (let i = 0; i < value.entries.length; i++) {
+      const child = value.entries[i]!;
       if (isWalkable(child)) {
-        out.push({ value: child, parent, segment: n++, dotted: false });
+        out.push({ value: child, parent, segment: i, dotted: false });
       }
     }
     return;

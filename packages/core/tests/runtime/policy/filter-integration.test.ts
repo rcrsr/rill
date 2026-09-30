@@ -669,6 +669,88 @@ describe('filter integration: list-nested and tuple-nested members', () => {
       }
     );
   });
+
+  it('numbers a list element by its real index behind primitives', async () => {
+    const purge = method('purged');
+    const ctx = createTestContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          'clients[2].purge': { access: 'allow' },
+        },
+      },
+      {
+        kb: { clients: [1, 2, { purge }] } as unknown as RillValue,
+      }
+    );
+
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.clients[2].purge()'),
+      ctx
+    );
+    expect(result.result).toBe('purged');
+    expect(getExtensionIdentity(purge as never)).toEqual({
+      extension: 'kb',
+      method: 'clients[2].purge',
+    });
+  });
+
+  it('applies a list rule to the addressed element, not its neighbour', async () => {
+    const ctx = createTestContext(
+      { kb: { 'clients[1].purge': { access: 'deny' } } },
+      {
+        kb: {
+          clients: [1, { purge: method('a') }, { purge: method('b') }],
+        } as unknown as RillValue,
+      }
+    );
+
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.clients[1].purge()'), ctx),
+      { code: 'RILL_R088', messagePattern: /denied by policy/ }
+    );
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.clients[2].purge()'),
+      ctx
+    );
+    expect(result.result).toBe('b');
+  });
+
+  it('numbers interleaved tuple elements by their real index', async () => {
+    const a = { purge: method('a') };
+    const b = { purge: method('b') };
+    const ctx = createTestContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          'pair[3].purge': { access: 'allow' },
+        },
+      },
+      {
+        kb: {
+          pair: { __rill_tuple: true, entries: ['x', a, 2, b] },
+        } as unknown as RillValue,
+      }
+    );
+
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.pair[3].purge()'),
+      ctx
+    );
+    expect(result.result).toBe('b');
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.pair[1].purge()'), ctx),
+      { code: 'RILL_R088', messagePattern: /denied by policy/ }
+    );
+    expect(getExtensionIdentity(a.purge as never)).toEqual({
+      extension: 'kb',
+      method: 'pair[1].purge',
+    });
+    expect(getExtensionIdentity(b.purge as never)).toEqual({
+      extension: 'kb',
+      method: 'pair[3].purge',
+    });
+  });
 });
 
 /**
@@ -1075,6 +1157,72 @@ describe('filter integration: callables returned at call time', () => {
         execute(parse('use<ext:kb> => $kb\n$kb.t() => $t\n$t[true]()'), ctx),
       { code: 'RILL_R088' }
     );
+  });
+
+  it('numbers a returned list element by its real index', async () => {
+    const purge = method('purged');
+    const ctx = buildContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          client: { access: 'allow' },
+          'client()[2].purge': { access: 'allow' },
+        },
+      },
+      {
+        kb: {
+          client: producer(() => [1, 2, { purge }] as unknown as RillValue),
+        },
+      } as unknown as Record<string, RillValue>
+    );
+
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.client() => $c\n$c[2].purge()'),
+      ctx
+    );
+    expect(result.result).toBe('purged');
+    expect(getExtensionIdentity(purge as never)).toEqual({
+      extension: 'kb',
+      method: 'client()[2].purge',
+    });
+  });
+
+  it('applies a returned tuple rule to the addressed element, not its neighbour', async () => {
+    const a = { purge: method('a') };
+    const b = { purge: method('b') };
+    const ctx = buildContext(
+      {
+        kb: {
+          pair: { access: 'allow' },
+          'pair()[1].purge': { access: 'deny' },
+        },
+      },
+      {
+        kb: {
+          pair: producer(
+            () =>
+              ({
+                __rill_tuple: true,
+                entries: ['x', a, b],
+              }) as unknown as RillValue
+          ),
+        },
+      } as unknown as Record<string, RillValue>
+    );
+
+    await expectHalt(
+      () =>
+        execute(
+          parse('use<ext:kb> => $kb\n$kb.pair() => $t\n$t[1].purge()'),
+          ctx
+        ),
+      { code: 'RILL_R088', messagePattern: /denied by policy/ }
+    );
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.pair() => $t\n$t[2].purge()'),
+      ctx
+    );
+    expect(result.result).toBe('b');
   });
 
   it('leaves script closures and host functions unpoliced when echoed', async () => {
