@@ -70,13 +70,14 @@ export type FilterResolver = (
 ) => Filter | null;
 
 /**
- * Where a callable came from, recorded when `use<scheme:resource>`
- * resolves to a value.
+ * Where a callable came from: recorded at `use<>` resolution or derived
+ * from a policed call's result.
  *
  * `extension` is the first segment of the resolved resource, which is
  * what policy config keys on. `method` is the dot-joined path from the
  * extension root down to the callable, and is empty when the extension
- * root is itself a callable.
+ * root is itself a callable. A callable returned by a call carries the
+ * calling method's path plus a `()` segment (`client()`, `client().search`).
  */
 export interface ExtensionIdentity {
   readonly extension: string;

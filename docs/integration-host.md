@@ -351,6 +351,8 @@ const ctx = createRuntimeContext({
 | `"search"` | Exact method name |
 | `"client.search"` | A method on a nested sub-client |
 | `"clients[0].purge"` | A method reached through a list or tuple index |
+| `"client()"` | A callable returned by calling `client` |
+| `"client().search"` | A member of a value returned by calling `client` |
 | `"*"` | Default for methods on this extension with no exact rule |
 
 Matching order, per call:
@@ -397,6 +399,13 @@ $r.! ? "not permitted" ! $r
 The resolver is held outside the `RuntimeContext`. Host and extension functions are handed the context, so a resolver reachable there would be readable and writable by the code it governs.
 
 Every callable reachable from a resolved `use<>` value is policed, including those nested in dicts, lists, and tuples. An extension whose value exceeds 10,000 members halts at resolution with `RILL-R090` rather than leaving the remainder unbranded and therefore unpoliced.
+
+Values returned from a branded call inherit the extension, including the output of `out` transforms. A method `open` that returns `dict[purge: <callable>]` therefore yields a `purge` addressable as `"open().purge"`, and it is denied by `"*"` unless a rule allows it. Not every callable is branded:
+
+- Script closures and callables registered through `functions` keep no extension identity.
+- Elements inside a stream or iterator are not branded, because they do not exist until consumed.
+
+A callable that already carries a `use<>` identity keeps it, and the first call-time identity wins over later ones. There is no member budget at call time and it never halts with `RILL-R090`.
 
 ### Writing Your Own Resolver
 

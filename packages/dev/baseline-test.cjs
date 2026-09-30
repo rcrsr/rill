@@ -36,7 +36,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawnSync } = require('child_process');
+const { spawnSync, execFileSync } = require('child_process');
 
 const { generate, SHARED_TOOLING_DEPS } = require(
   path.join(__dirname, 'gen-baseline.cjs')
@@ -193,10 +193,56 @@ function cleanup() {
 // exercise them; only running the script itself can.
 // ============================================================
 
+let gitLocalEnvNames;
+
+// cleanGitEnv [source] — a shallow copy of the environment (read at call time,
+// default process.env) without any variable git names in
+// `git rev-parse --local-env-vars`. Git exports those to hooks, and inherited
+// by a fixture spawn they point `git init` and `git add` at the enclosing
+// repository. The name list comes from git itself and is cached after the
+// first call. Never mutates the source; throws if git cannot list the names.
+function cleanGitEnv(source = process.env) {
+  if (!gitLocalEnvNames) {
+    const result = spawnSync('git', ['rev-parse', '--local-env-vars'], {
+      encoding: 'utf8',
+    });
+    if (result.error || result.status !== 0) {
+      throw new Error(
+        'git rev-parse --local-env-vars failed: ' +
+          (result.error ? result.error.message : result.stderr)
+      );
+    }
+    gitLocalEnvNames = result.stdout.split('\n').filter(Boolean);
+  }
+  const env = { ...source };
+  for (const name of gitLocalEnvNames) delete env[name];
+  return env;
+}
+
+// runGit <args> <root> — one git command in a fixture root with the
+// repository-local variables removed; a failure throws rather than passing
+// silently.
+function runGit(args, root) {
+  const result = spawnSync('git', args, {
+    cwd: root,
+    env: cleanGitEnv(),
+    encoding: 'utf8',
+  });
+  if (result.error || result.status !== 0) {
+    throw new Error(
+      `git ${args.join(' ')} failed: ` +
+        (result.error ? result.error.message : result.stderr)
+    );
+  }
+}
+
 // writeFixtureTree <files> — a temp directory holding exactly the given
 // relative-path -> content map, git-initialised so `git ls-files` (used by
 // STD-HOOK-5) and `git rev-parse --show-toplevel` (used to anchor ROOT) both
 // resolve inside the fixture rather than falling through to this repository.
+// Git exports repository-local variables (GIT_DIR, GIT_INDEX_FILE, ...) to
+// hooks, so the fixture spawns remove them; otherwise a run under a hook would
+// initialise and index the enclosing repository instead of the fixture.
 // `git add -A` alone is enough: `git ls-files` reads the index, not HEAD, so
 // no commit is needed.
 function writeFixtureTree(files) {
@@ -207,8 +253,8 @@ function writeFixtureTree(files) {
     fs.mkdirSync(path.dirname(full), { recursive: true });
     fs.writeFileSync(full, content);
   }
-  spawnSync('git', ['init', '-q'], { cwd: root });
-  spawnSync('git', ['add', '-A'], { cwd: root });
+  runGit(['init', '-q'], root);
+  runGit(['add', '-A'], root);
   return root;
 }
 
@@ -218,6 +264,7 @@ function writeFixtureTree(files) {
 function runCheckStandards(root, extraArgs) {
   const result = spawnSync('bash', [CHECK_STANDARDS, ...(extraArgs || [])], {
     cwd: root,
+    env: cleanGitEnv(),
     encoding: 'utf8',
   });
   const ansiEscape = String.fromCharCode(27);
@@ -823,6 +870,88 @@ function runContractTests() {
   );
 }
 
+// Git exports repository-local variables (GIT_DIR, GIT_INDEX_FILE, ...) to
+// hooks. If they reach the fixture spawns, `git init` and `git add` act on the
+// enclosing repository instead of the fixture. This leaks them on purpose and
+// checks the fixture still gets its own repository.
+function runLeakedGitEnvTests() {
+  const sentinel = fs.mkdtempSync(path.join(os.tmpdir(), 'rill-sentinel-'));
+  createdRoots.push(sentinel);
+  const names = ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'];
+  const saved = Object.fromEntries(names.map((n) => [n, process.env[n]]));
+  process.env.GIT_DIR = path.join(sentinel, 'leaked.git');
+  process.env.GIT_WORK_TREE = sentinel;
+  process.env.GIT_INDEX_FILE = path.join(sentinel, 'leaked-index');
+  try {
+    let root;
+    let out;
+    try {
+      root = writeFixtureTree({
+        'package.json': MINIMAL_PKG,
+        '.oxfmtrc.json': JSON.stringify({
+          ignorePatterns: ['pnpm-lock.yaml'],
+        }),
+        'lefthook.yml':
+          'pre-commit:\n' +
+          '  piped: true\n' +
+          '  commands:\n' +
+          '    oxfmt:\n' +
+          "      glob: '*.{yaml,yml,json}'\n" +
+          '      run: pnpm exec oxfmt {staged_files}\n',
+        'pnpm-lock.yaml': 'lockfile: true\n',
+      });
+      out = runCheckStandards(root).stdout;
+    } catch (err) {
+      fail('leaked git env: fixture build threw', String(err));
+      return;
+    }
+    check(
+      fs.readdirSync(sentinel).length === 0,
+      'leaked git env: the sentinel directory stays empty',
+      fs.readdirSync(sentinel).join(', ')
+    );
+    check(
+      fs.existsSync(path.join(root, '.git')),
+      'leaked git env: the fixture root holds its own .git',
+      root
+    );
+    check(
+      /FAIL\s+STD-HOOK-5\s/.test(out),
+      'leaked git env: the checker still reports FAIL STD-HOOK-5',
+      out
+    );
+  } finally {
+    for (const n of names) {
+      if (saved[n] === undefined) delete process.env[n];
+      else process.env[n] = saved[n];
+    }
+  }
+
+  const gitNames = execFileSync('git', ['rev-parse', '--local-env-vars'], {
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter(Boolean);
+  const input = { PATH: '/usr/bin:/bin' };
+  for (const n of gitNames) input[n] = 'x';
+  const snapshot = JSON.stringify(input);
+  const cleaned = cleanGitEnv(input);
+  check(
+    gitNames.length > 0 && gitNames.every((n) => !(n in cleaned)),
+    'cleanGitEnv: strips every git local-env name',
+    Object.keys(cleaned).join(', ')
+  );
+  check(
+    cleaned.PATH === '/usr/bin:/bin',
+    'cleanGitEnv: keeps unrelated variables',
+    String(cleaned.PATH)
+  );
+  check(
+    JSON.stringify(input) === snapshot,
+    'cleanGitEnv: leaves the input object unchanged'
+  );
+}
+
 // ============================================================
 // Run
 // ============================================================
@@ -832,6 +961,7 @@ try {
   runFreshnessTests();
   runContractTests();
   runCheckStandardsFixtureTests();
+  runLeakedGitEnvTests();
 } finally {
   cleanup();
 }

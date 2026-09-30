@@ -13,6 +13,13 @@
  * travels with the value through every call syntax (`$kb.search`,
  * `ns::name`, bare names, `receiver.method`) and cannot be reached,
  * forged, or rewritten by host functions, which never see this module.
+ *
+ * Callables created at call time are covered too. A branded method that
+ * returns a sub-client would otherwise hand the script an unbranded, and
+ * therefore unpoliced, callable. {@link propagateExtensionIdentity} brands
+ * callables reachable from a policed call's result in a second WeakMap,
+ * with the method path extended by `()` (`client().search`). A `use<>`
+ * brand always wins over a call-time brand.
  */
 
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
@@ -20,7 +27,17 @@ import { isCallable } from '../callable.js';
 import type { RillCallable } from '../callable.js';
 import { throwCatchableHostHalt } from '../types/halt.js';
 import type { TypeHaltSite } from '../types/halt.js';
-import { isDict, isTuple, isOrdered } from '../types/guards.js';
+import {
+  isAtom,
+  isDatetime,
+  isDict,
+  isDuration,
+  isIterator,
+  isOrdered,
+  isStream,
+  isTuple,
+  isVector,
+} from '../types/guards.js';
 import type { RillValue } from '../types/structures.js';
 import type { ExtensionIdentity } from './types.js';
 
@@ -30,6 +47,13 @@ import type { ExtensionIdentity } from './types.js';
  * is reachable by them. This binding is not on the context.
  */
 const identities = new WeakMap<RillCallable, ExtensionIdentity>();
+
+/**
+ * Callable -> origin derived from the result of a policed call. Kept apart
+ * from {@link identities} so a call-time brand can never pre-empt or
+ * overwrite a `use<>` brand, in either order of arrival.
+ */
+const derivedIdentities = new WeakMap<RillCallable, ExtensionIdentity>();
 
 /**
  * Members visited when branding one resolved value.
@@ -81,7 +105,70 @@ export function brandExtensionValue(
   const extension = segments[0];
   if (extension === undefined) return;
 
-  const prefix = segments.slice(1).join('.');
+  walkAndBrand(identities, value, extension, segments.slice(1).join('.'), {
+    budget: { resource, site },
+  });
+}
+
+/**
+ * Extend a policed call's identity to the callables its result exposes.
+ *
+ * A branded method may return a sub-client such as
+ * `dict[purge: <callable>]`. Those callables are created at call time, so
+ * `use<>` never saw them; left unbranded they would resolve to
+ * pass-through and escape policy. Each reachable callable is branded with
+ * the parent's extension and a path built from the parent's method:
+ * `client()` for a returned callable, `client().search` for a dict member,
+ * `client()[0]` for a list element. A root-callable parent (empty method)
+ * yields `()`, which is non-empty so it is never treated as unidentified.
+ *
+ * Skipped: script and runtime callables, callables the host registered
+ * directly (`isHostRegistered`), and anything inside a stream or iterator.
+ * There is no member budget and this never halts. A callable that already
+ * carries either brand keeps it. Values are never copied or rebuilt.
+ *
+ * @param parent - The callable that was invoked
+ * @param result - Its result, after any out() transforms
+ * @param isHostRegistered - Reports callables registered as host functions
+ */
+export function propagateExtensionIdentity(
+  parent: RillCallable,
+  result: RillValue,
+  isHostRegistered: (callable: RillCallable) => boolean
+): void {
+  const identity = getExtensionIdentity(parent);
+  if (identity === undefined) return;
+
+  walkAndBrand(
+    derivedIdentities,
+    result,
+    identity.extension,
+    `${identity.method}()`,
+    { isHostRegistered }
+  );
+}
+
+interface WalkOptions {
+  /** Present for `use<>` walks: enforces the member budget. */
+  readonly budget?: { resource: string; site: TypeHaltSite };
+  /** Present for call-time walks: filters callables and skips streams. */
+  readonly isHostRegistered?: (callable: RillCallable) => boolean;
+}
+
+/**
+ * Iterative traversal shared by both branding tiers. First brand wins
+ * within the target map; `identities` is consulted as well when writing
+ * the call-time tier so a `use<>` brand is never shadowed.
+ */
+function walkAndBrand(
+  target: WeakMap<RillCallable, ExtensionIdentity>,
+  value: RillValue,
+  extension: string,
+  prefix: string,
+  options: WalkOptions
+): void {
+  const { budget, isHostRegistered } = options;
+  const callTime = isHostRegistered !== undefined;
   const seen = new Set<object>();
   const pending: { value: RillValue; path: string }[] = [
     { value, path: prefix },
@@ -92,25 +179,44 @@ export function brandExtensionValue(
     const entry = pending.pop();
     if (entry === undefined) break;
 
-    if (++visited > MAX_BRAND_MEMBERS) {
+    if (budget !== undefined && ++visited > MAX_BRAND_MEMBERS) {
       throwCatchableHostHalt(
-        site,
+        budget.site,
         ERROR_ATOMS[ERROR_IDS.RILL_R090],
-        `Extension '${resource}' exceeds ${MAX_BRAND_MEMBERS} members and cannot be branded for policy`,
-        { resource, limit: MAX_BRAND_MEMBERS }
+        `Extension '${budget.resource}' exceeds ${MAX_BRAND_MEMBERS} members and cannot be branded for policy`,
+        { resource: budget.resource, limit: MAX_BRAND_MEMBERS }
       );
     }
 
     const member = entry.value;
 
     if (isCallable(member)) {
-      if (!identities.has(member)) {
-        identities.set(member, { extension, method: entry.path });
+      if (callTime) {
+        if (member.kind === 'script' || member.kind === 'runtime') continue;
+        if (identities.has(member) || target.has(member)) continue;
+        if (isHostRegistered(member)) continue;
+        target.set(member, { extension, method: entry.path });
+      } else if (!target.has(member)) {
+        target.set(member, { extension, method: entry.path });
       }
       continue;
     }
 
     if (typeof member !== 'object' || member === null) continue;
+
+    // Leaf value types that are never containers of callables. isDict is
+    // true for a Float32Array, so walking a vector would burn the budget.
+    if (
+      isVector(member) ||
+      isDatetime(member) ||
+      isDuration(member) ||
+      isAtom(member)
+    ) {
+      continue;
+    }
+
+    // Streams and iterators are lazy; their elements do not exist yet.
+    if (callTime && (isStream(member) || isIterator(member))) continue;
 
     // Extension values may be self-referential (a client exposing its own
     // root). Without this the walk would not terminate.
@@ -165,12 +271,13 @@ function members(
 }
 
 /**
- * Look up the extension a callable was resolved from.
- * Returns undefined for anything that did not come through `use<>`:
- * script closures, built-ins, and host functions registered directly.
+ * Look up the extension a callable came from.
+ * Returns the `use<>` brand if any, else the call-time brand derived from
+ * a policed call's result. Undefined for script closures, built-ins, and
+ * host functions registered directly.
  */
 export function getExtensionIdentity(
   callable: RillCallable
 ): ExtensionIdentity | undefined {
-  return identities.get(callable);
+  return identities.get(callable) ?? derivedIdentities.get(callable);
 }

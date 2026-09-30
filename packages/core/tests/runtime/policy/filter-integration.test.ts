@@ -16,6 +16,14 @@ import type { PolicyConfig } from '../../../src/runtime/core/policy/types.js';
 import type { RillValue } from '../../../src/runtime/core/types/structures.js';
 import type { RillParam } from '../../../src/runtime/core/callable.js';
 import { expectHalt } from '../../helpers/halt.js';
+import {
+  createConfigFilterResolver as publicCreateResolver,
+  createRillStream,
+  createVector,
+  getExtensionIdentity,
+  resolvePolicy as publicResolvePolicy,
+  toCallable as publicToCallable,
+} from '../../../src/index.js';
 
 const ONE_ARG: RillParam[] = [
   { name: '0', type: undefined, defaultValue: undefined, annotations: {} },
@@ -775,5 +783,380 @@ describe('filter integration: in() argument position', () => {
       ctx
     );
     expect(result.result).toBe('result');
+  });
+});
+
+describe('filter integration: callables returned at call time', () => {
+  const noArgs = { params: [], returnType: anyTypeValue } as const;
+
+  /** Zero-argument method computing its result on each call. */
+  function producer(make: () => RillValue): RillValue {
+    return publicToCallable({
+      fn: make,
+      ...noArgs,
+    }) as unknown as RillValue;
+  }
+
+  /** One-argument method returning its argument unchanged. */
+  function echo(): RillValue {
+    return publicToCallable({
+      fn: (args) => args['0'] as RillValue,
+      params: ONE_ARG,
+      returnType: anyTypeValue,
+    }) as unknown as RillValue;
+  }
+
+  function buildContext(
+    config: PolicyConfig,
+    extensions: Record<string, RillValue>,
+    extra: Record<string, unknown> = {}
+  ) {
+    const resolved = publicResolvePolicy(
+      config,
+      new Map(Object.entries(extensions))
+    );
+    return createRuntimeContext({
+      filterResolver: publicCreateResolver(resolved),
+      resolvers: { ext: extResolver },
+      configurations: { resolvers: { ext: extensions } },
+      ...extra,
+    });
+  }
+
+  function subClient(): RillValue {
+    return {
+      search: method('found'),
+      purge: method('purged'),
+    } as unknown as RillValue;
+  }
+
+  it('denies a member of a returned sub-client and honors an exact allow', async () => {
+    const extensions = { kb: { client: producer(subClient) } };
+    const denied = buildContext(
+      { kb: { '*': { access: 'deny' }, client: { access: 'allow' } } },
+      extensions as unknown as Record<string, RillValue>
+    );
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.client().purge()'), denied),
+      { code: 'RILL_R088', messagePattern: /denied by policy/ }
+    );
+
+    const recovered = await execute(
+      parse(
+        'use<ext:kb> => $kb\nguard { $kb.client().purge() } => $r\n$r.! ? "blocked" ! "ran"'
+      ),
+      denied
+    );
+    expect(recovered.result).toBe('blocked');
+
+    const allowed = buildContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          client: { access: 'allow' },
+          'client().search': { access: 'allow' },
+        },
+      },
+      extensions as unknown as Record<string, RillValue>
+    );
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.client().search()'),
+      allowed
+    );
+    expect(result.result).toBe('found');
+  });
+
+  it('polices a bare returned callable by its method() path', async () => {
+    const extensions = {
+      kb: { make: producer(() => method('made')) },
+    } as unknown as Record<string, RillValue>;
+    const script = 'use<ext:kb> => $kb\n$kb.make() => $f\n$f()';
+
+    const denied = buildContext(
+      { kb: { '*': { access: 'deny' }, make: { access: 'allow' } } },
+      extensions
+    );
+    await expectHalt(() => execute(parse(script), denied), {
+      code: 'RILL_R088',
+    });
+
+    const allowed = buildContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          make: { access: 'allow' },
+          'make()': { access: 'allow' },
+        },
+      },
+      extensions
+    );
+    const result = await execute(parse(script), allowed);
+    expect(result.result).toBe('made');
+  });
+
+  it('propagates identity even when the calling method has a null filter', async () => {
+    const ctx = buildContext({ kb: { 'client().purge': { access: 'deny' } } }, {
+      kb: { client: producer(subClient) },
+    } as unknown as Record<string, RillValue>);
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.client().purge()'), ctx),
+      { code: 'RILL_R088' }
+    );
+  });
+
+  it('leaves an unpoliced extension pass-through', async () => {
+    const ctx = buildContext({ other: { '*': { access: 'deny' } } }, {
+      kb: { client: producer(subClient) },
+      other: { run: method('x') },
+    } as unknown as Record<string, RillValue>);
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.client().purge()'),
+      ctx
+    );
+    expect(result.result).toBe('purged');
+  });
+
+  it('brands callables inside out() output', async () => {
+    const wrap = publicToCallable({
+      fn: (args) =>
+        ({
+          value: args['0'] as RillValue,
+          purge: method('purged'),
+        }) as unknown as RillValue,
+      params: ONE_ARG,
+      returnType: anyTypeValue,
+    }) as unknown as RillValue;
+    const ctx = buildContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          client: { access: 'allow', out: ['filter.wrap'] },
+        },
+      },
+      {
+        kb: { client: producer(() => 'raw') },
+        filter: { wrap },
+      } as unknown as Record<string, RillValue>
+    );
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.client().purge()'), ctx),
+      { code: 'RILL_R088' }
+    );
+  });
+
+  it('keeps the first brand when a method returns an already branded callable', async () => {
+    const search = method('found');
+    const shared = { search } as unknown as RillValue;
+    const ctx = buildContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          search: { access: 'allow' },
+          get_search: { access: 'allow' },
+        },
+      },
+      {
+        kb: { search: search, get_search: producer(() => shared) },
+      } as unknown as Record<string, RillValue>
+    );
+    const result = await execute(
+      parse('use<ext:kb> => $kb\n$kb.get_search().search()'),
+      ctx
+    );
+    expect(result.result).toBe('found');
+  });
+
+  it('lets a use<> brand win over an earlier call-time brand', async () => {
+    const purge = method('purged');
+    const shared = { purge } as unknown as RillValue;
+    const ctx = buildContext(
+      { x: { '*': { access: 'deny' } } },
+      {
+        kb: { echo: echo() },
+        x: shared,
+      } as unknown as Record<string, RillValue>,
+      { variables: { shared } }
+    );
+    await expectHalt(
+      () =>
+        execute(
+          parse(
+            'use<ext:kb> => $kb\n$kb.echo($shared) => $e\nuse<ext:x> => $x\n$x.purge()'
+          ),
+          ctx
+        ),
+      { code: 'RILL_R088' }
+    );
+    expect(getExtensionIdentity(purge as never)).toEqual({
+      extension: 'x',
+      method: 'purge',
+    });
+  });
+
+  it('leaves script closures and host functions unpoliced when echoed', async () => {
+    const hostFn = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: () => 'host ok',
+    };
+    const ctx = buildContext(
+      { kb: { '*': { access: 'deny' }, echo: { access: 'allow' } } },
+      { kb: { echo: echo() } } as unknown as Record<string, RillValue>,
+      { functions: { 'host::fn': hostFn } }
+    );
+
+    const closure = await execute(
+      parse(
+        'use<ext:kb> => $kb\n|| { "closure ok" } => $c\n$kb.echo($c) => $e\n$e()'
+      ),
+      ctx
+    );
+    expect(closure.result).toBe('closure ok');
+
+    const host = await execute(
+      parse('use<ext:kb> => $kb\n$kb.echo(host::fn) => $h\n$h()'),
+      ctx
+    );
+    expect(host.result).toBe('host ok');
+  });
+
+  it('iterates a returned stream and iterator under a wildcard deny', async () => {
+    async function* chunks(): AsyncGenerator<RillValue> {
+      yield 1;
+      yield 2;
+    }
+    const stream = producer(
+      () =>
+        createRillStream({
+          chunks: chunks(),
+          resolve: async () => 'done',
+        }) as unknown as RillValue
+    );
+    const iter = producer(
+      () =>
+        ({
+          done: false,
+          value: 1,
+          next: publicToCallable({
+            fn: () => ({ done: true }) as unknown as RillValue,
+            ...noArgs,
+          }),
+        }) as unknown as RillValue
+    );
+    const ctx = buildContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          stream: { access: 'allow' },
+          iter: { access: 'allow' },
+        },
+      },
+      { kb: { stream, iter } } as unknown as Record<string, RillValue>
+    );
+
+    const streamed = await execute(
+      parse('use<ext:kb> => $kb\n$kb.stream() -> seq({ $ })'),
+      ctx
+    );
+    expect(streamed.result).toEqual([1, 2]);
+
+    const iterated = await execute(
+      parse('use<ext:kb> => $kb\n$kb.iter() -> seq({ $ })'),
+      ctx
+    );
+    expect(iterated.result).toEqual([1]);
+  });
+
+  it('does not exhaust the member budget on large call results', async () => {
+    const vectors = Array.from({ length: 20 }, () =>
+      createVector(new Float32Array(1536), 'test-model')
+    );
+    const strings = Array.from({ length: 20_000 }, (_, i) => `s${i}`);
+    const ctx = buildContext(
+      {
+        kb: {
+          '*': { access: 'deny' },
+          vectors: { access: 'allow' },
+          strings: { access: 'allow' },
+        },
+      },
+      {
+        kb: {
+          vectors: producer(() => vectors as unknown as RillValue),
+          strings: producer(() => strings),
+        },
+      } as unknown as Record<string, RillValue>
+    );
+    const v = await execute(
+      parse('use<ext:kb> => $kb\n$kb.vectors() -> .len'),
+      ctx
+    );
+    expect(v.result).toBe(20);
+    const t = await execute(
+      parse('use<ext:kb> => $kb\n$kb.strings() -> .len'),
+      ctx
+    );
+    expect(t.result).toBe(20_000);
+  });
+
+  it('records provenance only when a resolver is configured', async () => {
+    let fresh: RillValue = '';
+    const kb = {
+      make: producer(() => {
+        fresh = method('made');
+        return fresh;
+      }),
+    } as unknown as Record<string, RillValue>;
+    const script = 'use<ext:kb> => $kb\n$kb.make() => $f\n1';
+
+    const withResolver = buildContext({ kb: { make: { access: 'allow' } } }, {
+      kb,
+    } as unknown as Record<string, RillValue>);
+    await execute(parse(script), withResolver);
+    expect(getExtensionIdentity(fresh as never)).toEqual({
+      extension: 'kb',
+      method: 'make()',
+    });
+
+    const without = createRuntimeContext({
+      resolvers: { ext: extResolver },
+      configurations: { resolvers: { ext: { kb } } },
+    });
+    await execute(parse(script), without);
+    expect(getExtensionIdentity(fresh as never)).toBeUndefined();
+  });
+
+  it('names a callable returned by a root-callable extension "()"', async () => {
+    let fresh: RillValue = '';
+    const root = producer(() => {
+      fresh = method('made');
+      return fresh;
+    });
+    const ctx = buildContext({ other: { '*': { access: 'deny' } } }, {
+      kb: root,
+      other: { run: method('x') },
+    } as unknown as Record<string, RillValue>);
+    await execute(parse('use<ext:kb> => $kb\n$kb() => $f\n1'), ctx);
+    expect(getExtensionIdentity(fresh as never)).toEqual({
+      extension: 'kb',
+      method: '()',
+    });
+  });
+
+  it('brands members reached through repeated shared references', async () => {
+    // Host results are validated as acyclic, so the shape reachable here is
+    // a shared sub-object rather than a true cycle; the walk visits it once.
+    const make = producer(() => {
+      const shared: Record<string, RillValue> = { purge: method('purged') };
+      return { a: shared, b: shared } as unknown as RillValue;
+    });
+    const ctx = buildContext(
+      { kb: { '*': { access: 'deny' }, make: { access: 'allow' } } },
+      { kb: { make } } as unknown as Record<string, RillValue>
+    );
+    await expectHalt(
+      () => execute(parse('use<ext:kb> => $kb\n$kb.make().b.purge()'), ctx),
+      { code: 'RILL_R088' }
+    );
   });
 });

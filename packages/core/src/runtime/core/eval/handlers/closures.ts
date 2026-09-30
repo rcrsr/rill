@@ -81,6 +81,11 @@ import {
 } from '../../policy/registry.js';
 import { applyTransforms } from '../../policy/transforms.js';
 import {
+  getExtensionIdentity,
+  propagateExtensionIdentity,
+} from '../../policy/identity.js';
+import type { DispatchContext } from '../../types/runtime.js';
+import {
   getNodeLocation,
   checkAborted,
   withTimeout,
@@ -309,6 +314,13 @@ async function dispatchByKind(
  * `internal: true` skips both the filter and frame enrichment. It is how
  * policy transforms are dispatched, so a transform is not itself
  * re-filtered on the way in.
+ *
+ * When a filter resolver is configured and the callable carries an
+ * extension identity, callables reachable from the (post-out()) result
+ * inherit that identity, so a method returning a sub-client stays inside
+ * policy. This keys on identity, not on a non-null filter: a policed
+ * extension with no rule for the method resolves to a null filter yet its
+ * results must still be branded.
  */
 export async function invokeCallable(
   s: EvalState,
@@ -360,8 +372,8 @@ export async function invokeCallable(
     // `functionName` carries the resolved path and is passed for diagnostics
     // only. The resolver keys on the callable's own identity — see
     // core/policy/identity.ts.
-    const filter =
-      getFilterResolver(s.ctx)?.(callable, functionName, s.ctx) ?? null;
+    const resolver = getFilterResolver(s.ctx);
+    const filter = resolver?.(callable, functionName, s.ctx) ?? null;
 
     const haltSite = {
       location: callLocation,
@@ -446,6 +458,17 @@ export async function invokeCallable(
       );
     }
 
+    if (
+      resolver !== undefined &&
+      getExtensionIdentity(callable) !== undefined
+    ) {
+      propagateExtensionIdentity(
+        callable,
+        result,
+        createHostRegisteredCheck(s.ctx)
+      );
+    }
+
     if (isStream(result)) {
       trackStream(s, result as RillStream);
     }
@@ -453,6 +476,21 @@ export async function invokeCallable(
   } finally {
     s.ctx.callDepth.value--;
   }
+}
+
+/**
+ * Predicate for callables the host registered directly as `functions`.
+ * The function table is indexed on the first lookup only, so a call whose
+ * result holds no callable pays nothing.
+ */
+function createHostRegisteredCheck(
+  ctx: DispatchContext
+): (callable: RillCallable) => boolean {
+  let table: Set<unknown> | undefined;
+  return (callable) => {
+    table ??= new Set<unknown>(ctx.functions.values());
+    return table.has(callable);
+  };
 }
 
 /** Invoke runtime or application callable (native function). */

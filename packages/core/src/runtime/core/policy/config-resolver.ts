@@ -41,7 +41,11 @@ import { ERROR_IDS } from '../../../error-registry.js';
  * ## Scope
  *
  * Policy applies to callables reached through `use<scheme:resource>`,
- * which is where extension identity is branded. Values injected through
+ * which is where extension identity is branded, and to callables returned
+ * from a branded call (including out() output), which inherit the
+ * extension and are addressed as `method()` or `method().member`. Script
+ * closures, `functions`-registered callables, and stream or iterator
+ * elements are not branded. Values injected through
  * `RuntimeOptions.variables` or registered as host `functions` carry no
  * extension identity and are not policed.
  *

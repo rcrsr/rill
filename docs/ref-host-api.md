@@ -1065,7 +1065,7 @@ function getExtensionIdentity(
 ): ExtensionIdentity | undefined;
 ```
 
-Where a callable was resolved from, or `undefined` for anything that did not come through `use<>`. This is the authorization key a custom `FilterResolver` should use: it is fixed when the extension resolves and does not move when a script renames or rebinds the variable holding it.
+Where a callable was resolved from, or `undefined` for anything that did not come through `use<>`. Under a configured `filterResolver`, values derived from a branded call's result also carry an identity, with `()` appended to the calling method's path. This is the authorization key a custom `FilterResolver` should use: it is fixed when the extension resolves and does not move when a script renames or rebinds the variable holding it.
 
 ### Types
 
