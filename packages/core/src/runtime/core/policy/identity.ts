@@ -195,8 +195,8 @@ function walkAndBrand(
   const { budget, isHostRegistered } = options;
   const callTime = isHostRegistered !== undefined;
   const seen = new Set<object>();
-  const pending: { value: RillValue; path: string }[] = [
-    { value, path: prefix },
+  const pending: PendingEntry[] = [
+    { value, parent: null, segment: prefix, dotted: false },
   ];
   let visited = 0;
 
@@ -220,9 +220,9 @@ function walkAndBrand(
         if (member.kind === 'script' || member.kind === 'runtime') continue;
         if (identities.has(member) || target.has(member)) continue;
         if (isHostRegistered(member)) continue;
-        target.set(member, { extension, method: entry.path });
+        target.set(member, { extension, method: buildPath(entry) });
       } else if (!target.has(member)) {
-        target.set(member, { extension, method: entry.path });
+        target.set(member, { extension, method: buildPath(entry) });
       }
       continue;
     }
@@ -252,61 +252,99 @@ function walkAndBrand(
     // sibling) are branded; only `value`, the yielded element, is skipped.
     // Each `next()` goes through the policed dispatch, which brands what it
     // yields.
-    const skipPath =
-      callTime && isIterator(member) ? `${entry.path}.value` : undefined;
-    for (const child of members(member, entry.path)) {
-      if (child.path === skipPath) continue;
-      pending.push(child);
-    }
+    members(member, entry, pending, callTime && isIterator(member));
   }
 }
 
 /**
- * Direct children of a container, each with the path a script would use
- * to reach it. Anything that is not a container yields nothing.
+ * A container child awaiting a visit. The path string is not built here:
+ * it is only needed when a callable is branded, so each entry records its
+ * parent and the segment that reaches it. The root entry has no parent and
+ * carries the path prefix as its segment. `dotted` marks a member reached
+ * by key (`.key`, or the bare key at an empty base) rather than by index or
+ * typed key (`[k]`).
+ */
+interface PendingEntry {
+  readonly value: RillValue;
+  readonly parent: PendingEntry | null;
+  readonly segment: string | number | boolean;
+  readonly dotted: boolean;
+}
+
+/** Join an entry's segments from the root down into the script-visible path. */
+function buildPath(entry: PendingEntry): string {
+  const chain: PendingEntry[] = [];
+  for (let e: PendingEntry | null = entry; e !== null; e = e.parent) {
+    chain.push(e);
+  }
+  let path = '';
+  for (let i = chain.length - 1; i >= 0; i--) {
+    const e = chain[i]!;
+    if (e.parent === null) path = String(e.segment);
+    else if (e.dotted)
+      path = path === '' ? String(e.segment) : `${path}.${e.segment}`;
+    else path = `${path}[${String(e.segment)}]`;
+  }
+  return path;
+}
+
+/**
+ * Push the direct children of a container onto `out`, each linked to
+ * `parent` so its path can be rebuilt on demand. Anything that is not a
+ * container pushes nothing. Primitive children are dropped before an entry
+ * is allocated. `skipValue` drops the child keyed `value` (an iterator's
+ * yielded element).
  */
 function members(
   value: RillValue,
-  path: string
-): { value: RillValue; path: string }[] {
-  const indexed = (child: RillValue, i: number) => ({
-    value: child,
-    path: `${path}[${i}]`,
-  });
-
+  parent: PendingEntry,
+  out: PendingEntry[],
+  skipValue: boolean
+): void {
   if (Array.isArray(value)) {
-    return value.filter(isWalkable).map(indexed);
+    // The index counts walkable children only, so primitives do not shift it.
+    let n = 0;
+    for (const child of value) {
+      if (isWalkable(child)) {
+        out.push({ value: child, parent, segment: n++, dotted: false });
+      }
+    }
+    return;
   }
 
   if (isTuple(value)) {
-    return value.entries.filter(isWalkable).map(indexed);
+    let n = 0;
+    for (const child of value.entries) {
+      if (isWalkable(child)) {
+        out.push({ value: child, parent, segment: n++, dotted: false });
+      }
+    }
+    return;
   }
 
   // Ordered values carry [key, value, ...] triples. The value is the
   // reachable member; the key is a string and never a callable.
   if (isOrdered(value)) {
-    return value.entries
-      .filter(([, entryValue]) => isWalkable(entryValue))
-      .map(([key, entryValue]) => ({
-        value: entryValue,
-        path: path === '' ? key : `${path}.${key}`,
-      }));
+    for (const [key, entryValue] of value.entries) {
+      if (!isWalkable(entryValue)) continue;
+      out.push({ value: entryValue, parent, segment: key, dotted: true });
+    }
+    return;
   }
 
-  if (!isDict(value)) return [];
+  if (!isDict(value)) return;
 
-  const out: { value: RillValue; path: string }[] = [];
   for (const key of Object.keys(value)) {
     const child = value[key];
     if (child === undefined || !isWalkable(child)) continue;
-    out.push({ value: child, path: path === '' ? key : `${path}.${key}` });
+    if (skipValue && key === 'value') continue;
+    out.push({ value: child, parent, segment: key, dotted: true });
   }
   // Number and boolean keys live in a sidecar, not in Object.keys.
   for (const { key, value: child } of typedKeyEntries(value)) {
     if (!isWalkable(child)) continue;
-    out.push({ value: child, path: `${path}[${String(key)}]` });
+    out.push({ value: child, parent, segment: key, dotted: false });
   }
-  return out;
 }
 
 /** Whether a value can be a callable or hold one; primitives never do. */
