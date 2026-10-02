@@ -2,8 +2,8 @@
  * ESLint Rule: no-spec-id-reference
  *
  * Rejects internal workflow-artifact identifiers in shipped source. The IDs
- * (`AC-*`, `EC-*`, `IR-*`, `IC-*`, `FR-*`, `NFR-*`, `DEC-*`, `BC-*`, and the
- * UX/debt prefixes) point at planning documents that are never published, so
+ * (`AC-*`, `EC-*`, `IR-*`, `IC-*`, `FR-*`, `NFR-*`, `DEC-*`, `ADR-*`, `BC-*`, and
+ * the UX/debt prefixes) point at planning documents that are never published, so
  * they are unresolvable for anyone reading the code.
  *
  * Out of reach by design: `§` section anchors. The tree mixes internal ones
@@ -43,7 +43,7 @@
 
 // Prefix vocabulary, by family:
 //   requirements   FR, NFR, IR, IC, EC, AC
-//   decisions      DEC, DR, DD, BC
+//   decisions      DEC, ADR, DR, DD, BC
 //   UX             UXC, UXI, UXS, UXT
 //   work items     TC, TD, DEBT, RI, GF, LOG, OK
 // Prefixes with zero current occurrences are listed deliberately: they cost
@@ -53,7 +53,7 @@
 // `'TEST-001'` are fabricated error IDs that fiddle's tests feed in as fixture
 // data, not references to anything, and matching them would be a false positive.
 const PREFIX =
-  '(?:FR|NFR|IR|IC|EC|AC|DEC|DR|DD|BC|UXC|UXI|UXS|UXT|TC|TD|DEBT|RI|GF|LOG|OK)';
+  '(?:FR|NFR|IR|IC|EC|AC|DEC|ADR|DR|DD|BC|UXC|UXI|UXS|UXT|TC|TD|DEBT|RI|GF|LOG|OK)';
 
 // `\b` on both ends. The leading boundary is what keeps `SPEC-1` and `RILL-R010`
 // out: the character before the prefix must be a non-word character.

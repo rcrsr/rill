@@ -12,6 +12,10 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+### Added
+
+- **`rill/no-spec-id-reference` now rejects architecture decision record ids (`ADR-*`).** Decision records live with the internal workflow artifacts and are not published, so an `ADR-0037` citation in shipped source points at nothing a reader can open. `ADR` joins the decisions family alongside `DEC`, `DR`, `DD`, and `BC`. A consumer whose `packages/*/src` cites a decision record newly reports on upgrade; keep the fact the comment states and drop the id.
+
 ## 0.2.5 - 2026-09-09
 
 ### Changed
