@@ -281,7 +281,7 @@ describe('Output', () => {
   // ============================================================
 
   describe('empty result', () => {
-    it('renders the string "null" verbatim rather than "No output" (ADR-0037: native conversion always returns a populated value)', () => {
+    it('renders the string "null" verbatim rather than "No output" (native conversion always returns a populated value)', () => {
       const stateWithNull: ExecutionState = {
         status: 'success',
         result: 'null',

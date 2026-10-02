@@ -304,7 +304,7 @@ export interface LazyWalkResult {
  * - iterator input: no chunk validation or type-consistency check,
  *   matching expandIterator (which does neither).
  * - both: `checkAborted` per step and a raw-step `limit` ceiling that halts
- *   fatally with `#RILL_R010` when exceeded (ADR-0054), matching
+ *   fatally with `#RILL_R010` when exceeded, matching
  *   expandStream/expandIterator's fatal classification.
  *
  * On `BreakSignal` from `onElement`, disposes the stream (a no-op for
