@@ -239,14 +239,14 @@ primary       = literal
        tokenised as a LINE COMMENT and consumed up to end-of-line. Such input
        never produces a parse error on its own; it is simply discarded.
    Atom-shape errors (uppercase-leading but otherwise invalid, e.g. #Foo,
-   #X_bad with a lowercase tail) emit a RecoveryErrorNode (EC-14) when an
+   #X_bad with a lowercase tail) emit a RecoveryErrorNode when an
    atom token is required (e.g. inside an `on:` list). Outside atom-required
    positions, malformed atom tokens still surface via parse recovery.
    Examples:
      #OK                          -- well-formed atom
      #QUOTA_EXCEEDED              -- well-formed atom
      #FORBIDDEN                   -- pre-registered runtime atom
-     #Foo                         -- atom-shape error (uppercase head, lowercase tail) -> EC-14
+     #Foo                         -- atom-shape error (uppercase head, lowercase tail) -> RecoveryErrorNode
      #foo                         -- LINE COMMENT (not an atom; consumed by lexer)
    Use atoms with guard/retry on: list and as resolution-type tags. *)
 atom-literal  = "#" , uppercase-letter , { uppercase-letter | digit | "_" } ;
@@ -1062,7 +1062,7 @@ option        = identifier , ":" , positive-integer ;
    - N must be a positive integer literal.
 
    The on: option list rejects atoms that fail the strict shape [A-Z][A-Z0-9_]*.
-   Invalid atoms become RecoveryErrorNode (EC-14). *)
+   Invalid atoms become RecoveryErrorNode. *)
 
 guard-block   = "guard" , [ on-clause ] , block ;
 retry-block   = "retry" , "<" , "limit" , ":" , positive-integer , [ "," , on-clause ] , ">" , block ;

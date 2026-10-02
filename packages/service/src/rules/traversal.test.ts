@@ -9,8 +9,8 @@
  * reachable.
  *
  * The parity tests below never import core's private `astChildren` - only
- * the exported `walkAst` - per the guard-test remedy licensed by ADR-0031
- * CON-6 for the getChildren/astChildren duplication (rather than
+ * the exported `walkAst`. The getChildren/astChildren duplication is
+ * accepted and guarded by parity tests (rather than
  * re-exporting astChildren from core to de-duplicate; see traversal.ts's
  * `getChildren` doc comment).
  */

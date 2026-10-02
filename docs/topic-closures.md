@@ -120,7 +120,7 @@ $double(5)
 When the body result does not match the declared return type, execution halts with RILL-R004. Use a `text` fence to illustrate the error case:
 
 ```text
-# EC-13: return type mismatch halts with RILL-R004
+# Return type mismatch halts with RILL-R004
 5 -> |number|{ "hello" }:number
 # Error: RILL-R004: Type assertion failed: expected number, got string
 ```
@@ -200,7 +200,7 @@ Accessing `$` inside a named-param or zero-param closure is a hard error (RILL-R
 When the piped value does not match the declared type, execution halts with RILL-R001:
 
 ```text
-# EC-4: input type mismatch halts with RILL-R001
+# Input type mismatch halts with RILL-R001
 "hello" -> |number|{ $ * 2 }
 # Error: RILL-R001: Type mismatch: expected number, got string
 ```
@@ -210,7 +210,7 @@ When the piped value does not match the declared type, execution halts with RILL
 Accessing `$` in a zero-parameter closure halts with RILL-R005:
 
 ```text
-# EC-6: $ not defined in zero-param closure
+# $ not defined in zero-param closure
 ||{ $ } => $fn
 $fn()
 # Error: RILL-R005: $ is not defined in this closure form

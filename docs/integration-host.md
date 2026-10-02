@@ -1125,7 +1125,7 @@ try {
 
 ### Error Codes
 
-`ParseError` and `RuntimeError` carry an `errorId` from four ranges — `RILL-L001`–`RILL-L005` (lexer), `RILL-P001`–`RILL-P022` (parse), `RILL-R001`–`RILL-R083` (runtime), `RILL-C001`–`RILL-C004` (checker). Abort and auto-exception surface as a non-catchable `RuntimeHaltSignal` (atoms `#DISPOSED` and `#R999`) with no `errorId`. An unhandled `error` statement also halts as `RuntimeHaltSignal` internally, but the runtime converts it to a coded `RuntimeError` (`errorId: RILL-R016`) before it reaches the host. Per ADR-0047, this document does not maintain a per-code description table; see [Error Reference](ref-errors.md) for the complete, generated list of codes with causes and resolutions.
+`ParseError` and `RuntimeError` carry an `errorId` from four ranges — `RILL-L001`–`RILL-L005` (lexer), `RILL-P001`–`RILL-P022` (parse), `RILL-R001`–`RILL-R083` (runtime), `RILL-C001`–`RILL-C004` (checker). Abort and auto-exception surface as a non-catchable `RuntimeHaltSignal` (atoms `#DISPOSED` and `#R999`) with no `errorId`. An unhandled `error` statement also halts as `RuntimeHaltSignal` internally, but the runtime converts it to a coded `RuntimeError` (`errorId: RILL-R016`) before it reaches the host. This document does not maintain a per-code description table; see [Error Reference](ref-errors.md) for the complete, generated list of codes with causes and resolutions.
 
 ## See Also
 

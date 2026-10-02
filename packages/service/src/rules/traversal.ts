@@ -67,9 +67,9 @@ export interface AstVisitor {
  * `BracketAccess.expression` carry ASTNode children; the remaining segment
  * kinds (`literal`, `variable`, `alternatives`, `annotation`) carry none.
  * Ported from `@rcrsr/rill`'s `ast-walk.ts` `propertyAccessChildren` to
- * bring `getChildren` to parity with core's `astChildren` - see ADR-0031
- * CON-6 (duplication licensed; remedy is parity + guard test, not
- * cross-package de-duplication).
+ * bring `getChildren` to parity with core's `astChildren`. The duplication
+ * is accepted; the remedy is parity plus a guard test, not cross-package
+ * de-duplication.
  */
 function propertyAccessChildren(access: PropertyAccess): ASTNode[] {
   if ('accessKind' in access) {
@@ -171,8 +171,8 @@ function typeRefChildren(ref: TypeRef): ASTNode[] {
  *
  * Kept at parity with `@rcrsr/rill`'s `astChildren` (`ast-walk.ts`),
  * verified by `traversal.test.ts`'s corpus-wide parity assertion against
- * the exported `walkAst`. Not re-exported from core to de-duplicate - see
- * ADR-0031 CON-6.
+ * the exported `walkAst`. Not re-exported from core to de-duplicate; the
+ * duplication is accepted and guarded by that parity test.
  */
 function getChildren(node: ASTNode): ASTNode[] {
   switch (node.type) {

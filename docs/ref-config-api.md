@@ -73,7 +73,7 @@ Locates the config file path. Walks ancestor directories from `cwd` when `config
 
 **Returns:** Absolute path to the config file.
 
-**Throws:** `ConfigNotFoundError` (EC-1) when no config file is found.
+**Throws:** `ConfigNotFoundError` when no config file is found.
 
 ---
 
@@ -92,7 +92,7 @@ Parses and validates a raw JSON config string. Substitutes `${VAR}` references u
 
 **Returns:** Validated `RillConfigFile`.
 
-**Throws:** `ConfigParseError` (EC-2) on invalid JSON. Throws `ConfigEnvError` (EC-3) on missing env vars. Throws `ConfigValidationError` (EC-4) on invalid field types or orphaned config keys.
+**Throws:** `ConfigParseError` on invalid JSON. Throws `ConfigEnvError` on missing env vars. Throws `ConfigValidationError` on invalid field types or orphaned config keys.
 
 ---
 
@@ -111,7 +111,7 @@ Validates that `installedVersion` satisfies the semver `constraint` from the con
 
 **Returns:** `void` on success.
 
-**Throws:** `RuntimeVersionError` (EC-5) on version mismatch or invalid semver constraint.
+**Throws:** `RuntimeVersionError` on version mismatch or invalid semver constraint.
 
 ---
 
@@ -129,7 +129,7 @@ Validates context values against their schema types.
 
 **Returns:** Validated context values as a plain object.
 
-**Throws:** `ContextValidationError` (EC-12) on missing values or type mismatches.
+**Throws:** `ContextValidationError` on missing values or type mismatches.
 
 ---
 
@@ -147,7 +147,7 @@ Checks that the config file contains no fields prohibited at bundle time.
 
 **Returns:** `void` on success.
 
-**Throws:** `BundleRestrictionError` (EC-14) when prohibited fields are present.
+**Throws:** `BundleRestrictionError` when prohibited fields are present.
 
 ---
 
@@ -165,7 +165,7 @@ Parses the `main` field of the config file into its file path and optional handl
 
 **Returns:** Object with `filePath` and optional `handlerName`.
 
-**Throws:** `ConfigValidationError` (EC-4) on empty path or invalid format.
+**Throws:** `ConfigValidationError` on empty path or invalid format.
 
 ---
 
@@ -183,7 +183,7 @@ Validates and resolves raw mount definitions from the config into structured `Re
 
 **Returns:** Array of `ResolvedMount` objects.
 
-**Throws:** `MountValidationError` (EC-6) on invalid segments or conflicting version constraints.
+**Throws:** `MountValidationError` on invalid segments or conflicting version constraints.
 
 ---
 
@@ -201,7 +201,7 @@ Checks for cross-package mount path collisions (exact match or prefix overlap).
 
 **Returns:** `void` on success.
 
-**Throws:** `NamespaceCollisionError` (EC-9/EC-13) when mount paths from different packages conflict or have prefix overlap.
+**Throws:** `NamespaceCollisionError` when mount paths from different packages conflict or have prefix overlap.
 
 ---
 
@@ -223,7 +223,7 @@ Loads all extension packages listed in `mounts` and applies per-extension config
 
 **Returns:** `Promise<LoadedProject>` containing all loaded extension data.
 
-**Throws:** `ExtensionLoadError` (EC-7) when a package is not found, has no manifest, or the factory fails. Throws `ExtensionVersionError` (EC-10) on version constraint mismatch.
+**Throws:** `ExtensionLoadError` when a package is not found, has no manifest, or the factory fails. Throws `ExtensionVersionError` on version constraint mismatch.
 
 ---
 
@@ -311,7 +311,7 @@ Orchestrates the full project loading sequence: parse config, check version, loa
 
 **Returns:** `Promise<ProjectResult>`.
 
-**Throws:** Any typed error from the functions it orchestrates (EC-1 through EC-14).
+**Throws:** Any typed error from the functions it orchestrates.
 
 ---
 
@@ -349,7 +349,7 @@ Coerces CLI flag values to the types declared in the handler's parameter list.
 
 **Returns:** Coerced argument map with values typed per the parameter schema.
 
-**Throws:** `HandlerArgError` (EC-16) on missing required param, coercion failure, or unknown flag.
+**Throws:** `HandlerArgError` on missing required param, coercion failure, or unknown flag.
 
 ---
 
@@ -492,21 +492,21 @@ class ConfigError extends Error {
 }
 ```
 
-| Error Class | Code | Triggering Condition | Inspectable Fields |
-|-------------|------|---------------------|--------------------|
-| `ConfigNotFoundError` | EC-1 | Config file not found by ancestor walk or explicit path | `message` |
-| `ConfigParseError` | EC-2 | Config file contains invalid JSON | `message` |
-| `ConfigEnvError` | EC-3 | One or more `${VAR}` references have no value in `env` | `message` (lists all missing var names) |
-| `ConfigValidationError` | EC-4 | Invalid field type, empty path or handler, or orphaned config key | `message` |
-| `RuntimeVersionError` | EC-5 | Installed version fails the semver constraint, or constraint is invalid | `message` |
-| `MountValidationError` | EC-6 | Mount path contains an invalid segment or version constraints conflict | `message` |
-| `ExtensionLoadError` | EC-7 | Package not found, extension has no manifest, or factory function fails | `message` |
-| `NamespaceCollisionError` | EC-9/EC-13 | Two mounts from different packages conflict or have prefix overlap | `message` |
-| `ExtensionVersionError` | EC-10 | Extension version does not satisfy the constraint in the mount specifier | `message` |
-| `ContextValidationError` | EC-12 | A required context value is missing, or a value has the wrong type | `message` |
-| `BundleRestrictionError` | EC-14 | Config contains fields prohibited in bundle mode | `message` |
-| `HandlerArgError` | EC-16 | Missing required param, type coercion failure, or unknown CLI flag | `message` |
-| `ExtensionBindingError` | EXTENSION_BINDING | Extension value cannot be bound — invalid mount path or incompatible value shape | `message`, `code` |
+| Error Class | Triggering Condition | Inspectable Fields |
+|-------------|---------------------|--------------------|
+| `ConfigNotFoundError` | Config file not found by ancestor walk or explicit path | `message` |
+| `ConfigParseError` | Config file contains invalid JSON | `message` |
+| `ConfigEnvError` | One or more `${VAR}` references have no value in `env` | `message` (lists all missing var names) |
+| `ConfigValidationError` | Invalid field type, empty path or handler, or orphaned config key | `message` |
+| `RuntimeVersionError` | Installed version fails the semver constraint, or constraint is invalid | `message` |
+| `MountValidationError` | Mount path contains an invalid segment or version constraints conflict | `message` |
+| `ExtensionLoadError` | Package not found, extension has no manifest, or factory function fails | `message` |
+| `NamespaceCollisionError` | Two mounts from different packages conflict or have prefix overlap | `message` |
+| `ExtensionVersionError` | Extension version does not satisfy the constraint in the mount specifier | `message` |
+| `ContextValidationError` | A required context value is missing, or a value has the wrong type | `message` |
+| `BundleRestrictionError` | Config contains fields prohibited in bundle mode | `message` |
+| `HandlerArgError` | Missing required param, type coercion failure, or unknown CLI flag | `message` |
+| `ExtensionBindingError` | Extension value cannot be bound (code `EXTENSION_BINDING`): invalid mount path or incompatible value shape | `message`, `code` |
 
 ### Catching Typed Errors
 
