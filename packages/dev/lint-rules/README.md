@@ -77,7 +77,7 @@ anyone reading the code, including future maintainers and external contributors.
 | Family | Prefixes |
 |--------|----------|
 | Requirements | `FR`, `NFR`, `IR`, `IC`, `EC`, `AC` |
-| Decisions | `DEC`, `DR`, `DD`, `BC` |
+| Decisions | `DEC`, `ADR`, `DR`, `DD`, `BC` |
 | UX | `UXC`, `UXI`, `UXS`, `UXT` |
 | Work items | `TC`, `TD`, `DEBT`, `RI`, `GF`, `LOG`, `OK` |
 

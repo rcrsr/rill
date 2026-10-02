@@ -527,6 +527,19 @@ function runSpecIdReferenceTests() {
       expected: [],
     },
     {
+      label: 'comment: architecture decision record id is reported',
+      source: '// Native conversion always returns a value (ADR-0037).',
+      raw: '// Native conversion always returns a value (ADR-0037).',
+      expected: ['ADR-0037'],
+    },
+    {
+      // ADR must not match as a suffix of a longer token.
+      label: 'comment: ADR embedded in a longer word is ignored',
+      source: '// The LOADR-1 register and CADR-2 macro',
+      raw: '// The LOADR-1 register and CADR-2 macro',
+      expected: [],
+    },
+    {
       label: 'comment: lowercase lookalike is ignored',
       source: '// the ec-1 selector and ac-2 class',
       raw: '// the ec-1 selector and ac-2 class',
