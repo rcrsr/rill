@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Stale root-level `tests/` directory and `vitest.workspace.ts`:** Four test files left over from the monorepo migration asserted a pre-monorepo layout (root package named `@rcrsr/rill`, `pnpm@10`, a `src/cli-module-loader.js` that moved to rill-cli) and were never part of `pnpm check`. `vitest.workspace.ts` has been inert since vitest 4 removed workspace files. The one live test among them, the parser `??`-after-postfix check, moves to `packages/core/tests/runtime/parser-postfix-default.test.ts`, and `halt-builders.test.ts` now resolves its source path from the test file rather than the working directory so it passes from any cwd. ([#448](https://github.com/rcrsr/rill/pull/448))
 
+### Fixed
+
+- **LLM style example and published-doc identifiers:** `docs/llm/style.txt` showed `!$.name -> .empty`, which negates a string and halts because unary `!` binds tighter than `->`; it now reads `!($.name -> .empty)`, and `docs/ref-llms-full.txt` is regenerated. Internal workflow identifiers are removed from the published docs and `docs/ref-grammar.ebnf`; the facts and rill error codes are unchanged, and the `ref-config-api` error table drops its id-only Code column. ([#459](https://github.com/rcrsr/rill/pull/459))
+
 ## 0.21.0 - 2026-09-09
 
 ### Added
