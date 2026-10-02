@@ -168,7 +168,7 @@ jobs:
 
             // One bullet per distinct problem: missing area, or missing type.
             const problems = [
-              !hasArea && 'Add an **`area:*`** label (where in the codebase: `area:lexer`, `area:parser`, `area:runtime`, `area:types`, `area:stdlib`, `area:errors`, `area:fiddle`, `area:docs`, `area:dx`). Pick the one primary area; add a second only when genuinely co-owned.',
+              !hasArea && 'Add an **`area:*`** label (where in the codebase: `area:lexer`, `area:parser`, `area:runtime`, `area:types`, `area:stdlib`, `area:errors`, `area:service`, `area:fiddle`, `area:docs`, `area:dx`). Pick the one primary area; add a second only when genuinely co-owned.',
               !hasType && 'Set the **Issue Type** (the *Type* field in the sidebar) to one of **Bug . Feature . Chore . Security . Idea** -- Feature = net-new capability a rill user can see, Chore = robustness/debt/perf on existing machinery, Idea = captured but not yet shaped (promote by changing the Type). `Security` wins over `Bug`/`Feature`/`Chore` when the issue is fundamentally about executing machine-generated or untrusted scripts safely.',
             ].filter(Boolean);
 

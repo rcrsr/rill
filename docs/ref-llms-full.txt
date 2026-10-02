@@ -1422,12 +1422,12 @@ Valid:
       ! "no"
 
     $.?name&string &&
-      !$.name -> .empty
+      !($.name -> .empty)
 
 Invalid (RILL-P001 — `&&` cannot start a line):
 
     $.?name&string
-      && !$.name -> .empty
+      && !($.name -> .empty)
 
 ## Idiomatic patterns
 
