@@ -63,6 +63,10 @@ and upgrade by version rather than by copy. See `packages/dev/README.md`.
 package: it performs the install that would fetch the package, so it cannot live
 inside its own prerequisite.
 
+Shell scripts in `scripts/` and `packages/dev/` must run on bash 3.2, the macOS
+system shell: no `mapfile` or `readarray`, and pick `sha256sum` or
+`shasum -a 256` at runtime.
+
 ## Monorepo Structure
 
 rill uses pnpm workspaces with the following package organization:
@@ -94,6 +98,8 @@ pnpm run -r lint         # Check lint errors across all packages
 pnpm run -r check        # Per-package build, test, lint (skips root-only checks)
 pnpm check               # Complete check set, including root-only checks; run before a PR or release
 ```
+
+Run build, test, and lint through these `pnpm` scripts, never bare `npx` or `node dist/*.js`; results otherwise differ from CI.
 
 ### Package-Specific Commands
 
@@ -140,6 +146,8 @@ Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
 
 ## Release Process
 <!-- rule-level: operational -->
+
+`.github/release-sop.md` is the authoritative release procedure. Update it in the same change as any release-process change.
 
 Releases run on separate tracks, each keyed to its own tag namespace. `.github/workflows/release.yml` serves both and derives the publish set from the tag that triggered it. A tag glob anchors at the start, so `v*` does not match `dev-v0.1.0`.
 
@@ -213,9 +221,10 @@ gh api repos/rcrsr/rill/pulls/<NUMBER> --method PATCH -f body="new body"
 Source Text → Lexer → Tokens → Parser → AST → Runtime → Result
 ```
 
-- Pipeline stages import only upstream barrels (`lexer/index.ts`, `parser/index.ts`) and shared root types, never another stage's internal files. `runtime/core` never imports `runtime/ext`; built-ins register through a registry instead.
+- Pipeline stages never import another stage's internal files: the parser imports only `lexer/index.ts`, runtime imports no lexer or parser files (it goes through `ext-parse-bridge.ts` and `signature-parser.ts`), and shared root types come through `src/types.ts`. `runtime/core` never imports `runtime/ext`; built-ins register through a registry instead.
 - Raise script errors through the halt builders in `runtime/core/types/halt.ts` with `ERROR_ATOMS[ERROR_IDS.*]`, not `throw new RuntimeError`. A `catch` that handles halts rethrows `ControlSignal` unchanged.
 - Rebuild dicts with `setDictField`, never bracket assignment, so a `__proto__` key is stored as an own property.
+- New AST nodes, built-ins, parser extension files, and `RuntimeContext` fields each need their wiring steps (the node-type union, the folder's `index.ts`, the context facade). An unwired addition is silently inert.
 
 ## Design Principles
 
@@ -244,6 +253,8 @@ The `docs/` directory is the source of truth. `packages/web/content/docs/` pages
 
 `docs/ref-errors.md` is also generated, by `packages/core/scripts/generate-error-docs.ts` from the error registry. Change the registry entry, never the page.
 
+`docs/ref-llms-full.txt` is also generated. After changing `docs/llm/*`, run `pnpm --filter @rcrsr/rill docs:llms-full`.
+
 `packages/web/scripts/sync-docs.sh` transforms source docs into Hugo content:
 - SECTION_MAP defines section `_index.md` frontmatter (title, description, weight)
 - FILE_MAP controls source-to-section routing and sidebar weight
@@ -266,10 +277,10 @@ To add a new section:
 - ` ```rill ` — Executable code (tested)
 - ` ```text ` — Pseudo-code, syntax demos (skipped)
 
-**Auto-skipped patterns:**
-- `# Error:` — Expected error demonstrations
-- `# ...` — Continuation markers
+**Harness behavior:**
+- A `rill` block carrying `# Error:` runs and must halt; it fails if it completes.
+- A trailing run of `# ...` continuation lines is skipped.
 
-After editing docs, run `pnpm test:examples`. The harness does not compare `# Result:` values, so check each one in an edited block by hand.
+After editing docs, run `pnpm test:examples`. It compares each `# Result:` to the actual value and fails a stale one as "Result drift". Check prose claims about behavior by hand.
 
 Host calls use `use<ext:name> => $app`, then `$app.fn()`. `app::name()` is removed syntax that some `text` fences still show; rewrite it when you touch the fence.
