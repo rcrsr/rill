@@ -281,6 +281,6 @@ To add a new section:
 - A `rill` block carrying `# Error:` runs and must halt; it fails if it completes.
 - A trailing run of `# ...` continuation lines is skipped.
 
-After editing docs, run `pnpm test:examples`. It compares each `# Result:` to the actual value and fails a stale one as "Result drift". Check prose claims about behavior by hand.
+After editing docs, run `pnpm test:examples`. It compares the last `# Result:` in each block to the block's final value and fails a stale one as "Result drift". Check earlier `# Result:` annotations and prose claims about behavior by hand.
 
 Host calls use `use<ext:name> => $app`, then `$app.fn()`. `app::name()` is removed syntax that some `text` fences still show; rewrite it when you touch the fence.
