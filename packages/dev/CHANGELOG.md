@@ -12,6 +12,8 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+## 0.2.7 - 2026-10-05
+
 ### Added
 
 - **Five new lint rules in `@rcrsr/rill-dev/lint-rules`.** All are opt-in through an `overrides` entry, like the existing rules. See `lint-rules/README.md` for options and examples.
