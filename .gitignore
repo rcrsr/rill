@@ -34,6 +34,14 @@ coverage/
 *.swp
 *.swo
 
+# Temp and backup files
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*~
+
 # OS
 .DS_Store
 Thumbs.db
