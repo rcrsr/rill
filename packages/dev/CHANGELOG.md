@@ -21,9 +21,9 @@ the language version. Language changes are recorded in the
   - `rill/no-new-runtime-error` rejects constructing `RuntimeError` in favor of the halt builders.
   - `rill/use-halt-helpers` rejects `.rejects.toThrow` in tests in favor of `expectHalt`.
 
-  The last four encode rill runtime conventions and are meant for `rill` itself.
+  The last four encode rill runtime conventions and are meant for `rill` itself. ([#462](https://github.com/rcrsr/rill/pull/462))
 
-- **`STD-LINT-10`: source files are capped at 1000 lines.** `REPO-STANDARDS.md` gains an element requiring oxlint's `max-lines` rule at `error` with `max` at 1000 or lower, set in the top-level `rules` or in an override whose `files` glob names `src`. `rill-check-standards` reads the config through `jsonc.cjs` and reports the limit when it is too loose. Per-file overrides that relax the cap for files already over it are allowed and not read. A consumer without the rule newly fails `STD-LINT-10` on upgrade; add `"max-lines": ["error", { "max": 1000, "skipBlankLines": true, "skipComments": true }]` and a `warn` override listing current offenders.
+- **`STD-LINT-10`: source files are capped at 1000 lines.** `REPO-STANDARDS.md` gains an element requiring oxlint's `max-lines` rule at `error` with `max` at 1000 or lower, set in the top-level `rules` or in an override whose `files` glob names `src`. `rill-check-standards` reads the config through `jsonc.cjs` and reports the limit when it is too loose. Per-file overrides that relax the cap for files already over it are allowed and not read. A consumer without the rule newly fails `STD-LINT-10` on upgrade; add `"max-lines": ["error", { "max": 1000, "skipBlankLines": true, "skipComments": true }]` and a `warn` override listing current offenders. ([#462](https://github.com/rcrsr/rill/pull/462))
 
 ## 0.2.6 - 2026-10-05
 
