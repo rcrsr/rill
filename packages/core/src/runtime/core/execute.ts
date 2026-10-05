@@ -62,6 +62,7 @@ import type {
 } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
 import { getStatus, invalidate } from './types/status.js';
+import { setDictField } from './types/dict-keys.js';
 import { atomName, registerErrorCode } from './types/atom-registry.js';
 import {
   makeUnhandledHostThrowInvalid,
@@ -671,7 +672,7 @@ function convertHaltToRuntimeError(
   const rawDict = status.raw as Record<string, unknown>;
   const rest: Record<string, unknown> = {};
   for (const key of Object.keys(rawDict)) {
-    if (key !== 'message') rest[key] = rawDict[key];
+    if (key !== 'message') setDictField(rest, key, rawDict[key]);
   }
   const context: Record<string, unknown> | undefined =
     Object.keys(rest).length > 0 ? rest : undefined;

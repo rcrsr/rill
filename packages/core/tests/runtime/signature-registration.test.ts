@@ -674,4 +674,16 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(parsed.params.map((p) => p.name)).toEqual(['a']);
     });
   });
+
+  describe('annotation keys named __proto__', () => {
+    it('stores a param annotation key __proto__ as an own property', () => {
+      const parsed = parseSignatureRegistration(
+        '|^(__proto__: "x") a: string|',
+        'fn'
+      );
+      const annotations = parsed.params[0]?.annotations ?? {};
+      expect(Object.hasOwn(annotations, '__proto__')).toBe(true);
+      expect(Object.getPrototypeOf(annotations)).toBe(Object.prototype);
+    });
+  });
 });

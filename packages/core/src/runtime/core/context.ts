@@ -18,6 +18,7 @@ import type {
 import { bindDictCallables } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
 import { inferType } from './types/registrations.js';
+import { setDictField } from './types/dict-keys.js';
 import {
   invalidate as invalidateStatus,
   formatHalt,
@@ -579,7 +580,7 @@ export function createRuntimeContext(
         isProperty: false,
         fn: fn.fn,
       };
-      dict[name] = appCallable;
+      setDictField(dict, name, appCallable);
     }
 
     typeMethodDicts.set(reg.name, Object.freeze(dict));
