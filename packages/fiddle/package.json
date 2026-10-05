@@ -14,25 +14,25 @@
     "test": "NODE_OPTIONS=--no-experimental-webstorage vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@codemirror/commands": "^6.11.0",
+    "@codemirror/commands": "^6.11.1",
     "@codemirror/language": "^6.12.4",
-    "@codemirror/state": "^6.7.1",
-    "@codemirror/view": "^6.43.9",
-    "@lezer/highlight": "^1.2.3",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/view": "^6.43.13",
+    "@lezer/highlight": "^1.2.5",
     "@rcrsr/rill": "workspace:^",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/react": "^16.3.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
-    "@vitest/coverage-v8": "^5.0.0",
-    "happy-dom": "^20.14.0",
+    "@vitest/coverage-v8": "^5.0.3",
+    "happy-dom": "^20.14.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.2.2"
+    "vite": "^8.3.2"
   }
 }

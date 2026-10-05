@@ -12,6 +12,12 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+## 0.2.6 - 2026-10-05
+
+### Changed
+
+- **Baseline refreshed to the current shared-tooling pins:** `baseline.json` now records `@types/node ^26.6.4`, `knip ^6.39.0`, `lefthook ^2.1.16`, `oxfmt ^0.71.0`, `oxlint ^1.86.0`, and `vitest ^5.0.3`, and its `packageManager` pin moves from `pnpm@12.3.4` to `pnpm@12.9.1`, matching rill's tree after a dependency sweep. Consumers reading `@rcrsr/rill-dev/baseline.json` resolve `STD-DEP-1` and `STD-PM-2` against the same ranges rill pins today. A consumer still on pnpm 12.3.4 fails `STD-PM-2` until it runs `corepack use pnpm@12.9.1`. No checker logic changed.
+
 ### Added
 
 - **`rill/no-spec-id-reference` now rejects architecture decision record ids (`ADR-*`).** Decision records live with the internal workflow artifacts and are not published, so an `ADR-0037` citation in shipped source points at nothing a reader can open. `ADR` joins the decisions family alongside `DEC`, `DR`, `DD`, and `BC`. A consumer whose `packages/*/src` cites a decision record newly reports on upgrade; keep the fact the comment states and drop the id. ([#460](https://github.com/rcrsr/rill/pull/460))
