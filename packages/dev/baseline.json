@@ -15,6 +15,7 @@
     "no-shadow": "error",
     "max-lines": "error",
     "typescript/no-explicit-any": "error",
+    "typescript/explicit-module-boundary-types": "error",
     "typescript/explicit-function-return-type": "off",
     "typescript/no-namespace": "error",
     "typescript/no-this-alias": "error",

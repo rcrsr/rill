@@ -27,6 +27,17 @@ const noDuplicateErrorId = require(
 const noSpecIdReference = require(
   path.join(__dirname, 'no-spec-id-reference.cjs')
 );
+const noBannedSyntax = require(path.join(__dirname, 'no-banned-syntax.cjs'));
+const noDictBracketAssign = require(
+  path.join(__dirname, 'no-dict-bracket-assign.cjs')
+);
+const rethrowControlSignal = require(
+  path.join(__dirname, 'rethrow-control-signal.cjs')
+);
+const noNewRuntimeError = require(
+  path.join(__dirname, 'no-new-runtime-error.cjs')
+);
+const useHaltHelpers = require(path.join(__dirname, 'use-halt-helpers.cjs'));
 
 const stats = { pass: 0, fail: 0 };
 
@@ -777,11 +788,312 @@ function runSpecIdReferenceTests() {
 }
 
 // ============================================================
+// no-banned-syntax
+// ============================================================
+
+function runBannedSyntaxTests() {
+  // `filename` drives the allowExportAll suffix match.
+  function reportsFor(filename, visitorKey, options) {
+    const context = makeContext('', undefined, options);
+    context.filename = filename;
+    noBannedSyntax.create(context)[visitorKey]({ type: visitorKey });
+    return context.reports.map((r) => r.messageId);
+  }
+  const allow = [{ allowExportAll: ['packages/core/src/types.ts'] }];
+
+  check(
+    JSON.stringify(reportsFor('/r/a.ts', 'TSEnumDeclaration')) ===
+      JSON.stringify(['noEnum']),
+    'no-banned-syntax: enum is reported'
+  );
+  check(
+    JSON.stringify(reportsFor('/r/a.ts', 'ExportDefaultDeclaration')) ===
+      JSON.stringify(['noDefaultExport']),
+    'no-banned-syntax: export default is reported'
+  );
+  check(
+    JSON.stringify(reportsFor('/r/a.ts', 'ExportAllDeclaration', allow)) ===
+      JSON.stringify(['noExportAll']),
+    'no-banned-syntax: export * outside the allowlist is reported'
+  );
+  check(
+    reportsFor('/r/packages/core/src/types.ts', 'ExportAllDeclaration', allow)
+      .length === 0,
+    'no-banned-syntax: export * in an allowlisted file is not reported'
+  );
+  check(
+    reportsFor(
+      'C:\\r\\packages\\core\\src\\types.ts',
+      'ExportAllDeclaration',
+      allow
+    ).length === 0,
+    'no-banned-syntax: allowlist matches Windows path separators'
+  );
+}
+
+// ============================================================
+// no-dict-bracket-assign
+// ============================================================
+
+function runDictBracketAssignTests() {
+  const id = (name) => ({ type: 'Identifier', name });
+  function objectCall(method) {
+    return {
+      type: 'CallExpression',
+      callee: {
+        type: 'MemberExpression',
+        computed: false,
+        object: id('Object'),
+        property: id(method),
+      },
+      arguments: [id('src')],
+    };
+  }
+  function forOf(method, binding) {
+    return {
+      type: 'ForOfStatement',
+      left: {
+        type: 'VariableDeclaration',
+        declarations: [{ id: binding }],
+      },
+      right: objectCall(method),
+    };
+  }
+  function assign(key, operator, computed) {
+    return {
+      type: 'AssignmentExpression',
+      operator: operator ?? '=',
+      left: {
+        type: 'MemberExpression',
+        computed: computed ?? true,
+        object: id('out'),
+        property: id(key),
+      },
+    };
+  }
+  // Drives enter → assignment → exit, then an assignment after the loop.
+  function run(loop, inside, after) {
+    const context = makeContext('');
+    const v = noDictBracketAssign.create(context);
+    v.ForOfStatement(loop);
+    v.AssignmentExpression(inside);
+    v['ForOfStatement:exit'](loop);
+    if (after) v.AssignmentExpression(after);
+    return context.reports;
+  }
+  const pair = { type: 'ArrayPattern', elements: [id('k'), id('v')] };
+
+  check(
+    run(forOf('entries', pair), assign('k')).length === 1,
+    'no-dict-bracket-assign: out[k] = v in an Object.entries loop is reported'
+  );
+  check(
+    run(forOf('keys', id('k')), assign('k')).length === 1,
+    'no-dict-bracket-assign: out[k] = v in an Object.keys loop is reported'
+  );
+  check(
+    run(forOf('entries', pair), assign('other')).length === 0,
+    'no-dict-bracket-assign: a key other than the loop binding is ignored'
+  );
+  check(
+    run(forOf('entries', pair), assign('k', '+=')).length === 0,
+    'no-dict-bracket-assign: compound assignment is ignored'
+  );
+  check(
+    run(forOf('entries', pair), assign('k', '=', false)).length === 0,
+    'no-dict-bracket-assign: non-computed out.k = v is ignored'
+  );
+  check(
+    run(forOf('values', id('k')), assign('k')).length === 0,
+    'no-dict-bracket-assign: Object.values loops are ignored'
+  );
+  check(
+    run(forOf('entries', pair), assign('other'), assign('k')).length === 0,
+    'no-dict-bracket-assign: the binding is out of scope after the loop exits'
+  );
+}
+
+// ============================================================
+// rethrow-control-signal
+// ============================================================
+
+function runRethrowControlSignalTests() {
+  // `tryText` and `catchText` are the brace-delimited block texts; the rule
+  // reads them through getText, and reads `bodyStatements` structurally.
+  function run(tryText, catchText, param, bodyStatements, options) {
+    const source = `try ${tryText} catch ${catchText}`;
+    const tryRange = findRange(source, tryText);
+    const catchRange = findRange(source, catchText, tryRange[1]);
+    const context = makeContext(source, undefined, options);
+    rethrowControlSignal.create(context).TryStatement({
+      type: 'TryStatement',
+      block: { type: 'BlockStatement', range: tryRange },
+      handler: {
+        type: 'CatchClause',
+        param: param ? { type: 'Identifier', name: param } : null,
+        body: {
+          type: 'BlockStatement',
+          range: catchRange,
+          body: bodyStatements ?? [],
+        },
+      },
+    });
+    return context.reports.length;
+  }
+  const rethrow = (name) => ({
+    type: 'ThrowStatement',
+    argument: { type: 'Identifier', name },
+  });
+  const evalTry = '{ await evaluateBody(s, b); }';
+
+  check(
+    run(evalTry, '{ convert(e); }', 'e') === 1,
+    'rethrow-control-signal: converting catch around evaluate* is reported'
+  );
+  check(
+    run('{ await cb.fn(args); }', '{ }', null) === 1,
+    'rethrow-control-signal: empty catch around .fn( is reported'
+  );
+  check(
+    run('{ JSON.parse(x); }', '{ }', null) === 0,
+    'rethrow-control-signal: a try that runs no rill code is ignored'
+  );
+  check(
+    run(
+      evalTry,
+      '{ if (e instanceof ControlSignal) throw e; convert(e); }',
+      'e'
+    ) === 0,
+    'rethrow-control-signal: a catch naming ControlSignal passes'
+  );
+  check(
+    run(evalTry, '{ rejectBreakAsHalt(e, site); throw e; }', 'e') === 0,
+    'rethrow-control-signal: a catch calling rejectBreakAsHalt passes'
+  );
+  check(
+    run(evalTry, '{ log(e); throw e; }', 'e', [rethrow('e')]) === 0,
+    'rethrow-control-signal: a trailing rethrow of the binding passes'
+  );
+  check(
+    run(evalTry, '{ log(e); throw other; }', 'e', [rethrow('other')]) === 1,
+    'rethrow-control-signal: throwing a different value is reported'
+  );
+  check(
+    run(evalTry, '{ if (ok) { use(); } else { throw e; } }', 'e', [
+      {
+        type: 'IfStatement',
+        alternate: { type: 'BlockStatement', body: [rethrow('e')] },
+      },
+    ]) === 0,
+    'rethrow-control-signal: a rethrow in the trailing else branch passes'
+  );
+  check(
+    run(
+      evalTry,
+      '{ return reshapeHostThrow(e); }',
+      'e',
+      [],
+      [{ delegates: ['reshapeHostThrow'] }]
+    ) === 0,
+    'rethrow-control-signal: a call to a listed delegate passes'
+  );
+  check(
+    run(evalTry, '{ return reshapeHostThrow(e); }', 'e') === 1,
+    'rethrow-control-signal: an unlisted handler call is reported'
+  );
+}
+
+// ============================================================
+// no-new-runtime-error
+// ============================================================
+
+function runNewRuntimeErrorTests() {
+  const id = (name) => ({ type: 'Identifier', name });
+  function reports(visitorKey, node) {
+    const context = makeContext('');
+    noNewRuntimeError.create(context)[visitorKey](node);
+    return context.reports.length;
+  }
+  const fromNode = (object, computed) => ({
+    type: 'CallExpression',
+    callee: {
+      type: 'MemberExpression',
+      computed: computed ?? false,
+      object: id(object),
+      property: id('fromNode'),
+    },
+  });
+
+  check(
+    reports('NewExpression', { callee: id('RuntimeError') }) === 1,
+    'no-new-runtime-error: new RuntimeError() is reported'
+  );
+  check(
+    reports('NewExpression', { callee: id('TypeError') }) === 0,
+    'no-new-runtime-error: other constructors are ignored'
+  );
+  check(
+    reports('CallExpression', fromNode('RuntimeError')) === 1,
+    'no-new-runtime-error: RuntimeError.fromNode() is reported'
+  );
+  check(
+    reports('CallExpression', fromNode('ParseError')) === 0,
+    'no-new-runtime-error: fromNode on another class is ignored'
+  );
+}
+
+// ============================================================
+// use-halt-helpers
+// ============================================================
+
+function runHaltHelpersTests() {
+  const id = (name) => ({ type: 'Identifier', name });
+  const member = (object, property) => ({
+    type: 'MemberExpression',
+    computed: false,
+    object,
+    property: id(property),
+  });
+  function reports(node) {
+    const context = makeContext('');
+    useHaltHelpers.create(context).MemberExpression(node);
+    return context.reports.map((r) => r.data.matcher);
+  }
+  const expectCall = { type: 'CallExpression', callee: id('expect') };
+
+  check(
+    JSON.stringify(
+      reports(member(member(expectCall, 'rejects'), 'toThrow'))
+    ) === JSON.stringify(['toThrow']),
+    'use-halt-helpers: .rejects.toThrow is reported'
+  );
+  check(
+    JSON.stringify(
+      reports(member(member(expectCall, 'rejects'), 'toThrowError'))
+    ) === JSON.stringify(['toThrowError']),
+    'use-halt-helpers: .rejects.toThrowError is reported'
+  );
+  check(
+    reports(member(expectCall, 'toThrow')).length === 0,
+    'use-halt-helpers: a synchronous .toThrow is ignored'
+  );
+  check(
+    reports(member(member(expectCall, 'resolves'), 'toThrow')).length === 0,
+    'use-halt-helpers: .resolves.toThrow is ignored'
+  );
+}
+
+// ============================================================
 // Run
 // ============================================================
 
 runDuplicateErrorIdTests();
 runSpecIdReferenceTests();
+runBannedSyntaxTests();
+runDictBracketAssignTests();
+runRethrowControlSignalTests();
+runNewRuntimeErrorTests();
+runHaltHelpersTests();
 
 if (stats.fail > 0) {
   console.error(
@@ -791,5 +1103,5 @@ if (stats.fail > 0) {
 }
 
 console.log(
-  `PASS rule-unit-test: ${stats.pass} assertions passed (no-duplicate-error-id, no-spec-id-reference).`
+  `PASS rule-unit-test: ${stats.pass} assertions passed (no-duplicate-error-id, no-spec-id-reference, no-banned-syntax, no-dict-bracket-assign, rethrow-control-signal, no-new-runtime-error, use-halt-helpers).`
 );

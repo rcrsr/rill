@@ -33,8 +33,116 @@ construct `RuntimeError`, which in practice means `rill` alone.
 
 | Rule | Enabled for | Auto-fix |
 |------|-------------|----------|
+| `no-banned-syntax` | `packages/*/src/**/*.{ts,tsx}` | No |
+| `no-dict-bracket-assign` | `packages/core/src/**/*.ts` | No |
 | `no-duplicate-error-id` | `**/src/runtime/**/*.ts` | Yes |
+| `no-new-runtime-error` | `packages/core/src/**/*.ts` | No |
 | `no-spec-id-reference` | `packages/*/src/**/*.{ts,tsx}` | No |
+| `rethrow-control-signal` | `packages/core/src/runtime/**/*.ts` | No |
+| `use-halt-helpers` | `packages/core/tests/runtime/**/*.ts` | No |
+
+`no-spec-id-reference` and `no-banned-syntax` apply to any TypeScript
+repository. The other five encode rill runtime conventions (`RuntimeError`,
+`setDictField`, `ControlSignal`, the halt test helpers) and are specific to
+`rill`.
+
+### `no-banned-syntax`
+
+Rejects `enum` (use an `as const` object), `export default` (use a named
+export), and `export * from` (list exports by name).
+
+**Options:** `[{ allowExportAll: ['packages/core/src/types.ts'] }]` exempts
+files whose path ends with a listed suffix from the `export *` check.
+
+```typescript
+// Bad
+export enum Kind { A, B }
+export default createThing;
+export * from './things.js';
+
+// Good
+export const KIND = { A: 'A', B: 'B' } as const;
+export { createThing };
+export { createThing, isThing } from './things.js';
+```
+
+### `no-dict-bracket-assign`
+
+Inside a `for...of` over `Object.entries(x)` or `Object.keys(x)`, rejects
+`out[key] = value` keyed by the loop's key binding. A `__proto__` key assigned
+with brackets reparents `out` instead of storing an own property.
+
+```typescript
+// Bad
+for (const [k, v] of Object.entries(src)) out[k] = v;
+
+// Good
+for (const [k, v] of Object.entries(src)) setDictField(out, k, v);
+```
+
+Only the loop's own key binding is tracked, so a bracket write keyed by a
+value from elsewhere is not caught. Review those by hand.
+
+### `no-new-runtime-error`
+
+Rejects `new RuntimeError(...)` and `RuntimeError.fromNode(...)`. Script
+errors are halts thrown through the builders in `runtime/core/types/halt.ts`
+with a registry atom.
+
+```typescript
+// Bad
+throw new RuntimeError(ERROR_IDS.RILL_R002, 'Expected boolean');
+
+// Good
+throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], 'Expected boolean');
+```
+
+In rill, files that constructed `RuntimeError` when the rule landed sit in a
+`warn` ratchet list in `.oxlintrc.json`; remove a file once it is migrated.
+
+### `rethrow-control-signal`
+
+A `try` that calls `evaluate*(`, `invoke*(`, or `.fn(` runs rill code and can
+raise `BreakSignal`, `ReturnSignal`, or `YieldSignal`. Its `catch` passes when
+it names `ControlSignal`, a signal subclass, or `rejectBreakAsHalt`; when its
+last statement rethrows the caught binding, directly or in the trailing
+`else`; or when it calls a function listed in `delegates`.
+
+**Options:** `[{ delegates: ['reshapeHostThrow'] }]` names handlers that
+rethrow control signals themselves.
+
+```typescript
+// Bad: a break inside the body becomes a halt
+try { return await evaluateBody(s, body); }
+catch (e) { throwFatalHostHalt(site, atom, String(e)); }
+
+// Good
+try { return await evaluateBody(s, body); }
+catch (e) {
+  if (e instanceof RuntimeHaltSignal || e instanceof ControlSignal) throw e;
+  throwFatalHostHalt(site, atom, String(e));
+}
+```
+
+The trigger and the pass conditions are textual heuristics. Escape hatch for
+a deliberate swallow: `// oxlint-disable-next-line rill/rethrow-control-signal -- <reason>`.
+
+### `use-halt-helpers`
+
+Rejects `.rejects.toThrow` and `.rejects.toThrowError`. A halt surfaces as a
+raw `RuntimeHaltSignal` or a rematerialised `RuntimeError`; `expectHalt` and
+`expectHaltMessage` accept both.
+
+```typescript
+// Bad
+await expect(run('"x" -> number')).rejects.toThrow('mismatch');
+
+// Good
+await expectHalt(() => run('"x" -> number'), { code: 'TYPE_MISMATCH' });
+```
+
+Test files that used `rejects.toThrow` when the rule landed sit in a `warn`
+ratchet list in `.oxlintrc.json`.
 
 ### `no-duplicate-error-id`
 
