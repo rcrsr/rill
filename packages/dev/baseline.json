@@ -13,6 +13,7 @@
     "no-unused-vars": "error",
     "eqeqeq": "error",
     "no-shadow": "error",
+    "max-lines": "error",
     "typescript/no-explicit-any": "error",
     "typescript/explicit-function-return-type": "off",
     "typescript/no-namespace": "error",

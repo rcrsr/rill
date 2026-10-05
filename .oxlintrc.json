@@ -18,6 +18,13 @@
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "eqeqeq": "error",
     "no-shadow": "error",
+    // Caps a source file at 1000 lines of code, blank lines and comments not
+    // counted. Tests are exempt in an override below; existing offenders are
+    // ratcheted to warn there and drop off that list as they are split.
+    "max-lines": [
+      "error",
+      { "max": 1000, "skipBlankLines": true, "skipComments": true }
+    ],
     "typescript/no-explicit-any": "error",
     "typescript/explicit-function-return-type": "off",
     "typescript/no-namespace": "error",
@@ -261,6 +268,39 @@
               }
             ]
           }
+        ]
+      }
+    },
+    {
+      // Test files group many cases per behavior and the language arbiter is
+      // locked, so the length cap applies to shipped source only.
+      "files": ["**/tests/**", "**/__tests__/**"],
+      "rules": {
+        "max-lines": "off"
+      }
+    },
+    {
+      // The error registry is one table of every error definition. Splitting
+      // it would scatter the registry across files for no gain in readability.
+      "files": ["packages/core/src/error-registry.ts"],
+      "rules": {
+        "max-lines": "off"
+      }
+    },
+    {
+      // Ratchet: files over the cap when it was introduced. Each warns until it
+      // is split under 1000 lines; remove a file from this list once it is.
+      // New files get the cap as an error.
+      "files": [
+        "packages/core/src/parser/parser-expr.ts",
+        "packages/core/src/parser/parser-literals.ts",
+        "packages/core/src/runtime/core/eval/handlers/closures.ts",
+        "packages/core/src/runtime/core/eval/handlers/variables.ts"
+      ],
+      "rules": {
+        "max-lines": [
+          "warn",
+          { "max": 1000, "skipBlankLines": true, "skipComments": true }
         ]
       }
     },
