@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`__proto__` keys in host signature annotations and dict rebuilds:** A host function signature such as `|^(__proto__: "x") a: string|` used to drop the annotation and reparent the param's `annotations` object; `parseSignatureRegistration` now stores the key as an own property. The same bracket-assignment pattern is replaced with `setDictField` in `execute.ts` (halt-to-`RuntimeError` context), `context.ts` (type method dicts), and `test-context.ts` (extension resolver config). ([#462](https://github.com/rcrsr/rill/pull/462))
+
 - **LLM style example and published-doc identifiers:** `docs/llm/style.txt` showed `!$.name -> .empty`, which negates a string and halts because unary `!` binds tighter than `->`; it now reads `!($.name -> .empty)`, and `docs/ref-llms-full.txt` is regenerated. Internal workflow identifiers are removed from the published docs and `docs/ref-grammar.ebnf`; the facts and rill error codes are unchanged, and the `ref-config-api` error table drops its id-only Code column. ([#459](https://github.com/rcrsr/rill/pull/459))
 
 ## 0.21.0 - 2026-09-09

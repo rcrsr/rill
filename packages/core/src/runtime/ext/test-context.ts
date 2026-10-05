@@ -16,6 +16,7 @@ import type {
 import type { RillCallable, RillParam } from '../core/callable.js';
 import { isCallable } from '../core/callable.js';
 import type { RillValue } from '../core/types/structures.js';
+import { setDictField } from '../core/types/dict-keys.js';
 import { formatStructure } from '../core/types/operations.js';
 import { quoteRillString } from '../core/types/format-string.js';
 import { RuntimeError } from '../../types.js';
@@ -217,7 +218,7 @@ export function createTestContext(
   // Build ext resolver config: maps extension names to their RillValues
   const extConfig: Record<string, RillValue> = {};
   for (const [name, entry] of Object.entries(extensions)) {
-    extConfig[name] = entry.value;
+    setDictField(extConfig, name, entry.value);
   }
 
   // Generate rill source bindings (propagates ExtensionBindingError)

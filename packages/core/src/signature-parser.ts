@@ -14,6 +14,7 @@
 
 import { tokenize } from './lexer/index.js';
 import { ERROR_IDS, ParseError, TOKEN_TYPES } from './types.js';
+import { setDictField } from './runtime/core/types/dict-keys.js';
 import {
   type ParserState,
   createParserState,
@@ -94,9 +95,9 @@ function staticTypeRefToTypeStructure(
           `Invalid signature for function '${functionName}': dict type arguments must be named (e.g. dict(key: string))`
         );
       }
-      fields[arg.name] = {
+      setDictField(fields, arg.name, {
         type: staticTypeRefToTypeStructure(arg.value, functionName),
-      };
+      });
     }
     return { kind: 'dict', fields };
   }
@@ -168,7 +169,7 @@ function parseSignatureAnnotations(
         `Expected ':' after annotation key in function '${functionName}'`
       );
       const value = extractAnnotationStringValue(state, functionName);
-      annotations[nameToken.value] = value;
+      setDictField(annotations, nameToken.value, value);
     }
 
     if (check(state, TOKEN_TYPES.COMMA)) {
@@ -371,7 +372,7 @@ function parseSignatureParam(
     );
     // Store annotation values as strings in annotations record
     for (const [key, value] of Object.entries(annots)) {
-      annotations[key] = value;
+      setDictField(annotations, key, value);
     }
   }
 

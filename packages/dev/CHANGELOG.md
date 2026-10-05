@@ -12,6 +12,23 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+### Added
+
+- **Five new lint rules in `@rcrsr/rill-dev/lint-rules`.** All are opt-in through an `overrides` entry, like the existing rules. See `lint-rules/README.md` for options and examples.
+  - `rill/no-banned-syntax` rejects `enum`, `export default`, and `export * from`, with an `allowExportAll` option for files that re-export by design. It applies to any TypeScript repository.
+  - `rill/no-dict-bracket-assign` rejects `out[k] = v` inside a `for...of` over `Object.entries` or `Object.keys`, where a `__proto__` key reparents the object.
+  - `rill/rethrow-control-signal` rejects a `catch` around rill evaluation that can swallow `BreakSignal` or `ReturnSignal`, with a `delegates` option for handlers that rethrow them.
+  - `rill/no-new-runtime-error` rejects constructing `RuntimeError` in favor of the halt builders.
+  - `rill/use-halt-helpers` rejects `.rejects.toThrow` in tests in favor of `expectHalt`.
+
+  The last four encode rill runtime conventions and are meant for `rill` itself. ([#462](https://github.com/rcrsr/rill/pull/462))
+
+- **`STD-LINT-10`: source files are capped at 1000 lines.** `REPO-STANDARDS.md` gains an element requiring oxlint's `max-lines` rule at `error` with `max` at 1000 or lower, set in the top-level `rules` or in an override whose `files` glob names `src`. `rill-check-standards` reads the config through `jsonc.cjs` and reports the limit when it is too loose. Per-file overrides that relax the cap for files already over it must be `warn` or `off` when their `files` glob names `src`. An `error` override with a larger `max` fails as too loose. A consumer without the rule newly fails `STD-LINT-10` on upgrade; add `"max-lines": ["error", { "max": 1000, "skipBlankLines": true, "skipComments": true }]` and a `warn` override listing current offenders. ([#462](https://github.com/rcrsr/rill/pull/462))
+
+### Changed
+
+- **Baseline gains two lint rules at `error`:** `baseline.json` now pins `max-lines` and `typescript/explicit-module-boundary-types` at `error`. `STD-LINT-9` compares consumer severities to the baseline, so a consumer that configures either rule at `warn` or `off` newly fails on upgrade. Match the baseline severity. rill's own `.oxlintrc.json` enables `typescript/explicit-module-boundary-types` at `error` for exported functions. ([#462](https://github.com/rcrsr/rill/pull/462))
+
 ## 0.2.6 - 2026-10-05
 
 ### Changed

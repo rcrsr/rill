@@ -18,7 +18,18 @@
     "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
     "eqeqeq": "error",
     "no-shadow": "error",
+    // Caps a source file at 1000 lines of code, blank lines and comments not
+    // counted. Tests are exempt in an override below; existing offenders are
+    // ratcheted to warn there and drop off that list as they are split.
+    "max-lines": [
+      "error",
+      { "max": 1000, "skipBlankLines": true, "skipComments": true }
+    ],
     "typescript/no-explicit-any": "error",
+    // Exported functions need explicit types (0 hits when enabled); internal
+    // functions may infer. explicit-function-return-type would also demand
+    // them on internal functions (7 hits), which the TypeScript policy allows.
+    "typescript/explicit-module-boundary-types": "error",
     "typescript/explicit-function-return-type": "off",
     "typescript/no-namespace": "error",
     "typescript/no-this-alias": "error",
@@ -261,6 +272,154 @@
               }
             ]
           }
+        ]
+      }
+    },
+    {
+      // enum, export default, and export * are replaced by as-const objects
+      // and named exports. types.ts re-exports its sub-modules by design.
+      "files": ["packages/*/src/**/*.{ts,tsx}"],
+      "rules": {
+        "rill/no-banned-syntax": [
+          "error",
+          { "allowExportAll": ["packages/core/src/types.ts"] }
+        ]
+      }
+    },
+    {
+      // A __proto__ key assigned with brackets reparents the object.
+      // setDictField lives in core and is not exported, so the rule is
+      // scoped to core.
+      "files": ["packages/core/src/**/*.ts"],
+      "rules": {
+        "rill/no-dict-bracket-assign": "error",
+        "rill/no-new-runtime-error": "error"
+      }
+    },
+    {
+      // A catch around rill evaluation must let BreakSignal and ReturnSignal
+      // through. reshapeHostThrow rethrows ControlSignal itself.
+      "files": ["packages/core/src/runtime/**/*.ts"],
+      "rules": {
+        "rill/rethrow-control-signal": [
+          "error",
+          { "delegates": ["reshapeHostThrow"] }
+        ]
+      }
+    },
+    {
+      // error-classes.ts defines RuntimeError, so it constructs it.
+      "files": ["packages/core/src/error-classes.ts"],
+      "rules": {
+        "rill/no-new-runtime-error": "off"
+      }
+    },
+    {
+      // Ratchet: files that constructed RuntimeError when the rule was
+      // introduced (115 sites). Each warns until migrated to halt builders;
+      // remove a file from this list once it is clean. New files get error.
+      "files": [
+        "packages/core/src/runtime/core/callable.ts",
+        "packages/core/src/runtime/core/context.ts",
+        "packages/core/src/runtime/core/eval/handlers/closures.ts",
+        "packages/core/src/runtime/core/eval/handlers/use.ts",
+        "packages/core/src/runtime/core/execute.ts",
+        "packages/core/src/runtime/core/field-descriptor.ts",
+        "packages/core/src/runtime/core/policy/config-resolver.ts",
+        "packages/core/src/runtime/core/resolvers.ts",
+        "packages/core/src/runtime/core/types/constructors.ts",
+        "packages/core/src/runtime/core/types/operations.ts",
+        "packages/core/src/runtime/core/types/protocols/duration.ts",
+        "packages/core/src/runtime/core/types/protocols/number.ts",
+        "packages/core/src/runtime/core/types/protocols/shared.ts",
+        "packages/core/src/runtime/core/types/protocols/string.ts",
+        "packages/core/src/runtime/core/types/registrations.ts",
+        "packages/core/src/runtime/core/types/status.ts",
+        "packages/core/src/runtime/ext/builtins/functions/collections.ts",
+        "packages/core/src/runtime/ext/builtins/functions/core.ts",
+        "packages/core/src/runtime/ext/builtins/methods/bodies.ts",
+        "packages/core/src/runtime/ext/builtins/methods/entry.ts",
+        "packages/core/src/runtime/ext/builtins/temporal/methods.ts",
+        "packages/core/src/runtime/ext/extensions.ts",
+        "packages/core/src/runtime/ext/test-context.ts"
+      ],
+      "rules": {
+        "rill/no-new-runtime-error": "warn"
+      }
+    },
+    {
+      // Halts surface as RuntimeHaltSignal or a rematerialised RuntimeError;
+      // the halt helpers accept both, rejects.toThrow does not.
+      "files": ["packages/core/tests/runtime/**/*.ts"],
+      "rules": {
+        "rill/use-halt-helpers": "error"
+      }
+    },
+    {
+      // Ratchet: test files using rejects.toThrow when the rule was introduced
+      // (100 sites). Remove a file from this list once it is migrated.
+      "files": [
+        "packages/core/tests/runtime/builtin-signatures.test.ts",
+        "packages/core/tests/runtime/call-depth-ceiling.test.ts",
+        "packages/core/tests/runtime/call-stack-integration.test.ts",
+        "packages/core/tests/runtime/closure-signature-match.test.ts",
+        "packages/core/tests/runtime/collections-helpers.test.ts",
+        "packages/core/tests/runtime/conversion-hydration.test.ts",
+        "packages/core/tests/runtime/dynamic-access-halt-and-same-block-reassign.test.ts",
+        "packages/core/tests/runtime/evaluator-core-annotations.test.ts",
+        "packages/core/tests/runtime/ext/test-context.test.ts",
+        "packages/core/tests/runtime/format-value.test.ts",
+        "packages/core/tests/runtime/host-function-types.test.ts",
+        "packages/core/tests/runtime/host-type-validation.test.ts",
+        "packages/core/tests/runtime/iteration-ceiling-boundary.test.ts",
+        "packages/core/tests/runtime/number-compare-and-string-parse.test.ts",
+        "packages/core/tests/runtime/policy/transforms.test.ts",
+        "packages/core/tests/runtime/registrations.test.ts",
+        "packages/core/tests/runtime/scheme-resolver.test.ts",
+        "packages/core/tests/runtime/signature-registration.test.ts",
+        "packages/core/tests/runtime/stepper.test.ts",
+        "packages/core/tests/runtime/stream-and-dispatch-bugfixes.test.ts",
+        "packages/core/tests/runtime/stream-reflection.test.ts",
+        "packages/core/tests/runtime/stream-type.test.ts",
+        "packages/core/tests/runtime/take-skip-stream-head.test.ts",
+        "packages/core/tests/runtime/tool-builtin.test.ts",
+        "packages/core/tests/runtime/typed-dict-keys.test.ts"
+      ],
+      "rules": {
+        "rill/use-halt-helpers": "warn"
+      }
+    },
+    {
+      // Test files group many cases per behavior and the language arbiter is
+      // locked, so the length cap applies to shipped source only.
+      "files": ["**/tests/**", "**/__tests__/**"],
+      "rules": {
+        "max-lines": "off"
+      }
+    },
+    {
+      // The error registry is one table of every error definition. Splitting
+      // it would scatter the registry across files for no gain in readability.
+      "files": ["packages/core/src/error-registry.ts"],
+      "rules": {
+        "max-lines": "off"
+      }
+    },
+    {
+      // Ratchet: files over the cap when it was introduced. Each warns until it
+      // is split under 1000 lines; remove a file from this list once it is.
+      // New files get the cap as an error.
+      "files": [
+        "packages/core/src/parser/parser-expr.ts",
+        "packages/core/src/parser/parser-literals.ts",
+        "packages/core/src/runtime/core/eval/handlers/closures.ts",
+        "packages/core/src/runtime/core/eval/handlers/variables.ts",
+        "scripts/test-examples.ts"
+      ],
+      "rules": {
+        "max-lines": [
+          "warn",
+          { "max": 1000, "skipBlankLines": true, "skipComments": true }
         ]
       }
     },
