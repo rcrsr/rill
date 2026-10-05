@@ -324,6 +324,7 @@ fetch the package, so it cannot live inside its own prerequisite.
 | STD-LINT-7 | Config files declare `$schema`. | — |
 | STD-LINT-9 | Rules shared with the reference config carry the same severity. A rule set to `warn` in one repository and `error` in another is non-conformant. | — |
 | STD-LINT-8 | Plugin enablement is explicit. Naming a `plugins` array replaces the tool's defaults, so a default-on plugin is silently disabled unless relisted. | — |
+| STD-LINT-10 | `max-lines` is `error` with `max` at 1000 or lower, in the top-level rules or in an override whose glob covers `src/`. Per-file overrides may relax it for files already over the cap. | — |
 
 **Why STD-LINT-3 matters.** Internal planning identifiers are unresolvable for
 anyone reading the published package, including future maintainers and external
@@ -364,6 +365,15 @@ warning and no finding to notice. Enabling it later may still report nothing,
 because most of its rules sit in categories the config does not enable, which
 means a zero count is not evidence that listing it was pointless. List every
 plugin the repository wants, including the ones reporting zero.
+
+**On STD-LINT-10.** A file past 1000 lines is hard to review and hard for a
+model to hold in context. The cap counts code only: set `skipBlankLines` and
+`skipComments` so a well-commented file is not penalised. Exempt test
+directories in an override, since tests group many cases per behavior and some
+are locked. Files already over the cap when a repository adopts it get a
+per-file override at `warn`, removed once each file is split. The checker reads
+the cap's severity and limit, not those per-file overrides, so a ratchet list
+that only grows reads as conformant. Keep it shrinking by review.
 
 **Verify**
 

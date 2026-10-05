@@ -991,6 +991,54 @@ if [ -f "$LINTRC" ]; then
         "plugins array does not list unicorn, which the CLI enables by default"
   fi
 
+  # A source-file length cap at error, with a limit no looser than 1000. The
+  # top-level `rules` block applies to every linted path, so it covers src/;
+  # an override counts only when its own files glob names src, the same
+  # glob-reading rule STD-LINT-3 applies. Per-file overrides that relax the
+  # cap for existing offenders are a ratchet, not a gap, and are not read.
+  # An omitted `max` is the tool default of 300, which is within the limit.
+  LINT10_RESULT="$(node -e '
+    let cfg;
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      cfg = readJSONC(process.argv[2]);
+    } catch (e) { console.log("parse-error"); process.exit(0); }
+    const LIMIT = 1000;
+    const toArray = (x) => (Array.isArray(x) ? x : x === undefined || x === null ? [] : [x]);
+    const sev = (r) => (Array.isArray(r) ? r[0] : r);
+    const maxOf = (r) => {
+      const opt = Array.isArray(r) ? r[1] : undefined;
+      if (typeof opt === "number") return opt;
+      if (opt && typeof opt.max === "number") return opt.max;
+      return 300;
+    };
+    const settings = [];
+    const top = (cfg.rules || {})["max-lines"];
+    if (top !== undefined) settings.push(top);
+    for (const o of cfg.overrides || []) {
+      const r = (o.rules || {})["max-lines"];
+      if (r === undefined) continue;
+      if (toArray(o.files).some((f) => String(f).includes("src"))) settings.push(r);
+    }
+    const errors = settings.filter((r) => sev(r) === "error");
+    if (errors.length === 0) { console.log("not-error"); process.exit(0); }
+    const loosest = Math.max(...errors.map(maxOf));
+    console.log(loosest <= LIMIT ? "ok" : "too-loose:" + loosest);
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+
+  case "$LINT10_RESULT" in
+    ok)
+      ok "STD-LINT-10" "source files capped at 1000 lines" ;;
+    too-loose:*)
+      bad "STD-LINT-10" "source files capped at 1000 lines" \
+        "max-lines allows ${LINT10_RESULT#too-loose:} lines; the limit is 1000" ;;
+    not-error)
+      bad "STD-LINT-10" "source files capped at 1000 lines" \
+        "max-lines is not error at the top level or in an override covering src/ in $LINTRC" ;;
+    *)
+      bad "STD-LINT-10" "source files capped at 1000 lines" "could not parse $LINTRC as JSONC" ;;
+  esac
+
   # Lint scope must include tests/, checked at the call sites that run it. The
   # root is that call site in a single-package repository, under the name §4
   # gives it there; walking only the package list meant the element reported ok
@@ -1024,7 +1072,7 @@ if [ -f "$LINTRC" ]; then
     ok "STD-LINT-4" "lint scope covers src/ and tests/" ||
     bad "STD-LINT-4" "lint scope covers src/ and tests/" "tests/ not linted in: $UNSCOPED"
 else
-  skip "STD-LINT-2,3,4,7,8" "lint configuration" "no $LINTRC in this repository"
+  skip "STD-LINT-2,3,4,7,8,10" "lint configuration" "no $LINTRC in this repository"
 fi
 
 # STD-LINT-1: shared linter and formatter. The baseline names the two package

@@ -502,6 +502,66 @@ function runCheckStandardsFixtureTests() {
     );
   }
 
+  // (k) STD-LINT-10: the length cap must be error at 1000 or lower, either at
+  // the top level or in an override whose glob names src. Each case is a
+  // separate tree so one verdict cannot leak into the next.
+  {
+    const lint10 = (rc) =>
+      runCheckStandards(
+        writeFixtureTree({ 'package.json': MINIMAL_PKG, '.oxlintrc.json': rc })
+      ).stdout;
+    const topOk = lint10(
+      '{\n  // cap\n  "rules": { "max-lines": ["error", { "max": 1000 }] }\n}\n'
+    );
+    check(
+      /ok\s+STD-LINT-10\s/.test(topOk),
+      'STD-LINT-10: top-level max-lines error at 1000 is ok',
+      topOk
+    );
+    const defaultMax = lint10('{ "rules": { "max-lines": "error" } }\n');
+    check(
+      /ok\s+STD-LINT-10\s/.test(defaultMax),
+      'STD-LINT-10: an omitted max (tool default 300) is ok',
+      defaultMax
+    );
+    const loose = lint10(
+      '{ "rules": { "max-lines": ["error", { "max": 2000 }] } }\n'
+    );
+    check(
+      /FAIL\s+STD-LINT-10\s[^\n]*\n?[^\n]*2000/.test(loose),
+      'STD-LINT-10: a 2000-line limit fails and names the limit',
+      loose
+    );
+    const warned = lint10('{ "rules": { "max-lines": "warn" } }\n');
+    check(
+      /FAIL\s+STD-LINT-10\s/.test(warned),
+      'STD-LINT-10: max-lines at warn fails',
+      warned
+    );
+    const absent = lint10('{ "rules": {} }\n');
+    check(
+      /FAIL\s+STD-LINT-10\s/.test(absent),
+      'STD-LINT-10: no max-lines rule fails',
+      absent
+    );
+    const srcOverride = lint10(
+      '{ "overrides": [{ "files": ["src/**/*.ts"], "rules": { "max-lines": "error" } }] }\n'
+    );
+    check(
+      /ok\s+STD-LINT-10\s/.test(srcOverride),
+      'STD-LINT-10: an override at error with a src glob is ok',
+      srcOverride
+    );
+    const elsewhere = lint10(
+      '{ "overrides": [{ "files": ["scripts/**"], "rules": { "max-lines": "error" } }] }\n'
+    );
+    check(
+      /FAIL\s+STD-LINT-10\s/.test(elsewhere),
+      'STD-LINT-10: an override scoped away from src fails',
+      elsewhere
+    );
+  }
+
   // (g) grep_noncomment: a stripped-check token that appears only inside a
   // `#` comment must not read as the real thing. STD-CI-4 (frozen-lockfile)
   // is the probe; the same helper backs STD-REL-1/3/4/5/6/7.
