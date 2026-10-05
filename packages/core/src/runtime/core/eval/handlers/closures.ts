@@ -90,6 +90,7 @@ import {
   checkAborted,
   withTimeout,
   accessDictField,
+  setDictField,
 } from '../shared.js';
 import { evaluateExpression } from './core.js';
 import { evaluateBodyExpression } from './control-flow.js';
@@ -1408,7 +1409,7 @@ export async function evaluateMethod(
           if (fallbackMethod.params) {
             for (let i = 1; i < fallbackMethod.params.length; i++) {
               const p = fallbackMethod.params[i];
-              if (p) fbMethodArgs[p.name] = args[i - 1] ?? null;
+              if (p) setDictField(fbMethodArgs, p.name, args[i - 1] ?? null);
             }
           }
           const result = fallbackMethod.fn(
@@ -1650,7 +1651,7 @@ export async function evaluateParamsProperty(
       paramEntry['__annotations'] = param.annotations;
     }
 
-    paramsDict[param.name] = paramEntry;
+    setDictField(paramsDict, param.name, paramEntry);
   }
   return paramsDict;
 }

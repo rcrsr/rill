@@ -162,7 +162,9 @@ export async function evaluateAnnotations(
         !isCallable(spreadValue)
       ) {
         // Dict: spread all key-value pairs
-        Object.assign(result, spreadValue);
+        for (const [k, v] of Object.entries(spreadValue)) {
+          setDictField(result, k, v);
+        }
       } else if (Array.isArray(spreadValue)) {
         // Tuple/list: not valid for annotations (need named keys)
         throwCatchableHostHalt(

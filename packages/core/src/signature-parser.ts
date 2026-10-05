@@ -95,9 +95,9 @@ function staticTypeRefToTypeStructure(
           `Invalid signature for function '${functionName}': dict type arguments must be named (e.g. dict(key: string))`
         );
       }
-      fields[arg.name] = {
+      setDictField(fields, arg.name, {
         type: staticTypeRefToTypeStructure(arg.value, functionName),
-      };
+      });
     }
     return { kind: 'dict', fields };
   }

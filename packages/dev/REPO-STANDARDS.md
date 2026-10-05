@@ -324,7 +324,7 @@ fetch the package, so it cannot live inside its own prerequisite.
 | STD-LINT-7 | Config files declare `$schema`. | — |
 | STD-LINT-9 | Rules shared with the reference config carry the same severity. A rule set to `warn` in one repository and `error` in another is non-conformant. | — |
 | STD-LINT-8 | Plugin enablement is explicit. Naming a `plugins` array replaces the tool's defaults, so a default-on plugin is silently disabled unless relisted. | — |
-| STD-LINT-10 | `max-lines` is `error` with `max` at 1000 or lower, in the top-level rules or in an override whose glob covers `src/`. Per-file overrides may relax it for files already over the cap. | — |
+| STD-LINT-10 | `max-lines` is `error` with `max` at 1000 or lower, in the top-level rules or in an override whose glob covers `src/`. Per-file overrides that relax it for files already over the cap must be `warn` or `off`. | — |
 
 **Why STD-LINT-3 matters.** Internal planning identifiers are unresolvable for
 anyone reading the published package, including future maintainers and external

@@ -1001,6 +1001,25 @@ function runRethrowControlSignalTests() {
     run(evalTry, '{ return reshapeHostThrow(e); }', 'e') === 1,
     'rethrow-control-signal: an unlisted handler call is reported'
   );
+  check(
+    run(evalTry, '{ /* ControlSignal */ convert(e); } // BreakSignal', 'e') ===
+      1,
+    'rethrow-control-signal: a signal named only in a comment is reported'
+  );
+  check(
+    run(evalTry, '{ // rejectBreakAsHalt\n convert(e); }', 'e') === 1,
+    'rethrow-control-signal: a signal named only in a line comment is reported'
+  );
+  check(
+    run(
+      evalTry,
+      '{ return reshape(e); }',
+      'e',
+      [],
+      [{ delegates: ['a(b', '.*'] }]
+    ) === 1,
+    'rethrow-control-signal: a delegate name with regex metacharacters does not throw'
+  );
 }
 
 // ============================================================

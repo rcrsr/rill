@@ -994,8 +994,9 @@ if [ -f "$LINTRC" ]; then
   # A source-file length cap at error, with a limit no looser than 1000. The
   # top-level `rules` block applies to every linted path, so it covers src/;
   # an override counts only when its own files glob names src, the same
-  # glob-reading rule STD-LINT-3 applies. Per-file overrides that relax the
-  # cap for existing offenders are a ratchet, not a gap, and are not read.
+  # glob-reading rule STD-LINT-3 applies. Per-file overrides at warn or off
+  # are a ratchet, not a gap, and are ignored; an error override with a larger
+  # max is read and fails.
   # An omitted `max` is the tool default of 300, which is within the limit.
   LINT10_RESULT="$(node -e '
     let cfg;

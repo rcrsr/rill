@@ -685,5 +685,24 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(Object.hasOwn(annotations, '__proto__')).toBe(true);
       expect(Object.getPrototypeOf(annotations)).toBe(Object.prototype);
     });
+
+    it('accepts a function-level annotation key __proto__ alongside description', () => {
+      const parsed = parseSignatureRegistration(
+        '^(__proto__: "x", description: "d") |a: string|',
+        'fn'
+      );
+      expect(parsed.description).toBe('d');
+    });
+
+    it('stores a dict type field named __proto__ as an own property', () => {
+      const parsed = parseSignatureRegistration(
+        '|a: dict(__proto__: string)|',
+        'fn'
+      );
+      const type = parsed.params[0]?.type as
+        | { fields?: Record<string, unknown> }
+        | undefined;
+      expect(Object.hasOwn(type?.fields ?? {}, '__proto__')).toBe(true);
+    });
   });
 });

@@ -22,6 +22,14 @@ const RUNS_RILL = /\b(?:evaluate|invoke)\w*\s*\(|\.fn\s*\(/;
 const HANDLES_SIGNAL =
   /\b(?:ControlSignal|BreakSignal|ReturnSignal|YieldSignal|rejectBreakAsHalt)\b/;
 
+function stripComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '');
+}
+
+function escapeRegExp(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function endsInRethrow(statement, param) {
   if (!statement || param === null) return false;
   if (statement.type === 'ThrowStatement') {
@@ -67,7 +75,7 @@ module.exports = {
     const delegates = options.delegates ?? [];
     const delegateCall =
       delegates.length > 0
-        ? new RegExp(`\\b(?:${delegates.join('|')})\\s*\\(`)
+        ? new RegExp(`\\b(?:${delegates.map(escapeRegExp).join('|')})\\s*\\(`)
         : null;
     const sourceCode = context.sourceCode;
 
@@ -77,7 +85,7 @@ module.exports = {
         if (!handler) return;
         if (!RUNS_RILL.test(sourceCode.getText(node.block))) return;
 
-        const body = sourceCode.getText(handler.body);
+        const body = stripComments(sourceCode.getText(handler.body));
         if (HANDLES_SIGNAL.test(body)) return;
         if (delegateCall?.test(body)) return;
 
