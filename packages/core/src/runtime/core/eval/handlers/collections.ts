@@ -333,6 +333,9 @@ export async function walkStreamOrIteratorElements(
   let current: Record<string, RillValue> = input as Record<string, RillValue>;
   let count = 0;
   let expectedType: string | undefined;
+  // A stream's starting step is its value-less pending head. It is the one
+  // step exempt from the raw-step ceiling; every later step counts.
+  let headExempt = streamInput && !('value' in current);
 
   const site = {
     location: node.span.start,
@@ -390,7 +393,11 @@ export async function walkStreamOrIteratorElements(
         const result = await onElement(val as RillValue, index);
         results.push(result);
       }
-      count++;
+      if (headExempt) {
+        headExempt = false;
+      } else {
+        count++;
+      }
 
       // Invoke next() to advance the stream/iterator
       const nextClosure = current['next'];
@@ -438,8 +445,9 @@ export async function walkStreamOrIteratorElements(
     throw e;
   }
 
-  // Exactly `limit` raw steps that fully drain the source (done) is within
-  // bounds; only a source still producing past the ceiling is an overrun.
+  // Exactly `limit` counted raw steps (the stream's pending head is not
+  // counted) that fully drain the source (done) is within bounds; only a
+  // source still producing past the ceiling is an overrun.
   if (count >= limit && !current['done']) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
@@ -476,6 +484,9 @@ async function expandStream(
   let current: RillStream = stream;
   let count = 0;
   let expectedType: string | undefined;
+  // The starting step is the value-less pending head. It is the one step
+  // exempt from the raw-step ceiling; every later step counts.
+  let headExempt = !('value' in current);
 
   const site = {
     location: node.span.start,
@@ -491,8 +502,7 @@ async function expandStream(
       if ('value' in current) {
         const val = current['value'];
         // 0-based chunk index: how many chunks have been accepted so far,
-        // not the raw step count (which also counts the value-less
-        // pending head step).
+        // not the raw step count.
         const chunkIndex = elements.length;
         validateStreamChunk(val, chunkIndex, site);
         const actualType = inferType(val as RillValue);
@@ -509,7 +519,11 @@ async function expandStream(
         }
         elements.push(val as RillValue);
       }
-      count++;
+      if (headExempt) {
+        headExempt = false;
+      } else {
+        count++;
+      }
 
       // Invoke next() to advance the stream
       const nextClosure = current['next'];
@@ -568,8 +582,9 @@ async function expandStream(
     throw e;
   }
 
-  // Exactly `limit` elements that fully drain the stream (done) is within
-  // bounds; only a stream still producing past the ceiling is an overrun.
+  // Exactly `limit` counted raw steps (the pending head is not counted) that
+  // fully drain the stream (done) is within bounds; only a stream still
+  // producing past the ceiling is an overrun.
   if (count >= limit && !current.done) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(

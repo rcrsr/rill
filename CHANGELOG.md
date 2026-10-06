@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **LLM style example and published-doc identifiers:** `docs/llm/style.txt` showed `!$.name -> .empty`, which negates a string and halts because unary `!` binds tighter than `->`; it now reads `!($.name -> .empty)`, and `docs/ref-llms-full.txt` is regenerated. Internal workflow identifiers are removed from the published docs and `docs/ref-grammar.ebnf`; the facts and rill error codes are unchanged, and the `ref-config-api` error table drops its id-only Code column. ([#459](https://github.com/rcrsr/rill/pull/459))
 
+- **Streams of exactly 10,000 chunks no longer halt at the iteration ceiling:** Host streams from `createRillStream` and script generator streams of exactly 10,000 chunks used to halt with `RILL-R010`, one chunk short of the ceiling, because the stream's initial value-less step counted toward it. A 10,000-chunk stream now completes and the 10,001st chunk halts, matching iterators and the documented ceiling, in `seq`, `acc`, `fold`, `take`, and `skip`. `take(10000)` on a 10,000-chunk stream now returns all 10,000 chunks instead of halting after 9,999, and a stream that keeps producing value-less steps still halts at the ceiling. ([#464](https://github.com/rcrsr/rill/issues/464))
+
 ## 0.21.0 - 2026-09-09
 
 ### Added

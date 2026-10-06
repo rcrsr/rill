@@ -25,14 +25,17 @@ import { inferType } from '../../core/types/registrations.js';
  * `cap` counts produced elements, not raw steps. A stream from
  * `createRillStream` begins with a value-less "pending" head step
  * (done:false with no `value`); the first `.next` pulls the first chunk.
- * That head step is a positioning step, not an element, so it must not
- * count toward `cap` — otherwise take() returns one element short and
- * skip() keeps one too many. Iterators (range, cycle, iterate) carry a
+ * That head step is a positioning step, not an element, so it counts toward
+ * neither `cap` nor the raw-step budget below — otherwise take() returns one
+ * element short, skip() keeps one too many, and a stream of exactly
+ * MAX_ITER chunks trips the budget. Iterators (range, cycle, iterate) carry a
  * value in their head step and are unaffected: every step they emit is a
  * produced element. This mirrors expandStream/expandIterator, which push a
  * step's value only when it is not undefined.
  *
- * Bounded by raw steps taken (MAX_ITER), not just `produced`: a
+ * Bounded by raw steps taken (MAX_ITER), not just `produced`; only the
+ * stream's own pending head is exempt, every later step counts whether or not
+ * it carries a value: a
  * user-authored iterator that returns `{done: false, next: ...}` with no
  * `value` field never increments `produced` and would otherwise loop
  * forever. Mirrors the expandIterator/expandStream MAX_ITER guard. Raised as
@@ -62,6 +65,9 @@ export async function walkIteratorSteps(
 
   let produced = 0;
   let steps = 0;
+  // A stream's starting step is its value-less pending head: the one step
+  // exempt from the raw-step budget. Every later step counts.
+  let headExempt = streamInput && !('value' in current);
   let expectedType: string | undefined;
   while (produced < cap) {
     checkAborted(evaluator);
@@ -73,7 +79,11 @@ export async function walkIteratorSteps(
         `Iterator/stream exceeded ${MAX_ITER} step limit without producing ${cap} value(s)`
       );
     }
-    steps++;
+    if (headExempt) {
+      headExempt = false;
+    } else {
+      steps++;
+    }
     const val = current['value'];
     // Streams accept any step with a `value` key (so `validateStreamChunk`
     // can reject an explicit `undefined`); iterators, matching
