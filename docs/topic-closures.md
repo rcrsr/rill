@@ -476,7 +476,7 @@ $factorial(5)    # 120
 
 The closure references `$factorial` before it exists. Late binding resolves `$factorial` when the closure executes.
 
-Recursion is bounded. Nested closure calls deeper than the `maxCallDepth` runtime option (default 1000) halt with `RILL-R010`, the same fatal halt a loop raises when it exceeds its iteration limit. A recursive closure with no base case halts instead of exhausting the host process.
+Recursion is bounded. A chain of nested closure calls deeper than `maxCallDepth` (default 1000) halts with `RILL-R010`. Inside `fan`, `filter`, and `sort`, each concurrent body counts depth from the call that started it. Separately, calls in flight at once across all concurrent bodies are capped at `maxCallDepth` + 10,000 (11,000 by default). Recursion that fans out at each level halts there with `Calls in flight exceeded 11000` instead of exhausting host memory. Both halts are fatal. To run a wider body that itself calls closures or host functions, pass `concurrency`.
 
 ### Mutual Recursion
 

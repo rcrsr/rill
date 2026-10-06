@@ -247,14 +247,22 @@ export interface ControlFlowContext {
   /** Maximum call stack depth */
   readonly maxCallStackDepth: number;
   /**
-   * Shared, boxed call-depth counter for invokeCallable recursion bounding.
+   * Boxed call-depth counter for invokeCallable recursion bounding.
    * Boxed (not a bare number) so createChildContext shares the same
    * reference across scope boundaries — a per-context copy would not
-   * bound recursion once a child context is created.
+   * bound recursion once a child context is created. Concurrent fan,
+   * filter, and sort branches get their own cell seeded from the parent's
+   * current value, so depth measures nesting, not calls in flight.
    */
   readonly callDepth: { value: number };
   /** Maximum recursive invokeCallable call depth before a fatal halt */
   readonly maxCallDepth: number;
+  /**
+   * Run-wide count of invokeCallable calls in flight, shared by reference
+   * with every child context and never forked. `tripped` latches once the
+   * ceiling is exceeded and clears when the count drains to zero.
+   */
+  readonly callsInFlight: { value: number; tripped: boolean };
   /**
    * Annotation stack for statement annotations.
    * Each entry is a dict of annotation key-value pairs.
@@ -348,7 +356,11 @@ export interface RuntimeOptions {
   requireDescriptions?: boolean;
   /** Maximum call stack depth (default: 100) */
   maxCallStackDepth?: number;
-  /** Maximum recursive invokeCallable call depth before a fatal halt (default: 1000) */
+  /**
+   * Maximum recursive invokeCallable call depth before a fatal halt
+   * (default: 1000). Calls in flight across concurrent branches are also
+   * capped at this value plus 10000.
+   */
   maxCallDepth?: number;
   /** Arbitrary string metadata passed through to the runtime context */
   metadata?: Record<string, string>;

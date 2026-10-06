@@ -295,7 +295,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       if (concurrency === undefined) {
         // Unbounded parallel: Promise.all over all elements
         const promises = elements.map((element) => {
-          const childCtx = createChildContext(ctx as RuntimeContext);
+          const childCtx = createChildContext(ctx as RuntimeContext, {
+            forkCallDepth: true,
+          });
           childCtx.pipeValue = element;
           return invokeCallable(body, [element], childCtx, location);
         });
@@ -311,7 +313,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const results: RillValue[] = [];
       for (const batch of chunkSlice(elements, concurrency)) {
         const batchPromises = batch.map((element) => {
-          const childCtx = createChildContext(ctx as RuntimeContext);
+          const childCtx = createChildContext(ctx as RuntimeContext, {
+            forkCallDepth: true,
+          });
           childCtx.pipeValue = element;
           return invokeCallable(body, [element], childCtx, location);
         });
@@ -687,7 +691,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       /** Run the predicate for a single element and return keep/discard result. */
       const runPredicate = async (element: RillValue) => {
-        const childCtx = createChildContext(ctx as RuntimeContext);
+        const childCtx = createChildContext(ctx as RuntimeContext, {
+          forkCallDepth: true,
+        });
         childCtx.pipeValue = element;
         const result = await invokeCallable(
           body,
@@ -832,7 +838,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         const keyed = await Promise.all(
           entries.map(async ([k, v]) => {
             const entry: RillValue = { key: k, value: v };
-            const childCtx = createChildContext(ctx as RuntimeContext);
+            const childCtx = createChildContext(ctx as RuntimeContext, {
+              forkCallDepth: true,
+            });
             childCtx.pipeValue = entry;
             let key: RillValue;
             try {
@@ -907,7 +915,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       // With key_fn: pre-extract sort keys asynchronously (extractor halts propagate naturally).
       const keyed = await Promise.all(
         elements.map(async (el) => {
-          const childCtx = createChildContext(ctx as RuntimeContext);
+          const childCtx = createChildContext(ctx as RuntimeContext, {
+            forkCallDepth: true,
+          });
           childCtx.pipeValue = el;
           let key: RillValue;
           try {

@@ -29,10 +29,11 @@ import { isCallable } from '../../callable.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { evaluateExpression } from './core.js';
-import { checkAutoExceptions, setDictField } from '../shared.js';
-
-/** Default maximum loop iterations */
-const DEFAULT_MAX_ITERATIONS = 10000;
+import {
+  checkAutoExceptions,
+  setDictField,
+  DEFAULT_MAX_ITERATIONS,
+} from '../shared.js';
 
 /**
  * Execute statement with annotation handling.

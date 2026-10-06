@@ -39,16 +39,10 @@ import {
 import type { TypeHaltSite } from '../../types/halt.js';
 import { getEvalState } from '../state.js';
 import type { EvalState } from '../state.js';
-import { checkAborted } from '../shared.js';
+import { checkAborted, DEFAULT_MAX_ITERATIONS } from '../shared.js';
 import { invokeCallable } from './closures.js';
 import { accessHaltGate } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-
-/**
- * Default maximum iteration count for iterators.
- * Can be overridden with ^(limit: N) annotation.
- */
-const DEFAULT_MAX_ITERATIONS = 10000;
 
 // ============================================================
 // EXPORTED ITERABLE HELPERS

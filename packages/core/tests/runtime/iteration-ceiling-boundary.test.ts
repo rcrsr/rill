@@ -137,6 +137,12 @@ describe('stream ceiling boundary on host streams (issue #464)', () => {
   });
 
   it('filter over exactly 10000 chunks completes', async () => {
+    expect(await run('s() -> filter({ $ == 1 }) -> .len', exactStream)).toBe(
+      10000
+    );
+  });
+
+  it('filter with concurrency 100 over exactly 10000 chunks completes', async () => {
     expect(
       await run(
         's() -> filter({ $ == 1 }, dict[concurrency: 100]) -> .len',
@@ -170,6 +176,7 @@ describe('stream ceiling boundary on host streams (issue #464)', () => {
     await expectHalt(() => run('s() -> filter({ $ == 1 })', overStream), {
       code: 'RILL_R010',
       hostErrorId: 'RILL-R010',
+      messagePattern: /expansion exceeded 10000 iterations/,
     });
   });
 
