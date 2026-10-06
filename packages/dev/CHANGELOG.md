@@ -14,7 +14,7 @@ the language version. Language changes are recorded in the
 
 ### Changed
 
-- **Clarified `rill/no-new-runtime-error` and `rill/use-halt-helpers` wording in `lint-rules/README.md`.** The `off` override covers sites that hosts and registration callers catch by class as `RuntimeError`, not registration-time code only. The README no longer hard-codes a count of kept sites, and states that `rill/use-halt-helpers` covers every `.ts` file under `packages/core/tests/runtime/`.
+- **Clarified `rill/no-new-runtime-error` and `rill/use-halt-helpers` wording in `lint-rules/README.md`.** The `off` override covers sites that hosts and registration callers catch by class as `RuntimeError`, not registration-time code only. The README no longer hard-codes a count of kept sites, and states that `rill/use-halt-helpers` covers every `.ts` file under `packages/core/tests/runtime/`. ([#465](https://github.com/rcrsr/rill/pull/465))
 
 ## 0.2.7 - 2026-10-05
 
