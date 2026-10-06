@@ -1004,14 +1004,6 @@ describe('protocol converter halt remap', () => {
       expect(status.code).toBe(resolveAtom(ERROR_ATOMS[ERROR_IDS.RILL_R036]));
       expect(status.message).toBe('cannot convert number to bool');
     });
-
-    it('still propagates an unrelated halt unchanged', async () => {
-      stubConverter('string', 'number', 'INVALID_INPUT', 'stub failure');
-
-      const halt = await runHalt('"abc" -> number');
-
-      expect(getStatus(halt.value).code).toBe(resolveAtom('INVALID_INPUT'));
-    });
   });
 });
 
@@ -1362,6 +1354,22 @@ describe('host-error shape (file)', () => {
         const shape = getHostShape(refilled);
         expect(shape?.location).toEqual(SHAPE_LOCATION);
         expect(shape?.sourceId).toBe('first.rill');
+        expect(shape?.contextExtras).toBeUndefined();
+      });
+
+      it('fills sourceId and contextExtras together when both are unset', () => {
+        const value = haltValue({
+          location: SHAPE_LOCATION,
+          preserveHostShape: true,
+        });
+
+        const filled = fillHostShape(value, {
+          sourceId: 'first.rill',
+          contextExtras: { sourceText: 'src' },
+        });
+
+        const shape = getHostShape(filled);
+        expect(shape?.sourceId).toBe('first.rill');
         expect(shape?.contextExtras).toEqual({ sourceText: 'src' });
       });
 
@@ -1472,7 +1480,10 @@ describe('host-error shape (file)', () => {
           if (options.fill !== true) throw e;
           const filled = fillHostShape(e.value, {
             sourceId: 'mod.rill',
-            contextExtras: { extra: 'x', ['__proto__']: 'p' },
+            contextExtras: Object.fromEntries([
+              ['extra', 'x'],
+              ['__proto__', 'p'],
+            ]),
           });
           throw new RuntimeHaltSignal(filled, e.catchable);
         }

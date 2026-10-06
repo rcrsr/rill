@@ -27,10 +27,11 @@ import {
 } from '../../types/guards.js';
 import type { RillStream } from '../../types/structures.js';
 import type { RuntimeContext } from '../../types/runtime.js';
-import { BreakSignal } from '../../signals.js';
+import { BreakSignal, ControlSignal } from '../../signals.js';
 import { isCallable, isDict } from '../../callable.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
 import {
+  RuntimeHaltSignal,
   throwCatchableHostHalt,
   throwFatalHostHalt,
   throwTypeHalt,
@@ -352,6 +353,11 @@ export async function walkStreamOrIteratorElements(
     try {
       disposeFn();
     } catch (disposeErr) {
+      if (
+        disposeErr instanceof RuntimeHaltSignal ||
+        disposeErr instanceof ControlSignal
+      )
+        throw disposeErr;
       // fatal: dispose failures are not user-recoverable
       throwFatalHostHalt(
         site,
@@ -571,6 +577,11 @@ async function expandStream(
       try {
         disposeFn();
       } catch (disposeErr) {
+        if (
+          disposeErr instanceof RuntimeHaltSignal ||
+          disposeErr instanceof ControlSignal
+        )
+          throw disposeErr;
         // fatal: dispose failures are not user-recoverable
         throwFatalHostHalt(
           site,

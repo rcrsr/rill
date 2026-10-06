@@ -152,6 +152,27 @@ describe('stream ceiling boundary on host streams (issue #464)', () => {
     });
   });
 
+  it('acc over 10001 chunks halts with RILL-R010', async () => {
+    await expectHalt(() => run('s() -> acc(0, { $@ + $ })', overStream), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
+  });
+
+  it('fold over 10001 chunks halts with RILL-R010', async () => {
+    await expectHalt(() => run('s() -> fold(0, { $@ + $ })', overStream), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
+  });
+
+  it('filter over 10001 chunks halts with RILL-R010', async () => {
+    await expectHalt(() => run('s() -> filter({ $ == 1 })', overStream), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
+  });
+
   it('guard does not recover the seq overrun on 10001 chunks (fatal)', async () => {
     await expectHalt(
       () =>

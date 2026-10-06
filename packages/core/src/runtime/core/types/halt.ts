@@ -297,7 +297,11 @@ export function fillHostShape(
   const next: HostErrorShape = {
     location: prior.location ?? patch.location,
     sourceId: prior.sourceId ?? patch.sourceId,
-    contextExtras: prior.contextExtras ?? patch.contextExtras,
+    // contextExtras (sourceText) travels with sourceId: when the carrier
+    // already has a sourceId, patch extras from another module are dropped.
+    contextExtras:
+      prior.contextExtras ??
+      (prior.sourceId === undefined ? patch.contextExtras : undefined),
   };
   if (
     next.location === prior.location &&

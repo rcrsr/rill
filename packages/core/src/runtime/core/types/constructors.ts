@@ -31,7 +31,8 @@ import { copyTypedKeys, setDictField } from './dict-keys.js';
 import { callable } from '../callable-factory.js';
 import { RuntimeError } from '../../../types.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
-import { throwFatalHostHalt } from './halt.js';
+import { RuntimeHaltSignal, throwFatalHostHalt } from './halt.js';
+import { ControlSignal } from '../signals.js';
 
 /**
  * Create ordered from entries array (named, preserves insertion order).
@@ -154,7 +155,12 @@ export function createRillStream(options: {
           // ensures the throw is a fatal RuntimeHaltSignal rather
           // than a plain Error that the extension-boundary reshape
           // would convert to #R999.
-          if (err instanceof RuntimeError) throw err;
+          if (
+            err instanceof RuntimeError ||
+            err instanceof RuntimeHaltSignal ||
+            err instanceof ControlSignal
+          )
+            throw err;
           const message = err instanceof Error ? err.message : String(err);
           throwFatalHostHalt(
             { fn: 'dispose', preserveHostShape: true },
