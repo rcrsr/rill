@@ -13,7 +13,7 @@ import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
 import type { RuntimeContext } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 import { invokeCallable } from '../../src/runtime/core/eval/handlers/closures.js';
 import { getEvalState } from '../../src/runtime/core/eval/state.js';
 import type { ScriptCallable } from '../../src/runtime/core/callable.js';
@@ -132,5 +132,112 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     `);
     const result = await execute(shallowAst, ctx);
     expect(result.result).toBe(42);
+  });
+
+  describe('concurrent branches', () => {
+    const CEILING = /Call depth exceeded/;
+
+    it('completes a flat fan over 1500 elements at the default ceiling', async () => {
+      const result = await run('range(0, 1500) -> fan({ $ }) -> .len');
+      expect(result).toBe(1500);
+    });
+
+    it('completes a flat filter over 1500 elements at the default ceiling', async () => {
+      const result = await run(
+        'range(0, 1500) -> filter({ ($ % 2) == 0 }) -> .len'
+      );
+      expect(result).toBe(750);
+    });
+
+    it('completes batched fan and filter wider than the ceiling', async () => {
+      const fanResult = await run(
+        'range(0, 200) -> fan({ $ }, dict[concurrency: 100]) -> .len',
+        { maxCallDepth: 20 }
+      );
+      expect(fanResult).toBe(200);
+
+      const filterResult = await run(
+        'range(0, 200) -> filter({ ($ % 2) == 0 }, dict[concurrency: 100]) -> .len',
+        { maxCallDepth: 20 }
+      );
+      expect(filterResult).toBe(100);
+    });
+
+    it('completes a keyed sort over a list wider than the ceiling', async () => {
+      const result = await run(
+        'range(0, 30) -> fan({ $ }) -> sort({ 0 - $ }) -> .len',
+        { maxCallDepth: 5 }
+      );
+      expect(result).toBe(30);
+    });
+
+    it('completes a sort over a dict with more keys than the ceiling', async () => {
+      const keys = Array.from({ length: 20 }, (_, i) => `k${i}: ${i}`).join(
+        ', '
+      );
+      const result = await run(`dict[${keys}] -> sort -> .len`, {
+        maxCallDepth: 5,
+      });
+      expect(result).toBe(20);
+    });
+
+    it('still halts on recursion through a fan body', async () => {
+      const script = `
+        || { list[1] -> fan({ $f() }) } => $f
+        $f()
+      `;
+      await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
+    });
+
+    it('still halts on recursion through a filter body', async () => {
+      const script = `
+        || { list[1] -> filter({ $f() }) } => $f
+        $f()
+      `;
+      await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
+    });
+
+    it('still halts on recursion through a sort key function', async () => {
+      const script = `
+        || { list[1] -> sort({ $f() }) } => $f
+        $f()
+      `;
+      await expectHaltMessage(() => run(script, { maxCallDepth: 50 }), CEILING);
+    });
+
+    it('measures depth inside a fan branch the same as inside a seq body', async () => {
+      const recurse = (op: 'seq' | 'fan', k: number): string => `
+        |n| { ($n < 1) ? 0 ! (list[1] -> ${op}({ $count($n - 1) }) -> .len) } => $count
+        $count(${k})
+      `;
+      const options = { maxCallDepth: 50 };
+      const limit = 16;
+
+      expect(await run(recurse('seq', limit), options)).toBe(1);
+      expect(await run(recurse('fan', limit), options)).toBe(1);
+      await expectHaltMessage(
+        () => run(recurse('seq', limit + 1), options),
+        CEILING
+      );
+      await expectHaltMessage(
+        () => run(recurse('fan', limit + 1), options),
+        CEILING
+      );
+    });
+
+    it('leaves the parent call-depth counter unchanged after a wide fan', async () => {
+      const ctx: RuntimeContext = createRuntimeContext({ maxCallDepth: 50 });
+
+      const fanAst = parse('range(0, 2000) -> fan({ $ }) -> .len');
+      const fanResult = await execute(fanAst, ctx);
+      expect(fanResult.result).toBe(2000);
+
+      const shallowAst = parse(`
+        |n| { $n + 1 } => $inc
+        $inc(41)
+      `);
+      const result = await execute(shallowAst, ctx);
+      expect(result.result).toBe(42);
+    });
   });
 });

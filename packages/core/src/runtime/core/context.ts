@@ -722,6 +722,13 @@ export function createChildContext(
       | import('../../types.js').RillTypeName
       | import('./types/structures.js').TypeStructure
     >;
+    /**
+     * Give the child its own call-depth cell seeded from the parent's
+     * current value instead of sharing the parent's cell. Used for
+     * concurrent branches so depth measures nesting only, not the number
+     * of calls in flight. Copies the parent's count; never resets it.
+     */
+    forkCallDepth?: boolean;
   }
 ): RuntimeContext {
   const child: RuntimeContext = {
@@ -765,7 +772,10 @@ export function createChildContext(
     createDisposedResult: parent.createDisposedResult,
     trackInflight: parent.trackInflight,
     maxCallStackDepth: parent.maxCallStackDepth,
-    callDepth: parent.callDepth,
+    callDepth:
+      overrides?.forkCallDepth === true
+        ? { value: parent.callDepth.value }
+        : parent.callDepth,
     maxCallDepth: parent.maxCallDepth,
     annotationStack: parent.annotationStack,
     callStack: parent.callStack,
