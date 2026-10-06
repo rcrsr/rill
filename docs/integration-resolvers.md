@@ -144,14 +144,14 @@ const ctx = createRuntimeContext({
 
 **Member access:** A resource of `"qdrant.search"` returns only the `search` member from the `qdrant` extension dict. A resource of `"qdrant"` returns the full dict.
 
-**Traversal limits:** Path segments traverse dicts only. A callable may be the final segment, as in `use<ext:qdrant.search>`, but a path never descends into it; the resolver throws `RILL-R053`, which `use<>` surfaces to the script as a catchable `RILL-R056` halt. A resolver must return rill values: `use<>` halts with `RILL-R056` when a resolver returns a JavaScript function, symbol, or bigint.
+**Traversal limits:** Path segments traverse dicts only. A callable may be the final segment, as in `use<ext:qdrant.search>`, but a path never descends into it; the resolver throws `RILL-R053`, which `use<>` surfaces to the script as a catchable `RILL-R056` halt. A resolver must return rill values: `use<>` halts with `RILL-R056` when a resolver returns a JavaScript function, symbol, or bigint, at the top level or nested inside a dict or list.
 
 **Error codes:**
 
 | Code | Trigger |
 |------|---------|
 | `RILL-R052` | Extension identifier not found in config |
-| `RILL-R053` | Member path not found within the extension dict |
+| `RILL-R053` | Member path not found within the extension dict, or a path descends into a non-dict value (callable, tuple, ordered, vector, stream) |
 
 `extResolver` returns `{ kind: 'value', value: RillValue }`.
 

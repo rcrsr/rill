@@ -764,7 +764,8 @@ export async function evaluateClosureSigLiteral(
     if (param.annotations?.length) {
       const annotations = await evaluateAnnotationArgs(
         param.annotations,
-        (expr) => evaluateExpression(s, expr)
+        (expr) => evaluateExpression(s, expr),
+        s.ctx.sourceId
       );
       params.push({ name: param.name, type: paramType, annotations });
     } else {

@@ -261,7 +261,7 @@ export const RESERVED_DICT_METHODS = [
  * data masquerade as a branded runtime value, so scripts cannot write them
  * as dict literal keys, type-constructor field names, or annotation keys.
  */
-const RESERVED_BRAND_KEYS = [
+export const RESERVED_BRAND_KEYS = [
   '__type',
   '__rill_atom',
   '__rill_tuple',

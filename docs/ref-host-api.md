@@ -1012,7 +1012,7 @@ import { extResolver } from '@rcrsr/rill';
 | Code | Trigger |
 |------|---------|
 | `RILL-R052` | Extension identifier not found in config |
-| `RILL-R053` | Member path not found within the extension dict |
+| `RILL-R053` | Member path not found within the extension dict, or a path descends into a non-dict value (callable, tuple, ordered, vector, stream) |
 
 ```typescript
 import { extResolver, createRuntimeContext } from '@rcrsr/rill';

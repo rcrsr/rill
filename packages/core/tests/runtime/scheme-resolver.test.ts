@@ -312,6 +312,23 @@ describe('Rill Runtime: malformed resolver result validation', () => {
     ).rejects.toHaveProperty('errorId', 'RILL-R056');
   });
 
+  it.each([
+    ['a function nested in a dict', (): unknown => ({ h: () => 1 })],
+    ['a function nested in a list', (): unknown => [() => 1]],
+    ['a symbol', (): unknown => Symbol('s')],
+    ['a bigint', (): unknown => BigInt(1)],
+    ['a symbol nested in a dict', (): unknown => ({ a: Symbol('s') })],
+  ])('halts with RILL-R056 when the resolver value is %s', async (_n, make) => {
+    await expect(
+      run('use<module:greetings>', {
+        resolvers: {
+          module: (): unknown => ({ kind: 'value', value: make() }),
+        } as unknown as Record<string, SchemeResolver>,
+        parseSource: (text: string) => parse(text),
+      })
+    ).rejects.toHaveProperty('errorId', 'RILL-R056');
+  });
+
   it("returns the value when kind is 'value' with a value field present", async () => {
     const result = await run('use<module:greetings>', {
       resolvers: {
@@ -463,6 +480,13 @@ describe('Rill Runtime: extResolver', () => {
 
     it('throws RILL-R053 when descending into a callable (params)', () => {
       expectR053('kb.purge.params', cfg);
+    });
+
+    it('traverses a plain dict shaped like an iterator', () => {
+      const result = extResolver('cursor.value', {
+        cursor: { done: true, next: host, value: 'v' },
+      } as unknown as Record<string, RillValue>);
+      expect(result).toEqual({ kind: 'value', value: 'v' });
     });
 
     it('throws RILL-R053 when descending into a tuple', () => {

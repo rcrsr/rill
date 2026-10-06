@@ -19,6 +19,7 @@ import {
 } from '@rcrsr/rill';
 import { mockAsyncFn, run } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { RESERVED_BRAND_KEYS } from '../../src/runtime/core/values.js';
 
 /**
  * Asserts `exec` halts with a message matching `pattern`, accepting either a
@@ -190,27 +191,6 @@ describe('setDictField rebuild sites: hydrateStructure and convertToDictWithSig'
   });
 });
 
-// Mirrors RESERVED_BRAND_KEYS in src/runtime/core/values.ts (the list itself is
-// not exported); keep the two in sync.
-const RESERVED_BRAND_KEYS = [
-  '__type',
-  '__rill_atom',
-  '__rill_tuple',
-  '__rill_vector',
-  '__rill_datetime',
-  '__rill_duration',
-  '__rill_ordered',
-  '__rill_type',
-  '__rill_stream',
-  '__rill_stream_resolve',
-  '__rill_stream_head',
-  '__rill_stream_dispose',
-  '__rill_stream_chunk_type',
-  '__rill_stream_ret_type',
-  '__rill_typed_keys',
-  '__rill_field_descriptor',
-] as const;
-
 describe('reserved brand keys as type-constructor field names', () => {
   it('a dict(...) conversion naming __type halts', async () => {
     await expectHalt(
@@ -228,6 +208,16 @@ describe('reserved brand keys as type-constructor field names', () => {
       messagePattern: new RegExp(`reserved brand key '${key}'`),
     });
   });
+
+  it.each(RESERVED_BRAND_KEYS)(
+    'a named annotation argument %s halts',
+    async (key) => {
+      await expectHalt(() => run(`^(${key}: "x") "a" => $v`), {
+        code: 'RILL_R002',
+        messagePattern: new RegExp(`reserved brand key '${key}'`),
+      });
+    }
+  );
 
   it('an ordered(...) conversion naming a brand key halts', async () => {
     await expectHalt(
