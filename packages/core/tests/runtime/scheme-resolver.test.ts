@@ -4,7 +4,10 @@
  */
 
 import {
+  createOrdered,
   createRuntimeContext,
+  createTuple,
+  createVector,
   extResolver,
   formatRillErrorJson,
   getCallStack,
@@ -15,6 +18,7 @@ import {
   type RillValue,
   type ResolverResult,
   type SchemeResolver,
+  toCallable,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 import { expectRuntimeError } from '../helpers/halt.js';
@@ -430,6 +434,66 @@ describe('Rill Runtime: extResolver', () => {
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R053');
       }
+    });
+  });
+
+  describe('Descent restricted to dict values', () => {
+    const host = toCallable({
+      fn: () => 'ok',
+      params: [],
+      returnType: undefined,
+    }) as unknown as RillValue;
+    const cfg = { kb: { purge: host, search: host } } as unknown as Record<
+      string,
+      RillValue
+    >;
+
+    function expectR053(resource: string, config: Record<string, RillValue>) {
+      try {
+        extResolver(resource, config);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect((err as RuntimeError).errorId).toBe('RILL-R053');
+      }
+    }
+
+    it('throws RILL-R053 when descending into a callable (fn)', () => {
+      expectR053('kb.purge.fn', cfg);
+    });
+
+    it('throws RILL-R053 when descending into a callable (params)', () => {
+      expectR053('kb.purge.params', cfg);
+    });
+
+    it('throws RILL-R053 when descending into a tuple', () => {
+      expectR053('kb.t.entries', {
+        kb: { t: createTuple([1, 2]) },
+      } as unknown as Record<string, RillValue>);
+    });
+
+    it('throws RILL-R053 when descending into an ordered value', () => {
+      expectR053('kb.o.entries', {
+        kb: { o: createOrdered([['a', 1]]) },
+      } as unknown as Record<string, RillValue>);
+    });
+
+    it('throws RILL-R053 when descending into a vector', () => {
+      expectR053('kb.v.data', {
+        kb: { v: createVector(new Float32Array(2), 'm') },
+      } as unknown as Record<string, RillValue>);
+    });
+
+    it('returns the configured callable itself as the final segment', () => {
+      const result = extResolver('kb.search', cfg);
+      expect(result.kind).toBe('value');
+      expect((result as { value: RillValue }).value).toBe(host);
+    });
+
+    it('still traverses a nested plain dict', () => {
+      const result = extResolver('kb.a.b', {
+        kb: { a: { b: 'deep' } },
+      } as unknown as Record<string, RillValue>);
+      expect(result).toEqual({ kind: 'value', value: 'deep' });
     });
   });
 });

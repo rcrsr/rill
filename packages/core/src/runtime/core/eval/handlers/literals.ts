@@ -97,6 +97,7 @@ import {
 import { copyExtensionIdentity } from '../../policy/identity.js';
 import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { invokeCallable } from './closures.js';
+import { assertUsableAnnotationKey } from './annotations.js';
 import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
 
@@ -149,6 +150,7 @@ export async function evaluateAnnotations(
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
       const namedArg = arg as NamedArgNode;
+      assertUsableAnnotationKey(namedArg.name, namedArg.span.start);
       setDictField(result, namedArg.name, await evalExpr(namedArg.value));
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
@@ -163,6 +165,7 @@ export async function evaluateAnnotations(
       ) {
         // Dict: spread all key-value pairs
         for (const [k, v] of Object.entries(spreadValue)) {
+          assertUsableAnnotationKey(k, spreadArg.span.start);
           setDictField(result, k, v);
         }
       } else if (Array.isArray(spreadValue)) {

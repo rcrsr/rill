@@ -198,6 +198,24 @@ export async function evaluateUseExpr(
         `Resolver error for '${key}': resolver result with kind 'value' is missing a 'value' field`
       );
     }
+    if (kind === 'value') {
+      const valueType = typeof rawResult['value'];
+      if (
+        valueType === 'function' ||
+        valueType === 'symbol' ||
+        valueType === 'bigint'
+      ) {
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateUseExpr',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R056],
+          `Resolver error for '${key}': resolver result value is not a rill value (got ${valueType})`
+        );
+      }
+    }
     if (kind === 'source' && typeof rawResult['text'] !== 'string') {
       throwCatchableHostHalt(
         {

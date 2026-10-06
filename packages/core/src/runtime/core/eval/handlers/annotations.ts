@@ -21,11 +21,13 @@ import type {
   AnnotatedStatementNode,
   AnnotationArg,
   NamedArgNode,
+  SourceLocation,
   SpreadArgNode,
 } from '../../../../types.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { isCallable } from '../../callable.js';
+import { isReservedBrandKey } from '../../values.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { evaluateExpression } from './core.js';
@@ -99,6 +101,24 @@ async function executeAnnotatedStatement(
 }
 
 /**
+ * Halt when an annotation key is a reserved brand key, so annotations
+ * cannot masquerade as a branded runtime value.
+ */
+export function assertUsableAnnotationKey(
+  key: string,
+  location: SourceLocation,
+  sourceId?: string | undefined
+): void {
+  if (isReservedBrandKey(key)) {
+    throwCatchableHostHalt(
+      { location, sourceId, fn: 'evaluateAnnotations' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Cannot use reserved brand key '${key}' as annotation key`
+    );
+  }
+}
+
+/**
  * Evaluate annotation arguments to a dict of key-value pairs.
  * Handles both named arguments and spread arguments.
  *
@@ -113,6 +133,11 @@ export async function evaluateAnnotations(
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
       const namedArg = arg as NamedArgNode;
+      assertUsableAnnotationKey(
+        namedArg.name,
+        namedArg.span.start,
+        s.ctx.sourceId
+      );
       setDictField(
         result,
         namedArg.name,
@@ -131,6 +156,7 @@ export async function evaluateAnnotations(
       ) {
         // Dict: spread all key-value pairs
         for (const [k, v] of Object.entries(spreadValue)) {
+          assertUsableAnnotationKey(k, spreadArg.span.start, s.ctx.sourceId);
           setDictField(result, k, v);
         }
       } else if (Array.isArray(spreadValue)) {

@@ -18,7 +18,7 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { mockAsyncFn, run } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 /**
  * Asserts `exec` halts with a message matching `pattern`, accepting either a
@@ -187,6 +187,79 @@ describe('setDictField rebuild sites: hydrateStructure and convertToDictWithSig'
     expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
     expect(Object.hasOwn(value, '__proto__')).toBe(true);
     expect(value['__proto__']).toBe(1);
+  });
+});
+
+// Mirrors RESERVED_BRAND_KEYS in src/runtime/core/values.ts (the list itself is
+// not exported); keep the two in sync.
+const RESERVED_BRAND_KEYS = [
+  '__type',
+  '__rill_atom',
+  '__rill_tuple',
+  '__rill_vector',
+  '__rill_datetime',
+  '__rill_duration',
+  '__rill_ordered',
+  '__rill_type',
+  '__rill_stream',
+  '__rill_stream_resolve',
+  '__rill_stream_head',
+  '__rill_stream_dispose',
+  '__rill_stream_chunk_type',
+  '__rill_stream_ret_type',
+  '__rill_typed_keys',
+  '__rill_field_descriptor',
+] as const;
+
+describe('reserved brand keys as type-constructor field names', () => {
+  it('a dict(...) conversion naming __type halts', async () => {
+    await expectHalt(
+      () =>
+        run(
+          'dict[] -> dict(__type: string = "callable", kind: string = "script")'
+        ),
+      { code: 'RILL_R002', messagePattern: /reserved brand key '__type'/ }
+    );
+  });
+
+  it.each(RESERVED_BRAND_KEYS)('dict(%s: ...) halts', async (key) => {
+    await expectHalt(() => run(`dict[] -> dict(${key}: string = "x")`), {
+      code: 'RILL_R002',
+      messagePattern: new RegExp(`reserved brand key '${key}'`),
+    });
+  });
+
+  it('an ordered(...) conversion naming a brand key halts', async () => {
+    await expectHalt(
+      () => run('dict[] -> ordered(__type: string = "callable")'),
+      { code: 'RILL_R002', messagePattern: /reserved brand key '__type'/ }
+    );
+  });
+
+  it('a closure parameter type naming a brand key halts when invoked', async () => {
+    await expectHalt(
+      () => run('|d: dict(__type: string = "x")| ($d) => $f\n$f(dict[])'),
+      { code: 'RILL_R002', messagePattern: /reserved brand key '__type'/ }
+    );
+  });
+
+  it('a type assertion naming a brand key halts', async () => {
+    await expectHalt(() => run('dict[a: 1] -> :dict(__rill_tuple: bool)'), {
+      code: 'RILL_R002',
+      messagePattern: /reserved brand key '__rill_tuple'/,
+    });
+  });
+
+  it('a dict literal key naming a brand key halts', async () => {
+    await expectHalt(() => run('dict[__rill_field_descriptor: true]'), {
+      code: 'RILL_R002',
+      messagePattern: /reserved brand key '__rill_field_descriptor'/,
+    });
+  });
+
+  it('a reserved method name is still allowed as a type field name', async () => {
+    const result = await run('dict[] -> dict(len: string = "x")');
+    expect(toNative(result as RillValue).value).toEqual({ len: 'x' });
   });
 });
 

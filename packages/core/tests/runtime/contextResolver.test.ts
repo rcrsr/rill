@@ -3,7 +3,14 @@
  * Tests for dot-path traversal, value resolution, and error codes.
  */
 
-import { contextResolver, RuntimeError } from '@rcrsr/rill';
+import {
+  contextResolver,
+  createRillStream,
+  createVector,
+  RuntimeError,
+  toCallable,
+  type RillValue,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 // ============================================================
@@ -156,6 +163,46 @@ describe('Rill Runtime: contextResolver', () => {
         expect((err as Error).message).toContain("Context path 'timeout.sub'");
         expect((err as Error).message).toContain('is not a dict');
       }
+    });
+
+    function expectR063(resource: string, config: Record<string, unknown>) {
+      try {
+        contextResolver(resource, config as Record<string, RillValue>);
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect((err as RuntimeError).errorId).toBe('RILL-R063');
+      }
+    }
+
+    it('throws RILL-R063 when descending into a callable', () => {
+      const host = toCallable({
+        fn: () => 'ok',
+        params: [],
+        returnType: undefined,
+      });
+      expectR063('kb.purge.fn', { kb: { purge: host } });
+    });
+
+    it('throws RILL-R063 when descending into a vector', () => {
+      expectR063('emb.data', { emb: createVector(new Float32Array(2), 'm') });
+    });
+
+    it('throws RILL-R063 when descending into a stream', () => {
+      async function* chunks(): AsyncGenerator<RillValue> {
+        yield 1;
+      }
+      const stream = createRillStream({
+        chunks: chunks(),
+        resolve: async () => 'done',
+      });
+      expectR063('s.chunks', { s: stream });
+    });
+
+    it('still resolves a nested plain dict key', () => {
+      const result = contextResolver('limits.max_tokens', {
+        limits: { max_tokens: 4096 },
+      });
+      expect(result).toEqual({ kind: 'value', value: 4096 });
     });
   });
 });

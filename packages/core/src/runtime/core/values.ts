@@ -256,9 +256,10 @@ export const RESERVED_DICT_METHODS = [
 
 /**
  * Brand keys used internally to discriminate runtime value shapes
- * (atom, tuple, vector, datetime, duration, ordered, type value, callable).
- * A dict key colliding with one of these would let user data masquerade
- * as a branded runtime value, so dict literals reject them as keys.
+ * (atom, tuple, vector, datetime, duration, ordered, type value, callable,
+ * field descriptor). A dict key colliding with one of these would let user
+ * data masquerade as a branded runtime value, so scripts cannot write them
+ * as dict literal keys, type-constructor field names, or annotation keys.
  */
 const RESERVED_BRAND_KEYS = [
   '__type',
@@ -276,6 +277,7 @@ const RESERVED_BRAND_KEYS = [
   '__rill_stream_chunk_type',
   '__rill_stream_ret_type',
   '__rill_typed_keys',
+  '__rill_field_descriptor',
 ] as const;
 
 export { anyTypeValue } from './types/any-type.js';
