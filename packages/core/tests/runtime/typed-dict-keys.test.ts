@@ -25,7 +25,7 @@ import {
   toNative,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 describe('Type-aware dict keys (#266)', () => {
   describe('1. coexistence of number and string keys', () => {
@@ -64,7 +64,8 @@ describe('Type-aware dict keys (#266)', () => {
     });
 
     it('number dispatch does not match a string-only key', async () => {
-      await expect(run('dict["1": "a"] => $d\n1 -> $d')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('dict["1": "a"] => $d\n1 -> $d'),
         /not found/
       );
     });

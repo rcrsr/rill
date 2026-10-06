@@ -18,6 +18,7 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectThrowMessage } from '../helpers/halt.js';
 
 // ============================================================
 // HELPERS
@@ -130,9 +131,11 @@ describe('Stream Reflection', () => {
   describe('-> stream error', () => {
     it('halts with RILL-R003 on -> stream conversion', async () => {
       const script = '42 -> stream';
-      await expect(run(script)).rejects.toThrow(
-        'Type conversion not supported for stream type'
-      );
+      await expectHalt(() => run(script), {
+        code: 'RILL_R003',
+        hostErrorId: 'RILL-R003',
+        messagePattern: 'Type conversion not supported for stream type',
+      });
     });
   });
 });
@@ -193,30 +196,32 @@ describe('Stream Invocation', () => {
   });
 
   it('propagates resolution failure as error', async () => {
-    await expect(
-      run(
-        `
-          make_stream() => $s
-          $s()
-        `,
-        {
-          functions: {
-            make_stream: {
-              params: [],
-              returnType: anyTypeValue,
-              fn: () => {
-                return createRillStream({
-                  chunks: asyncIterableFrom([1]),
-                  resolve: async () => {
-                    throw new Error('resolution failed');
-                  },
-                });
+    await expectThrowMessage(
+      () =>
+        run(
+          `
+            make_stream() => $s
+            $s()
+          `,
+          {
+            functions: {
+              make_stream: {
+                params: [],
+                returnType: anyTypeValue,
+                fn: () => {
+                  return createRillStream({
+                    chunks: asyncIterableFrom([1]),
+                    resolve: async () => {
+                      throw new Error('resolution failed');
+                    },
+                  });
+                },
               },
             },
-          },
-        }
-      )
-    ).rejects.toThrow('resolution failed');
+          }
+        ),
+      'resolution failed'
+    );
   });
 
   it('works with createRillStream directly via resolve', async () => {
@@ -343,32 +348,38 @@ describe('Scope Exit Cleanup', () => {
   });
 
   it('propagates dispose errors as RILL-R002', async () => {
-    await expect(
-      run(
-        `
-          "x" -> {
-            make_stream() => $s
-            "done"
-          }
-        `,
-        {
-          functions: {
-            make_stream: {
-              params: [{ name: '_', type: { kind: 'any' } }],
-              returnType: anyTypeValue,
-              fn: () => {
-                return createRillStream({
-                  chunks: asyncIterableFrom(['a']),
-                  resolve: async () => 'resolved',
-                  dispose: () => {
-                    throw new Error('cleanup failed');
-                  },
-                });
+    await expectHalt(
+      () =>
+        run(
+          `
+            "x" -> {
+              make_stream() => $s
+              "done"
+            }
+          `,
+          {
+            functions: {
+              make_stream: {
+                params: [{ name: '_', type: { kind: 'any' } }],
+                returnType: anyTypeValue,
+                fn: () => {
+                  return createRillStream({
+                    chunks: asyncIterableFrom(['a']),
+                    resolve: async () => 'resolved',
+                    dispose: () => {
+                      throw new Error('cleanup failed');
+                    },
+                  });
+                },
               },
             },
-          },
-        }
-      )
-    ).rejects.toThrow('cleanup failed');
+          }
+        ),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: 'cleanup failed',
+      }
+    );
   });
 });

@@ -28,6 +28,7 @@ import {
   type RillParam,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessageSync, expectHaltSync } from '../helpers/halt.js';
 
 // ============================================================
 // marshalArgs unit tests
@@ -976,29 +977,20 @@ describe('EC-4: buildMethodEntry receiver missing from record raises RILL-R044',
     // Arrange: pick any built-in method entry produced by buildMethodEntry
     const lenEntry = BUILTIN_METHODS.string.len;
 
-    // Act: call fn with an empty record (no 'receiver' key)
-    expect(() =>
-      lenEntry.fn({}, { variables: new Map(), pipeValue: null } as never)
-    ).toThrow(RuntimeError);
-
-    try {
-      lenEntry.fn({}, { variables: new Map(), pipeValue: null } as never);
-      expect.fail('Should have thrown');
-    } catch (err) {
-      expect((err as RuntimeError).errorId).toBe('RILL-R044');
-    }
+    // Act + Assert: call fn with an empty record (no 'receiver' key)
+    expectHaltSync(
+      () => lenEntry.fn({}, { variables: new Map(), pipeValue: null } as never),
+      { code: 'RILL_R044' }
+    );
   });
 
   it('error message names the missing receiver parameter', () => {
     const lenEntry = BUILTIN_METHODS.string.len;
 
-    try {
-      lenEntry.fn({}, { variables: new Map(), pipeValue: null } as never);
-      expect.fail('Should have thrown');
-    } catch (err) {
-      expect(err).toBeInstanceOf(RuntimeError);
-      expect((err as RuntimeError).message).toContain('receiver');
-    }
+    expectHaltMessageSync(
+      () => lenEntry.fn({}, { variables: new Map(), pipeValue: null } as never),
+      'receiver'
+    );
   });
 
   it('does not throw when receiver key is present', () => {

@@ -1,5 +1,4 @@
 import { isDict, isCallable } from '../../../core/callable.js';
-import { RuntimeError } from '../../../../types.js';
 import type { RillValue, RillVector } from '../../../core/types/structures.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type { SourceLocation } from '../../../../source-location.js';
@@ -26,7 +25,10 @@ import {
 } from '../../../core/types/dict-keys.js';
 import { isEmpty } from '../../../core/values.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { throwCatchableHostHalt } from '../../../core/types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+} from '../../../core/types/halt.js';
 import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
 import { invokeCallable as invokeCallableState } from '../../../core/eval/index.js';
 import {
@@ -104,10 +106,10 @@ export const mHead: RillMethod = (receiver, _args, ctx, location) => {
     // First code point, never a lone surrogate half of an astral character.
     return isBmpOnly(receiver) ? receiver.charAt(0) : [...receiver][0]!;
   }
-  throw new RuntimeError(
-    ERROR_IDS.RILL_R003,
-    `head requires list or string, got ${inferType(receiver)}`,
-    location
+  throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn: 'head', preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `head requires list or string, got ${inferType(receiver)}`
   );
 };
 
@@ -136,10 +138,10 @@ export const mTail: RillMethod = (receiver, _args, ctx, location) => {
     const cps = [...receiver];
     return cps[cps.length - 1]!;
   }
-  throw new RuntimeError(
-    ERROR_IDS.RILL_R003,
-    `tail requires list or string, got ${inferType(receiver)}`,
-    location
+  throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn: 'tail', preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `tail requires list or string, got ${inferType(receiver)}`
   );
 };
 
@@ -168,18 +170,23 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
   if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
   if (isBrandedNonDict(receiver) || isOrdered(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'first',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `first requires list, string, dict, or iterator, got ${inferType(receiver)}`
     );
   }
   if (isDict(receiver))
     return makeDictIterator(receiver as Record<string, RillValue>, 0);
-  throw new RuntimeError(
-    ERROR_IDS.RILL_R003,
-    `first requires list, string, dict, or iterator, got ${inferType(receiver)}`,
-    location
+  throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn: 'first', preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `first requires list, string, dict, or iterator, got ${inferType(receiver)}`
   );
 };
 
@@ -253,10 +260,10 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
     }
     return receiver.entries[idx]!;
   }
-  throw new RuntimeError(
-    ERROR_IDS.RILL_R003,
-    `Cannot call .at() on ${typeof receiver}`,
-    location
+  throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn: 'at', preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `Cannot call .at() on ${typeof receiver}`
   );
 };
 
@@ -578,15 +585,15 @@ export const mGe: RillMethod = (receiver, args, ctx, location) =>
  * Get all keys of a dict as a list, in canonical order: sorted string keys,
  * then number keys ascending, then boolean keys (false before true).
  */
-export const mKeys: RillMethod = (receiver, _args, _ctx, location) => {
+export const mKeys: RillMethod = (receiver, _args, ctx, location) => {
   // Ordered values dispatch before isDict: the JS wrapper object also
   // satisfies isDict's structural shape check.
   if (isOrdered(receiver)) return orderedValueEntries(receiver).map(([k]) => k);
   if (isBrandedNonDict(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `keys() requires dict receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'keys', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `keys() requires dict receiver, got ${inferType(receiver)}`
     );
   }
   return isDict(receiver) && !isStream(receiver)
@@ -595,14 +602,19 @@ export const mKeys: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Get all values of a dict as a list, in canonical key order. */
-export const mValues: RillMethod = (receiver, _args, _ctx, location) => {
+export const mValues: RillMethod = (receiver, _args, ctx, location) => {
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([, v]) => v);
   if (isBrandedNonDict(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `values() requires dict receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'values',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `values() requires dict receiver, got ${inferType(receiver)}`
     );
   }
   return isDict(receiver) && !isStream(receiver)
@@ -611,14 +623,19 @@ export const mValues: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
-export const mEntries: RillMethod = (receiver, _args, _ctx, location) => {
+export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([k, v]) => [k, v] as RillValue);
   if (isBrandedNonDict(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `entries() requires dict receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'entries',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `entries() requires dict receiver, got ${inferType(receiver)}`
     );
   }
   return isDict(receiver) && !isStream(receiver)
@@ -627,19 +644,19 @@ export const mEntries: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Check if list contains value (deep equality) */
-export const mHas: RillMethod = (receiver, args, _ctx, location) => {
+export const mHas: RillMethod = (receiver, args, ctx, location) => {
   if (!Array.isArray(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `has() requires list receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'has', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `has() requires list receiver, got ${inferType(receiver)}`
     );
   }
   if (args.length !== 1) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R001,
-      `has() expects 1 argument, got ${args.length}`,
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'has', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R001],
+      `has() expects 1 argument, got ${args.length}`
     );
   }
   const searchValue = args[0] ?? null;
@@ -650,27 +667,42 @@ export const mHas: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** Check if list contains any value from candidates (deep equality) */
-export const mHasAny: RillMethod = (receiver, args, _ctx, location) => {
+export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
   if (!Array.isArray(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `has_any() requires list receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'has_any',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `has_any() requires list receiver, got ${inferType(receiver)}`
     );
   }
   if (args.length !== 1) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R001,
-      `has_any() expects 1 argument, got ${args.length}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'has_any',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R001],
+      `has_any() expects 1 argument, got ${args.length}`
     );
   }
   const candidates = args[0] ?? null;
   if (!Array.isArray(candidates)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R001,
-      `has_any() expects list argument, got ${inferType(candidates)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'has_any',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R001],
+      `has_any() expects list argument, got ${inferType(candidates)}`
     );
   }
   for (const candidate of candidates) {
@@ -682,27 +714,42 @@ export const mHasAny: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** Check if list contains all values from candidates (deep equality) */
-export const mHasAll: RillMethod = (receiver, args, _ctx, location) => {
+export const mHasAll: RillMethod = (receiver, args, ctx, location) => {
   if (!Array.isArray(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `has_all() requires list receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'has_all',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `has_all() requires list receiver, got ${inferType(receiver)}`
     );
   }
   if (args.length !== 1) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R001,
-      `has_all() expects 1 argument, got ${args.length}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'has_all',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R001],
+      `has_all() expects 1 argument, got ${args.length}`
     );
   }
   const candidates = args[0] ?? null;
   if (!Array.isArray(candidates)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R001,
-      `has_all() expects list argument, got ${inferType(candidates)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'has_all',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R001],
+      `has_all() expects list argument, got ${inferType(candidates)}`
     );
   }
   for (const candidate of candidates) {
@@ -719,63 +766,93 @@ export const mHasAll: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** Return a new list with elements in reversed order */
-export const mReverse: RillMethod = (receiver, _args, _ctx, location) => {
+export const mReverse: RillMethod = (receiver, _args, ctx, location) => {
   if (!Array.isArray(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `reverse() requires list receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'reverse',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `reverse() requires list receiver, got ${inferType(receiver)}`
     );
   }
   return [...receiver].reverse();
 };
 
 /** Get number of dimensions in vector */
-export const mDimensions: RillMethod = (receiver, _args, _ctx, location) => {
+export const mDimensions: RillMethod = (receiver, _args, ctx, location) => {
   if (!isVector(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `dimensions requires vector receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'dimensions',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `dimensions requires vector receiver, got ${inferType(receiver)}`
     );
   }
   return receiver.data.length;
 };
 
 /** Get model name of vector */
-export const mModel: RillMethod = (receiver, _args, _ctx, location) => {
+export const mModel: RillMethod = (receiver, _args, ctx, location) => {
   if (!isVector(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `model requires vector receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'model',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `model requires vector receiver, got ${inferType(receiver)}`
     );
   }
   return receiver.model;
 };
 
 /** Calculate cosine similarity between two vectors (range [-1, 1]) */
-export const mSimilarity: RillMethod = (receiver, args, _ctx, location) => {
+export const mSimilarity: RillMethod = (receiver, args, ctx, location) => {
   if (!isVector(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `similarity requires vector receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'similarity',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `similarity requires vector receiver, got ${inferType(receiver)}`
     );
   }
   const other = args[0] ?? null;
   if (!isVector(other)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `expected vector, got ${inferType(other)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'similarity',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `expected vector, got ${inferType(other)}`
     );
   }
   if (receiver.data.length !== other.data.length) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'similarity',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`
     );
   }
   let dotProduct = 0;
@@ -794,27 +871,27 @@ export const mSimilarity: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** Calculate dot product between two vectors */
-export const mDot: RillMethod = (receiver, args, _ctx, location) => {
+export const mDot: RillMethod = (receiver, args, ctx, location) => {
   if (!isVector(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `dot requires vector receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'dot', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `dot requires vector receiver, got ${inferType(receiver)}`
     );
   }
   const other = args[0] ?? null;
   if (!isVector(other)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `expected vector, got ${inferType(other)}`,
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'dot', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `expected vector, got ${inferType(other)}`
     );
   }
   if (receiver.data.length !== other.data.length) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'dot', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`
     );
   }
   let result = 0;
@@ -825,27 +902,42 @@ export const mDot: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** Calculate Euclidean distance between two vectors (>= 0) */
-export const mDistance: RillMethod = (receiver, args, _ctx, location) => {
+export const mDistance: RillMethod = (receiver, args, ctx, location) => {
   if (!isVector(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `distance requires vector receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'distance',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `distance requires vector receiver, got ${inferType(receiver)}`
     );
   }
   const other = args[0] ?? null;
   if (!isVector(other)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `expected vector, got ${inferType(other)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'distance',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `expected vector, got ${inferType(other)}`
     );
   }
   if (receiver.data.length !== other.data.length) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'distance',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`
     );
   }
   let sumSquares = 0;
@@ -857,12 +949,12 @@ export const mDistance: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** Calculate L2 norm (magnitude) of vector */
-export const mNorm: RillMethod = (receiver, _args, _ctx, location) => {
+export const mNorm: RillMethod = (receiver, _args, ctx, location) => {
   if (!isVector(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `norm requires vector receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'norm', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `norm requires vector receiver, got ${inferType(receiver)}`
     );
   }
   let sumSquares = 0;
@@ -874,12 +966,17 @@ export const mNorm: RillMethod = (receiver, _args, _ctx, location) => {
 };
 
 /** Create unit vector (preserves model) */
-export const mNormalize: RillMethod = (receiver, _args, _ctx, location) => {
+export const mNormalize: RillMethod = (receiver, _args, ctx, location) => {
   if (!isVector(receiver)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      `normalize requires vector receiver, got ${inferType(receiver)}`,
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'normalize',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `normalize requires vector receiver, got ${inferType(receiver)}`
     );
   }
   let sumSquares = 0;

@@ -1243,7 +1243,7 @@ Fibonacci using dict pair as seed:
     iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
     # list[0, 1, 1, 2, 3, 5, 8, 13]
 
-Consuming >10,000 chunks without bounding halts with `RILL_R010` (non-catchable) at the materializing consumer (e.g., `seq`). `take(n)` clamps silently to MAX_ITER without halting.
+Consuming >10,000 chunks without bounding halts with `RILL_R010` (non-catchable) at the materializing consumer (e.g., `seq`); the same ceiling raised through `take` or `skip` is catchable, so `guard` recovers it. `take(n)` clamps silently to MAX_ITER without halting.
 
 ## take
 

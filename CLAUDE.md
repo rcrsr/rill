@@ -128,7 +128,7 @@ pnpm check          # Complete validation (build, test, lint)
 | `packages/core/tests/language/` | Language behavior specification | **Protected.** Only modify for language spec changes. |
 | `packages/core/tests/runtime/` | Runtime API and implementation | Normal test maintenance applies. |
 
-Run subsets: `pnpm test -- tests/language` or `pnpm test -- tests/runtime`
+Run subsets: `pnpm test tests/language` or `pnpm test tests/runtime`
 
 ## Versioning
 

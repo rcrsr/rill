@@ -101,6 +101,11 @@ jobs:
           pnpm --filter @rcrsr/rill exec tsx scripts/generate-version.ts
           pnpm --filter @rcrsr/rill exec tsx scripts/generate-docs-bundle.ts
 
+      # Root-level, so `pnpm -r run check` never reaches it. Needs the
+      # generated core files from the step above to resolve `@rcrsr/rill`.
+      - name: Typecheck scripts
+        run: pnpm typecheck:scripts
+
       # Fixture-md driven regression coverage for scripts/test-examples.ts:
       # exercises marker-line splitting and the unapplied-callable check
       # against scripts/fixtures/test-examples/*.md, asserting on exit code

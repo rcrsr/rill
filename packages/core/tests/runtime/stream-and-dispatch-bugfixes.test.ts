@@ -19,6 +19,7 @@ import {
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('$stream() invocation propagates halts', () => {
@@ -27,7 +28,11 @@ describe('$stream() invocation propagates halts', () => {
 error "boom" } :stream() => $gen
 $gen() => $s
 $s()`;
-    await expect(run(src)).rejects.toThrow('boom');
+    await expectHalt(() => run(src), {
+      code: 'RILL_R016',
+      hostErrorId: 'RILL-R016',
+      messagePattern: 'boom',
+    });
   });
 
   it('propagates an `assert` halt from the stream body', async () => {
@@ -35,7 +40,11 @@ $s()`;
 assert false "nope" } :stream() => $gen
 $gen() => $s
 $s()`;
-    await expect(run(src)).rejects.toThrow('nope');
+    await expectHalt(() => run(src), {
+      code: 'RILL_R015',
+      hostErrorId: 'RILL-R015',
+      messagePattern: 'nope',
+    });
   });
 
   it('matches the `$s -> seq({ $ })` drain behavior for the same body', async () => {
@@ -43,7 +52,11 @@ $s()`;
 error "boom" } :stream() => $gen
 $gen() => $s
 $s -> seq({ $ })`;
-    await expect(run(src)).rejects.toThrow('boom');
+    await expectHalt(() => run(src), {
+      code: 'RILL_R016',
+      hostErrorId: 'RILL-R016',
+      messagePattern: 'boom',
+    });
   });
 
   it('a stream body that completes normally still resolves via $s()', async () => {

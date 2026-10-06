@@ -66,7 +66,7 @@ Scope to one package with `--filter`:
 
 ```bash
 pnpm --filter @rcrsr/rill test
-pnpm --filter @rcrsr/rill test -- tests/runtime
+pnpm --filter @rcrsr/rill test tests/runtime
 ```
 
 ## The bar for a pull request

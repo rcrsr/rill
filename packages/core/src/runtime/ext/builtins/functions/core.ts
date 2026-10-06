@@ -1,7 +1,6 @@
 import type { RillFunction } from '../../../core/callable.js';
 import { callable, isCallable, isDict } from '../../../core/callable.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
-import { RuntimeError } from '../../../../types.js';
 import {
   throwTypeHalt,
   throwCatchableHostHalt,
@@ -163,16 +162,21 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: anyTypeValue,
-    fn: (args, _ctx, location) => {
+    fn: (args, ctx, location) => {
       const start = typeof args['start'] === 'number' ? args['start'] : 0;
       const end = typeof args['stop'] === 'number' ? args['stop'] : 0;
       const step = typeof args['step'] === 'number' ? args['step'] : 1;
 
       if (step === 0) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R001,
-          'range step cannot be zero',
-          location
+        throwFatalHostHalt(
+          {
+            location,
+            sourceId: (ctx as RuntimeContext).sourceId,
+            fn: 'range',
+            preserveHostShape: true,
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R001],
+          'range step cannot be zero'
         );
       }
 
@@ -212,16 +216,21 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: anyTypeValue,
-    fn: (args, _ctx, location) => {
+    fn: (args, ctx, location) => {
       const value = args['value'] ?? '';
       const count =
         typeof args['count'] === 'number' ? Math.floor(args['count']) : 0;
 
       if (count < 0) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R001,
-          'repeat count cannot be negative',
-          location
+        throwFatalHostHalt(
+          {
+            location,
+            sourceId: (ctx as RuntimeContext).sourceId,
+            fn: 'repeat',
+            preserveHostShape: true,
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R001],
+          'repeat count cannot be negative'
         );
       }
 
@@ -284,10 +293,15 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         let result = value;
         for (const item of arg) {
           if (!isCallable(item)) {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R040,
-              `chain: list element must be a closure, got ${inferType(item)}`,
-              location
+            throwFatalHostHalt(
+              {
+                location,
+                sourceId: (ctx as RuntimeContext).sourceId,
+                fn: 'chain',
+                preserveHostShape: true,
+              },
+              ERROR_ATOMS[ERROR_IDS.RILL_R040],
+              `chain: list element must be a closure, got ${inferType(item)}`
             );
           }
           result = await invokeCallable(
@@ -305,10 +319,15 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         return invokeCallable(arg, [value], ctx as RuntimeContext, location);
       }
 
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R040,
-        `chain: second argument must be a closure or list of closures, got ${argTypeName}`,
-        location
+      throwFatalHostHalt(
+        {
+          location,
+          sourceId: (ctx as RuntimeContext).sourceId,
+          fn: 'chain',
+          preserveHostShape: true,
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R040],
+        `chain: second argument must be a closure or list of closures, got ${argTypeName}`
       );
     },
   },

@@ -97,8 +97,12 @@ throw new RuntimeError(ERROR_IDS.RILL_R002, 'Expected boolean');
 throwCatchableHostHalt(site, ERROR_ATOMS[ERROR_IDS.RILL_R002], 'Expected boolean');
 ```
 
-In rill, files that constructed `RuntimeError` when the rule landed sit in a
-`warn` ratchet list in `.oxlintrc.json`; remove a file once it is migrated.
+In rill, files whose sites hosts and registration callers catch by class as
+`RuntimeError`, kept on the plain class by decision, are excluded by a
+file-level `off` override in `.oxlintrc.json`. Several of those sites run during
+evaluation, so the list is not registration-time only. Individual kept sites in
+other files carry `oxlint-disable-next-line rill/no-new-runtime-error`
+directives with a reason.
 
 ### `rethrow-control-signal`
 
@@ -141,8 +145,8 @@ await expect(run('"x" -> number')).rejects.toThrow('mismatch');
 await expectHalt(() => run('"x" -> number'), { code: 'TYPE_MISMATCH' });
 ```
 
-Test files that used `rejects.toThrow` when the rule landed sit in a `warn`
-ratchet list in `.oxlintrc.json`.
+In rill, the rule runs at `error` with no file exempted, over every `.ts` file
+under `packages/core/tests/runtime/`.
 
 ### `no-duplicate-error-id`
 

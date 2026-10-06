@@ -519,8 +519,8 @@ describe('Streams: Error Cases', () => {
   // AC-E7: Stream exceeds iteration ceiling halts with RILL-R010
   describe('AC-E7: iteration ceiling exceeded', () => {
     it('halts when stream exceeds ceiling', async () => {
-      // 10000 data chunks + 1 initial step = 10001 iterations, exceeds 10000 limit
-      const largeChunks = Array.from({ length: 10000 }, (_, i) => i);
+      // 10001 chunks exceed the 10000 ceiling; the pending head step is not counted
+      const largeChunks = Array.from({ length: 10001 }, (_, i) => i);
       await expect(
         run('make_stream() -> seq({ $ })', {
           functions: { make_stream: makeStreamFn(largeChunks) },
@@ -607,25 +607,24 @@ describe('Streams: Boundary Conditions', () => {
   });
 
   // BC-3: Stream at ceiling
-  // The expandStream loop counts the initial pending step (no value) plus each
-  // chunk step. With DEFAULT_MAX_ITERATIONS=10000, a stream that fully drains
-  // in exactly 10000 iterations is within bounds: 9999 chunks (initial step +
-  // 9999 data steps = 10000 iterations, then the done step exits the loop).
-  // The ceiling halt fires only when elements remain past the ceiling.
+  // The pending head step (no value) is not counted toward the ceiling. With
+  // DEFAULT_MAX_ITERATIONS=10000, a stream of exactly 10000 chunks drains
+  // within bounds. The ceiling halt fires only when chunks remain past the
+  // ceiling.
   describe('BC-3: stream at ceiling', () => {
-    it('processes 9999 chunks without error', async () => {
-      const chunks = Array.from({ length: 9999 }, (_, i) => i);
+    it('processes 10000 chunks without error', async () => {
+      const chunks = Array.from({ length: 10000 }, (_, i) => i);
       const result = await run('make_stream() -> fold(0, { $@ + 1 })', {
         functions: { make_stream: makeStreamFn(chunks) },
       });
-      expect(result).toBe(9999);
+      expect(result).toBe(10000);
     });
   });
 
   // BC-4: Stream at ceiling + 1
   describe('BC-4: stream at ceiling + 1', () => {
-    it('halts with RILL-R010 at 10000 chunks', async () => {
-      const chunks = Array.from({ length: 10000 }, (_, i) => i);
+    it('halts with RILL-R010 at 10001 chunks', async () => {
+      const chunks = Array.from({ length: 10001 }, (_, i) => i);
       await expect(
         run('make_stream() -> seq({ $ })', {
           functions: { make_stream: makeStreamFn(chunks) },

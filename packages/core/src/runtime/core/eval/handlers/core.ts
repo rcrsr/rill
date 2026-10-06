@@ -121,9 +121,8 @@ import { evaluateAnnotations } from './annotations.js';
  * name equals `haltAtomCode`.
  *
  * Used by `evaluatePostfixExpr` and the path-traversal catch block to
- * coalesce RILL_R007 / RILL_R009 halts into the `??` default value after
- * the Phase 2 halt-builder migration replaced direct `RuntimeError` throws
- * with `throwCatchableHostHalt` in closures.ts.
+ * coalesce RILL_R007 / RILL_R009 halts into the `??` default value. Those
+ * halts are catchable, so `??` can recover from them.
  */
 function matchesErrorId(
   error: unknown,
@@ -322,10 +321,9 @@ export async function evaluatePostfixExpr(
     return value;
   } catch (error) {
     // If method chain throws a recoverable "not found" error and defaultValue
-    // exists, evaluate and return the default value. After the Phase 2
-    // halt-builder migration, evaluateMethod and evaluateAnnotationAccess throw
-    // RuntimeHaltSignal instead of RuntimeError directly; matchesErrorId handles
-    // both the legacy and migrated forms.
+    // exists, evaluate and return the default value. evaluateMethod and
+    // evaluateAnnotationAccess throw RuntimeHaltSignal instead of RuntimeError
+    // directly; matchesErrorId handles both the legacy and halt forms.
     //
     // RILL-R007 / RILL_R007: missing method or field on a value.
     // RILL-R008 / RILL_R008: annotation key not found (evaluateAnnotationAccess).
@@ -1018,10 +1016,10 @@ async function evaluateHierarchicalDispatch(
     // Resolve terminal value (handles terminal closures with $ = lastKey)
     return await resolveTerminalValue(s, result, lastKey, location);
   } catch (error) {
-    // Handle missing key/index errors with default value. After the Phase 2
-    // halt-builder migration, traversePathStep throws RuntimeHaltSignal with
-    // atom RILL_R009 instead of RuntimeError directly; matchesErrorId handles
-    // both the legacy and migrated forms.
+    // Handle missing key/index errors with default value.
+    // traversePathStep throws RuntimeHaltSignal with atom RILL_R009 instead
+    // of RuntimeError directly; matchesErrorId handles both the legacy and
+    // halt forms.
     if (
       matchesErrorId(
         error,
@@ -1150,7 +1148,7 @@ async function traversePathStep(
  * @param value - Value to resolve (may be callable or regular value)
  * @param location - Source location for error reporting
  * @returns Resolved value (invoked result or original value)
- * @throws RuntimeError with RUNTIME_TYPE_ERROR if parameterized closure
+ * @throws RuntimeHaltSignal (catchable, RILL-R002) if parameterized closure
  */
 async function resolveIntermediateClosure(
   s: EvalState,
@@ -1199,7 +1197,7 @@ async function resolveIntermediateClosure(
  * @param finalKey - Final key from path (becomes $ or first arg)
  * @param location - Source location for error reporting
  * @returns Resolved value (invoked or unchanged)
- * @throws RuntimeError with RUNTIME_TYPE_ERROR if parameterized closure
+ * @throws RuntimeHaltSignal (catchable, RILL-R002) if parameterized closure
  */
 async function resolveTerminalValue(
   s: EvalState,

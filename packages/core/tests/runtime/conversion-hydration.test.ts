@@ -12,9 +12,13 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isTuple, RuntimeError } from '@rcrsr/rill';
+import { isTuple } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHalt } from '../helpers/halt.js';
+import {
+  expectHalt,
+  expectHaltMessage,
+  expectRuntimeError,
+} from '../helpers/halt.js';
 
 function isOrdered(value: unknown): boolean {
   return (
@@ -66,21 +70,25 @@ describe('Rill Runtime: nested structural conversion drops extras', () => {
 
 describe('Rill Runtime: nested structural conversion halts on missing required field', () => {
   it('nested dict missing required field throws RILL-R044', async () => {
-    await expect(
-      run('[outer: [x: 1]] -> dict(outer: dict(x: number, y: number))')
-    ).rejects.toThrow(/missing required field 'y'/);
+    await expectHaltMessage(
+      () => run('[outer: [x: 1]] -> dict(outer: dict(x: number, y: number))'),
+      /missing required field 'y'/
+    );
   });
 
   it('nested ordered missing required field throws RILL-R044', async () => {
-    await expect(
-      run('[outer: [x: 1]] -> ordered(outer: ordered(x: number, y: number))')
-    ).rejects.toThrow(/missing required field 'y'/);
+    await expectHaltMessage(
+      () =>
+        run('[outer: [x: 1]] -> ordered(outer: ordered(x: number, y: number))'),
+      /missing required field 'y'/
+    );
   });
 
   it('nested tuple missing required element throws RILL-R044', async () => {
-    await expect(
-      run('[outer: tuple[1]] -> dict(outer: tuple(number, number))')
-    ).rejects.toThrow(/missing required element at position 1/);
+    await expectHaltMessage(
+      () => run('[outer: tuple[1]] -> dict(outer: tuple(number, number))'),
+      /missing required element at position 1/
+    );
   });
 });
 
@@ -156,8 +164,9 @@ describe('Rill Runtime: hydration through a union-typed parameter', () => {
   });
 
   it('halts when no union member matches the argument shape', async () => {
-    await expect(
-      run('|d: dict(a: number = 1)|string| ($d) => $f\n$f(list[1, 2])')
-    ).rejects.toThrow(RuntimeError);
+    await expectRuntimeError(
+      () => run('|d: dict(a: number = 1)|string| ($d) => $f\n$f(list[1, 2])'),
+      { code: 'RILL-R001' }
+    );
   });
 });

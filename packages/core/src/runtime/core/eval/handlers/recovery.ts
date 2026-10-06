@@ -49,7 +49,7 @@ import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
-import { throwCatchableHostHalt } from '../../types/halt.js';
+import { getHostShape, throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { RuntimeContext, TimeoutScheduler } from '../../types/runtime.js';
 import { ControlSignal } from '../../signals.js';
@@ -391,7 +391,15 @@ export async function evaluateTimeoutBlock(
     // Re-throw ControlSignal subclasses (break/return/yield) and
     // non-catchable RuntimeHaltSignals unconditionally.
     if (e instanceof ControlSignal) throw e;
-    if (e instanceof RuntimeHaltSignal && !e.catchable) throw e;
+    // A halt carrying a host error shape stands in for a RuntimeError, so it
+    // takes the expiry path below instead of this fatal rethrow.
+    if (
+      e instanceof RuntimeHaltSignal &&
+      !e.catchable &&
+      getHostShape(e.value) === undefined
+    ) {
+      throw e;
+    }
 
     // If the controller was aborted due to our timer, produce the
     // timeout invalid value. If the parent signal aborted (not us),

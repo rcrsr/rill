@@ -8,8 +8,8 @@
 
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
-import { RuntimeError } from '../../../../types.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { throwFatalHostHalt } from '../halt.js';
 
 // ============================================================
 // FORMAT
@@ -52,9 +52,11 @@ const numberConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const n = v as number;
     if (n === 0) return false;
     if (n === 1) return true;
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R066,
-      `cannot convert number ${n} to bool`
+    const message = `cannot convert number ${n} to bool`;
+    throwFatalHostHalt(
+      { fn: 'number-to-bool', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R066],
+      message
     );
   },
 };

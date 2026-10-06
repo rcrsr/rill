@@ -1,10 +1,10 @@
 import type { RillFunction } from '../../../core/callable.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type { RillValue } from '../../../core/types/structures.js';
-import { RuntimeError } from '../../../../types.js';
+import { throwFatalHostHalt } from '../../../core/types/halt.js';
 import { parseSignatureRegistration } from '../../../../signature-parser.js';
 import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import { type RillMethod } from '../shared.js';
 
 /** Receiver param prepended to every method's param list */
@@ -36,10 +36,15 @@ export function buildMethodEntry(
     params: [RECEIVER_PARAM, ...methodParams],
     fn: (args, ctx, location) => {
       if (!('receiver' in args)) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R044,
-          "Missing required parameter 'receiver'",
-          location
+        throwFatalHostHalt(
+          {
+            location,
+            sourceId: (ctx as RuntimeContext).sourceId,
+            fn: name,
+            preserveHostShape: true,
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R044],
+          "Missing required parameter 'receiver'"
         );
       }
       const receiver = args['receiver'] ?? null;

@@ -365,6 +365,8 @@ export { nodeAtPosition, walkAst };
 
 ```
 
+> Runtime error sites migrated to the halt builders throw a fatal `RuntimeHaltSignal` (`catchable: false`, code on `errorId`) instead of a `RuntimeError` when reached outside `execute()` and `createStepper()`, for example direct `.fn` calls on `BUILTIN_METHODS` entries. Argument-binding errors from `invokeCallable` (`RILL-R001`, `RILL-R044`, `RILL-R045`) still throw `RuntimeError`, so hosts calling it directly handle both.
+
 > Atom registration happens through `ctx.registerErrorCode(name, kind)` on `ExtensionFactoryCtx` at extension factory init time, not at the top-level export surface.
 
 > **Migration note:** `KvExtensionContract` and `FsExtensionContract` types moved to

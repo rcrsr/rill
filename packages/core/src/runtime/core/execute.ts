@@ -65,6 +65,7 @@ import { getStatus, invalidate } from './types/status.js';
 import { setDictField } from './types/dict-keys.js';
 import { atomName, registerErrorCode } from './types/atom-registry.js';
 import {
+  getHostShape,
   makeUnhandledHostThrowInvalid,
   rejectBreakAsHalt,
   RuntimeHaltSignal,
@@ -399,7 +400,11 @@ export function createStepper(
           // step index does not advance. But the stepper itself is done:
           // a subsequent `step()` must not re-execute this statement and
           // replay its host calls / onError callbacks.
-          haltValue = error.value;
+          // A halt carrying a host-error shape stands in for a RuntimeError
+          // throw, so it leaves the last completed value as the result.
+          if (getHostShape(error.value) === undefined) {
+            haltValue = error.value;
+          }
           isDone = true;
           const converted = convertHaltToRuntimeError(error, stmt);
           if (converted !== undefined) {
@@ -609,6 +614,11 @@ const HALT_ATOM_TO_ERROR_ID: Record<string, string> = {
   RILL_R083: ERROR_IDS.RILL_R083,
   // createRuntimeContext({ timeout }) host-level execution timeout.
   RILL_R012: ERROR_IDS.RILL_R012,
+  // String, number, and callable built-in halt atoms.
+  RILL_R064: ERROR_IDS.RILL_R064,
+  RILL_R065: ERROR_IDS.RILL_R065,
+  RILL_R066: ERROR_IDS.RILL_R066,
+  RILL_R085: ERROR_IDS.RILL_R085,
 };
 
 /**
@@ -674,6 +684,12 @@ function convertHaltToRuntimeError(
   for (const key of Object.keys(rawDict)) {
     if (key !== 'message') setDictField(rest, key, rawDict[key]);
   }
+  const shape = getHostShape(signal.value);
+  if (shape?.contextExtras !== undefined) {
+    for (const key of Object.keys(shape.contextExtras)) {
+      setDictField(rest, key, shape.contextExtras[key]);
+    }
+  }
   const context: Record<string, unknown> | undefined =
     Object.keys(rest).length > 0 ? rest : undefined;
 
@@ -684,13 +700,16 @@ function convertHaltToRuntimeError(
   const sourceId =
     traces.length > 0 ? parseSourceIdFromSite(traces[0]!.site) : undefined;
 
+  // A migrated site records the shape of the RuntimeError it used to throw;
+  // rebuild that error. Span is omitted so RillError derives it from location.
+  // oxlint-disable-next-line rill/no-new-runtime-error -- host boundary rematerialises an escaped halt as the RuntimeError hosts catch
   const err = new RuntimeError(
     errorId,
     status.message,
-    stmt.span.start,
+    shape !== undefined ? shape.location : stmt.span.start,
     context,
-    stmt.span,
-    sourceId
+    shape !== undefined ? undefined : stmt.span,
+    shape !== undefined ? shape.sourceId : sourceId
   );
   Object.defineProperty(err, 'haltValue', {
     value: signal.value,

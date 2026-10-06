@@ -11,9 +11,8 @@
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { resolveAtom } from '../atom-registry.js';
-import { RuntimeError } from '../../../../types.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
-import { throwTypeHalt } from '../halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { throwFatalHostHalt, throwTypeHalt } from '../halt.js';
 
 // ============================================================
 // FORMAT
@@ -59,9 +58,11 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     // guard: rill numbers are always finite.
     const DECIMAL = /^-?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
     if (!DECIMAL.test(str)) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R064,
-        `cannot convert string "${str}" to number`
+      const message = `cannot convert string "${str}" to number`;
+      throwFatalHostHalt(
+        { fn: 'string-to-number', preserveHostShape: true },
+        ERROR_ATOMS[ERROR_IDS.RILL_R064],
+        message
       );
     }
     const result = Number(str);
@@ -83,9 +84,11 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     const s = v as string;
     if (s === 'true') return true;
     if (s === 'false') return false;
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R065,
-      `cannot convert string "${s}" to bool`
+    const message = `cannot convert string "${s}" to bool`;
+    throwFatalHostHalt(
+      { fn: 'string-to-bool', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R065],
+      message
     );
   },
   atom: (v: RillValue): RillValue => {

@@ -18,8 +18,11 @@ import { type ParserState, createParserState } from './state.js';
  *
  * Methods are organized across multiple files:
  * - parser-script.ts: Script, statement, annotation parsing
- * - parser-expr.ts: Expressions, precedence chain, pipe targets
- * - parser-literals.ts: Literals, strings, tuples, dicts, closures
+ * - parser-expr.ts: Expressions, precedence chain, pipe chains
+ * - parser-primary.ts: Postfix chain, invocation, primary expressions
+ * - parser-pipe-target.ts: Pipe targets and their postfix dispatch helpers
+ * - parser-literals.ts: Literals, strings, tuples, dicts, collection literals
+ * - parser-closure.ts: Closures, closure bodies and params, stream types, yield validation
  * - parser-variables.ts: Variables, access chains
  * - parser-control.ts: Conditionals, loops, blocks
  * - parser-functions.ts: Function calls, methods, type operations

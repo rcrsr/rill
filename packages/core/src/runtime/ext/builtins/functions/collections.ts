@@ -14,12 +14,14 @@ import {
   isVector,
 } from '../../../core/types/guards.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
-import { RuntimeError } from '../../../../types.js';
+import type { SourceLocation } from '../../../../source-location.js';
 import {
   rejectBreakAsHalt,
   throwCatchableHostHalt,
+  throwFatalHostHalt,
   throwTypeHalt,
 } from '../../../core/types/halt.js';
+import type { TypeHaltSite } from '../../../core/types/halt.js';
 import { isInvalid, isVacant } from '../../../core/types/status.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
@@ -55,6 +57,20 @@ const DICT_DEFAULT_KEY_FN = callable((args) => {
   return null;
 });
 
+/** Halt-site descriptor shared by the collection built-ins' host halts. */
+function buildSite(
+  fn: string,
+  ctx: unknown,
+  location: SourceLocation | undefined
+): TypeHaltSite {
+  return {
+    location,
+    sourceId: (ctx as RuntimeContext).sourceId,
+    fn,
+    preserveHostShape: true,
+  };
+}
+
 /** Collection built-in functions: seq, fan, acc, fold, filter, sort. */
 export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
   /**
@@ -84,10 +100,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R040,
-          `seq: body must be a closure, got ${inferType(body)}`,
-          location
+        throwFatalHostHalt(
+          buildSite('seq', ctx, location),
+          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          `seq: body must be a closure, got ${inferType(body)}`
         );
       }
 
@@ -135,11 +151,14 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         for (const element of elements) {
           iterCount++;
           if (iterCount > MAX_ITER) {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R010,
+            throwFatalHostHalt(
+              buildSite('seq', ctx, location),
+              ERROR_ATOMS[ERROR_IDS.RILL_R010],
               `seq: iteration exceeded ${MAX_ITER} iterations`,
-              location,
-              { limit: MAX_ITER, iterations: iterCount }
+              {
+                limit: MAX_ITER,
+                iterations: iterCount,
+              }
             );
           }
 
@@ -201,10 +220,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const options = args['options'] ?? null;
 
       if (!isCallable(body)) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R040,
-          `fan: body must be a closure, got ${inferType(body)}`,
-          location
+        throwFatalHostHalt(
+          buildSite('fan', ctx, location),
+          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          `fan: body must be a closure, got ${inferType(body)}`
         );
       }
 
@@ -212,10 +231,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       let concurrency: number | undefined;
       if (options !== null && options !== undefined) {
         if (!isDict(options)) {
-          throw new RuntimeError(
-            ERROR_IDS.RILL_R001,
-            `fan: options must be a dict, got ${inferType(options)}`,
-            location
+          throwFatalHostHalt(
+            buildSite('fan', ctx, location),
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            `fan: options must be a dict, got ${inferType(options)}`
           );
         }
         const concurrencyOpt = (options as Record<string, RillValue>)[
@@ -223,10 +242,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         ];
         if (concurrencyOpt !== undefined && concurrencyOpt !== null) {
           if (typeof concurrencyOpt !== 'number') {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R001,
-              `fan: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`,
-              location
+            throwFatalHostHalt(
+              buildSite('fan', ctx, location),
+              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              `fan: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`
             );
           }
           if (
@@ -234,10 +253,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             !Number.isInteger(concurrencyOpt) ||
             concurrencyOpt <= 0
           ) {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R001,
-              `fan: options.concurrency must be a positive integer, got ${concurrencyOpt}`,
-              location
+            throwFatalHostHalt(
+              buildSite('fan', ctx, location),
+              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              `fan: options.concurrency must be a positive integer, got ${concurrencyOpt}`
             );
           }
           concurrency = concurrencyOpt;
@@ -245,10 +264,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
         for (const key of Object.keys(options as Record<string, RillValue>)) {
           if (key !== 'concurrency') {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R001,
-              `fan: unknown option '${key}'; recognized options are 'concurrency'`,
-              location
+            throwFatalHostHalt(
+              buildSite('fan', ctx, location),
+              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              `fan: unknown option '${key}'; recognized options are 'concurrency'`
             );
           }
         }
@@ -343,10 +362,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R040,
-          `acc: body must be a closure, got ${inferType(body)}`,
-          location
+        throwFatalHostHalt(
+          buildSite('acc', ctx, location),
+          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          `acc: body must be a closure, got ${inferType(body)}`
         );
       }
 
@@ -408,11 +427,14 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         for (const element of elements) {
           iterCount++;
           if (iterCount > MAX_ITER) {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R010,
+            throwFatalHostHalt(
+              buildSite('acc', ctx, location),
+              ERROR_ATOMS[ERROR_IDS.RILL_R010],
               `acc: iteration exceeded ${MAX_ITER} iterations`,
-              location,
-              { limit: MAX_ITER, iterations: iterCount }
+              {
+                limit: MAX_ITER,
+                iterations: iterCount,
+              }
             );
           }
 
@@ -484,10 +506,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R040,
-          `fold: body must be a closure, got ${inferType(body)}`,
-          location
+        throwFatalHostHalt(
+          buildSite('fold', ctx, location),
+          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          `fold: body must be a closure, got ${inferType(body)}`
         );
       }
 
@@ -512,11 +534,14 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       for (const element of elements) {
         iterCount++;
         if (iterCount > MAX_ITER) {
-          throw new RuntimeError(
-            ERROR_IDS.RILL_R010,
+          throwFatalHostHalt(
+            buildSite('fold', ctx, location),
+            ERROR_ATOMS[ERROR_IDS.RILL_R010],
             `fold: iteration exceeded ${MAX_ITER} iterations`,
-            location,
-            { limit: MAX_ITER, iterations: iterCount }
+            {
+              limit: MAX_ITER,
+              iterations: iterCount,
+            }
           );
         }
 
@@ -588,10 +613,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const options = args['options'] ?? null;
 
       if (!isCallable(body)) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R040,
-          `filter: body must be a closure, got ${inferType(body)}`,
-          location
+        throwFatalHostHalt(
+          buildSite('filter', ctx, location),
+          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          `filter: body must be a closure, got ${inferType(body)}`
         );
       }
 
@@ -599,10 +624,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       let concurrency: number | undefined;
       if (options !== null && options !== undefined) {
         if (!isDict(options)) {
-          throw new RuntimeError(
-            ERROR_IDS.RILL_R001,
-            `filter: options must be a dict, got ${inferType(options)}`,
-            location
+          throwFatalHostHalt(
+            buildSite('filter', ctx, location),
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            `filter: options must be a dict, got ${inferType(options)}`
           );
         }
         const concurrencyOpt = (options as Record<string, RillValue>)[
@@ -610,10 +635,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         ];
         if (concurrencyOpt !== undefined && concurrencyOpt !== null) {
           if (typeof concurrencyOpt !== 'number') {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R001,
-              `filter: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`,
-              location
+            throwFatalHostHalt(
+              buildSite('filter', ctx, location),
+              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              `filter: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`
             );
           }
           if (
@@ -621,10 +646,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             !Number.isInteger(concurrencyOpt) ||
             concurrencyOpt <= 0
           ) {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R001,
-              `filter: options.concurrency must be a positive integer, got ${concurrencyOpt}`,
-              location
+            throwFatalHostHalt(
+              buildSite('filter', ctx, location),
+              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              `filter: options.concurrency must be a positive integer, got ${concurrencyOpt}`
             );
           }
           concurrency = concurrencyOpt;
@@ -632,10 +657,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
         for (const key of Object.keys(options as Record<string, RillValue>)) {
           if (key !== 'concurrency') {
-            throw new RuntimeError(
-              ERROR_IDS.RILL_R001,
-              `filter: unknown option '${key}'; recognized options are 'concurrency'`,
-              location
+            throwFatalHostHalt(
+              buildSite('filter', ctx, location),
+              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              `filter: unknown option '${key}'; recognized options are 'concurrency'`
             );
           }
         }
@@ -678,10 +703,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           );
         }
         if (typeof result !== 'boolean') {
-          throw new RuntimeError(
-            ERROR_IDS.RILL_R001,
-            `filter: predicate must return bool, got ${inferType(result)}`,
-            location
+          throwFatalHostHalt(
+            buildSite('filter', ctx, location),
+            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            `filter: predicate must return bool, got ${inferType(result)}`
           );
         }
         return { element, keep: result };

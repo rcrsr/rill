@@ -20,6 +20,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 /** Host function returning a fresh RillStream over the given chunks. */
 function makeStreamFn(chunks: RillValue[]): RillFunction {
@@ -164,9 +165,11 @@ describe('take/skip on a value-less custom iterator halts recoverably at MAX_ITE
   });
 
   it('take(5) on a value-less iterator halts (not swallowed, not fatal) when unguarded', async () => {
-    await expect(
-      run('valueless_iter() -> take(5)', valuelessIter)
-    ).rejects.toThrow(/exceeded.*step limit/);
+    await expectHalt(() => run('valueless_iter() -> take(5)', valuelessIter), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+      messagePattern: /exceeded.*step limit/,
+    });
   });
 });
 

@@ -18,6 +18,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Dynamic access halts on missing key / non-dict', () => {
   it('halts on a missing variable key, like literal access', async () => {
@@ -165,7 +166,7 @@ describe('Same-block same-type reassignment', () => {
       "outer" => $x
       list[1, 2, 3] -> seq({ "inner" => $x })
     `;
-    await expect(run(code)).rejects.toThrow(/Cannot reassign outer variable/);
+    await expectHaltMessage(() => run(code), /Cannot reassign outer variable/);
   });
 
   it('still halts on a different-type same-block re-capture (type lock)', async () => {
@@ -176,6 +177,6 @@ describe('Same-block same-type reassignment', () => {
         $x
       }
     `;
-    await expect(run(code)).rejects.toThrow(/Type mismatch/);
+    await expectHaltMessage(() => run(code), /Type mismatch/);
   });
 });
