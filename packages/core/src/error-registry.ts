@@ -768,9 +768,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       'Operator {operator} cannot be applied to {leftType} and {rightType}',
     cause:
-      'Binary operator applied to incompatible types. Rill does not perform implicit type coercion.',
+      'Binary operator applied to incompatible types. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.',
     resolution:
-      'Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods.',
+      'Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.',
     examples: [
       {
         description: 'Adding string and number',
@@ -1574,9 +1574,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'Member path not found in extension',
     messageTemplate: "Member '{path}' not found in extension '{name}'",
-    cause: 'The dot-path member does not exist in the extension value.',
+    cause:
+      'The dot-path member does not exist in the extension value, or the path descends into a value that is not a plain dict (a callable, tuple, ordered, vector, or stream), which is never traversed.',
     resolution:
-      'Verify the member path matches the structure of the extension dict.',
+      'Verify the member path matches the structure of the extension dict, and that every segment before the last names a dict.',
     examples: [
       {
         description: 'Nonexistent member',
@@ -1623,7 +1624,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Resolver threw, or returned a malformed result',
     messageTemplate: "Resolver error for '{scheme}:{resource}': {message}",
     cause:
-      'The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, a `value`/`text` field that is absent or the wrong type).',
+      'The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, a `value`/`text` field that is absent or the wrong type, or a `value` that is a function, symbol, bigint, or contains such a non-rill value nested in a dict or list).',
     resolution:
       'Inspect the original error message in the RILL-R056 detail and fix the resolver implementation.',
     examples: [

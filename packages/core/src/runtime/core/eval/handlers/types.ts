@@ -46,7 +46,11 @@ import {
   formatStructure,
 } from '../../types/operations.js';
 import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
-import { checkType, structureToTypeValue } from '../../values.js';
+import {
+  checkType,
+  isReservedBrandKey,
+  structureToTypeValue,
+} from '../../values.js';
 import { setDictField } from '../../types/dict-keys.js';
 import { getVariable } from '../../context.js';
 import type { EvalState } from '../state.js';
@@ -109,6 +113,16 @@ async function buildCollectionType(
   if (name === 'dict' || name === 'ordered') {
     const positional = args.filter((a) => a.name === undefined);
     const named = args.filter((a) => a.name !== undefined);
+
+    for (const arg of named) {
+      if (isReservedBrandKey(arg.name!)) {
+        throwCatchableHostHalt(
+          { location, sourceId: s.ctx.sourceId, fn: name },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          `Cannot use reserved brand key '${arg.name!}' as ${name} field name`
+        );
+      }
+    }
 
     // Cannot mix positional and named arguments
     if (positional.length > 0 && named.length > 0) {
@@ -750,7 +764,8 @@ export async function evaluateClosureSigLiteral(
     if (param.annotations?.length) {
       const annotations = await evaluateAnnotationArgs(
         param.annotations,
-        (expr) => evaluateExpression(s, expr)
+        (expr) => evaluateExpression(s, expr),
+        s.ctx.sourceId
       );
       params.push({ name: param.name, type: paramType, annotations });
     } else {

@@ -9,6 +9,42 @@ import { RuntimeError } from '../../error-classes.js';
 import type { ResolverResult, SchemeResolver } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
 import { ERROR_IDS } from '../../error-registry.js';
+import {
+  isAtom,
+  isCallable,
+  isDatetime,
+  isDuration,
+  isOrdered,
+  isStream,
+  isTuple,
+  isTypeValue,
+  isVector,
+} from './types/guards.js';
+
+/**
+ * True only for plain rill dict values. Callables, tuples, ordered values,
+ * vectors, datetimes, durations, atoms, type values, field descriptors,
+ * streams, lists, and raw JavaScript functions are not traversable, so a
+ * path walk never reaches a callable's internal `fn`. A dict that merely
+ * looks like an iterator (`done` plus a callable `next`) is still a dict.
+ */
+function isTraversableDict(value: unknown): value is object {
+  if (typeof value !== 'object' || value === null) return false;
+  if (Array.isArray(value)) return false;
+  const v = value as RillValue;
+  return !(
+    isCallable(v) ||
+    isTuple(v) ||
+    isOrdered(v) ||
+    isVector(v) ||
+    isDatetime(v) ||
+    isDuration(v) ||
+    isAtom(v) ||
+    isTypeValue(v) ||
+    isStream(v) ||
+    '__rill_field_descriptor' in value
+  );
+}
 
 // ============================================================
 // MODULE RESOLVER
@@ -82,10 +118,13 @@ export const moduleResolver: SchemeResolver = async (
  *
  * Dot-path: split by `.`, first segment is the extension name,
  * remaining segments traverse the dict structure of the extension value.
+ * Intermediate segments must be dicts; a callable may be the final segment
+ * but is never traversed.
  *
  * Error codes:
  * - RILL-R052 when the extension name is absent from config
- * - RILL-R053 when a member path segment is not found in the extension value
+ * - RILL-R053 when a member path segment is not found in the extension value,
+ *   or the walk would descend into a callable, tuple, ordered, vector, or stream
  */
 // ============================================================
 // CONTEXT RESOLVER
@@ -100,11 +139,14 @@ export const moduleResolver: SchemeResolver = async (
  * - `"timeout"` — returns the top-level `timeout` value from config.
  * - `"limits.max_tokens"` — traverses into `limits`, returns `max_tokens`.
  *
- * Dot-path: split by `.`, walk nested dicts at each segment.
+ * Dot-path: split by `.`, walk nested dicts at each segment. Intermediate
+ * segments must be dicts; a callable may be the final segment but is never
+ * traversed.
  *
  * Error codes:
  * - RILL-R062 when the top-level key is absent from config
- * - RILL-R063 when an intermediate segment is not a dict
+ * - RILL-R063 when an intermediate segment is not a dict (a callable, tuple,
+ *   ordered, vector, or stream is not a dict)
  */
 export const contextResolver: SchemeResolver = (
   resource: string,
@@ -130,7 +172,7 @@ export const contextResolver: SchemeResolver = (
 
   for (let i = 1; i < segments.length; i++) {
     const segment = segments[i] as string;
-    if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    if (!isTraversableDict(value)) {
       const path = segments.slice(0, i).join('.');
       throw new RuntimeError(
         ERROR_IDS.RILL_R063,
@@ -186,9 +228,7 @@ export const extResolver: SchemeResolver = (
   for (let i = 1; i < segments.length; i++) {
     const segment = segments[i] as string;
     if (
-      typeof value !== 'object' ||
-      value === null ||
-      Array.isArray(value) ||
+      !isTraversableDict(value) ||
       !Object.hasOwn(value as Record<string, RillValue>, segment)
     ) {
       const path = segments.slice(1, i + 1).join('.');

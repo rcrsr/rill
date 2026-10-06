@@ -97,6 +97,7 @@ import {
 import { copyExtensionIdentity } from '../../policy/identity.js';
 import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { invokeCallable } from './closures.js';
+import { assertUsableAnnotationKey } from './annotations.js';
 import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
 
@@ -136,19 +137,22 @@ async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
  *
  * @param annotations - Annotation arguments from AST
  * @param evalExpr - Expression evaluator function
+ * @param sourceId - Source identifier for error reporting
  * @returns Record of annotation key-value pairs
  *
  * @internal
  */
 export async function evaluateAnnotations(
   annotations: AnnotationArg[],
-  evalExpr: (expr: ExpressionNode) => Promise<RillValue>
+  evalExpr: (expr: ExpressionNode) => Promise<RillValue>,
+  sourceId?: string | undefined
 ): Promise<Record<string, RillValue>> {
   const result: Record<string, RillValue> = {};
 
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
       const namedArg = arg as NamedArgNode;
+      assertUsableAnnotationKey(namedArg.name, namedArg.span.start, sourceId);
       setDictField(result, namedArg.name, await evalExpr(namedArg.value));
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
@@ -163,18 +167,27 @@ export async function evaluateAnnotations(
       ) {
         // Dict: spread all key-value pairs
         for (const [k, v] of Object.entries(spreadValue)) {
+          assertUsableAnnotationKey(k, spreadArg.span.start, sourceId);
           setDictField(result, k, v);
         }
       } else if (Array.isArray(spreadValue)) {
         // Tuple/list: not valid for annotations (need named keys)
         throwCatchableHostHalt(
-          { location: spreadArg.span.start, fn: 'evaluateAnnotations' },
+          {
+            location: spreadArg.span.start,
+            sourceId,
+            fn: 'evaluateAnnotations',
+          },
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Annotation spread requires dict with named keys, got list'
         );
       } else {
         throwCatchableHostHalt(
-          { location: spreadArg.span.start, fn: 'evaluateAnnotations' },
+          {
+            location: spreadArg.span.start,
+            sourceId,
+            fn: 'evaluateAnnotations',
+          },
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
           `Annotation spread requires dict, got ${typeof spreadValue}`
         );
@@ -1167,8 +1180,10 @@ export async function createClosure(
     // Evaluate per-param annotations inline
     let paramAnnots: Record<string, RillValue> = {};
     if (param.annotations && param.annotations.length > 0) {
-      paramAnnots = await evaluateAnnotations(param.annotations, (expr) =>
-        evaluateExpression(s, expr)
+      paramAnnots = await evaluateAnnotations(
+        param.annotations,
+        (expr) => evaluateExpression(s, expr),
+        s.ctx.sourceId
       );
     }
 

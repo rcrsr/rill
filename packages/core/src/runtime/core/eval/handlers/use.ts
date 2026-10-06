@@ -34,6 +34,8 @@ import { getNodeLocation } from '../shared.js';
 import type { SourceLocation } from '../../../../types.js';
 import { evaluateExpression } from './core.js';
 import { evaluateVariableAsync } from './variables.js';
+import { validateHostResult } from '../../callable.js';
+import { ControlSignal } from '../../signals.js';
 import { brandExtensionValue } from '../../policy/identity.js';
 
 /**
@@ -197,6 +199,25 @@ export async function evaluateUseExpr(
         ERROR_ATOMS[ERROR_IDS.RILL_R056],
         `Resolver error for '${key}': resolver result with kind 'value' is missing a 'value' field`
       );
+    }
+    if (kind === 'value') {
+      // Deep-validate: a raw function, symbol, or bigint nested inside a
+      // dict or list would otherwise reach script scope unchecked.
+      try {
+        validateHostResult(rawResult['value'], key, getNodeLocation(s, node));
+      } catch (err) {
+        if (err instanceof ControlSignal) throw err;
+        const detail = err instanceof Error ? err.message : String(err);
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, node),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateUseExpr',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R056],
+          `Resolver error for '${key}': resolver result value is not a rill value (${detail})`
+        );
+      }
     }
     if (kind === 'source' && typeof rawResult['text'] !== 'string') {
       throwCatchableHostHalt(

@@ -457,8 +457,7 @@ export function bindDictCallables(value: RillValue): RillValue {
     typeof value !== 'object' ||
     value === null ||
     Array.isArray(value) ||
-    '__type' in value ||
-    '__rill_args' in value
+    '__type' in value
   ) {
     return value;
   }
