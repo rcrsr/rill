@@ -24,6 +24,12 @@ import type { EvalState } from './state.js';
 import { invokeCallable } from './handlers/closures.js';
 
 /**
+ * Default maximum iteration count for iterators and loops, and the headroom
+ * added to maxCallDepth for the run-wide in-flight call ceiling.
+ */
+export const DEFAULT_MAX_ITERATIONS = 10000;
+
+/**
  * Get source location from an AST node.
  * Used for error reporting with precise location information.
  */

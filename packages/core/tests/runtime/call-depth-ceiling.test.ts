@@ -8,9 +8,14 @@
  * (RangeError) or the heap.
  */
 
-import { describe, expect, it } from 'vitest';
-import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
-import type { RuntimeContext } from '@rcrsr/rill';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  createChildContext,
+  createRuntimeContext,
+  execute,
+  parse,
+} from '@rcrsr/rill';
+import type { RillFunction, RuntimeContext } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
@@ -238,6 +243,140 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       `);
       const result = await execute(shallowAst, ctx);
       expect(result.result).toBe(42);
+    });
+  });
+
+  describe('calls in flight', () => {
+    const IN_FLIGHT_50 = /Calls in flight exceeded 10050/;
+
+    const branching = (body: string): string => `
+      || { ${body} } => $f
+      $f()
+    `;
+
+    const itemsFn = (count: number): Record<string, RillFunction> => ({
+      items: {
+        params: [],
+        fn: () => Array.from({ length: count }, (_, i) => i),
+      },
+    });
+
+    it('halts unbounded fan recursion at the default ceiling', async () => {
+      const script = branching('range(0, 10) -> fan({ $f() })');
+      await expectHalt(() => run(script), {
+        code: 'RILL_R010',
+        hostErrorId: 'RILL-R010',
+      });
+      await expectHaltMessage(
+        () => run(script),
+        /Calls in flight exceeded 11000/
+      );
+    });
+
+    it('halts branching fan recursion', async () => {
+      await expectHaltMessage(
+        () =>
+          run(branching('list[1, 2] -> fan({ $f() })'), { maxCallDepth: 50 }),
+        IN_FLIGHT_50
+      );
+    });
+
+    it('halts branching fan recursion with bounded concurrency', async () => {
+      await expectHaltMessage(
+        () =>
+          run(branching('list[1, 2] -> fan({ $f() }, dict[concurrency: 2])'), {
+            maxCallDepth: 50,
+          }),
+        IN_FLIGHT_50
+      );
+    });
+
+    it('halts branching filter recursion', async () => {
+      await expectHaltMessage(
+        () =>
+          run(branching('list[1, 2] -> filter({ $f() })'), {
+            maxCallDepth: 50,
+          }),
+        IN_FLIGHT_50
+      );
+    });
+
+    it('halts branching keyed list sort recursion', async () => {
+      await expectHaltMessage(
+        () =>
+          run(branching('list[1, 2] -> sort({ $f() })'), { maxCallDepth: 50 }),
+        IN_FLIGHT_50
+      );
+    });
+
+    it('halts branching dict sort recursion', async () => {
+      await expectHaltMessage(
+        () =>
+          run(branching('dict[a: 1, b: 2] -> sort({ $f() })'), {
+            maxCallDepth: 50,
+          }),
+        IN_FLIGHT_50
+      );
+    });
+
+    it('is fatal: guard cannot recover the halt', async () => {
+      const script = branching('guard { list[1, 2] -> fan({ $f() }) }');
+      await expectHaltMessage(
+        () => run(script, { maxCallDepth: 50 }),
+        IN_FLIGHT_50
+      );
+    });
+
+    it('completes at exactly the ceiling and halts one past it', async () => {
+      const options = (count: number) => ({
+        maxCallDepth: 2,
+        functions: itemsFn(count),
+      });
+      const script = 'items() -> fan({ $ }) -> .len';
+      expect(await run(script, options(10001))).toBe(10001);
+      await expectHaltMessage(
+        () => run(script, options(10002)),
+        /Calls in flight exceeded 10002/
+      );
+    });
+
+    it('halts a default-settings fan of closure calls and completes it when batched', async () => {
+      const script = (opts: string): string => `
+        |x| { $x } => $id
+        range(0, 10000) -> fan({ $ -> $id }${opts}) -> .len
+      `;
+      await expectHaltMessage(
+        () => run(script('')),
+        /Calls in flight exceeded 11000/
+      );
+      expect(await run(script(', dict[concurrency: 1000]'))).toBe(10000);
+    });
+
+    it('drains the counter, resets the latch, and stays usable after a halt', async () => {
+      const ctx: RuntimeContext = createRuntimeContext({ maxCallDepth: 50 });
+      const ast = parse(branching('list[1, 2] -> fan({ $f() })'));
+      await expectHalt(() => execute(ast, ctx), {
+        code: 'RILL_R010',
+        hostErrorId: 'RILL-R010',
+      });
+
+      await vi.waitFor(() => expect(ctx.callsInFlight.value).toBe(0), {
+        timeout: 2000,
+      });
+      expect(ctx.callsInFlight.tripped).toBe(false);
+
+      const result = await execute(
+        parse('|n| { $n + 1 } => $inc\n$inc(41)'),
+        ctx
+      );
+      expect(result.result).toBe(42);
+    });
+
+    it('shares callsInFlight with a forked child while forking callDepth', () => {
+      const parent = createRuntimeContext();
+      const child = createChildContext(parent, { forkCallDepth: true });
+      expect(child.callsInFlight).toBe(parent.callsInFlight);
+      expect(child.callDepth).not.toBe(parent.callDepth);
     });
   });
 });

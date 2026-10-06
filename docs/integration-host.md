@@ -41,7 +41,7 @@ The `createRuntimeContext()` function accepts these options:
 | `timeout` | `number` | Timeout in ms for async functions |
 | `autoExceptions` | `string[]` | Regex patterns that halt execution |
 | `signal` | `AbortSignal` | Cancellation signal |
-| `maxCallDepth` | `number` | Maximum nested closure-call depth before a fatal `RILL-R010` halt (default 1000) |
+| `maxCallDepth` | `number` | Maximum nested closure-call depth per call chain before a fatal `RILL-R010` halt (default 1000). Also sets the cap on calls in flight across concurrent `fan`/`filter`/`sort` bodies: `maxCallDepth` + 10,000. |
 | `maxCallStackDepth` | `number` | Maximum stored call-stack trace frames (default 100); trims trace history, never halts execution — distinct from `maxCallDepth` above |
 | `requireDescriptions` | `boolean` | Require descriptions for all functions and parameters |
 | `resolvers` | `Record<string, SchemeResolver> \| undefined` | Scheme-to-resolver map for `use<scheme:...>` imports |

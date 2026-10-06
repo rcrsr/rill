@@ -142,6 +142,15 @@ describe('stream ceiling boundary on host streams (issue #464)', () => {
     );
   });
 
+  it('filter with concurrency 100 over exactly 10000 chunks completes', async () => {
+    expect(
+      await run(
+        's() -> filter({ $ == 1 }, dict[concurrency: 100]) -> .len',
+        exactStream
+      )
+    ).toBe(10000);
+  });
+
   it('seq over 10001 chunks halts with RILL-R010', async () => {
     await expectHalt(() => run('s() -> seq({ $ })', overStream), {
       code: 'RILL_R010',

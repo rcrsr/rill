@@ -660,6 +660,7 @@ export function createRuntimeContext(
     maxCallStackDepth: options.maxCallStackDepth ?? 100,
     callDepth: { value: 0 },
     maxCallDepth: options.maxCallDepth ?? 1000,
+    callsInFlight: { value: 0, tripped: false },
     annotationStack: [],
     callStack: [],
     metadata: options.metadata,
@@ -727,6 +728,8 @@ export function createChildContext(
      * current value instead of sharing the parent's cell. Used for
      * concurrent branches so depth measures nesting only, not the number
      * of calls in flight. Copies the parent's count; never resets it.
+     * Calls in flight stay bounded run-wide: the callsInFlight cell is
+     * always shared and never forked.
      */
     forkCallDepth?: boolean;
   }
@@ -777,6 +780,7 @@ export function createChildContext(
         ? { value: parent.callDepth.value }
         : parent.callDepth,
     maxCallDepth: parent.maxCallDepth,
+    callsInFlight: parent.callsInFlight,
     annotationStack: parent.annotationStack,
     callStack: parent.callStack,
     metadata: parent.metadata,

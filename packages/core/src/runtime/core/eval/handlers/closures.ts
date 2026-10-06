@@ -66,7 +66,7 @@ import {
   propagateExtensionIdentity,
 } from '../../policy/identity.js';
 import type { DispatchContext } from '../../types/runtime.js';
-import { checkAborted } from '../shared.js';
+import { checkAborted, DEFAULT_MAX_ITERATIONS } from '../shared.js';
 import { evaluateExpression } from './core.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { assertType } from './types.js';
@@ -309,6 +309,8 @@ export async function invokeCallable(
   checkAborted(s);
 
   s.ctx.callDepth.value++;
+  const inFlight = s.ctx.callsInFlight;
+  inFlight.value++;
 
   try {
     if (s.ctx.callDepth.value > s.ctx.maxCallDepth) {
@@ -321,6 +323,28 @@ export async function invokeCallable(
         ERROR_ATOMS[ERROR_IDS.RILL_R010],
         `Call depth exceeded ${s.ctx.maxCallDepth}`,
         { limit: s.ctx.maxCallDepth, depth: s.ctx.callDepth.value }
+      );
+    }
+
+    // Concurrent branches fork callDepth, so depth alone cannot bound the
+    // calls alive at once. The in-flight cell is shared run-wide and latches
+    // so every sibling still unwinding also halts, until the count drains.
+    const inFlightCeiling = s.ctx.maxCallDepth + DEFAULT_MAX_ITERATIONS;
+    if (inFlight.tripped || inFlight.value > inFlightCeiling) {
+      inFlight.tripped = true;
+      throwFatalHostHalt(
+        {
+          location: callLocation,
+          sourceId: s.ctx.sourceId,
+          fn: 'invokeCallable',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R010],
+        `Calls in flight exceeded ${inFlightCeiling}`,
+        {
+          limit: inFlightCeiling,
+          inFlight: inFlight.value,
+          maxCallDepth: s.ctx.maxCallDepth,
+        }
       );
     }
 
@@ -455,6 +479,8 @@ export async function invokeCallable(
     return result;
   } finally {
     s.ctx.callDepth.value--;
+    inFlight.value--;
+    if (inFlight.value === 0) inFlight.tripped = false;
   }
 }
 
