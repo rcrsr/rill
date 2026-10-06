@@ -26,6 +26,7 @@ import { describe, expect, it } from 'vitest';
 import { createRuntimeContext, RuntimeError } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 
 describe('Rill Runtime: Host Type Validation', () => {
   describe('AC-1: list(string) param accepts matching type, rejects mismatched element type', () => {
@@ -49,23 +50,25 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
 
     it('rejects list(number) argument for list(string) param with RILL-R001', async () => {
-      await expect(
-        run('process([1, 2, 3])', {
-          functions: {
-            process: {
-              params: [
-                {
-                  name: 'items',
-                  type: { kind: 'list', element: { kind: 'string' } },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['items'],
+      await expectRuntimeError(
+        () =>
+          run('process([1, 2, 3])', {
+            functions: {
+              process: {
+                params: [
+                  {
+                    name: 'items',
+                    type: { kind: 'list', element: { kind: 'string' } },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                fn: (args) => args['items'],
+              },
             },
-          },
-        })
-      ).rejects.toThrow(RuntimeError);
+          }),
+        { code: 'RILL-R001' }
+      );
     });
 
     it('error message names expected type list(string) and actual type list', async () => {
@@ -204,23 +207,25 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
 
     it('rejects non-dict argument for dict param', async () => {
-      await expect(
-        run('process("not-a-dict")', {
-          functions: {
-            process: {
-              params: [
-                {
-                  name: 'person',
-                  type: { kind: 'dict' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['person'],
+      await expectRuntimeError(
+        () =>
+          run('process("not-a-dict")', {
+            functions: {
+              process: {
+                params: [
+                  {
+                    name: 'person',
+                    type: { kind: 'dict' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                fn: (args) => args['person'],
+              },
             },
-          },
-        })
-      ).rejects.toThrow(RuntimeError);
+          }),
+        { code: 'RILL-R001' }
+      );
     });
 
     it('accepts any dict for dict param without fields constraint', async () => {
@@ -455,30 +460,34 @@ describe('Rill Runtime: Host Type Validation', () => {
   });
 
   describe('AC-8: Script closure uses same validation logic as host function', () => {
-    it('script closure with typed string param rejects number argument', async () => {
-      await expect(
-        run('$fn(42)', {
-          variables: {
-            fn: null as never, // placeholder, defined via script
-          },
-          functions: {
-            mkFn: {
-              params: [],
-              fn: () => null,
+    it('calling an unbound closure variable halts RILL-R005', async () => {
+      await expectHalt(
+        () =>
+          run('$fn(42)', {
+            variables: {
+              fn: null as never, // placeholder, defined via script
             },
-          },
-        })
-      ).rejects.toThrow();
+            functions: {
+              mkFn: {
+                params: [],
+                fn: () => null,
+              },
+            },
+          }),
+        { code: 'RILL_R005', hostErrorId: 'RILL-R005' }
+      );
     });
 
     it('script closure type-checks same as host function for string param', async () => {
       // A script closure with |name: string| rejects non-string
-      await expect(
-        run(`
+      await expectRuntimeError(
+        () =>
+          run(`
           |name: string| { $name } => $greet
           $greet(42)
-        `)
-      ).rejects.toThrow(RuntimeError);
+        `),
+        { code: 'RILL-R001' }
+      );
     });
 
     it('script closure with string param accepts string argument like host function', async () => {

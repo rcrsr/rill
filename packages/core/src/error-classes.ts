@@ -136,6 +136,19 @@ export function createError(
 // ============================================================
 
 /**
+ * Append the " at {line}:{column}" suffix to a message.
+ * Returns the message unchanged when no location is given.
+ */
+export function formatMessageAtLocation(
+  message: string,
+  location: SourceLocation | undefined
+): string {
+  return location
+    ? `${message} at ${location.line}:${location.column}`
+    : message;
+}
+
+/**
  * Base error class for all Rill errors.
  * Provides structured data for host applications to format as needed.
  */
@@ -163,10 +176,7 @@ export class RillError extends Error {
     const location = data.location ?? data.span?.start;
     const span =
       data.span ?? (location ? { start: location, end: location } : undefined);
-    const locationStr = location
-      ? ` at ${location.line}:${location.column}`
-      : '';
-    super(`${data.message}${locationStr}`);
+    super(formatMessageAtLocation(data.message, location));
     this.name = 'RillError';
     this.errorId = data.errorId;
     this.helpUrl = data.helpUrl;

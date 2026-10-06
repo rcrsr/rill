@@ -55,7 +55,11 @@ describe('closure signature structural match', () => {
       |a: string| ($a) => $g:$sig
       "unreachable"
     `;
-    await expect(run(script)).rejects.toThrow(/Type mismatch/);
+    await expectHalt(() => run(script), {
+      code: 'RILL_R001',
+      hostErrorId: 'RILL-R001',
+      messagePattern: /Type mismatch/,
+    });
   });
 
   it('field-presence check on a dict still returns false for a missing field', async () => {

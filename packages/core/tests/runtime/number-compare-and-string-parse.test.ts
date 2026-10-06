@@ -14,6 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectHaltMessage } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('number ordering reflexivity (Part A)', () => {
@@ -68,55 +69,64 @@ describe('number ordering reflexivity (Part A)', () => {
 describe('string -> number strict parsing (Part B)', () => {
   // Rejections added by the fix
   it('rejects hex string "0x10"', async () => {
-    await expect(run('"0x10" -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('"0x10" -> number'),
       /cannot convert string "0x10" to number/
     );
   });
 
   it('rejects octal string "0o17"', async () => {
-    await expect(run('"0o17" -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('"0o17" -> number'),
       /cannot convert string "0o17" to number/
     );
   });
 
   it('rejects binary string "0b101"', async () => {
-    await expect(run('"0b101" -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('"0b101" -> number'),
       /cannot convert string "0b101" to number/
     );
   });
 
   it('rejects whitespace-padded string " 12 "', async () => {
-    await expect(run('" 12 " -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('" 12 " -> number'),
       /cannot convert string " 12 " to number/
     );
   });
 
   it('rejects leading-whitespace string " 12"', async () => {
-    await expect(run('" 12" -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('" 12" -> number'),
       /cannot convert string " 12" to number/
     );
   });
 
   it('rejects the word "NaN"', async () => {
-    await expect(run('"NaN" -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('"NaN" -> number'),
       /cannot convert string "NaN" to number/
     );
   });
 
   it('rejects padded " Infinity "', async () => {
-    await expect(run('" Infinity " -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('" Infinity " -> number'),
       /cannot convert string " Infinity " to number/
     );
   });
 
   it('rejects unpadded "Infinity"', async () => {
-    await expect(run('"Infinity" -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('"Infinity" -> number'),
       /cannot convert string "Infinity" to number/
     );
   });
 
   it('rejects unpadded "-Infinity"', async () => {
-    await expect(run('"-Infinity" -> number')).rejects.toThrow(
+    await expectHaltMessage(
+      () => run('"-Infinity" -> number'),
       /cannot convert string "-Infinity" to number/
     );
   });

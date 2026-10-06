@@ -16,6 +16,7 @@ import {
   isCallable,
   isScriptCallable,
   parse,
+  RuntimeError,
   RuntimeHaltSignal,
   structureToTypeValue,
   toCallable,
@@ -1492,6 +1493,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
       caught = e;
     }
     expect(caught).toHaveProperty('errorId', 'RILL-R085');
+    expect((caught as RuntimeError).haltValue).toBeDefined();
     return caught as Error;
   }
 

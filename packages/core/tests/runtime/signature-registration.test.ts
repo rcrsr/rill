@@ -31,33 +31,35 @@ import {
   getFunctions,
   type RillParam,
   structureToTypeValue,
-  RuntimeError,
 } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
+import { expectRuntimeError } from '../helpers/halt.js';
 import { parseSignatureRegistration } from '../../src/signature-parser.js';
 
 describe('Rill Runtime: Signature Registration', () => {
   describe('AC-17: Structured RillParam[] registers and validates on every call', () => {
     it('validates typed param on first call', async () => {
-      await expect(
-        run('fn(42)', {
-          functions: {
-            fn: {
-              params: [
-                {
-                  name: 'msg',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['msg'],
-              returnType: anyTypeValue,
+      await expectRuntimeError(
+        () =>
+          run('fn(42)', {
+            functions: {
+              fn: {
+                params: [
+                  {
+                    name: 'msg',
+                    type: { kind: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                fn: (args) => args['msg'],
+                returnType: anyTypeValue,
+              },
             },
-          },
-        })
-      ).rejects.toThrow(RuntimeError);
+          }),
+        { code: 'RILL-R001' }
+      );
     });
 
     it('validates typed param on repeated calls', async () => {
@@ -81,9 +83,9 @@ describe('Rill Runtime: Signature Registration', () => {
       expect(r1).toBe('hello');
 
       // Second call with invalid arg still throws (validation fires each call)
-      await expect(run('fn(99)', { functions: fns })).rejects.toThrow(
-        RuntimeError
-      );
+      await expectRuntimeError(() => run('fn(99)', { functions: fns }), {
+        code: 'RILL-R001',
+      });
     });
   });
 
@@ -262,24 +264,26 @@ describe('Rill Runtime: Signature Registration', () => {
     });
 
     it('enforces typed param at call time', async () => {
-      await expect(
-        run('echo(42)', {
-          functions: {
-            echo: {
-              params: [
-                {
-                  name: 'message',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['message'],
-              returnType: structureToTypeValue({ kind: 'string' }),
+      await expectRuntimeError(
+        () =>
+          run('echo(42)', {
+            functions: {
+              echo: {
+                params: [
+                  {
+                    name: 'message',
+                    type: { kind: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                fn: (args) => args['message'],
+                returnType: structureToTypeValue({ kind: 'string' }),
+              },
             },
-          },
-        })
-      ).rejects.toThrow(RuntimeError);
+          }),
+        { code: 'RILL-R001' }
+      );
     });
 
     it('accepts valid arg for typed function', async () => {
@@ -504,30 +508,32 @@ describe('Rill Runtime: Signature Registration', () => {
     });
 
     it('error message includes function name when missing required argument', async () => {
-      await expect(
-        run('multiArg("only-one")', {
-          functions: {
-            multiArg: {
-              params: [
-                {
-                  name: 'first',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-                {
-                  name: 'second',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => `${args['first']} ${args['second']}`,
-              returnType: anyTypeValue,
+      await expectRuntimeError(
+        () =>
+          run('multiArg("only-one")', {
+            functions: {
+              multiArg: {
+                params: [
+                  {
+                    name: 'first',
+                    type: { kind: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                  {
+                    name: 'second',
+                    type: { kind: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                fn: (args) => `${args['first']} ${args['second']}`,
+                returnType: anyTypeValue,
+              },
             },
-          },
-        })
-      ).rejects.toThrow(/multiArg|second/);
+          }),
+        { code: 'RILL-R044', messagePattern: /multiArg|second/ }
+      );
     });
 
     it('throws at call time when required argument missing', async () => {

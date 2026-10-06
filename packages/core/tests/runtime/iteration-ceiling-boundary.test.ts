@@ -13,6 +13,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('iteration ceiling boundary (issue #297)', () => {
   it('range of exactly 10000 elements expands without halting', async () => {
@@ -37,8 +38,9 @@ describe('iteration ceiling boundary (issue #297)', () => {
   });
 
   it('range of 10001 elements halts with RILL-R010', async () => {
-    await expect(run('range(0, 10001) -> seq({ $ })')).rejects.toThrow(
-      expect.objectContaining({ errorId: 'RILL-R010' })
-    );
+    await expectHalt(() => run('range(0, 10001) -> seq({ $ })'), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
   });
 });

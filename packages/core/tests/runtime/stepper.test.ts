@@ -14,6 +14,7 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Step Execution', () => {
   describe('createStepper', () => {
@@ -249,7 +250,7 @@ describe('Rill Runtime: Step Execution', () => {
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 
-      await expect(stepper.step()).rejects.toThrow('Unknown function');
+      await expectHaltMessage(() => stepper.step(), 'Unknown function');
     });
 
     it('throws on unknown method', async () => {
@@ -257,7 +258,7 @@ describe('Rill Runtime: Step Execution', () => {
       const ctx = createRuntimeContext();
       const stepper = createStepper(ast, ctx);
 
-      await expect(stepper.step()).rejects.toThrow('Unknown method');
+      await expectHaltMessage(() => stepper.step(), 'Unknown method');
     });
 
     it('marks the stepper done after a halt without advancing its index', async () => {

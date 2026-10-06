@@ -15,7 +15,7 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 /**
  * Asserts the thrown error is an abort halt:
@@ -232,7 +232,8 @@ describe('Rill Runtime: core handler error contracts', () => {
 describe('Rill Runtime: annotations handler error contracts', () => {
   describe('EC-25: Annotated statement execution errors', () => {
     it('propagates errors from annotated statement execution', async () => {
-      await expect(run('^(limit: 10) $undefined_var')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('^(limit: 10) $undefined_var'),
         /Undefined variable/
       );
     });
@@ -250,9 +251,10 @@ describe('Rill Runtime: annotations handler error contracts', () => {
     });
 
     it('propagates type errors from annotated statement', async () => {
-      await expect(run('^(limit: 10) "string" + 5')).rejects.toThrow(
-        RuntimeError
-      );
+      await expectHalt(() => run('^(limit: 10) "string" + 5'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+      });
     });
 
     it('propagates errors from nested annotated statements', async () => {
@@ -263,7 +265,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
           }
         }
       `;
-      await expect(run(script)).rejects.toThrow(/Undefined variable/);
+      await expectHaltMessage(() => run(script), /Undefined variable/);
     });
 
     it('reshapes a custom function error from an annotated statement into a #R999 invalid value', async () => {
@@ -310,7 +312,8 @@ describe('Rill Runtime: annotations handler error contracts', () => {
 
   describe('EC-26: Annotation evaluation errors', () => {
     it('propagates errors from annotation value evaluation', async () => {
-      await expect(run('^(limit: $undefined_var) "test"')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('^(limit: $undefined_var) "test"'),
         /Undefined variable/
       );
     });
@@ -327,9 +330,10 @@ describe('Rill Runtime: annotations handler error contracts', () => {
     });
 
     it('propagates errors from annotation expression evaluation', async () => {
-      await expect(run('^(limit: "string" + 5) "test"')).rejects.toThrow(
-        RuntimeError
-      );
+      await expectHalt(() => run('^(limit: "string" + 5) "test"'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+      });
     });
 
     it('resolves normally when the annotation value function throws (limit value goes unused)', async () => {
@@ -377,7 +381,8 @@ describe('Rill Runtime: annotations handler error contracts', () => {
     });
 
     it('propagates errors from spread annotation evaluation', async () => {
-      await expect(run('^(...$undefined) "test"')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('^(...$undefined) "test"'),
         /Undefined variable/
       );
     });

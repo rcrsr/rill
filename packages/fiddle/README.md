@@ -81,8 +81,8 @@ Tests use Vitest with `@testing-library/react` for component tests and `happy-do
 Run specific test suites:
 
 ```bash
-pnpm test -- Editor.test.tsx
-pnpm test -- execution-success.test.ts
+pnpm test Editor.test.tsx
+pnpm test execution-success.test.ts
 ```
 
 ## Documentation

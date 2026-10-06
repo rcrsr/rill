@@ -592,7 +592,8 @@ describe('types/registrations', () => {
     });
 
     it('error message contains "Cannot compare"', async () => {
-      await expect(run('range(1, 3) == range(1, 3)')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('range(1, 3) == range(1, 3)'),
         /Cannot compare/
       );
     });
@@ -608,7 +609,7 @@ describe('types/registrations', () => {
     });
 
     it('error message contains "Cannot compare"', async () => {
-      await expect(run('true > false')).rejects.toThrow(/Cannot compare/);
+      await expectHaltMessage(() => run('true > false'), /Cannot compare/);
     });
   });
 
@@ -622,7 +623,7 @@ describe('types/registrations', () => {
     });
 
     it('error message contains "cannot convert"', async () => {
-      await expect(run('42 -> bool')).rejects.toThrow(/cannot convert/);
+      await expectHaltMessage(() => run('42 -> bool'), /cannot convert/);
     });
   });
 
@@ -636,7 +637,7 @@ describe('types/registrations', () => {
     });
 
     it('error message contains "cannot convert"', async () => {
-      await expect(run('"abc" -> number')).rejects.toThrow(/cannot convert/);
+      await expectHaltMessage(() => run('"abc" -> number'), /cannot convert/);
     });
   });
 
@@ -680,7 +681,8 @@ describe('types/registrations', () => {
     });
 
     it('list ordering error contains "Cannot compare"', async () => {
-      await expect(run('list[1, 2] > list[3, 4]')).rejects.toThrow(
+      await expectHaltMessage(
+        () => run('list[1, 2] > list[3, 4]'),
         /Cannot compare/
       );
     });

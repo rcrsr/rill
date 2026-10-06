@@ -18,6 +18,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { expectHaltMessage } from '../../helpers/halt.js';
 import {
   anyTypeValue,
   callable,
@@ -284,7 +285,8 @@ describe('AC-15: traversal into scalar extension value throws RILL-R053', () => 
       },
     });
 
-    await expect(execInContext('use<ext:myext.sub>', ctx)).rejects.toThrow(
+    await expectHaltMessage(
+      () => execInContext('use<ext:myext.sub>', ctx),
       "Member 'sub' not found in extension 'myext'"
     );
   });
@@ -296,7 +298,8 @@ describe('AC-15: traversal into scalar extension value throws RILL-R053', () => 
       },
     });
 
-    await expect(execInContext('use<ext:myext.sub>', ctx)).rejects.toThrow(
+    await expectHaltMessage(
+      () => execInContext('use<ext:myext.sub>', ctx),
       "Member 'sub' not found in extension 'myext'"
     );
   });
@@ -329,7 +332,8 @@ describe('AC-16: traversal into list extension value throws RILL-R053', () => {
       },
     });
 
-    await expect(execInContext('use<ext:myext.sub>', ctx)).rejects.toThrow(
+    await expectHaltMessage(
+      () => execInContext('use<ext:myext.sub>', ctx),
       "Member 'sub' not found in extension 'myext'"
     );
   });
@@ -364,9 +368,10 @@ describe('AC-17: traversal into missing dict property throws RILL-R053', () => {
       },
     });
 
-    await expect(
-      execInContext('use<ext:myext.nonexistent>', ctx)
-    ).rejects.toThrow("Member 'nonexistent' not found in extension 'myext'");
+    await expectHaltMessage(
+      () => execInContext('use<ext:myext.nonexistent>', ctx),
+      "Member 'nonexistent' not found in extension 'myext'"
+    );
   });
 
   it('error is wrapped as RILL-R056 by the use<> resolver', async () => {
@@ -397,9 +402,10 @@ describe('AC-17: traversal into missing dict property throws RILL-R053', () => {
       },
     });
 
-    await expect(
-      execInContext('use<ext:myext.level1.missing>', ctx)
-    ).rejects.toThrow("Member 'level1.missing' not found in extension 'myext'");
+    await expectHaltMessage(
+      () => execInContext('use<ext:myext.level1.missing>', ctx),
+      "Member 'level1.missing' not found in extension 'myext'"
+    );
   });
 });
 

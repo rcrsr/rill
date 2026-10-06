@@ -240,6 +240,11 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   [ERROR_ATOMS[ERROR_IDS.RILL_R088], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R089], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R090], 'runtime'],
+  // String, number, and callable built-in halt atoms.
+  [ERROR_ATOMS[ERROR_IDS.RILL_R064], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R065], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R066], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R085], 'runtime'],
 ];
 
 for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {

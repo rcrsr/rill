@@ -19,11 +19,14 @@ import { describe, expect, it } from 'vitest';
 import { RuntimeError } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 
 describe('Rill Runtime: Built-in Function Signatures', () => {
   describe('AC-10: range() validates param types — string start param rejected', () => {
     it('throws RuntimeError when start is a string', async () => {
-      await expect(run('range("a", 10)')).rejects.toThrow(RuntimeError);
+      await expectRuntimeError(() => run('range("a", 10)'), {
+        code: 'RILL-R001',
+      });
     });
 
     it('error is RILL-R001 (type mismatch)', async () => {
@@ -51,7 +54,9 @@ describe('Rill Runtime: Built-in Function Signatures', () => {
 
   describe('AC-11: enumerate() validates param types — number arg rejected', () => {
     it('throws RuntimeError when arg is a number', async () => {
-      await expect(run('enumerate(42)')).rejects.toThrow(RuntimeError);
+      await expectRuntimeError(() => run('enumerate(42)'), {
+        code: 'RILL-R001',
+      });
     });
 
     it('error is RILL-R001 (type mismatch)', async () => {
@@ -134,7 +139,10 @@ describe('Rill Runtime: Built-in Function Signatures', () => {
   describe('AC-14: Method call on type not in receiverTypes → error naming unsupported receiver', () => {
     it('calling .upper on a number throws RuntimeError', async () => {
       // .upper has receiverTypes: ["string"] — number is not in the list
-      await expect(run('42 -> .upper')).rejects.toThrow(RuntimeError);
+      await expectHalt(() => run('42 -> .upper'), {
+        code: 'RILL_R003',
+        hostErrorId: 'RILL-R003',
+      });
     });
 
     it('error for .upper on number is RILL-R003', async () => {
@@ -186,7 +194,9 @@ describe('Rill Runtime: Built-in Function Signatures', () => {
   describe('AC-15: Method call on supported receiver with wrong-typed arg → RUNTIME_TYPE_ERROR', () => {
     it('calling .split on string with number arg throws RuntimeError', async () => {
       // .split has param separator: string — number arg is rejected
-      await expect(run('"hello" -> .split(42)')).rejects.toThrow(RuntimeError);
+      await expectRuntimeError(() => run('"hello" -> .split(42)'), {
+        code: 'RILL-R001',
+      });
     });
 
     it('error for .split with number separator is RILL-R001', async () => {
@@ -213,9 +223,9 @@ describe('Rill Runtime: Built-in Function Signatures', () => {
 
     it('calling .at on list with string arg throws RuntimeError', async () => {
       // .at has param index: number — string arg is rejected
-      await expect(run('list[1, 2, 3] -> .at("x")')).rejects.toThrow(
-        RuntimeError
-      );
+      await expectRuntimeError(() => run('list[1, 2, 3] -> .at("x")'), {
+        code: 'RILL-R001',
+      });
     });
 
     it('error for .at with string index is RILL-R001', async () => {

@@ -18,8 +18,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { anyTypeValue } from '@rcrsr/rill';
+import { anyTypeValue, ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectThrowMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Host Reference and Expression Annotations', () => {
   describe('AC-5: ns::name without parens resolves to ApplicationCallable', () => {
@@ -138,56 +139,78 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
 
   describe('AC-7: tool() call produces "Unknown function: tool" error', () => {
     it('throws unknown function error when tool() is called', async () => {
-      await expect(run(`tool("name", "desc", |x| { $x })`)).rejects.toThrow(
-        'Unknown function: tool'
-      );
+      await expectHalt(() => run(`tool("name", "desc", |x| { $x })`), {
+        code: 'RILL_R006',
+        hostErrorId: 'RILL-R006',
+        messagePattern: 'Unknown function: tool',
+      });
     });
 
     it('throws unknown function error for zero-arg tool() call', async () => {
-      await expect(run(`tool()`)).rejects.toThrow('Unknown function: tool');
+      await expectHalt(() => run(`tool()`), {
+        code: 'RILL_R006',
+        hostErrorId: 'RILL-R006',
+        messagePattern: 'Unknown function: tool',
+      });
     });
   });
 
   describe('AC-8 / EC-7: type() builtin removed; calling it produces unknown-function error', () => {
     it('throws unknown function error when type() is called with an argument', async () => {
-      await expect(run(`type(42)`)).rejects.toThrow('Unknown function: type');
+      await expectHalt(() => run(`type(42)`), {
+        code: 'RILL_R006',
+        hostErrorId: 'RILL-R006',
+        messagePattern: 'Unknown function: type',
+      });
     });
 
     it('throws conversion error when type appears at pipe target position', async () => {
       // `type` is a reserved type keyword at pipe target position, so
       // `42 -> type` is parsed as a type conversion rather than a function
       // call. Converting a number to the type-of-types raises RILL-R036.
-      await expect(run(`42 -> type`)).rejects.toThrow(
-        'cannot convert number to type'
-      );
+      await expectHalt(() => run(`42 -> type`), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: 'cannot convert number to type',
+      });
     });
   });
 
   describe('AC-11 / EC-4: Unknown host reference throws function-not-found error', () => {
     it('throws when namespaced reference is not registered', async () => {
-      await expect(run(`unknown::fn`)).rejects.toThrow(
-        'Function "unknown::fn" not found'
-      );
+      await expectHalt(() => run(`unknown::fn`), {
+        code: 'RILL_R006',
+        hostErrorId: 'RILL-R006',
+        messagePattern: 'Function "unknown::fn" not found',
+      });
     });
 
     it('error message includes the exact function name', async () => {
-      await expect(run(`missing::func`)).rejects.toThrow(
-        'Function "missing::func" not found'
-      );
+      await expectHalt(() => run(`missing::func`), {
+        code: 'RILL_R006',
+        hostErrorId: 'RILL-R006',
+        messagePattern: 'Function "missing::func" not found',
+      });
     });
 
     it('throws even when other namespaces are registered', async () => {
-      await expect(
-        run(`wrong::name`, {
-          functions: {
-            'right::name': {
-              params: [],
-              fn: () => 'ok',
-              returnType: anyTypeValue,
+      await expectHalt(
+        () =>
+          run(`wrong::name`, {
+            functions: {
+              'right::name': {
+                params: [],
+                fn: () => 'ok',
+                returnType: anyTypeValue,
+              },
             },
-          },
-        })
-      ).rejects.toThrow('Function "wrong::name" not found');
+          }),
+        {
+          code: 'RILL_R006',
+          hostErrorId: 'RILL-R006',
+          messagePattern: 'Function "wrong::name" not found',
+        }
+      );
     });
   });
 
@@ -214,11 +237,19 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
 
   describe('EC-6: Malformed annotation syntax produces parse error', () => {
     it('throws parse error for unclosed annotation paren', async () => {
-      await expect(run(`^( |x| { $x }`)).rejects.toThrow();
+      await expectThrowMessage(
+        () => run(`^( |x| { $x }`),
+        'Expected annotation name',
+        ParseError
+      );
     });
 
     it('throws parse error for annotation without parens', async () => {
-      await expect(run(`^ |x| { $x }`)).rejects.toThrow();
+      await expectThrowMessage(
+        () => run(`^ |x| { $x }`),
+        'Expected (',
+        ParseError
+      );
     });
   });
 });

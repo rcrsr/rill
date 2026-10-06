@@ -13,6 +13,7 @@ import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
 import type { RuntimeContext } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 import { invokeCallable } from '../../src/runtime/core/eval/handlers/closures.js';
 import { getEvalState } from '../../src/runtime/core/eval/state.js';
 import type { ScriptCallable } from '../../src/runtime/core/callable.js';
@@ -26,9 +27,10 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       || { $f() } => $f
       $f()
     `;
-    await expect(run(script, { maxCallDepth: 50 })).rejects.toThrow(
-      expect.objectContaining({ errorId: 'RILL-R010' })
-    );
+    await expectHalt(() => run(script, { maxCallDepth: 50 }), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
   });
 
   it('dict-bound self-referential recursion halts with RILL-R010, not a host RangeError', async () => {
@@ -36,9 +38,10 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       dict[a: || { $.a }] => $o
       $o.a
     `;
-    await expect(run(script, { maxCallDepth: 50 })).rejects.toThrow(
-      expect.objectContaining({ errorId: 'RILL-R010' })
-    );
+    await expectHalt(() => run(script, { maxCallDepth: 50 }), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
   });
 
   it('reaches a high ceiling on a path with no suspension point between call levels', async () => {
@@ -51,9 +54,10 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       dict[a: || { $.a }] => $o
       $o.a
     `;
-    await expect(run(script, { maxCallDepth: 5000 })).rejects.toThrow(
-      expect.objectContaining({ errorId: 'RILL-R010' })
-    );
+    await expectHalt(() => run(script, { maxCallDepth: 5000 }), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
   });
 
   it('bounds recursion driven through the no-call-site auto-invoke dispatch path', async () => {
@@ -64,9 +68,10 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       || { 1 -> ($f + 0) } => $f
       1 -> ($f + 0)
     `;
-    await expect(run(script, { maxCallDepth: 50 })).rejects.toThrow(
-      expect.objectContaining({ errorId: 'RILL-R010' })
-    );
+    await expectHalt(() => run(script, { maxCallDepth: 50 }), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
   });
 
   it('bounds recursion driven through the internal (frameless) dispatch path', async () => {
@@ -113,9 +118,10 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
       || { $f() } => $f
       $f()
     `);
-    await expect(execute(recursiveAst, ctx)).rejects.toThrow(
-      expect.objectContaining({ errorId: 'RILL-R010' })
-    );
+    await expectHalt(() => execute(recursiveAst, ctx), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
 
     // The counter must be back at (or below) its pre-call value; a leaked
     // increment would falsely trip the ceiling on this unrelated, shallow

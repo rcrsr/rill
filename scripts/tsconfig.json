@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "declaration": false,
+    "rootDir": "..",
+    "paths": {
+      "@rcrsr/rill": ["../packages/core/src/index.ts"]
+    }
+  },
+  "include": ["*.ts"]
+}

@@ -11,9 +11,8 @@
 import type { RillValue, RillDuration } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isDuration } from '../guards.js';
-import { throwTypeHalt } from '../halt.js';
-import { RuntimeError } from '../../../../types.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
+import { throwTypeHalt, throwFatalHostHalt } from '../halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
 // FORMAT
@@ -79,9 +78,11 @@ function compareDuration(a: RillValue, b: RillValue): number {
   const da = a as unknown as RillDuration;
   const db = b as unknown as RillDuration;
   if (da.months !== db.months) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R002,
-      'Cannot order durations with different calendar components'
+    const message = 'Cannot order durations with different calendar components';
+    throwFatalHostHalt(
+      { fn: 'compareDuration', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      message
     );
   }
   return da.ms - db.ms;

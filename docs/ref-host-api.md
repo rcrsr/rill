@@ -365,6 +365,8 @@ export { nodeAtPosition, walkAst };
 
 ```
 
+> `invokeCallable` called outside `execute()` and `createStepper()` throws a fatal `RuntimeHaltSignal` (`catchable: false`, code on `errorId`) instead of a `RuntimeError`.
+
 > Atom registration happens through `ctx.registerErrorCode(name, kind)` on `ExtensionFactoryCtx` at extension factory init time, not at the top-level export surface.
 
 > **Migration note:** `KvExtensionContract` and `FsExtensionContract` types moved to

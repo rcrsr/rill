@@ -130,7 +130,8 @@ export function withTimeout<T>(
 
 /**
  * Access a field on a dict value with property-style callable auto-invocation.
- * Shared by closures.ts and variables.ts for consistent property access.
+ * Shared by closures.ts, variables.ts, field-access.ts, and methods.ts for
+ * consistent property access.
  *
  * @param s - Evaluator state
  * @param value - The dict to access
@@ -138,7 +139,8 @@ export function withTimeout<T>(
  * @param location - Source location for error reporting
  * @param allowMissing - If true, returns null for missing fields instead of throwing
  * @returns The field value
- * @throws RuntimeError if value is not a dict or field is missing (unless allowMissing)
+ * @throws RuntimeHaltSignal (catchable) if value is not a dict or field is
+ *   missing (unless allowMissing)
  */
 export async function accessDictField(
   s: EvalState,

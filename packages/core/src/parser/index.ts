@@ -11,7 +11,10 @@ import { Parser } from './parser.js';
 // These must be imported AFTER parser.js to ensure the class is defined.
 import './parser-script.js';
 import './parser-expr.js';
+import './parser-primary.js';
+import './parser-pipe-target.js';
 import './parser-literals.js';
+import './parser-closure.js';
 import './parser-variables.js';
 import './parser-control.js';
 import './parser-functions.js';

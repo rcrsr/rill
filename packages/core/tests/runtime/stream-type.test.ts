@@ -29,6 +29,7 @@ import {
 } from '@rcrsr/rill';
 import { YieldSignal } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectHaltSync } from '../helpers/halt.js';
 
 // ============================================================
 // HELPERS
@@ -300,9 +301,10 @@ describe('createRillStream', () => {
       await step1.next.fn({}, {} as never);
 
       // Calling next on stale step1 again throws
-      await expect(step1.next.fn({}, {} as never)).rejects.toThrow(
-        'Stream already consumed; cannot re-iterate'
-      );
+      await expectHalt(async () => step1.next.fn({}, {} as never), {
+        code: 'RILL_R002',
+        messagePattern: 'Stream already consumed; cannot re-iterate',
+      });
     });
 
     it('throws RILL-R002 when calling initial next twice', async () => {
@@ -316,9 +318,10 @@ describe('createRillStream', () => {
       await stream.next.fn({}, {} as never);
 
       // Second call on initial stream throws
-      await expect(stream.next.fn({}, {} as never)).rejects.toThrow(
-        'Stream already consumed; cannot re-iterate'
-      );
+      await expectHalt(async () => stream.next.fn({}, {} as never), {
+        code: 'RILL_R002',
+        messagePattern: 'Stream already consumed; cannot re-iterate',
+      });
     });
 
     it('holds the pending head before first .next(), then iterates and resolves end-to-end, with __rill_stream_head absent from enumeration', async () => {
@@ -867,11 +870,13 @@ describe('expandStream chunk validation (#440)', () => {
   });
 
   it('NaN chunk halt message names the chunk index', async () => {
-    await expect(
-      run('s() -> fold(0, { $@ + $ })', {
-        functions: { s: makeRawChunkStreamFn([1, NaN]) },
-      })
-    ).rejects.toThrow(/index 1/);
+    await expectHalt(
+      () =>
+        run('s() -> fold(0, { $@ + $ })', {
+          functions: { s: makeRawChunkStreamFn([1, NaN]) },
+        }),
+      { code: 'INVALID_INPUT', messagePattern: /index 1/ }
+    );
   });
 
   it('halts #INVALID_INPUT with the chunk index for a null chunk', async () => {
@@ -918,11 +923,13 @@ describe('expandStream chunk validation (#440)', () => {
   });
 
   it('undefined mid-sequence halt names its chunk index instead of yielding one fewer element', async () => {
-    await expect(
-      run('s() -> fold(0, { $@ + $ })', {
-        functions: { s: makeUndefinedMidSequenceStreamFn() },
-      })
-    ).rejects.toThrow(/index 1/);
+    await expectHalt(
+      () =>
+        run('s() -> fold(0, { $@ + $ })', {
+          functions: { s: makeUndefinedMidSequenceStreamFn() },
+        }),
+      { code: 'INVALID_INPUT', messagePattern: /index 1/ }
+    );
   });
 
   it('a plain homogeneous stream still expands fully (head step is not miscounted as a chunk)', async () => {
@@ -930,5 +937,265 @@ describe('expandStream chunk validation (#440)', () => {
       functions: { s: makeRawChunkStreamFn([1, 2, 3, 4, 5]) },
     });
     expect(result).toBe(15);
+  });
+});
+
+// ============================================================
+// SECOND INVOCATION AND ITERATION CEILING
+// ============================================================
+
+/** Host function returning a fresh stream of `count` numeric chunks. */
+function makeCountedStreamFn(count: number): RillFunction {
+  return {
+    params: [] as { name: string; type: TypeStructure }[],
+    returnType: anyTypeValue,
+    fn: (): RillStream =>
+      createRillStream({
+        chunks: (async function* () {
+          for (let i = 0; i < count; i++) yield i;
+        })(),
+        resolve: async () => null,
+      }),
+  };
+}
+
+/** Like makeCountedStreamFn, but with a fixed resolution value. */
+function makeResolvingStreamFn(
+  count: number,
+  resolution: string
+): RillFunction {
+  return {
+    params: [] as { name: string; type: TypeStructure }[],
+    returnType: anyTypeValue,
+    fn: (): RillStream =>
+      createRillStream({
+        chunks: (async function* () {
+          for (let i = 0; i < count; i++) yield i;
+        })(),
+        resolve: async () => resolution,
+      }),
+  };
+}
+
+const MAX_ITER_CEILING = 10000;
+
+describe('stream end and second invocation', () => {
+  it('a stream iterated to the end completes without halting', async () => {
+    const result = await run('s() -> seq({ $ })', {
+      functions: { s: makeCountedStreamFn(3) },
+    });
+    expect(result).toEqual([0, 1, 2]);
+  });
+
+  it('an empty stream ends cleanly', async () => {
+    const result = await run('s() -> seq({ $ })', {
+      functions: { s: makeCountedStreamFn(0) },
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('a second invocation of the same stream reference after seq drained it ends cleanly', async () => {
+    const result = await run(
+      `
+        s() => $st
+        $st -> seq({ $ }) => $drained
+        $st() => $first
+        $st() => $second
+        "{$drained.len}:{$first}:{$second}"
+      `,
+      { functions: { s: makeResolvingStreamFn(3, 'done') } }
+    );
+    expect(result).toBe('3:done:done');
+  });
+
+  it('invoking an empty stream ends cleanly with its resolution', async () => {
+    const result = await run('s() => $st\n$st()', {
+      functions: { s: makeResolvingStreamFn(0, 'done') },
+    });
+    expect(result).toBe('done');
+  });
+
+  it('a second seq over a drained stream reference halts with the already-consumed message', async () => {
+    await expectHalt(
+      () =>
+        run(
+          `
+            s() => $st
+            $st -> seq({ $ }) => $first
+            $st -> seq({ $ })
+          `,
+          { functions: { s: makeCountedStreamFn(3) } }
+        ),
+      {
+        code: 'RILL_R002',
+        messagePattern: 'Stream already consumed; cannot re-iterate',
+      }
+    );
+  });
+
+  it('next on a consumed stream halts with the already-consumed message', async () => {
+    const stream = createRillStream({
+      chunks: asyncIterableFrom([]),
+      resolve: async () => null,
+    });
+    // Drain: the initial stream is its own consumed marker after one pull.
+    const step = (await stream.next.fn(
+      {},
+      {} as never
+    )) as unknown as RillStream;
+    expect(step.done).toBe(true);
+
+    expectHaltSync(() => step.next.fn({}, {} as never), {
+      code: 'RILL_R002',
+      messagePattern: 'Stream already consumed; cannot re-iterate',
+    });
+  });
+
+  it('next on a stale step halts RILL_R002 with the already-consumed message', async () => {
+    const stream = createRillStream({
+      chunks: asyncIterableFrom(['a', 'b', 'c']),
+      resolve: async () => null,
+    });
+    const step1 = (await stream.next.fn(
+      {},
+      {} as never
+    )) as unknown as RillStream;
+    await step1.next.fn({}, {} as never);
+
+    await expectHalt(async () => step1.next.fn({}, {} as never), {
+      code: 'RILL_R002',
+      messagePattern: 'Stream already consumed; cannot re-iterate',
+    });
+  });
+
+  it('a second next on the initial stream halts RILL_R002', async () => {
+    const stream = createRillStream({
+      chunks: asyncIterableFrom(['a']),
+      resolve: async () => null,
+    });
+    await stream.next.fn({}, {} as never);
+
+    await expectHalt(async () => stream.next.fn({}, {} as never), {
+      code: 'RILL_R002',
+      messagePattern: 'Stream already consumed; cannot re-iterate',
+    });
+  });
+});
+
+describe('stream iteration ceiling boundary', () => {
+  const overCeiling = {
+    functions: { s: makeCountedStreamFn(MAX_ITER_CEILING + 1) },
+  };
+
+  it('seq over exactly MAX_ITER list elements does not halt', async () => {
+    const result = (await run(
+      '"a" -> .repeat(10000) -> .split("") -> seq({ $ }) -> .len'
+    )) as number;
+    expect(result).toBe(MAX_ITER_CEILING);
+  });
+
+  it('acc over exactly MAX_ITER list elements does not halt', async () => {
+    const result = (await run(
+      '"a" -> .repeat(10000) -> .split("") -> acc(0, { $@ + 1 }) -> .len'
+    )) as number;
+    expect(result).toBe(MAX_ITER_CEILING);
+  });
+
+  it('fold over exactly MAX_ITER list elements does not halt', async () => {
+    const result = await run(
+      '"a" -> .repeat(10000) -> .split("") -> fold(0, { $@ + 1 })'
+    );
+    expect(result).toBe(MAX_ITER_CEILING);
+  });
+
+  it('seq over MAX_ITER + 1 list elements halts RILL_R010', async () => {
+    await expectHalt(
+      () => run('"a" -> .repeat(10001) -> .split("") -> seq({ $ })'),
+      { code: 'RILL_R010', messagePattern: 'seq: iteration exceeded' }
+    );
+  });
+
+  it('acc over MAX_ITER + 1 list elements halts RILL_R010', async () => {
+    await expectHalt(
+      () => run('"a" -> .repeat(10001) -> .split("") -> acc(0, { $@ + 1 })'),
+      { code: 'RILL_R010', messagePattern: 'acc: iteration exceeded' }
+    );
+  });
+
+  it('fold over MAX_ITER + 1 list elements halts RILL_R010', async () => {
+    await expectHalt(
+      () => run('"a" -> .repeat(10001) -> .split("") -> fold(0, { $@ + 1 })'),
+      { code: 'RILL_R010', messagePattern: 'fold: iteration exceeded' }
+    );
+  });
+
+  it('seq over MAX_ITER + 1 chunks halts RILL_R010', async () => {
+    await expectHalt(() => run('s() -> seq({ $ })', overCeiling), {
+      code: 'RILL_R010',
+    });
+  });
+
+  it('acc over MAX_ITER + 1 chunks halts RILL_R010', async () => {
+    await expectHalt(() => run('s() -> acc(0, { $@ + 1 })', overCeiling), {
+      code: 'RILL_R010',
+    });
+  });
+
+  it('fold over MAX_ITER + 1 chunks halts RILL_R010', async () => {
+    await expectHalt(() => run('s() -> fold(0, { $@ + 1 })', overCeiling), {
+      code: 'RILL_R010',
+    });
+  });
+
+  it('guard does not recover a seq overrun', async () => {
+    await expectHalt(
+      () =>
+        run(
+          `
+            guard { "a" -> .repeat(10001) -> .split("") -> seq({ $ }) }
+            "recovered"
+          `
+        ),
+      { code: 'RILL_R010', messagePattern: 'seq: iteration exceeded' }
+    );
+  });
+
+  it('guard does not recover an acc overrun', async () => {
+    await expectHalt(
+      () =>
+        run(
+          `
+            guard { "a" -> .repeat(10001) -> .split("") -> acc(0, { $@ + 1 }) }
+            "recovered"
+          `
+        ),
+      { code: 'RILL_R010', messagePattern: 'acc: iteration exceeded' }
+    );
+  });
+
+  it('guard does not recover a fold overrun', async () => {
+    await expectHalt(
+      () =>
+        run(
+          `
+            guard { "a" -> .repeat(10001) -> .split("") -> fold(0, { $@ + 1 }) }
+            "recovered"
+          `
+        ),
+      { code: 'RILL_R010', messagePattern: 'fold: iteration exceeded' }
+    );
+  });
+
+  it('guard does not recover a while overrun', async () => {
+    await expectHalt(
+      () =>
+        run(
+          `
+            guard { 0 -> while ($ >= 0) do { $ + 1 } }
+            "recovered"
+          `
+        ),
+      { code: 'RILL_R010' }
+    );
   });
 });

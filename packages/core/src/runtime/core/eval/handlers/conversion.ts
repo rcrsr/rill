@@ -59,6 +59,7 @@ import { BUILT_IN_TYPES } from '../../types/registrations.js';
 import type { EvalState } from '../state.js';
 import type { RillTypeName } from '../../../../types.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { getStatus } from '../../types/status.js';
 import { getNodeLocation } from '../shared.js';
 import { evaluateTypeConstructor, assertType } from './types.js';
 
@@ -107,6 +108,21 @@ export async function applyConstructorConversion(
   const result = applyConversion(s, input, typeRef.constructorName, node);
   assertType(s, result, typeValue.structure, node.span.start);
   return result;
+}
+
+const PROTOCOL_CONVERSION_ATOMS: ReadonlySet<string> = new Set([
+  ERROR_ATOMS[ERROR_IDS.RILL_R064],
+  ERROR_ATOMS[ERROR_IDS.RILL_R065],
+  ERROR_ATOMS[ERROR_IDS.RILL_R066],
+]);
+
+/**
+ * True when a halt carries one of the protocol-converter atoms. Matches on
+ * the resolved atom's own name, so an unregistered atom (which resolves to
+ * the shared `#R001` fallback) never matches.
+ */
+function isProtocolConversionHalt(err: RuntimeHaltSignal): boolean {
+  return PROTOCOL_CONVERSION_ATOMS.has(getStatus(err.value).code.name);
 }
 
 /**
@@ -185,7 +201,7 @@ export function applyConversion(
     // it unchanged instead of remapping it to the generic RILL_R036 code
     // below, which would discard its atom and message. ControlSignal
     // subclasses (break/return/yield) always re-throw as well.
-    if (err instanceof RuntimeHaltSignal) {
+    if (err instanceof RuntimeHaltSignal && !isProtocolConversionHalt(err)) {
       throw enrichHaltOriginLocation(
         err,
         getNodeLocation(s, node),
@@ -196,13 +212,19 @@ export function applyConversion(
       throw err;
     }
 
-    // Protocol converters throw RuntimeError (RILL-R064/R065/R066);
-    // wrap with evaluator-level error codes for user-facing messages.
+    // Protocol converters raise RILL-R064/R065/R066 as a RuntimeError or as
+    // a protocol halt (see isProtocolConversionHalt); wrap with
+    // evaluator-level error codes for user-facing messages.
 
     // String-to-number parse failures use RILL-R038
     // Preserve the protocol's detailed message (includes unparseable value).
     if (sourceType === 'string' && targetType === 'number') {
-      const message = err instanceof Error ? err.message : String(err);
+      const message =
+        err instanceof RuntimeHaltSignal
+          ? getStatus(err.value).message
+          : err instanceof Error
+            ? err.message
+            : String(err);
       throwCatchableHostHalt(
         {
           location: getNodeLocation(s, node),

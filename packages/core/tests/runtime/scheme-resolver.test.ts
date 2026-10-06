@@ -17,6 +17,7 @@ import {
   type SchemeResolver,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
+import { expectRuntimeError } from '../helpers/halt.js';
 
 import { run } from '../helpers/runtime.js';
 
@@ -46,9 +47,10 @@ describe('Rill Runtime: moduleResolver', () => {
     });
 
     it('EC-3: RILL-R059 message is descriptive', async () => {
-      await expect(moduleResolver('greetings', null)).rejects.toThrow(
-        'moduleResolver config must be a plain object'
-      );
+      await expectRuntimeError(() => moduleResolver('greetings', null), {
+        code: 'RILL-R059',
+        messagePattern: 'moduleResolver config must be a plain object',
+      });
     });
 
     it('EC-1: throws RILL-R050 when module ID absent from config', async () => {
@@ -58,9 +60,13 @@ describe('Rill Runtime: moduleResolver', () => {
     });
 
     it('EC-1: RILL-R050 message includes the module name', async () => {
-      await expect(
-        moduleResolver('missing', { other: './other.rill' })
-      ).rejects.toThrow("Module 'missing' not found in resolver config");
+      await expectRuntimeError(
+        () => moduleResolver('missing', { other: './other.rill' }),
+        {
+          code: 'RILL-R050',
+          messagePattern: "Module 'missing' not found in resolver config",
+        }
+      );
     });
 
     it('EC-2: throws RILL-R051 when file path exists in config but file not readable', async () => {
@@ -70,9 +76,14 @@ describe('Rill Runtime: moduleResolver', () => {
     });
 
     it('EC-2: RILL-R051 message includes the module name', async () => {
-      await expect(
-        moduleResolver('greetings', { greetings: './nonexistent-file.rill' })
-      ).rejects.toThrow("Failed to read module 'greetings'");
+      await expectRuntimeError(
+        () =>
+          moduleResolver('greetings', { greetings: './nonexistent-file.rill' }),
+        {
+          code: 'RILL-R051',
+          messagePattern: "Failed to read module 'greetings'",
+        }
+      );
     });
   });
 

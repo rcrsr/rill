@@ -17,7 +17,7 @@
  * - createBlockClosure(node) -> ScriptCallable
  *
  * Error Handling:
- * - Pass throws RUNTIME_UNDEFINED_VARIABLE if $ not bound
+ * - Pass halts with RILL-R005 if $ not bound
  * - String interpolation errors propagate from evaluateExpression()
  * - Dict/tuple evaluation errors propagate from nested expressions
  *
@@ -215,12 +215,12 @@ function requirePipeChainHead(
  * Evaluate pass node - returns current pipe value unchanged.
  *
  * Pass returns ctx.pipeValue. If $ not bound (pipeValue is null),
- * throws RUNTIME_UNDEFINED_VARIABLE error.
+ * halts with RILL-R005.
  *
  * @param s - Evaluator state
  * @param node - PassNode from AST
  * @returns Current pipe value
- * @throws RuntimeError with RUNTIME_UNDEFINED_VARIABLE if $ not bound
+ * @throws RuntimeHaltSignal (catchable, RILL-R005) if $ not bound
  */
 export async function evaluatePass(
   s: EvalState,
@@ -808,7 +808,7 @@ export async function evaluateDict(
  * @param node - DictNode representing dispatch table
  * @param input - Piped value to use as lookup key
  * @returns Matched value (auto-invoked if closure)
- * @throws RuntimeError with RUNTIME_PROPERTY_NOT_FOUND if no match and no default
+ * @throws RuntimeHaltSignal if no match and no default
  */
 export async function evaluateDictDispatch(
   s: EvalState,

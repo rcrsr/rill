@@ -1,22 +1,24 @@
 /**
- * Test helpers for Phase 4 typed-atom halt assertions.
+ * Test helpers for typed-atom halt assertions.
  *
- * Migration context (FR-ERR-17): `RILL-R004` sites were converted to
- * specific atom halts (`#TYPE_MISMATCH`, `#INVALID_INPUT`, etc.). The
- * migrated sites now throw `RuntimeHaltSignal` carrying an invalid
- * `RillValue`; the signal's `.message` is always `'runtime halt'` and
- * the original diagnostic lives on `signal.value`'s status sidecar
- * (`raw.message`, `status.message`) or on the invalid value's
- * `.!message` when probed from Rill.
+ * A script halt throws `RuntimeHaltSignal` carrying an invalid `RillValue`;
+ * the signal's `.message` is always `'runtime halt'` and the diagnostic
+ * lives on the value's status sidecar (`status.code`, `status.message`).
+ * At the host boundary a halt may instead surface as a `RuntimeError`
+ * carrying the original invalid under `haltValue`. Exported helpers:
  *
- * These helpers factor the probe patterns used across the test sweep:
- *
- * - `expectHalt(exec, { code, messagePattern? })` resolves when `exec`
- *   throws a `RuntimeHaltSignal` whose invalid `.status.code` matches
- *   the expected atom; `messagePattern` (optional) matches against
- *   `status.message` (which derives from `raw.message`).
- * - `expectHaltMessage(exec, pattern)` matches just the message, for
- *   tests that previously asserted via `rejects.toThrow(/regex/)`.
+ * - `expectHalt(exec, { code, messagePattern?, hostErrorId? })`: async;
+ *   asserts a halt with the expected atom and optional message and host
+ *   error id.
+ * - `expectHaltMessage(exec, pattern)`: async; asserts only the halt message.
+ * - `expectRuntimeError(exec, { code, messagePattern? })`: async; asserts a
+ *   plain `RuntimeError` (no `haltValue`) with the given hyphen-form id.
+ * - `expectThrowMessage(exec, pattern, errorClass?)`: async; asserts a host
+ *   `Error` that is neither a halt nor a `RuntimeError`, optionally of a
+ *   given class.
+ * - `expectHaltMessageSync(exec, pattern)`: sync form of `expectHaltMessage`.
+ * - `expectHaltSync(exec, { code, messagePattern? })`: sync form of
+ *   `expectHalt`.
  */
 
 import { expect } from 'vitest';
@@ -29,6 +31,31 @@ interface HaltExpectation {
   code: string;
   /** Optional pattern (regex or substring) matched against status.message. */
   messagePattern?: RegExp | string;
+  /**
+   * Optional hyphen-form host error id (e.g. `'RILL-R059'`). Honored only by
+   * `expectHalt`: when set, the halt must be a `RuntimeError` rematerialised
+   * at the host boundary (carrying `haltValue`) with this `errorId`; a raw
+   * `RuntimeHaltSignal` or a non-halt `RuntimeError` fails.
+   */
+  hostErrorId?: string | undefined;
+}
+
+/** Matches `actual` against a regex, or as a substring for strings. */
+function matchMessage(actual: string, pattern: RegExp | string): void {
+  if (pattern instanceof RegExp) {
+    expect(actual).toMatch(pattern);
+  } else {
+    expect(actual).toContain(pattern);
+  }
+}
+
+/** Fails when `code` is unregistered and `resolveAtom` fell back to `#R001`. */
+function assertAtomRegistered(code: string): void {
+  if (code !== 'R001' && resolveAtom(code) === resolveAtom('R001')) {
+    throw new Error(
+      `expectHalt: atom '${code}' is not registered in CORE_ATOM_REGISTRATIONS — resolveAtom returned the #R001 fallback. Register the atom or check the code name.`
+    );
+  }
 }
 
 /**
@@ -68,22 +95,17 @@ export async function expectHalt(
   } catch (e) {
     caught = e;
   }
-  const status = getStatus(extractHaltInvalid(caught));
-  if (
-    expected.code !== 'R001' &&
-    resolveAtom(expected.code) === resolveAtom('R001')
-  ) {
-    throw new Error(
-      `expectHalt: atom '${expected.code}' is not registered in CORE_ATOM_REGISTRATIONS — resolveAtom returned the #R001 fallback. Register the atom or check the code name.`
-    );
+  if (expected.hostErrorId !== undefined) {
+    expect(caught).toBeInstanceOf(RuntimeError);
+    const hostError = caught as RuntimeError;
+    expect(hostError.haltValue).toBeDefined();
+    expect(hostError.errorId).toBe(expected.hostErrorId);
   }
+  const status = getStatus(extractHaltInvalid(caught));
+  assertAtomRegistered(expected.code);
   expect(status.code).toBe(resolveAtom(expected.code));
   if (expected.messagePattern !== undefined) {
-    if (expected.messagePattern instanceof RegExp) {
-      expect(status.message).toMatch(expected.messagePattern);
-    } else {
-      expect(status.message).toContain(expected.messagePattern);
-    }
+    matchMessage(status.message, expected.messagePattern);
   }
 }
 
@@ -104,11 +126,56 @@ export async function expectHaltMessage(
     caught = e;
   }
   const status = getStatus(extractHaltInvalid(caught));
-  if (pattern instanceof RegExp) {
-    expect(status.message).toMatch(pattern);
-  } else {
-    expect(status.message).toContain(pattern);
+  matchMessage(status.message, pattern);
+}
+
+/**
+ * Asserts that `exec` rejects with a `RuntimeError` that is NOT a
+ * rematerialised halt (no `haltValue`), with the expected hyphen-form
+ * `errorId` (e.g. `'RILL-R059'`) and, optionally, a matching message
+ * (substring for strings).
+ */
+export async function expectRuntimeError(
+  exec: () => Promise<unknown>,
+  expected: { code: string; messagePattern?: RegExp | string }
+): Promise<void> {
+  let caught: unknown;
+  try {
+    await exec();
+  } catch (e) {
+    caught = e;
   }
+  expect(caught).toBeInstanceOf(RuntimeError);
+  const error = caught as RuntimeError;
+  expect(error.haltValue).toBeUndefined();
+  expect(error.errorId).toBe(expected.code);
+  if (expected.messagePattern !== undefined) {
+    matchMessage(error.message, expected.messagePattern);
+  }
+}
+
+/**
+ * Asserts that `exec` rejects with a host `Error` (for example a
+ * `ParseError`) that is neither a halt nor a `RuntimeError`, and whose
+ * message matches `pattern`. When `errorClass` is given, the error must
+ * also be an instance of it.
+ */
+export async function expectThrowMessage(
+  exec: () => Promise<unknown>,
+  pattern: RegExp | string,
+  errorClass?: new (...args: never[]) => Error
+): Promise<void> {
+  let caught: unknown;
+  try {
+    await exec();
+  } catch (e) {
+    caught = e;
+  }
+  expect(caught).toBeInstanceOf(errorClass ?? Error);
+  expect(caught).not.toBeInstanceOf(RuntimeHaltSignal);
+  expect(caught).not.toBeInstanceOf(RuntimeError);
+  const message = (caught as Error).message;
+  matchMessage(message, pattern);
 }
 
 /**
@@ -129,11 +196,7 @@ export function expectHaltMessageSync(
   expect(caught).toBeInstanceOf(RuntimeHaltSignal);
   const signal = caught as RuntimeHaltSignal;
   const status = getStatus(signal.value);
-  if (pattern instanceof RegExp) {
-    expect(status.message).toMatch(pattern);
-  } else {
-    expect(status.message).toContain(pattern);
-  }
+  matchMessage(status.message, pattern);
 }
 
 /**
@@ -152,20 +215,9 @@ export function expectHaltSync(
   expect(caught).toBeInstanceOf(RuntimeHaltSignal);
   const signal = caught as RuntimeHaltSignal;
   const status = getStatus(signal.value);
-  if (
-    expected.code !== 'R001' &&
-    resolveAtom(expected.code) === resolveAtom('R001')
-  ) {
-    throw new Error(
-      `expectHalt: atom '${expected.code}' is not registered in CORE_ATOM_REGISTRATIONS — resolveAtom returned the #R001 fallback. Register the atom or check the code name.`
-    );
-  }
+  assertAtomRegistered(expected.code);
   expect(status.code).toBe(resolveAtom(expected.code));
   if (expected.messagePattern !== undefined) {
-    if (expected.messagePattern instanceof RegExp) {
-      expect(status.message).toMatch(expected.messagePattern);
-    } else {
-      expect(status.message).toContain(expected.messagePattern);
-    }
+    matchMessage(status.message, expected.messagePattern);
   }
 }

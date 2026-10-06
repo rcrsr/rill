@@ -10,55 +10,74 @@
 import { createVector } from '@rcrsr/rill';
 import { describe, it, expect } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('collections handlers', () => {
   describe('getIterableElements helper contract', () => {
     describe('RILL-R002: non-iterable input', () => {
       it('raises error for number input to seq', async () => {
-        await expect(run('42 -> seq({ $ })')).rejects.toThrow(
-          'Collection operators require'
-        );
+        await expectHalt(() => run('42 -> seq({ $ })'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: 'Collection operators require',
+        });
       });
 
       it('raises error for bool input to seq', async () => {
-        await expect(run('true -> seq({ $ })')).rejects.toThrow(
-          'Collection operators require'
-        );
+        await expectHalt(() => run('true -> seq({ $ })'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: 'Collection operators require',
+        });
       });
 
       it('raises error for number input to fan', async () => {
-        await expect(run('42 -> fan({ $ })')).rejects.toThrow(
-          'Collection operators require'
-        );
+        await expectHalt(() => run('42 -> fan({ $ })'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: 'Collection operators require',
+        });
       });
 
       it('raises error with RILL-R002 error id', async () => {
-        await expect(run('42 -> seq({ $ })')).rejects.toThrow(
-          expect.objectContaining({ errorId: 'RILL-R002' })
-        );
+        await expectHalt(() => run('42 -> seq({ $ })'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+        });
       });
     });
 
     describe('RILL-R003: vector input rejected', () => {
       it('raises error for vector input to seq', async () => {
         const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-        await expect(
-          run('$v -> seq({ $ })', { variables: { v: vec } })
-        ).rejects.toThrow('Collection operators require');
+        await expectHalt(
+          () => run('$v -> seq({ $ })', { variables: { v: vec } }),
+          {
+            code: 'RILL_R003',
+            hostErrorId: 'RILL-R003',
+            messagePattern: 'Collection operators require',
+          }
+        );
       });
 
       it('raises RILL-R003 for vector input', async () => {
         const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-        await expect(
-          run('$v -> seq({ $ })', { variables: { v: vec } })
-        ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R003' }));
+        await expectHalt(
+          () => run('$v -> seq({ $ })', { variables: { v: vec } }),
+          { code: 'RILL_R003', hostErrorId: 'RILL-R003' }
+        );
       });
 
       it('raises error for vector input to fan', async () => {
         const vec = createVector(new Float32Array([2.0, 3.0]), 'model-b');
-        await expect(
-          run('$v -> fan({ $ })', { variables: { v: vec } })
-        ).rejects.toThrow('Collection operators require');
+        await expectHalt(
+          () => run('$v -> fan({ $ })', { variables: { v: vec } }),
+          {
+            code: 'RILL_R003',
+            hostErrorId: 'RILL-R003',
+            messagePattern: 'Collection operators require',
+          }
+        );
       });
     });
 
@@ -120,13 +139,18 @@ describe('collections handlers', () => {
     });
 
     it('propagates errors from body evaluation', async () => {
-      await expect(
-        run('list[1, 2, 3] -> seq({ $undefined })')
-      ).rejects.toThrow();
+      await expectHalt(() => run('list[1, 2, 3] -> seq({ $undefined })'), {
+        code: 'RILL_R005',
+        hostErrorId: 'RILL-R005',
+      });
     });
 
     it('raises error when body is not a closure', async () => {
-      await expect(run('list[1] -> seq(42)')).rejects.toThrow(/seq.*closure/i);
+      await expectHalt(() => run('list[1] -> seq(42)'), {
+        code: 'RILL_R040',
+        hostErrorId: 'RILL-R040',
+        messagePattern: /seq.*closure/i,
+      });
     });
   });
 
@@ -154,26 +178,25 @@ describe('collections handlers', () => {
     });
 
     it('halts with RILL-R001 on fractional concurrency', async () => {
-      await expect(
-        run('list[1, 2, 3] -> fan({ $ }, dict[concurrency: 0.5])')
-      ).rejects.toThrow(
-        expect.objectContaining({
-          errorId: 'RILL-R001',
-          message: expect.stringMatching(/positive integer/i),
-        })
+      await expectHalt(
+        () => run('list[1, 2, 3] -> fan({ $ }, dict[concurrency: 0.5])'),
+        {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+          messagePattern: /positive integer/i,
+        }
       );
     });
 
     it('halts with RILL-R001 on an unknown option key', async () => {
-      await expect(
-        run('list[1, 2, 3] -> fan({ $ }, dict[batch_size: 2])')
-      ).rejects.toThrow(
-        expect.objectContaining({
-          errorId: 'RILL-R001',
-          message: expect.stringMatching(
-            /fan: unknown option 'batch_size'; recognized options are 'concurrency'/
-          ),
-        })
+      await expectHalt(
+        () => run('list[1, 2, 3] -> fan({ $ }, dict[batch_size: 2])'),
+        {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+          messagePattern:
+            /fan: unknown option 'batch_size'; recognized options are 'concurrency'/,
+        }
       );
     });
   });
@@ -190,9 +213,11 @@ describe('collections handlers', () => {
     });
 
     it('raises error when body is not a closure', async () => {
-      await expect(run('list[1] -> fold(0, 42)')).rejects.toThrow(
-        /fold.*closure/i
-      );
+      await expectHalt(() => run('list[1] -> fold(0, 42)'), {
+        code: 'RILL_R040',
+        hostErrorId: 'RILL-R040',
+        messagePattern: /fold.*closure/i,
+      });
     });
   });
 
@@ -213,9 +238,11 @@ describe('collections handlers', () => {
     });
 
     it('raises error when predicate does not return bool', async () => {
-      await expect(run('list[1, 2, 3] -> filter({ $ * 2 })')).rejects.toThrow(
-        /predicate must return bool/i
-      );
+      await expectHalt(() => run('list[1, 2, 3] -> filter({ $ * 2 })'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+        messagePattern: /predicate must return bool/i,
+      });
     });
 
     it('respects concurrency option', async () => {
@@ -226,26 +253,25 @@ describe('collections handlers', () => {
     });
 
     it('halts with RILL-R001 on fractional concurrency', async () => {
-      await expect(
-        run('list[1, 2, 3] -> filter({ $ > 1 }, dict[concurrency: 0.5])')
-      ).rejects.toThrow(
-        expect.objectContaining({
-          errorId: 'RILL-R001',
-          message: expect.stringMatching(/positive integer/i),
-        })
+      await expectHalt(
+        () => run('list[1, 2, 3] -> filter({ $ > 1 }, dict[concurrency: 0.5])'),
+        {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+          messagePattern: /positive integer/i,
+        }
       );
     });
 
     it('halts with RILL-R001 on an unknown option key', async () => {
-      await expect(
-        run('list[1, 2, 3] -> filter({ $ > 1 }, dict[batch_size: 2])')
-      ).rejects.toThrow(
-        expect.objectContaining({
-          errorId: 'RILL-R001',
-          message: expect.stringMatching(
-            /filter: unknown option 'batch_size'; recognized options are 'concurrency'/
-          ),
-        })
+      await expectHalt(
+        () => run('list[1, 2, 3] -> filter({ $ > 1 }, dict[batch_size: 2])'),
+        {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+          messagePattern:
+            /filter: unknown option 'batch_size'; recognized options are 'concurrency'/,
+        }
       );
     });
   });
@@ -264,11 +290,10 @@ describe('collections handlers', () => {
 
   describe('iteration limits (RILL-R010)', () => {
     it('raises error when iterator expansion exceeds limit', async () => {
-      await expect(run('range(1, 20000) -> seq({ $ })')).rejects.toThrow(
-        expect.objectContaining({
-          errorId: 'RILL-R010',
-        })
-      );
+      await expectHalt(() => run('range(1, 20000) -> seq({ $ })'), {
+        code: 'RILL_R010',
+        hostErrorId: 'RILL-R010',
+      });
     });
   });
 });

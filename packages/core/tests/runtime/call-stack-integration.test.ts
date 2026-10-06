@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { expectRuntimeError } from '../helpers/halt.js';
 import {
   type CallFrame,
   RuntimeError,
@@ -150,25 +151,27 @@ describe('Rill Runtime: Call Stack Integration', () => {
   describe('popCallFrame on error paths (IR-3)', () => {
     it('pops frame when host function throws error', async () => {
       let ctx: RuntimeContext | undefined;
-      await expect(
-        run('failFn() -> capture()', {
-          functions: {
-            failFn: {
-              params: [],
-              fn: () => {
-                throw new RuntimeError('RILL-R001', 'Test error');
+      await expectRuntimeError(
+        () =>
+          run('failFn() -> capture()', {
+            functions: {
+              failFn: {
+                params: [],
+                fn: () => {
+                  throw new RuntimeError('RILL-R001', 'Test error');
+                },
+              },
+              capture: {
+                params: [],
+                fn: (_args, c) => {
+                  ctx = c;
+                  return '';
+                },
               },
             },
-            capture: {
-              params: [],
-              fn: (_args, c) => {
-                ctx = c;
-                return '';
-              },
-            },
-          },
-        })
-      ).rejects.toThrow();
+          }),
+        { code: 'RILL-R001' }
+      );
 
       expect(ctx).toBeUndefined();
     });

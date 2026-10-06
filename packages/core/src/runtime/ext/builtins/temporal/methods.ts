@@ -1,7 +1,6 @@
 import type { SourceLocation } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
-import { throwTypeHalt } from '../../../core/types/halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { throwFatalHostHalt, throwTypeHalt } from '../../../core/types/halt.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type {
   RillDatetime,
@@ -157,14 +156,14 @@ export const mDtLocalOffset: RillMethod = (_receiver, _args, ctx, location) => {
 };
 
 /** .add(dur) - add a duration to a datetime */
-export const mDtAdd: RillMethod = (receiver, args, _ctx, location) => {
+export const mDtAdd: RillMethod = (receiver, args, ctx, location) => {
   const dt = receiver as unknown as RillDatetime;
   const dur = args[0] ?? null;
   if (!isDuration(dur)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'datetime.add() requires a duration argument',
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'add', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'datetime.add() requires a duration argument'
     );
   }
   const d = dur as unknown as RillDuration;
@@ -219,14 +218,14 @@ export const mDtAdd: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** .diff(other) - absolute difference between two datetimes as duration */
-export const mDtDiff: RillMethod = (receiver, args, _ctx, location) => {
+export const mDtDiff: RillMethod = (receiver, args, ctx, location) => {
   const dt = receiver as unknown as RillDatetime;
   const other = args[0] ?? null;
   if (!isDatetime(other)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'datetime.diff() requires a datetime argument',
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'diff', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'datetime.diff() requires a datetime argument'
     );
   }
   const otherDt = other as unknown as RillDatetime;
@@ -331,13 +330,18 @@ export const mDurMs: RillMethod = (receiver) => {
 };
 
 /** .total_ms property - raw ms; halts when months > 0 */
-export const mDurTotalMs: RillMethod = (receiver, _args, _ctx, location) => {
+export const mDurTotalMs: RillMethod = (receiver, _args, ctx, location) => {
   const dur = receiver as unknown as RillDuration;
   if (dur.months > 0) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'total_ms is not defined for calendar durations',
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'total_ms',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'total_ms is not defined for calendar durations'
     );
   }
   return dur.ms;
@@ -386,14 +390,14 @@ export const mDurZero: RillMethod = () => {
 };
 
 /** .add(other) - sum months fields, sum ms fields */
-export const mDurAdd: RillMethod = (receiver, args, _ctx, location) => {
+export const mDurAdd: RillMethod = (receiver, args, ctx, location) => {
   const dur = receiver as unknown as RillDuration;
   const other = args[0] ?? null;
   if (!isDuration(other)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'duration.add() requires a duration argument',
-      location
+    throwFatalHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'add', preserveHostShape: true },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'duration.add() requires a duration argument'
     );
   }
   const otherDur = other as unknown as RillDuration;
@@ -405,24 +409,34 @@ export const mDurAdd: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** .subtract(other) - halt if result would be negative in either field */
-export const mDurSubtract: RillMethod = (receiver, args, _ctx, location) => {
+export const mDurSubtract: RillMethod = (receiver, args, ctx, location) => {
   const dur = receiver as unknown as RillDuration;
   const other = args[0] ?? null;
   if (!isDuration(other)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'duration.subtract() requires a duration argument',
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'subtract',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'duration.subtract() requires a duration argument'
     );
   }
   const otherDur = other as unknown as RillDuration;
   const resultMonths = dur.months - otherDur.months;
   const resultMs = dur.ms - otherDur.ms;
   if (resultMonths < 0 || resultMs < 0) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'duration.subtract() would produce negative result',
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'subtract',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'duration.subtract() would produce negative result'
     );
   }
   return {
@@ -433,37 +447,57 @@ export const mDurSubtract: RillMethod = (receiver, args, _ctx, location) => {
 };
 
 /** .multiply(n) - months and ms each multiplied independently */
-export const mDurMultiply: RillMethod = (receiver, args, _ctx, location) => {
+export const mDurMultiply: RillMethod = (receiver, args, ctx, location) => {
   const dur = receiver as unknown as RillDuration;
   const n = args[0] ?? null;
   if (typeof n !== 'number') {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'duration.multiply() requires a number argument',
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'multiply',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'duration.multiply() requires a number argument'
     );
   }
   if (n < 0) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'duration.multiply() requires non-negative number',
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'multiply',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'duration.multiply() requires non-negative number'
     );
   }
   const months = dur.months * n;
   const ms = dur.ms * n;
   if (!Number.isFinite(months) || !Number.isFinite(ms)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'duration.multiply() would produce a non-finite result',
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'multiply',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'duration.multiply() would produce a non-finite result'
     );
   }
   if (!Number.isInteger(months)) {
-    throw new RuntimeError(
-      ERROR_IDS.RILL_R003,
-      'duration.multiply() would produce a fractional month value',
-      location
+    throwFatalHostHalt(
+      {
+        location,
+        sourceId: ctx.sourceId,
+        fn: 'multiply',
+        preserveHostShape: true,
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'duration.multiply() would produce a fractional month value'
     );
   }
   return {

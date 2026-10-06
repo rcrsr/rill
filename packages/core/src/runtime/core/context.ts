@@ -5,7 +5,7 @@
  * Public API for host applications.
  */
 
-import { RuntimeError } from '../../types.js';
+import { RuntimeError, formatMessageAtLocation } from '../../types.js';
 import { getBuiltinFunctionCache } from './builtin-registry.js';
 import { BUILT_IN_TYPES } from './types/registrations.js';
 import type {
@@ -22,9 +22,14 @@ import { setDictField } from './types/dict-keys.js';
 import {
   invalidate as invalidateStatus,
   formatHalt,
+  getStatus,
   type InvalidateMeta,
 } from './types/status.js';
-import { RuntimeHaltSignal, sanitizeThrowMessage } from './types/halt.js';
+import {
+  RuntimeHaltSignal,
+  getHostShape,
+  sanitizeThrowMessage,
+} from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
 import {
   validateDefaultValueType,
@@ -317,12 +322,20 @@ function logDeferredHalt(state: LifecycleState, reason: unknown): void {
  * Render a human-readable description of a deferred halt reason.
  *
  * A {@link RuntimeHaltSignal} carries the invalid value; `formatHalt`
- * renders its `#<ATOM>: <message>` form (with trace). Other Error
- * reasons contribute their sanitized message; anything else is
- * stringified.
+ * renders its `#<ATOM>: <message>` form (with trace). A halt whose value
+ * carries a host error shape renders as the message the host boundary
+ * builds for it: status message plus ` at L:C` when the carrier has a
+ * location. Other Error reasons contribute their sanitized message;
+ * anything else is stringified.
  */
 function describeDeferredHalt(reason: unknown): string {
   if (reason instanceof RuntimeHaltSignal) {
+    const shape = getHostShape(reason.value);
+    if (shape !== undefined) {
+      return sanitizeThrowMessage(
+        formatMessageAtLocation(getStatus(reason.value).message, shape.location)
+      );
+    }
     const formatted = formatHalt(reason.value);
     return formatted.length > 0 ? formatted : 'runtime halt';
   }

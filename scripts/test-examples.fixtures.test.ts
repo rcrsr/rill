@@ -101,8 +101,8 @@ describe('test-examples.ts fixture: marker-and-callable.md', () => {
 
     const failures = parseJsonLines(stdout);
     expect(failures).toHaveLength(1);
-    expect(failures[0]?.message).toMatch(/unapplied callable/i);
-    expect(String(failures[0]?.file)).toContain('marker-and-callable.md');
+    expect(failures[0]?.['message']).toMatch(/unapplied callable/i);
+    expect(String(failures[0]?.['file'])).toContain('marker-and-callable.md');
   });
 });
 
@@ -125,8 +125,8 @@ describe('test-examples.ts fixture: expected-halt.md', () => {
 
     const failures = parseJsonLines(stdout);
     expect(failures).toHaveLength(1);
-    expect(failures[0]?.message).toMatch(/expected execution to halt/i);
-    expect(String(failures[0]?.file)).toContain('expected-halt.md');
+    expect(failures[0]?.['message']).toMatch(/expected execution to halt/i);
+    expect(String(failures[0]?.['file'])).toContain('expected-halt.md');
   });
 });
 

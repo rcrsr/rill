@@ -30,7 +30,8 @@ import {
 import { copyTypedKeys, setDictField } from './dict-keys.js';
 import { callable } from '../callable-factory.js';
 import { RuntimeError } from '../../../types.js';
-import { ERROR_IDS } from '../../../error-registry.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
+import { throwFatalHostHalt } from './halt.js';
 
 /**
  * Create ordered from entries array (named, preserves insertion order).
@@ -71,6 +72,17 @@ export function emptyForType(type: TypeStructure): RillValue {
   if (type.kind === 'ordered') return createOrdered([]);
   if (type.kind === 'tuple') return createTuple([]);
   return {};
+}
+
+/** Halt for re-iterating a consumed or stale stream step; flagged so invokeStream treats it as a clean end. */
+function throwAlreadyConsumed(): never {
+  const message = 'Stream already consumed; cannot re-iterate';
+  throwFatalHostHalt(
+    { fn: 'next', preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    message,
+    { alreadyConsumed: true }
+  );
 }
 
 /**
@@ -139,13 +151,15 @@ export function createRillStream(options: {
           dispose();
         } catch (err) {
           // Propagate dispose errors as RILL-R002. Wrapping
-          // ensures the throw is a structured halt (RillError) rather
+          // ensures the throw is a fatal RuntimeHaltSignal rather
           // than a plain Error that the extension-boundary reshape
           // would convert to #R999.
           if (err instanceof RuntimeError) throw err;
-          throw new RuntimeError(
-            ERROR_IDS.RILL_R002,
-            err instanceof Error ? err.message : String(err)
+          const message = err instanceof Error ? err.message : String(err);
+          throwFatalHostHalt(
+            { fn: 'dispose', preserveHostShape: true },
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
+            message
           );
         }
       }
@@ -153,12 +167,7 @@ export function createRillStream(options: {
         __rill_stream: true,
         done: true,
         next: callable(() => {
-          throw new RuntimeError(
-            ERROR_IDS.RILL_R002,
-            'Stream already consumed; cannot re-iterate',
-            undefined,
-            { alreadyConsumed: true }
-          );
+          throwAlreadyConsumed();
         }),
       };
       return doneStep;
@@ -170,20 +179,10 @@ export function createRillStream(options: {
       value: iterResult.value,
       next: callable(async () => {
         if (stale) {
-          throw new RuntimeError(
-            ERROR_IDS.RILL_R002,
-            'Stream already consumed; cannot re-iterate',
-            undefined,
-            { alreadyConsumed: true }
-          );
+          throwAlreadyConsumed();
         }
         if (exhausted) {
-          throw new RuntimeError(
-            ERROR_IDS.RILL_R002,
-            'Stream already consumed; cannot re-iterate',
-            undefined,
-            { alreadyConsumed: true }
-          );
+          throwAlreadyConsumed();
         }
         stale = true;
         const next = await iterator.next();
@@ -201,12 +200,7 @@ export function createRillStream(options: {
     done: false,
     next: callable(async () => {
       if (initialized) {
-        throw new RuntimeError(
-          ERROR_IDS.RILL_R002,
-          'Stream already consumed; cannot re-iterate',
-          undefined,
-          { alreadyConsumed: true }
-        );
+        throwAlreadyConsumed();
       }
       initialized = true;
       const first = await iterator.next();

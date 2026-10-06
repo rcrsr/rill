@@ -6,7 +6,7 @@ import { toCallable } from '../../../src/runtime/core/callable.js';
 import { anyTypeValue } from '../../../src/runtime/core/values.js';
 import type { RillCallable } from '../../../src/runtime/core/callable.js';
 import type { RillValue } from '../../../src/runtime/core/types/structures.js';
-import { expectHalt } from '../../helpers/halt.js';
+import { expectHalt, expectThrowMessage } from '../../helpers/halt.js';
 
 const SITE = { location: undefined, sourceId: undefined, fn: 'test' };
 
@@ -51,15 +51,17 @@ describe('applyTransforms', () => {
   it('clears the in-flight set when a transform throws', async () => {
     const inFlight = new Set<RillCallable>();
     const boom = tagger('boom');
-    await expect(
-      applyTransforms(
-        [boom],
-        'x',
-        () => Promise.reject(new Error('transform failed')),
-        inFlight,
-        SITE
-      )
-    ).rejects.toThrow(/transform failed/);
+    await expectThrowMessage(
+      () =>
+        applyTransforms(
+          [boom],
+          'x',
+          () => Promise.reject(new Error('transform failed')),
+          inFlight,
+          SITE
+        ),
+      /transform failed/
+    );
     expect(inFlight.has(boom)).toBe(false);
   });
 

@@ -24,6 +24,7 @@ import {
   appendTraceFrame,
   getStatus,
   invalidate,
+  mergeRaw,
   withOriginSite,
 } from './status.js';
 import { atomName, okAtom } from './atom-registry.js';
@@ -243,6 +244,92 @@ export interface TypeHaltSite {
   readonly location?: SourceLocation | undefined;
   readonly sourceId?: string | undefined;
   readonly fn: string;
+  /**
+   * Record a `HostErrorShape` seeded from `location` on the halt's status.
+   * Set only by sites migrated off direct `RuntimeError` construction;
+   * absent means the halt converts at the host boundary as it always has.
+   */
+  readonly preserveHostShape?: true | undefined;
+}
+
+// ============================================================
+// HOST-ERROR SHAPE CARRIER
+// ============================================================
+
+/**
+ * Describes the `RuntimeError` a migrated site produced before migration,
+ * so the host boundary can rebuild it exactly. Fields fill once, first
+ * writer wins; a fill installs a new record and never mutates a published
+ * one.
+ */
+export interface HostErrorShape {
+  readonly location: SourceLocation | undefined;
+  readonly sourceId: string | undefined;
+  readonly contextExtras: Readonly<Record<string, unknown>> | undefined;
+}
+
+/**
+ * Module-private, non-string key holding the carrier on a status `raw`.
+ * Never exported, so scripts and host raw cannot forge it. Symbol keys are
+ * absent from `Object.keys`, so the carrier never reaches
+ * `RuntimeError.context`, `.!<field>` probes, or `formatHalt`; being
+ * enumerable, it survives the spread in `mergeRaw`.
+ */
+const HOST_SHAPE_KEY: unique symbol = Symbol('rill.hostErrorShape');
+
+/** Returns the carrier on an invalid value, or `undefined`. */
+export function getHostShape(value: RillValue): HostErrorShape | undefined {
+  const raw = getStatus(value).raw as Record<symbol, unknown>;
+  return raw[HOST_SHAPE_KEY] as HostErrorShape | undefined;
+}
+
+/**
+ * Returns `value` with `patch` fields applied to its carrier where the
+ * carrier's field is still `undefined`. Returns `value` unchanged when it
+ * has no carrier or the patch sets nothing new.
+ */
+export function fillHostShape(
+  value: RillValue,
+  patch: Partial<HostErrorShape>
+): RillValue {
+  const prior = getHostShape(value);
+  if (prior === undefined) return value;
+  const next: HostErrorShape = {
+    location: prior.location ?? patch.location,
+    sourceId: prior.sourceId ?? patch.sourceId,
+    contextExtras: prior.contextExtras ?? patch.contextExtras,
+  };
+  if (
+    next.location === prior.location &&
+    next.sourceId === prior.sourceId &&
+    next.contextExtras === prior.contextExtras
+  ) {
+    return value;
+  }
+  return mergeRaw(value, {
+    [HOST_SHAPE_KEY]: Object.freeze(next),
+  } as unknown as Record<string, RillValue>);
+}
+
+/**
+ * Builds the `raw` bag for a host halt: `message`, caller fields, and the
+ * seeded carrier when the site opts in.
+ */
+function buildHostRaw(
+  site: TypeHaltSite,
+  message: string,
+  raw: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  const built: Record<string, unknown> = { message, ...raw };
+  if (site.preserveHostShape === true) {
+    const shape: HostErrorShape = Object.freeze({
+      location: site.location,
+      sourceId: undefined,
+      contextExtras: undefined,
+    });
+    (built as Record<symbol, unknown>)[HOST_SHAPE_KEY] = shape;
+  }
+  return built;
 }
 
 /**
@@ -438,7 +525,7 @@ export function throwCatchableHostHalt(
     {
       code,
       provider: 'runtime',
-      raw: { message, ...raw },
+      raw: buildHostRaw(site, message, raw),
     },
     frame
   );
@@ -495,7 +582,7 @@ export function throwFatalHostHalt(
     {
       code,
       provider: 'runtime',
-      raw: { message, ...raw },
+      raw: buildHostRaw(site, message, raw),
     },
     frame
   );

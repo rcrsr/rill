@@ -65,8 +65,8 @@ import {
 } from './types/constructors.js';
 import { hasCollectionFields } from './values.js';
 import { copyTypedKeys, setDictField } from './types/dict-keys.js';
-import { ERROR_IDS } from '../../error-registry.js';
-import { throwCatchableHostHalt } from './types/halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
+import { throwCatchableHostHalt, throwFatalHostHalt } from './types/halt.js';
 
 // Forward reference to RuntimeContext (defined in types.ts)
 // Using a minimal interface to avoid circular dependency
@@ -794,10 +794,11 @@ function throwHostResultError(
   const detail = reason
     ? `${reason}: ${jsTypeLabel(value)}`
     : jsTypeLabel(value);
-  throw new RuntimeError(
-    ERROR_IDS.RILL_R085,
-    `Host function '${functionName}' returned an invalid value at ${path}: ${detail}`,
-    location
+  const message = `Host function '${functionName}' returned an invalid value at ${path}: ${detail}`;
+  throwFatalHostHalt(
+    { location, fn: 'host-result', preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R085],
+    message
   );
 }
 

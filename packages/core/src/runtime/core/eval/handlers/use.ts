@@ -251,13 +251,15 @@ export async function evaluateUseExpr(
       // this single wrap site keeps the RuntimeError construction.
       const wrapped =
         parseLocation !== undefined
-          ? new RuntimeError(
+          ? // oxlint-disable-next-line rill/no-new-runtime-error -- carries the parse error as .cause, which a halt cannot deliver to the host
+            new RuntimeError(
               ERROR_IDS.RILL_R056,
               `Resolver error for '${key}': ${err instanceof RillError ? err.rawMessage : message}`,
               parseLocation,
               { sourceId: key }
             )
-          : RuntimeError.fromNode(
+          : // oxlint-disable-next-line rill/no-new-runtime-error -- carries the parse error as .cause, which a halt cannot deliver to the host
+            RuntimeError.fromNode(
               ERROR_IDS.RILL_R056,
               `Resolver error for '${key}': ${message}`,
               node,

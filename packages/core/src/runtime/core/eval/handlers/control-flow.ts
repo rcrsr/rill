@@ -16,7 +16,7 @@
  * - evaluateBodyExpression(node) -> Promise<RillValue>
  *
  * Error Handling:
- * - Non-boolean conditions throw RuntimeError(RUNTIME_TYPE_ERROR)
+ * - Non-boolean conditions halt with a catchable RuntimeHaltSignal (RILL-R002)
  * - BreakSignal/ReturnSignal are caught and handled appropriately
  * - Body evaluation errors propagate correctly
  *
@@ -420,8 +420,8 @@ async function evaluateBlockBody(
  * @param node - AssertNode to evaluate
  * @param input - Input value (for pipe targets) or undefined (for statements)
  * @returns Original pipe value on successful assertion
- * @throws RuntimeError with RUNTIME_ASSERTION_FAILED on false condition
- * @throws RuntimeError with RUNTIME_TYPE_ERROR on non-boolean condition
+ * @throws RuntimeHaltSignal (fatal, RILL-R015) on false condition
+ * @throws RuntimeHaltSignal (catchable, RILL-R002) on non-boolean condition
  */
 export async function evaluateAssert(
   s: EvalState,
@@ -512,8 +512,8 @@ export async function evaluateAssert(
  * @param node - ErrorNode to evaluate
  * @param input - Input value (for pipe targets) or undefined (for statements)
  * @returns Never returns (always throws)
- * @throws RuntimeError with RUNTIME_ERROR_RAISED using evaluated message
- * @throws RuntimeError with RUNTIME_TYPE_ERROR if message is not string
+ * @throws RuntimeHaltSignal (fatal) using evaluated message
+ * @throws RuntimeHaltSignal (catchable, RILL-R002) if message is not string
  */
 export async function evaluateError(
   s: EvalState,

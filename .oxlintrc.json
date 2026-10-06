@@ -19,8 +19,7 @@
     "eqeqeq": "error",
     "no-shadow": "error",
     // Caps a source file at 1000 lines of code, blank lines and comments not
-    // counted. Tests are exempt in an override below; existing offenders are
-    // ratcheted to warn there and drop off that list as they are split.
+    // counted. Tests are exempt in an override below.
     "max-lines": [
       "error",
       { "max": 1000, "skipBlankLines": true, "skipComments": true }
@@ -315,36 +314,28 @@
       }
     },
     {
-      // Ratchet: files that constructed RuntimeError when the rule was
-      // introduced (115 sites). Each warns until migrated to halt builders;
-      // remove a file from this list once it is clean. New files get error.
+      // Sites that hosts and registration callers catch by class as
+      // RuntimeError, kept on the plain class by decision rather than moved to
+      // the halt builders. Several run during evaluation (bind-time argument
+      // and default-value validation in callable.ts, list element inference in
+      // operations.ts, createVector in constructors.ts), so this is not a
+      // registration-time-only list.
       "files": [
         "packages/core/src/runtime/core/callable.ts",
         "packages/core/src/runtime/core/context.ts",
-        "packages/core/src/runtime/core/eval/handlers/closures.ts",
-        "packages/core/src/runtime/core/eval/handlers/use.ts",
-        "packages/core/src/runtime/core/execute.ts",
         "packages/core/src/runtime/core/field-descriptor.ts",
         "packages/core/src/runtime/core/policy/config-resolver.ts",
         "packages/core/src/runtime/core/resolvers.ts",
         "packages/core/src/runtime/core/types/constructors.ts",
         "packages/core/src/runtime/core/types/operations.ts",
-        "packages/core/src/runtime/core/types/protocols/duration.ts",
-        "packages/core/src/runtime/core/types/protocols/number.ts",
         "packages/core/src/runtime/core/types/protocols/shared.ts",
-        "packages/core/src/runtime/core/types/protocols/string.ts",
         "packages/core/src/runtime/core/types/registrations.ts",
         "packages/core/src/runtime/core/types/status.ts",
-        "packages/core/src/runtime/ext/builtins/functions/collections.ts",
-        "packages/core/src/runtime/ext/builtins/functions/core.ts",
-        "packages/core/src/runtime/ext/builtins/methods/bodies.ts",
-        "packages/core/src/runtime/ext/builtins/methods/entry.ts",
-        "packages/core/src/runtime/ext/builtins/temporal/methods.ts",
         "packages/core/src/runtime/ext/extensions.ts",
         "packages/core/src/runtime/ext/test-context.ts"
       ],
       "rules": {
-        "rill/no-new-runtime-error": "warn"
+        "rill/no-new-runtime-error": "off"
       }
     },
     {
@@ -353,40 +344,6 @@
       "files": ["packages/core/tests/runtime/**/*.ts"],
       "rules": {
         "rill/use-halt-helpers": "error"
-      }
-    },
-    {
-      // Ratchet: test files using rejects.toThrow when the rule was introduced
-      // (100 sites). Remove a file from this list once it is migrated.
-      "files": [
-        "packages/core/tests/runtime/builtin-signatures.test.ts",
-        "packages/core/tests/runtime/call-depth-ceiling.test.ts",
-        "packages/core/tests/runtime/call-stack-integration.test.ts",
-        "packages/core/tests/runtime/closure-signature-match.test.ts",
-        "packages/core/tests/runtime/collections-helpers.test.ts",
-        "packages/core/tests/runtime/conversion-hydration.test.ts",
-        "packages/core/tests/runtime/dynamic-access-halt-and-same-block-reassign.test.ts",
-        "packages/core/tests/runtime/evaluator-core-annotations.test.ts",
-        "packages/core/tests/runtime/ext/test-context.test.ts",
-        "packages/core/tests/runtime/format-value.test.ts",
-        "packages/core/tests/runtime/host-function-types.test.ts",
-        "packages/core/tests/runtime/host-type-validation.test.ts",
-        "packages/core/tests/runtime/iteration-ceiling-boundary.test.ts",
-        "packages/core/tests/runtime/number-compare-and-string-parse.test.ts",
-        "packages/core/tests/runtime/policy/transforms.test.ts",
-        "packages/core/tests/runtime/registrations.test.ts",
-        "packages/core/tests/runtime/scheme-resolver.test.ts",
-        "packages/core/tests/runtime/signature-registration.test.ts",
-        "packages/core/tests/runtime/stepper.test.ts",
-        "packages/core/tests/runtime/stream-and-dispatch-bugfixes.test.ts",
-        "packages/core/tests/runtime/stream-reflection.test.ts",
-        "packages/core/tests/runtime/stream-type.test.ts",
-        "packages/core/tests/runtime/take-skip-stream-head.test.ts",
-        "packages/core/tests/runtime/tool-builtin.test.ts",
-        "packages/core/tests/runtime/typed-dict-keys.test.ts"
-      ],
-      "rules": {
-        "rill/use-halt-helpers": "warn"
       }
     },
     {
@@ -403,24 +360,6 @@
       "files": ["packages/core/src/error-registry.ts"],
       "rules": {
         "max-lines": "off"
-      }
-    },
-    {
-      // Ratchet: files over the cap when it was introduced. Each warns until it
-      // is split under 1000 lines; remove a file from this list once it is.
-      // New files get the cap as an error.
-      "files": [
-        "packages/core/src/parser/parser-expr.ts",
-        "packages/core/src/parser/parser-literals.ts",
-        "packages/core/src/runtime/core/eval/handlers/closures.ts",
-        "packages/core/src/runtime/core/eval/handlers/variables.ts",
-        "scripts/test-examples.ts"
-      ],
-      "rules": {
-        "max-lines": [
-          "warn",
-          { "max": 1000, "skipBlankLines": true, "skipComments": true }
-        ]
       }
     },
     {

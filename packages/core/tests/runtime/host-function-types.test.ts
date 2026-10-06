@@ -50,6 +50,7 @@ import { describe, expect, it } from 'vitest';
 import type { RillParam, TypeStructure } from '@rcrsr/rill';
 import { createRuntimeContext, RuntimeError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectRuntimeError } from '../helpers/halt.js';
 import { mockFn } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Host Function Type Safety', () => {
@@ -703,83 +704,91 @@ describe('Rill Runtime: Host Function Type Safety', () => {
       });
 
       it('type mismatch error includes parameter name', async () => {
-        await expect(
-          run('test()', {
-            functions: {
-              test: {
-                params: [
-                  {
-                    name: 'userName',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'not reached',
+        await expectRuntimeError(
+          () =>
+            run('test()', {
+              functions: {
+                test: {
+                  params: [
+                    {
+                      name: 'userName',
+                      type: { kind: 'string' },
+                      defaultValue: undefined,
+                      annotations: {},
+                    },
+                  ],
+                  fn: () => 'not reached',
+                },
               },
-            },
-          })
-        ).rejects.toThrow('userName');
+            }),
+          { code: 'RILL-R044', messagePattern: 'userName' }
+        );
       });
 
       it('type mismatch error includes expected type', async () => {
-        await expect(
-          run('test(42)', {
-            functions: {
-              test: {
-                params: [
-                  {
-                    name: 'x',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'not reached',
+        await expectRuntimeError(
+          () =>
+            run('test(42)', {
+              functions: {
+                test: {
+                  params: [
+                    {
+                      name: 'x',
+                      type: { kind: 'string' },
+                      defaultValue: undefined,
+                      annotations: {},
+                    },
+                  ],
+                  fn: () => 'not reached',
+                },
               },
-            },
-          })
-        ).rejects.toThrow('expects string');
+            }),
+          { code: 'RILL-R001', messagePattern: 'expects string' }
+        );
       });
 
       it('type mismatch error includes actual type', async () => {
-        await expect(
-          run('test(42)', {
-            functions: {
-              test: {
-                params: [
-                  {
-                    name: 'x',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'not reached',
+        await expectRuntimeError(
+          () =>
+            run('test(42)', {
+              functions: {
+                test: {
+                  params: [
+                    {
+                      name: 'x',
+                      type: { kind: 'string' },
+                      defaultValue: undefined,
+                      annotations: {},
+                    },
+                  ],
+                  fn: () => 'not reached',
+                },
               },
-            },
-          })
-        ).rejects.toThrow('got number');
+            }),
+          { code: 'RILL-R001', messagePattern: 'got number' }
+        );
       });
 
       it('missing argument error includes parameter name', async () => {
-        await expect(
-          run('test()', {
-            functions: {
-              test: {
-                params: [
-                  {
-                    name: 'requiredParam',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'not reached',
+        await expectRuntimeError(
+          () =>
+            run('test()', {
+              functions: {
+                test: {
+                  params: [
+                    {
+                      name: 'requiredParam',
+                      type: { kind: 'string' },
+                      defaultValue: undefined,
+                      annotations: {},
+                    },
+                  ],
+                  fn: () => 'not reached',
+                },
               },
-            },
-          })
-        ).rejects.toThrow('requiredParam');
+            }),
+          { code: 'RILL-R044', messagePattern: 'requiredParam' }
+        );
       });
 
       it('excess arguments error includes expected and actual counts', async () => {
