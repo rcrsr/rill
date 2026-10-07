@@ -306,8 +306,11 @@ describe('Rill Runtime: event-loop yielding', () => {
     const SHORT = 'range(0, 100) -> fold(0, { $@ + $ })';
 
     // The liveness state is module-global, so each test loads a fresh module.
+    // The module binds the clock at load, so a frozen clock installed before
+    // the import keeps elapsed time under the slice however slow the host is.
     async function runFresh(): Promise<void> {
       vi.resetModules();
+      vi.spyOn(performance, 'now').mockReturnValue(0);
       const fresh = await import('@rcrsr/rill');
       await fresh.execute(fresh.parse(SHORT), fresh.createRuntimeContext());
     }
