@@ -9,10 +9,10 @@
  */
 
 import type { ASTNode, SourceLocation } from '../../../types.js';
-import { isCallable, isDict } from '../callable.js';
+import { isCallable } from '../callable.js';
 import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
-import { isOrdered } from '../types/guards.js';
+import { isOrdered, isPlainDict, isStream } from '../types/guards.js';
 import {
   throwAbortHalt,
   throwAutoExceptionHalt,
@@ -134,6 +134,42 @@ export function withTimeout<T>(
   });
 }
 
+/** Fields a script may read from a stream: the iterator step protocol. */
+export const STREAM_STEP_FIELDS: ReadonlySet<string> = new Set([
+  'done',
+  'value',
+  'next',
+]);
+
+/** True for values whose fields scripts may read: plain dicts and streams. */
+export function isFieldReceiver(
+  value: RillValue
+): value is Record<string, RillValue> {
+  return isPlainDict(value) || isStream(value);
+}
+
+/**
+ * Read an own field from a field receiver. Streams expose only the step
+ * fields. Returns undefined for other values, other stream keys, and
+ * inherited members.
+ */
+export function readOwnField(
+  value: RillValue,
+  key: string
+): RillValue | undefined {
+  if (!isFieldReceiver(value)) return undefined;
+  return readValidatedField(value, key);
+}
+
+/** Read an own field from a value already confirmed by isFieldReceiver. */
+function readValidatedField(
+  value: Record<string, RillValue>,
+  key: string
+): RillValue | undefined {
+  if (isStream(value) && !STREAM_STEP_FIELDS.has(key)) return undefined;
+  return Object.hasOwn(value, key) ? value[key] : undefined;
+}
+
 /**
  * Access a field on a dict value with property-style callable auto-invocation.
  * Shared by closures.ts, variables.ts, field-access.ts, and methods.ts for
@@ -155,10 +191,10 @@ export async function accessDictField(
   location?: SourceLocation,
   allowMissing = false
 ): Promise<RillValue> {
-  // Ordered values dispatch before isDict: the JS wrapper object also
-  // satisfies isDict's structural shape check. No iterator branch is added
-  // here — iterator field reads (.done, .value, .next) are legitimate dict
-  // field accesses and must keep falling through to the dict path below.
+  // Ordered values dispatch first: their JS wrapper object would otherwise
+  // be read as a plain field holder. Iterator field reads (.done, .value,
+  // .next) are plain dict reads and go through readOwnField below, which
+  // also admits streams (step fields only) and rejects every other value.
   if (isOrdered(value)) {
     const entry = value.entries.find(([key]) => key === field);
     if (entry === undefined) {
@@ -174,7 +210,10 @@ export async function accessDictField(
     return entry[1];
   }
 
-  if (!isDict(value)) {
+  if (!isFieldReceiver(value)) {
+    if (allowMissing) {
+      return null;
+    }
     throwCatchableHostHalt(
       { location, sourceId: s.ctx.sourceId, fn: 'accessDictField' },
       ERROR_ATOMS[ERROR_IDS.RILL_R003],
@@ -182,13 +221,8 @@ export async function accessDictField(
     );
   }
 
-  // Only OWN, explicitly-set keys resolve. A plain property read would let
-  // inherited JS members (`constructor`, `__proto__`, `toString`, ...) leak
-  // out as rill values, so gate on Object.hasOwn: an inherited member reads
-  // as `undefined` and falls through to the missing-field path below.
-  const dictValue = Object.hasOwn(value, field)
-    ? (value as Record<string, RillValue>)[field]
-    : undefined;
+  // Receiver already validated above; read the own field directly.
+  const dictValue = readValidatedField(value, field);
 
   // Check if field exists
   if (dictValue === undefined || dictValue === null) {

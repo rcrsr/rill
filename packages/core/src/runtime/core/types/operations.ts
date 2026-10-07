@@ -608,7 +608,7 @@ export function structureMatches(
 
   if (type.kind === 'closure') {
     const t = type as ClosureStructure;
-    if (!isCallable(value)) return false;
+    if (!isCallable(value) || value.returnType === undefined) return false;
     if (t.params === undefined) return true;
     const valueParams = value.params ?? [];
     if (valueParams.length !== t.params.length) return false;
@@ -855,7 +855,7 @@ export function inferStructure(value: RillValue): TypeStructure {
     if (ret !== undefined) result.ret = ret;
     return result;
   }
-  if (isCallable(value)) {
+  if (isCallable(value) && value.returnType !== undefined) {
     const params = (value.params ?? []).map((p) =>
       paramToFieldDef(
         p.name,
@@ -881,7 +881,7 @@ export function inferStructure(value: RillValue): TypeStructure {
   if (isIterator(value)) {
     return { kind: 'iterator' };
   }
-  if (typeof value === 'object') {
+  if (typeof value === 'object' && !isCallable(value)) {
     const dict = value as Record<string, RillValue>;
     const fields: Record<string, RillFieldDef> = {};
     for (const [k, v] of Object.entries(dict)) {
@@ -896,7 +896,9 @@ export function inferStructure(value: RillValue): TypeStructure {
   throwTypeHalt(
     { fn: 'inferStructure' },
     'INVALID_INPUT',
-    `Cannot infer structural type for ${registryFormatValue(value as RillValue)}`,
+    isCallable(value)
+      ? 'Cannot infer structural type for a callable without a return type'
+      : `Cannot infer structural type for ${registryFormatValue(value as RillValue)}`,
     'runtime',
     undefined,
     'host'

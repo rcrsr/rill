@@ -28,6 +28,7 @@ import {
   isCallable as _isCallableGuard,
   isDatetime,
   isDict,
+  isPlainDict,
   isDuration,
   isIterator,
   isOrdered,
@@ -420,7 +421,11 @@ export function hydrateStructure(
   type: TypeStructure,
   policy: HydrationPolicy
 ): RillValue {
-  if (type.kind === 'dict' && (type as DictStructure).fields && isDict(value)) {
+  if (
+    type.kind === 'dict' &&
+    (type as DictStructure).fields &&
+    isPlainDict(value)
+  ) {
     const t = type as DictStructure;
     const dictValue = value as Record<string, RillValue>;
     const result: Record<string, RillValue> = policy.keepExtras
@@ -468,7 +473,7 @@ export function hydrateStructure(
   if (
     type.kind === 'ordered' &&
     (type as OrderedStructure).fields &&
-    (isOrdered(value) || (policy.coerceOrderedFromDict && isDict(value)))
+    (isOrdered(value) || (policy.coerceOrderedFromDict && isPlainDict(value)))
   ) {
     const t = type as OrderedStructure;
     const source = isOrdered(value) ? 'ordered' : 'dict';

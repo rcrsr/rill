@@ -132,6 +132,33 @@ export function isDict(value: RillValue): value is Record<string, RillValue> {
 }
 
 /**
+ * True only for plain rill dict values. Callables, tuples, ordered values,
+ * vectors, datetimes, durations, atoms, type values, field descriptors,
+ * streams, lists, and raw JavaScript functions are excluded, so a path walk
+ * never reaches a callable's internal `fn`. A dict that merely looks like an
+ * iterator (`done` plus a callable `next`) is still a dict. Unlike `isDict`,
+ * this is internal and not part of the public API.
+ */
+export function isPlainDict(
+  value: RillValue
+): value is Record<string, RillValue> {
+  if (typeof value !== 'object' || value === null) return false;
+  if (Array.isArray(value)) return false;
+  return !(
+    isCallable(value) ||
+    isTuple(value) ||
+    isOrdered(value) ||
+    isVector(value) ||
+    isDatetime(value) ||
+    isDuration(value) ||
+    isAtom(value) ||
+    isTypeValue(value) ||
+    isStream(value) ||
+    '__rill_field_descriptor' in value
+  );
+}
+
+/**
  * Type guard for RillStream (async lazy sequence with resolution).
  * A stream has the __rill_stream discriminator set to true.
  * Must precede isIterator in dispatch order because streams

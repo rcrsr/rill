@@ -78,7 +78,8 @@ export function formatValue(value: RillValue): string {
   return dispatchByIdentity(
     value,
     (reg) => reg.protocol.format(value),
-    String(value)
+    // A raw JS function stringifies to its source text; render an opaque label.
+    typeof value === 'function' ? '[host function]' : String(value)
   );
 }
 initFormatNested(formatValue);

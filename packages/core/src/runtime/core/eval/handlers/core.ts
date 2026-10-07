@@ -31,8 +31,14 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
-import { isVacant, isTuple, isTypeValue } from '../../types/guards.js';
-import { isCallable, isDict, isScriptCallable } from '../../callable.js';
+import {
+  isVacant,
+  isTuple,
+  isTypeValue,
+  isPlainDict,
+} from '../../types/guards.js';
+import { isCallable, isScriptCallable } from '../../callable.js';
+import { inferType } from '../../types/registrations.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
@@ -793,7 +799,7 @@ async function evaluatePipeTarget(
       // Hierarchical dispatch: detect list input (not tuple) for path navigation
       const defaultVal: BodyNode | null = target.defaultValue;
       if (Array.isArray(input) && !isTuple(input)) {
-        if (isDict(value) || (Array.isArray(value) && !isTuple(value))) {
+        if (isPlainDict(value) || (Array.isArray(value) && !isTuple(value))) {
           return await evaluateHierarchicalDispatch(
             s,
             value,
@@ -809,7 +815,7 @@ async function evaluatePipeTarget(
         return await dispatchToList(s, value, input, defaultVal, target);
       }
 
-      if (isDict(value)) {
+      if (isPlainDict(value)) {
         // Dict dispatch
         return await dispatchToDict(s, value, input, defaultVal, target);
       }
@@ -1064,7 +1070,7 @@ async function traversePathStep(
   location?: SourceLocation
 ): Promise<RillValue> {
   // Dict + string key: dispatch to dict
-  if (isDict(current) && typeof key === 'string') {
+  if (isPlainDict(current) && typeof key === 'string') {
     // Create location-like object for dispatchToDict signature.
     // exactOptionalPropertyTypes requires explicit conditional assignment.
     const locObj: {
@@ -1120,9 +1126,7 @@ async function traversePathStep(
     ? isTuple(current)
       ? 'tuple'
       : 'list'
-    : isDict(current)
-      ? 'dict'
-      : typeof current;
+    : inferType(current);
   const keyType = typeof key;
 
   throwCatchableHostHalt(

@@ -14,7 +14,6 @@ import {
   isCallable,
   isScriptCallable,
   isApplicationCallable,
-  isDict,
   marshalArgs,
 } from '../../callable.js';
 import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
@@ -25,7 +24,7 @@ import type {
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTypeValue, isStream, isOrdered } from '../../types/guards.js';
+import { isTypeValue, isStream } from '../../types/guards.js';
 import {
   paramToFieldDef,
   inferStructure,
@@ -42,6 +41,8 @@ import {
   checkAborted,
   accessDictField,
   setDictField,
+  isFieldReceiver,
+  readOwnField,
 } from '../shared.js';
 import {
   argumentsBinder,
@@ -127,42 +128,36 @@ export async function evaluateMethod(
       throw e;
     }
   }
-  if (isDict(receiver)) {
-    const dictValue = receiver[node.name];
-    if (dictValue !== undefined && isCallable(dictValue)) {
-      // Only inject the piped value for an explicit empty-paren call
-      // (`.method()`), never for a bare `.field` reference. MethodCallNode
-      // carries `hasParens` precisely to distinguish the two: the
-      // Variable.accessChain path (parser-variables.ts, isMethodCallWithArgs)
-      // only attaches this node when the source wrote parens, but the
-      // postfix/pipe-target path (parseMethodCall via isMethodCall in
-      // parser-pipe-target.ts and parsePipeTargetDot) attaches it for bare `.field`
-      // too, with `args: []` either way. `hasParens` is therefore the only
-      // reliable signal here.
-      if (
-        node.hasParens &&
-        args.length === 0 &&
-        s.ctx.pipeValue !== null &&
-        !declaresZeroParams(dictValue)
-      ) {
-        args.push(s.ctx.pipeValue);
-      }
-      return invokeCallable(
-        s,
-        dictValue,
-        args,
-        getNodeLocation(s, node),
-        node.name
-      );
+  // Read the field once: readOwnField re-validates the receiver on each call.
+  const ownField = readOwnField(receiver, node.name);
+  if (ownField !== undefined && isCallable(ownField)) {
+    // Only inject the piped value for an explicit empty-paren call
+    // (`.method()`), never for a bare `.field` reference. MethodCallNode
+    // carries `hasParens` precisely to distinguish the two: the
+    // Variable.accessChain path (parser-variables.ts, isMethodCallWithArgs)
+    // only attaches this node when the source wrote parens, but the
+    // postfix/pipe-target path (parseMethodCall via isMethodCall in
+    // parser-pipe-target.ts and parsePipeTargetDot) attaches it for bare `.field`
+    // too, with `args: []` either way. `hasParens` is therefore the only
+    // reliable signal here.
+    if (
+      node.hasParens &&
+      args.length === 0 &&
+      s.ctx.pipeValue !== null &&
+      !declaresZeroParams(ownField)
+    ) {
+      args.push(s.ctx.pipeValue);
     }
+    return invokeCallable(
+      s,
+      ownField,
+      args,
+      getNodeLocation(s, node),
+      node.name
+    );
   }
-  if (
-    isDict(receiver) &&
-    args.length === 0 &&
-    !node.hasParens &&
-    Object.hasOwn(receiver, node.name)
-  ) {
-    return receiver[node.name] as RillValue;
+  if (args.length === 0 && !node.hasParens) {
+    if (ownField !== undefined) return ownField;
   }
 
   if (isTypeValue(receiver)) {
@@ -240,11 +235,7 @@ export async function evaluateMethod(
       }
     }
   }
-  if (
-    isDict(receiver) &&
-    !isOrdered(receiver) &&
-    !Object.hasOwn(receiver, node.name)
-  ) {
+  if (ownField === undefined && isFieldReceiver(receiver)) {
     // A dict receiver with no field of this name at all (not merely a
     // non-callable one) routes through the same dict-field-access halt
     // used by `$d.bogus` (accessDictField), so a literal-chain access

@@ -24,7 +24,12 @@ import {
 } from '../../types/halt.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, accessDictField } from '../shared.js';
+import {
+  getNodeLocation,
+  accessDictField,
+  isFieldReceiver,
+  readOwnField,
+} from '../shared.js';
 import {
   getTypedKey,
   getTypedKeyMap,
@@ -456,7 +461,7 @@ export async function evaluateFieldAccessAlternatives(
   node: VariableNode
 ): Promise<RillValue> {
   // Target must be dict
-  if (!isDict(value)) {
+  if (!isFieldReceiver(value)) {
     throwCatchableHostHalt(
       {
         location: getNodeLocation(s, node),
@@ -470,9 +475,7 @@ export async function evaluateFieldAccessAlternatives(
 
   // Try each alternative left-to-right (short-circuit on first match)
   for (const key of access.alternatives) {
-    const dictValue = Object.hasOwn(value, key)
-      ? (value as Record<string, RillValue>)[key]
-      : undefined;
+    const dictValue = readOwnField(value, key);
     if (dictValue !== undefined && dictValue !== null) {
       // Delegate to accessDictField (shared.ts) for consistent property-style callable handling
       return await accessDictField(

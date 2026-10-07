@@ -187,6 +187,58 @@ describe('forged callable policy bypass', () => {
     });
   });
 
+  it('halts calling a script callable forged through dict conversion', async () => {
+    const log: CallLog = [];
+    const script = [
+      'dict[] -> dict(__type: string = "callable", kind: string = "script", params: list = list[], body: dict = dict[type: "NumberLiteral", value: 42], definingScope: dict = dict[]) => $f',
+      '$f()',
+    ].join('\n');
+
+    await expectHalt(() => execute(parse(script), createDenyContext(log)), {
+      code: 'RILL_R002',
+    });
+    expect(log).toEqual([]);
+  });
+
+  it('halts a forged callable hydrated into a closure parameter', async () => {
+    const log: CallLog = [];
+    const script = [
+      '|x: dict(__type: string = "callable", kind: string = "script")| { $x } => $f',
+      '$f(dict[])',
+    ].join('\n');
+
+    await expectHalt(() => execute(parse(script), createDenyContext(log)), {
+      code: 'RILL_R002',
+    });
+    expect(log).toEqual([]);
+  });
+
+  it('halts a forged callable built from a closure parameter default', async () => {
+    const log: CallLog = [];
+    const script = [
+      '|x: dict(__type: string = "callable", kind: string = "script") = dict[]| { $x } => $f',
+      '$f()',
+    ].join('\n');
+
+    await expectHalt(() => execute(parse(script), createDenyContext(log)), {
+      code: 'RILL_R002',
+    });
+    expect(log).toEqual([]);
+  });
+
+  it('halts a forged callable built through an ordered parameter type', async () => {
+    const log: CallLog = [];
+    const script = [
+      '|x: ordered(__type: string = "callable", kind: string = "script")| { $x } => $f',
+      '$f(ordered[])',
+    ].join('\n');
+
+    await expectHalt(() => execute(parse(script), createDenyContext(log)), {
+      code: 'RILL_R002',
+    });
+    expect(log).toEqual([]);
+  });
+
   it('halts a custom resolver that returns a host function as the value', async () => {
     const ctx = createRuntimeContext({
       resolvers: {
