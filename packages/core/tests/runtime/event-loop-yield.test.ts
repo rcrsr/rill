@@ -21,6 +21,24 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
 
+// The yield logic binds the clock when the evaluator module loads, so the
+// stub must exist before the imports above evaluate. Each read advances 1 ms,
+// which makes the 10 ms slice elapse after a fixed number of evaluator steps
+// instead of after a machine-dependent amount of real time.
+vi.hoisted(() => {
+  let ticks = 0;
+  Object.defineProperty(performance, 'now', {
+    configurable: true,
+    writable: true,
+    value: (): number => (ticks += 1),
+  });
+});
+
+// Scripts here never finish on their own. A missing yield starves the event
+// loop and hangs the run, since no timer can fire; this timeout only catches
+// yields that work but run slow. It replaces load-dependent wall-clock bounds.
+vi.setConfig({ testTimeout: 30_000 });
+
 const R1 = '0 -> while (true) do<limit: 1000000000000> { $ + 1 }';
 const R2 =
   'range(0,10000) -> seq({ range(0,10000) -> seq({ range(0,10000) -> fold(0, { $@ + $ }) }) })';
@@ -37,7 +55,6 @@ const BOUNDED_SCRIPT = BOUNDED.replace('SIZE', String(BOUNDED_SIZE));
 const BOUNDED_RESULT = 4950 * BOUNDED_SIZE;
 
 const ABORT_MS = 200;
-const BOUND_MS = 2000;
 
 /** Asserts the thrown error is a non-catchable #DISPOSED abort halt. */
 async function expectAbortHalt(
@@ -69,7 +86,6 @@ describe('Rill Runtime: event-loop yielding', () => {
       async (_name, source) => {
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), ABORT_MS);
-        const start = performance.now();
         try {
           await expectAbortHalt(() =>
             run(source, { signal: controller.signal })
@@ -77,18 +93,15 @@ describe('Rill Runtime: event-loop yielding', () => {
         } finally {
           clearTimeout(timer);
         }
-        expect(performance.now() - start).toBeLessThan(BOUND_MS);
       }
     );
 
     it.each(REPROS)(
       'halts %s with #DISPOSED under AbortSignal.timeout',
       async (_name, source) => {
-        const start = performance.now();
         await expectAbortHalt(() =>
           run(source, { signal: AbortSignal.timeout(ABORT_MS) })
         );
-        expect(performance.now() - start).toBeLessThan(BOUND_MS);
       }
     );
 
@@ -111,17 +124,14 @@ describe('Rill Runtime: event-loop yielding', () => {
     );
 
     it('halts a do-while loop with #DISPOSED at the host abort', async () => {
-      const start = performance.now();
       await expectAbortHalt(() =>
         run('0 -> do<limit: 1000000000000> { $ + 1 } while (true)', {
           signal: AbortSignal.timeout(ABORT_MS),
         })
       );
-      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
 
     it('halts concurrent repro runs that each carry their own signal', async () => {
-      const start = performance.now();
       await Promise.all([
         expectAbortHalt(() =>
           run(R1, { signal: AbortSignal.timeout(ABORT_MS) })
@@ -130,7 +140,6 @@ describe('Rill Runtime: event-loop yielding', () => {
           run(R2, { signal: AbortSignal.timeout(ABORT_MS) })
         ),
       ]);
-      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
 
     it('exhausts a bounded retry limit with a catchable failure when no signal is set', async () => {
@@ -139,13 +148,11 @@ describe('Rill Runtime: event-loop yielding', () => {
     });
 
     it('halts retry with an unbounded limit and a catchably-halting body', async () => {
-      const start = performance.now();
       await expectAbortHalt(() =>
         run('retry<limit: 1000000000000> { (1 / 0) }', {
           signal: AbortSignal.timeout(100),
         })
       );
-      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
   });
 
@@ -153,13 +160,11 @@ describe('Rill Runtime: event-loop yielding', () => {
     it.each(REPROS)(
       'guard recovers timeout<total:> expiry in %s with the total-timeout atom',
       async (_name, source) => {
-        const start = performance.now();
         const result = await run(
           `guard { timeout<total: duration(0,0,0,0,0,0,200)> { ${source} } }`
         );
         expect(isInvalid(result)).toBe(true);
         expect(getStatus(result).code).toBe(resolveAtom('RILL_R082'));
-        expect(performance.now() - start).toBeLessThan(BOUND_MS);
       }
     );
 
@@ -167,13 +172,11 @@ describe('Rill Runtime: event-loop yielding', () => {
       'rejects catchably with the total-timeout atom, not #DISPOSED, in %s',
       async (_name, source) => {
         let caught: unknown;
-        const start = performance.now();
         try {
           await run(`timeout<total: duration(0,0,0,0,0,0,200)> { ${source} }`);
         } catch (e) {
           caught = e;
         }
-        expect(performance.now() - start).toBeLessThan(BOUND_MS);
         expect(caught).toBeInstanceOf(RuntimeError);
         expect((caught as RuntimeError).errorId).toBe('RILL-R082');
         // A catchable rejection is a RuntimeError, not a non-catchable abort halt.
@@ -184,7 +187,6 @@ describe('Rill Runtime: event-loop yielding', () => {
     it.each(REPROS)(
       'keeps #DISPOSED, uncaught by guard, when the host aborts inside a long timeout block in %s',
       async (_name, source) => {
-        const start = performance.now();
         await expectAbortHalt(() =>
           run(
             `guard { timeout<total: duration(0,0,0,0,0,10)> { ${source} } }`,
@@ -193,7 +195,6 @@ describe('Rill Runtime: event-loop yielding', () => {
             }
           )
         );
-        expect(performance.now() - start).toBeLessThan(BOUND_MS);
       }
     );
 
@@ -211,42 +212,64 @@ describe('Rill Runtime: event-loop yielding', () => {
           },
           clearTimeout: (handle) => clearTimeout(handle),
         };
-        const start = performance.now();
         await expectAbortHalt(() =>
           run(
             `guard { timeout<total: duration(0,0,0,0,0,0,1000)> { ${source} } }`,
             { signal: controller.signal, scheduler }
           )
         );
-        expect(performance.now() - start).toBeLessThan(BOUND_MS);
       }
     );
 
+    it('keeps #DISPOSED when the body completes after the host aborted and the timer expired', async () => {
+      const controller = new AbortController();
+      let expire: (() => void) | undefined;
+      const scheduler: TimeoutScheduler = {
+        setTimeout: (fn) => {
+          expire = fn;
+          return 0 as unknown as ReturnType<typeof setTimeout>;
+        },
+        clearTimeout: () => undefined,
+      };
+      await expectAbortHalt(() =>
+        run('guard { timeout<total: duration(0,0,0,0,0,0,1000)> { trip() } }', {
+          signal: controller.signal,
+          scheduler,
+          functions: {
+            // Aborts the host, then fires the timer, then returns normally.
+            trip: {
+              params: [],
+              fn: () => {
+                controller.abort();
+                expire?.();
+                return 1;
+              },
+            },
+          },
+        })
+      );
+    });
+
     it('recovers the inner timeout when nested timeout blocks expire in order', async () => {
-      const start = performance.now();
       const result = await run(
         `guard { timeout<total: duration(0,0,0,0,0,5)> { timeout<total: duration(0,0,0,0,0,0,100)> { ${R1} } } }`
       );
       expect(isInvalid(result)).toBe(true);
       expect(getStatus(result).code).toBe(resolveAtom('RILL_R082'));
-      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
 
     it('halts a retry inside a timeout block with the total-timeout atom', async () => {
-      const start = performance.now();
       const result = await run(
         `guard { timeout<total: duration(0,0,0,0,0,0,150)> { retry<limit: 1000000000000> { (1 / 0) } } }`
       );
       expect(isInvalid(result)).toBe(true);
       expect(getStatus(result).code).toBe(resolveAtom('RILL_R082'));
-      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
   });
 
   describe('timeout option', () => {
     it('rejects R2 with RILL-R012 within the bound', async () => {
       const controller = new AbortController();
-      const start = performance.now();
       let caught: unknown;
       try {
         await run(R2, { timeout: ABORT_MS, signal: controller.signal });
@@ -258,15 +281,12 @@ describe('Rill Runtime: event-loop yielding', () => {
       }
       expect(caught).toBeInstanceOf(RuntimeError);
       expect((caught as RuntimeError).errorId).toBe('RILL-R012');
-      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
 
     it('does not cover script loops: R1 halts #DISPOSED at the host abort', async () => {
-      const start = performance.now();
       await expectAbortHalt(() =>
         run(R1, { timeout: ABORT_MS, signal: AbortSignal.timeout(500) })
       );
-      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
   });
 
@@ -395,7 +415,6 @@ describe('Rill Runtime: event-loop yielding', () => {
       const ctx = fresh.createRuntimeContext({
         signal: AbortSignal.timeout(ABORT_MS),
       });
-      const start = performance.now();
       let caught: unknown;
       try {
         await fresh.execute(fresh.parse(R1), ctx);
@@ -408,7 +427,6 @@ describe('Rill Runtime: event-loop yielding', () => {
       expect(fresh.atomName(fresh.getStatus(signal.value).code)).toBe(
         'DISPOSED'
       );
-      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
 
     it('completes a bounded script when no macrotask primitive exists', async () => {

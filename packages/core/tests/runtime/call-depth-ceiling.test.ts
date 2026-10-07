@@ -26,6 +26,18 @@ import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 import { getStatus } from '../../src/runtime/core/types/status.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../src/error-registry.js';
 
+// The evaluator binds its clock when it loads, so this must run before the
+// imports above evaluate. A frozen clock keeps the event-loop yield from ever
+// firing: a mid-recursion yield reorders concurrent branches and changes which
+// ceiling (call depth or calls in flight) trips first.
+vi.hoisted(() => {
+  Object.defineProperty(performance, 'now', {
+    configurable: true,
+    writable: true,
+    value: (): number => 0,
+  });
+});
+
 describe('Rill Runtime: Call-Depth Ceiling', () => {
   it('direct self-recursion halts with RILL-R010, not a host RangeError', async () => {
     const script = `
