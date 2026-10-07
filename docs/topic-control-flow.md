@@ -906,7 +906,7 @@ timeout<total: duration(0, 0, 0, 0, 0, 0, 1000)> {
 }
 ```
 
-When the outer timer fires before the inner body completes, the outer expiry takes precedence. The inner expiry is confined to the inner block's scope. Each `timeout` block creates a scoped `AbortController` that chains to `ctx.signal`; when the timer fires the controller aborts, halting cooperating host functions. The `RILL_R010` iteration ceiling (10,000 elements) applies inside timeout bodies regardless of timeout state.
+When the outer timer fires before the inner body completes, the outer expiry takes precedence. The inner expiry is confined to the inner block's scope. Each `timeout` block creates a scoped `AbortController` that chains to `ctx.signal`; when the timer fires the controller aborts, halting cooperating host functions. Expiry also stops CPU-bound bodies within roughly the yield interval plus the current step, because evaluation yields to the event loop periodically; a single synchronous built-in operation finishes first. The `RILL_R010` iteration ceiling (10,000 elements) applies inside timeout bodies regardless of timeout state.
 
 ---
 

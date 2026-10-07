@@ -44,7 +44,7 @@ import {
 } from '../../types/halt.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, checkAborted } from '../shared.js';
+import { getNodeLocation, checkAborted, maybeYield } from '../shared.js';
 import {
   evaluateAnnotations,
   getIterationLimit,
@@ -221,6 +221,8 @@ export async function evaluateWhileLoop(
         );
       }
       checkAborted(s, node);
+      const yielded = maybeYield(s, node);
+      if (yielded) await yielded;
 
       // Create child scope for this iteration
       const iterCtx = createChildContext(s.ctx);
@@ -305,6 +307,8 @@ export async function evaluateDoWhileLoop(
         );
       }
       checkAborted(s, node);
+      const yielded = maybeYield(s, node);
+      if (yielded) await yielded;
 
       const iterCtx = createChildContext(s.ctx);
       iterCtx.pipeValue = value;

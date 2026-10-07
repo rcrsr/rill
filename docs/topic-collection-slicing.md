@@ -214,7 +214,7 @@ $stream -> batch(10, dict[idle_flush: duration(...dict[ms: 500])])
 
 When the idle timer expires and the buffer is non-empty, the partial batch flushes immediately without waiting for `n` elements. When the buffer is empty at idle expiry, no flush is emitted. The timer resets after each chunk or flush.
 
-**Current limitation:** Under the synchronous batch path, `idle_flush` is type-validated but produces no early-flush emissions. All elements are collected before any timer can fire. Async-streaming wire-up is deferred.
+**Current limitation:** Under the synchronous batch path, `idle_flush` is type-validated but produces no early-flush emissions. The batch path schedules no idle-flush timer. Async-streaming wire-up is deferred.
 
 ```text
 # Error: #TYPE_MISMATCH - idle_flush must be a duration value

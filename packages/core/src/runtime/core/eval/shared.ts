@@ -56,6 +56,97 @@ export function checkAborted(s: EvalState, node?: ASTNode): void {
   }
 }
 
+/** Longest stretch the event loop may stay occupied before a yield is due. */
+const YIELD_SLICE_MS = 10;
+
+/** Number of maybeYield calls between clock reads. */
+const YIELD_TICK_INTERVAL = 64;
+
+const readClock: () => number = performance.now.bind(performance);
+
+// Captured at module load so fake-timer libraries that replace the globals
+// later cannot stall a yield.
+const realSetImmediate: typeof setImmediate | undefined =
+  typeof setImmediate === 'function' ? setImmediate : undefined;
+const realSetTimeout: typeof setTimeout | undefined =
+  typeof setTimeout === 'function' ? setTimeout : undefined;
+
+/**
+ * Schedules a callback on a later macrotask. Resolved once at module load:
+ * setImmediate, else setTimeout(0), else undefined (no yielding). MessageChannel is not used: Node drains
+ * messages posted during a port handler in the same pass, so timers never
+ * get a turn.
+ */
+const scheduleMacrotask: ((callback: () => void) => void) | undefined = (() => {
+  if (realSetImmediate !== undefined) {
+    const schedule = realSetImmediate;
+    return (callback: () => void): void => {
+      schedule(callback);
+    };
+  }
+  if (realSetTimeout !== undefined) {
+    const schedule = realSetTimeout;
+    return (callback: () => void): void => {
+      schedule(callback, 0);
+    };
+  }
+  return undefined;
+})();
+
+// Process-wide liveness state. Deliberately off EvalState: every seq/fold
+// element runs in a fresh child context, so per-context state would reset
+// on each element.
+let yieldTicks = 0;
+// Time the event loop last turned; undefined while unknown (idle).
+let loopBaseline: number | undefined;
+let probePending = false;
+
+/**
+ * Cooperative event-loop yield for CPU-bound evaluation.
+ *
+ * Returns undefined on the fast path (no microtask added). When the event
+ * loop has been occupied longer than the slice threshold, performs one real
+ * macrotask turn, then re-checks the abort signal so an abort surfaces
+ * exactly as checkAborted raises it.
+ *
+ * The baseline measures time since the loop last turned, not since the last
+ * yield: a probe macrotask clears it, so idle time between runs never counts.
+ *
+ * @internal
+ */
+export function maybeYield(
+  s: EvalState,
+  node?: ASTNode
+): Promise<void> | undefined {
+  const schedule = scheduleMacrotask;
+  if (schedule === undefined) return undefined;
+  yieldTicks += 1;
+  if (yieldTicks < YIELD_TICK_INTERVAL) return undefined;
+  yieldTicks = 0;
+
+  const now = readClock();
+  if (loopBaseline === undefined) {
+    loopBaseline = now;
+    if (!probePending) {
+      probePending = true;
+      schedule(() => {
+        probePending = false;
+        loopBaseline = undefined;
+      });
+    }
+    return undefined;
+  }
+  if (now - loopBaseline < YIELD_SLICE_MS) return undefined;
+
+  return new Promise<void>((resolve) => {
+    schedule(resolve);
+  }).then(() => {
+    // Re-arm through the unknown-baseline path so a probe clears it.
+    loopBaseline = undefined;
+    checkAborted(s, node);
+  });
+}
+
 /**
  * Check if the current pipe value matches any autoException pattern.
  * Only checks string values. Throws a non-catchable RuntimeHaltSignal
