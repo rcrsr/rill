@@ -15,7 +15,6 @@ import {
   isCallable,
   isScriptCallable,
   isApplicationCallable,
-  isDict,
   marshalArgs,
 } from '../../callable.js';
 import { getVariable } from '../../context.js';
@@ -26,7 +25,13 @@ import { anyTypeValue } from '../../values.js';
 import type { EvalState } from '../state.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, checkAborted, withTimeout } from '../shared.js';
+import {
+  getNodeLocation,
+  checkAborted,
+  withTimeout,
+  isFieldReceiver,
+  readOwnField,
+} from '../shared.js';
 import {
   argumentsBinder,
   bindOrdered,
@@ -266,8 +271,8 @@ export async function evaluateClosureCallWithPipe(
         `Cannot access property '${prop}' on null`
       );
     }
-    if (isDict(value)) {
-      value = (value as Record<string, RillValue>)[prop];
+    if (isFieldReceiver(value)) {
+      value = readOwnField(value, prop) as RillValue;
       if (value === undefined || value === null) {
         throwCatchableHostHalt(
           {

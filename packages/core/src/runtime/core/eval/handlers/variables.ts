@@ -50,6 +50,7 @@ import {
   isOrdered,
   isTuple,
   isIterator,
+  isPlainDict,
 } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import { getVariable, hasVariable } from '../../context.js';
@@ -64,7 +65,12 @@ import {
 import type { EvalState } from '../state.js';
 import { accessHaltGateFast } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, accessDictField } from '../shared.js';
+import {
+  getNodeLocation,
+  accessDictField,
+  isFieldReceiver,
+  readOwnField,
+} from '../shared.js';
 import { getTypedKey, hasTypedKey } from '../../types/dict-keys.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluatePipeChain } from './core.js';
@@ -367,7 +373,7 @@ export async function applyBracketIndex(
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
       'Cannot index iterator'
     );
-  } else if (isDict(receiver)) {
+  } else if (isPlainDict(receiver)) {
     // Number/boolean bracket keys resolve against the typed-key sidecar,
     // keeping $d[1] distinct from $d["1"].
     if (typeof indexValue === 'number' || typeof indexValue === 'boolean') {
@@ -459,10 +465,8 @@ export async function evaluateExistenceCheck(
       return true;
     }
     // Check if literal field exists in dict
-    if (isDict(value)) {
-      const fieldValue = Object.hasOwn(value, finalAccess.field)
-        ? (value as Record<string, RillValue>)[finalAccess.field]
-        : undefined;
+    if (isFieldReceiver(value)) {
+      const fieldValue = readOwnField(value, finalAccess.field);
       const exists = fieldValue !== undefined && fieldValue !== null;
 
       // If type-qualified check, verify type matches
@@ -510,7 +514,7 @@ export async function evaluateExistenceCheck(
     }
 
     // Check if key exists in dict or list
-    if (isDict(value)) {
+    if (isFieldReceiver(value)) {
       // Number/boolean keys resolve against the typed-key sidecar.
       if (typeof keyValue === 'number' || typeof keyValue === 'boolean') {
         if (!hasTypedKey(value, keyValue)) return false;
@@ -532,9 +536,7 @@ export async function evaluateExistenceCheck(
         );
       }
 
-      const fieldValue = Object.hasOwn(value, keyValue)
-        ? (value as Record<string, RillValue>)[keyValue]
-        : undefined;
+      const fieldValue = readOwnField(value, keyValue);
       const exists = fieldValue !== undefined && fieldValue !== null;
 
       // If type-qualified check, verify type matches
@@ -611,10 +613,8 @@ export async function evaluateExistenceCheck(
     }
 
     // Check if computed key exists in dict
-    if (isDict(value)) {
-      const fieldValue = Object.hasOwn(value, keyValue)
-        ? (value as Record<string, RillValue>)[keyValue]
-        : undefined;
+    if (isFieldReceiver(value)) {
+      const fieldValue = readOwnField(value, keyValue);
       const exists = fieldValue !== undefined && fieldValue !== null;
 
       // If type-qualified check, verify type matches

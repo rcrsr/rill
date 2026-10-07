@@ -14,7 +14,6 @@ import {
   isCallable,
   isScriptCallable,
   isApplicationCallable,
-  isDict,
   marshalArgs,
 } from '../../callable.js';
 import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
@@ -25,7 +24,7 @@ import type {
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTypeValue, isStream, isOrdered } from '../../types/guards.js';
+import { isTypeValue, isStream } from '../../types/guards.js';
 import {
   paramToFieldDef,
   inferStructure,
@@ -42,6 +41,8 @@ import {
   checkAborted,
   accessDictField,
   setDictField,
+  isFieldReceiver,
+  readOwnField,
 } from '../shared.js';
 import {
   argumentsBinder,
@@ -127,8 +128,8 @@ export async function evaluateMethod(
       throw e;
     }
   }
-  if (isDict(receiver)) {
-    const dictValue = receiver[node.name];
+  if (isFieldReceiver(receiver)) {
+    const dictValue = readOwnField(receiver, node.name);
     if (dictValue !== undefined && isCallable(dictValue)) {
       // Only inject the piped value for an explicit empty-paren call
       // (`.method()`), never for a bare `.field` reference. MethodCallNode
@@ -156,13 +157,9 @@ export async function evaluateMethod(
       );
     }
   }
-  if (
-    isDict(receiver) &&
-    args.length === 0 &&
-    !node.hasParens &&
-    Object.hasOwn(receiver, node.name)
-  ) {
-    return receiver[node.name] as RillValue;
+  if (args.length === 0 && !node.hasParens) {
+    const field = readOwnField(receiver, node.name);
+    if (field !== undefined) return field;
   }
 
   if (isTypeValue(receiver)) {
@@ -241,9 +238,8 @@ export async function evaluateMethod(
     }
   }
   if (
-    isDict(receiver) &&
-    !isOrdered(receiver) &&
-    !Object.hasOwn(receiver, node.name)
+    isFieldReceiver(receiver) &&
+    readOwnField(receiver, node.name) === undefined
   ) {
     // A dict receiver with no field of this name at all (not merely a
     // non-callable one) routes through the same dict-field-access halt

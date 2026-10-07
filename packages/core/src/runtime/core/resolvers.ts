@@ -9,42 +9,7 @@ import { RuntimeError } from '../../error-classes.js';
 import type { ResolverResult, SchemeResolver } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
 import { ERROR_IDS } from '../../error-registry.js';
-import {
-  isAtom,
-  isCallable,
-  isDatetime,
-  isDuration,
-  isOrdered,
-  isStream,
-  isTuple,
-  isTypeValue,
-  isVector,
-} from './types/guards.js';
-
-/**
- * True only for plain rill dict values. Callables, tuples, ordered values,
- * vectors, datetimes, durations, atoms, type values, field descriptors,
- * streams, lists, and raw JavaScript functions are not traversable, so a
- * path walk never reaches a callable's internal `fn`. A dict that merely
- * looks like an iterator (`done` plus a callable `next`) is still a dict.
- */
-function isTraversableDict(value: unknown): value is object {
-  if (typeof value !== 'object' || value === null) return false;
-  if (Array.isArray(value)) return false;
-  const v = value as RillValue;
-  return !(
-    isCallable(v) ||
-    isTuple(v) ||
-    isOrdered(v) ||
-    isVector(v) ||
-    isDatetime(v) ||
-    isDuration(v) ||
-    isAtom(v) ||
-    isTypeValue(v) ||
-    isStream(v) ||
-    '__rill_field_descriptor' in value
-  );
-}
+import { isPlainDict } from './types/guards.js';
 
 // ============================================================
 // MODULE RESOLVER
@@ -172,7 +137,8 @@ export const contextResolver: SchemeResolver = (
 
   for (let i = 1; i < segments.length; i++) {
     const segment = segments[i] as string;
-    if (!isTraversableDict(value)) {
+    const current = value as RillValue;
+    if (!isPlainDict(current)) {
       const path = segments.slice(0, i).join('.');
       throw new RuntimeError(
         ERROR_IDS.RILL_R063,
@@ -181,7 +147,7 @@ export const contextResolver: SchemeResolver = (
         { path, segment }
       );
     }
-    if (!Object.hasOwn(value, segment)) {
+    if (!Object.hasOwn(current, segment)) {
       throw new RuntimeError(
         ERROR_IDS.RILL_R062,
         `Context key '${resource}' not found`,
@@ -189,7 +155,7 @@ export const contextResolver: SchemeResolver = (
         { key: resource }
       );
     }
-    value = (value as Record<string, unknown>)[segment];
+    value = current[segment];
     if (value === undefined) {
       throw new RuntimeError(
         ERROR_IDS.RILL_R062,
@@ -227,10 +193,7 @@ export const extResolver: SchemeResolver = (
 
   for (let i = 1; i < segments.length; i++) {
     const segment = segments[i] as string;
-    if (
-      !isTraversableDict(value) ||
-      !Object.hasOwn(value as Record<string, RillValue>, segment)
-    ) {
+    if (!isPlainDict(value) || !Object.hasOwn(value, segment)) {
       const path = segments.slice(1, i + 1).join('.');
       throw new RuntimeError(
         ERROR_IDS.RILL_R053,

@@ -34,7 +34,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { resolveTypeRef } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
-import { setDictField } from '../shared.js';
+import { setDictField, isFieldReceiver, readOwnField } from '../shared.js';
 import { setTypedKey, orderedDictEntries } from '../../types/dict-keys.js';
 import { assertUsableDictKey } from './literals.js';
 
@@ -51,7 +51,7 @@ export async function evaluateDestructure(
   input: RillValue
 ): Promise<RillValue> {
   const isList = Array.isArray(input);
-  const isDictInput = isDict(input);
+  const isDictInput = isFieldReceiver(input);
 
   const firstNonSkip = node.elements.find((e) => e.kind !== 'skip');
   const isKeyPattern = firstNonSkip?.kind === 'keyValue';
@@ -100,7 +100,8 @@ export async function evaluateDestructure(
       const dictInput = input as Record<string, RillValue>;
       // Own-key gate: an inherited member (constructor, __proto__, ...) must
       // not satisfy a destructure key.
-      if (!Object.hasOwn(dictInput, elem.key)) {
+      const dictValue = readOwnField(dictInput, elem.key);
+      if (dictValue === undefined) {
         throwCatchableHostHalt(
           {
             location: elem.span.start,
@@ -110,19 +111,6 @@ export async function evaluateDestructure(
           ERROR_ATOMS[ERROR_IDS.RILL_R009],
           `Key '${elem.key}' not found in dict`,
           { key: elem.key, availableKeys: Object.keys(dictInput) }
-        );
-      }
-
-      const dictValue = dictInput[elem.key];
-      if (dictValue === undefined) {
-        throwCatchableHostHalt(
-          {
-            location: elem.span.start,
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateDestructure',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `Key '${elem.key}' has undefined value`
         );
       }
 

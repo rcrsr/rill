@@ -39,7 +39,7 @@ import type {
   RillTuple,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTuple, isOrdered } from '../../types/guards.js';
+import { isTuple, isOrdered, isPlainDict } from '../../types/guards.js';
 import {
   createOrdered,
   createTuple,
@@ -47,7 +47,6 @@ import {
   emptyForType,
 } from '../../types/constructors.js';
 import { hasCollectionFields } from '../../values.js';
-import { isDict } from '../../callable.js';
 import type {
   HydrationMissingFieldInfo,
   HydrationPolicy,
@@ -286,7 +285,7 @@ async function convertToOrderedWithSig(
   let dictInput: Record<string, RillValue>;
   if (isOrdered(input)) {
     dictInput = Object.fromEntries(input.entries);
-  } else if (isDict(input)) {
+  } else if (isPlainDict(input)) {
     dictInput = input as Record<string, RillValue>;
   } else {
     throwCatchableHostHalt(
@@ -371,7 +370,7 @@ async function convertToDictWithSig(
   let dictInput: Record<string, RillValue>;
   if (isOrdered(input)) {
     dictInput = Object.fromEntries(input.entries);
-  } else if (isDict(input)) {
+  } else if (isPlainDict(input)) {
     dictInput = input as Record<string, RillValue>;
   } else {
     throwCatchableHostHalt(
