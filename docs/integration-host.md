@@ -1062,7 +1062,7 @@ For a whole-run deadline, pass a signal:
 
 ```typescript
 const ctx = createRuntimeContext({ signal: AbortSignal.timeout(60000) });
-await execute(ast, ctx); // throws RuntimeHaltSignal after roughly 60 s
+await execute(ast, ctx); // throws RuntimeHaltSignal at the next cancellation check after roughly 60 s
 ```
 
 ## Auto-Exceptions
@@ -1114,7 +1114,7 @@ See [Extension Backend Selection](integration-backends.md) for backend selection
 All rill errors extend `RillError` with structured information:
 
 ```typescript
-import { RuntimeError, ParseError, TimeoutError, RuntimeHaltSignal } from '@rcrsr/rill';
+import { RuntimeError, ParseError, RuntimeHaltSignal } from '@rcrsr/rill';
 
 try {
   const ast = parse(source);
@@ -1128,9 +1128,8 @@ try {
     console.log('Message:', err.message);
     console.log('Location:', err.location);
     console.log('Context:', err.context);
-  } else if (err instanceof TimeoutError) {
-    console.log('Operation timed out');
   } else if (err instanceof RuntimeHaltSignal) {
+    // Host abort or auto-exception. A per-call timeout halts with catchable RILL-R012 instead.
     console.log('Execution cancelled or auto-exception triggered');
   }
 }

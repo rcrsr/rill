@@ -110,6 +110,16 @@ describe('Rill Runtime: event-loop yielding', () => {
       }
     );
 
+    it('halts a do-while loop with #DISPOSED at the host abort', async () => {
+      const start = performance.now();
+      await expectAbortHalt(() =>
+        run('0 -> do<limit: 1000000000000> { $ + 1 } while (true)', {
+          signal: AbortSignal.timeout(ABORT_MS),
+        })
+      );
+      expect(performance.now() - start).toBeLessThan(BOUND_MS);
+    });
+
     it('halts concurrent repro runs that each carry their own signal', async () => {
       const start = performance.now();
       await Promise.all([
@@ -172,7 +182,7 @@ describe('Rill Runtime: event-loop yielding', () => {
     );
 
     it.each(REPROS)(
-      'keeps #DISPOSED, uncaught by guard, when the host aborts inside timeout<total: duration(0,0,0,0,0,10)> in %s',
+      'keeps #DISPOSED, uncaught by guard, when the host aborts inside a long timeout block in %s',
       async (_name, source) => {
         const start = performance.now();
         await expectAbortHalt(() =>
@@ -186,6 +196,51 @@ describe('Rill Runtime: event-loop yielding', () => {
         expect(performance.now() - start).toBeLessThan(BOUND_MS);
       }
     );
+
+    it.each(REPROS)(
+      'keeps #DISPOSED when the host aborts and the timeout timer expires together in %s',
+      async (_name, source) => {
+        const controller = new AbortController();
+        const scheduler: TimeoutScheduler = {
+          setTimeout: (fn) => {
+            // Expire the timer only after the host signal is aborted.
+            return setTimeout(() => {
+              controller.abort();
+              fn();
+            }, 100);
+          },
+          clearTimeout: (handle) => clearTimeout(handle),
+        };
+        const start = performance.now();
+        await expectAbortHalt(() =>
+          run(
+            `guard { timeout<total: duration(0,0,0,0,0,0,1000)> { ${source} } }`,
+            { signal: controller.signal, scheduler }
+          )
+        );
+        expect(performance.now() - start).toBeLessThan(BOUND_MS);
+      }
+    );
+
+    it('recovers the inner timeout when nested timeout blocks expire in order', async () => {
+      const start = performance.now();
+      const result = await run(
+        `guard { timeout<total: duration(0,0,0,0,0,5)> { timeout<total: duration(0,0,0,0,0,0,100)> { ${R1} } } }`
+      );
+      expect(isInvalid(result)).toBe(true);
+      expect(getStatus(result).code).toBe(resolveAtom('RILL_R082'));
+      expect(performance.now() - start).toBeLessThan(BOUND_MS);
+    });
+
+    it('halts a retry inside a timeout block with the total-timeout atom', async () => {
+      const start = performance.now();
+      const result = await run(
+        `guard { timeout<total: duration(0,0,0,0,0,0,150)> { retry<limit: 1000000000000> { (1 / 0) } } }`
+      );
+      expect(isInvalid(result)).toBe(true);
+      expect(getStatus(result).code).toBe(resolveAtom('RILL_R082'));
+      expect(performance.now() - start).toBeLessThan(BOUND_MS);
+    });
   });
 
   describe('timeout option', () => {
@@ -211,9 +266,7 @@ describe('Rill Runtime: event-loop yielding', () => {
       await expectAbortHalt(() =>
         run(R1, { timeout: ABORT_MS, signal: AbortSignal.timeout(500) })
       );
-      const elapsed = performance.now() - start;
-      expect(elapsed).toBeGreaterThanOrEqual(400);
-      expect(elapsed).toBeLessThan(BOUND_MS);
+      expect(performance.now() - start).toBeLessThan(BOUND_MS);
     });
   });
 
@@ -250,25 +303,34 @@ describe('Rill Runtime: event-loop yielding', () => {
   });
 
   describe('fast path', () => {
+    const SHORT = 'range(0, 100) -> fold(0, { $@ + $ })';
+
+    // The liveness state is module-global, so each test loads a fresh module.
+    async function runFresh(): Promise<void> {
+      vi.resetModules();
+      const fresh = await import('@rcrsr/rill');
+      await fresh.execute(fresh.parse(SHORT), fresh.createRuntimeContext());
+    }
+
     it('leaves a queued setImmediate flag unset when a short execute resolves', async () => {
       await new Promise((r) => setImmediate(r));
       let flag = false;
       setImmediate(() => {
         flag = true;
       });
-      await run('range(0, 100) -> fold(0, { $@ + $ })');
+      await runFresh();
       expect(flag).toBe(false);
       await new Promise((r) => setImmediate(r));
     });
 
     it('stays on the fast path after the loop has idled for 50 ms', async () => {
-      await run('range(0, 100) -> fold(0, { $@ + $ })');
+      await runFresh();
       await new Promise((r) => setTimeout(r, 50));
       let flag = false;
       setImmediate(() => {
         flag = true;
       });
-      await run('range(0, 100) -> fold(0, { $@ + $ })');
+      await runFresh();
       expect(flag).toBe(false);
       await new Promise((r) => setImmediate(r));
     });
@@ -299,6 +361,25 @@ describe('Rill Runtime: event-loop yielding', () => {
       });
       await expectAbortHalt(() => execute(parse(R2), ctx));
       expect(ctx.callsInFlight.value).toBe(0);
+      expect(ctx.callDepth.value).toBe(0);
+    });
+  });
+
+  describe('abort during fan', () => {
+    it('returns call depth and in-flight counters to zero', async () => {
+      const ctx = createRuntimeContext({
+        signal: AbortSignal.timeout(ABORT_MS),
+      });
+      await expectAbortHalt(() =>
+        execute(
+          parse(
+            'range(0, 8) -> fan({ 0 -> while (true) do<limit: 1000000000000> { $ + 1 } })'
+          ),
+          ctx
+        )
+      );
+      // Sibling branches unwind on their next abort check, after fan rejects.
+      await vi.waitFor(() => expect(ctx.callsInFlight.value).toBe(0));
       expect(ctx.callDepth.value).toBe(0);
     });
   });

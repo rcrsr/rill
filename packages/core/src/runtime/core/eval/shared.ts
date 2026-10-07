@@ -56,12 +56,6 @@ export function checkAborted(s: EvalState, node?: ASTNode): void {
   }
 }
 
-/** Longest stretch the event loop may stay occupied before a yield is due. */
-const YIELD_SLICE_MS = 10;
-
-/** Number of maybeYield calls between clock reads. */
-const YIELD_TICK_INTERVAL = 64;
-
 const readClock: () => number = performance.now.bind(performance);
 
 // Captured at module load so fake-timer libraries that replace the globals
@@ -93,13 +87,24 @@ const scheduleMacrotask: ((callback: () => void) => void) | undefined = (() => {
   return undefined;
 })();
 
+/**
+ * Longest stretch the event loop may stay occupied before a yield is due.
+ * The setTimeout(0) fallback costs at least 4 ms of idle per yield in
+ * browsers and workers, so it uses a longer slice to bound the throughput loss.
+ */
+const YIELD_SLICE_MS = realSetImmediate !== undefined ? 10 : 50;
+
 // Process-wide liveness state. Deliberately off EvalState: every seq/fold
 // element runs in a fresh child context, so per-context state would reset
 // on each element.
-let yieldTicks = 0;
-// Time the event loop last turned; undefined while unknown (idle).
+// Time the evaluator first ran since the loop last turned; undefined while
+// unknown (idle).
 let loopBaseline: number | undefined;
 let probePending = false;
+let yieldTicks = 0;
+
+/** Number of maybeYield calls between clock reads once the baseline is armed. */
+const YIELD_TICK_INTERVAL = 16;
 
 /**
  * Cooperative event-loop yield for CPU-bound evaluation.
@@ -109,8 +114,10 @@ let probePending = false;
  * macrotask turn, then re-checks the abort signal so an abort surfaces
  * exactly as checkAborted raises it.
  *
- * The baseline measures time since the loop last turned, not since the last
- * yield: a probe macrotask clears it, so idle time between runs never counts.
+ * The first call after the loop last turned arms the baseline and reads the
+ * clock; later calls read it every few calls. The baseline is not reset by a
+ * yield alone: a probe macrotask clears it, so idle time between runs never
+ * counts.
  *
  * @internal
  */
@@ -120,12 +127,14 @@ export function maybeYield(
 ): Promise<void> | undefined {
   const schedule = scheduleMacrotask;
   if (schedule === undefined) return undefined;
-  yieldTicks += 1;
-  if (yieldTicks < YIELD_TICK_INTERVAL) return undefined;
-  yieldTicks = 0;
-
+  if (loopBaseline !== undefined) {
+    yieldTicks += 1;
+    if (yieldTicks < YIELD_TICK_INTERVAL) return undefined;
+    yieldTicks = 0;
+  }
   const now = readClock();
   if (loopBaseline === undefined) {
+    yieldTicks = 0;
     loopBaseline = now;
     if (!probePending) {
       probePending = true;

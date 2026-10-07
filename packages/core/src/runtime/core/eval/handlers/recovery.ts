@@ -49,7 +49,11 @@ import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
-import { getHostShape, throwCatchableHostHalt } from '../../types/halt.js';
+import {
+  getHostShape,
+  throwAbortHalt,
+  throwCatchableHostHalt,
+} from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { RuntimeContext, TimeoutScheduler } from '../../types/runtime.js';
 import { ControlSignal } from '../../signals.js';
@@ -380,6 +384,8 @@ export async function evaluateTimeoutBlock(
     // ignores ctx.signal). Surface the timeout halt rather than the
     // late result so expiry is enforced consistently.
     if (expired) {
+      // A host abort that landed alongside the expiry wins over the timeout.
+      if (parentSignal?.aborted) throwAbortHalt(site);
       const atomCode =
         node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
       throwCatchableHostHalt(
@@ -397,7 +403,7 @@ export async function evaluateTimeoutBlock(
     if (e instanceof ControlSignal) throw e;
     // A host or parent abort stays a #DISPOSED halt, even when our own
     // timer also fired.
-    if (parentSignal?.aborted) throw e;
+    if (parentSignal?.aborted && isAbortHalt(e)) throw e;
     // Our timer aborted the body: the abort halt becomes the catchable
     // timeout halt instead of the non-catchable #DISPOSED.
     if (expired && isAbortHalt(e)) {
@@ -444,12 +450,16 @@ export async function evaluateTimeoutBlock(
   }
 }
 
-/** True when `e` is the non-catchable `#DISPOSED` halt raised by `throwAbortHalt`. */
+/**
+ * True when `e` is the non-catchable `#DISPOSED` halt raised by `throwAbortHalt`.
+ * The runtime provider tag separates it from a host's own disposal failure,
+ * and survives the re-wrapping done at host-call boundaries.
+ */
 function isAbortHalt(e: unknown): boolean {
+  if (!(e instanceof RuntimeHaltSignal) || e.catchable) return false;
+  const status = getStatus(e.value);
   return (
-    e instanceof RuntimeHaltSignal &&
-    !e.catchable &&
-    getStatus(e.value).code === resolveAtom('DISPOSED')
+    status.code === resolveAtom('DISPOSED') && status.provider === 'runtime'
   );
 }
 
