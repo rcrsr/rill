@@ -38,6 +38,7 @@ import {
   isPlainDict,
 } from '../../types/guards.js';
 import { isCallable, isScriptCallable } from '../../callable.js';
+import { inferType } from '../../types/registrations.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
@@ -1125,9 +1126,7 @@ async function traversePathStep(
     ? isTuple(current)
       ? 'tuple'
       : 'list'
-    : isPlainDict(current)
-      ? 'dict'
-      : typeof current;
+    : inferType(current);
   const keyType = typeof key;
 
   throwCatchableHostHalt(

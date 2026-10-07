@@ -89,41 +89,36 @@ async function collectOutput(source: string): Promise<string> {
 }
 
 describe('function source never reaches script-visible output', () => {
-  const GET_FN = 'make_stream() => $s\n$s.("__rill_stream_resolve") => $f\n';
-
-  it('omits function source when interpolating a host function', async () => {
-    expectNoFunctionSource(await collectOutput(`${GET_FN}"{$f}"`));
-  });
-
-  it('omits function source from the halt raised by reflecting a host function', async () => {
-    expectNoFunctionSource(await collectOutput(`${GET_FN}$f.^type.name`));
-  });
-
-  it('omits function source from a caught halt message', async () => {
-    expectNoFunctionSource(
-      await collectOutput(`${GET_FN}guard { $f.^type.name } => $r\n$r.!message`)
-    );
-  });
-
-  it('omits function source from formatValue and inferStructure on a raw function', () => {
-    const fn = (() => {
+  function makeRawFunction(): RillValue {
+    return (() => {
       const marker = 'SENTINEL_FUNCTION_SOURCE_MARKER';
       return marker;
     }) as unknown as RillValue;
-    let formatted: string;
-    try {
-      formatted = formatValue(fn);
-    } catch (caught) {
-      formatted = describeHalt(caught);
-    }
-    let inferred: string;
-    try {
-      inferred = JSON.stringify(inferStructure(fn));
-    } catch (caught) {
-      inferred = describeHalt(caught);
-    }
+  }
+
+  it('omits function source from formatValue on a raw function', () => {
+    const formatted = formatValue(makeRawFunction());
     expect(formatted).not.toContain(SENTINEL);
-    expect(inferred).not.toContain(SENTINEL);
+    expect(formatted).not.toContain('=>');
+  });
+
+  it('omits function source from the halt raised by inferStructure on a raw function', async () => {
+    let caught: unknown;
+    try {
+      inferStructure(makeRawFunction());
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeDefined();
+    expect(describeHalt(caught)).not.toContain(SENTINEL);
+  });
+
+  it('rejects reading the stream resolve function from a script', async () => {
+    const out = await collectOutput(
+      'make_stream() => $s\n$s.("__rill_stream_resolve")'
+    );
+    expectNoFunctionSource(out);
+    expect(out).toContain('__rill_stream_resolve');
   });
 });
 

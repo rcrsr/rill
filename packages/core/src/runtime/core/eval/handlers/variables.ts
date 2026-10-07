@@ -50,7 +50,6 @@ import {
   isOrdered,
   isTuple,
   isIterator,
-  isPlainDict,
 } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import { getVariable, hasVariable } from '../../context.js';
@@ -373,7 +372,7 @@ export async function applyBracketIndex(
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
       'Cannot index iterator'
     );
-  } else if (isPlainDict(receiver)) {
+  } else if (isFieldReceiver(receiver)) {
     // Number/boolean bracket keys resolve against the typed-key sidecar,
     // keeping $d[1] distinct from $d["1"].
     if (typeof indexValue === 'number' || typeof indexValue === 'boolean') {
@@ -395,9 +394,7 @@ export async function applyBracketIndex(
       }
       // Own-key gate: inherited JS members (constructor, __proto__, ...)
       // must not resolve as dict fields.
-      const result = Object.hasOwn(receiver, indexValue)
-        ? (receiver as Record<string, RillValue>)[indexValue]
-        : undefined;
+      const result = readOwnField(receiver, indexValue);
       if (result === undefined) {
         throwCatchableHostHalt(
           { location, sourceId: s.ctx.sourceId, fn },

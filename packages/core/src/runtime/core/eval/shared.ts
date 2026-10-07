@@ -135,7 +135,7 @@ export function withTimeout<T>(
 }
 
 /** Fields a script may read from a stream: the iterator step protocol. */
-const STREAM_STEP_FIELDS: ReadonlySet<string> = new Set([
+export const STREAM_STEP_FIELDS: ReadonlySet<string> = new Set([
   'done',
   'value',
   'next',
@@ -158,10 +158,16 @@ export function readOwnField(
   key: string
 ): RillValue | undefined {
   if (!isFieldReceiver(value)) return undefined;
+  return readValidatedField(value, key);
+}
+
+/** Read an own field from a value already confirmed by isFieldReceiver. */
+function readValidatedField(
+  value: Record<string, RillValue>,
+  key: string
+): RillValue | undefined {
   if (isStream(value) && !STREAM_STEP_FIELDS.has(key)) return undefined;
-  return Object.hasOwn(value as object, key)
-    ? (value as Record<string, RillValue>)[key]
-    : undefined;
+  return Object.hasOwn(value, key) ? value[key] : undefined;
 }
 
 /**
@@ -204,8 +210,6 @@ export async function accessDictField(
     return entry[1];
   }
 
-  const dictValue = readOwnField(value, field);
-
   if (!isFieldReceiver(value)) {
     if (allowMissing) {
       return null;
@@ -216,6 +220,9 @@ export async function accessDictField(
       `Cannot access field '${field}' on non-dict`
     );
   }
+
+  // Receiver already validated above; read the own field directly.
+  const dictValue = readValidatedField(value, field);
 
   // Check if field exists
   if (dictValue === undefined || dictValue === null) {

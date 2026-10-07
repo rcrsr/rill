@@ -25,7 +25,7 @@ import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import { inferElementType } from '../../types/operations.js';
-import { isDict } from '../../callable.js';
+import { isPlainDict, isStream } from '../../types/guards.js';
 import { isOrdered, orderedValueEntries } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
 import { getVariable } from '../../context.js';
@@ -34,7 +34,12 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { resolveTypeRef } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
-import { setDictField, isFieldReceiver, readOwnField } from '../shared.js';
+import {
+  setDictField,
+  isFieldReceiver,
+  readOwnField,
+  STREAM_STEP_FIELDS,
+} from '../shared.js';
 import { setTypedKey, orderedDictEntries } from '../../types/dict-keys.js';
 import { assertUsableDictKey } from './literals.js';
 
@@ -110,7 +115,14 @@ export async function evaluateDestructure(
           },
           ERROR_ATOMS[ERROR_IDS.RILL_R009],
           `Key '${elem.key}' not found in dict`,
-          { key: elem.key, availableKeys: Object.keys(dictInput) }
+          {
+            key: elem.key,
+            availableKeys: isStream(dictInput)
+              ? [...STREAM_STEP_FIELDS].filter((k) =>
+                  Object.hasOwn(dictInput, k)
+                )
+              : Object.keys(dictInput),
+          }
         );
       }
 
@@ -546,7 +558,7 @@ async function evaluateDictLiteralEntries(
         for (const [k, v] of orderedValueEntries(spreadValue)) {
           setMergedEntry(k, v);
         }
-      } else if (isDict(spreadValue)) {
+      } else if (isPlainDict(spreadValue)) {
         for (const { key: k, value: v } of orderedDictEntries(spreadValue)) {
           setMergedEntry(k, v);
         }

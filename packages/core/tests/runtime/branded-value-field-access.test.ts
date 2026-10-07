@@ -137,36 +137,35 @@ describe('atom internals are not readable', () => {
     await expectErrorId(`${ATOM}$a -> ordered(atom: any)`, 'RILL-R036');
   });
 
+  it('rejects hierarchical dispatch into an atom', async () => {
+    await expectErrorId(`${ATOM}list["atom", "name"] -> $a`, 'RILL-R002');
+  });
+
+  it('rejects hierarchical dispatch through a dict into an atom', async () => {
+    await expectErrorId(
+      `${ATOM}list["x", "atom", "name"] -> dict[x: $a]`,
+      'RILL-R002'
+    );
+  });
+
+  it('rejects nested conversion of an atom into an ordered field', async () => {
+    await expectHalt(
+      () => run(`${ATOM}dict[o: $a] -> dict(o: ordered(atom: any))`),
+      { code: 'TYPE_MISMATCH' }
+    );
+  });
+
+  it('rejects converting an atom to a dict with an internal field', async () => {
+    await expectErrorId(`${ATOM}$a -> dict(atom: any)`, 'RILL-R036');
+  });
+});
+
+describe('type value conversion', () => {
   it('rejects converting a type value to an ordered with internal fields', async () => {
     await expectErrorId(
       '42.^type -> ordered(typeName: string, structure: dict)',
       'RILL-R036'
     );
-  });
-
-  it('rejects hierarchical dispatch into an atom', async () => {
-    const out = await run(`${ATOM}list["atom", "name"] -> $a`).catch(
-      (e: unknown) => e
-    );
-    expect(out).toBeInstanceOf(Error);
-  });
-
-  it('rejects hierarchical dispatch through a dict into an atom', async () => {
-    const out = await run(
-      `${ATOM}list["x", "atom", "name"] -> dict[x: $a]`
-    ).catch((e: unknown) => e);
-    expect(out).toBeInstanceOf(Error);
-  });
-
-  it('rejects nested conversion of an atom into an ordered field', async () => {
-    const out = await run(
-      `${ATOM}dict[o: $a] -> dict(o: ordered(atom: any))`
-    ).catch((e: unknown) => e);
-    expect(out).toBeInstanceOf(Error);
-  });
-
-  it('rejects converting an atom to a dict with an internal field', async () => {
-    await expectErrorId(`${ATOM}$a -> dict(atom: any)`, 'RILL-R036');
   });
 });
 
@@ -465,5 +464,28 @@ describe('method-call and path forms reject blocked keys', () => {
     expect(
       await run(`${STREAM}$s.next() => $n\n$n.value`, { functions: FUNCTIONS })
     ).toBe(1);
+  });
+});
+
+describe('stream bracket access and dict spread', () => {
+  it('reads a stream step field with bracket access', async () => {
+    expect(
+      await run('make_stream() => $s\n$s["done"]', { functions: FUNCTIONS })
+    ).toBe(false);
+  });
+
+  it('rejects bracket access to a stream internal field', async () => {
+    await expectErrorId(
+      'make_stream() => $s\n$s["__rill_stream"]',
+      'RILL-R009'
+    );
+  });
+
+  it('rejects spreading a type value into an ordered literal', async () => {
+    await expectErrorId('42.^type => $t\nordered[...$t]', 'RILL-R002');
+  });
+
+  it('rejects spreading a vector into an ordered literal', async () => {
+    await expectErrorId('make_vec() => $v\nordered[...$v]', 'RILL-R002');
   });
 });
