@@ -38,7 +38,7 @@ The `createRuntimeContext()` function accepts these options:
 | `functions` | `Record<string, RillFunction \| RillFunctionSignature>` | Custom functions callable as `name()` |
 | `callbacks` | `Partial<RuntimeCallbacks>` | I/O callbacks (e.g., `onLog`) |
 | `observability` | `ObservabilityCallbacks` | Execution monitoring hooks |
-| `timeout` | `number` | Timeout in ms for async functions |
+| `timeout` | `number` | Per-call limit in ms for each named function call (host functions and built-ins). Expiry halts with catchable `RILL-R012`. It does not bound total script time |
 | `autoExceptions` | `string[]` | Regex patterns that halt execution |
 | `signal` | `AbortSignal` | Cancellation signal |
 | `maxCallDepth` | `number` | Maximum nested closure-call depth per call chain before a fatal `RILL-R010` halt (default 1000). Also sets the cap on calls in flight across concurrent `fan`/`filter`/`sort` bodies: `maxCallDepth` + 10,000. |
@@ -856,6 +856,10 @@ Abort is checked at:
 - Before each loop iteration
 - In the stepper's `step()` method
 
+A signal only changes when the code that aborts it runs: host timers, `AbortSignal.timeout`, I/O callbacks, and `timeout<>` timers all need the host event loop. During long evaluation the runtime periodically yields to the host event loop so those fire. Cancellation is noticed within roughly the yield interval plus the current step. The interval is not configurable. As a side effect, other host timers and I/O callbacks run between evaluation steps, and `pass<async: true>` bodies and host streams progress.
+
+One synchronous built-in operation, such as a regex match or building a very large string or list, runs to completion and cannot be interrupted. To hard-bound those, run rill in a worker thread or child process the host can terminate.
+
 ### Cancellation Contract for Host Functions
 
 Host functions receive a `ctx.signal` (`AbortSignal | undefined`). Cooperative cancellation requires that each host function observes this signal and stops work when it fires.
@@ -882,6 +886,8 @@ functions: {
 2. `ctx.signal` becomes aborted for the duration of that body.
 3. Host functions that observe `ctx.signal` halt naturally.
 4. Host functions that do not observe `ctx.signal` complete normally.
+
+The timer also fires during CPU-bound script bodies, within roughly the yield interval plus the current step, except while one synchronous built-in operation runs.
 
 The host-supplied `signal` from `RuntimeOptions` and the runtime's internal scoped signals both chain together. Aborting the host controller aborts the entire execution; a scoped timeout abort affects only the body of that timeout block.
 
@@ -1034,22 +1040,29 @@ const ctx = createRuntimeContext({
 
 ## Timeouts
 
-Set a timeout for async operations:
+The `timeout` option is a per-call limit for each named function call, host functions and built-ins alike. Expiry halts with catchable `RILL-R012`. It does not bound total script time.
 
 ```typescript
 const ctx = createRuntimeContext({
-  timeout: 30000, // 30 seconds
+  timeout: 30000, // 30 seconds per call
   functions: {
     slowOperation: {
       params: [],
       fn: async () => {
-        // Will throw TimeoutError if exceeds 30s
+        // Halts with catchable RILL-R012 if this call exceeds 30s
         await longRunningTask();
         return 'done';
       },
     },
   },
 });
+```
+
+For a whole-run deadline, pass a signal:
+
+```typescript
+const ctx = createRuntimeContext({ signal: AbortSignal.timeout(60000) });
+await execute(ast, ctx); // throws RuntimeHaltSignal at the next cancellation check after roughly 60 s
 ```
 
 ## Auto-Exceptions
@@ -1101,7 +1114,7 @@ See [Extension Backend Selection](integration-backends.md) for backend selection
 All rill errors extend `RillError` with structured information:
 
 ```typescript
-import { RuntimeError, ParseError, TimeoutError, RuntimeHaltSignal } from '@rcrsr/rill';
+import { RuntimeError, ParseError, RuntimeHaltSignal } from '@rcrsr/rill';
 
 try {
   const ast = parse(source);
@@ -1115,9 +1128,8 @@ try {
     console.log('Message:', err.message);
     console.log('Location:', err.location);
     console.log('Context:', err.context);
-  } else if (err instanceof TimeoutError) {
-    console.log('Operation timed out');
   } else if (err instanceof RuntimeHaltSignal) {
+    // Host abort or auto-exception. A per-call timeout halts with catchable RILL-R012 instead.
     console.log('Execution cancelled or auto-exception triggered');
   }
 }

@@ -49,11 +49,15 @@ import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
-import { getHostShape, throwCatchableHostHalt } from '../../types/halt.js';
+import {
+  getHostShape,
+  throwAbortHalt,
+  throwCatchableHostHalt,
+} from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { RuntimeContext, TimeoutScheduler } from '../../types/runtime.js';
 import { ControlSignal } from '../../signals.js';
-import { getNodeLocation } from '../shared.js';
+import { getNodeLocation, checkAborted, maybeYield } from '../shared.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluateExpression } from './core.js';
 
@@ -182,6 +186,10 @@ export async function evaluateRetryBlock(
   let lastHaltValue: RillValue | undefined;
   const caughtFrames: ReturnType<typeof createTraceFrame>[] = [];
   for (let attempt = 0; attempt < node.attempts; attempt++) {
+    // Outside the try so an abort halt is never retried.
+    checkAborted(s, node);
+    const yielded = maybeYield(s, node);
+    if (yielded) await yielded;
     try {
       return await evaluateBody(s, node.body);
     } catch (e) {
@@ -376,6 +384,8 @@ export async function evaluateTimeoutBlock(
     // ignores ctx.signal). Surface the timeout halt rather than the
     // late result so expiry is enforced consistently.
     if (expired) {
+      // A host abort that landed alongside the expiry wins over the timeout.
+      if (parentSignal?.aborted) throwAbortHalt(site);
       const atomCode =
         node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
       throwCatchableHostHalt(
@@ -391,6 +401,21 @@ export async function evaluateTimeoutBlock(
     // Re-throw ControlSignal subclasses (break/return/yield) and
     // non-catchable RuntimeHaltSignals unconditionally.
     if (e instanceof ControlSignal) throw e;
+    // A host or parent abort stays a #DISPOSED halt, even when our own
+    // timer also fired.
+    if (parentSignal?.aborted && isAbortHalt(e)) throw e;
+    // Our timer aborted the body: the abort halt becomes the catchable
+    // timeout halt instead of the non-catchable #DISPOSED.
+    if (expired && isAbortHalt(e)) {
+      const atomCode =
+        node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
+      throwCatchableHostHalt(
+        site,
+        atomCode,
+        `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
+        { durationMs }
+      );
+    }
     // A halt carrying a host error shape stands in for a RuntimeError, so it
     // takes the expiry path below instead of this fatal rethrow.
     if (
@@ -423,6 +448,19 @@ export async function evaluateTimeoutBlock(
     sched.clearTimeout(timerHandle);
     idleTicker?.cancel();
   }
+}
+
+/**
+ * True when `e` is the non-catchable `#DISPOSED` halt raised by `throwAbortHalt`.
+ * The runtime provider tag separates it from a host's own disposal failure,
+ * and survives the re-wrapping done at host-call boundaries.
+ */
+function isAbortHalt(e: unknown): boolean {
+  if (!(e instanceof RuntimeHaltSignal) || e.catchable) return false;
+  const status = getStatus(e.value);
+  return (
+    status.code === resolveAtom('DISPOSED') && status.provider === 'runtime'
+  );
 }
 
 // ============================================================

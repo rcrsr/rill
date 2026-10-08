@@ -66,7 +66,7 @@ import {
   propagateExtensionIdentity,
 } from '../../policy/identity.js';
 import type { DispatchContext } from '../../types/runtime.js';
-import { checkAborted, DEFAULT_MAX_ITERATIONS } from '../shared.js';
+import { checkAborted, maybeYield, DEFAULT_MAX_ITERATIONS } from '../shared.js';
 import { evaluateExpression } from './core.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { assertType } from './types.js';
@@ -353,6 +353,11 @@ export async function invokeCallable(
     // dict-bound property closure re-reading its own field, for one) would
     // otherwise grow the JS stack in lockstep with call depth and overflow
     // with a raw RangeError before the depth ceiling above can fire.
+    // The macrotask yield sits inside the try, after the counts rise and both
+    // ceilings are checked, so the finally unwinds the counts if a halt
+    // follows it.
+    const yielded = maybeYield(s);
+    if (yielded) await yielded;
     await Promise.resolve();
 
     if (internal === true) {
