@@ -608,6 +608,7 @@ function sliceEquals(a: SliceNode, b: SliceNode): boolean {
 }
 
 function listLiteralEquals(a: ListLiteralNode, b: ListLiteralNode): boolean {
+  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
   return arrayEquals(a.elements, b.elements, astEqualsPair);
 }
 

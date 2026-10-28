@@ -37,6 +37,12 @@ const UNREGISTERED_REGISTRY_NAMES = REGISTRY_ATOM_NAMES.filter(
 );
 
 describe('ATOM_UNREGISTERED stays aligned with the runtime registry', () => {
+  it('has non-empty atom lists to iterate', () => {
+    expect(BUILTIN_ATOMS.length).toBeGreaterThan(0);
+    expect(REGISTERED_REGISTRY_NAMES.length).toBeGreaterThan(0);
+    expect(UNREGISTERED_REGISTRY_NAMES.length).toBeGreaterThan(0);
+  });
+
   it.each([...BUILTIN_ATOMS])('does not fire for builtin atom #%s', (name) => {
     expect(runAtomRule(name)).toEqual([]);
   });
@@ -69,6 +75,6 @@ describe('ATOM_UNREGISTERED stays aligned with the runtime registry', () => {
     expect(text).toMatch(
       /import \{[^}]*\bBUILTIN_ATOMS\b[^}]*\} from '@rcrsr\/rill'/
     );
-    expect(text).not.toMatch(/'(?:TIMEOUT|RILL_R\w*|R\d{3})'/);
+    expect(text).not.toMatch(/['"`](?:TIMEOUT|RILL_R\w*|R\d{3})['"`]/);
   });
 });

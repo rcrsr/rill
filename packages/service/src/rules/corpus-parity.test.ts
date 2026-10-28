@@ -26,7 +26,7 @@
  *     `{ column: 1, offset: 0 }` location and a trimmed continuation-line
  *     context, never routed through `extractContextLine`;
  *   - ATOM_UNREGISTERED only fires for atom names outside the
- *     `BUILTIN_ATOMS` snapshot, and never for a name inside it.
+ *     core's `BUILTIN_ATOMS` export, and never for a name inside it.
  *
  * To regenerate the golden fixture after an intentional rule change, run:
  *
@@ -258,15 +258,8 @@ describe('INDENT_CONTINUATION synthetic location and context', () => {
 // TARGETED: ATOM_UNREGISTERED BOUNDARY
 // ============================================================
 
-describe('ATOM_UNREGISTERED fires only outside the BUILTIN_ATOMS snapshot', () => {
-  it.each(BUILTIN_ATOMS)('does not fire for builtin atom #%s', (name) => {
-    const source = `#${name}\n`;
-    const parsed = parseWithRecovery(source);
-    const result = runRules(parsed, source, makeConfig(), [atomUnregistered]);
-    expect(result).toEqual([]);
-  });
-
-  it('fires with a matching message for an atom outside the BUILTIN_ATOMS snapshot', () => {
+describe('ATOM_UNREGISTERED fires only outside the core BUILTIN_ATOMS set', () => {
+  it('fires with a matching message for an atom outside the core BUILTIN_ATOMS set', () => {
     const source = '#CUSTOM_UNREGISTERED_ATOM\n';
     const parsed = parseWithRecovery(source);
     const result = runRules(parsed, source, makeConfig(), [atomUnregistered]);
@@ -281,7 +274,7 @@ describe('ATOM_UNREGISTERED fires only outside the BUILTIN_ATOMS snapshot', () =
     });
   });
 
-  it('every corpus ATOM_UNREGISTERED firing names an atom outside the BUILTIN_ATOMS snapshot', () => {
+  it('every corpus ATOM_UNREGISTERED firing names an atom outside the core BUILTIN_ATOMS set', () => {
     const golden = loadGolden();
     const firings = golden
       .flatMap((entry) => entry.diagnostics)

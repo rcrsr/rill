@@ -65,6 +65,7 @@ describe('Tooling Exports', () => {
     });
 
     it('lists only names that resolve to themselves', () => {
+      expect(BUILTIN_ATOMS.length).toBeGreaterThan(0);
       for (const name of BUILTIN_ATOMS) {
         expect(resolveAtom(name).name).toBe(name);
       }
@@ -91,6 +92,7 @@ describe('Tooling Exports', () => {
     });
 
     it('contains every registry error id whose atom form is registered', () => {
+      expect(ERROR_REGISTRY.size).toBeGreaterThan(0);
       for (const [id] of ERROR_REGISTRY.entries()) {
         const name = id.replace('-', '_');
         if (resolveAtom(name).name === name) {
