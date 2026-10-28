@@ -23,6 +23,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`createTestContext` ignored extension `dispose` hooks:** `createTestContext` accepted a `dispose` hook next to each extension value and discarded it. `ctx.dispose()` now runs every hook once, after the runtime has shut down. If a hook throws, the remaining hooks still run and `ctx.dispose()` rejects with the first failure. ([#473](https://github.com/rcrsr/rill/issues/473))
+
+- **`getFunctions` dropped host functions without a `returnType`:** A host function registered from JavaScript without a `returnType` still ran, but `getFunctions` threw on it internally and left it out of the list. It is now listed with return type `any`, as untyped parameters already were.
+
+- **`RILL-R045` registry entry disagreed with the thrown error:** The message template read `Expected {expected} args, got {actual}`, while the runtime throws `Function expects N arguments, got M` with `expectedCount` and `actualCount` in its context. The template now matches, and its example uses current syntax. The error-handling guide also stated that a call after `dispose()` returns a `#DISPOSED` value; such a call halts non-catchably with `#DISPOSED`, and the guide now says so.
+
 - **Closure `==` ignored `??` defaults and typed existence checks:** Closures whose bodies differed only in a `??` default or a typed existence check compared equal, so `|x|{ $x ?? 1 }` equalled `|x|{ $x ?? 2 }` and `$x.?a&string` equalled `$x.?a&number`. Closure equality now compares both, and each pair is unequal. ([#486](https://github.com/rcrsr/rill/pull/486), [#484](https://github.com/rcrsr/rill/issues/484))
 
 - **`ATOM_UNREGISTERED` warned on atoms core registers:** The rule checked a hand-copied 35-name set that lacked atoms core registers, so `#RILL_R012`, `#RILL_R043`, `#RILL_R060`, `#RILL_R064`, `#RILL_R065`, `#RILL_R066`, `#RILL_R085`, `#RILL_R088`, `#RILL_R089`, `#RILL_R090`, and others produced false warnings. It now reads `BUILTIN_ATOMS` from `@rcrsr/rill`. Atoms a host registers with `registerErrorCode` still warn, since lint cannot see them. ([#486](https://github.com/rcrsr/rill/pull/486), [#471](https://github.com/rcrsr/rill/issues/471))

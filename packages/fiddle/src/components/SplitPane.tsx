@@ -76,8 +76,12 @@ export function SplitPane({
   breakpoint = DEFAULT_BREAKPOINT,
 }: SplitPaneProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [splitRatio, setSplitRatio] = useState(initialSplitRatio);
-  const splitRatioRef = useRef(initialSplitRatio);
+  // Clamp against the unmeasured default bounds; the container has no size
+  // until the first resize pass.
+  const [splitRatio, setSplitRatio] = useState(() =>
+    clampRatio(initialSplitRatio, 0)
+  );
+  const splitRatioRef = useRef(splitRatio);
   const [isDragging, setIsDragging] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
   // Measured container size (width or height, matching orientation),

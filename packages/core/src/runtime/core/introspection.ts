@@ -6,7 +6,11 @@
  */
 
 import type { RuntimeContext } from './types/runtime.js';
-import type { RillValue, TypeStructure } from './types/structures.js';
+import type {
+  RillTypeValue,
+  RillValue,
+  TypeStructure,
+} from './types/structures.js';
 import {
   compareStructuredFields,
   formatStructure,
@@ -118,7 +122,11 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
             description:
               (callable.annotations?.['description'] as string) ?? '',
             params,
-            returnType: formatStructure(callable.returnType.structure),
+            // JS hosts can omit returnType; report 'any' as for untyped params.
+            returnType:
+              (callable.returnType as RillTypeValue | undefined) !== undefined
+                ? formatStructure(callable.returnType.structure)
+                : 'any',
           });
         } else {
           // ApplicationCallable without params (untyped)

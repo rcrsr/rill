@@ -20,7 +20,11 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRuntimeContext, RuntimeError } from '@rcrsr/rill';
+import {
+  createRuntimeContext,
+  ERROR_REGISTRY,
+  RuntimeError,
+} from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
@@ -453,6 +457,33 @@ describe('Rill Runtime: Host Type Validation', () => {
         expect(ctx['expectedCount']).toBe(1);
         expect(ctx['actualCount']).toBe(3);
       }
+    });
+
+    it('registry message template renders the thrown message from its context', async () => {
+      const err = await run('fn(1, 2, 3)', {
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'x',
+                type: { kind: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['x'],
+          },
+        },
+      }).then(
+        () => expect.fail('Should have thrown'),
+        (e: unknown) => e as RuntimeError
+      );
+      const template = ERROR_REGISTRY.get('RILL-R045')!.messageTemplate;
+      const ctx = err.context as Record<string, unknown>;
+      const rendered = template.replace(/\{(\w+)\}/g, (_, key: string) =>
+        String(ctx[key])
+      );
+      expect(err.message.startsWith(rendered)).toBe(true);
     });
   });
 

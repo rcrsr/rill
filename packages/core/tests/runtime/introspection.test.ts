@@ -744,6 +744,20 @@ describe('Rill Runtime: Introspection API', () => {
   });
 
   describe('Boundary Conditions', () => {
+    it('lists a host function registered without a returnType as returning any', () => {
+      // A JavaScript host can omit returnType despite the TypeScript type.
+      const ctx = createRuntimeContext({
+        functions: {
+          untyped_return: { params: [], fn: () => 1 } as never,
+        },
+      });
+
+      const fn = getFunctions(ctx).find((f) => f.name === 'untyped_return');
+
+      expect(fn?.returnType).toBe('any');
+      expect(fn?.params).toEqual([]);
+    });
+
     describe('AC-9: Context with zero host functions returns empty list (only built-ins)', () => {
       it('returns empty list when all functions are cleared', () => {
         const ctx = createRuntimeContext({});

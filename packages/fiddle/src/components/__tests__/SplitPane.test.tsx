@@ -94,7 +94,7 @@ describe('SplitPane', () => {
       expect(divider?.getAttribute('aria-valuemax')).toBe('80');
     });
 
-    it('clamps an out-of-range initial ratio on the first keyboard step', () => {
+    it('clamps an initial ratio below the minimum on mount', () => {
       const onSplitChange = vi.fn();
       const { container } = render(
         <SplitPane
@@ -107,14 +107,11 @@ describe('SplitPane', () => {
         '[role="separator"]'
       ) as HTMLElement;
 
-      fireEvent.keyDown(divider, { key: 'ArrowDown' });
-
-      expect(onSplitChange).toHaveBeenCalledTimes(1);
-      expect(onSplitChange).toHaveBeenCalledWith(20);
       expect(divider.getAttribute('aria-valuenow')).toBe('20');
+      expect(onSplitChange).not.toHaveBeenCalled();
     });
 
-    it('clamps an out-of-range initial ratio at the maximum on the first keyboard step', () => {
+    it('clamps an initial ratio above the maximum on mount', () => {
       const onSplitChange = vi.fn();
       const { container } = render(
         <SplitPane
@@ -127,11 +124,8 @@ describe('SplitPane', () => {
         '[role="separator"]'
       ) as HTMLElement;
 
-      fireEvent.keyDown(divider, { key: 'ArrowUp' });
-
-      expect(onSplitChange).toHaveBeenCalledTimes(1);
-      expect(onSplitChange).toHaveBeenCalledWith(80);
       expect(divider.getAttribute('aria-valuenow')).toBe('80');
+      expect(onSplitChange).not.toHaveBeenCalled();
     });
   });
 

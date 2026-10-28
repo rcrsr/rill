@@ -227,7 +227,7 @@ export function createTestContext(
   // Create module resolver for ext bindings
   const extModuleResolver = createExtModuleResolver(bindingSource);
 
-  return createRuntimeContext({
+  const ctx = createRuntimeContext({
     resolvers: {
       ext: extResolver,
       module: extModuleResolver,
@@ -239,4 +239,29 @@ export function createTestContext(
     },
     parseSource,
   });
+
+  // The test context owns its extensions, so ctx.dispose() also runs each
+  // extension's dispose hook, after the runtime itself has shut down.
+  const hooks = Object.values(extensions).flatMap((entry) =>
+    entry.dispose ? [entry.dispose] : []
+  );
+  if (hooks.length === 0) return ctx;
+
+  const disposeRuntime = ctx.dispose;
+  let disposePromise: Promise<void> | null = null;
+  ctx.dispose = (): Promise<void> => {
+    disposePromise ??= (async () => {
+      await disposeRuntime();
+      const outcomes = await Promise.allSettled(
+        hooks.map(async (hook) => hook())
+      );
+      const failure = outcomes.find(
+        (outcome): outcome is PromiseRejectedResult =>
+          outcome.status === 'rejected'
+      );
+      if (failure) throw failure.reason;
+    })();
+    return disposePromise;
+  };
+  return ctx;
 }

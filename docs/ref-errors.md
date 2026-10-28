@@ -1314,7 +1314,8 @@ tuple["a"] -> tuple(string, number)  # element at position 1 is missing
 
 ```text
 # Too many arguments to a two-param closure
-|x: number, y: number| { x + y } -> app::call(1, 2, 3)  # 3 args, 2 params
+|x: number, y: number| { $x + $y } => $add
+$add(1, 2, 3)  # 3 args, 2 params
 ```
 
 ---
