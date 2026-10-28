@@ -20,25 +20,7 @@ import { measureP95 } from '../helpers/measure.js';
 // ============================================================
 
 describe('Theme Integration', () => {
-  describe('AC-1: Dark brand theme', () => {
-    it('returns Extension with brand neon dark styles', () => {
-      const extension = createThemeExtension(true);
-
-      expect(extension).toBeDefined();
-      expect(typeof extension).toBe('object');
-    });
-  });
-
-  describe('AC-2: Parameter is ignored (always dark)', () => {
-    it('returns Extension regardless of parameter value', () => {
-      const extension = createThemeExtension(false);
-
-      expect(extension).toBeDefined();
-      expect(typeof extension).toBe('object');
-    });
-  });
-
-  describe('AC-3: Theme creation performance', () => {
+  describe('Theme creation performance', () => {
     it('completes theme creation within 100ms', () => {
       const darkP95 = measureP95(
         () => {
@@ -58,14 +40,8 @@ describe('Theme Integration', () => {
     });
   });
 
-  describe('AC-34: Rapid theme creation calls', () => {
+  describe('Rapid theme creation calls', () => {
     it('completes 10 rapid createThemeExtension calls', () => {
-      // The defined-ness check is the functional assertion and needs no
-      // timing; the budget below is measured separately, warm.
-      for (let i = 0; i < 10; i++) {
-        expect(createThemeExtension(i % 2 === 0)).toBeDefined();
-      }
-
       const p95 = measureP95(
         () => {
           for (let i = 0; i < 10; i++) {
@@ -79,24 +55,6 @@ describe('Theme Integration', () => {
       expect(p95).toBeLessThan(1000);
     });
   });
-
-  describe('EC-1: createThemeExtension error handling', () => {
-    it('never throws for false parameter', () => {
-      expect(() => createThemeExtension(false)).not.toThrow();
-    });
-
-    it('never throws for true parameter', () => {
-      expect(() => createThemeExtension(true)).not.toThrow();
-    });
-
-    it('always succeeds for both parameter values', () => {
-      const extFalse = createThemeExtension(false);
-      const extTrue = createThemeExtension(true);
-
-      expect(extFalse).toBeDefined();
-      expect(extTrue).toBeDefined();
-    });
-  });
 });
 
 // ============================================================
@@ -104,7 +62,7 @@ describe('Theme Integration', () => {
 // ============================================================
 
 describe('Tab Key Binding Integration', () => {
-  describe('AC-7, AC-8: Tab and Shift-Tab bindings', () => {
+  describe('Tab and Shift-Tab bindings', () => {
     it('returns array with exactly 2 key bindings', () => {
       const bindings = createTabKeyBinding();
 
@@ -129,7 +87,7 @@ describe('Tab Key Binding Integration', () => {
     });
   });
 
-  describe('AC-30, AC-31, AC-33: Tab binding behavior', () => {
+  describe('Tab binding behavior', () => {
     it('Tab binding has preventDefault true', () => {
       const bindings = createTabKeyBinding();
       const tabBinding = bindings.find((b) => b.key === 'Tab');
@@ -145,17 +103,7 @@ describe('Tab Key Binding Integration', () => {
     });
   });
 
-  describe('AC-9, AC-32: Multi-line selection behavior', () => {
-    it('both bindings support multi-line operations', () => {
-      const bindings = createTabKeyBinding();
-
-      expect(bindings).toHaveLength(2);
-      expect(bindings[0]).toBeDefined();
-      expect(bindings[1]).toBeDefined();
-    });
-  });
-
-  describe('EC-2: createTabKeyBinding error handling', () => {
+  describe('createTabKeyBinding error handling', () => {
     it('never throws exception', () => {
       expect(() => createTabKeyBinding()).not.toThrow();
     });
@@ -174,7 +122,7 @@ describe('Tab Key Binding Integration', () => {
 // ============================================================
 
 describe('Syntax Highlighting Integration', () => {
-  describe('AC-14, AC-15, AC-16, AC-17, AC-18, AC-19: Highlight categories', () => {
+  describe('Highlight categories', () => {
     it('has token method for syntax highlighting', () => {
       expect(rillHighlighter.token).toBeDefined();
       expect(typeof rillHighlighter.token).toBe('function');
@@ -190,59 +138,7 @@ describe('Syntax Highlighting Integration', () => {
     });
   });
 
-  describe('EC-3, AC-24: Tokenize error handling', () => {
-    it('handles tokenize errors without throwing', () => {
-      const state = rillHighlighter.startState!(2);
-
-      const mockStream = {
-        string: '§§§',
-        pos: 0,
-        start: 0,
-        sol: () => true,
-        eol: () => false,
-        next: () => {
-          mockStream.pos++;
-          return '§';
-        },
-        peek: () => '§',
-        skipToEnd: () => {
-          mockStream.pos = mockStream.string.length;
-        },
-      } as unknown as StringStream;
-
-      expect(() => rillHighlighter.token!(mockStream, state)).not.toThrow();
-    });
-
-    it('returns fallback when tokenize fails', () => {
-      const state = rillHighlighter.startState!(2);
-
-      const mockStream = {
-        string: '§§§',
-        pos: 0,
-        start: 0,
-        sol: () => true,
-        eol: () => mockStream.pos >= mockStream.string.length,
-        next: () => {
-          if (mockStream.pos < mockStream.string.length) {
-            const char = mockStream.string[mockStream.pos];
-            mockStream.pos++;
-            return char;
-          }
-          return undefined;
-        },
-        peek: () =>
-          mockStream.pos < mockStream.string.length
-            ? mockStream.string[mockStream.pos]
-            : undefined,
-      } as unknown as StringStream;
-
-      const result = rillHighlighter.token!(mockStream, state);
-
-      expect(result === null || typeof result === 'string').toBe(true);
-    });
-  });
-
-  describe('EC-4, AC-25: Missing category handling', () => {
+  describe('Missing category handling', () => {
     it('returns null for unmapped token types', () => {
       const state = rillHighlighter.startState!(2);
 
@@ -285,7 +181,7 @@ describe('Syntax Highlighting Integration', () => {
 // ============================================================
 
 describe('Performance Integration', () => {
-  describe('AC-26: Empty document highlighting', () => {
+  describe('Empty document highlighting', () => {
     it('highlights empty document in less than 1ms', () => {
       const state = rillHighlighter.startState!(2);
       const mockStream = {
@@ -308,7 +204,7 @@ describe('Performance Integration', () => {
     });
   });
 
-  describe('AC-20: 1000-line document highlighting', () => {
+  describe('1000-line document highlighting', () => {
     it('highlights 1000-line document in less than 16ms', () => {
       const lines = Array.from({ length: 1000 }, (_, i) => `${i} -> $var${i}`);
 
@@ -348,7 +244,7 @@ describe('Performance Integration', () => {
     });
   });
 
-  describe('AC-27: 10,000-line document highlighting', () => {
+  describe('10,000-line document highlighting', () => {
     it('highlights 10,000-line document in less than 1000ms', () => {
       const lines = Array.from({ length: 10000 }, (_, i) => `${i} -> $var${i}`);
 
@@ -388,7 +284,7 @@ describe('Performance Integration', () => {
     });
   });
 
-  describe('AC-29: 1000-character single line highlighting', () => {
+  describe('1000-character single line highlighting', () => {
     it('highlights 1000-character line in less than 50ms', () => {
       const longLine = Array.from({ length: 250 }, () => '1 + ').join('') + '1';
 
@@ -434,52 +330,11 @@ describe('Performance Integration', () => {
 });
 
 // ============================================================
-// CROSS-FEATURE INTEGRATION TESTS
-// ============================================================
-
-describe('Cross-Feature Integration', () => {
-  describe('Theme and highlighting compatibility', () => {
-    it('creates theme extensions compatible with highlighting', () => {
-      const theme = createThemeExtension(true);
-      const highlighter = rillHighlighter;
-
-      expect(theme).toBeDefined();
-      expect(highlighter).toBeDefined();
-    });
-  });
-
-  describe('Bindings and theme compatibility', () => {
-    it('creates bindings compatible with themed editor', () => {
-      const bindings = createTabKeyBinding();
-      const theme = createThemeExtension(true);
-
-      expect(bindings).toBeDefined();
-      expect(theme).toBeDefined();
-      expect(bindings.length).toBe(2);
-    });
-  });
-
-  describe('All features together', () => {
-    it('creates all editor features without errors', () => {
-      const theme = createThemeExtension(true);
-      const bindings = createTabKeyBinding();
-      const highlighter = rillHighlighter;
-
-      expect(theme).toBeDefined();
-      expect(bindings).toBeDefined();
-      expect(bindings).toHaveLength(2);
-      expect(highlighter).toBeDefined();
-      expect(highlighter.name).toBe('rill');
-    });
-  });
-});
-
-// ============================================================
 // FONT AND TYPOGRAPHY TESTS
 // ============================================================
 
 describe('Font and Typography', () => {
-  describe('AC-11: JetBrains Mono font loading', () => {
+  describe('JetBrains Mono font loading', () => {
     it('HTML includes Google Fonts preconnect links', () => {
       const htmlPath = resolve(__dirname, '../../index.html');
       const htmlContent = readFileSync(htmlPath, 'utf-8');
@@ -498,7 +353,7 @@ describe('Font and Typography', () => {
     });
   });
 
-  describe('AC-12: Font ligature support', () => {
+  describe('Font ligature support', () => {
     it('CSS enables ligatures with font-variant-ligatures normal', () => {
       const cssPath = resolve(__dirname, '../../src/index.css');
       const cssContent = readFileSync(cssPath, 'utf-8');
@@ -507,7 +362,7 @@ describe('Font and Typography', () => {
     });
   });
 
-  describe('AC-13, AC-22, AC-23: Font fallback chain', () => {
+  describe('Font fallback chain', () => {
     it('CSS includes ui-monospace fallback in font custom property', () => {
       const cssPath = resolve(__dirname, '../../src/index.css');
       const cssContent = readFileSync(cssPath, 'utf-8');
@@ -524,7 +379,7 @@ describe('Font and Typography', () => {
     });
   });
 
-  describe('AC-5, AC-6: Indentation configuration', () => {
+  describe('Indentation configuration', () => {
     it('indentUnit configured as 2 spaces in Editor', () => {
       const editorPath = resolve(__dirname, '../../src/components/Editor.tsx');
       const editorContent = readFileSync(editorPath, 'utf-8');
@@ -540,7 +395,7 @@ describe('Font and Typography', () => {
 // ============================================================
 
 describe('Accessibility', () => {
-  describe('AC-10: Escape key focus navigation', () => {
+  describe('Escape key focus navigation', () => {
     it('createTabKeyBinding does not capture Escape key', () => {
       const bindings = createTabKeyBinding();
 
@@ -568,33 +423,7 @@ describe('Accessibility', () => {
 // ============================================================
 
 describe('Boundary Conditions', () => {
-  describe('AC-4, AC-35: Brand theme preserves editor content', () => {
-    it('brand dark theme is applied via createThemeExtension', () => {
-      const editorPath = resolve(__dirname, '../../src/components/Editor.tsx');
-      const editorContent = readFileSync(editorPath, 'utf-8');
-
-      // Verify Editor uses createThemeExtension for brand theme
-      expect(editorContent).toContain('createThemeExtension');
-
-      // Verify theme extension is pure function (same input -> same output)
-      const theme1 = createThemeExtension(true);
-      const theme2 = createThemeExtension(true);
-      expect(theme1).toBeDefined();
-      expect(theme2).toBeDefined();
-      expect(typeof theme1).toBe('object');
-      expect(typeof theme2).toBe('object');
-    });
-
-    it('rapid theme creation calls do not cause errors', () => {
-      for (let i = 0; i < 10; i++) {
-        const darkMode = i % 2 === 0;
-        const extension = createThemeExtension(darkMode);
-        expect(extension).toBeDefined();
-      }
-    });
-  });
-
-  describe('AC-28: Large document virtualization', () => {
+  describe('Large document virtualization', () => {
     it('CodeMirror 6 provides virtualization through EditorView', () => {
       const editorPath = resolve(__dirname, '../../src/components/Editor.tsx');
       const editorContent = readFileSync(editorPath, 'utf-8');
@@ -602,14 +431,6 @@ describe('Boundary Conditions', () => {
       expect(editorContent).toContain('EditorView');
       expect(editorContent).toContain('new EditorView');
       expect(editorContent).toContain('cm-scroller');
-    });
-
-    it('highlighter processes lines incrementally', () => {
-      const state = rillHighlighter.startState!(2);
-      expect(state).toBeDefined();
-
-      expect(rillHighlighter.token).toBeDefined();
-      expect(typeof rillHighlighter.token).toBe('function');
     });
   });
 });

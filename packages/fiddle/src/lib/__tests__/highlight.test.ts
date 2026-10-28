@@ -392,19 +392,13 @@ describe('token highlighting', () => {
 
 describe('error handling', () => {
   describe('tokenize error handling', () => {
-    it('handles invalid syntax without throwing', () => {
-      // Invalid character that tokenizer cannot handle
-      const invalidLine = '§§§';
+    it('returns null tags for invalid syntax without throwing', () => {
+      const line = '42 § x';
 
-      expect(() => tokenizeLine(invalidLine)).not.toThrow();
-    });
-
-    it('returns tags for invalid syntax (may be empty or fallback)', () => {
-      const invalidLine = '§§§';
-      const tags = tokenizeLine(invalidLine);
-
-      // Should return array, even if empty
-      expect(Array.isArray(tags)).toBe(true);
+      expect(() => tokenizeLine(line)).not.toThrow();
+      const tags = tokenizeLine(line);
+      expect(tags).toHaveLength(6);
+      expect(tags.every((tag) => tag === null)).toBe(true);
     });
   });
 
@@ -423,32 +417,15 @@ describe('error handling', () => {
 
       // Should handle gracefully
       const tag = highlighter.token(stream, state);
-      expect(tag === null || typeof tag === 'string').toBe(true);
+      expect(tag).toBeNull();
     });
   });
 
   describe('tokenize throws error', () => {
-    it('returns previous valid tokens on error', () => {
-      const validLine = '42';
-      const tags = tokenizeLine(validLine);
+    it('recovers tokens before an unterminated string', () => {
+      const tags = tokenizeLine('42 "abc');
 
-      // Should have number tag
-      expect(tags).toContain('number');
-    });
-
-    it('continues parsing after error', () => {
-      const stream = new MockStringStream('42 + x') as unknown as StringStream;
-      const state = highlighter.startState(2);
-      const tags: Array<string | null> = [];
-
-      // Parse entire line
-      while (!stream.eol()) {
-        const tag = highlighter.token(stream, state);
-        tags.push(tag);
-      }
-
-      // Should have parsed successfully
-      expect(tags.length).toBeGreaterThan(0);
+      expect(tags).toEqual(['number', null, 'string']);
     });
   });
 

@@ -2,27 +2,32 @@
  * App Component Integration Tests
  *
  * Test coverage:
- * - App renders without errors
- * - Keyboard shortcut execution
+ * - Layout: toolbar above a split pane holding editor and output
+ * - Initial state from first visit and persisted storage
+ * - Ctrl+Enter in the editor runs the document
  * - Example selection replaces editor content without auto-executing
- * - Panel resize persists across reload
- * - Re-execution clears previous output before showing new result
- * - Error with line location highlights gutter line in editor
- * - Error clears on successful re-run
- * - Empty source shows no error; output remains idle
- * - Rapid re-execution guard prevents duplicates
- * - First visit loads Hello World
- * - Run button disabled while a worker run is in flight
- * - A resolved timeout ExecutionState renders as an error
+ * - Error display, gutter highlighting, and clearing on re-run
+ * - Rapid re-execution guard and Run button disabling
+ * - Re-execution clears previous output
+ * - Panel resize and editor content persistence
+ * - Share link and decode notices
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { StrictMode } from 'react';
-import { render, cleanup, waitFor, act } from '@testing-library/react';
+import {
+  render,
+  cleanup,
+  waitFor,
+  act,
+  fireEvent,
+} from '@testing-library/react';
+import { EditorView } from '@codemirror/view';
 import { App } from '../App.js';
 import * as persistence from '../lib/persistence.js';
 import * as runner from '../lib/execution-runner.js';
 import * as sharing from '../lib/sharing.js';
+import { loadExample } from '../lib/examples.js';
 import type { ExecutionState } from '../lib/execution.js';
 
 /** Wraps a resolved ExecutionState into the { promise, cancel } shape runInWorker returns. */
@@ -52,6 +57,73 @@ function pendingRun(): {
   return { promise: new Promise<ExecutionState>(() => {}), cancel: vi.fn() };
 }
 
+/** Builds a successful ExecutionState carrying the given result text. */
+function successState(result: string, duration = 10): ExecutionState {
+  return { status: 'success', result, error: null, duration, logs: [] };
+}
+
+/** Builds a failed ExecutionState with the given message and location. */
+function errorState(
+  message: string,
+  line: number | null,
+  column: number | null,
+  category: 'lexer' | 'parse' | 'runtime' = 'runtime',
+  errorId: string | null = 'TEST-001'
+): ExecutionState {
+  return {
+    status: 'error',
+    result: null,
+    error: {
+      message,
+      category,
+      line,
+      column,
+      errorId,
+      statusCode: null,
+      statusMessage: null,
+      statusProvider: null,
+      statusTrace: null,
+    },
+    duration: 10,
+    logs: [],
+  };
+}
+
+/** Returns the Run button of a rendered App. */
+function getRunButton(container: HTMLElement): HTMLButtonElement {
+  return container.querySelector('.toolbar-run') as HTMLButtonElement;
+}
+
+/** Clicks the Run button and flushes the resulting state updates. */
+async function clickRun(button: HTMLButtonElement): Promise<void> {
+  await act(async () => {
+    button.click();
+  });
+}
+
+/** Returns the CodeMirror view mounted inside a rendered App. */
+function getEditorView(container: HTMLElement): EditorView {
+  return EditorView.findFromDOM(
+    container.querySelector('.cm-content') as HTMLElement
+  )!;
+}
+
+/** Returns the current editor document text of a rendered App. */
+function getEditorDoc(container: HTMLElement): string {
+  return getEditorView(container).state.doc.toString();
+}
+
+/** Selects an example in the toolbar dropdown. */
+function selectExample(container: HTMLElement, exampleId: string): void {
+  const select = container.querySelector(
+    '.toolbar-select'
+  ) as HTMLSelectElement;
+  select.value = exampleId;
+  act(() => {
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+}
+
 describe('App', () => {
   beforeEach(() => {
     // Mock localStorage. happy-dom exposes window.localStorage as a getter-only
@@ -76,73 +148,58 @@ describe('App', () => {
   });
 
   // ============================================================
-  // App renders without errors
+  // Layout
   // ============================================================
 
   describe('rendering', () => {
-    it('renders without errors', () => {
+    it('places the toolbar before a split pane holding the editor and the output', () => {
       const { container } = render(<App />);
-      expect(container).toBeDefined();
-    });
 
-    it('renders Toolbar component', () => {
-      const { container } = render(<App />);
-      const toolbar = container.querySelector('.toolbar');
-      expect(toolbar).toBeDefined();
-    });
+      const toolbar = container.querySelector('.toolbar')!;
+      const splitPane = container.querySelector('.split-pane')!;
+      expect(toolbar).not.toBeNull();
+      expect(splitPane).not.toBeNull();
+      expect(
+        toolbar.compareDocumentPosition(splitPane) &
+          Node.DOCUMENT_POSITION_FOLLOWING
+      ).toBeTruthy();
 
-    it('renders Editor component', () => {
-      const { container } = render(<App />);
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-    });
-
-    it('renders Output component', () => {
-      const { container } = render(<App />);
-      const output = container.querySelector('.output-panel');
-      expect(output).toBeDefined();
-    });
-
-    it('renders SplitPane component', () => {
-      const { container } = render(<App />);
-      const splitPane = container.querySelector('.split-pane');
-      expect(splitPane).toBeDefined();
+      const panels = splitPane.querySelectorAll('.split-pane-panel');
+      expect(panels[0]!.querySelector('.editor-container')).not.toBeNull();
+      expect(panels[1]!.querySelector('.output-panel')).not.toBeNull();
     });
   });
 
   // ============================================================
-  // First visit loads Hello World
+  // Initial state
   // ============================================================
 
   describe('initial state', () => {
-    it('loads Hello World example on first visit', () => {
-      // Clear localStorage to simulate first visit
-      localStorage.clear();
-
+    it('shows Hello World at a 50 percent split on first visit', () => {
       const { container } = render(<App />);
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+
+      expect(getEditorDoc(container)).toContain('Hello, World!');
+      expect(
+        container
+          .querySelector('[role="separator"]')!
+          .getAttribute('aria-valuenow')
+      ).toBe('50');
     });
 
-    it('loads persisted state on subsequent visits', () => {
-      // Set persisted state
-      const state: persistence.EditorState = {
+    it('restores the persisted source and split ratio on subsequent visits', () => {
+      persistence.persistEditorState({
         splitRatio: 60,
         lastSource: 'log("test")',
-      };
-      persistence.persistEditorState(state);
+      });
 
       const { container } = render(<App />);
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-    });
 
-    it('applies default split ratio on first visit', () => {
-      localStorage.clear();
-
-      const { container } = render(<App />);
-      const splitPane = container.querySelector('.split-pane');
-      expect(splitPane).toBeDefined();
+      expect(getEditorDoc(container)).toBe('log("test")');
+      expect(
+        container
+          .querySelector('[role="separator"]')!
+          .getAttribute('aria-valuenow')
+      ).toBe('60');
     });
   });
 
@@ -151,40 +208,32 @@ describe('App', () => {
   // ============================================================
 
   describe('keyboard shortcuts', () => {
-    it('Editor component receives onRun prop for Cmd/Ctrl+Enter', () => {
-      const { container } = render(<App />);
-
-      // Verify Editor is rendered and receives onRun callback
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-    });
-
-    it('Editor onRun callback triggers identical execution to Run button', async () => {
-      const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValue(
-        immediateRun({
-          status: 'success',
-          result: '"Test"',
-          error: null,
-          duration: 10,
-          logs: [],
-        })
-      );
+    it('runs the editor source and shows the result when Ctrl+Enter is pressed', async () => {
+      const source = 'log("keyboard")';
+      persistence.persistEditorState({ splitRatio: 50, lastSource: source });
+      const runSpy = vi
+        .spyOn(runner, 'runInWorker')
+        .mockReturnValue(immediateRun(successState('"Keyboard Result"')));
 
       const { container } = render(<App />);
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
+      await act(async () => {
+        container.querySelector('.cm-content')!.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Enter',
+            ctrlKey: true,
+            bubbles: true,
+          })
+        );
+      });
 
-      if (runButton) {
-        runButton.click();
-
-        await waitFor(() => {
-          expect(runSpy).toHaveBeenCalledTimes(1);
-        });
-      }
+      expect(runSpy).toHaveBeenCalledTimes(1);
+      expect(runSpy).toHaveBeenCalledWith(source);
+      await waitFor(() => {
+        expect(
+          container.querySelector('.output-result')?.textContent
+        ).toContain('Keyboard Result');
+      });
     });
   });
 
@@ -193,53 +242,30 @@ describe('App', () => {
   // ============================================================
 
   describe('example loading', () => {
-    it('selecting example from dropdown replaces editor content', async () => {
+    it('replaces the editor content with the selected example source', async () => {
       const { container } = render(<App />);
 
-      const select = container.querySelector(
-        '.toolbar-select'
-      ) as HTMLSelectElement;
-      expect(select).toBeDefined();
+      selectExample(container, 'variables');
 
-      if (select) {
-        select.value = 'variables';
-        act(() => {
-          select.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-
-        // Toolbar resets select to '' after loading example
-        await waitFor(() => {
-          // Editor should still render after example load
-          const editor = container.querySelector('.editor-container');
-          expect(editor).toBeDefined();
-        });
-      }
+      await waitFor(() => {
+        expect(getEditorDoc(container)).toBe(loadExample('variables')!.source);
+      });
     });
 
-    it('does NOT auto-execute when loading example', async () => {
+    it('does not execute the selected example', async () => {
       const runSpy = vi.spyOn(runner, 'runInWorker');
+      runSpy.mockReturnValue(pendingRun());
 
       const { container } = render(<App />);
+      const initialDoc = getEditorDoc(container);
 
-      const select = container.querySelector(
-        '.toolbar-select'
-      ) as HTMLSelectElement;
+      selectExample(container, 'variables');
 
-      if (select) {
-        select.value = 'hello-world';
-        act(() => {
-          select.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-
-        // Wait a tick for state updates
-        await waitFor(() => {
-          const editor = container.querySelector('.editor-container');
-          expect(editor).toBeDefined();
-        });
-
-        // runInWorker should NOT be called
-        expect(runSpy).not.toHaveBeenCalled();
-      }
+      await waitFor(() => {
+        expect(getEditorDoc(container)).toBe(loadExample('variables')!.source);
+      });
+      expect(getEditorDoc(container)).not.toBe(initialDoc);
+      expect(runSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -248,167 +274,80 @@ describe('App', () => {
   // ============================================================
 
   describe('error handling', () => {
-    it('error with line location highlights gutter line in editor', async () => {
-      const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'error',
-          result: null,
-          error: {
-            message: 'Variable not defined',
-            category: 'runtime',
-            line: 3,
-            column: 5,
-            errorId: 'RUNTIME-001',
-            statusCode: null,
-            statusMessage: null,
-            statusProvider: null,
-            statusTrace: null,
-          },
-          duration: 12,
-          logs: [],
-        })
+    it('highlights the failing editor line and shows its line and column', async () => {
+      const lines = ['"one" => $a', '"two" => $b', '"three" => $c'];
+      persistence.persistEditorState({
+        splitRatio: 50,
+        lastSource: lines.join('\n'),
+      });
+      vi.spyOn(runner, 'runInWorker').mockReturnValueOnce(
+        immediateRun(errorState('Variable not defined', 3, 5))
       );
 
       const { container } = render(<App />);
+      await clickRun(getRunButton(container));
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
-
-      if (runButton) {
-        runButton.click();
-
-        await waitFor(() => {
-          const errorDisplay = container.querySelector('.output-error');
-          expect(errorDisplay).toBeDefined();
-          expect(errorDisplay?.textContent).toContain('line 3');
-        });
-
-        const editor = container.querySelector('.editor-container');
-        expect(editor).toBeDefined();
-      }
-    });
-
-    it('running valid code after error clears error display', async () => {
-      const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'error',
-          result: null,
-          error: {
-            message: 'Test error',
-            category: 'runtime',
-            line: 1,
-            column: 5,
-            errorId: 'TEST-001',
-            statusCode: null,
-            statusMessage: null,
-            statusProvider: null,
-            statusTrace: null,
-          },
-          duration: 10,
-          logs: [],
-        })
-      );
-
-      const { container } = render(<App />);
-
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
-
-      if (runButton) {
-        runButton.click();
-
-        await waitFor(() => {
-          const errorDisplay = container.querySelector('.output-error');
-          expect(errorDisplay).toBeDefined();
-        });
-
-        runSpy.mockReturnValueOnce(
-          immediateRun({
-            status: 'success',
-            result: '"Hello"',
-            error: null,
-            duration: 5,
-            logs: [],
-          })
+      await waitFor(() => {
+        expect(container.querySelector('.cm-error-line')?.textContent).toBe(
+          lines[2]
         );
-
-        runButton.click();
-
-        await waitFor(() => {
-          const errorDisplay = container.querySelector('.output-error');
-          expect(errorDisplay).toBeNull();
-        });
-      }
+      });
+      expect(
+        container.querySelector('.output-error-location')?.textContent
+      ).toContain('line 3, col 5');
     });
 
-    it('clears error gutter on re-run', async () => {
+    it('clears the error display when a re-run succeeds', async () => {
       const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'error',
-          result: null,
-          error: {
-            message: 'Test error',
-            category: 'runtime',
-            line: 2,
-            column: 1,
-            errorId: 'TEST-002',
-            statusCode: null,
-            statusMessage: null,
-            statusProvider: null,
-            statusTrace: null,
-          },
-          duration: 10,
-          logs: [],
-        })
-      );
+      runSpy.mockReturnValueOnce(immediateRun(errorState('Test error', 1, 5)));
 
       const { container } = render(<App />);
+      const runButton = getRunButton(container);
+      await clickRun(runButton);
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
+      await waitFor(() => {
+        expect(container.querySelector('.output-error')).not.toBeNull();
+      });
 
-      if (runButton) {
-        runButton.click();
+      runSpy.mockReturnValueOnce(immediateRun(successState('"Hello"')));
+      await clickRun(runButton);
 
-        await waitFor(() => {
-          const errorDisplay = container.querySelector('.output-error');
-          expect(errorDisplay).toBeDefined();
-        });
-
-        runSpy.mockReturnValueOnce(
-          immediateRun({
-            status: 'success',
-            result: '"OK"',
-            error: null,
-            duration: 5,
-            logs: [],
-          })
-        );
-
-        runButton.click();
-
-        await waitFor(() => {
-          const result = container.querySelector('.output-result');
-          expect(result).toBeDefined();
-        });
-      }
+      await waitFor(() => {
+        expect(container.querySelector('.output-error')).toBeNull();
+      });
+      expect(runSpy).toHaveBeenCalledTimes(2);
     });
 
-    it('empty source shows no error and output remains idle', async () => {
+    it('removes the error line highlight when a re-run succeeds', async () => {
+      persistence.persistEditorState({
+        splitRatio: 50,
+        lastSource: '"one" => $a\n"two" => $b',
+      });
       const runSpy = vi.spyOn(runner, 'runInWorker');
+      runSpy.mockReturnValueOnce(immediateRun(errorState('Test error', 2, 1)));
 
-      runSpy.mockReturnValueOnce(
+      const { container } = render(<App />);
+      const runButton = getRunButton(container);
+      await clickRun(runButton);
+
+      await waitFor(() => {
+        expect(container.querySelector('.cm-error-line')).not.toBeNull();
+      });
+
+      runSpy.mockReturnValueOnce(immediateRun(successState('"OK"')));
+      await clickRun(runButton);
+
+      await waitFor(() => {
+        expect(container.querySelector('.cm-error-line')).toBeNull();
+      });
+      expect(container.querySelector('.output-result')?.textContent).toContain(
+        'OK'
+      );
+    });
+
+    it('renders an idle result as the idle placeholder', async () => {
+      persistence.persistEditorState({ splitRatio: 50, lastSource: '' });
+      const runSpy = vi.spyOn(runner, 'runInWorker').mockReturnValueOnce(
         immediateRun({
           status: 'idle',
           result: null,
@@ -419,71 +358,41 @@ describe('App', () => {
       );
 
       const { container } = render(<App />);
+      const runButton = getRunButton(container);
+      await clickRun(runButton);
 
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-
-      if (runButton) {
-        runButton.click();
-
-        await waitFor(() => {
-          expect(runSpy).toHaveBeenCalled();
-        });
-
-        const errorDisplay = container.querySelector('.output-error');
-        expect(errorDisplay).toBeNull();
-
-        const resultDisplay = container.querySelector('.output-result');
-        expect(resultDisplay).toBeNull();
-
-        const outputPanel = container.querySelector('.output-panel');
-        expect(outputPanel).toBeDefined();
-      }
+      await waitFor(() => {
+        expect(runSpy).toHaveBeenCalledWith('');
+        expect(runButton.disabled).toBe(false);
+      });
+      expect(container.querySelector('.output-idle')?.textContent).toContain(
+        'Run code to see output'
+      );
+      expect(container.querySelector('.output-error')).toBeNull();
+      expect(container.querySelector('.output-result')).toBeNull();
     });
 
     it('renders a resolved timeout ExecutionState as an error', async () => {
-      const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'error',
-          result: null,
-          error: {
-            message: 'Execution exceeded the 5000ms time limit',
-            category: 'runtime',
-            line: null,
-            column: null,
-            errorId: null,
-            statusCode: null,
-            statusMessage: null,
-            statusProvider: null,
-            statusTrace: null,
-          },
-          duration: null,
-          logs: [],
-        })
+      vi.spyOn(runner, 'runInWorker').mockReturnValueOnce(
+        immediateRun(
+          errorState(
+            'Execution exceeded the 5000ms time limit',
+            null,
+            null,
+            'runtime',
+            null
+          )
+        )
       );
 
       const { container } = render(<App />);
+      await clickRun(getRunButton(container));
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
-
-      if (runButton) {
-        runButton.click();
-
-        await waitFor(() => {
-          const errorDisplay = container.querySelector('.output-error');
-          expect(errorDisplay).toBeDefined();
-          expect(errorDisplay?.textContent).toContain('time limit');
-        });
-      }
+      await waitFor(() => {
+        expect(container.querySelector('.output-error')?.textContent).toContain(
+          'time limit'
+        );
+      });
     });
   });
 
@@ -494,106 +403,72 @@ describe('App', () => {
   describe('rapid re-execution', () => {
     it('clicking Run multiple times does not produce duplicate outputs', async () => {
       const runSpy = vi.spyOn(runner, 'runInWorker');
-
       runSpy.mockImplementation(() =>
-        delayedRun(
-          {
-            status: 'success',
-            result: '"Test"',
-            error: null,
-            duration: 100,
-            logs: [],
-          },
-          100
-        )
+        delayedRun(successState('"Test"', 100), 100)
       );
 
       const { container } = render(<App />);
+      const runButton = getRunButton(container);
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-
-      if (runButton) {
+      act(() => {
         runButton.click();
         runButton.click();
         runButton.click();
+      });
 
-        await waitFor(
-          () => {
-            const result = container.querySelector('.output-result');
-            expect(result).toBeDefined();
-          },
-          { timeout: 200 }
-        );
+      await waitFor(
+        () => {
+          expect(
+            container.querySelector('.output-result')?.textContent
+          ).toContain('Test');
+        },
+        { timeout: 1000 }
+      );
 
-        expect(runSpy).toHaveBeenCalledTimes(1);
-      }
+      expect(container.querySelectorAll('.output-result')).toHaveLength(1);
+      expect(runSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('disables Run button while status is running', async () => {
+    it('disables the Run button while a delayed run is in progress and re-enables it after', async () => {
       const runSpy = vi.spyOn(runner, 'runInWorker');
-
       runSpy.mockImplementation(() =>
-        delayedRun(
-          {
-            status: 'success',
-            result: '"Test"',
-            error: null,
-            duration: 50,
-            logs: [],
-          },
-          50
-        )
+        delayedRun(successState('"Test"', 50), 50)
       );
 
       const { container } = render(<App />);
+      const runButton = getRunButton(container);
+      expect(runButton.disabled).toBe(false);
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-
-      if (runButton) {
-        expect(runButton.disabled).toBe(false);
-
+      act(() => {
         runButton.click();
+      });
 
-        await waitFor(() => {
-          expect(runButton.disabled).toBe(true);
-        });
+      await waitFor(() => {
+        expect(runButton.disabled).toBe(true);
+      });
 
-        await waitFor(
-          () => {
-            expect(runButton.disabled).toBe(false);
-          },
-          { timeout: 100 }
-        );
-      }
+      await waitFor(
+        () => {
+          expect(runButton.disabled).toBe(false);
+        },
+        { timeout: 1000 }
+      );
     });
 
-    it('disables Run button while a worker run is in flight (pending promise)', async () => {
-      const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValue(pendingRun());
+    it('keeps the Run button disabled while a worker run is in flight', async () => {
+      vi.spyOn(runner, 'runInWorker').mockReturnValue(pendingRun());
 
       const { container } = render(<App />);
+      const runButton = getRunButton(container);
+      expect(runButton.disabled).toBe(false);
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
+      act(() => {
+        runButton.click();
+      });
 
-      if (runButton) {
-        expect(runButton.disabled).toBe(false);
-
-        act(() => {
-          runButton.click();
-        });
-
-        await waitFor(() => {
-          expect(runButton.disabled).toBe(true);
-        });
-      }
+      await waitFor(() => {
+        expect(runButton.disabled).toBe(true);
+      });
     });
   });
 
@@ -602,50 +477,33 @@ describe('App', () => {
   // ============================================================
 
   describe('panel resize persistence', () => {
-    it('panel resize persists across simulated reload', async () => {
-      localStorage.clear();
+    it('restores a keyboard-resized split ratio after remounting', async () => {
+      persistence.persistEditorState({ splitRatio: 65, lastSource: 'test' });
 
-      const { unmount: unmount1 } = render(<App />);
+      const first = render(<App />);
+      const separator = first.container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+      expect(separator.getAttribute('aria-valuenow')).toBe('65');
 
-      unmount1();
-
-      const newRatio = 65;
-      persistence.persistEditorState({
-        splitRatio: newRatio,
-        lastSource: 'test',
+      // happy-dom measures no container width, so the pane is vertical and
+      // ArrowDown grows the first panel by one 2-point step.
+      act(() => {
+        fireEvent.keyDown(separator, { key: 'ArrowDown' });
       });
 
-      const { unmount: unmount2 } = render(<App />);
+      // Unmounting cancels the pending debounced write, so wait for it first.
+      await waitFor(() => {
+        expect(persistence.loadEditorState().splitRatio).toBe(67);
+      });
+      first.unmount();
 
-      const updatedState = persistence.loadEditorState();
-      expect(updatedState?.splitRatio).toBe(newRatio);
-
-      unmount2();
-
-      render(<App />);
-
-      const reloadedState = persistence.loadEditorState();
-      expect(reloadedState?.splitRatio).toBe(newRatio);
-    });
-
-    it('persists split ratio changes multiple times', async () => {
-      localStorage.clear();
-
-      const ratios = [50, 30, 70, 60];
-
-      for (const ratio of ratios) {
-        persistence.persistEditorState({
-          splitRatio: ratio,
-          lastSource: 'test',
-        });
-
-        const { unmount } = render(<App />);
-
-        const state = persistence.loadEditorState();
-        expect(state?.splitRatio).toBe(ratio);
-
-        unmount();
-      }
+      const second = render(<App />);
+      expect(
+        second.container
+          .querySelector('[role="separator"]')!
+          .getAttribute('aria-valuenow')
+      ).toBe('67');
     });
   });
 
@@ -654,165 +512,86 @@ describe('App', () => {
   // ============================================================
 
   describe('re-execution output clearing', () => {
-    it('re-execution clears previous output before showing new result', async () => {
+    it('replaces the previous result with the new result', async () => {
       const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'success',
-          result: '"First Result"',
-          error: null,
-          duration: 10,
-          logs: [],
-        })
-      );
+      runSpy.mockReturnValueOnce(immediateRun(successState('"First Result"')));
 
       const { container } = render(<App />);
+      const runButton = getRunButton(container);
+      await clickRun(runButton);
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
+      await waitFor(() => {
+        expect(
+          container.querySelector('.output-result')?.textContent
+        ).toContain('First Result');
+      });
 
-      if (runButton) {
-        runButton.click();
+      runSpy.mockReturnValueOnce(
+        immediateRun(successState('"Second Result"', 12))
+      );
+      await clickRun(runButton);
 
-        await waitFor(() => {
-          const result = container.querySelector('.output-result');
-          expect(result?.textContent).toContain('First Result');
-        });
-
-        runSpy.mockReturnValueOnce(
-          immediateRun({
-            status: 'success',
-            result: '"Second Result"',
-            error: null,
-            duration: 12,
-            logs: [],
-          })
-        );
-
-        runButton.click();
-
-        await waitFor(() => {
-          const result = container.querySelector('.output-result');
-          expect(result?.textContent).toContain('Second Result');
-          expect(result?.textContent).not.toContain('First Result');
-        });
-      }
+      await waitFor(() => {
+        const text = container.querySelector('.output-result')?.textContent;
+        expect(text).toContain('Second Result');
+        expect(text).not.toContain('First Result');
+      });
     });
 
-    it('re-execution clears previous error before showing new result', async () => {
+    it('replaces the previous error with the new result', async () => {
       const runSpy = vi.spyOn(runner, 'runInWorker');
-
       runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'error',
-          result: null,
-          error: {
-            message: 'Previous Error',
-            category: 'runtime',
-            line: 1,
-            column: 1,
-            errorId: 'ERR-001',
-            statusCode: null,
-            statusMessage: null,
-            statusProvider: null,
-            statusTrace: null,
-          },
-          duration: 10,
-          logs: [],
-        })
+        immediateRun(errorState('Previous Error', 1, 1, 'runtime', 'ERR-001'))
       );
 
       const { container } = render(<App />);
+      const runButton = getRunButton(container);
+      await clickRun(runButton);
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-
-      if (runButton) {
-        runButton.click();
-
-        await waitFor(() => {
-          const error = container.querySelector('.output-error');
-          expect(error?.textContent).toContain('Previous Error');
-        });
-
-        runSpy.mockReturnValueOnce(
-          immediateRun({
-            status: 'success',
-            result: '"New Result"',
-            error: null,
-            duration: 8,
-            logs: [],
-          })
+      await waitFor(() => {
+        expect(container.querySelector('.output-error')?.textContent).toContain(
+          'Previous Error'
         );
+      });
 
-        runButton.click();
+      runSpy.mockReturnValueOnce(immediateRun(successState('"New Result"', 8)));
+      await clickRun(runButton);
 
-        await waitFor(() => {
-          const error = container.querySelector('.output-error');
-          expect(error).toBeNull();
-
-          const result = container.querySelector('.output-result');
-          expect(result?.textContent).toContain('New Result');
-        });
-      }
+      await waitFor(() => {
+        expect(container.querySelector('.output-error')).toBeNull();
+        expect(
+          container.querySelector('.output-result')?.textContent
+        ).toContain('New Result');
+      });
     });
 
-    it('re-execution shows loading state while clearing previous output', async () => {
+    it('shows the running state instead of the previous result during a re-run', async () => {
       const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'success',
-          result: '"First"',
-          error: null,
-          duration: 5,
-          logs: [],
-        })
-      );
+      runSpy.mockReturnValueOnce(immediateRun(successState('"First"', 5)));
 
       const { container } = render(<App />);
+      const runButton = getRunButton(container);
+      await clickRun(runButton);
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
+      await waitFor(() => {
+        expect(container.querySelector('.output-result')).not.toBeNull();
+      });
 
-      if (runButton) {
+      runSpy.mockImplementation(() =>
+        delayedRun(successState('"Second"', 50), 50)
+      );
+      act(() => {
         runButton.click();
+      });
 
-        await waitFor(() => {
-          const result = container.querySelector('.output-result');
-          expect(result).toBeDefined();
-        });
+      expect(container.querySelector('.output-running')).not.toBeNull();
+      expect(container.querySelector('.output-result')).toBeNull();
 
-        runSpy.mockImplementation(() =>
-          delayedRun(
-            {
-              status: 'success',
-              result: '"Second"',
-              error: null,
-              duration: 50,
-              logs: [],
-            },
-            50
-          )
-        );
-
-        runButton.click();
-
-        await waitFor(() => {
-          expect(runButton.disabled).toBe(true);
-        });
-
-        await waitFor(
-          () => {
-            expect(runButton.disabled).toBe(false);
-          },
-          { timeout: 100 }
-        );
-      }
+      await waitFor(() => {
+        expect(
+          container.querySelector('.output-result')?.textContent
+        ).toContain('Second');
+      });
     });
   });
 
@@ -821,44 +600,41 @@ describe('App', () => {
   // ============================================================
 
   describe('persistence', () => {
-    it('persists editor state on split ratio change', async () => {
+    it('persists edited editor content after the debounce', async () => {
       const persistSpy = vi.spyOn(persistence, 'persistEditorState');
 
-      render(<App />);
+      const { container } = render(<App />);
 
       await waitFor(() => {
         expect(persistSpy).toHaveBeenCalled();
       });
-    });
+      persistSpy.mockClear();
 
-    it('persists editor state on content change', async () => {
-      const persistSpy = vi.spyOn(persistence, 'persistEditorState');
-
-      render(<App />);
+      const marker = '# edited-marker';
+      act(() => {
+        getEditorView(container).dispatch({
+          changes: { from: 0, insert: marker },
+        });
+      });
 
       await waitFor(() => {
-        expect(persistSpy).toHaveBeenCalled();
+        expect(persistSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            lastSource: expect.stringContaining(marker),
+          })
+        );
       });
     });
   });
 
   // ============================================================
-  // Pure setExecutionState updater / concurrent-run guard (#217)
+  // Pure setExecutionState updater / concurrent-run guard
   // ============================================================
 
   describe('pure execution updater', () => {
     it('under StrictMode, a single Run click calls runInWorker exactly once', async () => {
       const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValue(
-        immediateRun({
-          status: 'success',
-          result: '"Test"',
-          error: null,
-          duration: 10,
-          logs: [],
-        })
-      );
+      runSpy.mockReturnValue(immediateRun(successState('"Test"')));
 
       const { container } = render(
         <StrictMode>
@@ -866,10 +642,8 @@ describe('App', () => {
         </StrictMode>
       );
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
+      const runButton = getRunButton(container);
+      expect(runButton).not.toBeNull();
 
       act(() => {
         runButton.click();
@@ -882,7 +656,7 @@ describe('App', () => {
   });
 
   // ============================================================
-  // Debounced persistence (#218)
+  // Debounced persistence
   // ============================================================
 
   describe('debounced persistence', () => {
@@ -905,19 +679,12 @@ describe('App', () => {
       });
       persistSpy.mockClear();
 
-      const select = container.querySelector(
-        '.toolbar-select'
-      ) as HTMLSelectElement;
-      expect(select).toBeDefined();
+      expect(container.querySelector('.toolbar-select')).not.toBeNull();
 
-      // Rapid-fire several source changes (each a synchronous setSource)
-      // before the debounce window elapses; each subsequent change should
-      // cancel the previous pending write.
+      // Rapid-fire several source changes before the debounce window
+      // elapses; each subsequent change cancels the previous pending write.
       for (const exampleId of ['variables', 'hello-world', 'variables']) {
-        select.value = exampleId;
-        act(() => {
-          select.dispatchEvent(new Event('change', { bubbles: true }));
-        });
+        selectExample(container, exampleId);
         await act(async () => {
           await vi.advanceTimersByTimeAsync(50);
         });
@@ -929,41 +696,43 @@ describe('App', () => {
       });
 
       expect(persistSpy).toHaveBeenCalledTimes(1);
+      expect(persistSpy.mock.calls[0]![0].lastSource).toBe(
+        loadExample('variables')!.source
+      );
     });
   });
 
   // ============================================================
-  // Copy link too-large handling (#221)
+  // Copy link too-large handling
   // ============================================================
 
   describe('copy link too-large state', () => {
-    it('surfaces "Code too large" when copyLinkToClipboard reports status too-large', async () => {
+    it('shows the too-large notice and an Error share button when the code is too large to share', async () => {
       vi.spyOn(sharing, 'copyLinkToClipboard').mockResolvedValue({
         status: 'too-large',
         message: 'Code too large to share',
       });
 
       const { container } = render(<App />);
-
       const shareButton = container.querySelector(
         '.toolbar-share'
       ) as HTMLButtonElement;
-      expect(shareButton).toBeDefined();
 
-      if (shareButton) {
-        act(() => {
-          shareButton.click();
-        });
+      await act(async () => {
+        shareButton.click();
+      });
 
-        await waitFor(() => {
-          expect(container.textContent).toContain('Code too large');
-        });
-      }
+      await waitFor(() => {
+        expect(container.querySelector('.copy-link-notice')?.textContent).toBe(
+          'Code too large to share'
+        );
+      });
+      expect(shareButton.textContent).toBe('Error');
     });
   });
 
   // ============================================================
-  // Decode notice for corrupt/unavailable shared links (#228)
+  // Decode notice for corrupt/unavailable shared links
   // ============================================================
 
   describe('decode notice', () => {
@@ -976,75 +745,40 @@ describe('App', () => {
       const { container } = render(<App />);
 
       await waitFor(() => {
-        const notice = container.querySelector('.decode-notice');
-        expect(notice).toBeDefined();
-        expect(notice).not.toBeNull();
+        expect(
+          container.querySelector('.decode-notice span')?.textContent
+        ).toBe(
+          'Shared link could not be read: the code parameter is corrupted.'
+        );
       });
 
       const dismissButton = container.querySelector(
         '.decode-notice-dismiss'
       ) as HTMLButtonElement;
-      expect(dismissButton).toBeDefined();
+      expect(dismissButton).not.toBeNull();
 
-      if (dismissButton) {
-        act(() => {
-          dismissButton.click();
-        });
+      act(() => {
+        dismissButton.click();
+      });
 
-        await waitFor(() => {
-          const notice = container.querySelector('.decode-notice');
-          expect(notice).toBeNull();
-        });
-      }
+      await waitFor(() => {
+        expect(container.querySelector('.decode-notice')).toBeNull();
+      });
     });
 
     it('shows no notice when the shared code is absent', async () => {
-      vi.spyOn(sharing, 'readSourceFromURL').mockResolvedValue({
+      const readSpy = vi.spyOn(sharing, 'readSourceFromURL').mockResolvedValue({
         ok: false,
         reason: 'absent',
       });
 
       const { container } = render(<App />);
 
-      await waitFor(() => {
-        const editor = container.querySelector('.editor-container');
-        expect(editor).toBeDefined();
+      await act(async () => {
+        await readSpy.mock.results[0]!.value;
       });
 
-      const notice = container.querySelector('.decode-notice');
-      expect(notice).toBeNull();
-    });
-  });
-
-  // ============================================================
-  // lastSource no longer held in component state (#227)
-  // ============================================================
-
-  describe('lastSource not held in state', () => {
-    it('editing source does not cause loadEditorState().lastSource to drive re-renders back into state', async () => {
-      localStorage.clear();
-
-      const { container } = render(<App />);
-
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-
-      // Persisted lastSource should follow the debounced source edits
-      // rather than being tracked separately in component state; verify
-      // by checking persistEditorState eventually reflects a new source
-      // without any duplicate/stale state field driving it.
-      const persistSpy = vi.spyOn(persistence, 'persistEditorState');
-
-      await waitFor(() => {
-        expect(persistSpy).toHaveBeenCalled();
-      });
-
-      const [state] = persistSpy.mock.calls[persistSpy.mock.calls.length - 1]!;
-      expect(state).toHaveProperty('lastSource');
-      expect(state).toHaveProperty('splitRatio');
-      expect(Object.keys(state)).toEqual(
-        expect.arrayContaining(['lastSource', 'splitRatio'])
-      );
+      expect(container.querySelector('.decode-notice')).toBeNull();
     });
   });
 
@@ -1054,84 +788,38 @@ describe('App', () => {
 
   describe('integration', () => {
     it('Run button triggers execution and updates output', async () => {
-      const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'success',
-          result: '"Integration Test"',
-          error: null,
-          duration: 15,
-          logs: [],
-        })
+      vi.spyOn(runner, 'runInWorker').mockReturnValueOnce(
+        immediateRun(successState('"Integration Test"', 15))
       );
 
       const { container } = render(<App />);
+      await clickRun(getRunButton(container));
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-
-      if (runButton) {
-        runButton.click();
-
-        await waitFor(() => {
-          const result = container.querySelector('.output-result');
-          expect(result).toBeDefined();
-          expect(result?.textContent).toContain('Integration Test');
-        });
-      }
+      await waitFor(() => {
+        expect(
+          container.querySelector('.output-result')?.textContent
+        ).toContain('Integration Test');
+      });
     });
 
-    it('renders all child components', () => {
-      const { container } = render(<App />);
-
-      expect(container.querySelector('.toolbar')).toBeDefined();
-      expect(container.querySelector('.editor-container')).toBeDefined();
-      expect(container.querySelector('.output-panel')).toBeDefined();
-      expect(container.querySelector('.split-pane')).toBeDefined();
-    });
-
-    it('handles component communication via state', async () => {
-      const runSpy = vi.spyOn(runner, 'runInWorker');
-
-      runSpy.mockReturnValueOnce(
-        immediateRun({
-          status: 'error',
-          result: null,
-          error: {
-            message: 'Communication test error',
-            category: 'parse',
-            line: 3,
-            column: 10,
-            errorId: 'COMM-001',
-            statusCode: null,
-            statusMessage: null,
-            statusProvider: null,
-            statusTrace: null,
-          },
-          duration: 8,
-          logs: [],
-        })
+    it('shows a parse error from a failed run with its category badge', async () => {
+      vi.spyOn(runner, 'runInWorker').mockReturnValueOnce(
+        immediateRun(
+          errorState('Communication test error', 3, 10, 'parse', 'COMM-001')
+        )
       );
 
       const { container } = render(<App />);
+      await clickRun(getRunButton(container));
 
-      const runButton = container.querySelector(
-        '.toolbar-run'
-      ) as HTMLButtonElement;
-
-      if (runButton) {
-        runButton.click();
-
-        await waitFor(() => {
-          const errorDisplay = container.querySelector('.output-error');
-          expect(errorDisplay).toBeDefined();
-          expect(errorDisplay?.textContent).toContain(
-            'Communication test error'
-          );
-        });
-      }
+      await waitFor(() => {
+        expect(container.querySelector('.output-error')?.textContent).toContain(
+          'Communication test error'
+        );
+      });
+      expect(container.querySelector('.output-error-badge')?.textContent).toBe(
+        'Parse'
+      );
     });
   });
 });

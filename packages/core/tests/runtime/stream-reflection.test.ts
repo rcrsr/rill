@@ -170,6 +170,7 @@ describe('Stream Invocation', () => {
   });
 
   it('returns cached resolution on subsequent calls (idempotent)', async () => {
+    let resolveCalls = 0;
     const result = await run(
       `
         make_stream() => $s
@@ -185,7 +186,10 @@ describe('Stream Invocation', () => {
             fn: () => {
               return createRillStream({
                 chunks: asyncIterableFrom([1, 2]),
-                resolve: async () => 'resolved',
+                resolve: async () => {
+                  resolveCalls++;
+                  return `r${resolveCalls}`;
+                },
               });
             },
           },
@@ -193,6 +197,7 @@ describe('Stream Invocation', () => {
       }
     );
     expect(result).toBe(true);
+    expect(resolveCalls).toBe(1);
   });
 
   it('propagates resolution failure as error', async () => {

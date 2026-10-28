@@ -83,7 +83,7 @@ describe('executeRill', () => {
     });
 
     describe('deep nesting', () => {
-      it('executes 50-level nested expression within 500ms or reports error', async () => {
+      it('executes 50-level nested expression within 500ms', async () => {
         // Build deeply nested arithmetic expression: ((((...(1 + 1)...))))
         const depth = 50;
         let source = '1';
@@ -96,86 +96,76 @@ describe('executeRill', () => {
         const result = await executeRill(source);
         const executionTime = performance.now() - startTime;
 
-        // Should either:
-        // 1. Complete successfully within 500ms
-        // 2. Report an error (stack depth, timeout, etc.)
-
-        if (result.status === 'success') {
-          // Success path: must complete within 500ms
-          expect(executionTime).toBeLessThan(500);
-          expect(JSON.parse(result.result!)).toEqual({
-            rillTypeName: 'number',
-            rillTypeSignature: 'number',
-            value: 1 + depth,
-          }); // 1 + 50 additions
-          expect(result.error).toBe(null);
-        } else {
-          // Error path: acceptable to fail on deep nesting
-          expect(result.status).toBe('error');
-          expect(result.error).not.toBe(null);
-          expect(result.error?.message).toBeTruthy();
-        }
+        expect(result.status).toBe('success');
+        expect(executionTime).toBeLessThan(500);
+        expect(JSON.parse(result.result!)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: 1 + depth,
+        });
+        expect(result.error).toBe(null);
       }, 10000);
 
-      it('handles deeply nested conditionals', async () => {
-        // Build nested conditionals: true ? (true ? (true ? ... 1 ! 0) ! 0) ! 0
+      it('evaluates deeply nested conditionals', async () => {
+        // Build nested conditionals: true ? (true ? (... 1 ! 0) ! 0) ! 0
         const depth = 50;
         let source = '1';
 
         for (let i = 0; i < depth; i++) {
-          source = `true ? ${source} ! 0`;
+          source = `true ? (${source}) ! 0`;
         }
 
         const result = await executeRill(source);
 
-        // Either succeeds or fails gracefully
-        if (result.status === 'success') {
-          expect(JSON.parse(result.result!)).toEqual({
-            rillTypeName: 'number',
-            rillTypeSignature: 'number',
-            value: 1,
-          });
-        } else {
-          expect(result.error).not.toBe(null);
-        }
+        expect(result.status).toBe('success');
+        expect(JSON.parse(result.result!)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: 1,
+        });
       }, 10000);
 
-      it('handles deeply nested arrays', async () => {
-        // Build nested arrays: [[[...[42]...]]]
+      it('evaluates deeply nested lists', async () => {
+        // Build nested lists: list[list[...list[42]...]]
         const depth = 50;
         let source = '42';
 
         for (let i = 0; i < depth; i++) {
-          source = `[${source}]`;
+          source = `list[${source}]`;
         }
 
         const result = await executeRill(source);
 
-        // Either succeeds or fails gracefully
-        if (result.status === 'success') {
-          expect(result.result).toBeTruthy();
-        } else {
-          expect(result.error).not.toBe(null);
+        expect(result.status).toBe('success');
+        const parsed = JSON.parse(result.result!);
+        expect(parsed.rillTypeName).toBe('list');
+        let node = parsed.value;
+        for (let i = 1; i < depth; i++) {
+          expect(node).toHaveLength(1);
+          node = node[0];
         }
+        expect(node).toEqual([42]);
       }, 10000);
 
-      it('handles deeply nested dicts', async () => {
-        // Build nested dicts: [x: [x: [x: ... [x: 42]]]]
+      it('evaluates deeply nested dicts', async () => {
+        // Build nested dicts: dict[x: dict[x: ... dict[x: 42]]]
         const depth = 50;
         let source = '42';
 
         for (let i = 0; i < depth; i++) {
-          source = `[x: ${source}]`;
+          source = `dict[x: ${source}]`;
         }
 
         const result = await executeRill(source);
 
-        // Either succeeds or fails gracefully
-        if (result.status === 'success') {
-          expect(result.result).toBeTruthy();
-        } else {
-          expect(result.error).not.toBe(null);
+        expect(result.status).toBe('success');
+        const parsed = JSON.parse(result.result!);
+        expect(parsed.rillTypeName).toBe('dict');
+        let node = parsed.value;
+        for (let i = 1; i < depth; i++) {
+          node = node.x;
         }
+        expect(node).toEqual({ x: 42 });
       }, 10000);
     });
 
@@ -359,16 +349,12 @@ describe('executeRill', () => {
 
         const result = await executeRill(combinedSource);
 
-        // Either succeeds or fails gracefully
-        if (result.status === 'success') {
-          expect(JSON.parse(result.result!)).toEqual({
-            rillTypeName: 'number',
-            rillTypeSignature: 'number',
-            value: 42,
-          });
-        } else {
-          expect(result.error).not.toBe(null);
-        }
+        expect(result.status).toBe('success');
+        expect(JSON.parse(result.result!)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: 42,
+        });
       }, 15000);
 
       it('handles many variables with deep nesting', async () => {
@@ -388,15 +374,12 @@ describe('executeRill', () => {
 
         const result = await executeRill(source);
 
-        if (result.status === 'success') {
-          expect(JSON.parse(result.result!)).toEqual({
-            rillTypeName: 'number',
-            rillTypeSignature: 'number',
-            value: 42,
-          });
-        } else {
-          expect(result.error).not.toBe(null);
-        }
+        expect(result.status).toBe('success');
+        expect(JSON.parse(result.result!)).toEqual({
+          rillTypeName: 'number',
+          rillTypeSignature: 'number',
+          value: 42,
+        });
       }, 10000);
     });
 
@@ -425,21 +408,25 @@ describe('executeRill', () => {
         });
       }, 10000);
 
-      it('handles deeply nested empty arrays', async () => {
+      it('evaluates deeply nested empty lists', async () => {
         const depth = 50;
-        let source = '[]';
+        let source = 'list[]';
 
         for (let i = 0; i < depth; i++) {
-          source = `[${source}]`;
+          source = `list[${source}]`;
         }
 
         const result = await executeRill(source);
 
-        if (result.status === 'success') {
-          expect(result.result).toBeTruthy();
-        } else {
-          expect(result.error).not.toBe(null);
+        expect(result.status).toBe('success');
+        const parsed = JSON.parse(result.result!);
+        expect(parsed.rillTypeName).toBe('list');
+        let node = parsed.value;
+        for (let i = 1; i < depth; i++) {
+          expect(node).toHaveLength(1);
+          node = node[0];
         }
+        expect(node).toEqual([[]]);
       }, 10000);
 
       it('handles large strings in source', async () => {

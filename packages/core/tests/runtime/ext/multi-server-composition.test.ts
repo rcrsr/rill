@@ -431,58 +431,5 @@ describe('Multi-Server Composition', () => {
         'user_1'
       );
     });
-
-    it('supports dispose lifecycle for multiple extensions', async () => {
-      const disposeLog: string[] = [];
-
-      const ext1Work = typedCallable({
-        params: [],
-        fn: () => 'ext1-work',
-        returnType: anyTypeValue,
-      });
-
-      const ext2Work = typedCallable({
-        params: [],
-        fn: () => 'ext2-work',
-        returnType: anyTypeValue,
-      });
-
-      const ext3Work = typedCallable({
-        params: [],
-        fn: () => 'ext3-work',
-        returnType: anyTypeValue,
-      });
-
-      const ctx = createTestContext({
-        ext1: {
-          value: { work: ext1Work } as RillValue,
-          dispose: () => {
-            disposeLog.push('ext1-disposed');
-          },
-        },
-        ext2: {
-          value: { work: ext2Work } as RillValue,
-          dispose: () => {
-            disposeLog.push('ext2-disposed');
-          },
-        },
-        ext3: {
-          value: { work: ext3Work } as RillValue,
-          dispose: async () => {
-            await new Promise((resolve) => setTimeout(resolve, 5));
-            disposeLog.push('ext3-disposed');
-          },
-        },
-      });
-
-      // Use all extension functions
-      await execInContext('use<ext:ext1.work>()', ctx);
-      await execInContext('use<ext:ext2.work>()', ctx);
-      await execInContext('use<ext:ext3.work>()', ctx);
-
-      // The dispose functions are registered but not called by the context.
-      // Verify createTestContext accepted the dispose callbacks without error.
-      expect(ctx).toBeDefined();
-    });
   });
 });

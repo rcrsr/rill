@@ -16,6 +16,64 @@ import {
   type EditorState,
 } from '../persistence.js';
 
+// ============================================================
+// HELPERS
+// ============================================================
+
+const EDITOR_STATE_KEY = 'rill-fiddle-editor-state';
+const PROBE_KEY = '__rill_fiddle_test__';
+
+interface FakeStorageOptions {
+  readonly seed?: Record<string, string> | undefined;
+  readonly failSetItem?: ((key: string) => boolean) | undefined;
+  readonly failGetItem?: boolean | undefined;
+}
+
+interface FakeStorage extends Storage {
+  readonly writes: string[];
+  readonly data: Map<string, string>;
+}
+
+/** Build an in-memory Storage that records writes and can fail on demand. */
+function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage {
+  const data = new Map<string, string>(Object.entries(options.seed ?? {}));
+  const writes: string[] = [];
+
+  return {
+    writes,
+    data,
+    get length(): number {
+      return data.size;
+    },
+    clear: () => data.clear(),
+    key: (index: number) => [...data.keys()][index] ?? null,
+    getItem: (key: string) => {
+      if (options.failGetItem === true) {
+        throw new Error('localStorage unavailable');
+      }
+      return data.get(key) ?? null;
+    },
+    setItem: (key: string, value: string) => {
+      writes.push(key);
+      if (options.failSetItem?.(key) === true) {
+        throw new Error('localStorage unavailable');
+      }
+      data.set(key, value);
+    },
+    removeItem: (key: string) => {
+      data.delete(key);
+    },
+  };
+}
+
+/** Import a persistence module whose availability cache starts empty. */
+async function importFreshPersistence(): Promise<
+  typeof import('../persistence.js')
+> {
+  vi.resetModules();
+  return import('../persistence.js');
+}
+
 describe('persistence', () => {
   // Store original window.innerWidth
   const originalInnerWidth = window.innerWidth;
@@ -39,6 +97,7 @@ describe('persistence', () => {
       value: originalInnerWidth,
     });
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe('loadEditorState', () => {
@@ -187,16 +246,20 @@ describe('persistence', () => {
     });
 
     // localStorage unavailable (private browsing)
-    it('falls back to defaults when localStorage is unavailable', () => {
-      // Mock localStorage to throw on getItem
-      vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
-        throw new Error('localStorage unavailable');
+    it('falls back to defaults when localStorage is unavailable', async () => {
+      const fake = createFakeStorage({
+        seed: {
+          [EDITOR_STATE_KEY]: JSON.stringify({
+            splitRatio: 70,
+            lastSource: 'seeded',
+          }),
+        },
+        failSetItem: () => true,
       });
-      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-        throw new Error('localStorage unavailable');
-      });
+      vi.stubGlobal('localStorage', fake);
+      const fresh = await importFreshPersistence();
 
-      const state = loadEditorState();
+      const state = fresh.loadEditorState();
 
       expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
@@ -241,20 +304,19 @@ describe('persistence', () => {
       expect(loaded).toEqual(state2);
     });
 
-    // localStorage unavailable falls back silently
-    it('fails silently when localStorage is unavailable', () => {
-      // Mock localStorage to throw on setItem
-      vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-        throw new Error('localStorage unavailable');
+    // Write failure is swallowed
+    it('fails silently when the state write throws', async () => {
+      const fake = createFakeStorage({
+        failSetItem: (key) => key === EDITOR_STATE_KEY,
       });
+      vi.stubGlobal('localStorage', fake);
+      const fresh = await importFreshPersistence();
 
-      const testState: EditorState = {
-        splitRatio: 60,
-        lastSource: 'test code',
-      };
-
-      // Should not throw
-      expect(() => persistEditorState(testState)).not.toThrow();
+      expect(() =>
+        fresh.persistEditorState({ splitRatio: 60, lastSource: 'test code' })
+      ).not.toThrow();
+      expect(fake.writes).toContain(EDITOR_STATE_KEY);
+      expect(fake.data.has(EDITOR_STATE_KEY)).toBe(false);
     });
 
     // Round-trip preserves all fields
@@ -275,42 +337,29 @@ describe('persistence', () => {
   });
 
   describe('localStorage availability caching', () => {
-    // Each test imports a fresh module instance so the module-level cache
-    // starts uninitialized, isolating the probe count from other tests.
-    it('probes localStorage at most once across repeated persistEditorState calls', async () => {
-      vi.resetModules();
-      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
-
-      const { persistEditorState: freshPersist } =
-        await import('../persistence.js');
-
+    it('probes localStorage once across repeated persistEditorState calls', async () => {
+      const fake = createFakeStorage();
+      vi.stubGlobal('localStorage', fake);
+      const fresh = await importFreshPersistence();
       const state: EditorState = { splitRatio: 55, lastSource: 'probe test' };
 
       for (let i = 0; i < 5; i++) {
-        freshPersist(state);
+        fresh.persistEditorState(state);
       }
 
-      const probeCalls = setItemSpy.mock.calls.filter(
-        ([key]) => key === '__rill_fiddle_test__'
-      );
-      expect(probeCalls.length).toBeLessThanOrEqual(1);
+      expect(fake.writes.filter((key) => key === PROBE_KEY)).toHaveLength(1);
     });
 
-    // Caching also applies across loadEditorState calls
-    it('probes localStorage at most once across repeated loadEditorState calls', async () => {
-      vi.resetModules();
-      const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
-
-      const { loadEditorState: freshLoad } = await import('../persistence.js');
+    it('probes localStorage once across repeated loadEditorState calls', async () => {
+      const fake = createFakeStorage();
+      vi.stubGlobal('localStorage', fake);
+      const fresh = await importFreshPersistence();
 
       for (let i = 0; i < 5; i++) {
-        freshLoad();
+        fresh.loadEditorState();
       }
 
-      const probeCalls = setItemSpy.mock.calls.filter(
-        ([key]) => key === '__rill_fiddle_test__'
-      );
-      expect(probeCalls.length).toBeLessThanOrEqual(1);
+      expect(fake.writes.filter((key) => key === PROBE_KEY)).toHaveLength(1);
     });
   });
 

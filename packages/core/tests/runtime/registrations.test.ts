@@ -1,29 +1,27 @@
 /**
  * Tests for types/registrations.ts dispatch functions and error contracts.
  *
- * AC-1:  BUILT_IN_TYPES has exactly 16 entries, each with unique name
- * AC-2:  inferType returns same type name as existing inferType from values.ts
- * AC-5:  formatValue output matches existing formatValue from values.ts
- * AC-10: copyValue returns same reference for immutable, independent copy for mutable
+ * BUILT_IN_TYPES has exactly 16 entries, each with unique name
+ * inferType returns the documented type name for each fixture
+ * formatValue returns the expected display string for each fixture
+ * copyValue returns same reference for immutable, independent copy for mutable
  * BC-1:  inferType(null) returns 'string'
  * BC-2:  Vector identified before dict fallback
  * BC-3:  deepEquals works on types with eq but no compare
  * BC-4:  dict registration has convertTo defined
- * EC-1:  Validator detects duplicate type names
- * EC-2:  Validator detects missing protocol.format
- * EC-3:  deepEquals on two iterators returns false (no protocol.eq)
- * EC-4:  Bool registration has no protocol.compare
- * EC-8:  serializeValue on closure throws Error with 'closures are not JSON-serializable'
- * EC-9:  deserializeValue with unrecognized type name raises RILL-R004
- * EC-10: deserializeValue(null, 'number') raises RILL-R004
+ * Every registration has protocol.format
+ * deepEquals on two iterators returns false (no protocol.eq)
+ * serializeValue on closure throws Error with 'closures are not JSON-serializable'
+ * deserializeValue with unrecognized type name raises RILL-R004
+ * deserializeValue(null, 'number') raises RILL-R004
  *
  * Integration tests (rill script execution):
- * AC-9:  json built-in serializes dict, list, string, number, bool correctly
- * EC-3:  iterator == iterator raises RILL-R002 via script execution
- * EC-4:  true > false raises RILL-R002 via script execution (breaking change)
- * EC-5:  -> unsupported target raises RILL-R036 via script execution
- * EC-6:  "abc" -> number raises RILL-R038 via script execution
- * EC-7:  json(closure) raises RILL-R004 via script execution
+ * json built-in serializes dict, list, string, number, bool correctly
+ * iterator == iterator raises RILL-R002 via script execution
+ * true > false raises RILL-R002 via script execution (breaking change)
+ * -> unsupported target raises RILL-R036 via script execution
+ * "abc" -> number raises RILL-R038 via script execution
+ * json(closure) raises RILL-R004 via script execution
  * BC-3:  list eq works, list ordering raises RILL-R002 via script execution
  * BC-4:  type with undefined convertTo has no conversions (field_descriptor)
  * BC-5:  Derived collections frozen after context creation
@@ -44,11 +42,10 @@ import {
   inferType as newInferType,
   isIterator,
   RuntimeError,
+  RuntimeHaltSignal,
   serializeValue,
   type RillTypeValue,
   type RillValue,
-  type TypeDefinition,
-  type TypeProtocol,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import {
@@ -57,15 +54,6 @@ import {
   expectHaltSync,
   expectHalt,
 } from '../helpers/halt.js';
-import { RuntimeHaltSignal } from '../../src/runtime/core/eval/handlers/access.js';
-
-// Old implementations from values.ts for comparison.
-// These remain as internal imports because they verify parity between
-// the legacy values.ts functions and the new types/registrations dispatch.
-import {
-  inferType as oldInferType,
-  formatValue as oldFormatValue,
-} from '../../src/runtime/core/values.js';
 
 // ============================================================
 // Test Value Fixtures
@@ -99,87 +87,67 @@ function makeIterator(
 }
 
 // ============================================================
-// Validator Helpers (EC-1, EC-2)
-// ============================================================
-
-/**
- * Validate a set of type registrations for duplicate names.
- * Throws if any two registrations share the same name.
- */
-function validateNoDuplicateNames(
-  registrations: readonly TypeDefinition[]
-): void {
-  const seen = new Set<string>();
-  for (const reg of registrations) {
-    if (seen.has(reg.name)) {
-      throw new Error(`Duplicate type registration '${reg.name}'`);
-    }
-    seen.add(reg.name);
-  }
-}
-
-/**
- * Validate that every registration has a protocol.format function.
- * Throws if any registration lacks protocol.format.
- */
-function validateRequiredProtocols(
-  registrations: readonly TypeDefinition[]
-): void {
-  for (const reg of registrations) {
-    if (!reg.protocol.format) {
-      throw new Error(`Type '${reg.name}' missing required format protocol`);
-    }
-  }
-}
-
-// ============================================================
 // Representative test values for all 12 types
 // ============================================================
 
-const testValues: { typeName: string; value: RillValue }[] = [
-  { typeName: 'string', value: 'hello' },
-  { typeName: 'number', value: 42 },
-  { typeName: 'bool', value: true },
-  { typeName: 'tuple', value: createTuple([1, 2, 3]) },
+const testValues: {
+  typeName: string;
+  value: RillValue;
+  formatted: string;
+}[] = [
+  { typeName: 'string', value: 'hello', formatted: 'hello' },
+  { typeName: 'number', value: 42, formatted: '42' },
+  { typeName: 'bool', value: true, formatted: 'true' },
+  {
+    typeName: 'tuple',
+    value: createTuple([1, 2, 3]),
+    formatted: 'tuple[1, 2, 3]',
+  },
   {
     typeName: 'ordered',
     value: createOrdered([
       ['a', 1],
       ['b', 2],
     ]),
+    formatted: 'ordered[a: 1, b: 2]',
   },
   {
     typeName: 'vector',
     value: createVector(new Float32Array([0.1, 0.2, 0.3]), 'test-model'),
+    formatted: 'vector(test-model, 3d)',
   },
-  { typeName: 'type', value: makeTypeValue('string') },
-  { typeName: 'closure', value: callable(() => 'test') },
+  {
+    typeName: 'type',
+    value: makeTypeValue('string'),
+    formatted: 'string',
+  },
+  {
+    typeName: 'closure',
+    value: callable(() => 'test'),
+    formatted: 'type(closure)',
+  },
   {
     typeName: 'field_descriptor',
     value: { __rill_field_descriptor: true } as unknown as RillValue,
+    formatted: 'type(field_descriptor)',
   },
-  { typeName: 'iterator', value: makeIterator(false, 1) as RillValue },
-  { typeName: 'list', value: [1, 2, 3] },
-  { typeName: 'dict', value: { a: 1, b: 2 } },
+  {
+    typeName: 'iterator',
+    value: makeIterator(false, 1) as RillValue,
+    formatted: 'type(iterator)',
+  },
+  { typeName: 'list', value: [1, 2, 3], formatted: 'list[1, 2, 3]' },
+  { typeName: 'dict', value: { a: 1, b: 2 }, formatted: 'dict[a: 1, b: 2]' },
 ];
-
-/**
- * Values shared between old and new implementations.
- * Excludes field_descriptor, which is a new registration not
- * recognized by the old values.ts inferType/formatValue.
- */
-const sharedTestValues = testValues.filter(
-  (v) => v.typeName !== 'field_descriptor'
-);
 
 // ============================================================
 // Tests
 // ============================================================
 
 describe('types/registrations', () => {
-  // AC-1: BUILT_IN_TYPES has exactly 16 entries, each with unique name.
+  // BUILT_IN_TYPES has exactly 16 entries, each with unique name.
   // Task 1.2 added the `:atom` primitive as the 16th type.
-  describe('AC-1: BUILT_IN_TYPES registry', () => {
+  describe('BUILT_IN_TYPES registry', () => {
     it('has exactly 16 entries', () => {
       expect(BUILT_IN_TYPES).toHaveLength(16);
     });
@@ -191,46 +159,26 @@ describe('types/registrations', () => {
     });
   });
 
-  // AC-2: inferType returns same type name as existing inferType from values.ts
-  // Excludes field_descriptor (new registration, old values.ts returns 'dict')
-  describe('AC-2: inferType parity with values.ts', () => {
-    for (const { typeName, value } of sharedTestValues) {
+  // inferType returns the declared type name for each fixture
+  describe('inferType returns the fixture type name', () => {
+    for (const { typeName, value } of testValues) {
       it(`returns '${typeName}' for ${typeName} value`, () => {
-        const newResult = newInferType(value);
-        const oldResult = oldInferType(value);
-        expect(newResult).toBe(oldResult);
+        expect(newInferType(value)).toBe(typeName);
       });
     }
-
-    it('returns field_descriptor for field_descriptor value', () => {
-      const fd = {
-        __rill_field_descriptor: true,
-      } as unknown as RillValue;
-      expect(newInferType(fd)).toBe('field_descriptor');
-    });
   });
 
-  // AC-5: formatValue output matches existing formatValue from values.ts
-  // Excludes field_descriptor (new registration, old values.ts formats as dict)
-  describe('AC-5: formatValue parity with values.ts', () => {
-    for (const { typeName, value } of sharedTestValues) {
-      it(`matches for ${typeName} value`, () => {
-        const newResult = newFormatValue(value);
-        const oldResult = oldFormatValue(value);
-        expect(newResult).toBe(oldResult);
+  // formatValue returns the expected display string for each fixture
+  describe('formatValue returns the expected display string', () => {
+    for (const { typeName, value, formatted } of testValues) {
+      it(`formats ${typeName} value as '${formatted}'`, () => {
+        expect(newFormatValue(value)).toBe(formatted);
       });
     }
-
-    it('formats field_descriptor as type(field_descriptor)', () => {
-      const fd = {
-        __rill_field_descriptor: true,
-      } as unknown as RillValue;
-      expect(newFormatValue(fd)).toBe('type(field_descriptor)');
-    });
   });
 
-  // AC-10: copyValue returns same reference for immutable, independent copy for mutable
-  describe('AC-10: copyValue immutable vs mutable', () => {
+  // copyValue returns same reference for immutable, independent copy for mutable
+  describe('copyValue immutable vs mutable', () => {
     it('returns same reference for string', () => {
       const value = 'hello';
       expect(copyValue(value)).toBe(value);
@@ -314,7 +262,7 @@ describe('types/registrations', () => {
       expect(listReg!.protocol.compare).toBeUndefined();
     });
 
-    it('tuple registration has protocol.compare (IR-10)', () => {
+    it('tuple registration has protocol.compare', () => {
       const tupleReg = BUILT_IN_TYPES.find((t) => t.name === 'tuple');
       expect(tupleReg).toBeDefined();
       expect(tupleReg!.protocol.compare).toBeTypeOf('function');
@@ -337,62 +285,17 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-1: Validator detects duplicate type names
-  describe('EC-1: duplicate name detection', () => {
-    it('passes for BUILT_IN_TYPES (no duplicates)', () => {
-      expect(() => validateNoDuplicateNames(BUILT_IN_TYPES)).not.toThrow();
-    });
-
-    it('throws for registrations with duplicate names', () => {
-      const withDuplicate: TypeDefinition[] = [
-        {
-          name: 'string',
-          identity: () => false,
-          isLeaf: true,
-          immutable: true,
-          methods: {},
-          protocol: { format: () => '' },
-        },
-        {
-          name: 'string',
-          identity: () => false,
-          isLeaf: true,
-          immutable: true,
-          methods: {},
-          protocol: { format: () => '' },
-        },
-      ];
-      expect(() => validateNoDuplicateNames(withDuplicate)).toThrow(
-        "Duplicate type registration 'string'"
-      );
+  // every registration has a format protocol
+  describe('format protocol presence', () => {
+    it('every BUILT_IN_TYPES entry has protocol.format', () => {
+      for (const reg of BUILT_IN_TYPES) {
+        expect(typeof reg.protocol.format, reg.name).toBe('function');
+      }
     });
   });
 
-  // EC-2: Validator detects missing protocol.format
-  describe('EC-2: missing format protocol detection', () => {
-    it('passes for BUILT_IN_TYPES (all have format)', () => {
-      expect(() => validateRequiredProtocols(BUILT_IN_TYPES)).not.toThrow();
-    });
-
-    it('throws for registration missing protocol.format', () => {
-      const missingFormat: TypeDefinition[] = [
-        {
-          name: 'bad_type',
-          identity: () => false,
-          isLeaf: true,
-          immutable: true,
-          methods: {},
-          protocol: {} as TypeProtocol,
-        },
-      ];
-      expect(() => validateRequiredProtocols(missingFormat)).toThrow(
-        "Type 'bad_type' missing required format protocol"
-      );
-    });
-  });
-
-  // EC-3: deepEquals on two iterators returns false (no protocol.eq)
-  describe('EC-3: iterator equality', () => {
+  // deepEquals on two iterators returns false (no protocol.eq)
+  describe('iterator equality', () => {
     it('returns false for two iterators (no protocol.eq)', () => {
       const iter1 = makeIterator(false, 1);
       const iter2 = makeIterator(false, 1);
@@ -412,17 +315,8 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-4: Bool has no protocol.compare (ordering unsupported)
-  describe('EC-4: bool compare', () => {
-    it('bool registration has no protocol.compare', () => {
-      const boolReg = BUILT_IN_TYPES.find((t) => t.name === 'bool');
-      expect(boolReg).toBeDefined();
-      expect(boolReg!.protocol.compare).toBeUndefined();
-    });
-  });
-
-  // EC-8: serializeValue on non-serializable types throws RuntimeError (RILL-R067)
-  describe('EC-8: non-serializable type errors', () => {
+  // serializeValue on non-serializable types throws RuntimeError (RILL-R067)
+  describe('non-serializable type errors', () => {
     it('throws RuntimeError for closure', () => {
       const closureValue = callable(() => 'test');
       expect(() => serializeValue(closureValue)).toThrow(RuntimeError);
@@ -513,8 +407,8 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-9: deserializeValue with invalid data raises RILL-R004
-  describe('EC-9: deserialize invalid data', () => {
+  // deserializeValue with invalid data raises RILL-R004
+  describe('deserialize invalid data', () => {
     it('halts typed-atom for unrecognized type name', () => {
       expectHaltSync(() => deserializeValue('bad', 'nonexistent_type'), {
         code: 'INVALID_INPUT',
@@ -529,8 +423,8 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-10: deserializeValue(null, 'number') halts typed-atom
-  describe('EC-10: deserialize null', () => {
+  // deserializeValue(null, 'number') halts typed-atom
+  describe('deserialize null', () => {
     it('halts typed-atom for null input', () => {
       expectHaltSync(() => deserializeValue(null, 'number'), {
         code: 'INVALID_INPUT',
@@ -549,8 +443,8 @@ describe('types/registrations', () => {
   // Integration Tests: Protocol Dispatch via Script Execution
   // ============================================================
 
-  // AC-9: json built-in uses protocol.serialize for all serializable types
-  describe('AC-9 integration: json built-in serialization', () => {
+  // json built-in uses protocol.serialize for all serializable types
+  describe('Integration: json built-in serialization', () => {
     it('serializes a dict to valid JSON', async () => {
       const result = await run('dict[key: "val"] -> json');
       expect(result).toBe('{"key":"val"}');
@@ -582,8 +476,8 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-3: iterator == iterator raises RILL-R002 via rill script execution
-  describe('EC-3 integration: iterator equality raises RILL-R002', () => {
+  // iterator == iterator raises RILL-R002 via rill script execution
+  describe('Integration: iterator equality raises RILL-R002', () => {
     it('raises RILL-R002 when comparing iterators with ==', async () => {
       await expect(run('range(1, 3) == range(1, 3)')).rejects.toHaveProperty(
         'errorId',
@@ -599,8 +493,8 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-4: true > false raises RILL-R002 via rill script execution (breaking change)
-  describe('EC-4 integration: bool ordering raises RILL-R002', () => {
+  // true > false raises RILL-R002 via rill script execution (breaking change)
+  describe('Integration: bool ordering raises RILL-R002', () => {
     it('raises RILL-R002 when comparing booleans with >', async () => {
       await expect(run('true > false')).rejects.toHaveProperty(
         'errorId',
@@ -613,8 +507,8 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-5: -> unsupported target raises RILL-R036 via rill script execution
-  describe('EC-5 integration: unsupported conversion raises RILL-R036', () => {
+  // -> unsupported target raises RILL-R036 via rill script execution
+  describe('Integration: unsupported conversion raises RILL-R036', () => {
     it('raises RILL-R036 for number -> bool', async () => {
       await expect(run('42 -> bool')).rejects.toHaveProperty(
         'errorId',
@@ -627,8 +521,8 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-6 (RI table): "abc" -> number raises RILL-R038 via rill script execution
-  describe('EC-6 integration: string-to-number parse failure raises RILL-R038', () => {
+  // "abc" -> number raises RILL-R038 via rill script execution
+  describe('Integration: string-to-number parse failure raises RILL-R038', () => {
     it('raises RILL-R038 for non-numeric string to number', async () => {
       await expect(run('"abc" -> number')).rejects.toHaveProperty(
         'errorId',
@@ -641,8 +535,8 @@ describe('types/registrations', () => {
     });
   });
 
-  // EC-7: json built-in on non-serializable type halts typed-atom
-  describe('EC-7 integration: json on non-serializable halts typed-atom', () => {
+  // json built-in on non-serializable type halts typed-atom
+  describe('Integration: json on non-serializable halts typed-atom', () => {
     it('halts #INVALID_INPUT for closure passed to json', async () => {
       await expectHalt(() => run('||{ "test" } -> json'), {
         code: 'INVALID_INPUT',

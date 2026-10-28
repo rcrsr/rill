@@ -3,14 +3,23 @@
  *
  * Test coverage for Editor component:
  * - Component renders without errors
- * - Cmd/Ctrl+Enter triggers onRun callback
+ * - Ctrl+Enter triggers onRun callback
  * - errorLine prop highlights gutter line
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, cleanup, act } from '@testing-library/react';
 import { EditorView } from '@codemirror/view';
+import { indentUnit } from '@codemirror/language';
 import { Editor, type EditorProps } from '../Editor.js';
+
+function getView(container: HTMLElement): EditorView {
+  const content = container.querySelector('.cm-content');
+  expect(content).not.toBeNull();
+  const view = EditorView.findFromDOM(content as HTMLElement);
+  expect(view).not.toBeNull();
+  return view as EditorView;
+}
 
 describe('Editor', () => {
   let mockOnChange: ReturnType<typeof vi.fn<(value: string) => void>>;
@@ -36,38 +45,39 @@ describe('Editor', () => {
   // ============================================================
 
   describe('rendering', () => {
-    it('renders without errors', () => {
+    it('renders a CodeMirror editor with an empty document', () => {
       const { container } = render(<Editor {...defaultProps} />);
       const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      expect(editor).not.toBeNull();
+      expect(editor?.querySelector('.cm-editor')).not.toBeNull();
+      expect(getView(container).state.doc.toString()).toBe('');
     });
 
-    it('renders with initial value', () => {
+    it('renders with initial value without reporting a change', () => {
       const { container } = render(
         <Editor {...defaultProps} value="log('hello')" />
       );
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      expect(getView(container).state.doc.toString()).toBe("log('hello')");
+      expect(mockOnChange).not.toHaveBeenCalled();
     });
 
-    it('applies ARIA label', () => {
+    it('applies custom ARIA label', () => {
       const { container } = render(
         <Editor {...defaultProps} ariaLabel="Test editor" />
       );
-      const editor = container.querySelector('[aria-label="Test editor"]');
-      expect(editor).toBeDefined();
+      const editor = container.querySelector('.editor-container');
+      expect(editor?.getAttribute('aria-label')).toBe('Test editor');
     });
 
     it('uses default ARIA label', () => {
       const { container } = render(<Editor {...defaultProps} />);
-      const editor = container.querySelector('[aria-label="Rill code editor"]');
-      expect(editor).toBeDefined();
+      const editor = container.querySelector('.editor-container');
+      expect(editor?.getAttribute('aria-label')).toBe('Rill code editor');
     });
 
-    it('renders with dark brand theme', () => {
+    it('renders with dark theme', () => {
       const { container } = render(<Editor {...defaultProps} />);
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      expect(getView(container).state.facet(EditorView.darkTheme)).toBe(true);
     });
   });
 
@@ -76,78 +86,28 @@ describe('Editor', () => {
   // ============================================================
 
   describe('keyboard shortcuts', () => {
-    it('triggers onRun when Cmd+Enter is pressed', async () => {
-      const inputValue = "log('hello')";
-      const { container } = render(
-        <Editor {...defaultProps} value={inputValue} />
-      );
-
-      // Find CodeMirror editor instance
-      const cmEditor = container.querySelector('.cm-content');
-      expect(cmEditor).toBeDefined();
-
-      if (cmEditor) {
-        // Simulate Cmd+Enter keydown
-        const event = new KeyboardEvent('keydown', {
-          key: 'Enter',
-          metaKey: true,
-          bubbles: true,
-        });
-        await act(async () => {
-          cmEditor.dispatchEvent(event);
-          // Wait for event propagation
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        });
-      }
-
-      // Note: Due to CodeMirror's event handling, we may need integration tests
-      // for full keyboard shortcut verification
-      //
-      // The doc-unchanged assertion below verifies Mod-Enter did not fall
-      // through to defaultKeymap's insertBlankLine. jsdom resolves "Mod" as
-      // metaKey on this test platform, so under the pre-fix trailing
-      // keymap.of([{key: 'Mod-Enter', ...}]) the Mod-Enter binding still won
-      // in this specific (meta) case and this assertion passed even before
-      // the fix. See the Ctrl+Enter case below, where jsdom's Mod resolution
-      // does NOT match ctrlKey and the equivalent assertion does fail
-      // pre-fix (confirmed by temporarily reverting Editor.tsx), which is
-      // the in-harness red-green confirmation for this pair of tests. Manual
-      // verification in a real browser remains the authoritative check for
-      // keymap precedence on the platform's actual Mod key.
-      const view = EditorView.findFromDOM(cmEditor as HTMLElement);
-      expect(view?.state.doc.toString()).toBe(inputValue);
-    });
-
-    it('triggers onRun when Ctrl+Enter is pressed', async () => {
+    it('triggers onRun once when Ctrl+Enter is pressed and leaves the document unchanged', async () => {
       const inputValue = "log('hello')";
       const { container } = render(
         <Editor {...defaultProps} value={inputValue} />
       );
 
       const cmEditor = container.querySelector('.cm-content');
-      expect(cmEditor).toBeDefined();
+      expect(cmEditor).not.toBeNull();
 
-      if (cmEditor) {
-        // Simulate Ctrl+Enter keydown
-        const event = new KeyboardEvent('keydown', {
-          key: 'Enter',
-          ctrlKey: true,
-          bubbles: true,
-        });
-        await act(async () => {
-          cmEditor.dispatchEvent(event);
-          await new Promise((resolve) => setTimeout(resolve, 0));
-        });
-      }
+      // Under happy-dom's X11 user agent, CodeMirror maps Mod to Ctrl.
+      const event = new KeyboardEvent('keydown', {
+        key: 'Enter',
+        ctrlKey: true,
+        bubbles: true,
+      });
+      await act(async () => {
+        cmEditor!.dispatchEvent(event);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
 
-      // This assertion was confirmed to fail against the pre-fix Editor.tsx
-      // (trailing keymap.of([{key: 'Mod-Enter', ...}]) after defaultKeymap):
-      // jsdom's Mod resolution does not match ctrlKey here, so Ctrl-Enter
-      // fell through to defaultKeymap's insertBlankLine and inserted a
-      // newline before this assertion was added. See the Cmd+Enter case
-      // above for why that variant does not fail pre-fix in this harness.
-      const view = EditorView.findFromDOM(cmEditor as HTMLElement);
-      expect(view?.state.doc.toString()).toBe(inputValue);
+      expect(mockOnRun).toHaveBeenCalledTimes(1);
+      expect(getView(container).state.doc.toString()).toBe(inputValue);
     });
   });
 
@@ -158,47 +118,39 @@ describe('Editor', () => {
   describe('error line highlighting', () => {
     it('does not highlight when errorLine is null', () => {
       const { container } = render(
-        <Editor {...defaultProps} errorLine={null} />
+        <Editor {...defaultProps} value="line 1" errorLine={null} />
       );
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      expect(container.querySelector('.cm-error-line')).toBeNull();
     });
 
     it('does not highlight when errorLine is 0', () => {
-      const { container } = render(<Editor {...defaultProps} errorLine={0} />);
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-    });
-
-    it('highlights line when errorLine is set', () => {
-      const value = 'line 1\nline 2\nline 3';
       const { container } = render(
-        <Editor {...defaultProps} value={value} errorLine={2} />
+        <Editor {...defaultProps} value="line 1" errorLine={0} />
       );
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      expect(container.querySelector('.cm-error-line')).toBeNull();
     });
 
-    it('handles errorLine beyond document length', () => {
+    it('decorates the last line when errorLine is beyond document length', () => {
       const value = 'line 1\nline 2';
       const { container } = render(
         <Editor {...defaultProps} value={value} errorLine={10} />
       );
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      const decorated = container.querySelectorAll('.cm-error-line');
+      expect(decorated).toHaveLength(1);
+      expect(decorated[0]?.textContent).toBe('line 2');
     });
 
-    it('updates highlight when errorLine changes', () => {
+    it('moves the highlight when errorLine changes', () => {
       const value = 'line 1\nline 2\nline 3';
       const { container, rerender } = render(
         <Editor {...defaultProps} value={value} errorLine={1} />
       );
 
-      // Change error line
       rerender(<Editor {...defaultProps} value={value} errorLine={2} />);
 
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      const decorated = container.querySelectorAll('.cm-error-line');
+      expect(decorated).toHaveLength(1);
+      expect(decorated[0]?.textContent).toBe('line 2');
     });
 
     it('clears highlight when errorLine becomes null', () => {
@@ -206,15 +158,14 @@ describe('Editor', () => {
       const { container, rerender } = render(
         <Editor {...defaultProps} value={value} errorLine={2} />
       );
+      expect(container.querySelector('.cm-error-line')).not.toBeNull();
 
-      // Clear error line
       rerender(<Editor {...defaultProps} value={value} errorLine={null} />);
 
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      expect(container.querySelectorAll('.cm-error-line')).toHaveLength(0);
     });
 
-    it('renders the cm-error-line decoration when errorLine is set', () => {
+    it('renders the cm-error-line decoration on the errorLine line', () => {
       const value = 'line 1\nline 2\nline 3';
       const { container } = render(
         <Editor {...defaultProps} value={value} errorLine={2} />
@@ -222,6 +173,7 @@ describe('Editor', () => {
 
       const errorLineEl = container.querySelector('.cm-error-line');
       expect(errorLineEl).not.toBeNull();
+      expect(errorLineEl?.textContent).toBe('line 2');
     });
 
     it('clears the cm-error-line decoration on the first local edit', () => {
@@ -278,24 +230,15 @@ describe('Editor', () => {
         <Editor {...defaultProps} value="initial" />
       );
 
-      // Update value
       rerender(<Editor {...defaultProps} value="updated" />);
 
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      expect(getView(container).state.doc.toString()).toBe('updated');
     });
 
-    it('handles empty value', () => {
-      const { container } = render(<Editor {...defaultProps} value="" />);
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-    });
-
-    it('handles multiline value', () => {
+    it('renders each line of a multiline value', () => {
       const value = 'line 1\nline 2\nline 3';
       const { container } = render(<Editor {...defaultProps} value={value} />);
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
+      expect(container.querySelectorAll('.cm-line')).toHaveLength(3);
     });
   });
 
@@ -307,21 +250,13 @@ describe('Editor', () => {
     it('has CodeMirror textbox with role', () => {
       const { container } = render(<Editor {...defaultProps} />);
       const cmEditor = container.querySelector('.cm-content[role="textbox"]');
-      expect(cmEditor).toBeDefined();
+      expect(cmEditor).not.toBeNull();
     });
 
     it('CodeMirror textbox has aria-multiline="true"', () => {
       const { container } = render(<Editor {...defaultProps} />);
       const cmEditor = container.querySelector('.cm-content');
       expect(cmEditor?.getAttribute('aria-multiline')).toBe('true');
-    });
-
-    it('container has aria-label', () => {
-      const { container } = render(
-        <Editor {...defaultProps} ariaLabel="Custom label" />
-      );
-      const editor = container.querySelector('[aria-label="Custom label"]');
-      expect(editor).toBeDefined();
     });
   });
 
@@ -361,46 +296,22 @@ describe('Editor', () => {
   // ============================================================
 
   describe('indentation', () => {
-    // User views existing code with tabs and sees 2-space indentation width
     it('displays tabs with 2-space width', () => {
       const valueWithTabs = 'if true {\n\tlog("indented")\n}';
       const { container } = render(
         <Editor {...defaultProps} value={valueWithTabs} />
       );
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-      // Visual verification: tabs should display as 2 spaces wide
+      expect(getView(container).state.tabSize).toBe(2);
     });
 
-    // User copies code from documentation and sees preserved alignment with 2-space tabs
     it('preserves alignment with 2-space indentation', () => {
       const valueWithSpaces = 'if true {\n  log("2-space indent")\n}';
       const { container } = render(
         <Editor {...defaultProps} value={valueWithSpaces} />
       );
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-      // Visual verification: alignment should be preserved
-    });
-  });
-
-  // ============================================================
-  // Error handling
-  // ============================================================
-
-  describe('error handling', () => {
-    it('handles theme reconfiguration errors', () => {
-      const consoleErrorSpy = vi
-        .spyOn(console, 'error')
-        .mockImplementation(() => {});
-
-      const { container } = render(<Editor {...defaultProps} />);
-
-      // Editor should still render
-      const editor = container.querySelector('.editor-container');
-      expect(editor).toBeDefined();
-
-      consoleErrorSpy.mockRestore();
+      const view = getView(container);
+      expect(view.state.doc.toString()).toBe(valueWithSpaces);
+      expect(view.state.facet(indentUnit)).toBe('  ');
     });
   });
 });

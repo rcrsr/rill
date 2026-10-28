@@ -168,11 +168,28 @@ describe('acc disposes an infinite stream exactly once on break (#419)', () => {
   it('a subsequent host-stream dispose call is a no-op (idempotent)', async () => {
     const observedChunks: number[] = [];
     const disposeCounter = { count: 0 };
+    const inner = makeInfiniteCountingStreamFn(observedChunks, disposeCounter);
+    let hostStream: RillValue | undefined;
     await run('s() -> acc(0, { ($ > 2) ? break ! ($@ + $) })', {
       functions: {
-        s: makeInfiniteCountingStreamFn(observedChunks, disposeCounter),
+        s: {
+          ...inner,
+          fn: (args, ctx, location) => {
+            hostStream = inner.fn(args, ctx, location) as RillValue;
+            return hostStream;
+          },
+        },
       },
     });
+    expect(disposeCounter.count).toBe(1);
+
+    const dispose = (hostStream as unknown as Record<string, unknown>)[
+      '__rill_stream_dispose'
+    ] as () => void;
+    expect(typeof dispose).toBe('function');
+    dispose();
+    dispose();
+
     expect(disposeCounter.count).toBe(1);
   });
 });

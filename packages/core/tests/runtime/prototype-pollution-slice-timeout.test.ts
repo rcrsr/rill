@@ -305,6 +305,15 @@ describe('#270: timeout timer + catchability', () => {
   });
 
   it('clears the timer when the wrapped call settles first (no dangling timer)', async () => {
+    const realSetTimeout = globalThis.setTimeout;
+    const timeoutHandles: unknown[] = [];
+    const setSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      ...callArgs: Parameters<typeof setTimeout>
+    ) => {
+      const handle = realSetTimeout(...callArgs);
+      if (callArgs[1] === 10_000) timeoutHandles.push(handle);
+      return handle;
+    }) as typeof setTimeout);
     const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
     try {
       const fastFn = mockAsyncFn(1, 'done');
@@ -315,9 +324,11 @@ describe('#270: timeout timer + catchability', () => {
       expect(result).toBe('done');
       // The pending timeout timer must be cleared so a completed operation
       // does not hold the event loop open until the (large) timeout elapses.
-      expect(clearSpy).toHaveBeenCalled();
+      expect(timeoutHandles).toHaveLength(1);
+      expect(clearSpy).toHaveBeenCalledWith(timeoutHandles[0]);
     } finally {
       clearSpy.mockRestore();
+      setSpy.mockRestore();
     }
   });
 });

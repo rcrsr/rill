@@ -153,13 +153,14 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({});
         const functions = getFunctions(ctx);
 
-        // Built-in functions exist in runtime (e.g., log, type, json, etc.)
+        // Built-in functions exist in runtime (e.g., log)
         // They should be included in the result with empty descriptions
-        expect(functions).toBeInstanceOf(Array);
-        expect(functions.length).toBeGreaterThanOrEqual(0);
+        const log = functions.find((f) => f.name === 'log');
+        expect(log).toBeDefined();
+        expect(log?.description).toBe('');
       });
 
-      it('returns built-in function with empty description', () => {
+      it('reports an empty description for a host function without annotations', () => {
         const ctx = createRuntimeContext({
           functions: {
             legacy: {

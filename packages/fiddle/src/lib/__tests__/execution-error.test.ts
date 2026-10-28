@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { ERROR_REGISTRY } from '@rcrsr/rill';
+import { ERROR_REGISTRY, getHelpUrl, VERSION } from '@rcrsr/rill';
 import { executeRill } from '../execution.js';
 
 describe('executeRill', () => {
@@ -114,125 +114,66 @@ describe('executeRill', () => {
       expect(result.error?.category).toBe('runtime');
     });
 
-    it('handles errors in closures', async () => {
-      const result = await executeRill(
-        '|| { $undefined } => $bad\nnull -> $bad'
-      );
+    it('reports an undefined variable inside a called closure', async () => {
+      const result = await executeRill('|| { $undefined } => $bad\n$bad()');
 
       expect(result.status).toBe('error');
       expect(result.error?.category).toBe('runtime');
+      expect(result.error?.errorId).toBe('RILL-R005');
     });
   });
 
   describe('error enrichment', () => {
-    it('generates helpUrl when error has errorId in registry', async () => {
+    it('generates helpUrl for a runtime error whose errorId is in the registry', async () => {
       const result = await executeRill('$undefined_variable');
 
       expect(result.status).toBe('error');
-      expect(result.error).not.toBe(null);
-      if (result.error) {
-        expect(result.error.errorId).toBeDefined();
-        expect(result.error.errorId).not.toBe(null);
-        // helpUrl only present if ERROR_REGISTRY has the errorId
-        if (result.error.helpUrl) {
-          expect(result.error.helpUrl).toContain(
-            result.error.errorId!.toLowerCase()
-          );
-        }
-      }
+      expect(result.error?.errorId).toBe('RILL-R005');
+      expect(ERROR_REGISTRY.has('RILL-R005')).toBe(true);
+      expect(result.error?.helpUrl).toBe(getHelpUrl('RILL-R005', VERSION));
+      expect(result.error?.helpUrl).toMatch(/#rill-r005$/);
     });
 
-    it('populates cause and resolution when available in ERROR_REGISTRY', async () => {
+    it('populates cause and resolution from the registry definition', async () => {
       const result = await executeRill('$undefined_variable');
+      const definition = ERROR_REGISTRY.get('RILL-R005');
 
       expect(result.status).toBe('error');
-      if (result.error) {
-        expect(result.error.errorId).toBeDefined();
-        // Enrichment only happens if ERROR_REGISTRY has definition
-        if (result.error.cause && result.error.resolution) {
-          expect(typeof result.error.cause).toBe('string');
-          expect(typeof result.error.resolution).toBe('string');
-          expect(result.error.cause.length).toBeGreaterThan(0);
-          expect(result.error.resolution.length).toBeGreaterThan(0);
-        }
-      }
+      expect(definition).toBeDefined();
+      expect(result.error?.cause).toBe(definition!.cause);
+      expect(result.error?.resolution).toBe(definition!.resolution);
     });
 
-    it('includes examples when available in registry', async () => {
-      // Use a type error which typically has examples
-      const result = await executeRill('"string" + 5');
+    it('includes the registry examples', async () => {
+      const result = await executeRill('$undefined_variable');
+      const definition = ERROR_REGISTRY.get('RILL-R005');
 
       expect(result.status).toBe('error');
-      if (result.error) {
-        expect(result.error.errorId).toBeDefined();
-        // Examples may or may not exist for all errors, but if present should be structured
-        if (result.error.examples) {
-          expect(Array.isArray(result.error.examples)).toBe(true);
-          expect(result.error.examples.length).toBeGreaterThan(0);
-          const firstExample = result.error.examples[0];
-          expect(firstExample).toBeDefined();
-          expect(typeof firstExample!.description).toBe('string');
-          expect(typeof firstExample!.code).toBe('string');
-        }
-      }
+      expect(definition).toBeDefined();
+      expect(definition!.examples?.length).toBeGreaterThan(0);
+      expect(result.error?.examples).toEqual(definition!.examples);
     });
 
-    it('handles missing errorId without breaking enrichment', async () => {
-      // Lexer and parse errors should have errorIds, but test fallback behavior
-      const result = await executeRill('$undefined');
-
-      expect(result.status).toBe('error');
-      if (result.error) {
-        // Even if enrichment fails, basic fields should work
-        expect(result.error.message).toBeTruthy();
-        expect(result.error.category).toBe('runtime');
-        expect(result.error.line).not.toBe(null);
-      }
-    });
-
-    it('enriches lexer errors when definition exists', async () => {
+    it('enriches lexer errors with the registry help url', async () => {
       const result = await executeRill('"test\\x"');
+      const errorId = result.error?.errorId;
 
       expect(result.status).toBe('error');
-      if (result.error) {
-        expect(result.error.category).toBe('lexer');
-        expect(result.error.errorId).toBeDefined();
-        expect(result.error.errorId).toMatch(/^RILL-L/);
-        // If ERROR_REGISTRY has this errorId, enrichment should be present
-        if (result.error.helpUrl) {
-          expect(result.error.helpUrl).toContain(
-            result.error.errorId!.toLowerCase()
-          );
-        }
-      }
+      expect(result.error?.category).toBe('lexer');
+      expect(errorId).toMatch(/^RILL-L/);
+      expect(ERROR_REGISTRY.has(errorId!)).toBe(true);
+      expect(result.error?.helpUrl).toBe(getHelpUrl(errorId!, VERSION));
     });
 
-    it('enriches parse errors when definition exists', async () => {
+    it('enriches parse errors with the registry help url', async () => {
       const result = await executeRill('1 +');
+      const errorId = result.error?.errorId;
 
       expect(result.status).toBe('error');
-      if (result.error) {
-        expect(result.error.category).toBe('parse');
-        expect(result.error.errorId).toBeDefined();
-        expect(result.error.errorId).toMatch(/^RILL-P/);
-        // If ERROR_REGISTRY has this errorId, enrichment should be present
-        if (result.error.helpUrl) {
-          expect(result.error.helpUrl).toContain(
-            result.error.errorId!.toLowerCase()
-          );
-        }
-      }
-    });
-  });
-
-  describe('timeout protection', () => {
-    it('applies default 5000ms timeout', async () => {
-      // Note: Actual timeout behavior depends on RuntimeOptions.timeout
-      // This test verifies the timeout option is passed to createRuntimeContext
-      const result = await executeRill('1 + 1');
-
-      expect(result.status).toBe('success');
-      // Timeout is applied internally; no way to verify without triggering it
+      expect(result.error?.category).toBe('parse');
+      expect(errorId).toMatch(/^RILL-P/);
+      expect(ERROR_REGISTRY.has(errorId!)).toBe(true);
+      expect(result.error?.helpUrl).toBe(getHelpUrl(errorId!, VERSION));
     });
   });
 

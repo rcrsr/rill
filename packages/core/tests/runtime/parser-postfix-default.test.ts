@@ -6,7 +6,9 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '../../src/index.js';
 import type {
+  NumberLiteralNode,
   PostfixExprNode,
+  StringLiteralNode,
   PipeChainNode,
   StatementNode,
 } from '../../src/types.js';
@@ -30,7 +32,11 @@ describe('Parser: PostfixExprNode defaultValue', () => {
       const chain = stmt.expression as PipeChainNode;
       const postfix = chain.head as PostfixExprNode;
 
-      expect(postfix.defaultValue).not.toBeNull();
+      const dv = postfix.defaultValue as PipeChainNode;
+      expect(dv.type).toBe('PipeChain');
+      const primary = (dv.head as PostfixExprNode).primary;
+      expect(primary.type).toBe('NumberLiteral');
+      expect((primary as NumberLiteralNode).value).toBe(0);
     });
 
     it('parses func().field ?? [a: 1]', () => {
@@ -49,7 +55,11 @@ describe('Parser: PostfixExprNode defaultValue', () => {
       const chain = stmt.expression as PipeChainNode;
       const postfix = chain.head as PostfixExprNode;
 
-      expect(postfix.defaultValue).not.toBeNull();
+      const dv = postfix.defaultValue as PipeChainNode;
+      expect(dv.type).toBe('PipeChain');
+      const primary = (dv.head as PostfixExprNode).primary;
+      expect(primary.type).toBe('StringLiteral');
+      expect((primary as StringLiteralNode).parts).toEqual(['']);
     });
 
     it('parses deeply nested: a().b().c().d ?? 0', () => {
@@ -58,7 +68,11 @@ describe('Parser: PostfixExprNode defaultValue', () => {
       const chain = stmt.expression as PipeChainNode;
       const postfix = chain.head as PostfixExprNode;
 
-      expect(postfix.defaultValue).not.toBeNull();
+      const dv = postfix.defaultValue as PipeChainNode;
+      expect(dv.type).toBe('PipeChain');
+      const primary = (dv.head as PostfixExprNode).primary;
+      expect(primary.type).toBe('NumberLiteral');
+      expect((primary as NumberLiteralNode).value).toBe(0);
     });
 
     it('parses complex default expression: f().x ?? (1 + 2 * 3)', () => {

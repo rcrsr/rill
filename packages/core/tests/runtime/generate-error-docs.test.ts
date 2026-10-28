@@ -1,35 +1,13 @@
 /**
  * Tests for packages/core/scripts/generate-error-docs.ts validation logic
  *
- * These tests validate the error-checking behavior of the build script.
+ * These tests exercise the validator exported by the build script.
  * The script validates that all ERROR_DEFINITIONS entries have required fields.
  */
 
 import { describe, it, expect } from 'vitest';
 import type { ErrorDefinition } from '@rcrsr/rill';
-
-/**
- * Simulate the validation logic from generate-error-docs.ts
- * This function mimics what the build script does.
- */
-function validateErrorDefinitions(definitions: ErrorDefinition[]): void {
-  for (const def of definitions) {
-    // EC-14: Missing cause field
-    if (!def.cause) {
-      throw new Error(`${def.errorId} missing cause field`);
-    }
-
-    // EC-15: Missing resolution field
-    if (!def.resolution) {
-      throw new Error(`${def.errorId} missing resolution field`);
-    }
-
-    // EC-16: Missing examples field
-    if (!def.examples || def.examples.length === 0) {
-      throw new Error(`${def.errorId} missing examples field`);
-    }
-  }
-}
+import { validateErrorDefinitions } from '../../scripts/generate-error-docs.js';
 
 describe('generate-error-docs validation', () => {
   describe('EC-14: Missing cause field', () => {

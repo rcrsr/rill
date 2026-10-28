@@ -20,6 +20,26 @@ import type { ErrorDefinition, ErrorHandlingPattern } from '../src/types.js';
 const OUTPUT_FILE = 'docs/ref-errors.md';
 
 /**
+ * Validate that every definition has a cause, a resolution, and at least one
+ * example. Throws on the first failing entry.
+ */
+export function validateErrorDefinitions(
+  definitions: readonly ErrorDefinition[]
+): void {
+  for (const def of definitions) {
+    if (!def.cause) {
+      throw new Error(`${def.errorId} missing cause field`);
+    }
+    if (!def.resolution) {
+      throw new Error(`${def.errorId} missing resolution field`);
+    }
+    if (!def.examples || def.examples.length === 0) {
+      throw new Error(`${def.errorId} missing examples field`);
+    }
+  }
+}
+
+/**
  * Generate markdown documentation from error definitions.
  * Validates all required fields and generates docs/ref-errors.md.
  */
@@ -68,23 +88,7 @@ function generateErrorDocs(): void {
         process.exit(1);
       }
 
-      // Validate all definitions have required fields
-      for (const def of definitions) {
-        // EC-14: Missing cause field
-        if (!def.cause) {
-          throw new Error(`${def.errorId} missing cause field`);
-        }
-
-        // EC-15: Missing resolution field
-        if (!def.resolution) {
-          throw new Error(`${def.errorId} missing resolution field`);
-        }
-
-        // EC-16: Missing examples field
-        if (!def.examples || def.examples.length === 0) {
-          throw new Error(`${def.errorId} missing examples field`);
-        }
-      }
+      validateErrorDefinitions(definitions);
 
       // Group by category
       const byCategory: Record<
@@ -335,4 +339,8 @@ function categoryToAnchor(category: string): string {
   return names[category] || category;
 }
 
-generateErrorDocs();
+// Only run as a side effect when executed directly, not when a test imports
+// validateErrorDefinitions; otherwise the import would rewrite docs/ref-errors.md.
+if (import.meta.filename === process.argv[1]) {
+  generateErrorDocs();
+}

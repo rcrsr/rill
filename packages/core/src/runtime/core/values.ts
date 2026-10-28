@@ -7,8 +7,8 @@
  * Structural operations (structureEquals, structureMatches, formatStructure,
  * inferStructure, commonType) live in types/operations.ts and are re-exported.
  *
- * Dispatch functions (inferType, formatValue) re-export from
- * types/registrations.ts protocol implementations.
+ * Dispatch functions (inferType, formatValue) live in
+ * types/registrations.ts and are exported from the package index.
  */
 
 import type { RillTypeName } from '../../types.js';
@@ -32,10 +32,7 @@ export { isEmpty } from './types/status.js';
 const isCallable = _isCallableGuard as (
   value: RillValue
 ) => value is RillCallable;
-import {
-  inferType as registryInferType,
-  formatValue as registryFormatValue,
-} from './types/registrations.js';
+import { inferType } from './types/registrations.js';
 import {
   setDictField,
   typedKeyEntries as internalTypedKeyEntries,
@@ -53,9 +50,6 @@ import type {
 } from './types/operations.js';
 import { formatStructure, inferStructure } from './types/operations.js';
 
-/** Infer the Rill type from a runtime value. Delegates to types/registrations. */
-export const inferType: (value: RillValue) => string = registryInferType;
-
 /**
  * Check if a value is of the expected type.
  * Returns true if the value matches the expected type, false otherwise.
@@ -64,9 +58,6 @@ export function checkType(value: RillValue, expected: RillTypeName): boolean {
   if (expected === 'any') return true;
   return inferType(value) === expected;
 }
-
-/** Format a value for display. Delegates to types/registrations. */
-export const formatValue: (value: RillValue) => string = registryFormatValue;
 
 /**
  * Recursive native (host-side) value type.

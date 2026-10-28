@@ -15,13 +15,12 @@
  *
  * These tests pin two things directly:
  *   1. `generate()` reflects every canonical pin the baseline records, so a
- *      change to any of them changes its output.
- *   2. The canonical-equality comparator — logic-equivalent to, and kept in
- *      sync with, the `node -e` block in check-standards.sh — reads a value
- *      change as unequal (stale) and key-order as equal (fresh). Both
- *      directions matter: the first is the guard firing, the second is what
- *      keeps a stable generator's key order from reading as a false
- *      staleness.
+ *      change to any of them changes its output (compared with
+ *      `util.isDeepStrictEqual`, which ignores key order).
+ *   2. The real `check-standards.sh` comparator, run against fixture trees that
+ *      own a `packages/dev/baseline.json`, reports a baseline matching the
+ *      generated one as fresh, a pin-drifted one as stale, and a key-reordered
+ *      one as fresh. No copy of the comparator lives here.
  *
  * Fixtures are minimal repository trees written to a temp directory, since
  * `generate(root)` reads real files (root package.json, .oxlintrc.json, and the
@@ -36,6 +35,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { isDeepStrictEqual } = require('util');
 const { spawnSync } = require('child_process');
 
 const { generate, SHARED_TOOLING_DEPS } = require(
@@ -57,30 +57,6 @@ function check(condition, label, detail) {
   } else {
     fail(label, detail);
   }
-}
-
-// ============================================================
-// The staleness oracle — logic-equivalent to the comparator in
-// check-standards.sh (the `node -e` block that decides BASELINE_FRESH), kept
-// in sync with it by hand rather than shared code. If the checker's
-// canonicalisation ever changes, this copy must change with it, and these
-// tests are where that divergence surfaces.
-// ============================================================
-
-function canon(v) {
-  if (Array.isArray(v)) return v.map(canon);
-  if (v !== null && typeof v === 'object') {
-    const out = {};
-    for (const k of Object.keys(v).sort()) out[k] = canon(v[k]);
-    return out;
-  }
-  return v;
-}
-
-// Returns true when the checker would call the baseline fresh (the two agree),
-// false when it would report it stale.
-function baselineFresh(live, committed) {
-  return JSON.stringify(canon(live)) === JSON.stringify(canon(committed));
 }
 
 // ============================================================
@@ -712,6 +688,65 @@ function runCheckStandardsFixtureTests() {
 }
 
 // ============================================================
+// The real comparator: check-standards.sh decides baseline staleness for a tree
+// that holds packages/dev/baseline.json. Each case writes a fixture tree with
+// that file and runs the actual script, then looks for the stale message.
+// ============================================================
+
+function runBaselineComparatorFixtureTests() {
+  // The detail prints on the line after the FAIL row.
+  const STALE = /baseline\.json is stale/;
+  const treeFiles = (baseline) => {
+    const spec = baseSpec();
+    return {
+      'package.json': JSON.stringify(spec.pkg, null, 2),
+      '.oxlintrc.json': JSON.stringify(spec.oxlintrc, null, 2),
+      'packages/core/package.json': JSON.stringify(spec.core, null, 2),
+      'packages/service/package.json': JSON.stringify(spec.service, null, 2),
+      'packages/dev/baseline.json': JSON.stringify(baseline, null, 2),
+    };
+  };
+  const reversed = (obj) => {
+    const out = {};
+    for (const k of Object.keys(obj).reverse()) out[k] = obj[k];
+    return out;
+  };
+  const live = generateFrom();
+
+  const fresh = runCheckStandards(writeFixtureTree(treeFiles(live)));
+  check(
+    !STALE.test(fresh.stdout),
+    'comparator: a baseline equal to generate() output is not stale',
+    fresh.stdout
+  );
+
+  // The tree pins knip ^6.31.0 while the recorded baseline says ^6.29.0.
+  const drifted = JSON.parse(JSON.stringify(live));
+  drifted.sharedTooling.knip = '^6.29.0';
+  const driftFiles = treeFiles(drifted);
+  const driftSpec = baseSpec();
+  driftSpec.pkg.devDependencies.knip = '^6.31.0';
+  driftFiles['package.json'] = JSON.stringify(driftSpec.pkg, null, 2);
+  const stale = runCheckStandards(writeFixtureTree(driftFiles));
+  check(
+    STALE.test(stale.stdout),
+    'comparator: a baseline recording a drifted knip pin is reported stale',
+    stale.stdout
+  );
+
+  const shuffledBaseline = reversed(live);
+  shuffledBaseline.sharedTooling = reversed(live.sharedTooling);
+  const shuffled = runCheckStandards(
+    writeFixtureTree(treeFiles(shuffledBaseline))
+  );
+  check(
+    !STALE.test(shuffled.stdout),
+    'comparator: key order in the baseline does not read as stale',
+    shuffled.stdout
+  );
+}
+
+// ============================================================
 // 1. A pin bump is detected as stale — the exact scenario a dependabot
 //    tool bump reproduces. One case per shared-tooling pin, so a comparator or
 //    generator change that stopped reflecting any single one is caught, not
@@ -726,7 +761,7 @@ function runStalenessTests() {
     s.pkg.devDependencies.knip = '^6.31.0';
   });
   check(
-    !baselineFresh(knipBumped, committed),
+    !isDeepStrictEqual(knipBumped, committed),
     'staleness: a knip pin bump reads as stale',
     'generate() output did not change when knip was bumped'
   );
@@ -739,7 +774,7 @@ function runStalenessTests() {
       s.pkg.devDependencies[dep] = '^999.0.0';
     });
     check(
-      !baselineFresh(live, committed),
+      !isDeepStrictEqual(live, committed),
       `staleness: bumping ${dep} reads as stale`,
       `generate() did not reflect a change to ${dep}`
     );
@@ -750,7 +785,7 @@ function runStalenessTests() {
     s.oxlintrc.rules['rill/no-duplicate-error-id'] = 'off';
   });
   check(
-    !baselineFresh(ruleDisabled, committed),
+    !isDeepStrictEqual(ruleDisabled, committed),
     'staleness: a lint-rule severity change reads as stale'
   );
 
@@ -759,7 +794,7 @@ function runStalenessTests() {
     s.core.version = '0.19.0';
   });
   check(
-    !baselineFresh(coreBumped, committed),
+    !isDeepStrictEqual(coreBumped, committed),
     'staleness: a packages/core version bump reads as stale'
   );
 
@@ -768,7 +803,7 @@ function runStalenessTests() {
     s.pkg.packageManager = 'pnpm@12.0.0';
   });
   check(
-    !baselineFresh(pmBumped, committed),
+    !isDeepStrictEqual(pmBumped, committed),
     'staleness: a packageManager pin bump reads as stale'
   );
 }
@@ -782,7 +817,7 @@ function runFreshnessTests() {
   const a = generateFrom();
   const b = generateFrom();
   check(
-    baselineFresh(a, b),
+    isDeepStrictEqual(a, b),
     'freshness: two generations of the same tree agree'
   );
 
@@ -794,7 +829,7 @@ function runFreshnessTests() {
     shuffled[k] = roundTripped[k];
   }
   check(
-    baselineFresh(shuffled, a),
+    isDeepStrictEqual(shuffled, a),
     'freshness: top-level key order does not read as stale'
   );
 
@@ -806,7 +841,7 @@ function runFreshnessTests() {
   }
   nestedShuffle.sharedTooling = reorderedTooling;
   check(
-    baselineFresh(nestedShuffle, a),
+    isDeepStrictEqual(nestedShuffle, a),
     'freshness: nested key order does not read as stale'
   );
 }
@@ -1031,6 +1066,7 @@ try {
   runContractTests();
   runCleanGitEnvTests();
   runCheckStandardsFixtureTests();
+  runBaselineComparatorFixtureTests();
   runLeakedGitEnvTests();
 } finally {
   cleanup();
