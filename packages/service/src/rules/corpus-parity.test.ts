@@ -25,7 +25,7 @@
  *   - INDENT_CONTINUATION firings carry the synthetic
  *     `{ column: 1, offset: 0 }` location and a trimmed continuation-line
  *     context, never routed through `extractContextLine`;
- *   - ATOM_UNREGISTERED only fires for atom names outside the 35-name
+ *   - ATOM_UNREGISTERED only fires for atom names outside the
  *     `BUILTIN_ATOMS` snapshot, and never for a name inside it.
  *
  * To regenerate the golden fixture after an intentional rule change, run:
@@ -40,7 +40,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { parseWithRecovery } from '@rcrsr/rill';
+import { BUILTIN_ATOMS, parseWithRecovery } from '@rcrsr/rill';
 import { loadCorpusSnippets } from './corpus-loader.js';
 import { runRules } from './run-rules.js';
 import { createDefaultConfig } from './config.js';
@@ -255,40 +255,18 @@ describe('INDENT_CONTINUATION synthetic location and context', () => {
 });
 
 // ============================================================
-// TARGETED: ATOM_UNREGISTERED 15-NAME BOUNDARY
+// TARGETED: ATOM_UNREGISTERED BOUNDARY
 // ============================================================
 
-describe('ATOM_UNREGISTERED fires only outside the 15-name BUILTIN_ATOMS snapshot', () => {
-  const BUILTIN_ATOM_NAMES = [
-    'ok',
-    'R001',
-    'R999',
-    'TIMEOUT',
-    'AUTH',
-    'FORBIDDEN',
-    'RATE_LIMIT',
-    'QUOTA_EXCEEDED',
-    'UNAVAILABLE',
-    'NOT_FOUND',
-    'CONFLICT',
-    'INVALID_INPUT',
-    'PROTOCOL',
-    'DISPOSED',
-    'TYPE_MISMATCH',
-  ] as const;
-
-  it('is exactly the 15-name snapshot', () => {
-    expect(BUILTIN_ATOM_NAMES).toHaveLength(15);
-  });
-
-  it.each(BUILTIN_ATOM_NAMES)('does not fire for builtin atom #%s', (name) => {
+describe('ATOM_UNREGISTERED fires only outside the BUILTIN_ATOMS snapshot', () => {
+  it.each(BUILTIN_ATOMS)('does not fire for builtin atom #%s', (name) => {
     const source = `#${name}\n`;
     const parsed = parseWithRecovery(source);
     const result = runRules(parsed, source, makeConfig(), [atomUnregistered]);
     expect(result).toEqual([]);
   });
 
-  it('fires with a matching message for an atom outside the 15-name snapshot', () => {
+  it('fires with a matching message for an atom outside the BUILTIN_ATOMS snapshot', () => {
     const source = '#CUSTOM_UNREGISTERED_ATOM\n';
     const parsed = parseWithRecovery(source);
     const result = runRules(parsed, source, makeConfig(), [atomUnregistered]);
@@ -303,7 +281,7 @@ describe('ATOM_UNREGISTERED fires only outside the 15-name BUILTIN_ATOMS snapsho
     });
   });
 
-  it('every corpus ATOM_UNREGISTERED firing names an atom outside the 15-name snapshot', () => {
+  it('every corpus ATOM_UNREGISTERED firing names an atom outside the BUILTIN_ATOMS snapshot', () => {
     const golden = loadGolden();
     const firings = golden
       .flatMap((entry) => entry.diagnostics)
@@ -315,7 +293,7 @@ describe('ATOM_UNREGISTERED fires only outside the 15-name BUILTIN_ATOMS snapsho
       );
       expect(match).not.toBeNull();
       const atomName = match?.[1] ?? '';
-      expect(BUILTIN_ATOM_NAMES).not.toContain(atomName);
+      expect(BUILTIN_ATOMS).not.toContain(atomName);
     }
   });
 });

@@ -254,7 +254,7 @@ export type { HighlightCategory };
 export { ERROR_REGISTRY };
 
 // Language and tooling metadata
-export { BUILTIN_FUNCTIONS, BUILTIN_METHODS, KEYWORDS, TOKEN_TYPES, VALID_TYPE_NAMES };
+export { BUILTIN_ATOMS, BUILTIN_FUNCTIONS, BUILTIN_METHODS, KEYWORDS, TOKEN_TYPES, VALID_TYPE_NAMES };
 export type { Token, TokenType };
 
 // Extension types
@@ -633,6 +633,19 @@ const isKeyword = (token: string) => keywordSet.has(token);
 ```
 
 Editor tooling (LSP completion, syntax highlighting) reads this list instead of vendoring a separate copy. The array is frozen at module load; `KEYWORDS.push(...)` throws.
+
+## BUILTIN_ATOMS
+
+`BUILTIN_ATOMS` is a `readonly string[]` listing the atom names core pre-registers, without the leading `#`. It lists builtins only; atoms a host adds with `registerErrorCode` are not included.
+
+```typescript
+import { BUILTIN_ATOMS } from '@rcrsr/rill';
+
+const builtinAtomSet = new Set(BUILTIN_ATOMS);
+const isBuiltinAtom = (name: string) => builtinAtomSet.has(name);
+```
+
+Tooling such as the language service's `ATOM_UNREGISTERED` rule reads this list instead of vendoring a separate copy. The array is frozen at module load; `BUILTIN_ATOMS.push(...)` throws.
 
 ## RillParam
 

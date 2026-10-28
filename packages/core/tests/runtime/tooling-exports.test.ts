@@ -3,7 +3,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { BUILTIN_FUNCTIONS, KEYWORDS } from '@rcrsr/rill';
+import {
+  BUILTIN_ATOMS,
+  BUILTIN_FUNCTIONS,
+  ERROR_REGISTRY,
+  KEYWORDS,
+  resolveAtom,
+} from '@rcrsr/rill';
 import { BUILTIN_FUNCTIONS as INTERNAL_BUILTIN_FUNCTIONS } from '../../src/runtime/ext/builtins.js';
 import { KEYWORDS as INTERNAL_KEYWORDS } from '../../src/lexer/operators.js';
 
@@ -49,6 +55,48 @@ describe('Tooling Exports', () => {
       const internalNames = Object.keys(INTERNAL_KEYWORDS);
       expect(KEYWORDS.length).toBe(internalNames.length);
       expect(new Set(KEYWORDS)).toEqual(new Set(internalNames));
+    });
+  });
+
+  describe('BUILTIN_ATOMS', () => {
+    it('is frozen and rejects mutation at runtime', () => {
+      expect(Object.isFrozen(BUILTIN_ATOMS)).toBe(true);
+      expect(() => (BUILTIN_ATOMS as string[]).push('NOT_AN_ATOM')).toThrow();
+    });
+
+    it('lists only names that resolve to themselves', () => {
+      for (const name of BUILTIN_ATOMS) {
+        expect(resolveAtom(name).name).toBe(name);
+      }
+    });
+
+    it('contains the runtime halt atoms added after the original snapshot', () => {
+      for (const name of [
+        'RILL_R012',
+        'RILL_R064',
+        'RILL_R065',
+        'RILL_R066',
+        'RILL_R085',
+        'RILL_R088',
+        'RILL_R089',
+        'RILL_R090',
+      ]) {
+        expect(BUILTIN_ATOMS).toContain(name);
+      }
+    });
+
+    it('does not contain the deliberately unregistered R004', () => {
+      expect(BUILTIN_ATOMS).not.toContain('R004');
+      expect(BUILTIN_ATOMS).not.toContain('RILL_R004');
+    });
+
+    it('contains every registry error id whose atom form is registered', () => {
+      for (const [id] of ERROR_REGISTRY.entries()) {
+        const name = id.replace('-', '_');
+        if (resolveAtom(name).name === name) {
+          expect(BUILTIN_ATOMS).toContain(name);
+        }
+      }
     });
   });
 });

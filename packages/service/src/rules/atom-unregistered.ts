@@ -4,53 +4,18 @@
  * lint cannot see host registrations, so this is a best-effort check.
  */
 
+import { BUILTIN_ATOMS } from '@rcrsr/rill';
 import type { ASTNode, AtomLiteralNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 /**
- * Atoms pre-registered by the runtime. This is a fixed 35-name snapshot
- * copied by hand from the runtime atom registry, not derived from it live.
- * Names are stored without the leading '#'.
+ * Atoms pre-registered by the runtime, read from core's exported snapshot
+ * so the set cannot drift from the registry. Host `registerErrorCode`
+ * registrations are not included. Names are stored without the leading '#'.
  */
-const BUILTIN_ATOMS: ReadonlySet<string> = new Set([
-  'ok',
-  'R001',
-  'TIMEOUT',
-  'AUTH',
-  'FORBIDDEN',
-  'RATE_LIMIT',
-  'QUOTA_EXCEEDED',
-  'UNAVAILABLE',
-  'NOT_FOUND',
-  'CONFLICT',
-  'INVALID_INPUT',
-  'PROTOCOL',
-  'DISPOSED',
-  'IGNORE',
-  'R999',
-  'TYPE_MISMATCH',
-  'RILL_R016',
-  'RILL_R002',
-  'RILL_R003',
-  'RILL_R010',
-  'RILL_R036',
-  'RILL_R037',
-  'RILL_R038',
-  'RILL_R040',
-  'RILL_R041',
-  'RILL_R042',
-  'RILL_R044',
-  'RILL_R054',
-  'RILL_R055',
-  'RILL_R056',
-  'RILL_R057',
-  'RILL_R058',
-  'RILL_R061',
-  'RILL_R082',
-  'RILL_R083',
-]);
+const BUILTIN_ATOM_SET: ReadonlySet<string> = new Set(BUILTIN_ATOMS);
 
 export const atomUnregistered: Rule = {
   code: 'ATOM_UNREGISTERED',
@@ -60,7 +25,7 @@ export const atomUnregistered: Rule = {
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     const atom = node as AtomLiteralNode;
-    if (BUILTIN_ATOMS.has(atom.name)) return [];
+    if (BUILTIN_ATOM_SET.has(atom.name)) return [];
 
     return [
       {
