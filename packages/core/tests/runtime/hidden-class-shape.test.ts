@@ -229,7 +229,7 @@ describe('V8 hidden-class shape regression', () => {
       expect(Object.keys(ctx).join(',')).toBe(ROOT_BASELINE);
     });
 
-    it('field count is 34', () => {
+    it('field count equals ROOT_FIELD_COUNT', () => {
       const ctx = createRuntimeContext({});
       expect(Object.keys(ctx).length).toBe(ROOT_FIELD_COUNT);
     });
@@ -242,7 +242,7 @@ describe('V8 hidden-class shape regression', () => {
       expect(Object.keys(child).join(',')).toBe(CHILD_BASELINE);
     });
 
-    it('field count is 36', () => {
+    it('field count equals CHILD_FIELD_COUNT', () => {
       const parent = createRuntimeContext({});
       const child = createChildContext(parent);
       expect(Object.keys(child).length).toBe(CHILD_FIELD_COUNT);

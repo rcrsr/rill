@@ -10,10 +10,10 @@
  * - FR-ERR-19 / FR-ERR-20: Positive factory-init registration path.
  *
  * Construction strategy:
- * - The runtime does not yet invoke `ExtensionFactory` inside
- *   `createRuntimeContext`. Tests drive the factory signature directly by
- *   constructing an `ExtensionFactoryCtx` literal and calling the factory,
- *   matching the current extension wiring (see extensions.test.ts).
+ * - Core has no construction site for `ExtensionFactoryCtx`; the host builds
+ *   it. `makeFactoryCtx` stands in for a host-built context, and tests drive
+ *   the factory signature directly by calling the factory with that literal
+ *   (see extensions.test.ts).
  */
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
@@ -30,8 +30,8 @@ import {
 
 /**
  * Builds a factory-scope ctx literal wired to a fresh AbortController.
- * Mirrors the wiring `createRuntimeContext` performs internally so tests
- * can exercise the factory contract without spinning up a full runtime.
+ * Stands in for a host-built context so tests can exercise the factory
+ * contract without spinning up a full runtime.
  */
 function makeFactoryCtx(): ExtensionFactoryCtx {
   const controller = new AbortController();

@@ -9,6 +9,9 @@ import { expectRuntimeError } from '../helpers/halt.js';
 import {
   type CallFrame,
   RuntimeError,
+  createRuntimeContext,
+  execute,
+  parse,
   type RuntimeContext,
   type SourceSpan,
   getCallStack,
@@ -150,59 +153,48 @@ describe('Rill Runtime: Call Stack Integration', () => {
 
   describe('popCallFrame on error paths (IR-3)', () => {
     it('pops frame when host function throws error', async () => {
-      let ctx: RuntimeContext | undefined;
-      await expectRuntimeError(
-        () =>
-          run('failFn() -> capture()', {
-            functions: {
-              failFn: {
-                params: [],
-                fn: () => {
-                  throw new RuntimeError('RILL-R001', 'Test error');
-                },
-              },
-              capture: {
-                params: [],
-                fn: (_args, c) => {
-                  ctx = c;
-                  return '';
-                },
-              },
+      const ctx = createRuntimeContext({
+        functions: {
+          failFn: {
+            params: [],
+            fn: (_args, c) => {
+              depthInBody = c.callStack.length;
+              throw new RuntimeError('RILL-R001', 'Test error');
             },
-          }),
-        { code: 'RILL-R001' }
-      );
+          },
+        },
+      });
+      let depthInBody = -1;
 
-      expect(ctx).toBeUndefined();
+      await expectRuntimeError(() => execute(parse('failFn()'), ctx), {
+        code: 'RILL-R001',
+      });
+
+      expect(depthInBody).toBe(1);
+      expect(ctx.callStack).toHaveLength(0);
     });
 
     it('captures call stack in error before popping', async () => {
-      try {
-        await run('fail()', {
-          functions: {
-            fail: {
-              params: [],
-              fn: () => {
-                throw new RuntimeError('RILL-R001', 'Test error', undefined, {
-                  callStack: [
-                    {
-                      location: {
-                        start: { line: 1, column: 1, offset: 0 },
-                        end: { line: 1, column: 7, offset: 6 },
-                      },
-                      functionName: 'fail',
-                    },
-                  ],
-                });
-              },
+      const ctx = createRuntimeContext({
+        functions: {
+          fail: {
+            params: [],
+            fn: () => {
+              throw new RuntimeError('RILL-R001', 'Test error');
             },
           },
-        });
-        expect.fail('Should have thrown');
-      } catch (e) {
-        const stack = getCallStack(e as RuntimeError);
-        expect(stack.length).toBeGreaterThan(0);
-      }
+        },
+      });
+      let caught: unknown;
+      await execute(parse('fail()'), ctx).catch((e: unknown) => {
+        caught = e;
+      });
+
+      expect(caught).toBeInstanceOf(RuntimeError);
+      const stack = getCallStack(caught as RuntimeError);
+      expect(stack).toHaveLength(1);
+      expect(stack[0]?.functionName).toBe('fail');
+      expect(ctx.callStack).toHaveLength(0);
     });
   });
 

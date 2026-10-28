@@ -223,7 +223,7 @@ describe('core handler error contracts', () => {
         })
       );
 
-      expect(callCount).toBeLessThan(5);
+      expect(callCount).toBe(2);
     });
 
     it('checks abort during argument evaluation', async () => {

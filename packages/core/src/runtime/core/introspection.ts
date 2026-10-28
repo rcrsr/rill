@@ -6,7 +6,11 @@
  */
 
 import type { RuntimeContext } from './types/runtime.js';
-import type { RillValue, TypeStructure } from './types/structures.js';
+import type {
+  RillTypeValue,
+  RillValue,
+  TypeStructure,
+} from './types/structures.js';
 import {
   compareStructuredFields,
   formatStructure,
@@ -21,6 +25,7 @@ import {
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
 import { isBuiltinFunctionName } from './builtin-registry.js';
+import { anyTypeValue } from './types/any-type.js';
 import type {
   AnnotationArg,
   CaptureNode,
@@ -65,6 +70,18 @@ export interface ParamMetadata {
   readonly description: string;
   /** Default value if parameter is optional (undefined if required) */
   readonly defaultValue: RillValue | undefined;
+}
+
+/**
+ * Resolve a callable's return structure. JS hosts can register functions
+ * without a returnType; those report 'any', as untyped params do.
+ */
+export function resolveReturnStructure(callable: {
+  readonly returnType: RillTypeValue;
+}): TypeStructure {
+  return (callable.returnType as RillTypeValue | undefined) !== undefined
+    ? callable.returnType.structure
+    : anyTypeValue.structure;
 }
 
 /**
@@ -118,7 +135,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
             description:
               (callable.annotations?.['description'] as string) ?? '',
             params,
-            returnType: formatStructure(callable.returnType.structure),
+            returnType: formatStructure(resolveReturnStructure(callable)),
           });
         } else {
           // ApplicationCallable without params (untyped)
@@ -176,7 +193,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
           name,
           description,
           params,
-          returnType: formatStructure(value.returnType.structure),
+          returnType: formatStructure(resolveReturnStructure(value)),
         });
       }
     } catch {
@@ -378,7 +395,7 @@ export function generateManifest(ctx: RuntimeContext): string {
 
     const signature = serializeClosureSignature(
       callable.params,
-      callable.returnType.structure,
+      resolveReturnStructure(callable),
       (callable.annotations?.['description'] as string) ?? undefined
     );
 

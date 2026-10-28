@@ -18,7 +18,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { anyTypeValue, ParseError } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  isApplicationCallable,
+  isScriptCallable,
+  ParseError,
+} from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectThrowMessage } from '../helpers/halt.js';
 
@@ -42,11 +47,13 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
           },
         },
       });
-      expect(result).not.toBeNull();
-      expect(typeof result).toBe('object');
+      expect(isApplicationCallable(result)).toBe(true);
+      if (!isApplicationCallable(result)) return;
+      expect(result.annotations['description']).toBe('Greets a user by name');
     });
 
     it('returns callable without invoking when no pipe value', async () => {
+      let invocations = 0;
       const result = await run(`greet::user`, {
         functions: {
           'greet::user': {
@@ -58,14 +65,19 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
                 annotations: {},
               },
             ],
-            fn: () => 'invoked',
+            fn: () => {
+              invocations += 1;
+              return 'invoked';
+            },
             annotations: { description: 'Greets a user' },
             returnType: anyTypeValue,
           },
         },
       });
-      expect(result).not.toBeNull();
-      expect(typeof result).toBe('object');
+      expect(isApplicationCallable(result)).toBe(true);
+      if (!isApplicationCallable(result)) return;
+      expect(result.annotations['description']).toBe('Greets a user');
+      expect(invocations).toBe(0);
     });
 
     it('invokes callable when used as pipe stage', async () => {
@@ -118,22 +130,28 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
       const result = await run(
         `^("Greets users") |name: string| { "Hello " + $name }`
       );
-      expect(result).not.toBeNull();
-      expect(typeof result).toBe('object');
+      expect(isScriptCallable(result)).toBe(true);
+      if (!isScriptCallable(result)) return;
+      expect(result.annotations).toEqual({ description: 'Greets users' });
     });
 
     it('attaches multiple annotations to script callable', async () => {
       const result = await run(
         `^("Search the web", cache: true) |q: string| { $q }`
       );
-      expect(result).not.toBeNull();
-      expect(typeof result).toBe('object');
+      expect(isScriptCallable(result)).toBe(true);
+      if (!isScriptCallable(result)) return;
+      expect(result.annotations).toEqual({
+        description: 'Search the web',
+        cache: true,
+      });
     });
 
     it('annotations field is empty dict when no annotation provided', async () => {
       const result = await run(`|x: string| { $x }`);
-      expect(result).not.toBeNull();
-      expect(typeof result).toBe('object');
+      expect(isScriptCallable(result)).toBe(true);
+      if (!isScriptCallable(result)) return;
+      expect(result.annotations).toEqual({});
     });
   });
 

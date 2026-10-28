@@ -18,7 +18,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { expectHaltMessage } from '../../helpers/halt.js';
+import { expectHaltMessage, expectThrowMessage } from '../../helpers/halt.js';
 import {
   anyTypeValue,
   callable,
@@ -219,6 +219,75 @@ describe('createTestContext', () => {
 
       // Lifecycle dispose was not triggered by accessing value dict dispose
       expect(lifecycleDisposed).toBe(false);
+    });
+  });
+
+  describe('ctx.dispose() runs extension dispose hooks', () => {
+    it('runs every hook once, after the runtime is disposed', async () => {
+      const calls: string[] = [];
+      const ctx = createTestContext({
+        sync_ext: {
+          value: 1,
+          dispose: () => {
+            calls.push(`sync:${ctx.isDisposed()}`);
+          },
+        },
+        async_ext: {
+          value: 2,
+          dispose: async () => {
+            calls.push(`async:${ctx.isDisposed()}`);
+          },
+        },
+        plain_ext: { value: 3 },
+      });
+
+      await ctx.dispose();
+      await ctx.dispose();
+
+      expect(calls.sort()).toEqual(['async:true', 'sync:true']);
+    });
+
+    it('runs the remaining hooks and rejects with the first failure', async () => {
+      let laterHookRan = false;
+      const ctx = createTestContext({
+        failing: {
+          value: 1,
+          dispose: () => {
+            throw new Error('hook failed');
+          },
+        },
+        later: {
+          value: 2,
+          dispose: () => {
+            laterHookRan = true;
+          },
+        },
+      });
+
+      await expectThrowMessage(() => ctx.dispose(), 'hook failed');
+      expect(laterHookRan).toBe(true);
+    });
+  });
+
+  describe('ctx.dispose() when runtime dispose rejects', () => {
+    it('still runs extension hooks and surfaces the runtime failure', async () => {
+      let hookRan = 0;
+      const ctx = createTestContext({
+        ext_a: {
+          value: 1,
+          dispose: () => {
+            hookRan += 1;
+          },
+        },
+      });
+      // A throwing log callback makes the runtime's own dispose reject.
+      (ctx.callbacks as { onLog: (message: string) => void }).onLog = () => {
+        throw new Error('runtime dispose failed');
+      };
+      await execInContext('pass<async: true> { error "boom" }', ctx);
+
+      await expectThrowMessage(() => ctx.dispose(), 'runtime dispose failed');
+      expect(hookRan).toBe(1);
     });
   });
 

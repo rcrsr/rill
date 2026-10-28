@@ -25,6 +25,11 @@ import { expectRuntimeError } from '../helpers/halt.js';
 
 import { run } from '../helpers/runtime.js';
 
+// Module whose exported closure calls a module-local closure before hitting
+// the undefined variable, so a call frame is pushed while module code runs.
+const MODULE_WITH_LOCAL_CLOSURE =
+  '|v| { $narme } => $inner\n|name:string| { $inner($name) }';
+
 // ============================================================
 // moduleResolver tests (covers IR-4, EC-1, EC-2, EC-3)
 // ============================================================
@@ -185,14 +190,12 @@ describe('Rill Runtime: moduleResolver', () => {
     });
 
     it('includes sourceId on call stack frames from cross-module calls', async () => {
-      // Module defines a closure; caller invokes it, triggering error inside module closure
-      const moduleSource = '|name:string| { $narme }';
       try {
         await run('use<module:greetings> => $greet\n$greet("Rill")', {
           resolvers: {
             module: (_resource: string): ResolverResult => ({
               kind: 'source',
-              text: moduleSource,
+              text: MODULE_WITH_LOCAL_CLOSURE,
               sourceId: '/path/to/greet.rill',
             }),
           },
@@ -202,22 +205,29 @@ describe('Rill Runtime: moduleResolver', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RillError);
         const rErr = err as RillError;
-        // Error originates in the module
         expect(rErr.sourceId).toBe('/path/to/greet.rill');
-        // Call stack should have a frame from the caller (no sourceId = root script)
         const frames = getCallStack(rErr);
-        expect(frames.length).toBeGreaterThan(0);
+        // The inner call happens while module code runs: its frame carries the module sourceId.
+        const moduleFrames = frames.filter(
+          (f) => f.sourceId === '/path/to/greet.rill'
+        );
+        expect(moduleFrames.length).toBeGreaterThan(0);
+        // The caller-side frame (root script invoking $greet) is not stamped with the module id.
+        const callerFrames = frames.filter(
+          (f) => f.sourceId !== '/path/to/greet.rill'
+        );
+        expect(callerFrames.length).toBeGreaterThan(0);
+        expect(frames[0]?.sourceId).not.toBe('/path/to/greet.rill');
       }
     });
 
     it('JSON formatter includes sourceId on call stack frames', async () => {
-      const moduleSource = '|name:string| { $narme }';
       try {
         await run('use<module:greetings> => $greet\n$greet("Rill")', {
           resolvers: {
             module: (_resource: string): ResolverResult => ({
               kind: 'source',
-              text: moduleSource,
+              text: MODULE_WITH_LOCAL_CLOSURE,
               sourceId: '/path/to/greet.rill',
             }),
           },
@@ -229,6 +239,11 @@ describe('Rill Runtime: moduleResolver', () => {
         const json = formatRillErrorJson(err as RillError);
         const parsed = JSON.parse(json);
         expect(parsed.sourceId).toBe('/path/to/greet.rill');
+        expect(
+          parsed.callStack.some(
+            (f: { sourceId?: string }) => f.sourceId === '/path/to/greet.rill'
+          )
+        ).toBe(true);
       }
     });
   });

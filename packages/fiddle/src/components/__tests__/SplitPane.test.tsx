@@ -33,37 +33,38 @@ describe('SplitPane', () => {
   // ============================================================
 
   describe('rendering', () => {
-    it('renders without errors', () => {
+    it('renders two panels separated by a divider', () => {
       const { container } = render(<SplitPane {...defaultProps} />);
       const splitPane = container.querySelector('.split-pane');
-      expect(splitPane).toBeDefined();
+      expect(splitPane).not.toBeNull();
+      expect(splitPane?.querySelectorAll('.split-pane-panel')).toHaveLength(2);
+      const divider = splitPane?.querySelector('[role="separator"]');
+      expect(divider?.classList.contains('split-pane-divider')).toBe(true);
     });
 
-    it('renders left panel content', () => {
-      const { getByText } = render(<SplitPane {...defaultProps} />);
-      expect(getByText('Left Panel')).toBeDefined();
+    it('renders left panel content in the first panel', () => {
+      const { container } = render(<SplitPane {...defaultProps} />);
+      const panels = container.querySelectorAll('.split-pane-panel');
+      expect(panels[0]?.textContent).toBe('Left Panel');
     });
 
-    it('renders right panel content', () => {
-      const { getByText } = render(<SplitPane {...defaultProps} />);
-      expect(getByText('Right Panel')).toBeDefined();
+    it('renders right panel content in the second panel', () => {
+      const { container } = render(<SplitPane {...defaultProps} />);
+      const panels = container.querySelectorAll('.split-pane-panel');
+      expect(panels[1]?.textContent).toBe('Right Panel');
     });
 
-    it('renders divider with ARIA attributes', () => {
+    it('renders divider with default ARIA values for an unmeasured container', () => {
       const { container } = render(<SplitPane {...defaultProps} />);
       const divider = container.querySelector('[role="separator"]');
-      expect(divider).toBeDefined();
-      // Orientation depends on container width, which varies in test environment
-      expect(divider?.getAttribute('aria-orientation')).toMatch(
-        /^(horizontal|vertical)$/
-      );
+      // An unmeasured container is narrower than the breakpoint (stacked
+      // layout), so the separator itself is horizontal; bounds use the
+      // hard-coded 1000px fallback size.
+      expect(divider?.getAttribute('aria-orientation')).toBe('horizontal');
+      expect(divider?.getAttribute('aria-valuenow')).toBe('50');
+      expect(divider?.getAttribute('aria-valuemin')).toBe('20');
+      expect(divider?.getAttribute('aria-valuemax')).toBe('80');
       expect(divider?.getAttribute('tabindex')).toBe('0');
-    });
-
-    it('renders brand dark divider', () => {
-      const { container } = render(<SplitPane {...defaultProps} />);
-      const divider = container.querySelector('.split-pane-divider');
-      expect(divider).toBeDefined();
     });
 
     it('renders with custom initial split ratio', () => {
@@ -82,86 +83,49 @@ describe('SplitPane', () => {
   });
 
   // ============================================================
-  // Split ratio persistence (callback interface)
-  // ============================================================
-
-  describe('split ratio persistence interface', () => {
-    it('accepts onSplitChange callback prop', () => {
-      const callback = vi.fn();
-      const { container } = render(
-        <SplitPane {...defaultProps} onSplitChange={callback} />
-      );
-      const splitPane = container.querySelector('.split-pane');
-      expect(splitPane).toBeDefined();
-    });
-
-    it('does not error when onSplitChange is undefined', () => {
-      const { container } = render(
-        <SplitPane left={<div>Left</div>} right={<div>Right</div>} />
-      );
-      const splitPane = container.querySelector('.split-pane');
-      expect(splitPane).toBeDefined();
-    });
-
-    it('provides callback with updated split ratio', () => {
-      const callback = vi.fn();
-      render(<SplitPane {...defaultProps} onSplitChange={callback} />);
-
-      // Callback should accept a number (split ratio percentage)
-      callback(55);
-      expect(callback).toHaveBeenCalledWith(55);
-    });
-  });
-
-  // ============================================================
   // Divider enforces 200px minimum panel size
   // ============================================================
 
   describe('minimum panel size enforcement', () => {
-    it('stores minimum panel size constant', () => {
+    it('reports 20/80 bounds for an unmeasured container', () => {
       const { container } = render(<SplitPane {...defaultProps} />);
-      const splitPane = container.querySelector('.split-pane');
-      expect(splitPane).toBeDefined();
+      const divider = container.querySelector('[role="separator"]');
+      expect(divider?.getAttribute('aria-valuemin')).toBe('20');
+      expect(divider?.getAttribute('aria-valuemax')).toBe('80');
     });
 
-    it('clamps initial split ratio to valid bounds', () => {
+    it('clamps an initial ratio below the minimum on mount', () => {
+      const onSplitChange = vi.fn();
       const { container } = render(
-        <SplitPane {...defaultProps} initialSplitRatio={10} />
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={10}
+          onSplitChange={onSplitChange}
+        />
       );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
 
-      const panels = container.querySelectorAll('.split-pane-panel');
-      const divider = container.querySelector('[role="separator"]');
-
-      expect(panels.length).toBe(2);
-      expect(divider).toBeDefined();
+      expect(divider.getAttribute('aria-valuenow')).toBe('20');
+      expect(onSplitChange).not.toHaveBeenCalled();
     });
 
-    it('clamps maximum split ratio to enforce right panel minimum', () => {
+    it('clamps an initial ratio above the maximum on mount', () => {
+      const onSplitChange = vi.fn();
       const { container } = render(
-        <SplitPane {...defaultProps} initialSplitRatio={95} />
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={95}
+          onSplitChange={onSplitChange}
+        />
       );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
 
-      const panels = container.querySelectorAll('.split-pane-panel');
-      const divider = container.querySelector('[role="separator"]');
-
-      expect(panels.length).toBe(2);
-      expect(divider).toBeDefined();
-    });
-
-    it('enforces minimum size during resize operations', () => {
-      const { container } = render(<SplitPane {...defaultProps} />);
-
-      const divider = container.querySelector('[role="separator"]');
-      expect(divider).toBeDefined();
-
-      const minValue = parseInt(divider?.getAttribute('aria-valuemin') ?? '0');
-      const maxValue = parseInt(divider?.getAttribute('aria-valuemax') ?? '0');
-
-      // When container has size, bounds reflect MIN_PANEL_SIZE
-      // When container is unsized (tests), bounds default to 0-100
-      expect(minValue).toBeGreaterThanOrEqual(0);
-      expect(maxValue).toBeLessThanOrEqual(100);
-      expect(minValue).toBeLessThan(maxValue);
+      expect(divider.getAttribute('aria-valuenow')).toBe('80');
+      expect(onSplitChange).not.toHaveBeenCalled();
     });
   });
 
@@ -170,29 +134,120 @@ describe('SplitPane', () => {
   // ============================================================
 
   describe('responsive orientation', () => {
-    it('renders with horizontal or vertical orientation based on container width', () => {
-      const { container } = render(<SplitPane {...defaultProps} />);
+    function withContainerWidth(width: number, run: () => void): void {
+      const spy = vi
+        .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+        .mockReturnValue(width);
+      try {
+        run();
+      } finally {
+        spy.mockRestore();
+      }
+    }
 
-      const divider = container.querySelector('[role="separator"]');
-      const orientation = divider?.getAttribute('aria-orientation');
-
-      expect(orientation).toMatch(/^(horizontal|vertical)$/);
+    it('uses the side-by-side layout when the container is wider than the default breakpoint', () => {
+      withContainerWidth(900, () => {
+        const { container } = render(<SplitPane {...defaultProps} />);
+        const divider = container.querySelector('[role="separator"]');
+        expect(divider?.getAttribute('aria-orientation')).toBe('vertical');
+        expect(
+          container.querySelector('.split-pane')?.classList.contains('vertical')
+        ).toBe(false);
+      });
     });
 
-    it('accepts custom breakpoint prop', () => {
-      const { container } = render(
-        <SplitPane {...defaultProps} breakpoint={1024} />
-      );
+    it('uses the stacked layout when the container is narrower than a custom breakpoint', () => {
+      withContainerWidth(900, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} breakpoint={1024} />
+        );
+        const divider = container.querySelector('[role="separator"]');
+        expect(divider?.getAttribute('aria-orientation')).toBe('horizontal');
+        expect(
+          container.querySelector('.split-pane')?.classList.contains('vertical')
+        ).toBe(true);
+      });
+    });
+  });
 
-      const splitPane = container.querySelector('.split-pane');
-      expect(splitPane).toBeDefined();
+  describe('measured bounds', () => {
+    function withContainerSize(
+      width: number,
+      height: number,
+      run: () => void
+    ): void {
+      const w = vi
+        .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+        .mockReturnValue(width);
+      const h = vi
+        .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+        .mockReturnValue(height);
+      try {
+        run();
+      } finally {
+        w.mockRestore();
+        h.mockRestore();
+      }
+    }
+
+    function readAria(container: HTMLElement): {
+      now: number;
+      min: number;
+      max: number;
+    } {
+      const d = container.querySelector('[role="separator"]')!;
+      return {
+        now: Number(d.getAttribute('aria-valuenow')),
+        min: Number(d.getAttribute('aria-valuemin')),
+        max: Number(d.getAttribute('aria-valuemax')),
+      };
+    }
+
+    it('re-clamps a low initial ratio to the measured minimum in a narrow pane', () => {
+      withContainerSize(800, 600, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} initialSplitRatio={10} />
+        );
+        const aria = readAria(container);
+        expect(aria.min).toBe(25);
+        expect(aria.now).toBe(25);
+      });
     });
 
-    it('defaults to 768px breakpoint', () => {
-      const { container } = render(<SplitPane {...defaultProps} />);
+    it('re-clamps a high initial ratio to the measured maximum in a narrow pane', () => {
+      withContainerSize(800, 600, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} initialSplitRatio={95} />
+        );
+        const aria = readAria(container);
+        expect(aria.max).toBe(75);
+        expect(aria.now).toBe(75);
+      });
+    });
 
-      const splitPane = container.querySelector('.split-pane');
-      expect(splitPane).toBeDefined();
+    it('keeps aria-valuenow within bounds in a wide pane', () => {
+      withContainerSize(2000, 600, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} initialSplitRatio={5} />
+        );
+        const aria = readAria(container);
+        expect(aria.min).toBe(10);
+        expect(aria.now).toBe(10);
+        expect(aria.now).toBeGreaterThanOrEqual(aria.min);
+        expect(aria.now).toBeLessThanOrEqual(aria.max);
+      });
+    });
+
+    it('uses clientHeight for bounds in the stacked layout', () => {
+      withContainerSize(500, 400, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} initialSplitRatio={10} />
+        );
+        const aria = readAria(container);
+        expect(aria.min).toBe(50);
+        expect(aria.now).toBe(50);
+        expect(aria.max).toBe(50);
+      });
     });
   });
 
@@ -210,14 +265,6 @@ describe('SplitPane', () => {
       expect(divider?.tabIndex).toBe(0);
     });
 
-    it('divider has role="separator"', () => {
-      const { container } = render(<SplitPane {...defaultProps} />);
-      const divider = container.querySelector('[role="separator"]');
-
-      expect(divider).toBeDefined();
-      expect(divider?.getAttribute('role')).toBe('separator');
-    });
-
     it('divider has aria-valuenow for current split ratio', () => {
       const { container } = render(
         <SplitPane {...defaultProps} initialSplitRatio={60} />
@@ -226,28 +273,6 @@ describe('SplitPane', () => {
 
       expect(divider?.getAttribute('aria-valuenow')).toBe('60');
     });
-
-    it('divider has aria-valuemin and aria-valuemax', () => {
-      const { container } = render(<SplitPane {...defaultProps} />);
-      const divider = container.querySelector('[role="separator"]');
-
-      const minValue = parseInt(divider?.getAttribute('aria-valuemin') ?? '0');
-      const maxValue = parseInt(divider?.getAttribute('aria-valuemax') ?? '0');
-
-      // When container has size, bounds reflect MIN_PANEL_SIZE
-      // When container is unsized (tests), bounds default to 0-100
-      expect(minValue).toBeGreaterThanOrEqual(0);
-      expect(maxValue).toBeLessThanOrEqual(100);
-      expect(minValue).toBeLessThan(maxValue);
-    });
-
-    it('divider has aria-orientation matching layout', () => {
-      const { container } = render(<SplitPane {...defaultProps} />);
-      const divider = container.querySelector('[role="separator"]');
-
-      const orientation = divider?.getAttribute('aria-orientation');
-      expect(orientation).toMatch(/^(horizontal|vertical)$/);
-    });
   });
 
   // ============================================================
@@ -255,7 +280,7 @@ describe('SplitPane', () => {
   // ============================================================
 
   describe('panel styling', () => {
-    it('applies split ratio to panel dimensions', () => {
+    it('applies split ratio to panel heights in the stacked layout', () => {
       const { container } = render(
         <SplitPane {...defaultProps} initialSplitRatio={60} />
       );
@@ -264,29 +289,11 @@ describe('SplitPane', () => {
         '.split-pane-panel'
       ) as NodeListOf<HTMLElement>;
 
-      expect(panels.length).toBe(2);
-
-      // Panels have percentage-based dimensions
-      const leftStyle = panels[0]?.style;
-      const rightStyle = panels[1]?.style;
-
-      // Either width (horizontal) or height (vertical) will use split ratio
-      const hasLeftDimension = leftStyle?.width || leftStyle?.height;
-      const hasRightDimension = rightStyle?.width || rightStyle?.height;
-
-      expect(hasLeftDimension).toBeDefined();
-      expect(hasRightDimension).toBeDefined();
-    });
-
-    it('container uses flexbox layout', () => {
-      const { container } = render(<SplitPane {...defaultProps} />);
-
-      const splitPaneContainer = container.querySelector(
-        '.split-pane'
-      ) as HTMLElement;
-
-      expect(splitPaneContainer).toBeDefined();
-      // Styles are applied via CSS class, not inline
+      expect(panels).toHaveLength(2);
+      expect(panels[0]?.style.height).toBe('60%');
+      expect(panels[1]?.style.height).toBe('40%');
+      expect(panels[0]?.style.width).toBe('100%');
+      expect(panels[1]?.style.width).toBe('100%');
     });
   });
 
@@ -377,17 +384,13 @@ describe('SplitPane', () => {
       ) as HTMLElement;
 
       // Press ArrowUp (decrease) enough times to reach minimum
-      act(() => {
-        for (let i = 0; i < 30; i++) {
-          fireEvent.keyDown(divider, { key: 'ArrowUp' });
-        }
-      });
+      // Each press is its own update so the handler sees the latest ratio.
+      for (let i = 0; i < 30; i++) {
+        fireEvent.keyDown(divider, { key: 'ArrowUp' });
+      }
 
-      // onSplitChange was called and final ratio is clamped to >= 0
-      expect(onSplitChange).toHaveBeenCalled();
       const calls = onSplitChange.mock.calls;
-      const lastRatio = calls[calls.length - 1]![0] as number;
-      expect(lastRatio).toBeGreaterThanOrEqual(0);
+      expect(calls[calls.length - 1]![0]).toBe(20);
     });
 
     it('repeated ArrowDown presses clamp at maximum', () => {
@@ -404,16 +407,54 @@ describe('SplitPane', () => {
       ) as HTMLElement;
 
       // Press ArrowDown (increase) enough times to reach maximum
-      act(() => {
-        for (let i = 0; i < 30; i++) {
-          fireEvent.keyDown(divider, { key: 'ArrowDown' });
-        }
-      });
+      // Each press is its own update so the handler sees the latest ratio.
+      for (let i = 0; i < 30; i++) {
+        fireEvent.keyDown(divider, { key: 'ArrowDown' });
+      }
 
-      expect(onSplitChange).toHaveBeenCalled();
       const calls = onSplitChange.mock.calls;
-      const lastRatio = calls[calls.length - 1]![0] as number;
-      expect(lastRatio).toBeLessThanOrEqual(100);
+      expect(calls[calls.length - 1]![0]).toBe(80);
+    });
+
+    it('arrow press at a bound does not call onSplitChange', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={20}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      fireEvent.keyDown(divider, { key: 'ArrowUp' });
+      expect(onSplitChange).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(divider, { key: 'ArrowDown' });
+      expect(onSplitChange).toHaveBeenCalledTimes(1);
+      expect(onSplitChange).toHaveBeenLastCalledWith(22);
+    });
+
+    it('repeated presses past the bound call onSplitChange only while moving', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={26}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      for (let i = 0; i < 10; i++) {
+        fireEvent.keyDown(divider, { key: 'ArrowUp' });
+      }
+      // 26 -> 24 -> 22 -> 20, then pinned
+      expect(onSplitChange).toHaveBeenCalledTimes(3);
     });
 
     it('keyboard navigation without onSplitChange does not throw', () => {
@@ -474,25 +515,41 @@ describe('SplitPane', () => {
       expect(divider.classList.contains('dragging')).toBe(true);
     });
 
-    it('mouseup after drag calls onSplitChange', () => {
+    it('dragging the divider moves the ratio and reports it on mouse up', () => {
       const onSplitChange = vi.fn();
       const { container } = render(
         <SplitPane {...defaultProps} onSplitChange={onSplitChange} />
       );
+      const splitPane = container.querySelector('.split-pane') as HTMLElement;
       const divider = container.querySelector(
         '.split-pane-divider'
       ) as HTMLElement;
+      splitPane.getBoundingClientRect = () =>
+        ({
+          top: 0,
+          left: 0,
+          width: 1000,
+          height: 1000,
+          right: 1000,
+          bottom: 1000,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        }) as DOMRect;
 
       act(() => {
-        fireEvent.mouseDown(divider, { clientX: 400, clientY: 0 });
+        fireEvent.mouseDown(divider, { clientX: 0, clientY: 100 });
       });
-
+      act(() => {
+        fireEvent.mouseMove(document, { clientX: 0, clientY: 300 });
+      });
       act(() => {
         fireEvent.mouseUp(document);
       });
 
-      // onSplitChange invoked on drag end
-      expect(onSplitChange).toHaveBeenCalled();
+      expect(onSplitChange).toHaveBeenCalledTimes(1);
+      expect(onSplitChange).toHaveBeenCalledWith(70);
+      expect(divider.getAttribute('aria-valuenow')).toBe('70');
     });
 
     it('mouseup removes dragging class', () => {

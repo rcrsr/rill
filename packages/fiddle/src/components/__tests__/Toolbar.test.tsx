@@ -36,70 +36,50 @@ describe('Toolbar', () => {
   // ============================================================
 
   describe('rendering', () => {
-    it('renders without errors', () => {
+    it('renders the toolbar with the toolbar role', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
       const toolbar = container.querySelector('.toolbar');
-      expect(toolbar).toBeDefined();
+      expect(toolbar).not.toBeNull();
+      expect(toolbar?.getAttribute('role')).toBe('toolbar');
     });
 
     it('renders Run button', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
       const runButton = container.querySelector('.toolbar-run');
-      expect(runButton).toBeDefined();
+      expect(runButton).not.toBeNull();
       expect(runButton?.textContent).toContain('Run');
-    });
-
-    it('renders example selector', () => {
-      const { container } = render(<Toolbar {...defaultProps} />);
-      const select = container.querySelector('.toolbar-select');
-      expect(select).toBeDefined();
     });
 
     it('applies ARIA label to toolbar', () => {
       const { container } = render(
         <Toolbar {...defaultProps} ariaLabel="Test toolbar" />
       );
-      const toolbar = container.querySelector(
-        '[role="toolbar"][aria-label="Test toolbar"]'
-      );
-      expect(toolbar).toBeDefined();
+      const toolbar = container.querySelector('.toolbar');
+      expect(toolbar?.getAttribute('aria-label')).toBe('Test toolbar');
     });
 
     it('uses default ARIA label', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const toolbar = container.querySelector(
-        '[role="toolbar"][aria-label="Toolbar"]'
-      );
-      expect(toolbar).toBeDefined();
-    });
-
-    it('renders with dark brand theme', () => {
-      const { container } = render(<Toolbar {...defaultProps} />);
       const toolbar = container.querySelector('.toolbar');
-      expect(toolbar).toBeDefined();
+      expect(toolbar?.getAttribute('aria-label')).toBe('Toolbar');
     });
 
     it('logo is wrapped in an anchor tag with default href "/"', () => {
       const { container } = render(<Toolbar {...defaultProps} />);
-      const logoLink = container.querySelector(
-        '.toolbar-logo-link'
-      ) as HTMLAnchorElement;
-      expect(logoLink).toBeDefined();
-      expect(logoLink.href).toContain('/');
+      const logoLink = container.querySelector('.toolbar-logo-link');
+      expect(logoLink?.getAttribute('href')).toBe('/');
 
-      const logo = logoLink.querySelector('.toolbar-logo');
-      expect(logo).toBeDefined();
+      const logo = logoLink?.querySelector('.toolbar-logo');
+      expect(logo).not.toBeNull();
+      expect(logo?.getAttribute('alt')).toBe('rill');
     });
 
     it('logoHref prop overrides the link destination', () => {
       const { container } = render(
         <Toolbar {...defaultProps} logoHref="/custom-path" />
       );
-      const logoLink = container.querySelector(
-        '.toolbar-logo-link'
-      ) as HTMLAnchorElement;
-      expect(logoLink).toBeDefined();
-      expect(logoLink.href).toContain('/custom-path');
+      const logoLink = container.querySelector('.toolbar-logo-link');
+      expect(logoLink?.getAttribute('href')).toBe('/custom-path');
     });
   });
 
@@ -113,7 +93,6 @@ describe('Toolbar', () => {
       const runButton = container.querySelector(
         '.toolbar-run'
       ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
 
       act(() => {
         fireEvent.click(runButton);
@@ -128,7 +107,6 @@ describe('Toolbar', () => {
       const runButton = container.querySelector(
         '.toolbar-run'
       ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
       expect(runButton.disabled).toBe(true);
     });
 
@@ -139,7 +117,6 @@ describe('Toolbar', () => {
       const runButton = container.querySelector(
         '.toolbar-run'
       ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
       expect(runButton.disabled).toBe(false);
     });
 
@@ -150,18 +127,11 @@ describe('Toolbar', () => {
       const runButton = container.querySelector(
         '.toolbar-run'
       ) as HTMLButtonElement;
-      expect(runButton).toBeDefined();
 
       act(() => {
         fireEvent.click(runButton);
       });
       expect(mockOnRun).not.toHaveBeenCalled();
-    });
-
-    it('has accessible label', () => {
-      const { container } = render(<Toolbar {...defaultProps} />);
-      const runButton = container.querySelector('[aria-label="Run code"]');
-      expect(runButton).toBeDefined();
     });
   });
 
@@ -175,13 +145,11 @@ describe('Toolbar', () => {
       const select = container.querySelector(
         '.toolbar-select'
       ) as HTMLSelectElement;
-      expect(select).toBeDefined();
 
       fireEvent.change(select, { target: { value: 'hello-world' } });
       expect(mockOnExampleSelect).toHaveBeenCalledTimes(1);
 
       const calledExample = mockOnExampleSelect.mock.calls[0]?.[0];
-      expect(calledExample).toBeDefined();
       expect(calledExample?.id).toBe('hello-world');
       expect(calledExample?.label).toBe('Hello World');
       expect(calledExample?.source).toBe('"Hello, world!"');
@@ -260,7 +228,6 @@ describe('Toolbar', () => {
       const select = container.querySelector(
         '.toolbar-select'
       ) as HTMLSelectElement;
-      expect(select).toBeDefined();
       expect(select.disabled).toBe(true);
     });
 
@@ -295,7 +262,6 @@ describe('Toolbar', () => {
         'option[value=""]'
       ) as HTMLOptionElement;
 
-      expect(placeholder).toBeDefined();
       expect(placeholder?.textContent).toBe('Examples');
       expect(placeholder?.disabled).toBe(true);
     });
@@ -318,7 +284,8 @@ describe('Toolbar', () => {
         <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
       );
       const shareButton = container.querySelector('.toolbar-share');
-      expect(shareButton).toBeDefined();
+      expect(shareButton).not.toBeNull();
+      expect(shareButton?.textContent).toContain('Share');
     });
 
     it('triggers onCopyLink on click', () => {
@@ -329,7 +296,6 @@ describe('Toolbar', () => {
       const shareButton = container.querySelector(
         '.toolbar-share'
       ) as HTMLButtonElement;
-      expect(shareButton).toBeDefined();
 
       act(() => {
         fireEvent.click(shareButton);
@@ -349,7 +315,6 @@ describe('Toolbar', () => {
       const shareButton = container.querySelector(
         '.toolbar-share'
       ) as HTMLButtonElement;
-      expect(shareButton).toBeDefined();
       expect(shareButton.textContent).toContain('Copied!');
     });
 
@@ -365,7 +330,6 @@ describe('Toolbar', () => {
       const shareButton = container.querySelector(
         '.toolbar-share'
       ) as HTMLButtonElement;
-      expect(shareButton).toBeDefined();
       expect(shareButton.textContent).toContain('Error');
     });
 
@@ -381,7 +345,6 @@ describe('Toolbar', () => {
       const shareButton = container.querySelector(
         '.toolbar-share'
       ) as HTMLButtonElement;
-      expect(shareButton).toBeDefined();
       expect(shareButton.textContent).toContain('Share');
     });
 
@@ -397,7 +360,6 @@ describe('Toolbar', () => {
       const shareButton = container.querySelector(
         '.toolbar-share'
       ) as HTMLButtonElement;
-      expect(shareButton).toBeDefined();
       expect(shareButton.disabled).toBe(true);
     });
 
@@ -406,10 +368,10 @@ describe('Toolbar', () => {
       const { container } = render(
         <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
       );
-      const shareButton = container.querySelector(
-        '[aria-label="Copy shareable link"]'
+      const shareButton = container.querySelector('.toolbar-share');
+      expect(shareButton?.getAttribute('aria-label')).toBe(
+        'Copy shareable link'
       );
-      expect(shareButton).toBeDefined();
     });
 
     it('does not trigger callback when disabled', () => {
@@ -424,7 +386,6 @@ describe('Toolbar', () => {
       const shareButton = container.querySelector(
         '.toolbar-share'
       ) as HTMLButtonElement;
-      expect(shareButton).toBeDefined();
 
       act(() => {
         fireEvent.click(shareButton);
@@ -438,18 +399,15 @@ describe('Toolbar', () => {
   // ============================================================
 
   describe('accessibility', () => {
-    it('has toolbar role', () => {
-      const { container } = render(<Toolbar {...defaultProps} />);
-      const toolbar = container.querySelector('[role="toolbar"]');
-      expect(toolbar).toBeDefined();
-    });
-
     it('all buttons have type="button"', () => {
-      const { container } = render(<Toolbar {...defaultProps} />);
-      const buttons = container.querySelectorAll('button');
+      const { container } = render(
+        <Toolbar {...defaultProps} onCopyLink={vi.fn()} />
+      );
+      const buttons = Array.from(container.querySelectorAll('button'));
 
+      expect(buttons).toHaveLength(2);
       buttons.forEach((button) => {
-        expect(button.type).toBe('button');
+        expect(button.getAttribute('type')).toBe('button');
       });
     });
 

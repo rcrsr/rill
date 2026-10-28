@@ -207,8 +207,8 @@ export interface LifecycleContext {
   ): Promise<T | RillValue>;
   /**
    * Aborts the factory-scope signal, awaits in-flight operations with a
-   * bounded timeout, flips the disposed flag, and marks subsequent extension
-   * calls as returning `#DISPOSED`.
+   * bounded timeout, then flips the disposed flag. Calls made after the
+   * abort halt with `#DISPOSED`.
    *
    * Idempotent: repeated calls resolve to the same promise.
    * Signal abort propagates through the same chain that feeds
@@ -216,8 +216,9 @@ export interface LifecycleContext {
    */
   dispose(): Promise<void>;
   /**
-   * True once `dispose()` has begun. Host-function dispatch sites
-   * consult this to short-circuit with {@link createDisposedResult}.
+   * True once `dispose()` has finished waiting for in-flight operations.
+   * Host-function dispatch consults it to short-circuit with
+   * {@link createDisposedResult} when a call outlives the abort check.
    */
   isDisposed(): boolean;
   /**

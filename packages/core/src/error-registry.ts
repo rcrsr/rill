@@ -1510,7 +1510,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     errorId: ERROR_IDS.RILL_R045,
     category: 'runtime',
     description: 'Too many arguments passed to callable',
-    messageTemplate: 'Expected {expected} args, got {actual}',
+    messageTemplate:
+      'Function expects {expectedCount} arguments, got {actualCount}',
     cause:
       'The number of arguments passed to a callable exceeds the number of declared parameters.',
     resolution:
@@ -1518,7 +1519,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Too many arguments to a two-param closure',
-        code: '|x: number, y: number| { x + y } -> app::call(1, 2, 3)  # 3 args, 2 params',
+        code: '|x: number, y: number| { $x + $y } => $add\n$add(1, 2, 3)  # 3 args, 2 params',
       },
     ],
   },

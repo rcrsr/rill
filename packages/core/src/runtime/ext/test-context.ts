@@ -18,6 +18,7 @@ import { isCallable } from '../core/callable.js';
 import type { RillValue } from '../core/types/structures.js';
 import { setDictField } from '../core/types/dict-keys.js';
 import { formatStructure } from '../core/types/operations.js';
+import { resolveReturnStructure } from '../core/introspection.js';
 import { quoteRillString } from '../core/types/format-string.js';
 import { RuntimeError } from '../../types.js';
 import { ERROR_IDS } from '../../error-registry.js';
@@ -117,7 +118,7 @@ function buildNestedSource(
       return formatUseRef(path);
     }
     const paramStr = c.params.map(formatParam).join(', ');
-    const returnSuffix = ` :${formatStructure(c.returnType.structure)}`;
+    const returnSuffix = ` :${formatStructure(resolveReturnStructure(c))}`;
     return `${formatUseRef(path)}:|${paramStr}|${returnSuffix}`;
   }
 
@@ -227,7 +228,7 @@ export function createTestContext(
   // Create module resolver for ext bindings
   const extModuleResolver = createExtModuleResolver(bindingSource);
 
-  return createRuntimeContext({
+  const ctx = createRuntimeContext({
     resolvers: {
       ext: extResolver,
       module: extModuleResolver,
@@ -239,4 +240,35 @@ export function createTestContext(
     },
     parseSource,
   });
+
+  // The test context owns its extensions, so ctx.dispose() also runs each
+  // extension's dispose hook, after the runtime itself has shut down.
+  const hooks = Object.values(extensions).flatMap((entry) =>
+    entry.dispose ? [entry.dispose] : []
+  );
+  if (hooks.length === 0) return ctx;
+
+  const disposeRuntime = ctx.dispose;
+  let disposePromise: Promise<void> | null = null;
+  ctx.dispose = (): Promise<void> => {
+    disposePromise ??= (async () => {
+      let runtimeFailure: { readonly reason: unknown } | undefined;
+      try {
+        await disposeRuntime();
+      } catch (reason) {
+        runtimeFailure = { reason };
+      }
+      const outcomes = await Promise.allSettled(
+        hooks.map(async (hook) => hook())
+      );
+      const failure = outcomes.find(
+        (outcome): outcome is PromiseRejectedResult =>
+          outcome.status === 'rejected'
+      );
+      if (failure) throw failure.reason;
+      if (runtimeFailure) throw runtimeFailure.reason;
+    })();
+    return disposePromise;
+  };
+  return ctx;
 }

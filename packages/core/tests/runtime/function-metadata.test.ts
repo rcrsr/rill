@@ -118,8 +118,8 @@ describe('Rill Runtime: Function Metadata', () => {
       });
     });
 
-    describe('AC-2: Host function without returnType defaults to "any"', () => {
-      it('defaults to "any" when returnType omitted', () => {
+    describe('Host function declaring anyTypeValue reports "any"', () => {
+      it("reports 'any' for a host function declaring anyTypeValue", () => {
         const ctx = createRuntimeContext({
           functions: {
             noReturnType: {
@@ -142,34 +142,6 @@ describe('Rill Runtime: Function Metadata', () => {
         const func = functions.find((f) => f.name === 'noReturnType');
 
         expect(func?.returnType).toBe('any');
-      });
-
-      it('defaults to "any" for multiple functions without returnType', () => {
-        const ctx = createRuntimeContext({
-          functions: {
-            first: {
-              params: [],
-              fn: () => 'first',
-              annotations: { description: 'First function' },
-              returnType: anyTypeValue,
-            },
-            second: {
-              params: [],
-              fn: () => 42,
-              annotations: { description: 'Second function' },
-              returnType: anyTypeValue,
-            },
-          },
-        });
-
-        const functions = getFunctions(ctx);
-
-        expect(functions.find((f) => f.name === 'first')?.returnType).toBe(
-          'any'
-        );
-        expect(functions.find((f) => f.name === 'second')?.returnType).toBe(
-          'any'
-        );
       });
     });
 

@@ -20,6 +20,7 @@ import {
   anyTypeValue,
   type ApplicationCallable,
   createRuntimeContext,
+  generateManifest,
   getFunctions,
   getLanguageReference,
   type RuntimeContext,
@@ -153,13 +154,14 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({});
         const functions = getFunctions(ctx);
 
-        // Built-in functions exist in runtime (e.g., log, type, json, etc.)
+        // Built-in functions exist in runtime (e.g., log)
         // They should be included in the result with empty descriptions
-        expect(functions).toBeInstanceOf(Array);
-        expect(functions.length).toBeGreaterThanOrEqual(0);
+        const log = functions.find((f) => f.name === 'log');
+        expect(log).toBeDefined();
+        expect(log?.description).toBe('');
       });
 
-      it('returns built-in function with empty description', () => {
+      it('reports an empty description for a host function without annotations', () => {
         const ctx = createRuntimeContext({
           functions: {
             legacy: {
@@ -743,6 +745,20 @@ describe('Rill Runtime: Introspection API', () => {
   });
 
   describe('Boundary Conditions', () => {
+    it('lists a host function registered without a returnType as returning any', () => {
+      // A JavaScript host can omit returnType despite the TypeScript type.
+      const ctx = createRuntimeContext({
+        functions: {
+          untyped_return: { params: [], fn: () => 1 } as never,
+        },
+      });
+
+      const fn = getFunctions(ctx).find((f) => f.name === 'untyped_return');
+
+      expect(fn?.returnType).toBe('any');
+      expect(fn?.params).toEqual([]);
+    });
+
     describe('AC-9: Context with zero host functions returns empty list (only built-ins)', () => {
       it('returns empty list when all functions are cleared', () => {
         const ctx = createRuntimeContext({});
@@ -961,6 +977,17 @@ describe('Rill Runtime: Introspection API', () => {
         expect(functions.find((f) => f.name === 'topLevel')).toBeDefined();
         expect(functions.find((f) => f.name === 'utils')).toBeUndefined();
         expect(functions.find((f) => f.name === 'helper')).toBeUndefined();
+      });
+    });
+
+    describe('host functions registered without returnType', () => {
+      it('generateManifest reports them as any instead of throwing', () => {
+        const ctx = createRuntimeContext({
+          functions: { untyped: { params: [], fn: () => 1 } as never },
+        });
+
+        expect(generateManifest(ctx)).toContain('"untyped"');
+        expect(generateManifest(ctx)).toContain(':any');
       });
     });
   });

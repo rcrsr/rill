@@ -68,30 +68,22 @@ describe('Output', () => {
   // ============================================================
 
   describe('rendering', () => {
-    it('renders without errors', () => {
+    it('labels the panel with the default aria-label and shows the idle prompt', () => {
       const { container } = render(<Output state={idleState} />);
       const output = container.querySelector('.output-panel');
-      expect(output).toBeDefined();
+      expect(output).not.toBeNull();
+      expect(output?.getAttribute('aria-label')).toBe('Execution output');
+      expect(container.querySelector('.output-idle')?.textContent).toContain(
+        'Run code to see output'
+      );
     });
 
-    it('applies ARIA label', () => {
+    it('applies a custom ARIA label', () => {
       const { container } = render(
         <Output state={idleState} ariaLabel="Test output" />
       );
-      const output = container.querySelector('[aria-label="Test output"]');
-      expect(output).toBeDefined();
-    });
-
-    it('uses default ARIA label', () => {
-      const { container } = render(<Output state={idleState} />);
-      const output = container.querySelector('[aria-label="Execution output"]');
-      expect(output).toBeDefined();
-    });
-
-    it('renders with dark brand theme', () => {
-      const { container } = render(<Output state={idleState} />);
       const output = container.querySelector('.output-panel');
-      expect(output).toBeDefined();
+      expect(output?.getAttribute('aria-label')).toBe('Test output');
     });
   });
 
@@ -132,11 +124,11 @@ describe('Output', () => {
       const resultElement = container.querySelector('.output-result');
       const resultLabel = container.querySelector('.output-result-label');
 
-      expect(logsElement).toBeDefined();
+      expect(logsElement).not.toBeNull();
       expect(logsEntries.length).toBe(1);
       expect(logsEntries[0]?.textContent).toContain('log line 1');
       expect(resultElement?.textContent).toContain('final result');
-      expect(resultLabel).toBeDefined();
+      expect(resultLabel?.textContent).toBe('Result');
     });
 
     it('script with 3 log() calls returns value - logs section with 3 entries in order', () => {
@@ -199,11 +191,10 @@ describe('Output', () => {
       const logsEntries = container.querySelectorAll('.output-logs-entry');
       const errorElement = container.querySelector('.output-error');
 
-      expect(logsElement).toBeDefined();
+      expect(logsElement).not.toBeNull();
       expect(logsEntries.length).toBe(2);
       expect(logsEntries[0]?.textContent).toContain('log before error');
       expect(logsEntries[1]?.textContent).toContain('another log');
-      expect(errorElement).toBeDefined();
       expect(errorElement?.textContent).toContain('Runtime error');
     });
 
@@ -230,7 +221,6 @@ describe('Output', () => {
       const errorElement = container.querySelector('.output-error');
 
       expect(logsElement).toBeNull();
-      expect(errorElement).toBeDefined();
       expect(errorElement?.textContent).toContain('Parse error');
     });
 
@@ -657,7 +647,6 @@ describe('Output', () => {
       };
       const { container } = render(<Output state={stateWithCause} />);
       const causeElement = container.querySelector('.output-error-cause');
-      expect(causeElement).toBeDefined();
       expect(causeElement?.textContent).toContain(
         'Variable referenced before assignment'
       );
@@ -691,7 +680,6 @@ describe('Output', () => {
       const resolutionElement = container.querySelector(
         '.output-error-resolution'
       );
-      expect(resolutionElement).toBeDefined();
       expect(resolutionElement?.textContent).toContain('Fix:');
       expect(resolutionElement?.textContent).toContain(
         'Ensure both operands are the same type'
@@ -725,7 +713,6 @@ describe('Output', () => {
       const linkElement = container.querySelector(
         'a[href="https://example.com/docs/errors/RILL-P001"]'
       );
-      expect(linkElement).toBeDefined();
       expect(linkElement?.getAttribute('target')).toBe('_blank');
       expect(linkElement?.getAttribute('rel')).toBe('noopener noreferrer');
       expect(linkElement?.textContent).toContain('Docs');
@@ -774,7 +761,6 @@ describe('Output', () => {
       const durationElement = container.querySelector(
         '.output-header-duration'
       );
-      expect(durationElement).toBeDefined();
       expect(durationElement?.textContent).toContain('42');
       expect(durationElement?.textContent).toContain('ms');
     });
@@ -784,7 +770,6 @@ describe('Output', () => {
       const durationElement = container.querySelector(
         '.output-header-duration'
       );
-      expect(durationElement).toBeDefined();
       expect(durationElement?.textContent).toContain('10');
       expect(durationElement?.textContent).toContain('ms');
     });
@@ -805,20 +790,14 @@ describe('Output', () => {
   describe('accessibility', () => {
     it('has accessible container', () => {
       const { container } = render(<Output state={successState} />);
-      const output = container.querySelector('[aria-label="Execution output"]');
-      expect(output).toBeDefined();
+      const output = container.querySelector('.output-panel');
+      expect(output?.getAttribute('aria-label')).toBe('Execution output');
     });
 
     it('error has role="alert"', () => {
       const { container } = render(<Output state={errorState} />);
-      const errorElement = container.querySelector('[role="alert"]');
-      expect(errorElement).toBeDefined();
-    });
-
-    it('result has appropriate ARIA attributes', () => {
-      const { container } = render(<Output state={successState} />);
-      const resultElement = container.querySelector('.output-result');
-      expect(resultElement).toBeDefined();
+      const errorElement = container.querySelector('.output-error');
+      expect(errorElement?.getAttribute('role')).toBe('alert');
     });
   });
 
@@ -856,7 +835,6 @@ describe('Output', () => {
       };
       const { container } = render(<Output state={haltState} />);
       const statusCode = container.querySelector('.output-error-status-code');
-      expect(statusCode).toBeDefined();
       expect(statusCode?.textContent).toContain('#TYPE_MISMATCH');
     });
 
@@ -887,7 +865,6 @@ describe('Output', () => {
       };
       const { container } = render(<Output state={haltState} />);
       const msg = container.querySelector('.output-error-status-message');
-      expect(msg).toBeDefined();
       expect(msg?.textContent).toContain('Type assertion failed');
     });
 
@@ -919,7 +896,6 @@ describe('Output', () => {
       };
       const { container } = render(<Output state={haltState} />);
       const provider = container.querySelector('.output-error-status-provider');
-      expect(provider).toBeDefined();
       expect(provider?.textContent).toContain('my-service');
     });
 
@@ -1049,7 +1025,9 @@ describe('Output', () => {
       expect(container.querySelector('.output-error-status-code')).toBeNull();
       expect(container.querySelector('.output-error-status-trace')).toBeNull();
       // Success renderer must still be present
-      expect(container.querySelector('.output-result')).toBeDefined();
+      expect(container.querySelector('.output-result')?.textContent).toContain(
+        'hello world'
+      );
     });
 
     // trace with only origin frame (0 non-origin frames)

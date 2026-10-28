@@ -9,7 +9,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { callable, createTestContext } from '@rcrsr/rill';
+import { callable, createTestContext, execute, parse } from '@rcrsr/rill';
 
 describe('Bug #279: createTestContext accepts untyped callables', () => {
   it('does not throw for a nested untyped callable value', () => {
@@ -28,11 +28,11 @@ describe('Bug #279: createTestContext accepts untyped callables', () => {
     ).not.toThrow();
   });
 
-  it('returns a usable runtime context', () => {
+  it('returns a usable runtime context', async () => {
     const ctx = createTestContext({
       ext: { value: { f: callable(() => 1) } },
     });
-    expect(ctx).toBeDefined();
-    expect(ctx.functions).toBeDefined();
+    const result = await execute(parse('use<ext:ext.f>()'), ctx);
+    expect(result.result).toBe(1);
   });
 });

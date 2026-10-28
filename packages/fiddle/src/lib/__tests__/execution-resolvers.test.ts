@@ -195,7 +195,6 @@ describe('executeRill', () => {
 
   describe('resolver config — error cases', () => {
     it('use<db:users> produces FiddleError with runtime category (unknown scheme)', async () => {
-      // The parser now handles use<scheme:resource> correctly (Phase 1 complete).
       // 'db' is not a registered scheme, so the runtime raises RILL-R054.
       const result = await executeRill('use<db:users>');
       expect(result.status).toBe('error');
@@ -203,30 +202,7 @@ describe('executeRill', () => {
       expect(result.error!.category).toBe('runtime');
     });
 
-    it('resolver callback throws → FiddleError via convertError', async () => {
-      // Build a resolver that throws. The resolver wiring is tested here even
-      // though use<> parsing is blocked — test via a script that does not need
-      // use<> and inject the error path through buildFiddleRuntimeOptions.
-      const throwingResolver: SchemeResolver = (_resource) => {
-        throw new Error('resolver-failure-sentinel');
-      };
-      const config = singleResolverConfig('ext', throwingResolver);
-      // Script does not use use<> — resolvers are wired but not invoked.
-      // Confirm execution succeeds and resolver is present in options.
-      const opts = buildFiddleRuntimeOptions([], config);
-      expect(opts.resolvers!['ext']).toBe(throwingResolver);
-
-      // Direct invocation of the resolver to verify error contract:
-      // When resolver throws, FiddleError with category 'runtime' is expected.
-      // This path is exercised by the runtime when use<> parsing is complete.
-      expect(() => throwingResolver('example', undefined)).toThrow(
-        'resolver-failure-sentinel'
-      );
-    });
-
     it('empty resolvers record with ext resolver config resolves options without error', async () => {
-      // empty resolvers record — wiring succeeds; runtime error for
-      // unregistered scheme fires when use<> parsing is complete.
       const config: FiddleResolverConfig = {
         resolvers: {},
         configurations: { resolvers: {} },
@@ -237,18 +213,6 @@ describe('executeRill', () => {
   });
 
   describe('resolver config — FiddleResolverConfig shape', () => {
-    it('FiddleResolverConfig accepts ext and host scheme keys', () => {
-      const extResolver = valueResolver('ext-result');
-      const hostResolver = valueResolver(100);
-      // TypeScript compile-time check: both schemes are permitted.
-      const config: FiddleResolverConfig = {
-        resolvers: { ext: extResolver, host: hostResolver },
-        configurations: { resolvers: { ext: { apiKey: 'abc' } } },
-      };
-      expect(config.resolvers['ext']).toBe(extResolver);
-      expect(config.resolvers['host']).toBe(hostResolver);
-    });
-
     it('resolver vi.fn() is accepted as SchemeResolver', () => {
       const mockResolver = vi.fn<SchemeResolver>().mockReturnValue({
         kind: 'value',
@@ -359,10 +323,14 @@ describe('executeRill', () => {
         functions: { 'ext::fn': extFn },
       };
       const result = await executeRill(
-        'use<ext:example> => $e\next::fn("arg") => $r',
+        'use<ext:example> => $e\next::fn("arg") => $r\ndict[e: $e, r: $r]',
         config
       );
       expect(result.status).toBe('success');
+      expect(JSON.parse(result.result!).value).toEqual({
+        e: 'resolved-ext',
+        r: 'arg',
+      });
     });
 
     it('use<$varName> in permissive mode — execution proceeds, resolved value is available', async () => {
@@ -377,34 +345,7 @@ describe('executeRill', () => {
         config
       );
       expect(result.status).toBe('success');
-    });
-
-    it('use<ext:...> + ext::fn() in permissive mode (FDL boundary 4) — both resolve, ext::fn() returns its argument', async () => {
-      // FDL boundary 4: script combines use<ext:...> capture with an
-      // ext::fn() namespace-qualified host function call. Both expressions
-      // resolve because ext::fn is registered in the functions map.
-      const extFn: RillFunction = {
-        params: [
-          {
-            name: 'arg',
-            type: { kind: 'string' },
-            defaultValue: undefined,
-            annotations: {},
-          },
-        ],
-        fn: (args) => args['arg']!,
-        returnType: anyTypeValue,
-      };
-      const config: FiddleResolverConfig = {
-        resolvers: { ext: valueResolver('boundary-value') },
-        configurations: { resolvers: {} },
-        functions: { 'ext::fn': extFn },
-      };
-      const result = await executeRill(
-        'use<ext:example> => $e\next::fn("arg") => $r\n$e',
-        config
-      );
-      expect(result.status).toBe('success');
+      expect(JSON.parse(result.result!).value).toBe('dynamic-resolved');
     });
   });
 });

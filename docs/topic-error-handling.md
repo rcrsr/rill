@@ -539,7 +539,9 @@ Unhandled throws are reshaped to `#R999` at the extension boundary automatically
 
 ### Disposal
 
-After `dispose()` is called, any extension invocation returns an invalid value with code `#DISPOSED`. The `dispose()` method is on `ExtensionFactoryResult`:
+Disposing the runtime context with `ctx.dispose()` aborts its signal. A call made after that halts with a non-catchable `RuntimeHaltSignal` carrying `#DISPOSED`, so `guard` and `retry` cannot recover it. See [Cancellation](integration-host.md#cancellation) in the host integration guide.
+
+An extension's own `dispose()` releases its resources. It lives on `ExtensionFactoryResult`, and the host calls it:
 
 ```typescript
 const ext = createMyExtension(config, ctx);

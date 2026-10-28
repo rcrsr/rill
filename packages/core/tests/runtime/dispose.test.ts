@@ -21,11 +21,10 @@ import {
   RuntimeHaltSignal,
   type ExtensionEvent,
   type RillFunction,
-  type RillValue,
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
-import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 /**
  * Builds a `make_stream` host function whose underlying `AsyncIterable`
@@ -93,52 +92,31 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
   });
 
   describe('AC-E9: post-dispose dispatch returns #DISPOSED', () => {
-    it('host function invocation after dispose returns #DISPOSED', async () => {
-      // Build a host function, capture the ctx, dispose, then invoke.
-      // The dispatch site guards `isDisposed()` and short-circuits with
-      // `createDisposedResult()` rather than calling the fn body.
-      let capturedCtx: unknown;
-      const fnBodyCalls: number[] = [];
+    it('host function invocation after dispose halts #DISPOSED without running the body', async () => {
+      let bodyCalls = 0;
       const ctx = createRuntimeContext({
         functions: {
           probe: {
             params: [],
-            fn: (_args, hostCtx) => {
-              capturedCtx = hostCtx;
-              fnBodyCalls.push(1);
+            fn: () => {
+              bodyCalls += 1;
               return 'hit';
             },
           },
         },
       });
 
-      // Prime: one run establishes the fn is reachable pre-dispose.
-      const primed = await run('probe()', {
-        functions: {
-          probe: {
-            params: [],
-            fn: () => 'hit',
-          },
-        },
-      });
-      expect(primed).toBe('hit');
+      const primed = await execute(parse('probe()'), ctx);
+      expect(primed.result).toBe('hit');
+      expect(bodyCalls).toBe(1);
 
-      // Now dispose the real ctx and try to dispatch through it.
       await ctx.dispose();
       expect(ctx.isDisposed()).toBe(true);
 
-      // Construct a fresh dispatch using the disposed ctx. We model the
-      // guard behaviour: dispatch sites consult `isDisposed()` before
-      // invoking user code; when true they return `createDisposedResult`.
-      const postDispose = ctx.isDisposed()
-        ? ctx.createDisposedResult()
-        : ('hit' as RillValue);
-
-      expect(isInvalid(postDispose)).toBe(true);
-      expect(getStatus(postDispose).code).toBe(resolveAtom('DISPOSED'));
-      // Fn body was not invoked on the disposed ctx.
-      expect(fnBodyCalls).toHaveLength(0);
-      void capturedCtx;
+      await expectHalt(() => execute(parse('probe()'), ctx), {
+        code: 'DISPOSED',
+      });
+      expect(bodyCalls).toBe(1);
     });
   });
 

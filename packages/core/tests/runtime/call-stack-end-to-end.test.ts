@@ -8,7 +8,6 @@ import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
 import {
   type CallFrame,
-  type RillFunction,
   RuntimeError,
   type RuntimeContext,
   type SourceSpan,
@@ -119,84 +118,54 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
   });
 
   describe('call stack depth limits (AC-8, AC-21)', () => {
-    it('respects maxCallStackDepth limit during execution', async () => {
-      const maxDepth = 3;
-      let maxObservedDepth = 0;
+    it('drops the oldest frame when live frames exceed maxCallStackDepth', async () => {
+      let snapshot: CallFrame[] = [];
 
-      const createNestedFn = (depth: number, maxNesting: number) => {
-        return async (
-          _args: unknown[],
-          ctx: RuntimeContext
-        ): Promise<unknown> => {
-          maxObservedDepth = Math.max(maxObservedDepth, ctx.callStack.length);
-
-          if (depth >= maxNesting) {
-            return 'done';
-          }
-
-          const next = ctx.functions?.[`fn${depth + 1}`];
-          if (next) {
-            return await next.fn([], ctx);
-          }
-          return '';
-        };
-      };
-
-      const functions: Record<string, RillFunction> = {};
-      for (let i = 0; i < 10; i++) {
-        functions[`fn${i}`] = {
-          params: [],
-          fn: createNestedFn(i, 10),
-        };
-      }
-
-      await run('fn0()', {
-        maxCallStackDepth: maxDepth,
-        functions,
+      // Three nested closures plus the probe call make four live frames.
+      await run('||{ ||{ ||{ probe() }() }() }()', {
+        maxCallStackDepth: 3,
+        functions: {
+          probe: {
+            params: [],
+            fn: (_args, ctx) => {
+              snapshot = [...ctx.callStack];
+              return '';
+            },
+          },
+        },
       });
 
-      // Max observed depth should not exceed limit
-      expect(maxObservedDepth).toBeLessThanOrEqual(maxDepth);
+      expect(snapshot.map((f) => f.functionName)).toEqual([
+        '<closure>',
+        '<closure>',
+        'probe',
+      ]);
     });
 
     it('call stack at exactly maxCallStackDepth shows all frames', async () => {
-      const maxDepth = 5;
-      const stackSnapshots: number[] = [];
+      let snapshot: CallFrame[] = [];
 
-      const createFn = (depth: number) => {
-        return async (
-          _args: unknown[],
-          ctx: RuntimeContext
-        ): Promise<unknown> => {
-          stackSnapshots.push(ctx.callStack.length);
-
-          if (depth >= maxDepth) {
-            return 'done';
-          }
-
-          const next = ctx.functions?.[`level${depth + 1}`];
-          if (next) {
-            return await next.fn([], ctx);
-          }
-          return '';
-        };
-      };
-
-      const functions: Record<string, RillFunction> = {};
-      for (let i = 1; i <= maxDepth; i++) {
-        functions[`level${i}`] = {
-          params: [],
-          fn: createFn(i),
-        };
-      }
-
-      await run('level1()', {
-        maxCallStackDepth: maxDepth,
-        functions,
+      // Four nested closures plus the probe call make exactly five frames.
+      await run('||{ ||{ ||{ ||{ probe() }() }() }() }()', {
+        maxCallStackDepth: 5,
+        functions: {
+          probe: {
+            params: [],
+            fn: (_args, ctx) => {
+              snapshot = [...ctx.callStack];
+              return '';
+            },
+          },
+        },
       });
 
-      // At exact depth, all frames should be present (no truncation)
-      expect(Math.max(...stackSnapshots)).toBeLessThanOrEqual(maxDepth);
+      expect(snapshot.map((f) => f.functionName)).toEqual([
+        '<closure>',
+        '<closure>',
+        '<closure>',
+        '<closure>',
+        'probe',
+      ]);
     });
   });
 

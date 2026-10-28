@@ -418,34 +418,50 @@ describe('Rill Runtime: annotations handler error contracts', () => {
 
   describe('Annotation error cleanup', () => {
     it('pops annotation stack even when statement execution fails', async () => {
-      const ctx = createRuntimeContext();
-      const ast = parse('^(limit: 5) $undefined');
+      const seen: number[] = [];
+      const ctx = createRuntimeContext({
+        functions: {
+          probe: {
+            params: [],
+            fn: (_args, c) => {
+              seen.push(c.annotationStack.length);
+              return '';
+            },
+          },
+        },
+      });
+      const ast = parse('^(limit: 5) "" -> { probe() => $seen\n$undefined }');
 
-      try {
-        await execute(ast, ctx);
-        expect.fail('Should have thrown');
-      } catch {
-        // Annotation stack should be empty after error
-        expect(ctx.annotationStack).toHaveLength(0);
-      }
+      await expectHaltMessage(() => execute(ast, ctx), /Undefined variable/);
+
+      expect(seen).toEqual([1]);
+      expect(ctx.annotationStack).toHaveLength(0);
     });
 
     it('restores annotation stack to correct state after nested error', async () => {
-      const ctx = createRuntimeContext();
+      const seen: number[] = [];
+      const ctx = createRuntimeContext({
+        functions: {
+          probe: {
+            params: [],
+            fn: (_args, c) => {
+              seen.push(c.annotationStack.length);
+              return '';
+            },
+          },
+        },
+      });
       const script = `
         ^(limit: 100) "" -> {
-          ^(limit: 10) $undefined
+          ^(limit: 10) "" -> { probe() => $seen\n$undefined }
         }
       `;
       const ast = parse(script);
 
-      try {
-        await execute(ast, ctx);
-        expect.fail('Should have thrown');
-      } catch {
-        // Stack should be empty after error unwinding
-        expect(ctx.annotationStack).toHaveLength(0);
-      }
+      await expectHaltMessage(() => execute(ast, ctx), /Undefined variable/);
+
+      expect(seen).toEqual([2]);
+      expect(ctx.annotationStack).toHaveLength(0);
     });
   });
 });

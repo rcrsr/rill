@@ -1,35 +1,36 @@
 /**
  * Rill Runtime Tests: Host Type Validation
  *
- * Specification Mapping (conduct/specifications/host-type-system-refactor.md):
- *
- * FR-HTR-1 (RillParam validation):
- * - AC-1: list(string) accepts list(string), rejects list(number)
- * - AC-2: type: undefined accepts any type without error
- * - AC-3: dict param with named fields validates argument structure
- * - AC-4: Missing required param → RUNTIME_TYPE_ERROR
- * - AC-5: Optional param with defaultValue applies default when omitted
- * - AC-6: Default value type mismatch → Error at registration time
- * - AC-7: list(string) rejects list(number) — mismatch location in error message
- * - AC-8: Script closure and host function with identical param type use same validation
+ * RillParam validation:
+ * - list(string) accepts list(string), rejects list(number)
+ * - type: undefined accepts any type without error
+ * - dict param with named fields validates argument structure
+ * - Missing required param → RUNTIME_TYPE_ERROR
+ * - Optional param with defaultValue applies default when omitted
+ * - Default value type mismatch → Error at registration time
+ * - list(string) rejects list(number) — mismatch location in error message
+ * - Script closure and host function with identical param type use same validation
  *
  * Error contracts:
- * - AC-51: defaultValue: 42 on type: string → Error at registration (EC-5)
- * - AC-52: typed param with zero args → RuntimeError RILL-R001 naming missing param (EC-2)
- * - AC-54: 1-param function called with 3 args → RuntimeError with expected vs actual (EC-1)
+ * - defaultValue: 42 on type: string → Error at registration
+ * - typed param with zero args → RuntimeError RILL-R044 naming missing param
+ * - 1-param function called with 3 args → RuntimeError with expected vs actual
  *
- * BLOCKED:
- * - AC-9: Union-typed param validation — BLOCKED by `type-system-improvements`
+ * Not covered: union-typed param validation.
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRuntimeContext, RuntimeError } from '@rcrsr/rill';
+import {
+  createRuntimeContext,
+  ERROR_REGISTRY,
+  RuntimeError,
+} from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 
 describe('Rill Runtime: Host Type Validation', () => {
-  describe('AC-1: list(string) param accepts matching type, rejects mismatched element type', () => {
+  describe('list(string) param accepts matching type, rejects mismatched element type', () => {
     it('accepts list(string) argument for list(string) param', async () => {
       const result = await run('greet(["alice", "bob"])', {
         functions: {
@@ -72,7 +73,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
 
     it('error message names expected type list(string) and actual type list', async () => {
-      // AC-7: error message mentions mismatch location
+      // error message mentions mismatch location
       try {
         await run('process([1, 2, 3])', {
           functions: {
@@ -99,7 +100,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('AC-2: type: undefined accepts any value without validation', () => {
+  describe('type: undefined accepts any value without validation', () => {
     it('accepts string when type: undefined', async () => {
       const result = await run('anything("hello")', {
         functions: {
@@ -177,7 +178,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('AC-3: dict param with named fields validates argument structure', () => {
+  describe('dict param with named fields validates argument structure', () => {
     it('accepts dict argument matching named fields', async () => {
       const result = await run('process([name: "alice", age: 30])', {
         functions: {
@@ -229,7 +230,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
 
     it('accepts any dict for dict param without fields constraint', async () => {
-      // AC-62: dict param with no fields matches any dict
+      // dict param with no fields matches any dict
       const result = await run('process([x: 1, y: 2, z: 3])', {
         functions: {
           process: {
@@ -249,9 +250,9 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('AC-4: Missing required param raises RuntimeError RILL-R001', () => {
-    it('throws RILL-R001 when required param omitted', async () => {
-      // AC-52 (EC-2): typed param with zero args → RuntimeError naming missing param
+  describe('Missing required param raises RuntimeError RILL-R044', () => {
+    it('throws RILL-R044 when required param omitted', async () => {
+      // typed param with zero args → RuntimeError naming missing param
       try {
         await run('process()', {
           functions: {
@@ -302,7 +303,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('AC-5: Optional param with defaultValue applies default when omitted', () => {
+  describe('Optional param with defaultValue applies default when omitted', () => {
     it('applies string default when param omitted', async () => {
       const result = await run('greet()', {
         functions: {
@@ -361,7 +362,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('AC-6 / AC-51: Default value type mismatch throws Error at registration (EC-5)', () => {
+  describe('Default value type mismatch throws Error at registration', () => {
     it('throws Error at registration when defaultValue: 42 on type: string param', () => {
       expect(() =>
         createRuntimeContext({
@@ -403,8 +404,8 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('AC-54: EC-1 — Excess arguments raises RuntimeError with expected vs actual count', () => {
-    it('throws RILL-R001 when 3 args passed to 1-param function', async () => {
+  describe('Excess arguments raises RuntimeError with expected vs actual count', () => {
+    it('throws RILL-R045 when 3 args passed to 1-param function', async () => {
       try {
         await run('fn(1, 2, 3)', {
           functions: {
@@ -427,7 +428,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         const rErr = err as RuntimeError;
         expect(rErr.errorId).toBe('RILL-R045');
         // Error message should mention expected count vs actual count
-        expect(rErr.message).toMatch(/1|3/);
+        expect(rErr.message).toMatch(/expects 1 arguments, got 3/);
       }
     });
 
@@ -457,9 +458,36 @@ describe('Rill Runtime: Host Type Validation', () => {
         expect(ctx['actualCount']).toBe(3);
       }
     });
+
+    it('registry message template renders the thrown message from its context', async () => {
+      const err = await run('fn(1, 2, 3)', {
+        functions: {
+          fn: {
+            params: [
+              {
+                name: 'x',
+                type: { kind: 'number' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: (args) => args['x'],
+          },
+        },
+      }).then(
+        () => expect.fail('Should have thrown'),
+        (e: unknown) => e as RuntimeError
+      );
+      const template = ERROR_REGISTRY.get('RILL-R045')!.messageTemplate;
+      const ctx = err.context as Record<string, unknown>;
+      const rendered = template.replace(/\{(\w+)\}/g, (_, key: string) =>
+        String(ctx[key])
+      );
+      expect(err.message.startsWith(rendered)).toBe(true);
+    });
   });
 
-  describe('AC-8: Script closure uses same validation logic as host function', () => {
+  describe('Script closure uses same validation logic as host function', () => {
     it('calling an unbound closure variable halts RILL-R005', async () => {
       await expectHalt(
         () =>
@@ -499,7 +527,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('Boundary: AC-59: Zero-param function invokes without error', () => {
+  describe('Boundary: Zero-param function invokes without error', () => {
     it('zero-param function registers and invokes without error', async () => {
       const result = await run('ping()', {
         functions: {
@@ -513,7 +541,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     });
   });
 
-  describe('Boundary: AC-61: type: { type: "any" } and type: undefined both accept any value', () => {
+  describe('Boundary: type: { type: "any" } and type: undefined both accept any value', () => {
     it('type: { type: "any" } accepts string', async () => {
       const result = await run('fn("hello")', {
         functions: {

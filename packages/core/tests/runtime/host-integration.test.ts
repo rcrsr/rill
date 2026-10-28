@@ -12,6 +12,7 @@ import {
   getStatus,
   getTypedKeyEntries,
   inferStructure,
+  invokeCallable,
   isApplicationCallable,
   isCallable,
   isScriptCallable,
@@ -23,7 +24,6 @@ import {
   toNative,
   type ApplicationCallable,
   type RillFunction,
-  type RillTypeValue,
   type RillValue,
   type SourceLocation,
 } from '@rcrsr/rill';
@@ -251,10 +251,25 @@ describe('Rill Runtime: Host Integration', () => {
       expect(locations[2]?.line).toBe(3);
     });
 
-    it('location is undefined for internal calls', async () => {
-      // Built-in functions should still work; typeName via host API
-      const result = (await run('"hello" => $v\n$v.^type')) as RillTypeValue;
-      expect(result.typeName).toBe('string');
+    it('host function invoked from the host without a call site receives location undefined', async () => {
+      const ctx = createRuntimeContext();
+      let calls = 0;
+      let received: SourceLocation | undefined = {
+        line: -1,
+        column: -1,
+        offset: -1,
+      };
+      const fn = callable((_args, _ctx, location) => {
+        calls++;
+        received = location;
+        return 'ok';
+      });
+
+      const result = await invokeCallable(fn, [1], ctx);
+
+      expect(result).toBe('ok');
+      expect(calls).toBe(1);
+      expect(received).toBeUndefined();
     });
   });
 
@@ -335,8 +350,7 @@ describe('Rill Runtime: Host Integration', () => {
         })
       );
 
-      // Should have stopped around iteration 3-4
-      expect(iterations).toBeLessThan(10);
+      expect(iterations).toBe(3);
     });
 
     it('halts during while loop iteration', async () => {
@@ -362,13 +376,13 @@ describe('Rill Runtime: Host Integration', () => {
       };
 
       await expectAbortHalt(() =>
-        run('list[1, 2, 3, 4, 5] -> seq({ tick($) })', {
+        run('0 -> while ($ < 100) do { tick($) }', {
           functions: { tick: tickFn },
           signal: controller.signal,
         })
       );
 
-      expect(iterations).toBeLessThan(100);
+      expect(iterations).toBe(3);
     });
 
     it('abort halt carries DISPOSED code, non-catchable, with aborted message', async () => {
