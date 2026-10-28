@@ -419,7 +419,11 @@ function fieldAccessEquals(a: FieldAccess, b: FieldAccess): boolean {
 function variableEquals(a: VariableNode, b: VariableNode): boolean {
   if (a.name !== b.name) return false;
   if (a.isPipeVar !== b.isPipeVar) return false;
-  return arrayEquals(a.accessChain, b.accessChain, propertyAccessEquals);
+  if (!arrayEquals(a.accessChain, b.accessChain, propertyAccessEquals)) {
+    return false;
+  }
+  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
+  return existenceCheckEquals(a.existenceCheck, b.existenceCheck);
 }
 
 function propertyAccessEquals(a: PropertyAccess, b: PropertyAccess): boolean {
@@ -604,6 +608,7 @@ function sliceEquals(a: SliceNode, b: SliceNode): boolean {
 }
 
 function listLiteralEquals(a: ListLiteralNode, b: ListLiteralNode): boolean {
+  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
   return arrayEquals(a.elements, b.elements, astEqualsPair);
 }
 

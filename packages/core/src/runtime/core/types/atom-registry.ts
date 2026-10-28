@@ -12,10 +12,10 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
  * script parses. The set covers four kinds:
  *  - `status` — the `#ok` sentinel (1)
  *  - `registry` — atom-registry fallbacks `#R001` and `#R999` (2)
- *  - `generic` — host-extension taxonomy (12: `#TIMEOUT`, `#AUTH`,
+ *  - `generic` — host-extension taxonomy (`#TIMEOUT`, `#AUTH`,
  *    `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`,
  *    `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`,
- *    `#DISPOSED`, `#TYPE_MISMATCH`)
+ *    `#DISPOSED`, `#IGNORE`, `#TYPE_MISMATCH`)
  *  - `runtime` — internal halt-builder atoms paired with `RILL-Rxxx`
  *    error IDs (a fixed list maintained alongside error-registry.ts)
  *
@@ -169,7 +169,7 @@ export function atomName(atom: RillAtom): string {
  * Pre-registration list executed at module load.
  *
  * Composition: 1 `status` (`#ok`), 2 `registry` (`#R001`, `#R999`),
- * 12 `generic` host-extension taxonomy atoms, and one `runtime` atom
+ * `generic` host-extension taxonomy atoms, and one `runtime` atom
  * per `RILL-Rxxx` halt-builder paired below. See module header for the
  * full generic list.
  *
@@ -245,6 +245,19 @@ const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
   [ERROR_ATOMS[ERROR_IDS.RILL_R065], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R066], 'runtime'],
   [ERROR_ATOMS[ERROR_IDS.RILL_R085], 'runtime'],
+  // Fatal host halts thrown by execute() itself: removed frontmatter key
+  // and script-no-value.
+  [ERROR_ATOMS[ERROR_IDS.RILL_R043], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R060], 'runtime'],
+  // closures.ts halt atoms.
+  [ERROR_ATOMS[ERROR_IDS.RILL_R001], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R005], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R006], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R007], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R008], 'runtime'],
+  [ERROR_ATOMS[ERROR_IDS.RILL_R009], 'runtime'],
+  // control-flow.ts assert halt site.
+  [ERROR_ATOMS[ERROR_IDS.RILL_R015], 'runtime'],
 ];
 
 for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {
@@ -253,6 +266,16 @@ for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {
   // uppercase generics.
   registerAtomInternal(name, kind);
 }
+
+/**
+ * Names of every atom core pre-registers, without the `#` sigil.
+ *
+ * Builtins only: atoms a host adds through `registerErrorCode` are not
+ * included. Derived from the pre-registration list, so it cannot drift.
+ */
+export const BUILTIN_ATOM_NAMES: readonly string[] = Object.freeze(
+  CORE_ATOM_REGISTRATIONS.map(([name]) => name)
+);
 
 // ============================================================
 // INTERNAL HELPERS (exported for status module use)

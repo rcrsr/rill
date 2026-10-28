@@ -63,7 +63,7 @@ import type {
 import type { RillValue } from './types/structures.js';
 import { getStatus, invalidate } from './types/status.js';
 import { setDictField } from './types/dict-keys.js';
-import { atomName, registerErrorCode } from './types/atom-registry.js';
+import { atomName } from './types/atom-registry.js';
 import {
   getHostShape,
   makeUnhandledHostThrowInvalid,
@@ -74,29 +74,6 @@ import {
 import { createTraceFrame } from './types/trace.js';
 import { formatAccessSite } from './eval/handlers/access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
-
-// ============================================================
-// HALT-ATOM REGISTRATIONS
-// ============================================================
-//
-// Atoms for fatal host halts thrown by execute() itself (frontmatter
-// validation and script-no-value) are registered here at module load.
-// The underscore form is required by ATOM_NAME_REGEX; the hyphen form
-// (RILL-R043, RILL-R060) is the host-facing error ID in error-registry.ts.
-//
-// Idempotent: re-registering with the same kind is a no-op. Re-registering
-// with a different kind throws, which would surface at module load.
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R043], 'runtime');
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R060], 'runtime');
-// closures.ts halt-builder migration atoms.
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R001], 'runtime');
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R005], 'runtime');
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R006], 'runtime');
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R007], 'runtime');
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R008], 'runtime');
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R009], 'runtime');
-// control-flow.ts assert halt site.
-registerErrorCode(ERROR_ATOMS[ERROR_IDS.RILL_R015], 'runtime');
 
 /**
  * Execute a parsed Rill script.
