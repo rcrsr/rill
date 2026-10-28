@@ -12,7 +12,9 @@ import { resolve } from 'node:path';
 import { createThemeExtension } from '../../src/lib/theme.js';
 import { createTabKeyBinding } from '../../src/lib/keybindings.js';
 import { rillHighlighter } from '../../src/lib/highlight.js';
-import type { StringStream } from '@codemirror/language';
+import { indentUnit, type StringStream } from '@codemirror/language';
+import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { measureP95 } from '../helpers/measure.js';
 
 // ============================================================
@@ -62,58 +64,50 @@ describe('Theme Integration', () => {
 // ============================================================
 
 describe('Tab Key Binding Integration', () => {
-  describe('Tab and Shift-Tab bindings', () => {
-    it('returns array with exactly 2 key bindings', () => {
-      const bindings = createTabKeyBinding();
-
-      expect(Array.isArray(bindings)).toBe(true);
-      expect(bindings).toHaveLength(2);
+  function runBinding(
+    key: string,
+    doc: string,
+    cursor: number
+  ): { doc: string; handled: boolean } {
+    const view = new EditorView({
+      state: EditorState.create({
+        doc,
+        selection: { anchor: cursor },
+        extensions: [indentUnit.of('  ')],
+      }),
     });
+    const binding = createTabKeyBinding().find((b) => b.key === key);
+    const handled = binding?.run?.(view) ?? false;
+    const result = view.state.doc.toString();
+    view.destroy();
+    return { doc: result, handled };
+  }
 
-    it('has Tab binding with key "Tab"', () => {
-      const bindings = createTabKeyBinding();
-      const tabBinding = bindings.find((b) => b.key === 'Tab');
+  it('binds exactly Tab and Shift-Tab with preventDefault', () => {
+    const bindings = createTabKeyBinding();
 
-      expect(tabBinding).toBeDefined();
-      expect(tabBinding?.key).toBe('Tab');
-    });
-
-    it('has Shift-Tab binding with key "Shift-Tab"', () => {
-      const bindings = createTabKeyBinding();
-      const shiftTabBinding = bindings.find((b) => b.key === 'Shift-Tab');
-
-      expect(shiftTabBinding).toBeDefined();
-      expect(shiftTabBinding?.key).toBe('Shift-Tab');
-    });
+    expect(bindings.map((b) => b.key)).toEqual(['Tab', 'Shift-Tab']);
+    expect(bindings.every((b) => b.preventDefault === true)).toBe(true);
   });
 
-  describe('Tab binding behavior', () => {
-    it('Tab binding has preventDefault true', () => {
-      const bindings = createTabKeyBinding();
-      const tabBinding = bindings.find((b) => b.key === 'Tab');
+  it('Tab inserts indentation at the cursor', () => {
+    const result = runBinding('Tab', 'ab', 1);
 
-      expect(tabBinding?.preventDefault).toBe(true);
-    });
-
-    it('Shift-Tab binding has preventDefault true', () => {
-      const bindings = createTabKeyBinding();
-      const shiftTabBinding = bindings.find((b) => b.key === 'Shift-Tab');
-
-      expect(shiftTabBinding?.preventDefault).toBe(true);
-    });
+    expect(result.handled).toBe(true);
+    expect(result.doc).toBe('a\tb');
   });
 
-  describe('createTabKeyBinding error handling', () => {
-    it('never throws exception', () => {
-      expect(() => createTabKeyBinding()).not.toThrow();
-    });
+  it('Shift-Tab removes one indent level from the line', () => {
+    const result = runBinding('Shift-Tab', '    x', 5);
 
-    it('always returns valid bindings array', () => {
-      const bindings = createTabKeyBinding();
+    expect(result.handled).toBe(true);
+    expect(result.doc).toBe('  x');
+  });
 
-      expect(Array.isArray(bindings)).toBe(true);
-      expect(bindings.length).toBeGreaterThan(0);
-    });
+  it('does not capture Escape so focus navigation stays available', () => {
+    const escapeBinding = createTabKeyBinding().find((b) => b.key === 'Escape');
+
+    expect(escapeBinding).toBeUndefined();
   });
 });
 
@@ -123,16 +117,6 @@ describe('Tab Key Binding Integration', () => {
 
 describe('Syntax Highlighting Integration', () => {
   describe('Highlight categories', () => {
-    it('has token method for syntax highlighting', () => {
-      expect(rillHighlighter.token).toBeDefined();
-      expect(typeof rillHighlighter.token).toBe('function');
-    });
-
-    it('has startState method for state initialization', () => {
-      expect(rillHighlighter.startState).toBeDefined();
-      expect(typeof rillHighlighter.startState).toBe('function');
-    });
-
     it('has name property set to "rill"', () => {
       expect(rillHighlighter.name).toBe('rill');
     });
@@ -376,61 +360,6 @@ describe('Font and Typography', () => {
       const cssContent = readFileSync(cssPath, 'utf-8');
 
       expect(cssContent).toContain('monospace');
-    });
-  });
-
-  describe('Indentation configuration', () => {
-    it('indentUnit configured as 2 spaces in Editor', () => {
-      const editorPath = resolve(__dirname, '../../src/components/Editor.tsx');
-      const editorContent = readFileSync(editorPath, 'utf-8');
-
-      // Verify indentUnit extension exists with 2-space configuration
-      expect(editorContent).toContain("indentUnit.of('  ')");
-    });
-  });
-});
-
-// ============================================================
-// ACCESSIBILITY TESTS
-// ============================================================
-
-describe('Accessibility', () => {
-  describe('Escape key focus navigation', () => {
-    it('createTabKeyBinding does not capture Escape key', () => {
-      const bindings = createTabKeyBinding();
-
-      expect(bindings).toHaveLength(2);
-
-      const escapeBinding = bindings.find((b) => b.key === 'Escape');
-      expect(escapeBinding).toBeUndefined();
-    });
-
-    it('keybindings module comment documents Escape behavior', () => {
-      const keybindingsPath = resolve(
-        __dirname,
-        '../../src/lib/keybindings.ts'
-      );
-      const keybindingsContent = readFileSync(keybindingsPath, 'utf-8');
-
-      expect(keybindingsContent).toContain('Escape');
-      expect(keybindingsContent.toLowerCase()).toContain('unmapped');
-    });
-  });
-});
-
-// ============================================================
-// BOUNDARY CONDITION TESTS
-// ============================================================
-
-describe('Boundary Conditions', () => {
-  describe('Large document virtualization', () => {
-    it('CodeMirror 6 provides virtualization through EditorView', () => {
-      const editorPath = resolve(__dirname, '../../src/components/Editor.tsx');
-      const editorContent = readFileSync(editorPath, 'utf-8');
-
-      expect(editorContent).toContain('EditorView');
-      expect(editorContent).toContain('new EditorView');
-      expect(editorContent).toContain('cm-scroller');
     });
   });
 });

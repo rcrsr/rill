@@ -23,9 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **`createTestContext` ignored extension `dispose` hooks:** `createTestContext` accepted a `dispose` hook next to each extension value and discarded it. `ctx.dispose()` now runs every hook once, after the runtime has shut down. If a hook throws, the remaining hooks still run and `ctx.dispose()` rejects with the first failure. ([#487](https://github.com/rcrsr/rill/pull/487), [#473](https://github.com/rcrsr/rill/issues/473))
+- **`createTestContext` ignored extension `dispose` hooks:** `createTestContext` accepted a `dispose` hook next to each extension value and discarded it. `ctx.dispose()` now runs every hook once, after the runtime has shut down, even if the runtime's own dispose rejects. If a hook throws, the remaining hooks still run and `ctx.dispose()` rejects with the first hook failure; if no hook fails, it rejects with the runtime error. ([#487](https://github.com/rcrsr/rill/pull/487), [#473](https://github.com/rcrsr/rill/issues/473))
 
-- **`getFunctions` dropped host functions without a `returnType`:** A host function registered from JavaScript without a `returnType` still ran, but `getFunctions` threw on it internally and left it out of the list. It is now listed with return type `any`, as untyped parameters already were. ([#487](https://github.com/rcrsr/rill/pull/487))
+- **`getFunctions` and `generateManifest` dropped host functions without a `returnType`:** A host function registered from JavaScript without a `returnType` still ran, but `getFunctions` and `generateManifest` threw on it internally and left it out. Both now list it with return type `any`, as untyped parameters already were, and `createTestContext` extension sources do the same. ([#487](https://github.com/rcrsr/rill/pull/487))
+
+- **Importing the error-docs generator rewrote `docs/ref-errors.md`:** `packages/core/scripts/generate-error-docs.ts` ran its generation on import. It now runs only when executed directly, so importing it no longer touches the file. ([#487](https://github.com/rcrsr/rill/pull/487))
+
+- **Fiddle split pane clamped the saved ratio against a fixed width:** `SplitPane` now clamps the persisted split ratio against the measured container bounds instead of a 1000px fallback, and no longer calls `onSplitChange` for arrow-key presses at a bound. ([#487](https://github.com/rcrsr/rill/pull/487))
 
 - **`RILL-R045` registry entry disagreed with the thrown error:** The message template read `Expected {expected} args, got {actual}`, while the runtime throws `Function expects N arguments, got M` with `expectedCount` and `actualCount` in its context. The template now matches, and its example uses current syntax. The error-handling guide also stated that a call after `dispose()` returns a `#DISPOSED` value; such a call halts non-catchably with `#DISPOSED`, and the guide now says so. ([#487](https://github.com/rcrsr/rill/pull/487))
 

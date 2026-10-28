@@ -341,6 +341,10 @@ function categoryToAnchor(category: string): string {
 
 // Only run as a side effect when executed directly, not when a test imports
 // validateErrorDefinitions; otherwise the import would rewrite docs/ref-errors.md.
-if (import.meta.filename === process.argv[1]) {
+const entryArg = process.argv[1];
+if (
+  entryArg !== undefined &&
+  fs.realpathSync(entryArg) === fs.realpathSync(import.meta.filename)
+) {
   generateErrorDocs();
 }

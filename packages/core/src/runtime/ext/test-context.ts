@@ -18,6 +18,7 @@ import { isCallable } from '../core/callable.js';
 import type { RillValue } from '../core/types/structures.js';
 import { setDictField } from '../core/types/dict-keys.js';
 import { formatStructure } from '../core/types/operations.js';
+import { resolveReturnStructure } from '../core/introspection.js';
 import { quoteRillString } from '../core/types/format-string.js';
 import { RuntimeError } from '../../types.js';
 import { ERROR_IDS } from '../../error-registry.js';
@@ -117,7 +118,7 @@ function buildNestedSource(
       return formatUseRef(path);
     }
     const paramStr = c.params.map(formatParam).join(', ');
-    const returnSuffix = ` :${formatStructure(c.returnType.structure)}`;
+    const returnSuffix = ` :${formatStructure(resolveReturnStructure(c))}`;
     return `${formatUseRef(path)}:|${paramStr}|${returnSuffix}`;
   }
 
@@ -251,7 +252,12 @@ export function createTestContext(
   let disposePromise: Promise<void> | null = null;
   ctx.dispose = (): Promise<void> => {
     disposePromise ??= (async () => {
-      await disposeRuntime();
+      let runtimeFailure: { readonly reason: unknown } | undefined;
+      try {
+        await disposeRuntime();
+      } catch (reason) {
+        runtimeFailure = { reason };
+      }
       const outcomes = await Promise.allSettled(
         hooks.map(async (hook) => hook())
       );
@@ -260,6 +266,7 @@ export function createTestContext(
           outcome.status === 'rejected'
       );
       if (failure) throw failure.reason;
+      if (runtimeFailure) throw runtimeFailure.reason;
     })();
     return disposePromise;
   };

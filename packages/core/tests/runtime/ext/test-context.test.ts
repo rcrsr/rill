@@ -269,6 +269,28 @@ describe('createTestContext', () => {
     });
   });
 
+  describe('ctx.dispose() when runtime dispose rejects', () => {
+    it('still runs extension hooks and surfaces the runtime failure', async () => {
+      let hookRan = 0;
+      const ctx = createTestContext({
+        ext_a: {
+          value: 1,
+          dispose: () => {
+            hookRan += 1;
+          },
+        },
+      });
+      // A throwing log callback makes the runtime's own dispose reject.
+      (ctx.callbacks as { onLog: (message: string) => void }).onLog = () => {
+        throw new Error('runtime dispose failed');
+      };
+      await execInContext('pass<async: true> { error "boom" }', ctx);
+
+      await expectThrowMessage(() => ctx.dispose(), 'runtime dispose failed');
+      expect(hookRan).toBe(1);
+    });
+  });
+
   describe('EC-9: undefined extension value throws TypeError', () => {
     it('throws TypeError with extension name in message', () => {
       expect(() =>

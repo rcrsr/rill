@@ -20,6 +20,7 @@ import {
   anyTypeValue,
   type ApplicationCallable,
   createRuntimeContext,
+  generateManifest,
   getFunctions,
   getLanguageReference,
   type RuntimeContext,
@@ -976,6 +977,17 @@ describe('Rill Runtime: Introspection API', () => {
         expect(functions.find((f) => f.name === 'topLevel')).toBeDefined();
         expect(functions.find((f) => f.name === 'utils')).toBeUndefined();
         expect(functions.find((f) => f.name === 'helper')).toBeUndefined();
+      });
+    });
+
+    describe('host functions registered without returnType', () => {
+      it('generateManifest reports them as any instead of throwing', () => {
+        const ctx = createRuntimeContext({
+          functions: { untyped: { params: [], fn: () => 1 } as never },
+        });
+
+        expect(generateManifest(ctx)).toContain('"untyped"');
+        expect(generateManifest(ctx)).toContain(':any');
       });
     });
   });

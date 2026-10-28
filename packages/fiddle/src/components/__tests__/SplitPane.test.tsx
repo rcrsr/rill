@@ -170,6 +170,87 @@ describe('SplitPane', () => {
     });
   });
 
+  describe('measured bounds', () => {
+    function withContainerSize(
+      width: number,
+      height: number,
+      run: () => void
+    ): void {
+      const w = vi
+        .spyOn(HTMLElement.prototype, 'clientWidth', 'get')
+        .mockReturnValue(width);
+      const h = vi
+        .spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+        .mockReturnValue(height);
+      try {
+        run();
+      } finally {
+        w.mockRestore();
+        h.mockRestore();
+      }
+    }
+
+    function readAria(container: HTMLElement): {
+      now: number;
+      min: number;
+      max: number;
+    } {
+      const d = container.querySelector('[role="separator"]')!;
+      return {
+        now: Number(d.getAttribute('aria-valuenow')),
+        min: Number(d.getAttribute('aria-valuemin')),
+        max: Number(d.getAttribute('aria-valuemax')),
+      };
+    }
+
+    it('re-clamps a low initial ratio to the measured minimum in a narrow pane', () => {
+      withContainerSize(800, 600, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} initialSplitRatio={10} />
+        );
+        const aria = readAria(container);
+        expect(aria.min).toBe(25);
+        expect(aria.now).toBe(25);
+      });
+    });
+
+    it('re-clamps a high initial ratio to the measured maximum in a narrow pane', () => {
+      withContainerSize(800, 600, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} initialSplitRatio={95} />
+        );
+        const aria = readAria(container);
+        expect(aria.max).toBe(75);
+        expect(aria.now).toBe(75);
+      });
+    });
+
+    it('keeps aria-valuenow within bounds in a wide pane', () => {
+      withContainerSize(2000, 600, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} initialSplitRatio={5} />
+        );
+        const aria = readAria(container);
+        expect(aria.min).toBe(10);
+        expect(aria.now).toBe(10);
+        expect(aria.now).toBeGreaterThanOrEqual(aria.min);
+        expect(aria.now).toBeLessThanOrEqual(aria.max);
+      });
+    });
+
+    it('uses clientHeight for bounds in the stacked layout', () => {
+      withContainerSize(500, 400, () => {
+        const { container } = render(
+          <SplitPane {...defaultProps} initialSplitRatio={10} />
+        );
+        const aria = readAria(container);
+        expect(aria.min).toBe(50);
+        expect(aria.now).toBe(50);
+        expect(aria.max).toBe(50);
+      });
+    });
+  });
+
   // ============================================================
   // Keyboard Accessibility
   // ============================================================
@@ -333,6 +414,47 @@ describe('SplitPane', () => {
 
       const calls = onSplitChange.mock.calls;
       expect(calls[calls.length - 1]![0]).toBe(80);
+    });
+
+    it('arrow press at a bound does not call onSplitChange', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={20}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      fireEvent.keyDown(divider, { key: 'ArrowUp' });
+      expect(onSplitChange).not.toHaveBeenCalled();
+
+      fireEvent.keyDown(divider, { key: 'ArrowDown' });
+      expect(onSplitChange).toHaveBeenCalledTimes(1);
+      expect(onSplitChange).toHaveBeenLastCalledWith(22);
+    });
+
+    it('repeated presses past the bound call onSplitChange only while moving', () => {
+      const onSplitChange = vi.fn();
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={26}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      for (let i = 0; i < 10; i++) {
+        fireEvent.keyDown(divider, { key: 'ArrowUp' });
+      }
+      // 26 -> 24 -> 22 -> 20, then pinned
+      expect(onSplitChange).toHaveBeenCalledTimes(3);
     });
 
     it('keyboard navigation without onSplitChange does not throw', () => {

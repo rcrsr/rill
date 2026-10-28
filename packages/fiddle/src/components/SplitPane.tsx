@@ -76,17 +76,19 @@ export function SplitPane({
   breakpoint = DEFAULT_BREAKPOINT,
 }: SplitPaneProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null);
-  // Clamp against the unmeasured default bounds; the container has no size
-  // until the first resize pass.
-  const [splitRatio, setSplitRatio] = useState(() =>
-    clampRatio(initialSplitRatio, 0)
-  );
-  const splitRatioRef = useRef(splitRatio);
+  // Stored unclamped: the effective ratio below clamps against the measured
+  // size, so a preference outside the fallback bounds survives until measured.
+  const [splitRatio, setSplitRatio] = useState(initialSplitRatio);
   const [isDragging, setIsDragging] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
   // Measured container size (width or height, matching orientation),
   // used only for local display logic (ARIA bounds, drag clamping).
   const [containerSize, setContainerSize] = useState(0);
+  // Effective ratio: re-clamped against the measured container size so the
+  // rendered value stays inside the reported ARIA bounds once measured.
+  // Before measurement, containerSize is 0 and the fallback bounds apply.
+  const effectiveRatio = clampRatio(splitRatio, containerSize);
+  const splitRatioRef = useRef(effectiveRatio);
   const dragStartRef = useRef<{ ratio: number; pos: number } | null>(null);
 
   // ============================================================
@@ -94,8 +96,8 @@ export function SplitPane({
   // ============================================================
 
   useEffect(() => {
-    splitRatioRef.current = splitRatio;
-  }, [splitRatio]);
+    splitRatioRef.current = effectiveRatio;
+  }, [effectiveRatio]);
 
   // ============================================================
   // RESPONSIVE ORIENTATION
@@ -148,7 +150,7 @@ export function SplitPane({
           ? event.clientY - rect.top
           : event.clientX - rect.left;
 
-    dragStartRef.current = { ratio: splitRatio, pos };
+    dragStartRef.current = { ratio: effectiveRatio, pos };
     setIsDragging(true);
   }
 
@@ -211,28 +213,29 @@ export function SplitPane({
     const rect = container.getBoundingClientRect();
     const liveSize = isVertical ? rect.height : rect.width;
     const step = 2;
-    let newRatio = splitRatio;
+    const currentRatio = clampRatio(splitRatio, liveSize);
+    let newRatio = currentRatio;
 
     if (isVertical) {
       if (event.key === 'ArrowUp') {
-        newRatio = splitRatio - step;
+        newRatio = currentRatio - step;
         event.preventDefault();
       } else if (event.key === 'ArrowDown') {
-        newRatio = splitRatio + step;
+        newRatio = currentRatio + step;
         event.preventDefault();
       }
     } else {
       if (event.key === 'ArrowLeft') {
-        newRatio = splitRatio - step;
+        newRatio = currentRatio - step;
         event.preventDefault();
       } else if (event.key === 'ArrowRight') {
-        newRatio = splitRatio + step;
+        newRatio = currentRatio + step;
         event.preventDefault();
       }
     }
 
-    if (newRatio !== splitRatio) {
-      const clampedRatio = clampRatio(newRatio, liveSize);
+    const clampedRatio = clampRatio(newRatio, liveSize);
+    if (clampedRatio !== currentRatio) {
       setSplitRatio(clampedRatio);
       if (onSplitChange) {
         onSplitChange(clampedRatio);
@@ -245,12 +248,12 @@ export function SplitPane({
   // ============================================================
 
   const leftSize = isVertical
-    ? { width: '100%', height: `${splitRatio}%` }
-    : { width: `${splitRatio}%`, height: '100%' };
+    ? { width: '100%', height: `${effectiveRatio}%` }
+    : { width: `${effectiveRatio}%`, height: '100%' };
 
   const rightSize = isVertical
-    ? { width: '100%', height: `${100 - splitRatio}%` }
-    : { width: `${100 - splitRatio}%`, height: '100%' };
+    ? { width: '100%', height: `${100 - effectiveRatio}%` }
+    : { width: `${100 - effectiveRatio}%`, height: '100%' };
 
   const bounds = calculateBounds(containerSize);
 
@@ -266,7 +269,7 @@ export function SplitPane({
       <div
         role="separator"
         aria-orientation={isVertical ? 'horizontal' : 'vertical'}
-        aria-valuenow={Math.round(splitRatio)}
+        aria-valuenow={Math.round(effectiveRatio)}
         aria-valuemin={Math.round(bounds.min)}
         aria-valuemax={Math.round(bounds.max)}
         tabIndex={0}

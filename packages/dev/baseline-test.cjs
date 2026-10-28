@@ -712,10 +712,13 @@ function runBaselineComparatorFixtureTests() {
     return out;
   };
   const live = generateFrom();
+  // Baseline-derived rows that print only when the gate ran to completion, so
+  // an early crash cannot satisfy the absence-of-stale assertions below.
+  const GATE_RAN = /ok\s+STD-LINT-1\s[\s\S]*ok\s+STD-PM-2\s/;
 
   const fresh = runCheckStandards(writeFixtureTree(treeFiles(live)));
   check(
-    !STALE.test(fresh.stdout),
+    GATE_RAN.test(fresh.stdout) && !STALE.test(fresh.stdout),
     'comparator: a baseline equal to generate() output is not stale',
     fresh.stdout
   );
@@ -740,7 +743,7 @@ function runBaselineComparatorFixtureTests() {
     writeFixtureTree(treeFiles(shuffledBaseline))
   );
   check(
-    !STALE.test(shuffled.stdout),
+    GATE_RAN.test(shuffled.stdout) && !STALE.test(shuffled.stdout),
     'comparator: key order in the baseline does not read as stale',
     shuffled.stdout
   );
