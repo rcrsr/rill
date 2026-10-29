@@ -25,7 +25,11 @@ import {
   resolveScopeAt,
 } from './scope/index.js';
 import { createDefaultConfig, runRules } from './rules/index.js';
-import { measureP95, measureRatioP95 } from './percentile.js';
+import {
+  measureInterleavedRatioP95,
+  measureP95,
+  measureRatioP95,
+} from './percentile.js';
 
 // Budgets are expressed as a multiple of parsing the same fixture, not in
 // milliseconds. See `measureRatioP95` for why: an absolute ceiling measures
@@ -252,9 +256,18 @@ describe('provider latency on a 2,000-line script', () => {
   it(
     'runRules stays at or under the p95 budget',
     () => {
-      const xParse = measureRatioP95(() => {
-        runRules(parsed, source, config);
-      }, parseRefP95);
+      // Sampled interleaved with the parse reference rather than against
+      // parseRefP95: this budget sits closest to its correct reading, and a
+      // reference measured at the start of the suite let load that rose
+      // during a parallel run push a correct runRules to 1.526x.
+      const xParse = measureInterleavedRatioP95(
+        () => {
+          runRules(parsed, source, config);
+        },
+        () => {
+          parseWithRecovery(source);
+        }
+      );
       expect(xParse).toBeLessThanOrEqual(RUN_RULES_P95_BUDGET_X_PARSE);
     },
     LATENCY_TEST_TIMEOUT_MS

@@ -94,7 +94,7 @@ import type {
   VariableNode,
 } from '@rcrsr/rill';
 
-import { measureP95, measureRatioP95 } from '../percentile.js';
+import { measureInterleavedRatioP95 } from '../percentile.js';
 import { runRules } from './run-rules.js';
 import { collectFacts } from './facts.js';
 import type { CheckConfig, Diagnostic, Rule, RuleContext } from './types.js';
@@ -115,10 +115,12 @@ const CAPTURE_LEVELS = 5;
 // An absolute millisecond budget conflates a slow runner with a slow
 // implementation, and the budget that cleared CI was far looser than the
 // regression it guards. The gate is a ratio instead: p95 at NESTING_DEPTH
-// divided by p95 at REFERENCE_DEPTH (a quarter of it), both measured on the
-// same machine in the same run. Linear scaling gives a ratio near 4; a
-// per-level subtree re-walk is quadratic and gives a ratio near 16. The
-// bound of 8 sits between them and tolerates shared-runner noise.
+// divided by p95 at REFERENCE_DEPTH (a quarter of it), sampled interleaved
+// so both depths see the same runner load. Linear scaling gives a ratio
+// near 4 (4.1-4.8 measured locally); a per-level subtree re-walk is
+// quadratic and gives a ratio near 16. The bound of 8 sits between them.
+// Measuring the reference first and the target after let load shift
+// between the two and pushed the linear ratio past 8 under a parallel run.
 const REFERENCE_DEPTH = NESTING_DEPTH / 4;
 const MAX_DEPTH_SCALING_RATIO = 8;
 // Mirrors latency.test.ts: SAMPLE_COUNT + WARMUP_COUNT runs of a fixture
@@ -481,12 +483,14 @@ describe('runRules depth scaling on nested collection-op bodies', () => {
         errors: [],
         success: true,
       };
-      const referenceP95 = measureP95(() => {
-        runRules(referenceParsed, '', config);
-      });
-      const ratio = measureRatioP95(() => {
-        runRules(parsed, '', config);
-      }, referenceP95);
+      const ratio = measureInterleavedRatioP95(
+        () => {
+          runRules(parsed, '', config);
+        },
+        () => {
+          runRules(referenceParsed, '', config);
+        }
+      );
       expect(ratio).toBeLessThan(MAX_DEPTH_SCALING_RATIO);
     },
     NESTING_SCALE_TEST_TIMEOUT_MS

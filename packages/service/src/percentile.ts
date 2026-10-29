@@ -71,6 +71,53 @@ export function measureRatioP95(
 }
 
 /**
+ * Returns `fn`'s p95 as a multiple of `referenceFn`'s p95, sampling the two
+ * interleaved: each round times one call of each, alternating which runs
+ * first.
+ *
+ * `measureRatioP95` takes a reference measured earlier, so load that rises
+ * or falls between the two measurements lands on one side of the ratio
+ * only. Under a parallel test run that shift alone has pushed a linear
+ * workload's ratio to twice its quiet value. Interleaving puts every
+ * sample of `fn` next to a sample of `referenceFn` taken under the same
+ * load, so a sustained or drifting slowdown inflates both and cancels.
+ *
+ * Use this where the budget is tight relative to the noise, or where the
+ * reference is a different size of the same workload. It costs one
+ * reference run per sample, so a suite that shares one reference across
+ * many cases may prefer `measureRatioP95`.
+ */
+export function measureInterleavedRatioP95(
+  fn: () => void,
+  referenceFn: () => void
+): number {
+  for (let i = 0; i < PERCENTILE_WARMUP_COUNT; i++) {
+    referenceFn();
+    fn();
+  }
+
+  const samples: number[] = [];
+  const referenceSamples: number[] = [];
+  for (let i = 0; i < PERCENTILE_SAMPLE_COUNT; i++) {
+    if (i % 2 === 0) {
+      referenceSamples.push(timeOnce(referenceFn));
+      samples.push(timeOnce(fn));
+    } else {
+      samples.push(timeOnce(fn));
+      referenceSamples.push(timeOnce(referenceFn));
+    }
+  }
+  return computeP95(samples) / computeP95(referenceSamples);
+}
+
+/** Times a single call of `fn` in ms. */
+function timeOnce(fn: () => void): number {
+  const start = performance.now();
+  fn();
+  return performance.now() - start;
+}
+
+/**
  * Runs `fn` for `PERCENTILE_WARMUP_COUNT` warmup iterations, then measures
  * `PERCENTILE_SAMPLE_COUNT` timed samples and returns the p95 in ms.
  */
