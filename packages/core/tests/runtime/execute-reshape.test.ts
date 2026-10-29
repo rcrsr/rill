@@ -30,6 +30,7 @@ import {
   RuntimeHaltSignal,
   type RillFunction,
   type RillValue,
+  anyTypeValue,
   YieldSignal,
 } from '@rcrsr/rill';
 import { run, runFull, runWithContext } from '../helpers/runtime.js';
@@ -110,14 +111,17 @@ describe('EC-13: RillError from extension boundary propagates unchanged', () => 
     // original RuntimeError propagates.
     const hostFn: RillFunction = {
       params: [],
-      returnType: { type: 'any' } as RillValue,
+      returnType: anyTypeValue,
       fn: async () => {
         throw new RuntimeError(
           'RILL-R006',
           'host-constructed error',
-          { line: 1, column: 1 },
+          { line: 1, column: 1, offset: 0 },
           undefined,
-          { start: { line: 1, column: 1 }, end: { line: 1, column: 1 } }
+          {
+            start: { line: 1, column: 1, offset: 0 },
+            end: { line: 1, column: 1, offset: 0 },
+          }
         );
       },
     };
@@ -155,7 +159,7 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
   it('plain Error from async host function resolves as an invalid value (not a rejection)', async () => {
     const hostFn: RillFunction = {
       params: [],
-      returnType: { type: 'any' } as RillValue,
+      returnType: anyTypeValue,
       fn: async () => {
         throw new Error('something went wrong in extension');
       },
@@ -172,7 +176,7 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
   it('reshaped invalid has code #R999 and provider extension', async () => {
     const hostFn: RillFunction = {
       params: [],
-      returnType: { type: 'any' } as RillValue,
+      returnType: anyTypeValue,
       fn: async () => {
         throw new Error('extension failure message');
       },
@@ -193,7 +197,7 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
   it('reshaped invalid carries sanitized message from the original Error', async () => {
     const hostFn: RillFunction = {
       params: [],
-      returnType: { type: 'any' } as RillValue,
+      returnType: anyTypeValue,
       fn: async () => {
         throw new Error('sanitize this message\nstacktrace line');
       },
@@ -205,13 +209,13 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
 
     const status = getStatus(result);
     // sanitizeErrorMessage strips multi-line stack; raw.message is first line trimmed.
-    expect(status.raw.message).toBe('sanitize this message');
+    expect(status.raw['message']).toBe('sanitize this message');
   });
 
   it('full execution result resolves (runFull) — no exception propagates to host', async () => {
     const hostFn: RillFunction = {
       params: [],
-      returnType: { type: 'any' } as RillValue,
+      returnType: anyTypeValue,
       fn: async () => {
         throw new Error('runFull reshape test');
       },
@@ -314,7 +318,9 @@ describe('AC-NOD-6: convertHaltToRuntimeError output baseline', () => {
     it('context carries functionName field', async () => {
       const err = await run('unknown::fn()').catch((e: unknown) => e);
       expect((err as RuntimeError).context).toBeDefined();
-      expect((err as RuntimeError).context?.functionName).toBe('unknown::fn');
+      expect((err as RuntimeError).context?.['functionName']).toBe(
+        'unknown::fn'
+      );
     });
   });
 
@@ -339,10 +345,10 @@ describe('AC-NOD-6: convertHaltToRuntimeError output baseline', () => {
         (e: unknown) => e
       );
       expect((err as RuntimeError).context).toBeDefined();
-      expect((err as RuntimeError).context?.methodName).toBe(
+      expect((err as RuntimeError).context?.['methodName']).toBe(
         'nonexistentMethod'
       );
-      expect((err as RuntimeError).context?.typeName).toBe('string');
+      expect((err as RuntimeError).context?.['typeName']).toBe('string');
     });
   });
 
@@ -385,7 +391,7 @@ describe('AC-NOD-6: convertHaltToRuntimeError output baseline', () => {
 describe('call-site materialization: invalid observed at the same statement', () => {
   const throwingHost: RillFunction = {
     params: [],
-    returnType: { type: 'any' } as RillValue,
+    returnType: anyTypeValue,
     fn: async () => {
       throw new Error('call-site throw');
     },
@@ -465,7 +471,7 @@ describe('BC-NOD-4: top-level break surfaces as a coded RuntimeError', () => {
     // Construct a host function that throws YieldSignal to exercise the path.
     const hostFn: RillFunction = {
       params: [],
-      returnType: { type: 'any' } as RillValue,
+      returnType: anyTypeValue,
       fn: () => {
         throw new YieldSignal('yield-value');
       },

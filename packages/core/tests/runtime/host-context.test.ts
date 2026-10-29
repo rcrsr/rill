@@ -7,7 +7,11 @@
  * arbitrary values (functions, objects) and defaults to {}.
  */
 
-import { createRuntimeContext, type RuntimeContext } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  createRuntimeContext,
+  type RuntimeContext,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -43,6 +47,7 @@ describe('Rill Runtime: hostContext', () => {
         hostContext: { region: 'us-east-1' },
         functions: {
           readCtx: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',
@@ -73,6 +78,7 @@ describe('Rill Runtime: hostContext', () => {
         hostContext: { resolveRoute },
         functions: {
           useRouter: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',
@@ -101,6 +107,7 @@ describe('Rill Runtime: hostContext', () => {
         hostContext: { env: 'test' },
         functions: {
           readCtx: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',
@@ -126,6 +133,7 @@ describe('Rill Runtime: hostContext', () => {
       await run('"x" -> checkCtx', {
         functions: {
           checkCtx: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',
@@ -158,6 +166,7 @@ true ? ("b" -> capture)`;
         hostContext: sharedContext,
         functions: {
           capture: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',

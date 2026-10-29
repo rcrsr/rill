@@ -4,6 +4,7 @@
  */
 
 import {
+  anyTypeValue,
   createOrdered,
   createRuntimeContext,
   createTuple,
@@ -56,7 +57,7 @@ describe('Rill Runtime: moduleResolver', () => {
     });
 
     it('EC-3: RILL-R059 message is descriptive', async () => {
-      await expectRuntimeError(() => moduleResolver('greetings', null), {
+      await expectRuntimeError(async () => moduleResolver('greetings', null), {
         code: 'RILL-R059',
         messagePattern: 'moduleResolver config must be a plain object',
       });
@@ -70,7 +71,7 @@ describe('Rill Runtime: moduleResolver', () => {
 
     it('EC-1: RILL-R050 message includes the module name', async () => {
       await expectRuntimeError(
-        () => moduleResolver('missing', { other: './other.rill' }),
+        async () => moduleResolver('missing', { other: './other.rill' }),
         {
           code: 'RILL-R050',
           messagePattern: "Module 'missing' not found in resolver config",
@@ -86,7 +87,7 @@ describe('Rill Runtime: moduleResolver', () => {
 
     it('EC-2: RILL-R051 message includes the module name', async () => {
       await expectRuntimeError(
-        () =>
+        async () =>
           moduleResolver('greetings', { greetings: './nonexistent-file.rill' }),
         {
           code: 'RILL-R051',
@@ -142,7 +143,7 @@ describe('Rill Runtime: moduleResolver', () => {
         const rErr = err as RuntimeError;
         expect(rErr.errorId).toBe('RILL-R056');
         expect(rErr.sourceId).toBe('module:bad');
-        expect(rErr.context?.sourceId).toBe('module:bad');
+        expect(rErr.context?.['sourceId']).toBe('module:bad');
         expect(rErr.cause).toBeInstanceOf(Error);
       }
     });
@@ -473,8 +474,8 @@ describe('Rill Runtime: extResolver', () => {
     const host = toCallable({
       fn: () => 'ok',
       params: [],
-      returnType: undefined,
-    }) as unknown as RillValue;
+      returnType: anyTypeValue,
+    });
     const cfg = { kb: { purge: host, search: host } } as unknown as Record<
       string,
       RillValue
@@ -522,8 +523,8 @@ describe('Rill Runtime: extResolver', () => {
       } as unknown as Record<string, RillValue>);
     });
 
-    it('returns the configured callable itself as the final segment', () => {
-      const result = extResolver('kb.search', cfg);
+    it('returns the configured callable itself as the final segment', async () => {
+      const result = await extResolver('kb.search', cfg);
       expect(result.kind).toBe('value');
       expect((result as { value: RillValue }).value).toBe(host);
     });

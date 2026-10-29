@@ -18,6 +18,7 @@ import {
   BUILTIN_METHODS,
   createRillStream,
   createRuntimeContext,
+  type RuntimeOptions,
   createStepper,
   createVector,
   execute,
@@ -39,6 +40,7 @@ import {
   type BaselineJson,
   type BaselineScriptOptions,
 } from './halt-migration-baseline.js';
+import { toRuntimeContext } from '../helpers/runtime.js';
 
 // ============================================================
 // REPLAY HELPERS
@@ -75,7 +77,11 @@ function makeHostFunction(
     location?: SourceLocation
   ) => RillValue | Promise<RillValue>
 ): RillFunction {
-  return { params: [], returnType: anyTypeValue, fn };
+  return {
+    params: [],
+    returnType: anyTypeValue,
+    fn: (args, ctx, location) => fn(args, toRuntimeContext(ctx), location),
+  };
 }
 
 function makeOneChunkStream(dispose?: () => void): RillValue {
@@ -196,8 +202,8 @@ function buildContext(
     ...(callbacks !== undefined
       ? {
           callbacks: callbacks as unknown as NonNullable<
-            Parameters<typeof createRuntimeContext>[0]
-          >['callbacks'],
+            RuntimeOptions['callbacks']
+          >,
         }
       : {}),
   });

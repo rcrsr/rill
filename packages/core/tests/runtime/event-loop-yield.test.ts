@@ -5,6 +5,7 @@
  */
 
 import {
+  anyTypeValue,
   atomName,
   createRuntimeContext,
   execute,
@@ -238,6 +239,7 @@ describe('Rill Runtime: event-loop yielding', () => {
           functions: {
             // Aborts the host, then fires the timer, then returns normally.
             trip: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => {
                 controller.abort();

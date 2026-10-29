@@ -30,6 +30,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   callable,
   createOrdered,
   createVector,
@@ -756,7 +757,7 @@ describe('Script-level integration', () => {
       await expect(
         run('get_vec() -> json', {
           functions: {
-            get_vec: { params: [], fn: () => vec },
+            get_vec: { returnType: anyTypeValue, params: [], fn: () => vec },
           },
         })
       ).rejects.toBeInstanceOf(RuntimeHaltSignal);

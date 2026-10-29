@@ -29,6 +29,7 @@ import {
   anyTypeValue,
   createRuntimeContext,
   getFunctions,
+  type RillFunction,
   type RillParam,
   structureToTypeValue,
 } from '@rcrsr/rill';
@@ -53,7 +54,7 @@ describe('Rill Runtime: Signature Registration', () => {
                     annotations: {},
                   },
                 ],
-                fn: (args) => args['msg'],
+                fn: (args) => args['msg']!,
                 returnType: anyTypeValue,
               },
             },
@@ -63,7 +64,7 @@ describe('Rill Runtime: Signature Registration', () => {
     });
 
     it('validates typed param on repeated calls', async () => {
-      const fns = {
+      const fns: Record<string, RillFunction> = {
         fn: {
           params: [
             {
@@ -73,7 +74,7 @@ describe('Rill Runtime: Signature Registration', () => {
               annotations: {},
             },
           ],
-          fn: (args: unknown[]) => args['msg'],
+          fn: (args) => args['msg'] ?? null,
           returnType: anyTypeValue,
         },
       };
@@ -103,7 +104,7 @@ describe('Rill Runtime: Signature Registration', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
               annotations: { description: 'Structured form' },
               returnType: anyTypeValue,
             },
@@ -116,7 +117,7 @@ describe('Rill Runtime: Signature Registration', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['y'],
+              fn: (args) => args['y']!,
               returnType: structureToTypeValue({ kind: 'string' }),
             },
           },
@@ -201,7 +202,7 @@ describe('Rill Runtime: Signature Registration', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['input'],
+              fn: (args) => args['input']!,
               annotations: { description: 'A function' },
               returnType: anyTypeValue,
             },
@@ -224,7 +225,7 @@ describe('Rill Runtime: Signature Registration', () => {
                   annotations: { description: 'The input string' },
                 },
               ],
-              fn: (args) => args['input'],
+              fn: (args) => args['input']!,
               annotations: { description: 'A function' },
               returnType: anyTypeValue,
             },
@@ -248,7 +249,7 @@ describe('Rill Runtime: Signature Registration', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['message'],
+            fn: (args) => args['message']!,
             returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
@@ -277,7 +278,7 @@ describe('Rill Runtime: Signature Registration', () => {
                     annotations: {},
                   },
                 ],
-                fn: (args) => args['message'],
+                fn: (args) => args['message']!,
                 returnType: structureToTypeValue({ kind: 'string' }),
               },
             },
@@ -298,7 +299,7 @@ describe('Rill Runtime: Signature Registration', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['message'],
+            fn: (args) => args['message']!,
             returnType: structureToTypeValue({ kind: 'string' }),
           },
         },
@@ -499,7 +500,7 @@ describe('Rill Runtime: Signature Registration', () => {
           functions: {
             broken: {
               params: null as unknown as RillParam[],
-              fn: (args) => args[0],
+              fn: (args) => args[0]!,
               returnType: anyTypeValue,
             },
           },
@@ -539,27 +540,24 @@ describe('Rill Runtime: Signature Registration', () => {
     it('throws at call time when required argument missing', async () => {
       let threwAtCallTime = false;
       // Registration succeeds
-      const ctx = createRuntimeContext({
-        functions: {
-          required: {
-            params: [
-              {
-                name: 'x',
-                type: { kind: 'string' },
-                defaultValue: undefined,
-                annotations: {},
-              },
-            ],
-            fn: (args) => args['x'],
-            returnType: anyTypeValue,
-          },
+      const requiredFns: Record<string, RillFunction> = {
+        required: {
+          params: [
+            {
+              name: 'x',
+              type: { kind: 'string' },
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          fn: (args) => args['x']!,
+          returnType: anyTypeValue,
         },
-      });
+      };
+      createRuntimeContext({ functions: requiredFns });
       // Error occurs at call time, not registration time
       try {
-        await run('required()', {
-          functions: Object.fromEntries(ctx.functions),
-        });
+        await run('required()', { functions: requiredFns });
       } catch {
         threwAtCallTime = true;
       }
@@ -581,7 +579,7 @@ describe('Rill Runtime: Signature Registration', () => {
                   annotations: { description: 'The message' },
                 },
               ],
-              fn: (args) => args['message'],
+              fn: (args) => args['message']!,
               returnType: structureToTypeValue({ kind: 'string' }),
             },
           },
@@ -603,7 +601,7 @@ describe('Rill Runtime: Signature Registration', () => {
                   annotations: { description: 'The message' },
                 },
               ],
-              fn: (args) => args['message'],
+              fn: (args) => args['message']!,
               annotations: { description: 'Echoes a message' },
               returnType: structureToTypeValue({ kind: 'string' }),
             },

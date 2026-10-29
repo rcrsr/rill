@@ -4,6 +4,7 @@
  */
 
 import {
+  anyTypeValue,
   contextResolver,
   createRillStream,
   createVector,
@@ -178,7 +179,7 @@ describe('Rill Runtime: contextResolver', () => {
       const host = toCallable({
         fn: () => 'ok',
         params: [],
-        returnType: undefined,
+        returnType: anyTypeValue,
       });
       expectR063('kb.purge.fn', { kb: { purge: host } });
     });

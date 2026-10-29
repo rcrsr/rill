@@ -16,8 +16,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { RuntimeError } from '@rcrsr/rill';
-import { run } from '../helpers/runtime.js';
+import { anyTypeValue, RuntimeError } from '@rcrsr/rill';
+import { run, toRuntimeContext } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Evaluator Base Class', () => {
@@ -125,6 +125,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           timeout: 10,
           functions: {
             slowFunc: {
+              returnType: anyTypeValue,
               params: [],
               fn: async () => {
                 await new Promise((r) => setTimeout(r, 100));
@@ -147,6 +148,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         timeout: 1000,
         functions: {
           fastFunc: {
+            returnType: anyTypeValue,
             params: [],
             fn: async () => {
               await new Promise((r) => setTimeout(r, 10));
@@ -167,6 +169,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           timeout: 10,
           functions: {
             mySlowFunc: {
+              returnType: anyTypeValue,
               params: [],
               fn: async () => {
                 await new Promise((r) => setTimeout(r, 100));
@@ -184,7 +187,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       expect(runtimeErr.errorId).toBe('RILL-R012');
       const status = getStatus(runtimeErr.haltValue!);
       const raw = status.raw as Record<string, unknown>;
-      expect(raw.functionName).toBe('mySlowFunc');
+      expect(raw['functionName']).toBe('mySlowFunc');
       expect(status.message).toContain('timed out');
     });
 
@@ -195,17 +198,19 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           timeout: 10,
           functions: {
             outer: {
+              returnType: anyTypeValue,
               params: [],
-              fn: async (args, ctx) => {
+              fn: async (_args, ctx) => {
                 // Call another async function that will timeout
-                const innerFn = ctx.functions.get('inner');
+                const innerFn = toRuntimeContext(ctx).functions.get('inner');
                 if (innerFn && 'fn' in innerFn) {
-                  return await innerFn.fn([], ctx);
+                  return await innerFn.fn({}, ctx);
                 }
                 return 'no-inner';
               },
             },
             inner: {
+              returnType: anyTypeValue,
               params: [],
               fn: async () => {
                 await new Promise((r) => setTimeout(r, 100));
@@ -229,6 +234,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         timeout: 100,
         functions: {
           fast: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',

@@ -149,7 +149,7 @@ function generateErrorDocs(): void {
       console.log(`Generated ${OUTPUT_FILE}`);
       console.log(`Total errors documented: ${definitions.length}`);
       console.log(
-        `Categories: Lexer (${byCategory.lexer.errors.length}), Parse (${byCategory.parse.errors.length}), Runtime (${byCategory.runtime.errors.length}), Check (${byCategory.check.errors.length})`
+        `Categories: Lexer (${byCategory['lexer']!.errors.length}), Parse (${byCategory['parse']!.errors.length}), Runtime (${byCategory['runtime']!.errors.length}), Check (${byCategory['check']!.errors.length})`
       );
     })
     .catch((err) => {

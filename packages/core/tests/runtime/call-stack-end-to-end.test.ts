@@ -5,8 +5,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { run } from '../helpers/runtime.js';
+import { run, toRuntimeContext } from '../helpers/runtime.js';
 import {
+  anyTypeValue,
   type CallFrame,
   RuntimeError,
   type RuntimeContext,
@@ -28,12 +29,18 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       await run('testFn()', {
         functions: {
           testFn: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
               // Verify infrastructure can track at least one frame
-              maxStackDepth = Math.max(maxStackDepth, ctx.callStack.length);
-              expect(ctx.callStack.length).toBe(1);
-              expect(ctx.callStack[0]?.functionName).toBe('testFn');
+              maxStackDepth = Math.max(
+                maxStackDepth,
+                toRuntimeContext(ctx).callStack.length
+              );
+              expect(toRuntimeContext(ctx).callStack.length).toBe(1);
+              expect(toRuntimeContext(ctx).callStack[0]?.functionName).toBe(
+                'testFn'
+              );
               return 'ok';
             },
           },
@@ -126,9 +133,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
         maxCallStackDepth: 3,
         functions: {
           probe: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              snapshot = [...ctx.callStack];
+              snapshot = [...toRuntimeContext(ctx).callStack];
               return '';
             },
           },
@@ -150,9 +158,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
         maxCallStackDepth: 5,
         functions: {
           probe: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              snapshot = [...ctx.callStack];
+              snapshot = [...toRuntimeContext(ctx).callStack];
               return '';
             },
           },
@@ -240,9 +249,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       await run('testFunction()', {
         functions: {
           testFunction: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              stackInFunction = [...ctx.callStack];
+              stackInFunction = [...toRuntimeContext(ctx).callStack];
               return 'ok';
             },
           },
@@ -260,9 +270,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       await run('testFn()', {
         functions: {
           testFn: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              ctxAfterCall = ctx;
+              ctxAfterCall = toRuntimeContext(ctx);
               return '';
             },
           },
@@ -270,7 +281,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       });
 
       // After execution, call stack should be empty (frame popped)
-      expect(ctxAfterCall.callStack).toHaveLength(0);
+      expect(ctxAfterCall!.callStack).toHaveLength(0);
     });
 
     it('includes call site location in frames', async () => {
@@ -279,9 +290,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       await run('myFunction()', {
         functions: {
           myFunction: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              frameLocation = ctx.callStack[0]?.location;
+              frameLocation = toRuntimeContext(ctx).callStack[0]?.location;
               return '';
             },
           },
@@ -289,9 +301,9 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       });
 
       expect(frameLocation).toBeDefined();
-      expect(frameLocation.start).toBeDefined();
-      expect(frameLocation.end).toBeDefined();
-      expect(frameLocation.start.line).toBeGreaterThan(0);
+      expect(frameLocation!.start).toBeDefined();
+      expect(frameLocation!.end).toBeDefined();
+      expect(frameLocation!.start.line).toBeGreaterThan(0);
     });
 
     it('includes function name in call stack frames', async () => {
@@ -300,9 +312,10 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       await run('namedFunction()', {
         functions: {
           namedFunction: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              functionName = ctx.callStack[0]?.functionName;
+              functionName = toRuntimeContext(ctx).callStack[0]?.functionName;
               return '';
             },
           },

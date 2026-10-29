@@ -17,7 +17,7 @@ import {
   accessHaltGateFast,
   RuntimeHaltSignal,
 } from '../../src/runtime/core/eval/handlers/access.js';
-import { createRuntimeContext } from '@rcrsr/rill';
+import { createRuntimeContext, type RillValue } from '@rcrsr/rill';
 
 describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
   it('returns a number primitive unchanged without invoking the location producer', () => {
@@ -59,7 +59,7 @@ describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
       locCalls++;
       return undefined;
     };
-    const obj: Record<string, unknown> = { a: 1, b: 2 };
+    const obj: Record<string, RillValue> = { a: 1, b: 2 };
     const result = accessHaltGateFast(obj, '.', locFn, undefined);
     expect(result).toBe(obj);
     expect(locCalls).toBe(0);

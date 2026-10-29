@@ -11,13 +11,17 @@ import {
   inferStructure,
   structureToTypeValue,
   type ApplicationCallable,
-  type RillFieldDef,
   type TypeStructure,
   type RillValue,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import {
+  expectOrderedStructure,
+  expectTypeValue,
+  isClosureStructure,
+} from '../helpers/structure.js';
 
 describe('Optional parameter structural types', () => {
   describe('TypeStructure carries default values', () => {
@@ -125,7 +129,7 @@ describe('Optional parameter structural types', () => {
 
       const result = inferStructure(fn as unknown as RillValue);
       expect(result.kind).toBe('closure');
-      if (result.kind === 'closure') {
+      if (isClosureStructure(result)) {
         expect(result.params).toEqual([
           { name: 'greeting', type: { kind: 'string' }, defaultValue: 'Hello' },
           { name: 'count', type: { kind: 'number' } },
@@ -153,7 +157,7 @@ describe('Optional parameter structural types', () => {
 
       const result = inferStructure(fn as unknown as RillValue);
       expect(result.kind).toBe('closure');
-      if (result.kind === 'closure') {
+      if (isClosureStructure(result)) {
         expect(result.params![0]).toEqual({
           name: 'x',
           type: { kind: 'number' },
@@ -183,15 +187,12 @@ describe('Optional parameter structural types', () => {
       };
 
       const result = await run('$fn.^input', { variables: { fn } });
-      const shape = result as {
-        __rill_type: true;
-        typeName: string;
-        structure: { type: string; fields: RillFieldDef[] };
-      };
+      const shape = expectTypeValue(result);
+      const fields = expectOrderedStructure(result).fields ?? [];
 
       expect(shape.__rill_type).toBe(true);
       expect(shape.typeName).toBe('ordered');
-      expect(shape.structure.fields[0]).toEqual({
+      expect(fields[0]).toEqual({
         name: 'name',
         type: { kind: 'string' },
         defaultValue: 'World',
@@ -217,19 +218,16 @@ describe('Optional parameter structural types', () => {
       };
 
       const result = await run('$fn.^input', { variables: { fn } });
-      const shape = result as {
-        __rill_type: true;
-        typeName: string;
-        structure: { type: string; fields: RillFieldDef[] };
-      };
+      const shape = expectTypeValue(result);
+      const fields = expectOrderedStructure(result).fields ?? [];
 
       expect(shape.__rill_type).toBe(true);
       expect(shape.typeName).toBe('ordered');
-      expect(shape.structure.fields[0]).toEqual({
+      expect(fields[0]).toEqual({
         name: 'x',
         type: { kind: 'number' },
       });
-      expect(shape.structure.fields[0]).not.toHaveProperty('defaultValue');
+      expect(fields[0]).not.toHaveProperty('defaultValue');
     });
   });
 
@@ -364,15 +362,12 @@ describe('Optional parameter structural types', () => {
         |name: string = "World"| { $name } => $greet
         $greet.^input
       `);
-      const shape = result as {
-        __rill_type: true;
-        typeName: string;
-        structure: { type: string; fields: RillFieldDef[] };
-      };
+      const shape = expectTypeValue(result);
+      const fields = expectOrderedStructure(result).fields ?? [];
 
       expect(shape.__rill_type).toBe(true);
       expect(shape.typeName).toBe('ordered');
-      expect(shape.structure.fields[0]).toEqual({
+      expect(fields[0]).toEqual({
         name: 'name',
         type: { kind: 'string' },
         defaultValue: 'World',
@@ -384,15 +379,12 @@ describe('Optional parameter structural types', () => {
         |count: number = 10| { $count } => $fn
         $fn.^input
       `);
-      const shape = result as {
-        __rill_type: true;
-        typeName: string;
-        structure: { type: string; fields: RillFieldDef[] };
-      };
+      const shape = expectTypeValue(result);
+      const fields = expectOrderedStructure(result).fields ?? [];
 
       expect(shape.__rill_type).toBe(true);
       expect(shape.typeName).toBe('ordered');
-      expect(shape.structure.fields[0]).toEqual({
+      expect(fields[0]).toEqual({
         name: 'count',
         type: { kind: 'number' },
         defaultValue: 10,
@@ -404,20 +396,17 @@ describe('Optional parameter structural types', () => {
         |x: number, y: number = 0| { $x + $y } => $add
         $add.^input
       `);
-      const shape = result as {
-        __rill_type: true;
-        typeName: string;
-        structure: { type: string; fields: RillFieldDef[] };
-      };
+      const shape = expectTypeValue(result);
+      const fields = expectOrderedStructure(result).fields ?? [];
 
       expect(shape.__rill_type).toBe(true);
       expect(shape.typeName).toBe('ordered');
-      expect(shape.structure.fields[0]).toEqual({
+      expect(fields[0]).toEqual({
         name: 'x',
         type: { kind: 'number' },
       });
-      expect(shape.structure.fields[0]).not.toHaveProperty('defaultValue');
-      expect(shape.structure.fields[1]).toEqual({
+      expect(fields[0]).not.toHaveProperty('defaultValue');
+      expect(fields[1]).toEqual({
         name: 'y',
         type: { kind: 'number' },
         defaultValue: 0,
@@ -469,7 +458,7 @@ describe('Optional parameter structural types', () => {
 
       const result = inferStructure(fn as unknown as RillValue);
       expect(result.kind).toBe('closure');
-      if (result.kind === 'closure') {
+      if (isClosureStructure(result)) {
         expect(result.params![0]!.annotations).toEqual({
           description: 'test param',
         });
@@ -496,7 +485,7 @@ describe('Optional parameter structural types', () => {
 
       const result = inferStructure(fn as unknown as RillValue);
       expect(result.kind).toBe('closure');
-      if (result.kind === 'closure') {
+      if (isClosureStructure(result)) {
         expect(result.params![0]!.annotations).toBeUndefined();
       }
     });

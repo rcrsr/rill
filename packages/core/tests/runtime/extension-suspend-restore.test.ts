@@ -20,17 +20,34 @@
  */
 
 import { describe, expectTypeOf, it } from 'vitest';
+import {
+  anyTypeValue,
+  toCallable,
+  type ApplicationCallable,
+  type CallableFn,
+  type RillParam,
+} from '@rcrsr/rill';
 import type { ExtensionFactoryResult } from '../../src/runtime/ext/extensions.js';
+
+/** Build a required, typed parameter declaration. */
+function requiredParam(name: string, kind: 'string' | 'number'): RillParam {
+  return { name, type: { kind }, defaultValue: undefined, annotations: {} };
+}
+
+/** Build a host callable value from a parameter list and body. */
+function hostFn(
+  params: readonly RillParam[],
+  fn: CallableFn
+): ApplicationCallable {
+  return toCallable({ params, returnType: anyTypeValue, fn });
+}
 
 describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', () => {
   describe('IR-13+14: Object with suspend and restore satisfies ExtensionFactoryResult', () => {
     it('accepts an extension with both suspend and restore', () => {
       const ext = {
         value: {
-          greet: {
-            params: [{ name: 'name', type: 'string' as const }],
-            fn: (_args: unknown[]) => 'hello',
-          },
+          greet: hostFn([requiredParam('name', 'string')], (_args) => 'hello'),
         },
         suspend: () => ({ count: 42 }),
         restore: (_state: unknown) => {},
@@ -46,10 +63,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
     it('accepts an extension with suspend but no restore', () => {
       const ext = {
         value: {
-          ping: {
-            params: [],
-            fn: (_args: unknown[]) => 'pong',
-          },
+          ping: hostFn([], (_args) => 'pong'),
         },
         suspend: () => 'snapshot',
       } satisfies ExtensionFactoryResult;
@@ -62,10 +76,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
     it('accepts an extension with restore but no suspend', () => {
       const ext = {
         value: {
-          ping: {
-            params: [],
-            fn: (_args: unknown[]) => 'pong',
-          },
+          ping: hostFn([], (_args) => 'pong'),
         },
         restore: (_state: unknown) => {},
       } satisfies ExtensionFactoryResult;
@@ -78,10 +89,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
     it('accepts an extension with only dispose (no suspend or restore)', () => {
       const ext = {
         value: {
-          query: {
-            params: [{ name: 'sql', type: 'string' as const }],
-            fn: (_args: unknown[]) => [],
-          },
+          query: hostFn([requiredParam('sql', 'string')], (_args) => []),
         },
         dispose: () => {},
       } satisfies ExtensionFactoryResult;
@@ -93,14 +101,10 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
     it('accepts an extension with only value', () => {
       const ext = {
         value: {
-          add: {
-            params: [
-              { name: 'a', type: 'number' as const },
-              { name: 'b', type: 'number' as const },
-            ],
-            fn: (args: unknown[]) =>
-              (args['a'] as number) + (args['b'] as number),
-          },
+          add: hostFn(
+            [requiredParam('a', 'number'), requiredParam('b', 'number')],
+            (args) => (args['a'] as number) + (args['b'] as number)
+          ),
         },
       } satisfies ExtensionFactoryResult;
 
@@ -112,10 +116,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
     it('suspend returns unknown, not a narrowed type', () => {
       const ext = {
         value: {
-          work: {
-            params: [],
-            fn: (_args: unknown[]) => null,
-          },
+          work: hostFn([], (_args) => null),
         },
         suspend: (): unknown => ({ version: 1, data: [1, 2, 3] }),
       } satisfies ExtensionFactoryResult;
@@ -134,17 +135,17 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
       const suspendReturnsUndefined: () => unknown = () => undefined;
 
       const extA = {
-        value: { op: { params: [], fn: (_args: unknown[]) => null } },
+        value: { op: hostFn([], (_args) => null) },
         suspend: suspendReturnsString,
       } satisfies ExtensionFactoryResult;
 
       const extB = {
-        value: { op: { params: [], fn: (_args: unknown[]) => null } },
+        value: { op: hostFn([], (_args) => null) },
         suspend: suspendReturnsObject,
       } satisfies ExtensionFactoryResult;
 
       const extC = {
-        value: { op: { params: [], fn: (_args: unknown[]) => null } },
+        value: { op: hostFn([], (_args) => null) },
         suspend: suspendReturnsUndefined,
       } satisfies ExtensionFactoryResult;
 
@@ -159,10 +160,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
     it('restore accepts unknown as its parameter', () => {
       const ext = {
         value: {
-          work: {
-            params: [],
-            fn: (_args: unknown[]) => null,
-          },
+          work: hostFn([], (_args) => null),
         },
         restore: (_state: unknown): void => {},
       } satisfies ExtensionFactoryResult;
@@ -176,10 +174,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
       // Narrowing inside the function body is valid; the declared param is unknown
       const ext = {
         value: {
-          counter: {
-            params: [],
-            fn: (_args: unknown[]) => 0,
-          },
+          counter: hostFn([], (_args) => 0),
         },
         restore: (state: unknown): void => {
           if (typeof state === 'object' && state !== null && 'count' in state) {

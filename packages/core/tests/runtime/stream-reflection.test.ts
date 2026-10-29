@@ -271,7 +271,14 @@ describe('Scope Exit Cleanup', () => {
       {
         functions: {
           make_stream: {
-            params: [{ name: '_', type: { kind: 'any' } }],
+            params: [
+              {
+                defaultValue: undefined,
+                annotations: {},
+                name: '_',
+                type: { kind: 'any' },
+              },
+            ],
             returnType: anyTypeValue,
             fn: () => {
               return createRillStream({
@@ -302,7 +309,14 @@ describe('Scope Exit Cleanup', () => {
       {
         functions: {
           make_stream: {
-            params: [{ name: '_', type: { kind: 'any' } }],
+            params: [
+              {
+                defaultValue: undefined,
+                annotations: {},
+                name: '_',
+                type: { kind: 'any' },
+              },
+            ],
             returnType: anyTypeValue,
             fn: () => {
               return createRillStream({
@@ -332,7 +346,14 @@ describe('Scope Exit Cleanup', () => {
       {
         functions: {
           make_stream: {
-            params: [{ name: 'label', type: { kind: 'string' } }],
+            params: [
+              {
+                defaultValue: undefined,
+                annotations: {},
+                name: 'label',
+                type: { kind: 'string' },
+              },
+            ],
             returnType: anyTypeValue,
             fn: (args: Record<string, RillValue>) => {
               const label = args['label'] as string;
@@ -365,7 +386,14 @@ describe('Scope Exit Cleanup', () => {
           {
             functions: {
               make_stream: {
-                params: [{ name: '_', type: { kind: 'any' } }],
+                params: [
+                  {
+                    defaultValue: undefined,
+                    annotations: {},
+                    name: '_',
+                    type: { kind: 'any' },
+                  },
+                ],
                 returnType: anyTypeValue,
                 fn: () => {
                   return createRillStream({

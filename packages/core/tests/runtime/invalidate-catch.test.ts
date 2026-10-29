@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   type ApplicationCallable,
   atomName,
   createRuntimeContext,
@@ -335,6 +336,7 @@ describe('Extension-boundary reshape (AC-E4, AC-E9) end-to-end', () => {
     const ctx = createRuntimeContext({
       functions: {
         boom: {
+          returnType: anyTypeValue,
           params: [],
           fn: async () => {
             throw new Error('host failure');
@@ -367,7 +369,10 @@ describe('Extension-boundary reshape (AC-E4, AC-E9) end-to-end', () => {
     const probe: ApplicationCallable = {
       __type: 'callable',
       kind: 'application',
+      isProperty: false,
       params: [],
+      annotations: {},
+      returnType: anyTypeValue,
       fn: () => {
         fnBodyCalls.push(1);
         return 'hit';

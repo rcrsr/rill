@@ -2,10 +2,14 @@ import { describe, it, expect } from 'vitest';
 import { applyTransforms } from '../../../src/runtime/core/policy/transforms.js';
 import type { TransformInvoker } from '../../../src/runtime/core/policy/transforms.js';
 import { brandExtensionValue } from '../../../src/runtime/core/policy/identity.js';
-import { toCallable } from '../../../src/runtime/core/callable.js';
+import {
+  isApplicationCallable,
+  isRuntimeCallable,
+  toCallable,
+} from '../../../src/runtime/core/callable.js';
+import { createRuntimeContext } from '../../../src/runtime/core/context.js';
 import { anyTypeValue } from '../../../src/runtime/core/values.js';
 import type { RillCallable } from '../../../src/runtime/core/callable.js';
-import type { RillValue } from '../../../src/runtime/core/types/structures.js';
 import { expectHalt, expectThrowMessage } from '../../helpers/halt.js';
 
 const SITE = { location: undefined, sourceId: undefined, fn: 'test' };
@@ -21,10 +25,12 @@ function tagger(tag: string): RillCallable {
 }
 
 /** Invoker that actually runs the callable's fn against the value. */
-const run: TransformInvoker = async (transform, value) =>
-  (await (transform as { fn: (a: Record<string, RillValue>) => RillValue }).fn({
-    '0': value,
-  })) as RillValue;
+const run: TransformInvoker = async (transform, value) => {
+  if (!isApplicationCallable(transform) && !isRuntimeCallable(transform)) {
+    throw new Error('transform is not a host-invocable callable');
+  }
+  return transform.fn({ '0': value }, createRuntimeContext());
+};
 
 describe('applyTransforms', () => {
   it('returns the value untouched for an empty chain', async () => {
@@ -82,7 +88,7 @@ describe('applyTransforms', () => {
 
   it('names the offending transform using its extension brand', async () => {
     const redact = tagger('redact');
-    brandExtensionValue({ redact } as unknown as RillValue, 'filter');
+    brandExtensionValue({ redact }, 'filter', SITE);
 
     const inFlight = new Set<RillCallable>();
     const reentrant: TransformInvoker = async (transform, value) =>

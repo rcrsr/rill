@@ -4,6 +4,7 @@
  */
 
 import {
+  anyTypeValue,
   atomName,
   createRuntimeContext,
   getStatus,
@@ -76,8 +77,8 @@ describe('Rill Runtime: Configuration', () => {
       expect(runtimeErr.errorId).toBe('RILL-R012');
       const status = getStatus(runtimeErr.haltValue!);
       const raw = status.raw as Record<string, unknown>;
-      expect(raw.functionName).toBe('slowFn');
-      expect(raw.timeoutMs).toBe(50);
+      expect(raw['functionName']).toBe('slowFn');
+      expect(raw['timeoutMs']).toBe(50);
       expect(status.message).toContain('50ms');
     });
 
@@ -92,6 +93,7 @@ describe('Rill Runtime: Configuration', () => {
 
     it('does not apply timeout to sync functions', async () => {
       const syncFn = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'input',
@@ -112,6 +114,7 @@ describe('Rill Runtime: Configuration', () => {
     it('timeout applies to each function call independently', async () => {
       let callCount = 0;
       const fn = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'input',
@@ -182,8 +185,8 @@ describe('Rill Runtime: Configuration', () => {
         })
       );
       const status = getStatus(signal.value);
-      expect(status.raw.pattern).toBe('FATAL');
-      expect(status.raw.matchedValue).toBe('FATAL: crash');
+      expect(status.raw['pattern']).toBe('FATAL');
+      expect(status.raw['matchedValue']).toBe('FATAL: crash');
       expect(status.provider).toBe('extension');
     });
 
@@ -202,7 +205,7 @@ describe('Rill Runtime: Configuration', () => {
         })
       );
       const status = getStatus(signal.value);
-      expect(status.raw.pattern).toBe('ERROR');
+      expect(status.raw['pattern']).toBe('ERROR');
     });
 
     it('throws on invalid regex pattern during context creation', () => {
@@ -267,6 +270,7 @@ describe('Rill Runtime: Configuration', () => {
   describe('requireDescriptions', () => {
     it('accepts requireDescriptions in RuntimeOptions', () => {
       const testFn = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'input',
@@ -289,6 +293,7 @@ describe('Rill Runtime: Configuration', () => {
 
     it('accepts requireDescriptions: false', () => {
       const testFn = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'input',
@@ -310,6 +315,7 @@ describe('Rill Runtime: Configuration', () => {
 
     it('accepts requireDescriptions: undefined (default)', () => {
       const testFn = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'input',
@@ -331,6 +337,7 @@ describe('Rill Runtime: Configuration', () => {
     describe('EC-2: Function missing description', () => {
       it('throws Error when function has no description and requireDescriptions is true', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -354,6 +361,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('throws Error when function has undefined description', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -378,6 +386,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('throws Error when function has whitespace-only description', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -402,6 +411,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('throws Error when function has empty string description', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -426,6 +436,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('allows undocumented function when requireDescriptions is false', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -447,6 +458,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('allows undocumented function when requireDescriptions is undefined', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -469,6 +481,7 @@ describe('Rill Runtime: Configuration', () => {
     describe('EC-3: Parameter missing description', () => {
       it('throws Error when parameter has no description and requireDescriptions is true', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'undocumented',
@@ -493,6 +506,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('throws Error when parameter has undefined description', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'myParam',
@@ -517,6 +531,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('throws Error when parameter has whitespace-only description', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'blankParam',
@@ -541,6 +556,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('throws Error when parameter has empty string description', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'emptyParam',
@@ -565,6 +581,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('throws Error for first undocumented parameter in multi-parameter function', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'documented',
@@ -601,6 +618,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('allows undocumented parameters when requireDescriptions is false', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'undocumented',
@@ -623,6 +641,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('allows undocumented parameters when requireDescriptions is undefined', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'undocumented',
@@ -646,6 +665,7 @@ describe('Rill Runtime: Configuration', () => {
     describe('IC-3: Whitespace-only strings count as undocumented', () => {
       it('rejects function with tab-only description', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -670,6 +690,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('rejects parameter with newline-only description', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -694,6 +715,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('accepts description with content after trimming', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'input',
@@ -718,6 +740,7 @@ describe('Rill Runtime: Configuration', () => {
     describe('Combined validation', () => {
       it('validates both function and all parameters when requireDescriptions is true', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'param1',
@@ -746,6 +769,7 @@ describe('Rill Runtime: Configuration', () => {
 
       it('accepts functions with no parameters when requireDescriptions is true', () => {
         const testFn = {
+          returnType: anyTypeValue,
           params: [],
           fn: (): string => 'result',
           annotations: { description: 'Function with no parameters' },

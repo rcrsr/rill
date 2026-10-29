@@ -21,6 +21,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   createRuntimeContext,
   ERROR_REGISTRY,
   RuntimeError,
@@ -35,6 +36,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('greet(["alice", "bob"])', {
         functions: {
           greet: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'names',
@@ -56,6 +58,7 @@ describe('Rill Runtime: Host Type Validation', () => {
           run('process([1, 2, 3])', {
             functions: {
               process: {
+                returnType: anyTypeValue,
                 params: [
                   {
                     name: 'items',
@@ -64,7 +67,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                     annotations: {},
                   },
                 ],
-                fn: (args) => args['items'],
+                fn: (args) => args['items']!,
               },
             },
           }),
@@ -78,6 +81,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         await run('process([1, 2, 3])', {
           functions: {
             process: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'items',
@@ -86,7 +90,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['items'],
+              fn: (args) => args['items']!,
             },
           },
         });
@@ -105,6 +109,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('anything("hello")', {
         functions: {
           anything: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'value',
@@ -113,7 +118,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['value'],
+            fn: (args) => args['value']!,
           },
         },
       });
@@ -124,6 +129,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('anything(42)', {
         functions: {
           anything: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'value',
@@ -132,7 +138,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['value'],
+            fn: (args) => args['value']!,
           },
         },
       });
@@ -143,6 +149,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('anything([1, 2, 3])', {
         functions: {
           anything: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'value',
@@ -151,7 +158,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['value'],
+            fn: (args) => args['value']!,
           },
         },
       });
@@ -162,6 +169,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('anything([a: 1])', {
         functions: {
           anything: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'value',
@@ -170,7 +178,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['value'],
+            fn: (args) => args['value']!,
           },
         },
       });
@@ -183,6 +191,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('process([name: "alice", age: 30])', {
         functions: {
           process: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'person',
@@ -213,6 +222,7 @@ describe('Rill Runtime: Host Type Validation', () => {
           run('process("not-a-dict")', {
             functions: {
               process: {
+                returnType: anyTypeValue,
                 params: [
                   {
                     name: 'person',
@@ -221,7 +231,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                     annotations: {},
                   },
                 ],
-                fn: (args) => args['person'],
+                fn: (args) => args['person']!,
               },
             },
           }),
@@ -234,6 +244,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('process([x: 1, y: 2, z: 3])', {
         functions: {
           process: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'data',
@@ -242,7 +253,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['data'],
+            fn: (args) => args['data']!,
           },
         },
       });
@@ -257,6 +268,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         await run('process()', {
           functions: {
             process: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -265,7 +277,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['input'],
+              fn: (args) => args['input']!,
             },
           },
         });
@@ -283,6 +295,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         await run('greet()', {
           functions: {
             greet: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'username',
@@ -308,6 +321,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('greet()', {
         functions: {
           greet: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'name',
@@ -327,6 +341,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('scale()', {
         functions: {
           scale: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'factor',
@@ -346,6 +361,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('greet("alice")', {
         functions: {
           greet: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'name',
@@ -368,6 +384,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         createRuntimeContext({
           functions: {
             broken: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'label',
@@ -376,7 +393,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
             },
           },
         })
@@ -388,6 +405,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         createRuntimeContext({
           functions: {
             broken: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'count',
@@ -396,7 +414,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
             },
           },
         })
@@ -410,6 +428,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         await run('fn(1, 2, 3)', {
           functions: {
             fn: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'x',
@@ -418,7 +437,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
             },
           },
         });
@@ -437,6 +456,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         await run('fn(1, 2, 3)', {
           functions: {
             fn: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'x',
@@ -445,7 +465,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
             },
           },
         });
@@ -463,6 +483,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const err = await run('fn(1, 2, 3)', {
         functions: {
           fn: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'x',
@@ -471,7 +492,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['x'],
+            fn: (args) => args['x']!,
           },
         },
       }).then(
@@ -496,10 +517,7 @@ describe('Rill Runtime: Host Type Validation', () => {
               fn: null as never, // placeholder, defined via script
             },
             functions: {
-              mkFn: {
-                params: [],
-                fn: () => null,
-              },
+              mkFn: { returnType: anyTypeValue, params: [], fn: () => null },
             },
           }),
         { code: 'RILL_R005', hostErrorId: 'RILL-R005' }
@@ -531,10 +549,7 @@ describe('Rill Runtime: Host Type Validation', () => {
     it('zero-param function registers and invokes without error', async () => {
       const result = await run('ping()', {
         functions: {
-          ping: {
-            params: [],
-            fn: () => 'pong',
-          },
+          ping: { returnType: anyTypeValue, params: [], fn: () => 'pong' },
         },
       });
       expect(result).toBe('pong');
@@ -546,6 +561,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('fn("hello")', {
         functions: {
           fn: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'val',
@@ -554,7 +570,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['val'],
+            fn: (args) => args['val']!,
           },
         },
       });
@@ -565,6 +581,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('fn(42)', {
         functions: {
           fn: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'val',
@@ -573,7 +590,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['val'],
+            fn: (args) => args['val']!,
           },
         },
       });
@@ -584,6 +601,7 @@ describe('Rill Runtime: Host Type Validation', () => {
       const result = await run('fn([1, 2])', {
         functions: {
           fn: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'val',
@@ -592,7 +610,7 @@ describe('Rill Runtime: Host Type Validation', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['val'],
+            fn: (args) => args['val']!,
           },
         },
       });

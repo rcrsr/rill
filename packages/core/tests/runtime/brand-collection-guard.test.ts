@@ -50,6 +50,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { RillVector } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
@@ -83,7 +84,7 @@ async function haltOf(
 /** vector values carry the `__rill_vector` marker; not constructable via rill
  * syntax, so provided as a host variable (mirrors the pattern in
  * tests/language/anonymous-typed-closure.test.ts). */
-const VECTOR_VAL = {
+const VECTOR_VAL: RillVector = {
   __rill_vector: true,
   data: new Float32Array([1, 2]),
   model: 'test',

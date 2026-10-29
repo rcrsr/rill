@@ -20,12 +20,18 @@
 
 import { describe, expect, it } from 'vitest';
 import type {
+  ApplicationCallable,
   ExtensionFactory,
   ExtensionFactoryCtx,
   ExtensionFactoryResult,
   ExtensionEvent,
 } from '@rcrsr/rill';
-import { emitExtensionEvent, createRuntimeContext } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  emitExtensionEvent,
+  createRuntimeContext,
+  toCallable,
+} from '@rcrsr/rill';
 
 describe('Rill Runtime: Extension System', () => {
   describe('Success Cases', () => {
@@ -34,7 +40,8 @@ describe('Rill Runtime: Extension System', () => {
         // Create a simple extension factory
         const createMathExtension = (): ExtensionFactoryResult => ({
           value: {
-            add: {
+            add: toCallable({
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'a',
@@ -50,8 +57,9 @@ describe('Rill Runtime: Extension System', () => {
                 },
               ],
               fn: (args) => (args['a'] as number) + (args['b'] as number),
-            },
-            multiply: {
+            }),
+            multiply: toCallable({
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'a',
@@ -67,29 +75,26 @@ describe('Rill Runtime: Extension System', () => {
                 },
               ],
               fn: (args) => (args['a'] as number) * (args['b'] as number),
-            },
+            }),
           },
         });
 
         const extension = createMathExtension();
-        const value = extension.value as Record<
-          string,
-          { params: unknown[]; fn: (...args: unknown[]) => unknown }
-        >;
+        const value = extension.value as Record<string, ApplicationCallable>;
 
         // Verify all values are RillFunction objects
-        expect(value.add).toBeDefined();
-        expect(value.add.params).toBeInstanceOf(Array);
-        expect(typeof value.add.fn).toBe('function');
+        expect(value['add']).toBeDefined();
+        expect(value['add']!.params).toBeInstanceOf(Array);
+        expect(typeof value['add']!.fn).toBe('function');
 
-        expect(value.multiply).toBeDefined();
-        expect(value.multiply.params).toBeInstanceOf(Array);
-        expect(typeof value.multiply.fn).toBe('function');
+        expect(value['multiply']).toBeDefined();
+        expect(value['multiply']!.params).toBeInstanceOf(Array);
+        expect(typeof value['multiply']!.fn).toBe('function');
       });
     });
 
     describe('AC-S7: TypeScript validates extension config at compile time', () => {
-      it('TypeScript validates extension config types', () => {
+      it('TypeScript validates extension config types', async () => {
         // This test validates compile-time type safety.
         // The factory signature enforces config type at compile time.
 
@@ -107,7 +112,8 @@ describe('Rill Runtime: Extension System', () => {
 
           return {
             value: {
-              get: {
+              get: toCallable({
+                returnType: anyTypeValue,
                 params: [
                   {
                     name: 'path',
@@ -118,7 +124,7 @@ describe('Rill Runtime: Extension System', () => {
                 ],
                 fn: (args) =>
                   `GET ${baseUrl}${args['path']} (timeout: ${timeout}ms)`,
-              },
+              }),
             },
           };
         };
@@ -132,7 +138,7 @@ describe('Rill Runtime: Extension System', () => {
           registerErrorCode: (_name: string, _kind: string) => {},
           signal: new AbortController().signal,
         };
-        const extension = createHttpExtension(validConfig, factoryCtx);
+        const extension = await createHttpExtension(validConfig, factoryCtx);
         const extValue = extension.value as Record<string, unknown>;
 
         expect(extValue['get']).toBeDefined();
@@ -229,8 +235,8 @@ describe('Rill Runtime: Extension System', () => {
       expect(events[0]!.event).toBe('extension_initialized');
       expect(events[0]!.subsystem).toBe('extension:openai');
       expect(events[0]!.timestamp).toBeDefined();
-      expect((events[0] as Record<string, unknown>).model).toBe('gpt-4');
-      expect((events[0] as Record<string, unknown>).config).toEqual({
+      expect((events[0] as Record<string, unknown>)['model']).toBe('gpt-4');
+      expect((events[0] as Record<string, unknown>)['config']).toEqual({
         temperature: 0.7,
       });
     });

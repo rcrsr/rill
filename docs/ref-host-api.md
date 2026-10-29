@@ -142,7 +142,7 @@ export type { ParseResult, RecoveryErrorNode, ErrorNode, ParseOptions };
 
 // Execution
 export { execute, createRuntimeContext, createStepper, generateManifest };
-export type { RuntimeContext, RuntimeOptions, ExecutionResult };
+export type { RuntimeContext, RuntimeOptions, ExecutionResult, TimeoutScheduler };
 export type { ExecutionStepper, StepResult };
 
 // Execution context (advanced use)
@@ -895,6 +895,21 @@ An empty function map returns `[:]`. Functions with `params: undefined` (created
 Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
 
 Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
+
+---
+
+## TimeoutScheduler
+
+`TimeoutScheduler` is the type of the `scheduler` option on `createRuntimeContext()`. It replaces the global timer functions for `timeout<total:>` and `timeout<idle:>` blocks, so a test can drive those blocks from fake timers.
+
+```typescript
+interface TimeoutScheduler {
+  setTimeout(fn: () => void, ms: number): ReturnType<typeof setTimeout>;
+  clearTimeout(handle: ReturnType<typeof setTimeout> | undefined): void;
+}
+```
+
+Without a `scheduler`, the runtime uses the global `setTimeout` and `clearTimeout`. The per-call `timeout` option always uses the global timers.
 
 ---
 

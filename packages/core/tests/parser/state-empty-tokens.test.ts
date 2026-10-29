@@ -3,9 +3,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { ParseError } from '../../src/types.ts';
-import { createParserState, current, peek } from '../../src/parser/state.ts';
-import { parseTypeRef } from '../../src/parser/parser-types.ts';
+import { ParseError } from '../../src/types.js';
+import { createParserState, current, peek } from '../../src/parser/state.js';
+import { parseTypeRef } from '../../src/parser/parser-types.js';
 
 describe('parser state on empty tokens', () => {
   it('current throws ParseError on empty tokens', () => {

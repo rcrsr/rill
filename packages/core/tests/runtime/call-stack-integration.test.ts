@@ -4,9 +4,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { run } from '../helpers/runtime.js';
+import { run, toRuntimeContext } from '../helpers/runtime.js';
 import { expectRuntimeError } from '../helpers/halt.js';
 import {
+  anyTypeValue,
   type CallFrame,
   RuntimeError,
   createRuntimeContext,
@@ -23,10 +24,13 @@ describe('Rill Runtime: Call Stack Integration', () => {
       const result = await run('testFn()', {
         functions: {
           testFn: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              expect(ctx.callStack).toHaveLength(1);
-              expect(ctx.callStack[0]?.functionName).toBe('testFn');
+              expect(toRuntimeContext(ctx).callStack).toHaveLength(1);
+              expect(toRuntimeContext(ctx).callStack[0]?.functionName).toBe(
+                'testFn'
+              );
               return 'ok';
             },
           },
@@ -40,9 +44,10 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('|x|{ capture() }(42)', {
         functions: {
           capture: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              capturedStack = [...ctx.callStack];
+              capturedStack = [...toRuntimeContext(ctx).callStack];
               return '';
             },
           },
@@ -59,9 +64,11 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('testFn()', {
         functions: {
           testFn: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              capturedLocation = ctx.callStack[0]?.location ?? null;
+              capturedLocation =
+                toRuntimeContext(ctx).callStack[0]?.location ?? null;
               return '';
             },
           },
@@ -69,8 +76,8 @@ describe('Rill Runtime: Call Stack Integration', () => {
       });
 
       expect(capturedLocation).toBeDefined();
-      expect(capturedLocation.start).toBeDefined();
-      expect(capturedLocation.end).toBeDefined();
+      expect(capturedLocation!.start).toBeDefined();
+      expect(capturedLocation!.end).toBeDefined();
     });
 
     it('includes function name in CallFrame (IC-9)', async () => {
@@ -78,9 +85,10 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('myFunction()', {
         functions: {
           myFunction: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              capturedName = ctx.callStack[0]?.functionName;
+              capturedName = toRuntimeContext(ctx).callStack[0]?.functionName;
               return '';
             },
           },
@@ -97,16 +105,17 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('testFn()', {
         functions: {
           testFn: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              ctx = c;
+              ctx = toRuntimeContext(c);
               return 'ok';
             },
           },
         },
       });
 
-      expect(ctx.callStack).toHaveLength(0);
+      expect(ctx!.callStack).toHaveLength(0);
     });
 
     it('pops frame after closure returns', async () => {
@@ -114,16 +123,17 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('|x|{ capture() }(5)', {
         functions: {
           capture: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              ctx = c;
+              ctx = toRuntimeContext(c);
               return '';
             },
           },
         },
       });
 
-      expect(ctx.callStack).toHaveLength(0);
+      expect(ctx!.callStack).toHaveLength(0);
     });
 
     it('pops frame after method call returns', async () => {
@@ -131,6 +141,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('"hello".upper() -> capture()', {
         functions: {
           capture: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'val',
@@ -140,14 +151,14 @@ describe('Rill Runtime: Call Stack Integration', () => {
               },
             ],
             fn: (_args, c) => {
-              ctx = c;
+              ctx = toRuntimeContext(c);
               return '';
             },
           },
         },
       });
 
-      expect(ctx.callStack).toHaveLength(0);
+      expect(ctx!.callStack).toHaveLength(0);
     });
   });
 
@@ -156,9 +167,10 @@ describe('Rill Runtime: Call Stack Integration', () => {
       const ctx = createRuntimeContext({
         functions: {
           failFn: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              depthInBody = c.callStack.length;
+              depthInBody = toRuntimeContext(c).callStack.length;
               throw new RuntimeError('RILL-R001', 'Test error');
             },
           },
@@ -178,6 +190,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
       const ctx = createRuntimeContext({
         functions: {
           fail: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => {
               throw new RuntimeError('RILL-R001', 'Test error');
@@ -207,23 +220,26 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('level1() -> level2() -> level3()', {
         functions: {
           level3: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              depth3 = ctx.callStack.length;
+              depth3 = toRuntimeContext(ctx).callStack.length;
               return 'done';
             },
           },
           level2: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              depth2 = ctx.callStack.length;
+              depth2 = toRuntimeContext(ctx).callStack.length;
               return '';
             },
           },
           level1: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              depth1 = ctx.callStack.length;
+              depth1 = toRuntimeContext(ctx).callStack.length;
               return '';
             },
           },
@@ -241,9 +257,10 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('||{ ||{ capture() }() }()', {
         functions: {
           capture: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              capturedStack = [...ctx.callStack];
+              capturedStack = [...toRuntimeContext(ctx).callStack];
               return '';
             },
           },
@@ -263,6 +280,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('dict[fn: |x|{ capture() }].fn(42)', {
         functions: {
           capture: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'val',
@@ -272,7 +290,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
               },
             ],
             fn: (_args, ctx) => {
-              capturedStack = [...ctx.callStack];
+              capturedStack = [...toRuntimeContext(ctx).callStack];
               return '';
             },
           },
@@ -290,9 +308,11 @@ describe('Rill Runtime: Call Stack Integration', () => {
       await run('testFn()', {
         functions: {
           testFn: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              callSiteLocation = ctx.callStack[0]?.location ?? null;
+              callSiteLocation =
+                toRuntimeContext(ctx).callStack[0]?.location ?? null;
               return '';
             },
           },
@@ -300,7 +320,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
       });
 
       expect(callSiteLocation).toBeDefined();
-      expect(callSiteLocation.start.offset).toBe(0);
+      expect(callSiteLocation!.start.offset).toBe(0);
     });
   });
 });

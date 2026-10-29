@@ -5,7 +5,11 @@
  * into the RuntimeContext and is accessible to host functions.
  */
 
-import { createRuntimeContext, type RuntimeContext } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  createRuntimeContext,
+  type RuntimeContext,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -50,6 +54,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
         metadata: { testKey: 'hello-from-metadata' },
         functions: {
           readMeta: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',
@@ -78,6 +83,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
         metadata: { env: 'test' },
         functions: {
           readMeta: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',
@@ -104,6 +110,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
         metadata: { a: '1', b: '2', c: '3' },
         functions: {
           collectMeta: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',
@@ -130,6 +137,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
       await run('"x" -> checkMeta', {
         functions: {
           checkMeta: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'input',

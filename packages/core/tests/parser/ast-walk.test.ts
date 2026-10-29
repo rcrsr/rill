@@ -28,6 +28,7 @@ const KNOWN_NODE_TYPES_RECORD = {
   PipeChain: true,
   PostfixExpr: true,
   MethodCall: true,
+  IndexAccess: true,
   Invoke: true,
   AnnotationAccess: true,
   HostCall: true,

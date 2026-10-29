@@ -17,11 +17,13 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   atomName,
   BUILT_IN_TYPES,
   createRillStream,
   createRuntimeContext,
   createStepper,
+  type ExtensionEvent,
   execute,
   getStatus,
   isInvalid,
@@ -93,7 +95,7 @@ function catchHalt(exec: () => never): RuntimeHaltSignal {
 }
 
 const SITE: TypeHaltSite = {
-  location: { line: 3, column: 7 },
+  location: { line: 3, column: 7, offset: 0 },
   sourceId: 'test.rill',
   fn: '',
 };
@@ -110,7 +112,7 @@ describe('throwAbortHalt (IR-1 / EC-1)', () => {
     expect(atomName(status.code)).toBe('DISPOSED');
     expect(status.provider).toBe('runtime');
     expect(status.message).toBe('aborted');
-    expect(status.raw.message).toBe('aborted');
+    expect(status.raw['message']).toBe('aborted');
   });
 
   it('attaches a single host-kind trace frame with the caller fn', () => {
@@ -149,12 +151,12 @@ describe('throwAutoExceptionHalt (IR-2 / EC-2)', () => {
     );
 
     const status = getStatus(signal.value);
-    expect(status.raw.pattern).toBe('timeout');
-    expect(status.raw.matchedValue).toBe('request timed out');
+    expect(status.raw['pattern']).toBe('timeout');
+    expect(status.raw['matchedValue']).toBe('request timed out');
     // Message is derived by the builder; assert it mentions pattern and value.
     expect(status.message).toContain('timeout');
     expect(status.message).toContain('request timed out');
-    expect(status.raw.message).toBe(status.message);
+    expect(status.raw['message']).toBe(status.message);
   });
 
   it('attaches a single host-kind trace frame with fn=checkAutoExceptions', () => {
@@ -187,7 +189,7 @@ describe('throwErrorHalt (IR-3 / EC-4)', () => {
     expect(atomName(status.code)).toBe(ERROR_ATOMS[ERROR_IDS.RILL_R016]);
     expect(status.provider).toBe('runtime');
     expect(status.message).toBe('oh no');
-    expect(status.raw.message).toBe('oh no');
+    expect(status.raw['message']).toBe('oh no');
   });
 
   it('interpolated=false emits a single host frame and no wrap frame', () => {
@@ -219,10 +221,10 @@ describe('throwErrorHalt (IR-3 / EC-4)', () => {
 
     // Wrapped dict preserves the prior status fields.
     const wrapped = wrap!.wrapped as Record<string, unknown>;
-    expect(wrapped.message).toBe('interpolated message');
-    expect(wrapped.provider).toBe('runtime');
-    expect(typeof wrapped.code).toBe('string');
-    expect(wrapped.raw).toBeDefined();
+    expect(wrapped['message']).toBe('interpolated message');
+    expect(wrapped['provider']).toBe('runtime');
+    expect(typeof wrapped['code']).toBe('string');
+    expect(wrapped['raw']).toBeDefined();
   });
 });
 
@@ -272,7 +274,7 @@ describe('throwCatchableHostHalt (EC-5 / EC-6)', () => {
 
     const status = getStatus(signal.value);
     expect(status.message).toBe('function not found');
-    expect(status.raw.message).toBe('function not found');
+    expect(status.raw['message']).toBe('function not found');
     expect(status.provider).toBe('runtime');
   });
 
@@ -306,8 +308,8 @@ describe('throwCatchableHostHalt (EC-5 / EC-6)', () => {
     );
 
     const status = getStatus(signal.value);
-    expect(status.raw.callee).toBe('myFn');
-    expect(status.raw.message).toBe('function not found');
+    expect(status.raw['callee']).toBe('myFn');
+    expect(status.raw['message']).toBe('function not found');
   });
 
   it('caught.catchable === true satisfies guard/retry contract surface [EC-6]', () => {
@@ -359,7 +361,7 @@ describe('throwFatalHostHalt (EC-5 / EC-7)', () => {
 
     const status = getStatus(signal.value);
     expect(status.message).toBe('iteration limit exceeded');
-    expect(status.raw.message).toBe('iteration limit exceeded');
+    expect(status.raw['message']).toBe('iteration limit exceeded');
     expect(status.provider).toBe('runtime');
   });
 
@@ -393,8 +395,8 @@ describe('throwFatalHostHalt (EC-5 / EC-7)', () => {
     );
 
     const status = getStatus(signal.value);
-    expect(status.raw.limit).toBe(10000);
-    expect(status.raw.message).toBe('iteration limit exceeded');
+    expect(status.raw['limit']).toBe(10000);
+    expect(status.raw['message']).toBe('iteration limit exceeded');
   });
 
   it('payload has code and trace frame suitable for convertHaltToRuntimeError [EC-7]', () => {
@@ -1023,6 +1025,7 @@ describe('halt atom registration (file)', () => {
 
   function makeRaiser(atom: string): RillFunction {
     return {
+      returnType: anyTypeValue,
       params: [],
       fn: () => throwFatalHostHalt({ fn: 'raise' }, atom, `${atom} raised`),
     };
@@ -1047,8 +1050,8 @@ describe('halt atom registration (file)', () => {
         expect(err.rawMessage).toBe(`${atom} raised`);
         expect(err.haltSignal).toBeInstanceOf(RuntimeHaltSignal);
         expect(err.haltValue).toBe(err.haltSignal?.value);
-        expect(isInvalid(err.haltValue)).toBe(true);
-        expect(atomName(getStatus(err.haltValue).code)).toBe(atom);
+        expect(isInvalid(err.haltValue!)).toBe(true);
+        expect(atomName(getStatus(err.haltValue!).code)).toBe(atom);
         await ctx.dispose();
       }
     );
@@ -1462,6 +1465,7 @@ describe('host-error shape (file)', () => {
 
   function makeBoundaryBoom(options: HostOptions): RillFunction {
     return {
+      returnType: anyTypeValue,
       params: [],
       fn: () => {
         try {
@@ -1537,6 +1541,7 @@ describe('host-error shape (file)', () => {
       // A stream chunk halt reaches the host boundary without the call-stack
       // payload a host-call dispatch adds, so no raw extras remain.
       const stream: RillFunction = {
+        returnType: anyTypeValue,
         params: [],
         fn: (): RillValue =>
           createRillStream({
@@ -1608,6 +1613,7 @@ describe('host-error shape (file)', () => {
     location: typeof OWN_LOCATION | undefined
   ): RillFunction {
     return {
+      returnType: anyTypeValue,
       params: [],
       fn: () => {
         throwFatalHostHalt(
@@ -1684,6 +1690,7 @@ describe('host-error shape (file)', () => {
 
   function makeStreamWithNext(raw: Record<string, RillValue>): RillFunction {
     return {
+      returnType: anyTypeValue,
       params: [],
       fn: (): RillValue =>
         createRillStream({
@@ -1755,6 +1762,7 @@ describe('host-error shape (file)', () => {
       return '';
     };
     return {
+      returnType: anyTypeValue,
       params: [],
       fn: () => {
         const work = raise();
@@ -1904,8 +1912,10 @@ describe('host-error shape (file)', () => {
           },
           ...(withEvent
             ? {
-                onLogEvent: (event: { detail?: string | undefined }): void => {
-                  out.push(event.detail ?? '');
+                onLogEvent: (event: ExtensionEvent): void => {
+                  out.push(
+                    typeof event['detail'] === 'string' ? event['detail'] : ''
+                  );
                 },
               }
             : {}),
@@ -1946,6 +1956,7 @@ describe('host-error shape (file)', () => {
       const ctx = createRuntimeContext({
         functions: {
           s: {
+            returnType: anyTypeValue,
             params: [],
             fn: (): RillValue =>
               createRillStream({
@@ -1967,8 +1978,10 @@ describe('host-error shape (file)', () => {
         },
         callbacks: {
           onLog: () => undefined,
-          onLogEvent: (event: { detail?: string | undefined }): void => {
-            out.push(event.detail ?? '');
+          onLogEvent: (event: ExtensionEvent): void => {
+            out.push(
+              typeof event['detail'] === 'string' ? event['detail'] : ''
+            );
           },
         },
       });
@@ -1990,8 +2003,10 @@ describe('host-error shape (file)', () => {
         },
         callbacks: {
           onLog: () => undefined,
-          onLogEvent: (event: { detail?: string | undefined }): void => {
-            out.push(event.detail ?? '');
+          onLogEvent: (event: ExtensionEvent): void => {
+            out.push(
+              typeof event['detail'] === 'string' ? event['detail'] : ''
+            );
           },
         },
       });

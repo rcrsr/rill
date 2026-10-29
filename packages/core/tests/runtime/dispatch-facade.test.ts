@@ -18,6 +18,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   createRuntimeContext,
   createChildContext,
   isCallable,
@@ -35,7 +36,7 @@ describe('DispatchContext', () => {
       const myFn = async () => 'result';
       const ctx = createRuntimeContext({
         functions: {
-          myFn: { params: [], fn: myFn },
+          myFn: { returnType: anyTypeValue, params: [], fn: myFn },
         },
       });
       expect(ctx.functions.has('myFn')).toBe(true);
@@ -46,11 +47,17 @@ describe('DispatchContext', () => {
     it('user-defined function is callable via the stored entry', () => {
       const ctx = createRuntimeContext({
         functions: {
-          greet: { params: [], fn: async () => 'hello' },
+          greet: {
+            returnType: anyTypeValue,
+            params: [],
+            fn: async () => 'hello',
+          },
         },
       });
       const entry = ctx.functions.get('greet');
-      expect(isCallable(entry)).toBe(true);
+      expect(
+        entry !== undefined && typeof entry === 'object' && isCallable(entry)
+      ).toBe(true);
     });
 
     it('unknown function name returns undefined', () => {
@@ -86,7 +93,7 @@ describe('DispatchContext', () => {
       const ctx = createRuntimeContext({});
       const stringMethods = ctx.typeMethodDicts.get('string');
       const upper = stringMethods!['upper'];
-      expect(isCallable(upper)).toBe(true);
+      expect(isCallable(upper!)).toBe(true);
     });
   });
 

@@ -32,8 +32,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { type RuntimeContext } from '@rcrsr/rill';
-import { run } from '../helpers/runtime.js';
+import { anyTypeValue, type RillFunction } from '@rcrsr/rill';
+import { run, toRuntimeContext } from '../helpers/runtime.js';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -45,14 +45,14 @@ import { run } from '../helpers/runtime.js';
  * used in tests/language/timeout.test.ts so the body reliably outlasts the
  * timeout duration requested by the caller.
  */
-function makeSlowFn(delayMs: number) {
+function makeSlowFn(delayMs: number): RillFunction {
   return {
-    params: [] as never,
-    returnType: { __type: 'any' } as never,
-    fn: async (_args: Record<string, unknown>, ctx: RuntimeContext) => {
+    params: [],
+    returnType: anyTypeValue,
+    fn: async (_args, ctx) => {
       await new Promise<void>((resolve, reject) => {
         const handle = setTimeout(resolve, delayMs);
-        ctx.signal?.addEventListener(
+        toRuntimeContext(ctx).signal?.addEventListener(
           'abort',
           () => {
             clearTimeout(handle);

@@ -10,7 +10,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { RillError, RuntimeError } from '@rcrsr/rill';
+import { anyTypeValue, RillError, RuntimeError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: error context isolation', () => {
@@ -27,6 +27,7 @@ describe('Rill Runtime: error context isolation', () => {
         await run('failFn()', {
           functions: {
             failFn: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => {
                 const e = new RuntimeError('RILL-R001', 'Test error');

@@ -143,7 +143,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['input'],
+            fn: (args) => args['input']!,
             returnType: anyTypeValue,
           },
         },
@@ -286,7 +286,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
             annotations: {},
           },
         ],
-        fn: (args) => args['x'],
+        fn: (args) => args['x']!,
         returnType: anyTypeValue,
         // No annotations field - should compile without error
       };
@@ -309,7 +309,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['input'],
+            fn: (args) => args['input']!,
             returnType: anyTypeValue,
             // No annotations - old style
           },
@@ -328,7 +328,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: { description: 'Input value' },
               },
             ],
-            fn: (args) => args['input'],
+            fn: (args) => args['input']!,
             annotations: { description: 'New style function with docs' },
             returnType: anyTypeValue,
           },
@@ -348,7 +348,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: {},
               },
             ],
-            fn: (args) => args['input'],
+            fn: (args) => args['input']!,
             returnType: anyTypeValue,
           },
           new: {
@@ -366,7 +366,7 @@ describe('Rill Runtime: Introspection Backward Compatibility', () => {
                 annotations: { description: 'Input value' },
               },
             ],
-            fn: (args) => args['input'],
+            fn: (args) => args['input']!,
             annotations: { description: 'New style function with docs' },
             returnType: anyTypeValue,
           },

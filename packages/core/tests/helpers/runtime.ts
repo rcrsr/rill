@@ -4,11 +4,13 @@
 
 import {
   anyTypeValue,
+  type CallableFn,
   createRuntimeContext,
   execute,
   type ExecutionResult,
   type ObservabilityCallbacks,
   parse,
+  type RillCallable,
   type RillFunction,
   type RillValue,
   type RuntimeContext,
@@ -53,6 +55,36 @@ export async function runWithContext(
   return { result, context: ctx };
 }
 
+/** Context parameter type that host functions receive */
+type HostFnContext = Parameters<CallableFn>[1];
+
+/** Narrow the minimal context a host function receives to the full RuntimeContext */
+function isRuntimeContext(ctx: HostFnContext): ctx is RuntimeContext {
+  return 'callStack' in ctx && 'annotationStack' in ctx && 'functions' in ctx;
+}
+
+/**
+ * Return the full RuntimeContext behind a host function's context parameter.
+ * Host functions are typed with a minimal context; the evaluator always passes
+ * the real one, so tests that inspect call or annotation state narrow it here.
+ */
+export function toRuntimeContext(ctx: HostFnContext): RuntimeContext {
+  if (!isRuntimeContext(ctx)) {
+    throw new Error('host function context is not a full RuntimeContext');
+  }
+  return ctx;
+}
+
+/**
+ * Check a callable literal against its type and return it as a non-fresh
+ * value, so it can be passed where a RillValue is expected (a fresh object
+ * literal with host fields like `fn` fails the excess-property check against
+ * RillValue's structural members).
+ */
+export function callableLiteral<T extends RillCallable>(callable: T): T {
+  return callable;
+}
+
 /** Create a mock async function with configurable delay */
 export function mockAsyncFn(
   delay: number,
@@ -78,16 +110,15 @@ export function mockFn(returnValue: RillValue = null): RillFunction & {
     calls.push(args);
     return returnValue;
   };
-  const hostDef = {
+  return {
     params: [],
     returnType: anyTypeValue,
     fn,
-  } as RillFunction & { calls: Record<string, RillValue>[]; callCount: number };
-  hostDef.calls = calls;
-  Object.defineProperty(hostDef, 'callCount', {
-    get: () => calls.length,
-  });
-  return hostDef;
+    calls,
+    get callCount() {
+      return calls.length;
+    },
+  };
 }
 
 /** Event collector for observability testing */

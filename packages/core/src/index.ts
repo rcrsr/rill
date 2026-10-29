@@ -48,6 +48,7 @@ export type {
   StepEndEvent,
   StepResult,
   StepStartEvent,
+  TimeoutScheduler,
 } from './runtime/core/types/runtime.js';
 export type { InvalidateMeta } from './runtime/core/types/status.js';
 export type {
