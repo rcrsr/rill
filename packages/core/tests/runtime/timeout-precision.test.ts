@@ -1,161 +1,106 @@
 /**
- * Rill Runtime Tests: Timeout Precision (AC-18 / BC-1)
+ * Rill Runtime Tests: Timeout Precision
  *
- * Specification Mapping:
- * - AC-18 / BC-1: timeout<total: duration(ms: 100)> fires within ±75ms of the
- *   requested duration across 20 runs.
- *
- * [PATH A — real wall-clock] The current implementation drives timeouts via
- * real setTimeout. RuntimeOptions.nowMs only seeds Date.now() for script-level
- * temporal functions; it does not affect setTimeout scheduling. Virtual-clock
- * (fake timer) testing would exercise setTimeout scheduling in isolation but
- * would not validate the actual wall-clock precision of the end-to-end halt
- * path. Path A validates the real delivery latency as observed by the caller.
- *
- * [TOLERANCE] The spec states ±50ms across 100 runs. This test uses 20 runs
- * with a ±75ms nominal band. setTimeout delivery can only be LATE, never early,
- * so the lower bound (25ms) is enforced on every run — firing earlier would be a
- * real precision bug. The upper bound (175ms) tolerates a bounded fraction of
- * slow outliers, because OS scheduler jitter (GC pauses, CPU contention on
- * shared CI runners) produces occasional late deliveries that are not bugs. A
- * systematic regression still fails the test: it shifts the median past its
- * ±50ms guard and pushes the outlier count over budget.
- *
- * [DEVIATION] duration() only supports positional args (not named).
- * duration(0, 0, 0, 0, 0, 0, X) specifies X milliseconds.
- * Reference: packages/core/tests/language/duration.test.ts, line 6.
- *
- * [DEVIATION] The timeout body uses a signal-aware host function (makeSlowFn)
- * to ensure the body outlasts the timeout. Host functions that do not observe
- * ctx.signal complete after the timeout fires, making elapsed time measurement
- * unreliable for precision testing.
+ * timeout<total: duration(...)> hands the scheduler exactly the requested
+ * millisecond count, leaves the body running until the timer fires, and then
+ * guard sees RILL-R082. The scheduler is injected, so no real timer runs and
+ * the test cannot flake under load.
  */
 
 import { describe, expect, it } from 'vitest';
-import { anyTypeValue, type RillFunction } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  type RillFunction,
+  type TimeoutScheduler,
+} from '@rcrsr/rill';
 import { run, toRuntimeContext } from '../helpers/runtime.js';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+interface ManualScheduler {
+  readonly scheduler: TimeoutScheduler;
+  readonly requested: number[];
+  fire(): void;
+}
 
-/**
- * Build a signal-aware host function that blocks for `delayMs` ms but
- * resolves (or rejects) as soon as ctx.signal fires. This mirrors the pattern
- * used in tests/language/timeout.test.ts so the body reliably outlasts the
- * timeout duration requested by the caller.
- */
-function makeSlowFn(delayMs: number): RillFunction {
+/** Scheduler that records requested delays and fires only when told to. */
+function makeManualScheduler(): ManualScheduler {
+  const requested: number[] = [];
+  const callbacks: Array<() => void> = [];
+  return {
+    requested,
+    scheduler: {
+      setTimeout: (fn, ms) => {
+        requested.push(ms);
+        callbacks.push(fn);
+        return 0 as unknown as ReturnType<typeof setTimeout>;
+      },
+      clearTimeout: () => undefined,
+    },
+    fire: () => {
+      for (const fn of callbacks) fn();
+    },
+  };
+}
+
+/** Host function that stays pending until ctx.signal aborts, then rejects. */
+function makeAbortAwareBody(onStart: () => void): RillFunction {
   return {
     params: [],
     returnType: anyTypeValue,
     fn: async (_args, ctx) => {
-      await new Promise<void>((resolve, reject) => {
-        const handle = setTimeout(resolve, delayMs);
-        toRuntimeContext(ctx).signal?.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(handle);
-            reject(new Error('aborted'));
-          },
-          { once: true }
-        );
+      onStart();
+      await new Promise<void>((_resolve, reject) => {
+        const signal = toRuntimeContext(ctx).signal;
+        signal?.addEventListener('abort', () => reject(new Error('aborted')), {
+          once: true,
+        });
       });
       return 'done';
     },
   };
 }
 
-/**
- * Execute a single timeout run and return the elapsed wall-clock time in ms.
- * The body is guaranteed to outlast the timeout (1500ms body vs 100ms timeout).
- * The execution will reject (catchable RuntimeHaltSignal) or the guard will
- * return an invalid value — either way we measure elapsed time.
- */
-async function measureTimeoutElapsed(targetMs: number): Promise<number> {
-  const start = performance.now();
-  try {
-    // Guard catches the catchable #TIMEOUT_TOTAL halt so the promise resolves
-    // rather than rejecting, making timing measurement simpler.
-    await run(
-      `guard { timeout<total: duration(0, 0, 0, 0, 0, 0, ${targetMs})> { precision_body() } }`,
-      { functions: { precision_body: makeSlowFn(1500) } }
-    );
-  } catch {
-    // Even if guard is bypassed, we still measure elapsed time.
-  }
-  return performance.now() - start;
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 10; i++) await Promise.resolve();
 }
 
-// ---------------------------------------------------------------------------
-// AC-18 / BC-1: Precision boundary
-// ---------------------------------------------------------------------------
+describe('timeout<total:> scheduling', () => {
+  it.each([100, 1, 2500])(
+    'schedules exactly %i ms, keeps the body pending, then guard sees RILL-R082',
+    async (ms) => {
+      const manual = makeManualScheduler();
+      let markStarted: () => void = () => undefined;
+      const started = new Promise<void>((resolve) => {
+        markStarted = resolve;
+      });
+      let settled = false;
 
-describe('AC-18 / BC-1: timeout<total:> precision within ±75ms', () => {
-  it('fires within ±75ms of 100ms target across 20 runs', async () => {
-    const TARGET_MS = 100;
-    const TOLERANCE_MS = 75;
-    const RUN_COUNT = 20;
-    const MIN_ALLOWED = TARGET_MS - TOLERANCE_MS; // 25ms
-    const MAX_ALLOWED = TARGET_MS + TOLERANCE_MS; // 175ms
-    // Late deliveries from OS scheduler jitter are not precision bugs. Allow up
-    // to this many runs to exceed the upper band before failing.
-    const MAX_UPPER_OUTLIERS = Math.ceil(RUN_COUNT * 0.25); // 5 of 20
+      const pending = run(
+        `guard { timeout<total: duration(0, 0, 0, 0, 0, 0, ${ms})> { precision_body() } } => $r\n($r.!code == #RILL_R082)`,
+        {
+          functions: {
+            precision_body: makeAbortAwareBody(() => markStarted()),
+          },
+          scheduler: manual.scheduler,
+        }
+      );
+      void pending.then(
+        () => {
+          settled = true;
+        },
+        () => {
+          settled = true;
+        }
+      );
 
-    const elapsedValues: number[] = [];
+      await started;
+      await flushMicrotasks();
+      expect(manual.requested).toEqual([ms]);
+      expect(settled).toBe(false);
 
-    for (let i = 0; i < RUN_COUNT; i++) {
-      const elapsed = await measureTimeoutElapsed(TARGET_MS);
-      elapsedValues.push(elapsed);
+      manual.fire();
+      const result = await pending;
+
+      expect(result).toBe(true);
     }
-
-    // Sort for percentile analysis
-    const sorted = [...elapsedValues].sort((a, b) => a - b);
-    const min = sorted[0]!;
-    const max = sorted[sorted.length - 1]!;
-    const median = sorted[Math.floor(sorted.length / 2)]!;
-    const mean =
-      elapsedValues.reduce((sum, v) => sum + v, 0) / elapsedValues.length;
-
-    // Lower bound is strict on every run: setTimeout cannot fire before its
-    // duration, so an early halt is a genuine precision bug.
-    for (let i = 0; i < RUN_COUNT; i++) {
-      const elapsed = elapsedValues[i]!;
-      expect(
-        elapsed,
-        `Run ${i + 1}: elapsed ${elapsed.toFixed(1)}ms fired earlier than ${MIN_ALLOWED}ms`
-      ).toBeGreaterThanOrEqual(MIN_ALLOWED);
-    }
-
-    // Upper bound tolerates a bounded number of slow outliers from scheduler
-    // jitter. A systematic regression pushes the count over budget (and also
-    // trips the median guard below).
-    const upperOutliers = elapsedValues.filter((e) => e > MAX_ALLOWED);
-    expect(
-      upperOutliers.length,
-      `${upperOutliers.length} run(s) exceeded ${MAX_ALLOWED}ms ` +
-        `(budget ${MAX_UPPER_OUTLIERS}): ${upperOutliers
-          .map((e) => e.toFixed(1))
-          .join(', ')}ms`
-    ).toBeLessThanOrEqual(MAX_UPPER_OUTLIERS);
-
-    // Median guards against systematic bias. It is robust to the occasional
-    // outliers allowed above, so it stays close to the spec's ±50ms target.
-    const MEDIAN_TOLERANCE_MS = 50;
-    expect(
-      median,
-      `Median ${median.toFixed(1)}ms too far from target ${TARGET_MS}ms`
-    ).toBeGreaterThanOrEqual(TARGET_MS - MEDIAN_TOLERANCE_MS);
-    expect(
-      median,
-      `Median ${median.toFixed(1)}ms too far from target ${TARGET_MS}ms`
-    ).toBeLessThanOrEqual(TARGET_MS + MEDIAN_TOLERANCE_MS);
-
-    // Log distribution for debugging CI flakes.
-    // Use console.info so it appears in verbose output without failing the test.
-    console.info(
-      `[timeout-precision] n=${RUN_COUNT} target=${TARGET_MS}ms ` +
-        `min=${min.toFixed(1)} median=${median.toFixed(1)} mean=${mean.toFixed(1)} max=${max.toFixed(1)}ms`
-    );
-  }, 15000); // 20 runs × ~175ms worst case = ~3500ms, add 10s buffer for CI
+  );
 });

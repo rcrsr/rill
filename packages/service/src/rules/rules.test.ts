@@ -22,7 +22,7 @@ describe('RULES', () => {
 
 /**
  * Authoritative code -> category mapping, ported verbatim from the
- * rill-cli check engine. This table restates the 42 rule categories in a
+ * rill-cli check engine. This table restates the rule categories in a
  * second location, so it is a change detector, not a behavioral test:
  * `category` is not read by any code in this repo. Its value is as a
  * review artifact - it concentrates the port into one block a reviewer

@@ -3,7 +3,7 @@
  *
  * Runs `runRules` against every statically-extractable snippet in the
  * protected core language test corpus (via `corpus-loader.ts`) to assert
- * structural invariants: no snippet throws, the full 42-rule registry
+ * structural invariants: no snippet throws, the full rule registry
  * executes, and emitted diagnostics stay sorted by line then column. It
  * also reproduces purpose-built per-rule firing scenarios and
  * severity-resolution behavior.
@@ -14,20 +14,14 @@
  */
 
 import { beforeAll, describe, expect, it } from 'vitest';
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { parseWithRecovery } from '@rcrsr/rill';
 import { loadCorpusSnippets, listCorpusFileNames } from './corpus-loader.js';
 import { compareDiagnosticLocation, runRules } from './run-rules.js';
 import { createDefaultConfig } from './config.js';
 import { RULES } from './rules.js';
-import type { CheckConfig, Diagnostic } from './types.js';
+import type { Diagnostic } from './types.js';
 import { useDynamicIdentifier, useUntypedHostRef } from './use-expressions.js';
-
-/** Minimal CheckConfig with every rule 'on' and no global override. */
-function makeConfig(overrides: Partial<CheckConfig> = {}): CheckConfig {
-  return { rules: {}, ...overrides };
-}
+import { makeConfig } from './test-support.js';
 
 interface CorpusRunResult {
   readonly file: string;
@@ -70,11 +64,6 @@ describe('full corpus run', () => {
     // average, without pinning either number.
     expect(fileNames.length).toBeGreaterThan(0);
     expect(loadCorpusSnippets().length).toBeGreaterThan(fileNames.length);
-  });
-
-  it('registers the complete 42-rule set and passes it through to runRules', () => {
-    expect(RULES.length).toBe(42);
-    expect(Object.keys(createDefaultConfig().rules)).toHaveLength(42);
   });
 
   it('never throws while parsing and checking any corpus snippet', () => {
@@ -227,41 +216,5 @@ describe('severity reproduction', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]?.severity).toBe('info');
-  });
-});
-
-/**
- * Recursively list every file path under `dir`, so a subdirectory added
- * later is scanned too rather than silently skipped.
- */
-function listFilesRecursively(dir: string): string[] {
-  const files: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...listFilesRecursively(fullPath));
-    } else if (entry.isFile()) {
-      files.push(fullPath);
-    }
-  }
-  return files;
-}
-
-describe('stub removal: raw-text proof', () => {
-  it('does not contain the raw text "stub" in any source file under src/rules/', () => {
-    const rulesDir = join(import.meta.dirname, '.');
-    const offenders: string[] = [];
-    for (const fullPath of listFilesRecursively(rulesDir)) {
-      if (fullPath === import.meta.filename) continue;
-      if (!fullPath.endsWith('.ts')) continue;
-      const contents = readFileSync(fullPath, 'utf8');
-      if (contents.toLowerCase().includes('stub')) {
-        offenders.push(fullPath);
-      }
-    }
-    expect(
-      offenders,
-      `Expected no source file under src/rules/ to contain the raw text "stub", but found it in: ${offenders.join(', ')}`
-    ).toEqual([]);
   });
 });

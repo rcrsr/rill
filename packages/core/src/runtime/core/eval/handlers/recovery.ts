@@ -55,9 +55,14 @@ import {
   throwCatchableHostHalt,
 } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import type { RuntimeContext, TimeoutScheduler } from '../../types/runtime.js';
+import type { RuntimeContext } from '../../types/runtime.js';
 import { ControlSignal } from '../../signals.js';
-import { getNodeLocation, checkAborted, maybeYield } from '../shared.js';
+import {
+  getNodeLocation,
+  checkAborted,
+  maybeYield,
+  defaultScheduler,
+} from '../shared.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluateExpression } from './core.js';
 
@@ -350,7 +355,7 @@ export async function evaluateTimeoutBlock(
     fn: 'timeout',
   };
 
-  const sched = s.ctx.scheduler ?? globalScheduler;
+  const sched = s.ctx.scheduler ?? defaultScheduler;
   let timerHandle: ReturnType<typeof setTimeout> | undefined;
   let idleTicker: { reset(): void; cancel(): void } | undefined;
   let expired = false;
@@ -464,19 +469,6 @@ function isAbortHalt(e: unknown): boolean {
 }
 
 // ============================================================
-// SCHEDULER
-// ============================================================
-
-const globalScheduler: TimeoutScheduler = {
-  setTimeout(fn, ms) {
-    return setTimeout(fn, ms);
-  },
-  clearTimeout(handle) {
-    clearTimeout(handle);
-  },
-};
-
-// ============================================================
 // IDLE-TICK HELPER
 // ============================================================
 
@@ -506,7 +498,7 @@ function createIdleTicker(args: {
   onIdle: () => void;
 }): { reset(): void; cancel(): void } {
   const { ctx, idleMs, onIdle } = args;
-  const sched = ctx.scheduler ?? globalScheduler;
+  const sched = ctx.scheduler ?? defaultScheduler;
 
   let handle: ReturnType<typeof setTimeout> | undefined;
   let cancelled = false;

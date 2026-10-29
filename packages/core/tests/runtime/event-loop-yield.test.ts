@@ -6,7 +6,6 @@
 
 import {
   anyTypeValue,
-  atomName,
   createRuntimeContext,
   execute,
   getStatus,
@@ -20,6 +19,7 @@ import {
 } from '@rcrsr/rill';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { expectAbortHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 // The yield logic binds the clock when the evaluator module loads, so the
@@ -56,23 +56,6 @@ const BOUNDED_SCRIPT = BOUNDED.replace('SIZE', String(BOUNDED_SIZE));
 const BOUNDED_RESULT = 4950 * BOUNDED_SIZE;
 
 const ABORT_MS = 200;
-
-/** Asserts the thrown error is a non-catchable #DISPOSED abort halt. */
-async function expectAbortHalt(
-  exec: () => Promise<unknown>
-): Promise<RuntimeHaltSignal> {
-  let caught: unknown;
-  try {
-    await exec();
-  } catch (e) {
-    caught = e;
-  }
-  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-  const signal = caught as RuntimeHaltSignal;
-  expect(signal.catchable).toBe(false);
-  expect(atomName(getStatus(signal.value).code)).toBe('DISPOSED');
-  return signal;
-}
 
 afterEach(() => {
   vi.useRealTimers();

@@ -7,7 +7,7 @@
  * 2. The builtin dispatch path (seq, fan, fold, filter, acc) via run().
  */
 
-import { createVector } from '@rcrsr/rill';
+import { anyTypeValue, createVector, type RillFunction } from '@rcrsr/rill';
 import { describe, it, expect } from 'vitest';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
@@ -175,6 +175,67 @@ describe('collections handlers', () => {
         'list[1, 2, 3, 4] -> fan({ $ * 2 }, [concurrency: 2])'
       );
       expect(result).toEqual([2, 4, 6, 8]);
+    });
+
+    describe('concurrency cap', () => {
+      // Host function that counts calls in flight and parks on setImmediate,
+      // so overlapping calls are observed without wall-clock timing.
+      function createInFlightProbe(): {
+        readonly functions: Record<string, RillFunction>;
+        readonly peak: () => number;
+      } {
+        let inFlight = 0;
+        let peak = 0;
+        return {
+          functions: {
+            probe: {
+              returnType: anyTypeValue,
+              params: [
+                {
+                  name: 'v',
+                  type: undefined,
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              fn: async (args) => {
+                inFlight++;
+                peak = Math.max(peak, inFlight);
+                await new Promise<void>((resolve) => setImmediate(resolve));
+                inFlight--;
+                return args['v'] ?? '';
+              },
+            },
+          },
+          peak: () => peak,
+        };
+      }
+
+      it('never runs more than the capped number of bodies at once', async () => {
+        const probe = createInFlightProbe();
+
+        const result = await run(
+          'list[1, 2, 3, 4, 5, 6] -> fan({ probe($) }, dict[concurrency: 2])',
+          { functions: probe.functions }
+        );
+
+        expect(probe.peak()).toBe(2);
+        expect(result).toEqual([1, 2, 3, 4, 5, 6]);
+      });
+
+      it('runs every body at once when no cap is given', async () => {
+        const probe = createInFlightProbe();
+
+        const result = await run(
+          'list[1, 2, 3, 4, 5, 6] -> fan({ probe($) })',
+          {
+            functions: probe.functions,
+          }
+        );
+
+        expect(probe.peak()).toBe(6);
+        expect(result).toEqual([1, 2, 3, 4, 5, 6]);
+      });
     });
 
     it('halts with RILL-R001 on fractional concurrency', async () => {

@@ -19,10 +19,17 @@
  * - `expectHaltMessageSync(exec, pattern)`: sync form of `expectHaltMessage`.
  * - `expectHaltSync(exec, { code, messagePattern? })`: sync form of
  *   `expectHalt`.
+ * - `expectAbortHalt(exec)`: async; asserts a non-catchable `#DISPOSED`
+ *   `RuntimeHaltSignal` (host abort) and returns it.
  */
 
 import { expect } from 'vitest';
-import { RuntimeError, RuntimeHaltSignal, type RillValue } from '@rcrsr/rill';
+import {
+  atomName,
+  RuntimeError,
+  RuntimeHaltSignal,
+  type RillValue,
+} from '@rcrsr/rill';
 import { getStatus } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 
@@ -220,4 +227,26 @@ export function expectHaltSync(
   if (expected.messagePattern !== undefined) {
     matchMessage(status.message, expected.messagePattern);
   }
+}
+
+/**
+ * Asserts that `exec` throws an abort halt: a `RuntimeHaltSignal` named
+ * 'RuntimeHaltSignal', non-catchable, with status atom `#DISPOSED`.
+ * Returns the signal so callers can inspect the status sidecar.
+ */
+export async function expectAbortHalt(
+  exec: () => Promise<unknown>
+): Promise<RuntimeHaltSignal> {
+  let caught: unknown;
+  try {
+    await exec();
+  } catch (e) {
+    caught = e;
+  }
+  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
+  const signal = caught as RuntimeHaltSignal;
+  expect(signal.name).toBe('RuntimeHaltSignal');
+  expect(signal.catchable).toBe(false);
+  expect(atomName(getStatus(signal.value).code)).toBe('DISPOSED');
+  return signal;
 }

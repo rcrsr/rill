@@ -8,11 +8,11 @@ import { RULES } from './rules.js';
 import type { CheckConfig } from './types.js';
 
 describe('createDefaultConfig', () => {
-  it('returns all 42 rules set to on', () => {
+  it('returns every registered rule set to on', () => {
     const config = createDefaultConfig();
     const codes = Object.keys(config.rules);
 
-    expect(codes.length).toBe(42);
+    expect(codes.length).toBe(RULES.length);
     for (const rule of RULES) {
       expect(config.rules[rule.code]).toBe('on');
     }
@@ -86,8 +86,9 @@ describe('validateConfig', () => {
 
   it('never throws for a malformed config shape', () => {
     const config = { rules: null } as unknown as CheckConfig;
-    expect(() => validateConfig(config)).not.toThrow();
-    expect(validateConfig(config)).not.toBeNull();
+    expect(validateConfig(config)).toContainEqual(
+      expect.objectContaining({ code: 'INVALID_RULES_MAP' })
+    );
   });
 });
 

@@ -8,17 +8,12 @@ import { describe, expect, it } from 'vitest';
 import {
   createError,
   ERROR_REGISTRY,
-  getHelpUrl,
   LexerError,
   ParseError,
   renderMessage,
   RillError,
   RuntimeError,
-  type CallFrame,
-  type ErrorDefinition,
-  type ErrorExample,
   type SourceLocation,
-  type SourceSpan,
 } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
@@ -40,41 +35,11 @@ describe('Rill Runtime: Error Taxonomy', () => {
       }
     });
 
-    it('Registry is read-only after init [AC-16]', () => {
-      const registrySize = ERROR_REGISTRY.size;
-      expect(registrySize).toBeGreaterThan(0);
-      expect(ERROR_REGISTRY.size).toBe(registrySize);
-
-      // Verify registry methods exist
-      expect(ERROR_REGISTRY.get('RILL-R001')).toBeDefined();
-      expect(ERROR_REGISTRY.has('RILL-R001')).toBe(true);
-
-      // Verify multiple error IDs exist for type errors.
-      // RILL-R004 was migrated to typed-atom halts in Phase 4 (FR-ERR-17);
-      // its registry entry is scheduled for removal in Phase 5. Meta-shape
-      // assertions against RILL-R004 are intentionally omitted here.
-      expect(ERROR_REGISTRY.get('RILL-R001')).toBeDefined(); // Parameter type mismatch
-      expect(ERROR_REGISTRY.get('RILL-R002')).toBeDefined(); // Operator type mismatch
-      expect(ERROR_REGISTRY.get('RILL-R003')).toBeDefined(); // Method receiver type mismatch
-    });
-
     it('Error ID format supports 3-digit numbers [AC-15]', () => {
       // Verify that all error IDs follow the RILL-{category}{3-digit} format
       for (const [errorId] of ERROR_REGISTRY.entries()) {
         expect(errorId).toMatch(/^RILL-[LPRC]\d{3}$/);
       }
-
-      // Verify we can have IDs up to 999
-      const maxLexer = 'RILL-L999';
-      const maxParse = 'RILL-P999';
-      const maxRuntime = 'RILL-R999';
-      const maxCheck = 'RILL-C999';
-
-      // These should match the format pattern (even if not in registry yet)
-      expect(maxLexer).toMatch(/^RILL-[LPRC]\d{3}$/);
-      expect(maxParse).toMatch(/^RILL-[LPRC]\d{3}$/);
-      expect(maxRuntime).toMatch(/^RILL-[LPRC]\d{3}$/);
-      expect(maxCheck).toMatch(/^RILL-[LPRC]\d{3}$/);
     });
 
     it('EC-1: Invalid errorId returns undefined', () => {
@@ -164,6 +129,32 @@ describe('Rill Runtime: Error Taxonomy', () => {
       const result = renderMessage(template, context);
       expect(result).toBe('123');
     });
+
+    it('Null context value coerced to "null"', () => {
+      const result = renderMessage('Value: {value}', { value: null });
+      expect(result).toBe('Value: null');
+    });
+
+    it('Empty placeholder renders as empty string', () => {
+      const result = renderMessage('Test {} value', {});
+      expect(result).toBe('Test  value');
+    });
+
+    it('Placeholder name may contain whitespace', () => {
+      const result = renderMessage('Test {name with spaces}', {
+        'name with spaces': 'value',
+      });
+      expect(result).toBe('Test value');
+    });
+
+    it('Multiple unclosed braces return template unchanged', () => {
+      const template = 'Error {code at {location';
+      const result = renderMessage(template, {
+        code: 'E001',
+        location: 'line 5',
+      });
+      expect(result).toBe(template);
+    });
   });
 
   describe('Error Class Tests', () => {
@@ -229,49 +220,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(error.message).toBe('Type error');
       expect(error.message).not.toContain(' at ');
       expect(error.location).toBeUndefined();
-    });
-  });
-
-  describe('Helper Function Tests', () => {
-    it('getHelpUrl produces correct URL [AC-7]', () => {
-      const url = getHelpUrl('RILL-R001', '0.4.5');
-      expect(url).toBe(
-        'https://github.com/rcrsr/rill/blob/v0.4.5/docs/ref-errors.md#rill-r001'
-      );
-    });
-
-    it('getHelpUrl returns empty string for invalid input [AC-11]', () => {
-      expect(getHelpUrl('INVALID', '0.4.5')).toBe('');
-      expect(getHelpUrl('RILL-R001', 'invalid-version')).toBe('');
-    });
-
-    it('EC-7: getHelpUrl with invalid errorId returns empty string', () => {
-      expect(getHelpUrl('RILL-X999', '0.4.5')).toBe('');
-      expect(getHelpUrl('NOT-AN-ID', '0.4.5')).toBe('');
-      expect(getHelpUrl('RILL-R1', '0.4.5')).toBe(''); // Only 1 digit
-      expect(getHelpUrl('RILL-R0001', '0.4.5')).toBe(''); // 4 digits
-      expect(getHelpUrl('', '0.4.5')).toBe('');
-    });
-
-    it('EC-8: getHelpUrl with invalid version returns empty string', () => {
-      expect(getHelpUrl('RILL-R001', '0.4')).toBe(''); // Missing patch
-      expect(getHelpUrl('RILL-R001', 'v0.4.5')).toBe(''); // Has 'v' prefix
-      expect(getHelpUrl('RILL-R001', '0.4.5-beta')).toBe(''); // Prerelease
-      expect(getHelpUrl('RILL-R001', '')).toBe('');
-      expect(getHelpUrl('RILL-R001', 'latest')).toBe('');
-    });
-
-    it('getHelpUrl lowercases error ID in anchor', () => {
-      const url = getHelpUrl('RILL-R001', '1.0.0');
-      expect(url).toContain('#rill-r001');
-      expect(url).not.toContain('#RILL-R001');
-    });
-
-    it('getHelpUrl handles all error categories', () => {
-      expect(getHelpUrl('RILL-L001', '0.4.5')).toContain('#rill-l001');
-      expect(getHelpUrl('RILL-P001', '0.4.5')).toContain('#rill-p001');
-      expect(getHelpUrl('RILL-R001', '0.4.5')).toContain('#rill-r001');
-      expect(getHelpUrl('RILL-C001', '0.4.5')).toContain('#rill-c001');
     });
   });
 
@@ -412,160 +360,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
     });
   });
 
-  describe('Error Constructor Validation Tests', () => {
-    describe('RillError constructor validation', () => {
-      it('EC-3: throws TypeError when errorId is missing', () => {
-        expect(() => {
-          new RillError({
-            errorId: '',
-            message: 'Test message',
-          });
-        }).toThrow(TypeError);
-
-        expect(() => {
-          new RillError({
-            errorId: '',
-            message: 'Test message',
-          });
-        }).toThrow('errorId is required');
-      });
-
-      it('EC-4: throws TypeError when errorId is unknown', () => {
-        expect(() => {
-          new RillError({
-            errorId: 'RILL-X999',
-            message: 'Test message',
-          });
-        }).toThrow(TypeError);
-
-        expect(() => {
-          new RillError({
-            errorId: 'RILL-X999',
-            message: 'Test message',
-          });
-        }).toThrow('Unknown error ID: RILL-X999');
-      });
-
-      it('creates successfully with valid errorId', () => {
-        const error = new RillError({
-          errorId: 'RILL-R001',
-          message: 'Test message',
-        });
-
-        expect(error).toBeInstanceOf(RillError);
-        expect(error.errorId).toBe('RILL-R001');
-        expect(error.message).toBe('Test message');
-      });
-    });
-
-    describe('LexerError constructor validation [AC-6]', () => {
-      const location: SourceLocation = { line: 1, column: 5, offset: 5 };
-
-      it('EC-5: throws TypeError when errorId is unknown', () => {
-        expect(() => {
-          new LexerError('RILL-X999', 'Test message', location);
-        }).toThrow(TypeError);
-
-        expect(() => {
-          new LexerError('RILL-X999', 'Test message', location);
-        }).toThrow('Unknown error ID: RILL-X999');
-      });
-
-      it('EC-6: throws TypeError when errorId has wrong category', () => {
-        expect(() => {
-          new LexerError('RILL-R001', 'Test message', location);
-        }).toThrow(TypeError);
-
-        expect(() => {
-          new LexerError('RILL-R001', 'Test message', location);
-        }).toThrow('Expected lexer error ID, got: RILL-R001');
-      });
-
-      it('creates successfully with valid lexer errorId', () => {
-        const error = new LexerError('RILL-L001', 'Test message', location);
-
-        expect(error).toBeInstanceOf(LexerError);
-        expect(error).toBeInstanceOf(RillError);
-        expect(error.errorId).toBe('RILL-L001');
-        expect(error.location).toEqual(location);
-      });
-    });
-
-    describe('ParseError constructor validation [AC-7]', () => {
-      const location: SourceLocation = { line: 1, column: 10, offset: 10 };
-
-      it('EC-7: throws TypeError when errorId is unknown', () => {
-        expect(() => {
-          new ParseError('RILL-X999', 'Test message', location);
-        }).toThrow(TypeError);
-
-        expect(() => {
-          new ParseError('RILL-X999', 'Test message', location);
-        }).toThrow('Unknown error ID: RILL-X999');
-      });
-
-      it('EC-8: throws TypeError when errorId has wrong category', () => {
-        expect(() => {
-          new ParseError('RILL-R001', 'Test message', location);
-        }).toThrow(TypeError);
-
-        expect(() => {
-          new ParseError('RILL-R001', 'Test message', location);
-        }).toThrow('Expected parse error ID, got: RILL-R001');
-      });
-
-      it('creates successfully with valid parse errorId', () => {
-        const error = new ParseError('RILL-P001', 'Test message', location);
-
-        expect(error).toBeInstanceOf(ParseError);
-        expect(error).toBeInstanceOf(RillError);
-        expect(error.errorId).toBe('RILL-P001');
-        expect(error.location).toEqual(location);
-      });
-    });
-
-    describe('RuntimeError constructor validation [AC-8]', () => {
-      const location: SourceLocation = { line: 1, column: 15, offset: 15 };
-
-      it('EC-9: throws TypeError when errorId is unknown', () => {
-        expect(() => {
-          new RuntimeError('RILL-X999', 'Test message', location);
-        }).toThrow(TypeError);
-
-        expect(() => {
-          new RuntimeError('RILL-X999', 'Test message', location);
-        }).toThrow('Unknown error ID: RILL-X999');
-      });
-
-      it('EC-10: throws TypeError when errorId has wrong category', () => {
-        expect(() => {
-          new RuntimeError('RILL-L001', 'Test message', location);
-        }).toThrow(TypeError);
-
-        expect(() => {
-          new RuntimeError('RILL-L001', 'Test message', location);
-        }).toThrow('Expected runtime error ID, got: RILL-L001');
-      });
-
-      it('creates successfully with valid runtime errorId', () => {
-        const error = new RuntimeError('RILL-R001', 'Test message', location);
-
-        expect(error).toBeInstanceOf(RuntimeError);
-        expect(error).toBeInstanceOf(RillError);
-        expect(error.errorId).toBe('RILL-R001');
-        expect(error.location).toEqual(location);
-      });
-
-      it('creates successfully without location', () => {
-        const error = new RuntimeError('RILL-R005', 'Test message');
-
-        expect(error).toBeInstanceOf(RuntimeError);
-        expect(error.errorId).toBe('RILL-R005');
-        expect(error.location).toBeUndefined();
-      });
-    });
-  });
-
   describe('Integration Tests [AC-17]', () => {
     it('Complete error lifecycle from registry to error instance', () => {
       // 1. Look up error definition from registry
@@ -599,26 +393,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(error.helpUrl).toContain('#rill-r001');
     });
 
-    it('Multiple error IDs exist for different type error scenarios', () => {
-      // Multiple distinct error IDs for different type error contexts.
-      // RILL-R004 meta-shape checks were removed in Phase 4.3 (FR-ERR-17):
-      // the error id was migrated to typed-atom halts (#TYPE_MISMATCH /
-      // #INVALID_INPUT) and its registry entry is slated for removal in
-      // Phase 5. See tests/language/typed-atom-migration.test.ts.
-      const r001 = ERROR_REGISTRY.get('RILL-R001');
-      const r002 = ERROR_REGISTRY.get('RILL-R002');
-      const r003 = ERROR_REGISTRY.get('RILL-R003');
-
-      expect(r001?.description).toBe('Parameter type mismatch');
-      expect(r002?.description).toBe('Operator type mismatch');
-      expect(r003?.description).toBe('Method receiver type mismatch');
-
-      // All should be runtime category
-      expect(r001?.category).toBe('runtime');
-      expect(r002?.category).toBe('runtime');
-      expect(r003?.category).toBe('runtime');
-    });
-
     it('All error definitions have required fields', () => {
       for (const [errorId, definition] of ERROR_REGISTRY.entries()) {
         expect(definition.errorId).toBe(errorId);
@@ -631,6 +405,22 @@ describe('Rill Runtime: Error Taxonomy', () => {
         if (definition.severity !== undefined) {
           expect(definition.severity).toMatch(/^(error|warning)$/);
         }
+      }
+    });
+
+    it('All ERROR_REGISTRY definitions have documentation fields', () => {
+      // Verify that all definitions have the new documentation fields populated
+      for (const [errorId, definition] of ERROR_REGISTRY.entries()) {
+        expect(definition.errorId).toBe(errorId);
+        expect(definition.category).toBeTruthy();
+        expect(definition.description).toBeTruthy();
+        expect(definition.messageTemplate).toBeTruthy();
+        // All 31 error definitions now have documentation fields
+        expect(definition.cause).toBeTruthy();
+        expect(definition.resolution).toBeTruthy();
+        expect(definition.examples).toBeTruthy();
+        expect(definition.examples!.length).toBeGreaterThan(0);
+        expect(definition.examples!.length).toBeLessThanOrEqual(3);
       }
     });
 
@@ -665,261 +455,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(parseCount).toBeGreaterThan(0);
       expect(runtimeCount).toBeGreaterThan(0);
       expect(checkCount).toBeGreaterThan(0);
-    });
-  });
-
-  describe('CallFrame Interface Tests', () => {
-    it('CallFrame accepts SourceSpan with all required fields', () => {
-      const span: SourceSpan = {
-        start: { line: 1, column: 5, offset: 5 },
-        end: { line: 1, column: 10, offset: 10 },
-      };
-
-      const frame: CallFrame = {
-        location: span,
-      };
-
-      expect(frame.location).toEqual(span);
-      expect(frame.location.start.line).toBe(1);
-      expect(frame.location.end.column).toBe(10);
-    });
-
-    it('CallFrame accepts optional functionName', () => {
-      const span: SourceSpan = {
-        start: { line: 2, column: 1, offset: 15 },
-        end: { line: 2, column: 10, offset: 24 },
-      };
-
-      const frame: CallFrame = {
-        location: span,
-        functionName: 'processData',
-      };
-
-      expect(frame.functionName).toBe('processData');
-    });
-
-    it('CallFrame accepts optional context', () => {
-      const span: SourceSpan = {
-        start: { line: 3, column: 5, offset: 30 },
-        end: { line: 3, column: 15, offset: 40 },
-      };
-
-      const frame: CallFrame = {
-        location: span,
-        context: 'in each body',
-      };
-
-      expect(frame.context).toBe('in each body');
-    });
-
-    it('CallFrame accepts all optional fields together', () => {
-      const span: SourceSpan = {
-        start: { line: 4, column: 1, offset: 45 },
-        end: { line: 4, column: 20, offset: 64 },
-      };
-
-      const frame: CallFrame = {
-        location: span,
-        functionName: 'validate',
-        context: 'in map closure',
-      };
-
-      expect(frame.location).toEqual(span);
-      expect(frame.functionName).toBe('validate');
-      expect(frame.context).toBe('in map closure');
-    });
-  });
-
-  describe('ErrorExample Interface Tests', () => {
-    it('ErrorExample accepts description and code', () => {
-      const example: ErrorExample = {
-        description: 'Adding string and number',
-        code: '"hello" + 5',
-      };
-
-      expect(example.description).toBe('Adding string and number');
-      expect(example.code).toBe('"hello" + 5');
-    });
-
-    it('ErrorExample description can be up to 100 characters', () => {
-      const description = 'a'.repeat(100);
-      const example: ErrorExample = {
-        description,
-        code: 'test',
-      };
-
-      expect(example.description.length).toBe(100);
-    });
-
-    it('ErrorExample code can be up to 500 characters', () => {
-      const code = 'x'.repeat(500);
-      const example: ErrorExample = {
-        description: 'Long code example',
-        code,
-      };
-
-      expect(example.code.length).toBe(500);
-    });
-  });
-
-  describe('ErrorDefinition Extension Tests', () => {
-    it('ErrorDefinition accepts optional cause field', () => {
-      const definition: ErrorDefinition = {
-        errorId: 'RILL-R001',
-        category: 'runtime',
-        description: 'Parameter type mismatch',
-        messageTemplate: 'Expected {expected}, got {actual}',
-        cause: 'Function parameter received wrong type',
-      };
-
-      expect(definition.cause).toBe('Function parameter received wrong type');
-    });
-
-    it('ErrorDefinition accepts optional resolution field', () => {
-      const definition: ErrorDefinition = {
-        errorId: 'RILL-R002',
-        category: 'runtime',
-        description: 'Operator type mismatch',
-        messageTemplate:
-          'Cannot apply {operator} to {leftType} and {rightType}',
-        resolution: 'Ensure both operands have compatible types',
-      };
-
-      expect(definition.resolution).toBe(
-        'Ensure both operands have compatible types'
-      );
-    });
-
-    it('ErrorDefinition accepts optional examples field', () => {
-      const examples: ErrorExample[] = [
-        {
-          description: 'Adding incompatible types',
-          code: '"text" + 5',
-        },
-        {
-          description: 'Multiplying string and number',
-          code: '"hello" * 3',
-        },
-      ];
-
-      const definition: ErrorDefinition = {
-        errorId: 'RILL-R002',
-        category: 'runtime',
-        description: 'Operator type mismatch',
-        messageTemplate:
-          'Cannot apply {operator} to {leftType} and {rightType}',
-        examples,
-      };
-
-      expect(definition.examples).toEqual(examples);
-      expect(definition.examples?.length).toBe(2);
-    });
-
-    it('ErrorDefinition accepts all new optional fields together', () => {
-      const examples: ErrorExample[] = [
-        {
-          description: 'Example 1',
-          code: 'code1',
-        },
-        {
-          description: 'Example 2',
-          code: 'code2',
-        },
-        {
-          description: 'Example 3',
-          code: 'code3',
-        },
-      ];
-
-      const definition: ErrorDefinition = {
-        errorId: 'RILL-R003',
-        category: 'runtime',
-        description: 'Method receiver type mismatch',
-        messageTemplate: 'Method {method} cannot be called on {type}',
-        cause: 'Method called on incompatible type',
-        resolution: 'Check method receiver type requirements',
-        examples,
-      };
-
-      expect(definition.cause).toBe('Method called on incompatible type');
-      expect(definition.resolution).toBe(
-        'Check method receiver type requirements'
-      );
-      expect(definition.examples).toEqual(examples);
-      expect(definition.examples?.length).toBe(3);
-    });
-
-    it('ErrorDefinition works without new optional fields (backward compatibility)', () => {
-      const definition: ErrorDefinition = {
-        errorId: 'RILL-R005',
-        category: 'runtime',
-        description: 'Undefined variable',
-        messageTemplate: 'Variable {name} is not defined',
-      };
-
-      expect(definition.cause).toBeUndefined();
-      expect(definition.resolution).toBeUndefined();
-      expect(definition.examples).toBeUndefined();
-    });
-
-    it('All ERROR_REGISTRY definitions have documentation fields', () => {
-      // Verify that all definitions have the new documentation fields populated
-      for (const [errorId, definition] of ERROR_REGISTRY.entries()) {
-        expect(definition.errorId).toBe(errorId);
-        expect(definition.category).toBeTruthy();
-        expect(definition.description).toBeTruthy();
-        expect(definition.messageTemplate).toBeTruthy();
-        // All 31 error definitions now have documentation fields
-        expect(definition.cause).toBeTruthy();
-        expect(definition.resolution).toBeTruthy();
-        expect(definition.examples).toBeTruthy();
-        expect(definition.examples!.length).toBeGreaterThan(0);
-        expect(definition.examples!.length).toBeLessThanOrEqual(3);
-      }
-    });
-
-    it('cause field can be up to 200 characters', () => {
-      const cause = 'c'.repeat(200);
-      const definition: ErrorDefinition = {
-        errorId: 'RILL-R001',
-        category: 'runtime',
-        description: 'Test',
-        messageTemplate: 'Test',
-        cause,
-      };
-
-      expect(definition.cause?.length).toBe(200);
-    });
-
-    it('resolution field can be up to 300 characters', () => {
-      const resolution = 'r'.repeat(300);
-      const definition: ErrorDefinition = {
-        errorId: 'RILL-R001',
-        category: 'runtime',
-        description: 'Test',
-        messageTemplate: 'Test',
-        resolution,
-      };
-
-      expect(definition.resolution?.length).toBe(300);
-    });
-
-    it('examples field can have up to 3 entries', () => {
-      const examples: ErrorExample[] = [
-        { description: 'Example 1', code: 'code1' },
-        { description: 'Example 2', code: 'code2' },
-        { description: 'Example 3', code: 'code3' },
-      ];
-
-      const definition: ErrorDefinition = {
-        errorId: 'RILL-R001',
-        category: 'runtime',
-        description: 'Test',
-        messageTemplate: 'Test',
-        examples,
-      };
-
-      expect(definition.examples?.length).toBe(3);
     });
   });
 

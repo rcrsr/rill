@@ -546,7 +546,8 @@ export const mEq: RillMethod = (receiver, args) =>
 export const mNe: RillMethod = (receiver, args) =>
   !deepEquals(receiver, args[0] ?? null);
 
-function orderedCompare(
+/** Order two values via the compare protocol; halts RILL-R002 when incomparable. */
+export function orderedCompare(
   receiver: RillValue,
   args: RillValue[],
   ctx: RuntimeContext,

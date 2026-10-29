@@ -12,6 +12,7 @@ import { render, cleanup, act } from '@testing-library/react';
 import { EditorView } from '@codemirror/view';
 import { indentUnit } from '@codemirror/language';
 import { Editor, type EditorProps } from '../Editor.js';
+import { measureP95 } from '../../../tests/helpers/measure.js';
 
 function getView(container: HTMLElement): EditorView {
   const content = container.querySelector('.cm-content');
@@ -270,24 +271,39 @@ describe('Editor', () => {
         { length: 1000 },
         (_, i) => `line ${i + 1}`
       ).join('\n');
-      const start = performance.now();
-      render(<Editor {...defaultProps} value={largeValue} />);
-      const duration = performance.now() - start;
 
-      // Should render in less than 200ms (widened from 100ms to absorb CI
-      // runner variance while still catching a real blocking regression)
-      expect(duration).toBeLessThan(200);
+      const p95 = measureP95(
+        () => {
+          const { unmount } = render(
+            <Editor {...defaultProps} value={largeValue} />
+          );
+          unmount();
+        },
+        { samples: 20, warmup: 3 }
+      );
+
+      // Warm p95 render of 1000 lines stays under 200ms.
+      expect(p95).toBeLessThan(200);
     });
 
     it('updates value without blocking (< 16ms)', () => {
-      const { rerender } = render(<Editor {...defaultProps} value="initial" />);
+      const values = ['first value', 'second value'];
+      const { container, rerender } = render(
+        <Editor {...defaultProps} value="initial" />
+      );
 
-      const start = performance.now();
-      rerender(<Editor {...defaultProps} value="updated" />);
-      const duration = performance.now() - start;
+      let i = 0;
+      const p95 = measureP95(
+        () => {
+          rerender(<Editor {...defaultProps} value={values[i++ % 2]!} />);
+        },
+        { samples: 50, warmup: 5 }
+      );
 
+      // 55 calls alternate starting at index 0, so the last value is index 54 % 2.
+      expect(getView(container).state.doc.toString()).toBe(values[54 % 2]);
       // Should update in less than 16ms (60fps)
-      expect(duration).toBeLessThan(16);
+      expect(p95).toBeLessThan(16);
     });
   });
 

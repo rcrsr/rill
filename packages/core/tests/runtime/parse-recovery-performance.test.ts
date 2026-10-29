@@ -28,6 +28,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { parseWithRecovery } from '@rcrsr/rill';
+import { scalingRatio } from '../helpers/scaling.js';
 
 // Scaling-tolerance constant: quadrupling the input must not multiply the
 // parse time by more than 8x. Linear scaling would produce a ratio near 4;
@@ -45,31 +46,32 @@ function buildMalformedStatementCorpus(count: number): string {
   return 'error()\n'.repeat(count);
 }
 
-/** Runs parseWithRecovery over `source` `iterations` times, timing only. */
-function timeParse(source: string, iterations: number): number {
-  const start = performance.now();
-  for (let i = 0; i < iterations; i++) {
-    parseWithRecovery(source);
-  }
-  return performance.now() - start;
-}
-
 describe('parseWithRecovery recovery-path performance scaling', () => {
-  it('scales near-linearly with input size over repeated malformed statements', () => {
-    const small = buildMalformedStatementCorpus(2500);
-    const large = buildMalformedStatementCorpus(10000);
-    const iterations = 5;
+  it('scales near-linearly with input size over repeated malformed statements', async () => {
+    const sources = new Map<number, string>();
+    const corpusAt = (count: number): string => {
+      const cached = sources.get(count);
+      if (cached !== undefined) return cached;
+      const built = buildMalformedStatementCorpus(count);
+      sources.set(count, built);
+      return built;
+    };
 
     // Warmup: let the JIT optimize before measuring either size.
     for (let i = 0; i < 3; i++) {
-      parseWithRecovery(small);
-      parseWithRecovery(large);
+      parseWithRecovery(corpusAt(2500));
+      parseWithRecovery(corpusAt(10000));
     }
 
-    const smallMs = timeParse(small, iterations);
-    const largeMs = timeParse(large, iterations);
+    const ratio = await scalingRatio(
+      (count) => {
+        for (let i = 0; i < 5; i++) parseWithRecovery(corpusAt(count));
+      },
+      2500,
+      10000,
+      5
+    );
 
-    const ratio = largeMs / smallMs;
     expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
   }, 60000);
 });

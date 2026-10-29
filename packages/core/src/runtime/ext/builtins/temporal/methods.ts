@@ -9,6 +9,7 @@ import type {
 } from '../../../core/types/structures.js';
 import { isDatetime, isDuration } from '../../../core/types/guards.js';
 import type { RillMethod } from '../shared.js';
+import { orderedCompare } from '../methods/bodies.js';
 import {
   maxDayInMonth,
   componentsToUnix,
@@ -255,36 +256,20 @@ export const mDtNe: RillMethod = (receiver, args) => {
 };
 
 /** .lt(other) - datetime less-than */
-export const mDtLt: RillMethod = (receiver, args) => {
-  const dt = receiver as unknown as RillDatetime;
-  const other = args[0] ?? null;
-  if (!isDatetime(other)) return false;
-  return dt.unix < (other as unknown as RillDatetime).unix;
-};
+export const mDtLt: RillMethod = (receiver, args, ctx, location) =>
+  orderedCompare(receiver, args, ctx, location, 'lt') < 0;
 
 /** .gt(other) - datetime greater-than */
-export const mDtGt: RillMethod = (receiver, args) => {
-  const dt = receiver as unknown as RillDatetime;
-  const other = args[0] ?? null;
-  if (!isDatetime(other)) return false;
-  return dt.unix > (other as unknown as RillDatetime).unix;
-};
+export const mDtGt: RillMethod = (receiver, args, ctx, location) =>
+  orderedCompare(receiver, args, ctx, location, 'gt') > 0;
 
 /** .le(other) - datetime less-than-or-equal */
-export const mDtLe: RillMethod = (receiver, args) => {
-  const dt = receiver as unknown as RillDatetime;
-  const other = args[0] ?? null;
-  if (!isDatetime(other)) return false;
-  return dt.unix <= (other as unknown as RillDatetime).unix;
-};
+export const mDtLe: RillMethod = (receiver, args, ctx, location) =>
+  orderedCompare(receiver, args, ctx, location, 'le') <= 0;
 
 /** .ge(other) - datetime greater-than-or-equal */
-export const mDtGe: RillMethod = (receiver, args) => {
-  const dt = receiver as unknown as RillDatetime;
-  const other = args[0] ?? null;
-  if (!isDatetime(other)) return false;
-  return dt.unix >= (other as unknown as RillDatetime).unix;
-};
+export const mDtGe: RillMethod = (receiver, args, ctx, location) =>
+  orderedCompare(receiver, args, ctx, location, 'ge') >= 0;
 
 // ============================================================
 // DURATION METHOD BODIES

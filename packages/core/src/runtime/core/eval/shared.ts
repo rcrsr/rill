@@ -12,6 +12,7 @@ import type { ASTNode, SourceLocation } from '../../../types.js';
 import { isCallable } from '../callable.js';
 import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
+import type { TimeoutScheduler } from '../types/runtime.js';
 import { isOrdered, isPlainDict, isStream } from '../types/guards.js';
 import {
   throwAbortHalt,
@@ -183,6 +184,19 @@ export function checkAutoExceptions(
 }
 
 /**
+ * Timer functions used when the context has no injected scheduler. Per-call
+ * timeouts and `timeout<>` blocks both fall back to it.
+ */
+export const defaultScheduler: TimeoutScheduler = {
+  setTimeout(fn, ms) {
+    return setTimeout(fn, ms);
+  },
+  clearTimeout(handle) {
+    clearTimeout(handle);
+  },
+};
+
+/**
  * Wrap a promise with a timeout.
  * Returns original promise if no timeout configured.
  *
@@ -193,6 +207,9 @@ export function checkAutoExceptions(
  * On expiry the race rejects with a catchable `RuntimeHaltSignal` (atom
  * `RILL_R012`), so `guard { slow() }` and `retry { slow() }` can recover a
  * timeout the same way they recover any other operational halt.
+ *
+ * The timer runs on the context's injected scheduler when one is set, as
+ * `timeout<>` blocks do, and on `defaultScheduler` otherwise.
  */
 export function withTimeout<T>(
   s: EvalState,
@@ -205,9 +222,10 @@ export function withTimeout<T>(
     return promise;
   }
 
+  const sched = s.ctx.scheduler ?? defaultScheduler;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
+    const onExpire = (): void => {
       // Build the catchable halt via throwCatchableHostHalt (which throws),
       // then forward it to reject so the race surfaces a RuntimeHaltSignal.
       try {
@@ -224,12 +242,13 @@ export function withTimeout<T>(
       } catch (haltSignal) {
         reject(haltSignal as Error);
       }
-    }, timeoutMs);
+    };
+    timer = sched.setTimeout(onExpire, timeoutMs);
   });
 
   return Promise.race([promise, timeout]).finally(() => {
     if (timer !== undefined) {
-      clearTimeout(timer);
+      sched.clearTimeout(timer);
     }
   });
 }

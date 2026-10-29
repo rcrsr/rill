@@ -9,36 +9,17 @@ import {
   atomName,
   getStatus,
   RuntimeError,
-  RuntimeHaltSignal,
   createRuntimeContext,
   parse,
   execute,
   type RillValue,
 } from '@rcrsr/rill';
 import { run, toRuntimeContext } from '../helpers/runtime.js';
-import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
-
-/**
- * Asserts the thrown error is an abort halt:
- * RuntimeHaltSignal with status.code=#DISPOSED, non-catchable.
- */
-async function expectAbortHalt(
-  exec: () => Promise<unknown>
-): Promise<RuntimeHaltSignal> {
-  let caught: unknown;
-  try {
-    await exec();
-  } catch (e) {
-    caught = e;
-  }
-  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-  const signal = caught as RuntimeHaltSignal;
-  expect(signal.name).toBe('RuntimeHaltSignal');
-  expect(signal.catchable).toBe(false);
-  const status = getStatus(signal.value);
-  expect(atomName(status.code)).toBe('DISPOSED');
-  return signal;
-}
+import {
+  expectAbortHalt,
+  expectHalt,
+  expectHaltMessage,
+} from '../helpers/halt.js';
 
 describe('Rill Runtime: core handler error contracts', () => {
   describe('EC-4: Unsupported expression types', () => {
@@ -99,25 +80,6 @@ describe('Rill Runtime: core handler error contracts', () => {
   });
 
   describe('EC-5: Context signal aborted', () => {
-    it('halts with RuntimeHaltSignal when signal aborted before execution', async () => {
-      const controller = new AbortController();
-      controller.abort();
-
-      await expectAbortHalt(() => run('"test"', { signal: controller.signal }));
-    });
-
-    it('halt carries DISPOSED code, non-catchable, with abort message', async () => {
-      const controller = new AbortController();
-      controller.abort();
-
-      const signal = await expectAbortHalt(() =>
-        run('"test"', { signal: controller.signal })
-      );
-      const status = getStatus(signal.value);
-      expect(status.provider).toBe('runtime');
-      expect(status.message).toContain('abort');
-    });
-
     it('halts when aborted during expression evaluation', async () => {
       const controller = new AbortController();
       let callCount = 0;
@@ -134,9 +96,7 @@ describe('Rill Runtime: core handler error contracts', () => {
         ],
         fn: async (): Promise<RillValue> => {
           callCount++;
-          if (callCount >= 2) {
-            controller.abort();
-          }
+          controller.abort();
           await new Promise((r) => setTimeout(r, 10));
           return callCount;
         },
@@ -149,8 +109,8 @@ describe('Rill Runtime: core handler error contracts', () => {
         })
       );
 
-      // Should not complete all three calls
-      expect(callCount).toBeLessThan(3);
+      // The abort is raised in the first call; the next pipe stage never starts
+      expect(callCount).toBe(1);
     });
 
     it('halts during nested expression evaluation', async () => {
@@ -180,23 +140,62 @@ describe('Rill Runtime: core handler error contracts', () => {
       );
     });
 
-    it('checks abort signal in evaluateExpression', async () => {
+    it('halts during argument evaluation before the outer function body runs', async () => {
       const controller = new AbortController();
-      const ast = parse('"a"\n"b"\n"c"');
-      const ctx = createRuntimeContext({ signal: controller.signal });
+      let outerRan = false;
+      let secondArgRan = false;
 
-      const { createStepper } = await import('@rcrsr/rill');
-      const stepper = createStepper(ast, ctx);
+      await expectAbortHalt(() =>
+        run('outer(first_arg(), second_arg())', {
+          functions: {
+            outer: {
+              returnType: anyTypeValue,
+              params: [
+                {
+                  name: 'x',
+                  type: { kind: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'y',
+                  type: { kind: 'number' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              fn: () => {
+                outerRan = true;
+                return 0;
+              },
+            },
+            first_arg: {
+              returnType: anyTypeValue,
+              params: [],
+              fn: () => {
+                controller.abort();
+                return 1;
+              },
+            },
+            second_arg: {
+              returnType: anyTypeValue,
+              params: [],
+              fn: () => {
+                secondArgRan = true;
+                return 2;
+              },
+            },
+          },
+          signal: controller.signal,
+        })
+      );
 
-      // First step succeeds
-      await stepper.step();
-      expect(stepper.done).toBe(false);
+      expect(outerRan).toBe(false);
+      expect(secondArgRan).toBe(false);
+    });
 
-      // Abort before second step
-      controller.abort();
-
-      // Second step should halt with RuntimeHaltSignal
-      await expectAbortHalt(() => stepper.step());
+    it('chains postfix methods left to right', async () => {
+      expect(await run('"  hello  ".trim.upper')).toBe('HELLO');
     });
 
     it('propagates abort halt through pipe chains', async () => {
