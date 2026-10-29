@@ -129,6 +129,32 @@ describe('Rill Runtime: Error Taxonomy', () => {
       const result = renderMessage(template, context);
       expect(result).toBe('123');
     });
+
+    it('Null context value coerced to "null"', () => {
+      const result = renderMessage('Value: {value}', { value: null });
+      expect(result).toBe('Value: null');
+    });
+
+    it('Empty placeholder renders as empty string', () => {
+      const result = renderMessage('Test {} value', {});
+      expect(result).toBe('Test  value');
+    });
+
+    it('Placeholder name may contain whitespace', () => {
+      const result = renderMessage('Test {name with spaces}', {
+        'name with spaces': 'value',
+      });
+      expect(result).toBe('Test value');
+    });
+
+    it('Multiple unclosed braces return template unchanged', () => {
+      const template = 'Error {code at {location';
+      const result = renderMessage(template, {
+        code: 'E001',
+        location: 'line 5',
+      });
+      expect(result).toBe(template);
+    });
   });
 
   describe('Error Class Tests', () => {

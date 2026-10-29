@@ -597,8 +597,14 @@ function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
   } else if (typeof a.key === 'object' && typeof b.key === 'object') {
     // Check for DictKeyVariable or DictKeyComputed
     if ('kind' in a.key || 'kind' in b.key) {
-      // Variable/computed keys not supported in equals yet
-      return false;
+      if (!('kind' in a.key) || !('kind' in b.key)) return false;
+      if (a.key.kind !== b.key.kind) return false;
+      if (a.key.kind === 'variable' && b.key.kind === 'variable') {
+        if (a.key.variableName !== b.key.variableName) return false;
+      } else if (a.key.kind === 'computed' && b.key.kind === 'computed') {
+        if (!expressionEquals(a.key.expression, b.key.expression)) return false;
+      }
+      return expressionEquals(a.value, b.value);
     }
     // ListLiteralNode keys: compare element-wise
     const aKey = a.key as ListLiteralNode;
@@ -614,7 +620,21 @@ function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
 
 function closureEquals(a: ClosureNode, b: ClosureNode): boolean {
   if (!arrayEquals(a.params, b.params, closureParamEquals)) return false;
+  if (!returnTypeTargetEquals(a.returnTypeTarget, b.returnTypeTarget))
+    return false;
   return simpleBodyEquals(a.body, b.body);
+}
+
+function returnTypeTargetEquals(
+  a: ClosureNode['returnTypeTarget'],
+  b: ClosureNode['returnTypeTarget']
+): boolean {
+  if (a === undefined || b === undefined) return a === b;
+  if ('type' in a || 'type' in b) {
+    if (!('type' in a) || !('type' in b)) return false;
+    return astEquals(a, b);
+  }
+  return typeRefEquals(a, b);
 }
 
 function closureParamEquals(a: ClosureParamNode, b: ClosureParamNode): boolean {
@@ -627,7 +647,8 @@ function closureParamEquals(a: ClosureParamNode, b: ClosureParamNode): boolean {
   } else if (!typeRefEquals(a.typeRef, b.typeRef)) {
     return false;
   }
-  return nullableEquals(a.defaultValue, b.defaultValue);
+  if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
+  return fieldAnnotationsEquals(a.annotations, b.annotations);
 }
 
 function destructureEquals(a: DestructureNode, b: DestructureNode): boolean {

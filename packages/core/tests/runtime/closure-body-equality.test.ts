@@ -132,6 +132,26 @@ const BODY_PAIRS: readonly BodyPair[] = [
     base: 'pass<on_error: #IGNORE> { 1 }',
     variant: 'pass<on_error: #IGNORE> { 2 }',
   },
+  {
+    name: 'nested closure param annotation',
+    base: '|^("a") y| { $y }',
+    variant: '|^("b") y| { $y }',
+  },
+  {
+    name: 'nested closure return type',
+    base: '|y| { $y }:string',
+    variant: '|y| { $y }:number',
+  },
+  {
+    name: 'dict variable key',
+    base: 'dict[$x: 1]',
+    variant: 'dict[$y: 1]',
+  },
+  {
+    name: 'dict computed key',
+    base: 'dict[($x): 1]',
+    variant: 'dict[($x): 2]',
+  },
   { name: 'host reference', base: 'ns::one', variant: 'ns::two' },
 ];
 

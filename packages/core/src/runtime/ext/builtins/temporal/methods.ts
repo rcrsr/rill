@@ -1,11 +1,6 @@
 import type { SourceLocation } from '../../../../types.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import {
-  throwCatchableHostHalt,
-  throwFatalHostHalt,
-  throwTypeHalt,
-} from '../../../core/types/halt.js';
-import { inferType } from '../../../core/types/registrations.js';
+import { throwFatalHostHalt, throwTypeHalt } from '../../../core/types/halt.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type {
   RillDatetime,
@@ -14,6 +9,7 @@ import type {
 } from '../../../core/types/structures.js';
 import { isDatetime, isDuration } from '../../../core/types/guards.js';
 import type { RillMethod } from '../shared.js';
+import { orderedCompare } from '../methods/bodies.js';
 import {
   maxDayInMonth,
   componentsToUnix,
@@ -259,46 +255,21 @@ export const mDtNe: RillMethod = (receiver, args) => {
   return dt.unix !== (other as unknown as RillDatetime).unix;
 };
 
-/**
- * Resolve the datetime argument of an ordering method. A non-datetime
- * argument halts with RILL_R002, as number and string ordering methods do.
- */
-function orderingOperand(
-  args: RillValue[],
-  ctx: RuntimeContext,
-  location: SourceLocation | undefined,
-  method: string
-): RillDatetime {
-  const other = args[0] ?? null;
-  if (!isDatetime(other)) {
-    throwCatchableHostHalt(
-      { location, sourceId: ctx.sourceId, fn: method },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Cannot compare datetime with ${inferType(other)} using .${method}`
-    );
-  }
-  return other as unknown as RillDatetime;
-}
-
 /** .lt(other) - datetime less-than */
 export const mDtLt: RillMethod = (receiver, args, ctx, location) =>
-  (receiver as unknown as RillDatetime).unix <
-  orderingOperand(args, ctx, location, 'lt').unix;
+  orderedCompare(receiver, args, ctx, location, 'lt') < 0;
 
 /** .gt(other) - datetime greater-than */
 export const mDtGt: RillMethod = (receiver, args, ctx, location) =>
-  (receiver as unknown as RillDatetime).unix >
-  orderingOperand(args, ctx, location, 'gt').unix;
+  orderedCompare(receiver, args, ctx, location, 'gt') > 0;
 
 /** .le(other) - datetime less-than-or-equal */
 export const mDtLe: RillMethod = (receiver, args, ctx, location) =>
-  (receiver as unknown as RillDatetime).unix <=
-  orderingOperand(args, ctx, location, 'le').unix;
+  orderedCompare(receiver, args, ctx, location, 'le') <= 0;
 
 /** .ge(other) - datetime greater-than-or-equal */
 export const mDtGe: RillMethod = (receiver, args, ctx, location) =>
-  (receiver as unknown as RillDatetime).unix >=
-  orderingOperand(args, ctx, location, 'ge').unix;
+  orderedCompare(receiver, args, ctx, location, 'ge') >= 0;
 
 // ============================================================
 // DURATION METHOD BODIES

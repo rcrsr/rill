@@ -3,8 +3,9 @@
  *
  * `timeout<total:>` expires with RILL-R082. A guard whose `on:` list omits
  * that code must re-raise the halt; a bare outer guard then recovers it.
- * Uses an injected scheduler whose timers fire after a few milliseconds, so
- * no test waits on the wall clock.
+ * Uses an injected scheduler whose timers fire after a few milliseconds. The
+ * rejection is issued before the body resolves, so the outcome does not
+ * depend on timing.
  */
 
 import { describe, expect, it } from 'vitest';

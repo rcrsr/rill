@@ -21,6 +21,12 @@ const SMALL_COUNT = 1000;
 const LARGE_COUNT = 4000;
 const REPEATS = 5;
 
+/**
+ * Loose absolute ceiling on the best large-size run, per chunk. Far above
+ * observed cost, so only a gross constant-factor slowdown trips it.
+ */
+const MAX_MS_PER_CHUNK = 10;
+
 /** A 4x size increase must not multiply time by 8x or more. */
 const MAX_SCALING_RATIO = 8;
 
@@ -108,9 +114,15 @@ describe('operator per-chunk overhead scales linearly', () => {
       // No assertions inside the timed region; failures are collected and
       // asserted after timing.
       const failures: string[] = [];
+      let bestLargeMs = Number.POSITIVE_INFINITY;
       const ratio = await scalingRatio(
         async (n) => {
-          const failure = check(await run(script(n)), n);
+          const start = performance.now();
+          const result = await run(script(n));
+          if (n === LARGE_COUNT) {
+            bestLargeMs = Math.min(bestLargeMs, performance.now() - start);
+          }
+          const failure = check(result, n);
           if (failure !== undefined) failures.push(`n=${n}: ${failure}`);
         },
         SMALL_COUNT,
@@ -120,6 +132,7 @@ describe('operator per-chunk overhead scales linearly', () => {
 
       expect(failures).toEqual([]);
       expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
+      expect(bestLargeMs / LARGE_COUNT).toBeLessThan(MAX_MS_PER_CHUNK);
     },
     60000
   );

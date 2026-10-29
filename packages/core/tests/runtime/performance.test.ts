@@ -19,12 +19,13 @@ const MAX_SCALING_RATIO = 8;
 describe('Rill Runtime: Performance Regression', () => {
   it('scales linearly when evaluating nested expressions', async () => {
     // Covers fan, seq, fold, dict creation, closures with captures,
-    // arithmetic, and field access.
-    // Expected result: [2,4,6,8,10] -> [3,5,7,9,11] -> sum = 35
-    const testScript = `
+    // arithmetic, and field access. The collection length scales with n.
+    // Expected result for n: doubled = 2i, incremented = 2i + 1,
+    // total = sum(2i + 1) = n * n.
+    const scriptFor = (n: number): string => `
       |x| { $x * 2 } => $double
 
-      list[1, 2, 3, 4, 5] -> fan($double) => $doubled
+      range(0, ${n}) -> fan($double) => $doubled
       $doubled -> seq({ $ + 1 }) => $incremented
       $incremented -> fold(0, { $@ + $ }) => $total
 
@@ -33,21 +34,20 @@ describe('Rill Runtime: Performance Regression', () => {
     `;
 
     // Warmup: let JIT optimize before measuring.
-    for (let i = 0; i < 10; i++) {
-      expect(await run(testScript)).toBe(35);
+    for (let i = 0; i < 5; i++) {
+      expect(await run(scriptFor(100))).toBe(100 * 100);
+      expect(await run(scriptFor(400))).toBe(400 * 400);
     }
 
     // No assertions inside the timed region; mismatches are counted and
     // asserted after timing.
     let mismatches = 0;
     const ratio = await scalingRatio(
-      async (iterations) => {
-        for (let i = 0; i < iterations; i++) {
-          if ((await run(testScript)) !== 35) mismatches++;
-        }
+      async (n) => {
+        if ((await run(scriptFor(n))) !== n * n) mismatches++;
       },
-      50,
       200,
+      800,
       5
     );
 
