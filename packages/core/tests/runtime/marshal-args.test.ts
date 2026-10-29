@@ -301,18 +301,18 @@ describe('marshalArgs', () => {
       ];
       const result1 = marshalArgs([{}], params, opts);
       const result2 = marshalArgs([{}], params, opts);
-      const inner1 = (result1 as Record<string, unknown>).opts as Record<
+      const inner1 = (result1 as Record<string, unknown>)['opts'] as Record<
         string,
         unknown
       >;
-      const inner2 = (result2 as Record<string, unknown>).opts as Record<
+      const inner2 = (result2 as Record<string, unknown>)['opts'] as Record<
         string,
         unknown
       >;
       // Mutate first result's default
-      (inner1.inner as Record<string, unknown>).nested = 'mutated';
+      (inner1['inner'] as Record<string, unknown>)['nested'] = 'mutated';
       // Second result must retain original default
-      expect((inner2.inner as Record<string, unknown>).nested).toBe('x');
+      expect((inner2['inner'] as Record<string, unknown>)['nested']).toBe('x');
     });
 
     it('hydrates nested dict inner field defaults', () => {
@@ -365,7 +365,7 @@ describe('marshalArgs', () => {
       ];
       const arg = createOrdered([['a', 1]]);
       const result = marshalArgs([arg], params, opts);
-      const ordered = (result as Record<string, unknown>).pair as {
+      const ordered = (result as Record<string, unknown>)['pair'] as {
         __rill_ordered: boolean;
         entries: [string, unknown][];
       };
@@ -512,7 +512,7 @@ describe('marshalArgs', () => {
       // Tuple with only first element; second should hydrate from default
       const arg = createTuple([10]);
       const result = marshalArgs([arg], params, opts);
-      const tuple = (result as Record<string, unknown>).coords as {
+      const tuple = (result as Record<string, unknown>)['coords'] as {
         __rill_tuple: boolean;
         entries: unknown[];
       };
@@ -540,7 +540,7 @@ describe('marshalArgs', () => {
       ];
       const arg = createTuple([]);
       const result = marshalArgs([arg], params, opts);
-      const tuple = (result as Record<string, unknown>).tri as {
+      const tuple = (result as Record<string, unknown>)['tri'] as {
         __rill_tuple: boolean;
         entries: unknown[];
       };
@@ -599,11 +599,11 @@ describe('marshalArgs', () => {
         },
       ];
       const result = marshalArgs(['test'], params, opts);
-      const ordered = (result as Record<string, unknown>).b as {
+      const ordered = (result as Record<string, unknown>)['b'] as {
         __rill_ordered: boolean;
         entries: [string, unknown][];
       };
-      expect((result as Record<string, unknown>).a).toBe('test');
+      expect((result as Record<string, unknown>)['a']).toBe('test');
       expect(ordered.__rill_ordered).toBe(true);
       expect(ordered.entries).toEqual([
         ['x', 10],
@@ -700,7 +700,7 @@ describe('marshalArgs', () => {
       ];
       const arg = createTuple([42, 'hello']);
       const result = marshalArgs([arg], params, opts);
-      const tuple = (result as Record<string, unknown>).pair as {
+      const tuple = (result as Record<string, unknown>)['pair'] as {
         __rill_tuple: boolean;
         entries: unknown[];
       };
@@ -975,29 +975,31 @@ describe('marshalArgs', () => {
 describe('EC-4: buildMethodEntry receiver missing from record raises RILL-R044', () => {
   it('throws RILL-R044 when fn called without receiver in args', () => {
     // Arrange: pick any built-in method entry produced by buildMethodEntry
-    const lenEntry = BUILTIN_METHODS.string.len;
+    const lenEntry = BUILTIN_METHODS.string['len'];
 
     // Act + Assert: call fn with an empty record (no 'receiver' key)
     expectHaltSync(
-      () => lenEntry.fn({}, { variables: new Map(), pipeValue: null } as never),
+      () =>
+        lenEntry!.fn({}, { variables: new Map(), pipeValue: null } as never),
       { code: 'RILL_R044' }
     );
   });
 
   it('error message names the missing receiver parameter', () => {
-    const lenEntry = BUILTIN_METHODS.string.len;
+    const lenEntry = BUILTIN_METHODS.string['len'];
 
     expectHaltMessageSync(
-      () => lenEntry.fn({}, { variables: new Map(), pipeValue: null } as never),
+      () =>
+        lenEntry!.fn({}, { variables: new Map(), pipeValue: null } as never),
       'receiver'
     );
   });
 
   it('does not throw when receiver key is present', () => {
-    const emptyEntry = BUILTIN_METHODS.string.empty;
+    const emptyEntry = BUILTIN_METHODS.string['empty'];
 
     // 'receiver' present with a string value; method should execute
-    const result = emptyEntry.fn({ receiver: 'hello' }, {
+    const result = emptyEntry!.fn({ receiver: 'hello' }, {
       variables: new Map(),
       pipeValue: null,
     } as never);

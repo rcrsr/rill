@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "rootDir": ".",
+    "paths": {
+      "@rcrsr/rill": ["./src/index.ts"]
+    }
+  },
+  "include": [
+    "src/**/*",
+    "tests/*.ts",
+    "tests/helpers/**/*",
+    "tests/parser/**/*",
+    "tests/runtime/**/*"
+  ]
+}

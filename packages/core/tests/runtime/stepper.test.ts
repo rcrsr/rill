@@ -11,7 +11,7 @@ import {
   RuntimeError,
   RuntimeHaltSignal,
   type RillFunction,
-  type RillValue,
+  anyTypeValue,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 import { expectHaltMessage } from '../helpers/halt.js';
@@ -284,7 +284,7 @@ describe('Rill Runtime: Step Execution', () => {
       let calls = 0;
       const spyFn: RillFunction = {
         params: [],
-        returnType: { type: 'any' } as RillValue,
+        returnType: anyTypeValue,
         fn: async () => {
           calls++;
           return 0;

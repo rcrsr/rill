@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isTuple } from '@rcrsr/rill';
+import { isTuple, type RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import {
   expectHalt,
@@ -25,7 +25,7 @@ function isOrdered(value: unknown): boolean {
     typeof value === 'object' &&
     value !== null &&
     '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
+    (value as Record<string, unknown>)['__rill_ordered'] === true
   );
 }
 
@@ -62,9 +62,9 @@ describe('Rill Runtime: nested structural conversion drops extras', () => {
     const result = await run(
       '[outer: tuple[1, 2, 99]] -> dict(outer: tuple(number, number))'
     );
-    const resultDict = result as { outer: { entries: unknown[] } };
-    expect(isTuple(resultDict.outer)).toBe(true);
-    expect(resultDict.outer.entries).toEqual([1, 2]);
+    const outer = (result as { outer: RillValue }).outer;
+    expect(isTuple(outer)).toBe(true);
+    expect(isTuple(outer) ? outer.entries : undefined).toEqual([1, 2]);
   });
 });
 

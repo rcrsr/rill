@@ -21,6 +21,7 @@ import {
   createRuntimeContext,
   createChildContext,
   type SchemeResolver,
+  type ScriptNode,
 } from '@rcrsr/rill';
 
 describe('ResolverContext', () => {
@@ -119,12 +120,16 @@ describe('ResolverContext', () => {
     });
 
     it('is the supplied function reference when provided', () => {
-      const parser = (text: string) => {
+      const parser = (text: string): ScriptNode => {
         void text;
         return {
-          type: 'Script' as const,
-          body: [],
-          span: { start: 0, end: 0 },
+          type: 'Script',
+          frontmatter: null,
+          statements: [],
+          span: {
+            start: { line: 1, column: 1, offset: 0 },
+            end: { line: 1, column: 1, offset: 0 },
+          },
         };
       };
       const ctx = createRuntimeContext({ parseSource: parser });
@@ -132,12 +137,16 @@ describe('ResolverContext', () => {
     });
 
     it('child context inherits parseSource from parent by reference', () => {
-      const parser = (text: string) => {
+      const parser = (text: string): ScriptNode => {
         void text;
         return {
-          type: 'Script' as const,
-          body: [],
-          span: { start: 0, end: 0 },
+          type: 'Script',
+          frontmatter: null,
+          statements: [],
+          span: {
+            start: { line: 1, column: 1, offset: 0 },
+            end: { line: 1, column: 1, offset: 0 },
+          },
         };
       };
       const ctx = createRuntimeContext({ parseSource: parser });

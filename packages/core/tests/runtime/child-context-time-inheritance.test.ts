@@ -6,9 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { TimeoutScheduler } from '@rcrsr/rill';
-
-import { mockAsyncFn, run } from '../helpers/runtime.js';
+import { mockAsyncFn, run, type TimeoutScheduler } from '../helpers/runtime.js';
 
 describe('child context time-field inheritance', () => {
   it('now() inside a seq body reflects the parent nowMs virtual clock', async () => {

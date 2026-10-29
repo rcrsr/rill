@@ -29,7 +29,13 @@ import {
 
 /** Build a minimal CallFrame for stack tests. */
 function frame(name: string): CallFrame {
-  return { name, location: undefined };
+  return {
+    functionName: name,
+    location: {
+      start: { line: 1, column: 1, offset: 0 },
+      end: { line: 1, column: 1, offset: 0 },
+    },
+  };
 }
 
 describe('ControlFlowContext', () => {
@@ -100,7 +106,7 @@ describe('ControlFlowContext', () => {
       const ctx = createRuntimeContext({});
       pushCallFrame(ctx, frame('fn1'));
       expect(ctx.callStack).toHaveLength(1);
-      expect(ctx.callStack[0]!.name).toBe('fn1');
+      expect(ctx.callStack[0]!.functionName).toBe('fn1');
     });
 
     it('popCallFrame removes the last frame', () => {
@@ -109,7 +115,7 @@ describe('ControlFlowContext', () => {
       pushCallFrame(ctx, frame('fn2'));
       popCallFrame(ctx);
       expect(ctx.callStack).toHaveLength(1);
-      expect(ctx.callStack[0]!.name).toBe('fn1');
+      expect(ctx.callStack[0]!.functionName).toBe('fn1');
     });
 
     it('popCallFrame on empty stack is a no-op', () => {
@@ -128,8 +134,8 @@ describe('ControlFlowContext', () => {
       // Stack is full at depth 3; one more push must drop 'f1'.
       pushCallFrame(ctx, frame('f4'));
       expect(ctx.callStack).toHaveLength(3);
-      expect(ctx.callStack[0]!.name).toBe('f2');
-      expect(ctx.callStack[2]!.name).toBe('f4');
+      expect(ctx.callStack[0]!.functionName).toBe('f2');
+      expect(ctx.callStack[2]!.functionName).toBe('f4');
     });
 
     it('child inherits maxCallStackDepth from parent', () => {

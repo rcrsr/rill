@@ -14,6 +14,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
+  anyTypeValue,
   createRillStream,
   createRuntimeContext,
   execute,
@@ -34,6 +35,7 @@ import { expectHalt } from '../helpers/halt.js';
  */
 function makeMidStreamThrowFn(disposed: { called: boolean }): RillFunction {
   return {
+    returnType: anyTypeValue,
     params: [],
     fn: () =>
       createRillStream({
@@ -97,6 +99,7 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
       const ctx = createRuntimeContext({
         functions: {
           probe: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => {
               bodyCalls += 1;
@@ -254,7 +257,11 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
       const ctx = createRuntimeContext({
         functions: {
           make_stream: makeMidStreamThrowFn(disposed),
-          mark: { params: [], fn: () => ((markRan = true), null) },
+          mark: {
+            returnType: anyTypeValue,
+            params: [],
+            fn: () => ((markRan = true), null),
+          },
         },
       });
       const script = parse(
@@ -280,7 +287,11 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
       const ctx = createRuntimeContext({
         functions: {
           make_stream: makeMidStreamThrowFn(disposed),
-          mark: { params: [], fn: () => ((markRan = true), null) },
+          mark: {
+            returnType: anyTypeValue,
+            params: [],
+            fn: () => ((markRan = true), null),
+          },
         },
       });
       const script = parse(

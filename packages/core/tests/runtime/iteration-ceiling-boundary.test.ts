@@ -17,7 +17,6 @@ import {
   type RillFunction,
   type RillStream,
   type RillValue,
-  type TypeStructure,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
@@ -57,7 +56,7 @@ describe('iteration ceiling boundary (issue #297)', () => {
 /** Host function returning a fresh RillStream of `count` chunks, each 1. */
 function makeCountedStreamFn(count: number): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -72,7 +71,7 @@ function makeCountedStreamFn(count: number): RillFunction {
 /** Host function returning a stream of `count` chunks whose values are 0..count-1. */
 function makeIndexedStreamFn(count: number): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -108,7 +107,7 @@ function makeEndlessValuelessStreamFn(): RillFunction {
     return step as unknown as RillValue;
   };
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: makeStep,
   };

@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import {
+  anyTypeValue,
   atomName,
   getStatus,
   RuntimeError,
@@ -87,6 +88,7 @@ describe('core handler error contracts', () => {
         run('"test" -> slow() -> slow()', {
           functions: {
             slow: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: '_',
@@ -115,6 +117,7 @@ describe('core handler error contracts', () => {
         run('first() -> second()', {
           functions: {
             first: {
+              returnType: anyTypeValue,
               params: [],
               fn: async () => {
                 callCount++;
@@ -124,6 +127,7 @@ describe('core handler error contracts', () => {
               },
             },
             second: {
+              returnType: anyTypeValue,
               params: [],
               fn: async () => {
                 callCount++;
@@ -202,6 +206,7 @@ describe('core handler error contracts', () => {
         run('list[1, 2, 3] -> seq({ count() })', {
           functions: {
             count: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: '_',
@@ -233,6 +238,7 @@ describe('core handler error contracts', () => {
         run('fn(a(), b())', {
           functions: {
             fn: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'x',
@@ -241,16 +247,17 @@ describe('core handler error contracts', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
             },
             a: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => {
                 controller.abort();
                 return 1;
               },
             },
-            b: { params: [], fn: () => 2 },
+            b: { returnType: anyTypeValue, params: [], fn: () => 2 },
           },
           signal: controller.signal,
         })
@@ -319,6 +326,7 @@ describe('core handler error contracts', () => {
       const result = await run('10 -> add($, 5)', {
         functions: {
           add: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'a',

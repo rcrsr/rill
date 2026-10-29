@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   atomName,
   getStatus,
   RuntimeError,
@@ -14,7 +15,7 @@ import {
   execute,
   type RillValue,
 } from '@rcrsr/rill';
-import { run } from '../helpers/runtime.js';
+import { run, toRuntimeContext } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 /**
@@ -122,6 +123,7 @@ describe('Rill Runtime: core handler error contracts', () => {
       let callCount = 0;
 
       const slowFn = {
+        returnType: anyTypeValue,
         params: [
           {
             name: '_',
@@ -158,6 +160,7 @@ describe('Rill Runtime: core handler error contracts', () => {
         run('"" -> { slow() -> slow() -> slow() }', {
           functions: {
             slow: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: '_',
@@ -204,6 +207,7 @@ describe('Rill Runtime: core handler error contracts', () => {
         run('"test" -> check -> check', {
           functions: {
             check: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -218,7 +222,7 @@ describe('Rill Runtime: core handler error contracts', () => {
                   controller.abort();
                 }
                 await new Promise((r) => setTimeout(r, 5));
-                return args['input'];
+                return args['input'] ?? null;
               },
             },
           },
@@ -275,6 +279,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
       const result = await run('^(limit: 10) fail()', {
         functions: {
           fail: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => {
               throw new Error('Custom error');
@@ -346,6 +351,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
         run('^(limit: fail()) "test"', {
           functions: {
             fail: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => {
                 throw new Error('Annotation error');
@@ -392,6 +398,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
         run('^(limit: getLimit()) "test"', {
           functions: {
             getLimit: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => {
                 throw new Error('Failed to get limit');
@@ -422,9 +429,10 @@ describe('Rill Runtime: annotations handler error contracts', () => {
       const ctx = createRuntimeContext({
         functions: {
           probe: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              seen.push(c.annotationStack.length);
+              seen.push(toRuntimeContext(c).annotationStack.length);
               return '';
             },
           },
@@ -443,9 +451,10 @@ describe('Rill Runtime: annotations handler error contracts', () => {
       const ctx = createRuntimeContext({
         functions: {
           probe: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              seen.push(c.annotationStack.length);
+              seen.push(toRuntimeContext(c).annotationStack.length);
               return '';
             },
           },

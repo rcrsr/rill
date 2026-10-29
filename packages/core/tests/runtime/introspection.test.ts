@@ -24,6 +24,7 @@ import {
   getFunctions,
   getLanguageReference,
   type RuntimeContext,
+  toCallable,
 } from '@rcrsr/rill';
 import { runWithContext } from '../helpers/runtime.js';
 
@@ -192,7 +193,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
               annotations: { description: 'A host function' },
               returnType: anyTypeValue,
             },
@@ -364,7 +365,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
               returnType: anyTypeValue,
             },
           },
@@ -388,7 +389,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 }, // No description
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
               annotations: { description: 'A test function' },
               returnType: anyTypeValue,
             },
@@ -413,7 +414,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['a'],
+              fn: (args) => args['a']!,
               annotations: { description: 'Has description' },
               returnType: anyTypeValue,
             },
@@ -426,7 +427,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['b'],
+              fn: (args) => args['b']!,
               returnType: anyTypeValue,
             },
           },
@@ -633,7 +634,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['x'],
+              fn: (args) => args['x']!,
               annotations: { description: 'Valid function' },
               returnType: anyTypeValue,
             },
@@ -708,7 +709,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['a'],
+              fn: (args) => args['a']!,
               annotations: { description: 'First' },
               returnType: anyTypeValue,
             },
@@ -721,7 +722,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['b'],
+              fn: (args) => args['b']!,
               annotations: { description: 'Last' },
               returnType: anyTypeValue,
             },
@@ -833,7 +834,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['required'],
+              fn: (args) => args['required']!,
               annotations: { description: 'Test function' },
               returnType: anyTypeValue,
             },
@@ -866,7 +867,7 @@ describe('Rill Runtime: Introspection API', () => {
                   annotations: {},
                 },
               ],
-              fn: (args) => args['noDefault'],
+              fn: (args) => args['noDefault']!,
               returnType: anyTypeValue,
             },
           },
@@ -888,10 +889,11 @@ describe('Rill Runtime: Introspection API', () => {
             nestedClosures: {
               level1: {
                 level2: {
-                  level3: {
-                    __type: 'script' as const,
+                  level3: toCallable({
+                    params: [],
+                    returnType: anyTypeValue,
                     fn: () => 'deep',
-                  },
+                  }),
                 },
               },
             },
@@ -920,18 +922,20 @@ describe('Rill Runtime: Introspection API', () => {
       it('does not enumerate closures at any nesting level', () => {
         const ctx = createRuntimeContext({
           variables: {
-            shallow: {
-              __type: 'application' as const,
+            shallow: toCallable({
+              params: [],
+              returnType: anyTypeValue,
               fn: () => 'shallow',
-            },
+            }),
             deep: {
               a: {
                 b: {
                   c: {
-                    d: {
-                      __type: 'script' as const,
+                    d: toCallable({
+                      params: [],
+                      returnType: anyTypeValue,
                       fn: () => 'very deep',
-                    },
+                    }),
                   },
                 },
               },
@@ -954,11 +958,12 @@ describe('Rill Runtime: Introspection API', () => {
         const ctx = createRuntimeContext({
           variables: {
             utils: {
-              helper: {
-                __type: 'application' as const,
+              helper: toCallable({
+                params: [],
+                returnType: anyTypeValue,
                 fn: () => 'helper',
-                description: 'Nested callable',
-              },
+                annotations: { description: 'Nested callable' },
+              }),
             },
           },
           functions: {

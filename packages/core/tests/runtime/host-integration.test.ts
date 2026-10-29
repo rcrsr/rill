@@ -29,8 +29,9 @@ import {
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
-import { run } from '../helpers/runtime.js';
+import { callableLiteral, run } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
+import { isClosureStructure } from '../helpers/structure.js';
 
 /**
  * Asserts the thrown error is an abort halt:
@@ -60,6 +61,7 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('shout("hello")', {
         functions: {
           shout: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'text',
@@ -79,6 +81,7 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('repeat("hello", 3)', {
         functions: {
           repeat: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'str',
@@ -110,6 +113,7 @@ describe('Rill Runtime: Host Integration', () => {
         variables: { prefix: 'PREFIX:' },
         functions: {
           withPrefix: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'text',
@@ -132,6 +136,7 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('fetchData("url")', {
         functions: {
           fetchData: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'url',
@@ -154,6 +159,7 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('my_type("hello")', {
         functions: {
           my_type: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'value',
@@ -174,6 +180,7 @@ describe('Rill Runtime: Host Integration', () => {
       await run('read_dict(dict[1: "a", true: "b", name: "c"])', {
         functions: {
           read_dict: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'data',
@@ -206,6 +213,7 @@ describe('Rill Runtime: Host Integration', () => {
       await run('locate("test")', {
         functions: {
           locate: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'text',
@@ -230,6 +238,7 @@ describe('Rill Runtime: Host Integration', () => {
       await run('track(1)\ntrack(2)\ntrack(3)', {
         functions: {
           track: {
+            returnType: anyTypeValue,
             params: [
               {
                 name: 'value',
@@ -295,6 +304,7 @@ describe('Rill Runtime: Host Integration', () => {
       const controller = new AbortController();
 
       const slowFn: RillFunction = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'input',
@@ -326,6 +336,7 @@ describe('Rill Runtime: Host Integration', () => {
       let iterations = 0;
 
       const countFn: RillFunction = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'item',
@@ -358,6 +369,7 @@ describe('Rill Runtime: Host Integration', () => {
       let iterations = 0;
 
       const tickFn: RillFunction = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'item',
@@ -423,7 +435,11 @@ describe('Rill Runtime: Host Integration', () => {
       await expectAbortHalt(() =>
         run('custom()', {
           functions: {
-            custom: { params: [], fn: () => 'should not reach' },
+            custom: {
+              returnType: anyTypeValue,
+              params: [],
+              fn: () => 'should not reach',
+            },
           },
           signal: controller.signal,
         })
@@ -476,6 +492,7 @@ describe('Rill Runtime: Host Integration', () => {
         let firstRan = false;
 
         const markFn: RillFunction = {
+          returnType: anyTypeValue,
           params: [],
           fn: (): RillValue => {
             firstRan = true;
@@ -513,7 +530,7 @@ describe('Rill Runtime: Host Integration', () => {
 
   describe('Application Callables', () => {
     it('callable() creates an application callable', () => {
-      const fn = callable((args) => args[0]);
+      const fn = callable((args) => args[0]!);
       expect(isCallable(fn)).toBe(true);
       expect(isApplicationCallable(fn)).toBe(true);
       expect(fn.kind).toBe('application');
@@ -529,6 +546,7 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('getGreeter()', {
         functions: {
           getGreeter: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => callable((args) => `Hello, ${args[0]}!`),
           },
@@ -542,6 +560,7 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('getGreeter() => $greet -> $greet("World")', {
         functions: {
           getGreeter: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => callable((args) => `Hello, ${args[0]}!`),
           },
@@ -580,7 +599,7 @@ describe('Rill Runtime: Host Integration', () => {
             last: 'Doe',
             fullName: callable((args) => {
               const dict = args[0] as Record<string, RillValue>;
-              return `${dict.first} ${dict.last}`;
+              return `${dict['first']} ${dict['last']}`;
             }, true),
           },
         },
@@ -644,13 +663,20 @@ describe('Rill Runtime: Host Integration', () => {
         kind: 'application' as const,
         isProperty: false,
         fn: () => 'test',
-        params: [{ name: 'text', type: { kind: 'string' }, annotations: {} }],
+        params: [
+          {
+            defaultValue: undefined,
+            name: 'text',
+            type: { kind: 'string' },
+            annotations: {},
+          },
+        ],
         returnType: structureToTypeValue({ kind: 'dict' }),
         annotations: {},
       };
       const result = inferStructure(fn as unknown as RillValue);
       expect(result.kind).toBe('closure');
-      if (result.kind === 'closure') {
+      if (isClosureStructure(result)) {
         expect(result.params).toEqual([
           { name: 'text', type: { kind: 'string' } },
         ]);
@@ -670,7 +696,7 @@ describe('Rill Runtime: Host Integration', () => {
       };
       const result = inferStructure(fn as unknown as RillValue);
       expect(result.kind).toBe('closure');
-      if (result.kind === 'closure') {
+      if (isClosureStructure(result)) {
         expect(result.params).toEqual([]);
       }
     });
@@ -687,7 +713,7 @@ describe('Rill Runtime: Host Integration', () => {
       };
       const result = inferStructure(fn as unknown as RillValue);
       expect(result.kind).toBe('closure');
-      if (result.kind === 'closure') {
+      if (isClosureStructure(result)) {
         expect(result.ret).toEqual({ kind: 'any' });
       }
     });
@@ -783,7 +809,7 @@ describe('Callable reflection via ^ operator', () => {
     it('returns description string when annotations.description is set (AC-25, AC-26)', async () => {
       const result = await run('$greet.^description', {
         variables: {
-          greet: {
+          greet: callableLiteral({
             __type: 'callable' as const,
             kind: 'application' as const,
             isProperty: false,
@@ -791,7 +817,7 @@ describe('Callable reflection via ^ operator', () => {
             params: [],
             returnType: anyTypeValue,
             annotations: { description: 'Says hello' },
-          } satisfies ApplicationCallable,
+          }),
         },
       });
       expect(result).toBe('Says hello');
@@ -800,7 +826,7 @@ describe('Callable reflection via ^ operator', () => {
     it('returns an empty string when annotations.description is absent (AC-23)', async () => {
       const result = await run('$myFn.^description', {
         variables: {
-          myFn: {
+          myFn: callableLiteral({
             __type: 'callable' as const,
             kind: 'application' as const,
             isProperty: false,
@@ -808,7 +834,7 @@ describe('Callable reflection via ^ operator', () => {
             params: [],
             returnType: anyTypeValue,
             annotations: {},
-          } satisfies ApplicationCallable,
+          }),
         },
       });
       // No description annotation: ^description returns ""
@@ -820,7 +846,7 @@ describe('Callable reflection via ^ operator', () => {
       await expect(
         run('$myFn.^description', {
           variables: {
-            myFn: {
+            myFn: callableLiteral({
               __type: 'callable' as const,
               kind: 'application' as const,
               isProperty: false,
@@ -828,7 +854,7 @@ describe('Callable reflection via ^ operator', () => {
               params: [],
               returnType: anyTypeValue,
               annotations: {},
-            } satisfies ApplicationCallable,
+            }),
           },
         })
       ).resolves.toBeDefined();
@@ -863,7 +889,7 @@ describe('Callable reflection via ^ operator', () => {
     it('returns RillTypeValue with ordered type (AC-28)', async () => {
       const result = (await run('$myFn.^input', {
         variables: {
-          myFn: {
+          myFn: callableLiteral({
             __type: 'callable' as const,
             kind: 'application' as const,
             isProperty: false,
@@ -878,7 +904,7 @@ describe('Callable reflection via ^ operator', () => {
             ],
             returnType: structureToTypeValue({ kind: 'string' }),
             annotations: {},
-          } satisfies ApplicationCallable,
+          }),
         },
       })) as Record<string, unknown>;
       expect(result['__rill_type']).toBe(true);
@@ -888,7 +914,7 @@ describe('Callable reflection via ^ operator', () => {
     it('returns empty ordered type for zero-param callable (AC-5, AC-29)', async () => {
       const result = (await run('$myFn.^input', {
         variables: {
-          myFn: {
+          myFn: callableLiteral({
             __type: 'callable' as const,
             kind: 'application' as const,
             isProperty: false,
@@ -896,7 +922,7 @@ describe('Callable reflection via ^ operator', () => {
             params: [],
             returnType: anyTypeValue,
             annotations: {},
-          } satisfies ApplicationCallable,
+          }),
         },
       })) as Record<string, unknown>;
       expect(result['__rill_type']).toBe(true);
@@ -919,7 +945,7 @@ describe('Callable reflection via ^ operator', () => {
       const returnType = structureToTypeValue({ kind: 'string' });
       const result = (await run('$myFn.^output', {
         variables: {
-          myFn: {
+          myFn: callableLiteral({
             __type: 'callable' as const,
             kind: 'application' as const,
             isProperty: false,
@@ -927,7 +953,7 @@ describe('Callable reflection via ^ operator', () => {
             params: [],
             returnType,
             annotations: {},
-          } satisfies ApplicationCallable,
+          }),
         },
       })) as Record<string, unknown>;
       // ^output returns the RillTypeValue — which has a __rill_type sentinel
@@ -1194,6 +1220,7 @@ describe('AC-3: Host function receives Record<string, RillValue> with named keys
     await run('add(10, 20)', {
       functions: {
         add: {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'x',
@@ -1230,6 +1257,7 @@ describe('AC-3: Host function receives Record<string, RillValue> with named keys
     await run('greet("alice")', {
       functions: {
         greet: {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'name',
@@ -1270,6 +1298,7 @@ describe('AC-5: Block closure sets $ to pipe value post-marshaling', () => {
     await run('42 -> { capture($) }', {
       functions: {
         capture: {
+          returnType: anyTypeValue,
           params: [
             {
               name: 'value',
@@ -1303,6 +1332,7 @@ describe('AC-6: Named-param closure does not modify $', () => {
       {
         functions: {
           capture: {
+            returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
               capturedDollar = ctx.pipeValue;
@@ -1328,7 +1358,7 @@ describe('AC-6: Named-param closure does not modify $', () => {
 // companion language-level regression tests on the same guard.
 describe('AC-8: Method dispatch — bound dict fills first ordered entry', () => {
   it('$person.greet() passes dict as receiver (first param)', async () => {
-    let receivedReceiver: RillValue = null;
+    const captured: { receiver: RillValue } = { receiver: null };
 
     const result = await run('$person.greet()', {
       variables: {
@@ -1349,7 +1379,7 @@ describe('AC-8: Method dispatch — bound dict fills first ordered entry', () =>
             returnType: anyTypeValue,
             annotations: {},
             fn: (args) => {
-              receivedReceiver = args['self'] ?? null;
+              captured.receiver = args['self'] ?? null;
               const self = args['self'] as Record<string, RillValue>;
               return `Hello, I am ${self['name']}`;
             },
@@ -1360,7 +1390,7 @@ describe('AC-8: Method dispatch — bound dict fills first ordered entry', () =>
 
     expect(result).toBe('Hello, I am alice');
     // The bound dict (person) was passed as the receiver argument
-    expect((receivedReceiver as Record<string, RillValue>)['name']).toBe(
+    expect((captured.receiver as Record<string, RillValue>)['name']).toBe(
       'alice'
     );
   });
@@ -1723,9 +1753,9 @@ describe('Host function return-value validation (RILL-R085)', () => {
     it('accepts an iterator', async () => {
       const result = await echoThrough('range(0, 3)');
       expect(result).toHaveProperty('next');
-      expect(isCallable((result as Record<string, RillValue>)['next'])).toBe(
-        true
-      );
+      expect(
+        isCallable((result as Record<string, RillValue>)['next'] ?? null)
+      ).toBe(true);
     });
 
     it('accepts a stream', async () => {
@@ -2010,6 +2040,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
      */
     function makeMidStreamThrowFn(disposed: { called: boolean }): RillFunction {
       return {
+        returnType: anyTypeValue,
         params: [],
         fn: () =>
           createRillStream({
@@ -2059,6 +2090,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
           functions: {
             make_stream: makeMidStreamThrowFn(disposed),
             mark: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => {
                 markRan = true;
@@ -2102,6 +2134,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
           functions: {
             make_stream: makeMidStreamThrowFn(disposed),
             mark: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => {
                 markRan = true;
@@ -2132,7 +2165,7 @@ describe('Host function return-value validation (non-finite numbers)', () => {
   function numberFn(returnValue: number): RillFunction {
     return {
       params: [],
-      returnType: { kind: 'number' },
+      returnType: structureToTypeValue({ kind: 'number' }),
       fn: () => returnValue,
     };
   }

@@ -64,15 +64,16 @@ describe('ExtensionFactoryCtx', () => {
       // rejects the `extra` member. If the exact-prop contract regresses
       // and the compiler accepts the extra, tsc flags the directive as
       // unused, turning this into a compile-time failure (AC-N5 / EC-15).
-      // @ts-expect-error AC-N5: ExtensionFactoryCtx rejects excess properties
       const withExtra: ExtensionFactoryCtx = {
         registerErrorCode: () => {},
         signal: controller.signal,
+        // @ts-expect-error AC-N5: ExtensionFactoryCtx rejects excess properties
         extra: 1,
       };
 
       // Read the literal so the `withExtra` binding is not optimised out;
-      // this keeps the directive anchored to the literal line.
+      // the directive sits on the offending property line, where tsc reports
+      // the excess-property error.
       expect(typeof withExtra.registerErrorCode).toBe('function');
     });
 

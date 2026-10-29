@@ -28,6 +28,17 @@ const labelCallbacks: FieldComparisonCallbacks<string> = {
   onOrderedFields: () => 'orderedFields',
 };
 
+/** Boolean callbacks that fire nothing interesting; tests override one handler */
+const falseCallbacks: FieldComparisonCallbacks<boolean> = {
+  onValueType: () => false,
+  onValueTypeMismatch: () => false,
+  onBothEmpty: () => false,
+  onFieldPresenceMismatch: () => false,
+  onDictFields: () => false,
+  onTupleElements: () => false,
+  onOrderedFields: () => false,
+};
+
 describe('compareStructuredFields', () => {
   describe('dict dispatch (AC-6)', () => {
     it('dispatches to onDictFields for dict with fields', () => {
@@ -206,12 +217,12 @@ describe('compareStructuredFields', () => {
         b: Record<string, unknown>;
       } | null = null;
       const callbacks: FieldComparisonCallbacks<boolean> = {
-        ...labelCallbacks,
+        ...falseCallbacks,
         onDictFields: (af, bf) => {
           received = { a: af, b: bf };
           return true;
         },
-      } as FieldComparisonCallbacks<boolean>;
+      };
 
       compareStructuredFields(a, b, callbacks, false);
       expect(received).not.toBeNull();
@@ -230,12 +241,12 @@ describe('compareStructuredFields', () => {
 
       let receivedLengths: { a: number; b: number } | null = null;
       const callbacks: FieldComparisonCallbacks<boolean> = {
-        ...labelCallbacks,
+        ...falseCallbacks,
         onTupleElements: (ae, be) => {
           receivedLengths = { a: ae.length, b: be.length };
           return true;
         },
-      } as FieldComparisonCallbacks<boolean>;
+      };
 
       compareStructuredFields(a, b, callbacks, false);
       expect(receivedLengths).toEqual({ a: 1, b: 2 });
@@ -253,12 +264,12 @@ describe('compareStructuredFields', () => {
 
       let receivedKinds: { a: string; b: string } | null = null;
       const callbacks: FieldComparisonCallbacks<boolean> = {
-        ...labelCallbacks,
+        ...falseCallbacks,
         onValueType: (avt, bvt) => {
           receivedKinds = { a: avt.kind, b: bvt.kind };
           return true;
         },
-      } as FieldComparisonCallbacks<boolean>;
+      };
 
       compareStructuredFields(a, b, callbacks, false);
       expect(receivedKinds).toEqual({ a: 'number', b: 'string' });

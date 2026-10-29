@@ -20,6 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
+import { getFirstPrimary } from '../helpers/ast.js';
 
 describe('parseFieldArgList unterminated list', () => {
   it('errors on an unterminated stream() type argument list', () => {
@@ -50,35 +51,30 @@ describe('parseFieldArgList unterminated list', () => {
 describe('isClosureSigLiteralStart disambiguation', () => {
   it('recognizes a closure sig literal (| name: type |: returnType)', () => {
     const ast = parse('|x: string|: number');
-    const stmt = ast.statements[0]!;
-    expect(stmt.expression.head.primary.type).toBe('ClosureSigLiteral');
+    expect(getFirstPrimary(ast).type).toBe('ClosureSigLiteral');
   });
 
   it('recognizes a closure sig literal with multiple params', () => {
     const ast = parse('|x: string, y: number|: number');
-    const stmt = ast.statements[0]!;
-    expect(stmt.expression.head.primary.type).toBe('ClosureSigLiteral');
+    expect(getFirstPrimary(ast).type).toBe('ClosureSigLiteral');
   });
 
   it('does not misidentify a typed closure with a brace body', () => {
     const ast = parse('|x: string| { $x }');
-    const stmt = ast.statements[0]!;
-    expect(stmt.expression.head.primary.type).not.toBe('ClosureSigLiteral');
-    expect(stmt.expression.head.primary.type).toBe('Closure');
+    expect(getFirstPrimary(ast).type).not.toBe('ClosureSigLiteral');
+    expect(getFirstPrimary(ast).type).toBe('Closure');
   });
 
   it('does not misidentify a typed closure with a parenthesized body', () => {
     const ast = parse('|x: number| ($x)');
-    const stmt = ast.statements[0]!;
-    expect(stmt.expression.head.primary.type).not.toBe('ClosureSigLiteral');
-    expect(stmt.expression.head.primary.type).toBe('Closure');
+    expect(getFirstPrimary(ast).type).not.toBe('ClosureSigLiteral');
+    expect(getFirstPrimary(ast).type).toBe('Closure');
   });
 
   it('does not misidentify an untyped closure with no params', () => {
     const ast = parse('|| { 1 }');
-    const stmt = ast.statements[0]!;
-    expect(stmt.expression.head.primary.type).not.toBe('ClosureSigLiteral');
-    expect(stmt.expression.head.primary.type).toBe('Closure');
+    expect(getFirstPrimary(ast).type).not.toBe('ClosureSigLiteral');
+    expect(getFirstPrimary(ast).type).toBe('Closure');
   });
 
   it('routes a union-typed param signature to the sig-literal path instead of misclassifying it as a closure', () => {

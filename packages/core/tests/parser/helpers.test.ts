@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { TOKEN_TYPES } from '../../src/types.ts';
-import { isIdentifierOrKeyword } from '../../src/parser/helpers.ts';
+import { TOKEN_TYPES } from '../../src/types.js';
+import { isIdentifierOrKeyword } from '../../src/parser/helpers.js';
 
 describe('isIdentifierOrKeyword', () => {
   describe('valid identifier tokens', () => {

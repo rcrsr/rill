@@ -10,6 +10,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
+  anyTypeValue,
   createChildContext,
   createRuntimeContext,
   execute,
@@ -268,6 +269,7 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
 
     const itemsFn = (count: number): Record<string, RillFunction> => ({
       items: {
+        returnType: anyTypeValue,
         params: [],
         fn: () => Array.from({ length: count }, (_, i) => i),
       },

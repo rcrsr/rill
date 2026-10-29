@@ -16,6 +16,7 @@
 import { describe, expect, it } from 'vitest';
 import { isStream, type RillStream, type RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { advanceStream } from '../helpers/stream.js';
 import { expectHaltMessage } from '../helpers/halt.js';
 
 // ============================================================
@@ -30,13 +31,13 @@ async function collectStreamChunks(stream: RillStream): Promise<RillValue[]> {
   const chunks: RillValue[] = [];
 
   // Call next to get the first step (initial stream has no value)
-  let step = (await stream.next.fn({}, {} as never)) as unknown as RillStream;
+  let step = await advanceStream(stream);
 
   while (!step.done) {
     if (step.value !== undefined) {
       chunks.push(step.value);
     }
-    step = (await step.next.fn({}, {} as never)) as unknown as RillStream;
+    step = await advanceStream(step);
   }
 
   return chunks;

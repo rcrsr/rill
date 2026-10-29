@@ -83,7 +83,7 @@ describe('Multi-Server Composition', () => {
           },
         ],
         fn: (args) => ({
-          number: args['number'],
+          number: args['number']!,
           title: `PR #${args['number']}`,
           state: 'open',
         }),
@@ -149,7 +149,7 @@ describe('Multi-Server Composition', () => {
         ],
         fn: (args) => ({
           rowsAffected: 1,
-          command: args['sql'],
+          command: args['sql']!,
         }),
         returnType: anyTypeValue,
       });
@@ -367,7 +367,7 @@ describe('Multi-Server Composition', () => {
         ],
         fn: (args) => ({
           inserted: true,
-          table: args['table'],
+          table: args['table']!,
           id: 99,
         }),
         returnType: anyTypeValue,
@@ -391,7 +391,7 @@ describe('Multi-Server Composition', () => {
         ],
         fn: (args) => ({
           cached: true,
-          key: args['key'],
+          key: args['key']!,
           ttl: 3600,
         }),
         returnType: anyTypeValue,

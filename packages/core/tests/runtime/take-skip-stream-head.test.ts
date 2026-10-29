@@ -15,7 +15,6 @@ import {
   type RillFunction,
   type RillStream,
   type RillValue,
-  type TypeStructure,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
@@ -25,7 +24,7 @@ import { expectHalt } from '../helpers/halt.js';
 /** Host function returning a fresh RillStream over the given chunks. */
 function makeStreamFn(chunks: RillValue[]): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -55,7 +54,7 @@ function makeValuelessIterFn(): RillFunction {
       next: callable(step),
     }) as unknown as RillValue;
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: step,
   };
@@ -228,7 +227,7 @@ describe('take/skip enforce stream chunk-type homogeneity (#342)', () => {
  * (e.g. a subsequent runtime ctx.dispose()) must not move the counter. */
 function makeCountingStreamFn(counter: { count: number }): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -308,7 +307,7 @@ describe('take() disposes a host stream exactly once (#391)', () => {
  * chunk. */
 function makeThrowingThirdChunkStreamFn(): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -336,7 +335,7 @@ describe('take() never pulls beyond its cap (#417)', () => {
     await run('s() -> take(2)', {
       functions: {
         s: {
-          params: [] as { name: string; type: TypeStructure }[],
+          params: [],
           returnType: anyTypeValue,
           fn: (): RillStream =>
             createRillStream({

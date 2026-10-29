@@ -44,7 +44,6 @@ describe('Rill Runtime: Call Stack Management', () => {
           location: {
             start: { line: 1, column: 1, offset: 0 },
             end: { line: 1, column: 10, offset: 9 },
-            source: 'test.rill',
           },
           functionName: 'testFunc',
         },
@@ -70,7 +69,6 @@ describe('Rill Runtime: Call Stack Management', () => {
           location: {
             start: { line: 1, column: 1, offset: 0 },
             end: { line: 1, column: 10, offset: 9 },
-            source: 'test.rill',
           },
           functionName: 'testFunc',
         },
@@ -127,7 +125,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 1, column: 1, offset: 0 },
           end: { line: 1, column: 10, offset: 9 },
-          source: 'test.rill',
         },
         functionName: 'testFunc',
       };
@@ -144,7 +141,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 1, column: 1, offset: 0 },
           end: { line: 1, column: 10, offset: 9 },
-          source: 'test.rill',
         },
         functionName: 'func1',
       };
@@ -152,7 +148,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 2, column: 1, offset: 10 },
           end: { line: 2, column: 10, offset: 19 },
-          source: 'test.rill',
         },
         functionName: 'func2',
       };
@@ -173,7 +168,6 @@ describe('Rill Runtime: Call Stack Management', () => {
           location: {
             start: { line: i, column: 1, offset: i * 10 },
             end: { line: i, column: 10, offset: i * 10 + 9 },
-            source: 'test.rill',
           },
           functionName: `func${i}`,
         });
@@ -193,7 +187,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 1, column: 1, offset: 0 },
           end: { line: 1, column: 10, offset: 9 },
-          source: 'test.rill',
         },
         functionName: 'oldest',
       };
@@ -201,7 +194,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 2, column: 1, offset: 10 },
           end: { line: 2, column: 10, offset: 19 },
-          source: 'test.rill',
         },
         functionName: 'middle',
       };
@@ -209,7 +201,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 3, column: 1, offset: 20 },
           end: { line: 3, column: 10, offset: 29 },
-          source: 'test.rill',
         },
         functionName: 'newest',
       };
@@ -232,7 +223,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 1, column: 1, offset: 0 },
           end: { line: 1, column: 10, offset: 9 },
-          source: 'test.rill',
         },
         functionName: 'testFunc',
       };
@@ -250,7 +240,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 1, column: 1, offset: 0 },
           end: { line: 1, column: 10, offset: 9 },
-          source: 'test.rill',
         },
         functionName: 'func1',
       };
@@ -258,7 +247,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 2, column: 1, offset: 10 },
           end: { line: 2, column: 10, offset: 19 },
-          source: 'test.rill',
         },
         functionName: 'func2',
       };
@@ -297,7 +285,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 1, column: 1, offset: 0 },
           end: { line: 1, column: 10, offset: 9 },
-          source: 'test.rill',
         },
         functionName: 'main',
       };
@@ -305,7 +292,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 5, column: 1, offset: 50 },
           end: { line: 5, column: 10, offset: 59 },
-          source: 'test.rill',
         },
         functionName: 'helper',
       };
@@ -313,7 +299,6 @@ describe('Rill Runtime: Call Stack Management', () => {
         location: {
           start: { line: 10, column: 1, offset: 100 },
           end: { line: 10, column: 10, offset: 109 },
-          source: 'test.rill',
         },
         functionName: 'nested',
       };

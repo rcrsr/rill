@@ -16,7 +16,6 @@ import {
   type RillFunction,
   type RillStream,
   type RillValue,
-  type TypeStructure,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
@@ -33,7 +32,7 @@ function makeInfiniteCountingStreamFn(
   disposeCounter: { count: number }
 ): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -71,7 +70,7 @@ function makeInfiniteCountingIterFn(pullCounter: {
     } as unknown as RillValue;
   };
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: () => step(0),
   };
@@ -133,7 +132,7 @@ describe('seq lazily walks an infinite iterator, bounding pulls at break (#419)'
       {
         functions: {
           probe: {
-            params: [] as { name: string; type: TypeStructure }[],
+            params: [],
             returnType: anyTypeValue,
             fn: () => {
               calls.push(calls.length + 1);

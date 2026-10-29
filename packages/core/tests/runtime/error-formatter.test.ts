@@ -14,9 +14,12 @@ describe('Rill Runtime: formatRillError', () => {
     const err = new RuntimeError(
       'RILL-R001',
       'type mismatch',
-      { line: 2, column: 5 },
+      { line: 2, column: 5, offset: 10 },
       undefined,
-      { start: { line: 2, column: 5 }, end: { line: 2, column: 6 } }
+      {
+        start: { line: 2, column: 5, offset: 10 },
+        end: { line: 2, column: 6, offset: 11 },
+      }
     );
 
     const formatted = formatRillError(err, {
@@ -39,9 +42,12 @@ describe('Rill Runtime: formatRillError', () => {
     const err = new RuntimeError(
       'RILL-R001',
       'type mismatch',
-      { line: 2, column: 3 },
+      { line: 2, column: 3, offset: 9 },
       { sourceText: moduleSource },
-      { start: { line: 2, column: 3 }, end: { line: 2, column: 4 } },
+      {
+        start: { line: 2, column: 3, offset: 9 },
+        end: { line: 2, column: 4, offset: 10 },
+      },
       'module:greetings'
     );
 
@@ -62,9 +68,12 @@ describe('Rill Runtime: formatRillError', () => {
     const err = new RuntimeError(
       'RILL-R001',
       'type mismatch',
-      { line: 2, column: 5 },
+      { line: 2, column: 5, offset: 11 },
       undefined,
-      { start: { line: 2, column: 5 }, end: { line: 2, column: 6 } }
+      {
+        start: { line: 2, column: 5, offset: 11 },
+        end: { line: 2, column: 6, offset: 12 },
+      }
     );
 
     const formatted = formatRillError(err, {
@@ -86,9 +95,12 @@ describe('Rill Runtime: formatRillError', () => {
     const err = new RuntimeError(
       'RILL-R001',
       'type mismatch',
-      { line: 1, column: 3 },
+      { line: 1, column: 3, offset: 2 },
       undefined,
-      { start: { line: 1, column: 3 }, end: { line: 1, column: 6 } }
+      {
+        start: { line: 1, column: 3, offset: 2 },
+        end: { line: 1, column: 6, offset: 5 },
+      }
     );
 
     const formatted = formatRillError(err, {
@@ -111,9 +123,12 @@ describe('Rill Runtime: formatRillError', () => {
     const err = new RuntimeError(
       'RILL-R001',
       'type mismatch',
-      { line: 2, column: 7 },
+      { line: 2, column: 7, offset: 12 },
       undefined,
-      { start: { line: 2, column: 7 }, end: { line: 2, column: 10 } }
+      {
+        start: { line: 2, column: 7, offset: 12 },
+        end: { line: 2, column: 10, offset: 15 },
+      }
     );
 
     const formatted = formatRillError(err, {

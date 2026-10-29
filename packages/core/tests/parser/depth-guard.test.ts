@@ -31,7 +31,7 @@ describe('parsePrimary recursion-depth guard', () => {
     expect(caught).not.toBeInstanceOf(RangeError);
     expect((caught as ParseError).errorId).toBe('RILL-P015');
     expect((caught as ParseError).location).toBeDefined();
-    expect((caught as ParseError).location.offset).toBeGreaterThan(0);
+    expect((caught as ParseError).location?.offset).toBeGreaterThan(0);
   });
 
   it('parseWithRecovery() returns success:false with RILL-P015 and does not throw', () => {

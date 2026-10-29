@@ -14,7 +14,7 @@ describe('PASS token type', () => {
   });
 
   it('maps to PASS token in KEYWORDS lookup', () => {
-    expect(KEYWORDS.pass).toBe(TOKEN_TYPES.PASS);
+    expect(KEYWORDS['pass']).toBe(TOKEN_TYPES.PASS);
   });
 });
 

@@ -29,6 +29,7 @@ import {
 } from '@rcrsr/rill';
 import { YieldSignal } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { advanceStream, invokeNext } from '../helpers/stream.js';
 import { expectHalt, expectHaltSync } from '../helpers/halt.js';
 
 // ============================================================
@@ -238,26 +239,17 @@ describe('createRillStream', () => {
       });
 
       // First .next call initializes iteration
-      const step1 = (await stream.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step1 = await advanceStream(stream);
       expect(step1.done).toBe(false);
       expect(step1.value).toBe('a');
 
       // Advance to second chunk
-      const step2 = (await step1.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step2 = await advanceStream(step1);
       expect(step2.done).toBe(false);
       expect(step2.value).toBe('b');
 
       // Exhaust the stream
-      const step3 = (await step2.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step3 = await advanceStream(step2);
       expect(step3.done).toBe(true);
     });
 
@@ -269,18 +261,12 @@ describe('createRillStream', () => {
       });
 
       // Consume the stream
-      const step1 = (await stream.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
-      const step2 = (await step1.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step1 = await advanceStream(stream);
+      const step2 = await advanceStream(step1);
       expect(step2.done).toBe(true);
 
       // Attempting to call next on done step throws (sync callable)
-      expect(() => step2.next.fn({}, {} as never)).toThrow(
+      expect(() => invokeNext(step2)).toThrow(
         'Stream already consumed; cannot re-iterate'
       );
     });
@@ -292,16 +278,13 @@ describe('createRillStream', () => {
         resolve: async () => null,
       });
 
-      const step1 = (await stream.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step1 = await advanceStream(stream);
 
       // Advance past step1
-      await step1.next.fn({}, {} as never);
+      await invokeNext(step1);
 
       // Calling next on stale step1 again throws
-      await expectHalt(async () => step1.next.fn({}, {} as never), {
+      await expectHalt(async () => invokeNext(step1), {
         code: 'RILL_R002',
         messagePattern: 'Stream already consumed; cannot re-iterate',
       });
@@ -315,10 +298,10 @@ describe('createRillStream', () => {
       });
 
       // First call succeeds
-      await stream.next.fn({}, {} as never);
+      await invokeNext(stream);
 
       // Second call on initial stream throws
-      await expectHalt(async () => stream.next.fn({}, {} as never), {
+      await expectHalt(async () => invokeNext(stream), {
         code: 'RILL_R002',
         messagePattern: 'Stream already consumed; cannot re-iterate',
       });
@@ -335,24 +318,15 @@ describe('createRillStream', () => {
       // include the non-enumerable head marker.
       expect(Object.keys(stream)).not.toContain('__rill_stream_head');
 
-      const step1 = (await stream.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step1 = await advanceStream(stream);
       expect(step1.done).toBe(false);
       expect(step1.value).toBe('a');
 
-      const step2 = (await step1.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step2 = await advanceStream(step1);
       expect(step2.done).toBe(false);
       expect(step2.value).toBe('b');
 
-      const step3 = (await step2.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step3 = await advanceStream(step2);
       expect(step3.done).toBe(true);
 
       const resolveFn = (
@@ -403,14 +377,11 @@ describe('createRillStream', () => {
       });
 
       // Consume all chunks
-      const step1 = (await stream.next.fn(
-        {},
-        {} as never
-      )) as unknown as RillStream;
+      const step1 = await advanceStream(stream);
       expect(disposed).toBe(false);
 
       // Exhaust the stream
-      await step1.next.fn({}, {} as never);
+      await invokeNext(step1);
       expect(disposed).toBe(true);
     });
   });
@@ -825,7 +796,7 @@ describe('inferStructure typed stream', () => {
 /** Host function returning a fresh RillStream over the given raw chunks. */
 function makeRawChunkStreamFn(chunks: unknown[]): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -841,7 +812,7 @@ function makeRawChunkStreamFn(chunks: unknown[]): RillFunction {
  * yields `undefined` for its second chunk before continuing. */
 function makeUndefinedMidSequenceStreamFn(): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -947,7 +918,7 @@ describe('expandStream chunk validation (#440)', () => {
 /** Host function returning a fresh stream of `count` numeric chunks. */
 function makeCountedStreamFn(count: number): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -965,7 +936,7 @@ function makeResolvingStreamFn(
   resolution: string
 ): RillFunction {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -1039,13 +1010,10 @@ describe('stream end and second invocation', () => {
       resolve: async () => null,
     });
     // Drain: the initial stream is its own consumed marker after one pull.
-    const step = (await stream.next.fn(
-      {},
-      {} as never
-    )) as unknown as RillStream;
+    const step = await advanceStream(stream);
     expect(step.done).toBe(true);
 
-    expectHaltSync(() => step.next.fn({}, {} as never), {
+    expectHaltSync(() => invokeNext(step), {
       code: 'RILL_R002',
       messagePattern: 'Stream already consumed; cannot re-iterate',
     });
@@ -1056,13 +1024,10 @@ describe('stream end and second invocation', () => {
       chunks: asyncIterableFrom(['a', 'b', 'c']),
       resolve: async () => null,
     });
-    const step1 = (await stream.next.fn(
-      {},
-      {} as never
-    )) as unknown as RillStream;
-    await step1.next.fn({}, {} as never);
+    const step1 = await advanceStream(stream);
+    await invokeNext(step1);
 
-    await expectHalt(async () => step1.next.fn({}, {} as never), {
+    await expectHalt(async () => invokeNext(step1), {
       code: 'RILL_R002',
       messagePattern: 'Stream already consumed; cannot re-iterate',
     });
@@ -1073,9 +1038,9 @@ describe('stream end and second invocation', () => {
       chunks: asyncIterableFrom(['a']),
       resolve: async () => null,
     });
-    await stream.next.fn({}, {} as never);
+    await invokeNext(stream);
 
-    await expectHalt(async () => stream.next.fn({}, {} as never), {
+    await expectHalt(async () => invokeNext(stream), {
       code: 'RILL_R002',
       messagePattern: 'Stream already consumed; cannot re-iterate',
     });

@@ -16,13 +16,25 @@
 import { describe, expect, it } from 'vitest';
 import { ERROR_REGISTRY, type ErrorDefinition } from '@rcrsr/rill';
 import { ErrorRegistryImpl } from '../../src/error-registry.js';
-import { ERROR_ATOMS, ERROR_IDS } from '../../src/error-registry.js';
+import {
+  ERROR_ATOMS,
+  ERROR_IDS,
+  type ErrorId,
+} from '../../src/error-registry.js';
+
+/**
+ * Fabricate an ID that is deliberately absent from the registry's ID union,
+ * so the category self-check can be exercised against fixture definitions.
+ */
+function makeFixtureId(id: string): ErrorId {
+  return id as unknown as ErrorId;
+}
 
 function makeDefinition(
   overrides: Partial<ErrorDefinition> = {}
 ): ErrorDefinition {
   return {
-    errorId: 'RILL-R999',
+    errorId: makeFixtureId('RILL-R999'),
     category: 'runtime',
     description: 'fixture definition',
     messageTemplate: 'fixture message',
@@ -36,7 +48,7 @@ function makeDefinition(
 describe('ErrorRegistryImpl category self-check', () => {
   it('throws when a definition declares category "parse" but its ID letter is R', () => {
     const mismatched = makeDefinition({
-      errorId: 'RILL-R999',
+      errorId: makeFixtureId('RILL-R999'),
       category: 'parse',
     });
 
@@ -47,7 +59,7 @@ describe('ErrorRegistryImpl category self-check', () => {
 
   it('throws when a definition declares category "runtime" but its ID letter is P', () => {
     const mismatched = makeDefinition({
-      errorId: 'RILL-P999',
+      errorId: makeFixtureId('RILL-P999'),
       category: 'runtime',
     });
 
@@ -61,7 +73,7 @@ describe('ErrorRegistryImpl category self-check', () => {
     // completeness check, so assert on the mismatch guard specifically:
     // a matched category never appears in that error's message.
     const matched = makeDefinition({
-      errorId: 'RILL-R999',
+      errorId: makeFixtureId('RILL-R999'),
       category: 'runtime',
     });
 

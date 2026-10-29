@@ -375,11 +375,13 @@ describe('Type-aware dict keys (#266)', () => {
       const value = await run('dict[1: "a", b: 2]');
       const native = toNative(value);
       const nativeValue = native.value as Record<string, unknown>;
-      expect(nativeValue.b).toBe(2);
+      expect(nativeValue['b']).toBe(2);
       expect(Object.prototype.hasOwnProperty.call(nativeValue, '1')).toBe(
         false
       );
-      expect(nativeValue.__rill_typed_keys).toEqual([{ key: 1, value: 'a' }]);
+      expect(nativeValue['__rill_typed_keys']).toEqual([
+        { key: 1, value: 'a' },
+      ]);
       expect(native.rillTypeSignature).toBe('dict(1: string, b: number)');
     });
 
@@ -388,14 +390,16 @@ describe('Type-aware dict keys (#266)', () => {
       const native = toNative(value);
       const nativeValue = native.value as Record<string, unknown>;
       expect(nativeValue['1']).toBe('b');
-      expect(nativeValue.__rill_typed_keys).toEqual([{ key: 1, value: 'a' }]);
+      expect(nativeValue['__rill_typed_keys']).toEqual([
+        { key: 1, value: 'a' },
+      ]);
     });
 
     it('toNative carries a boolean typed key under __rill_typed_keys', async () => {
       const value = await run('dict[true: "a"]');
       const native = toNative(value);
       const nativeValue = native.value as Record<string, unknown>;
-      expect(nativeValue.__rill_typed_keys).toEqual([
+      expect(nativeValue['__rill_typed_keys']).toEqual([
         { key: true, value: 'a' },
       ]);
     });

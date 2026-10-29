@@ -12,7 +12,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { createRuntimeContext, execute, parse } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  createRuntimeContext,
+  execute,
+  parse,
+} from '@rcrsr/rill';
 import type { RillFunction, RillValue } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
@@ -26,10 +31,11 @@ function makeSequenceFn(values: RillValue[]): RillFunction {
   let call = 0;
   return {
     params: [],
+    returnType: anyTypeValue,
     fn: () => {
       const v = values[Math.min(call, values.length - 1)];
       call += 1;
-      return v;
+      return v ?? null;
     },
   };
 }
@@ -88,6 +94,7 @@ describe('Retry exhaustion surfaces the final attempt (bug #271)', () => {
     // not the first attempt's (R007).
     let call = 0;
     const flaky: RillFunction = {
+      returnType: anyTypeValue,
       params: [],
       fn: () => {
         call += 1;
