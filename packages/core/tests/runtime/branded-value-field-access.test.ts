@@ -426,13 +426,11 @@ describe('method-call and path forms reject blocked keys', () => {
     ).toBe(false);
   });
 
-  it('yields an empty result when every stream alternative is blocked', async () => {
-    expect(
-      await run(
-        `${STREAM}$s.(__rill_stream_resolve || __rill_stream_dispose)`,
-        { functions: FUNCTIONS }
-      )
-    ).toBeNull();
+  it('halts as missing when every stream alternative is blocked', async () => {
+    await expectErrorId(
+      `${STREAM}$s.(__rill_stream_resolve || __rill_stream_dispose)`,
+      'RILL-R009'
+    );
   });
 
   it('reports the stream resolve field as absent via a literal existence check', async () => {

@@ -442,14 +442,16 @@ export async function evaluateFieldAccessComputed(
 
 /**
  * Evaluate field access using alternatives (try keys left-to-right).
- * Returns first found value or null if all keys missing.
+ * Returns the first found value. When every key is missing it halts, unless
+ * a `??` default or `.?` existence check permits a coalescible null.
  *
  * @param s - Evaluator state
  * @param access - The field access node with alternatives array
  * @param value - The current value being accessed (must be dict)
  * @param node - The parent variable node for location info
- * @returns The first found field value or null if all keys missing
- * @throws RuntimeHaltSignal (catchable) if target is not dict
+ * @param allowMissing - If true, return null when every key is missing
+ * @returns The first found field value, or null if all keys are missing and allowMissing is set
+ * @throws RuntimeHaltSignal (catchable) if target is not dict, or if all keys are missing without allowMissing
  */
 export async function evaluateFieldAccessAlternatives(
   s: EvalState,
@@ -458,7 +460,8 @@ export async function evaluateFieldAccessAlternatives(
     readonly alternatives: string[];
   },
   value: RillValue,
-  node: VariableNode
+  node: VariableNode,
+  allowMissing = false
 ): Promise<RillValue> {
   // Target must be dict
   if (!isFieldReceiver(value)) {
@@ -488,6 +491,17 @@ export async function evaluateFieldAccessAlternatives(
     }
   }
 
-  // All keys missing: return null
-  return null;
+  // All keys missing
+  if (allowMissing) {
+    return null;
+  }
+  throwCatchableHostHalt(
+    {
+      location: getNodeLocation(s, node),
+      sourceId: s.ctx.sourceId,
+      fn: 'evaluateFieldAccessAlternatives',
+    },
+    ERROR_ATOMS[ERROR_IDS.RILL_R009],
+    `Dict has none of the fields ${access.alternatives.map((k) => `'${k}'`).join(', ')}`
+  );
 }

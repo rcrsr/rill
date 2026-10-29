@@ -235,5 +235,20 @@ describe('Dynamic field access keys', () => {
     it('falls back with ?? when all alternatives are missing', async () => {
       expect(await run('dict[c: 1] => $d\n$d.(a || b) ?? "dflt"')).toBe('dflt');
     });
+
+    it('halts when all alternatives are missing and no ?? follows', async () => {
+      await expectHalt(() => run('dict[c: 1] => $d\n$d.(a || b)'), {
+        code: 'RILL_R009',
+        messagePattern: "Dict has none of the fields 'a', 'b'",
+      });
+    });
+
+    it('recovers the all-missing halt through guard', async () => {
+      expect(
+        await run(
+          'dict[c: 1] => $d\nguard { $d.(a || b) } => $r\n$r.! ? "missing" ! $r'
+        )
+      ).toBe('missing');
+    });
   });
 });
