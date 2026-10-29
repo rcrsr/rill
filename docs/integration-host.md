@@ -48,6 +48,7 @@ The `createRuntimeContext()` function accepts these options:
 | `configurations` | `{ resolvers?: Record<string, unknown> } \| undefined` | Per-scheme config data passed to each resolver |
 | `filterResolver` | `FilterResolver \| undefined` | Access control and transforms for extension method calls; see [Dispatch-Boundary Policy](#dispatch-boundary-policy) |
 | `checkerMode` | `'strict' \| 'permissive' \| undefined` | Type checker mode; default `'permissive'` |
+| `scheduler` | `TimeoutScheduler \| undefined` | Replaces the global `setTimeout`/`clearTimeout` for `timeout<total:>` and `timeout<idle:>` block timers, for example to drive them from fake timers in tests. Defaults to the global functions. It does not affect the per-call `timeout` option |
 
 ## Host Function Contract
 

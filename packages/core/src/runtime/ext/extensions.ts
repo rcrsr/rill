@@ -9,10 +9,11 @@ import { ERROR_IDS } from '../../error-registry.js';
 
 /**
  * Minimal interface for extension event emission.
- * Allows emitExtensionEvent to accept any context with callbacks.
+ * Allows emitExtensionEvent to accept any context with callbacks; only
+ * `onLogEvent` is read, so the other callbacks are not required.
  */
 interface RuntimeContextLike {
-  readonly callbacks?: RuntimeCallbacks | undefined;
+  readonly callbacks?: Pick<RuntimeCallbacks, 'onLogEvent'> | undefined;
 }
 
 /**

@@ -325,7 +325,6 @@ describe('Rill Runtime: Extension System', () => {
         const events: ExtensionEvent[] = [];
         const minimalCtx = {
           callbacks: {
-            onLog: () => undefined,
             onLogEvent: (event: ExtensionEvent) => events.push(event),
           },
         };
