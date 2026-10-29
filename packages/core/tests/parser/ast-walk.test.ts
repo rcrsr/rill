@@ -4,7 +4,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import type { ASTNode, NodeType } from '@rcrsr/rill';
+import type {
+  ASTNode,
+  NodeType,
+  NumberLiteralNode,
+  PostfixExprNode,
+  SourceSpan,
+  UnaryExprNode,
+} from '@rcrsr/rill';
 import { nodeAtPosition, parse, parseWithRecovery, walkAst } from '@rcrsr/rill';
 
 /**
@@ -162,6 +169,78 @@ $double(5) => $result
 use<host:fn>:|param: dict(name: string = "d")| => $use_typed
 `;
 
+/**
+ * Second fixture: the node types COMPREHENSIVE_FIXTURE leaves out. Together
+ * with it, every NodeType is produced except RecoveryError and
+ * PartialExpression, which only parseWithRecovery emits.
+ *
+ * Every type in NodeType is reachable from source text; none is excluded for
+ * being unproducible. Three types need a context to appear: Yield only parses
+ * inside a stream closure, Break and Return only as pipe terminators, and
+ * Pass only as a conditional branch.
+ */
+const NODE_COVERAGE_FIXTURE = `---
+name: demo
+---
+list[1, 2, 3] => $l
+dict[a: 1, b: dict[c: 2]] => $d
+tuple[1, 2] => $t
+ordered[a: 1] => $o
+$l -> destruct<$a, $b, $c>
+$d -> destruct<a: $x>
+list[1, 2] -> destruct<destruct<$a1, $b1>, $c1>
+$l -> slice<0:2>
+$l[0] => $first
+"s {$first}" => $str
+-$first => $neg
+($first + 1) => $g
+|n: number|:number { $n } => $f
+$f(1)
+1 -> $f()
+1 -> $f
+1 -> $(2)
+$f.^input
+$d.("a")
+$d.{"a"}
+$d.(a || b)
+$d.^note
+$d.?a&string
+(list[1, 2])[0]
+($f)(1)
+($f).^input
+1 -> ($ > 0) ? "y" ! "n"
+1 -> ($ > 0) ? pass ! pass
+0 -> while ($ < 3) do { $ + 1 }
+0 -> do { $ + 1 } while ($ < 3)
+1 -> assert true "msg"
+guard { 1 } => $gd
+retry<limit: 2> { 1 } => $rt
+1 -> pass { 2 }
+1 -> pass<on_error: #IGNORE> { 2 }
+1 -> :number
+1 -> :?number
+1 -> number
+#TIMEOUT => $at
+$gd.!code
+list[...$l, 1]
+^(k: 1) 5
+$f(^(k: 1) 5)
+use<host:fn> => $u
+use<host:fn>:|p: number| => $u2
+number(1)
+ns::thing
+|p = dict[a: 1]| ($p) => $dd
+|x: closure|{ $x } => $z
+|^("lbl") x: string|:number => $sig
+list(number) => $lt
+|x| ($x -> yield) :stream() => $y
+list[1, 2] -> seq({ $ -> break })
+|q|{ $q -> return } => $rr
+error "boom"
+timeout<total: duration(0,0,0,0,0,0,500)> { 1 }
+$f(...$d)
+`;
+
 describe('walkAst', () => {
   it('visits every node reachable from root, matching a reflective oracle scan', () => {
     const ast = parse(COMPREHENSIVE_FIXTURE);
@@ -243,6 +322,83 @@ describe('walkAst', () => {
 
     expect(visitedTypes.has('PartialExpression')).toBe(true);
     expect(visitedTypes.has('RecoveryError')).toBe(true);
+  });
+});
+
+describe('walkAst node coverage', () => {
+  const EXCLUDED_NODE_TYPES = new Set<string>([
+    'RecoveryError',
+    'PartialExpression',
+  ]);
+
+  it('visits every NodeType except the recovery-only ones across the two fixtures', () => {
+    const visitedTypes = new Set<string>();
+    for (const source of [COMPREHENSIVE_FIXTURE, NODE_COVERAGE_FIXTURE]) {
+      walkAst(parse(source), (node) => visitedTypes.add(node.type));
+    }
+
+    const expected = new Set(
+      [...KNOWN_NODE_TYPES].filter((type) => !EXCLUDED_NODE_TYPES.has(type))
+    );
+    expect(visitedTypes).toEqual(expected);
+  });
+
+  it('visits the second fixture exactly as the reflective oracle finds it', () => {
+    const ast = parse(NODE_COVERAGE_FIXTURE);
+
+    const visited = new Set<ASTNode>();
+    walkAst(ast, (node) => visited.add(node));
+
+    expect(visited).toEqual(collectNodesReflectively(ast));
+  });
+
+  it('visits each node before any of its descendants', () => {
+    const ast = parse(NODE_COVERAGE_FIXTURE);
+
+    const order = new Map<unknown, number>();
+    walkAst(ast, (node) => order.set(node, order.size));
+
+    for (const [node, index] of order) {
+      for (const descendant of collectNodesReflectively(node)) {
+        if (descendant === node) continue;
+        expect(order.get(descendant)).toBeGreaterThan(index);
+      }
+    }
+  });
+
+  it('visits sibling nodes in source order, left to right', () => {
+    const ast = parse(`list[list[1, 2], 3, 4] => $l`);
+
+    const values: number[] = [];
+    walkAst(ast, (node) => {
+      if (node.type === 'NumberLiteral') values.push(node.value);
+    });
+
+    expect(values).toEqual([1, 2, 3, 4]);
+  });
+
+  it('walks a 100k-deep UnaryExpr chain without a RangeError', () => {
+    const depth = 100_000;
+    const location = { line: 1, column: 1, offset: 0 };
+    const span: SourceSpan = { start: location, end: location };
+    const leaf: NumberLiteralNode = { type: 'NumberLiteral', value: 1, span };
+    const postfix: PostfixExprNode = {
+      type: 'PostfixExpr',
+      primary: leaf,
+      methods: [],
+      defaultValue: null,
+      span,
+    };
+    let root: UnaryExprNode | PostfixExprNode = postfix;
+    for (let i = 0; i < depth; i++) {
+      root = { type: 'UnaryExpr', op: '-', operand: root, span };
+    }
+
+    let count = 0;
+    expect(() => walkAst(root, () => count++)).not.toThrow();
+
+    // depth UnaryExpr nodes + 1 PostfixExpr + 1 NumberLiteral leaf.
+    expect(count).toBe(depth + 2);
   });
 });
 

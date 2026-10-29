@@ -38,23 +38,25 @@ function immediateRun(state: ExecutionState): {
   return { promise: Promise.resolve(state), cancel: vi.fn() };
 }
 
-/** Wraps a delayed ExecutionState into the { promise, cancel } shape runInWorker returns. */
-function delayedRun(
-  state: ExecutionState,
-  delayMs: number
-): { promise: Promise<ExecutionState>; cancel: () => void } {
-  const promise = new Promise<ExecutionState>((resolve) => {
-    setTimeout(() => resolve(state), delayMs);
-  });
-  return { promise, cancel: vi.fn() };
-}
-
 /** Wraps an ExecutionState into a { promise, cancel } pair that never settles. */
 function pendingRun(): {
   promise: Promise<ExecutionState>;
   cancel: () => void;
 } {
   return { promise: new Promise<ExecutionState>(() => {}), cancel: vi.fn() };
+}
+
+/** A { promise, cancel } pair whose promise settles when the test calls resolve. */
+function deferredRun(): {
+  promise: Promise<ExecutionState>;
+  cancel: () => void;
+  resolve: (state: ExecutionState) => void;
+} {
+  let resolve!: (state: ExecutionState) => void;
+  const promise = new Promise<ExecutionState>((r) => {
+    resolve = r;
+  });
+  return { promise, cancel: vi.fn(), resolve };
 }
 
 /** Builds a successful ExecutionState carrying the given result text. */
@@ -402,10 +404,9 @@ describe('App', () => {
 
   describe('rapid re-execution', () => {
     it('clicking Run multiple times does not produce duplicate outputs', async () => {
+      const deferred = deferredRun();
       const runSpy = vi.spyOn(runner, 'runInWorker');
-      runSpy.mockImplementation(() =>
-        delayedRun(successState('"Test"', 100), 100)
-      );
+      runSpy.mockImplementation(() => deferred);
 
       const { container } = render(<App />);
       const runButton = getRunButton(container);
@@ -416,24 +417,21 @@ describe('App', () => {
         runButton.click();
       });
 
-      await waitFor(
-        () => {
-          expect(
-            container.querySelector('.output-result')?.textContent
-          ).toContain('Test');
-        },
-        { timeout: 1000 }
-      );
+      expect(runSpy).toHaveBeenCalledTimes(1);
 
-      expect(container.querySelectorAll('.output-result')).toHaveLength(1);
+      await act(async () => {
+        deferred.resolve(successState('"Test"'));
+      });
+
+      const results = container.querySelectorAll('.output-result');
+      expect(results).toHaveLength(1);
+      expect(results[0]!.textContent).toContain('Test');
       expect(runSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('disables the Run button while a delayed run is in progress and re-enables it after', async () => {
-      const runSpy = vi.spyOn(runner, 'runInWorker');
-      runSpy.mockImplementation(() =>
-        delayedRun(successState('"Test"', 50), 50)
-      );
+    it('disables the Run button while a run is in progress and re-enables it after', async () => {
+      const deferred = deferredRun();
+      vi.spyOn(runner, 'runInWorker').mockImplementation(() => deferred);
 
       const { container } = render(<App />);
       const runButton = getRunButton(container);
@@ -442,17 +440,15 @@ describe('App', () => {
       act(() => {
         runButton.click();
       });
+      expect(runButton.disabled).toBe(true);
 
-      await waitFor(() => {
-        expect(runButton.disabled).toBe(true);
+      await act(async () => {});
+      expect(runButton.disabled).toBe(true);
+
+      await act(async () => {
+        deferred.resolve(successState('"Test"'));
       });
-
-      await waitFor(
-        () => {
-          expect(runButton.disabled).toBe(false);
-        },
-        { timeout: 1000 }
-      );
+      expect(runButton.disabled).toBe(false);
     });
 
     it('keeps the Run button disabled while a worker run is in flight', async () => {
@@ -477,6 +473,14 @@ describe('App', () => {
   // ============================================================
 
   describe('panel resize persistence', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
     it('restores a keyboard-resized split ratio after remounting', async () => {
       persistence.persistEditorState({ splitRatio: 65, lastSource: 'test' });
 
@@ -492,10 +496,12 @@ describe('App', () => {
         fireEvent.keyDown(separator, { key: 'ArrowDown' });
       });
 
-      // Unmounting cancels the pending debounced write, so wait for it first.
-      await waitFor(() => {
-        expect(persistence.loadEditorState().splitRatio).toBe(67);
+      // Unmounting cancels the pending debounced write, so flush it first.
+      expect(persistence.loadEditorState().splitRatio).toBe(65);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
       });
+      expect(persistence.loadEditorState().splitRatio).toBe(67);
       first.unmount();
 
       const second = render(<App />);
@@ -577,9 +583,8 @@ describe('App', () => {
         expect(container.querySelector('.output-result')).not.toBeNull();
       });
 
-      runSpy.mockImplementation(() =>
-        delayedRun(successState('"Second"', 50), 50)
-      );
+      const deferred = deferredRun();
+      runSpy.mockImplementation(() => deferred);
       act(() => {
         runButton.click();
       });
@@ -587,43 +592,13 @@ describe('App', () => {
       expect(container.querySelector('.output-running')).not.toBeNull();
       expect(container.querySelector('.output-result')).toBeNull();
 
-      await waitFor(() => {
-        expect(
-          container.querySelector('.output-result')?.textContent
-        ).toContain('Second');
-      });
-    });
-  });
-
-  // ============================================================
-  // Persistence
-  // ============================================================
-
-  describe('persistence', () => {
-    it('persists edited editor content after the debounce', async () => {
-      const persistSpy = vi.spyOn(persistence, 'persistEditorState');
-
-      const { container } = render(<App />);
-
-      await waitFor(() => {
-        expect(persistSpy).toHaveBeenCalled();
-      });
-      persistSpy.mockClear();
-
-      const marker = '# edited-marker';
-      act(() => {
-        getEditorView(container).dispatch({
-          changes: { from: 0, insert: marker },
-        });
+      await act(async () => {
+        deferred.resolve(successState('"Second"', 50));
       });
 
-      await waitFor(() => {
-        expect(persistSpy).toHaveBeenCalledWith(
-          expect.objectContaining({
-            lastSource: expect.stringContaining(marker),
-          })
-        );
-      });
+      expect(container.querySelector('.output-result')?.textContent).toContain(
+        'Second'
+      );
     });
   });
 
@@ -666,6 +641,35 @@ describe('App', () => {
 
     afterEach(() => {
       vi.useRealTimers();
+    });
+
+    it('persists edited editor content after the debounce', async () => {
+      const persistSpy = vi.spyOn(persistence, 'persistEditorState');
+
+      const { container } = render(<App />);
+
+      // Discard the initial mount's debounced persist call.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      persistSpy.mockClear();
+
+      const marker = '# edited-marker';
+      act(() => {
+        getEditorView(container).dispatch({
+          changes: { from: 0, insert: marker },
+        });
+      });
+
+      const hasMarker = expect.objectContaining({
+        lastSource: expect.stringContaining(marker),
+      });
+      expect(persistSpy).not.toHaveBeenCalledWith(hasMarker);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(500);
+      });
+      expect(persistSpy).toHaveBeenCalledWith(hasMarker);
     });
 
     it('coalesces rapid source changes into a single persistEditorState call', async () => {

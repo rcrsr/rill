@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { parse, parseWithRecovery } from '@rcrsr/rill';
-import type { ParseResult } from '@rcrsr/rill';
+import { parseWithRecovery } from '@rcrsr/rill';
 import { formatDocument } from './format-document.js';
-
-/** Wraps a well-formed AST built with `parse` in a `ParseResult` shape. */
-function toParseResult(source: string): ParseResult {
-  return { ast: parse(source), errors: [], success: true };
-}
+import { toParseResult } from './rules/test-support.js';
 
 describe('formatDocument', () => {
   describe('well-formed input', () => {

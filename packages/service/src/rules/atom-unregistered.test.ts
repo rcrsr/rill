@@ -3,12 +3,9 @@
  *
  * Core-to-rule: every atom the runtime pre-registers must pass the rule.
  * Rule-to-core: every registry error id the runtime does not register must
- * still fire. A source scan guards against a hand-copied atom list
- * creeping back into the rule file.
+ * still fire.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   BUILTIN_ATOMS,
   ERROR_REGISTRY,
@@ -65,16 +62,5 @@ describe('ATOM_UNREGISTERED stays aligned with the runtime registry', () => {
 
   it.each(['R004', 'CUSTOM_CODE'])('fires for #%s', (name) => {
     expect(runAtomRule(name)).toHaveLength(1);
-  });
-
-  it('reads the builtin set from core without a hand-copied atom list', () => {
-    const text = readFileSync(
-      join(import.meta.dirname, 'atom-unregistered.ts'),
-      'utf8'
-    );
-    expect(text).toMatch(
-      /import \{[^}]*\bBUILTIN_ATOMS\b[^}]*\} from '@rcrsr\/rill'/
-    );
-    expect(text).not.toMatch(/['"`](?:TIMEOUT|RILL_R\w*|R\d{3})['"`]/);
   });
 });

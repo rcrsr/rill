@@ -11,7 +11,8 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as os from 'os';
 
-import { VERSION, VERSION_INFO } from '../../src/generated/version-data.js';
+import { VERSION } from '@rcrsr/rill';
+import { VERSION_INFO } from '../../src/generated/version-data.js';
 
 describe('Version Generation', () => {
   describe('Generated output', () => {

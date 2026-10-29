@@ -287,10 +287,10 @@ describe('provider termination on a recovery/partial AST', () => {
   });
 
   it('every provider terminates without throwing against the recovery AST', () => {
-    expect(() => documentSymbols(parsed)).not.toThrow();
-    expect(() => semanticTokens(parsed, tokens, source)).not.toThrow();
+    expect(documentSymbols(parsed).length).toBeGreaterThan(0);
+    expect(semanticTokens(parsed, tokens, source).length).toBeGreaterThan(0);
     expect(() => formatDocument(parsed, source)).not.toThrow();
-    expect(() => resolveScopeAt(parsed, midOffset)).not.toThrow();
+    expect(resolveScopeAt(parsed, midOffset).length).toBeGreaterThan(0);
     expect(() => findDefinition(parsed, midOffset)).not.toThrow();
     expect(() => getHover(parsed, midOffset)).not.toThrow();
     expect(() => getCompletions(parsed, midOffset)).not.toThrow();

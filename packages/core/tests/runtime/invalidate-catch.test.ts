@@ -13,40 +13,17 @@ import { describe, expect, it } from 'vitest';
 import {
   anyTypeValue,
   type ApplicationCallable,
-  atomName,
   createRuntimeContext,
   execute,
   parse,
   parseWithRecovery,
-  RuntimeHaltSignal,
   type RillValue,
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import { ERROR_IDS } from '../../src/error-registry.js';
 import { RuntimeError } from '../../src/error-classes.js';
-
-/**
- * Asserts the thrown error is an abort halt:
- * RuntimeHaltSignal with status.code=#DISPOSED, non-catchable.
- */
-async function expectAbortHalt(
-  exec: () => Promise<unknown>
-): Promise<RuntimeHaltSignal> {
-  let caught: unknown;
-  try {
-    await exec();
-  } catch (e) {
-    caught = e;
-  }
-  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-  const signal = caught as RuntimeHaltSignal;
-  expect(signal.name).toBe('RuntimeHaltSignal');
-  expect(signal.catchable).toBe(false);
-  const status = getStatus(signal.value);
-  expect(atomName(status.code)).toBe('DISPOSED');
-  return signal;
-}
+import { expectAbortHalt } from '../helpers/halt.js';
 
 describe('RuntimeContext.invalidate (IR-11)', () => {
   it('AC-E5 / EC-4: unregistered code falls back to #R001 without throwing', () => {

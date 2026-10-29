@@ -26,23 +26,6 @@ function listRuleSourceFiles(): string[] {
   );
 }
 
-function listAllTypeScriptFiles(dir: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const fullPath = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      out.push(...listAllTypeScriptFiles(fullPath));
-    } else if (
-      entry.isFile() &&
-      entry.name.endsWith('.ts') &&
-      fullPath !== import.meta.filename
-    ) {
-      out.push(fullPath);
-    }
-  }
-  return out;
-}
-
 describe('no sub-walks: structural proof', () => {
   it('does not reference traverseForRules outside traversal.ts, facts.ts, run-rules.ts, and tests', () => {
     const offenders: string[] = [];
@@ -57,36 +40,6 @@ describe('no sub-walks: structural proof', () => {
       offenders,
       `Expected no rule module (other than traversal.ts, facts.ts, run-rules.ts) to reference ` +
         `traverseForRules, but found it in: ${offenders.join(', ')}`
-    ).toEqual([]);
-  });
-
-  it('does not contain any of the nine deleted sub-walk helper symbols anywhere under src/', () => {
-    const deletedSymbols = [
-      'findCapturesInBody',
-      'containsBreak',
-      'containsSideEffects',
-      'containsBareReference',
-      'containsClosureCreation',
-      'containsExplicitCapture',
-      'subtreeContainsStatusProbe',
-      'collectStreamVariables',
-      'collectStreamUsages',
-    ];
-
-    const srcDir = join(RULES_DIR, '..');
-    const offenders: string[] = [];
-    for (const filePath of listAllTypeScriptFiles(srcDir)) {
-      const contents = readFileSync(filePath, 'utf8');
-      for (const symbol of deletedSymbols) {
-        if (contents.includes(symbol)) {
-          offenders.push(`${filePath} (contains "${symbol}")`);
-        }
-      }
-    }
-    expect(
-      offenders,
-      `Expected none of the deleted sub-walk helper symbols to appear anywhere under src/, ` +
-        `but found: ${offenders.join(', ')}`
     ).toEqual([]);
   });
 

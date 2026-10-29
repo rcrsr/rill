@@ -40,6 +40,8 @@ import {
   deserializeValue,
   formatValue as newFormatValue,
   inferType as newInferType,
+  isDatetime,
+  isDuration,
   isIterator,
   RuntimeError,
   RuntimeHaltSignal,
@@ -436,6 +438,94 @@ describe('types/registrations', () => {
         () => deserializeValue(null, 'number'),
         'Cannot deserialize null as number'
       );
+    });
+  });
+
+  describe('deserialize datetime', () => {
+    it('builds a datetime with the parsed unix ms from an ISO string', () => {
+      const result = deserializeValue('2026-03-13T08:00:00.000Z', 'datetime');
+      expect(isDatetime(result)).toBe(true);
+      expect((result as unknown as { unix: number }).unix).toBe(1773388800000);
+    });
+
+    it('round-trips through serializeValue', () => {
+      const iso = '2026-03-13T08:00:00.000Z';
+      const result = deserializeValue(iso, 'datetime');
+      expect(serializeValue(result)).toBe(iso);
+      expect(
+        serializeValue(deserializeValue(serializeValue(result), 'datetime'))
+      ).toBe(iso);
+    });
+
+    it('halts INVALID_INPUT for a number', () => {
+      expectHaltSync(() => deserializeValue(1773388800000, 'datetime'), {
+        code: 'INVALID_INPUT',
+        messagePattern: 'Cannot deserialize number as datetime',
+      });
+    });
+
+    it('halts INVALID_INPUT for an unparseable string', () => {
+      expectHaltSync(() => deserializeValue('not-a-date', 'datetime'), {
+        code: 'INVALID_INPUT',
+        messagePattern: 'invalid ISO 8601',
+      });
+    });
+  });
+
+  describe('deserialize duration', () => {
+    it('builds a fixed duration from a number of ms', () => {
+      const result = deserializeValue(1500, 'duration');
+      expect(isDuration(result)).toBe(true);
+      expect(result).toMatchObject({ months: 0, ms: 1500 });
+    });
+
+    it('builds a calendar duration from {months, ms}', () => {
+      const result = deserializeValue({ months: 2, ms: 10 }, 'duration');
+      expect(isDuration(result)).toBe(true);
+      expect(result).toMatchObject({ months: 2, ms: 10 });
+    });
+
+    it('round-trips a fixed duration through serializeValue', () => {
+      const result = deserializeValue(1500, 'duration');
+      expect(serializeValue(result)).toBe(1500);
+      expect(
+        deserializeValue(serializeValue(result), 'duration')
+      ).toMatchObject({
+        months: 0,
+        ms: 1500,
+      });
+    });
+
+    it('round-trips a calendar duration through serializeValue', () => {
+      const result = deserializeValue({ months: 2, ms: 10 }, 'duration');
+      expect(serializeValue(result)).toEqual({ months: 2, ms: 10 });
+      expect(
+        deserializeValue(serializeValue(result), 'duration')
+      ).toMatchObject({ months: 2, ms: 10 });
+    });
+
+    it('halts INVALID_INPUT when months or ms is not a number', () => {
+      expectHaltSync(
+        () => deserializeValue({ months: 'x', ms: 1 }, 'duration'),
+        {
+          code: 'INVALID_INPUT',
+          messagePattern: 'must be numbers',
+        }
+      );
+    });
+
+    it('halts INVALID_INPUT for an object missing ms', () => {
+      expectHaltSync(() => deserializeValue({ months: 1 }, 'duration'), {
+        code: 'INVALID_INPUT',
+        messagePattern: 'Cannot deserialize object as duration',
+      });
+    });
+
+    it('halts INVALID_INPUT for a string', () => {
+      expectHaltSync(() => deserializeValue('s', 'duration'), {
+        code: 'INVALID_INPUT',
+        messagePattern: 'Cannot deserialize string as duration',
+      });
     });
   });
 

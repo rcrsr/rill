@@ -1,21 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '@rcrsr/rill';
-import type { ParseResult } from '@rcrsr/rill';
 import { runRules } from './run-rules.js';
-import type { CheckConfig } from './types.js';
 import { closureBareDollar } from './closure-bare-dollar.js';
 import { closureBraces } from './closure-braces.js';
 import { closureLateBinding } from './closure-late-binding.js';
-
-/** Wraps a well-formed AST built with `parse` in a `ParseResult` shape. */
-function toParseResult(source: string): ParseResult {
-  return { ast: parse(source), errors: [], success: true };
-}
-
-/** Minimal CheckConfig with every rule 'on' and no global override. */
-function makeConfig(overrides: Partial<CheckConfig> = {}): CheckConfig {
-  return { rules: {}, ...overrides };
-}
+import { makeConfig, toParseResult } from './test-support.js';
 
 describe('CLOSURE_BARE_DOLLAR', () => {
   it('fires on a zero-param stored closure with a bare $ body', () => {

@@ -30,30 +30,8 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { callableLiteral, run } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
+import { expectAbortHalt, expectHaltMessage } from '../helpers/halt.js';
 import { isClosureStructure } from '../helpers/structure.js';
-
-/**
- * Asserts the thrown error is an abort halt:
- * RuntimeHaltSignal with status.code=#DISPOSED, non-catchable.
- */
-async function expectAbortHalt(
-  exec: () => Promise<unknown>
-): Promise<RuntimeHaltSignal> {
-  let caught: unknown;
-  try {
-    await exec();
-  } catch (e) {
-    caught = e;
-  }
-  expect(caught).toBeInstanceOf(RuntimeHaltSignal);
-  const signal = caught as RuntimeHaltSignal;
-  expect(signal.name).toBe('RuntimeHaltSignal');
-  expect(signal.catchable).toBe(false);
-  const status = getStatus(signal.value);
-  expect(atomName(status.code)).toBe('DISPOSED');
-  return signal;
-}
 
 describe('Rill Runtime: Host Integration', () => {
   describe('Custom Functions', () => {
@@ -302,7 +280,10 @@ describe('Rill Runtime: Host Integration', () => {
 
     it('halts when aborted during function call', async () => {
       const controller = new AbortController();
+      let callCount = 0;
 
+      // The first call aborts the controller and returns normally; the
+      // evaluator must halt before starting the second pipe stage.
       const slowFn: RillFunction = {
         returnType: anyTypeValue,
         params: [
@@ -314,21 +295,20 @@ describe('Rill Runtime: Host Integration', () => {
           },
         ],
         fn: async (): Promise<RillValue> => {
-          await new Promise((r) => setTimeout(r, 50));
+          callCount++;
+          controller.abort();
           return 'done';
         },
       };
 
-      // Abort after a short delay
-      setTimeout(() => controller.abort(), 10);
-
-      // The second function call should be aborted
       await expectAbortHalt(() =>
         run('"x" -> slow -> slow', {
           functions: { slow: slowFn },
           signal: controller.signal,
         })
       );
+
+      expect(callCount).toBe(1);
     });
 
     it('halts during for loop iteration', async () => {

@@ -122,9 +122,12 @@ describe('semanticTokens', () => {
     expect(parsed.success).toBe(false);
 
     const tokens = tokenize(source);
-    expect(() => semanticTokens(parsed, tokens, source)).not.toThrow();
-    const result = semanticTokens(parsed, tokens, source);
-    expect(Array.isArray(result)).toBe(true);
+    const decoded = decodeAbsolute(semanticTokens(parsed, tokens, source));
+    const xToken = decoded.find(
+      (t) => t.line === 0 && t.character === source.indexOf('$x')
+    );
+
+    expect(xToken?.tokenType).toBe('variableName');
   });
 
   it('returns an empty array for empty source and tokens', () => {

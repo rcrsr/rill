@@ -1,23 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '@rcrsr/rill';
-import type { ParseResult } from '@rcrsr/rill';
 import { runRules } from './run-rules.js';
-import type { CheckConfig } from './types.js';
 import { captureBeforeBranch } from './capture-before-branch.js';
 import { useDefaultOperator } from './use-default-operator.js';
 import { complexCondition } from './complex-condition.js';
 import { presenceOverNullGuard } from './presence-over-null-guard.js';
 import { guardOverTryCatch } from './guard-over-try-catch.js';
-
-/** Wraps a well-formed AST built with `parse` in a `ParseResult` shape. */
-function toParseResult(source: string): ParseResult {
-  return { ast: parse(source), errors: [], success: true };
-}
-
-/** Minimal CheckConfig with every rule 'on' and no global override. */
-function makeConfig(overrides: Partial<CheckConfig> = {}): CheckConfig {
-  return { rules: {}, ...overrides };
-}
+import { makeConfig, toParseResult } from './test-support.js';
 
 describe('CAPTURE_BEFORE_BRANCH', () => {
   it('fires when bare $ is referenced in both branches', () => {

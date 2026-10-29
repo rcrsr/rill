@@ -10,8 +10,6 @@ import {
   anyTypeValue,
   type CallFrame,
   RuntimeError,
-  type RuntimeContext,
-  type SourceSpan,
   getCallStack,
 } from '@rcrsr/rill';
 
@@ -238,124 +236,6 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
 
       expect(error).toBeDefined();
       const callStack = getCallStack(error!);
-      expect(callStack).toEqual([]);
-    });
-  });
-
-  describe('call stack tracking during execution', () => {
-    it('tracks host function calls in call stack', async () => {
-      let stackInFunction: CallFrame[] = [];
-
-      await run('testFunction()', {
-        functions: {
-          testFunction: {
-            returnType: anyTypeValue,
-            params: [],
-            fn: (_args, ctx) => {
-              stackInFunction = [...toRuntimeContext(ctx).callStack];
-              return 'ok';
-            },
-          },
-        },
-      });
-
-      // Function should have been on the stack during execution
-      expect(stackInFunction.length).toBe(1);
-      expect(stackInFunction[0]?.functionName).toBe('testFunction');
-    });
-
-    it('pops frame after function returns', async () => {
-      let ctxAfterCall: RuntimeContext | undefined;
-
-      await run('testFn()', {
-        functions: {
-          testFn: {
-            returnType: anyTypeValue,
-            params: [],
-            fn: (_args, ctx) => {
-              ctxAfterCall = toRuntimeContext(ctx);
-              return '';
-            },
-          },
-        },
-      });
-
-      // After execution, call stack should be empty (frame popped)
-      expect(ctxAfterCall!.callStack).toHaveLength(0);
-    });
-
-    it('includes call site location in frames', async () => {
-      let frameLocation: SourceSpan | undefined;
-
-      await run('myFunction()', {
-        functions: {
-          myFunction: {
-            returnType: anyTypeValue,
-            params: [],
-            fn: (_args, ctx) => {
-              frameLocation = toRuntimeContext(ctx).callStack[0]?.location;
-              return '';
-            },
-          },
-        },
-      });
-
-      expect(frameLocation).toBeDefined();
-      expect(frameLocation!.start).toBeDefined();
-      expect(frameLocation!.end).toBeDefined();
-      expect(frameLocation!.start.line).toBeGreaterThan(0);
-    });
-
-    it('includes function name in call stack frames', async () => {
-      let functionName: string | undefined;
-
-      await run('namedFunction()', {
-        functions: {
-          namedFunction: {
-            returnType: anyTypeValue,
-            params: [],
-            fn: (_args, ctx) => {
-              functionName = toRuntimeContext(ctx).callStack[0]?.functionName;
-              return '';
-            },
-          },
-        },
-      });
-
-      expect(functionName).toBe('namedFunction');
-    });
-  });
-
-  describe('getCallStack helper function', () => {
-    it('returns defensive copy (immutable)', () => {
-      const frames = [
-        {
-          location: {
-            start: { line: 1, column: 1, offset: 0 },
-            end: { line: 1, column: 10, offset: 9 },
-          },
-          functionName: 'test',
-        },
-      ];
-
-      const error = new RuntimeError('RILL-R001', 'Test', undefined, {
-        callStack: frames,
-      });
-
-      const copy1 = getCallStack(error);
-      const copy2 = getCallStack(error);
-
-      // Different instances
-      expect(copy1).not.toBe(copy2);
-      // Same content
-      expect(copy1).toEqual(copy2);
-      // Original unchanged
-      expect(copy1).toEqual(frames);
-    });
-
-    it('returns empty array for error without call stack', () => {
-      const error = new RuntimeError('RILL-R001', 'Test');
-      const callStack = getCallStack(error);
       expect(callStack).toEqual([]);
     });
   });

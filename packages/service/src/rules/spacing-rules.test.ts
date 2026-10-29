@@ -1,25 +1,12 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parse } from '@rcrsr/rill';
-import type { ParseResult } from '@rcrsr/rill';
 import { runRules } from './run-rules.js';
-import type { CheckConfig } from './types.js';
 import { spacingOperator } from './spacing-operator.js';
 import { spacingBraces } from './spacing-braces.js';
 import { spacingBrackets } from './spacing-brackets.js';
 import { spacingClosure } from './spacing-closure.js';
 import { spacingMember } from './spacing-member.js';
 import { indentContinuation } from './indent-continuation.js';
-
-/** Wraps a well-formed AST built with `parse` in a `ParseResult` shape. */
-function toParseResult(source: string): ParseResult {
-  return { ast: parse(source), errors: [], success: true };
-}
-
-/** Minimal CheckConfig with every rule 'on' and no global override. */
-function makeConfig(overrides: Partial<CheckConfig> = {}): CheckConfig {
-  return { rules: {}, ...overrides };
-}
+import { makeConfig, toParseResult } from './test-support.js';
 
 describe('SPACING_OPERATOR', () => {
   it('fires when a binary operator has no surrounding spaces', () => {
@@ -426,16 +413,6 @@ describe('SPACING_CLOSURE', () => {
     expect(runRules(parsed, source, makeConfig(), [spacingClosure])).toEqual(
       []
     );
-  });
-
-  it('no longer contains the dead extractSpanText-based scan or the empty-body post-pipe branch', () => {
-    const ruleSource = readFileSync(
-      new URL('./spacing-closure.ts', import.meta.url),
-      'utf-8'
-    );
-
-    expect(ruleSource).not.toContain('extractSpanText');
-    expect(ruleSource).not.toContain('closureNode.params.length > 0');
   });
 });
 

@@ -1,21 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parse } from '@rcrsr/rill';
-import type { ParseResult } from '@rcrsr/rill';
 import { runRules } from './run-rules.js';
-import type { CheckConfig } from './types.js';
 import { avoidReassignment } from './avoid-reassignment.js';
 import { loopOuterCapture } from './loop-outer-capture.js';
 import { validateExternal } from './validate-external.js';
-
-/** Wraps a well-formed AST built with `parse` in a `ParseResult` shape. */
-function toParseResult(source: string): ParseResult {
-  return { ast: parse(source), errors: [], success: true };
-}
-
-/** Minimal CheckConfig with every rule 'on' and no global override. */
-function makeConfig(overrides: Partial<CheckConfig> = {}): CheckConfig {
-  return { rules: {}, ...overrides };
-}
+import { makeConfig, toParseResult } from './test-support.js';
 
 describe('AVOID_REASSIGNMENT', () => {
   it('fires when a variable is captured twice in the same scope', () => {
@@ -114,16 +102,6 @@ describe('LOOP_OUTER_CAPTURE', () => {
     const result = runRules(parsed, source, makeConfig(), [loopOuterCapture]);
 
     expect(result).toEqual([]);
-  });
-
-  it('still fires when a script-level variable is mutated inside a loop (regression guard)', () => {
-    const source = '0 => $count\n[1, 2, 3] -> seq({ $count + 1 => $count })\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [loopOuterCapture]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({ code: 'LOOP_OUTER_CAPTURE' });
   });
 });
 

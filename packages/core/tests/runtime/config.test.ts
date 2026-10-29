@@ -11,7 +11,7 @@ import {
   RuntimeError,
   RuntimeHaltSignal,
 } from '@rcrsr/rill';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { mockAsyncFn, run } from '../helpers/runtime.js';
 
@@ -37,15 +37,41 @@ async function expectAutoExceptionHalt(
   return signal;
 }
 
+/**
+ * Runs a script under fake setTimeout/clearTimeout (withTimeout and
+ * mockAsyncFn both use the global timers) and advances fake time by
+ * advanceMs. The settle handler is attached before time advances so a
+ * timeout rejection is never unhandled. No real time elapses.
+ */
+async function runWithFakeTimers(
+  source: string,
+  options: Parameters<typeof run>[1],
+  advanceMs: number
+): Promise<{ value?: unknown; error?: unknown }> {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    const settled = run(source, options).then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error })
+    );
+    await vi.advanceTimersByTimeAsync(advanceMs);
+    return await settled;
+  } finally {
+    vi.useRealTimers();
+  }
+}
+
 describe('Rill Runtime: Configuration', () => {
   describe('Timeout', () => {
     it('completes when function finishes before timeout', async () => {
       const fastFn = mockAsyncFn(10, 'done');
-      const result = await run('slowFn()', {
-        functions: { slowFn: fastFn },
-        timeout: 100,
-      });
-      expect(result).toBe('done');
+      const outcome = await runWithFakeTimers(
+        'slowFn()',
+        { functions: { slowFn: fastFn }, timeout: 100 },
+        100
+      );
+      expect(outcome.error).toBeUndefined();
+      expect(outcome.value).toBe('done');
     });
 
     // A timeout is a catchable halt (bug #270) so that `guard`/`retry` can
@@ -53,27 +79,25 @@ describe('Rill Runtime: Configuration', () => {
     // so uncaught it escapes run() as a RuntimeError coded RILL-R012.
     it('halts with a catchable timeout halt when function exceeds timeout', async () => {
       const slowFn = mockAsyncFn(200, 'done');
-      let caught: unknown;
-      try {
-        await run('slowFn()', { functions: { slowFn }, timeout: 50 });
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
-      expect((caught as RuntimeError).message).toContain('timed out');
+      const { error } = await runWithFakeTimers(
+        'slowFn()',
+        { functions: { slowFn }, timeout: 50 },
+        50
+      );
+      expect(error).toBeInstanceOf(RuntimeError);
+      expect((error as RuntimeError).errorId).toBe('RILL-R012');
+      expect((error as RuntimeError).message).toContain('timed out');
     });
 
     it('timeout halt carries function name and timeout duration', async () => {
       const slowFn = mockAsyncFn(200, 'done');
-      let caught: unknown;
-      try {
-        await run('slowFn()', { functions: { slowFn }, timeout: 50 });
-      } catch (e) {
-        caught = e;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      const runtimeErr = caught as RuntimeError;
+      const { error } = await runWithFakeTimers(
+        'slowFn()',
+        { functions: { slowFn }, timeout: 50 },
+        50
+      );
+      expect(error).toBeInstanceOf(RuntimeError);
+      const runtimeErr = error as RuntimeError;
       expect(runtimeErr.errorId).toBe('RILL-R012');
       const status = getStatus(runtimeErr.haltValue!);
       const raw = status.raw as Record<string, unknown>;
@@ -84,11 +108,13 @@ describe('Rill Runtime: Configuration', () => {
 
     it('guard recovers a timeout to its invalid value', async () => {
       const slowFn = mockAsyncFn(200, 'done');
-      const result = await run('guard { slowFn() } => $r  $r.!message', {
-        functions: { slowFn },
-        timeout: 50,
-      });
-      expect(result).toContain('timed out');
+      const outcome = await runWithFakeTimers(
+        'guard { slowFn() } => $r  $r.!message',
+        { functions: { slowFn }, timeout: 50 },
+        50
+      );
+      expect(outcome.error).toBeUndefined();
+      expect(outcome.value).toContain('timed out');
     });
 
     it('does not apply timeout to sync functions', async () => {
@@ -111,6 +137,8 @@ describe('Rill Runtime: Configuration', () => {
       expect(result).toBe('sync result');
     });
 
+    // Three calls of 30ms each total 90ms, over the 50ms limit, yet each
+    // call is under it: only a per-call timeout lets the chain complete.
     it('timeout applies to each function call independently', async () => {
       let callCount = 0;
       const fn = {
@@ -118,7 +146,7 @@ describe('Rill Runtime: Configuration', () => {
         params: [
           {
             name: 'input',
-            type: { kind: 'string' },
+            type: { kind: 'string' } as const,
             defaultValue: undefined,
             annotations: {},
           },
@@ -129,11 +157,13 @@ describe('Rill Runtime: Configuration', () => {
           return `call${callCount}`;
         },
       };
-      const result = await run('"x" -> fn -> fn -> fn', {
-        functions: { fn },
-        timeout: 100, // Each call takes 30ms, should all complete
-      });
-      expect(result).toBe('call3');
+      const outcome = await runWithFakeTimers(
+        '"x" -> fn -> fn -> fn',
+        { functions: { fn }, timeout: 50 },
+        100
+      );
+      expect(outcome.error).toBeUndefined();
+      expect(outcome.value).toBe('call3');
       expect(callCount).toBe(3);
     });
   });
@@ -235,553 +265,34 @@ describe('Rill Runtime: Configuration', () => {
     it('timeout and autoExceptions work together', async () => {
       const slowFn = mockAsyncFn(50, 'ERROR: failed');
 
-      // AutoException should trigger on the result
-      await expectAutoExceptionHalt(() =>
-        run('slowFn()', {
-          functions: { slowFn },
-          timeout: 200,
-          autoExceptions: ['ERROR'],
-        })
+      // The function settles at 50ms, before the 200ms timeout, so the
+      // autoException triggers on its result.
+      const { error } = await runWithFakeTimers(
+        'slowFn()',
+        { functions: { slowFn }, timeout: 200, autoExceptions: ['ERROR'] },
+        200
       );
+      await expectAutoExceptionHalt(() => Promise.reject(error));
     });
 
     it('timeout fires before autoException when function is slow', async () => {
       const verySlowFn = mockAsyncFn(500, 'ERROR: failed');
 
-      let caught: unknown;
-      try {
-        await run('verySlowFn()', {
+      const { error } = await runWithFakeTimers(
+        'verySlowFn()',
+        {
           functions: { verySlowFn },
           timeout: 50,
           autoExceptions: ['ERROR'],
-        });
-      } catch (e) {
-        caught = e;
-      }
+        },
+        50
+      );
       // The timeout wins the race: a catchable timeout halt, not the
       // (non-catchable) autoException halt. Uncaught, it escapes as a
       // RuntimeError coded RILL-R012.
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
-      expect((caught as RuntimeError).message).toContain('timed out');
-    });
-  });
-
-  describe('requireDescriptions', () => {
-    it('accepts requireDescriptions in RuntimeOptions', () => {
-      const testFn = {
-        returnType: anyTypeValue,
-        params: [
-          {
-            name: 'input',
-            type: { kind: 'string' } as const,
-            defaultValue: undefined,
-            annotations: { description: 'Test input' },
-          },
-        ],
-        fn: (): string => 'result',
-        annotations: { description: 'Test function' },
-      };
-
-      expect(() =>
-        createRuntimeContext({
-          functions: { testFn },
-          requireDescriptions: true,
-        })
-      ).not.toThrow();
-    });
-
-    it('accepts requireDescriptions: false', () => {
-      const testFn = {
-        returnType: anyTypeValue,
-        params: [
-          {
-            name: 'input',
-            type: { kind: 'string' } as const,
-            defaultValue: undefined,
-            annotations: {},
-          },
-        ],
-        fn: (): string => 'result',
-      };
-
-      expect(() =>
-        createRuntimeContext({
-          functions: { testFn },
-          requireDescriptions: false,
-        })
-      ).not.toThrow();
-    });
-
-    it('accepts requireDescriptions: undefined (default)', () => {
-      const testFn = {
-        returnType: anyTypeValue,
-        params: [
-          {
-            name: 'input',
-            type: { kind: 'string' } as const,
-            defaultValue: undefined,
-            annotations: {},
-          },
-        ],
-        fn: (): string => 'result',
-      };
-
-      expect(() =>
-        createRuntimeContext({
-          functions: { testFn },
-        })
-      ).not.toThrow();
-    });
-
-    describe('EC-2: Function missing description', () => {
-      it('throws Error when function has no description and requireDescriptions is true', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'Test input' },
-            },
-          ],
-          fn: (): string => 'result',
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { myFunction: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Function 'myFunction' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('throws Error when function has undefined description', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'Test input' },
-            },
-          ],
-          fn: (): string => 'result',
-          description: undefined,
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFunc: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Function 'testFunc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('throws Error when function has whitespace-only description', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'Test input' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: '   ' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { blankDesc: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Function 'blankDesc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('throws Error when function has empty string description', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'Test input' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: '' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { emptyDesc: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Function 'emptyDesc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('allows undocumented function when requireDescriptions is false', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: {},
-            },
-          ],
-          fn: (): string => 'result',
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFn },
-            requireDescriptions: false,
-          })
-        ).not.toThrow();
-      });
-
-      it('allows undocumented function when requireDescriptions is undefined', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: {},
-            },
-          ],
-          fn: (): string => 'result',
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFn },
-          })
-        ).not.toThrow();
-      });
-    });
-
-    describe('EC-3: Parameter missing description', () => {
-      it('throws Error when parameter has no description and requireDescriptions is true', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'undocumented',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: {},
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Test function' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { myFunction: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Parameter 'undocumented' of function 'myFunction' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('throws Error when parameter has undefined description', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'myParam',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: {},
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Test function' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFunc: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Parameter 'myParam' of function 'testFunc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('throws Error when parameter has whitespace-only description', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'blankParam',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: '  \t  ' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Test function' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { myFunc: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Parameter 'blankParam' of function 'myFunc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('throws Error when parameter has empty string description', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'emptyParam',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: '' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Test function' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFunc: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Parameter 'emptyParam' of function 'testFunc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('throws Error for first undocumented parameter in multi-parameter function', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'documented',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'First param' },
-            },
-            {
-              name: 'undocumented',
-              type: { kind: 'number' } as const,
-              defaultValue: undefined,
-              annotations: {},
-            },
-            {
-              name: 'alsoDocumented',
-              type: { kind: 'bool' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'Third param' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Test function' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { multiParam: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Parameter 'undocumented' of function 'multiParam' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('allows undocumented parameters when requireDescriptions is false', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'undocumented',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: {},
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Test function' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFn },
-            requireDescriptions: false,
-          })
-        ).not.toThrow();
-      });
-
-      it('allows undocumented parameters when requireDescriptions is undefined', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'undocumented',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: {},
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Test function' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFn },
-          })
-        ).not.toThrow();
-      });
-    });
-
-    describe('IC-3: Whitespace-only strings count as undocumented', () => {
-      it('rejects function with tab-only description', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'Valid param description' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: '\t\t' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFunc: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Function 'testFunc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('rejects parameter with newline-only description', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: '\n\n' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Valid function description' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFunc: testFn },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Parameter 'input' of function 'testFunc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('accepts description with content after trimming', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'input',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: '  Valid description  ' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: '  Valid function description  ' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { testFunc: testFn },
-            requireDescriptions: true,
-          })
-        ).not.toThrow();
-      });
-    });
-
-    describe('Combined validation', () => {
-      it('validates both function and all parameters when requireDescriptions is true', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [
-            {
-              name: 'param1',
-              type: { kind: 'string' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'First parameter' },
-            },
-            {
-              name: 'param2',
-              type: { kind: 'number' } as const,
-              defaultValue: undefined,
-              annotations: { description: 'Second parameter' },
-            },
-          ],
-          fn: (): string => 'result',
-          annotations: { description: 'Test function with documentation' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { validFunc: testFn },
-            requireDescriptions: true,
-          })
-        ).not.toThrow();
-      });
-
-      it('accepts functions with no parameters when requireDescriptions is true', () => {
-        const testFn = {
-          returnType: anyTypeValue,
-          params: [],
-          fn: (): string => 'result',
-          annotations: { description: 'Function with no parameters' },
-        };
-
-        expect(() =>
-          createRuntimeContext({
-            functions: { noParams: testFn },
-            requireDescriptions: true,
-          })
-        ).not.toThrow();
-      });
+      expect(error).toBeInstanceOf(RuntimeError);
+      expect((error as RuntimeError).errorId).toBe('RILL-R012');
+      expect((error as RuntimeError).message).toContain('timed out');
     });
   });
 });

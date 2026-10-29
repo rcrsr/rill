@@ -4,6 +4,7 @@
     "src/**/*.test.ts",
     "src/**/*.test.tsx",
     "src/rules/corpus-loader.ts",
+    "src/rules/test-support.ts",
     "src/percentile.ts"
   ]
 }

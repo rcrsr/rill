@@ -5,12 +5,15 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   createVector,
   deepEquals,
   formatValue,
   inferType,
   isEmpty,
 } from '@rcrsr/rill';
+import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Vector value utilities', () => {
   describe('inferType', () => {
@@ -93,6 +96,41 @@ describe('Vector value utilities', () => {
       );
       expect(isEmpty(vec1)).toBe(false);
       expect(isEmpty(vec2)).toBe(false);
+    });
+  });
+});
+
+describe('Vector type assertions', () => {
+  const vec = createVector(new Float32Array([1.0, 2.0]), 'test-model');
+  const options = {
+    functions: {
+      vec: {
+        params: [],
+        returnType: anyTypeValue,
+        fn: () => vec,
+      },
+    },
+  };
+
+  it(':?vector is true for a vector', async () => {
+    expect(await run('vec() => $v\n$v -> :?vector', options)).toBe(true);
+  });
+
+  it(':?vector is false for a string', async () => {
+    expect(await run('"s" -> :?vector', options)).toBe(false);
+  });
+
+  it(':?dict is false for a vector', async () => {
+    expect(await run('vec() => $v\n$v -> :?dict', options)).toBe(false);
+  });
+
+  it(':vector passes a vector through', async () => {
+    expect(await run('vec() -> :vector', options)).toBe(vec);
+  });
+
+  it(':vector halts TYPE_MISMATCH for a string', async () => {
+    await expectHalt(() => run('"s" -> :vector', options), {
+      code: 'TYPE_MISMATCH',
     });
   });
 });

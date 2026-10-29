@@ -121,11 +121,10 @@ $a -> log
     expect(parsed.success).toBe(false);
 
     const offset = source.lastIndexOf('$a') + 1;
-    let span: ReturnType<typeof findDefinition> = null;
-    expect(() => {
-      span = findDefinition(parsed, offset);
-    }).not.toThrow();
+    const span = findDefinition(parsed, offset);
+
     expect(span).not.toBeNull();
+    expect(span?.start.offset).toBe(source.indexOf('$a'));
   });
 
   it('returns null for an out-of-range offset', () => {

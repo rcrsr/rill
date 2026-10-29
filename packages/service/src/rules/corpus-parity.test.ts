@@ -46,6 +46,7 @@ import { runRules } from './run-rules.js';
 import { createDefaultConfig } from './config.js';
 import { atomUnregistered } from './atom-unregistered.js';
 import type { Diagnostic } from './types.js';
+import { makeConfig } from './test-support.js';
 
 // ============================================================
 // GOLDEN FIXTURE LOCATION
@@ -61,12 +62,6 @@ interface GoldenEntry {
   readonly index: number;
   readonly file: string;
   readonly diagnostics: readonly Diagnostic[];
-}
-
-/** Minimal CheckConfig with every rule 'on' and no global override, used
- * for targeted single-rule assertions below. */
-function makeConfig(): { rules: Record<string, 'on' | 'off' | 'warn'> } {
-  return { rules: {} };
 }
 
 // ============================================================

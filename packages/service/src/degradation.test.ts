@@ -74,7 +74,9 @@ describe('provider degradation', () => {
       expect(edit?.newText).toContain('broken syntax here');
 
       const diagnostics = runRules(parsed, source, createDefaultConfig());
-      expect(Array.isArray(diagnostics)).toBe(true);
+      expect(diagnostics.map((d) => d.code)).toEqual(
+        expect.arrayContaining(['THROWAWAY_CAPTURE'])
+      );
     });
   });
 
@@ -201,6 +203,13 @@ describe('out-of-range offsets', () => {
     const parsed = parseWithRecovery(source);
     const eofOffset = source.length;
 
+    // Scope spans are end-exclusive, so the last in-document offset is the
+    // final character, not `source.length`.
+    expect(
+      resolveScopeAt(parsed, eofOffset - 1)
+        .map((entry) => entry.name)
+        .sort()
+    ).toEqual(['a', 'b']);
     expect(() => resolveScopeAt(parsed, eofOffset)).not.toThrow();
     expect(() => findDefinition(parsed, eofOffset)).not.toThrow();
     expect(() => getHover(parsed, eofOffset)).not.toThrow();

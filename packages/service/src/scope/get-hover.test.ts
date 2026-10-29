@@ -162,11 +162,10 @@ $a -> log
     expect(parsed.success).toBe(false);
 
     const offset = source.lastIndexOf('$a') + 1;
-    let hover: ReturnType<typeof getHover> = null;
-    expect(() => {
-      hover = getHover(parsed, offset);
-    }).not.toThrow();
+    const hover = getHover(parsed, offset);
+
     expect(hover).not.toBeNull();
+    expect(hover?.contents).toBe('variable `a`');
   });
 
   it('returns null for an out-of-range offset', () => {

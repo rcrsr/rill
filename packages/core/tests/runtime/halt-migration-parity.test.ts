@@ -536,12 +536,9 @@ describe('halt migration parity', () => {
             entry.role === 'site' ||
             (entry.role === 'boundary' && entry.path !== 'timeout-expired');
           if (siteProvenance && !converterSite) {
-            if (entry.migrated) {
-              expect(haltValue).toBeDefined();
-              expect(haltCatchable).toBe(false);
-            } else {
-              expect(haltValue).toBeUndefined();
-            }
+            expect(entry.migrated).toBe(true);
+            expect(haltValue).toBeDefined();
+            expect(haltCatchable).toBe(false);
           }
           if (entry.migrated && haltValue !== undefined) {
             await expectCarrierInvisible(haltValue, entry);
@@ -674,22 +671,18 @@ describe('halt migration parity', () => {
       }
     });
 
-    it('throws RILL_R064 directly from the migrated string to number converter, or RuntimeError when unmigrated', async () => {
+    it('throws RILL_R064 directly from the migrated string to number converter', async () => {
       const entry = PROVENANCE.find((e) => e.siteId.endsWith('string.ts:62'));
       expect(entry).toBeDefined();
       if (entry === undefined || entry.trigger.kind !== 'direct') return;
       const result = await captureDirect(entry.trigger.call);
       expect(result.threw).toBe(true);
       if (!result.threw) return;
-      if (entry.migrated) {
-        expect(result.error).toBeInstanceOf(RuntimeHaltSignal);
-        const halt = result.error as RuntimeHaltSignal;
-        expect(halt.catchable).toBe(false);
-        expect(atomName(getStatus(halt.value).code)).toBe('RILL_R064');
-      } else {
-        expect(result.error).toBeInstanceOf(RuntimeError);
-        expect((result.error as RuntimeError).errorId).toBe('RILL-R064');
-      }
+      expect(entry.migrated).toBe(true);
+      expect(result.error).toBeInstanceOf(RuntimeHaltSignal);
+      const halt = result.error as RuntimeHaltSignal;
+      expect(halt.catchable).toBe(false);
+      expect(atomName(getStatus(halt.value).code)).toBe('RILL_R064');
     });
   });
 

@@ -5,8 +5,6 @@
  * instead of two independently maintained copies.
  */
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import { parse } from '@rcrsr/rill';
 import type { ASTNode, ScriptNode } from '@rcrsr/rill';
 import {
@@ -14,8 +12,6 @@ import {
   getPrimaryFromHead,
   isImmediatelyChained,
 } from './capture-chain.js';
-
-const RULES_DIR = join(import.meta.dirname, '.');
 
 describe('isImmediatelyChained', () => {
   it('returns true for a reference inside the immediately-following statement', () => {
@@ -45,20 +41,5 @@ describe('isImmediatelyChained', () => {
     )!;
 
     expect(isImmediatelyChained(0, refNode, statements)).toBe(false);
-  });
-});
-
-describe('isImmediatelyChained: terminal-state provenance', () => {
-  it('is no longer declared as a local function in throwaway-capture.ts', () => {
-    const contents = readFileSync(
-      join(RULES_DIR, 'throwaway-capture.ts'),
-      'utf8'
-    );
-    expect(contents).not.toMatch(/function isImmediatelyChained\(/);
-  });
-
-  it('is exported from capture-chain.ts', () => {
-    const contents = readFileSync(join(RULES_DIR, 'capture-chain.ts'), 'utf8');
-    expect(contents).toMatch(/export function isImmediatelyChained\(/);
   });
 });

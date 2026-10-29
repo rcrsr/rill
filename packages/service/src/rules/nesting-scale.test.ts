@@ -94,7 +94,7 @@ import type {
   VariableNode,
 } from '@rcrsr/rill';
 
-import { measureP95 } from '../percentile.js';
+import { measureP95, measureRatioP95 } from '../percentile.js';
 import { runRules } from './run-rules.js';
 import { collectFacts } from './facts.js';
 import type { CheckConfig, Diagnostic, Rule, RuleContext } from './types.js';
@@ -112,19 +112,15 @@ const CAPTURE_LEVELS = 5;
 // Post-refactor p95 on this fixture measures ~119.21ms locally; pre-refactor
 // measures ~18227.58ms locally (see header comment).
 //
-// The budget must clear the CI runner, not just this machine. An initial
-// 700ms budget failed CI at 883.07ms p95 - a ~7.4x local-to-CI factor, in
-// line with the ~5-7x factor latency.test.ts already documents for every
-// other provider on the same shared runner, and NOT a sign of surviving
-// quadratic behavior. (A quadratic re-walk at depth 3000 costs seconds, not
-// hundreds of milliseconds: the pre-refactor path takes ~18s here.)
-//
-// 3000ms clears the observed 883.07ms CI figure by ~3.4x, absorbing runner
-// contention, while still sitting 6.1x below the pre-refactor local figure
-// (18227.58 / 3000). Reintroducing a per-level subtree re-walk therefore
-// still fails this gate by a wide margin, on CI and locally alike, which is
-// the property that matters.
-const RUN_RULES_DEPTH_P95_BUDGET_MS = 3000;
+// An absolute millisecond budget conflates a slow runner with a slow
+// implementation, and the budget that cleared CI was far looser than the
+// regression it guards. The gate is a ratio instead: p95 at NESTING_DEPTH
+// divided by p95 at REFERENCE_DEPTH (a quarter of it), both measured on the
+// same machine in the same run. Linear scaling gives a ratio near 4; a
+// per-level subtree re-walk is quadratic and gives a ratio near 16. The
+// bound of 8 sits between them and tolerates shared-runner noise.
+const REFERENCE_DEPTH = NESTING_DEPTH / 4;
+const MAX_DEPTH_SCALING_RATIO = 8;
 // Mirrors latency.test.ts: SAMPLE_COUNT + WARMUP_COUNT runs of a fixture
 // this deep can take a while on a slow/contended runner. The budget
 // assertion above is the actual latency guard; this timeout only prevents
@@ -478,12 +474,20 @@ describe('runRules depth scaling on nested collection-op bodies', () => {
   );
 
   it(
-    `runRules on a depth-${NESTING_DEPTH} fixture stays at or under the p95 budget (Assertion C)`,
+    `runRules p95 at depth ${NESTING_DEPTH} stays under ${MAX_DEPTH_SCALING_RATIO}x the p95 at depth ${REFERENCE_DEPTH} (Assertion C)`,
     () => {
-      const p95 = measureP95(() => {
-        runRules(parsed, '', config);
+      const referenceParsed: ParseResult = {
+        ast: buildNestedFixtureAst(REFERENCE_DEPTH, CAPTURE_LEVELS),
+        errors: [],
+        success: true,
+      };
+      const referenceP95 = measureP95(() => {
+        runRules(referenceParsed, '', config);
       });
-      expect(p95).toBeLessThanOrEqual(RUN_RULES_DEPTH_P95_BUDGET_MS);
+      const ratio = measureRatioP95(() => {
+        runRules(parsed, '', config);
+      }, referenceP95);
+      expect(ratio).toBeLessThan(MAX_DEPTH_SCALING_RATIO);
     },
     NESTING_SCALE_TEST_TIMEOUT_MS
   );
