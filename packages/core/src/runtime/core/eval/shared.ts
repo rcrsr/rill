@@ -193,6 +193,9 @@ export function checkAutoExceptions(
  * On expiry the race rejects with a catchable `RuntimeHaltSignal` (atom
  * `RILL_R012`), so `guard { slow() }` and `retry { slow() }` can recover a
  * timeout the same way they recover any other operational halt.
+ *
+ * The timer runs on the context's injected scheduler when one is set, as
+ * `timeout<>` blocks do, and on the global timer functions otherwise.
  */
 export function withTimeout<T>(
   s: EvalState,
@@ -205,9 +208,10 @@ export function withTimeout<T>(
     return promise;
   }
 
+  const sched = s.ctx.scheduler;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => {
+    const onExpire = (): void => {
       // Build the catchable halt via throwCatchableHostHalt (which throws),
       // then forward it to reject so the race surfaces a RuntimeHaltSignal.
       try {
@@ -224,11 +228,18 @@ export function withTimeout<T>(
       } catch (haltSignal) {
         reject(haltSignal as Error);
       }
-    }, timeoutMs);
+    };
+    timer =
+      sched !== undefined
+        ? sched.setTimeout(onExpire, timeoutMs)
+        : setTimeout(onExpire, timeoutMs);
   });
 
   return Promise.race([promise, timeout]).finally(() => {
-    if (timer !== undefined) {
+    if (timer === undefined) return;
+    if (sched !== undefined) {
+      sched.clearTimeout(timer);
+    } else {
       clearTimeout(timer);
     }
   });

@@ -86,6 +86,46 @@ const BODY_PAIRS: readonly BodyPair[] = [
     base: '^(a: 1) $x + 1',
     variant: '^(a: 2) $x + 1',
   },
+  {
+    name: 'while loop limit',
+    base: '0 -> while ($ < 3) do<limit: 5> { $ + 1 }',
+    variant: '0 -> while ($ < 3) do<limit: 9> { $ + 1 }',
+  },
+  {
+    name: 'do-while loop limit',
+    base: '0 -> do<limit: 5> { $ + 1 } while ($ < 3)',
+    variant: '0 -> do<limit: 9> { $ + 1 } while ($ < 3)',
+  },
+  { name: 'type assertion', base: '$x -> :number', variant: '$x -> :string' },
+  { name: 'type check', base: '$x -> :?number', variant: '$x -> :?string' },
+  {
+    name: 'guard block',
+    base: 'guard { $x + 1 }',
+    variant: 'guard { $x + 2 }',
+  },
+  {
+    name: 'retry block',
+    base: 'retry<limit: 2> { $x }',
+    variant: 'retry<limit: 3> { $x }',
+  },
+  {
+    name: 'timeout block',
+    base: 'timeout<total: duration(0,0,0,0,0,0,500)> { $x }',
+    variant: 'timeout<total: duration(0,0,0,0,0,0,600)> { $x }',
+  },
+  { name: 'atom literal', base: '#RILL_R001', variant: '#RILL_R002' },
+  { name: 'status probe', base: '$x.!code', variant: '$x.!message' },
+  {
+    name: 'assert',
+    base: 'assert ($x > 0) "a"',
+    variant: 'assert ($x > 0) "b"',
+  },
+  { name: 'error', base: 'error "a"', variant: 'error "b"' },
+  {
+    name: 'type constructor',
+    base: '$x -> :list(number)',
+    variant: '$x -> :list(string)',
+  },
 ];
 
 function buildScript(first: string, second: string): string {

@@ -264,9 +264,51 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
       return recoveryErrorEquals(a, b as RecoveryErrorNode);
 
     default:
-      // For any unhandled node types, fall back to false
-      return false;
+      // Node kinds without a dedicated comparator compare field by field.
+      return structuralNodeEquals(a, b);
   }
+}
+
+/**
+ * Compare two nodes of the same kind field by field, ignoring `span`.
+ * Nested nodes recurse through astEquals, so kinds with a dedicated
+ * comparator keep using it. A field set to undefined equals a missing one.
+ */
+function structuralNodeEquals(a: ASTNode, b: ASTNode): boolean {
+  return fieldsEqual(
+    a as unknown as Record<string, unknown>,
+    b as unknown as Record<string, unknown>
+  );
+}
+
+function fieldsEqual(
+  a: Record<string, unknown>,
+  b: Record<string, unknown>
+): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    if (key === 'span') continue;
+    if (!structuralValueEquals(a[key], b[key])) return false;
+  }
+  return true;
+}
+
+function structuralValueEquals(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (typeof a !== 'object' || typeof b !== 'object') return false;
+  if (a === null || b === null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    return arrayEquals(a as unknown[], b as unknown[], structuralValueEquals);
+  }
+  const aType = (a as { type?: unknown }).type;
+  if (typeof aType === 'string' && 'span' in a) {
+    return astEquals(a as ASTNode, b as ASTNode);
+  }
+  return fieldsEqual(
+    a as Record<string, unknown>,
+    b as Record<string, unknown>
+  );
 }
 
 function blockEquals(a: BlockNode, b: BlockNode): boolean {
@@ -491,12 +533,22 @@ function conditionalEquals(a: ConditionalNode, b: ConditionalNode): boolean {
   return nullableEquals(a.elseBranch, b.elseBranch);
 }
 
+/** Loop options such as `limit` are annotations; absent equals empty. */
+function loopAnnotationsEqual(
+  a: AnnotationArg[] | undefined,
+  b: AnnotationArg[] | undefined
+): boolean {
+  return arrayEquals(a ?? [], b ?? [], annotationArgEquals);
+}
+
 function whileLoopEquals(a: WhileLoopNode, b: WhileLoopNode): boolean {
+  if (!loopAnnotationsEqual(a.annotations, b.annotations)) return false;
   if (!astEquals(a.condition as ASTNode, b.condition as ASTNode)) return false;
   return simpleBodyEquals(a.body, b.body);
 }
 
 function doWhileLoopEquals(a: DoWhileLoopNode, b: DoWhileLoopNode): boolean {
+  if (!loopAnnotationsEqual(a.annotations, b.annotations)) return false;
   if (!nullableEquals(a.input, b.input)) return false;
   if (!simpleBodyEquals(a.condition, b.condition)) return false;
   return simpleBodyEquals(a.body, b.body);

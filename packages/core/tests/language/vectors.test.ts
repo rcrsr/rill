@@ -522,9 +522,8 @@ describe('Rill Runtime: Vector Type', () => {
     });
   });
 
-  // Note: Type assertion tests (:vector, :?vector) omitted because vector type
-  // is not yet registered in the parser's type system. These will be added when
-  // the parser is updated to recognize "vector" as a valid type name.
+  // Type assertion and check (:vector, :?vector) are covered in
+  // tests/runtime/vector-values.test.ts.
 
   describe('json() serialization [AC-13]', () => {
     it('halts with "vectors are not JSON-serializable" (AC-13)', async () => {

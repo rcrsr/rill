@@ -900,7 +900,7 @@ Parameter defaults are never emitted, because not every `RillValue` round-trips 
 
 ## TimeoutScheduler
 
-`TimeoutScheduler` is the type of the `scheduler` option on `createRuntimeContext()`. It replaces the global timer functions for `timeout<total:>` and `timeout<idle:>` blocks, so a test can drive those blocks from fake timers.
+`TimeoutScheduler` is the type of the `scheduler` option on `createRuntimeContext()`. It replaces the global timer functions for `timeout<total:>` and `timeout<idle:>` blocks and for the per-call `timeout` option, so a test can drive them from fake timers.
 
 ```typescript
 interface TimeoutScheduler {
@@ -909,7 +909,7 @@ interface TimeoutScheduler {
 }
 ```
 
-Without a `scheduler`, the runtime uses the global `setTimeout` and `clearTimeout`. The per-call `timeout` option always uses the global timers.
+Without a `scheduler`, the runtime uses the global `setTimeout` and `clearTimeout`.
 
 ---
 

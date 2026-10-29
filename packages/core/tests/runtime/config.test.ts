@@ -10,6 +10,7 @@ import {
   getStatus,
   RuntimeError,
   RuntimeHaltSignal,
+  type TimeoutScheduler,
 } from '@rcrsr/rill';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -115,6 +116,37 @@ describe('Rill Runtime: Configuration', () => {
       );
       expect(outcome.error).toBeUndefined();
       expect(outcome.value).toContain('timed out');
+    });
+
+    // The per-call timer runs on an injected scheduler, so a host can drive
+    // it the same way it drives timeout<> blocks.
+    it('runs the per-call timer on the injected scheduler', async () => {
+      const requested: number[] = [];
+      let cleared = 0;
+      const scheduler: TimeoutScheduler = {
+        setTimeout: (fn, ms) => {
+          requested.push(ms);
+          return setTimeout(fn, 0);
+        },
+        clearTimeout: (handle) => {
+          cleared++;
+          clearTimeout(handle);
+        },
+      };
+      const neverFn = {
+        returnType: anyTypeValue,
+        params: [],
+        fn: (): Promise<string> => new Promise<string>(() => {}),
+      };
+      await expect(
+        run('neverFn()', {
+          functions: { neverFn },
+          timeout: 5000,
+          scheduler,
+        })
+      ).rejects.toMatchObject({ errorId: 'RILL-R012' });
+      expect(requested).toEqual([5000]);
+      expect(cleared).toBe(1);
     });
 
     it('does not apply timeout to sync functions', async () => {

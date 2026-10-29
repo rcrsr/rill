@@ -96,3 +96,24 @@ describe('Rill Runtime: datetime .date and .time offsets', () => {
     );
   });
 });
+
+describe('Rill Runtime: datetime ordering methods reject non-datetimes', () => {
+  it.each(['lt', 'gt', 'le', 'ge'])(
+    '.%s halts RILL-R002 on a string argument',
+    async (method) => {
+      await expectHalt(() => run(`${EARLIER} -> .${method}("x")`), {
+        code: 'RILL_R002',
+        messagePattern: new RegExp(
+          `Cannot compare datetime with string using \\.${method}`
+        ),
+        hostErrorId: 'RILL-R002',
+      });
+    }
+  );
+
+  it('guard recovers the halt', async () => {
+    expect(
+      await run(`guard { ${EARLIER} -> .lt(5) } => $r\n$r.!code == #RILL_R002`)
+    ).toBe(true);
+  });
+});
