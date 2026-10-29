@@ -34,6 +34,7 @@ import {
   type RillFunction,
   type RillValue,
   type RuntimeOptions,
+  type TimeoutScheduler,
 } from '@rcrsr/rill';
 import {
   enrichHaltOriginLocation,
@@ -65,7 +66,7 @@ import {
   expectRuntimeError,
   expectThrowMessage,
 } from '../helpers/halt.js';
-import { run, type TimeoutScheduler } from '../helpers/runtime.js';
+import { run } from '../helpers/runtime.js';
 
 /** Awaits `fn` and returns the RuntimeError it rejects with. */
 async function captureRuntimeError(

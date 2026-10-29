@@ -16,10 +16,11 @@ import {
   RuntimeError,
   RuntimeHaltSignal,
   type RillValue,
+  type TimeoutScheduler,
 } from '@rcrsr/rill';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { run, type TimeoutScheduler } from '../helpers/runtime.js';
+import { run } from '../helpers/runtime.js';
 
 // The yield logic binds the clock when the evaluator module loads, so the
 // stub must exist before the imports above evaluate. Each read advances 1 ms,

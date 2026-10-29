@@ -55,12 +55,6 @@ export async function runWithContext(
   return { result, context: ctx };
 }
 
-/**
- * Scheduler injected through RuntimeOptions.
- * The interface is not exported from the package entry point, so derive it.
- */
-export type TimeoutScheduler = NonNullable<RuntimeOptions['scheduler']>;
-
 /** Context parameter type that host functions receive */
 type HostFnContext = Parameters<CallableFn>[1];
 
