@@ -60,6 +60,7 @@ pnpm check:format      # Formatting check
 pnpm check:deps        # Unused dependencies and exports
 pnpm fix:lint          # Auto-fix lint
 pnpm fix:format        # Auto-format
+pnpm --filter @rcrsr/rill coverage   # Coverage for packages/core (report in packages/core/coverage/)
 ```
 
 Scope to one package with `--filter`:

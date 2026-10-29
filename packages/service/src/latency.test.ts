@@ -286,14 +286,29 @@ describe('provider termination on a recovery/partial AST', () => {
     );
   });
 
-  it('every provider terminates without throwing against the recovery AST', () => {
+  it('every provider returns values against the recovery AST', () => {
+    // Anchor on a variable read after the broken line.
+    const readOffset = source.lastIndexOf('$record.index') + 1;
+
     expect(documentSymbols(parsed).length).toBeGreaterThan(0);
     expect(semanticTokens(parsed, tokens, source).length).toBeGreaterThan(0);
-    expect(() => formatDocument(parsed, source)).not.toThrow();
     expect(resolveScopeAt(parsed, midOffset).length).toBeGreaterThan(0);
-    expect(() => findDefinition(parsed, midOffset)).not.toThrow();
-    expect(() => getHover(parsed, midOffset)).not.toThrow();
-    expect(() => getCompletions(parsed, midOffset)).not.toThrow();
+
+    const definition = findDefinition(parsed, readOffset);
+    expect(
+      source.slice(definition?.start.offset, definition?.end.offset).trimEnd()
+    ).toBe('$record:dict');
+    expect(getHover(parsed, readOffset)?.contents).toBe('variable `record`');
+
+    const edits = formatDocument(parsed, source);
+    expect(edits).toHaveLength(1);
+    expect(edits[0]?.newText).toContain('|||broken syntax here');
+
+    expect(
+      getCompletions(parsed, readOffset)
+        .filter((item) => item.kind === 'variable')
+        .map((item) => item.label)
+    ).toContain('record');
     expect(() => runRules(parsed, source, config)).not.toThrow();
   });
 });

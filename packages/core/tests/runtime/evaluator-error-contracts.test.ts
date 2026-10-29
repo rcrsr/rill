@@ -16,8 +16,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { anyTypeValue, RuntimeError } from '@rcrsr/rill';
-import { run, toRuntimeContext } from '../helpers/runtime.js';
+import { anyTypeValue, getStatus, RuntimeError } from '@rcrsr/rill';
+import {
+  run,
+  runWithFakeTimers,
+  toRuntimeContext,
+} from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Evaluator Base Class', () => {
@@ -119,9 +123,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     // registered and mapped to a host-facing error ID, so an unguarded
     // timeout escapes run() as a RuntimeError coded RILL-R012.
     it('halts with a catchable timeout halt when async function exceeds timeout', async () => {
-      let caught: unknown;
-      try {
-        await run('slowFunc()', {
+      const { error } = await runWithFakeTimers(
+        'slowFunc()',
+        {
           timeout: 10,
           functions: {
             slowFunc: {
@@ -133,39 +137,40 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               },
             },
           },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        caught = err;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
-      expect((caught as RuntimeError).message).toMatch(/timed out/);
+        },
+        10
+      );
+      expect(error).toBeInstanceOf(RuntimeError);
+      expect((error as RuntimeError).errorId).toBe('RILL-R012');
+      expect((error as RuntimeError).message).toMatch(/timed out/);
     });
 
     it('completes successfully when async function within timeout', async () => {
-      const result = await run('fastFunc()', {
-        timeout: 1000,
-        functions: {
-          fastFunc: {
-            returnType: anyTypeValue,
-            params: [],
-            fn: async () => {
-              await new Promise((r) => setTimeout(r, 10));
-              return 'done';
+      const { value, error } = await runWithFakeTimers(
+        'fastFunc()',
+        {
+          timeout: 1000,
+          functions: {
+            fastFunc: {
+              returnType: anyTypeValue,
+              params: [],
+              fn: async () => {
+                await new Promise((r) => setTimeout(r, 10));
+                return 'done';
+              },
             },
           },
         },
-      });
-      expect(result).toBe('done');
+        10
+      );
+      expect(error).toBeUndefined();
+      expect(value).toBe('done');
     });
 
     it('timeout halt carries function name in its status payload', async () => {
-      const { getStatus } =
-        await import('../../src/runtime/core/types/status.js');
-      let caught: unknown;
-      try {
-        await run('mySlowFunc()', {
+      const { error } = await runWithFakeTimers(
+        'mySlowFunc()',
+        {
           timeout: 10,
           functions: {
             mySlowFunc: {
@@ -177,13 +182,11 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               },
             },
           },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        caught = err;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      const runtimeErr = caught as RuntimeError;
+        },
+        10
+      );
+      expect(error).toBeInstanceOf(RuntimeError);
+      const runtimeErr = error as RuntimeError;
       expect(runtimeErr.errorId).toBe('RILL-R012');
       const status = getStatus(runtimeErr.haltValue!);
       const raw = status.raw as Record<string, unknown>;
@@ -192,9 +195,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
     });
 
     it('halts with a catchable timeout halt in nested async calls', async () => {
-      let caught: unknown;
-      try {
-        await run('outer()', {
+      const { error } = await runWithFakeTimers(
+        'outer()',
+        {
           timeout: 10,
           functions: {
             outer: {
@@ -218,40 +221,44 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               },
             },
           },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        caught = err;
-      }
-      expect(caught).toBeInstanceOf(RuntimeError);
-      expect((caught as RuntimeError).errorId).toBe('RILL-R012');
-      expect((caught as RuntimeError).message).toMatch(/timed out/);
+        },
+        10
+      );
+      expect(error).toBeInstanceOf(RuntimeError);
+      expect((error as RuntimeError).errorId).toBe('RILL-R012');
+      expect((error as RuntimeError).message).toMatch(/timed out/);
     });
 
     it('timeout applies per function call, not total execution', async () => {
-      // Multiple fast calls should succeed even if total time > timeout
-      const result = await run('"start" -> fast() -> fast() -> fast()', {
-        timeout: 100,
-        functions: {
-          fast: {
-            returnType: anyTypeValue,
-            params: [
-              {
-                name: 'input',
-                type: { kind: 'string' },
-                defaultValue: undefined,
-                annotations: {},
+      // Three sequential 40ms calls total 120ms, over the 100ms timeout
+      // that applies to each call individually.
+      const { value, error } = await runWithFakeTimers(
+        '"start" -> fast() -> fast() -> fast()',
+        {
+          timeout: 100,
+          functions: {
+            fast: {
+              returnType: anyTypeValue,
+              params: [
+                {
+                  name: 'input',
+                  type: { kind: 'string' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              fn: async (args) => {
+                const input = args['input'];
+                await new Promise((r) => setTimeout(r, 40));
+                return `${input}-done`;
               },
-            ],
-            fn: async (args) => {
-              const input = args['input'];
-              await new Promise((r) => setTimeout(r, 40));
-              return `${input}-done`;
             },
           },
         },
-      });
-      expect(result).toBe('start-done-done-done');
+        120
+      );
+      expect(error).toBeUndefined();
+      expect(value).toBe('start-done-done-done');
     });
   });
 
@@ -449,8 +456,6 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       it('AC-10: halt trace frame includes a site string', async () => {
         const { RuntimeHaltSignal } =
           await import('../../src/runtime/core/eval/handlers/access.js');
-        const { getStatus } =
-          await import('../../src/runtime/core/types/status.js');
         let caught: unknown;
         try {
           await run('42 :string');
@@ -467,8 +472,6 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       it('tuple ordering compare halt carries a real origin site for length mismatch', async () => {
         const { RuntimeHaltSignal } =
           await import('../../src/runtime/core/eval/handlers/access.js');
-        const { getStatus } =
-          await import('../../src/runtime/core/types/status.js');
         const { resolveAtom } =
           await import('../../src/runtime/core/types/atom-registry.js');
         let caught: unknown;
@@ -491,8 +494,6 @@ describe('Rill Runtime: Evaluator Base Class', () => {
       it('tuple ordering compare halt carries a real origin site for slot-incompatible types', async () => {
         const { RuntimeHaltSignal } =
           await import('../../src/runtime/core/eval/handlers/access.js');
-        const { getStatus } =
-          await import('../../src/runtime/core/types/status.js');
         const { resolveAtom } =
           await import('../../src/runtime/core/types/atom-registry.js');
         let caught: unknown;

@@ -30,6 +30,7 @@
     "build:dev": "tsx scripts/generate-version.ts && tsx scripts/generate-docs-bundle.ts && tsc --build tsconfig.dev.json",
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
+    "coverage": "tsx scripts/generate-version.ts && vitest run --coverage",
     "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/ ../../README.md",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.test.json",
@@ -52,5 +53,8 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^5.0.3"
   }
 }

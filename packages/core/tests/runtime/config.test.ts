@@ -12,9 +12,9 @@ import {
   RuntimeHaltSignal,
   type TimeoutScheduler,
 } from '@rcrsr/rill';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { mockAsyncFn, run } from '../helpers/runtime.js';
+import { mockAsyncFn, run, runWithFakeTimers } from '../helpers/runtime.js';
 
 /**
  * Asserts the thrown error is an auto-exception halt:
@@ -36,30 +36,6 @@ async function expectAutoExceptionHalt(
   const status = getStatus(signal.value);
   expect(atomName(status.code)).toBe('R999');
   return signal;
-}
-
-/**
- * Runs a script under fake setTimeout/clearTimeout (withTimeout and
- * mockAsyncFn both use the global timers) and advances fake time by
- * advanceMs. The settle handler is attached before time advances so a
- * timeout rejection is never unhandled. No real time elapses.
- */
-async function runWithFakeTimers(
-  source: string,
-  options: Parameters<typeof run>[1],
-  advanceMs: number
-): Promise<{ value?: unknown; error?: unknown }> {
-  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
-  try {
-    const settled = run(source, options).then(
-      (value) => ({ value }),
-      (error: unknown) => ({ error })
-    );
-    await vi.advanceTimersByTimeAsync(advanceMs);
-    return await settled;
-  } finally {
-    vi.useRealTimers();
-  }
 }
 
 describe('Rill Runtime: Configuration', () => {

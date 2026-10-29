@@ -16,6 +16,7 @@ import {
   type RuntimeContext,
   type RuntimeOptions,
 } from '@rcrsr/rill';
+import { vi } from 'vitest';
 
 /** Options for test execution */
 interface TestOptions extends Omit<RuntimeOptions, 'functions'> {
@@ -34,6 +35,30 @@ export async function run(
 ): Promise<RillValue> {
   const { ast, ctx } = setup(source, options);
   return (await execute(ast, ctx)).result;
+}
+
+/**
+ * Runs a script under fake setTimeout/clearTimeout (withTimeout and
+ * mockAsyncFn both use the global timers) and advances fake time by
+ * advanceMs. The settle handler is attached before time advances so a
+ * timeout rejection is never unhandled. No real time elapses.
+ */
+export async function runWithFakeTimers(
+  source: string,
+  options: Parameters<typeof run>[1],
+  advanceMs: number
+): Promise<{ value?: unknown; error?: unknown }> {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+  try {
+    const settled = run(source, options).then(
+      (value) => ({ value }),
+      (error: unknown) => ({ error })
+    );
+    await vi.advanceTimersByTimeAsync(advanceMs);
+    return await settled;
+  } finally {
+    vi.useRealTimers();
+  }
 }
 
 /** Execute and return full result */

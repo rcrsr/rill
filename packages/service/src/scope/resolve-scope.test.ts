@@ -123,6 +123,18 @@ $a -> { $ * 2 } => $b
     expect(resolveScopeAt(parsed, 0)).toEqual([]);
   });
 
+  it('treats scope spans as end-exclusive at EOF', () => {
+    const source = '1 => $a\n2 => $b\n';
+    const parsed = parseWithRecovery(source);
+
+    expect(
+      resolveScopeAt(parsed, source.length - 1)
+        .map((entry) => entry.name)
+        .sort()
+    ).toEqual(['a', 'b']);
+    expect(resolveScopeAt(parsed, source.length)).toEqual([]);
+  });
+
   it('returns an empty array for an out-of-range offset past EOF', () => {
     const source = '1 => $a\n';
     const parsed = parseWithRecovery(source);
