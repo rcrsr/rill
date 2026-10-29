@@ -210,7 +210,7 @@ describe('out-of-range offsets', () => {
         .map((entry) => entry.name)
         .sort()
     ).toEqual(['a', 'b']);
-    expect(() => resolveScopeAt(parsed, eofOffset)).not.toThrow();
+    expect(resolveScopeAt(parsed, eofOffset)).toEqual([]);
     expect(() => findDefinition(parsed, eofOffset)).not.toThrow();
     expect(() => getHover(parsed, eofOffset)).not.toThrow();
   });

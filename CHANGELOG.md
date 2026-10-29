@@ -24,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Closure equality rejected identical closures and ignored loop limits:** Two closures with identical bodies compared unequal when the body contained a type assertion or check, `guard`, `retry` or `timeout` block, atom literal, status probe, `assert`, `error`, `yield`, `pass` block, `use<>` expression, host reference or type constructor. Closures whose `while` or `do-while` loops differed only in `limit` compared equal. Both now compare by structure.
+- **Closure equality rejected identical closures and ignored loop limits:** Two closures with identical bodies compared unequal when the body contained a type assertion or check, `guard`, `retry` or `timeout` block, atom literal, status probe, `assert`, `error`, `yield`, `pass` block, `use<>` expression, host reference, type constructor, or another node kind without a dedicated comparator. Closures whose `while` or `do-while` loops differed only in `limit` compared equal. Both now compare by structure.
+
+- **Per-call `timeout` ignored the injected `scheduler`:** The `timeout` option on `createRuntimeContext()` always used the global `setTimeout`/`clearTimeout`, although `scheduler` drove `timeout<total:>` and `timeout<idle:>` blocks. It now runs on `scheduler` when one is set. A host that injects fake timers must advance them for a per-call timeout to expire.
 
 - **Datetime `.lt`, `.gt`, `.le` and `.ge` accepted any argument:** A non-datetime argument returned `false` instead of halting. These methods now halt with catchable `RILL-R002`, as number and string ordering methods and the `<` operator on datetimes already do. `.eq` and `.ne` still return `false` and `true` for a non-datetime argument.
 

@@ -126,6 +126,13 @@ const BODY_PAIRS: readonly BodyPair[] = [
     base: '$x -> :list(number)',
     variant: '$x -> :list(string)',
   },
+  { name: 'use expression', base: 'use<ext:a>', variant: 'use<ext:b>' },
+  {
+    name: 'pass block',
+    base: 'pass<on_error: #IGNORE> { 1 }',
+    variant: 'pass<on_error: #IGNORE> { 2 }',
+  },
+  { name: 'host reference', base: 'ns::one', variant: 'ns::two' },
 ];
 
 function buildScript(first: string, second: string): string {

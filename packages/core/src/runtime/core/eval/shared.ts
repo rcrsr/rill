@@ -12,6 +12,7 @@ import type { ASTNode, SourceLocation } from '../../../types.js';
 import { isCallable } from '../callable.js';
 import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
+import type { TimeoutScheduler } from '../types/runtime.js';
 import { isOrdered, isPlainDict, isStream } from '../types/guards.js';
 import {
   throwAbortHalt,
@@ -183,6 +184,19 @@ export function checkAutoExceptions(
 }
 
 /**
+ * Timer functions used when the context has no injected scheduler. Per-call
+ * timeouts and `timeout<>` blocks both fall back to it.
+ */
+export const defaultScheduler: TimeoutScheduler = {
+  setTimeout(fn, ms) {
+    return setTimeout(fn, ms);
+  },
+  clearTimeout(handle) {
+    clearTimeout(handle);
+  },
+};
+
+/**
  * Wrap a promise with a timeout.
  * Returns original promise if no timeout configured.
  *
@@ -195,7 +209,7 @@ export function checkAutoExceptions(
  * timeout the same way they recover any other operational halt.
  *
  * The timer runs on the context's injected scheduler when one is set, as
- * `timeout<>` blocks do, and on the global timer functions otherwise.
+ * `timeout<>` blocks do, and on `defaultScheduler` otherwise.
  */
 export function withTimeout<T>(
   s: EvalState,
@@ -208,7 +222,7 @@ export function withTimeout<T>(
     return promise;
   }
 
-  const sched = s.ctx.scheduler;
+  const sched = s.ctx.scheduler ?? defaultScheduler;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
     const onExpire = (): void => {
@@ -229,18 +243,12 @@ export function withTimeout<T>(
         reject(haltSignal as Error);
       }
     };
-    timer =
-      sched !== undefined
-        ? sched.setTimeout(onExpire, timeoutMs)
-        : setTimeout(onExpire, timeoutMs);
+    timer = sched.setTimeout(onExpire, timeoutMs);
   });
 
   return Promise.race([promise, timeout]).finally(() => {
-    if (timer === undefined) return;
-    if (sched !== undefined) {
+    if (timer !== undefined) {
       sched.clearTimeout(timer);
-    } else {
-      clearTimeout(timer);
     }
   });
 }
