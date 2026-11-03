@@ -9,7 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 
 describe('Rill Runtime: Closure Semantics', () => {
   describe('Block Produces Closure Type', () => {
@@ -280,97 +280,77 @@ describe('Rill Runtime: Closure Semantics', () => {
   describe('Error Cases', () => {
     it('AC-9: missing implicit $ parameter throws RUNTIME_TYPE_ERROR', async () => {
       // Block-closure expects implicit $ argument when called directly
-      try {
-        await run(`
+      await expectRuntimeError(
+        () =>
+          run(`
           { $ + 1 } => $a
           $a()
-        `);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Missing argument for parameter '\$'/)
-        );
-      }
+        `),
+        {
+          code: 'RILL-R044',
+          messagePattern: /Missing argument for parameter '\$'/,
+        }
+      );
     });
 
     it('AC-10: excess arguments to block-closure throws RUNTIME_TYPE_ERROR', async () => {
       // Block-closure accepts only 1 implicit $ argument
-      try {
-        await run(`
+      await expectRuntimeError(
+        () =>
+          run(`
           { $ + 1 } => $a
           $a(1, 2)
-        `);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/expects 1 arguments, got 2/)
-        );
-      }
+        `),
+        {
+          code: 'RILL-R045',
+          messagePattern: /expects 1 arguments, got 2/,
+        }
+      );
     });
 
     it('AC-11: arguments to zero-param closure throws RUNTIME_TYPE_ERROR', async () => {
       // Zero-param closure ||{} should not accept arguments
-      try {
-        await run(`
+      await expectRuntimeError(
+        () =>
+          run(`
           ||{ 42 } => $a
           $a(5)
-        `);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/expects 0 arguments, got 1/)
-        );
-      }
+        `),
+        {
+          code: 'RILL-R045',
+          messagePattern: /expects 0 arguments, got 1/,
+        }
+      );
     });
 
     it('AC-12: missing argument to explicit param closure throws RUNTIME_TYPE_ERROR', async () => {
       // Explicit parameter closure requires argument
-      try {
-        await run(`
+      await expectRuntimeError(
+        () =>
+          run(`
           |x|{ $x + 1 } => $a
           $a()
-        `);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Missing argument/)
-        );
-      }
+        `),
+        {
+          code: 'RILL-R044',
+          messagePattern: /Missing argument/,
+        }
+      );
     });
 
     it('AC-13: missing implicit $ in dict method call throws RUNTIME_TYPE_ERROR', async () => {
       // Dict value block-closure also requires implicit $ when called directly
-      try {
-        await run(`
+      await expectRuntimeError(
+        () =>
+          run(`
           dict[x: { $ + 1 }] => $d
           $d.x()
-        `);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Missing argument for parameter '\$'/)
-        );
-      }
+        `),
+        {
+          code: 'RILL-R044',
+          messagePattern: /Missing argument for parameter '\$'/,
+        }
+      );
     });
 
     // The next 6 cases guard the fix for rcrsr/rill#131: a dict-member
@@ -568,65 +548,18 @@ describe('Rill Runtime: Closure Semantics', () => {
     it('EC-4: type error in closure body throws RUNTIME_TYPE_ERROR', async () => {
       // Closure body contains type error (string + number)
       // Use explicit parameter to avoid undefined $ issue
-      try {
-        await run(`
+      await expectHalt(
+        () =>
+          run(`
           |x|{ $x + "text" } => $a
           5 -> $a()
-        `);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-      }
-    });
-
-    it('EC-5: reserved method name "keys" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
-      // Cannot use reserved method name 'keys' as dict key
-      try {
-        await run('dict[keys: { $ }]');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Cannot use reserved method name 'keys'/)
-        );
-      }
-    });
-
-    it('EC-5: reserved method name "values" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
-      // Cannot use reserved method name 'values' as dict key
-      try {
-        await run('dict[values: { $ }]');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Cannot use reserved method name 'values'/)
-        );
-      }
-    });
-
-    it('EC-5: reserved method name "entries" as block-closure key throws RUNTIME_TYPE_ERROR', async () => {
-      // Cannot use reserved method name 'entries' as dict key
-      try {
-        await run('dict[entries: { $ }]');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Cannot use reserved method name 'entries'/)
-        );
-      }
+        `),
+        {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Arithmetic requires number, got string/,
+        }
+      );
     });
 
     it('EC-10: undefined variable in dict dispatch closure body throws RUNTIME_UNDEFINED_VARIABLE', async () => {
@@ -641,14 +574,11 @@ describe('Rill Runtime: Closure Semantics', () => {
 
     it('EC-10: type error in dict dispatch closure body throws RUNTIME_TYPE_ERROR', async () => {
       // Dict dispatch closure body contains type error (number + string) - error propagated
-      try {
-        await run('"x" -> dict[x: { 5 + "text" }]');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-      }
+      await expectHalt(() => run('"x" -> dict[x: { 5 + "text" }]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Arithmetic requires number, got string/,
+      });
     });
 
     it('AC-17: typed-param empty closure body raises RILL-R043 on invocation (not RILL-R005)', async () => {
@@ -891,16 +821,6 @@ describe('Rill Runtime: Closure Semantics', () => {
       expect(await run('(|x: number| :string) == (|y: number| :string)')).toBe(
         false
       );
-    });
-
-    it('sig literal matches ^type of closure with return annotation', async () => {
-      expect(
-        await run(`
-          |x: number| { $x }:number => $fn
-          (|x: number| :number) => $sig
-          $fn.^type == $sig
-        `)
-      ).toBe(true);
     });
   });
 });

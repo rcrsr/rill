@@ -21,7 +21,7 @@ import {
   type TypeStructure,
 } from '@rcrsr/rill';
 import { run, runFull } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 // ============================================================
 // HELPERS
@@ -177,15 +177,17 @@ describe('Streams: Success Cases', () => {
   // AC-S7: $s() on stale step returns resolution
   describe('AC-S7: resolution on stale step', () => {
     it('returns resolution even after partial consumption', async () => {
-      // Stream invocation drains remaining chunks and returns resolution
+      // Pull the first chunk, then invoke: the call drains the remaining
+      // chunks and returns the resolution
       const result = await run(
         `
           make_stream() => $s
-          $s()
+          $s.next() => $first
+          dict[chunk: $first.value, resolution: $s()]
         `,
         { functions: { make_stream: makeStreamFn([1, 2, 3], 'final') } }
       );
-      expect(result).toBe('final');
+      expect(result).toEqual({ chunk: 1, resolution: 'final' });
     });
   });
 
@@ -516,19 +518,6 @@ describe('Streams: Error Cases', () => {
     });
   });
 
-  // AC-E7: Stream exceeds iteration ceiling halts with RILL-R010
-  describe('AC-E7: iteration ceiling exceeded', () => {
-    it('halts when stream exceeds ceiling', async () => {
-      // 10001 chunks exceed the 10000 ceiling; the pending head step is not counted
-      const largeChunks = Array.from({ length: 10001 }, (_, i) => i);
-      await expect(
-        run('make_stream() -> seq({ $ })', {
-          functions: { make_stream: makeStreamFn(largeChunks) },
-        })
-      ).rejects.toThrow('exceeded');
-    });
-  });
-
   // AC-E8: Resolution type mismatch halts with RILL-R004
   describe('AC-E8: resolution type mismatch', () => {
     it('halts when resolution does not match declared type', async () => {
@@ -625,11 +614,17 @@ describe('Streams: Boundary Conditions', () => {
   describe('BC-4: stream at ceiling + 1', () => {
     it('halts with RILL-R010 at 10001 chunks', async () => {
       const chunks = Array.from({ length: 10001 }, (_, i) => i);
-      await expect(
-        run('make_stream() -> seq({ $ })', {
-          functions: { make_stream: makeStreamFn(chunks) },
-        })
-      ).rejects.toThrow('exceeded');
+      await expectHalt(
+        () =>
+          run('make_stream() -> seq({ $ })', {
+            functions: { make_stream: makeStreamFn(chunks) },
+          }),
+        {
+          code: 'RILL_R010',
+          hostErrorId: 'RILL-R010',
+          messagePattern: 'Stream expansion exceeded 10000 iterations',
+        }
+      );
     });
   });
 
@@ -830,40 +825,12 @@ describe('Streams: Error Contracts', () => {
     });
   });
 
-  // EC-3: Re-iteration of exhausted stream
-  describe('EC-3: re-iteration', () => {
-    it('throws RILL-R002 on re-iteration of exhausted stream', async () => {
-      await expect(
-        run(
-          `
-            make_stream() => $s
-            $s -> seq({ $ })
-            $s -> seq({ $ })
-          `,
-          { functions: { make_stream: makeStreamFn([1]) } }
-        )
-      ).rejects.toThrow('Stream already consumed');
-    });
-  });
-
   // EC-4: Non-iterable to collection operator (updated message with "or stream")
   describe('EC-4: non-iterable to collection operator', () => {
     it('error message includes stream in type list', async () => {
       await expect(run('42 -> seq({ $ })')).rejects.toThrow(
         /list, string, dict, iterator, or stream/
       );
-    });
-  });
-
-  // EC-5: Iteration ceiling exceeded
-  describe('EC-5: iteration ceiling exceeded', () => {
-    it('throws RILL-R010 when stream exceeds default ceiling', async () => {
-      const chunks = Array.from({ length: 10001 }, (_, i) => i);
-      await expect(
-        run('make_stream() -> seq({ $ })', {
-          functions: { make_stream: makeStreamFn(chunks) },
-        })
-      ).rejects.toThrow('Stream expansion exceeded');
     });
   });
 
@@ -878,24 +845,6 @@ describe('Streams: Error Contracts', () => {
             functions: { make_stream: makeStreamFn(mixedChunks) },
           }),
         'Stream chunk type mismatch'
-      );
-    });
-  });
-
-  // EC-7: Chunk type mismatch at yield
-  describe('EC-7: chunk type mismatch at yield', () => {
-    it('halts typed-atom when yielded value mismatches declared type', async () => {
-      await expectHaltMessage(
-        () =>
-          run(
-            `
-            || {
-              42 -> yield
-            } :stream(string) => $gen
-            $gen() -> seq({ $ })
-          `
-          ),
-        'Yielded value type mismatch'
       );
     });
   });

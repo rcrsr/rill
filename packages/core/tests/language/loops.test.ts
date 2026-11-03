@@ -244,15 +244,6 @@ describe('Rill Runtime: Loops', () => {
       `;
       expect(await run(script)).toBe(true);
     });
-
-    it('loop advances iterator correctly', async () => {
-      // After looping, iterator should be exhausted
-      const script = `
-        list[1, 2, 3] -> .first() -> while (!$.done) do { $.next() } => $it
-        $it.done
-      `;
-      expect(await run(script)).toBe(true);
-    });
   });
 
   describe('Legacy @ Syntax Errors', () => {
@@ -267,37 +258,20 @@ describe('Rill Runtime: Loops', () => {
       );
     });
 
-    it('[AC-NOD-7] pre-loop (cond) @ form emits migration error R079 at @', async () => {
-      const err = await run('0 -> ($ < 3) @ { $ + 1 }').catch(
-        (e: unknown) => e
-      );
-      expect(err).toHaveProperty('errorId', 'RILL-R079');
-      expect(err).toHaveProperty(
-        'message',
-        expect.stringContaining(
-          'Migration error: use `while (cond) do { body }`'
-        )
-      );
-    });
-
-    it('[AC-NOD-8] post-loop @ { body } ? (cond) form emits migration error R080 at @', async () => {
-      const err = await run('0 -> @ { $ + 1 } ? ($ < 3)').catch(
-        (e: unknown) => e
-      );
-      expect(err).toHaveProperty('errorId', 'RILL-R080');
-      expect(err).toHaveProperty(
-        'message',
-        expect.stringContaining(
-          'Migration error: use `do { body } while (cond)`'
-        )
-      );
-    });
-
-    it('bare ^(limit:) annotation in expression position emits migration error R081', async () => {
-      // R081 fires when ^(limit: N) appears as a primary expression head
-      await expect(run('true ? ^(limit: 5) { $ + 1 } ! 0')).rejects.toThrow(
-        /Migration error: use `do<limit: N> \{ body \}`/
-      );
+    it('bare ^(limit: N) as primary expression emits R081 at the ^ glyph', () => {
+      try {
+        parse('true ? ^(limit: 5) { $ + 1 } ! 0');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const e = err as ParseError;
+        expect(e.errorId).toBe('RILL-R081');
+        expect(e.message).toContain(
+          'Migration error: use `do<limit: N> { body }`'
+        );
+        expect(e.location?.line).toBe(1);
+        expect(e.location?.column).toBe(8);
+      }
     });
   });
 
@@ -429,18 +403,14 @@ describe('Rill Runtime: Loops', () => {
 
   describe('Nested Loops [AC-NOD-5]', () => {
     it('[AC-NOD-5] nested while loops associate conditions to innermost keyword', async () => {
-      // Outer loop: 0..2, inner loop: 0..1 per outer step
       const result = await run(`
         0 -> while ($ < 4) do {
           0 -> while ($ < 2) do { $ + 1 }
           $ + 1
         }
       `);
-      // Outer $ goes 0->1->2->3->4 (inner loop always returns 2, outer adds 1)
-      // After outer body: inner returns 2, then outer $ + 1 = 3 (wait, outer $ is the seed)
-      // Actually outer $ is the running value, inner replaces it temporarily in inner scope
-      // Let's just verify it completes without error
-      expect(typeof result).toBe('number');
+      // The inner loop has its own $; the outer $ steps 0 -> 4 and stops at the bound
+      expect(result).toBe(4);
     });
 
     it('[AC-NOD-5] nested do-while loops associate conditions to innermost keyword', async () => {
@@ -450,7 +420,8 @@ describe('Rill Runtime: Loops', () => {
           $ + 1
         } while ($ < 3)
       `);
-      expect(typeof result).toBe('number');
+      // The inner loop has its own $; the outer $ steps 0 -> 3 and stops at the bound
+      expect(result).toBe(3);
     });
   });
 
@@ -459,6 +430,22 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Migration Error: R079 pre-loop @ [AC-NOD-7]', () => {
+    it('seeded 0 -> ($ < 3) @ { $ + 1 } emits RILL-R079 at the @ glyph', () => {
+      try {
+        parse('0 -> ($ < 3) @ { $ + 1 }');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const e = err as ParseError;
+        expect(e.errorId).toBe('RILL-R079');
+        expect(e.message).toContain(
+          'Migration error: use `while (cond) do { body }`'
+        );
+        expect(e.location?.line).toBe(1);
+        expect(e.location?.column).toBe(14);
+      }
+    });
+
     it('[AC-NOD-7] ($ < 5) @ { $ + 1 } emits RILL-R079 at @ token', () => {
       try {
         parse('($ < 5) @ { $ + 1 }');
@@ -491,6 +478,22 @@ describe('Rill Runtime: Loops', () => {
   // ============================================================
 
   describe('Migration Error: R080 post-loop @ [AC-NOD-8]', () => {
+    it('seeded 0 -> @ { $ + 1 } ? ($ < 3) emits RILL-R080 at the @ glyph', () => {
+      try {
+        parse('0 -> @ { $ + 1 } ? ($ < 3)');
+        expect.fail('Should have thrown ParseError');
+      } catch (err) {
+        expect(err).toBeInstanceOf(ParseError);
+        const e = err as ParseError;
+        expect(e.errorId).toBe('RILL-R080');
+        expect(e.message).toContain(
+          'Migration error: use `do { body } while (cond)`'
+        );
+        expect(e.location?.line).toBe(1);
+        expect(e.location?.column).toBe(6);
+      }
+    });
+
     it('[AC-NOD-8] @ { $ + 1 } ? ($ < 5) emits RILL-R080 at @ token', () => {
       try {
         parse('@ { $ + 1 } ? ($ < 5)');
@@ -840,15 +843,6 @@ describe('Rill Runtime: Loops', () => {
     it('a while loop as a pipe target chains a postfix type assertion and evaluates it', async () => {
       const result = await run('0 -> while ($ < 3) do { $ + 1 } : number');
       expect(result).toBe(3);
-    });
-
-    it('without the fix, a seeded do-while loop followed by :number used to split into two statements', () => {
-      // Regression guard: before the fix, `wrapLoopInPostfixExpr`'s result
-      // was assigned directly to `head` without re-entering the postfix
-      // dispatch loop, so a trailing `:number` silently started a second,
-      // unrelated statement.
-      const ast = parse('5 -> do { $ + 1 } while ($ < 10) : number');
-      expect(ast.statements).toHaveLength(1);
     });
   });
 

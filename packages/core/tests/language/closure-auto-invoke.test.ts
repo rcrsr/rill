@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 
 describe('Rill Runtime: Closure Auto-Invocation', () => {
   describe('Success Cases', () => {
@@ -168,18 +169,11 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         |x|($x + 1) => $add
         5 -> (! $add)
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/requires boolean operand, got number/)
-        );
-      }
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /requires boolean operand, got number/,
+      });
     });
 
     it('AC-31 variant: closure returning string in negation', async () => {
@@ -187,18 +181,11 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         |x|($x -> string) => $toStr
         5 -> (! $toStr)
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/requires boolean operand, got string/)
-        );
-      }
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /requires boolean operand, got string/,
+      });
     });
 
     it('AC-32: auto-invoke without $ bound throws RUNTIME_TYPE_ERROR', async () => {
@@ -208,18 +195,11 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         || { $ + 1 } => $inc
         ! $inc
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/requires boolean operand, got closure/)
-        );
-      }
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /requires boolean operand, got closure/,
+      });
     });
 
     it('AC-33: closure requiring 2+ params without tuple throws arity error', async () => {
@@ -228,18 +208,10 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         |a, b|($a + $b) => $add
         5 -> ($add + 10)
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown arity error');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Missing argument/)
-        );
-      }
+      await expectRuntimeError(() => run(script), {
+        code: 'RILL-R044',
+        messagePattern: /Missing argument/,
+      });
     });
 
     it('closure returns wrong type for arithmetic', async () => {
@@ -247,18 +219,11 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         |x|("text") => $str
         5 -> ($str + 10)
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Arithmetic requires number/)
-        );
-      }
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Arithmetic requires number/,
+      });
     });
 
     it('closure returns wrong type for comparison', async () => {
@@ -266,18 +231,11 @@ describe('Rill Runtime: Closure Auto-Invocation', () => {
         |x|("text") => $str
         5 -> ($str < 10)
       `;
-      try {
-        await run(script);
-        expect.fail('Should have thrown RUNTIME_TYPE_ERROR');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-        expect(err).toHaveProperty(
-          'message',
-          expect.stringMatching(/Cannot compare string with number/)
-        );
-      }
+      await expectHalt(() => run(script), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Cannot compare string with number/,
+      });
     });
 
     it('undefined variable in closure body during auto-invoke', async () => {

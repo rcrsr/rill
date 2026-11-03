@@ -19,20 +19,7 @@ import {
   expectHaltMessage,
   expectRuntimeError,
 } from '../helpers/halt.js';
-
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>)['__rill_ordered'] === true
-  );
-}
-
-function orderedEntries(value: unknown): [string, unknown][] {
-  if (!isOrdered(value)) throw new Error('Not an ordered value');
-  return (value as { entries: [string, unknown][] }).entries;
-}
+import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 describe('Rill Runtime: nested structural conversion drops extras', () => {
   it('nested dict with extra keys drops the extras', async () => {

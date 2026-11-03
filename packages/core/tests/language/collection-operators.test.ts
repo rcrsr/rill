@@ -14,16 +14,14 @@ import {
   anyTypeValue,
   createRillStream,
   createVector,
-  parse,
   ParseError,
   RuntimeHaltSignal,
-  TOKEN_TYPES,
   type RillStream,
   type TypeStructure,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
-import { expectHalt } from '../helpers/halt.js';
+import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 // Helper: host function returning a RillStream over provided values
@@ -277,9 +275,10 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
 
     it('AC-36/BC-10: seq called with extra dict arg raises arity error', async () => {
-      await expect(
-        run('list[1, 2, 3] -> seq({ $ * 2 }, [concurrency: 8])')
-      ).rejects.toThrow();
+      await expectRuntimeError(
+        () => run('list[1, 2, 3] -> seq({ $ * 2 }, [concurrency: 8])'),
+        { code: 'RILL-R045' }
+      );
     });
 
     it('single element collection through seq', async () => {
@@ -321,15 +320,17 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
 
     it('AC-19/EC-2 (fold): 3-parameter named closure raises arity mismatch', async () => {
-      await expect(
-        run('list[1, 2, 3] -> fold(0, |a, b, c|($a + $b + $c))')
-      ).rejects.toThrow();
+      await expectRuntimeError(
+        () => run('list[1, 2, 3] -> fold(0, |a, b, c|($a + $b + $c))'),
+        { code: 'RILL-R044' }
+      );
     });
 
     it('EC-2 (seq): 2-arg named closure raises arity error', async () => {
-      await expect(
-        run('list[1, 2, 3] -> seq(|a, b| ($a + $b))')
-      ).rejects.toThrow();
+      await expectRuntimeError(
+        () => run('list[1, 2, 3] -> seq(|a, b| ($a + $b))'),
+        { code: 'RILL-R044' }
+      );
     });
 
     it('AC-20/EC-NOD-3: named param mixed with bare $ raises undefined-variable error', async () => {
@@ -339,7 +340,10 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
 
     it('AC-21/EC-3: seq body references $@ raises undefined-variable error', async () => {
-      await expect(run('list[1, 2] -> seq({ $@ + 1 })')).rejects.toThrow();
+      await expectHalt(() => run('list[1, 2] -> seq({ $@ + 1 })'), {
+        code: 'RILL_R005',
+        hostErrorId: 'RILL-R005',
+      });
     });
 
     it('AC-22/EC-10 (fan): negative concurrency raises RILL-R001', async () => {
@@ -375,7 +379,10 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
 
     it('EC-4: bare $ reference at module scope without pipe provider raises error', async () => {
-      await expect(run('$ + 1')).rejects.toThrow();
+      await expectHalt(() => run('$ + 1'), {
+        code: 'RILL_R005',
+        hostErrorId: 'RILL-R005',
+      });
     });
 
     it('EC-6: vector input to seq raises error', async () => {
@@ -961,52 +968,6 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       await expectHalt(() => run('list[1, 2, 3] -> stop_when({ 42 })'), {
         code: 'TYPE_MISMATCH',
       });
-    });
-  });
-
-  // ── Infrastructure Assertions ─────────────────────────────────────────────
-
-  describe('Infrastructure Assertions', () => {
-    it('AC-14: parse produces zero EACH/MAP/FOLD/FILTER legacy tokens', () => {
-      // Legacy keyword token types were removed from TOKEN_TYPES when the
-      // keyword-based syntax was replaced with callable-function syntax.
-      expect(TOKEN_TYPES).not.toHaveProperty('EACH');
-      expect(TOKEN_TYPES).not.toHaveProperty('MAP');
-      expect(TOKEN_TYPES).not.toHaveProperty('FOLD');
-      expect(TOKEN_TYPES).not.toHaveProperty('FILTER');
-    });
-
-    it('AC-15: AST contains no EachExpr/MapExpr/FoldExpr/FilterExpr nodes', () => {
-      // Legacy AST node types are removed. Parse a new-syntax script and walk
-      // the full AST tree to confirm no legacy node type appears.
-      const LEGACY_TYPES = new Set([
-        'EachExpr',
-        'MapExpr',
-        'FoldExpr',
-        'FilterExpr',
-      ]);
-      const visit = (value: unknown): void => {
-        if (value === null || typeof value !== 'object') return;
-        if (Array.isArray(value)) {
-          value.forEach(visit);
-          return;
-        }
-        const node = value as Record<string, unknown>;
-        if (typeof node['type'] === 'string') {
-          expect(LEGACY_TYPES.has(node['type'] as string)).toBe(false);
-        }
-        Object.values(node).forEach(visit);
-      };
-      visit(parse('list[1, 2, 3] -> seq({ $ * 2 })'));
-    });
-
-    it('AC-16: src/parser/parser-collect.ts does not exist (removed)', async () => {
-      const fs = await import('fs');
-      const exists = fs.existsSync(
-        new URL('../../../../src/parser/parser-collect.ts', import.meta.url)
-          .pathname
-      );
-      expect(exists).toBe(false);
     });
   });
 

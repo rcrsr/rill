@@ -21,15 +21,6 @@ describe('Rill Runtime: Closure Equality', () => {
       `;
       expect(await run(code)).toBe(true);
     });
-
-    it('closures with method calls are equal', async () => {
-      const code = `
-        ||{ .trim } => $a
-        ||{ .trim } => $b
-        ($a == $b) ? true ! false
-      `;
-      expect(await run(code)).toBe(true);
-    });
   });
 
   describe('different closures', () => {

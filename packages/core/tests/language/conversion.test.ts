@@ -14,22 +14,7 @@ import { describe, expect, it } from 'vitest';
 import { isTuple, ParseError, parse, VALID_TYPE_NAMES } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
-
-// Helper to check if a value is an ordered collection
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
-  );
-}
-
-// Helper to get ordered entries
-function orderedEntries(value: unknown): [string, unknown][] {
-  if (!isOrdered(value)) throw new Error('Not an ordered value');
-  return (value as { entries: [string, unknown][] }).entries;
-}
+import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 describe('Rill Language: -> Conversion Operator', () => {
   // ============================================================
@@ -326,6 +311,11 @@ describe('Rill Language: -> Conversion Operator', () => {
     it('converts bool true to string "true" (AC-2)', async () => {
       const result = await run('true -> string');
       expect(result).toBe('true');
+    });
+
+    it('converts bool false to string "false"', async () => {
+      const result = await run('false -> string');
+      expect(result).toBe('false');
     });
 
     it('converts list[1, 2] to string "list[1, 2]" (AC-3)', async () => {

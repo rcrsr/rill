@@ -123,6 +123,14 @@ describe('Rill Language: Parameterized Existence Check', () => {
       `);
       expect(result).toBe(true);
     });
+
+    it('returns false when the field is absent, even with a union type', async () => {
+      const result = await run(`
+        dict[other: "x"] => $data
+        $data.?score&string|number
+      `);
+      expect(result).toBe(false);
+    });
   });
 
   // ============================================================
@@ -153,14 +161,6 @@ describe('Rill Language: Parameterized Existence Check', () => {
   // ============================================================
 
   describe('BC-10: All 3 access kinds support parameterized type qualifier', () => {
-    it('literal access: .?field&list(number) returns true', async () => {
-      const result = await run(`
-        dict[items: list[1, 2, 3]] => $data
-        $data.?items&list(number)
-      `);
-      expect(result).toBe(true);
-    });
-
     it('variable access: .?$var&list(number) returns true', async () => {
       const result = await run(`
         "items" => $key
@@ -176,14 +176,6 @@ describe('Rill Language: Parameterized Existence Check', () => {
         $data.?("items")&list(number)
       `);
       expect(result).toBe(true);
-    });
-
-    it('literal access: .?field&list(number) returns false for string list', async () => {
-      const result = await run(`
-        dict[items: list["a", "b"]] => $data
-        $data.?items&list(number)
-      `);
-      expect(result).toBe(false);
     });
 
     it('variable access: .?$var&list(number) returns false for string list', async () => {

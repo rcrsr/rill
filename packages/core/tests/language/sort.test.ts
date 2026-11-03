@@ -39,27 +39,12 @@ import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
-
-// Helper: check whether a value is a RillOrdered
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
-  );
-}
+import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 // Helper: extract key-order from an ordered value
 function orderedKeys(value: unknown): string[] {
   if (!isOrdered(value)) throw new Error('Not an ordered value');
   return (value as { entries: [string, unknown][] }).entries.map(([k]) => k);
-}
-
-// Helper: extract [key, value] pairs from an ordered value
-function orderedEntries(value: unknown): [string, unknown][] {
-  if (!isOrdered(value)) throw new Error('Not an ordered value');
-  return (value as { entries: [string, unknown][] }).entries;
 }
 
 describe('Rill Language: sort primitive', () => {

@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: Pass Keyword', () => {
@@ -74,9 +75,9 @@ describe('Rill Language: Pass Keyword', () => {
       expect(result).toEqual([10, 20, 30]);
     });
 
-    it('uses each to iterate and preserve with pass', async () => {
-      const result = await run('list[1, 2, 3] -> seq({ $ })');
-      expect(result).toEqual([1, 2, 3]);
+    it('uses pass in a conditional inside seq', async () => {
+      const result = await run('list[1, 2, 3] -> seq({ ($ > 1) ? pass ! 0 })');
+      expect(result).toEqual([0, 2, 3]);
     });
   });
 
@@ -153,24 +154,21 @@ describe('Rill Language: Pass Keyword', () => {
   });
 
   describe('Error Cases', () => {
-    it('throws error when pass called as function (AC-13)', async () => {
-      await expect(run('"x" -> pass()')).rejects.toThrow();
-    });
-
-    it('throws error when pass called with arguments (AC-13)', async () => {
-      await expect(run('"x" -> pass("arg")')).rejects.toThrow();
-    });
-
-    it('throws error when accessing method on pass (AC-14)', async () => {
-      await expect(run('"x" -> pass.method')).rejects.toThrow();
-    });
-
-    it('throws error when accessing property on pass (AC-15)', async () => {
-      await expect(run('"x" -> pass.field')).rejects.toThrow();
-    });
-
-    it('throws error when piping pass result to field access (AC-15)', async () => {
-      await expect(run('"value" -> pass -> .field')).rejects.toThrow();
+    // `-> pass` is rejected at parse time before any call, method or field
+    // access on pass is reached: a piped `pass` requires a body block.
+    it.each([
+      ['"x" -> pass()', 8],
+      ['"x" -> pass("arg")', 8],
+      ['"x" -> pass.method', 8],
+      ['"x" -> pass.field', 8],
+      ['"value" -> pass -> .field', 12],
+    ])('rejects %s with RILL-P004 at column %i', async (script, column) => {
+      const err = await run(script).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ParseError);
+      const e = err as ParseError;
+      expect(e.errorId).toBe('RILL-P004');
+      expect(e.location?.line).toBe(1);
+      expect(e.location?.column).toBe(column);
     });
 
     it('throws error when using pass in arithmetic without pipe', async () => {

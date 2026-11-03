@@ -19,24 +19,11 @@ import { describe, expect, it } from 'vitest';
 import { isTuple } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
+import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 // ============================================================
 // HELPERS
 // ============================================================
-
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
-  );
-}
-
-function orderedEntries(value: unknown): [string, unknown][] {
-  if (!isOrdered(value)) throw new Error('Not an ordered value');
-  return (value as { entries: [string, unknown][] }).entries;
-}
 
 describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Contracts', () => {
   // ============================================================

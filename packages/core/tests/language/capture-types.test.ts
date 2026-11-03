@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run, runWithContext } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Capture Type Assertions', () => {
@@ -14,11 +15,17 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     });
 
     it('rejects number captured as string', async () => {
-      await expect(run('42 => $s:string')).rejects.toThrow();
+      await expectHalt(() => run('42 => $s:string'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
 
     it('rejects bool captured as string', async () => {
-      await expect(run('true => $s:string')).rejects.toThrow();
+      await expectHalt(() => run('true => $s:string'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
   });
 
@@ -36,7 +43,10 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     });
 
     it('rejects string captured as number', async () => {
-      await expect(run('"42" => $n:number')).rejects.toThrow();
+      await expectHalt(() => run('"42" => $n:number'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
   });
 
@@ -50,11 +60,17 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     });
 
     it('rejects string captured as bool', async () => {
-      await expect(run('"true" => $b:bool')).rejects.toThrow();
+      await expectHalt(() => run('"true" => $b:bool'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
 
     it('rejects number captured as bool', async () => {
-      await expect(run('1 => $b:bool')).rejects.toThrow();
+      await expectHalt(() => run('1 => $b:bool'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
   });
 
@@ -68,11 +84,17 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     });
 
     it('rejects dict captured as list', async () => {
-      await expect(run('dict[a: 1] => $t:list')).rejects.toThrow();
+      await expectHalt(() => run('dict[a: 1] => $t:list'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
 
     it('rejects string captured as list', async () => {
-      await expect(run('"abc" => $t:list')).rejects.toThrow();
+      await expectHalt(() => run('"abc" => $t:list'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
   });
 
@@ -89,7 +111,10 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     });
 
     it('rejects tuple captured as dict', async () => {
-      await expect(run('list[1, 2] => $d:dict')).rejects.toThrow();
+      await expectHalt(() => run('list[1, 2] => $d:dict'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
   });
 
@@ -103,7 +128,10 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     });
 
     it('rejects string captured as closure', async () => {
-      await expect(run('"fn" => $fn:closure')).rejects.toThrow();
+      await expectHalt(() => run('"fn" => $fn:closure'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
   });
 
@@ -116,7 +144,10 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
     it('rejects wrong type in for loop', async () => {
       const script = `list["a", "b"] -> seq({ $ => $n:number })`;
-      await expect(run(script)).rejects.toThrow();
+      await expectHalt(() => run(script), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
 
     it('validates type in conditional branch', async () => {
@@ -138,7 +169,10 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
     it('rejects wrong type in middle of chain', async () => {
       const script = `42 => $s:string -> string`;
-      await expect(run(script)).rejects.toThrow();
+      await expectHalt(() => run(script), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
   });
 
@@ -187,7 +221,10 @@ $s`);
     });
 
     it('AC-13 rejection: $t = number, capture rejects string value', async () => {
-      await expect(run('number => $t\n"hello" => $x:$t')).rejects.toThrow();
+      await expectHalt(() => run('number => $t\n"hello" => $x:$t'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
 
     it('AC-13 capture-time resolution: $t reassigned after capture executes', async () => {

@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Dynamic Field Access', () => {
@@ -320,8 +321,8 @@ describe('Dynamic Field Access', () => {
 
   describe('Error Cases', () => {
     describe('Variable Key Errors', () => {
-      it('throws RUNTIME_UNDEFINED_VARIABLE when variable key is undefined', async () => {
-        // AC-9: Variable key undefined throws RUNTIME_UNDEFINED_VARIABLE [EC-1]
+      it('throws RILL-R005 when variable key is undefined', async () => {
+        // AC-9: Variable key undefined throws RILL-R005 [EC-1]
         const code = `
           dict[name: "alice", age: 30] => $data
           $data.$missingVar
@@ -332,50 +333,48 @@ describe('Dynamic Field Access', () => {
         });
       });
 
-      it('throws RUNTIME_TYPE_ERROR when variable key is boolean', async () => {
-        // AC-10: Variable key is boolean throws RUNTIME_TYPE_ERROR [EC-2]
+      it('throws RILL-R002 when variable key is boolean', async () => {
+        // AC-10: Variable key is boolean throws RILL-R002 [EC-2]
         const code = `
           true => $key
           dict[name: "alice", age: 30] => $data
           $data.$key
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Key must be string or number, got bool/
-          ),
+        await expectHalt(() => run(code), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Key must be string or number, got bool/,
         });
       });
 
-      it('throws RUNTIME_TYPE_ERROR when variable key is list', async () => {
-        // EC-3: Variable value is list → RUNTIME_TYPE_ERROR
+      it('throws RILL-R002 when variable key is list', async () => {
+        // EC-3: Variable value is list → RILL-R002
         const code = `
           list["name", "age"] => $key
           dict[name: "alice", age: 30] => $data
           $data.$key
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Key must be string or number, got list/
-          ),
+        await expectHalt(() => run(code), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Key must be string or number, got list/,
         });
       });
     });
 
     describe('Computed Key Errors', () => {
-      it('throws RUNTIME_TYPE_ERROR when computed expression returns list', async () => {
-        // AC-11: Computed expression returns list throws RUNTIME_TYPE_ERROR
+      it('throws RILL-R002 when computed expression returns list', async () => {
+        // AC-11: Computed expression returns list throws RILL-R002
         const code = `
           list["name"] => $keys
           dict[name: "alice", age: 30] => $data
           $data.($keys)
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Computed key evaluated to list, expected string or number/
-          ),
+        await expectHalt(() => run(code), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            /Computed key evaluated to list, expected string or number/,
         });
       });
 
@@ -391,77 +390,74 @@ describe('Dynamic Field Access', () => {
         });
       });
 
-      it('throws RUNTIME_TYPE_ERROR when computed expression returns closure', async () => {
-        // EC-4: Result is closure → RUNTIME_TYPE_ERROR
+      it('throws RILL-R002 when computed expression returns closure', async () => {
+        // EC-4: Result is closure → RILL-R002
         const code = `
           |x|($x + 1) => $fn
           dict[name: "alice"] => $data
           $data.($fn)
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Computed key evaluated to closure, expected string or number/
-          ),
+        await expectHalt(() => run(code), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            /Computed key evaluated to closure, expected string or number/,
         });
       });
 
-      it('throws RUNTIME_TYPE_ERROR when computed expression returns dict', async () => {
-        // EC-5: Result is dict → RUNTIME_TYPE_ERROR
+      it('throws RILL-R002 when computed expression returns dict', async () => {
+        // EC-5: Result is dict → RILL-R002
         const code = `
           dict[field: "name"] => $obj
           dict[name: "alice"] => $data
           $data.($obj)
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Computed key evaluated to dict, expected string or number/
-          ),
+        await expectHalt(() => run(code), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            /Computed key evaluated to dict, expected string or number/,
         });
       });
     });
 
     describe('Alternative Access Errors', () => {
-      it('throws RUNTIME_TYPE_ERROR when alternative access used on non-dict', async () => {
-        // AC-13: Alternative access on list (not dict) throws RUNTIME_TYPE_ERROR [EC-6]
+      it('throws RILL-R002 when alternative access used on non-dict', async () => {
+        // AC-13: Alternative access on list (not dict) throws RILL-R002 [EC-6]
         const code = `
           list["a", "b", "c"] => $list
           $list.(name || title)
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Alternative access requires dict, got list/
-          ),
+        await expectHalt(() => run(code), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Alternative access requires dict, got list/,
         });
       });
 
-      it('throws RUNTIME_TYPE_ERROR when alternative access used on string', async () => {
-        // EC-6: Target is not dict → RUNTIME_TYPE_ERROR (additional test for string)
+      it('throws RILL-R002 when alternative access used on string', async () => {
+        // EC-6: Target is not dict → RILL-R002 (additional test for string)
         const code = `
           "hello" => $str
           $str.(name || nickname)
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Alternative access requires dict, got string/
-          ),
+        await expectHalt(() => run(code), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Alternative access requires dict, got string/,
         });
       });
 
-      it('throws RUNTIME_TYPE_ERROR when alternative access used on number', async () => {
-        // EC-6: Target is not dict → RUNTIME_TYPE_ERROR (additional test for number)
+      it('throws RILL-R002 when alternative access used on number', async () => {
+        // EC-6: Target is not dict → RILL-R002 (additional test for number)
         const code = `
           42 => $num
           $num.(name || nickname)
         `;
-        await expect(run(code)).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(
-            /Alternative access requires dict, got number/
-          ),
+        await expectHalt(() => run(code), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Alternative access requires dict, got number/,
         });
       });
     });

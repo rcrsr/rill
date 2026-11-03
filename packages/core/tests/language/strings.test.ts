@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { parse } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Strings (Extended)', () => {
@@ -398,48 +399,48 @@ hello
   });
 
   describe('Triple-Quote Boundary Conditions', () => {
-    it('produces empty string for empty triple-quote (AC-10)', async () => {
-      const { parse } = await import('@rcrsr/rill');
+    it('produces empty string for empty triple-quote (AC-10)', () => {
       const ast = parse('""""""');
-      const stmt = ast.statements[0];
-      expect(stmt?.type).toBe('Statement');
-      if (stmt?.type === 'Statement') {
-        const expr = stmt.expression;
-        if (expr?.type === 'PipeChain') {
-          const head = expr.head;
-          if (head?.type === 'PostfixExpr') {
-            const stringNode = head.primary;
-            expect(stringNode?.type).toBe('StringLiteral');
-            if (stringNode?.type === 'StringLiteral') {
-              expect(stringNode.parts).toEqual(['']);
-              expect(stringNode.isMultiline).toBe(false);
-            }
-          }
-        }
-      }
+      const stmt = ast.statements[0] as {
+        type: string;
+        expression: {
+          type: string;
+          head: {
+            type: string;
+            primary: { type: string; parts: unknown[]; isMultiline: boolean };
+          };
+        };
+      };
+      expect(stmt.type).toBe('Statement');
+      expect(stmt.expression.type).toBe('PipeChain');
+      expect(stmt.expression.head.type).toBe('PostfixExpr');
+      const stringNode = stmt.expression.head.primary;
+      expect(stringNode.type).toBe('StringLiteral');
+      expect(stringNode.parts).toEqual(['']);
+      expect(stringNode.isMultiline).toBe(false);
     });
 
-    it('produces empty string for single newline triple-quote (AC-11)', async () => {
-      const { parse } = await import('@rcrsr/rill');
+    it('produces empty string for single newline triple-quote (AC-11)', () => {
       const ast = parse('"""\n"""');
-      const stmt = ast.statements[0];
-      expect(stmt?.type).toBe('Statement');
-      if (stmt?.type === 'Statement') {
-        const expr = stmt.expression;
-        if (expr?.type === 'PipeChain') {
-          const head = expr.head;
-          if (head?.type === 'PostfixExpr') {
-            const stringNode = head.primary;
-            expect(stringNode?.type).toBe('StringLiteral');
-            if (stringNode?.type === 'StringLiteral') {
-              expect(stringNode.parts).toEqual(['']);
-              // Note: Implementation sets isMultiline based on content AFTER skipping opening newline.
-              // Since content is empty, isMultiline is false. This differs from spec AC-11.
-              expect(stringNode.isMultiline).toBe(false);
-            }
-          }
-        }
-      }
+      const stmt = ast.statements[0] as {
+        type: string;
+        expression: {
+          type: string;
+          head: {
+            type: string;
+            primary: { type: string; parts: unknown[]; isMultiline: boolean };
+          };
+        };
+      };
+      expect(stmt.type).toBe('Statement');
+      expect(stmt.expression.type).toBe('PipeChain');
+      expect(stmt.expression.head.type).toBe('PostfixExpr');
+      const stringNode = stmt.expression.head.primary;
+      expect(stringNode.type).toBe('StringLiteral');
+      expect(stringNode.parts).toEqual(['']);
+      // isMultiline is computed from the content after the opening newline is
+      // skipped, so empty content is not multiline.
+      expect(stringNode.isMultiline).toBe(false);
     });
 
     it('handles maximum consecutive escapes (AC-12)', async () => {
@@ -465,7 +466,6 @@ hello
     });
 
     it('locates an interpolation correctly when the opening newline is CRLF', async () => {
-      const { parse } = await import('@rcrsr/rill');
       // Source: """\r\n{1}"""
       // indices: 0=" 1=" 2=" 3=\r 4=\n 5={ 6=1 7=} 8=" 9=" 10="
       // The literal `1` sits at offset 6, line 2, column 2 once the CRLF

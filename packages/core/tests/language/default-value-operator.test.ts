@@ -6,15 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { isInvalid, isTuple, toCallable } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
-  );
-}
+import { isOrdered } from '../helpers/ordered.js';
 
 describe('Default Value Operator (??)', () => {
   describe('Variable Access Chains', () => {

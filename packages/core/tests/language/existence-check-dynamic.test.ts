@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Dynamic Existence Check', () => {
@@ -742,16 +743,19 @@ describe('Dynamic Existence Check', () => {
     });
 
     describe('Integration error handling', () => {
-      it('throws when variable used in dict key and existence check is undefined', async () => {
-        await expect(
-          run(`
-            dict[_static: 0, $undefined: 1] => $dict
-            $dict.?$undefined
-          `)
-        ).rejects.toMatchObject({
-          errorId: 'RILL-R005',
-          message: expect.stringContaining("Variable 'undefined' is undefined"),
-        });
+      it('throws when the existence check uses an undefined variable key', async () => {
+        await expectHalt(
+          () =>
+            run(`
+              dict[_static: 0] => $dict
+              $dict.?$undefined
+            `),
+          {
+            code: 'RILL_R005',
+            hostErrorId: 'RILL-R005',
+            messagePattern: "Variable 'undefined' is undefined",
+          }
+        );
       });
 
       it('throws when computed key expression in dict and existence check evaluates to non-string', async () => {
