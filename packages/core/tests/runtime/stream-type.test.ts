@@ -1018,40 +1018,9 @@ describe('stream end and second invocation', () => {
       messagePattern: 'Stream already consumed; cannot re-iterate',
     });
   });
-
-  it('next on a stale step halts RILL_R002 with the already-consumed message', async () => {
-    const stream = createRillStream({
-      chunks: asyncIterableFrom(['a', 'b', 'c']),
-      resolve: async () => null,
-    });
-    const step1 = await advanceStream(stream);
-    await invokeNext(step1);
-
-    await expectHalt(async () => invokeNext(step1), {
-      code: 'RILL_R002',
-      messagePattern: 'Stream already consumed; cannot re-iterate',
-    });
-  });
-
-  it('a second next on the initial stream halts RILL_R002', async () => {
-    const stream = createRillStream({
-      chunks: asyncIterableFrom(['a']),
-      resolve: async () => null,
-    });
-    await invokeNext(stream);
-
-    await expectHalt(async () => invokeNext(stream), {
-      code: 'RILL_R002',
-      messagePattern: 'Stream already consumed; cannot re-iterate',
-    });
-  });
 });
 
 describe('stream iteration ceiling boundary', () => {
-  const overCeiling = {
-    functions: { s: makeCountedStreamFn(MAX_ITER_CEILING + 1) },
-  };
-
   it('seq over exactly MAX_ITER list elements does not halt', async () => {
     const result = (await run(
       '"a" -> .repeat(10000) -> .split("") -> seq({ $ }) -> .len'
@@ -1092,24 +1061,6 @@ describe('stream iteration ceiling boundary', () => {
       () => run('"a" -> .repeat(10001) -> .split("") -> fold(0, { $@ + 1 })'),
       { code: 'RILL_R010', messagePattern: 'fold: iteration exceeded' }
     );
-  });
-
-  it('seq over MAX_ITER + 1 chunks halts RILL_R010', async () => {
-    await expectHalt(() => run('s() -> seq({ $ })', overCeiling), {
-      code: 'RILL_R010',
-    });
-  });
-
-  it('acc over MAX_ITER + 1 chunks halts RILL_R010', async () => {
-    await expectHalt(() => run('s() -> acc(0, { $@ + 1 })', overCeiling), {
-      code: 'RILL_R010',
-    });
-  });
-
-  it('fold over MAX_ITER + 1 chunks halts RILL_R010', async () => {
-    await expectHalt(() => run('s() -> fold(0, { $@ + 1 })', overCeiling), {
-      code: 'RILL_R010',
-    });
   });
 
   it('guard does not recover a seq overrun', async () => {

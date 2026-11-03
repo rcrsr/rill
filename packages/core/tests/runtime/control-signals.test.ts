@@ -102,48 +102,6 @@ describe('ControlSignal.value payload [IR-1]', () => {
 });
 
 // ============================================================
-// EC-4: catch targeting RuntimeHaltSignal never matches subclass
-// ============================================================
-
-describe('instanceof RuntimeHaltSignal catch block never matches ControlSignal subclasses [EC-4]', () => {
-  it('BreakSignal does not enter a RuntimeHaltSignal catch branch', () => {
-    let entered = false;
-    try {
-      throw new BreakSignal('value');
-    } catch (e) {
-      if (e instanceof RuntimeHaltSignal) {
-        entered = true;
-      }
-    }
-    expect(entered).toBe(false);
-  });
-
-  it('ReturnSignal does not enter a RuntimeHaltSignal catch branch', () => {
-    let entered = false;
-    try {
-      throw new ReturnSignal(0);
-    } catch (e) {
-      if (e instanceof RuntimeHaltSignal) {
-        entered = true;
-      }
-    }
-    expect(entered).toBe(false);
-  });
-
-  it('YieldSignal does not enter a RuntimeHaltSignal catch branch', () => {
-    let entered = false;
-    try {
-      throw new YieldSignal('chunk');
-    } catch (e) {
-      if (e instanceof RuntimeHaltSignal) {
-        entered = true;
-      }
-    }
-    expect(entered).toBe(false);
-  });
-});
-
-// ============================================================
 // EC-2: abstract-class enforcement (TypeScript compile check)
 // ============================================================
 

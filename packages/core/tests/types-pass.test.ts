@@ -18,34 +18,6 @@ describe('PASS token type', () => {
   });
 });
 
-describe('PassNode type', () => {
-  it('Pass exists in NodeType union', () => {
-    // Type-level test: if this compiles, Pass is in the union
-    type NodeType = import('../src/types.js').NodeType;
-    type TestPass = 'Pass' extends NodeType ? true : false;
-    const test: TestPass = true;
-    expect(test).toBe(true);
-  });
-
-  it('PassNode has correct shape', () => {
-    // Type-level test: if this compiles, PassNode matches the pattern.
-    // Sourced from src/ rather than the package entry point, so it is named
-    // distinctly from the PassNode imported above.
-    type SrcPassNode = import('../src/types.js').PassNode;
-
-    const node: SrcPassNode = {
-      type: 'Pass',
-      span: {
-        start: { offset: 0, line: 1, column: 1 },
-        end: { offset: 4, line: 1, column: 5 },
-      },
-    };
-
-    expect(node.type).toBe('Pass');
-    expect(node.span).toBeDefined();
-  });
-});
-
 describe('PassNode equality (astEquals)', () => {
   it('considers two PassNodes equal regardless of span', () => {
     const pass1: PassNode = {

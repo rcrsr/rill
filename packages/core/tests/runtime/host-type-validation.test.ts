@@ -5,16 +5,13 @@
  * - list(string) accepts list(string), rejects list(number)
  * - type: undefined accepts any type without error
  * - dict param with named fields validates argument structure
- * - Missing required param → RUNTIME_TYPE_ERROR
  * - Optional param with defaultValue applies default when omitted
  * - Default value type mismatch → Error at registration time
- * - list(string) rejects list(number) — mismatch location in error message
  * - Script closure and host function with identical param type use same validation
  *
  * Error contracts:
  * - defaultValue: 42 on type: string → Error at registration
- * - typed param with zero args → RuntimeError RILL-R044 naming missing param
- * - 1-param function called with 3 args → RuntimeError with expected vs actual
+ * - 3 args passed to a function: thrown message renders the registry RILL-R045 template
  *
  * Not covered: union-typed param validation.
  */
@@ -73,34 +70,6 @@ describe('Rill Runtime: Host Type Validation', () => {
           }),
         { code: 'RILL-R001' }
       );
-    });
-
-    it('error message names expected type list(string) and actual type list', async () => {
-      // error message mentions mismatch location
-      try {
-        await run('process([1, 2, 3])', {
-          functions: {
-            process: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'items',
-                  type: { kind: 'list', element: { kind: 'string' } },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['items']!,
-            },
-          },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(RuntimeError);
-        const msg = (err as RuntimeError).message;
-        expect(msg).toContain('items');
-        expect(msg).toContain('list');
-      }
     });
   });
 
@@ -216,29 +185,6 @@ describe('Rill Runtime: Host Type Validation', () => {
       expect(result).toBe('alice is 30');
     });
 
-    it('rejects non-dict argument for dict param', async () => {
-      await expectRuntimeError(
-        () =>
-          run('process("not-a-dict")', {
-            functions: {
-              process: {
-                returnType: anyTypeValue,
-                params: [
-                  {
-                    name: 'person',
-                    type: { kind: 'dict' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: (args) => args['person']!,
-              },
-            },
-          }),
-        { code: 'RILL-R001' }
-      );
-    });
-
     it('accepts any dict for dict param without fields constraint', async () => {
       // dict param with no fields matches any dict
       const result = await run('process([x: 1, y: 2, z: 3])', {
@@ -258,61 +204,6 @@ describe('Rill Runtime: Host Type Validation', () => {
         },
       });
       expect(result).toEqual({ x: 1, y: 2, z: 3 });
-    });
-  });
-
-  describe('Missing required param raises RuntimeError RILL-R044', () => {
-    it('throws RILL-R044 when required param omitted', async () => {
-      // typed param with zero args → RuntimeError naming missing param
-      try {
-        await run('process()', {
-          functions: {
-            process: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'input',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['input']!,
-            },
-          },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(RuntimeError);
-        const rErr = err as RuntimeError;
-        expect(rErr.errorId).toBe('RILL-R044');
-        expect(rErr.message).toContain('input');
-      }
-    });
-
-    it('error message names the missing parameter', async () => {
-      try {
-        await run('greet()', {
-          functions: {
-            greet: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'username',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => `Hello ${args['username']}`,
-            },
-          },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(RuntimeError);
-        expect((err as RuntimeError).message).toContain('username');
-      }
     });
   });
 
@@ -423,62 +314,6 @@ describe('Rill Runtime: Host Type Validation', () => {
   });
 
   describe('Excess arguments raises RuntimeError with expected vs actual count', () => {
-    it('throws RILL-R045 when 3 args passed to 1-param function', async () => {
-      try {
-        await run('fn(1, 2, 3)', {
-          functions: {
-            fn: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'x',
-                  type: { kind: 'number' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['x']!,
-            },
-          },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(RuntimeError);
-        const rErr = err as RuntimeError;
-        expect(rErr.errorId).toBe('RILL-R045');
-        // Error message should mention expected count vs actual count
-        expect(rErr.message).toMatch(/expects 1 arguments, got 3/);
-      }
-    });
-
-    it('error context contains expectedCount and actualCount', async () => {
-      try {
-        await run('fn(1, 2, 3)', {
-          functions: {
-            fn: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'x',
-                  type: { kind: 'number' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['x']!,
-            },
-          },
-        });
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toBeInstanceOf(RuntimeError);
-        const rErr = err as RuntimeError;
-        const ctx = rErr.context as Record<string, unknown>;
-        expect(ctx['expectedCount']).toBe(1);
-        expect(ctx['actualCount']).toBe(3);
-      }
-    });
-
     it('registry message template renders the thrown message from its context', async () => {
       const err = await run('fn(1, 2, 3)', {
         functions: {

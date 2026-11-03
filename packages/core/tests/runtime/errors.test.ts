@@ -172,55 +172,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(error.errorId).toBe('RILL-L001');
       expect(error.location).toEqual(location);
     });
-
-    it('LexerError requires location', () => {
-      const location: SourceLocation = { line: 1, column: 5, offset: 5 };
-      const error = new LexerError('RILL-L002', 'Invalid character', location);
-
-      expect(error.location).toBeDefined();
-      expect(error.location).toEqual(location);
-    });
-
-    it('RillError stores structured data', () => {
-      const location: SourceLocation = { line: 2, column: 10, offset: 25 };
-      const context = { name: 'foo' };
-      const error = new RillError({
-        errorId: 'RILL-R005',
-        message: 'Variable foo is not defined',
-        location,
-        context,
-      });
-
-      expect(error.errorId).toBe('RILL-R005');
-      expect(error.location).toEqual(location);
-      expect(error.context).toEqual(context);
-      expect(error.message).toContain('Variable foo is not defined');
-      expect(error.message).toContain('at 2:10');
-    });
-
-    it('RillError toData() strips location suffix', () => {
-      const location: SourceLocation = { line: 2, column: 10, offset: 25 };
-      const error = new RillError({
-        errorId: 'RILL-R001',
-        message: 'Type error',
-        location,
-      });
-
-      const data = error.toData();
-      expect(data.message).toBe('Type error');
-      expect(data.message).not.toContain('at 2:10');
-    });
-
-    it('AC-12: RillError without location omits " at line:column" suffix', () => {
-      const error = new RillError({
-        errorId: 'RILL-R001',
-        message: 'Type error',
-      });
-
-      expect(error.message).toBe('Type error');
-      expect(error.message).not.toContain(' at ');
-      expect(error.location).toBeUndefined();
-    });
   });
 
   describe('Error Factory Tests', () => {

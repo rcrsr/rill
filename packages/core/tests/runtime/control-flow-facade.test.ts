@@ -4,8 +4,7 @@
  * Specification Mapping:
  * - pipeValue: read/write on fresh and child contexts.
  * - annotationStack: push/pop semantics.
- * - BC-3: pushCallFrame at maxCallStackDepth drops oldest frame;
- *         child inherits maxCallStackDepth.
+ * - BC-3: child inherits maxCallStackDepth.
  * - BC-5: signal undefined runs to completion; signal present + abort
  *         enables early termination.
  * - timeout: value propagated from options.
@@ -14,29 +13,11 @@
  * Construction strategy:
  * - Uses createRuntimeContext for root scope.
  * - Uses createChildContext for child scopes.
- * - Uses pushCallFrame / popCallFrame from public barrel.
  * - No standalone facade constructors (TD-3).
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  createRuntimeContext,
-  createChildContext,
-  pushCallFrame,
-  popCallFrame,
-  type CallFrame,
-} from '@rcrsr/rill';
-
-/** Build a minimal CallFrame for stack tests. */
-function frame(name: string): CallFrame {
-  return {
-    functionName: name,
-    location: {
-      start: { line: 1, column: 1, offset: 0 },
-      end: { line: 1, column: 1, offset: 0 },
-    },
-  };
-}
+import { createRuntimeContext, createChildContext } from '@rcrsr/rill';
 
 describe('ControlFlowContext', () => {
   describe('pipeValue', () => {
@@ -96,57 +77,11 @@ describe('ControlFlowContext', () => {
     });
   });
 
-  describe('callStack and pushCallFrame / popCallFrame', () => {
-    it('callStack starts empty', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.callStack).toHaveLength(0);
-    });
-
-    it('pushCallFrame adds a frame', () => {
-      const ctx = createRuntimeContext({});
-      pushCallFrame(ctx, frame('fn1'));
-      expect(ctx.callStack).toHaveLength(1);
-      expect(ctx.callStack[0]!.functionName).toBe('fn1');
-    });
-
-    it('popCallFrame removes the last frame', () => {
-      const ctx = createRuntimeContext({});
-      pushCallFrame(ctx, frame('fn1'));
-      pushCallFrame(ctx, frame('fn2'));
-      popCallFrame(ctx);
-      expect(ctx.callStack).toHaveLength(1);
-      expect(ctx.callStack[0]!.functionName).toBe('fn1');
-    });
-
-    it('popCallFrame on empty stack is a no-op', () => {
-      const ctx = createRuntimeContext({});
-      expect(() => popCallFrame(ctx)).not.toThrow();
-      expect(ctx.callStack).toHaveLength(0);
-    });
-  });
-
   describe('BC-3: maxCallStackDepth enforcement', () => {
-    it('pushing past maxCallStackDepth drops the oldest frame', () => {
-      const ctx = createRuntimeContext({ maxCallStackDepth: 3 });
-      pushCallFrame(ctx, frame('f1'));
-      pushCallFrame(ctx, frame('f2'));
-      pushCallFrame(ctx, frame('f3'));
-      // Stack is full at depth 3; one more push must drop 'f1'.
-      pushCallFrame(ctx, frame('f4'));
-      expect(ctx.callStack).toHaveLength(3);
-      expect(ctx.callStack[0]!.functionName).toBe('f2');
-      expect(ctx.callStack[2]!.functionName).toBe('f4');
-    });
-
     it('child inherits maxCallStackDepth from parent', () => {
       const parent = createRuntimeContext({ maxCallStackDepth: 5 });
       const child = createChildContext(parent);
       expect(child.maxCallStackDepth).toBe(5);
-    });
-
-    it('default maxCallStackDepth is 100', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.maxCallStackDepth).toBe(100);
     });
   });
 

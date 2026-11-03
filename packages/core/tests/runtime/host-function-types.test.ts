@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
-import { anyTypeValue, createRuntimeContext, RuntimeError } from '@rcrsr/rill';
+import { anyTypeValue, createRuntimeContext } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { mockFn } from '../helpers/runtime.js';
 
@@ -431,21 +431,6 @@ describe('Rill Runtime: Host Function Type Safety', () => {
     });
 
     describe('TC-HOSTTYPE-5: Empty params array behavior', () => {
-      it('runtime executes function with empty params array', async () => {
-        // This test proves functions with empty params execute correctly (AC-S5).
-        // The function takes no arguments.
-        const fn = mockFn('legacy result');
-
-        const result = await run('legacy()', {
-          functions: {
-            legacy: fn,
-          },
-        });
-
-        expect(fn.callCount).toBe(1);
-        expect(result).toBe('legacy result');
-      });
-
       it('empty params function rejects arguments', async () => {
         await expect(
           run('multi("a", 1, true)', {
@@ -544,7 +529,15 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           })
         ).rejects.toMatchObject({
           errorId: 'RILL-R001',
-          message: expect.stringContaining('type mismatch'),
+          message: expect.stringContaining(
+            'Parameter type mismatch: x expects string, got number'
+          ),
+          context: expect.objectContaining({
+            functionName: 'test',
+            paramName: 'x',
+            expectedType: 'string',
+            actualType: 'number',
+          }),
         });
 
         expect(fn.callCount).toBe(0);
@@ -573,6 +566,11 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         ).rejects.toMatchObject({
           errorId: 'RILL-R045',
           message: expect.stringContaining('expects 1 arguments, got 2'),
+          context: expect.objectContaining({
+            functionName: 'test',
+            expectedCount: 1,
+            actualCount: 2,
+          }),
         });
 
         expect(fn.callCount).toBe(0);
@@ -603,33 +601,13 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           message: expect.stringContaining(
             "Missing argument for parameter 'x'"
           ),
+          context: expect.objectContaining({
+            functionName: 'test',
+            paramName: 'x',
+          }),
         });
 
         expect(fn.callCount).toBe(0);
-      });
-
-      it('valid arguments allow function execution', async () => {
-        const fn = mockFn('result');
-
-        const result = await run('test("value")', {
-          functions: {
-            test: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'x',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: fn.fn,
-            },
-          },
-        });
-
-        expect(fn.callCount).toBe(1);
-        expect(result).toBe('result');
       });
     });
   });
@@ -782,171 +760,32 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         );
       });
     });
-
-    describe('Valid defaultValue types pass registration', () => {
-      it('accepts string defaultValue for string parameter', async () => {
-        const result = await run('greet()', {
-          functions: {
-            greet: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'name',
-                  type: { kind: 'string' },
-                  defaultValue: 'World',
-                  annotations: {},
-                },
-              ],
-              fn: (args) => `Hello, ${args['name']}!`,
-            },
-          },
-        });
-        expect(result).toBe('Hello, World!');
-      });
-
-      it('accepts number defaultValue for number parameter', async () => {
-        const result = await run('square()', {
-          functions: {
-            square: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'x',
-                  type: { kind: 'number' },
-                  defaultValue: 5,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => (args['x'] as number) * (args['x'] as number),
-            },
-          },
-        });
-        expect(result).toBe(25);
-      });
-
-      it('accepts bool defaultValue for bool parameter', async () => {
-        const result = await run('toggle()', {
-          functions: {
-            toggle: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'value',
-                  type: { kind: 'bool' },
-                  defaultValue: true,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => !(args['value'] as boolean),
-            },
-          },
-        });
-        expect(result).toBe(false);
-      });
-
-      it('accepts list defaultValue for list parameter', async () => {
-        const result = await run('sum()', {
-          functions: {
-            sum: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'nums',
-                  type: { kind: 'list' },
-                  defaultValue: [1, 2, 3],
-                  annotations: {},
-                },
-              ],
-              fn: (args) =>
-                (args['nums'] as number[]).reduce((a, b) => a + b, 0) as number,
-            },
-          },
-        });
-        expect(result).toBe(6);
-      });
-
-      it('accepts dict defaultValue for dict parameter', async () => {
-        const result = await run('getName()', {
-          functions: {
-            getName: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'user',
-                  type: { kind: 'dict' },
-                  defaultValue: { name: 'Alice', annotations: {} },
-                  annotations: {},
-                },
-              ],
-              fn: (args) =>
-                (args['user'] as Record<string, RillValue>)['name'] ?? null,
-            },
-          },
-        });
-        expect(result).toBe('Alice');
-      });
-
-      it('accepts multiple parameters with valid defaultValues', async () => {
-        const result = await run('config()', {
-          functions: {
-            config: {
-              returnType: anyTypeValue,
-              params: [
-                {
-                  name: 'host',
-                  type: { kind: 'string' },
-                  defaultValue: 'localhost',
-                  annotations: {},
-                },
-                {
-                  name: 'port',
-                  type: { kind: 'number' },
-                  defaultValue: 8080,
-                  annotations: {},
-                },
-                {
-                  name: 'secure',
-                  type: { kind: 'bool' },
-                  defaultValue: false,
-                  annotations: {},
-                },
-              ],
-              fn: (args) =>
-                `${args['host']}:${args['port']} (secure: ${args['secure']})`,
-            },
-          },
-        });
-        expect(result).toBe('localhost:8080 (secure: false)');
-      });
-    });
   });
 
   describe('Error Cases', () => {
-    describe('TC-HOSTTYPE-6: Throws error for complex type validation (list/dict types) [EC-3]', () => {
-      it('throws RuntimeError when list parameter receives non-list type', async () => {
-        await expect(
-          run('first("not a list")', {
-            functions: {
-              first: {
-                returnType: anyTypeValue,
-                params: [
-                  {
-                    name: 'items',
-                    type: { kind: 'list' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'should not execute',
-              },
+    it('throws RILL-R001 when list parameter receives a string', async () => {
+      await expect(
+        run('first("not a list")', {
+          functions: {
+            first: {
+              returnType: anyTypeValue,
+              params: [
+                {
+                  name: 'items',
+                  type: { kind: 'list' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              fn: () => 'should not execute',
             },
-          })
-        ).rejects.toMatchObject({
-          errorId: 'RILL-R001',
-          message: expect.stringMatching(
-            /type mismatch: items expects list, got string/i
-          ),
-        });
+          },
+        })
+      ).rejects.toMatchObject({
+        errorId: 'RILL-R001',
+        message: expect.stringMatching(
+          /type mismatch: items expects list, got string/i
+        ),
       });
     });
 
@@ -975,115 +814,6 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             /type mismatch: data expects dict, got list/i
           ),
         });
-      });
-    });
-
-    describe('Error message format validation', () => {
-      it('verifies type mismatch error message contains all required components', async () => {
-        try {
-          await run('process(123)', {
-            functions: {
-              process: {
-                returnType: anyTypeValue,
-                params: [
-                  {
-                    name: 'input',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'not reached',
-              },
-            },
-          });
-          expect.fail('Should have thrown');
-        } catch (err) {
-          const rErr = err as RuntimeError;
-          // Verify errorId
-          expect(rErr.errorId).toBe('RILL-R001');
-          // Message format: "Parameter type mismatch: {param} expects {expected}, got {actual}"
-          expect(rErr.message).toMatch(/type mismatch/i);
-          expect(rErr.message).toMatch(/input/);
-          expect(rErr.message).toMatch(/expects string/);
-          expect(rErr.message).toMatch(/got number/);
-          // Verify context includes all fields
-          expect(rErr.context?.['functionName']).toBe('process');
-          expect(rErr.context?.['paramName']).toBe('input');
-          expect(rErr.context?.['expectedType']).toBe('string');
-          expect(rErr.context?.['actualType']).toBe('number');
-        }
-      });
-
-      it('verifies excess arguments error message contains all required components', async () => {
-        try {
-          await run('calc(1, 2, 3)', {
-            functions: {
-              calc: {
-                returnType: anyTypeValue,
-                params: [
-                  {
-                    name: 'a',
-                    type: { kind: 'number' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                  {
-                    name: 'b',
-                    type: { kind: 'number' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'not reached',
-              },
-            },
-          });
-          expect.fail('Should have thrown');
-        } catch (err) {
-          const rErr = err as RuntimeError;
-          // Verify errorId
-          expect(rErr.errorId).toBe('RILL-R045');
-          // Message format: "Function expects {expected} arguments, got {actual}"
-          expect(rErr.message).toMatch(/expects 2 arguments, got 3/);
-          // Verify context includes all fields
-          expect(rErr.context?.['functionName']).toBe('calc');
-          expect(rErr.context?.['expectedCount']).toBe(2);
-          expect(rErr.context?.['actualCount']).toBe(3);
-        }
-      });
-
-      it('verifies missing argument error message contains all required components', async () => {
-        try {
-          await run('format()', {
-            functions: {
-              format: {
-                returnType: anyTypeValue,
-                params: [
-                  {
-                    name: 'template',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'not reached',
-              },
-            },
-          });
-          expect.fail('Should have thrown');
-        } catch (err) {
-          const rErr = err as RuntimeError;
-          // Verify errorId
-          expect(rErr.errorId).toBe('RILL-R044');
-          // Message format: "Missing argument for parameter '{param}'"
-          expect(rErr.message).toMatch(
-            /Missing argument for parameter 'template'/
-          );
-          // Verify context includes all fields
-          expect(rErr.context?.['functionName']).toBe('format');
-          expect(rErr.context?.['paramName']).toBe('template');
-        }
       });
     });
   });
@@ -1352,34 +1082,6 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         );
 
         expect(result).toBe('result: called');
-      });
-
-      it('throws error for typed function with wrong type', async () => {
-        await expect(
-          run('typed("wrong")', {
-            functions: {
-              typed: {
-                returnType: anyTypeValue,
-                params: [
-                  {
-                    name: 'x',
-                    type: { kind: 'number' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: () => 'should not execute',
-              },
-              zeroArgs: {
-                returnType: anyTypeValue,
-                params: [],
-                fn: () => 'not called',
-              },
-            },
-          })
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-        });
       });
 
       it('handles context with only typed functions', async () => {

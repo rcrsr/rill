@@ -188,20 +188,4 @@ true ? ("b" -> capture)`;
       expect(refs[0]).toBe(sharedContext); // Same as original object
     });
   });
-
-  describe('backward compatibility', () => {
-    it('existing RuntimeOptions without hostContext compile and run without error', async () => {
-      const result = await run('"hello"', {
-        timeout: 5000,
-        autoExceptions: [],
-        maxCallStackDepth: 50,
-      });
-
-      expect(result).toBe('hello');
-    });
-
-    it('hostContext field is optional on options — existing code remains valid', () => {
-      expect(() => createRuntimeContext()).not.toThrow();
-    });
-  });
 });

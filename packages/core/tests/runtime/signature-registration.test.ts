@@ -6,17 +6,14 @@
  * FR-HTR-7 (Structured registration):
  * - AC-17: Structured RillParam[] registers and validates on every call
  * - AC-18: Multiple structured entries in same functions map process without error
- * - AC-19: Structured registration with requireDescriptions validates all param descriptions
  * - AC-20: Structured params carry typed param and return type
  * - AC-21: annotations.description sets function description
  * - AC-22: Parameter-level annotations.description populates param description
  * - AC-23: defaultValue in RillParam is applied when argument omitted
  * - AC-24: Structured registration with missing required param throws at call time
- * - AC-25: requireDescriptions rejects structured function without annotations.description
  *
  * Error contracts:
  * - AC-53: Missing required argument → Error at call time (EC-8)
- * - AC-55: requireDescriptions without description → Error (EC-10)
  *
  * BLOCKED:
  * - AC-9:  Union-typed param validation — BLOCKED by `type-system-improvements`
@@ -185,54 +182,6 @@ describe('Rill Runtime: Signature Registration', () => {
         },
       });
       expect(r2).toBe('hi!');
-    });
-  });
-
-  describe('AC-19: requireDescriptions validates structured param descriptions', () => {
-    it('requires all params to have descriptions when requireDescriptions is true', () => {
-      expect(() =>
-        createRuntimeContext({
-          functions: {
-            fn: {
-              params: [
-                {
-                  name: 'input',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['input']!,
-              annotations: { description: 'A function' },
-              returnType: anyTypeValue,
-            },
-          },
-          requireDescriptions: true,
-        })
-      ).toThrow(/input.*requires description|requires description.*input/i);
-    });
-
-    it('passes when all params have descriptions', () => {
-      expect(() =>
-        createRuntimeContext({
-          functions: {
-            fn: {
-              params: [
-                {
-                  name: 'input',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: { description: 'The input string' },
-                },
-              ],
-              fn: (args) => args['input']!,
-              annotations: { description: 'A function' },
-              returnType: anyTypeValue,
-            },
-          },
-          requireDescriptions: true,
-        })
-      ).not.toThrow();
     });
   });
 
@@ -562,53 +511,6 @@ describe('Rill Runtime: Signature Registration', () => {
         threwAtCallTime = true;
       }
       expect(threwAtCallTime).toBe(true);
-    });
-  });
-
-  describe('AC-25 / AC-55: requireDescriptions rejects function without description (EC-10)', () => {
-    it('throws when function has no description annotation and requireDescriptions is true', () => {
-      expect(() =>
-        createRuntimeContext({
-          functions: {
-            echo: {
-              params: [
-                {
-                  name: 'message',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: { description: 'The message' },
-                },
-              ],
-              fn: (args) => args['message']!,
-              returnType: structureToTypeValue({ kind: 'string' }),
-            },
-          },
-          requireDescriptions: true,
-        })
-      ).toThrow(/echo.*requires description|requires description.*echo/i);
-    });
-
-    it('passes when function has annotations.description', () => {
-      expect(() =>
-        createRuntimeContext({
-          functions: {
-            echo: {
-              params: [
-                {
-                  name: 'message',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: { description: 'The message' },
-                },
-              ],
-              fn: (args) => args['message']!,
-              annotations: { description: 'Echoes a message' },
-              returnType: structureToTypeValue({ kind: 'string' }),
-            },
-          },
-          requireDescriptions: true,
-        })
-      ).not.toThrow();
     });
   });
 

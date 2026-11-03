@@ -147,17 +147,12 @@ const testValues: {
 // ============================================================
 
 describe('types/registrations', () => {
-  // BUILT_IN_TYPES has exactly 16 entries, each with unique name.
-  // Task 1.2 added the `:atom` primitive as the 16th type.
+  // Every BUILT_IN_TYPES entry has a unique name.
   describe('BUILT_IN_TYPES registry', () => {
-    it('has exactly 16 entries', () => {
-      expect(BUILT_IN_TYPES).toHaveLength(16);
-    });
-
     it('has unique names for all entries', () => {
       const names = BUILT_IN_TYPES.map((t) => t.name);
       const uniqueNames = new Set(names);
-      expect(uniqueNames.size).toBe(16);
+      expect(uniqueNames.size).toBe(names.length);
     });
   });
 

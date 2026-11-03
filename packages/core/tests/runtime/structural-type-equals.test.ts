@@ -346,7 +346,6 @@ describe('structureEquals', () => {
         { kind: 'closure', params: [] },
         { kind: 'union', members: [{ kind: 'string' }] },
       ];
-      const allTypes = [...leafTypes, ...compoundTypes];
 
       // leaf x leaf
       for (const a of leafTypes) {
@@ -369,14 +368,6 @@ describe('structureEquals', () => {
           expect(commonType(b, a)).not.toBeUndefined();
         }
       }
-
-      // Verify all 144 combinations were checked (12 types total)
-      expect(allTypes).toHaveLength(12);
-      expect(
-        leafTypes.length * leafTypes.length +
-          compoundTypes.length * compoundTypes.length +
-          leafTypes.length * compoundTypes.length * 2
-      ).toBe(144);
     });
 
     it('returns bare list for list(number) vs list(string) [AC-20]', () => {

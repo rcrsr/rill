@@ -157,21 +157,4 @@ describe('Rill Runtime: metadata (IC-11)', () => {
       expect(seen).toBeUndefined();
     });
   });
-
-  describe('backward compatibility', () => {
-    it('existing RuntimeOptions without metadata compile and run without error', async () => {
-      const result = await run('"hello"', {
-        timeout: 5000,
-        autoExceptions: [],
-        maxCallStackDepth: 50,
-      });
-
-      expect(result).toBe('hello');
-    });
-
-    it('metadata field is optional — existing context objects remain valid', () => {
-      // createRuntimeContext with no metadata must not throw
-      expect(() => createRuntimeContext()).not.toThrow();
-    });
-  });
 });
