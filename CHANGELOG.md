@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Stale root-level `tests/` directory and `vitest.workspace.ts`:** Four test files left over from the monorepo migration asserted a pre-monorepo layout (root package named `@rcrsr/rill`, `pnpm@10`, a `src/cli-module-loader.js` that moved to rill-cli) and were never part of `pnpm check`. `vitest.workspace.ts` has been inert since vitest 4 removed workspace files. The one live test among them, the parser `??`-after-postfix check, moves to `packages/core/tests/runtime/parser-postfix-default.test.ts`, and `halt-builders.test.ts` now resolves its source path from the test file rather than the working directory so it passes from any cwd. ([#448](https://github.com/rcrsr/rill/pull/448))
 - **Duplicate and low-value runtime tests:** Removed 110 tests that duplicated others, checked self-built literals, or pinned internal layout. ([#491](https://github.com/rcrsr/rill/pull/491))
+- **Duplicate and low-value fiddle tests:** Removed 94 fiddle tests that duplicated others, re-tested core language semantics, grepped source files, or asserted the `React.memo` wrapper. `examples.test.ts` now iterates `EXAMPLE_ORDER`, so new examples run automatically.
 
 ### Fixed
 

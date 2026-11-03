@@ -3,7 +3,7 @@
  *
  * Covers paths not exercised by sharing-encode.test.ts and sharing-decode.test.ts:
  * - decodeSource: returns ok:false reason:corrupt when decoded string is empty
- * - encodeSource: returns ok:false reason:too-large when encoded string exceeds MAX_URL_CODE_LENGTH
+ * - MAX_URL_CODE_LENGTH export value
  * - copyLinkToClipboard: maps encodeSource's discriminated reason to too-large vs error
  * - encodeSource: CompressionStream unavailable guard
  * - round-trip decode(encode(x)) === x through the shared collectStream drain helper
@@ -63,22 +63,9 @@ describe('sharing edge cases', () => {
   // encodeSource: length limit
   // ============================================================
 
-  describe('encodeSource: MAX_URL_CODE_LENGTH limit', () => {
+  describe('MAX_URL_CODE_LENGTH', () => {
     it('MAX_URL_CODE_LENGTH is exported and equals 8192', () => {
       expect(MAX_URL_CODE_LENGTH).toBe(8192);
-    });
-
-    it('returns ok:false reason:too-large when encoded output exceeds MAX_URL_CODE_LENGTH', async () => {
-      // Mock btoa to return a string exceeding the limit
-      const btoaSpy = vi
-        .spyOn(globalThis, 'btoa')
-        .mockReturnValue('A'.repeat(MAX_URL_CODE_LENGTH + 1));
-
-      const result = await encodeSource('any source code');
-
-      expect(result).toEqual({ ok: false, reason: 'too-large' });
-
-      btoaSpy.mockRestore();
     });
   });
 
@@ -175,16 +162,6 @@ describe('sharing edge cases', () => {
   // ============================================================
 
   describe('round-trip decode(encode(x)) === x', () => {
-    it('holds for a plain string', async () => {
-      const source = 'round trip check';
-      const encoded = await encodeSource(source);
-      expect(encoded.ok).toBe(true);
-      if (!encoded.ok) return;
-
-      const decoded = await decodeSource(encoded.encoded);
-      expect(decoded).toEqual({ ok: true, source });
-    });
-
     it('holds for multi-chunk payloads large enough to exercise repeated stream reads', async () => {
       // Highly compressible but long enough that gzip output spans multiple
       // reader.read() calls inside collectStream on most platforms.

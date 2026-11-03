@@ -81,38 +81,6 @@ describe('executeRill with context resolver', () => {
     });
   });
 
-  describe('Fiddle loads and executes successfully', () => {
-    it('executeRill returns success for a simple script', async () => {
-      const result = await executeRill('1 + 2');
-      expect(result.status).toBe('success');
-    });
-
-    it('executeRill with context config returns success for simple script', async () => {
-      const config = buildContextConfig();
-      const result = await executeRill('1 + 2', config);
-      expect(result.status).toBe('success');
-    });
-  });
-
-  describe('script without use<> runs identically', () => {
-    it('produces same result with and without context resolver config', async () => {
-      const withoutConfig = await executeRill('42 => $x\n$x * 2');
-      const withConfig = await executeRill(
-        '42 => $x\n$x * 2',
-        buildContextConfig()
-      );
-      expect(withConfig.status).toBe(withoutConfig.status);
-      expect(withConfig.result).toBe(withoutConfig.result);
-    });
-
-    it('log capture works identically with context config present', async () => {
-      const config = buildContextConfig();
-      const result = await executeRill('log("hello")\n1', config);
-      expect(result.status).toBe('success');
-      expect(result.logs).toEqual(['hello']);
-    });
-  });
-
   describe('nested dot-path context key resolves correctly', () => {
     it('resolves limits.max_tokens via dot-path traversal', async () => {
       const config = buildContextConfig();
