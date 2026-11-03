@@ -40,15 +40,17 @@ describe('Rill Runtime: Performance Regression', () => {
     }
 
     // No assertions inside the timed region; mismatches are counted and
-    // asserted after timing.
+    // asserted after timing. At 200 the small run took about 3 ms, so one
+    // GC pause or scheduler stall could push the ratio past the bound under
+    // a parallel workspace test run. At 500 it takes about 7 ms.
     let mismatches = 0;
     const ratio = await scalingRatio(
       async (n) => {
         if ((await run(scriptFor(n))) !== n * n) mismatches++;
       },
-      200,
-      800,
-      5
+      500,
+      2000,
+      7
     );
 
     expect(mismatches).toBe(0);
