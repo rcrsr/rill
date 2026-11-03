@@ -763,6 +763,32 @@ describe('Rill Runtime: Host Function Type Safety', () => {
   });
 
   describe('Error Cases', () => {
+    it('throws RILL-R001 when list parameter receives a string', async () => {
+      await expect(
+        run('first("not a list")', {
+          functions: {
+            first: {
+              returnType: anyTypeValue,
+              params: [
+                {
+                  name: 'items',
+                  type: { kind: 'list' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              fn: () => 'should not execute',
+            },
+          },
+        })
+      ).rejects.toMatchObject({
+        errorId: 'RILL-R001',
+        message: expect.stringMatching(
+          /type mismatch: items expects list, got string/i
+        ),
+      });
+    });
+
     describe('TC-HOSTTYPE-7: Throws error for wrong collection type (list vs dict mismatch) [EC-3, AC-12]', () => {
       it('throws RuntimeError when dict parameter receives list', async () => {
         await expect(

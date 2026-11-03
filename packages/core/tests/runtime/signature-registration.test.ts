@@ -6,17 +6,14 @@
  * FR-HTR-7 (Structured registration):
  * - AC-17: Structured RillParam[] registers and validates on every call
  * - AC-18: Multiple structured entries in same functions map process without error
- * - AC-19: Structured registration with requireDescriptions validates all param descriptions
  * - AC-20: Structured params carry typed param and return type
  * - AC-21: annotations.description sets function description
  * - AC-22: Parameter-level annotations.description populates param description
  * - AC-23: defaultValue in RillParam is applied when argument omitted
  * - AC-24: Structured registration with missing required param throws at call time
- * - AC-25: requireDescriptions rejects structured function without annotations.description
  *
  * Error contracts:
  * - AC-53: Missing required argument → Error at call time (EC-8)
- * - AC-55: requireDescriptions without description → Error (EC-10)
  *
  * BLOCKED:
  * - AC-9:  Union-typed param validation — BLOCKED by `type-system-improvements`
