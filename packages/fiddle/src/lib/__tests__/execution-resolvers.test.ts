@@ -5,7 +5,7 @@
  * with optional resolverConfig parameter.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { anyTypeValue } from '@rcrsr/rill';
 import type { SchemeResolver, RillFunction } from '@rcrsr/rill';
 import {
@@ -128,37 +128,6 @@ describe('buildFiddleRuntimeOptions', () => {
       const opts = buildFiddleRuntimeOptions(logs, config);
       expect(opts.checkerMode).toBe('permissive');
     });
-
-    it('supports multiple schemes in resolvers', () => {
-      const logs: string[] = [];
-      const extResolver = valueResolver('ext-value');
-      const hostResolver = valueResolver(99);
-      const config: FiddleResolverConfig = {
-        resolvers: { ext: extResolver, host: hostResolver },
-        configurations: { resolvers: {} },
-      };
-      const opts = buildFiddleRuntimeOptions(logs, config);
-      expect(opts.resolvers).toEqual({
-        ext: extResolver,
-        host: hostResolver,
-      });
-    });
-  });
-
-  describe('undefined resolverConfig produces identical options to no-arg call', () => {
-    it('undefined resolverConfig is same as omitting it', () => {
-      const logs1: string[] = [];
-      const logs2: string[] = [];
-      const optsOmit = buildFiddleRuntimeOptions(logs1);
-      const optsUndefined = buildFiddleRuntimeOptions(logs2, undefined);
-      // Both should have same shape (no resolvers, no configurations)
-      expect(optsOmit.resolvers).toBeUndefined();
-      expect(optsUndefined.resolvers).toBeUndefined();
-      expect(optsOmit.configurations).toBeUndefined();
-      expect(optsUndefined.configurations).toBeUndefined();
-      expect(optsOmit.timeout).toBe(optsUndefined.timeout);
-      expect(optsOmit.checkerMode).toBe(optsUndefined.checkerMode);
-    });
   });
 });
 
@@ -194,47 +163,10 @@ describe('executeRill', () => {
   });
 
   describe('resolver config — error cases', () => {
-    it('use<db:users> produces FiddleError with runtime category (unknown scheme)', async () => {
-      // 'db' is not a registered scheme, so the runtime raises RILL-R054.
-      const result = await executeRill('use<db:users>');
+    it('use<module:greetings> without resolver config produces a runtime FiddleError', async () => {
+      const result = await executeRill('use<module:greetings>');
       expect(result.status).toBe('error');
-      expect(result.error).not.toBe(null);
       expect(result.error!.category).toBe('runtime');
-    });
-
-    it('empty resolvers record with ext resolver config resolves options without error', async () => {
-      const config: FiddleResolverConfig = {
-        resolvers: {},
-        configurations: { resolvers: {} },
-      };
-      const opts = buildFiddleRuntimeOptions([], config);
-      expect(opts.resolvers).toEqual({});
-    });
-  });
-
-  describe('resolver config — FiddleResolverConfig shape', () => {
-    it('resolver vi.fn() is accepted as SchemeResolver', () => {
-      const mockResolver = vi.fn<SchemeResolver>().mockReturnValue({
-        kind: 'value',
-        value: 'mocked',
-      });
-      const config = singleResolverConfig('ext', mockResolver);
-      const opts = buildFiddleRuntimeOptions([], config);
-      expect(opts.resolvers!['ext']).toBe(mockResolver);
-    });
-
-    it('multiple ext resolvers for different resources resolve independently in options', () => {
-      // each resolver is keyed by scheme, not resource.
-      // Two resolvers for different schemes coexist independently.
-      const searchResolver = valueResolver(['result1']);
-      const authResolver = valueResolver({ token: 'abc' });
-      const config: FiddleResolverConfig = {
-        resolvers: { search: searchResolver, auth: authResolver },
-        configurations: { resolvers: {} },
-      };
-      const opts = buildFiddleRuntimeOptions([], config);
-      expect(opts.resolvers!['search']).toBe(searchResolver);
-      expect(opts.resolvers!['auth']).toBe(authResolver);
     });
   });
 
@@ -254,34 +186,6 @@ describe('executeRill', () => {
       );
       expect(result.status).toBe('success');
       expect(JSON.parse(result.result!).value).toBe(42);
-    });
-
-    it('use<module:greetings> → FiddleError runtime (no module resolver)', async () => {
-      const result = await executeRill('use<module:greetings>');
-      expect(result.status).toBe('error');
-      expect(result.error!.category).toBe('runtime');
-    });
-
-    it('unknown scheme → FiddleError with resolver-not-found message', async () => {
-      const config: FiddleResolverConfig = {
-        resolvers: {},
-        configurations: { resolvers: {} },
-      };
-      const result = await executeRill('use<db:users>', config);
-      expect(result.status).toBe('error');
-      expect(result.error!.category).toBe('runtime');
-      expect(result.error!.message).toMatch(/No resolver registered/);
-    });
-
-    it('resolver callback throws → FiddleError via convertError', async () => {
-      const throwingResolver: SchemeResolver = () => {
-        throw new Error('resolver-failure-sentinel');
-      };
-      const config = singleResolverConfig('ext', throwingResolver);
-      const result = await executeRill('use<ext:example>', config);
-      expect(result.status).toBe('error');
-      expect(result.error!.category).toBe('runtime');
-      expect(result.error!.message).toContain('resolver-failure-sentinel');
     });
 
     it('multiple ext resolvers for different extensions resolve independently', async () => {

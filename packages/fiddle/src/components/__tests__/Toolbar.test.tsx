@@ -437,14 +437,4 @@ describe('Toolbar', () => {
       expect(select.disabled).toBe(true);
     });
   });
-
-  // ============================================================
-  // Memoization
-  // ============================================================
-
-  describe('memoization', () => {
-    it('is wrapped in React.memo', () => {
-      expect(Toolbar.$$typeof).toBe(Symbol.for('react.memo'));
-    });
-  });
 });

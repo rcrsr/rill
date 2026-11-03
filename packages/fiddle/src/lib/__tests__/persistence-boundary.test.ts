@@ -1,66 +1,33 @@
 /**
- * Boundary condition tests for persistence edge cases
+ * Boundary condition tests for persistence edge cases not covered in
+ * persistence.test.ts
  *
  * Coverage:
- * - Panel divider stops at 200px minimum; does not collapse below
- * - Application functions without localStorage (mock unavailable)
- * - Corrupt localStorage recovered with default state
- * - First visit with no localStorage loads Hello World
+ * - Extreme splitRatio values stay within the clamped range
+ * - Repeated loads fall back to defaults when reads throw
+ * - Array-valued storage recovers with defaults
+ * - First visit default source is executable Rill
+ * - Partial stored objects keep valid fields
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import {
-  loadEditorState,
-  persistEditorState,
-  type EditorState,
-} from '../persistence.js';
+import { loadEditorState } from '../persistence.js';
 
 // ============================================================
 // HELPERS
 // ============================================================
 
-const EDITOR_STATE_KEY = 'rill-fiddle-editor-state';
-
-interface FakeStorageOptions {
-  readonly seed?: Record<string, string> | undefined;
-  readonly failSetItem?: ((key: string) => boolean) | undefined;
-  readonly failGetItem?: boolean | undefined;
-}
-
-interface FakeStorage extends Storage {
-  readonly writes: string[];
-  readonly data: Map<string, string>;
-}
-
-/** Build an in-memory Storage that records writes and can fail on demand. */
-function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage {
-  const data = new Map<string, string>(Object.entries(options.seed ?? {}));
-  const writes: string[] = [];
-
+/** Build an in-memory Storage whose reads throw. */
+function createThrowingStorage(): Storage {
   return {
-    writes,
-    data,
-    get length(): number {
-      return data.size;
+    length: 0,
+    clear: () => undefined,
+    key: () => null,
+    getItem: () => {
+      throw new Error('localStorage unavailable');
     },
-    clear: () => data.clear(),
-    key: (index: number) => [...data.keys()][index] ?? null,
-    getItem: (key: string) => {
-      if (options.failGetItem === true) {
-        throw new Error('localStorage unavailable');
-      }
-      return data.get(key) ?? null;
-    },
-    setItem: (key: string, value: string) => {
-      writes.push(key);
-      if (options.failSetItem?.(key) === true) {
-        throw new Error('localStorage unavailable');
-      }
-      data.set(key, value);
-    },
-    removeItem: (key: string) => {
-      data.delete(key);
-    },
+    setItem: () => undefined,
+    removeItem: () => undefined,
   };
 }
 
@@ -99,42 +66,6 @@ describe('persistence boundary conditions', () => {
   });
 
   describe('Panel at minimum size', () => {
-    it('stops divider at minimum ratio enforcing 200px minimum', () => {
-      // Given: splitRatio below minimum (~16.67% for 1200px viewport)
-      window.localStorage.setItem(
-        'rill-fiddle-editor-state',
-        JSON.stringify({
-          splitRatio: 5, // Far below minimum
-          lastSource: 'test',
-        })
-      );
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: splitRatio clamped to minimum (200px / 1200px * 100 = 16.67%)
-      expect(state.splitRatio).toBeGreaterThanOrEqual(16.66);
-      expect(state.splitRatio).toBeLessThanOrEqual(16.68);
-    });
-
-    it('stops divider at maximum ratio enforcing 200px minimum on right', () => {
-      // Given: splitRatio above maximum (~83.33% for 1200px viewport)
-      window.localStorage.setItem(
-        'rill-fiddle-editor-state',
-        JSON.stringify({
-          splitRatio: 95, // Far above maximum
-          lastSource: 'test',
-        })
-      );
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: splitRatio clamped to maximum (100 - 16.67% = 83.33%)
-      expect(state.splitRatio).toBeGreaterThanOrEqual(83.32);
-      expect(state.splitRatio).toBeLessThanOrEqual(83.34);
-    });
-
     it('does not collapse panels below minimum with extreme values', () => {
       const extremeValues = [-100, 0, 1, 99, 100, 999];
 
@@ -154,71 +85,12 @@ describe('persistence boundary conditions', () => {
         expect(state.splitRatio).toBeLessThanOrEqual(84);
       }
     });
-
-    it('preserves valid ratios within minimum bounds', () => {
-      const validRatios = [20, 30, 40, 50, 60, 70, 80];
-
-      for (const ratio of validRatios) {
-        window.localStorage.setItem(
-          'rill-fiddle-editor-state',
-          JSON.stringify({
-            splitRatio: ratio,
-            lastSource: 'test',
-          })
-        );
-
-        const state = loadEditorState();
-
-        // Valid ratios pass through unchanged
-        expect(state.splitRatio).toBe(ratio);
-      }
-    });
   });
 
   describe('localStorage unavailable', () => {
-    it('functions without persistence when localStorage unavailable', async () => {
-      // Given: every write throws (private browsing mode) despite stored data
-      const fake = createFakeStorage({
-        seed: {
-          [EDITOR_STATE_KEY]: JSON.stringify({
-            splitRatio: 70,
-            lastSource: 'seeded',
-          }),
-        },
-        failSetItem: () => true,
-      });
-      vi.stubGlobal('localStorage', fake);
-      const fresh = await importFreshPersistence();
-
-      // When: Loading editor state
-      const state = fresh.loadEditorState();
-
-      // Then: Returns defaults without crashing
-      expect(state.splitRatio).toBe(50);
-      expect(state.lastSource).toContain('Hello, World!');
-    });
-
-    it('persist is a no-op when localStorage is unavailable', async () => {
-      // Given: the probe succeeds but the state write throws
-      const fake = createFakeStorage({
-        failSetItem: (key) => key === EDITOR_STATE_KEY,
-      });
-      vi.stubGlobal('localStorage', fake);
-      const fresh = await importFreshPersistence();
-
-      const testState: EditorState = {
-        splitRatio: 60,
-        lastSource: 'test code',
-      };
-
-      // When/Then: No error thrown and nothing stored
-      expect(() => fresh.persistEditorState(testState)).not.toThrow();
-      expect(fake.data.has(EDITOR_STATE_KEY)).toBe(false);
-    });
-
     it('uses defaults on every load when reading localStorage fails', async () => {
       // Given: localStorage throws on getItem
-      const fake = createFakeStorage({ failGetItem: true });
+      const fake = createThrowingStorage();
       vi.stubGlobal('localStorage', fake);
       const fresh = await importFreshPersistence();
 
@@ -234,40 +106,6 @@ describe('persistence boundary conditions', () => {
   });
 
   describe('Corrupt localStorage', () => {
-    it('recovers with default state when JSON is malformed', () => {
-      // Given: Corrupt JSON data in localStorage
-      window.localStorage.setItem('rill-fiddle-editor-state', '{invalid json}');
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: Returns defaults without crash
-      expect(state.splitRatio).toBe(50);
-      expect(state.lastSource).toContain('Hello, World!');
-    });
-
-    it('recovers when stored value is not an object', () => {
-      // Given: Valid JSON but wrong type (string instead of object)
-      window.localStorage.setItem('rill-fiddle-editor-state', '"string value"');
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: Returns defaults
-      expect(state.splitRatio).toBe(50);
-    });
-
-    it('recovers when stored value is null', () => {
-      // Given: Valid JSON but null value
-      window.localStorage.setItem('rill-fiddle-editor-state', 'null');
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: Returns defaults
-      expect(state.splitRatio).toBe(50);
-    });
-
     it('recovers when stored value is an array', () => {
       // Given: Valid JSON but array instead of object
       window.localStorage.setItem(
@@ -281,120 +119,20 @@ describe('persistence boundary conditions', () => {
       // Then: Returns defaults
       expect(state.splitRatio).toBe(50);
     });
-
-    it('recovers when object has invalid field types', () => {
-      // Given: Object with wrong types for fields
-      window.localStorage.setItem(
-        'rill-fiddle-editor-state',
-        JSON.stringify({
-          splitRatio: 'not a number', // Should be number
-          lastSource: {}, // Should be string
-        })
-      );
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: Returns defaults for invalid fields
-      expect(state.splitRatio).toBe(50);
-      expect(state.lastSource).toContain('Hello, World!');
-    });
-
-    it('overwrites corrupt data on next successful persist', () => {
-      // Given: Corrupt data in localStorage
-      window.localStorage.setItem('rill-fiddle-editor-state', '{corrupt}');
-
-      // When: Load (returns defaults) then persist new state
-      const loaded = loadEditorState();
-      expect(loaded.splitRatio).toBe(50);
-
-      const newState: EditorState = {
-        splitRatio: 65,
-        lastSource: 'recovered',
-      };
-      persistEditorState(newState);
-
-      // Then: Subsequent load retrieves correct state
-      const recovered = loadEditorState();
-      expect(recovered).toEqual(newState);
-    });
   });
 
   describe('First visit (no localStorage)', () => {
-    it('loads Hello World example on first visit', () => {
-      // Given: Clean localStorage (first visit scenario)
-      window.localStorage.clear();
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: Returns default with Hello World
-      expect(state.lastSource).toContain('Hello, World!');
-    });
-
-    it('uses 50% split ratio on first visit', () => {
-      // Given: Clean localStorage (first visit scenario)
-      window.localStorage.clear();
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: Returns 50% split ratio (center divider)
-      expect(state.splitRatio).toBe(50);
-    });
-
     it('contains executable Rill code on first visit', () => {
-      // Given: Clean localStorage (first visit scenario)
-      window.localStorage.clear();
-
-      // When: Loading editor state
+      // When: Loading editor state with clean localStorage
       const state = loadEditorState();
 
       // Then: lastSource contains valid Rill syntax
       expect(state.lastSource).toContain('# Hello World example');
       expect(state.lastSource).toContain('"Hello, World!" -> log');
     });
-
-    it('transitions from first visit to persisted state', () => {
-      // Given: First visit scenario
-      window.localStorage.clear();
-
-      // When: Load defaults, modify, persist, reload
-      const initial = loadEditorState();
-      expect(initial.splitRatio).toBe(50);
-
-      const modified: EditorState = {
-        splitRatio: 70,
-        lastSource: 'user code',
-      };
-      persistEditorState(modified);
-
-      const reloaded = loadEditorState();
-
-      // Then: Second load retrieves persisted state
-      expect(reloaded).toEqual(modified);
-    });
   });
 
   describe('Combined boundary scenarios', () => {
-    it('handles corrupt data with out-of-range splitRatio', () => {
-      // Given: Corrupt object with invalid splitRatio
-      window.localStorage.setItem(
-        'rill-fiddle-editor-state',
-        JSON.stringify({
-          splitRatio: 999, // Way out of range
-          lastSource: 'test',
-        })
-      );
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: splitRatio clamped to maximum
-      expect(state.splitRatio).toBeGreaterThanOrEqual(83);
-      expect(state.splitRatio).toBeLessThanOrEqual(84);
-    });
-
     it('handles valid splitRatio with missing other fields', () => {
       // Given: Partial object (only splitRatio)
       window.localStorage.setItem(
@@ -409,18 +147,6 @@ describe('persistence boundary conditions', () => {
 
       // Then: Preserves valid splitRatio, uses default lastSource
       expect(state.splitRatio).toBe(60);
-      expect(state.lastSource).toContain('Hello, World!');
-    });
-
-    it('handles empty object in localStorage', () => {
-      // Given: Empty object
-      window.localStorage.setItem('rill-fiddle-editor-state', '{}');
-
-      // When: Loading editor state
-      const state = loadEditorState();
-
-      // Then: All fields use defaults
-      expect(state.splitRatio).toBe(50);
       expect(state.lastSource).toContain('Hello, World!');
     });
   });

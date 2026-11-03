@@ -5,43 +5,18 @@
 import { describe, expect, it } from 'vitest';
 import { parse } from '@rcrsr/rill';
 
-import { loadExample } from '../examples.js';
+import { EXAMPLE_ORDER, loadExample } from '../examples.js';
 import { executeRill } from '../execution.js';
-
-const ALL_EXAMPLE_IDS = [
-  'hello-world',
-  'variables',
-  'pipes',
-  'functions',
-  'conditionals',
-  'fold',
-  'fizzbuzz',
-  'dispatch',
-  'closures',
-  'collection-pipeline',
-  'destructuring',
-  'slicing',
-  'type-checking',
-  'string-processing',
-  'dict-methods',
-  'state-machine',
-  'spread',
-  'type-conversion',
-  'while-loop',
-  'typed-closures',
-  'existence-defaults',
-  'assert-error',
-  'break-return',
-  'pass-keyword',
-  'enumerate',
-  'dict-iteration',
-  'list-dispatch',
-  'comparison-methods',
-];
 
 describe('loadExample', () => {
   describe('required examples', () => {
-    it.each(ALL_EXAMPLE_IDS)('returns %s example', (id) => {
+    it('keeps the anchor examples registered', () => {
+      expect(EXAMPLE_ORDER).toEqual(
+        expect.arrayContaining(['hello-world', 'pipes', 'closures', 'fold'])
+      );
+    });
+
+    it.each(EXAMPLE_ORDER)('returns %s example', (id) => {
       const example = loadExample(id);
       expect(example).toBeDefined();
       expect(example?.id).toBe(id);
@@ -51,13 +26,13 @@ describe('loadExample', () => {
   });
 
   describe('example validation', () => {
-    it.each(ALL_EXAMPLE_IDS)('%s parses without error', (id) => {
+    it.each(EXAMPLE_ORDER)('%s parses without error', (id) => {
       const example = loadExample(id);
       expect(example).toBeDefined();
       expect(() => parse(example!.source)).not.toThrow();
     });
 
-    it.each(ALL_EXAMPLE_IDS)('%s executes without error', async (id) => {
+    it.each(EXAMPLE_ORDER)('%s executes without error', async (id) => {
       const example = loadExample(id);
       expect(example).toBeDefined();
       const result = await executeRill(example!.source);

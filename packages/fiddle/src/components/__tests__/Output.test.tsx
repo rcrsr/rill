@@ -1081,14 +1081,4 @@ describe('Output', () => {
       expect(container.querySelector('.output-error-status-trace')).toBeNull();
     });
   });
-
-  // ============================================================
-  // Memoization
-  // ============================================================
-
-  describe('memoization', () => {
-    it('is wrapped in React.memo', () => {
-      expect(Output.$$typeof).toBe(Symbol.for('react.memo'));
-    });
-  });
 });

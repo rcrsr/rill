@@ -2,7 +2,7 @@
  * Error case tests for context resolver execution (Task 3.5)
  *
  * Tests FiddleError outcomes for missing keys, unknown schemes,
- * throwing resolvers, empty resolver maps, and undefined config.
+ * and throwing resolvers.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -48,37 +48,19 @@ describe('executeRill context resolver — error cases', () => {
   });
 
   describe('use<unknown_scheme:resource> → FiddleError "No resolver registered"', () => {
-    it('unregistered scheme produces FiddleError', async () => {
-      const result = await executeRill('use<unknown_scheme:resource>');
-      expect(result.status).toBe('error');
-      expect(result.error).not.toBeNull();
-      expect(result.error!.category).toBe('runtime');
-    });
-
     it('unregistered scheme error message contains "No resolver registered"', async () => {
       const config: FiddleResolverConfig = {
         resolvers: {},
         configurations: { resolvers: {} },
       };
       const result = await executeRill('use<unknown_scheme:resource>', config);
+      expect(result.status).toBe('error');
+      expect(result.error!.category).toBe('runtime');
       expect(result.error!.message).toMatch(/No resolver registered/);
     });
   });
 
   describe('resolver callback throws → FiddleError via convertError', () => {
-    it('throwing resolver produces FiddleError with category runtime', async () => {
-      const throwingResolver: SchemeResolver = () => {
-        throw new Error('resolver-failure-sentinel');
-      };
-      const config: FiddleResolverConfig = {
-        resolvers: { ext: throwingResolver },
-        configurations: { resolvers: {} },
-      };
-      const result = await executeRill('use<ext:example>', config);
-      expect(result.status).toBe('error');
-      expect(result.error!.category).toBe('runtime');
-    });
-
     it('throwing resolver error message contains the thrown message', async () => {
       const throwingResolver: SchemeResolver = () => {
         throw new Error('resolver-failure-sentinel');
@@ -88,33 +70,9 @@ describe('executeRill context resolver — error cases', () => {
         configurations: { resolvers: {} },
       };
       const result = await executeRill('use<ext:example>', config);
-      expect(result.error!.message).toContain('resolver-failure-sentinel');
-    });
-  });
-
-  describe('empty resolvers record → FiddleError for unregistered scheme', () => {
-    it('empty resolvers with use<context:key> produces FiddleError', async () => {
-      const config: FiddleResolverConfig = {
-        resolvers: {},
-        configurations: { resolvers: {} },
-      };
-      const result = await executeRill('use<context:timeout>', config);
       expect(result.status).toBe('error');
       expect(result.error!.category).toBe('runtime');
-    });
-  });
-
-  describe('undefined resolverConfig, no use<> → identical behavior', () => {
-    it('undefined config produces same result as omitting config', async () => {
-      const withUndefined = await executeRill('"hello"', undefined);
-      const withOmit = await executeRill('"hello"');
-      expect(withUndefined.status).toBe(withOmit.status);
-      expect(withUndefined.result).toBe(withOmit.result);
-    });
-
-    it('undefined config script runs without error', async () => {
-      const result = await executeRill('1 + 1', undefined);
-      expect(result.status).toBe('success');
+      expect(result.error!.message).toContain('resolver-failure-sentinel');
     });
   });
 });

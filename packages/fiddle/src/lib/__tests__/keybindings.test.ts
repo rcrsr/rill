@@ -6,6 +6,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { insertTab, indentLess } from '@codemirror/commands';
+import { indentUnit } from '@codemirror/language';
+import { EditorState } from '@codemirror/state';
+import { EditorView } from '@codemirror/view';
 import { createTabKeyBinding } from '../keybindings.js';
 
 describe('createTabKeyBinding', () => {
@@ -97,5 +100,44 @@ describe('createTabKeyBinding', () => {
       expect(bindings1[0]?.key).toBe(bindings2[0]?.key);
       expect(bindings1[1]?.key).toBe(bindings2[1]?.key);
     });
+  });
+});
+
+// ============================================================
+// BEHAVIOR IN A LIVE EDITOR VIEW
+// ============================================================
+
+describe('Tab key binding behavior', () => {
+  function runBinding(
+    key: string,
+    doc: string,
+    cursor: number
+  ): { doc: string; handled: boolean } {
+    const view = new EditorView({
+      state: EditorState.create({
+        doc,
+        selection: { anchor: cursor },
+        extensions: [indentUnit.of('  ')],
+      }),
+    });
+    const binding = createTabKeyBinding().find((b) => b.key === key);
+    const handled = binding?.run?.(view) ?? false;
+    const result = view.state.doc.toString();
+    view.destroy();
+    return { doc: result, handled };
+  }
+
+  it('Tab inserts indentation at the cursor', () => {
+    const result = runBinding('Tab', 'ab', 1);
+
+    expect(result.handled).toBe(true);
+    expect(result.doc).toBe('a\tb');
+  });
+
+  it('Shift-Tab removes one indent level from the line', () => {
+    const result = runBinding('Shift-Tab', '    x', 5);
+
+    expect(result.handled).toBe(true);
+    expect(result.doc).toBe('  x');
   });
 });

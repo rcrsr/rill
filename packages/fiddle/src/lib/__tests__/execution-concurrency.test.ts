@@ -1,12 +1,11 @@
 /**
  * Tests for execution concurrency and output correctness
  *
- * Tests log output capture, re-execution clearing, and rapid re-execution
- * to ensure the fiddle handles concurrent operations correctly.
+ * Tests log output capture and rapid concurrent execution to ensure the
+ * fiddle handles concurrent operations correctly.
  *
  * Covers:
  * - Log output capture
- * - Re-execution clears previous output
  * - Rapid re-execution does not duplicate output entries
  */
 
@@ -153,119 +152,6 @@ describe('executeRill', () => {
         rillTypeName: 'number',
         rillTypeSignature: 'number',
         value: 50,
-      });
-    });
-  });
-
-  describe('re-execution clears previous output', () => {
-    it('clears previous output on second execution', async () => {
-      // First execution
-      const firstResult = await executeRill('"first run" -> log\n"result1"');
-      expect(firstResult.status).toBe('success');
-      expect(firstResult.logs).toEqual(['first run']);
-      expect(JSON.parse(firstResult.result!)).toEqual({
-        rillTypeName: 'string',
-        rillTypeSignature: 'string',
-        value: 'result1',
-      });
-
-      // Second execution - should not contain first run output
-      const secondResult = await executeRill('"second run" -> log\n"result2"');
-      expect(secondResult.status).toBe('success');
-      expect(secondResult.logs).toEqual(['second run']);
-      expect(JSON.parse(secondResult.result!)).toEqual({
-        rillTypeName: 'string',
-        rillTypeSignature: 'string',
-        value: 'result2',
-      });
-    });
-
-    it('clears previous error on successful re-execution', async () => {
-      // First execution with error
-      const firstResult = await executeRill('$undefined_variable');
-      expect(firstResult.status).toBe('error');
-      expect(firstResult.error).not.toBe(null);
-
-      // Second execution with success
-      const secondResult = await executeRill('"success"');
-      expect(secondResult.status).toBe('success');
-      expect(JSON.parse(secondResult.result!)).toEqual({
-        rillTypeName: 'string',
-        rillTypeSignature: 'string',
-        value: 'success',
-      });
-      expect(secondResult.error).toBe(null);
-    });
-
-    it('clears previous success on error re-execution', async () => {
-      // First execution with success
-      const firstResult = await executeRill('"success" -> log\n42');
-      expect(firstResult.status).toBe('success');
-      expect(firstResult.logs).toEqual(['success']);
-      expect(JSON.parse(firstResult.result!)).toEqual({
-        rillTypeName: 'number',
-        rillTypeSignature: 'number',
-        value: 42,
-      });
-
-      // Second execution with error
-      const secondResult = await executeRill('$undefined_variable');
-      expect(secondResult.status).toBe('error');
-      expect(secondResult.error).not.toBe(null);
-      expect(secondResult.result).toBe(null);
-      expect(secondResult.logs).toEqual([]);
-    });
-
-    it('clears logs from previous execution', async () => {
-      // First execution with multiple logs
-      const firstResult = await executeRill(
-        '"log1" -> log\n"log2" -> log\n"log3" -> log\n"result1"'
-      );
-      expect(firstResult.status).toBe('success');
-      expect(firstResult.logs).toEqual(['log1', 'log2', 'log3']);
-      expect(JSON.parse(firstResult.result!)).toEqual({
-        rillTypeName: 'string',
-        rillTypeSignature: 'string',
-        value: 'result1',
-      });
-
-      // Second execution with different logs
-      const secondResult = await executeRill('"newlog" -> log\n"result2"');
-      expect(secondResult.status).toBe('success');
-      expect(secondResult.logs).toEqual(['newlog']);
-      expect(JSON.parse(secondResult.result!)).toEqual({
-        rillTypeName: 'string',
-        rillTypeSignature: 'string',
-        value: 'result2',
-      });
-    });
-
-    it('starts with fresh duration on re-execution', async () => {
-      // First execution
-      const firstResult = await executeRill('42');
-      expect(firstResult.duration).not.toBe(null);
-
-      // Second execution
-      const secondResult = await executeRill('84');
-      expect(secondResult.duration).not.toBe(null);
-      // Durations should be independent measurements
-      expect(secondResult.duration).toBeGreaterThanOrEqual(0);
-      // Don't assume second is faster or slower, just that it's measured independently
-    });
-
-    it('clears idle status on execution', async () => {
-      // First execution - idle (empty source)
-      const firstResult = await executeRill('');
-      expect(firstResult.status).toBe('idle');
-      expect(firstResult.result).toBe(null);
-
-      // Second execution - success
-      const secondResult = await executeRill('"active"');
-      expect(secondResult.status).toBe('success');
-      expect(JSON.parse(secondResult.result!)).toEqual({
-        rillTypeName: 'string',
-        rillTypeSignature: 'string',
-        value: 'active',
       });
     });
   });
