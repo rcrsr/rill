@@ -340,31 +340,6 @@ describe('Rill Runtime: Function Metadata', () => {
         );
       });
 
-      it('throws Error when function description is undefined', () => {
-        expect(() =>
-          createRuntimeContext({
-            functions: {
-              noDesc: {
-                params: [
-                  {
-                    name: 'x',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: { description: 'A param' },
-                  },
-                ],
-                fn: (args) => args['x']!,
-                returnType: anyTypeValue,
-                // No annotations.description
-              },
-            },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Function 'noDesc' requires description (requireDescriptions enabled)"
-        );
-      });
-
       it('throws Error when function description is empty string', () => {
         expect(() =>
           createRuntimeContext({
@@ -418,31 +393,6 @@ describe('Rill Runtime: Function Metadata', () => {
 
     describe('AC-8: requireDescriptions true + missing parameter description throws [EC-3]', () => {
       it('throws Error when parameter description missing', () => {
-        expect(() =>
-          createRuntimeContext({
-            functions: {
-              noParamDesc: {
-                params: [
-                  {
-                    name: 'x',
-                    type: { kind: 'string' },
-                    defaultValue: undefined,
-                    annotations: {},
-                  },
-                ],
-                fn: (args) => args['x']!,
-                annotations: { description: 'Function with description' },
-                returnType: anyTypeValue,
-              },
-            },
-            requireDescriptions: true,
-          })
-        ).toThrow(
-          "Parameter 'x' of function 'noParamDesc' requires description (requireDescriptions enabled)"
-        );
-      });
-
-      it('throws Error when parameter description is undefined', () => {
         expect(() =>
           createRuntimeContext({
             functions: {

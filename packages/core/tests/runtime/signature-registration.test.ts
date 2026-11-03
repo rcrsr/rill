@@ -188,54 +188,6 @@ describe('Rill Runtime: Signature Registration', () => {
     });
   });
 
-  describe('AC-19: requireDescriptions validates structured param descriptions', () => {
-    it('requires all params to have descriptions when requireDescriptions is true', () => {
-      expect(() =>
-        createRuntimeContext({
-          functions: {
-            fn: {
-              params: [
-                {
-                  name: 'input',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => args['input']!,
-              annotations: { description: 'A function' },
-              returnType: anyTypeValue,
-            },
-          },
-          requireDescriptions: true,
-        })
-      ).toThrow(/input.*requires description|requires description.*input/i);
-    });
-
-    it('passes when all params have descriptions', () => {
-      expect(() =>
-        createRuntimeContext({
-          functions: {
-            fn: {
-              params: [
-                {
-                  name: 'input',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: { description: 'The input string' },
-                },
-              ],
-              fn: (args) => args['input']!,
-              annotations: { description: 'A function' },
-              returnType: anyTypeValue,
-            },
-          },
-          requireDescriptions: true,
-        })
-      ).not.toThrow();
-    });
-  });
-
   describe('AC-20: Structured params carry typed param and return type', () => {
     it('structured registration exposes typed param and return type in metadata', async () => {
       const ctx = createRuntimeContext({
@@ -562,53 +514,6 @@ describe('Rill Runtime: Signature Registration', () => {
         threwAtCallTime = true;
       }
       expect(threwAtCallTime).toBe(true);
-    });
-  });
-
-  describe('AC-25 / AC-55: requireDescriptions rejects function without description (EC-10)', () => {
-    it('throws when function has no description annotation and requireDescriptions is true', () => {
-      expect(() =>
-        createRuntimeContext({
-          functions: {
-            echo: {
-              params: [
-                {
-                  name: 'message',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: { description: 'The message' },
-                },
-              ],
-              fn: (args) => args['message']!,
-              returnType: structureToTypeValue({ kind: 'string' }),
-            },
-          },
-          requireDescriptions: true,
-        })
-      ).toThrow(/echo.*requires description|requires description.*echo/i);
-    });
-
-    it('passes when function has annotations.description', () => {
-      expect(() =>
-        createRuntimeContext({
-          functions: {
-            echo: {
-              params: [
-                {
-                  name: 'message',
-                  type: { kind: 'string' },
-                  defaultValue: undefined,
-                  annotations: { description: 'The message' },
-                },
-              ],
-              fn: (args) => args['message']!,
-              annotations: { description: 'Echoes a message' },
-              returnType: structureToTypeValue({ kind: 'string' }),
-            },
-          },
-          requireDescriptions: true,
-        })
-      ).not.toThrow();
     });
   });
 

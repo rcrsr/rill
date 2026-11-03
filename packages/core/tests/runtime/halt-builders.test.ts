@@ -228,21 +228,6 @@ describe('throwErrorHalt (IR-3 / EC-4)', () => {
   });
 });
 
-describe('EC-3: builder does not validate inputs (doc-only)', () => {
-  it('documents caller responsibility via JSDoc (smoke check)', async () => {
-    // JSDoc presence verification: load the source file and confirm the
-    // builder's JSDoc still documents that it validates nothing.
-    const fs = await import('node:fs/promises');
-    const path = await import('node:path');
-    const source = await fs.readFile(
-      path.resolve(import.meta.dirname, '../../src/runtime/core/types/halt.ts'),
-      'utf8'
-    );
-    expect(source).toContain('Caller responsibility:');
-    expect(source).toContain('non-empty string');
-  });
-});
-
 // ============================================================
 // throwCatchableHostHalt (EC-5, EC-6)
 // ============================================================

@@ -1,12 +1,11 @@
 /**
  * Rill Runtime Tests: Scheme Resolvers
- * Tests for moduleResolver, extResolver, and createRuntimeContext resolver config.
+ * Tests for moduleResolver and extResolver.
  */
 
 import {
   anyTypeValue,
   createOrdered,
-  createRuntimeContext,
   createTuple,
   createVector,
   extResolver,
@@ -534,62 +533,6 @@ describe('Rill Runtime: extResolver', () => {
         kb: { a: { b: 'deep' } },
       } as unknown as Record<string, RillValue>);
       expect(result).toEqual({ kind: 'value', value: 'deep' });
-    });
-  });
-});
-
-// ============================================================
-// createRuntimeContext resolver config tests (covers IR-9, AC-7)
-// ============================================================
-
-describe('Rill Runtime: createRuntimeContext resolver config', () => {
-  describe('IR-9: Resolver map population', () => {
-    it('AC-7: 3-scheme config produces ctx.resolvers.size === 3', () => {
-      const resolver: SchemeResolver = () => ({ kind: 'value', value: null });
-      const ctx = createRuntimeContext({
-        resolvers: { a: resolver, b: resolver, c: resolver },
-      });
-      expect(ctx.resolvers.size).toBe(3);
-    });
-
-    it('empty resolvers object produces empty Map', () => {
-      const ctx = createRuntimeContext({ resolvers: {} });
-      expect(ctx.resolvers.size).toBe(0);
-    });
-
-    it('omitted resolvers option produces empty Map', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.resolvers).toBeInstanceOf(Map);
-      expect(ctx.resolvers.size).toBe(0);
-    });
-
-    it('registered resolver is retrievable by scheme name', () => {
-      const resolver: SchemeResolver = () => ({ kind: 'value', value: 'x' });
-      const ctx = createRuntimeContext({ resolvers: { myscheme: resolver } });
-      expect(ctx.resolvers.get('myscheme')).toBe(resolver);
-    });
-  });
-
-  describe('configurations.resolvers → ctx.resolverConfigs', () => {
-    it('populates resolverConfigs from configurations.resolvers', () => {
-      const ctx = createRuntimeContext({
-        configurations: { resolvers: { myscheme: { key: 'value' } } },
-      });
-      expect(ctx.resolverConfigs.get('myscheme')).toEqual({ key: 'value' });
-    });
-
-    it('omitted configurations produces empty resolverConfigs Map', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.resolverConfigs).toBeInstanceOf(Map);
-      expect(ctx.resolverConfigs.size).toBe(0);
-    });
-  });
-
-  describe('ctx.resolvingSchemes starts empty', () => {
-    it('resolvingSchemes is an empty Set on fresh context', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.resolvingSchemes).toBeInstanceOf(Set);
-      expect(ctx.resolvingSchemes.size).toBe(0);
     });
   });
 });

@@ -31,13 +31,6 @@ describe('LexerError Constructor Validation (Task 1.5)', () => {
 
       expect(error.context).toEqual(context);
     });
-
-    it('requires location parameter', () => {
-      const location: SourceLocation = { line: 2, column: 10, offset: 25 };
-      const error = new LexerError('RILL-L001', 'Test error', location);
-
-      expect(error.location).toEqual(location);
-    });
   });
 
   describe('EC-5: Unknown errorId throws TypeError', () => {

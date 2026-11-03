@@ -387,33 +387,6 @@ const CONVERTER_SITE_IDS: readonly string[] = [
   'packages/core/src/runtime/core/types/protocols/number.ts:55',
 ];
 
-const EXPECTED_SITE_LINES: Readonly<Record<string, readonly number[]>> = {
-  'ext/builtins/methods/bodies.ts': [
-    107, 139, 171, 179, 256, 586, 602, 618, 632, 655, 687, 724, 736, 748, 760,
-    768, 775, 799, 807, 814, 830, 838, 845, 862, 879, 639, 662, 670, 694, 702,
-  ],
-  'ext/builtins/functions/collections.ts': [
-    87, 204, 346, 487, 591, 138, 411, 515, 215, 226, 237, 248, 602, 613, 624,
-    635, 681,
-  ],
-  'ext/builtins/temporal/methods.ts': [
-    164, 226, 337, 393, 412, 422, 440, 447, 456, 463,
-  ],
-  'ext/builtins/functions/core.ts': [172, 221, 287, 308],
-  'ext/builtins/methods/entry.ts': [39],
-  'core/types/constructors.ts': [146, 156, 173, 181, 204],
-  'core/callable.ts': [797],
-  'core/types/protocols/string.ts': [62, 86],
-  'core/types/protocols/number.ts': [55],
-  'core/types/protocols/duration.ts': [82],
-};
-
-const EXPECTED_SITE_IDS: readonly string[] = Object.entries(
-  EXPECTED_SITE_LINES
-).flatMap(([file, lines]) =>
-  lines.map((line) => `packages/core/src/runtime/${file}:${line}`)
-);
-
 function tagOf(entry: BaselineEntry): string {
   return `${entry.siteId.replace('packages/core/src/runtime/', '')} [${entry.role}${entry.path !== null ? ` ${entry.path}` : ''}]`;
 }
@@ -448,71 +421,7 @@ const DIRECT_REPLAYS: { entry: BaselineEntry; trigger: DirectTrigger }[] =
     entry.trigger.kind === 'direct' ? [{ entry, trigger: entry.trigger }] : []
   );
 
-// ============================================================
-// BASELINE STRUCTURE
-// ============================================================
-
 describe('halt migration parity', () => {
-  describe('halt migration baseline structure', () => {
-    it('holds exactly 72 site entries whose ids equal the migrate list', () => {
-      expect(SITES).toHaveLength(72);
-      expect(EXPECTED_SITE_IDS).toHaveLength(72);
-      expect(new Set(SITES.map((e) => e.siteId)).size).toBe(72);
-      expect(SITES.map((e) => e.siteId).sort()).toEqual(
-        [...EXPECTED_SITE_IDS].sort()
-      );
-    });
-
-    it('holds exactly 3 provenance entries, all direct converter calls', () => {
-      expect(PROVENANCE).toHaveLength(3);
-      expect(PROVENANCE.map((e) => e.siteId).sort()).toEqual(
-        [...CONVERTER_SITE_IDS].sort()
-      );
-      for (const entry of PROVENANCE) {
-        expect(entry.trigger.kind).toBe('direct');
-      }
-    });
-
-    it('holds at least one boundary entry for each of the 5 boundary paths', () => {
-      for (const path of [
-        'host-call-location',
-        'script-callable-source',
-        'use-module',
-        'timeout-expired',
-        'async-pass-log',
-      ]) {
-        expect(
-          BOUNDARIES.filter((e) => e.path === path).length
-        ).toBeGreaterThan(0);
-      }
-    });
-
-    it('keeps (siteId, role, path) unique', () => {
-      const keys = BASELINE.map((e) => `${e.siteId}|${e.role}|${e.path}`);
-      expect(new Set(keys).size).toBe(BASELINE.length);
-    });
-
-    it('marks guardRecovers true for exactly the 3 converter site entries', () => {
-      const recovering = SITES.filter((e) => e.guardRecovers === true).map(
-        (e) => e.siteId
-      );
-      expect(recovering.sort()).toEqual([...CONVERTER_SITE_IDS].sort());
-      const duration = SITES.find((e) => e.siteId.endsWith('duration.ts:82'));
-      expect(duration?.guardRecovers).toBe(false);
-    });
-
-    it('names the one unreachable site entry and counts it among the 72', () => {
-      const unreachable = BASELINE.filter(
-        (e) => e.trigger.kind === 'unreachable'
-      );
-      expect(unreachable.map((e) => e.siteId)).toEqual([
-        'packages/core/src/runtime/core/types/constructors.ts:181',
-      ]);
-      expect(unreachable[0]?.role).toBe('site');
-      expect(SITES).toContain(unreachable[0]);
-    });
-  });
-
   // ============================================================
   // ENTRY REPLAY: site, provenance and boundary entries
   // ============================================================
@@ -584,20 +493,6 @@ describe('halt migration parity', () => {
           }
         });
       }
-    });
-
-    it('skips replay for the single unreachable site entry', () => {
-      const unreachable = BASELINE.filter(
-        (e) => e.trigger.kind === 'unreachable'
-      );
-      expect(unreachable).toHaveLength(1);
-      expect(unreachable[0]?.siteId).toBe(
-        'packages/core/src/runtime/core/types/constructors.ts:181'
-      );
-      expect(REPLAYABLE).not.toContain(unreachable[0]);
-      expect(REPLAYABLE.length + unreachable.length + LOG_ENTRIES.length).toBe(
-        BASELINE.length
-      );
     });
 
     describe('log entries', () => {

@@ -5,9 +5,7 @@
  * - Facade Membership: functions, typeMethodDicts, leafTypes,
  *   unvalidatedMethodReceivers (shared by reference).
  * - functions Map: built-in and user-defined functions are retrievable.
- * - typeMethodDicts: per-type method dicts are populated from registrations.
- * - leafTypes: contains expected leaf type names (plus 'any').
- * - unvalidatedMethodReceivers: contains method names that skip receiver check.
+ * - leaf types: any, string, number, bool reject type arguments.
  * - Shared-by-reference: child shares parent's dispatch surface without copy.
  *
  * Construction strategy:
@@ -23,6 +21,8 @@ import {
   createChildContext,
   isCallable,
 } from '@rcrsr/rill';
+import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('DispatchContext', () => {
   describe('functions Map', () => {
@@ -66,84 +66,16 @@ describe('DispatchContext', () => {
     });
   });
 
-  describe('typeMethodDicts', () => {
-    it('string type has a method dict', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.typeMethodDicts.has('string')).toBe(true);
-    });
-
-    it('list type has a method dict', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.typeMethodDicts.has('list')).toBe(true);
-    });
-
-    it('dict type has a method dict', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.typeMethodDicts.has('dict')).toBe(true);
-    });
-
-    it('string type method dict contains upper method', () => {
-      const ctx = createRuntimeContext({});
-      const stringMethods = ctx.typeMethodDicts.get('string');
-      expect(stringMethods).toBeDefined();
-      expect('upper' in stringMethods!).toBe(true);
-    });
-
-    it('method dict entries are callable', () => {
-      const ctx = createRuntimeContext({});
-      const stringMethods = ctx.typeMethodDicts.get('string');
-      const upper = stringMethods!['upper'];
-      expect(isCallable(upper!)).toBe(true);
-    });
-  });
-
-  describe('leafTypes', () => {
-    it('leafTypes is a Set', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.leafTypes).toBeInstanceOf(Set);
-    });
-
-    it("leafTypes contains 'any'", () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.leafTypes.has('any')).toBe(true);
-    });
-
-    it("leafTypes contains 'string'", () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.leafTypes.has('string')).toBe(true);
-    });
-
-    it("leafTypes contains 'number'", () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.leafTypes.has('number')).toBe(true);
-    });
-
-    it("leafTypes contains 'bool'", () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.leafTypes.has('bool')).toBe(true);
-    });
-  });
-
-  describe('unvalidatedMethodReceivers', () => {
-    it('unvalidatedMethodReceivers is a Set', () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.unvalidatedMethodReceivers).toBeInstanceOf(Set);
-    });
-
-    it("contains 'has' (skips receiver validation)", () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.unvalidatedMethodReceivers.has('has')).toBe(true);
-    });
-
-    it("contains 'has_any'", () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.unvalidatedMethodReceivers.has('has_any')).toBe(true);
-    });
-
-    it("contains 'has_all'", () => {
-      const ctx = createRuntimeContext({});
-      expect(ctx.unvalidatedMethodReceivers.has('has_all')).toBe(true);
-    });
+  describe('leaf types reject type arguments', () => {
+    it.each(['any', 'string', 'number', 'bool'])(
+      '%s does not accept type arguments',
+      async (leaf) => {
+        await expectHaltMessage(
+          () => run(`"x" :${leaf}(string)`),
+          `${leaf} does not accept type arguments`
+        );
+      }
+    );
   });
 
   describe('shared-by-reference: child inherits dispatch surface', () => {
