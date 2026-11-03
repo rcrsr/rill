@@ -127,6 +127,23 @@ $a -> log
     expect(span?.start.offset).toBe(source.indexOf('$a'));
   });
 
+  it.each([
+    ['empty', ''],
+    ['whitespace-only', '   \n  \n'],
+  ])('returns null at offset 0 of an %s script', (_label, source) => {
+    const parsed = parseWithRecovery(source);
+
+    expect(findDefinition(parsed, 0)).toBeNull();
+  });
+
+  it('returns null at offset 0 and at EOF of a populated script', () => {
+    const source = '1 => $a\n2 => $b\n';
+    const parsed = parseWithRecovery(source);
+
+    expect(findDefinition(parsed, 0)).toBeNull();
+    expect(findDefinition(parsed, source.length)).toBeNull();
+  });
+
   it('returns null for an out-of-range offset', () => {
     const source = '1 => $a\n';
     const parsed = parseWithRecovery(source);

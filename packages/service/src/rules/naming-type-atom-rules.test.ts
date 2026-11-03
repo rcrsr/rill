@@ -270,6 +270,20 @@ describe('USE_DYNAMIC_IDENTIFIER', () => {
     });
   });
 
+  it('fires as warning with the permissive message when checkerMode is unset for a computed-label use<>', () => {
+    const source = 'use<("host:greet")>\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [
+      useDynamicIdentifier,
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.severity).toBe('warning');
+    expect(result[0]?.message).toContain('use<(expr)>');
+    expect(result[0]?.message).toContain('permissive mode');
+  });
+
   it('does not fire for a static-form use<>', () => {
     const source = 'use<scheme:resource>\n';
     const parsed = toParseResult(source);
@@ -318,6 +332,16 @@ describe('USE_UNTYPED_HOST_REF', () => {
       code: 'USE_UNTYPED_HOST_REF',
       severity: 'warning',
     });
+  });
+
+  it('fires as warning when checkerMode is unset for an untyped host reference', () => {
+    const source = 'use<host:my_fn>\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [useUntypedHostRef]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.severity).toBe('warning');
   });
 
   it('does not fire when the host reference has a :type annotation', () => {

@@ -138,6 +138,14 @@ describe('semanticTokens', () => {
     expect(semanticTokens(parsed, tokens, source)).toEqual([]);
   });
 
+  it('returns an empty array for whitespace-only source', () => {
+    const source = '   \n  \n';
+    const parsed = parseWithRecovery(source);
+    const tokens = tokenize(source);
+
+    expect(semanticTokens(parsed, tokens, source)).toEqual([]);
+  });
+
   it('emits a single string token for a non-interpolated string', () => {
     const source = '"plain text"';
     const parsed = parseWithRecovery(source);

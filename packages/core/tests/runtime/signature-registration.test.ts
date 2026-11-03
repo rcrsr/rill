@@ -679,6 +679,191 @@ describe('Rill Runtime: Signature Registration', () => {
     });
   });
 
+  describe('parseSignatureRegistration: malformed signatures', () => {
+    const prefix = "Invalid signature for function 'fn': ";
+
+    function expectInvalid(signature: string, fragment: string): Error {
+      let caught: unknown;
+      try {
+        parseSignatureRegistration(signature, 'fn');
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(Error);
+      const error = caught as Error;
+      expect(error.message.startsWith(prefix)).toBe(true);
+      expect(error.message).toContain(fragment);
+      return error;
+    }
+
+    it('wraps a tokenizer failure with its cause', () => {
+      const error = expectInvalid('"unterminated', 'Unterminated string');
+      expect(error.cause).toBeInstanceOf(Error);
+    });
+
+    it('wraps a parse error with its cause', () => {
+      const error = expectInvalid('|a: list(', 'Expected type name');
+      expect(error.cause).toBeInstanceOf(Error);
+    });
+
+    it('rejects a signature that does not start with | or ||', () => {
+      expectInvalid('x', "expected '|' or '||' to start parameter list");
+    });
+
+    it('rejects an unclosed parameter list', () => {
+      expectInvalid('|a', "expected ',' or '|' between parameters");
+    });
+
+    it('rejects a trailing token after the signature', () => {
+      expectInvalid('|a| extra', "unexpected token 'extra' after signature");
+    });
+
+    it('rejects a dynamic type reference', () => {
+      expectInvalid(
+        '|a: $t|',
+        'dynamic type references ($variable) are not allowed'
+      );
+    });
+
+    it('rejects annotation values that are not string literals', () => {
+      expectInvalid('^(x: 1) |a|', 'annotation values must be string literals');
+    });
+
+    it('rejects an annotation key without a colon', () => {
+      expectInvalid('^(x "y") |a|', "Expected ':' after annotation key");
+    });
+
+    it('rejects a caret without a following parenthesis', () => {
+      expectInvalid('^ x', "Expected '(' after '^'");
+    });
+  });
+
+  describe('parseSignatureRegistration: type structures', () => {
+    const prefix = "Invalid signature for function 'fn': ";
+
+    it('parses union members', () => {
+      const parsed = parseSignatureRegistration('|a: string|number|', 'fn');
+      expect(parsed.params[0]?.type).toEqual({
+        kind: 'union',
+        members: [{ kind: 'string' }, { kind: 'number' }],
+      });
+    });
+
+    it('parses a union return type', () => {
+      const parsed = parseSignatureRegistration(
+        '|a: string| : string|number',
+        'fn'
+      );
+      expect(parsed.returnType).toEqual({
+        kind: 'union',
+        members: [{ kind: 'string' }, { kind: 'number' }],
+      });
+    });
+
+    it('parses list(T) with an element type', () => {
+      const parsed = parseSignatureRegistration('|a: list(string)|', 'fn');
+      expect(parsed.params[0]?.type).toEqual({
+        kind: 'list',
+        element: { kind: 'string' },
+      });
+    });
+
+    it('rejects a list with a named argument', () => {
+      expect(() =>
+        parseSignatureRegistration('|a: list(x: string)|', 'fn')
+      ).toThrow(`${prefix}list requires exactly one positional type argument`);
+    });
+
+    it('rejects a list with multiple arguments', () => {
+      expect(() =>
+        parseSignatureRegistration('|a: list(string, number)|', 'fn')
+      ).toThrow(`${prefix}list requires exactly one positional type argument`);
+    });
+
+    it('parses a dict with named fields and a list return type', () => {
+      const parsed = parseSignatureRegistration(
+        '|a: dict(k: string)| : list(string)',
+        'fn'
+      );
+      expect(parsed.params[0]?.type).toEqual({
+        kind: 'dict',
+        fields: { k: { type: { kind: 'string' } } },
+      });
+      expect(parsed.returnType).toEqual({
+        kind: 'list',
+        element: { kind: 'string' },
+      });
+    });
+
+    it('rejects a dict with a positional argument', () => {
+      expect(() =>
+        parseSignatureRegistration('|a: dict(string)|', 'fn')
+      ).toThrow(
+        `${prefix}dict type arguments must be named (e.g. dict(key: string))`
+      );
+    });
+
+    it('parses a tuple mixing named and positional elements', () => {
+      const parsed = parseSignatureRegistration(
+        '|a: tuple(a: string, number)|',
+        'fn'
+      );
+      expect(parsed.params[0]?.type).toEqual({
+        kind: 'tuple',
+        elements: [
+          { name: 'a', type: { kind: 'string' } },
+          { type: { kind: 'number' } },
+        ],
+      });
+    });
+
+    it('rejects type arguments on a non-parameterizable type', () => {
+      expect(() =>
+        parseSignatureRegistration('|a: string(number)|', 'fn')
+      ).toThrow(`${prefix}type 'string' does not accept type arguments`);
+    });
+  });
+
+  describe('parseSignatureRegistration: descriptions and defaults', () => {
+    const prefix = "Invalid signature for function 'fn': ";
+
+    it('treats a bare string in function annotations as the description', () => {
+      const parsed = parseSignatureRegistration('^("desc") |a|', 'fn');
+      expect(parsed.description).toBe('desc');
+    });
+
+    it('treats a bare string in param annotations as the param description', () => {
+      const parsed = parseSignatureRegistration('|^("pd") a|', 'fn');
+      expect(parsed.params[0]?.annotations).toEqual({ description: 'pd' });
+    });
+
+    it('parses string, number, true, false, and negative number defaults', () => {
+      const parsed = parseSignatureRegistration(
+        '|a = "s", b = 1.5, c = true, d = false, e = -2|',
+        'fn'
+      );
+      expect(parsed.params.map((p) => p.defaultValue)).toEqual([
+        's',
+        1.5,
+        true,
+        false,
+        -2,
+      ]);
+    });
+
+    it('rejects a minus followed by a non-number default', () => {
+      expect(() => parseSignatureRegistration('|a = -x|', 'fn')).toThrow(
+        `${prefix}expected number after '-' in default value`
+      );
+    });
+
+    it('rejects an unsupported default value', () => {
+      expect(() => parseSignatureRegistration('|a = list|', 'fn')).toThrow(
+        `${prefix}unsupported default value 'list' (only string, number, bool supported)`
+      );
+    });
+  });
+
   describe('annotation keys named __proto__', () => {
     it('stores a param annotation key __proto__ as an own property', () => {
       const parsed = parseSignatureRegistration(

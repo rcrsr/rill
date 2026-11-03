@@ -581,6 +581,14 @@ Try keys left-to-right:
 $user.(name || nickname)         # "Al"
 ```
 
+When every key is missing, the access halts with `RILL-R009`. Add `??` to supply a fallback:
+
+```rill
+dict[age: 30] => $user
+$user.(name || nickname) ?? "unknown"
+# Result: "unknown"
+```
+
 ---
 
 ## Hierarchical Dispatch

@@ -851,7 +851,15 @@ export async function evaluateVariableAsync(
         allowMissing
       );
     } else if (access.kind === 'alternatives') {
-      value = await evaluateFieldAccessAlternatives(s, access, value, node);
+      const allowMissing =
+        node.defaultValue !== null || node.existenceCheck !== null;
+      value = await evaluateFieldAccessAlternatives(
+        s,
+        access,
+        value,
+        node,
+        allowMissing
+      );
     } else if (access.kind === 'annotation') {
       // Annotation reflection: .^key
       // Delegates to evaluateAnnotationAccess from methods.ts

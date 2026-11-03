@@ -25,7 +25,11 @@ import {
   resolveScopeAt,
 } from './scope/index.js';
 import { createDefaultConfig, runRules } from './rules/index.js';
-import { measureP95, measureRatioP95 } from './percentile.js';
+import {
+  measureInterleavedRatioP95,
+  measureP95,
+  measureRatioP95,
+} from './percentile.js';
 
 // Budgets are expressed as a multiple of parsing the same fixture, not in
 // milliseconds. See `measureRatioP95` for why: an absolute ceiling measures
@@ -252,9 +256,18 @@ describe('provider latency on a 2,000-line script', () => {
   it(
     'runRules stays at or under the p95 budget',
     () => {
-      const xParse = measureRatioP95(() => {
-        runRules(parsed, source, config);
-      }, parseRefP95);
+      // Sampled interleaved with the parse reference rather than against
+      // parseRefP95: this budget sits closest to its correct reading, and a
+      // reference measured at the start of the suite let load that rose
+      // during a parallel run push a correct runRules to 1.526x.
+      const xParse = measureInterleavedRatioP95(
+        () => {
+          runRules(parsed, source, config);
+        },
+        () => {
+          parseWithRecovery(source);
+        }
+      );
       expect(xParse).toBeLessThanOrEqual(RUN_RULES_P95_BUDGET_X_PARSE);
     },
     LATENCY_TEST_TIMEOUT_MS
@@ -286,14 +299,29 @@ describe('provider termination on a recovery/partial AST', () => {
     );
   });
 
-  it('every provider terminates without throwing against the recovery AST', () => {
+  it('every provider returns values against the recovery AST', () => {
+    // Anchor on a variable read after the broken line.
+    const readOffset = source.lastIndexOf('$record.index') + 1;
+
     expect(documentSymbols(parsed).length).toBeGreaterThan(0);
     expect(semanticTokens(parsed, tokens, source).length).toBeGreaterThan(0);
-    expect(() => formatDocument(parsed, source)).not.toThrow();
     expect(resolveScopeAt(parsed, midOffset).length).toBeGreaterThan(0);
-    expect(() => findDefinition(parsed, midOffset)).not.toThrow();
-    expect(() => getHover(parsed, midOffset)).not.toThrow();
-    expect(() => getCompletions(parsed, midOffset)).not.toThrow();
+
+    const definition = findDefinition(parsed, readOffset);
+    expect(
+      source.slice(definition?.start.offset, definition?.end.offset).trimEnd()
+    ).toBe('$record:dict');
+    expect(getHover(parsed, readOffset)?.contents).toBe('variable `record`');
+
+    const edits = formatDocument(parsed, source);
+    expect(edits).toHaveLength(1);
+    expect(edits[0]?.newText).toContain('|||broken syntax here');
+
+    expect(
+      getCompletions(parsed, readOffset)
+        .filter((item) => item.kind === 'variable')
+        .map((item) => item.label)
+    ).toContain('record');
     expect(() => runRules(parsed, source, config)).not.toThrow();
   });
 });

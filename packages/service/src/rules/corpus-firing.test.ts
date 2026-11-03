@@ -5,8 +5,7 @@
  * protected core language test corpus (via `corpus-loader.ts`) to assert
  * structural invariants: no snippet throws, the full rule registry
  * executes, and emitted diagnostics stay sorted by line then column. It
- * also reproduces purpose-built per-rule firing scenarios and
- * severity-resolution behavior.
+ * also reproduces purpose-built per-rule firing scenarios.
  *
  * This module does not build a byte-exact parity baseline against an
  * external tool; it only asserts invariants that hold regardless of any
@@ -20,8 +19,6 @@ import { compareDiagnosticLocation, runRules } from './run-rules.js';
 import { createDefaultConfig } from './config.js';
 import { RULES } from './rules.js';
 import type { Diagnostic } from './types.js';
-import { useDynamicIdentifier, useUntypedHostRef } from './use-expressions.js';
-import { makeConfig } from './test-support.js';
 
 interface CorpusRunResult {
   readonly file: string;
@@ -133,88 +130,5 @@ describe('per-rule firing set', () => {
     expect(codes).not.toContain('NAMING_SNAKE_CASE');
     expect(codes).not.toContain('CONDITION_TYPE');
     expect(codes).not.toContain('FOLD_INTERMEDIATES');
-  });
-});
-
-describe('severity reproduction', () => {
-  it('emits "error" for USE_DYNAMIC_IDENTIFIER under strict checker mode', () => {
-    const source = 'use<("host:greet")>\n';
-    const parsed = parseWithRecovery(source);
-
-    const result = runRules(
-      parsed,
-      source,
-      makeConfig({ checkerMode: 'strict' }),
-      [useDynamicIdentifier]
-    );
-
-    expect(result).toHaveLength(1);
-    expect(result[0]?.severity).toBe('error');
-  });
-
-  it('emits "warning" for USE_DYNAMIC_IDENTIFIER under permissive/undefined checker mode', () => {
-    const source = 'use<("host:greet")>\n';
-    const parsed = parseWithRecovery(source);
-
-    const undefinedModeResult = runRules(parsed, source, makeConfig(), [
-      useDynamicIdentifier,
-    ]);
-    const permissiveResult = runRules(
-      parsed,
-      source,
-      makeConfig({ checkerMode: 'permissive' }),
-      [useDynamicIdentifier]
-    );
-
-    expect(undefinedModeResult[0]?.severity).toBe('warning');
-    expect(permissiveResult[0]?.severity).toBe('warning');
-  });
-
-  it('emits "error" for USE_UNTYPED_HOST_REF under strict checker mode', () => {
-    const source = 'use<host:greet>\n';
-    const parsed = parseWithRecovery(source);
-
-    const result = runRules(
-      parsed,
-      source,
-      makeConfig({ checkerMode: 'strict' }),
-      [useUntypedHostRef]
-    );
-
-    expect(result).toHaveLength(1);
-    expect(result[0]?.severity).toBe('error');
-  });
-
-  it('emits "warning" for USE_UNTYPED_HOST_REF under permissive/undefined checker mode', () => {
-    const source = 'use<host:greet>\n';
-    const parsed = parseWithRecovery(source);
-
-    const undefinedModeResult = runRules(parsed, source, makeConfig(), [
-      useUntypedHostRef,
-    ]);
-    const permissiveResult = runRules(
-      parsed,
-      source,
-      makeConfig({ checkerMode: 'permissive' }),
-      [useUntypedHostRef]
-    );
-
-    expect(undefinedModeResult[0]?.severity).toBe('warning');
-    expect(permissiveResult[0]?.severity).toBe('warning');
-  });
-
-  it('honors a global config.severity override regardless of checker mode', () => {
-    const source = 'use<host:greet>\n';
-    const parsed = parseWithRecovery(source);
-
-    const result = runRules(
-      parsed,
-      source,
-      makeConfig({ checkerMode: 'strict', severity: 'info' }),
-      [useUntypedHostRef]
-    );
-
-    expect(result).toHaveLength(1);
-    expect(result[0]?.severity).toBe('info');
   });
 });
