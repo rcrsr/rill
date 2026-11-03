@@ -10,6 +10,12 @@ import { executeRill } from '../execution.js';
 
 describe('loadExample', () => {
   describe('required examples', () => {
+    it('keeps the anchor examples registered', () => {
+      expect(EXAMPLE_ORDER).toEqual(
+        expect.arrayContaining(['hello-world', 'pipes', 'closures', 'fold'])
+      );
+    });
+
     it.each(EXAMPLE_ORDER)('returns %s example', (id) => {
       const example = loadExample(id);
       expect(example).toBeDefined();
