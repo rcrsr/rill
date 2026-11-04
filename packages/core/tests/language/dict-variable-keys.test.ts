@@ -684,3 +684,122 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
     });
   });
 });
+
+describe('Ordered literal variable and computed keys', () => {
+  it('halts when a list variable is used as an ordered key', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            list[1, 2] => $k
+            ordered[$k: 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key must be string, got object/,
+      }
+    );
+  });
+
+  it('halts when a dict variable is used as an ordered key', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            dict[a: 1] => $k
+            ordered[$k: 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key must be string, got object/,
+      }
+    );
+  });
+
+  it('halts when a number variable is used as an ordered key', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            42 => $n
+            ordered[$n: 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key must be string, got number/,
+      }
+    );
+  });
+
+  it('halts when a computed ordered key evaluates to a list', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            ordered[(list[1, 2]): 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key evaluated to object, expected string/,
+      }
+    );
+  });
+
+  it('halts when a computed ordered key evaluates to a number', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            ordered[(42): 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key evaluated to number, expected string/,
+      }
+    );
+  });
+
+  it('accepts string variable and computed ordered keys', async () => {
+    const code = `
+      "a" => $k
+      ordered[$k: 1, ("b"): 2] -> .keys
+    `;
+    expect(await run(code)).toEqual(['a', 'b']);
+  });
+
+  it('expands a list of string keys in an ordered literal', async () => {
+    expect(await run('ordered[list["a", "b"]: 1] -> .keys')).toEqual([
+      'a',
+      'b',
+    ]);
+  });
+
+  it('halts when a multi-key list holds a reserved method name', async () => {
+    await expectHalt(() => run('ordered[list["len"]: 1]'), {
+      code: 'RILL_R002',
+      hostErrorId: 'RILL-R002',
+      messagePattern: /reserved method name/i,
+    });
+  });
+
+  it('stores a __proto__ key from a multi-key list as an own key', async () => {
+    expect(await run('ordered[list["__proto__", "a"]: 1] -> .keys')).toEqual([
+      '__proto__',
+      'a',
+    ]);
+  });
+
+  it('collapses a number and string key that stringify alike', async () => {
+    expect(await run('ordered[list[1, "1"]: 9] -> .keys')).toEqual(['1']);
+    expect(await run('ordered[list[1, "1"]: 9] -> .len')).toBe(1);
+  });
+
+  it('keeps the last value when a string variable key collides with a number key', async () => {
+    const code = `
+      "1" => $k
+      ordered[1: "a", $k: "b"] => $o
+      list[$o -> .keys, $o -> .values]
+    `;
+    expect(await run(code)).toEqual([['1'], ['b']]);
+  });
+});

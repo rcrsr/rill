@@ -20,7 +20,7 @@ d677c7610d0f1cfbfe23cbc291616dd5c8cbfb08b1e503d7a3c7c209bed59a6e  packages/core/
 0f02358373176ba61380e1e0555da93be2a107c674b2cdf5abecd888532044f4  packages/core/tests/language/chain.test.ts
 b5a6a505ab8fdc820f87d352762a064171e1e27a33cdaf70270e54998e0e2d56  packages/core/tests/language/closure-annotation-defaults.test.ts
 302744180a0da48177eb97796002488254b2a949c81ad3cc0083dcc132a0c558  packages/core/tests/language/closure-auto-invoke.test.ts
-6faffcb952b392368cbd2b75feeba40300ab99009cac0f26609869a77f5e84aa  packages/core/tests/language/closure-equality.test.ts
+ee58fd882d7ae9f11de6d02836d4e23d4271435d04334b24f23a5a413b2dcf70  packages/core/tests/language/closure-equality.test.ts
 44252eb8e69e3dad8619328dbf7e547e3460677b52368d508e534441223877d7  packages/core/tests/language/closure-hoist-validation.test.ts
 811f284a86ddf64b74773895630e68ea300318b662762d90eff6612f087681f5  packages/core/tests/language/closure-semantics.test.ts
 b35edcbbc868b307464f6a374a1edf76054dff66e3bd4849c6a271f1d2356800  packages/core/tests/language/closure-sig-literal.test.ts
@@ -35,7 +35,7 @@ b35edcbbc868b307464f6a374a1edf76054dff66e3bd4849c6a271f1d2356800  packages/core/
 b836ced1c077b9af89fd71cc8932a56f83cc48e17aa1f5133e3c964d6b0b0de8  packages/core/tests/language/dict-dispatch.test.ts
 b6a28ed68b7482bc1b4b466173d6b2709a966e07b1872d0c5736846a59d10f06  packages/core/tests/language/dict-field-annotations.test.ts
 0b018425180f7fcd77b4f28fee24492c31a50c9ac79ff984b2c652fd770ba519  packages/core/tests/language/dict-key-form.test.ts
-30c185d813b4fd2fd6e87700dac682b3105da0aa2bd2c88b11f992d7521ad559  packages/core/tests/language/dict-variable-keys.test.ts
+081792c84068f056490af2bdbe0b5100c35663630e5f4594298aa400475b7c8a  packages/core/tests/language/dict-variable-keys.test.ts
 6265bb0a7b6af057d2983f4145ed1d45efb6c0026811137c7c763178d86e8204  packages/core/tests/language/dict.test.ts
 48c5d5f0343a6b4b75b53a2d0d2b71579c4c9d89d69ad0566abf11b986f2a18d  packages/core/tests/language/duration.test.ts
 2a49edb0527bebefba7e0cae4529ed022985b8bccdb28825562510b714d6daa2  packages/core/tests/language/dynamic-field-access.test.ts

@@ -45,7 +45,12 @@ import {
   STREAM_STEP_FIELDS,
 } from '../shared.js';
 import { setTypedKey, orderedDictEntries } from '../../types/dict-keys.js';
-import { assertUsableDictKey } from './literals.js';
+import {
+  assertUsableDictKey,
+  assertStringVariableKey,
+  assertStringComputedKey,
+  evaluateDictMultiKeyFromList,
+} from './literals.js';
 
 /**
  * Evaluate destructure operator: destruct<$a, $b, $c>
@@ -486,11 +491,17 @@ export async function evaluateCollectionLiteral(
     }
 
     case 'OrderedLiteral': {
-      // Ordered literals keep string keys; stringify any typed key.
-      const pairs = (await evaluateDictLiteralEntries(s, node.entries)).map(
-        ([key, value]): [string, RillValue] => [String(key), value]
-      );
-      return createOrdered(pairs);
+      // Ordered literals keep string keys; stringify any typed key. Keys that
+      // collide once stringified (1 and "1") collapse: last value wins at the
+      // first key's position, as with spread overrides.
+      const merged = new Map<string, RillValue>();
+      for (const [key, value] of await evaluateDictLiteralEntries(
+        s,
+        node.entries
+      )) {
+        merged.set(String(key), value);
+      }
+      return createOrdered([...merged]);
     }
   }
   return throwFatalHostHalt(
@@ -534,19 +545,11 @@ export async function evaluateListLiteralElements(
 }
 
 /**
- * Render an evaluated or unevaluated key with the runtime's default string
- * coercion. Computed keys can hold any value, and the published rendering of
- * a non-scalar key is the default coercion result, so it is kept as is.
- */
-function stringifyDictKey(key: unknown): string {
-  return String(key);
-}
-
-/**
  * Evaluate dict/ordered literal entries, returning [key, value] pairs. Number
  * and boolean keys are returned with their original type; the DictLiteral
  * caller routes them to the typed-key sidecar, while the OrderedLiteral caller
- * stringifies them.
+ * stringifies them. Variable and computed keys must resolve to strings, as in
+ * dict literals; any other value halts.
  * Spread entries (...$other) expand inline (dict keys merged).
  */
 async function evaluateDictLiteralEntries(
@@ -619,19 +622,35 @@ async function evaluateDictLiteralEntries(
             defaultValue: null,
             existenceCheck: null,
           });
-          stringKey =
-            typeof varVal === 'string'
-              ? varVal
-              : stringifyDictKey(varVal ?? key.variableName);
+          assertStringVariableKey(
+            s,
+            varVal,
+            entry.span,
+            'evaluateDictLiteralEntries'
+          );
+          stringKey = varVal;
         } else {
           // computed: evaluate expression
           const computed = await evaluateExpression(s, key.expression);
-          stringKey = stringifyDictKey(computed);
+          assertStringComputedKey(
+            s,
+            computed,
+            entry.span,
+            'evaluateDictLiteralEntries'
+          );
+          stringKey = computed;
         }
         assertUsableDictKey(s, stringKey, entry.span);
       } else {
-        stringKey = stringifyDictKey(key);
-        assertUsableDictKey(s, stringKey, entry.span);
+        // Multi-key entry (ListLiteralNode key): one entry per listed key.
+        const pairs = await evaluateDictMultiKeyFromList(s, key, entry.value);
+        for (const [k, v] of pairs) {
+          if (typeof k === 'string') {
+            assertUsableDictKey(s, k, entry.span);
+          }
+          setMergedEntry(k, v);
+        }
+        continue;
       }
     }
 
