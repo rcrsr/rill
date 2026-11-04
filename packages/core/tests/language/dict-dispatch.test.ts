@@ -413,8 +413,8 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('throws RUNTIME_TYPE_ERROR when multi-key contains list (AC-14, EC-5)', async () => {
       // AC-14/EC-5: Runtime error for non-primitive key element.
-      // Phase 2: Mixed-type list [[1, 2], "valid"] fails at construction (RILL-R002)
-      // before dict key validation. Both are runtime errors.
+      // The list element is not a string, number, or boolean, so dict key
+      // validation rejects it.
       await expectHalt(() => run('dict[list[list[1, 2], "valid"]: "value"]'), {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
@@ -425,7 +425,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('throws RUNTIME_TYPE_ERROR when multi-key contains dict (EC-5)', async () => {
       // EC-5: Runtime error for non-primitive key element.
-      // Phase 2: Mixed-type list [[a: 1], "valid"] fails at construction (RILL-R002).
+      // Dict key validation rejects the dict element.
       await expectHalt(() => run('dict[list[dict[a: 1], "valid"]: "value"]'), {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',
@@ -436,7 +436,7 @@ describe('Rill Runtime: Dict Dispatch', () => {
 
     it('throws RUNTIME_TYPE_ERROR when multi-key contains closure (EC-5)', async () => {
       // EC-5: Runtime error for non-primitive key element.
-      // Phase 2: Mixed-type list [||{1}, "valid"] fails at construction (RILL-R002).
+      // Dict key validation rejects the closure element.
       await expectHalt(() => run('dict[list[||{1}, "valid"]: "value"]'), {
         code: 'RILL_R002',
         hostErrorId: 'RILL-R002',

@@ -12,7 +12,7 @@ ad9b4eb1bf5d6fbd806410b87aac72069b53f9f32839e4dd0ee9cb292baec52b  packages/core/
 dc7d0900d6c740f4fd059b3ae758308e6cc6f4f67b567d341ae5272ee9dd694e  packages/core/tests/language/args.test.ts
 647b3cacab99904cad02f54998d17a996d14e6a97267adf83d0bf3503af7b2d2  packages/core/tests/language/arithmetic.test.ts
 bc7319046983e414375a542e25279b6c60d812eac108dfba07d68ca08a93f2c1  packages/core/tests/language/assert.test.ts
-074af6778d89e4c73cc1edc5a0658485e2efbe6abb8378c82234b8a93c0c4c9f  packages/core/tests/language/atoms.test.ts
+62fa45fce3632f1b937efdfbfda3ea07bb72112c550303c365a759d98ece7fc5  packages/core/tests/language/atoms.test.ts
 3494dea880680a2b9d530a743db1a33bc28b08522b60d8546a50187bf3582754  packages/core/tests/language/bare-syntax.test.ts
 043149c6c092cbf0a5743a4f56f65b43878d8136f530005bb4ec860cea2c21e2  packages/core/tests/language/block-scoping.test.ts
 d677c7610d0f1cfbfe23cbc291616dd5c8cbfb08b1e503d7a3c7c209bed59a6e  packages/core/tests/language/boolean.test.ts
@@ -32,7 +32,7 @@ d1f35efcda11e2a7bbcbbb505b274f2836934c3d51cde31220ba2da40b794861  packages/core/
 0b750afffd0598dcc532e92048d15246a95a5b556ab346ce9398a4ea55cba8ad  packages/core/tests/language/datetime.test.ts
 3ba8d7d88d6b6585ea1e1dce8443985dd820fc506a339eeeec489ccd5008ae2e  packages/core/tests/language/default-value-operator.test.ts
 283edc5a77b3d536d92872033ed512f91de2387145e1fdf6af1c18b529073acb  packages/core/tests/language/destruct-slice-keyword.test.ts
-ae1184d20c8d29119f64e4b0d80928851f17fd137233640ad81447361cb925c8  packages/core/tests/language/dict-dispatch.test.ts
+b836ced1c077b9af89fd71cc8932a56f83cc48e17aa1f5133e3c964d6b0b0de8  packages/core/tests/language/dict-dispatch.test.ts
 4c72c5f89e147160dc154293fe7e70d842b9f4b383f154824fe1ae05f330203c  packages/core/tests/language/dict-field-annotations.test.ts
 b87c6f53880e85c05ea01564caf4c28695e72d100b62af959c13c4571ea7cda1  packages/core/tests/language/dict-key-form.test.ts
 193aa64b24e15c6e34efe84fca8318ce6999454de8376f6d7006d020383baece  packages/core/tests/language/dict-variable-keys.test.ts
@@ -68,7 +68,7 @@ bfa988e04586407338bfe790a091262a8a0b02ff5f01c617425e6d02e3c423a6  packages/core/
 bc3664e466f94693324c1fa5946aa92ee141873cfcb4473a2ae05136308d7530  packages/core/tests/language/parser-recovery.test.ts
 0766518b4a237fd17f4a253f5c87cae129800773d24a92c4d3961bff1e6c300c  packages/core/tests/language/parser-spans.test.ts
 f1710db21cb82c2e7ee8231bc2a2fa3c73af0845f9d25066cf5218e6087a4516  packages/core/tests/language/parser-syntax-errors.test.ts
-693eac2c7621129df4fe25d3ecde21bbcc83c6d6f88bc1fbfc0f3a2d19a42c02  packages/core/tests/language/pass-async.test.ts
+4a37887e53947e96cd77b1484d0a3f70147d7b3afc10611d3e32bba19af436c6  packages/core/tests/language/pass-async.test.ts
 2f66923a1724e0be46be0c504054ee61615c3ddc989f3facd5e6508e6325d281  packages/core/tests/language/pass-parsing.test.ts
 7b151474103b83e354aea75978226e14f2efb5917312fc7729d89e7d8983633f  packages/core/tests/language/pass.test.ts
 80d5f113191a70baab48c1f286c27c20fa6a9514c383aadb72c15b86b0764f89  packages/core/tests/language/pipe-targets.test.ts

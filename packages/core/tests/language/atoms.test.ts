@@ -23,6 +23,7 @@ import {
   execute,
   isAtom,
   parse,
+  ParseError,
   parseWithRecovery,
   resolveAtom,
   type RillAtomValue,
@@ -318,5 +319,20 @@ describe('Legacy `:code` type syntax rejected after rename', () => {
     // dispatcher; this test guards the broader "parse error or
     // unknown-operator error" contract from the spec.
     expect(() => parse(':code("TIMEOUT")')).toThrow(/Unexpected token: :/);
+  });
+
+  it('rejects `code` as a type name while `atom` stays allowed', () => {
+    let caught: unknown;
+    try {
+      parse('"x" -> :code("TIMEOUT")');
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ParseError);
+    expect((caught as ParseError).errorId).toBe('RILL-P003');
+    const message = (caught as ParseError).message;
+    expect(message).toMatch(/\batom\b/);
+    expect(message).not.toMatch(/expected:.*\bcode\b/);
+    expect(() => parse('"abc" => $x\n$x :atom')).not.toThrow();
   });
 });

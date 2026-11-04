@@ -201,11 +201,13 @@ describe('AC-21 / BC-4: async body settles correctly at dispose-time', () => {
     const disposal = context.dispose().then(() => {
       disposed = true;
     });
-    await Promise.resolve();
-    expect(disposed).toBe(false);
-    expect(completed).toBe(false);
-
-    gate.resolve();
+    try {
+      for (let tick = 0; tick < 10; tick++) await Promise.resolve();
+      expect(disposed).toBe(false);
+      expect(completed).toBe(false);
+    } finally {
+      gate.resolve();
+    }
     await disposal;
 
     expect(disposed).toBe(true);
@@ -407,11 +409,13 @@ describe('EC-9: dispose() awaits in-flight async bodies', () => {
     const disposal = context.dispose().then(() => {
       disposed = true;
     });
-    await Promise.resolve();
-    expect(disposed).toBe(false);
-    expect(settled).toEqual([]);
-
-    gate.resolve();
+    try {
+      for (let tick = 0; tick < 10; tick++) await Promise.resolve();
+      expect(disposed).toBe(false);
+      expect(settled).toEqual([]);
+    } finally {
+      gate.resolve();
+    }
     await disposal;
 
     expect(disposed).toBe(true);

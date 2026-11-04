@@ -95,13 +95,13 @@ describe('Rill Runtime: Performance Regression', () => {
       'scales linearly for %s',
       async (_name, scriptFor) => {
         const lists = new Map<number, number[]>();
-        for (const n of [5_000, 20_000]) lists.set(n, buildList(n));
+        for (const n of [20_000, 80_000]) lists.set(n, buildList(n));
         const exec = async (n: number): Promise<unknown> =>
           run(scriptFor(n), { variables: { items: lists.get(n) ?? [] } });
 
         for (let i = 0; i < 5; i++) {
-          await exec(5_000);
           await exec(20_000);
+          await exec(80_000);
         }
 
         let mismatches = 0;
@@ -109,9 +109,9 @@ describe('Rill Runtime: Performance Regression', () => {
           async (n) => {
             if ((await exec(n)) !== true) mismatches++;
           },
-          5_000,
           20_000,
-          7
+          80_000,
+          11
         );
 
         expect(mismatches).toBe(0);
@@ -122,13 +122,13 @@ describe('Rill Runtime: Performance Regression', () => {
 
     it('scales linearly when spreading a list', async () => {
       const lists = new Map<number, number[]>();
-      for (const n of [5_000, 20_000]) lists.set(n, buildList(n));
+      for (const n of [20_000, 80_000]) lists.set(n, buildList(n));
       const exec = async (n: number): Promise<unknown> =>
         run('list[...$items]', { variables: { items: lists.get(n) ?? [] } });
 
       for (let i = 0; i < 5; i++) {
-        await exec(5_000);
         await exec(20_000);
+        await exec(80_000);
       }
 
       let mismatches = 0;
@@ -137,9 +137,9 @@ describe('Rill Runtime: Performance Regression', () => {
           const result = await exec(n);
           if (!Array.isArray(result) || result.length !== n) mismatches++;
         },
-        5_000,
         20_000,
-        7
+        80_000,
+        11
       );
 
       expect(mismatches).toBe(0);
@@ -156,13 +156,13 @@ describe('Rill Runtime: Performance Regression', () => {
       return `[b: "b"] -> dict(b: string, ${fields})`;
     };
     const scripts = new Map<number, string>();
-    for (const n of [200, 800]) scripts.set(n, scriptFor(n));
+    for (const n of [500, 2000]) scripts.set(n, scriptFor(n));
     const exec = async (n: number): Promise<unknown> =>
       run(scripts.get(n) ?? '');
 
     for (let i = 0; i < 5; i++) {
-      await exec(200);
-      await exec(800);
+      await exec(500);
+      await exec(2000);
     }
 
     let mismatches = 0;
@@ -171,9 +171,9 @@ describe('Rill Runtime: Performance Regression', () => {
         const result = (await exec(n)) as Record<string, unknown>;
         if (Object.keys(result).length !== n + 1) mismatches++;
       },
-      200,
-      800,
-      7
+      500,
+      2000,
+      11
     );
 
     expect(mismatches).toBe(0);
