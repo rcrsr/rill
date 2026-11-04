@@ -76,12 +76,14 @@ describe('executeRill', () => {
     });
 
     it('reports duration as elapsed performance.now time', async () => {
-      const now = vi
-        .spyOn(performance, 'now')
-        .mockReturnValueOnce(100)
-        .mockReturnValue(142.5);
+      let clock = 100;
+      const now = vi.spyOn(performance, 'now').mockImplementation(() => clock);
       try {
-        const result = await executeRill('1 + 1');
+        // executeRill reads its start time synchronously, so advancing the
+        // clock before awaiting makes every later read return 142.5.
+        const pending = executeRill('1 + 1');
+        clock = 142.5;
+        const result = await pending;
         expect(result.duration).toBe(42.5);
       } finally {
         now.mockRestore();

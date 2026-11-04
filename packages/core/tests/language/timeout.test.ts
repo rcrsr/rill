@@ -55,11 +55,14 @@ function makeSlowFn() {
     returnType: { __type: 'any' } as never,
     fn: async (_args: Record<string, unknown>, ctx: CallableCtx) => {
       await new Promise<void>((_resolve, reject) => {
-        (ctx as RuntimeContext).signal?.addEventListener(
-          'abort',
-          () => reject(new Error('aborted')),
-          { once: true }
-        );
+        const signal = (ctx as RuntimeContext).signal;
+        if (!signal || signal.aborted) {
+          reject(new Error('aborted'));
+          return;
+        }
+        signal.addEventListener('abort', () => reject(new Error('aborted')), {
+          once: true,
+        });
       });
       return 'done';
     },
