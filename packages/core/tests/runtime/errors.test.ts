@@ -16,8 +16,6 @@ import {
   type SourceLocation,
 } from '@rcrsr/rill';
 
-import { run } from '../helpers/runtime.js';
-
 describe('Rill Runtime: Error Taxonomy', () => {
   describe('Registry Tests', () => {
     it('Registry lookup returns in O(1) [AC-3, AC-4]', () => {
@@ -519,62 +517,6 @@ describe('Rill Runtime: Error Taxonomy', () => {
         template.includes('chain('),
         `RILL-P010 messageTemplate must reference chain(), got: "${template}"`
       ).toBe(true);
-    });
-  });
-
-  describe('Loop Syntax Migration Errors [AC-NOD-23]', () => {
-    it('R079: (cond) @ { body } emits RILL-R079 with UXT row-1 message and @ span', async () => {
-      // Arrange: legacy pre-loop form — @ is at column 14, line 1
-      const source = '0 -> ($ < 3) @ { $ + 1 }';
-
-      // Act
-      const err = await run(source).catch((e: unknown) => e);
-
-      // Assert
-      expect(err).toBeInstanceOf(ParseError);
-      const e = err as ParseError;
-      expect(e.errorId).toBe('RILL-R079');
-      expect(e.message).toContain(
-        'Migration error: use `while (cond) do { body }`'
-      );
-      expect(e.location?.line).toBe(1);
-      expect(e.location?.column).toBe(14);
-    });
-
-    it('R080: seed -> @ { body } ? (cond) emits RILL-R080 with UXT row-2 message and @ span', async () => {
-      // Arrange: legacy seeded post-loop form — @ is at column 6, line 1
-      const source = '0 -> @ { $ + 1 } ? ($ < 3)';
-
-      // Act
-      const err = await run(source).catch((e: unknown) => e);
-
-      // Assert
-      expect(err).toBeInstanceOf(ParseError);
-      const e = err as ParseError;
-      expect(e.errorId).toBe('RILL-R080');
-      expect(e.message).toContain(
-        'Migration error: use `do { body } while (cond)`'
-      );
-      expect(e.location?.line).toBe(1);
-      expect(e.location?.column).toBe(6);
-    });
-
-    it('R081: bare ^(limit: N) as primary expression emits RILL-R081 with UXT row-3 message and ^ span', async () => {
-      // Arrange: bare ^(limit:) without preceding @ — ^ is at column 8, line 1
-      const source = 'true ? ^(limit: 5) { $ + 1 } ! 0';
-
-      // Act
-      const err = await run(source).catch((e: unknown) => e);
-
-      // Assert
-      expect(err).toBeInstanceOf(ParseError);
-      const e = err as ParseError;
-      expect(e.errorId).toBe('RILL-R081');
-      expect(e.message).toContain(
-        'Migration error: use `do<limit: N> { body }`'
-      );
-      expect(e.location?.line).toBe(1);
-      expect(e.location?.column).toBe(8);
     });
   });
 

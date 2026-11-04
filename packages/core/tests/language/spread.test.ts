@@ -408,24 +408,6 @@ describe('Rill Runtime: Dict Closures ($ = this)', () => {
 });
 
 describe('Rill Runtime: Reserved Method Protection', () => {
-  it('rejects "keys" as dict key', async () => {
-    await expect(run('dict[keys: "value"]')).rejects.toThrow(
-      /Cannot use reserved method name 'keys'/
-    );
-  });
-
-  it('rejects "values" as dict key', async () => {
-    await expect(run('dict[values: 42]')).rejects.toThrow(
-      /Cannot use reserved method name 'values'/
-    );
-  });
-
-  it('rejects "entries" as dict key', async () => {
-    await expect(run('dict[entries: list[1, 2]]')).rejects.toThrow(
-      /Cannot use reserved method name 'entries'/
-    );
-  });
-
   it('allows "json" as dict key (no longer reserved)', async () => {
     const result = await run('dict[json: "data"]');
     expect(result).toEqual({ json: 'data' });

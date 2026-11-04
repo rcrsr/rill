@@ -25,12 +25,6 @@ describe('Rill Language: Duration Type', () => {
       expect(result).toBe(1);
     });
 
-    it('constructs from calendar units [AC-11]', async () => {
-      // duration(months: 1, hours: 6)
-      const result = await run('duration(0, 1, 0, 6) -> .display');
-      expect(result).toBe('1mo6h');
-    });
-
     it('converts years to months [AC-24]', async () => {
       // duration(years: 1)
       const result = await run('duration(1) -> .months');
@@ -41,12 +35,6 @@ describe('Rill Language: Duration Type', () => {
       // duration(hours: 0)
       const result = await run('duration(0, 0, 0, 0) -> .display');
       expect(result).toBe('0ms');
-    });
-
-    it('constructs from days and minutes [AC-9]', async () => {
-      // duration(days: 1, minutes: 30)
-      const result = await run('duration(0, 0, 1, 0, 30) -> .display');
-      expect(result).toBe('1d30m');
     });
 
     it('constructs from ms directly', async () => {

@@ -175,11 +175,6 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       expect(sig).toBe('list(dict)');
     });
 
-    it('uniform dict values infer list(dict(number)) via cascade [AC-19]', async () => {
-      const sig = await run('list[dict[a: 1], dict[b: 2]].^type.signature');
-      expect(sig).toBe('list(dict(number))');
-    });
-
     it('dynamic key extract from dict(closure) carries no uniform type [AC-20]', async () => {
       // Auto-invoking closures (||{ body }) resolve to their return value
       // on access. The extracted value is a plain value, not a closure

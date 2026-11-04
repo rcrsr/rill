@@ -24,35 +24,44 @@ describe('Rill Runtime: Annotations', () => {
     it('parses .^key annotation access syntax (AC-10)', () => {
       const ast = parse('dict[name: "test"] => $obj\n$obj.^name');
       expect(ast.statements).toHaveLength(2);
-      const stmt = ast.statements[1];
-      expect(stmt?.type).toBe('Statement');
-      if (stmt?.type === 'Statement') {
-        expect(stmt.expression.type).toBe('PipeChain');
-      }
+      const stmt = ast.statements[1] as {
+        type: string;
+        expression: { type: string };
+      };
+      expect(stmt.type).toBe('Statement');
+      expect(stmt.expression.type).toBe('PipeChain');
     });
 
     it('parses parameter annotations |^(min: 0) x| (AC-5)', () => {
       const ast = parse('|^(min: 0) x: number|{ $x }');
       expect(ast.statements).toHaveLength(1);
-      const stmt = ast.statements[0];
-      expect(stmt?.type).toBe('Statement');
-      if (stmt?.type === 'Statement' && stmt.expression.type === 'PipeChain') {
-        const head = stmt.expression.head;
-        if (head.type === 'PostfixExpr' && head.primary.type === 'Closure') {
-          const param = head.primary.params[0];
-          expect(param?.annotations).toBeDefined();
-          expect(param?.annotations).toHaveLength(1);
-        }
-      }
+      const stmt = ast.statements[0] as {
+        type: string;
+        expression: {
+          type: string;
+          head: {
+            type: string;
+            primary: { type: string; params: { annotations: unknown[] }[] };
+          };
+        };
+      };
+      expect(stmt.type).toBe('Statement');
+      expect(stmt.expression.type).toBe('PipeChain');
+      expect(stmt.expression.head.type).toBe('PostfixExpr');
+      expect(stmt.expression.head.primary.type).toBe('Closure');
+      expect(stmt.expression.head.primary.params[0]?.annotations).toHaveLength(
+        1
+      );
     });
 
     it('parses multiple annotation arguments', () => {
       const ast = parse('^(limit: 10, timeout: 30) "hello"');
-      const stmt = ast.statements[0];
-      expect(stmt?.type).toBe('AnnotatedStatement');
-      if (stmt?.type === 'AnnotatedStatement') {
-        expect(stmt.annotations).toHaveLength(2);
-      }
+      const stmt = ast.statements[0] as {
+        type: string;
+        annotations: unknown[];
+      };
+      expect(stmt.type).toBe('AnnotatedStatement');
+      expect(stmt.annotations).toHaveLength(2);
     });
 
     it('parses annotation with expression value', () => {
@@ -67,11 +76,12 @@ describe('Rill Runtime: Annotations', () => {
 
     it('parses spread annotation', () => {
       const ast = parse('dict[limit: 10] => $opts\n^(...$opts) "hello"');
-      const stmt = ast.statements[1];
-      expect(stmt?.type).toBe('AnnotatedStatement');
-      if (stmt?.type === 'AnnotatedStatement') {
-        expect(stmt.annotations[0]?.type).toBe('SpreadArg');
-      }
+      const stmt = ast.statements[1] as {
+        type: string;
+        annotations: { type: string }[];
+      };
+      expect(stmt.type).toBe('AnnotatedStatement');
+      expect(stmt.annotations[0]?.type).toBe('SpreadArg');
     });
   });
 
@@ -168,29 +178,11 @@ describe('Rill Runtime: Annotations', () => {
       const script = `
         0 -> while ($ < 100) do<limit: 5> { $ + 1 }
       `;
-      try {
-        await run(script);
-        throw new Error('Expected error to be thrown');
-      } catch (err) {
-        expect(err).toBeDefined();
-        if (err && typeof err === 'object' && 'context' in err) {
-          const context = (err as { context?: unknown }).context;
-          expect(context).toEqual(
-            expect.objectContaining({
-              limit: 5,
-              iterations: expect.any(Number),
-            })
-          );
-          // Iteration count should be > limit
-          if (
-            context &&
-            typeof context === 'object' &&
-            'iterations' in context
-          ) {
-            expect(context.iterations).toBeGreaterThan(5);
-          }
-        }
-      }
+      const err = await run(script).catch((e: unknown) => e);
+      expect(err).toMatchObject({
+        errorId: 'RILL-R010',
+        context: { limit: 5, iterations: 6 },
+      });
     });
 
     it('uses default limit when not specified', async () => {

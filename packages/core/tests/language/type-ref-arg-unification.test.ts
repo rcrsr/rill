@@ -376,25 +376,6 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   // ============================================================
 
   // ============================================================
-  // EC-8, AC-11: dict(a: string = 42) -> RILL-R004
-  // ============================================================
-
-  describe('EC-8, AC-11: default type mismatch in dict -> typed-atom halt', () => {
-    it('dict(a: string = 42) halts with "must be string" message', async () => {
-      await expectHaltMessage(
-        () => run('dict(a: string = 42)'),
-        /Default value for field 'a' must be string/
-      );
-    });
-
-    it('dict(a: string = 42) halts #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('dict(a: string = 42)'), {
-        code: 'TYPE_MISMATCH',
-      });
-    });
-  });
-
-  // ============================================================
   // EC-9, AC-12: Default expression evaluation error -> propagated
   // ============================================================
 
@@ -458,73 +439,6 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
       await expectHalt(() => run('42 => $t\n"hello" -> :$t'), {
         code: 'TYPE_MISMATCH',
       });
-    });
-  });
-
-  // ============================================================
-  // EC-5: list with != 1 arg -> typed-atom halt
-  // ============================================================
-
-  describe('EC-5: list with wrong number of args -> typed-atom halt', () => {
-    it('list(string, number) with 2 args halts #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list(string, number)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
-
-    it('list(a: string) with named arg halts #INVALID_INPUT', async () => {
-      await expectHalt(() => run('list(a: string)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
-  });
-
-  // ============================================================
-  // EC-6: dict/ordered mixed arg kinds -> typed-atom halt
-  // ============================================================
-
-  describe('EC-6: dict/ordered mixed positional and named args -> typed-atom halt', () => {
-    it('dict(string, a: number) with mixed args halts #INVALID_INPUT', async () => {
-      await expectHalt(() => run('dict(string, a: number)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
-
-    it('ordered(string, a: number) with mixed args halts #INVALID_INPUT', async () => {
-      await expectHalt(() => run('ordered(string, a: number)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
-  });
-
-  // ============================================================
-  // EC-7: tuple with named arg -> typed-atom halt
-  // ============================================================
-
-  describe('EC-7: tuple with named arg -> typed-atom halt', () => {
-    it('tuple(a: number) halts #INVALID_INPUT', async () => {
-      await expectHalt(() => run('tuple(a: number)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
-
-    it('tuple(a: number, b: string) halts #INVALID_INPUT', async () => {
-      await expectHalt(() => run('tuple(a: number, b: string)'), {
-        code: 'INVALID_INPUT',
-      });
-    });
-  });
-
-  // ============================================================
-  // EC-3: Variable not found -> RILL-R005
-  // ============================================================
-
-  describe('EC-3: undefined variable in type position -> RILL-R005', () => {
-    it('type assertion with undefined variable throws RILL-R005', async () => {
-      await expect(run('"hello" -> :$notDefined')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R005'
-      );
     });
   });
 

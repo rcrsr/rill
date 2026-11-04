@@ -20,12 +20,21 @@
  * pass<async: true>({ body }) is invalid syntax (parser rejects it as a missing body block).
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createRuntimeContext, execute, parse, ParseError } from '@rcrsr/rill';
 import { invalidate } from '../../src/runtime/core/types/status.js';
 import { createTraceFrame } from '../../src/runtime/core/types/trace.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 import { run, runWithContext } from '../helpers/runtime.js';
+
+/** A promise the test resolves explicitly, so no test depends on elapsed time. */
+function createDeferred(): { promise: Promise<void>; resolve: () => void } {
+  let resolve: () => void = () => undefined;
+  const promise = new Promise<void>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+}
 
 // ---------------------------------------------------------------------------
 // AC-2 / SC-2: pass<async: true> flows pipe-entry value downstream unchanged
@@ -61,21 +70,24 @@ describe('AC-2 / SC-2: pass<async: true> flows pipe-entry value downstream', () 
     // We assert both that pass<async:> returned the pipe-entry value AND
     // that the host function was eventually called.
     let sideEffectRan = false;
-    const result = await run('"input" -> pass<async: true> { record_run() }', {
-      functions: {
-        record_run: {
-          params: [],
-          returnType: { __type: 'any' } as never,
-          fn: async () => {
-            sideEffectRan = true;
-            return 'recorded';
+    const { result, context } = await runWithContext(
+      '"input" -> pass<async: true> { record_run() }',
+      {
+        functions: {
+          record_run: {
+            params: [],
+            returnType: { __type: 'any' } as never,
+            fn: async () => {
+              sideEffectRan = true;
+              return 'recorded';
+            },
           },
         },
-      },
-    });
-    expect(result).toBe('input');
-    // Allow microtasks and the async body's promise to settle.
-    await new Promise<void>((resolve) => setTimeout(resolve, 20));
+      }
+    );
+    expect(result.result).toBe('input');
+    // dispose() awaits the tracked body promise.
+    await context.dispose();
     expect(sideEffectRan).toBe(true);
   });
 
@@ -165,7 +177,8 @@ describe('AC-21 / BC-4: async body settles correctly at dispose-time', () => {
   });
 
   it('async body with short delay settles within dispose window', async () => {
-    let completedAt: number | undefined;
+    let completed = false;
+    const gate = createDeferred();
     const { context } = await runWithContext(
       '"x" -> pass<async: true> { delay_record() }',
       {
@@ -174,8 +187,8 @@ describe('AC-21 / BC-4: async body settles correctly at dispose-time', () => {
             params: [],
             returnType: { __type: 'any' } as never,
             fn: async () => {
-              await new Promise<void>((resolve) => setTimeout(resolve, 30));
-              completedAt = Date.now();
+              await gate.promise;
+              completed = true;
               return 'delayed';
             },
           },
@@ -183,11 +196,22 @@ describe('AC-21 / BC-4: async body settles correctly at dispose-time', () => {
       }
     );
 
-    // Before dispose, the body may or may not have completed yet.
-    await context.dispose();
+    // The body is blocked on the gate, so dispose() must stay pending.
+    let disposed = false;
+    const disposal = context.dispose().then(() => {
+      disposed = true;
+    });
+    try {
+      for (let tick = 0; tick < 10; tick++) await Promise.resolve();
+      expect(disposed).toBe(false);
+      expect(completed).toBe(false);
+    } finally {
+      gate.resolve();
+    }
+    await disposal;
 
-    // After dispose() returns, all in-flight work has settled.
-    expect(completedAt).toBeDefined();
+    expect(disposed).toBe(true);
+    expect(completed).toBe(true);
   });
 });
 
@@ -200,7 +224,7 @@ describe('EC-7: non-catchable halt in async body propagates', () => {
     // The runBody lambda in evaluatePassBlock re-throws non-catchable halts
     // (catchable:false) per §NOD.10.4. The trackInflight promise rejects.
     // We verify by intercepting trackInflight before execute().
-    let inflightRejected = false;
+    let captured: Promise<unknown> | undefined;
 
     const ast = parse('"v" -> pass<async: true> { uncatchable_fn() }');
     const ctx = createRuntimeContext({
@@ -228,16 +252,14 @@ describe('EC-7: non-catchable halt in async body propagates', () => {
     const originalTrackInflight = ctx.trackInflight.bind(ctx);
     ctx.trackInflight = (promise: Promise<unknown>) => {
       originalTrackInflight(promise);
-      promise.catch(() => {
-        inflightRejected = true;
-      });
+      captured = promise;
     };
 
     await execute(ast, ctx);
-    // Allow microtasks to settle.
-    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    expect(captured).toBeDefined();
+    const [outcome] = await Promise.allSettled([captured]);
 
-    expect(inflightRejected).toBe(true);
+    expect(outcome?.status).toBe('rejected');
   });
 
   it('non-catchable body halt does not cause dispose() to throw (allSettled)', async () => {
@@ -280,7 +302,7 @@ describe('EC-8: catchable halt without on_error: #IGNORE surfaces at dispose', (
   it('catchable body halt without suppress causes inflight promise rejection', async () => {
     // Without on_error: #IGNORE, catchable halts from the body re-throw from
     // runBody. The trackInflight promise rejects.
-    let inflightRejected = false;
+    let captured: Promise<unknown> | undefined;
 
     const ast = parse('"v" -> pass<async: true> { bad_type_op() }');
     const ctx = createRuntimeContext({
@@ -303,22 +325,20 @@ describe('EC-8: catchable halt without on_error: #IGNORE surfaces at dispose', (
     const originalTrackInflight = ctx.trackInflight.bind(ctx);
     ctx.trackInflight = (promise: Promise<unknown>) => {
       originalTrackInflight(promise);
-      promise.catch(() => {
-        inflightRejected = true;
-      });
+      captured = promise;
     };
 
     await execute(ast, ctx);
-    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    expect(captured).toBeDefined();
+    const [outcome] = await Promise.allSettled([captured]);
 
-    expect(inflightRejected).toBe(true);
+    expect(outcome?.status).toBe('rejected');
   });
 
   it('catchable body halt IS suppressed when on_error: #IGNORE is set', async () => {
     // With on_error: #IGNORE, the catchable halt is swallowed; inflight promise
     // resolves without rejection.
-    let inflightRejected = false;
-    let inflightSettled = false;
+    let captured: Promise<unknown> | undefined;
 
     const ast = parse(
       '"v" -> pass<async: true, on_error: #IGNORE> { bad_type_suppressed() }'
@@ -347,20 +367,14 @@ describe('EC-8: catchable halt without on_error: #IGNORE surfaces at dispose', (
     const originalTrackInflight = ctx.trackInflight.bind(ctx);
     ctx.trackInflight = (promise: Promise<unknown>) => {
       originalTrackInflight(promise);
-      promise
-        .then(() => {
-          inflightSettled = true;
-        })
-        .catch(() => {
-          inflightRejected = true;
-        });
+      captured = promise;
     };
 
     await execute(ast, ctx);
-    await new Promise<void>((resolve) => setTimeout(resolve, 10));
+    expect(captured).toBeDefined();
+    const [outcome] = await Promise.allSettled([captured]);
 
-    expect(inflightRejected).toBe(false);
-    expect(inflightSettled).toBe(true);
+    expect(outcome?.status).toBe('fulfilled');
   });
 });
 
@@ -371,6 +385,7 @@ describe('EC-8: catchable halt without on_error: #IGNORE surfaces at dispose', (
 describe('EC-9: dispose() awaits in-flight async bodies', () => {
   it('dispose() waits for short-running async body before returning', async () => {
     const settled: string[] = [];
+    const gate = createDeferred();
 
     const { context } = await runWithContext(
       '"v" -> pass<async: true> { short_async() }',
@@ -380,7 +395,7 @@ describe('EC-9: dispose() awaits in-flight async bodies', () => {
             params: [],
             returnType: { __type: 'any' } as never,
             fn: async () => {
-              await new Promise<void>((resolve) => setTimeout(resolve, 50));
+              await gate.promise;
               settled.push('body');
               return 'done';
             },
@@ -389,22 +404,37 @@ describe('EC-9: dispose() awaits in-flight async bodies', () => {
       }
     );
 
-    // Before dispose, body may not have settled yet.
-    const beforeDispose = settled.length;
-    await context.dispose();
-    // After dispose, body must have settled (DISPOSE_TIMEOUT_MS = 5000ms > 50ms).
-    expect(settled.length).toBeGreaterThan(beforeDispose);
-    expect(settled).toContain('body');
+    // The body is blocked on the gate, so dispose() must stay pending.
+    let disposed = false;
+    const disposal = context.dispose().then(() => {
+      disposed = true;
+    });
+    try {
+      for (let tick = 0; tick < 10; tick++) await Promise.resolve();
+      expect(disposed).toBe(false);
+      expect(settled).toEqual([]);
+    } finally {
+      gate.resolve();
+    }
+    await disposal;
+
+    expect(disposed).toBe(true);
+    expect(settled).toEqual(['body']);
   });
 
   it('dispose() with no in-flight bodies returns immediately', async () => {
     // pass<async: false> (sync path) does not register with trackInflight.
-    const { context } = await runWithContext('"v" -> pass<async: false> { $ }');
-    const start = Date.now();
-    await context.dispose();
-    const elapsed = Date.now() - start;
-    // Should complete nearly instantly — well under 1000ms.
-    expect(elapsed).toBeLessThan(1000);
+    // Fake timers never advance, so dispose() resolving proves it waits on
+    // no timer.
+    vi.useFakeTimers();
+    try {
+      const { context } = await runWithContext(
+        '"v" -> pass<async: false> { $ }'
+      );
+      await expect(context.dispose()).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('dispose() resolves even when async body throws synchronously', async () => {

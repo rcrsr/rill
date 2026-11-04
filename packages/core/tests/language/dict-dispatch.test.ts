@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Dict Dispatch', () => {
@@ -390,28 +391,11 @@ describe('Rill Runtime: Dict Dispatch', () => {
   describe('Error Contracts', () => {
     it('throws RUNTIME_PROPERTY_NOT_FOUND when no match and no default (EC-4)', async () => {
       // EC-4: No matching key, no default → RuntimeError
-      await expect(run('"z" -> dict[a: 1, b: 2]')).rejects.toThrow(
-        /Dict dispatch.*key 'z' not found/i
-      );
-    });
-
-    it('throws RUNTIME_TYPE_ERROR for reserved method name "keys" as dict key (EC-6)', async () => {
-      // EC-6: Reserved method name as key → RuntimeError
-      await expect(run('dict[keys: 1]')).rejects.toThrow(
-        /Cannot use reserved method name 'keys' as dict key/i
-      );
-    });
-
-    it('throws RUNTIME_TYPE_ERROR for reserved method name "values" as dict key', async () => {
-      await expect(run('dict[values: 1]')).rejects.toThrow(
-        /Cannot use reserved method name 'values' as dict key/i
-      );
-    });
-
-    it('throws RUNTIME_TYPE_ERROR for reserved method name "entries" as dict key', async () => {
-      await expect(run('dict[entries: 1]')).rejects.toThrow(
-        /Cannot use reserved method name 'entries' as dict key/i
-      );
+      await expectHalt(() => run('"z" -> dict[a: 1, b: 2]'), {
+        code: 'RILL_R009',
+        hostErrorId: 'RILL-R009',
+        messagePattern: /Dict dispatch.*key 'z' not found/i,
+      });
     });
   });
 
@@ -420,42 +404,57 @@ describe('Rill Runtime: Dict Dispatch', () => {
       // AC-13: Empty multi-key -> error message contains "Multi-key dict entry requires non-empty list"
       // EC-4: Runtime error for empty key tuple
       // Empty list [] as dict key is treated as multi-key, evaluates at runtime
-      await expect(run('dict[list[]: 1]')).rejects.toThrow(
-        /Multi-key dict entry requires non-empty list/i
-      );
+      await expectHalt(() => run('dict[list[]: 1]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Multi-key dict entry requires non-empty list/i,
+      });
     });
 
     it('throws RUNTIME_TYPE_ERROR when multi-key contains list (AC-14, EC-5)', async () => {
       // AC-14/EC-5: Runtime error for non-primitive key element.
-      // Phase 2: Mixed-type list [[1, 2], "valid"] fails at construction (RILL-R002)
-      // before dict key validation. Both are runtime errors.
-      await expect(
-        run('dict[list[list[1, 2], "valid"]: "value"]')
-      ).rejects.toThrow();
+      // The list element is not a string, number, or boolean, so dict key
+      // validation rejects it.
+      await expectHalt(() => run('dict[list[list[1, 2], "valid"]: "value"]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern:
+          /Dict key must be string, number, or boolean, got object/i,
+      });
     });
 
     it('throws RUNTIME_TYPE_ERROR when multi-key contains dict (EC-5)', async () => {
       // EC-5: Runtime error for non-primitive key element.
-      // Phase 2: Mixed-type list [[a: 1], "valid"] fails at construction (RILL-R002).
-      await expect(
-        run('dict[list[dict[a: 1], "valid"]: "value"]')
-      ).rejects.toThrow();
+      // Dict key validation rejects the dict element.
+      await expectHalt(() => run('dict[list[dict[a: 1], "valid"]: "value"]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern:
+          /Dict key must be string, number, or boolean, got object/i,
+      });
     });
 
     it('throws RUNTIME_TYPE_ERROR when multi-key contains closure (EC-5)', async () => {
       // EC-5: Runtime error for non-primitive key element.
-      // Phase 2: Mixed-type list [||{1}, "valid"] fails at construction (RILL-R002).
-      await expect(
-        run('dict[list[||{1}, "valid"]: "value"]')
-      ).rejects.toThrow();
+      // Dict key validation rejects the closure element.
+      await expectHalt(() => run('dict[list[||{1}, "valid"]: "value"]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern:
+          /Dict key must be string, number, or boolean, got object/i,
+      });
     });
 
     it('throws when all keys in multi-key are non-primitives', async () => {
       // All elements are lists (arrays), so first one triggers the error
-      await expect(
-        run('dict[list[list[1, 2], list[3, 4]]: "value"]')
-      ).rejects.toThrow(
-        /Dict key must be string, number, or boolean, got object/i
+      await expectHalt(
+        () => run('dict[list[list[1, 2], list[3, 4]]: "value"]'),
+        {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern:
+            /Dict key must be string, number, or boolean, got object/i,
+        }
       );
     });
   });

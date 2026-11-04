@@ -23,6 +23,7 @@ import {
   execute,
   isAtom,
   parse,
+  ParseError,
   parseWithRecovery,
   resolveAtom,
   type RillAtomValue,
@@ -266,15 +267,6 @@ describe('-> atom pipe target (AC-8, AC-9, AC-37, AC-38)', () => {
 });
 
 describe('isAtom safety (EC-4, AC-27)', () => {
-  it('AC-27: rejects legacy `__rill_code` brand (no coercion from old marker)', () => {
-    // Regression guard: prior to the atom rename, `:atom` values carried a
-    // `__rill_code: true` brand. `isAtom` must NOT treat legacy-shaped
-    // objects as atoms post-rename, even when they carry the old brand
-    // alongside atom-shaped fields.
-    const legacy = { __rill_code: true, name: 'TIMEOUT', kind: 'default' };
-    expect(isAtom(legacy)).toBe(false);
-  });
-
   it('EC-4: returns false without throwing for arbitrary non-atom inputs', () => {
     // `isAtom` must be total: it accepts `unknown` and returns a boolean
     // for every input, never throwing.
@@ -319,42 +311,6 @@ describe('Atom runtime evaluation (Phase 2)', () => {
 // ============================================================
 
 describe('Legacy `:code` type syntax rejected after rename', () => {
-  it('EC-8 / AC-24: `$x :code` produces an unknown-type parse error (VALID_TYPE_NAMES membership failure)', () => {
-    // After the `code` -> `atom` rename, the string literal `code` is no
-    // longer a member of VALID_TYPE_NAMES. The parser reaches `:code`
-    // through the type-assertion path and rejects it via parseTypeName's
-    // membership check, producing a ParseError. `atom` remains listed,
-    // which anchors this as a regression guard for the rename.
-    const src = '"abc" => $x\n$x :code';
-    expect(() => parse(src)).toThrow(/Invalid type: code/);
-    // Confirm the valid replacement still parses, guarding against the
-    // error firing for unrelated reasons.
-    expect(() => parse('"abc" => $x\n$x :atom')).not.toThrow();
-  });
-
-  it('EC-9 / AC-25: `:code("TIMEOUT")` as a pipe target produces an unknown-type parse error', () => {
-    // `:code("TIMEOUT")` was the pre-rename parameterised conversion form.
-    // After the rename, the parser's existing VALID_TYPE_NAMES dispatch
-    // rejects `code`. The error message cites the allowed list, which
-    // must contain `atom` and must NOT contain `code`.
-    const src = '"x" -> :code("TIMEOUT")';
-    expect(() => parse(src)).toThrow(/Invalid type: code/);
-    // The error message enumerates the allowed type names. After the
-    // rename `atom` is present, and the enumerated-list portion must not
-    // contain `code`.
-    try {
-      parse(src);
-      expect.unreachable('expected ParseError');
-    } catch (e) {
-      const msg = (e as Error).message;
-      // `atom` appears in the allowed list.
-      expect(msg).toMatch(/expected:[^)]*\batom\b/);
-      // `code` appears only in the "Invalid type: code" prefix, NOT in
-      // the enumerated allowed list.
-      expect(msg).not.toMatch(/expected:[^)]*\bcode\b/);
-    }
-  });
-
   it('EC-9 / AC-25: bare `:code("TIMEOUT")` statement produces a parse error', () => {
     // When `:code("TIMEOUT")` appears at the head of a statement (not as a
     // pipe target), the parser rejects the leading `:` via the existing
@@ -363,5 +319,20 @@ describe('Legacy `:code` type syntax rejected after rename', () => {
     // dispatcher; this test guards the broader "parse error or
     // unknown-operator error" contract from the spec.
     expect(() => parse(':code("TIMEOUT")')).toThrow(/Unexpected token: :/);
+  });
+
+  it('rejects `code` as a type name while `atom` stays allowed', () => {
+    let caught: unknown;
+    try {
+      parse('"x" -> :code("TIMEOUT")');
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(ParseError);
+    expect((caught as ParseError).errorId).toBe('RILL-P003');
+    const message = (caught as ParseError).message;
+    expect(message).toMatch(/\batom\b/);
+    expect(message).not.toMatch(/expected:.*\bcode\b/);
+    expect(() => parse('"abc" => $x\n$x :atom')).not.toThrow();
   });
 });

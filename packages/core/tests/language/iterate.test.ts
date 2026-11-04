@@ -213,9 +213,14 @@ describe('iterate: EC-15 — non-catchable closure halt propagates', () => {
 
   it('non-catchable halt is NOT recoverable via guard', async () => {
     // guard only recovers catchable halts. A non-catchable halt bypasses guard.
-    await expect(
-      run('guard { iterate(0, { error "nope" }) -> take(5) } ?? 0')
-    ).rejects.toThrow();
+    await expectHalt(
+      () => run('guard { iterate(0, { error "nope" }) -> take(5) } ?? 0'),
+      {
+        code: 'RILL_R016',
+        hostErrorId: 'RILL-R016',
+        messagePattern: 'nope',
+      }
+    );
   });
 });
 

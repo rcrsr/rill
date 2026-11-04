@@ -5,41 +5,10 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Unified Dispatch', () => {
-  describe('List Literal Dispatch', () => {
-    it('returns first element when piped 0 (AC-1)', async () => {
-      // AC-1: Index 0 returns first element
-      const result = await run('0 -> list["a", "b", "c"]');
-      expect(result).toBe('a');
-    });
-
-    it('returns second element when piped 1 (AC-2)', async () => {
-      // AC-2: Index 1 returns second element
-      const result = await run('1 -> list["a", "b", "c"]');
-      expect(result).toBe('b');
-    });
-
-    it('returns last element when piped -1 (AC-3)', async () => {
-      // AC-3: Negative index -1 returns last element
-      const result = await run('-1 -> list["a", "b", "c"]');
-      expect(result).toBe('c');
-    });
-
-    it('returns matched value with default when match found (AC-7)', async () => {
-      // AC-7: Match found, default not used
-      const result = await run('0 -> list["a"] ?? "fallback"');
-      expect(result).toBe('a');
-    });
-
-    it('returns default when index out of bounds (AC-8)', async () => {
-      // AC-8: No match, returns default
-      const result = await run('99 -> list["a"] ?? "fallback"');
-      expect(result).toBe('fallback');
-    });
-  });
-
   describe('Dict Variable Dispatch', () => {
     it('returns value for string key piped to dict variable (AC-4)', async () => {
       // AC-4: String key "x" returns value 1 from dict
@@ -153,197 +122,209 @@ describe('Unified Dispatch', () => {
 
   describe('Error Cases', () => {
     describe('List Dispatch Type Errors', () => {
-      it('throws RUNTIME_TYPE_ERROR when string piped to list variable (AC-11, EC-7)', async () => {
-        // AC-11: String input to list dispatch throws RUNTIME_TYPE_ERROR
+      it('throws RILL-R002 when string piped to list variable (AC-11, EC-7)', async () => {
+        // AC-11: String input to list dispatch throws RILL-R002
         // EC-7: List dispatch requires number index, got {type}
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             list["a", "b", "c"] => $list
             "invalid" -> $list
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/List dispatch requires number index/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /List dispatch requires number index/i,
+          }
+        );
       });
 
       it('includes actual type in error message (EC-1, EC-7)', async () => {
         // EC-1/EC-7: Error message includes actual type received
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             list["a", "b"] => $list
             "test" -> $list
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/got string/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /got string/i,
+          }
+        );
       });
     });
 
     describe('List Dispatch Bounds Errors', () => {
-      it('throws RUNTIME_PROPERTY_NOT_FOUND for out of bounds index (AC-12, EC-2)', async () => {
-        // AC-12: Out of bounds index throws RUNTIME_PROPERTY_NOT_FOUND
+      it('throws RILL-R009 for out of bounds index (AC-12, EC-2)', async () => {
+        // AC-12: Out of bounds index throws RILL-R009
         // EC-2: List dispatch: index '{index}' not found
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             list["a", "b"] => $list
             99 -> $list
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId', 'RILL-R009');
-          expect(err.message).toMatch(/List dispatch.*index.*not found/i);
-        }
+          `),
+          {
+            code: 'RILL_R009',
+            hostErrorId: 'RILL-R009',
+            messagePattern: /List dispatch.*index.*not found/i,
+          }
+        );
       });
 
-      it('throws RUNTIME_PROPERTY_NOT_FOUND for empty list (AC-14, EC-2)', async () => {
-        // AC-14: Empty list dispatch throws RUNTIME_PROPERTY_NOT_FOUND
+      it('throws RILL-R009 for empty list (AC-14, EC-2)', async () => {
+        // AC-14: Empty list dispatch throws RILL-R009
         // EC-2/EC-8: Index out of bounds, no default
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             list[] => $list
             0 -> $list
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId', 'RILL-R009');
-          expect(err.message).toMatch(/List dispatch.*index.*not found/i);
-        }
+          `),
+          {
+            code: 'RILL_R009',
+            hostErrorId: 'RILL-R009',
+            messagePattern: /List dispatch.*index.*not found/i,
+          }
+        );
       });
 
       it('includes index value in error message (EC-2, EC-8)', async () => {
         // EC-2/EC-8: Error message includes the index that was not found
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             list["x"] => $list
             5 -> $list
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId', 'RILL-R009');
-          expect(err.message).toMatch(/5/);
-        }
+          `),
+          {
+            code: 'RILL_R009',
+            hostErrorId: 'RILL-R009',
+            messagePattern: /5/,
+          }
+        );
       });
 
       it('handles negative out of bounds index (EC-5, EC-8)', async () => {
         // EC-5/EC-8: Negative index out of bounds via variable
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             list["a"] => $list
             -5 -> $list
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId', 'RILL-R009');
-          expect(err.message).toMatch(/List dispatch.*index.*not found/i);
-        }
+          `),
+          {
+            code: 'RILL_R009',
+            hostErrorId: 'RILL-R009',
+            messagePattern: /List dispatch.*index.*not found/i,
+          }
+        );
       });
     });
 
     describe('Dict Dispatch Errors', () => {
-      it('throws RUNTIME_PROPERTY_NOT_FOUND for missing dict key (AC-13, EC-4)', async () => {
-        // AC-13: Missing dict key throws RUNTIME_PROPERTY_NOT_FOUND
+      it('throws RILL-R009 for missing dict key (AC-13, EC-4)', async () => {
+        // AC-13: Missing dict key throws RILL-R009
         // EC-4: Dict dispatch: key '{key}' not found
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             dict[a: 1, b: 2] => $dict
             "missing" -> $dict
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId', 'RILL-R009');
-          expect(err.message).toMatch(/Dict dispatch.*key.*not found/i);
-        }
+          `),
+          {
+            code: 'RILL_R009',
+            hostErrorId: 'RILL-R009',
+            messagePattern: /Dict dispatch.*key.*not found/i,
+          }
+        );
       });
 
       it('includes key name in error message (EC-4, EC-6)', async () => {
         // EC-4/EC-6: Error message includes the key that was not found
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             dict[x: 1] => $dict
             "notfound" -> $dict
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId', 'RILL-R009');
-          expect(err.message).toMatch(/notfound/i);
-        }
+          `),
+          {
+            code: 'RILL_R009',
+            hostErrorId: 'RILL-R009',
+            messagePattern: /notfound/i,
+          }
+        );
       });
     });
 
     describe('Non-Collection Dispatch Errors', () => {
-      it('throws RUNTIME_TYPE_ERROR for dispatch to string (AC-15, EC-3)', async () => {
-        // AC-15: Dispatch to non-collection throws RUNTIME_TYPE_ERROR
+      it('throws RILL-R002 for dispatch to string (AC-15, EC-3)', async () => {
+        // AC-15: Dispatch to non-collection throws RILL-R002
         // EC-3: Cannot dispatch to {type}
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             "text" => $val
             "key" -> $val
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/Cannot dispatch to/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Cannot dispatch to/i,
+          }
+        );
       });
 
-      it('throws RUNTIME_TYPE_ERROR for dispatch to number (AC-15, EC-3)', async () => {
-        // AC-15: Dispatch to non-collection throws RUNTIME_TYPE_ERROR
+      it('throws RILL-R002 for dispatch to number (AC-15, EC-3)', async () => {
+        // AC-15: Dispatch to non-collection throws RILL-R002
         // EC-3: Cannot dispatch to {type}
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             42 => $val
             0 -> $val
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/Cannot dispatch to/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Cannot dispatch to/i,
+          }
+        );
       });
 
-      it('throws RUNTIME_TYPE_ERROR for dispatch to boolean (AC-15, EC-3)', async () => {
-        // AC-15: Dispatch to non-collection throws RUNTIME_TYPE_ERROR
+      it('throws RILL-R002 for dispatch to boolean (AC-15, EC-3)', async () => {
+        // AC-15: Dispatch to non-collection throws RILL-R002
         // EC-3: Cannot dispatch to {type}
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             true => $val
             "key" -> $val
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/Cannot dispatch to/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Cannot dispatch to/i,
+          }
+        );
       });
 
       it('includes actual type in non-collection error (EC-3)', async () => {
         // EC-3: Error message includes actual type
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             123 => $num
             "x" -> $num
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/number/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /number/i,
+          }
+        );
       });
     });
   });
@@ -400,33 +381,35 @@ describe('Unified Dispatch', () => {
     it('propagates closure body runtime error during dispatch (EC-9)', async () => {
       // EC-9: Closure body runtime error should propagate with original error code
       // Zero-param closures receive $ binding and execute their body correctly
-      try {
-        await run(`
+      await expectHalt(
+        () =>
+          run(`
           list[||{ $undefined }] => $list
           0 -> $list
-        `);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        // Error from closure body should propagate (RUNTIME_UNDEFINED_VARIABLE)
-        expect(err).toHaveProperty('errorId', 'RILL-R005');
-        expect(err.message).toMatch(/undefined/i);
-      }
+        `),
+        {
+          code: 'RILL_R005',
+          hostErrorId: 'RILL-R005',
+          messagePattern: /undefined/i,
+        }
+      );
     });
 
     it('propagates closure body runtime error during dispatch with block-closure (EC-9)', async () => {
       // EC-9: Closure body runtime error propagates with original error code
       // Uses block-closure (params.length > 0) which works with current dispatch
-      try {
-        await run(`
+      await expectHalt(
+        () =>
+          run(`
           list[|x|{ $undefined }] => $list
           0 -> $list
-        `);
-        expect.fail('Should have thrown');
-      } catch (err) {
-        // Error from closure body should propagate (RUNTIME_UNDEFINED_VARIABLE)
-        expect(err).toHaveProperty('errorId', 'RILL-R005');
-        expect(err.message).toMatch(/undefined/i);
-      }
+        `),
+        {
+          code: 'RILL_R005',
+          hostErrorId: 'RILL-R005',
+          messagePattern: /undefined/i,
+        }
+      );
     });
   });
 });

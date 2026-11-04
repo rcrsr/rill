@@ -11,22 +11,7 @@ import { describe, expect, it } from 'vitest';
 import { parse, ParseError, isTuple } from '@rcrsr/rill';
 
 import { run, runWithContext } from '../helpers/runtime.js';
-
-// Helper to check if a value is an ordered collection
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
-  );
-}
-
-// Helper to get ordered entries
-function orderedEntries(value: unknown): [string, unknown][] {
-  if (!isOrdered(value)) throw new Error('Not an ordered value');
-  return (value as { entries: [string, unknown][] }).entries;
-}
+import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 describe('Rill Language: Keyword-Prefixed Collection Literals', () => {
   // ============================================================

@@ -13,9 +13,11 @@ import type {
   ResolverResult,
   SchemeResolver,
   StatementNode,
+  VariableNode,
 } from '@rcrsr/rill';
 
 import { run as runWithOptions } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 async function run(code: string) {
   const ctx = createRuntimeContext({});
@@ -362,35 +364,21 @@ describe('implicit $ property access bug', () => {
 
           const memberStatement = ast.statements[1];
           expect(memberStatement?.type).toBe('Statement');
-          if (memberStatement?.type === 'Statement') {
-            const expr = memberStatement.expression;
-            if (expr?.type === 'PipeChain') {
-              const head = expr.head;
-              if (head?.type === 'PostfixExpr') {
-                const variableNode = head.primary;
-                expect(variableNode?.type).toBe('Variable');
-                if (variableNode?.type === 'Variable') {
-                  expect(variableNode.accessChain).toHaveLength(1);
-                  expect(variableNode.accessChain[0]).toMatchObject({
-                    kind: 'literal',
-                    field: 'guard',
-                  });
-                }
-              }
-            }
-          }
+          const memberHead = (memberStatement as StatementNode).expression.head;
+          expect(memberHead.type).toBe('PostfixExpr');
+          const variableNode = (memberHead as PostfixExprNode).primary;
+          expect(variableNode.type).toBe('Variable');
+          expect((variableNode as VariableNode).accessChain).toHaveLength(1);
+          expect((variableNode as VariableNode).accessChain[0]).toMatchObject({
+            kind: 'literal',
+            field: 'guard',
+          });
 
           const blockStatement = ast.statements[2];
           expect(blockStatement?.type).toBe('Statement');
-          if (blockStatement?.type === 'Statement') {
-            const expr = blockStatement.expression;
-            if (expr?.type === 'PipeChain') {
-              const head = expr.head;
-              if (head?.type === 'PostfixExpr') {
-                expect(head.primary?.type).toBe('Block');
-              }
-            }
-          }
+          const blockHead = (blockStatement as StatementNode).expression.head;
+          expect(blockHead.type).toBe('PostfixExpr');
+          expect((blockHead as PostfixExprNode).primary.type).toBe('Block');
         });
 
         it('reads the "guard" field via "$d.guard" alone, confirming the member-access half of the split', async () => {
@@ -525,7 +513,10 @@ describe('implicit $ property access bug', () => {
     });
 
     it('list[1,2,3][0]:string halts with a type mismatch', async () => {
-      await expect(run('list[1,2,3][0]:string')).rejects.toThrow();
+      await expectHalt(() => run('list[1,2,3][0]:string'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'expected string, got number',
+      });
     });
 
     it('$x:number.foo — a postfix type assertion followed by a method chain — is unaffected', async () => {

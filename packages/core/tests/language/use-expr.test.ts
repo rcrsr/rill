@@ -4,9 +4,10 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { extResolver, parse, ParseError } from '@rcrsr/rill';
+import { extResolver, moduleResolver, parse, ParseError } from '@rcrsr/rill';
 import type { SchemeResolver, ResolverResult, RillValue } from '@rcrsr/rill';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 // ============================================================
@@ -163,39 +164,6 @@ describe('Rill Language: use<> Expressions', () => {
       });
     });
 
-    describe('Pipe into use<>', () => {
-      it('AC-4: "text" -> use<host:fn> passes piped string to resolved callable', async () => {
-        // Pipe a string value to a use<> that resolves to a host function.
-        // The resolved callable receives the piped value as its argument.
-        const result = await run('"piped-text" -> process', {
-          functions: {
-            process: {
-              params: [
-                {
-                  name: 'input',
-                  type: { kind: 'string' as const },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => `processed:${args['input']}`,
-            },
-          },
-        });
-        expect(result).toBe('processed:piped-text');
-      });
-
-      it('AC-4: resolved use<> callable receives piped value via function binding', async () => {
-        // The resolver returns a value; the pipe passes the left side to the right.
-        // use<> as pipe target requires the resolved value to be callable.
-        // We test via a host function for the callable itself.
-        const result = await run('"input" => $v\n$v', {
-          resolvers: { host: valueResolver(42) },
-        });
-        expect(result).toBe('input');
-      });
-    });
-
     describe('Inline invocation with ext member resolution', () => {
       it('AC-3: use<ext:qdrant.search>(...) resolves member and invokes with 3 args', async () => {
         const receivedArgs: RillValue[] = [];
@@ -337,121 +305,90 @@ describe('Rill Language: use<> Expressions', () => {
       });
     });
 
-    describe('EC-1 — RILL-R050: missing module in moduleResolver config', () => {
-      it('throws RILL-R050 when module ID absent from config', async () => {
-        // Use a resolver that mimics moduleResolver behaviour directly
-        const resolver: SchemeResolver = (resource) => {
-          const cfg: Record<string, string> = { other: './other.rill' };
-          if (!(resource in cfg)) {
-            throw Object.assign(
-              new Error(`Module '${resource}' not found in resolver config`),
-              { errorId: 'RILL-R050' }
-            );
+    describe('Real resolver failures surface as RILL-R056', () => {
+      // Every resolver throw is wrapped by use<> as a catchable RILL-R056 halt
+      // carrying the real resolver's own message.
+      it('wraps moduleResolver missing-module failure', async () => {
+        await expectHalt(
+          () =>
+            run('use<module:missing>', {
+              resolvers: { module: moduleResolver },
+              configurations: {
+                resolvers: { module: { other: '/tmp/other.rill' } },
+              },
+            }),
+          {
+            code: 'RILL_R056',
+            hostErrorId: 'RILL-R056',
+            messagePattern: "Module 'missing' not found in resolver config",
           }
-          return { kind: 'source', text: '' };
-        };
-        await expect(
-          run('use<module:missing>', { resolvers: { module: resolver } })
-        ).rejects.toThrow("Module 'missing' not found in resolver config");
+        );
       });
-    });
 
-    describe('EC-2 — RILL-R051: file read failure in moduleResolver', () => {
-      it('throws RILL-R051 when file cannot be read', async () => {
-        const resolver: SchemeResolver = (resource) => {
-          throw Object.assign(
-            new Error(
-              `Failed to read module '${resource}': ENOENT: no such file`
-            ),
-            { errorId: 'RILL-R051' }
-          );
-        };
-        await expect(
-          run('use<module:greetings>', { resolvers: { module: resolver } })
-        ).rejects.toThrow("Failed to read module 'greetings'");
+      it('wraps moduleResolver file read failure', async () => {
+        await expectHalt(
+          () =>
+            run('use<module:greetings>', {
+              resolvers: { module: moduleResolver },
+              configurations: {
+                resolvers: {
+                  module: { greetings: '/nonexistent-rill-dir/greetings.rill' },
+                },
+              },
+            }),
+          {
+            code: 'RILL_R056',
+            hostErrorId: 'RILL-R056',
+            messagePattern: "Failed to read module 'greetings'",
+          }
+        );
       });
-    });
 
-    describe('EC-3 — RILL-R059: invalid config for moduleResolver', () => {
-      it('throws RILL-R059 when config is not a plain object', async () => {
-        const resolver: SchemeResolver = (_resource, config) => {
-          if (
-            typeof config !== 'object' ||
-            config === null ||
-            Array.isArray(config)
-          ) {
-            throw Object.assign(
-              new Error('moduleResolver config must be a plain object'),
-              { errorId: 'RILL-R059' }
-            );
+      it('wraps moduleResolver invalid config failure', async () => {
+        await expectHalt(
+          () =>
+            run('use<module:greetings>', {
+              resolvers: { module: moduleResolver },
+              configurations: { resolvers: { module: 'not-an-object' } },
+            }),
+          {
+            code: 'RILL_R056',
+            hostErrorId: 'RILL-R056',
+            messagePattern: 'moduleResolver config must be a plain object',
           }
-          return { kind: 'value', value: 'ok' };
-        };
-        await expect(
-          run('use<module:greetings>', {
-            resolvers: { module: resolver },
-            configurations: { resolvers: { module: 'not-an-object' } },
-          })
-        ).rejects.toThrow('moduleResolver config must be a plain object');
+        );
       });
-    });
 
-    describe('EC-4 — RILL-R052: extension absent from extResolver config', () => {
-      it('throws RILL-R052 when extension name not in config', async () => {
-        const resolver: SchemeResolver = (resource) => {
-          const cfg: Record<string, unknown> = {};
-          const name = resource.split('.')[0] ?? resource;
-          if (!(name in cfg)) {
-            throw Object.assign(
-              new Error(`Extension '${name}' not found in resolver config`),
-              { errorId: 'RILL-R052' }
-            );
+      it('wraps extResolver absent-extension failure', async () => {
+        await expectHalt(
+          () =>
+            run('use<ext:qdrant>', {
+              resolvers: { ext: extResolver },
+              configurations: { resolvers: { ext: {} } },
+            }),
+          {
+            code: 'RILL_R056',
+            hostErrorId: 'RILL-R056',
+            messagePattern: "Extension 'qdrant' not found in resolver config",
           }
-          return { kind: 'value', value: null };
-        };
-        await expect(
-          run('use<ext:qdrant>', { resolvers: { ext: resolver } })
-        ).rejects.toThrow("Extension 'qdrant' not found in resolver config");
+        );
       });
-    });
 
-    describe('EC-5 — RILL-R053: missing member in extResolver', () => {
-      it('throws RILL-R053 when member path not found', async () => {
-        const resolver: SchemeResolver = (resource) => {
-          const cfg: Record<string, unknown> = { qdrant: { search: 'ok' } };
-          const segments = resource.split('.');
-          const name = segments[0] ?? resource;
-          if (!(name in cfg)) {
-            throw Object.assign(
-              new Error(`Extension '${name}' not found in resolver config`),
-              { errorId: 'RILL-R052' }
-            );
+      it('wraps extResolver missing-member failure', async () => {
+        await expectHalt(
+          () =>
+            run('use<ext:qdrant.nonexistent>', {
+              resolvers: { ext: extResolver },
+              configurations: {
+                resolvers: { ext: { qdrant: { search: 'ok' } } },
+              },
+            }),
+          {
+            code: 'RILL_R056',
+            hostErrorId: 'RILL-R056',
+            messagePattern:
+              "Member 'nonexistent' not found in extension 'qdrant'",
           }
-          let value = cfg[name] as Record<string, unknown>;
-          for (let i = 1; i < segments.length; i++) {
-            const seg = segments[i] as string;
-            if (
-              typeof value !== 'object' ||
-              value === null ||
-              !(seg in value)
-            ) {
-              const path = segments.slice(1, i + 1).join('.');
-              throw Object.assign(
-                new Error(`Member '${path}' not found in extension '${name}'`),
-                { errorId: 'RILL-R053' }
-              );
-            }
-            value = value[seg] as Record<string, unknown>;
-          }
-          return {
-            kind: 'value',
-            value: value as import('@rcrsr/rill').RillValue,
-          };
-        };
-        await expect(
-          run('use<ext:qdrant.nonexistent>', { resolvers: { ext: resolver } })
-        ).rejects.toThrow(
-          "Member 'nonexistent' not found in extension 'qdrant'"
         );
       });
     });

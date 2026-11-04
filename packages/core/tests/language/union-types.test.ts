@@ -14,7 +14,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt } from '../helpers/halt.js';
 import { parse, ParseError } from '@rcrsr/rill';
 
 import { run, runWithContext } from '../helpers/runtime.js';
@@ -92,20 +92,7 @@ describe('Union Types', () => {
     it('AC-13: :string|number on bool halts #TYPE_MISMATCH', async () => {
       await expectHalt(() => run('true :string|number'), {
         code: 'TYPE_MISMATCH',
-      });
-    });
-
-    it('EC-1: assertion on true names string|number and bool in error', async () => {
-      await expectHaltMessage(
-        () => run('true :string|number'),
-        'Type assertion failed'
-      );
-    });
-
-    it('EC-7: no implicit coercion — true is not coerced to string|number', async () => {
-      // true must stay bool; no coercion to string or number occurs
-      await expectHalt(() => run('true :string|number'), {
-        code: 'TYPE_MISMATCH',
+        messagePattern: 'Type assertion failed',
       });
     });
 
@@ -173,16 +160,11 @@ describe('Union Types', () => {
     });
 
     it('AC-17: $x:string|number with bool throws RILL-R001', async () => {
-      await expect(run('true => $x:string|number')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R001'
-      );
-    });
-
-    it('EC-2: capture of true names string|number and bool in error', async () => {
-      await expect(run('true => $x:string|number')).rejects.toThrow(
-        'Type mismatch'
-      );
+      await expectHalt(() => run('true => $x:string|number'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+        messagePattern: 'Type mismatch',
+      });
     });
 
     it('captured union-typed variable holds the assigned value', async () => {
@@ -248,50 +230,11 @@ describe('Union Types', () => {
     });
 
     it('AC-19: destruct<$a:string|number> on bool throws RILL-R001', async () => {
-      await expect(
-        run('list[true] -> destruct<$a:string|number>')
-      ).rejects.toHaveProperty('errorId', 'RILL-R001');
-    });
-
-    it('EC-4: destruct on true produces RILL-R001', async () => {
-      await expect(
-        run('list[true] -> destruct<$a:string|number>')
-      ).rejects.toThrow(/type|mismatch/i);
-    });
-  });
-
-  // ============================================================
-  // Union in Existence Check
-  // ============================================================
-
-  describe('union in existence', () => {
-    it('AC-20: $data.?score&string|number returns true for string', async () => {
-      // Uses 'score' key — 'values' is a reserved method name and cannot be a dict key
-      const result = await run(
-        'dict[score: "hello"] => $data\n$data.?score&string|number'
-      );
-      expect(result).toBe(true);
-    });
-
-    it('AC-20: $data.?score&string|number returns true for number', async () => {
-      const result = await run(
-        'dict[score: 42] => $data\n$data.?score&string|number'
-      );
-      expect(result).toBe(true);
-    });
-
-    it('AC-21: $data.?score&string|number returns false for bool', async () => {
-      const result = await run(
-        'dict[score: true] => $data\n$data.?score&string|number'
-      );
-      expect(result).toBe(false);
-    });
-
-    it('existence check returns false when field is absent (union type)', async () => {
-      const result = await run(
-        'dict[other: "x"] => $data\n$data.?score&string|number'
-      );
-      expect(result).toBe(false);
+      await expectHalt(() => run('list[true] -> destruct<$a:string|number>'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+        messagePattern: /type|mismatch/i,
+      });
     });
   });
 

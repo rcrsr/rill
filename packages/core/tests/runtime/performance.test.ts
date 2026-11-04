@@ -77,4 +77,106 @@ describe('Rill Runtime: Performance Regression', () => {
 
     expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
   }, 30000);
+
+  describe('list operations scale linearly with list length', () => {
+    // Scripts take the list as a host variable so only the operation under
+    // test grows with n. Mismatches are counted and asserted after timing.
+    const buildList = (n: number): number[] =>
+      Array.from({ length: n }, (_, i) => i);
+
+    it.each([
+      ['.has', (n: number) => `$items -> .has(${n - 1})`],
+      ['.has_any', (n: number) => `$items -> .has_any(list[-1, ${n - 1}])`],
+      [
+        '.has_all',
+        (n: number) => `$items -> .has_all(list[0, ${n >> 1}, ${n - 1}])`,
+      ],
+    ])(
+      'scales linearly for %s',
+      async (_name, scriptFor) => {
+        const lists = new Map<number, number[]>();
+        for (const n of [20_000, 80_000]) lists.set(n, buildList(n));
+        const exec = async (n: number): Promise<unknown> =>
+          run(scriptFor(n), { variables: { items: lists.get(n) ?? [] } });
+
+        for (let i = 0; i < 5; i++) {
+          await exec(20_000);
+          await exec(80_000);
+        }
+
+        let mismatches = 0;
+        const ratio = await scalingRatio(
+          async (n) => {
+            if ((await exec(n)) !== true) mismatches++;
+          },
+          20_000,
+          80_000,
+          11
+        );
+
+        expect(mismatches).toBe(0);
+        expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
+      },
+      60000
+    );
+
+    it('scales linearly when spreading a list', async () => {
+      const lists = new Map<number, number[]>();
+      for (const n of [20_000, 80_000]) lists.set(n, buildList(n));
+      const exec = async (n: number): Promise<unknown> =>
+        run('list[...$items]', { variables: { items: lists.get(n) ?? [] } });
+
+      for (let i = 0; i < 5; i++) {
+        await exec(20_000);
+        await exec(80_000);
+      }
+
+      let mismatches = 0;
+      const ratio = await scalingRatio(
+        async (n) => {
+          const result = await exec(n);
+          if (!Array.isArray(result) || result.length !== n) mismatches++;
+        },
+        20_000,
+        80_000,
+        11
+      );
+
+      expect(mismatches).toBe(0);
+      expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
+    }, 60000);
+  });
+
+  it('scales linearly with the number of defaulted fields in type hydration', async () => {
+    const scriptFor = (n: number): string => {
+      const fields = Array.from(
+        { length: n },
+        (_, i) => `f${i}: string = "d"`
+      ).join(', ');
+      return `[b: "b"] -> dict(b: string, ${fields})`;
+    };
+    const scripts = new Map<number, string>();
+    for (const n of [500, 2000]) scripts.set(n, scriptFor(n));
+    const exec = async (n: number): Promise<unknown> =>
+      run(scripts.get(n) ?? '');
+
+    for (let i = 0; i < 5; i++) {
+      await exec(500);
+      await exec(2000);
+    }
+
+    let mismatches = 0;
+    const ratio = await scalingRatio(
+      async (n) => {
+        const result = (await exec(n)) as Record<string, unknown>;
+        if (Object.keys(result).length !== n + 1) mismatches++;
+      },
+      500,
+      2000,
+      11
+    );
+
+    expect(mismatches).toBe(0);
+    expect(ratio).toBeLessThan(MAX_SCALING_RATIO);
+  }, 60000);
 });

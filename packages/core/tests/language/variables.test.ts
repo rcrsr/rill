@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 import { parse, type VariableNode } from '@rcrsr/rill';
 
 describe('Rill Runtime: Variables', () => {
@@ -75,7 +76,11 @@ describe('Rill Runtime: Variables', () => {
     });
 
     it('=> type mismatch errors', async () => {
-      await expect(run('42 => $x:string')).rejects.toThrow();
+      await expectHalt(() => run('42 => $x:string'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+        messagePattern: 'cannot assign number to $x:string',
+      });
     });
 
     it('=> in loop body is per-iteration', async () => {
@@ -249,15 +254,6 @@ describe('Rill Runtime: Variables', () => {
       }
       return null;
     }
-
-    it('deprecated fields no longer exist', () => {
-      const ast = parse('$data.field[0]');
-      const variable = findVariable(ast);
-      expect(variable).not.toBeNull();
-      // fieldAccess and bracketAccess were removed in Phase 3
-      expect('fieldAccess' in variable!).toBe(false);
-      expect('bracketAccess' in variable!).toBe(false);
-    });
 
     it('accessChain contains all property accesses', () => {
       const ast = parse('$data.field[0]');

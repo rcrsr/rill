@@ -9,12 +9,27 @@ import {
   ParseError,
   type RillTypeValue,
   type RillFieldDef,
+  type PostfixExprNode,
+  type StatementNode,
+  type TypeConstructorNode,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 
 // Helper to cast run() result to RillTypeValue for host-side inspection
 async function runTypeValue(source: string): Promise<RillTypeValue> {
   return (await run(source)) as unknown as RillTypeValue;
+}
+
+// Asserts the statement is a type constructor expression and returns its head
+function parseTypeConstructorHead(
+  stmt: { type: string } | undefined
+): TypeConstructorNode {
+  expect(stmt?.type).toBe('Statement');
+  const head = (stmt as StatementNode).expression.head;
+  expect(head.type).toBe('PostfixExpr');
+  const primary = (head as PostfixExprNode).primary;
+  expect(primary.type).toBe('TypeConstructor');
+  return primary as TypeConstructorNode;
 }
 
 describe('Dict Field Annotations', () => {
@@ -25,18 +40,12 @@ describe('Dict Field Annotations', () => {
   describe('AC-1: dict(^("label") name: string) parsed and evaluated', () => {
     it('parses dict field annotation at AST level', () => {
       const ast = parse('dict(^("label") name: string)');
-      const stmt = ast.statements[0];
-      expect(stmt?.type).toBe('Statement');
-      if (stmt?.type === 'Statement' && stmt.expression.type === 'PipeChain') {
-        const head = stmt.expression.head;
-        if (head.type === 'TypeConstructor') {
-          const field = head.args[0];
-          expect(field?.name).toBe('name');
-          expect(field?.annotations).toBeDefined();
-          expect(field?.annotations).toHaveLength(1);
-          expect(field?.annotations?.[0]?.type).toBe('NamedArg');
-        }
-      }
+      const head = parseTypeConstructorHead(ast.statements[0]);
+      const field = head.args[0];
+      expect(field?.name).toBe('name');
+      expect(field?.annotations).toBeDefined();
+      expect(field?.annotations).toHaveLength(1);
+      expect(field?.annotations?.[0]?.type).toBe('NamedArg');
     });
 
     it('evaluates dict field with description annotation', async () => {
@@ -60,17 +69,11 @@ describe('Dict Field Annotations', () => {
   describe('AC-2: ordered(^("label") name: string) parsed and evaluated', () => {
     it('parses ordered field annotation at AST level', () => {
       const ast = parse('ordered(^("label") name: string)');
-      const stmt = ast.statements[0];
-      expect(stmt?.type).toBe('Statement');
-      if (stmt?.type === 'Statement' && stmt.expression.type === 'PipeChain') {
-        const head = stmt.expression.head;
-        if (head.type === 'TypeConstructor') {
-          const field = head.args[0];
-          expect(field?.name).toBe('name');
-          expect(field?.annotations).toBeDefined();
-          expect(field?.annotations).toHaveLength(1);
-        }
-      }
+      const head = parseTypeConstructorHead(ast.statements[0]);
+      const field = head.args[0];
+      expect(field?.name).toBe('name');
+      expect(field?.annotations).toBeDefined();
+      expect(field?.annotations).toHaveLength(1);
     });
 
     it('evaluates ordered field with description annotation', async () => {
@@ -93,18 +96,12 @@ describe('Dict Field Annotations', () => {
   describe('AC-3: tuple(^("x") number, ^("y") number) positional fields carry annotations', () => {
     it('parses tuple positional field annotations at AST level', () => {
       const ast = parse('tuple(^("x") number, ^("y") number)');
-      const stmt = ast.statements[0];
-      expect(stmt?.type).toBe('Statement');
-      if (stmt?.type === 'Statement' && stmt.expression.type === 'PipeChain') {
-        const head = stmt.expression.head;
-        if (head.type === 'TypeConstructor') {
-          expect(head.args).toHaveLength(2);
-          expect(head.args[0]?.annotations).toBeDefined();
-          expect(head.args[0]?.annotations).toHaveLength(1);
-          expect(head.args[1]?.annotations).toBeDefined();
-          expect(head.args[1]?.annotations).toHaveLength(1);
-        }
-      }
+      const head = parseTypeConstructorHead(ast.statements[0]);
+      expect(head.args).toHaveLength(2);
+      expect(head.args[0]?.annotations).toBeDefined();
+      expect(head.args[0]?.annotations).toHaveLength(1);
+      expect(head.args[1]?.annotations).toBeDefined();
+      expect(head.args[1]?.annotations).toHaveLength(1);
     });
 
     it('evaluates tuple with annotations at indices 0 and 1', async () => {

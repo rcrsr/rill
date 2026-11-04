@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
 import { run, runWithContext } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 // ============================================================
 // § Essentials
@@ -24,11 +25,19 @@ describe('ref-llms-full: Essentials', () => {
   });
 
   it('no truthiness: conditions must be boolean', async () => {
-    await expect(run('"" ? "yes" ! "no"')).rejects.toThrow();
+    await expectHalt(() => run('"" ? "yes" ! "no"'), {
+      code: 'RILL_R002',
+      hostErrorId: 'RILL-R002',
+      messagePattern: 'must be boolean',
+    });
   });
 
   it('variables lock to first type', async () => {
-    await expect(run('"hi" => $x\n42 => $x')).rejects.toThrow();
+    await expectHalt(() => run('"hi" => $x\n42 => $x'), {
+      code: 'RILL_R001',
+      hostErrorId: 'RILL-R001',
+      messagePattern: 'cannot assign number to $x (locked as string)',
+    });
   });
 });
 
@@ -73,11 +82,19 @@ describe('ref-llms-full: No Truthiness', () => {
   });
 
   it('"" ? "yes" ! "no" errors (not boolean)', async () => {
-    await expect(run('"" ? "yes" ! "no"')).rejects.toThrow();
+    await expectHalt(() => run('"" ? "yes" ! "no"'), {
+      code: 'RILL_R002',
+      hostErrorId: 'RILL-R002',
+      messagePattern: 'must be boolean',
+    });
   });
 
   it('0 ? "yes" ! "no" errors (not boolean)', async () => {
-    await expect(run('0 ? "yes" ! "no"')).rejects.toThrow();
+    await expectHalt(() => run('0 ? "yes" ! "no"'), {
+      code: 'RILL_R002',
+      hostErrorId: 'RILL-R002',
+      messagePattern: 'must be boolean',
+    });
   });
 
   it('(0 == 0) ? "yes" ! "no" works', async () => {
@@ -93,7 +110,11 @@ describe('ref-llms-full: No Truthiness', () => {
   });
 
   it('!"hello" errors', async () => {
-    await expect(run('!"hello"')).rejects.toThrow();
+    await expectHalt(() => run('!"hello"'), {
+      code: 'RILL_R002',
+      hostErrorId: 'RILL-R002',
+      messagePattern: 'Negation operator (!) requires boolean operand',
+    });
   });
 });
 
@@ -103,7 +124,11 @@ describe('ref-llms-full: No Truthiness', () => {
 
 describe('ref-llms-full: Variables Lock to First Type', () => {
   it('"hello" => $x then 42 => $x errors', async () => {
-    await expect(run('"hello" => $x\n42 => $x')).rejects.toThrow();
+    await expectHalt(() => run('"hello" => $x\n42 => $x'), {
+      code: 'RILL_R001',
+      hostErrorId: 'RILL-R001',
+      messagePattern: 'cannot assign number to $x (locked as string)',
+    });
   });
 });
 
@@ -137,8 +162,12 @@ describe('ref-llms-full: Value Semantics', () => {
   });
 
   it('deep copy on assignment', async () => {
-    // Modifying $b should not affect $a (but since rill is immutable, just verify independence)
-    expect(await run('list[1, 2] => $a\n$a => $b\n$a == $b')).toBe(true);
+    // Rebinding $b leaves the copied-from $a untouched
+    expect(
+      await run(
+        'list[1, 2] => $a\n$a => $b\n($a == $b) => $same\nlist[9, 9] => $b\ndict[same: $same, a: $a, b: $b]'
+      )
+    ).toEqual({ same: true, a: [1, 2], b: [9, 9] });
   });
 });
 
@@ -160,7 +189,7 @@ describe('ref-llms-full: Grammar Patterns', () => {
 
   it('tuple[1, 2, 3] creates a tuple', async () => {
     const result = await run('tuple[1, 2, 3]');
-    expect(result).toBeDefined();
+    expect(result).toEqual({ __rill_tuple: true, entries: [1, 2, 3] });
   });
 
   it('list [1, 2] with space errors RILL-P007', () => {
@@ -238,13 +267,18 @@ describe('ref-llms-full: Syntax Quick Reference', () => {
   });
 
   it('dict with number keys', async () => {
-    const r = await run('dict[1: "one", 2: "two"]');
-    expect(r).toBeDefined();
+    const r = await run('dict[1: "one", 2: "two"] -> .entries');
+    expect(r).toEqual([
+      [1, 'one'],
+      [2, 'two'],
+    ]);
   });
 
   it('dict with boolean keys', async () => {
-    const r = await run('dict[true: "yes", false: "no"]');
-    expect(r).toBeDefined();
+    const r = await run(
+      'dict[true: "yes", false: "no"] => $d\nlist[$d[true], $d[false]]'
+    );
+    expect(r).toEqual(['yes', 'no']);
   });
 
   it('dict with multi-key', async () => {
@@ -349,7 +383,11 @@ describe('ref-llms-full: Control Flow', () => {
   });
 
   it('assert halts on failure', async () => {
-    await expect(run('-1 -> assert ($ > 0)')).rejects.toThrow();
+    await expectHalt(() => run('-1 -> assert ($ > 0)'), {
+      code: 'RILL_R015',
+      hostErrorId: 'RILL-R015',
+      messagePattern: 'Assertion failed',
+    });
   });
 
   it('assert with message', async () => {
@@ -481,7 +519,7 @@ describe('ref-llms-full: Collection Operators', () => {
 
   it('dict filter by value', async () => {
     const r = await run('dict[a: 1, b: 5] -> filter({ $.value > 2 })');
-    expect(r).toBeDefined();
+    expect(r).toEqual([{ key: 'b', value: 5 }]);
   });
 
   it('string iteration: each character', async () => {
@@ -541,9 +579,10 @@ describe('ref-llms-full: Closures', () => {
   });
 
   it('return type assertion: fails (halts typed-atom)', async () => {
-    await expect(
-      run('|x: number| { $x * 2 }:string => $fn\n$fn(5)')
-    ).rejects.toThrow();
+    await expectHalt(
+      () => run('|x: number| { $x * 2 }:string => $fn\n$fn(5)'),
+      { code: 'TYPE_MISMATCH', messagePattern: 'expected string, got number' }
+    );
   });
 
   it('description shorthand', async () => {
@@ -703,7 +742,10 @@ describe('ref-llms-full: Type Operations', () => {
   });
 
   it(':type asserts type (fail)', async () => {
-    await expect(run('"x":number')).rejects.toThrow();
+    await expectHalt(() => run('"x":number'), {
+      code: 'TYPE_MISMATCH',
+      messagePattern: 'expected number, got string',
+    });
   });
 
   it(':?type checks type (true)', async () => {
@@ -949,7 +991,7 @@ describe('ref-llms-full: List/Dict Methods', () => {
 
   it('.entries (dict)', async () => {
     const r = await run('dict[a: 1] -> .entries');
-    expect(r).toBeDefined();
+    expect(r).toEqual([['a', 1]]);
   });
 
   it('.has(val) (list)', async () => {
@@ -1002,7 +1044,10 @@ describe('ref-llms-full: Built-in Functions', () => {
 
   it('enumerate(list)', async () => {
     const r = await run('enumerate(list["a", "b"]) -> seq({ $ })');
-    expect(r).toBeDefined();
+    expect(r).toEqual([
+      { index: 0, value: 'a' },
+      { index: 1, value: 'b' },
+    ]);
   });
 
   it('chain applies closures in sequence', async () => {

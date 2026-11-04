@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Assert Statement', () => {
@@ -116,15 +117,11 @@ describe('Rill Runtime: Assert Statement', () => {
     });
 
     it('includes error code for type error (assertion requires boolean)', async () => {
-      try {
-        await run('"test" -> assert $');
-        expect.fail('Should have thrown');
-      } catch (err) {
-        expect(err).toHaveProperty('errorId');
-        // Error ID should start with RILL-R (runtime error)
-        const errorId = (err as { errorId: string }).errorId;
-        expect(errorId).toMatch(/^RILL-R\d{3}$/);
-      }
+      await expectHalt(() => run('"test" -> assert $'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: 'assert requires boolean condition, got string',
+      });
     });
   });
 

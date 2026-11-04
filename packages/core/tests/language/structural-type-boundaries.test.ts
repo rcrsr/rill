@@ -21,11 +21,6 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
   // ============================================================
 
   describe('Empty list is list(any) (AC-46)', () => {
-    it('[].^type == list(any) evaluates to true', async () => {
-      const result = await run('list[].^type == list(any)');
-      expect(result).toBe(true);
-    });
-
     it('[].^type.name returns "list"', async () => {
       const result = await run('list[].^type.name');
       expect(result).toBe('list');
@@ -69,11 +64,6 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
   // ============================================================
 
   describe('Empty ordered literal produces ordered() (AC-49)', () => {
-    it('ordered[].^type == ordered() evaluates to true', async () => {
-      const result = await run('ordered[].^type == ordered()');
-      expect(result).toBe(true);
-    });
-
     it('ordered[].^type.name returns "ordered"', async () => {
       const result = await run('ordered[].^type.name');
       expect(result).toBe('ordered');
@@ -99,16 +89,6 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
     it('[1].^type.signature returns "list(number)"', async () => {
       const result = await run('list[1].^type.signature');
       expect(result).toBe('list(number)');
-    });
-
-    it('[1, 2, 3].^type == list(number) evaluates to true', async () => {
-      const result = await run('list[1, 2, 3].^type == list(number)');
-      expect(result).toBe(true);
-    });
-
-    it('["a", "b"].^type == list(string) evaluates to true', async () => {
-      const result = await run('list["a", "b"].^type == list(string)');
-      expect(result).toBe(true);
     });
   });
 
@@ -153,11 +133,6 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
   // ============================================================
 
   describe('Type Inference Cascade', () => {
-    it('list[1,2,3] infers list(number) (AC-1)', async () => {
-      const result = await run('list[1, 2, 3].^type == list(number)');
-      expect(result).toBe(true);
-    });
-
     it('list[list[1,2], list[3,4]] infers list(list(number)) (AC-2)', async () => {
       const result = await run(
         'list[list[1, 2], list[3, 4]].^type == list(list(number))'

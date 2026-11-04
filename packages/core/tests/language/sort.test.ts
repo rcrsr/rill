@@ -39,27 +39,12 @@ import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
-
-// Helper: check whether a value is a RillOrdered
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
-  );
-}
+import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 // Helper: extract key-order from an ordered value
 function orderedKeys(value: unknown): string[] {
   if (!isOrdered(value)) throw new Error('Not an ordered value');
   return (value as { entries: [string, unknown][] }).entries.map(([k]) => k);
-}
-
-// Helper: extract [key, value] pairs from an ordered value
-function orderedEntries(value: unknown): [string, unknown][] {
-  if (!isOrdered(value)) throw new Error('Not an ordered value');
-  return (value as { entries: [string, unknown][] }).entries;
 }
 
 describe('Rill Language: sort primitive', () => {
@@ -226,9 +211,14 @@ describe('Rill Language: sort primitive', () => {
     it('EC-3: closure that halts inside extractor propagates the inner halt', async () => {
       // The key extractor fires error "inner boom" (RILL-R016).
       // sort must not wrap or swallow the inner halt.
-      await expect(
-        run('list[1, 2, 3] -> sort({ error "inner boom" })')
-      ).rejects.toThrow();
+      await expectHalt(
+        () => run('list[1, 2, 3] -> sort({ error "inner boom" })'),
+        {
+          code: 'RILL_R016',
+          hostErrorId: 'RILL-R016',
+          messagePattern: 'inner boom',
+        }
+      );
     });
 
     it('EC-6: iteration exceeding MAX_ITER propagates #RILL_R010 before sort', async () => {

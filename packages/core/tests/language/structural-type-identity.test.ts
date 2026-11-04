@@ -349,8 +349,16 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Type constructors as values (AC-21 to AC-23)', () => {
-    it('AC-21: dict(name: string) => $t stores successfully (no throw)', async () => {
-      await expect(run('dict(name: string) => $t\n"ok"')).resolves.toBe('ok');
+    it('AC-21: dict(name: string) => $t stores a type value equal only to the same structure', async () => {
+      const result = await run(`
+        dict(name: string) => $t
+        list[
+          $t == dict(name: string),
+          $t == dict(name: number),
+          $t == dict(other: string)
+        ]
+      `);
+      expect(result).toEqual([true, false, false]);
     });
 
     it('AC-22: stored type constructor equals ^type of matching dict', async () => {
@@ -361,11 +369,17 @@ describe('Rill Language: Structural Type Identity', () => {
       expect(result).toBe(true);
     });
 
-    it('AC-23: closure sig literal |x: string| :string stores as type value', async () => {
+    it('AC-23: closure sig literal |x: string| :string stores as a type value equal only to the same signature', async () => {
       // Closure sig literal syntax: |params| :returnType
-      await expect(run('(|x: string| :string) => $t\n"ok"')).resolves.toBe(
-        'ok'
-      );
+      const result = await run(`
+        (|x: string| :string) => $t
+        list[
+          $t == (|x: string| :string),
+          $t == (|x: string| :number),
+          $t == (|y: string| :string)
+        ]
+      `);
+      expect(result).toEqual([true, false, false]);
     });
   });
 
@@ -381,19 +395,9 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Type assertions with structural types (AC-24 to AC-30)', () => {
-    it('AC-24: [1, 2, 3] :? list(number) is true — via ^type equality', async () => {
-      const result = await run('list[1, 2, 3].^type == list(number)');
-      expect(result).toBe(true);
-    });
-
     it('AC-25: [1, 2, 3] :? list(string) is false — via ^type equality', async () => {
       const result = await run('list[1, 2, 3].^type == list(string)');
       expect(result).toBe(false);
-    });
-
-    it('AC-26: [1, 2, 3] :? list is true (coarse check)', async () => {
-      const result = await run('list[1, 2, 3] -> :?list');
-      expect(result).toBe(true);
     });
 
     it('AC-27: runtime closure ^type != closure sig literal type (return type encoding differs)', async () => {
@@ -406,14 +410,6 @@ describe('Rill Language: Structural Type Identity', () => {
       // No return type annotation on the closure → ret = {type:'any'}.
       // Sig literal has :number → ret = primitive(number). They differ.
       expect(result).toBe(false);
-    });
-
-    it('AC-27 (coarse): $fn :? closure is true for closure with matching params', async () => {
-      const result = await run(`
-        |x: number, y: number| { $x + $y } => $fn
-        $fn -> :?closure
-      `);
-      expect(result).toBe(true);
     });
 
     it('AC-27b: closure with :number return type matches sig literal ^type', async () => {
@@ -439,11 +435,6 @@ describe('Rill Language: Structural Type Identity', () => {
       const result = await run(
         'dict[a: list[1, 2, 3]].^type == dict(a: list(number))'
       );
-      expect(result).toBe(true);
-    });
-
-    it('AC-30: [] :? list(any) is true — via ^type equality', async () => {
-      const result = await run('list[].^type == list(any)');
       expect(result).toBe(true);
     });
   });
@@ -590,12 +581,16 @@ describe('Rill Language: Structural Type Identity', () => {
   // ============================================================
 
   describe('Structure preserved through variable (AC-26)', () => {
-    it('AC-26: list(dict(name: string, age: number)) => $t preserves full structure', async () => {
+    it('AC-26: list(dict(name: string, age: number)) => $t preserves full structure (field order insensitive, fields required)', async () => {
       const script = `
         list(dict(name: string, age: number)) => $t
-        "ok"
+        list[
+          $t == list(dict(age: number, name: string)),
+          $t == list(dict(name: string))
+        ]
       `;
-      await expect(run(script)).resolves.toBe('ok');
+      const result = await run(script);
+      expect(result).toEqual([true, false]);
     });
 
     it('AC-26: stored $t can be used for structural type check via ^type equality', async () => {

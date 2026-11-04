@@ -6,6 +6,7 @@ import type {
   DictKeyComputed,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
   describe('Variable keys', () => {
@@ -363,66 +364,66 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('throws RUNTIME_TYPE_ERROR when variable key is number (AC-7, EC-7)', async () => {
         // AC-7: 42 => $n then [$n: 1] throws RUNTIME_TYPE_ERROR
         // EC-7: "Dict key must be string, got number"
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             42 => $n
             dict[_static: 0, $n: 1]
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/Dict key must be string, got number/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Dict key must be string, got number/i,
+          }
+        );
       });
 
       it('throws RUNTIME_TYPE_ERROR when variable key is boolean (EC-7)', async () => {
         // EC-7: Dict key must be string, got {type}
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             true => $bool
             dict[_static: 0, $bool: 1]
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/Dict key must be string, got boolean/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Dict key must be string, got boolean/i,
+          }
+        );
       });
 
       it('throws RUNTIME_TYPE_ERROR when variable key is list (EC-7)', async () => {
         // EC-7: Dict key must be string, got {type}
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             list[1, 2, 3] => $list
             dict[_static: 0, $list: 1]
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/Dict key must be string, got object/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Dict key must be string, got object/i,
+          }
+        );
       });
 
       it('throws RUNTIME_TYPE_ERROR when variable key is dict (EC-7)', async () => {
         // EC-7: Dict key must be string, got {type}
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             dict[a: 1] => $dict
             dict[_static: 0, $dict: 1]
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(/Dict key must be string, got object/i);
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Dict key must be string, got object/i,
+          }
+        );
       });
     });
 
@@ -430,65 +431,45 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
       it('throws RUNTIME_TYPE_ERROR when computed key evaluates to number (AC-8, EC-8)', async () => {
         // AC-8: [(42): 1] throws RUNTIME_TYPE_ERROR
         // EC-8: "Dict key evaluated to number, expected string"
-        try {
-          await run('dict[_static: 0, (42): 1]');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(
-            /Dict key evaluated to number, expected string/i
-          );
-        }
+        await expectHalt(() => run('dict[_static: 0, (42): 1]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Dict key evaluated to number, expected string/,
+        });
       });
 
       it('throws RUNTIME_TYPE_ERROR when computed key evaluates to boolean (EC-8)', async () => {
         // EC-8: Dict key evaluated to {type}, expected string
-        try {
-          await run('dict[_static: 0, (true): 1]');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(
-            /Dict key evaluated to boolean, expected string/i
-          );
-        }
+        await expectHalt(() => run('dict[_static: 0, (true): 1]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Dict key evaluated to boolean, expected string/,
+        });
       });
 
       it('throws RUNTIME_TYPE_ERROR when computed key evaluates to list (EC-8)', async () => {
         // EC-8: Dict key evaluated to {type}, expected string
-        try {
-          await run('dict[_static: 0, (list[1, 2]): 1]');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(
-            /Dict key evaluated to object, expected string/i
-          );
-        }
+        await expectHalt(() => run('dict[_static: 0, (list[1, 2]): 1]'), {
+          code: 'RILL_R002',
+          hostErrorId: 'RILL-R002',
+          messagePattern: /Dict key evaluated to object, expected string/,
+        });
       });
 
       it('throws RUNTIME_TYPE_ERROR for computed arithmetic without .str conversion (EC-8)', async () => {
         // EC-8: Dict key evaluated to {type}, expected string
-        try {
-          await run(`
+        await expectHalt(
+          () =>
+            run(`
             2 => $base
             dict[_static: 0, ($base + 3): "value"]
-          `);
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toHaveProperty('errorId');
-          const errorId = (err as { errorId: string }).errorId;
-          expect(errorId).toMatch(/^RILL-R\d{3}$/);
-          expect(err.message).toMatch(
-            /Dict key evaluated to number, expected string/i
-          );
-        }
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: /Dict key evaluated to number, expected string/,
+          }
+        );
       });
     });
   });

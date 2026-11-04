@@ -3,7 +3,7 @@
  * Tests for YAML frontmatter parsing at script start
  */
 
-import { parse } from '@rcrsr/rill';
+import { ParseError, parse } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -157,7 +157,9 @@ time: 10:30
 ---
 not: frontmatter
 ---`;
-      await expect(run(script)).rejects.toThrow();
+      const err = await run(script).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ParseError);
+      expect((err as ParseError).errorId).toBe('RILL-P001');
     });
 
     it('handles complex expressions after frontmatter', async () => {

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse } from '@rcrsr/rill';
+import { ParseError, parse } from '@rcrsr/rill';
 
 import { run, runWithContext } from '../helpers/runtime.js';
 
@@ -239,7 +239,9 @@ $parts -> seq({ "{$}!" })`;
     it('rejects a trailing -> with nothing to continue onto', async () => {
       const script = `"hello" ->
 `;
-      await expect(run(script)).rejects.toThrow();
+      const err = await run(script).catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ParseError);
+      expect((err as ParseError).errorId).toBe('RILL-P001');
     });
 
     it('else on newline is now part of conditional (multi-line support)', async () => {
@@ -573,13 +575,17 @@ $loop(5)`;
       it('rejects a trailing => with nothing to capture into', async () => {
         const script = `5 =>
 `;
-        await expect(run(script)).rejects.toThrow();
+        const err = await run(script).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(ParseError);
+        expect((err as ParseError).errorId).toBe('RILL-P001');
       });
 
       it('rejects a trailing ? with no then-branch to continue onto', async () => {
         const script = `true ?
 `;
-        await expect(run(script)).rejects.toThrow();
+        const err = await run(script).catch((e: unknown) => e);
+        expect(err).toBeInstanceOf(ParseError);
+        expect((err as ParseError).errorId).toBe('RILL-P001');
       });
 
       it('rejects a bare capture target followed directly by an index (no postfix on captures)', () => {

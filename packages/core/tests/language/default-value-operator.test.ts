@@ -4,17 +4,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isInvalid, isTuple, toCallable } from '@rcrsr/rill';
+import { isInvalid, isTuple, ParseError, toCallable } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
-  );
-}
+import { isOrdered } from '../helpers/ordered.js';
 
 describe('Default Value Operator (??)', () => {
   describe('Variable Access Chains', () => {
@@ -348,7 +340,9 @@ describe('Default Value Operator (??)', () => {
 
   describe('Error Cases', () => {
     it('throws on ?? without left operand', async () => {
-      await expect(run('?? "orphan"')).rejects.toThrow();
+      const err = await run('?? "orphan"').catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ParseError);
+      expect((err as ParseError).errorId).toBe('RILL-P001');
     });
 
     // Error-handling phase 1 (task 1.4) removes the .?/?? mutual-exclusion.

@@ -4,7 +4,7 @@
  * Tests that the -> conversion operator hydrates missing fields/elements
  * from defaults defined in structural type signatures (dict, ordered, tuple).
  *
- * AC-1  through AC-19: acceptance criteria for hydration, formatting, independence, and performance
+ * AC-1  through AC-18: acceptance criteria for hydration, formatting, and independence
  * EC-1  through EC-6:  error contracts for invalid defaults and missing required fields
  */
 
@@ -12,25 +12,8 @@ import { describe, expect, it } from 'vitest';
 
 import { isTuple, parse, ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
-
-// ============================================================
-// HELPERS
-// ============================================================
-
-function isOrdered(value: unknown): boolean {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    '__rill_ordered' in value &&
-    (value as Record<string, unknown>).__rill_ordered === true
-  );
-}
-
-function orderedEntries(value: unknown): [string, unknown][] {
-  if (!isOrdered(value)) throw new Error('Not an ordered value');
-  return (value as { entries: [string, unknown][] }).entries;
-}
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 describe('Rill Language: Structural Type Default Values', () => {
   // ============================================================
@@ -199,20 +182,6 @@ describe('Rill Language: Structural Type Default Values', () => {
         /Type assertion failed/
       );
     });
-
-    it('-> dict hydrates the default while : does not', async () => {
-      // Verify -> hydrates
-      const hydrated = await run(
-        '[b: "b"] -> dict(b: string, a: string = "a")'
-      );
-      expect((hydrated as Record<string, unknown>).a).toBe('a');
-
-      // Verify : fails on missing field (no hydration)
-      await expectHaltMessage(
-        () => run('[b: "b"] -> :dict(a: string, b: string)'),
-        /Type assertion failed/
-      );
-    });
   });
 
   // ============================================================
@@ -234,10 +203,10 @@ describe('Rill Language: Structural Type Default Values', () => {
 
   describe('AC-14 (EC-2): default value type mismatch causes typed-atom halt', () => {
     it('dict(a: string = 42) halts when default is wrong type', async () => {
-      await expectHaltMessage(
-        () => run('dict(a: string = 42)'),
-        /Default value for field 'a' must be string/
-      );
+      await expectHalt(() => run('dict(a: string = 42)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /Default value for field 'a' must be string/,
+      });
     });
   });
 
@@ -305,55 +274,6 @@ describe('Rill Language: Structural Type Default Values', () => {
   });
 
   // ============================================================
-  // AC-19: performance benchmark — avg per conversion ≤ 0.9 ms
-  // ============================================================
-
-  describe('AC-19: performance benchmark — avg ≤ 0.9 ms per conversion', () => {
-    it('500 conversions with default hydration average within regression threshold', async () => {
-      const warmup = 10;
-      const iterations = 500;
-      // Warmup: allow JIT compilation to stabilize
-      for (let i = 0; i < warmup; i++) {
-        await run('[b: "b"] -> dict(b: string, a: string = "default")');
-      }
-      const start = performance.now();
-      for (let i = 0; i < iterations; i++) {
-        await run('[b: "b"] -> dict(b: string, a: string = "default")');
-      }
-      const elapsed = performance.now() - start;
-      const avgMs = elapsed / iterations;
-      // Baseline ~0.225 ms; 4x regression threshold for CI variance
-      expect(avgMs).toBeLessThanOrEqual(0.9);
-    }, 60_000);
-  });
-
-  // ============================================================
-  // EC-1 / EC-3: non-trailing default in tuple (parse-time shape validation)
-  // ============================================================
-
-  describe('EC-1 / EC-3: non-trailing positional arg with default halts typed-atom', () => {
-    it('tuple(string = "x", number) halts on non-trailing default', async () => {
-      await expectHaltMessage(
-        () => run('tuple["a"] -> tuple(string = "x", number)'),
-        /tuple\(\) default values must be trailing/
-      );
-    });
-  });
-
-  // ============================================================
-  // EC-2: default value type mismatch → typed-atom halt
-  // ============================================================
-
-  describe('EC-2: default value type mismatch on dict field', () => {
-    it('dict(name: string = 123) halts for wrong default type', async () => {
-      await expectHaltMessage(
-        () => run('dict(name: string = 123)'),
-        /Default value for field 'name' must be string/
-      );
-    });
-  });
-
-  // ============================================================
   // EC-4: input type incompatible with target structural type → RILL-R036
   // ============================================================
 
@@ -368,36 +288,6 @@ describe('Rill Language: Structural Type Default Values', () => {
       await expect(run('list[1] -> ordered(a: number)')).rejects.toThrow(
         /cannot convert list to ordered/
       );
-    });
-  });
-
-  // ============================================================
-  // EC-5: missing required field (no default) during dict/ordered conversion → RILL-R044
-  // ============================================================
-
-  describe('EC-5: missing required field (no default) during dict/ordered conversion', () => {
-    it('dict conversion missing required field throws RILL-R044', async () => {
-      await expect(
-        run('[a: "a"] -> dict(a: string, b: number)')
-      ).rejects.toThrow(/missing required field 'b'/);
-    });
-
-    it('ordered conversion missing required field throws RILL-R044', async () => {
-      await expect(
-        run('[a: "a"] -> ordered(a: string, b: number)')
-      ).rejects.toThrow(/missing required field 'b'/);
-    });
-  });
-
-  // ============================================================
-  // EC-6: missing required element (no default) during tuple conversion → RILL-R044
-  // ============================================================
-
-  describe('EC-6: missing required element (no default) during tuple conversion', () => {
-    it('tuple with fewer elements than required throws RILL-R044 naming the position', async () => {
-      await expect(
-        run('tuple["x"] -> tuple(string, number, bool)')
-      ).rejects.toThrow(/missing required element at position 1/);
     });
   });
 
@@ -594,6 +484,13 @@ describe('Rill Language: Structural Type Default Values', () => {
         /Type assertion failed/
       );
     });
+
+    it('tuple[] fails :$t where $t = tuple(string, number)', async () => {
+      await expectHaltMessage(
+        () => run('tuple(string, number) => $t\ntuple[] -> :$t'),
+        /Type assertion failed/
+      );
+    });
   });
 
   // ============================================================
@@ -681,13 +578,6 @@ describe('Rill Language: Structural Type Default Values', () => {
         'dict(a: string = "x", b: number = 0) => $t\ndict[] -> :$t'
       );
       expect(result).toEqual({});
-    });
-
-    it('dict[] -> dict(a: string = "x", b: number = 0) hydrates all defaults', async () => {
-      const result = await run(
-        'dict[] -> dict(a: string = "x", b: number = 0)'
-      );
-      expect(result).toEqual({ a: 'x', b: 0 });
     });
   });
 

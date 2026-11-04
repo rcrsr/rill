@@ -5,6 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Dynamic Existence Check', () => {
@@ -288,33 +289,35 @@ describe('Dynamic Existence Check', () => {
       });
 
       it('throws when variable contains list', async () => {
-        await expect(
-          run(`
+        await expectHalt(
+          () =>
+            run(`
             list[1, 2, 3] => $list
             dict[x: 1] => $data
             $data.?$list
-          `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key must be string, got list'
-          ),
-        });
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: 'Existence check key must be string, got list',
+          }
+        );
       });
 
       it('throws when variable contains dict', async () => {
-        await expect(
-          run(`
+        await expectHalt(
+          () =>
+            run(`
             dict[a: 1] => $dict
             dict[x: 1] => $data
             $data.?$dict
-          `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key must be string, got dict'
-          ),
-        });
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: 'Existence check key must be string, got dict',
+          }
+        );
       });
     });
 
@@ -350,31 +353,35 @@ describe('Dynamic Existence Check', () => {
       });
 
       it('throws when computed expression evaluates to list', async () => {
-        await expect(
-          run(`
+        await expectHalt(
+          () =>
+            run(`
             dict[x: 1] => $data
             $data.?(list[1, 2])
-          `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key evaluated to list, expected string'
-          ),
-        });
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern:
+              'Existence check key evaluated to list, expected string',
+          }
+        );
       });
 
       it('throws when computed expression evaluates to dict', async () => {
-        await expect(
-          run(`
+        await expectHalt(
+          () =>
+            run(`
             dict[x: 1] => $data
             $data.?(dict[a: 1])
-          `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringContaining(
-            'Existence check key evaluated to dict, expected string'
-          ),
-        });
+          `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern:
+              'Existence check key evaluated to dict, expected string',
+          }
+        );
       });
 
       it('type-qualified check with a number key verifies the typed value', async () => {
@@ -742,39 +749,50 @@ describe('Dynamic Existence Check', () => {
     });
 
     describe('Integration error handling', () => {
-      it('throws when variable used in dict key and existence check is undefined', async () => {
-        await expect(
-          run(`
-            dict[_static: 0, $undefined: 1] => $dict
-            $dict.?$undefined
-          `)
-        ).rejects.toMatchObject({
-          errorId: 'RILL-R005',
-          message: expect.stringContaining("Variable 'undefined' is undefined"),
-        });
+      it('throws when the existence check uses an undefined variable key', async () => {
+        await expectHalt(
+          () =>
+            run(`
+              dict[_static: 0] => $dict
+              $dict.?$undefined
+            `),
+          {
+            code: 'RILL_R005',
+            hostErrorId: 'RILL-R005',
+            messagePattern: "Variable 'undefined' is undefined",
+          }
+        );
       });
 
-      it('throws when computed key expression in dict and existence check evaluates to non-string', async () => {
-        await expect(
-          run(`
-            dict[_static: 0, (42): 1] => $dict
-            $dict.?(42)
-          `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-        });
+      it('dict literal rejects a computed number key before the existence check runs', async () => {
+        await expectHalt(
+          () =>
+            run(`
+              dict[_static: 0, (42): 1] => $dict
+              $dict.?(42)
+            `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: 'Dict key evaluated to number, expected string',
+          }
+        );
       });
 
-      it('throws when variable contains non-string in both dict key and existence check', async () => {
-        await expect(
-          run(`
-            42 => $n
-            dict[_static: 0, $n: 1] => $dict
-            $dict.?$n
-          `)
-        ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-        });
+      it('dict literal rejects a number variable key before the existence check runs', async () => {
+        await expectHalt(
+          () =>
+            run(`
+              42 => $n
+              dict[_static: 0, $n: 1] => $dict
+              $dict.?$n
+            `),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: 'Dict key must be string, got number',
+          }
+        );
       });
     });
   });

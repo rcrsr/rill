@@ -8,14 +8,14 @@
  *
  * Implementation note on AC-9 / AC-10:
  * All 5 type positions now resolve TypeRef via resolveTypeRef, dispatching on
- * both RillTypeValue and TypeStructure. The :$t (VarTypeAssertion) and :?$t
- * (VarTypeCheck) positions accept variables holding a RillTypeValue directly.
+ * both RillTypeValue and TypeStructure. The :$t (assertion) and :?$t (check)
+ * positions accept variables holding a RillTypeValue directly.
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 describe('Type Variable Positions', () => {
   // ============================================================
@@ -46,6 +46,9 @@ describe('Type Variable Positions', () => {
     // AC-10: variable holding a RillTypeValue works in check position
     it('AC-10: $t holds number type value — 42 -> :?$t returns true', async () => {
       expect(await run('number => $t\n42 -> :?$t')).toBe(true);
+    });
+    it('AC-10: $t holds string type value — "hello" -> :?$t returns true', async () => {
+      expect(await run('string => $t\n"hello" -> :?$t')).toBe(true);
     });
     it('AC-10: $t holds number type value — "hello" -> :?$t returns false', async () => {
       expect(await run('number => $t\n"hello" -> :?$t')).toBe(false);
@@ -117,7 +120,11 @@ describe('Type Variable Positions', () => {
     });
 
     it('AC-13: $t bound to number — capture rejects string value', async () => {
-      await expect(run('number => $t\n"hello" => $x:$t')).rejects.toThrow();
+      await expectHalt(() => run('number => $t\n"hello" => $x:$t'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+        messagePattern: 'cannot assign string to $x:number',
+      });
     });
 
     it('AC-13: $t bound to number — capture accepts number value', async () => {
@@ -129,7 +136,11 @@ describe('Type Variable Positions', () => {
     });
 
     it('AC-13: $t bound to bool — capture rejects number value', async () => {
-      await expect(run('bool => $t\n42 => $x:$t')).rejects.toThrow();
+      await expectHalt(() => run('bool => $t\n42 => $x:$t'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+        messagePattern: 'cannot assign number to $x:bool',
+      });
     });
 
     it('AC-13: $t reassigned after capture — variable retains captured value', async () => {
@@ -168,10 +179,6 @@ describe('Type Variable Positions', () => {
     });
 
     // AC-19 / EC-1: undefined variable in :$t — runtime error
-    it('AC-19/EC-1: undefined variable $s used in :$s throws runtime error', async () => {
-      await expect(run('42 -> :$s')).rejects.toThrow();
-    });
-
     it('AC-19/EC-1: undefined variable identifies the variable name in error', async () => {
       await expect(run('"hello" -> :$undefined_var')).rejects.toMatchObject({
         errorId: 'RILL-R005',
