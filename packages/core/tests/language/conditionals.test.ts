@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Conditionals', () => {
@@ -492,10 +493,16 @@ while ($ < 3)`);
       });
 
       it('AC-17: Piped conditional requires boolean', async () => {
-        await expect(
-          run(`"x"
-  -> ? "yes" ! "no"`)
-        ).rejects.toThrow();
+        await expectHalt(
+          () =>
+            run(`"x"
+  -> ? "yes" ! "no"`),
+          {
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
+            messagePattern: 'Piped conditional requires boolean, got string',
+          }
+        );
       });
     });
 

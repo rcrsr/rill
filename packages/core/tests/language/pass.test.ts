@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ParseError } from '@rcrsr/rill';
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: Pass Keyword', () => {
@@ -172,11 +173,19 @@ describe('Rill Language: Pass Keyword', () => {
     });
 
     it('throws error when using pass in arithmetic without pipe', async () => {
-      await expect(run('pass + 1')).rejects.toThrow();
+      await expectHalt(() => run('pass + 1'), {
+        code: 'RILL_R005',
+        hostErrorId: 'RILL-R005',
+        messagePattern: "Variable '$' not defined",
+      });
     });
 
     it('throws error when using pass in comparison without pipe', async () => {
-      await expect(run('pass == 1')).rejects.toThrow();
+      await expectHalt(() => run('pass == 1'), {
+        code: 'RILL_R005',
+        hostErrorId: 'RILL-R005',
+        messagePattern: "Variable '$' not defined",
+      });
     });
 
     it('throws error when pass used in dict without pipe context', async () => {

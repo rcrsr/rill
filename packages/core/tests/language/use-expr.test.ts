@@ -164,39 +164,6 @@ describe('Rill Language: use<> Expressions', () => {
       });
     });
 
-    describe('Pipe into use<>', () => {
-      it('AC-4: "text" -> use<host:fn> passes piped string to resolved callable', async () => {
-        // Pipe a string value to a use<> that resolves to a host function.
-        // The resolved callable receives the piped value as its argument.
-        const result = await run('"piped-text" -> process', {
-          functions: {
-            process: {
-              params: [
-                {
-                  name: 'input',
-                  type: { kind: 'string' as const },
-                  defaultValue: undefined,
-                  annotations: {},
-                },
-              ],
-              fn: (args) => `processed:${args['input']}`,
-            },
-          },
-        });
-        expect(result).toBe('processed:piped-text');
-      });
-
-      it('AC-4: resolved use<> callable receives piped value via function binding', async () => {
-        // The resolver returns a value; the pipe passes the left side to the right.
-        // use<> as pipe target requires the resolved value to be callable.
-        // We test via a host function for the callable itself.
-        const result = await run('"input" => $v\n$v', {
-          resolvers: { host: valueResolver(42) },
-        });
-        expect(result).toBe('input');
-      });
-    });
-
     describe('Inline invocation with ext member resolution', () => {
       it('AC-3: use<ext:qdrant.search>(...) resolves member and invokes with 3 args', async () => {
         const receivedArgs: RillValue[] = [];

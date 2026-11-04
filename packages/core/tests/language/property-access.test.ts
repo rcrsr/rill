@@ -17,6 +17,7 @@ import type {
 } from '@rcrsr/rill';
 
 import { run as runWithOptions } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 async function run(code: string) {
   const ctx = createRuntimeContext({});
@@ -512,7 +513,10 @@ describe('implicit $ property access bug', () => {
     });
 
     it('list[1,2,3][0]:string halts with a type mismatch', async () => {
-      await expect(run('list[1,2,3][0]:string')).rejects.toThrow();
+      await expectHalt(() => run('list[1,2,3][0]:string'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'expected string, got number',
+      });
     });
 
     it('$x:number.foo — a postfix type assertion followed by a method chain — is unaffected', async () => {

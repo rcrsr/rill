@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Language: Type Value Expressions', () => {
   // ============================================================
@@ -354,16 +355,28 @@ describe('Rill Language: Type Value Expressions', () => {
       // "nubmer" is not a valid type name; the parser treats it as a bare host
       // function reference. At runtime, calling a bare identifier that has no
       // registered function produces an unknown-function error.
-      await expect(run('nubmer')).rejects.toThrow();
+      await expectHalt(() => run('nubmer'), {
+        code: 'RILL_R006',
+        hostErrorId: 'RILL-R006',
+        messagePattern: 'Unknown function: nubmer',
+      });
     });
 
     it('misspelled "strng" is not a type value — falls through to host call path', async () => {
-      await expect(run('strng')).rejects.toThrow();
+      await expectHalt(() => run('strng'), {
+        code: 'RILL_R006',
+        hostErrorId: 'RILL-R006',
+        messagePattern: 'Unknown function: strng',
+      });
     });
 
     it('misspelled "Bool" (capital B) is not a type value — case-sensitive', async () => {
       // Rill type names are lowercase; "Bool" is not recognized as a type name.
-      await expect(run('Bool')).rejects.toThrow();
+      await expectHalt(() => run('Bool'), {
+        code: 'RILL_R006',
+        hostErrorId: 'RILL-R006',
+        messagePattern: 'Unknown function: Bool',
+      });
     });
   });
 

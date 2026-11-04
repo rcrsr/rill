@@ -211,9 +211,14 @@ describe('Rill Language: sort primitive', () => {
     it('EC-3: closure that halts inside extractor propagates the inner halt', async () => {
       // The key extractor fires error "inner boom" (RILL-R016).
       // sort must not wrap or swallow the inner halt.
-      await expect(
-        run('list[1, 2, 3] -> sort({ error "inner boom" })')
-      ).rejects.toThrow();
+      await expectHalt(
+        () => run('list[1, 2, 3] -> sort({ error "inner boom" })'),
+        {
+          code: 'RILL_R016',
+          hostErrorId: 'RILL-R016',
+          messagePattern: 'inner boom',
+        }
+      );
     });
 
     it('EC-6: iteration exceeding MAX_ITER propagates #RILL_R010 before sort', async () => {

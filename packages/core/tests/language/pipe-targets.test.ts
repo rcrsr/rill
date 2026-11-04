@@ -7,7 +7,7 @@ import type { RillFunction, RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Pipe Targets', () => {
   describe('Invoke Pipe Target (-> $())', () => {
@@ -91,16 +91,22 @@ describe('Rill Runtime: Pipe Targets', () => {
     });
 
     it('json throws on closures in lists', async () => {
-      // Phase 2: [1, 2, ||{ "fn" }, 3] is a mixed-type list; RILL-R002 fires first.
-      // The test intent (json rejects closures) remains valid; error is still thrown.
-      await expect(run('list[1, 2, ||{ "fn" }, 3] -> json')).rejects.toThrow();
+      // A list of only closures is homogeneous, so list construction succeeds
+      // and json reaches the serialization check.
+      await expectHalt(() => run('list[||{ "fn" }] -> json'), {
+        code: 'INVALID_INPUT',
+        messagePattern: 'closures are not JSON-serializable',
+      });
     });
 
     it('json throws on nested containers with closures', async () => {
-      // Phase 2: [1, ||{ 0 }, 2] is a mixed-type list; RILL-R002 fires first.
-      await expect(
-        run('dict[items: list[1, ||{ 0 }, 2], fn: ||{ 0 }] -> json')
-      ).rejects.toThrow();
+      await expectHalt(
+        () => run('dict[items: list[||{ 0 }], fn: ||{ 0 }] -> json'),
+        {
+          code: 'INVALID_INPUT',
+          messagePattern: 'closures are not JSON-serializable',
+        }
+      );
     });
 
     it('pipes to .^type for type value', async () => {
@@ -493,9 +499,17 @@ $fn(3)`;
     it('EC-7: arg-evaluation error during pipe propagates as halt', async () => {
       // Runtime error evaluating an arg inside a pipe target propagates outward
       const collect2 = makeCollect2();
-      await expect(
-        run('"val" -> collect2($undefinedVar, 1)', { functions: { collect2 } })
-      ).rejects.toThrow();
+      await expectHalt(
+        () =>
+          run('"val" -> collect2($undefinedVar, 1)', {
+            functions: { collect2 },
+          }),
+        {
+          code: 'RILL_R005',
+          hostErrorId: 'RILL-R005',
+          messagePattern: 'Undefined variable: $undefinedVar',
+        }
+      );
     });
   });
 
