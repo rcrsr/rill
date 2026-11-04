@@ -4,7 +4,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { extResolver, moduleResolver, parse, ParseError } from '@rcrsr/rill';
+import {
+  extResolver,
+  isCallable,
+  moduleResolver,
+  parse,
+  ParseError,
+} from '@rcrsr/rill';
 import type { SchemeResolver, ResolverResult, RillValue } from '@rcrsr/rill';
 
 import { expectHalt } from '../helpers/halt.js';
@@ -215,6 +221,62 @@ describe('Rill Language: use<> Expressions', () => {
           },
         });
         expect(result).toBe('invoked:hello');
+      });
+    });
+
+    describe('Pipe target invocation', () => {
+      it('invokes a resolved application callable with the pipe value as its argument', async () => {
+        const result = await run('"hello" -> use<host:fn>', {
+          resolvers: {
+            host: (_resource): ResolverResult => ({
+              kind: 'value',
+              value: {
+                __type: 'callable' as const,
+                kind: 'application' as const,
+                isProperty: false,
+                params: [
+                  {
+                    name: 'text',
+                    type: { kind: 'string' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                fn: (args: Record<string, RillValue>) =>
+                  `invoked:${args['text']}`,
+                boundDict: undefined,
+              } as unknown as RillValue,
+            }),
+          },
+        });
+        expect(result).toBe('invoked:hello');
+      });
+
+      it('exposes the pipe value as $ to a resolved zero-param script closure', async () => {
+        const result = await run('"hello" -> use<module:greeter>', {
+          resolvers: {
+            module: sourceResolver('|| { "got:{$}" }'),
+          },
+          parseSource,
+        });
+        expect(result).toBe('got:hello');
+      });
+
+      it('returns a non-callable resolved value unchanged', async () => {
+        const result = await run('"hello" -> use<host:value>', {
+          resolvers: { host: valueResolver('resolved') },
+        });
+        expect(result).toBe('resolved');
+      });
+
+      it('returns the callable uninvoked when use<> is not a pipe target', async () => {
+        const result = await run('use<module:greeter>', {
+          resolvers: {
+            module: sourceResolver('|| { "got:{$}" }'),
+          },
+          parseSource,
+        });
+        expect(isCallable(result)).toBe(true);
       });
     });
 
