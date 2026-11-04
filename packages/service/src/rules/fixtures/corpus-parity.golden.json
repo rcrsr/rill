@@ -39887,7 +39887,20 @@
   {
     "index": 3875,
     "file": "use-expr.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "severity": "warning",
+        "code": "USE_UNTYPED_HOST_REF",
+        "message": "use<host:fn> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
+        "context": "\"hello\" -> use<host:fn>",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3876,
@@ -39899,15 +39912,15 @@
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $g -> ...' instead of separate statements",
-        "severity": "info",
         "location": {
           "line": 1,
-          "column": 26,
-          "offset": 25
+          "column": 12,
+          "offset": 11
         },
-        "context": "use<module:greetings> => $g",
+        "severity": "warning",
+        "code": "USE_UNTYPED_HOST_REF",
+        "message": "use<host:value> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
+        "context": "\"hello\" -> use<host:value>",
         "fix": null
       }
     ]
@@ -39930,7 +39943,20 @@
   {
     "index": 3881,
     "file": "use-expr.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $g -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 26,
+          "offset": 25
+        },
+        "context": "use<module:greetings> => $g",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3882,
@@ -39960,24 +39986,26 @@
   {
     "index": 3887,
     "file": "use-expr.test.ts",
-    "diagnostics": [
-      {
-        "location": {
-          "line": 1,
-          "column": 1,
-          "offset": 0
-        },
-        "severity": "warning",
-        "code": "USE_UNTYPED_HOST_REF",
-        "message": "use<host:api> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
-        "context": "use<host:api>",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 3888,
     "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3889,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3890,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3891,
+    "file": "use-expr.test.ts",
     "diagnostics": [
       {
         "location": {
@@ -39994,7 +40022,25 @@
     ]
   },
   {
-    "index": 3889,
+    "index": 3892,
+    "file": "use-expr.test.ts",
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "warning",
+        "code": "USE_UNTYPED_HOST_REF",
+        "message": "use<host:api> has no :type annotation in permissive mode; add :TypeName to declare the resolved type",
+        "context": "use<host:api>",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3893,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40024,7 +40070,7 @@
     ]
   },
   {
-    "index": 3890,
+    "index": 3894,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40054,7 +40100,7 @@
     ]
   },
   {
-    "index": 3891,
+    "index": 3895,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40084,7 +40130,7 @@
     ]
   },
   {
-    "index": 3892,
+    "index": 3896,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40100,26 +40146,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3893,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3894,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3895,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3896,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3897,
@@ -40169,6 +40195,26 @@
   {
     "index": 3906,
     "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3907,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3908,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3909,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3910,
+    "file": "use-expr.test.ts",
     "diagnostics": [
       {
         "location": {
@@ -40221,7 +40267,7 @@
     ]
   },
   {
-    "index": 3907,
+    "index": 3911,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40251,17 +40297,17 @@
     ]
   },
   {
-    "index": 3908,
+    "index": 3912,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3909,
+    "index": 3913,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3910,
+    "index": 3914,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40279,7 +40325,7 @@
     ]
   },
   {
-    "index": 3911,
+    "index": 3915,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40297,12 +40343,12 @@
     ]
   },
   {
-    "index": 3912,
+    "index": 3916,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3913,
+    "index": 3917,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40320,26 +40366,6 @@
     ]
   },
   {
-    "index": 3914,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3915,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3916,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3917,
-    "file": "use-expr.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 3918,
     "file": "use-expr.test.ts",
     "diagnostics": []
@@ -40351,21 +40377,41 @@
   },
   {
     "index": 3920,
-    "file": "vacancy-coerce.test.ts",
+    "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
     "index": 3921,
-    "file": "vacancy-coerce.test.ts",
+    "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
     "index": 3922,
-    "file": "vacancy-coerce.test.ts",
+    "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
     "index": 3923,
+    "file": "use-expr.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3924,
+    "file": "vacancy-coerce.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3925,
+    "file": "vacancy-coerce.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3926,
+    "file": "vacancy-coerce.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3927,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40383,7 +40429,7 @@
     ]
   },
   {
-    "index": 3924,
+    "index": 3928,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40401,7 +40447,7 @@
     ]
   },
   {
-    "index": 3925,
+    "index": 3929,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40419,7 +40465,7 @@
     ]
   },
   {
-    "index": 3926,
+    "index": 3930,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40437,7 +40483,7 @@
     ]
   },
   {
-    "index": 3927,
+    "index": 3931,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40455,12 +40501,12 @@
     ]
   },
   {
-    "index": 3928,
+    "index": 3932,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3929,
+    "index": 3933,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40478,7 +40524,7 @@
     ]
   },
   {
-    "index": 3930,
+    "index": 3934,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40496,7 +40542,7 @@
     ]
   },
   {
-    "index": 3931,
+    "index": 3935,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40514,12 +40560,12 @@
     ]
   },
   {
-    "index": 3932,
+    "index": 3936,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3933,
+    "index": 3937,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -40537,7 +40583,7 @@
     ]
   },
   {
-    "index": 3934,
+    "index": 3938,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40555,7 +40601,7 @@
     ]
   },
   {
-    "index": 3935,
+    "index": 3939,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40573,7 +40619,7 @@
     ]
   },
   {
-    "index": 3936,
+    "index": 3940,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40591,7 +40637,7 @@
     ]
   },
   {
-    "index": 3937,
+    "index": 3941,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40609,7 +40655,7 @@
     ]
   },
   {
-    "index": 3938,
+    "index": 3942,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40627,7 +40673,7 @@
     ]
   },
   {
-    "index": 3939,
+    "index": 3943,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40645,7 +40691,7 @@
     ]
   },
   {
-    "index": 3940,
+    "index": 3944,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40663,7 +40709,7 @@
     ]
   },
   {
-    "index": 3941,
+    "index": 3945,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40681,7 +40727,7 @@
     ]
   },
   {
-    "index": 3942,
+    "index": 3946,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40699,7 +40745,7 @@
     ]
   },
   {
-    "index": 3943,
+    "index": 3947,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40717,7 +40763,7 @@
     ]
   },
   {
-    "index": 3944,
+    "index": 3948,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40735,7 +40781,7 @@
     ]
   },
   {
-    "index": 3945,
+    "index": 3949,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40753,7 +40799,7 @@
     ]
   },
   {
-    "index": 3946,
+    "index": 3950,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40771,7 +40817,7 @@
     ]
   },
   {
-    "index": 3947,
+    "index": 3951,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40789,79 +40835,79 @@
     ]
   },
   {
-    "index": 3948,
-    "file": "variable-method-calls.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "\"hello\" => $v",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 3949,
-    "file": "variable-method-calls.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 12,
-          "offset": 11
-        },
-        "context": "\"hello\" => $v",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 3950,
-    "file": "variable-method-calls.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 15,
-          "offset": 14
-        },
-        "context": "\"  test  \" => $v",
-        "fix": null
-      }
-    ]
-  },
-  {
-    "index": 3951,
-    "file": "variable-method-calls.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 15,
-          "offset": 14
-        },
-        "context": "\"  test  \" => $v",
-        "fix": null
-      }
-    ]
-  },
-  {
     "index": 3952,
+    "file": "variable-method-calls.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "context": "\"hello\" => $v",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3953,
+    "file": "variable-method-calls.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 12,
+          "offset": 11
+        },
+        "context": "\"hello\" => $v",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3954,
+    "file": "variable-method-calls.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "context": "\"  test  \" => $v",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3955,
+    "file": "variable-method-calls.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $v -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "context": "\"  test  \" => $v",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3956,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40891,7 +40937,7 @@
     ]
   },
   {
-    "index": 3953,
+    "index": 3957,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -40921,7 +40967,7 @@
     ]
   },
   {
-    "index": 3954,
+    "index": 3958,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -40939,7 +40985,7 @@
     ]
   },
   {
-    "index": 3955,
+    "index": 3959,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -40957,7 +41003,7 @@
     ]
   },
   {
-    "index": 3956,
+    "index": 3960,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -40975,7 +41021,7 @@
     ]
   },
   {
-    "index": 3957,
+    "index": 3961,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41005,7 +41051,7 @@
     ]
   },
   {
-    "index": 3958,
+    "index": 3962,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41035,7 +41081,7 @@
     ]
   },
   {
-    "index": 3959,
+    "index": 3963,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41065,7 +41111,7 @@
     ]
   },
   {
-    "index": 3960,
+    "index": 3964,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41083,12 +41129,12 @@
     ]
   },
   {
-    "index": 3961,
+    "index": 3965,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3962,
+    "index": 3966,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41106,7 +41152,7 @@
     ]
   },
   {
-    "index": 3963,
+    "index": 3967,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41124,7 +41170,7 @@
     ]
   },
   {
-    "index": 3964,
+    "index": 3968,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41142,7 +41188,7 @@
     ]
   },
   {
-    "index": 3965,
+    "index": 3969,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41160,7 +41206,7 @@
     ]
   },
   {
-    "index": 3966,
+    "index": 3970,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41202,7 +41248,7 @@
     ]
   },
   {
-    "index": 3967,
+    "index": 3971,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41220,12 +41266,12 @@
     ]
   },
   {
-    "index": 3968,
+    "index": 3972,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3969,
+    "index": 3973,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41243,7 +41289,7 @@
     ]
   },
   {
-    "index": 3970,
+    "index": 3974,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41259,26 +41305,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3971,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3972,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3973,
-    "file": "variables.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3974,
-    "file": "variables.test.ts",
-    "diagnostics": []
   },
   {
     "index": 3975,
@@ -41303,6 +41329,26 @@
   {
     "index": 3979,
     "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3980,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3981,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3982,
+    "file": "variables.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3983,
+    "file": "variables.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -41319,7 +41365,7 @@
     ]
   },
   {
-    "index": 3980,
+    "index": 3984,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41337,7 +41383,7 @@
     ]
   },
   {
-    "index": 3981,
+    "index": 3985,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41355,12 +41401,12 @@
     ]
   },
   {
-    "index": 3982,
+    "index": 3986,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3983,
+    "index": 3987,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41378,7 +41424,7 @@
     ]
   },
   {
-    "index": 3984,
+    "index": 3988,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41396,22 +41442,22 @@
     ]
   },
   {
-    "index": 3985,
+    "index": 3989,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3986,
+    "index": 3990,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3987,
+    "index": 3991,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3988,
+    "index": 3992,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41429,17 +41475,17 @@
     ]
   },
   {
-    "index": 3989,
+    "index": 3993,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3990,
+    "index": 3994,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3991,
+    "index": 3995,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41457,7 +41503,7 @@
     ]
   },
   {
-    "index": 3992,
+    "index": 3996,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41475,12 +41521,12 @@
     ]
   },
   {
-    "index": 3993,
+    "index": 3997,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3994,
+    "index": 3998,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41498,7 +41544,7 @@
     ]
   },
   {
-    "index": 3995,
+    "index": 3999,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -41528,7 +41574,7 @@
     ]
   },
   {
-    "index": 3996,
+    "index": 4000,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -41556,26 +41602,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 3997,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3998,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 3999,
-    "file": "vectors.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4000,
-    "file": "vectors.test.ts",
-    "diagnostics": []
   },
   {
     "index": 4001,
@@ -41635,20 +41661,7 @@
   {
     "index": 4012,
     "file": "vectors.test.ts",
-    "diagnostics": [
-      {
-        "code": "PREFER_MAP",
-        "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 7,
-          "offset": 6
-        },
-        "context": "$v -> seq({ $ * 2 })",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4013,
@@ -41668,7 +41681,20 @@
   {
     "index": 4016,
     "file": "vectors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "PREFER_MAP",
+        "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 7,
+          "offset": 6
+        },
+        "context": "$v -> seq({ $ * 2 })",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4017,
@@ -41758,20 +41784,7 @@
   {
     "index": 4034,
     "file": "vectors.test.ts",
-    "diagnostics": [
-      {
-        "code": "THROWAWAY_CAPTURE",
-        "message": "'$result' is captured but never referenced",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 21,
-          "offset": 20
-        },
-        "context": "$v -> .normalize => $result",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4035,
@@ -41791,7 +41804,20 @@
   {
     "index": 4038,
     "file": "vectors.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$result' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        },
+        "context": "$v -> .normalize => $result",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4039,
@@ -41800,6 +41826,26 @@
   },
   {
     "index": 4040,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4041,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4042,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4043,
+    "file": "vectors.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4044,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -41907,17 +41953,17 @@
     ]
   },
   {
-    "index": 4041,
+    "index": 4045,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4042,
+    "index": 4046,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4043,
+    "index": 4047,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -41935,7 +41981,7 @@
     ]
   },
   {
-    "index": 4044,
+    "index": 4048,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -41953,7 +41999,7 @@
     ]
   },
   {
-    "index": 4045,
+    "index": 4049,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -41971,7 +42017,7 @@
     ]
   },
   {
-    "index": 4046,
+    "index": 4050,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -41989,7 +42035,7 @@
     ]
   },
   {
-    "index": 4047,
+    "index": 4051,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42007,7 +42053,7 @@
     ]
   },
   {
-    "index": 4048,
+    "index": 4052,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42025,7 +42071,7 @@
     ]
   },
   {
-    "index": 4049,
+    "index": 4053,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42043,7 +42089,7 @@
     ]
   },
   {
-    "index": 4050,
+    "index": 4054,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42061,7 +42107,7 @@
     ]
   },
   {
-    "index": 4051,
+    "index": 4055,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42079,7 +42125,7 @@
     ]
   },
   {
-    "index": 4052,
+    "index": 4056,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42097,22 +42143,22 @@
     ]
   },
   {
-    "index": 4053,
+    "index": 4057,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4054,
+    "index": 4058,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4055,
+    "index": 4059,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4056,
+    "index": 4060,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42130,12 +42176,12 @@
     ]
   },
   {
-    "index": 4057,
+    "index": 4061,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4058,
+    "index": 4062,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42153,7 +42199,7 @@
     ]
   },
   {
-    "index": 4059,
+    "index": 4063,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42171,26 +42217,6 @@
     ]
   },
   {
-    "index": 4060,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4061,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4062,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4063,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4064,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
@@ -42202,6 +42228,26 @@
   },
   {
     "index": 4066,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4067,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4068,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4069,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4070,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42229,26 +42275,6 @@
         "fix": null
       }
     ]
-  },
-  {
-    "index": 4067,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4068,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4069,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4070,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
   },
   {
     "index": 4071,
@@ -42293,20 +42319,7 @@
   {
     "index": 4079,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $obj -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 23,
-          "offset": 22
-        },
-        "context": "dict[key: \"value\"] => $obj",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4080,
@@ -42326,7 +42339,20 @@
   {
     "index": 4083,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $obj -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 23,
+          "offset": 22
+        },
+        "context": "dict[key: \"value\"] => $obj",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 4084,
@@ -42346,6 +42372,26 @@
   {
     "index": 4087,
     "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4088,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4089,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4090,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4091,
+    "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -42362,7 +42408,7 @@
     ]
   },
   {
-    "index": 4088,
+    "index": 4092,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42380,27 +42426,27 @@
     ]
   },
   {
-    "index": 4089,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4090,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4091,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4092,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4093,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4094,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4095,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4096,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4097,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42418,12 +42464,12 @@
     ]
   },
   {
-    "index": 4094,
+    "index": 4098,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4095,
+    "index": 4099,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42457,42 +42503,9 @@
     ]
   },
   {
-    "index": 4096,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4097,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4098,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4099,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4100,
     "file": "whitespace-continuations.test.ts",
-    "diagnostics": [
-      {
-        "code": "CAPTURE_INLINE_CHAIN",
-        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 24,
-          "offset": 23
-        },
-        "context": "dict[name: \"alice\"] => $user",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 4101,
@@ -42502,6 +42515,16 @@
   {
     "index": 4102,
     "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4103,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4104,
+    "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
         "code": "CAPTURE_INLINE_CHAIN",
@@ -42518,12 +42541,35 @@
     ]
   },
   {
-    "index": 4103,
+    "index": 4105,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4104,
+    "index": 4106,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $user -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 24,
+          "offset": 23
+        },
+        "context": "dict[name: \"alice\"] => $user",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 4107,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4108,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -42541,27 +42587,27 @@
     ]
   },
   {
-    "index": 4105,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4106,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4107,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
-    "index": 4108,
-    "file": "whitespace-continuations.test.ts",
-    "diagnostics": []
-  },
-  {
     "index": 4109,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4110,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4111,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4112,
+    "file": "whitespace-continuations.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 4113,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   }
