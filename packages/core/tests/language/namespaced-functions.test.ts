@@ -305,8 +305,8 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: async (args) => {
-              await new Promise((r) => setTimeout(r, args['ms'] as number));
-              return 'done';
+              await Promise.resolve();
+              return args['ms'] === 10 ? 'done' : 'wrong-arg';
             },
           }),
         },

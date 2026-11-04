@@ -121,7 +121,7 @@ describe('Rill Runtime: Expressions', () => {
           },
         ],
         fn: async (args: Record<string, RillValue>): Promise<string> => {
-          await new Promise((r) => setTimeout(r, 10));
+          await Promise.resolve();
           return `async:${args['input']}`;
         },
       };

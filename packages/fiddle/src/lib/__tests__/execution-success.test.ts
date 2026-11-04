@@ -2,7 +2,7 @@
  * Tests for executeRill success paths
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { executeRill } from '../execution.js';
 
 describe('executeRill', () => {
@@ -75,12 +75,17 @@ describe('executeRill', () => {
       expect(result.error).toBe(null);
     });
 
-    it('times execution correctly', async () => {
-      const result = await executeRill('1 + 1');
-
-      expect(result.duration).not.toBe(null);
-      expect(result.duration).toBeGreaterThan(0);
-      expect(result.duration).toBeLessThan(1000); // Should be fast
+    it('reports duration as elapsed performance.now time', async () => {
+      const now = vi
+        .spyOn(performance, 'now')
+        .mockReturnValueOnce(100)
+        .mockReturnValue(142.5);
+      try {
+        const result = await executeRill('1 + 1');
+        expect(result.duration).toBe(42.5);
+      } finally {
+        now.mockRestore();
+      }
     });
 
     it('returns idle status for empty source', async () => {
