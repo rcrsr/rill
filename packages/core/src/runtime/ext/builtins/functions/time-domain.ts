@@ -268,7 +268,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
       // Static clock: all chunks share timestamp 0 (batch processing, no
       // Date.now()), so every element falls into the same interval window
       // and the latest-seen value at that checkpoint is the last element.
-      return [elements[elements.length - 1]!];
+      return [elements.at(-1)!];
     },
   },
 };

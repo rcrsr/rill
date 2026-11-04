@@ -506,7 +506,7 @@ export function traverseForRules(node: ASTNode, visitor: AstVisitor): void {
   const stack: Frame[] = [{ node, childrenPushed: false }];
 
   while (stack.length > 0) {
-    const frame = stack[stack.length - 1]!;
+    const frame = stack.at(-1)!;
 
     if (!frame.childrenPushed) {
       visitor.enter(frame.node);

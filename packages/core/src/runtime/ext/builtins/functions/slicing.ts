@@ -36,10 +36,7 @@ import {
  * a walkIteratorSteps failure (invariant violation, chunk type mismatch)
  * still disposes the stream before the halt propagates.
  */
-async function disposeStreamInput(
-  input: RillValue,
-  site: TypeHaltSite
-): Promise<void> {
+function disposeStreamInput(input: RillValue, site: TypeHaltSite): void {
   if (!isStream(input)) return;
   const disposeFn = (
     input as unknown as Record<string, (() => void) | undefined>
@@ -145,7 +142,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           );
           return elements;
         } finally {
-          await disposeStreamInput(input, site);
+          disposeStreamInput(input, site);
         }
       }
 
@@ -242,7 +239,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
             (ctx as RuntimeContext).sourceId
           ));
         } catch (e) {
-          await disposeStreamInput(input, site);
+          disposeStreamInput(input, site);
           throw e;
         }
 
@@ -453,7 +450,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       // Drop the trailing partial chunk when requested
       const effectiveChunks =
         dropPartial && chunks.length > 0
-          ? chunks[chunks.length - 1]!.length < n
+          ? chunks.at(-1)!.length < n
             ? chunks.slice(0, -1)
             : chunks
           : chunks;

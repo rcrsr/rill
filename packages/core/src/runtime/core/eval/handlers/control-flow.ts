@@ -359,10 +359,7 @@ export async function evaluateDoWhileLoop(
  * Returns value of last statement.
  * ReturnSignal NOT caught here - propagates up to evaluateBodyExpression.
  */
-async function evaluateBlock(
-  s: EvalState,
-  node: BlockNode
-): Promise<RillValue> {
+function evaluateBlock(s: EvalState, node: BlockNode): Promise<RillValue> {
   return runInStreamScope(s, node, evaluateBlockBody);
 }
 
@@ -583,10 +580,7 @@ export async function evaluateError(
  * Hot path: called from 11 external call sites. Signature is stable —
  * do not reorder or rename parameters.
  */
-export async function evaluateBody(
-  s: EvalState,
-  node: BodyNode
-): Promise<RillValue> {
+export function evaluateBody(s: EvalState, node: BodyNode): Promise<RillValue> {
   switch (node.type) {
     case 'Block':
       return evaluateBlock(s, node);

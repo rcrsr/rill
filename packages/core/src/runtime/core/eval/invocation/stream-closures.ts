@@ -124,10 +124,10 @@ function createStreamChannel(): StreamChannel {
   let closedError: unknown | undefined;
 
   return {
-    async push(value: RillValue): Promise<void> {
+    push(value: RillValue): Promise<void> {
       // Once terminated, further chunks are discarded and the push resolves
       // immediately so a suspended body can run to completion.
-      if (terminated) return;
+      if (terminated) return Promise.resolve();
 
       return new Promise<void>((resolve) => {
         // If a consumer is already waiting, deliver immediately; the chunk is
@@ -144,18 +144,18 @@ function createStreamChannel(): StreamChannel {
       });
     },
 
-    async pull() {
+    pull() {
       // Deliver the oldest queued chunk, unblocking its producer.
       if (queue.length > 0) {
         const chunk = queue.shift()!;
         chunk.resume(); // unblock producer
-        return { value: chunk.value, done: false as const };
+        return Promise.resolve({ value: chunk.value, done: false as const });
       }
 
       // No queued chunks and the body has terminated: surface error or done.
       if (terminated) {
-        if (closedError !== undefined) throw closedError;
-        return { done: true as const };
+        if (closedError !== undefined) return Promise.reject(closedError);
+        return Promise.resolve({ done: true as const });
       }
 
       // Wait for producer to push
@@ -251,7 +251,7 @@ export async function runInStreamScope<T, A>(
     return await body(s, arg);
   } finally {
     const streams = s.streamScopeStack.pop() ?? [];
-    await disposeStreams(s, streams);
+    disposeStreams(s, streams);
   }
 }
 
@@ -260,7 +260,7 @@ export async function runInStreamScope<T, A>(
  * Streams with dispose functions get cleaned up when their scope exits.
  */
 export function trackStream(s: EvalState, stream: RillStream): void {
-  const current = s.streamScopeStack[s.streamScopeStack.length - 1];
+  const current = s.streamScopeStack.at(-1);
   if (current) {
     current.push(stream);
   }
@@ -277,10 +277,7 @@ export function trackStream(s: EvalState, stream: RillStream): void {
  *
  * Idempotent on empty arrays and repeated calls after stack drain.
  */
-async function disposeStreams(
-  s: EvalState,
-  streams: RillStream[]
-): Promise<void> {
+function disposeStreams(s: EvalState, streams: RillStream[]): void {
   for (let i = streams.length - 1; i >= 0; i--) {
     const stream = streams[i]!;
     // Only dispose streams that are not fully consumed
@@ -318,6 +315,7 @@ async function disposeStreams(
  * - Resolution type mismatch → TYPE_MISMATCH
  * - Body RillError preserved with original code; dispose runs before re-throw
  */
+// oxlint-disable-next-line require-await -- marshalArgs and createCallableContext halt synchronously; the async boundary surfaces them as rejections for callers that await
 export async function invokeStreamClosure(
   s: EvalState,
   callable: ScriptCallable,

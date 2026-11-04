@@ -161,7 +161,9 @@ describe('Rill Runtime: Configuration', () => {
         ],
         fn: async (): Promise<string> => {
           callCount++;
-          await new Promise((r) => setTimeout(r, 30));
+          await new Promise((r) => {
+            setTimeout(r, 30);
+          });
           return `call${callCount}`;
         },
       };

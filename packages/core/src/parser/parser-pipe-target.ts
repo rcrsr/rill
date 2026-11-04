@@ -380,7 +380,7 @@ function attachPipeTargetIndex(
     primary,
     methods,
     defaultValue: null,
-    span: makeSpan(primary.span.start, methods[methods.length - 1]!.span.end),
+    span: makeSpan(primary.span.start, methods.at(-1)!.span.end),
   } satisfies PostfixExprNode;
 }
 

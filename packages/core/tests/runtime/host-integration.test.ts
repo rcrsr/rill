@@ -294,10 +294,10 @@ describe('Rill Runtime: Host Integration', () => {
             annotations: {},
           },
         ],
-        fn: async (): Promise<RillValue> => {
+        fn: (): Promise<RillValue> => {
           callCount++;
           controller.abort();
-          return 'done';
+          return Promise.resolve('done');
         },
       };
 
@@ -1523,10 +1523,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
 
   describe('rejects unrepresentable return shapes', () => {
     it('undefined halts with RILL-R085 naming the function and root path', async () => {
-      const err = await expectR085(
-        { badFn: badFn(() => undefined) },
-        'badFn()'
-      );
+      const err = await expectR085({ badFn: badFn(() => {}) }, 'badFn()');
       expect(err.message).toContain("'badFn'");
       expect(err.message).toContain('<root>');
       expect(err.message).toContain('undefined');
@@ -1686,23 +1683,25 @@ describe('Host function return-value validation (RILL-R085)', () => {
     // Echo-through cases: the value is constructed by rill script syntax and
     // passed as an argument, so the host function returns a genuine rill
     // value of that brand rather than a hand-built fixture.
-    async function echoThrough(expr: string): Promise<RillValue> {
-      return run(`${expr} -> echo()`, {
-        functions: {
-          echo: {
-            params: [
-              {
-                name: 'x',
-                type: { kind: 'any' },
-                defaultValue: undefined,
-                annotations: {},
-              },
-            ],
-            returnType: anyTypeValue,
-            fn: (args) => args['x'] as RillValue,
+    function echoThrough(expr: string): Promise<RillValue> {
+      return Promise.resolve(
+        run(`${expr} -> echo()`, {
+          functions: {
+            echo: {
+              params: [
+                {
+                  name: 'x',
+                  type: { kind: 'any' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              returnType: anyTypeValue,
+              fn: (args) => args['x'] as RillValue,
+            },
           },
-        },
-      });
+        })
+      );
     }
 
     it('accepts an atom', async () => {
@@ -1755,23 +1754,25 @@ describe('Host function return-value validation (RILL-R085)', () => {
 
   describe('rejects forged brand objects that only fake the discriminator key', () => {
     /** Local copy of the sibling describe's echoThrough: same shape, own scope. */
-    async function echoThrough(expr: string): Promise<RillValue> {
-      return run(`${expr} -> echo()`, {
-        functions: {
-          echo: {
-            params: [
-              {
-                name: 'x',
-                type: { kind: 'any' },
-                defaultValue: undefined,
-                annotations: {},
-              },
-            ],
-            returnType: anyTypeValue,
-            fn: (args) => args['x'] as RillValue,
+    function echoThrough(expr: string): Promise<RillValue> {
+      return Promise.resolve(
+        run(`${expr} -> echo()`, {
+          functions: {
+            echo: {
+              params: [
+                {
+                  name: 'x',
+                  type: { kind: 'any' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              returnType: anyTypeValue,
+              fn: (args) => args['x'] as RillValue,
+            },
           },
-        },
-      });
+        })
+      );
     }
 
     it('a well-formed datetime brand still passes', async () => {
@@ -1940,7 +1941,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
     it('retry does not intercept the halt — it propagates to the caller', async () => {
       await expect(
         run('retry<limit: 2> { badFn() } => $r\n$r', {
-          functions: { badFn: badFn(() => undefined) },
+          functions: { badFn: badFn(() => {}) },
         })
       ).rejects.toHaveProperty('errorId', 'RILL-R085');
     });
@@ -1953,11 +1954,14 @@ describe('Host function return-value validation (RILL-R085)', () => {
         [Symbol.asyncIterator]() {
           let index = 0;
           return {
-            async next() {
+            next() {
               if (index < values.length) {
-                return { value: values[index++]!, done: false as const };
+                return Promise.resolve({
+                  value: values[index++]!,
+                  done: false as const,
+                });
               }
-              return { value: undefined, done: true as const };
+              return Promise.resolve({ value: undefined, done: true as const });
             },
           };
         },
@@ -1976,10 +1980,15 @@ describe('Host function return-value validation (RILL-R085)', () => {
       };
     }
 
+    const rejectingResolve = (): Promise<RillValue> =>
+      Promise.reject(new Error('resolve exploded'));
+
     it('a resolve() returning null halts $s() with RILL-R085 instead of leaking null', async () => {
       const err = await expectR085(
         {
-          make_stream: makeStreamFn(async () => null as unknown as RillValue),
+          make_stream: makeStreamFn(() =>
+            Promise.resolve(null as unknown as RillValue)
+          ),
         },
         'make_stream() => $s\n$s()'
       );
@@ -1989,9 +1998,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
     it('a throwing resolve() propagates as a raw rejected Error, not a reshaped invalid', async () => {
       const err = await run('make_stream() => $s\n$s()', {
         functions: {
-          make_stream: makeStreamFn(async () => {
-            throw new Error('resolve exploded');
-          }),
+          make_stream: makeStreamFn(rejectingResolve),
         },
       }).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(Error);
@@ -2001,9 +2008,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
     it('a throwing resolve() is NOT caught by guard — it still rejects raw', async () => {
       const err = await run('guard { make_stream() => $s\n$s() } => $r\n$r', {
         functions: {
-          make_stream: makeStreamFn(async () => {
-            throw new Error('resolve exploded');
-          }),
+          make_stream: makeStreamFn(rejectingResolve),
         },
       }).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(Error);
@@ -2025,7 +2030,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
         fn: () =>
           createRillStream({
             chunks: asyncIterableThatThrowsAfterOne(),
-            resolve: async () => 0,
+            resolve: () => Promise.resolve(0),
             dispose: () => {
               disposed.called = true;
             },
@@ -2039,12 +2044,12 @@ describe('Host function return-value validation (RILL-R085)', () => {
         [Symbol.asyncIterator]() {
           let i = 0;
           return {
-            async next() {
+            next() {
               if (i === 0) {
                 i++;
-                return { value: 1, done: false as const };
+                return Promise.resolve({ value: 1, done: false as const });
               }
-              throw new Error('mid-stream boom');
+              return Promise.reject(new Error('mid-stream boom'));
             },
           };
         },

@@ -21,20 +21,18 @@ import { loadEditorState } from '../persistence.js';
 function createThrowingStorage(): Storage {
   return {
     length: 0,
-    clear: () => undefined,
+    clear: () => {},
     key: () => null,
     getItem: () => {
       throw new Error('localStorage unavailable');
     },
-    setItem: () => undefined,
-    removeItem: () => undefined,
+    setItem: () => {},
+    removeItem: () => {},
   };
 }
 
 /** Import a persistence module whose availability cache starts empty. */
-async function importFreshPersistence(): Promise<
-  typeof import('../persistence.js')
-> {
+function importFreshPersistence(): Promise<typeof import('../persistence.js')> {
   vi.resetModules();
   return import('../persistence.js');
 }

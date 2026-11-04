@@ -123,7 +123,7 @@ export const mTail: RillMethod = (receiver, _args, ctx, location) => {
         'Cannot get tail of empty list'
       );
     }
-    return receiver[receiver.length - 1]!;
+    return receiver.at(-1)!;
   }
   if (typeof receiver === 'string') {
     if (receiver.length === 0) {
@@ -134,9 +134,9 @@ export const mTail: RillMethod = (receiver, _args, ctx, location) => {
       );
     }
     // Last code point, never a lone surrogate half of an astral character.
-    if (isBmpOnly(receiver)) return receiver.charAt(receiver.length - 1);
+    if (isBmpOnly(receiver)) return receiver.at(-1)!;
     const cps = [...receiver];
-    return cps[cps.length - 1]!;
+    return cps.at(-1)!;
   }
   throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'tail', preserveHostShape: true },

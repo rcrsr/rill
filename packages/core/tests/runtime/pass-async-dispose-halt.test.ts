@@ -54,7 +54,9 @@ async function runAndDispose(
   await execute(parse(src), ctx);
   // Let the fire-and-forget body settle; dispose() also awaits in-flight
   // work, so this is belt-and-suspenders for synchronously-throwing bodies.
-  await new Promise<void>((resolve) => setImmediate(resolve));
+  await new Promise<void>((resolve) => {
+    setImmediate(resolve);
+  });
   await ctx.dispose();
   return captured;
 }

@@ -126,13 +126,21 @@ describe('RuntimeContext.invalidate (IR-11)', () => {
   });
 });
 
+// Thunks for ctx.catch must be async-shaped without a sync throw; direct
+// Promise.reject/resolve in a `.catch(` argument trips promise/no-return-wrap.
+function rejectWith(reason: unknown): Promise<never> {
+  return Promise.reject(reason);
+}
+
+function resolveWith<T>(value: T): Promise<T> {
+  return Promise.resolve(value);
+}
+
 describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
   it('EC-5: detector returning null yields #R999', async () => {
     const ctx = createRuntimeContext({});
     const result = (await ctx.catch(
-      async () => {
-        throw new Error('unclassified');
-      },
+      () => rejectWith(new Error('unclassified')),
       () => null
     )) as RillValue;
 
@@ -143,9 +151,7 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
   it('EC-6: non-Error throw records raw.original = String(thrown)', async () => {
     const ctx = createRuntimeContext({});
     const result = (await ctx.catch(
-      async () => {
-        throw 'plainString';
-      },
+      () => rejectWith('plainString'),
       // Detector never runs for non-Error throws; the non-Error path
       // short-circuits to #R999 in bindLifecycleMethods (context.ts).
       () => null
@@ -161,9 +167,7 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
   it('EC-6: numeric throw records raw.original as String(number)', async () => {
     const ctx = createRuntimeContext({});
     const result = (await ctx.catch(
-      async () => {
-        throw 42;
-      },
+      () => rejectWith(42),
       () => null
     )) as RillValue;
 
@@ -175,9 +179,7 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
   it('IR-12: detector-provided meta drives the atom code', async () => {
     const ctx = createRuntimeContext({});
     const result = (await ctx.catch(
-      async () => {
-        throw new Error('upstream slow');
-      },
+      () => rejectWith(new Error('upstream slow')),
       (_err) => ({
         code: 'TIMEOUT',
         provider: 'upstream',
@@ -195,9 +197,7 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
   it('IR-12: detector-provided unregistered code falls back to #R001', async () => {
     const ctx = createRuntimeContext({});
     const result = (await ctx.catch(
-      async () => {
-        throw new Error('x');
-      },
+      () => rejectWith(new Error('x')),
       (_err) => ({
         code: 'NEVER_REGISTERED_CODE',
         provider: 'p',
@@ -211,7 +211,7 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
   it('IR-12: successful thunk passes through unchanged', async () => {
     const ctx = createRuntimeContext({});
     const result = await ctx.catch(
-      async () => 'ok-value',
+      () => resolveWith('ok-value'),
       (_err) => null
     );
     expect(result).toBe('ok-value');
@@ -221,9 +221,7 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
     const ctx = createRuntimeContext({});
     const seen: unknown[] = [];
     const result = (await ctx.catch(
-      async () => {
-        throw new Error('classify-me');
-      },
+      () => rejectWith(new Error('classify-me')),
       (err) => {
         seen.push(err);
         return { code: 'AUTH', provider: 'idp' };
@@ -315,9 +313,7 @@ describe('Extension-boundary reshape (AC-E4, AC-E9) end-to-end', () => {
         boom: {
           returnType: anyTypeValue,
           params: [],
-          fn: async () => {
-            throw new Error('host failure');
-          },
+          fn: () => rejectWith(new Error('host failure')),
         },
       },
     });

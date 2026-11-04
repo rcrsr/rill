@@ -38,7 +38,7 @@ function unwrapConditionToBinary(cond: ConditionalNode): BinaryExprNode | null {
   }
   if (inner && inner.type === 'PipeChain') {
     const chain = inner as PipeChainNode;
-    if (chain.pipes.length !== 0) return null;
+    if (chain.pipes.length > 0) return null;
     inner = chain.head;
   }
   if (inner && inner.type === 'BinaryExpr') {
@@ -55,7 +55,7 @@ function operandIsNil(operand: ASTNode | null | undefined): boolean {
   if (!operand) return false;
   if (operand.type !== 'PostfixExpr') return false;
   const postfix = operand as PostfixExprNode;
-  if (postfix.methods.length !== 0) return false;
+  if (postfix.methods.length > 0) return false;
   const primary = postfix.primary;
   if (primary.type !== 'HostCall') return false;
   const call = primary as HostCallNode;

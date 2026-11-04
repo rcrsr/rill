@@ -47,7 +47,7 @@ function unwrapToHead(node: ASTNode): ASTNode {
   }
   if (inner.type === 'PipeChain') {
     const chain = inner as PipeChainNode;
-    if (chain.pipes.length !== 0 || chain.terminator !== null) {
+    if (chain.pipes.length > 0 || chain.terminator !== null) {
       return inner;
     }
     inner = chain.head;
@@ -102,7 +102,7 @@ function matchExistenceCheck(
 
   if (target.type !== 'PostfixExpr') return null;
   const postfix = target as PostfixExprNode;
-  if (postfix.methods.length !== 0) return null;
+  if (postfix.methods.length > 0) return null;
   if (postfix.primary.type !== 'Variable') return null;
 
   const variable = postfix.primary as VariableNode;
@@ -123,7 +123,7 @@ function matchVariableReference(body: BodyNode): VariableNode | null {
   if (head.type !== 'PostfixExpr') return null;
 
   const postfix = head as PostfixExprNode;
-  if (postfix.methods.length !== 0) return null;
+  if (postfix.methods.length > 0) return null;
   if (postfix.defaultValue !== null) return null;
   if (postfix.primary.type !== 'Variable') return null;
 

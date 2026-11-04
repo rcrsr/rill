@@ -103,7 +103,7 @@ class MockStringStream {
   }
 
   current(): string {
-    return this.string.substring(this.start, this.pos);
+    return this.string.slice(this.start, this.pos);
   }
 }
 
@@ -792,7 +792,7 @@ describe('highlighting performance', () => {
         start: 0,
         sol: () => true,
         eol: () => true,
-        next: () => undefined,
+        next: () => {},
       } as unknown as StringStream;
 
       const p95 = measureP95(
@@ -820,7 +820,7 @@ describe('highlighting performance', () => {
               start: 0,
               sol: () => mockStream.pos === 0,
               eol: () => mockStream.pos >= mockStream.string.length,
-              next: () => {
+              next: (): string | undefined => {
                 if (mockStream.pos < mockStream.string.length) {
                   const char = mockStream.string[mockStream.pos];
                   mockStream.pos++;
@@ -860,7 +860,7 @@ describe('highlighting performance', () => {
               start: 0,
               sol: () => mockStream.pos === 0,
               eol: () => mockStream.pos >= mockStream.string.length,
-              next: () => {
+              next: (): string | undefined => {
                 if (mockStream.pos < mockStream.string.length) {
                   const char = mockStream.string[mockStream.pos];
                   mockStream.pos++;
@@ -898,7 +898,7 @@ describe('highlighting performance', () => {
         start: 0,
         sol: () => mockStream.pos === 0,
         eol: () => mockStream.pos >= mockStream.string.length,
-        next: () => {
+        next: (): string | undefined => {
           if (mockStream.pos < mockStream.string.length) {
             const char = mockStream.string[mockStream.pos];
             mockStream.pos++;

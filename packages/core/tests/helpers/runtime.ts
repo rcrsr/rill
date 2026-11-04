@@ -67,7 +67,7 @@ export async function runFull(
   options: TestOptions = {}
 ): Promise<ExecutionResult> {
   const { ast, ctx } = setup(source, options);
-  return execute(ast, ctx);
+  return await execute(ast, ctx);
 }
 
 /** Execute and return both result and context for variable inspection */
@@ -119,7 +119,9 @@ export function mockAsyncFn(
     params: [],
     returnType: anyTypeValue,
     fn: async () => {
-      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => {
+        setTimeout(r, delay);
+      });
       return returnValue;
     },
   };

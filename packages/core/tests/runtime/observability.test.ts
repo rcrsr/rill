@@ -160,9 +160,9 @@ describe('Rill Runtime: Observability', () => {
         const slowFn: RillFunction = {
           params: [],
           returnType: anyTypeValue,
-          fn: async () => {
+          fn: () => {
             clock += 50;
-            return 'done';
+            return Promise.resolve('done');
           },
         };
         const { events, callbacks } = createEventCollector();

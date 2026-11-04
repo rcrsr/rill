@@ -431,12 +431,12 @@ describe('Type-aware dict keys (#266)', () => {
       expect(getTypedKeyEntries(value)).toEqual([]);
     });
 
-    it('returns [] for non-dict inputs without throwing', async () => {
+    it('returns [] for non-dict inputs without throwing', () => {
       const stream = createRillStream({
         chunks: (async function* () {
           yield 1;
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       });
 
       expect(() => getTypedKeyEntries(null)).not.toThrow();

@@ -39,7 +39,7 @@ function endsInRethrow(statement, param) {
     );
   }
   if (statement.type === 'BlockStatement') {
-    return endsInRethrow(statement.body[statement.body.length - 1], param);
+    return endsInRethrow(statement.body.at(-1), param);
   }
   if (statement.type === 'IfStatement') {
     return endsInRethrow(statement.alternate, param);

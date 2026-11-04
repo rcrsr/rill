@@ -165,7 +165,7 @@ export function extractSpanText(span: SourceSpan, source: string): string {
   if (span.start.line === span.end.line) {
     const line = lines[span.start.line - 1];
     if (!line) return '';
-    return line.substring(span.start.column - 1, span.end.column - 1);
+    return line.slice(span.start.column - 1, span.end.column - 1);
   }
 
   const result: string[] = [];
@@ -175,9 +175,9 @@ export function extractSpanText(span: SourceSpan, source: string): string {
     if (line === undefined) continue;
 
     if (i === span.start.line - 1) {
-      result.push(line.substring(span.start.column - 1));
+      result.push(line.slice(span.start.column - 1));
     } else if (i === span.end.line - 1) {
-      result.push(line.substring(0, span.end.column - 1));
+      result.push(line.slice(0, span.end.column - 1));
     } else {
       result.push(line);
     }

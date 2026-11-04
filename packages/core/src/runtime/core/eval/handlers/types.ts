@@ -488,7 +488,7 @@ export async function resolveTypeRef(
         const resolved = await resolveTypeRef(s, arg.value, getVariableFn);
         return resolved.structure;
       },
-      async (node: LiteralNode): Promise<RillValue> => {
+      (node: LiteralNode): Promise<RillValue> => {
         return evaluatePrimary(s, node);
       }
     );
@@ -712,7 +712,7 @@ export async function evaluateTypeConstructor(
         ? ({ kind: resolved.typeName } as TypeStructure)
         : resolved.structure;
     },
-    async (literal: LiteralNode): Promise<RillValue> => {
+    (literal: LiteralNode): Promise<RillValue> => {
       return evaluatePrimary(s, literal);
     },
     location
@@ -736,6 +736,7 @@ export async function evaluateClosureSigLiteral(
   const location = node.span.start;
 
   // Helper: evaluate a type expression and extract TypeStructure
+  // oxlint-disable-next-line require-await -- throwTypeHalt raises synchronously; the async boundary turns it into a rejection
   const resolveTypeExpr = async (argVal: RillValue): Promise<TypeStructure> => {
     if (!isTypeValue(argVal)) {
       throwTypeHalt(

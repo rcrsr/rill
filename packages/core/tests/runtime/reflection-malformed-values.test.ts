@@ -37,9 +37,9 @@ function makeLeakyStream(): RillFunction {
         chunks: (async function* () {
           yield 1;
         })(),
-        resolve: async () => {
+        resolve: () => {
           const marker = 'SENTINEL_FUNCTION_SOURCE_MARKER';
-          return marker.length > 0 ? null : null;
+          return Promise.resolve(marker.length > 0 ? null : null);
         },
       }),
   };
@@ -102,7 +102,7 @@ describe('function source never reaches script-visible output', () => {
     expect(formatted).not.toContain('=>');
   });
 
-  it('omits function source from the halt raised by inferStructure on a raw function', async () => {
+  it('omits function source from the halt raised by inferStructure on a raw function', () => {
     let caught: unknown;
     try {
       inferStructure(makeRawFunction());
@@ -124,9 +124,12 @@ describe('function source never reaches script-visible output', () => {
 
 describe('malformed callables halt instead of crashing', () => {
   it('halts INVALID_INPUT when inferring the structure of a callable without a return type', async () => {
-    await expectHalt(async () => inferStructure(makeMalformedCallable()), {
-      code: 'INVALID_INPUT',
-    });
+    await expectHalt(
+      () => Promise.resolve(inferStructure(makeMalformedCallable())),
+      {
+        code: 'INVALID_INPUT',
+      }
+    );
   });
 
   it('reports no structural match for a callable without a return type', () => {

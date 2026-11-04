@@ -85,7 +85,7 @@ async function resolveExpressionValue(
       ? []
       : [s.ctx.pipeValue];
 
-  return await invokeCallable(s, value, args, undefined);
+  return await invokeCallable(s, value, args);
 }
 
 /**
@@ -444,10 +444,7 @@ export async function evaluateUnaryExpr(
  * Evaluate expression head, returning any RillValue.
  * Helper for binary and unary expression evaluation.
  */
-async function evaluateExprHead(
-  s: EvalState,
-  node: ArithHead
-): Promise<RillValue> {
+function evaluateExprHead(s: EvalState, node: ArithHead): Promise<RillValue> {
   switch (node.type) {
     case 'BinaryExpr':
       return evaluateBinaryExpr(s, node);

@@ -194,7 +194,7 @@ describe('Rill Runtime: contextResolver', () => {
       }
       const stream = createRillStream({
         chunks: chunks(),
-        resolve: async () => 'done',
+        resolve: () => Promise.resolve('done'),
       });
       expectR063('s.chunks', { s: stream });
     });

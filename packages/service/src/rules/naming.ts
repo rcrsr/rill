@@ -222,7 +222,7 @@ function buildFix(
   }
 
   const sourceTextAt = (span: SourceSpan): string =>
-    context.source.substring(span.start.offset, span.end.offset);
+    context.source.slice(span.start.offset, span.end.offset);
 
   const replacement = sourceTextAt(range).replace(name, snakeCaseName);
 

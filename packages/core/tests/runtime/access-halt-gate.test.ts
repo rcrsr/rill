@@ -26,6 +26,7 @@ describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
       locCalls++;
       return undefined;
     };
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
     const result = accessHaltGateFast(42, '+', locFn, undefined);
     expect(result).toBe(42);
     expect(locCalls).toBe(0);
@@ -37,6 +38,7 @@ describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
       locCalls++;
       return undefined;
     };
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
     const result = accessHaltGateFast('hi', 'arg', locFn, undefined);
     expect(result).toBe('hi');
     expect(locCalls).toBe(0);
@@ -48,6 +50,7 @@ describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
       locCalls++;
       return undefined;
     };
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
     const result = accessHaltGateFast(null, '->', locFn, undefined);
     expect(result).toBe(null);
     expect(locCalls).toBe(0);
@@ -60,6 +63,7 @@ describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
       return undefined;
     };
     const obj: Record<string, RillValue> = { a: 1, b: 2 };
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
     const result = accessHaltGateFast(obj, '.', locFn, undefined);
     expect(result).toBe(obj);
     expect(locCalls).toBe(0);
@@ -72,6 +76,7 @@ describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
       return undefined;
     };
     const arr = [1, 2, 3];
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
     const result = accessHaltGateFast(arr, '[]', locFn, undefined);
     expect(result).toBe(arr);
     expect(locCalls).toBe(0);
@@ -91,6 +96,7 @@ describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
       return undefined;
     };
 
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
     expect(() => accessHaltGateFast(invalid, '+', locFn, undefined)).toThrow(
       RuntimeHaltSignal
     );
@@ -108,6 +114,7 @@ describe('accessHaltGateFast fast-path (NFR-ERR-1)', () => {
 
     let fastSignal: RuntimeHaltSignal | undefined;
     try {
+      // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
       accessHaltGateFast(invalid, '+', () => undefined, undefined);
     } catch (e) {
       if (e instanceof RuntimeHaltSignal) fastSignal = e;

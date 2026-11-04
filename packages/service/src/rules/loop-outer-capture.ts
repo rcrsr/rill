@@ -60,9 +60,7 @@ export const loopOuterCapture: Rule = {
 
     // Get the current closure scope (if we're inside a closure).
     const currentClosureScope =
-      context.scopeStack.length > 0
-        ? context.scopeStack[context.scopeStack.length - 1]!
-        : null;
+      context.scopeStack.length > 0 ? context.scopeStack.at(-1)! : null;
 
     // Check if any capture targets an outer-scope variable.
     for (const capture of captures) {

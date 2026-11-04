@@ -148,6 +148,7 @@ function matchesErrorId(
  * Main expression evaluation entry point.
  * Delegates to pipe chain evaluator.
  */
+// oxlint-disable-next-line require-await -- the PartialExpression guard halts synchronously; the async boundary turns it into a rejection
 export async function evaluateExpression(
   s: EvalState,
   expr: ExpressionNode
@@ -1025,7 +1026,7 @@ async function evaluateHierarchicalDispatch(
 
     // Handle last element separately for terminal closure support
     // path.length > 0 is guaranteed above so this index is always valid
-    lastKey = path[path.length - 1]!;
+    lastKey = path.at(-1)!;
     const result = await traversePathStep(s, current, lastKey, true, location);
 
     // Resolve terminal value (handles terminal closures with $ = lastKey)
@@ -1175,7 +1176,7 @@ async function resolveIntermediateClosure(
   // Check for parameterized closure (explicit user-defined params)
   // Note: Block-closures have exactly 1 param named '$'
   // Parameterized closures have 1+ params with user-defined names
-  if (value.kind === 'script' && value.params.length >= 1) {
+  if (value.kind === 'script' && value.params.length > 0) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
     if (value.params[0]!.name !== '$') {
       // Parameterized closures cannot be auto-invoked at an intermediate path position.
@@ -1225,7 +1226,7 @@ async function resolveTerminalValue(
   // Check for parameterized closure (explicit user-defined params)
   // Note: Block-closures have exactly 1 param named '$'
   // Parameterized closures have 1+ params with user-defined names
-  if (value.kind === 'script' && value.params.length >= 1) {
+  if (value.kind === 'script' && value.params.length > 0) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
     if (value.params[0]!.name !== '$') {
       // Parameterized closures cannot be auto-invoked at a terminal path position.

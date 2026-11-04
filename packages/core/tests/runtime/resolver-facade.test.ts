@@ -38,10 +38,11 @@ describe('ResolverContext', () => {
     });
 
     it('size equals the number of resolver entries passed', () => {
-      const resolver: SchemeResolver = async () => ({
-        kind: 'value',
-        value: 42,
-      });
+      const resolver: SchemeResolver = () =>
+        Promise.resolve({
+          kind: 'value',
+          value: 42,
+        });
       const ctx = createRuntimeContext({
         resolvers: { data: resolver, blob: resolver },
       });
@@ -49,10 +50,11 @@ describe('ResolverContext', () => {
     });
 
     it('registered resolver is retrievable by scheme name', () => {
-      const resolver: SchemeResolver = async () => ({
-        kind: 'value',
-        value: 'hello',
-      });
+      const resolver: SchemeResolver = () =>
+        Promise.resolve({
+          kind: 'value',
+          value: 'hello',
+        });
       const ctx = createRuntimeContext({ resolvers: { myscheme: resolver } });
       expect(ctx.resolvers.get('myscheme')).toBe(resolver);
     });

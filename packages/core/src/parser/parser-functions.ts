@@ -63,12 +63,12 @@ Parser.prototype.parseArgumentList = function (
   skipNewlines(this.state);
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
     args.push(parseSpreadOrArg(this, { allowSpread, hasSpread }));
-    if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
+    if (args.at(-1)!.type === 'SpreadArg') hasSpread = true;
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
       args.push(parseSpreadOrArg(this, { allowSpread, hasSpread }));
-      if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
+      if (args.at(-1)!.type === 'SpreadArg') hasSpread = true;
     }
   }
   skipNewlines(this.state);

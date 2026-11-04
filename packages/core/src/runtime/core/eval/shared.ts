@@ -85,7 +85,7 @@ const scheduleMacrotask: ((callback: () => void) => void) | undefined = (() => {
       schedule(callback, 0);
     };
   }
-  return undefined;
+  return;
 })();
 
 /**

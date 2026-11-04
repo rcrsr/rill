@@ -175,7 +175,7 @@ function getInvocationStrategy(s: EvalState): CallableInvocationStrategy {
   const strategy = new CallableInvocationStrategy(
     () => s.ctx,
     argumentsBinder,
-    (async (
+    ((
       callable: RillCallable,
       args: RillValue[],
       location: SourceLocation | undefined,
@@ -267,7 +267,7 @@ export async function evaluateArgs(
 }
 
 /** Dispatch by kind, without frame enrichment. */
-async function dispatchByKind(
+function dispatchByKind(
   s: EvalState,
   callable: RillCallable,
   args: (RillValue | undefined)[],
@@ -737,7 +737,7 @@ export function evaluateYield(
 }
 
 /** Invoke script callable; dispatches stream closures to stream-closures.ts. */
-export async function invokeScriptCallable(
+export function invokeScriptCallable(
   s: EvalState,
   callable: ScriptCallable,
   args: (RillValue | undefined)[],

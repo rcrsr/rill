@@ -31,7 +31,7 @@ function makeCallable(
     params,
     annotations: {},
     returnType,
-    fn: async () => null,
+    fn: () => Promise.resolve(null),
   };
 }
 

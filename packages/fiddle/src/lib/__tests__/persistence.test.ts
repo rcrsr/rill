@@ -67,9 +67,7 @@ function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage {
 }
 
 /** Import a persistence module whose availability cache starts empty. */
-async function importFreshPersistence(): Promise<
-  typeof import('../persistence.js')
-> {
+function importFreshPersistence(): Promise<typeof import('../persistence.js')> {
   vi.resetModules();
   return import('../persistence.js');
 }

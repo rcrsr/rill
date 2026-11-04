@@ -234,8 +234,9 @@ describe('createTestContext', () => {
         },
         async_ext: {
           value: 2,
-          dispose: async () => {
+          dispose: () => {
             calls.push(`async:${ctx.isDisposed()}`);
+            return Promise.resolve();
           },
         },
         plain_ext: { value: 3 },

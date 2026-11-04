@@ -132,7 +132,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
       // A function returning an object satisfies () => unknown
       const suspendReturnsObject: () => unknown = () => ({ key: 'val' });
       // A function returning undefined satisfies () => unknown
-      const suspendReturnsUndefined: () => unknown = () => undefined;
+      const suspendReturnsUndefined: () => unknown = () => {};
 
       const extA = {
         value: { op: hostFn([], (_args) => null) },

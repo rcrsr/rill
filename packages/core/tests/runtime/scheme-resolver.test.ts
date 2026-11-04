@@ -37,9 +37,10 @@ const MODULE_WITH_LOCAL_CLOSURE =
 describe('Rill Runtime: moduleResolver', () => {
   describe('IR-4: Config lookup', () => {
     it('EC-3: throws RILL-R059 when config is not a plain object (undefined)', async () => {
-      await expect(
-        moduleResolver('greetings', undefined)
-      ).rejects.toHaveProperty('errorId', 'RILL-R059');
+      await expect(moduleResolver('greetings')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R059'
+      );
     });
 
     it('EC-3: throws RILL-R059 when config is an array', async () => {
@@ -56,10 +57,13 @@ describe('Rill Runtime: moduleResolver', () => {
     });
 
     it('EC-3: RILL-R059 message is descriptive', async () => {
-      await expectRuntimeError(async () => moduleResolver('greetings', null), {
-        code: 'RILL-R059',
-        messagePattern: 'moduleResolver config must be a plain object',
-      });
+      await expectRuntimeError(
+        () => Promise.resolve(moduleResolver('greetings', null)),
+        {
+          code: 'RILL-R059',
+          messagePattern: 'moduleResolver config must be a plain object',
+        }
+      );
     });
 
     it('EC-1: throws RILL-R050 when module ID absent from config', async () => {
@@ -70,7 +74,8 @@ describe('Rill Runtime: moduleResolver', () => {
 
     it('EC-1: RILL-R050 message includes the module name', async () => {
       await expectRuntimeError(
-        async () => moduleResolver('missing', { other: './other.rill' }),
+        () =>
+          Promise.resolve(moduleResolver('missing', { other: './other.rill' })),
         {
           code: 'RILL-R050',
           messagePattern: "Module 'missing' not found in resolver config",
@@ -86,8 +91,12 @@ describe('Rill Runtime: moduleResolver', () => {
 
     it('EC-2: RILL-R051 message includes the module name', async () => {
       await expectRuntimeError(
-        async () =>
-          moduleResolver('greetings', { greetings: './nonexistent-file.rill' }),
+        () =>
+          Promise.resolve(
+            moduleResolver('greetings', {
+              greetings: './nonexistent-file.rill',
+            })
+          ),
         {
           code: 'RILL-R051',
           messagePattern: "Failed to read module 'greetings'",

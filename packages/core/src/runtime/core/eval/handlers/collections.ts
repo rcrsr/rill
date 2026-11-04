@@ -59,6 +59,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * @param node - AST node providing span for error locations
  * @param limit - Maximum iteration count (default: DEFAULT_MAX_ITERATIONS)
  */
+// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
 export async function getIterableElements(
   input: RillValue,
   ctx: RuntimeContext,

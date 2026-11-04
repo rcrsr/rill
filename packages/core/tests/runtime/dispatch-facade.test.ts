@@ -33,7 +33,7 @@ describe('DispatchContext', () => {
     });
 
     it('user-defined function is registered and retrievable by name', () => {
-      const myFn = async () => 'result';
+      const myFn = () => Promise.resolve('result');
       const ctx = createRuntimeContext({
         functions: {
           myFn: { returnType: anyTypeValue, params: [], fn: myFn },
@@ -50,7 +50,7 @@ describe('DispatchContext', () => {
           greet: {
             returnType: anyTypeValue,
             params: [],
-            fn: async () => 'hello',
+            fn: () => Promise.resolve('hello'),
           },
         },
       });

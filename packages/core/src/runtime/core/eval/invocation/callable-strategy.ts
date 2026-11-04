@@ -110,7 +110,7 @@ export class CallableInvocationStrategy {
    * Delegates to `ArgumentsBinder` as the single spread-detection owner.
    * binding failures surface from ArgumentsBinder unchanged.
    */
-  async bind(
+  bind(
     callable: RillCallable,
     args: (ExpressionNode | SpreadArgNode)[],
     pipeInput: RillValue | undefined,

@@ -135,6 +135,7 @@ function compareValue(a: RillValue, b: RillValue): number | undefined {
   return dispatchByIdentity(
     a,
     (reg) => (reg.protocol.compare ? reg.protocol.compare(a, b) : undefined),
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- the required fallback parameter is typed T and undefined is the intended "no ordering" value
     undefined
   );
 }

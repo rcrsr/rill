@@ -117,7 +117,7 @@ import { evaluateListLiteralElements } from './extraction.js';
  *
  * @internal
  */
-async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
+function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
   annotations: Record<string, RillValue>;
 }> {
   // Capture closure-level annotations from immediateAnnotation field.
@@ -128,7 +128,7 @@ async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
   const annotations: Record<string, RillValue> = ctx.immediateAnnotation ?? {};
   ctx.immediateAnnotation = undefined;
 
-  return { annotations };
+  return Promise.resolve({ annotations });
 }
 
 /**
@@ -235,6 +235,7 @@ function requirePipeChainHead(
  * @returns Current pipe value
  * @throws RuntimeHaltSignal (catchable, RILL-R005) if $ not bound
  */
+// oxlint-disable-next-line require-await -- the unbound-pipe guard halts synchronously; the async boundary turns it into a rejection
 export async function evaluatePass(
   s: EvalState,
   node: PassNode
@@ -318,7 +319,7 @@ export async function evaluatePassBlock(
   // true; non-catchable halts and ControlSignals always propagate.
   const runBody = (evaluator: EvalState): Promise<void> =>
     evaluateBody(evaluator, node.body)
-      .then(() => undefined)
+      .then(() => {})
       .catch((e: unknown) => {
         // ControlSignal always re-throws.
         if (e instanceof ControlSignal) throw e;
@@ -904,7 +905,7 @@ async function resolveDispatchValue(
     // Check for parameterized closure (explicit user-defined params)
     // Note: Block-closures have exactly 1 param named '$'
     // Parameterized closures have 1+ params with user-defined names
-    if (value.kind === 'script' && value.params.length >= 1) {
+    if (value.kind === 'script' && value.params.length > 0) {
       // Check if first param is '$' (block-closure) or user-defined (parameterized)
       if (value.params[0]!.name !== '$') {
         // Parameterized closure at terminal position: error

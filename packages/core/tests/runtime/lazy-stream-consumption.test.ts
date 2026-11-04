@@ -44,7 +44,7 @@ function makeInfiniteCountingStreamFn(
             n++;
           }
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
         dispose: () => {
           disposeCounter.count++;
         },

@@ -391,7 +391,7 @@ describe('filter integration', () => {
     expect(result.result).toBe('deleted');
   });
 
-  it('keeps the resolver off the runtime context', async () => {
+  it('keeps the resolver off the runtime context', () => {
     // Host functions are handed the context. A resolver reachable there
     // is a resolver an extension can read or replace mid-run.
     const ctx = createTestContext(
@@ -1261,7 +1261,7 @@ describe('filter integration: callables returned at call time', () => {
       () =>
         createRillStream({
           chunks: chunks(),
-          resolve: async () => 'done',
+          resolve: () => Promise.resolve('done'),
         }) as unknown as RillValue
     );
     const iter = producer(
@@ -1463,7 +1463,7 @@ describe('filter integration: callables returned at call time', () => {
     it('brands when the hint returns a non-false value', async () => {
       const { state, kb } = freshKb();
       const resolver = Object.assign(() => null, {
-        policesExtension: () => undefined,
+        policesExtension: () => {},
       }) as unknown as FilterResolver;
       await execute(parse(script), hintedContext(resolver, kb));
       expect(getExtensionIdentity(state.fresh as never)).toEqual({

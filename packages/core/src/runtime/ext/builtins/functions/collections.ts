@@ -121,7 +121,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           ctx as RuntimeContext,
           node,
           'seq',
-          async (element) => {
+          (element) => {
             const childCtx = createChildContext(ctx as RuntimeContext);
             childCtx.pipeValue = element;
             const closureToInvoke = isScriptCallable(body)

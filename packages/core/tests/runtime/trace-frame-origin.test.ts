@@ -35,7 +35,7 @@ describe('trace-frame kind reflects real halt origin', () => {
     const trace = getStatus(result as never).trace;
     const hostFrames = trace.filter((f) => f.kind === 'host');
     expect(hostFrames.length).toBeGreaterThanOrEqual(1);
-    expect(trace[trace.length - 1]!.kind).toBe('guard-caught');
+    expect(trace.at(-1)!.kind).toBe('guard-caught');
   });
 
   it('a halt escaping a script-defined closure body does not append a second `host` frame at the call boundary', async () => {
@@ -61,7 +61,7 @@ describe('trace-frame kind reflects real halt origin', () => {
     expect(callBoundaryFrame!.kind).toBe('access');
 
     // Outer guard still catches and appends its own frame last.
-    expect(trace[trace.length - 1]!.kind).toBe('guard-caught');
+    expect(trace.at(-1)!.kind).toBe('guard-caught');
   });
 
   it('the two boundary shapes produce different trace-frame kinds for their respective call-boundary frame', async () => {

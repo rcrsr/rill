@@ -33,7 +33,7 @@ function makeManualScheduler(): ManualScheduler {
         callbacks.push(fn);
         return 0 as unknown as ReturnType<typeof setTimeout>;
       },
-      clearTimeout: () => undefined,
+      clearTimeout: () => {},
     },
     fire: () => {
       for (const fn of callbacks) fn();
@@ -68,7 +68,7 @@ describe('timeout<total:> scheduling', () => {
     'schedules exactly %i ms, keeps the body pending, then guard sees RILL-R082',
     async (ms) => {
       const manual = makeManualScheduler();
-      let markStarted: () => void = () => undefined;
+      let markStarted: () => void = () => {};
       const started = new Promise<void>((resolve) => {
         markStarted = resolve;
       });

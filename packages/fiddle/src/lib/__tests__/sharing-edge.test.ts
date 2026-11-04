@@ -82,7 +82,9 @@ describe('sharing edge cases', () => {
       originalLocation = window.location;
 
       Object.defineProperty(navigator, 'clipboard', {
-        value: { writeText: vi.fn().mockResolvedValue(undefined) },
+        value: {
+          writeText: vi.fn<Clipboard['writeText']>().mockResolvedValue(),
+        },
         writable: true,
         configurable: true,
       });

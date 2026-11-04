@@ -235,7 +235,7 @@ export function runRules(
         ruleContext.variables.set(node.name, node.span.start);
         const currentScope =
           ruleContext.scopeStack.length > 0
-            ? ruleContext.scopeStack[ruleContext.scopeStack.length - 1]
+            ? ruleContext.scopeStack.at(-1)
             : null;
         ruleContext.variableScopes.set(node.name, currentScope ?? null);
       }

@@ -50,7 +50,9 @@ import { toRuntimeContext } from '../helpers/runtime.js';
 // completion signal, and dispose() aborts a body still running. One macrotask
 // turn drains every pending microtask, so the body has halted by then.
 function settleMicrotasks(): Promise<void> {
-  return new Promise<void>((resolve) => setImmediate(resolve));
+  return new Promise<void>((resolve) => {
+    setImmediate(resolve);
+  });
 }
 
 // Completion of every delay_then_head body, so a test can wait for work that
@@ -87,7 +89,7 @@ function makeHostFunction(
 function makeOneChunkStream(dispose?: () => void): RillValue {
   return createRillStream({
     chunks: yieldChunks([1]),
-    resolve: async (): Promise<RillValue> => null,
+    resolve: (): Promise<RillValue> => Promise.resolve(null),
     ...(dispose !== undefined ? { dispose } : {}),
   });
 }
@@ -105,7 +107,7 @@ function buildHostFunctions(): Record<BaselineHostFunctionName, RillFunction> {
     make_stream: makeHostFunction(() =>
       createRillStream({
         chunks: yieldChunks([1, 2]),
-        resolve: async (): Promise<RillValue> => null,
+        resolve: (): Promise<RillValue> => Promise.resolve(null),
       })
     ),
     make_stream_one_chunk: makeHostFunction(() => makeOneChunkStream()),
@@ -147,8 +149,8 @@ function buildHostFunctions(): Record<BaselineHostFunctionName, RillFunction> {
       })();
       lateWork.push(
         work.then(
-          () => undefined,
-          () => undefined
+          () => {},
+          () => {}
         )
       );
       return work;
@@ -163,7 +165,7 @@ function buildContext(
     onLogEvent?: (event: { detail?: string | undefined }) => void;
   }
 ): RuntimeContext {
-  let markExpiryFired: () => void = () => undefined;
+  let markExpiryFired: () => void = () => {};
   expiryFired = new Promise<void>((resolve) => {
     markExpiryFired = resolve;
   });
@@ -224,7 +226,7 @@ async function capture(fn: () => unknown): Promise<Captured> {
 
 async function captureScript(
   source: string,
-  options: BaselineScriptOptions | undefined
+  options?: BaselineScriptOptions
 ): Promise<Captured> {
   const ctx = buildContext(options);
   try {
@@ -236,7 +238,7 @@ async function captureScript(
 
 async function runScriptValue(
   source: string,
-  options: BaselineScriptOptions | undefined
+  options?: BaselineScriptOptions
 ): Promise<RillValue> {
   const ctx = buildContext(options);
   try {
@@ -553,7 +555,7 @@ describe('halt migration parity', () => {
   describe('converter provenance', () => {
     it('yields RILL-R038 for string to number conversion in a script', async () => {
       const entry = SITES.find((e) => e.siteId.endsWith('string.ts:62'));
-      const result = await captureScript('"abc" -> number', undefined);
+      const result = await captureScript('"abc" -> number');
       expect(result.threw).toBe(true);
       if (!result.threw) return;
       expect((result.error as RuntimeError).errorId).toBe('RILL-R038');
@@ -562,8 +564,7 @@ describe('halt migration parity', () => {
 
     it('recovers guard { "abc" -> number } with #RILL_R038, not #RILL_R064', async () => {
       const result = await runScriptValue(
-        'guard { "abc" -> number } => $r\n($r.!code == #RILL_R038)',
-        undefined
+        'guard { "abc" -> number } => $r\n($r.!code == #RILL_R038)'
       );
       expect(result).toBe(true);
     });
@@ -571,8 +572,7 @@ describe('halt migration parity', () => {
     it('recovers bool conversions in a script as #RILL_R036', async () => {
       for (const source of ['"abc" -> bool', '5 -> bool']) {
         const result = await runScriptValue(
-          `guard { ${source} } => $r\n($r.!code == #RILL_R036)`,
-          undefined
+          `guard { ${source} } => $r\n($r.!code == #RILL_R036)`
         );
         expect(result).toBe(true);
       }
@@ -603,7 +603,7 @@ describe('halt migration parity', () => {
 
     it('halts a site inside guard unrecovered and gives the host RILL-R003 with the baseline text', async () => {
       expect(headSite?.guardRecovers).toBe(false);
-      const result = await captureScript('guard {\n5 -> .head\n}', undefined);
+      const result = await captureScript('guard {\n5 -> .head\n}');
       expect(result.threw).toBe(true);
       if (!result.threw) return;
       const err = result.error as RuntimeError;
@@ -613,7 +613,7 @@ describe('halt migration parity', () => {
       expect(err.message).toBe(
         `${headSite?.rawMessage} at 2:${headSite?.location?.column}`
       );
-      expect(await runScriptValue('guard { 1 } => $r\n$r', undefined)).toBe(1);
+      expect(await runScriptValue('guard { 1 } => $r\n$r')).toBe(1);
     });
 
     it('recovers a site firing after timeout expiry inside guard as #RILL_R082', async () => {
@@ -717,10 +717,7 @@ describe('halt migration parity', () => {
 
     it('omits source id and source text for the same site with no module in play', async () => {
       const entry = BOUNDARIES.find((e) => e.path === 'script-callable-source');
-      const result = await captureScript(
-        '|x| ($x -> .head) => $f\n5 -> $f',
-        undefined
-      );
+      const result = await captureScript('|x| ($x -> .head) => $f\n5 -> $f');
       expect(result.threw).toBe(true);
       if (!result.threw) return;
       const err = result.error as RuntimeError;

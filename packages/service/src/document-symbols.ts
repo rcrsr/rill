@@ -59,7 +59,7 @@ function buildSymbolTree(flat: readonly DocumentSymbol[]): DocumentSymbol[] {
       frame.children.length > 0
         ? { ...frame.symbol, children: frame.children }
         : frame.symbol;
-    const parent = stack[stack.length - 1];
+    const parent = stack.at(-1);
     if (parent) {
       parent.children.push(built);
     } else {
@@ -69,7 +69,7 @@ function buildSymbolTree(flat: readonly DocumentSymbol[]): DocumentSymbol[] {
 
   for (const symbol of sorted) {
     while (stack.length > 0) {
-      const top = stack[stack.length - 1]!;
+      const top = stack.at(-1)!;
       if (rangeContains(top.symbol.range, symbol.range)) break;
       finish(stack.pop()!);
     }

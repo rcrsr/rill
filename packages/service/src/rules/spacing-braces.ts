@@ -25,7 +25,7 @@ export const spacingBraces: Rule = {
     // Only examine the opening line (from the { onward).
     // Use ^ anchor to only check the block's opening brace, not string
     // interpolation.
-    const openFrom = openLine.substring(span.start.column - 1);
+    const openFrom = openLine.slice(span.start.column - 1);
     if (/^\{[^\s\n]/.test(openFrom)) {
       diagnostics.push({
         code: 'SPACING_BRACES',
@@ -55,7 +55,7 @@ export const spacingBraces: Rule = {
     const closeChar = closeLineActual[closeEnd.column - 2];
     const charBeforeClose = closeLineActual[closeEnd.column - 3];
     const isCloseOnOwnLine = /^\s*$/.test(
-      closeLineActual.substring(0, closeEnd.column - 2)
+      closeLineActual.slice(0, Math.max(0, closeEnd.column - 2))
     );
     // Only fire when the body span actually ends at a literal `}`. Grouped
     // closure bodies (e.g. `|x| ($x * 2)`) end at `)`, and closure return

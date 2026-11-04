@@ -306,6 +306,7 @@ async function evaluateInvoke(
 }
 
 /** Evaluate annotation reflection access: .^key on callables, type values, and streams. */
+// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
 export async function evaluateAnnotationAccess(
   s: EvalState,
   value: RillValue,
@@ -413,6 +414,7 @@ export async function evaluateAnnotationAccess(
 }
 
 /** Evaluate .params property access on callables; builds dict from parameter metadata. */
+// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
 export async function evaluateParamsProperty(
   s: EvalState,
   callable: RillValue,

@@ -322,7 +322,7 @@ describe('#270: timeout timer + catchability', () => {
       const fastFn: RillFunction = {
         params: [],
         returnType: anyTypeValue,
-        fn: async () => 'done',
+        fn: () => Promise.resolve('done'),
       };
       const result = await run('fastFn()', {
         functions: { fastFn },

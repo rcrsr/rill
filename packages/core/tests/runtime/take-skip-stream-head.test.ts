@@ -31,7 +31,7 @@ function makeStreamFn(chunks: RillValue[]): RillFunction {
         chunks: (async function* () {
           for (const v of chunks) yield v;
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       }),
   };
 }
@@ -234,7 +234,7 @@ function makeCountingStreamFn(counter: { count: number }): RillFunction {
         chunks: (async function* () {
           for (const v of [1, 2, 3, 4, 5]) yield v;
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
         dispose: () => {
           counter.count++;
         },
@@ -316,7 +316,7 @@ function makeThrowingThirdChunkStreamFn(): RillFunction {
           yield 2;
           throw new Error('3rd chunk must never be pulled by take(2)');
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       }),
   };
 }
@@ -345,7 +345,7 @@ describe('take() never pulls beyond its cap (#417)', () => {
                   yield v;
                 }
               })(),
-              resolve: async () => null,
+              resolve: () => Promise.resolve(null),
               dispose: () => {
                 disposeCounter.count++;
               },

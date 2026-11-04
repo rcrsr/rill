@@ -180,6 +180,7 @@ export async function evaluateHostCall(
 }
 
 /** Evaluate host function reference: ns::name. Returns callable when pipeValue is null. */
+// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
 export async function evaluateHostRef(
   s: EvalState,
   node: HostRefNode
@@ -231,7 +232,7 @@ export async function evaluateHostRef(
 }
 
 /** Evaluate closure call: $fn(args). */
-export async function evaluateClosureCall(
+export function evaluateClosureCall(
   s: EvalState,
   node: ClosureCallNode
 ): Promise<RillValue> {

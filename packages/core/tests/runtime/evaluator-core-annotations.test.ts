@@ -129,9 +129,9 @@ describe('Rill Runtime: core handler error contracts', () => {
                   annotations: {},
                 },
               ],
-              fn: async () => {
+              fn: () => {
                 controller.abort();
-                return 'done';
+                return Promise.resolve('done');
               },
             },
           },

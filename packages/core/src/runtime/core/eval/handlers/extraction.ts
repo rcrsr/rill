@@ -416,7 +416,7 @@ function applySlice<T extends RillValue[] | string>(
  * Same semantics as evaluateDestructure but for the keyword-based syntax.
  * Delegates to evaluateDestructure since the pattern structure is identical.
  */
-export async function evaluateDestruct(
+export function evaluateDestruct(
   s: EvalState,
   node: DestructNode,
   input: RillValue

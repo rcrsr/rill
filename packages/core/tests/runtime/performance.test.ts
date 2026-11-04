@@ -97,8 +97,10 @@ describe('Rill Runtime: Performance Regression', () => {
       async (_name, scriptFor) => {
         const lists = new Map<number, number[]>();
         for (const n of [20_000, 80_000]) lists.set(n, buildList(n));
-        const exec = async (n: number): Promise<unknown> =>
-          run(scriptFor(n), { variables: { items: lists.get(n) ?? [] } });
+        const exec = (n: number): Promise<unknown> =>
+          Promise.resolve(
+            run(scriptFor(n), { variables: { items: lists.get(n) ?? [] } })
+          );
 
         for (let i = 0; i < 5; i++) {
           await exec(20_000);
@@ -124,8 +126,10 @@ describe('Rill Runtime: Performance Regression', () => {
     it('scales linearly when spreading a list', async () => {
       const lists = new Map<number, number[]>();
       for (const n of [20_000, 80_000]) lists.set(n, buildList(n));
-      const exec = async (n: number): Promise<unknown> =>
-        run('list[...$items]', { variables: { items: lists.get(n) ?? [] } });
+      const exec = (n: number): Promise<unknown> =>
+        Promise.resolve(
+          run('list[...$items]', { variables: { items: lists.get(n) ?? [] } })
+        );
 
       for (let i = 0; i < 5; i++) {
         await exec(20_000);
@@ -158,8 +162,8 @@ describe('Rill Runtime: Performance Regression', () => {
     };
     const scripts = new Map<number, string>();
     for (const n of [500, 2000]) scripts.set(n, scriptFor(n));
-    const exec = async (n: number): Promise<unknown> =>
-      run(scripts.get(n) ?? '');
+    const exec = (n: number): Promise<unknown> =>
+      Promise.resolve(run(scripts.get(n) ?? ''));
 
     for (let i = 0; i < 5; i++) {
       await exec(500);

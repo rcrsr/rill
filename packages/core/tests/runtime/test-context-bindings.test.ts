@@ -82,7 +82,7 @@ describe('createTestContext: eager-parse safety net', () => {
     ).toThrow(ExtensionBindingError);
   });
 
-  it('does not surface a later RILL-R056 for a generation defect caught eagerly', async () => {
+  it('does not surface a later RILL-R056 for a generation defect caught eagerly', () => {
     const keywordParamFn = typedCallable({
       params: [
         {

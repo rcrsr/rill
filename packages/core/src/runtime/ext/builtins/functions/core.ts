@@ -364,7 +364,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: anyTypeValue,
-    fn: async (args, ctx, location) => {
+    fn: (args, ctx, location) => {
       // iterate is in UNTYPED_BUILTINS; receives a positional array cast as Record.
       // Pipe form: $seed -> iterate($closure) sends args=[$closure] with pipeValue=$seed.
       // Detect by checking whether there is exactly one arg and a pipe value is set.

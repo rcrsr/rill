@@ -390,7 +390,7 @@ describe('SplitPane', () => {
       }
 
       const calls = onSplitChange.mock.calls;
-      expect(calls[calls.length - 1]![0]).toBe(20);
+      expect(calls.at(-1)![0]).toBe(20);
     });
 
     it('repeated ArrowDown presses clamp at maximum', () => {
@@ -413,7 +413,7 @@ describe('SplitPane', () => {
       }
 
       const calls = onSplitChange.mock.calls;
-      expect(calls[calls.length - 1]![0]).toBe(80);
+      expect(calls.at(-1)![0]).toBe(80);
     });
 
     it('arrow press at a bound does not call onSplitChange', () => {
@@ -619,10 +619,12 @@ describe('SplitPane', () => {
 
         const divider = container.querySelector('[role="separator"]');
         const minValue = parseInt(
-          divider?.getAttribute('aria-valuemin') ?? '0'
+          divider?.getAttribute('aria-valuemin') ?? '0',
+          10
         );
         const maxValue = parseInt(
-          divider?.getAttribute('aria-valuemax') ?? '0'
+          divider?.getAttribute('aria-valuemax') ?? '0',
+          10
         );
 
         expect(minValue).not.toBe(20);

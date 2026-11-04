@@ -188,7 +188,7 @@ describe('copyLinkToClipboard', () => {
   });
 
   it('returns copied on success', async () => {
-    const writeTextMock = vi.fn().mockResolvedValue(undefined);
+    const writeTextMock = vi.fn<Clipboard['writeText']>().mockResolvedValue();
     Object.defineProperty(navigator, 'clipboard', {
       value: {
         writeText: writeTextMock,

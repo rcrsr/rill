@@ -164,7 +164,7 @@ export interface AstFacts {
 
 /** Find the trailing Capture node in a PipeChain's pipes array. */
 function findTrailingCapture(chain: PipeChainNode): CaptureNode | null {
-  const lastPipe = chain.pipes[chain.pipes.length - 1];
+  const lastPipe = chain.pipes.at(-1);
   if (lastPipe && lastPipe.type === 'Capture') {
     return lastPipe;
   }
@@ -523,7 +523,7 @@ export function collectFacts(root: ASTNode): AstFacts {
       };
       bySubtree.set(node, facts);
 
-      const parent = stack[stack.length - 1];
+      const parent = stack.at(-1);
       if (!parent) return;
 
       const isClosureBarrier = node.type === 'Closure';

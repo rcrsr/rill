@@ -42,11 +42,14 @@ function asyncIterableFrom(values: RillValue[]): AsyncIterable<RillValue> {
     [Symbol.asyncIterator]() {
       let index = 0;
       return {
-        async next() {
+        next() {
           if (index < values.length) {
-            return { value: values[index++]!, done: false as const };
+            return Promise.resolve({
+              value: values[index++]!,
+              done: false as const,
+            });
           }
-          return { value: undefined, done: true as const };
+          return Promise.resolve({ value: undefined, done: true as const });
         },
       };
     },
@@ -176,7 +179,7 @@ describe('createRillStream', () => {
     const chunks = asyncIterableFrom(['a', 'b', 'c']);
     const stream = createRillStream({
       chunks,
-      resolve: async () => 'done',
+      resolve: () => Promise.resolve('done'),
     });
     expect(isStream(stream)).toBe(true);
     expect(stream.__rill_stream).toBe(true);
@@ -187,7 +190,7 @@ describe('createRillStream', () => {
     expect(() =>
       createRillStream({
         chunks: 'not-async-iterable' as unknown as AsyncIterable<RillValue>,
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       })
     ).toThrow('createRillStream requires AsyncIterable chunks');
   });
@@ -196,7 +199,7 @@ describe('createRillStream', () => {
     expect(() =>
       createRillStream({
         chunks: null as unknown as AsyncIterable<RillValue>,
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       })
     ).toThrow('createRillStream requires AsyncIterable chunks');
   });
@@ -215,7 +218,7 @@ describe('createRillStream', () => {
     const chunks = asyncIterableFrom(['x']);
     const stream = createRillStream({
       chunks,
-      resolve: async () => null,
+      resolve: () => Promise.resolve(null),
       dispose: () => {},
     });
     expect(isStream(stream)).toBe(true);
@@ -225,7 +228,7 @@ describe('createRillStream', () => {
     const chunks = asyncIterableFrom(['x']);
     const stream = createRillStream({
       chunks,
-      resolve: async () => null,
+      resolve: () => Promise.resolve(null),
     });
     expect(isStream(stream)).toBe(true);
   });
@@ -235,7 +238,7 @@ describe('createRillStream', () => {
       const chunks = asyncIterableFrom(['a', 'b']);
       const stream = createRillStream({
         chunks,
-        resolve: async () => 'resolved',
+        resolve: () => Promise.resolve('resolved'),
       });
 
       // First .next call initializes iteration
@@ -257,7 +260,7 @@ describe('createRillStream', () => {
       const chunks = asyncIterableFrom(['only']);
       const stream = createRillStream({
         chunks,
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       });
 
       // Consume the stream
@@ -275,7 +278,7 @@ describe('createRillStream', () => {
       const chunks = asyncIterableFrom(['a', 'b', 'c']);
       const stream = createRillStream({
         chunks,
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       });
 
       const step1 = await advanceStream(stream);
@@ -284,7 +287,7 @@ describe('createRillStream', () => {
       await invokeNext(step1);
 
       // Calling next on stale step1 again throws
-      await expectHalt(async () => invokeNext(step1), {
+      await expectHalt(() => Promise.resolve(invokeNext(step1)), {
         code: 'RILL_R002',
         messagePattern: 'Stream already consumed; cannot re-iterate',
       });
@@ -294,14 +297,14 @@ describe('createRillStream', () => {
       const chunks = asyncIterableFrom(['a']);
       const stream = createRillStream({
         chunks,
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       });
 
       // First call succeeds
       await invokeNext(stream);
 
       // Second call on initial stream throws
-      await expectHalt(async () => invokeNext(stream), {
+      await expectHalt(() => Promise.resolve(invokeNext(stream)), {
         code: 'RILL_R002',
         messagePattern: 'Stream already consumed; cannot re-iterate',
       });
@@ -311,7 +314,7 @@ describe('createRillStream', () => {
       const chunks = asyncIterableFrom(['a', 'b']);
       const stream = createRillStream({
         chunks,
-        resolve: async () => 'resolved',
+        resolve: () => Promise.resolve('resolved'),
       });
 
       // Held before first .next() call: enumerable own keys must not
@@ -344,9 +347,9 @@ describe('createRillStream', () => {
       const chunks = asyncIterableFrom([]);
       const stream = createRillStream({
         chunks,
-        resolve: async () => {
+        resolve: () => {
           callCount++;
-          return 'resolved-value';
+          return Promise.resolve('resolved-value');
         },
       });
 
@@ -370,7 +373,7 @@ describe('createRillStream', () => {
       const chunks = asyncIterableFrom(['x']);
       const stream = createRillStream({
         chunks,
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
         dispose: () => {
           disposed = true;
         },
@@ -803,7 +806,7 @@ function makeRawChunkStreamFn(chunks: unknown[]): RillFunction {
         chunks: (async function* () {
           for (const v of chunks) yield v as RillValue;
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       }),
   };
 }
@@ -821,7 +824,7 @@ function makeUndefinedMidSequenceStreamFn(): RillFunction {
           yield undefined as unknown as RillValue;
           yield 3;
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       }),
   };
 }
@@ -925,7 +928,7 @@ function makeCountedStreamFn(count: number): RillFunction {
         chunks: (async function* () {
           for (let i = 0; i < count; i++) yield i;
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       }),
   };
 }
@@ -943,7 +946,7 @@ function makeResolvingStreamFn(
         chunks: (async function* () {
           for (let i = 0; i < count; i++) yield i;
         })(),
-        resolve: async () => resolution,
+        resolve: () => Promise.resolve(resolution),
       }),
   };
 }
@@ -1007,7 +1010,7 @@ describe('stream end and second invocation', () => {
   it('next on a consumed stream halts with the already-consumed message', async () => {
     const stream = createRillStream({
       chunks: asyncIterableFrom([]),
-      resolve: async () => null,
+      resolve: () => Promise.resolve(null),
     });
     // Drain: the initial stream is its own consumed marker after one pull.
     const step = await advanceStream(stream);

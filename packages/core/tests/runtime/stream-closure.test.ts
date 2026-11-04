@@ -266,9 +266,9 @@ describe('Stream Closure Execution', () => {
     ): Promise<T> {
       return Promise.race([
         p,
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error(`timed out: ${label}`)), ms)
-        ),
+        new Promise<T>((_, reject) => {
+          setTimeout(() => reject(new Error(`timed out: ${label}`)), ms);
+        }),
       ]);
     }
 

@@ -652,8 +652,8 @@ export function createRuntimeContext(
     // Lifecycle methods bound below via bindLifecycleMethods; transient
     // placeholders satisfy strict interface typing until that call returns.
     invalidate: () => null,
-    catch: async () => null,
-    dispose: async () => undefined,
+    catch: () => Promise.resolve(null),
+    dispose: () => Promise.resolve(),
     isDisposed: () => false,
     createDisposedResult: () => null,
     trackInflight: () => {},

@@ -14,6 +14,7 @@ the language version. Language changes are recorded in the
 
 ### Changed
 
+- **Baseline gains eight lint rules at `error`:** `baseline.json` now pins `require-await`, `unicorn/prefer-at`, `unicorn/no-useless-undefined`, `unicorn/explicit-length-check`, `unicorn/prefer-string-slice`, `radix`, `no-throw-literal`, and `no-promise-executor-return` at `error`. `STD-LINT-9` now fails a consumer that configures any of them at a severity other than the baseline's. Match the baseline severity. A consumer that does not configure them is unaffected, because `STD-LINT-9` compares only rules that both configs carry. ([#505](https://github.com/rcrsr/rill/issues/505))
 - **Clarified `rill/no-new-runtime-error` and `rill/use-halt-helpers` wording in `lint-rules/README.md`.** The `off` override covers sites that hosts and registration callers catch by class as `RuntimeError`, not registration-time code only. The README no longer hard-codes a count of kept sites, and states that `rill/use-halt-helpers` covers every `.ts` file under `packages/core/tests/runtime/`. ([#465](https://github.com/rcrsr/rill/pull/465))
 
 ## 0.2.7 - 2026-10-05

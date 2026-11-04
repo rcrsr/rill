@@ -186,7 +186,7 @@ describe('Rill Runtime: Signature Registration', () => {
   });
 
   describe('AC-20: Structured params carry typed param and return type', () => {
-    it('structured registration exposes typed param and return type in metadata', async () => {
+    it('structured registration exposes typed param and return type in metadata', () => {
       const ctx = createRuntimeContext({
         functions: {
           echo: {
@@ -515,7 +515,7 @@ describe('Rill Runtime: Signature Registration', () => {
   });
 
   describe('AC-63: Structured registration with all features parses correctly', () => {
-    it('registers function with annotation, typed params with defaults, and return type', async () => {
+    it('registers function with annotation, typed params with defaults, and return type', () => {
       const ctx = createRuntimeContext({
         functions: {
           format: {

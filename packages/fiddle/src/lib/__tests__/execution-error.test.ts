@@ -5,7 +5,12 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { ERROR_REGISTRY, getHelpUrl, VERSION } from '@rcrsr/rill';
+import {
+  ERROR_REGISTRY,
+  getHelpUrl,
+  VERSION,
+  type ErrorDefinition,
+} from '@rcrsr/rill';
 import { executeRill } from '../execution.js';
 
 describe('executeRill', () => {
@@ -194,17 +199,19 @@ describe('executeRill', () => {
       // (execution.ts:148-161), without breaking error construction.
       const realGet = ERROR_REGISTRY.get.bind(ERROR_REGISTRY);
       let constructionCallSeen = false;
-      vi.spyOn(ERROR_REGISTRY, 'get').mockImplementation((errorId: string) => {
-        if (errorId === 'RILL-R005') {
-          if (!constructionCallSeen) {
-            constructionCallSeen = true;
-            return realGet(errorId);
+      vi.spyOn(ERROR_REGISTRY, 'get').mockImplementation(
+        (errorId: string): ErrorDefinition | undefined => {
+          if (errorId === 'RILL-R005') {
+            if (!constructionCallSeen) {
+              constructionCallSeen = true;
+              return realGet(errorId);
+            }
+            // Subsequent calls simulate the registry miss in convertError
+            return undefined;
           }
-          // Subsequent calls simulate the registry miss in convertError
-          return undefined;
+          return realGet(errorId);
         }
-        return realGet(errorId);
-      });
+      );
 
       const result = await executeRill('$undefined_variable');
 

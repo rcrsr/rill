@@ -59,7 +59,7 @@ export const spacingBrackets: Rule = {
       const hasSpaceBeforeClose = /\s\]/.test(maskedText);
 
       if (hasSpaceAfterOpen || hasSpaceBeforeClose) {
-        const content = text.substring(1, text.length - 1).trim();
+        const content = text.slice(1, text.length - 1).trim();
 
         diagnostics.push({
           code: 'SPACING_BRACKETS',

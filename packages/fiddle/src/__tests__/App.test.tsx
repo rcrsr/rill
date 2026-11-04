@@ -96,9 +96,20 @@ function getRunButton(container: HTMLElement): HTMLButtonElement {
   return container.querySelector('.toolbar-run') as HTMLButtonElement;
 }
 
+/**
+ * Runs a synchronous action inside an async `act` scope so React flushes the
+ * resolved continuation before the returned promise settles.
+ */
+function actAsync(fn: () => void): Promise<void> {
+  return act(() => {
+    fn();
+    return Promise.resolve();
+  });
+}
+
 /** Clicks the Run button and flushes the resulting state updates. */
-async function clickRun(button: HTMLButtonElement): Promise<void> {
-  await act(async () => {
+function clickRun(button: HTMLButtonElement): Promise<void> {
+  return actAsync(() => {
     button.click();
   });
 }
@@ -219,7 +230,7 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      await act(async () => {
+      await actAsync(() => {
         container.querySelector('.cm-content')!.dispatchEvent(
           new KeyboardEvent('keydown', {
             key: 'Enter',
@@ -419,7 +430,7 @@ describe('App', () => {
 
       expect(runSpy).toHaveBeenCalledTimes(1);
 
-      await act(async () => {
+      await actAsync(() => {
         deferred.resolve(successState('"Test"'));
       });
 
@@ -445,7 +456,7 @@ describe('App', () => {
       await act(async () => {});
       expect(runButton.disabled).toBe(true);
 
-      await act(async () => {
+      await actAsync(() => {
         deferred.resolve(successState('"Test"'));
       });
       expect(runButton.disabled).toBe(false);
@@ -592,7 +603,7 @@ describe('App', () => {
       expect(container.querySelector('.output-running')).not.toBeNull();
       expect(container.querySelector('.output-result')).toBeNull();
 
-      await act(async () => {
+      await actAsync(() => {
         deferred.resolve(successState('"Second"', 50));
       });
 
@@ -722,7 +733,7 @@ describe('App', () => {
         '.toolbar-share'
       ) as HTMLButtonElement;
 
-      await act(async () => {
+      await actAsync(() => {
         shareButton.click();
       });
 

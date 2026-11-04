@@ -63,7 +63,7 @@ function makeCountedStreamFn(count: number): RillFunction {
         chunks: (async function* () {
           for (let i = 0; i < count; i++) yield 1;
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       }),
   };
 }
@@ -78,7 +78,7 @@ function makeIndexedStreamFn(count: number): RillFunction {
         chunks: (async function* () {
           for (let i = 0; i < count; i++) yield i;
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
       }),
   };
 }
@@ -101,7 +101,7 @@ function makeEndlessValuelessStreamFn(): RillFunction {
       enumerable: false,
     });
     Object.defineProperty(step, '__rill_stream_resolve', {
-      value: async () => null,
+      value: () => Promise.resolve(null),
       enumerable: false,
     });
     return step as unknown as RillValue;

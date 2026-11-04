@@ -138,6 +138,7 @@ describe('buildFiddleRuntimeOptions', () => {
 describe('executeRill', () => {
   describe('resolver config — boundary conditions', () => {
     it('resolverConfig undefined → behaves identically to pre-use<> behavior', async () => {
+      // oxlint-disable-next-line unicorn/no-useless-undefined -- explicit undefined argument is the case under test
       const withUndefined = await executeRill('1 + 2', undefined);
       const withOmit = await executeRill('1 + 2');
       expect(withUndefined.status).toBe('success');

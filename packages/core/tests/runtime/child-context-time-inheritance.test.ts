@@ -62,7 +62,7 @@ describe('child context time-field inheritance', () => {
     // the scheduler has fired, so only an inherited fake scheduler can
     // expire the timeout before the body resolves.
     const fired: number[] = [];
-    let markExpired: () => void = () => undefined;
+    let markExpired: () => void = () => {};
     const expired = new Promise<void>((resolve) => {
       markExpired = resolve;
     });

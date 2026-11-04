@@ -259,6 +259,7 @@ export function createTestContext(
         runtimeFailure = { reason };
       }
       const outcomes = await Promise.allSettled(
+        // oxlint-disable-next-line require-await -- the async wrapper turns a synchronous hook throw into a rejection that allSettled collects
         hooks.map(async (hook) => hook())
       );
       const failure = outcomes.find(

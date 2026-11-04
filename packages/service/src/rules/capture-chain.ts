@@ -71,7 +71,7 @@ export function findChainCapture(chain: PipeChainNode): CaptureNode | null {
     return chain.terminator;
   }
   if (chain.pipes.length > 0) {
-    const lastPipe = chain.pipes[chain.pipes.length - 1];
+    const lastPipe = chain.pipes.at(-1);
     if (lastPipe && isCaptureNode(lastPipe)) {
       return lastPipe;
     }
