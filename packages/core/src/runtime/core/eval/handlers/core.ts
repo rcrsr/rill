@@ -615,6 +615,36 @@ export async function evaluatePrimary(
 }
 
 /**
+ * Invoke a callable that is the target of a pipe.
+ * Callables with params receive the input as their argument; zero-param
+ * callables run with the input as the pipe value `$`.
+ */
+async function invokePipeCallable(
+  s: EvalState,
+  value: Parameters<typeof invokeCallable>[1],
+  input: RillValue,
+  location: ReturnType<typeof getNodeLocation>
+): Promise<RillValue> {
+  const hasParams =
+    (value.kind === 'script' && value.params.length > 0) ||
+    (value.kind === 'application' &&
+      value.params !== undefined &&
+      value.params.length > 0);
+
+  if (hasParams) {
+    return invokeCallable(s, value, [input], location);
+  }
+
+  const savedPipeValue = s.ctx.pipeValue;
+  s.ctx.pipeValue = input;
+  try {
+    return await invokeCallable(s, value, [], location);
+  } finally {
+    s.ctx.pipeValue = savedPipeValue;
+  }
+}
+
+/**
  * Evaluate pipe target with input value.
  *
  * Pipe targets are expressions that can receive piped values.
@@ -758,32 +788,7 @@ async function evaluatePipeTarget(
       // If value is callable, invoke it with the pipe input
       // Per closure-semantics spec: check params.length to determine invocation style
       if (isCallable(value)) {
-        // Check if callable has params to determine invocation style
-        const hasParams =
-          (value.kind === 'script' && value.params.length > 0) ||
-          (value.kind === 'application' &&
-            value.params !== undefined &&
-            value.params.length > 0);
-
-        if (hasParams) {
-          // Block-closure: invoke with input as argument
-          return invokeCallable(s, value, [input], getNodeLocation(s, target));
-        } else {
-          // Zero-param closure: invoke with args = [] and pipeValue = input
-          const savedPipeValue = s.ctx.pipeValue;
-          s.ctx.pipeValue = input;
-          try {
-            const result = await invokeCallable(
-              s,
-              value,
-              [],
-              getNodeLocation(s, target)
-            );
-            return result;
-          } finally {
-            s.ctx.pipeValue = savedPipeValue;
-          }
-        }
+        return invokePipeCallable(s, value, input, getNodeLocation(s, target));
       }
 
       // Slot 6: Type value dispatch — delegate to applyConversion.
@@ -945,8 +950,12 @@ async function evaluatePipeTarget(
       return applyConstructorConversion(s, input, target, target);
     }
 
-    case 'UseExpr':
-      return evaluateUseExpr(s, target);
+    case 'UseExpr': {
+      const resolved = await evaluateUseExpr(s, target);
+      return isCallable(resolved)
+        ? invokePipeCallable(s, resolved, input, getNodeLocation(s, target))
+        : resolved;
+    }
 
     case 'PassBlock':
       // pipeValue is already set to input above; evaluatePassBlock returns
