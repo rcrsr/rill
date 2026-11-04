@@ -17,9 +17,10 @@ import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
 import { scalingRatio } from '../helpers/scaling.js';
 
-const SMALL_COUNT = 1000;
-const LARGE_COUNT = 4000;
-const REPEATS = 5;
+// LARGE_COUNT must stay under the default 10000-iteration expansion limit.
+const SMALL_COUNT = 2000;
+const LARGE_COUNT = 8000;
+const REPEATS = 11;
 
 /**
  * Loose absolute ceiling on the best large-size run, per chunk. Far above
