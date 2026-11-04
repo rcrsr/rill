@@ -353,7 +353,7 @@ dict(^("A person's name") name: string, ^("Age in years") age: number)
 
 ## Ordered
 
-`ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order. When `sort` is applied to a dict, it returns `ordered[[key, value]]` — an ordered collection of key-value entry tuples. Variable and computed keys follow the same rules as `dict` keys: the value must be a string, and any other type halts with `RILL-R002`.
+`ordered` is a first-class container produced by the `ordered[...]` literal syntax. It preserves key insertion order. When `sort` is applied to a dict, it returns `ordered[[key, value]]` — an ordered collection of key-value entry tuples. Variable and computed keys follow the same rules as `dict` keys: the value must be a string, and any other type halts with `RILL-R002`. A `list[...]` key expands to one entry per key, as in `dict`, and keys that collide after stringification collapse to one entry whose last value wins.
 
 ```rill
 ordered[a: 1, b: "hello"] => $o

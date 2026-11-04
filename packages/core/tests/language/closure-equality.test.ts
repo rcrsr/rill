@@ -303,5 +303,26 @@ describe('Rill Runtime: Closure Equality', () => {
       `;
       expect(await run(code)).toBe(false);
     });
+
+    it('identical interpolated string defaults are equal', async () => {
+      const code = `
+        "x" => $v
+        ||{ |p: dict(s: string = "a{$v}b")| { $p } } => $a
+        ||{ |p: dict(s: string = "a{$v}b")| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(true);
+    });
+
+    it('different interpolated string defaults are not equal', async () => {
+      const code = `
+        "x" => $v
+        "y" => $w
+        ||{ |p: dict(s: string = "a{$v}b")| { $p } } => $a
+        ||{ |p: dict(s: string = "a{$w}b")| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(false);
+    });
   });
 });

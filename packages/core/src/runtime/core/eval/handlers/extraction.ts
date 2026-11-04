@@ -491,11 +491,17 @@ export async function evaluateCollectionLiteral(
     }
 
     case 'OrderedLiteral': {
-      // Ordered literals keep string keys; stringify any typed key.
-      const pairs = (await evaluateDictLiteralEntries(s, node.entries)).map(
-        ([key, value]): [string, RillValue] => [String(key), value]
-      );
-      return createOrdered(pairs);
+      // Ordered literals keep string keys; stringify any typed key. Keys that
+      // collide once stringified (1 and "1") collapse: last value wins at the
+      // first key's position, as with spread overrides.
+      const merged = new Map<string, RillValue>();
+      for (const [key, value] of await evaluateDictLiteralEntries(
+        s,
+        node.entries
+      )) {
+        merged.set(String(key), value);
+      }
+      return createOrdered([...merged]);
     }
   }
   return throwFatalHostHalt(

@@ -773,4 +773,33 @@ describe('Ordered literal variable and computed keys', () => {
       'b',
     ]);
   });
+
+  it('halts when a multi-key list holds a reserved method name', async () => {
+    await expectHalt(() => run('ordered[list["len"]: 1]'), {
+      code: 'RILL_R002',
+      hostErrorId: 'RILL-R002',
+      messagePattern: /reserved method name/i,
+    });
+  });
+
+  it('stores a __proto__ key from a multi-key list as an own key', async () => {
+    expect(await run('ordered[list["__proto__", "a"]: 1] -> .keys')).toEqual([
+      '__proto__',
+      'a',
+    ]);
+  });
+
+  it('collapses a number and string key that stringify alike', async () => {
+    expect(await run('ordered[list[1, "1"]: 9] -> .keys')).toEqual(['1']);
+    expect(await run('ordered[list[1, "1"]: 9] -> .len')).toBe(1);
+  });
+
+  it('keeps the last value when a string variable key collides with a number key', async () => {
+    const code = `
+      "1" => $k
+      ordered[1: "a", $k: "b"] => $o
+      list[$o -> .keys, $o -> .values]
+    `;
+    expect(await run(code)).toEqual([['1'], ['b']]);
+  });
 });
