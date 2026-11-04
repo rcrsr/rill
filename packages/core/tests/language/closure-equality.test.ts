@@ -222,4 +222,86 @@ describe('Rill Runtime: Closure Equality', () => {
       expect(await run(code)).toBe(false);
     });
   });
+
+  describe('nested type-argument defaults', () => {
+    it('atom default closure is equal to itself', async () => {
+      const code = `
+        ||{ |p: dict(s: atom = #TIMEOUT)| { $p } } => $a
+        ($a == $a) ? true ! false
+      `;
+      expect(await run(code)).toBe(true);
+    });
+
+    it('identical atom defaults are equal', async () => {
+      const code = `
+        ||{ |p: dict(s: atom = #TIMEOUT)| { $p } } => $a
+        ||{ |p: dict(s: atom = #TIMEOUT)| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(true);
+    });
+
+    it('identical tuple defaults are equal', async () => {
+      const code = `
+        ||{ |p: dict(s: tuple = tuple[1, "a"])| { $p } } => $a
+        ||{ |p: dict(s: tuple = tuple[1, "a"])| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(true);
+    });
+
+    it('identical dict defaults are equal', async () => {
+      const code = `
+        ||{ |p: dict(s: dict = dict[a: 1])| { $p } } => $a
+        ||{ |p: dict(s: dict = dict[a: 1])| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(true);
+    });
+
+    it('identical ordered defaults are equal', async () => {
+      const code = `
+        ||{ |p: dict(s: ordered = ordered[x: 1])| { $p } } => $a
+        ||{ |p: dict(s: ordered = ordered[x: 1])| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(true);
+    });
+
+    it('identical list defaults are equal', async () => {
+      const code = `
+        ||{ |p: dict(s: list = list[1])| { $p } } => $a
+        ||{ |p: dict(s: list = list[1])| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(true);
+    });
+
+    it('different atom defaults are not equal', async () => {
+      const code = `
+        ||{ |p: dict(s: atom = #TIMEOUT)| { $p } } => $a
+        ||{ |p: dict(s: atom = #INVALID_INPUT)| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(false);
+    });
+
+    it('different tuple defaults are not equal', async () => {
+      const code = `
+        ||{ |p: dict(s: tuple = tuple[1, "a"])| { $p } } => $a
+        ||{ |p: dict(s: tuple = tuple[1, "b"])| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(false);
+    });
+
+    it('different dict defaults are not equal', async () => {
+      const code = `
+        ||{ |p: dict(s: dict = dict[a: 1])| { $p } } => $a
+        ||{ |p: dict(s: dict = dict[a: 2])| { $p } } => $b
+        ($a == $b) ? true ! false
+      `;
+      expect(await run(code)).toBe(false);
+    });
+  });
 });

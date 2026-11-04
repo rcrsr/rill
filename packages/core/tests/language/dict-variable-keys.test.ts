@@ -684,3 +684,93 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
     });
   });
 });
+
+describe('Ordered literal variable and computed keys', () => {
+  it('halts when a list variable is used as an ordered key', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            list[1, 2] => $k
+            ordered[$k: 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key must be string, got object/,
+      }
+    );
+  });
+
+  it('halts when a dict variable is used as an ordered key', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            dict[a: 1] => $k
+            ordered[$k: 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key must be string, got object/,
+      }
+    );
+  });
+
+  it('halts when a number variable is used as an ordered key', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            42 => $n
+            ordered[$n: 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key must be string, got number/,
+      }
+    );
+  });
+
+  it('halts when a computed ordered key evaluates to a list', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            ordered[(list[1, 2]): 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key evaluated to object, expected string/,
+      }
+    );
+  });
+
+  it('halts when a computed ordered key evaluates to a number', async () => {
+    await expectHalt(
+      () =>
+        run(`
+            ordered[(42): 1]
+          `),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Dict key evaluated to number, expected string/,
+      }
+    );
+  });
+
+  it('accepts string variable and computed ordered keys', async () => {
+    const code = `
+      "a" => $k
+      ordered[$k: 1, ("b"): 2] -> .keys
+    `;
+    expect(await run(code)).toEqual(['a', 'b']);
+  });
+
+  it('expands a list of string keys in an ordered literal', async () => {
+    expect(await run('ordered[list["a", "b"]: 1] -> .keys')).toEqual([
+      'a',
+      'b',
+    ]);
+  });
+});

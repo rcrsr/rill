@@ -425,7 +425,7 @@ export async function evaluateString(
 /**
  * Evaluate multi-key dict entry from a ListLiteralNode key.
  */
-async function evaluateDictMultiKeyFromList(
+export async function evaluateDictMultiKeyFromList(
   s: EvalState,
   keyList: ListLiteralNode,
   value: ExpressionNode
@@ -499,6 +499,44 @@ async function evaluateDictMultiKeyFromList(
   }
 
   return entries;
+}
+
+/**
+ * Halt unless a variable-supplied dict key resolved to a string. Shared by
+ * dict and ordered literals so both emit the same message.
+ */
+export function assertStringVariableKey(
+  s: EvalState,
+  value: RillValue,
+  span: { readonly start: SourceLocation },
+  fn: string
+): asserts value is string {
+  if (typeof value !== 'string') {
+    throwCatchableHostHalt(
+      { location: span.start, sourceId: s.ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Dict key must be string, got ${typeof value}`
+    );
+  }
+}
+
+/**
+ * Halt unless a computed dict key evaluated to a string. Shared by dict and
+ * ordered literals so both emit the same message.
+ */
+export function assertStringComputedKey(
+  s: EvalState,
+  value: RillValue,
+  span: { readonly start: SourceLocation },
+  fn: string
+): asserts value is string {
+  if (typeof value !== 'string') {
+    throwCatchableHostHalt(
+      { location: span.start, sourceId: s.ctx.sourceId, fn },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Dict key evaluated to ${typeof value}, expected string`
+    );
+  }
 }
 
 /**
@@ -622,17 +660,7 @@ export async function evaluateDict(
           }
 
           // Variable non-string
-          if (typeof varValue !== 'string') {
-            throwCatchableHostHalt(
-              {
-                location: entry.span.start,
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateDict',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              `Dict key must be string, got ${typeof varValue}`
-            );
-          }
+          assertStringVariableKey(s, varValue, entry.span, 'evaluateDict');
 
           // Use resolved string as dict key
           const stringKey = varValue;
@@ -689,17 +717,7 @@ export async function evaluateDict(
           const computedValue = await evaluatePipeChain(s, keyObj.expression);
 
           // Computed key must evaluate to string
-          if (typeof computedValue !== 'string') {
-            throwCatchableHostHalt(
-              {
-                location: entry.span.start,
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateDict',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              `Dict key evaluated to ${typeof computedValue}, expected string`
-            );
-          }
+          assertStringComputedKey(s, computedValue, entry.span, 'evaluateDict');
 
           // Use resolved string as dict key
           const stringKey = computedValue;

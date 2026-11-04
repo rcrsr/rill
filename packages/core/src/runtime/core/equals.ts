@@ -55,6 +55,7 @@ import type {
   FieldArg,
   LiteralNode,
   BoolLiteralNode,
+  AtomLiteralNode,
 } from '../../types.js';
 import { isPipeChainNode } from '../../types.js';
 import { throwFatalHostHalt } from './types/halt.js';
@@ -757,7 +758,8 @@ function typeRefEquals(a: TypeRef, b: TypeRef): boolean {
 /**
  * Compare two optional LiteralNode values for structural equality.
  * Both-undefined returns true. One-undefined returns false.
- * Complex nodes (ListLiteral, Dict, Closure) return false defensively.
+ * Every LiteralNode member delegates to its structural comparator; the
+ * switch has no default so a new member fails to compile.
  */
 function literalNodeEquals(
   a: LiteralNode | undefined,
@@ -768,20 +770,30 @@ function literalNodeEquals(
   if (a.type !== b.type) return false;
 
   switch (a.type) {
+    case 'StringLiteral':
+      return stringLiteralEquals(a, b as StringLiteralNode);
     case 'NumberLiteral':
       return a.value === (b as NumberLiteralNode).value;
     case 'BoolLiteral':
       return a.value === (b as BoolLiteralNode).value;
-    case 'StringLiteral': {
-      const bStr = b as StringLiteralNode;
-      if (a.parts.length !== 1 || bStr.parts.length !== 1) return false;
-      return a.parts[0] === bStr.parts[0];
-    }
     case 'ListLiteral':
+      return listLiteralEquals(a, b as ListLiteralNode);
     case 'Dict':
+      return dictEquals(a, b as DictNode);
     case 'Closure':
-      return false;
-    default:
-      return false;
+      return closureEquals(a, b as ClosureNode);
+    case 'AtomLiteral':
+      return a.name === (b as AtomLiteralNode).name;
+    case 'DictLiteral':
+      return dictLiteralEquals(a, b as DictLiteralNode);
+    case 'TupleLiteral':
+      return tupleLiteralEquals(a, b as TupleLiteralNode);
+    case 'OrderedLiteral':
+      return orderedLiteralEquals(a, b as OrderedLiteralNode);
+    case 'RecoveryError':
+      return recoveryErrorEquals(a, b as RecoveryErrorNode);
   }
+  // Compile error here when a LiteralNode member lacks a case above.
+  const unhandled: never = a;
+  return unhandled;
 }
