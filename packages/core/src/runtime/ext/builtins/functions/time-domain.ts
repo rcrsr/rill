@@ -1,10 +1,7 @@
 import type { RillFunction } from '../../../core/callable.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { throwCatchableHostHalt } from '../../../core/types/halt.js';
-import type {
-  RillDuration,
-  RillValue,
-} from '../../../core/types/structures.js';
+import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
 import { isDuration } from '../../../core/types/guards.js';
 import { anyTypeValue } from '../../../core/values.js';
@@ -71,7 +68,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      const durationMs = (durArg as RillDuration).ms;
+      const durationMs = durArg.ms;
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
@@ -162,7 +159,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      const durationMs = (durArg as RillDuration).ms;
+      const durationMs = durArg.ms;
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
@@ -268,7 +265,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
       // Static clock: all chunks share timestamp 0 (batch processing, no
       // Date.now()), so every element falls into the same interval window
       // and the latest-seen value at that checkpoint is the last element.
-      return [elements[elements.length - 1]!];
+      return [elements.at(-1)!];
     },
   },
 };

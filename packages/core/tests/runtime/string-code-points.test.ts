@@ -71,7 +71,7 @@ describe('#296: string ops count by code point', () => {
     // Slicing across the middle of the astral char must not split it.
     const result = await run(`"${EMOJI}${EMOJI}" -> slice<0:1>`);
     expect(result).toBe(EMOJI);
-    expect([...(result as string)]).toHaveLength(1);
+    expect(Array.from(result as string)).toHaveLength(1);
   });
 
   it('.first() string iterator yields whole code points', async () => {

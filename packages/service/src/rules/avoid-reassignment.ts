@@ -25,9 +25,7 @@ export const avoidReassignment: Rule = {
       const variableScope = context.variableScopes.get(varName) ?? null;
 
       const currentClosureScope =
-        context.scopeStack.length > 0
-          ? context.scopeStack[context.scopeStack.length - 1]!
-          : null;
+        context.scopeStack.length > 0 ? context.scopeStack.at(-1)! : null;
 
       const isInSameOrParentScope = isVariableInParentScope(
         variableScope,

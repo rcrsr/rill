@@ -71,7 +71,7 @@ export async function walkIteratorSteps(
   let expectedType: string | undefined;
   while (produced < cap) {
     checkAborted(evaluator);
-    if (current['done']) break;
+    if (current['done'] === true) break;
     if (steps >= MAX_ITER) {
       throwCatchableHostHalt(
         site,
@@ -150,7 +150,7 @@ export async function walkIteratorSteps(
     // it surfaces as a catchable halt carrying the original message/trace
     // instead of being cast into a malformed step and misreported as a
     // `.next` protocol violation.
-    accessHaltGate(nextStep as RillValue, site);
+    accessHaltGate(nextStep, site);
     if (typeof nextStep !== 'object' || nextStep === null) {
       throwCatchableHostHalt(
         site,

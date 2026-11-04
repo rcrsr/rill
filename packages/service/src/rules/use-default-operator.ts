@@ -16,11 +16,7 @@ import type {
   ASTNode,
   BodyNode,
   ConditionalNode,
-  GroupedExprNode,
-  PipeChainNode,
-  PostfixExprNode,
   PropertyAccess,
-  UnaryExprNode,
   VariableNode,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
@@ -43,11 +39,11 @@ import { registeredRules } from './rules-registry.js';
 function unwrapToHead(node: ASTNode): ASTNode {
   let inner: ASTNode = node;
   if (inner.type === 'GroupedExpr') {
-    inner = (inner as GroupedExprNode).expression;
+    inner = inner.expression;
   }
   if (inner.type === 'PipeChain') {
-    const chain = inner as PipeChainNode;
-    if (chain.pipes.length !== 0 || chain.terminator !== null) {
+    const chain = inner;
+    if (chain.pipes.length > 0 || chain.terminator !== null) {
       return inner;
     }
     inner = chain.head;
@@ -94,18 +90,18 @@ function matchExistenceCheck(
   let target = unwrapToHead(condition);
   let negated = false;
   if (target.type === 'UnaryExpr') {
-    const unary = target as UnaryExprNode;
+    const unary = target;
     if (unary.op !== '!') return null;
     negated = true;
     target = unary.operand;
   }
 
   if (target.type !== 'PostfixExpr') return null;
-  const postfix = target as PostfixExprNode;
-  if (postfix.methods.length !== 0) return null;
+  const postfix = target;
+  if (postfix.methods.length > 0) return null;
   if (postfix.primary.type !== 'Variable') return null;
 
-  const variable = postfix.primary as VariableNode;
+  const variable = postfix.primary;
   if (variable.existenceCheck === null) return null;
   if (variable.existenceCheck.typeRef !== null) return null;
   if (variable.defaultValue !== null) return null;
@@ -122,12 +118,12 @@ function matchVariableReference(body: BodyNode): VariableNode | null {
   const head = unwrapToHead(body);
   if (head.type !== 'PostfixExpr') return null;
 
-  const postfix = head as PostfixExprNode;
-  if (postfix.methods.length !== 0) return null;
+  const postfix = head;
+  if (postfix.methods.length > 0) return null;
   if (postfix.defaultValue !== null) return null;
   if (postfix.primary.type !== 'Variable') return null;
 
-  const variable = postfix.primary as VariableNode;
+  const variable = postfix.primary;
   if (variable.existenceCheck !== null) return null;
   if (variable.defaultValue !== null) return null;
 

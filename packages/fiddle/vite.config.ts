@@ -2,8 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
+const basePathEnv = process.env.FIDDLE_BASE_PATH;
+
 export default defineConfig({
-  base: process.env.FIDDLE_BASE_PATH || '/',
+  base: basePathEnv !== undefined && basePathEnv !== '' ? basePathEnv : '/',
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -21,6 +23,7 @@ export default defineConfig({
           if (id.includes('@codemirror/') || id.includes('@lezer/')) {
             return 'codemirror';
           }
+          return null;
         },
       },
     },

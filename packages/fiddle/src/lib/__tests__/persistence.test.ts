@@ -67,9 +67,7 @@ function createFakeStorage(options: FakeStorageOptions = {}): FakeStorage {
 }
 
 /** Import a persistence module whose availability cache starts empty. */
-async function importFreshPersistence(): Promise<
-  typeof import('../persistence.js')
-> {
+function importFreshPersistence(): Promise<typeof import('../persistence.js')> {
   vi.resetModules();
   return import('../persistence.js');
 }
@@ -279,7 +277,7 @@ describe('persistence', () => {
       const stored = window.localStorage.getItem('rill-fiddle-editor-state');
       expect(stored).not.toBeNull();
 
-      const parsed = JSON.parse(stored!);
+      const parsed: unknown = JSON.parse(stored!);
       expect(parsed).toEqual(testState);
     });
 

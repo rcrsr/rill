@@ -148,6 +148,7 @@ function matchesErrorId(
  * Main expression evaluation entry point.
  * Delegates to pipe chain evaluator.
  */
+// oxlint-disable-next-line require-await -- the PartialExpression guard halts synchronously; the async boundary turns it into a rejection
 export async function evaluateExpression(
   s: EvalState,
   expr: ExpressionNode
@@ -289,8 +290,9 @@ export async function evaluatePostfixExpr(
   s: EvalState,
   expr: PostfixExprNode
 ): Promise<RillValue> {
+  let value: RillValue;
   try {
-    let value = await evaluatePrimary(s, expr.primary);
+    value = await evaluatePrimary(s, expr.primary);
 
     for (const method of expr.methods) {
       if (method.type === 'AnnotationAccess') {
@@ -312,19 +314,6 @@ export async function evaluatePostfixExpr(
         value = await evaluateMethod(s, method, value);
       }
     }
-
-    // Terminal existence check (expr.?field): returns boolean instead of
-    // the accessed value. Mirrors evaluateVariableAsync's existenceCheck
-    // handling via the shared evaluateExistenceCheck helper.
-    if (expr.existenceCheck) {
-      return evaluateExistenceCheck(s, value, expr.existenceCheck, expr);
-    }
-
-    if (expr.defaultValue !== null && isVacant(value)) {
-      return evaluateBody(s, expr.defaultValue);
-    }
-
-    return value;
   } catch (error) {
     // If method chain throws a recoverable "not found" error and defaultValue
     // exists, evaluate and return the default value. evaluateMethod and
@@ -362,6 +351,23 @@ export async function evaluatePostfixExpr(
     // All other errors propagate
     throw error;
   }
+
+  // The existence check and the default body run outside the try so a
+  // missing-field halt raised while evaluating the default body is not
+  // re-caught by the recovery above (which would evaluate it twice).
+
+  // Terminal existence check (expr.?field): returns boolean instead of
+  // the accessed value. Mirrors evaluateVariableAsync's existenceCheck
+  // handling via the shared evaluateExistenceCheck helper.
+  if (expr.existenceCheck) {
+    return evaluateExistenceCheck(s, value, expr.existenceCheck, expr);
+  }
+
+  if (expr.defaultValue !== null && isVacant(value)) {
+    return evaluateBody(s, expr.defaultValue);
+  }
+
+  return value;
 }
 
 /**
@@ -599,7 +605,7 @@ export async function evaluatePrimary(
     }
 
     default:
-      throwTypeHalt(
+      return throwTypeHalt(
         {
           location: getNodeLocation(s, primary),
           sourceId: s.ctx.sourceId,
@@ -780,7 +786,11 @@ async function evaluatePipeTarget(
       // ctx.pipeValue is already set to input above, so evaluateVariableAsync
       // resolves the access chain against it without re-invoking any
       // callable field it returns.
-      if (target.isPipeVar && !target.name && target.accessChain.length > 0) {
+      if (
+        target.isPipeVar &&
+        (target.name === null || target.name === '') &&
+        target.accessChain.length > 0
+      ) {
         return evaluateVariableAsync(s, target);
       }
       // Variable in pipe chain: evaluate and invoke if callable
@@ -852,6 +862,7 @@ async function evaluatePipeTarget(
       //    host call / type constructor / type-name target, evaluated
       //    through evaluatePipeTarget (inPipeTarget=true binding) before
       //    the trailing index/method chain applies to its result.
+      let value: RillValue;
       try {
         const primary = target.primary;
         const isSyntheticPipeVar =
@@ -863,7 +874,7 @@ async function evaluatePipeTarget(
         // attachPipeTargetIndex path (HostCall, HostRef, TypeConstructor,
         // TypeNameExpr) — all members of PipeTargetNode, narrower than the
         // general PrimaryNode this field is typed for elsewhere.
-        let value = isSyntheticPipeVar
+        value = isSyntheticPipeVar
           ? input
           : await evaluatePipeTarget(s, primary as PipeTargetNode, input);
         for (const method of target.methods) {
@@ -886,18 +897,6 @@ async function evaluatePipeTarget(
             value = await evaluateMethod(s, method, value);
           }
         }
-        if (target.existenceCheck) {
-          return evaluateExistenceCheck(
-            s,
-            value,
-            target.existenceCheck,
-            target
-          );
-        }
-        if (target.defaultValue !== null && isVacant(value)) {
-          return evaluateBody(s, target.defaultValue);
-        }
-        return value;
       } catch (error) {
         // Mirrors evaluatePostfixExpr's recovery: a missing method/field
         // (RILL_R007), missing dict field (RILL_R009), or missing
@@ -925,6 +924,15 @@ async function evaluatePipeTarget(
         }
         throw error;
       }
+      // Existence check and default body run outside the try so their
+      // halts are not re-caught by the recovery above.
+      if (target.existenceCheck) {
+        return evaluateExistenceCheck(s, value, target.existenceCheck, target);
+      }
+      if (target.defaultValue !== null && isVacant(value)) {
+        return evaluateBody(s, target.defaultValue);
+      }
+      return value;
     }
 
     case 'AnnotationAccess':
@@ -967,7 +975,7 @@ async function evaluatePipeTarget(
       return evaluateTimeoutBlock(s, target);
 
     default:
-      throwTypeHalt(
+      return throwTypeHalt(
         {
           location: getNodeLocation(s, target),
           sourceId: s.ctx.sourceId,
@@ -1025,7 +1033,7 @@ async function evaluateHierarchicalDispatch(
 
     // Handle last element separately for terminal closure support
     // path.length > 0 is guaranteed above so this index is always valid
-    lastKey = path[path.length - 1]!;
+    lastKey = path.at(-1)!;
     const result = await traversePathStep(s, current, lastKey, true, location);
 
     // Resolve terminal value (handles terminal closures with $ = lastKey)
@@ -1138,7 +1146,7 @@ async function traversePathStep(
     : inferType(current);
   const keyType = typeof key;
 
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     {
       location,
       sourceId: s.ctx.sourceId,
@@ -1175,7 +1183,7 @@ async function resolveIntermediateClosure(
   // Check for parameterized closure (explicit user-defined params)
   // Note: Block-closures have exactly 1 param named '$'
   // Parameterized closures have 1+ params with user-defined names
-  if (value.kind === 'script' && value.params.length >= 1) {
+  if (value.kind === 'script' && value.params.length > 0) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
     if (value.params[0]!.name !== '$') {
       // Parameterized closures cannot be auto-invoked at an intermediate path position.
@@ -1225,7 +1233,7 @@ async function resolveTerminalValue(
   // Check for parameterized closure (explicit user-defined params)
   // Note: Block-closures have exactly 1 param named '$'
   // Parameterized closures have 1+ params with user-defined names
-  if (value.kind === 'script' && value.params.length >= 1) {
+  if (value.kind === 'script' && value.params.length > 0) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
     if (value.params[0]!.name !== '$') {
       // Parameterized closures cannot be auto-invoked at a terminal path position.

@@ -232,30 +232,32 @@ export function App(): JSX.Element {
     setSource(value);
   }, []);
 
-  const handleCopyLink = useCallback(async () => {
-    // Clear any existing feedback timer
-    if (copyFeedbackTimerRef.current !== null) {
-      clearTimeout(copyFeedbackTimerRef.current);
-      copyFeedbackTimerRef.current = null;
-    }
+  const handleCopyLink = useCallback(() => {
+    void (async (): Promise<void> => {
+      // Clear any existing feedback timer
+      if (copyFeedbackTimerRef.current !== null) {
+        clearTimeout(copyFeedbackTimerRef.current);
+        copyFeedbackTimerRef.current = null;
+      }
 
-    // Copy link to clipboard
-    const result = await copyLinkToClipboard(sourceRef.current);
+      // Copy link to clipboard
+      const result = await copyLinkToClipboard(sourceRef.current);
 
-    // copyLinkToClipboard's status is already the tri/quad-state this
-    // component needs ('copied' | 'too-large' | 'error'), so assign it
-    // directly instead of collapsing every non-'copied' result to 'error'.
-    setCopyLinkState(result.status);
-    setCopyLinkMessage(result.message);
+      // copyLinkToClipboard's status is already the tri/quad-state this
+      // component needs ('copied' | 'too-large' | 'error'), so assign it
+      // directly instead of collapsing every non-'copied' result to 'error'.
+      setCopyLinkState(result.status);
+      setCopyLinkMessage(result.message);
 
-    // Reset to idle after a delay, regardless of which state was reached.
-    const timerId = setTimeout(() => {
-      setCopyLinkState('idle');
-      setCopyLinkMessage(null);
-      copyFeedbackTimerRef.current = null;
-    }, COPY_FEEDBACK_RESET_MS);
+      // Reset to idle after a delay, regardless of which state was reached.
+      const timerId = setTimeout(() => {
+        setCopyLinkState('idle');
+        setCopyLinkMessage(null);
+        copyFeedbackTimerRef.current = null;
+      }, COPY_FEEDBACK_RESET_MS);
 
-    copyFeedbackTimerRef.current = timerId;
+      copyFeedbackTimerRef.current = timerId;
+    })();
   }, []);
 
   // ============================================================

@@ -12,7 +12,6 @@ import type {
   ASTNode,
   BinaryExprNode,
   BlockNode,
-  BracketAccess,
   ConditionalNode,
   DestructPatternNode,
   DestructureNode,
@@ -132,7 +131,7 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
       return stringLiteralEquals(a, b as StringLiteralNode);
 
     case 'NumberLiteral':
-      return (a as NumberLiteralNode).value === (b as NumberLiteralNode).value;
+      return a.value === (b as NumberLiteralNode).value;
 
     case 'BoolLiteral':
       return a.value === (b as typeof a).value;
@@ -153,15 +152,10 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
       return invokeEquals(a, b as InvokeNode);
 
     case 'IndexAccess':
-      return expressionEquals(
-        (a as IndexAccessNode).index,
-        (b as IndexAccessNode).index
-      );
+      return expressionEquals(a.index, (b as IndexAccessNode).index);
 
     case 'AnnotationAccess':
-      return (
-        (a as AnnotationAccessNode).key === (b as AnnotationAccessNode).key
-      );
+      return a.key === (b as AnnotationAccessNode).key;
 
     case 'PipeInvoke':
       return pipeInvokeEquals(a, b as PipeInvokeNode);
@@ -382,13 +376,13 @@ function recoveryErrorEquals(
 }
 
 function pipeChainEquals(a: PipeChainNode, b: PipeChainNode): boolean {
-  if (!astEquals(a.head as ASTNode, b.head as ASTNode)) return false;
+  if (!astEquals(a.head, b.head)) return false;
   if (!arrayEquals(a.pipes, b.pipes, astEqualsPair)) return false;
   return nullableEquals(a.terminator, b.terminator);
 }
 
 function postfixExprEquals(a: PostfixExprNode, b: PostfixExprNode): boolean {
-  if (!astEquals(a.primary as ASTNode, b.primary as ASTNode)) return false;
+  if (!astEquals(a.primary, b.primary)) return false;
   // Methods array can contain MethodCallNode or InvokeNode
   if (!arrayEquals(a.methods, b.methods, astEqualsPair)) return false;
   if (!nullableEquals(a.defaultValue, b.defaultValue)) return false;
@@ -440,12 +434,9 @@ function fieldAccessEquals(a: FieldAccess, b: FieldAccess): boolean {
     case 'variable':
       return a.variableName === (b as typeof a).variableName;
     case 'computed':
-      return astEquals(
-        a.expression as ASTNode,
-        (b as typeof a).expression as ASTNode
-      );
+      return astEquals(a.expression, (b as typeof a).expression);
     case 'block':
-      return astEquals(a.block as ASTNode, (b as typeof a).block as ASTNode);
+      return astEquals(a.block, (b as typeof a).block);
     case 'alternatives':
       return (
         a.alternatives.length === (b as typeof a).alternatives.length &&
@@ -456,6 +447,11 @@ function fieldAccessEquals(a: FieldAccess, b: FieldAccess): boolean {
     case 'annotation':
       return a.key === (b as typeof a).key;
   }
+  return throwFatalHostHalt(
+    { fn: 'fieldAccessEquals' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unhandled field access kind for equality comparison'
+  );
 }
 
 function variableEquals(a: VariableNode, b: VariableNode): boolean {
@@ -476,10 +472,7 @@ function propertyAccessEquals(a: PropertyAccess, b: PropertyAccess): boolean {
   if (aIsBracket !== bIsBracket) return false;
 
   if (aIsBracket && bIsBracket) {
-    return expressionEquals(
-      (a as BracketAccess).expression,
-      (b as BracketAccess).expression
-    );
+    return expressionEquals(a.expression, b.expression);
   }
 
   // Both are field access
@@ -543,7 +536,7 @@ function loopAnnotationsEqual(
 
 function whileLoopEquals(a: WhileLoopNode, b: WhileLoopNode): boolean {
   if (!loopAnnotationsEqual(a.annotations, b.annotations)) return false;
-  if (!astEquals(a.condition as ASTNode, b.condition as ASTNode)) return false;
+  if (!astEquals(a.condition, b.condition)) return false;
   return simpleBodyEquals(a.body, b.body);
 }
 
@@ -556,18 +549,18 @@ function doWhileLoopEquals(a: DoWhileLoopNode, b: DoWhileLoopNode): boolean {
 
 function simpleBodyEquals(a: BodyNode, b: BodyNode): boolean {
   if (a.type !== b.type) return false;
-  return astEquals(a as ASTNode, b as ASTNode);
+  return astEquals(a, b);
 }
 
 function binaryExprEquals(a: BinaryExprNode, b: BinaryExprNode): boolean {
   if (a.op !== b.op) return false;
-  if (!astEquals(a.left as ASTNode, b.left as ASTNode)) return false;
-  return astEquals(a.right as ASTNode, b.right as ASTNode);
+  if (!astEquals(a.left, b.left)) return false;
+  return astEquals(a.right, b.right);
 }
 
 function unaryExprEquals(a: UnaryExprNode, b: UnaryExprNode): boolean {
   if (a.op !== b.op) return false;
-  return astEquals(a.operand as ASTNode, b.operand as ASTNode);
+  return astEquals(a.operand, b.operand);
 }
 
 function groupedExprEquals(a: GroupedExprNode, b: GroupedExprNode): boolean {
@@ -607,8 +600,8 @@ function dictEntryEquals(a: DictEntryNode, b: DictEntryNode): boolean {
       return expressionEquals(a.value, b.value);
     }
     // ListLiteralNode keys: compare element-wise
-    const aKey = a.key as ListLiteralNode;
-    const bKey = b.key as ListLiteralNode;
+    const aKey = a.key;
+    const bKey = b.key;
     if (aKey.type !== bKey.type) return false;
     if (!arrayEquals(aKey.elements, bKey.elements, astEquals)) return false;
   } else {

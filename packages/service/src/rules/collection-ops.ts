@@ -53,7 +53,7 @@ export function isCollectionOpCall(
  * match this shape (e.g. it has pipes).
  */
 function unwrapArgPrimary(arg: ASTNode): PostfixExprNode | null {
-  if (arg.type !== 'PipeChain' || arg.pipes.length !== 0) return null;
+  if (arg.type !== 'PipeChain' || arg.pipes.length > 0) return null;
   const head = arg.head;
   if (head.type !== 'PostfixExpr') return null;
   return head;
@@ -89,12 +89,12 @@ export function getCollectionOpBody(
  * misfire on that initial-value case.
  */
 export function getBareCallableArg(node: HostCallNode): HostCallNode | null {
-  const arg = node.args[node.args.length - 1];
+  const arg = node.args.at(-1);
   if (!arg) return null;
   const head = unwrapArgPrimary(arg);
-  if (!head || head.methods.length !== 0) return null;
+  if (!head || head.methods.length > 0) return null;
   const primary = head.primary;
-  if (primary.type !== 'HostCall' || primary.args.length !== 0) return null;
+  if (primary.type !== 'HostCall' || primary.args.length > 0) return null;
   return primary;
 }
 
@@ -133,7 +133,7 @@ function unwrapBlockToHead(body: BodyNode): ASTNode | null {
   if (!stmt || stmt.type !== 'Statement') return null;
   const expr = stmt.expression;
   if (expr.type !== 'PipeChain') return null;
-  if (expr.pipes.length !== 0) return null;
+  if (expr.pipes.length > 0) return null;
   return expr.head;
 }
 
@@ -145,7 +145,7 @@ export function isMethodShorthand(body: BodyNode): boolean {
   const head = unwrapBlockToHead(body);
   if (!head) return false;
   if (head.type !== 'PostfixExpr') return false;
-  if (head.methods.length !== 0) return false;
+  if (head.methods.length > 0) return false;
   return head.primary.type === 'MethodCall';
 }
 
@@ -165,7 +165,7 @@ export function isBlockWrappingMethod(body: BodyNode): boolean {
   if (expr.type !== 'PipeChain') return false;
 
   // Should have no pipes (direct method call on head)
-  if (expr.pipes.length !== 0) return false;
+  if (expr.pipes.length > 0) return false;
 
   const head = expr.head;
   if (head.type !== 'PostfixExpr') return false;

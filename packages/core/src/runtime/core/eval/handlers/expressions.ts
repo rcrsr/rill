@@ -26,6 +26,7 @@ import type {
 } from '../../../../types.js';
 import {
   throwCatchableHostHalt,
+  throwFatalHostHalt,
   RuntimeHaltSignal,
   enrichHaltOriginLocation,
 } from '../../types/halt.js';
@@ -85,7 +86,7 @@ async function resolveExpressionValue(
       ? []
       : [s.ctx.pipeValue];
 
-  return await invokeCallable(s, value, args, undefined);
+  return await invokeCallable(s, value, args);
 }
 
 /**
@@ -380,6 +381,15 @@ function evaluateBinaryComparison(
     case '>=':
       return cmp >= 0;
   }
+  return throwFatalHostHalt(
+    {
+      location: node.span.start,
+      sourceId: s.ctx.sourceId,
+      fn: 'evaluateBinaryComparison',
+    },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unsupported comparison operator'
+  );
 }
 
 /**
@@ -444,10 +454,7 @@ export async function evaluateUnaryExpr(
  * Evaluate expression head, returning any RillValue.
  * Helper for binary and unary expression evaluation.
  */
-async function evaluateExprHead(
-  s: EvalState,
-  node: ArithHead
-): Promise<RillValue> {
+function evaluateExprHead(s: EvalState, node: ArithHead): Promise<RillValue> {
   switch (node.type) {
     case 'BinaryExpr':
       return evaluateBinaryExpr(s, node);
@@ -456,6 +463,11 @@ async function evaluateExprHead(
     case 'PostfixExpr':
       return evaluatePostfixExpr(s, node);
   }
+  return throwFatalHostHalt(
+    { sourceId: s.ctx.sourceId, fn: 'evaluateExprHead' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unsupported expression head'
+  );
 }
 
 /**

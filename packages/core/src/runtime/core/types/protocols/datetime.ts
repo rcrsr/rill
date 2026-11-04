@@ -108,7 +108,7 @@ function deserializeDatetime(data: unknown): RillValue {
       'runtime'
     );
   }
-  return { __rill_datetime: true, unix: ms } as unknown as RillValue;
+  return { __rill_datetime: true, unix: ms };
 }
 
 // ============================================================

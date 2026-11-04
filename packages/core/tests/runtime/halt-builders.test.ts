@@ -1538,7 +1538,7 @@ describe('host-error shape (file)', () => {
               );
               yield 1;
             })(),
-            resolve: async () => 'resolved',
+            resolve: () => Promise.resolve('resolved'),
           }),
       };
       const ctx = createRuntimeContext({ functions: { s: stream } });
@@ -1623,6 +1623,7 @@ describe('host-error shape (file)', () => {
   describe('host call boundary fills a location-less carrier', () => {
     it('uses the host call location', async () => {
       const ctx = createRuntimeContext({
+        // oxlint-disable-next-line unicorn/no-useless-undefined -- makeClosureBoom requires its argument explicitly
         functions: { boom: makeClosureBoom(undefined) },
       });
       const err = await captureRuntimeError(() =>
@@ -1648,6 +1649,7 @@ describe('host-error shape (file)', () => {
   describe('script closure boundary fills sourceId and sourceText', () => {
     it('fills both for a closure defined in module source', async () => {
       const ctx = createRuntimeContext({
+        // oxlint-disable-next-line unicorn/no-useless-undefined -- makeClosureBoom requires its argument explicitly
         functions: { boom: makeClosureBoom(undefined) },
         resolvers: MODULE_RESOLVER,
         parseSource: (text: string) => parse(text),
@@ -1662,6 +1664,7 @@ describe('host-error shape (file)', () => {
 
     it('adds neither for a closure defined with no module in play', async () => {
       const ctx = createRuntimeContext({
+        // oxlint-disable-next-line unicorn/no-useless-undefined -- makeClosureBoom requires its argument explicitly
         functions: { boom: makeClosureBoom(undefined) },
       });
       const err = await captureRuntimeError(() =>
@@ -1688,7 +1691,7 @@ describe('host-error shape (file)', () => {
             );
             yield 1;
           })(),
-          resolve: async () => 'resolved',
+          resolve: () => Promise.resolve('resolved'),
         }),
     };
   }
@@ -1753,8 +1756,8 @@ describe('host-error shape (file)', () => {
         const work = raise();
         lateWork.push(
           work.then(
-            () => undefined,
-            () => undefined
+            () => {},
+            () => {}
           )
         );
         return work;
@@ -1770,7 +1773,7 @@ describe('host-error shape (file)', () => {
   // A scheduler whose timers fire fast; `expired` settles once a timer has fired,
   // so a host body can wait for the timeout<> to expire before it halts.
   function makeExpiringScheduler(): ExpiringScheduler {
-    let markExpired: () => void = () => undefined;
+    let markExpired: () => void = () => {};
     const expired = new Promise<void>((resolve) => {
       markExpired = resolve;
     });
@@ -1932,7 +1935,7 @@ describe('host-error shape (file)', () => {
 
     it('adds no suffix when the carrier has no location at any boundary', async () => {
       const out: string[] = [];
-      let markHalted: () => void = () => undefined;
+      let markHalted: () => void = () => {};
       lateWork.push(
         new Promise<void>((resolve) => {
           markHalted = resolve;
@@ -1957,12 +1960,12 @@ describe('host-error shape (file)', () => {
                   }
                   yield 1;
                 })(),
-                resolve: async () => 'resolved',
+                resolve: () => Promise.resolve('resolved'),
               }),
           },
         },
         callbacks: {
-          onLog: () => undefined,
+          onLog: () => {},
           onLogEvent: (event: ExtensionEvent): void => {
             out.push(
               typeof event['detail'] === 'string' ? event['detail'] : ''
@@ -1987,7 +1990,7 @@ describe('host-error shape (file)', () => {
           }),
         },
         callbacks: {
-          onLog: () => undefined,
+          onLog: () => {},
           onLogEvent: (event: ExtensionEvent): void => {
             out.push(
               typeof event['detail'] === 'string' ? event['detail'] : ''

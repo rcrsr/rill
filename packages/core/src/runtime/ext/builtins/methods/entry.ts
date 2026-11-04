@@ -65,7 +65,9 @@ export function buildMethodEntry(
       parsed.returnType !== undefined
         ? structureToTypeValue(parsed.returnType)
         : anyTypeValue,
-    ...(skipReceiverValidation ? { skipReceiverValidation: true } : {}),
+    ...(skipReceiverValidation === true
+      ? { skipReceiverValidation: true }
+      : {}),
   };
 }
 

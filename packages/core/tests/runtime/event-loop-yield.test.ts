@@ -213,7 +213,7 @@ describe('Rill Runtime: event-loop yielding', () => {
           expire = fn;
           return 0 as unknown as ReturnType<typeof setTimeout>;
         },
-        clearTimeout: () => undefined,
+        clearTimeout: () => {},
       };
       await expectAbortHalt(() =>
         run('guard { timeout<total: duration(0,0,0,0,0,0,1000)> { trip() } }', {
@@ -297,7 +297,9 @@ describe('Rill Runtime: event-loop yielding', () => {
 
   describe('slow path', () => {
     it('lets a setImmediate flag queued before a bounded run fire before execute resolves', async () => {
-      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => {
+        setImmediate(r);
+      });
       let flag = false;
       setImmediate(() => {
         flag = true;
@@ -321,14 +323,18 @@ describe('Rill Runtime: event-loop yielding', () => {
     }
 
     it('leaves a queued setImmediate flag unset when a short execute resolves', async () => {
-      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => {
+        setImmediate(r);
+      });
       let flag = false;
       setImmediate(() => {
         flag = true;
       });
       await runFresh();
       expect(flag).toBe(false);
-      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => {
+        setImmediate(r);
+      });
     });
 
     it('stays on the fast path after the loop has idled for 50 ms', async () => {
@@ -344,14 +350,18 @@ describe('Rill Runtime: event-loop yielding', () => {
       // Advance past the yield slice, then let one macrotask turn pass so the
       // probe clears the baseline and the elapsed time counts as idle.
       clock = 50;
-      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => {
+        setImmediate(r);
+      });
       let flag = false;
       setImmediate(() => {
         flag = true;
       });
       await runShort();
       expect(flag).toBe(false);
-      await new Promise((r) => setImmediate(r));
+      await new Promise((r) => {
+        setImmediate(r);
+      });
     });
   });
 
@@ -365,7 +375,7 @@ describe('Rill Runtime: event-loop yielding', () => {
       vi.useFakeTimers();
       const scheduler: TimeoutScheduler = {
         setTimeout: () => 0 as unknown as ReturnType<typeof setTimeout>,
-        clearTimeout: () => undefined,
+        clearTimeout: () => {},
       };
       expect(await run(BOUNDED_SCRIPT, { nowMs: 0, scheduler })).toBe(
         BOUNDED_RESULT
@@ -405,6 +415,7 @@ describe('Rill Runtime: event-loop yielding', () => {
 
   describe('portability', () => {
     it('yields through setTimeout(0) when setImmediate is unavailable', async () => {
+      // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
       vi.stubGlobal('setImmediate', undefined);
       vi.resetModules();
       const fresh = await import('@rcrsr/rill');
@@ -426,7 +437,9 @@ describe('Rill Runtime: event-loop yielding', () => {
     });
 
     it('completes a bounded script when no macrotask primitive exists', async () => {
+      // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
       vi.stubGlobal('setImmediate', undefined);
+      // oxlint-disable-next-line unicorn/no-useless-undefined -- parameter is required; explicit undefined is the test input
       vi.stubGlobal('setTimeout', undefined);
       vi.resetModules();
       const fresh = await import('@rcrsr/rill');

@@ -44,7 +44,7 @@ describe('Retry exhaustion surfaces the final attempt (bug #271)', () => {
   it('message reflects the LAST attempt, not the first, with N frames', async () => {
     // Attempt 1: `"str" + 1`  -> "Arithmetic requires number, got string"
     // Attempt 2: `list[1] + 1` -> "Arithmetic requires number, got list"
-    const flaky = makeSequenceFn(['str', [1] as unknown as RillValue]);
+    const flaky = makeSequenceFn(['str', [1]]);
 
     const result = await run(
       `
@@ -70,7 +70,7 @@ describe('Retry exhaustion surfaces the final attempt (bug #271)', () => {
   });
 
   it('.!message probe surfaces the final attempt', async () => {
-    const flaky = makeSequenceFn(['str', [1] as unknown as RillValue]);
+    const flaky = makeSequenceFn(['str', [1]]);
 
     const message = await run(
       `

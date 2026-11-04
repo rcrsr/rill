@@ -1,7 +1,6 @@
 import type { RillFunction } from '../../../core/callable.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
-import type { RillValue } from '../../../core/types/structures.js';
 import { structureToTypeValue } from '../../../core/values.js';
 import { constructDatetime, constructDuration } from '../temporal/construct.js';
 
@@ -98,12 +97,12 @@ export const TEMPORAL_FUNCTIONS: Record<string, RillFunction> = {
             'host'
           );
         }
-        return { __rill_datetime: true, unix: nowMs } as unknown as RillValue;
+        return { __rill_datetime: true, unix: nowMs };
       }
       return {
         __rill_datetime: true,
         unix: Date.now(),
-      } as unknown as RillValue;
+      };
     },
   },
 

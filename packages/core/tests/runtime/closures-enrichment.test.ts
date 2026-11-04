@@ -52,13 +52,14 @@ function makeThrowingHostFn(): RillFunction {
   return {
     params: [],
     returnType: anyTypeValue,
-    fn: async (): Promise<RillValue> => {
-      throwCatchableHostHalt(
-        { fn: 'testThrowingFn', sourceId: 'test.rill' },
-        'TEST_HALT',
-        'test halt message'
-      );
-    },
+    fn: (): Promise<RillValue> =>
+      new Promise<RillValue>(() => {
+        throwCatchableHostHalt(
+          { fn: 'testThrowingFn', sourceId: 'test.rill' },
+          'TEST_HALT',
+          'test halt message'
+        );
+      }),
   };
 }
 
@@ -187,9 +188,8 @@ describe('EC-9: BreakSignal passthrough at enrichment sites', () => {
           thrower: {
             params: [],
             returnType: anyTypeValue,
-            fn: async (): Promise<RillValue> => {
-              throw new BreakSignal('break-payload');
-            },
+            fn: (): Promise<RillValue> =>
+              Promise.reject(new BreakSignal('break-payload')),
           },
         },
       });
@@ -211,9 +211,7 @@ describe('EC-9: BreakSignal passthrough at enrichment sites', () => {
           thrower: {
             params: [],
             returnType: anyTypeValue,
-            fn: async (): Promise<RillValue> => {
-              throw sentinel;
-            },
+            fn: (): Promise<RillValue> => Promise.reject(sentinel),
           },
         },
       });
@@ -242,9 +240,7 @@ describe('EC-NOD-2: ReturnSignal passthrough at enrichment sites', () => {
         thrower: {
           params: [],
           returnType: anyTypeValue,
-          fn: async (): Promise<RillValue> => {
-            throw new ReturnSignal(42);
-          },
+          fn: (): Promise<RillValue> => Promise.reject(new ReturnSignal(42)),
         },
       },
     });
@@ -260,9 +256,8 @@ describe('EC-NOD-2: ReturnSignal passthrough at enrichment sites', () => {
         thrower: {
           params: [],
           returnType: anyTypeValue,
-          fn: async (): Promise<RillValue> => {
-            throw new ReturnSignal(sentinel as unknown as RillValue);
-          },
+          fn: (): Promise<RillValue> =>
+            Promise.reject(new ReturnSignal(sentinel as unknown as RillValue)),
         },
       },
     });
@@ -287,14 +282,12 @@ describe('EC-10: Non-Error throws materialize as #R999 at the dispatch boundary'
         thrower: {
           params: [],
           returnType: anyTypeValue,
-          fn: async (): Promise<RillValue> => {
-            throw 'raw-string-throw' as unknown as Error;
-          },
+          fn: (): Promise<RillValue> => Promise.reject('raw-string-throw'),
         },
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['original']).toBe('raw-string-throw');
   });
@@ -305,15 +298,12 @@ describe('EC-10: Non-Error throws materialize as #R999 at the dispatch boundary'
         thrower: {
           params: [],
           returnType: anyTypeValue,
-          fn: async (): Promise<RillValue> => {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
-            throw null;
-          },
+          fn: (): Promise<RillValue> => Promise.reject(null),
         },
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['original']).toBe('null');
   });
@@ -341,7 +331,7 @@ describe('W-1/W-2: sync throws and non-object throws reach the same reshape as a
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['message']).toBe('sync boom');
   });
@@ -353,14 +343,14 @@ describe('W-1/W-2: sync throws and non-object throws reach the same reshape as a
           params: [],
           returnType: anyTypeValue,
           fn: (): RillValue => {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            // oxlint-disable-next-line no-throw-literal -- test subject: a non-Error throw materializes as #R999
             throw null;
           },
         },
       },
     });
 
-    expect(atomName(getStatus(result as RillValue).code)).toBe('R999');
+    expect(atomName(getStatus(result).code)).toBe('R999');
   });
 
   it('a synchronous `throw "str"` materializes as a #R999 invalid value', async () => {
@@ -370,14 +360,14 @@ describe('W-1/W-2: sync throws and non-object throws reach the same reshape as a
           params: [],
           returnType: anyTypeValue,
           fn: (): RillValue => {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
+            // oxlint-disable-next-line no-throw-literal -- test subject: a non-Error throw materializes as #R999
             throw 'str';
           },
         },
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['original']).toBe('str');
   });
@@ -393,7 +383,7 @@ describe('W-1/W-2: sync throws and non-object throws reach the same reshape as a
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['original']).toBe('str');
   });
@@ -469,7 +459,7 @@ describe('BC-NOD-2: host JS RangeError from a synchronous host-fn throw reshapes
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['message']).toBe('Maximum call stack size exceeded');
   });

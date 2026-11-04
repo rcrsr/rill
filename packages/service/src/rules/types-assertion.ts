@@ -76,7 +76,7 @@ function buildFix(
     return null;
   }
 
-  const assertionSource = source.substring(
+  const assertionSource = source.slice(
     assertionNode.span.start.offset,
     assertionNode.span.end.offset
   );
@@ -87,7 +87,7 @@ function buildFix(
   // separator. `operand.span.end` tracks the following sibling's start
   // rather than the operand's own text end, so the last method call (if
   // any) or the primary literal's own span is used instead.
-  const lastMethod = operand.methods[operand.methods.length - 1];
+  const lastMethod = operand.methods.at(-1);
   const operandEndOffset = lastMethod
     ? lastMethod.span.end.offset
     : operand.primary.span.end.offset;

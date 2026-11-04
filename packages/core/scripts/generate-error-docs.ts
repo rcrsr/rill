@@ -196,7 +196,7 @@ function generateMarkdown(
   for (const [category, group] of Object.entries(byCategory)) {
     if (group.errors.length === 0) continue;
     const first = group.errors[0]!.errorId;
-    const last = group.errors[group.errors.length - 1]!.errorId;
+    const last = group.errors.at(-1)!.errorId;
     const anchor = categoryToAnchor(category);
     lines.push(`- [${group.name} (${first} - ${last})](#${anchor})`);
   }

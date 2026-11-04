@@ -122,8 +122,8 @@ export function Editor({
   // INITIALIZATION
   // ============================================================
 
-  useEffect(() => {
-    if (!editorRef.current) return;
+  useEffect((): (() => void) | undefined => {
+    if (!editorRef.current) return undefined;
 
     const extensions: Extension[] = [
       lineNumbers(),

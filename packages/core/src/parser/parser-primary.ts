@@ -181,8 +181,20 @@ export const postfixDispatchTable: Record<
   string,
   (this: Parser, loopState: PostfixLoopState, start: SourceLocation) => void
 > = {
-  [TOKEN_TYPES.DOT_BANG]: Parser.prototype.parsePostfixDotBang,
-  [TOKEN_TYPES.COLON]: Parser.prototype.parsePostfixColon,
+  [TOKEN_TYPES.DOT_BANG]: function (
+    this: Parser,
+    loopState: PostfixLoopState,
+    start: SourceLocation
+  ): void {
+    this.parsePostfixDotBang(loopState, start);
+  },
+  [TOKEN_TYPES.COLON]: function (
+    this: Parser,
+    loopState: PostfixLoopState,
+    start: SourceLocation
+  ): void {
+    this.parsePostfixColon(loopState, start);
+  },
   [TOKEN_TYPES.LPAREN]: function (
     this: Parser,
     loopState: PostfixLoopState
@@ -381,9 +393,7 @@ Parser.prototype.parsePostfixExprBase = function (
   // already reflect its span; no separate terminal existenceCheck case is
   // needed here.
   const endLocation = (
-    loopState.methods.length > 0
-      ? loopState.methods[loopState.methods.length - 1]!
-      : loopState.primary
+    loopState.methods.length > 0 ? loopState.methods.at(-1)! : loopState.primary
   ).span.end;
 
   return {
@@ -405,12 +415,12 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
   let hasSpread = false;
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
     args.push(parseSpreadOrArg(this, { allowSpread: true, hasSpread }));
-    if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
+    if (args.at(-1)!.type === 'SpreadArg') hasSpread = true;
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
       args.push(parseSpreadOrArg(this, { allowSpread: true, hasSpread }));
-      if (args[args.length - 1]!.type === 'SpreadArg') hasSpread = true;
+      if (args.at(-1)!.type === 'SpreadArg') hasSpread = true;
     }
   }
   skipNewlines(this.state);

@@ -35,7 +35,7 @@ function immediateRun(state: ExecutionState): {
   promise: Promise<ExecutionState>;
   cancel: () => void;
 } {
-  return { promise: Promise.resolve(state), cancel: vi.fn() };
+  return { promise: Promise.resolve(state), cancel: vi.fn<() => void>() };
 }
 
 /** Wraps an ExecutionState into a { promise, cancel } pair that never settles. */
@@ -43,7 +43,10 @@ function pendingRun(): {
   promise: Promise<ExecutionState>;
   cancel: () => void;
 } {
-  return { promise: new Promise<ExecutionState>(() => {}), cancel: vi.fn() };
+  return {
+    promise: new Promise<ExecutionState>(() => {}),
+    cancel: vi.fn<() => void>(),
+  };
 }
 
 /** A { promise, cancel } pair whose promise settles when the test calls resolve. */
@@ -56,7 +59,7 @@ function deferredRun(): {
   const promise = new Promise<ExecutionState>((r) => {
     resolve = r;
   });
-  return { promise, cancel: vi.fn(), resolve };
+  return { promise, cancel: vi.fn<() => void>(), resolve };
 }
 
 /** Builds a successful ExecutionState carrying the given result text. */
@@ -96,9 +99,20 @@ function getRunButton(container: HTMLElement): HTMLButtonElement {
   return container.querySelector('.toolbar-run') as HTMLButtonElement;
 }
 
+/**
+ * Runs a synchronous action inside an async `act` scope so React flushes the
+ * resolved continuation before the returned promise settles.
+ */
+function actAsync(fn: () => void): Promise<void> {
+  return act(() => {
+    fn();
+    return Promise.resolve();
+  });
+}
+
 /** Clicks the Run button and flushes the resulting state updates. */
-async function clickRun(button: HTMLButtonElement): Promise<void> {
-  await act(async () => {
+function clickRun(button: HTMLButtonElement): Promise<void> {
+  return actAsync(() => {
     button.click();
   });
 }
@@ -131,16 +145,21 @@ describe('App', () => {
     // Mock localStorage. happy-dom exposes window.localStorage as a getter-only
     // property, so it must be stubbed rather than assigned.
     const storage = new Map<string, string>();
-    vi.stubGlobal('localStorage', {
+    const mockStorage: Storage = {
       getItem: (key: string) => storage.get(key) ?? null,
-      setItem: (key: string, value: string) => storage.set(key, value),
-      removeItem: (key: string) => storage.delete(key),
+      setItem: (key: string, value: string) => {
+        storage.set(key, value);
+      },
+      removeItem: (key: string) => {
+        storage.delete(key);
+      },
       clear: () => storage.clear(),
       key: (index: number) => Array.from(storage.keys())[index] ?? null,
       get length() {
         return storage.size;
       },
-    } as Storage);
+    };
+    vi.stubGlobal('localStorage', mockStorage);
   });
 
   afterEach(() => {
@@ -219,7 +238,7 @@ describe('App', () => {
 
       const { container } = render(<App />);
 
-      await act(async () => {
+      await actAsync(() => {
         container.querySelector('.cm-content')!.dispatchEvent(
           new KeyboardEvent('keydown', {
             key: 'Enter',
@@ -419,7 +438,7 @@ describe('App', () => {
 
       expect(runSpy).toHaveBeenCalledTimes(1);
 
-      await act(async () => {
+      await actAsync(() => {
         deferred.resolve(successState('"Test"'));
       });
 
@@ -445,7 +464,7 @@ describe('App', () => {
       await act(async () => {});
       expect(runButton.disabled).toBe(true);
 
-      await act(async () => {
+      await actAsync(() => {
         deferred.resolve(successState('"Test"'));
       });
       expect(runButton.disabled).toBe(false);
@@ -592,7 +611,7 @@ describe('App', () => {
       expect(container.querySelector('.output-running')).not.toBeNull();
       expect(container.querySelector('.output-result')).toBeNull();
 
-      await act(async () => {
+      await actAsync(() => {
         deferred.resolve(successState('"Second"', 50));
       });
 
@@ -661,15 +680,16 @@ describe('App', () => {
         });
       });
 
-      const hasMarker = expect.objectContaining({
-        lastSource: expect.stringContaining(marker),
-      });
-      expect(persistSpy).not.toHaveBeenCalledWith(hasMarker);
+      const persistedMarker = (): boolean =>
+        persistSpy.mock.calls.some(([state]) =>
+          state.lastSource.includes(marker)
+        );
+      expect(persistedMarker()).toBe(false);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500);
       });
-      expect(persistSpy).toHaveBeenCalledWith(hasMarker);
+      expect(persistedMarker()).toBe(true);
     });
 
     it('coalesces rapid source changes into a single persistEditorState call', async () => {
@@ -722,7 +742,7 @@ describe('App', () => {
         '.toolbar-share'
       ) as HTMLButtonElement;
 
-      await act(async () => {
+      await actAsync(() => {
         shareButton.click();
       });
 

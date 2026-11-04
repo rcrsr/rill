@@ -4,7 +4,7 @@
  * scan; braces make control flow visually explicit.
  */
 
-import type { ASTNode, ClosureNode, GroupedExprNode } from '@rcrsr/rill';
+import type { ASTNode, ClosureNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -24,13 +24,13 @@ export const closureBraces: Rule = {
     const body = closureNode.body;
 
     if (body.type === 'GroupedExpr') {
-      const grouped = body as GroupedExprNode;
+      const grouped = body;
       const innerExpr = grouped.expression;
 
       let content: ASTNode = innerExpr;
-      if (innerExpr && innerExpr.type === 'PipeChain') {
+      if (innerExpr.type === 'PipeChain') {
         const head = innerExpr.head;
-        if (head && head.type === 'PostfixExpr') {
+        if (head.type === 'PostfixExpr') {
           content = head.primary;
         } else {
           content = head;
@@ -38,12 +38,11 @@ export const closureBraces: Rule = {
       }
 
       const isComplex =
-        content &&
-        (content.type === 'Conditional' ||
-          content.type === 'WhileLoop' ||
-          content.type === 'DoWhileLoop' ||
-          content.type === 'GuardBlock' ||
-          content.type === 'RetryBlock');
+        content.type === 'Conditional' ||
+        content.type === 'WhileLoop' ||
+        content.type === 'DoWhileLoop' ||
+        content.type === 'GuardBlock' ||
+        content.type === 'RetryBlock';
 
       if (isComplex) {
         return [

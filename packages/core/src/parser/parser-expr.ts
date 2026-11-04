@@ -539,7 +539,7 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
   const chainEnd = terminator
     ? terminator.span.end
     : pipes.length > 0
-      ? pipes[pipes.length - 1]!.span.end
+      ? pipes.at(-1)!.span.end
       : head.span.end;
 
   return {
@@ -700,9 +700,8 @@ Parser.prototype.parseBinaryExprChain = function (
     skipNewlines(this.state);
     const op = opMap.get(opToken.type);
     if (op === undefined) {
-      const _exhaustive: never = opToken.type as never;
       throw new Error(
-        `parseBinaryExprChain: no opMap entry for token '${_exhaustive}'`
+        `parseBinaryExprChain: no opMap entry for token '${opToken.type}'`
       );
     }
     const right = nextParser.call(this);
@@ -719,6 +718,22 @@ Parser.prototype.parseBinaryExprChain = function (
   return left;
 };
 
+function parseLogicalAndStep(this: Parser): ArithHead {
+  return this.parseLogicalAnd();
+}
+
+function parseComparisonStep(this: Parser): ArithHead {
+  return this.parseComparison();
+}
+
+function parseMultiplicativeStep(this: Parser): ArithHead {
+  return this.parseMultiplicative();
+}
+
+function parseUnaryStep(this: Parser): ArithHead {
+  return this.parseUnary();
+}
+
 const LOGICAL_OR_OP_TOKENS: TokenType[] = [TOKEN_TYPES.OR];
 const LOGICAL_OR_OP_MAP = new Map<TokenType, BinaryOp>([
   [TOKEN_TYPES.OR, BINARY_OPS.OR],
@@ -726,7 +741,7 @@ const LOGICAL_OR_OP_MAP = new Map<TokenType, BinaryOp>([
 
 Parser.prototype.parseLogicalOr = function (this: Parser): ArithHead {
   return this.parseBinaryExprChain(
-    (this as Parser).parseLogicalAnd,
+    parseLogicalAndStep,
     LOGICAL_OR_OP_TOKENS,
     LOGICAL_OR_OP_MAP
   );
@@ -739,7 +754,7 @@ const LOGICAL_AND_OP_MAP = new Map<TokenType, BinaryOp>([
 
 Parser.prototype.parseLogicalAnd = function (this: Parser): ArithHead {
   return this.parseBinaryExprChain(
-    (this as Parser).parseComparison,
+    parseComparisonStep,
     LOGICAL_AND_OP_TOKENS,
     LOGICAL_AND_OP_MAP
   );
@@ -774,7 +789,7 @@ const ADDITIVE_OP_MAP = new Map<TokenType, BinaryOp>([
 
 Parser.prototype.parseAdditive = function (this: Parser): ArithHead {
   return this.parseBinaryExprChain(
-    (this as Parser).parseMultiplicative,
+    parseMultiplicativeStep,
     ADDITIVE_OP_TOKENS,
     ADDITIVE_OP_MAP
   );
@@ -793,7 +808,7 @@ const MULTIPLICATIVE_OP_MAP = new Map<TokenType, BinaryOp>([
 
 Parser.prototype.parseMultiplicative = function (this: Parser): ArithHead {
   return this.parseBinaryExprChain(
-    (this as Parser).parseUnary,
+    parseUnaryStep,
     MULTIPLICATIVE_OP_TOKENS,
     MULTIPLICATIVE_OP_MAP
   );

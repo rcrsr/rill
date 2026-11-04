@@ -2388,6 +2388,7 @@ export function renderMessage(
           result += '';
         } else {
           try {
+            // oxlint-disable-next-line typescript/no-base-to-string -- template context values are arbitrary host data; a throwing toString is handled by the catch below
             result += String(value);
           } catch {
             // String() coercion failed - use default toString behavior

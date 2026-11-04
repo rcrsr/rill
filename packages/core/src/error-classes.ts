@@ -76,7 +76,7 @@ export interface RillErrorData {
 export function createError(
   errorId: string,
   context: Record<string, unknown>,
-  location?: SourceLocation | undefined
+  location?: SourceLocation
 ): RillError {
   // Lookup error definition from registry (O(1))
   const definition = ERROR_REGISTRY.get(errorId);
@@ -213,7 +213,7 @@ export class RillError extends Error {
    */
   withContext(patch: Record<string, unknown>): RillError {
     const clone = Object.create(
-      Object.getPrototypeOf(this),
+      Reflect.getPrototypeOf(this),
       Object.getOwnPropertyDescriptors(this)
     ) as RillError;
     // Object.getOwnPropertyDescriptors copies Error's `stack` accessor

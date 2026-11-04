@@ -49,7 +49,7 @@ describe('ExtensionFactoryCtx', () => {
       const ctx: ExtensionFactoryCtx = makeFactoryCtx();
 
       // Positive shape evidence: both members are present and correctly typed.
-      expectTypeOf(ctx.registerErrorCode).toBeFunction();
+      expectTypeOf<ExtensionFactoryCtx['registerErrorCode']>().toBeFunction();
       expectTypeOf(ctx.signal).toEqualTypeOf<AbortSignal>();
 
       // Runtime sanity: the ctx is usable as-is.
@@ -160,7 +160,7 @@ describe('ExtensionFactoryCtx', () => {
         ctx.registerErrorCode(uniqueName, 'generic');
         return { value: {} };
       };
-      factoryA({}, makeFactoryCtx());
+      void factoryA({}, makeFactoryCtx());
 
       // Factory B attempts the same name with a different kind. The
       // registry is module-scoped so the collision fires across factories.

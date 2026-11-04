@@ -18,7 +18,6 @@ import type {
   ASTNode,
   CaptureNode,
   PipeChainNode,
-  PostfixExprNode,
   StatementNode,
 } from '@rcrsr/rill';
 
@@ -28,7 +27,7 @@ function isCaptureNode(node: unknown): node is CaptureNode {
     typeof node === 'object' &&
     node !== null &&
     'type' in node &&
-    (node as { type: unknown }).type === 'Capture'
+    node.type === 'Capture'
   );
 }
 
@@ -39,7 +38,7 @@ function isCaptureNode(node: unknown): node is CaptureNode {
 export function getPrimaryFromHead(chain: PipeChainNode): ASTNode | null {
   const head = chain.head;
   if (head.type === 'PostfixExpr') {
-    return (head as PostfixExprNode).primary;
+    return head.primary;
   }
   return null;
 }
@@ -57,7 +56,7 @@ export function getPrimaryFromHead(chain: PipeChainNode): ASTNode | null {
  */
 export function getInnerStatement(node: ASTNode): StatementNode | null {
   if (node.type === 'Statement') {
-    return node as StatementNode;
+    return node;
   }
   if (node.type === 'AnnotatedStatement') {
     return (node as { statement: StatementNode }).statement;
@@ -71,7 +70,7 @@ export function findChainCapture(chain: PipeChainNode): CaptureNode | null {
     return chain.terminator;
   }
   if (chain.pipes.length > 0) {
-    const lastPipe = chain.pipes[chain.pipes.length - 1];
+    const lastPipe = chain.pipes.at(-1);
     if (lastPipe && isCaptureNode(lastPipe)) {
       return lastPipe;
     }

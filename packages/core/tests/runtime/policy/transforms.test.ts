@@ -25,11 +25,13 @@ function tagger(tag: string): RillCallable {
 }
 
 /** Invoker that actually runs the callable's fn against the value. */
-const run: TransformInvoker = async (transform, value) => {
+const run: TransformInvoker = (transform, value) => {
   if (!isApplicationCallable(transform) && !isRuntimeCallable(transform)) {
-    throw new Error('transform is not a host-invocable callable');
+    return Promise.reject(
+      new Error('transform is not a host-invocable callable')
+    );
   }
-  return transform.fn({ '0': value }, createRuntimeContext());
+  return Promise.resolve(transform.fn({ '0': value }, createRuntimeContext()));
 };
 
 describe('applyTransforms', () => {
@@ -77,8 +79,10 @@ describe('applyTransforms', () => {
     const looping = tagger('loop');
     const inFlight = new Set<RillCallable>();
 
-    const reentrant: TransformInvoker = async (transform, value) =>
-      applyTransforms([transform], value, reentrant, inFlight, SITE);
+    const reentrant: TransformInvoker = (transform, value) =>
+      Promise.resolve(
+        applyTransforms([transform], value, reentrant, inFlight, SITE)
+      );
 
     await expectHalt(
       () => applyTransforms([looping], 'x', reentrant, inFlight, SITE),
@@ -91,8 +95,10 @@ describe('applyTransforms', () => {
     brandExtensionValue({ redact }, 'filter', SITE);
 
     const inFlight = new Set<RillCallable>();
-    const reentrant: TransformInvoker = async (transform, value) =>
-      applyTransforms([transform], value, reentrant, inFlight, SITE);
+    const reentrant: TransformInvoker = (transform, value) =>
+      Promise.resolve(
+        applyTransforms([transform], value, reentrant, inFlight, SITE)
+      );
 
     await expectHalt(
       () => applyTransforms([redact], 'x', reentrant, inFlight, SITE),

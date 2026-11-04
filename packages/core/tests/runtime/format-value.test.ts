@@ -56,7 +56,7 @@ function makeTypeValue(typeName: string): RillTypeValue {
     typeName: typeName as RillTypeValue['typeName'],
     structure: {
       kind: typeName as RillTypeValue['typeName'],
-    } as RillTypeValue['structure'],
+    },
   };
 }
 
@@ -171,7 +171,7 @@ describe('formatValue', () => {
       // RillTuple.entries is RillValue[] in Phase 2 (not a Map).
       const posTuple: RillTuple = {
         __rill_tuple: true as const,
-        entries: ['x' as RillValue, 'y' as RillValue],
+        entries: ['x', 'y'],
       };
       expect(formatValue(posTuple)).toBe('tuple["x", "y"]');
     });

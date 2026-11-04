@@ -28,7 +28,6 @@ import {
   isInvalid,
   parseWithRecovery,
   resolveAtom,
-  type ExpressionNode,
   type GuardBlockNode,
   type HostCallNode,
   type PartialExpressionNode,
@@ -102,7 +101,7 @@ describe('PartialExpression children are never evaluated through execute()', () 
     const partialArg: PartialExpressionNode = {
       type: 'PartialExpression',
       message: 'partial expression salvage fixture',
-      children: [pipeChainOf(hostCall('mock')) as ExpressionNode],
+      children: [pipeChainOf(hostCall('mock'))],
       span: zeroSpan,
     };
 

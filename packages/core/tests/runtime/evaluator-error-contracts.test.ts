@@ -132,7 +132,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               returnType: anyTypeValue,
               params: [],
               fn: async () => {
-                await new Promise((r) => setTimeout(r, 100));
+                await new Promise((r) => {
+                  setTimeout(r, 100);
+                });
                 return 'done';
               },
             },
@@ -155,7 +157,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               returnType: anyTypeValue,
               params: [],
               fn: async () => {
-                await new Promise((r) => setTimeout(r, 10));
+                await new Promise((r) => {
+                  setTimeout(r, 10);
+                });
                 return 'done';
               },
             },
@@ -177,7 +181,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               returnType: anyTypeValue,
               params: [],
               fn: async () => {
-                await new Promise((r) => setTimeout(r, 100));
+                await new Promise((r) => {
+                  setTimeout(r, 100);
+                });
                 return 'done';
               },
             },
@@ -216,7 +222,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               returnType: anyTypeValue,
               params: [],
               fn: async () => {
-                await new Promise((r) => setTimeout(r, 100));
+                await new Promise((r) => {
+                  setTimeout(r, 100);
+                });
                 return 'done';
               },
             },
@@ -249,7 +257,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               ],
               fn: async (args) => {
                 const input = args['input'];
-                await new Promise((r) => setTimeout(r, 40));
+                await new Promise((r) => {
+                  setTimeout(r, 40);
+                });
                 return `${input}-done`;
               },
             },

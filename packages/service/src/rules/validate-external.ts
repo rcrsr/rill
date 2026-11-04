@@ -52,7 +52,7 @@ const EXTERNAL_IO_VERBS = new Set([
 function isExternalDataFunction(functionName: string): boolean {
   const segments = functionName.split('_');
   const leadingSegment = segments[0];
-  const trailingSegment = segments[segments.length - 1];
+  const trailingSegment = segments.at(-1);
   return (
     (leadingSegment !== undefined && EXTERNAL_IO_VERBS.has(leadingSegment)) ||
     (trailingSegment !== undefined && EXTERNAL_IO_VERBS.has(trailingSegment))

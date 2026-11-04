@@ -35,7 +35,6 @@ import type {
   TimeoutBlockNode,
 } from '../../../../types.js';
 import type { RillValue } from '../../types/structures.js';
-import type { RillDuration } from '../../types/structures.js';
 import {
   getStatus,
   appendTraceFrame,
@@ -275,15 +274,12 @@ export async function evaluateStatusProbe(
     case 'trace': {
       // Surface frames as plain dicts so scripts can iterate them
       // with standard list / field operators.
-      return status.trace.map(
-        (frame) =>
-          ({
-            site: frame.site,
-            kind: frame.kind,
-            fn: frame.fn,
-            wrapped: frame.wrapped,
-          }) as RillValue
-      );
+      return status.trace.map((frame) => ({
+        site: frame.site,
+        kind: frame.kind,
+        fn: frame.fn,
+        wrapped: frame.wrapped,
+      }));
     }
     default: {
       // Provider-specific raw bag; missing keys surface as "" so
@@ -332,7 +328,7 @@ export async function evaluateTimeoutBlock(
   }
 
   // Extract millisecond value from the validated duration.
-  const dur = durationValue as RillDuration;
+  const dur = durationValue;
   const durationMs = dur.ms;
 
   // Build a fresh controller for this timeout scope; chain it to the
@@ -390,7 +386,7 @@ export async function evaluateTimeoutBlock(
     // late result so expiry is enforced consistently.
     if (expired) {
       // A host abort that landed alongside the expiry wins over the timeout.
-      if (parentSignal?.aborted) throwAbortHalt(site);
+      if (parentSignal?.aborted === true) throwAbortHalt(site);
       const atomCode =
         node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
       throwCatchableHostHalt(
@@ -408,7 +404,7 @@ export async function evaluateTimeoutBlock(
     if (e instanceof ControlSignal) throw e;
     // A host or parent abort stays a #DISPOSED halt, even when our own
     // timer also fired.
-    if (parentSignal?.aborted && isAbortHalt(e)) throw e;
+    if (parentSignal?.aborted === true && isAbortHalt(e)) throw e;
     // Our timer aborted the body: the abort halt becomes the catchable
     // timeout halt instead of the non-catchable #DISPOSED.
     if (expired && isAbortHalt(e)) {
@@ -506,7 +502,7 @@ function createIdleTicker(args: {
 
   function arm(): void {
     handle = sched.setTimeout(() => {
-      if (!cancelled && !ctx.signal?.aborted) {
+      if (!cancelled && ctx.signal?.aborted !== true) {
         onIdle();
       }
     }, idleMs);

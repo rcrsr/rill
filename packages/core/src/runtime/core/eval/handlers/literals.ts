@@ -35,10 +35,6 @@ import type {
   BodyNode,
   SourceLocation,
   AnnotationArg,
-  NamedArgNode,
-  SpreadArgNode,
-  DictKeyVariable,
-  DictKeyComputed,
   PassNode,
   PassBlockNode,
   TypeRef,
@@ -81,7 +77,12 @@ import {
 } from '../../context.js';
 import { getEvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, setDictField } from '../shared.js';
+import {
+  getNodeLocation,
+  setDictField,
+  isDictKeyScalar,
+  type DictKeyScalar,
+} from '../shared.js';
 import {
   setTypedKey,
   getTypedKey,
@@ -117,7 +118,7 @@ import { evaluateListLiteralElements } from './extraction.js';
  *
  * @internal
  */
-async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
+function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
   annotations: Record<string, RillValue>;
 }> {
   // Capture closure-level annotations from immediateAnnotation field.
@@ -128,7 +129,7 @@ async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
   const annotations: Record<string, RillValue> = ctx.immediateAnnotation ?? {};
   ctx.immediateAnnotation = undefined;
 
-  return { annotations };
+  return Promise.resolve({ annotations });
 }
 
 /**
@@ -145,18 +146,18 @@ async function captureClosureAnnotations(ctx: RuntimeContext): Promise<{
 export async function evaluateAnnotations(
   annotations: AnnotationArg[],
   evalExpr: (expr: ExpressionNode) => Promise<RillValue>,
-  sourceId?: string | undefined
+  sourceId?: string
 ): Promise<Record<string, RillValue>> {
   const result: Record<string, RillValue> = {};
 
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
-      const namedArg = arg as NamedArgNode;
+      const namedArg = arg;
       assertUsableAnnotationKey(namedArg.name, namedArg.span.start, sourceId);
       setDictField(result, namedArg.name, await evalExpr(namedArg.value));
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
-      const spreadArg = arg as SpreadArgNode;
+      const spreadArg = arg;
       const spreadValue = await evalExpr(spreadArg.expression);
 
       if (
@@ -235,6 +236,7 @@ function requirePipeChainHead(
  * @returns Current pipe value
  * @throws RuntimeHaltSignal (catchable, RILL-R005) if $ not bound
  */
+// oxlint-disable-next-line require-await -- the unbound-pipe guard halts synchronously; the async boundary turns it into a rejection
 export async function evaluatePass(
   s: EvalState,
   node: PassNode
@@ -318,7 +320,7 @@ export async function evaluatePassBlock(
   // true; non-catchable halts and ControlSignals always propagate.
   const runBody = (evaluator: EvalState): Promise<void> =>
     evaluateBody(evaluator, node.body)
-      .then(() => undefined)
+      .then(() => {})
       .catch((e: unknown) => {
         // ControlSignal always re-throws.
         if (e instanceof ControlSignal) throw e;
@@ -427,7 +429,7 @@ async function evaluateDictMultiKeyFromList(
   s: EvalState,
   keyList: ListLiteralNode,
   value: ExpressionNode
-): Promise<Array<[RillValue, RillValue]>> {
+): Promise<Array<[DictKeyScalar, RillValue]>> {
   // Evaluate list elements to get keys
   const keys: RillValue[] = await evaluateListLiteralElements(
     s,
@@ -448,9 +450,12 @@ async function evaluateDictMultiKeyFromList(
   }
 
   // Validate all keys are primitives
+  const scalarKeys: DictKeyScalar[] = [];
   for (const key of keys) {
-    const keyType = typeof key;
-    if (keyType !== 'string' && keyType !== 'number' && keyType !== 'boolean') {
+    if (isDictKeyScalar(key)) {
+      scalarKeys.push(key);
+    } else {
+      const keyType = typeof key;
       throwCatchableHostHalt(
         {
           location: keyList.span?.start,
@@ -488,8 +493,8 @@ async function evaluateDictMultiKeyFromList(
 
   // Create entry for each key, preserving the key's original type (number and
   // boolean keys are routed to the sidecar by the caller).
-  const entries: Array<[RillValue, RillValue]> = [];
-  for (const key of keys) {
+  const entries: Array<[DictKeyScalar, RillValue]> = [];
+  for (const key of scalarKeys) {
     entries.push([key, evaluatedValue]);
   }
 
@@ -558,13 +563,17 @@ export async function evaluateDict(
     // same name overrides the spread value in place.
     if (entry.key === '...' && entry.keyForm === undefined) {
       const spreadValue = await evaluateExpression(s, entry.value);
-      let pairs: [RillValue, RillValue][];
+      const pairs: [DictKeyScalar, RillValue][] = [];
       if (isOrdered(spreadValue)) {
-        pairs = [...orderedValueEntries(spreadValue)];
+        for (const pair of orderedValueEntries(spreadValue)) {
+          pairs.push(pair);
+        }
       } else if (isDict(spreadValue)) {
-        pairs = orderedDictEntries(spreadValue).map(
-          ({ key, value }) => [key, value] as [RillValue, RillValue]
-        );
+        for (const { key, value } of orderedDictEntries(spreadValue)) {
+          if (isDictKeyScalar(key)) {
+            pairs.push([key, value]);
+          }
+        }
       } else {
         throwCatchableHostHalt(
           {
@@ -593,7 +602,7 @@ export async function evaluateDict(
     if (typeof entry.key === 'object') {
       // Check for new key types (variable/computed keys)
       if ('kind' in entry.key) {
-        const keyObj = entry.key as DictKeyVariable | DictKeyComputed;
+        const keyObj = entry.key;
 
         // Handle DictKeyVariable: resolve variable and validate string type
         if (keyObj.kind === 'variable') {
@@ -849,10 +858,7 @@ export async function evaluateDictDispatch(
         );
       }
       // ListLiteralNode key - evaluate to get list of candidates
-      const keyValue = await evaluateListLiteralElements(
-        s,
-        (entry.key as ListLiteralNode).elements
-      );
+      const keyValue = await evaluateListLiteralElements(s, entry.key.elements);
 
       // Check if input matches any element in the list (type-aware)
       for (const candidate of keyValue) {
@@ -881,7 +887,7 @@ export async function evaluateDictDispatch(
 
   // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND
   const location = node.span?.start;
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     { location, sourceId: s.ctx.sourceId, fn: 'evaluateDictDispatch' },
     ERROR_ATOMS[ERROR_IDS.RILL_R009],
     `Dict dispatch: key '${formatValue(input)}' not found`,
@@ -904,7 +910,7 @@ async function resolveDispatchValue(
     // Check for parameterized closure (explicit user-defined params)
     // Note: Block-closures have exactly 1 param named '$'
     // Parameterized closures have 1+ params with user-defined names
-    if (value.kind === 'script' && value.params.length >= 1) {
+    if (value.kind === 'script' && value.params.length > 0) {
       // Check if first param is '$' (block-closure) or user-defined (parameterized)
       if (value.params[0]!.name !== '$') {
         // Parameterized closure at terminal position: error
@@ -999,7 +1005,7 @@ export async function dispatchToDict(
 
   // No match and no default - throw error
   const loc = location.span?.start;
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     { location: loc, sourceId: s.ctx.sourceId, fn: 'dispatchToDict' },
     ERROR_ATOMS[ERROR_IDS.RILL_R009],
     `Dict dispatch: key '${formatValue(input)}' not found`,
@@ -1278,7 +1284,7 @@ function isClosureExpr(expr: ExpressionNode): boolean {
   if (!isPipeChainNode(expr)) return false;
   if (expr.pipes.length > 0) return false;
   if (expr.head.type !== 'PostfixExpr') return false;
-  const head = expr.head as PostfixExprNode;
+  const head = expr.head;
   if (head.methods.length > 0) return false;
   return head.primary.type === 'Closure';
 }
@@ -1291,7 +1297,7 @@ function isBlockExpr(expr: ExpressionNode): boolean {
   if (!isPipeChainNode(expr)) return false;
   if (expr.pipes.length > 0) return false;
   if (expr.head.type !== 'PostfixExpr') return false;
-  const head = expr.head as PostfixExprNode;
+  const head = expr.head;
   if (head.methods.length > 0) return false;
   return head.primary.type === 'Block';
 }

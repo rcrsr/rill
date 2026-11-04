@@ -16,10 +16,10 @@ import { VERSION, VERSION_INFO } from '@rcrsr/rill';
 describe('Version Generation', () => {
   describe('Generated output', () => {
     it('exports VERSION string matching package.json', async () => {
-      const packageJson = JSON.parse(
+      const packageJson: unknown = JSON.parse(
         await fs.readFile(path.join(__dirname, '../../package.json'), 'utf-8')
       );
-      expect(VERSION).toBe(packageJson.version);
+      expect(packageJson).toMatchObject({ version: VERSION });
     });
 
     it('exports VERSION_INFO with parsed components', () => {
@@ -28,9 +28,10 @@ describe('Version Generation', () => {
       expect(typeof VERSION_INFO.patch).toBe('number');
 
       // Reconstruct version string from components
-      const reconstructed = VERSION_INFO.prerelease
-        ? `${VERSION_INFO.major}.${VERSION_INFO.minor}.${VERSION_INFO.patch}-${VERSION_INFO.prerelease}`
-        : `${VERSION_INFO.major}.${VERSION_INFO.minor}.${VERSION_INFO.patch}`;
+      const reconstructed =
+        VERSION_INFO.prerelease !== undefined && VERSION_INFO.prerelease !== ''
+          ? `${VERSION_INFO.major}.${VERSION_INFO.minor}.${VERSION_INFO.patch}-${VERSION_INFO.prerelease}`
+          : `${VERSION_INFO.major}.${VERSION_INFO.minor}.${VERSION_INFO.patch}`;
       expect(reconstructed).toBe(VERSION);
     });
   });
@@ -82,7 +83,7 @@ describe('Version Generation', () => {
         });
 
         let stderr = '';
-        proc.stderr.on('data', (data) => {
+        proc.stderr.on('data', (data: Buffer) => {
           stderr += data.toString();
         });
 

@@ -19,7 +19,6 @@ import type {
   NamedArgNode,
   NumberLiteralNode,
   PipeChainNode,
-  PipeTargetNode,
   PostfixExprNode,
   RecoveryErrorNode,
   RetryBlockNode,
@@ -470,7 +469,7 @@ Parser.prototype.parseLoopWithInput = function (
       newCondition = {
         type: 'PipeChain',
         head: seed.head,
-        pipes: [...seed.pipes, wrappedCondition as PipeTargetNode],
+        pipes: [...seed.pipes, wrappedCondition],
         terminator: null,
         span: makeSpan(seed.span.start, node.condition.span.end),
       };
@@ -490,7 +489,7 @@ Parser.prototype.parseLoopWithInput = function (
       newCondition = {
         type: 'PipeChain',
         head: seedHead,
-        pipes: [wrappedCondition as PipeTargetNode],
+        pipes: [wrappedCondition],
         terminator: null,
         span: makeSpan(seed.span.start, node.condition.span.end),
       };
@@ -550,7 +549,7 @@ Parser.prototype.parseBlock = function (
     skipNewlines(this.state);
   }
 
-  if (statements.length === 0 && !allowEmpty) {
+  if (statements.length === 0 && allowEmpty !== true) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
       'Empty blocks are not allowed',

@@ -223,7 +223,7 @@ export function constructDatetime(
         'runtime'
       );
     }
-    return { __rill_datetime: true, unix: ms } as unknown as RillValue;
+    return { __rill_datetime: true, unix: ms };
   }
 
   // Form 1 non-string: halt
@@ -248,7 +248,7 @@ export function constructDatetime(
         { component: 'unix' }
       );
     }
-    return { __rill_datetime: true, unix } as unknown as RillValue;
+    return { __rill_datetime: true, unix };
   }
 
   // Form 2: Named components
@@ -326,7 +326,7 @@ export function constructDatetime(
     ms,
     location
   );
-  return { __rill_datetime: true, unix } as unknown as RillValue;
+  return { __rill_datetime: true, unix };
 }
 
 // ============================================================
@@ -455,7 +455,7 @@ export function constructDuration(
     __rill_duration: true,
     months: totalMonths,
     ms: totalMs,
-  } as unknown as RillValue;
+  };
 }
 
 // ============================================================

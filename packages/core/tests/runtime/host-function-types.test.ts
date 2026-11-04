@@ -9,6 +9,12 @@ import { anyTypeValue, createRuntimeContext } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { mockFn } from '../helpers/runtime.js';
 
+// File-local wrappers: vitest asymmetric matchers are typed `any`.
+const stringContaining = (s: string): unknown => expect.stringContaining(s);
+const stringMatching = (r: RegExp): unknown => expect.stringMatching(r);
+const objectContaining = (o: Record<string, unknown>): unknown =>
+  expect.objectContaining(o);
+
 describe('Rill Runtime: Host Function Type Safety', () => {
   describe('Success Cases', () => {
     describe('TC-HOSTTYPE-1: Typed parameters accept matching types', () => {
@@ -261,7 +267,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 },
               ],
               fn: (args) =>
-                (args['nums'] as number[]).reduce((a, b) => a + b, 0) as number,
+                (args['nums'] as number[]).reduce((a, b) => a + b, 0),
             },
           },
         });
@@ -444,7 +450,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           })
         ).rejects.toMatchObject({
           errorId: 'RILL-R045',
-          message: expect.stringContaining('expects 0 arguments, got 3'),
+          message: stringContaining('expects 0 arguments, got 3'),
         });
       });
 
@@ -529,10 +535,10 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           })
         ).rejects.toMatchObject({
           errorId: 'RILL-R001',
-          message: expect.stringContaining(
+          message: stringContaining(
             'Parameter type mismatch: x expects string, got number'
           ),
-          context: expect.objectContaining({
+          context: objectContaining({
             functionName: 'test',
             paramName: 'x',
             expectedType: 'string',
@@ -565,8 +571,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           })
         ).rejects.toMatchObject({
           errorId: 'RILL-R045',
-          message: expect.stringContaining('expects 1 arguments, got 2'),
-          context: expect.objectContaining({
+          message: stringContaining('expects 1 arguments, got 2'),
+          context: objectContaining({
             functionName: 'test',
             expectedCount: 1,
             actualCount: 2,
@@ -598,10 +604,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           })
         ).rejects.toMatchObject({
           errorId: 'RILL-R044',
-          message: expect.stringContaining(
-            "Missing argument for parameter 'x'"
-          ),
-          context: expect.objectContaining({
+          message: stringContaining("Missing argument for parameter 'x'"),
+          context: objectContaining({
             functionName: 'test',
             paramName: 'x',
           }),
@@ -783,7 +787,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         })
       ).rejects.toMatchObject({
         errorId: 'RILL-R001',
-        message: expect.stringMatching(
+        message: stringMatching(
           /type mismatch: items expects list, got string/i
         ),
       });
@@ -810,7 +814,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           })
         ).rejects.toMatchObject({
           errorId: 'RILL-R001',
-          message: expect.stringMatching(
+          message: stringMatching(
             /type mismatch: data expects dict, got list/i
           ),
         });
@@ -878,7 +882,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           })
         ).rejects.toMatchObject({
           errorId: 'RILL-R001',
-          message: expect.stringMatching(/p10 expects number/),
+          message: stringMatching(/p10 expects number/),
         });
       });
 
@@ -971,7 +975,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 fn: () => 'should not execute',
               },
             },
-          }).catch((err) => err)
+          }).catch((err: unknown) => err)
         );
 
         const results = await Promise.all(calls);
@@ -979,7 +983,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(results[0]).toBe(42);
         expect(results[1]).toBe(100);
         expect(results[2]).toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
+          errorId: stringMatching(/^RILL-R\d{3}$/),
         });
       });
 
@@ -1037,7 +1041,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
                 fn: () => 'should not execute',
               },
             },
-          }).catch((err) => err)
+          }).catch((err: unknown) => err)
         );
 
         const results = await Promise.all(calls);
@@ -1046,7 +1050,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
         expect(results[1]).toBe(25);
         expect(results[2]).toMatchObject({
           errorId: 'RILL-R045',
-          message: expect.stringMatching(/expects 2 arguments, got 3/),
+          message: stringMatching(/expects 2 arguments, got 3/),
         });
       });
     });
@@ -1171,8 +1175,8 @@ describe('Rill Runtime: Host Function Type Safety', () => {
             },
           })
         ).rejects.toMatchObject({
-          errorId: expect.stringMatching(/^RILL-R\d{3}$/),
-          message: expect.stringMatching(/expects number, got bool/),
+          errorId: stringMatching(/^RILL-R\d{3}$/),
+          message: stringMatching(/expects number, got bool/),
         });
       });
     });

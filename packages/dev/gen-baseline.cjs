@@ -42,6 +42,7 @@ const SHARED_TOOLING_DEPS = [
   'lefthook',
   'oxfmt',
   'oxlint',
+  'oxlint-tsgolint',
   'typescript',
   'vitest',
 ];

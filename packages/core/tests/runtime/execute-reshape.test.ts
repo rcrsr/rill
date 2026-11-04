@@ -112,16 +112,18 @@ describe('EC-13: RillError from extension boundary propagates unchanged', () => 
     const hostFn: RillFunction = {
       params: [],
       returnType: anyTypeValue,
-      fn: async () => {
-        throw new RuntimeError(
-          'RILL-R006',
-          'host-constructed error',
-          { line: 1, column: 1, offset: 0 },
-          undefined,
-          {
-            start: { line: 1, column: 1, offset: 0 },
-            end: { line: 1, column: 1, offset: 0 },
-          }
+      fn: () => {
+        return Promise.reject(
+          new RuntimeError(
+            'RILL-R006',
+            'host-constructed error',
+            { line: 1, column: 1, offset: 0 },
+            undefined,
+            {
+              start: { line: 1, column: 1, offset: 0 },
+              end: { line: 1, column: 1, offset: 0 },
+            }
+          )
         );
       },
     };
@@ -160,8 +162,8 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
     const hostFn: RillFunction = {
       params: [],
       returnType: anyTypeValue,
-      fn: async () => {
-        throw new Error('something went wrong in extension');
+      fn: () => {
+        return Promise.reject(new Error('something went wrong in extension'));
       },
     };
 
@@ -177,8 +179,8 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
     const hostFn: RillFunction = {
       params: [],
       returnType: anyTypeValue,
-      fn: async () => {
-        throw new Error('extension failure message');
+      fn: () => {
+        return Promise.reject(new Error('extension failure message'));
       },
     };
 
@@ -198,8 +200,10 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
     const hostFn: RillFunction = {
       params: [],
       returnType: anyTypeValue,
-      fn: async () => {
-        throw new Error('sanitize this message\nstacktrace line');
+      fn: () => {
+        return Promise.reject(
+          new Error('sanitize this message\nstacktrace line')
+        );
       },
     };
 
@@ -216,8 +220,8 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
     const hostFn: RillFunction = {
       params: [],
       returnType: anyTypeValue,
-      fn: async () => {
-        throw new Error('runFull reshape test');
+      fn: () => {
+        return Promise.reject(new Error('runFull reshape test'));
       },
     };
 
@@ -392,8 +396,8 @@ describe('call-site materialization: invalid observed at the same statement', ()
   const throwingHost: RillFunction = {
     params: [],
     returnType: anyTypeValue,
-    fn: async () => {
-      throw new Error('call-site throw');
+    fn: () => {
+      return Promise.reject(new Error('call-site throw'));
     },
   };
 

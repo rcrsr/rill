@@ -67,7 +67,7 @@ export async function runFull(
   options: TestOptions = {}
 ): Promise<ExecutionResult> {
   const { ast, ctx } = setup(source, options);
-  return execute(ast, ctx);
+  return await execute(ast, ctx);
 }
 
 /** Execute and return both result and context for variable inspection */
@@ -119,7 +119,9 @@ export function mockAsyncFn(
     params: [],
     returnType: anyTypeValue,
     fn: async () => {
-      await new Promise((r) => setTimeout(r, delay));
+      await new Promise((r) => {
+        setTimeout(r, delay);
+      });
       return returnValue;
     },
   };
@@ -176,12 +178,24 @@ export function createEventCollector(): {
   };
 
   const callbacks: ObservabilityCallbacks = {
-    onStepStart: (e) => events.stepStart.push(e),
-    onStepEnd: (e) => events.stepEnd.push(e),
-    onHostCall: (e) => events.hostCall.push(e),
-    onFunctionReturn: (e) => events.functionReturn.push(e),
-    onCapture: (e) => events.capture.push(e),
-    onError: (e) => events.error.push(e),
+    onStepStart: (e) => {
+      events.stepStart.push(e);
+    },
+    onStepEnd: (e) => {
+      events.stepEnd.push(e);
+    },
+    onHostCall: (e) => {
+      events.hostCall.push(e);
+    },
+    onFunctionReturn: (e) => {
+      events.functionReturn.push(e);
+    },
+    onCapture: (e) => {
+      events.capture.push(e);
+    },
+    onError: (e) => {
+      events.error.push(e);
+    },
   };
 
   return { events, callbacks };
@@ -196,7 +210,9 @@ export function createLogCollector(): {
   return {
     logs,
     callbacks: {
-      onLog: (message: string) => logs.push(message),
+      onLog: (message: string) => {
+        logs.push(message);
+      },
     },
   };
 }

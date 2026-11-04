@@ -137,13 +137,15 @@ describe('LifecycleContext', () => {
       const ctx = createRuntimeContext({});
       await ctx.dispose();
 
-      const unhandled = vi.fn();
+      const unhandled = vi.fn<(reason: unknown) => void>();
       process.on('unhandledRejection', unhandled);
       try {
         ctx.trackInflight(Promise.reject(new Error('post-dispose')));
         // Flush a macrotask tick so a would-be unhandledRejection has a
         // chance to fire before we assert it did not.
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise((resolve) => {
+          setTimeout(resolve, 0);
+        });
         expect(unhandled).not.toHaveBeenCalled();
       } finally {
         process.off('unhandledRejection', unhandled);

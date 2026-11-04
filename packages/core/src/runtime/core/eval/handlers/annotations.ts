@@ -20,9 +20,7 @@ import type {
   StatementNode,
   AnnotatedStatementNode,
   AnnotationArg,
-  NamedArgNode,
   SourceLocation,
-  SpreadArgNode,
 } from '../../../../types.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
@@ -107,7 +105,7 @@ async function executeAnnotatedStatement(
 export function assertUsableAnnotationKey(
   key: string,
   location: SourceLocation,
-  sourceId?: string | undefined
+  sourceId?: string
 ): void {
   if (isReservedBrandKey(key)) {
     throwCatchableHostHalt(
@@ -132,7 +130,7 @@ export async function evaluateAnnotations(
 
   for (const arg of annotations) {
     if (arg.type === 'NamedArg') {
-      const namedArg = arg as NamedArgNode;
+      const namedArg = arg;
       assertUsableAnnotationKey(
         namedArg.name,
         namedArg.span.start,
@@ -145,7 +143,7 @@ export async function evaluateAnnotations(
       );
     } else {
       // SpreadArg: spread tuple/dict keys as annotations
-      const spreadArg = arg as SpreadArgNode;
+      const spreadArg = arg;
       const spreadValue = await evaluateExpression(s, spreadArg.expression);
 
       if (

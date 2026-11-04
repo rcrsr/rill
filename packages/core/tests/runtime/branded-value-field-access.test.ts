@@ -25,8 +25,8 @@ function makeStream(): RillFunction {
         chunks: (async function* () {
           yield 1;
         })(),
-        resolve: async () => 'resolved',
-        dispose: () => undefined,
+        resolve: () => Promise.resolve('resolved'),
+        dispose: () => {},
       }),
   };
 }

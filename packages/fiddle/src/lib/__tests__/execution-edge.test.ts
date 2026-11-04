@@ -42,6 +42,7 @@ describe('executeRill edge cases', () => {
     it('handles string thrown by parse with runtime category', async () => {
       const rill = await import('@rcrsr/rill');
       const parseSpy = vi.spyOn(rill, 'parse').mockImplementation(() => {
+        // oxlint-disable-next-line no-throw-literal -- exercises handling of a non-Error throw
         throw 'string error';
       });
 

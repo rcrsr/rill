@@ -21,7 +21,7 @@ interface ExpiringScheduler {
 
 // A scheduler whose timers fire fast; `expired` settles once a timer has fired.
 function makeExpiringScheduler(): ExpiringScheduler {
-  let markExpired: () => void = () => undefined;
+  let markExpired: () => void = () => {};
   const expired = new Promise<void>((resolve) => {
     markExpired = resolve;
   });

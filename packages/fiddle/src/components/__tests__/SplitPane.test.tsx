@@ -95,7 +95,7 @@ describe('SplitPane', () => {
     });
 
     it('clamps an initial ratio below the minimum on mount', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -112,7 +112,7 @@ describe('SplitPane', () => {
     });
 
     it('clamps an initial ratio above the maximum on mount', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -306,7 +306,7 @@ describe('SplitPane', () => {
   // ArrowUp (decrease) and ArrowDown (increase). Tests use these keys.
   describe('keyboard navigation', () => {
     it('ArrowUp decreases split ratio in vertical mode and calls onSplitChange', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -324,12 +324,11 @@ describe('SplitPane', () => {
 
       // onSplitChange called with ratio decreased by step (2)
       expect(onSplitChange).toHaveBeenCalled();
-      const newRatio = onSplitChange.mock.calls[0]![0] as number;
-      expect(newRatio).toBe(48);
+      expect(onSplitChange).toHaveBeenNthCalledWith(1, 48);
     });
 
     it('ArrowDown increases split ratio in vertical mode and calls onSplitChange', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -346,12 +345,11 @@ describe('SplitPane', () => {
       });
 
       expect(onSplitChange).toHaveBeenCalled();
-      const newRatio = onSplitChange.mock.calls[0]![0] as number;
-      expect(newRatio).toBe(52);
+      expect(onSplitChange).toHaveBeenNthCalledWith(1, 52);
     });
 
     it('non-arrow key does not call onSplitChange', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -371,7 +369,7 @@ describe('SplitPane', () => {
     });
 
     it('repeated ArrowUp presses clamp at minimum', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -390,11 +388,11 @@ describe('SplitPane', () => {
       }
 
       const calls = onSplitChange.mock.calls;
-      expect(calls[calls.length - 1]![0]).toBe(20);
+      expect(calls.at(-1)![0]).toBe(20);
     });
 
     it('repeated ArrowDown presses clamp at maximum', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -413,11 +411,11 @@ describe('SplitPane', () => {
       }
 
       const calls = onSplitChange.mock.calls;
-      expect(calls[calls.length - 1]![0]).toBe(80);
+      expect(calls.at(-1)![0]).toBe(80);
     });
 
     it('arrow press at a bound does not call onSplitChange', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -438,7 +436,7 @@ describe('SplitPane', () => {
     });
 
     it('repeated presses past the bound call onSplitChange only while moving', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -475,7 +473,7 @@ describe('SplitPane', () => {
 
     it('ArrowLeft and ArrowRight have no effect in vertical mode', () => {
       // In happy-dom (vertical mode), horizontal keys do nothing
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}
@@ -516,7 +514,7 @@ describe('SplitPane', () => {
     });
 
     it('dragging the divider moves the ratio and reports it on mouse up', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane {...defaultProps} onSplitChange={onSplitChange} />
       );
@@ -524,18 +522,17 @@ describe('SplitPane', () => {
       const divider = container.querySelector(
         '.split-pane-divider'
       ) as HTMLElement;
-      splitPane.getBoundingClientRect = () =>
-        ({
-          top: 0,
-          left: 0,
-          width: 1000,
-          height: 1000,
-          right: 1000,
-          bottom: 1000,
-          x: 0,
-          y: 0,
-          toJSON: () => ({}),
-        }) as DOMRect;
+      splitPane.getBoundingClientRect = () => ({
+        top: 0,
+        left: 0,
+        width: 1000,
+        height: 1000,
+        right: 1000,
+        bottom: 1000,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      });
 
       act(() => {
         fireEvent.mouseDown(divider, { clientX: 0, clientY: 100 });
@@ -568,6 +565,17 @@ describe('SplitPane', () => {
 
       expect(divider.classList.contains('dragging')).toBe(false);
     });
+
+    it('does not call onSplitChange when mouseup fires without a preceding mousedown', () => {
+      const onSplitChange = vi.fn<(ratio: number) => void>();
+      render(<SplitPane {...defaultProps} onSplitChange={onSplitChange} />);
+
+      act(() => {
+        fireEvent.mouseUp(document);
+      });
+
+      expect(onSplitChange).not.toHaveBeenCalled();
+    });
   });
 
   // ============================================================
@@ -590,8 +598,7 @@ describe('SplitPane', () => {
         disconnect(): void {}
         unobserve(): void {}
       }
-      globalThis.ResizeObserver =
-        MockResizeObserver as unknown as typeof ResizeObserver;
+      globalThis.ResizeObserver = MockResizeObserver;
 
       try {
         const { container } = render(<SplitPane {...defaultProps} />);
@@ -611,18 +618,17 @@ describe('SplitPane', () => {
         });
 
         act(() => {
-          observedCallback?.(
-            [] as unknown as ResizeObserverEntry[],
-            {} as ResizeObserver
-          );
+          observedCallback?.([], {} as ResizeObserver);
         });
 
         const divider = container.querySelector('[role="separator"]');
         const minValue = parseInt(
-          divider?.getAttribute('aria-valuemin') ?? '0'
+          divider?.getAttribute('aria-valuemin') ?? '0',
+          10
         );
         const maxValue = parseInt(
-          divider?.getAttribute('aria-valuemax') ?? '0'
+          divider?.getAttribute('aria-valuemax') ?? '0',
+          10
         );
 
         expect(minValue).not.toBe(20);
@@ -671,7 +677,7 @@ describe('SplitPane', () => {
     });
 
     it('touchend after touch drag calls onSplitChange', () => {
-      const onSplitChange = vi.fn();
+      const onSplitChange = vi.fn<(ratio: number) => void>();
       const { container } = render(
         <SplitPane
           {...defaultProps}

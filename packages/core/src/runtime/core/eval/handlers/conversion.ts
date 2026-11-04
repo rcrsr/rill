@@ -36,7 +36,6 @@ import type {
   RillValue,
   TypeStructure,
   RillFieldDef,
-  RillTuple,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isTuple, isOrdered, isPlainDict } from '../../types/guards.js';
@@ -254,7 +253,7 @@ export function applyConversion(
 
     // All other conversion failures use RILL-R036
     // Use consistent "cannot convert X to Y" format.
-    throwCatchableHostHalt(
+    return throwCatchableHostHalt(
       {
         location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
@@ -265,6 +264,17 @@ export function applyConversion(
       { source: sourceType, target: targetType }
     );
   }
+}
+
+/** Copy ordered entries into a plain dict, keeping a `__proto__` key own. */
+function orderedEntriesToDict(
+  entries: ReadonlyArray<readonly [string, RillValue, RillValue?]>
+): Record<string, RillValue> {
+  const dict: Record<string, RillValue> = {};
+  for (const [key, value] of entries) {
+    setDictField(dict, key, value);
+  }
+  return dict;
 }
 
 /**
@@ -284,9 +294,9 @@ async function convertToOrderedWithSig(
 ): Promise<RillValue> {
   let dictInput: Record<string, RillValue>;
   if (isOrdered(input)) {
-    dictInput = Object.fromEntries(input.entries);
+    dictInput = orderedEntriesToDict(input.entries);
   } else if (isPlainDict(input)) {
-    dictInput = input as Record<string, RillValue>;
+    dictInput = input;
   } else {
     throwCatchableHostHalt(
       {
@@ -369,9 +379,9 @@ async function convertToDictWithSig(
 ): Promise<RillValue> {
   let dictInput: Record<string, RillValue>;
   if (isOrdered(input)) {
-    dictInput = Object.fromEntries(input.entries);
+    dictInput = orderedEntriesToDict(input.entries);
   } else if (isPlainDict(input)) {
-    dictInput = input as Record<string, RillValue>;
+    dictInput = input;
   } else {
     throwCatchableHostHalt(
       {
@@ -506,9 +516,7 @@ async function convertToTupleWithSig(
     resolvedElements = ts.elements ?? [];
   }
 
-  const inputEntries: RillValue[] = isTupleInput
-    ? (input as unknown as RillTuple).entries
-    : (input as RillValue[]);
+  const inputEntries: RillValue[] = isTupleInput ? input.entries : input;
 
   const result: RillValue[] = [];
 

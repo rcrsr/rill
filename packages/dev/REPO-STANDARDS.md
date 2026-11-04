@@ -375,6 +375,24 @@ per-file override at `warn`, removed once each file is split. The checker reads
 the cap's severity and limit, not those per-file overrides, so a ratchet list
 that only grows reads as conformant. Keep it shrinking by review.
 
+*Type-aware rules are inert without their backend.* A rule such as
+`typescript/no-unnecessary-type-assertion` or `typescript/strict-boolean-expressions`
+runs only when the linter is invoked in type-aware mode and its backend
+(`oxlint-tsgolint`) is installed. Without either, the rule is listed, reports
+zero findings, and reads as satisfied, so a green `lint` proves nothing about
+it. Confirm the `lint` script passes the type-aware flag. A linted file with no
+governing `tsconfig.json` is linted under the backend's built-in defaults,
+which omit strictness flags such as `noUncheckedIndexedAccess`; findings and
+autofixes there can disagree with `tsc`. A `tsconfig.json` whose `include`
+covers `src/` but not `tests/` leaves the test files in that state, so give
+each linted tree a governing `tsconfig.json`.
+
+`STD-LINT-9` compares severity only, so rule options are not checked. rill sets
+`typescript/return-await` to `error-handling-correctness-only` and
+`typescript/switch-exhaustiveness-check` to `considerDefaultExhaustiveForUnions: true`.
+A repository that keeps the default `return-await` mode conflicts with the
+`return await` that `require-await` fixes add.
+
 **Verify**
 
 ```bash

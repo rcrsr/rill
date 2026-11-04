@@ -107,7 +107,7 @@ describe('formatHalt', () => {
     expect(firstFrameIdx).toBeGreaterThan(0);
 
     // The last trace line is the guard-caught frame (latest-last order).
-    const lastLine = lines[lines.length - 1]!;
+    const lastLine = lines.at(-1)!;
     expect(lastLine.startsWith('  guard-caught ')).toBe(true);
     expect(lastLine.endsWith('/guard')).toBe(true);
 

@@ -138,6 +138,7 @@ describe('buildFiddleRuntimeOptions', () => {
 describe('executeRill', () => {
   describe('resolver config — boundary conditions', () => {
     it('resolverConfig undefined → behaves identically to pre-use<> behavior', async () => {
+      // oxlint-disable-next-line unicorn/no-useless-undefined -- explicit undefined argument is the case under test
       const withUndefined = await executeRill('1 + 2', undefined);
       const withOmit = await executeRill('1 + 2');
       expect(withUndefined.status).toBe('success');
@@ -151,7 +152,7 @@ describe('executeRill', () => {
         configurations: { resolvers: {} },
       });
       expect(withResolvers.status).toBe('success');
-      expect(JSON.parse(withResolvers.result!).value).toBe(126);
+      expect(JSON.parse(withResolvers.result!)).toHaveProperty('value', 126);
     });
 
     it('providing resolverConfig does not disrupt log capture', async () => {
@@ -175,7 +176,10 @@ describe('executeRill', () => {
       const config = singleResolverConfig('ext', valueResolver('resolved-ext'));
       const result = await executeRill('use<ext:example> => $e\n$e', config);
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result!).value).toBe('resolved-ext');
+      expect(JSON.parse(result.result!)).toHaveProperty(
+        'value',
+        'resolved-ext'
+      );
     });
 
     it('host resolver registered → script executes with resolved number', async () => {
@@ -185,7 +189,7 @@ describe('executeRill', () => {
         config
       );
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result!).value).toBe(42);
+      expect(JSON.parse(result.result!)).toHaveProperty('value', 42);
     });
 
     it('multiple ext resolvers for different extensions resolve independently', async () => {
@@ -200,7 +204,7 @@ describe('executeRill', () => {
         config
       );
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result!).value).toEqual({
+      expect(JSON.parse(result.result!)).toHaveProperty('value', {
         x: 'value-a',
         y: 'value-b',
       });
@@ -231,7 +235,7 @@ describe('executeRill', () => {
         config
       );
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result!).value).toEqual({
+      expect(JSON.parse(result.result!)).toHaveProperty('value', {
         e: 'resolved-ext',
         r: 'arg',
       });
@@ -249,7 +253,10 @@ describe('executeRill', () => {
         config
       );
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result!).value).toBe('dynamic-resolved');
+      expect(JSON.parse(result.result!)).toHaveProperty(
+        'value',
+        'dynamic-resolved'
+      );
     });
   });
 });

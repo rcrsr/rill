@@ -266,9 +266,9 @@ describe('Stream Closure Execution', () => {
     ): Promise<T> {
       return Promise.race([
         p,
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error(`timed out: ${label}`)), ms)
-        ),
+        new Promise<T>((_, reject) => {
+          setTimeout(() => reject(new Error(`timed out: ${label}`)), ms);
+        }),
       ]);
     }
 
@@ -286,7 +286,9 @@ describe('Stream Closure Execution', () => {
         'fan+yield'
       )) as unknown as RillValue[];
       // fan is unordered — assert the set, not the order.
-      expect([...result].sort()).toEqual([1, 2, 3]);
+      expect([...result].sort((a, b) => Number(a) - Number(b))).toEqual([
+        1, 2, 3,
+      ]);
     });
 
     it('delivers every chunk for a larger concurrent fan', async () => {

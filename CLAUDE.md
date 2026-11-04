@@ -101,6 +101,8 @@ pnpm check               # Complete check set, including root-only checks; run b
 
 Run build, test, and lint through these `pnpm` scripts, never bare `npx` or `node dist/*.js`; results otherwise differ from CI.
 
+Type-aware lint rules run only where `lint` passes `--type-aware` and need dependent packages built first. A file no `tsconfig.json` includes is still linted, under the backend's defaults, which lack `noUncheckedIndexedAccess`; give each linted tree its own `tsconfig.json`.
+
 ### Package-Specific Commands
 
 Run from repository root for a single package:

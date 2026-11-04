@@ -44,7 +44,7 @@ function makeInfiniteCountingStreamFn(
             n++;
           }
         })(),
-        resolve: async () => null,
+        resolve: () => Promise.resolve(null),
         dispose: () => {
           disposeCounter.count++;
         },
@@ -67,7 +67,7 @@ function makeInfiniteCountingIterFn(pullCounter: {
       value: n,
       done: false,
       next: callable(() => step(n + 1)),
-    } as unknown as RillValue;
+    };
   };
   return {
     params: [],

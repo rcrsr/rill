@@ -28,7 +28,7 @@ async function execInContext(
 }
 
 function typedCallable(def: RillFunction): RillValue {
-  return toCallable(def) as unknown as RillValue;
+  return toCallable(def);
 }
 
 describe('createTestContext: eager-parse safety net', () => {
@@ -53,7 +53,7 @@ describe('createTestContext: eager-parse safety net', () => {
     expect(() =>
       createTestContext({
         myext: {
-          value: { runWith: higherOrderFn } as RillValue,
+          value: { runWith: higherOrderFn },
         },
       })
     ).toThrow(ExtensionBindingError);
@@ -76,13 +76,13 @@ describe('createTestContext: eager-parse safety net', () => {
     expect(() =>
       createTestContext({
         myext: {
-          value: { run: keywordParamFn } as RillValue,
+          value: { run: keywordParamFn },
         },
       })
     ).toThrow(ExtensionBindingError);
   });
 
-  it('does not surface a later RILL-R056 for a generation defect caught eagerly', async () => {
+  it('does not surface a later RILL-R056 for a generation defect caught eagerly', () => {
     const keywordParamFn = typedCallable({
       params: [
         {
@@ -100,7 +100,7 @@ describe('createTestContext: eager-parse safety net', () => {
     try {
       createTestContext({
         myext: {
-          value: { run: keywordParamFn } as RillValue,
+          value: { run: keywordParamFn },
         },
       });
       expect.fail('createTestContext should have thrown');
@@ -117,7 +117,7 @@ describe('createTestContext: eager-parse safety net', () => {
   it('quotes a non-identifier extension key and resolves it via use<module:ext>', async () => {
     const ctx = createTestContext({
       'user-id': {
-        value: 'abc-123' as RillValue,
+        value: 'abc-123',
       },
     });
 

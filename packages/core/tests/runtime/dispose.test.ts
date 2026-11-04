@@ -43,17 +43,17 @@ function makeMidStreamThrowFn(disposed: { called: boolean }): RillFunction {
           [Symbol.asyncIterator]() {
             let i = 0;
             return {
-              async next() {
+              next() {
                 if (i === 0) {
                   i++;
-                  return { value: 1, done: false };
+                  return Promise.resolve({ value: 1, done: false });
                 }
-                throw new Error('mid-stream boom');
+                return Promise.reject(new Error('mid-stream boom'));
               },
             };
           },
         },
-        resolve: async () => 0,
+        resolve: () => Promise.resolve(0),
         dispose: () => {
           disposed.called = true;
         },
@@ -170,7 +170,9 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
       const ctx = createRuntimeContext({
         callbacks: {
           onLog: () => {},
-          onLogEvent: (ev) => events.push(ev),
+          onLogEvent: (ev) => {
+            events.push(ev);
+          },
         },
       });
 
@@ -206,7 +208,9 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
       const logs: string[] = [];
       const ctx = createRuntimeContext({
         callbacks: {
-          onLog: (msg) => logs.push(msg),
+          onLog: (msg) => {
+            logs.push(msg);
+          },
         },
       });
 

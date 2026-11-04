@@ -5,7 +5,6 @@ import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type {
   RillDatetime,
   RillDuration,
-  RillValue,
 } from '../../../core/types/structures.js';
 import { isDatetime, isDuration } from '../../../core/types/guards.js';
 import type { RillMethod } from '../shared.js';
@@ -80,7 +79,7 @@ export const mDtWeekday: RillMethod = (receiver) => {
 
 /** .zero property - returns datetime(unix: 0) */
 export const mDtZero: RillMethod = () => {
-  return { __rill_datetime: true, unix: 0 } as unknown as RillValue;
+  return { __rill_datetime: true, unix: 0 };
 };
 
 /** .iso(offset?) - full ISO 8601 with timezone indicator */
@@ -167,7 +166,7 @@ export const mDtAdd: RillMethod = (receiver, args, ctx, location) => {
       'datetime.add() requires a duration argument'
     );
   }
-  const d = dur as unknown as RillDuration;
+  const d = dur;
   let resultMs = dt.unix;
 
   // Apply calendar months first (PostgreSQL order)
@@ -215,7 +214,7 @@ export const mDtAdd: RillMethod = (receiver, args, ctx, location) => {
     );
   }
 
-  return { __rill_datetime: true, unix: resultMs } as unknown as RillValue;
+  return { __rill_datetime: true, unix: resultMs };
 };
 
 /** .diff(other) - absolute difference between two datetimes as duration */
@@ -229,14 +228,14 @@ export const mDtDiff: RillMethod = (receiver, args, ctx, location) => {
       'datetime.diff() requires a datetime argument'
     );
   }
-  const otherDt = other as unknown as RillDatetime;
+  const otherDt = other;
   const diffMs = Math.abs(dt.unix - otherDt.unix);
   // Always non-negative, months = 0
   return {
     __rill_duration: true,
     months: 0,
     ms: diffMs,
-  } as unknown as RillValue;
+  };
 };
 
 /** .eq(other) - datetime equality */
@@ -244,7 +243,7 @@ export const mDtEq: RillMethod = (receiver, args) => {
   const dt = receiver as unknown as RillDatetime;
   const other = args[0] ?? null;
   if (!isDatetime(other)) return false;
-  return dt.unix === (other as unknown as RillDatetime).unix;
+  return dt.unix === other.unix;
 };
 
 /** .ne(other) - datetime inequality */
@@ -252,7 +251,7 @@ export const mDtNe: RillMethod = (receiver, args) => {
   const dt = receiver as unknown as RillDatetime;
   const other = args[0] ?? null;
   if (!isDatetime(other)) return true;
-  return dt.unix !== (other as unknown as RillDatetime).unix;
+  return dt.unix !== other.unix;
 };
 
 /** .lt(other) - datetime less-than */
@@ -371,7 +370,7 @@ export const mDurZero: RillMethod = () => {
     __rill_duration: true,
     months: 0,
     ms: 0,
-  } as unknown as RillValue;
+  };
 };
 
 /** .add(other) - sum months fields, sum ms fields */
@@ -385,12 +384,12 @@ export const mDurAdd: RillMethod = (receiver, args, ctx, location) => {
       'duration.add() requires a duration argument'
     );
   }
-  const otherDur = other as unknown as RillDuration;
+  const otherDur = other;
   return {
     __rill_duration: true,
     months: dur.months + otherDur.months,
     ms: dur.ms + otherDur.ms,
-  } as unknown as RillValue;
+  };
 };
 
 /** .subtract(other) - halt if result would be negative in either field */
@@ -409,7 +408,7 @@ export const mDurSubtract: RillMethod = (receiver, args, ctx, location) => {
       'duration.subtract() requires a duration argument'
     );
   }
-  const otherDur = other as unknown as RillDuration;
+  const otherDur = other;
   const resultMonths = dur.months - otherDur.months;
   const resultMs = dur.ms - otherDur.ms;
   if (resultMonths < 0 || resultMs < 0) {
@@ -428,7 +427,7 @@ export const mDurSubtract: RillMethod = (receiver, args, ctx, location) => {
     __rill_duration: true,
     months: resultMonths,
     ms: resultMs,
-  } as unknown as RillValue;
+  };
 };
 
 /** .multiply(n) - months and ms each multiplied independently */
@@ -489,5 +488,5 @@ export const mDurMultiply: RillMethod = (receiver, args, ctx, location) => {
     __rill_duration: true,
     months,
     ms,
-  } as unknown as RillValue;
+  };
 };

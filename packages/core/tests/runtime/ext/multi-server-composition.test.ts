@@ -36,7 +36,7 @@ async function execInContext(
 
 // Helper: build a typed callable from a RillFunction definition
 function typedCallable(def: RillFunction): RillValue {
-  return toCallable(def) as unknown as RillValue;
+  return toCallable(def);
 }
 
 describe('Multi-Server Composition', () => {
@@ -160,19 +160,19 @@ describe('Multi-Server Composition', () => {
           value: {
             list_pull_requests: ghListPrs,
             get_pull_request: ghGetPr,
-          } as RillValue,
+          },
         },
         slack: {
           value: {
             post_message: slackPostMessage,
             list_channels: slackListChannels,
-          } as RillValue,
+          },
         },
         pg: {
           value: {
             query: pgQuery,
             execute: pgExecute,
-          } as RillValue,
+          },
         },
       });
 
@@ -266,10 +266,10 @@ describe('Multi-Server Composition', () => {
 
       const ctx = createTestContext({
         s1: {
-          value: { get: s1Get, set: s1Set } as RillValue,
+          value: { get: s1Get, set: s1Set },
         },
         s2: {
-          value: { get: s2Get, set: s2Set } as RillValue,
+          value: { get: s2Get, set: s2Set },
         },
       });
 
@@ -313,9 +313,9 @@ describe('Multi-Server Composition', () => {
       });
 
       const ctx = createTestContext({
-        ext1: { value: { test: ext1Test } as RillValue },
-        ext2: { value: { test: ext2Test } as RillValue },
-        ext3: { value: { test: ext3Test } as RillValue },
+        ext1: { value: { test: ext1Test } },
+        ext2: { value: { test: ext2Test } },
+        ext3: { value: { test: ext3Test } },
       });
 
       // Verify each extension resolves to its own function
@@ -398,9 +398,9 @@ describe('Multi-Server Composition', () => {
       });
 
       const ctx = createTestContext({
-        api: { value: { fetch: apiFetch } as RillValue },
-        db: { value: { insert: dbInsert } as RillValue },
-        cache: { value: { set: cacheSet } as RillValue },
+        api: { value: { fetch: apiFetch } },
+        db: { value: { insert: dbInsert } },
+        cache: { value: { set: cacheSet } },
       });
 
       // Complex workflow: fetch from API, save to DB, cache result

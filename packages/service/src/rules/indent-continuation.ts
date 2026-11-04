@@ -60,9 +60,9 @@ export const indentContinuation: Rule = {
         const line = lines[i];
 
         // Empty continuation line: skip.
-        if (!line) continue;
+        if (line === undefined || line === '') continue;
 
-        const indent = line.match(/^(\s*)/)?.[1] || '';
+        const indent = line.match(/^(\s*)/)?.[1] ?? '';
 
         // Continuation = line starting with -> (after whitespace).
         // Should have at least 2 columns of indent. Tabs are expanded to a

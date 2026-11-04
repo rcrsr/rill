@@ -97,8 +97,12 @@ describe('traverseForRules', () => {
     const exited: string[] = [];
 
     traverseForRules(root, {
-      enter: (node) => entered.push(node.type),
-      exit: (node) => exited.push(node.type),
+      enter: (node) => {
+        entered.push(node.type);
+      },
+      exit: (node) => {
+        exited.push(node.type);
+      },
     });
 
     expect(entered).toEqual([

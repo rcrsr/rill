@@ -201,7 +201,9 @@ describe('collections handlers', () => {
               fn: async (args) => {
                 inFlight++;
                 peak = Math.max(peak, inFlight);
-                await new Promise<void>((resolve) => setImmediate(resolve));
+                await new Promise<void>((resolve) => {
+                  setImmediate(resolve);
+                });
                 inFlight--;
                 return args['v'] ?? '';
               },

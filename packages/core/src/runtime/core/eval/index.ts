@@ -66,7 +66,7 @@ export async function executeStatement(
   ctx: RuntimeContext
 ): Promise<RillValue> {
   const state = getEvalState(ctx);
-  return executeStatementState(state, stmt);
+  return await executeStatementState(state, stmt);
 }
 
 /**
@@ -89,5 +89,5 @@ export async function invokeCallable(
   location?: SourceLocation
 ): Promise<RillValue> {
   const state = getEvalState(ctx);
-  return invokeCallableState(state, callable, args, location);
+  return await invokeCallableState(state, callable, args, location);
 }

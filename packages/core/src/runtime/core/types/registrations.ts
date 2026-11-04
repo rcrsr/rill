@@ -79,6 +79,7 @@ export function formatValue(value: RillValue): string {
     value,
     (reg) => reg.protocol.format(value),
     // A raw JS function stringifies to its source text; render an opaque label.
+    // oxlint-disable-next-line typescript/no-base-to-string -- every non-function RillValue that reaches this fallback is a primitive or has a registered protocol
     typeof value === 'function' ? '[host function]' : String(value)
   );
 }
@@ -100,7 +101,7 @@ export function deepEquals(a: RillValue, b: RillValue): boolean {
   const bObj = typeof b === 'object' && b !== null ? (b as object) : null;
   if (aObj !== null && bObj !== null) {
     let partners = visited.get(aObj);
-    if (partners?.has(bObj)) return true;
+    if (partners?.has(bObj) === true) return true;
     if (!partners) {
       partners = new WeakSet<object>();
       visited.set(aObj, partners);
@@ -135,6 +136,7 @@ function compareValue(a: RillValue, b: RillValue): number | undefined {
   return dispatchByIdentity(
     a,
     (reg) => (reg.protocol.compare ? reg.protocol.compare(a, b) : undefined),
+    // oxlint-disable-next-line unicorn/no-useless-undefined -- the required fallback parameter is typed T and undefined is the intended "no ordering" value
     undefined
   );
 }
@@ -167,7 +169,7 @@ export function deserializeValue(data: unknown, typeName: string): RillValue {
       return data as RillValue;
     }
   }
-  throwTypeHalt(
+  return throwTypeHalt(
     { fn: 'deserialize' },
     'INVALID_INPUT',
     `Cannot deserialize as ${typeName}`,

@@ -69,13 +69,13 @@ function trackUnknownFunction(name: string, location: string): void {
 // happens to no-op" from "deliberate closure definition", which the AST
 // alone doesn't disambiguate — so only the unambiguous `=>` form is exempt.
 function lastStatementEndsInCapture(ast: ScriptNode): boolean {
-  const last = ast.statements[ast.statements.length - 1];
+  const last = ast.statements.at(-1);
   if (!last) return false;
   const statement = last.type === 'AnnotatedStatement' ? last.statement : last;
   if (statement.type !== 'Statement') return false;
   const { pipes, terminator } = statement.expression;
   if (terminator?.type === 'Capture') return true;
-  const lastPipe = pipes[pipes.length - 1];
+  const lastPipe = pipes.at(-1);
   return lastPipe?.type === 'Capture';
 }
 

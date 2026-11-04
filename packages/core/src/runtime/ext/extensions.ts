@@ -100,11 +100,7 @@ export function emitExtensionEvent(
   }
 
   // Missing/empty event.event field
-  if (
-    !event['event'] ||
-    typeof event['event'] !== 'string' ||
-    event['event'].trim() === ''
-  ) {
+  if (typeof event['event'] !== 'string' || event['event'].trim() === '') {
     throw new RuntimeError(
       ERROR_IDS.RILL_R075,
       'Event must include non-empty event field'

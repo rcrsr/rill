@@ -299,9 +299,12 @@ export async function evaluateUseExpr(
       execResult = await execute(scriptNode, childCtx);
     } catch (err) {
       // Enrich runtime errors from module execution with sourceId and sourceText
-      if (err instanceof RillError && !err.sourceId) {
+      if (
+        err instanceof RillError &&
+        (err.sourceId === undefined || err.sourceId === '')
+      ) {
         (err as { sourceId: string }).sourceId = result.sourceId ?? key;
-        const ctx = (err.context ?? {}) as Record<string, unknown>;
+        const ctx = err.context ?? {};
         ctx['sourceText'] = result.text;
         (err as { context: Record<string, unknown> }).context = ctx;
       }

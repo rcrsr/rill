@@ -18,7 +18,7 @@ describe('Parser: PostfixExprNode defaultValue', () => {
     it('parses get_data().status ?? "default"', () => {
       const ast = parse('get_data().status ?? "default"');
       const stmt = ast.statements[0] as StatementNode;
-      const chain = stmt.expression as PipeChainNode;
+      const chain = stmt.expression;
       const postfix = chain.head as PostfixExprNode;
 
       expect(postfix.type).toBe('PostfixExpr');
@@ -29,7 +29,7 @@ describe('Parser: PostfixExprNode defaultValue', () => {
     it('parses api().result.nested ?? 0', () => {
       const ast = parse('api().result.nested ?? 0');
       const stmt = ast.statements[0] as StatementNode;
-      const chain = stmt.expression as PipeChainNode;
+      const chain = stmt.expression;
       const postfix = chain.head as PostfixExprNode;
 
       const dv = postfix.defaultValue as PipeChainNode;
@@ -42,7 +42,7 @@ describe('Parser: PostfixExprNode defaultValue', () => {
     it('parses func().field ?? [a: 1]', () => {
       const ast = parse('func().field ?? [a: 1]');
       const stmt = ast.statements[0] as StatementNode;
-      const chain = stmt.expression as PipeChainNode;
+      const chain = stmt.expression;
       const postfix = chain.head as PostfixExprNode;
 
       expect(postfix.defaultValue).not.toBeNull();
@@ -52,7 +52,7 @@ describe('Parser: PostfixExprNode defaultValue', () => {
     it('parses func().x ?? ""', () => {
       const ast = parse('func().x ?? ""');
       const stmt = ast.statements[0] as StatementNode;
-      const chain = stmt.expression as PipeChainNode;
+      const chain = stmt.expression;
       const postfix = chain.head as PostfixExprNode;
 
       const dv = postfix.defaultValue as PipeChainNode;
@@ -65,7 +65,7 @@ describe('Parser: PostfixExprNode defaultValue', () => {
     it('parses deeply nested: a().b().c().d ?? 0', () => {
       const ast = parse('a().b().c().d ?? 0');
       const stmt = ast.statements[0] as StatementNode;
-      const chain = stmt.expression as PipeChainNode;
+      const chain = stmt.expression;
       const postfix = chain.head as PostfixExprNode;
 
       const dv = postfix.defaultValue as PipeChainNode;
@@ -78,7 +78,7 @@ describe('Parser: PostfixExprNode defaultValue', () => {
     it('parses complex default expression: f().x ?? (1 + 2 * 3)', () => {
       const ast = parse('f().x ?? (1 + 2 * 3)');
       const stmt = ast.statements[0] as StatementNode;
-      const chain = stmt.expression as PipeChainNode;
+      const chain = stmt.expression;
       const postfix = chain.head as PostfixExprNode;
 
       expect(postfix.defaultValue).not.toBeNull();
@@ -90,7 +90,7 @@ describe('Parser: PostfixExprNode defaultValue', () => {
     it('sets defaultValue to null when no ??', () => {
       const ast = parse('func().field');
       const stmt = ast.statements[0] as StatementNode;
-      const chain = stmt.expression as PipeChainNode;
+      const chain = stmt.expression;
       const postfix = chain.head as PostfixExprNode;
 
       expect(postfix.defaultValue).toBeNull();

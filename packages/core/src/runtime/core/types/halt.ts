@@ -312,7 +312,7 @@ export function fillHostShape(
   }
   return mergeRaw(value, {
     [HOST_SHAPE_KEY]: Object.freeze(next),
-  } as unknown as Record<string, RillValue>);
+  });
 }
 
 /**
@@ -654,7 +654,7 @@ export function throwErrorHalt(
       code: atomName(priorStatus.code),
       message: priorStatus.message,
       provider: priorStatus.provider,
-      raw: priorStatus.raw as RillValue,
+      raw: priorStatus.raw,
     });
     const wrapFrame = createTraceFrame({
       site: formatSite(site.location, site.sourceId),

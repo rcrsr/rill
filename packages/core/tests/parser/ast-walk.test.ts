@@ -246,7 +246,9 @@ describe('walkAst', () => {
     const ast = parse(COMPREHENSIVE_FIXTURE);
 
     const visited = new Set<ASTNode>();
-    walkAst(ast, (node) => visited.add(node));
+    walkAst(ast, (node) => {
+      visited.add(node);
+    });
 
     const oracle = collectNodesReflectively(ast);
 
@@ -266,7 +268,9 @@ describe('walkAst', () => {
     expect(nestedDefault).toBeDefined();
 
     const visited = new Set<ASTNode>();
-    walkAst(ast, (node) => visited.add(node));
+    walkAst(ast, (node) => {
+      visited.add(node);
+    });
 
     expect(visited.has(nestedDefault!)).toBe(true);
   });
@@ -287,7 +291,9 @@ describe('walkAst', () => {
     expect(annotationArg).toBeDefined();
 
     const visited = new Set<ASTNode>();
-    walkAst(ast, (node) => visited.add(node));
+    walkAst(ast, (node) => {
+      visited.add(node);
+    });
 
     expect(visited.has(annotationArg!)).toBe(true);
   });
@@ -308,7 +314,9 @@ describe('walkAst', () => {
     expect(nestedDefault).toBeDefined();
 
     const visited = new Set<ASTNode>();
-    walkAst(ast, (node) => visited.add(node));
+    walkAst(ast, (node) => {
+      visited.add(node);
+    });
 
     expect(visited.has(nestedDefault!)).toBe(true);
   });
@@ -318,7 +326,9 @@ describe('walkAst', () => {
     const result = parseWithRecovery(source);
 
     const visitedTypes = new Set<string>();
-    walkAst(result.ast, (node) => visitedTypes.add(node.type));
+    walkAst(result.ast, (node) => {
+      visitedTypes.add(node.type);
+    });
 
     expect(visitedTypes.has('PartialExpression')).toBe(true);
     expect(visitedTypes.has('RecoveryError')).toBe(true);
@@ -334,7 +344,9 @@ describe('walkAst node coverage', () => {
   it('visits every NodeType except the recovery-only ones across the two fixtures', () => {
     const visitedTypes = new Set<string>();
     for (const source of [COMPREHENSIVE_FIXTURE, NODE_COVERAGE_FIXTURE]) {
-      walkAst(parse(source), (node) => visitedTypes.add(node.type));
+      walkAst(parse(source), (node) => {
+        visitedTypes.add(node.type);
+      });
     }
 
     const expected = new Set(
@@ -347,7 +359,9 @@ describe('walkAst node coverage', () => {
     const ast = parse(NODE_COVERAGE_FIXTURE);
 
     const visited = new Set<ASTNode>();
-    walkAst(ast, (node) => visited.add(node));
+    walkAst(ast, (node) => {
+      visited.add(node);
+    });
 
     expect(visited).toEqual(collectNodesReflectively(ast));
   });
@@ -356,7 +370,9 @@ describe('walkAst node coverage', () => {
     const ast = parse(NODE_COVERAGE_FIXTURE);
 
     const order = new Map<unknown, number>();
-    walkAst(ast, (node) => order.set(node, order.size));
+    walkAst(ast, (node) => {
+      order.set(node, order.size);
+    });
 
     for (const [node, index] of order) {
       for (const descendant of collectNodesReflectively(node)) {
@@ -395,7 +411,11 @@ describe('walkAst node coverage', () => {
     }
 
     let count = 0;
-    expect(() => walkAst(root, () => count++)).not.toThrow();
+    expect(() =>
+      walkAst(root, () => {
+        count++;
+      })
+    ).not.toThrow();
 
     // depth UnaryExpr nodes + 1 PostfixExpr + 1 NumberLiteral leaf.
     expect(count).toBe(depth + 2);

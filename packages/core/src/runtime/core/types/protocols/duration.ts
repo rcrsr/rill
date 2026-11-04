@@ -112,7 +112,7 @@ function deserializeDuration(data: unknown): RillValue {
       __rill_duration: true,
       months: 0,
       ms: data,
-    } as unknown as RillValue;
+    };
   }
   if (
     typeof data === 'object' &&
@@ -120,7 +120,7 @@ function deserializeDuration(data: unknown): RillValue {
     'months' in data &&
     'ms' in data
   ) {
-    const obj = data as { months: unknown; ms: unknown };
+    const obj = data;
     if (typeof obj.months !== 'number' || typeof obj.ms !== 'number') {
       throwTypeHalt(
         { fn: 'deserialize-duration' },
@@ -133,9 +133,9 @@ function deserializeDuration(data: unknown): RillValue {
       __rill_duration: true,
       months: obj.months,
       ms: obj.ms,
-    } as unknown as RillValue;
+    };
   }
-  throwTypeHalt(
+  return throwTypeHalt(
     { fn: 'deserialize-duration' },
     'INVALID_INPUT',
     `Cannot deserialize ${typeof data} as duration, expected number or {months, ms}`,

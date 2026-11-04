@@ -5,15 +5,7 @@
  * clarifies intent.
  */
 
-import type {
-  ASTNode,
-  BinaryExprNode,
-  ConditionalNode,
-  GroupedExprNode,
-  PipeChainNode,
-  PostfixExprNode,
-  UnaryExprNode,
-} from '@rcrsr/rill';
+import type { ASTNode, ConditionalNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -27,7 +19,7 @@ function countBooleanOperators(node: ASTNode): number {
   let count = 0;
 
   if (node.type === 'BinaryExpr') {
-    const binaryNode = node as BinaryExprNode;
+    const binaryNode = node;
     if (binaryNode.op === '&&' || binaryNode.op === '||') {
       count = 1;
     }
@@ -38,34 +30,34 @@ function countBooleanOperators(node: ASTNode): number {
 
   switch (node.type) {
     case 'UnaryExpr': {
-      const unaryNode = node as UnaryExprNode;
+      const unaryNode = node;
       count += countBooleanOperators(unaryNode.operand);
       break;
     }
 
     case 'GroupedExpr': {
-      const groupedNode = node as GroupedExprNode;
+      const groupedNode = node;
       count += countBooleanOperators(groupedNode.expression);
       break;
     }
 
     case 'PipeChain': {
-      const pipeNode = node as PipeChainNode;
-      if (pipeNode.head) count += countBooleanOperators(pipeNode.head);
-      if (pipeNode.pipes) {
-        for (const pipe of pipeNode.pipes) {
-          count += countBooleanOperators(pipe);
-        }
+      const pipeNode = node;
+      count += countBooleanOperators(pipeNode.head);
+      for (const pipe of pipeNode.pipes) {
+        count += countBooleanOperators(pipe);
       }
       break;
     }
 
     case 'PostfixExpr': {
-      const postfixNode = node as PostfixExprNode;
-      if (postfixNode.primary)
-        count += countBooleanOperators(postfixNode.primary);
+      const postfixNode = node;
+      count += countBooleanOperators(postfixNode.primary);
       break;
     }
+
+    default:
+      break;
   }
 
   return count;
@@ -76,7 +68,7 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
   let maxDepth = currentDepth;
 
   if (node.type === 'BinaryExpr') {
-    const binaryNode = node as BinaryExprNode;
+    const binaryNode = node;
     const depth =
       binaryNode.op === '&&' || binaryNode.op === '||'
         ? currentDepth + 1
@@ -90,7 +82,7 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
 
   switch (node.type) {
     case 'UnaryExpr': {
-      const unaryNode = node as UnaryExprNode;
+      const unaryNode = node;
       maxDepth = Math.max(
         maxDepth,
         getBooleanNestingDepth(unaryNode.operand, currentDepth)
@@ -99,7 +91,7 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
     }
 
     case 'GroupedExpr': {
-      const groupedNode = node as GroupedExprNode;
+      const groupedNode = node;
       maxDepth = Math.max(
         maxDepth,
         getBooleanNestingDepth(groupedNode.expression, currentDepth)
@@ -108,34 +100,31 @@ function getBooleanNestingDepth(node: ASTNode, currentDepth = 0): number {
     }
 
     case 'PipeChain': {
-      const pipeNode = node as PipeChainNode;
-      if (pipeNode.head) {
+      const pipeNode = node;
+      maxDepth = Math.max(
+        maxDepth,
+        getBooleanNestingDepth(pipeNode.head, currentDepth)
+      );
+      for (const pipe of pipeNode.pipes) {
         maxDepth = Math.max(
           maxDepth,
-          getBooleanNestingDepth(pipeNode.head, currentDepth)
+          getBooleanNestingDepth(pipe, currentDepth)
         );
-      }
-      if (pipeNode.pipes) {
-        for (const pipe of pipeNode.pipes) {
-          maxDepth = Math.max(
-            maxDepth,
-            getBooleanNestingDepth(pipe, currentDepth)
-          );
-        }
       }
       break;
     }
 
     case 'PostfixExpr': {
-      const postfixNode = node as PostfixExprNode;
-      if (postfixNode.primary) {
-        maxDepth = Math.max(
-          maxDepth,
-          getBooleanNestingDepth(postfixNode.primary, currentDepth)
-        );
-      }
+      const postfixNode = node;
+      maxDepth = Math.max(
+        maxDepth,
+        getBooleanNestingDepth(postfixNode.primary, currentDepth)
+      );
       break;
     }
+
+    default:
+      break;
   }
 
   return maxDepth;
@@ -151,39 +140,34 @@ function getParenNestingDepth(node: ASTNode): number {
 
   function traverse(n: ASTNode, consecutiveDepth: number): void {
     if (n.type === 'GroupedExpr') {
-      const groupedNode = n as GroupedExprNode;
+      const groupedNode = n;
       const newDepth = consecutiveDepth + 1;
       maxDepth = Math.max(maxDepth, newDepth);
       traverse(groupedNode.expression, newDepth);
     } else if (n.type === 'PipeChain') {
-      const pipeNode = n as PipeChainNode;
-      if (pipeNode.head && (!pipeNode.pipes || pipeNode.pipes.length === 0)) {
+      const pipeNode = n;
+      if (pipeNode.pipes.length === 0) {
         traverse(pipeNode.head, consecutiveDepth);
       } else {
-        if (pipeNode.head) traverse(pipeNode.head, 0);
-        if (pipeNode.pipes) {
-          for (const pipe of pipeNode.pipes) {
-            traverse(pipe, 0);
-          }
+        traverse(pipeNode.head, 0);
+        for (const pipe of pipeNode.pipes) {
+          traverse(pipe, 0);
         }
       }
     } else if (n.type === 'PostfixExpr') {
-      const postfixNode = n as PostfixExprNode;
-      if (
-        postfixNode.primary &&
-        (!postfixNode.methods || postfixNode.methods.length === 0)
-      ) {
+      const postfixNode = n;
+      if (postfixNode.methods.length === 0) {
         traverse(postfixNode.primary, consecutiveDepth);
       } else {
-        if (postfixNode.primary) traverse(postfixNode.primary, 0);
+        traverse(postfixNode.primary, 0);
       }
     } else {
       if (n.type === 'BinaryExpr') {
-        const binaryNode = n as BinaryExprNode;
+        const binaryNode = n;
         traverse(binaryNode.left, 0);
         traverse(binaryNode.right, 0);
       } else if (n.type === 'UnaryExpr') {
-        const unaryNode = n as UnaryExprNode;
+        const unaryNode = n;
         traverse(unaryNode.operand, 0);
       }
     }
@@ -207,13 +191,13 @@ export const complexCondition: Rule = {
     const conditionalNode = node as ConditionalNode;
     const condition = conditionalNode.condition;
 
-    if (!condition) {
+    if (condition === null) {
       return [];
     }
 
     let unwrappedCondition: ASTNode = condition;
     if (unwrappedCondition.type === 'GroupedExpr') {
-      unwrappedCondition = (unwrappedCondition as GroupedExprNode).expression;
+      unwrappedCondition = unwrappedCondition.expression;
     }
 
     const operatorCount = countBooleanOperators(unwrappedCondition);

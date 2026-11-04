@@ -13,7 +13,7 @@ import type {
   SchemeResolver,
   ResolverResult,
 } from '../core/types/runtime.js';
-import type { RillCallable, RillParam } from '../core/callable.js';
+import type { RillParam } from '../core/callable.js';
 import { isCallable } from '../core/callable.js';
 import type { RillValue } from '../core/types/structures.js';
 import { setDictField } from '../core/types/dict-keys.js';
@@ -109,7 +109,7 @@ function buildNestedSource(
   indent: string
 ): string {
   if (isCallable(value)) {
-    const c = value as RillCallable;
+    const c = value;
     // An untyped callable (e.g. from the public `callable()` factory) may carry
     // no declared params. Treat undefined params as an empty declaration and
     // resolve it directly via the ext resolver rather than emitting a typed
@@ -248,9 +248,9 @@ export function createTestContext(
   );
   if (hooks.length === 0) return ctx;
 
-  const disposeRuntime = ctx.dispose;
+  const disposeRuntime = ctx.dispose.bind(ctx);
   let disposePromise: Promise<void> | null = null;
-  ctx.dispose = (): Promise<void> => {
+  const wrappedDispose = (): Promise<void> => {
     disposePromise ??= (async () => {
       let runtimeFailure: { readonly reason: unknown } | undefined;
       try {
@@ -259,6 +259,7 @@ export function createTestContext(
         runtimeFailure = { reason };
       }
       const outcomes = await Promise.allSettled(
+        // oxlint-disable-next-line require-await -- the async wrapper turns a synchronous hook throw into a rejection that allSettled collects
         hooks.map(async (hook) => hook())
       );
       const failure = outcomes.find(
@@ -270,5 +271,12 @@ export function createTestContext(
     })();
     return disposePromise;
   };
+  // dispose is a readonly facade field; redefine it on the context instance.
+  Object.defineProperty(ctx, 'dispose', {
+    value: wrappedDispose,
+    writable: true,
+    enumerable: true,
+    configurable: true,
+  });
   return ctx;
 }

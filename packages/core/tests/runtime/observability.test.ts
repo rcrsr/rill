@@ -83,8 +83,12 @@ describe('Rill Runtime: Observability', () => {
       const order: string[] = [];
       await run('"test"', {
         observability: {
-          onStepStart: () => order.push('start'),
-          onStepEnd: () => order.push('end'),
+          onStepStart: () => {
+            order.push('start');
+          },
+          onStepEnd: () => {
+            order.push('end');
+          },
         },
       });
 
@@ -160,9 +164,9 @@ describe('Rill Runtime: Observability', () => {
         const slowFn: RillFunction = {
           params: [],
           returnType: anyTypeValue,
-          fn: async () => {
+          fn: () => {
             clock += 50;
-            return 'done';
+            return Promise.resolve('done');
           },
         };
         const { events, callbacks } = createEventCollector();
@@ -181,8 +185,12 @@ describe('Rill Runtime: Observability', () => {
       const order: string[] = [];
       await run('"test" -> identity', {
         observability: {
-          onHostCall: () => order.push('call'),
-          onFunctionReturn: () => order.push('return'),
+          onHostCall: () => {
+            order.push('call');
+          },
+          onFunctionReturn: () => {
+            order.push('return');
+          },
         },
       });
 
@@ -300,11 +308,21 @@ describe('Rill Runtime: Observability', () => {
       const order: string[] = [];
       await run('"start" => $x\n"end" -> identity', {
         observability: {
-          onStepStart: (e) => order.push(`stepStart:${e.index}`),
-          onStepEnd: (e) => order.push(`stepEnd:${e.index}`),
-          onHostCall: (e) => order.push(`call:${e.name}`),
-          onFunctionReturn: (e) => order.push(`return:${e.name}`),
-          onCapture: (e) => order.push(`capture:${e.name}`),
+          onStepStart: (e) => {
+            order.push(`stepStart:${e.index}`);
+          },
+          onStepEnd: (e) => {
+            order.push(`stepEnd:${e.index}`);
+          },
+          onHostCall: (e) => {
+            order.push(`call:${e.name}`);
+          },
+          onFunctionReturn: (e) => {
+            order.push(`return:${e.name}`);
+          },
+          onCapture: (e) => {
+            order.push(`capture:${e.name}`);
+          },
         },
       });
 

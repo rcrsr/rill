@@ -349,7 +349,7 @@ describe('Rill Runtime: Host Type Validation', () => {
         () =>
           run('$fn(42)', {
             variables: {
-              fn: null as never, // placeholder, defined via script
+              fn: null, // placeholder, defined via script
             },
             functions: {
               mkFn: { returnType: anyTypeValue, params: [], fn: () => null },

@@ -522,7 +522,7 @@ export function nodeAtPosition(root: ASTNode, offset: number): ASTNode | null {
   ];
 
   while (stack.length > 0) {
-    const frame = stack[stack.length - 1]!;
+    const frame = stack.at(-1)!;
 
     if (frame.childIndex < frame.children.length) {
       const child = frame.children[frame.childIndex]!;

@@ -115,9 +115,9 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       }
 
       expect(error).toBeDefined();
-      expect(error!.errorId).toBe('RILL-R016');
+      expect(error.errorId).toBe('RILL-R016');
 
-      const callStack = getCallStack(error!);
+      const callStack = getCallStack(error);
       expect(callStack).toEqual([]);
     });
 
@@ -132,7 +132,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       }
 
       expect(error).toBeDefined();
-      const callStack = getCallStack(error!);
+      const callStack = getCallStack(error);
       expect(callStack).toEqual([]);
     });
 
@@ -147,7 +147,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       }
 
       expect(error).toBeDefined();
-      const callStack = getCallStack(error!);
+      const callStack = getCallStack(error);
       expect(callStack).toEqual([]);
     });
 
@@ -162,7 +162,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
       }
 
       expect(error).toBeDefined();
-      const callStack = getCallStack(error!);
+      const callStack = getCallStack(error);
       expect(callStack).toEqual([]);
     });
   });

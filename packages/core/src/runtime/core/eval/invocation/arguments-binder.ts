@@ -40,7 +40,7 @@ import type {
   SourceLocation,
 } from '../../../../types.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
-import type { RillCallable, ApplicationCallable } from '../../callable.js';
+import type { RillCallable } from '../../callable.js';
 import {
   isApplicationCallable,
   isRuntimeCallable,
@@ -136,8 +136,8 @@ export class ArgumentsBinder {
     // has no param metadata. Emit "parameter metadata required" to match baseline behavior.
     // Must be checked before the isUntypedBuiltin (empty params) branch.
     if (
-      isApplicationCallable(callable as RillValue) &&
-      ((callable as ApplicationCallable).params as unknown) === undefined
+      isApplicationCallable(callable) &&
+      (callable.params as unknown) === undefined
     ) {
       const name = _getCallableName(callable);
       throwCatchableHostHalt(
@@ -150,9 +150,8 @@ export class ArgumentsBinder {
     // Spread on untyped builtin — ApplicationCallable with empty params array.
     // Message matches closures.ts:1079 verbatim.
     const isUntypedBuiltin =
-      isRuntimeCallable(callable as RillValue) ||
-      (isApplicationCallable(callable as RillValue) &&
-        ((callable as ApplicationCallable).params?.length ?? 0) === 0);
+      isRuntimeCallable(callable) ||
+      (isApplicationCallable(callable) && (callable.params?.length ?? 0) === 0);
 
     if (isUntypedBuiltin) {
       const name = _getCallableName(callable);
@@ -317,12 +316,12 @@ export class ArgumentsBinder {
  * Returns the JS function name when available, '<anonymous>' otherwise.
  */
 function _getCallableName(callable: RillCallable): string {
-  if (isApplicationCallable(callable as RillValue)) {
-    const fn = (callable as ApplicationCallable).fn;
+  if (isApplicationCallable(callable)) {
+    const fn = callable.fn;
     return fn.name !== '' ? fn.name : '<anonymous>';
   }
-  if (isRuntimeCallable(callable as RillValue)) {
-    const fn = (callable as import('../../callable.js').RuntimeCallable).fn;
+  if (isRuntimeCallable(callable)) {
+    const fn = callable.fn;
     return fn.name !== '' ? fn.name : '<anonymous>';
   }
   return '<anonymous>';

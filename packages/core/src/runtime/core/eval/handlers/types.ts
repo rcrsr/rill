@@ -105,7 +105,7 @@ async function buildCollectionType(
     const structure: TypeStructure = { kind: 'list', element };
     return Object.freeze({
       __rill_type: true as const,
-      typeName: name as RillTypeName,
+      typeName: name,
       structure,
     });
   }
@@ -164,7 +164,7 @@ async function buildCollectionType(
       const structure: TypeStructure = { kind: name, valueType };
       return Object.freeze({
         __rill_type: true as const,
-        typeName: name as RillTypeName,
+        typeName: name,
         structure,
       });
     }
@@ -228,7 +228,7 @@ async function buildCollectionType(
       const structure: TypeStructure = { kind: 'dict', fields };
       return Object.freeze({
         __rill_type: true as const,
-        typeName: name as RillTypeName,
+        typeName: name,
         structure,
       });
     }
@@ -282,7 +282,7 @@ async function buildCollectionType(
     };
     return Object.freeze({
       __rill_type: true as const,
-      typeName: name as RillTypeName,
+      typeName: name,
       structure,
     });
   }
@@ -330,7 +330,7 @@ async function buildCollectionType(
     const structure: TypeStructure = { kind: 'tuple', valueType };
     return Object.freeze({
       __rill_type: true as const,
-      typeName: 'tuple' as RillTypeName,
+      typeName: 'tuple',
       structure,
     });
   }
@@ -400,7 +400,7 @@ async function buildCollectionType(
   const structure: TypeStructure = { kind: 'tuple', elements };
   return Object.freeze({
     __rill_type: true as const,
-    typeName: 'tuple' as RillTypeName,
+    typeName: 'tuple',
     structure,
   });
 }
@@ -436,7 +436,7 @@ export async function resolveTypeRef(
       return Object.freeze({
         __rill_type: true as const,
         typeName,
-        structure: { kind: typeName } as TypeStructure,
+        structure: { kind: typeName },
       });
     }
 
@@ -488,7 +488,7 @@ export async function resolveTypeRef(
         const resolved = await resolveTypeRef(s, arg.value, getVariableFn);
         return resolved.structure;
       },
-      async (node: LiteralNode): Promise<RillValue> => {
+      (node: LiteralNode): Promise<RillValue> => {
         return evaluatePrimary(s, node);
       }
     );
@@ -523,7 +523,7 @@ export async function resolveTypeRef(
   }
   if (isTypeValue(result)) return result;
 
-  throwTypeHalt(
+  return throwTypeHalt(
     {
       sourceId: s.ctx.sourceId,
       fn: 'resolveTypeRef',
@@ -709,10 +709,10 @@ export async function evaluateTypeConstructor(
       );
       return resolved.structure.kind === 'any' &&
         resolved.typeName !== ('any' as RillTypeName)
-        ? ({ kind: resolved.typeName } as TypeStructure)
+        ? { kind: resolved.typeName }
         : resolved.structure;
     },
-    async (literal: LiteralNode): Promise<RillValue> => {
+    (literal: LiteralNode): Promise<RillValue> => {
       return evaluatePrimary(s, literal);
     },
     location
@@ -736,6 +736,7 @@ export async function evaluateClosureSigLiteral(
   const location = node.span.start;
 
   // Helper: evaluate a type expression and extract TypeStructure
+  // oxlint-disable-next-line require-await -- throwTypeHalt raises synchronously; the async boundary turns it into a rejection
   const resolveTypeExpr = async (argVal: RillValue): Promise<TypeStructure> => {
     if (!isTypeValue(argVal)) {
       throwTypeHalt(
@@ -752,7 +753,7 @@ export async function evaluateClosureSigLiteral(
     }
     return argVal.structure.kind === 'any' &&
       argVal.typeName !== ('any' as RillTypeName)
-      ? ({ kind: argVal.typeName } as TypeStructure)
+      ? { kind: argVal.typeName }
       : argVal.structure;
   };
 
@@ -761,9 +762,10 @@ export async function evaluateClosureSigLiteral(
   for (const param of node.params) {
     const paramVal: RillValue = await evaluateExpression(s, param.typeExpr);
     const paramType = await resolveTypeExpr(paramVal);
-    if (param.annotations?.length) {
+    const paramAnnotations = param.annotations;
+    if (paramAnnotations !== undefined && paramAnnotations.length > 0) {
       const annotations = await evaluateAnnotationArgs(
-        param.annotations,
+        paramAnnotations,
         (expr) => evaluateExpression(s, expr),
         s.ctx.sourceId
       );
@@ -793,13 +795,13 @@ export async function evaluateClosureSigLiteral(
   const ret: TypeStructure =
     retVal.structure.kind === 'any' &&
     retVal.typeName !== ('any' as RillTypeName)
-      ? ({ kind: retVal.typeName } as TypeStructure)
+      ? { kind: retVal.typeName }
       : retVal.structure;
 
   const structure: TypeStructure = { kind: 'closure', params, ret };
   return Object.freeze({
     __rill_type: true as const,
-    typeName: 'closure' as RillTypeName,
+    typeName: 'closure',
     structure,
   });
 }

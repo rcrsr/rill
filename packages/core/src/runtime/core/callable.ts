@@ -766,7 +766,7 @@ function isFieldDescriptorValue(value: object): boolean {
 /** True when `value`'s prototype is `Object.prototype` or `null`, i.e. it is
  * a plain object literal rather than a class instance. */
 function isPlainObject(value: object): boolean {
-  const proto = Object.getPrototypeOf(value);
+  const proto = Reflect.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
 
@@ -784,7 +784,9 @@ function jsTypeLabel(value: unknown): string {
   if (t === 'object') {
     const ctorName = (value as { constructor?: { name?: string } }).constructor
       ?.name;
-    return ctorName && ctorName !== 'Object' ? ctorName : 'object';
+    return ctorName !== undefined && ctorName !== '' && ctorName !== 'Object'
+      ? ctorName
+      : 'object';
   }
   return t;
 }
@@ -796,9 +798,10 @@ function throwHostResultError(
   location: SourceLocation | undefined,
   reason?: string
 ): never {
-  const detail = reason
-    ? `${reason}: ${jsTypeLabel(value)}`
-    : jsTypeLabel(value);
+  const detail =
+    reason !== undefined && reason !== ''
+      ? `${reason}: ${jsTypeLabel(value)}`
+      : jsTypeLabel(value);
   const message = `Host function '${functionName}' returned an invalid value at ${path}: ${detail}`;
   throwFatalHostHalt(
     { location, fn: 'host-result', preserveHostShape: true },
@@ -982,7 +985,7 @@ function walkHostResult(
   }
 
   // Remaining case: t === 'object'
-  const obj = value as object;
+  const obj = value;
   const rillValue = value as RillValue;
 
   if (seen.has(obj)) {

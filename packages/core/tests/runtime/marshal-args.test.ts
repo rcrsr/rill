@@ -43,7 +43,7 @@ describe('marshalArgs', () => {
   ): RillParam {
     return {
       name,
-      type: type as RillParam['type'],
+      type: type,
       defaultValue: defaultValue as RillParam['defaultValue'],
       annotations: {},
     };
@@ -172,7 +172,7 @@ describe('marshalArgs', () => {
 
   describe('untyped params (type: undefined)', () => {
     it('accepts any value when param.type is undefined', () => {
-      const params = [makeParam('x', undefined)];
+      const params = [makeParam('x')];
       expect(marshalArgs(['hello'], params, opts)).toEqual({ x: 'hello' });
       expect(marshalArgs([42], params, opts)).toEqual({ x: 42 });
       expect(marshalArgs([null], params, opts)).toEqual({ x: null });
@@ -200,7 +200,7 @@ describe('marshalArgs', () => {
     it('falls back to <anonymous> when options is undefined', () => {
       const params = [makeParam('x', { kind: 'number' })];
       try {
-        marshalArgs([], params, undefined);
+        marshalArgs([], params);
         expect.fail('Should have thrown');
       } catch (err) {
         // functionName defaults to <anonymous> in the error context

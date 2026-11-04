@@ -36,10 +36,7 @@ import {
  * a walkIteratorSteps failure (invariant violation, chunk type mismatch)
  * still disposes the stream before the halt propagates.
  */
-async function disposeStreamInput(
-  input: RillValue,
-  site: TypeHaltSite
-): Promise<void> {
+function disposeStreamInput(input: RillValue, site: TypeHaltSite): void {
   if (!isStream(input)) return;
   const disposeFn = (
     input as unknown as Record<string, (() => void) | undefined>
@@ -101,7 +98,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           `take: n must be an integer, got ${inferType(nRaw)}`
         );
       }
-      const n = nRaw as number;
+      const n = nRaw;
       if (n < 0) {
         throwCatchableHostHalt(
           site,
@@ -136,7 +133,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         // from double-firing.
         try {
           const { elements } = await walkIteratorSteps(
-            input as unknown as Record<string, unknown>,
+            input,
             clamped,
             evaluator,
             loc,
@@ -145,7 +142,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           );
           return elements;
         } finally {
-          await disposeStreamInput(input, site);
+          disposeStreamInput(input, site);
         }
       }
 
@@ -202,7 +199,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           `skip: n must be an integer, got ${inferType(nRaw)}`
         );
       }
-      const n = nRaw as number;
+      const n = nRaw;
       if (n < 0) {
         throwCatchableHostHalt(
           site,
@@ -235,19 +232,19 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         let tail: Record<string, unknown>;
         try {
           ({ tail } = await walkIteratorSteps(
-            input as unknown as Record<string, unknown>,
+            input,
             n,
             evaluator,
             loc,
             (ctx as RuntimeContext).sourceId
           ));
         } catch (e) {
-          await disposeStreamInput(input, site);
+          disposeStreamInput(input, site);
           throw e;
         }
 
         // If the iterator/stream is already done after skipping, return empty.
-        if (tail['done']) {
+        if (tail['done'] === true) {
           return [];
         }
 
@@ -379,7 +376,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           `batch: n must be an integer, got ${inferType(nRaw)}`
         );
       }
-      const n = nRaw as number;
+      const n = nRaw;
       if (n <= 0) {
         throwCatchableHostHalt(
           site,
@@ -409,7 +406,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
               `batch: drop_partial must be a boolean, got ${inferType(dp)}`
             );
           }
-          dropPartial = dp as boolean;
+          dropPartial = dp;
         }
 
         // idle_flush must be a duration when provided.
@@ -453,7 +450,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       // Drop the trailing partial chunk when requested
       const effectiveChunks =
         dropPartial && chunks.length > 0
-          ? chunks[chunks.length - 1]!.length < n
+          ? chunks.at(-1)!.length < n
             ? chunks.slice(0, -1)
             : chunks
           : chunks;
@@ -522,7 +519,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           `window: n must be an integer, got ${inferType(nRaw)}`
         );
       }
-      const n = nRaw as number;
+      const n = nRaw;
       if (n <= 0) {
         throwCatchableHostHalt(
           site,
@@ -543,7 +540,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
             `window: step must be an integer, got ${inferType(stepRaw)}`
           );
         }
-        step = stepRaw as number;
+        step = stepRaw;
         if (step <= 0) {
           throwCatchableHostHalt(
             site,

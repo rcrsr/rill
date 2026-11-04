@@ -20,7 +20,6 @@ import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
 import type {
   RillValue,
   RillTypeValue,
-  RillStream,
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
@@ -99,7 +98,7 @@ export async function evaluateMethod(
     } else if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
       methodArgs = {
         receiver,
-        __positionalArgs: args as RillValue,
+        __positionalArgs: args,
       };
     } else {
       methodArgs = marshalArgs(effectiveArgs, typeMethod.params, {
@@ -200,11 +199,9 @@ export async function evaluateMethod(
       ) {
         try {
           const fbMethodArgs: Record<string, RillValue> = { receiver };
-          if (fallbackMethod.params) {
-            for (let i = 1; i < fallbackMethod.params.length; i++) {
-              const p = fallbackMethod.params[i];
-              if (p) setDictField(fbMethodArgs, p.name, args[i - 1] ?? null);
-            }
+          for (let i = 1; i < fallbackMethod.params.length; i++) {
+            const p = fallbackMethod.params[i];
+            if (p) setDictField(fbMethodArgs, p.name, args[i - 1] ?? null);
           }
           const result = fallbackMethod.fn(
             fbMethodArgs,
@@ -247,7 +244,7 @@ export async function evaluateMethod(
     // missing-field error. Non-dict receivers fall through unchanged too.
     return accessDictField(s, receiver, node.name, getNodeLocation(s, node));
   }
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     {
       location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
@@ -266,7 +263,7 @@ async function evaluateInvoke(
   receiver: RillValue
 ): Promise<RillValue> {
   if (isStream(receiver)) {
-    return invokeStream(s, receiver as RillStream, getNodeLocation(s, node));
+    return invokeStream(s, receiver, getNodeLocation(s, node));
   }
   if (!isCallable(receiver)) {
     throwCatchableHostHalt(
@@ -306,6 +303,7 @@ async function evaluateInvoke(
 }
 
 /** Evaluate annotation reflection access: .^key on callables, type values, and streams. */
+// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
 export async function evaluateAnnotationAccess(
   s: EvalState,
   value: RillValue,
@@ -413,6 +411,7 @@ export async function evaluateAnnotationAccess(
 }
 
 /** Evaluate .params property access on callables; builds dict from parameter metadata. */
+// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
 export async function evaluateParamsProperty(
   s: EvalState,
   callable: RillValue,

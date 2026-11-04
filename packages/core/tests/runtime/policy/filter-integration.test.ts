@@ -37,7 +37,7 @@ function method(result: string): RillValue {
     fn: () => result,
     params: [],
     returnType: anyTypeValue,
-  }) as unknown as RillValue;
+  });
 }
 
 /** Single-argument transform tagging its input. */
@@ -46,7 +46,7 @@ function transform(tag: string): RillValue {
     fn: (args) => `${tag}(${String(args['0'])})`,
     params: ONE_ARG,
     returnType: anyTypeValue,
-  }) as unknown as RillValue;
+  });
 }
 
 /** Single-argument method recording what reached it. */
@@ -58,7 +58,7 @@ function recorder(sink: { received?: RillValue }): RillValue {
     },
     params: ONE_ARG,
     returnType: anyTypeValue,
-  }) as unknown as RillValue;
+  });
 }
 
 function createTestContext(
@@ -81,7 +81,7 @@ describe('filter integration', () => {
   it('allows calls when access is "allow"', async () => {
     const ctx = createTestContext(
       { kb: { search: { access: 'allow' } } },
-      { kb: { search: method('search result') } as unknown as RillValue }
+      { kb: { search: method('search result') } }
     );
 
     const result = await execute(
@@ -94,7 +94,7 @@ describe('filter integration', () => {
   it('denies calls when access is "deny"', async () => {
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { kb: { delete: method('deleted') } as unknown as RillValue }
+      { kb: { delete: method('deleted') } }
     );
 
     await expectHalt(
@@ -112,7 +112,7 @@ describe('filter integration', () => {
     // not defeat a deny rule.
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { kb: { delete: method('deleted') } as unknown as RillValue }
+      { kb: { delete: method('deleted') } }
     );
 
     await expectHalt(
@@ -127,7 +127,7 @@ describe('filter integration', () => {
   it('denies a rebound method reached through a second variable', async () => {
     const ctx = createTestContext(
       { kb: { '*': { access: 'deny' } } },
-      { kb: { delete: method('deleted') } as unknown as RillValue }
+      { kb: { delete: method('deleted') } }
     );
 
     await expectHalt(
@@ -147,8 +147,8 @@ describe('filter integration', () => {
     const ctx = createTestContext(
       { kb: { search: { access: 'allow', out: ['filter.sanitize'] } } },
       {
-        kb: { search: method('raw data') } as unknown as RillValue,
-        filter: { sanitize: transform('clean') } as unknown as RillValue,
+        kb: { search: method('raw data') },
+        filter: { sanitize: transform('clean') },
       }
     );
 
@@ -168,10 +168,10 @@ describe('filter integration', () => {
         },
       },
       {
-        llm: { summarize: recorder(sink) } as unknown as RillValue,
+        llm: { summarize: recorder(sink) },
         filter: {
           sanitize_for_prompt: transform('safe'),
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -193,11 +193,11 @@ describe('filter integration', () => {
         },
       },
       {
-        kb: { search: method('raw') } as unknown as RillValue,
+        kb: { search: method('raw') },
         filter: {
           sanitize: transform('sanitized'),
           redact: transform('redacted'),
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -253,7 +253,7 @@ describe('filter integration', () => {
             search: method('nested ok'),
             purge: method('nested leaked'),
           },
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -270,7 +270,7 @@ describe('filter integration', () => {
       {
         kb: {
           client: { search: method('ok'), purge: method('leaked') },
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -291,7 +291,7 @@ describe('filter integration', () => {
       {
         kb: {
           client: { search: method('ok'), purge: method('leaked') },
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -315,7 +315,7 @@ describe('filter integration', () => {
             {
               kb: {
                 client: { search: method('ok'), purge: method('leaked') },
-              } as unknown as RillValue,
+              },
             }
           )
         ),
@@ -351,7 +351,7 @@ describe('filter integration', () => {
   it('allows unfiltered extensions when no rules exist for them', async () => {
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { cache: { get: method('cached') } as unknown as RillValue }
+      { cache: { get: method('cached') } }
     );
 
     const result = await execute(
@@ -364,7 +364,7 @@ describe('filter integration', () => {
   it('leaves built-ins and script closures unpoliced', async () => {
     const ctx = createTestContext(
       { kb: { '*': { access: 'deny' } } },
-      { kb: { search: method('ok') } as unknown as RillValue }
+      { kb: { search: method('ok') } }
     );
 
     const result = await execute(
@@ -391,12 +391,12 @@ describe('filter integration', () => {
     expect(result.result).toBe('deleted');
   });
 
-  it('keeps the resolver off the runtime context', async () => {
+  it('keeps the resolver off the runtime context', () => {
     // Host functions are handed the context. A resolver reachable there
     // is a resolver an extension can read or replace mid-run.
     const ctx = createTestContext(
       { kb: { search: { access: 'allow' } } },
-      { kb: { search: method('ok') } as unknown as RillValue }
+      { kb: { search: method('ok') } }
     );
 
     expect(Object.keys(ctx)).not.toContain('filterResolver');
@@ -409,7 +409,7 @@ describe('filter integration', () => {
   it('recovers a denied call with guard', async () => {
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { kb: { delete: method('deleted') } as unknown as RillValue }
+      { kb: { delete: method('deleted') } }
     );
 
     const result = await execute(
@@ -433,7 +433,7 @@ describe('filter integration: calls inside closure bodies', () => {
   it('denies a denied method called from a closure body', async () => {
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { kb: { delete: method('deleted') } as unknown as RillValue }
+      { kb: { delete: method('deleted') } }
     );
 
     await expectHalt(
@@ -452,7 +452,7 @@ describe('filter integration: calls inside closure bodies', () => {
   it('denies a denied method called from a seq body', async () => {
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { kb: { delete: method('deleted') } as unknown as RillValue }
+      { kb: { delete: method('deleted') } }
     );
 
     await expectHalt(
@@ -471,7 +471,7 @@ describe('filter integration: calls inside closure bodies', () => {
   it('denies a denied method called from a nested closure body', async () => {
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { kb: { delete: method('deleted') } as unknown as RillValue }
+      { kb: { delete: method('deleted') } }
     );
 
     await expectHalt(
@@ -494,7 +494,7 @@ describe('filter integration: calls inside closure bodies', () => {
     // eval/invocation/stream-closures.ts.
     const ctx = createTestContext(
       { kb: { delete: { access: 'deny' } } },
-      { kb: { delete: method('deleted') } as unknown as RillValue }
+      { kb: { delete: method('deleted') } }
     );
 
     await expectHalt(
@@ -518,8 +518,8 @@ describe('filter integration: calls inside closure bodies', () => {
         kb: { search: { access: 'allow', out: ['filter.redact'] } },
       },
       {
-        kb: { search: method('raw') } as unknown as RillValue,
-        filter: { redact: transform('redacted') } as unknown as RillValue,
+        kb: { search: method('raw') },
+        filter: { redact: transform('redacted') },
       }
     );
 
@@ -544,7 +544,7 @@ describe('filter integration: list-nested and tuple-nested members', () => {
       {
         kb: {
           clients: [{ purge: method('leaked') }],
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -567,8 +567,8 @@ describe('filter integration: list-nested and tuple-nested members', () => {
       {
         kb: {
           clients: [{ purge: method('raw') }],
-        } as unknown as RillValue,
-        filter: { redact: transform('redacted') } as unknown as RillValue,
+        },
+        filter: { redact: transform('redacted') },
       }
     );
 
@@ -590,7 +590,7 @@ describe('filter integration: list-nested and tuple-nested members', () => {
       {
         kb: {
           clients: [{ purge: method('first') }, { purge: method('second') }],
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -617,7 +617,7 @@ describe('filter integration: list-nested and tuple-nested members', () => {
                   { purge: method('first') },
                   { purge: method('second') },
                 ],
-              } as unknown as RillValue,
+              },
             }
           )
         ),
@@ -637,7 +637,7 @@ describe('filter integration: list-nested and tuple-nested members', () => {
             __rill_tuple: true,
             entries: [{ purge: method('leaked') }],
           },
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -656,7 +656,7 @@ describe('filter integration: list-nested and tuple-nested members', () => {
       {
         kb: {
           shards: [{ inner: { purge: method('leaked') } }],
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -680,7 +680,7 @@ describe('filter integration: list-nested and tuple-nested members', () => {
         },
       },
       {
-        kb: { clients: [1, 2, { purge }] } as unknown as RillValue,
+        kb: { clients: [1, 2, { purge }] },
       }
     );
 
@@ -701,7 +701,7 @@ describe('filter integration: list-nested and tuple-nested members', () => {
       {
         kb: {
           clients: [1, { purge: method('a') }, { purge: method('b') }],
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -729,7 +729,7 @@ describe('filter integration: list-nested and tuple-nested members', () => {
       {
         kb: {
           pair: { __rill_tuple: true, entries: ['x', a, 2, b] },
-        } as unknown as RillValue,
+        },
       }
     );
 
@@ -765,9 +765,12 @@ describe('filter integration: branding budget', () => {
       wide[`m${i}`] = method('ok');
     }
 
-    const ctx = createTestContext({ kb: { '*': { access: 'deny' } } }, {
-      kb: wide,
-    } as unknown as Record<string, RillValue>);
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' } } },
+      {
+        kb: wide,
+      }
+    );
 
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.m0()'), ctx),
@@ -784,9 +787,12 @@ describe('filter integration: branding budget', () => {
       wide[`m${i}`] = method('ok');
     }
 
-    const ctx = createTestContext({ kb: { '*': { access: 'deny' } } }, {
-      kb: wide,
-    } as unknown as Record<string, RillValue>);
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' } } },
+      {
+        kb: wide,
+      }
+    );
 
     // Every sibling failure in evaluateUseExpr carries the import's
     // location. A host cannot act on "some extension is too large".
@@ -807,16 +813,19 @@ describe('filter integration: branding budget', () => {
 
   it('brands a deeply nested member the old depth bound would have skipped', async () => {
     // 24 levels down, past the depth-16 bound this budget replaced.
-    let node: RillValue = { purge: method('leaked') } as unknown as RillValue;
+    let node: RillValue = { purge: method('leaked') };
     const path: string[] = ['purge'];
     for (let i = 0; i < 24; i++) {
-      node = { [`n${i}`]: node } as unknown as RillValue;
+      node = { [`n${i}`]: node };
       path.unshift(`n${i}`);
     }
 
-    const ctx = createTestContext({ kb: { '*': { access: 'deny' } } }, {
-      kb: node,
-    } as unknown as Record<string, RillValue>);
+    const ctx = createTestContext(
+      { kb: { '*': { access: 'deny' } } },
+      {
+        kb: node,
+      }
+    );
 
     await expectHalt(
       () => execute(parse(`use<ext:kb> => $kb\n$kb.${path.join('.')}()`), ctx),
@@ -839,8 +848,8 @@ describe('filter integration: in() argument position', () => {
     const ctx = createTestContext(
       { llm: { summarize: { access: 'allow', in: ['filter.sanitize'] } } },
       {
-        llm: { summarize: recorder(sink) } as unknown as RillValue,
-        filter: { sanitize: transform('safe') } as unknown as RillValue,
+        llm: { summarize: recorder(sink) },
+        filter: { sanitize: transform('safe') },
       }
     );
 
@@ -857,8 +866,8 @@ describe('filter integration: in() argument position', () => {
     const ctx = createTestContext(
       { kb: { search: { access: 'allow', in: ['filter.sanitize'] } } },
       {
-        kb: { search: method('result') } as unknown as RillValue,
-        filter: { sanitize: transform('safe') } as unknown as RillValue,
+        kb: { search: method('result') },
+        filter: { sanitize: transform('safe') },
       }
     );
 
@@ -878,7 +887,7 @@ describe('filter integration: callables returned at call time', () => {
     return publicToCallable({
       fn: make,
       ...noArgs,
-    }) as unknown as RillValue;
+    });
   }
 
   /** One-argument method returning its argument unchanged. */
@@ -887,7 +896,7 @@ describe('filter integration: callables returned at call time', () => {
       fn: (args) => args['0'] as RillValue,
       params: ONE_ARG,
       returnType: anyTypeValue,
-    }) as unknown as RillValue;
+    });
   }
 
   function buildContext(
@@ -911,14 +920,14 @@ describe('filter integration: callables returned at call time', () => {
     return {
       search: method('found'),
       purge: method('purged'),
-    } as unknown as RillValue;
+    };
   }
 
   it('denies a member of a returned sub-client and honors an exact allow', async () => {
     const extensions = { kb: { client: producer(subClient) } };
     const denied = buildContext(
       { kb: { '*': { access: 'deny' }, client: { access: 'allow' } } },
-      extensions as unknown as Record<string, RillValue>
+      extensions
     );
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.client().purge()'), denied),
@@ -941,7 +950,7 @@ describe('filter integration: callables returned at call time', () => {
           'client().search': { access: 'allow' },
         },
       },
-      extensions as unknown as Record<string, RillValue>
+      extensions
     );
     const result = await execute(
       parse('use<ext:kb> => $kb\n$kb.client().search()'),
@@ -979,9 +988,12 @@ describe('filter integration: callables returned at call time', () => {
   });
 
   it('propagates identity even when the calling method has a null filter', async () => {
-    const ctx = buildContext({ kb: { 'client().purge': { access: 'deny' } } }, {
-      kb: { client: producer(subClient) },
-    } as unknown as Record<string, RillValue>);
+    const ctx = buildContext(
+      { kb: { 'client().purge': { access: 'deny' } } },
+      {
+        kb: { client: producer(subClient) },
+      }
+    );
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.client().purge()'), ctx),
       { code: 'RILL_R088' }
@@ -989,10 +1001,13 @@ describe('filter integration: callables returned at call time', () => {
   });
 
   it('leaves an unpoliced extension pass-through', async () => {
-    const ctx = buildContext({ other: { '*': { access: 'deny' } } }, {
-      kb: { client: producer(subClient) },
-      other: { run: method('x') },
-    } as unknown as Record<string, RillValue>);
+    const ctx = buildContext(
+      { other: { '*': { access: 'deny' } } },
+      {
+        kb: { client: producer(subClient) },
+        other: { run: method('x') },
+      }
+    );
     const result = await execute(
       parse('use<ext:kb> => $kb\n$kb.client().purge()'),
       ctx
@@ -1002,11 +1017,10 @@ describe('filter integration: callables returned at call time', () => {
 
   it('brands callables inside out() output', async () => {
     const wrap = publicToCallable({
-      fn: (args) =>
-        ({
-          value: args['0'] as RillValue,
-          purge: method('purged'),
-        }) as unknown as RillValue,
+      fn: (args) => ({
+        value: args['0'] as RillValue,
+        purge: method('purged'),
+      }),
       params: ONE_ARG,
       returnType: anyTypeValue,
     }) as unknown as RillValue;
@@ -1020,7 +1034,7 @@ describe('filter integration: callables returned at call time', () => {
       {
         kb: { client: producer(() => 'raw') },
         filter: { wrap },
-      } as unknown as Record<string, RillValue>
+      }
     );
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.client().purge()'), ctx),
@@ -1041,7 +1055,7 @@ describe('filter integration: callables returned at call time', () => {
       },
       {
         kb: { search: search, get_search: producer(() => shared) },
-      } as unknown as Record<string, RillValue>
+      }
     );
     const result = await execute(
       parse('use<ext:kb> => $kb\n$kb.get_search().search()'),
@@ -1061,7 +1075,7 @@ describe('filter integration: callables returned at call time', () => {
       {
         kb: { get: producer(() => shared) },
         x: shared,
-      } as unknown as Record<string, RillValue>
+      }
     );
 
     // The same callable instance first receives a call-time brand.
@@ -1087,7 +1101,7 @@ describe('filter integration: callables returned at call time', () => {
       { kb: { '*': { access: 'deny' }, client: { access: 'allow' } } },
       {
         kb: { client: producer(subClient), purge: method('purged') },
-      } as unknown as Record<string, RillValue>
+      }
     );
     await expectHalt(
       () =>
@@ -1126,10 +1140,7 @@ describe('filter integration: callables returned at call time', () => {
     } as unknown as RillValue;
     const ctx = buildContext(
       { kb: { '*': { access: 'deny' }, c: { access: 'allow' } } },
-      { kb: { c: producer(() => iter) } } as unknown as Record<
-        string,
-        RillValue
-      >
+      { kb: { c: producer(() => iter) } }
     );
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.c().purge()'), ctx),
@@ -1143,10 +1154,7 @@ describe('filter integration: callables returned at call time', () => {
     setTypedKey(typed, true, method('purged'));
     const ctx = buildContext(
       { kb: { '*': { access: 'deny' }, t: { access: 'allow' } } },
-      { kb: { t: producer(() => typed as RillValue) } } as unknown as Record<
-        string,
-        RillValue
-      >
+      { kb: { t: producer(() => typed) } }
     );
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.t() => $t\n$t[1]()'), ctx),
@@ -1171,9 +1179,9 @@ describe('filter integration: callables returned at call time', () => {
       },
       {
         kb: {
-          client: producer(() => [1, 2, { purge }] as unknown as RillValue),
+          client: producer(() => [1, 2, { purge }]),
         },
-      } as unknown as Record<string, RillValue>
+      }
     );
 
     const result = await execute(
@@ -1199,15 +1207,12 @@ describe('filter integration: callables returned at call time', () => {
       },
       {
         kb: {
-          pair: producer(
-            () =>
-              ({
-                __rill_tuple: true,
-                entries: ['x', a, b],
-              }) as unknown as RillValue
-          ),
+          pair: producer(() => ({
+            __rill_tuple: true,
+            entries: ['x', a, b],
+          })),
         },
-      } as unknown as Record<string, RillValue>
+      }
     );
 
     await expectHalt(
@@ -1233,7 +1238,7 @@ describe('filter integration: callables returned at call time', () => {
     };
     const ctx = buildContext(
       { kb: { '*': { access: 'deny' }, echo: { access: 'allow' } } },
-      { kb: { echo: echo() } } as unknown as Record<string, RillValue>,
+      { kb: { echo: echo() } },
       { functions: { 'host::fn': hostFn } }
     );
 
@@ -1257,24 +1262,20 @@ describe('filter integration: callables returned at call time', () => {
       yield 1;
       yield 2;
     }
-    const stream = producer(
-      () =>
-        createRillStream({
-          chunks: chunks(),
-          resolve: async () => 'done',
-        }) as unknown as RillValue
+    const stream = producer(() =>
+      createRillStream({
+        chunks: chunks(),
+        resolve: () => Promise.resolve('done'),
+      })
     );
-    const iter = producer(
-      () =>
-        ({
-          done: false,
-          value: 1,
-          next: publicToCallable({
-            fn: () => ({ done: true }) as unknown as RillValue,
-            ...noArgs,
-          }),
-        }) as unknown as RillValue
-    );
+    const iter = producer(() => ({
+      done: false,
+      value: 1,
+      next: publicToCallable({
+        fn: () => ({ done: true }),
+        ...noArgs,
+      }),
+    }));
     const ctx = buildContext(
       {
         kb: {
@@ -1284,7 +1285,7 @@ describe('filter integration: callables returned at call time', () => {
           'iter().next': { access: 'allow' },
         },
       },
-      { kb: { stream, iter } } as unknown as Record<string, RillValue>
+      { kb: { stream, iter } }
     );
 
     const streamed = await execute(
@@ -1315,10 +1316,10 @@ describe('filter integration: callables returned at call time', () => {
       },
       {
         kb: {
-          vectors: producer(() => vectors as unknown as RillValue),
+          vectors: producer(() => vectors),
           strings: producer(() => strings),
         },
-      } as unknown as Record<string, RillValue>
+      }
     );
     const v = await execute(
       parse('use<ext:kb> => $kb\n$kb.vectors() -> .len'),
@@ -1342,9 +1343,12 @@ describe('filter integration: callables returned at call time', () => {
     } as unknown as Record<string, RillValue>;
     const script = 'use<ext:kb> => $kb\n$kb.make() => $f\n1';
 
-    const withResolver = buildContext({ kb: { make: { access: 'allow' } } }, {
-      kb,
-    } as unknown as Record<string, RillValue>);
+    const withResolver = buildContext(
+      { kb: { make: { access: 'allow' } } },
+      {
+        kb,
+      }
+    );
     await execute(parse(script), withResolver);
     expect(getExtensionIdentity(fresh as never)).toEqual({
       extension: 'kb',
@@ -1463,7 +1467,7 @@ describe('filter integration: callables returned at call time', () => {
     it('brands when the hint returns a non-false value', async () => {
       const { state, kb } = freshKb();
       const resolver = Object.assign(() => null, {
-        policesExtension: () => undefined,
+        policesExtension: () => {},
       }) as unknown as FilterResolver;
       await execute(parse(script), hintedContext(resolver, kb));
       expect(getExtensionIdentity(state.fresh as never)).toEqual({
@@ -1486,10 +1490,13 @@ describe('filter integration: callables returned at call time', () => {
 
     it('leaves a callable from an unpoliced extension unbranded under a config resolver', async () => {
       const { state, kb } = freshKb();
-      const ctx = buildContext({ other: { '*': { access: 'deny' } } }, {
-        kb,
-        other: { run: method('x') },
-      } as unknown as Record<string, RillValue>);
+      const ctx = buildContext(
+        { other: { '*': { access: 'deny' } } },
+        {
+          kb,
+          other: { run: method('x') },
+        }
+      );
       await execute(parse(script), ctx);
       expect(getExtensionIdentity(state.fresh as never)).toBeUndefined();
     });
@@ -1500,11 +1507,11 @@ describe('filter integration: callables returned at call time', () => {
     // a shared sub-object rather than a true cycle; the walk visits it once.
     const make = producer(() => {
       const shared: Record<string, RillValue> = { purge: method('purged') };
-      return { a: shared, b: shared } as unknown as RillValue;
+      return { a: shared, b: shared };
     });
     const ctx = buildContext(
       { kb: { '*': { access: 'deny' }, make: { access: 'allow' } } },
-      { kb: { make } } as unknown as Record<string, RillValue>
+      { kb: { make } }
     );
     await expectHalt(
       () => execute(parse('use<ext:kb> => $kb\n$kb.make().b.purge()'), ctx),

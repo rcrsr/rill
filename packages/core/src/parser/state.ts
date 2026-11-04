@@ -93,7 +93,7 @@ export function withRecursionDepth<T>(
 export function current(state: ParserState): Token {
   const token = state.tokens[state.pos];
   if (token) return token;
-  const last = state.tokens[state.tokens.length - 1];
+  const last = state.tokens.at(-1);
   if (last) return last;
   throw new ParseError(ERROR_IDS.RILL_P002, 'Unexpected end of input', {
     line: 1,
@@ -106,7 +106,7 @@ export function current(state: ParserState): Token {
 export function previous(state: ParserState): Token {
   const token = state.tokens[state.pos - 1];
   if (token) return token;
-  const last = state.tokens[state.tokens.length - 1];
+  const last = state.tokens.at(-1);
   if (last) return last;
   throw new ParseError(ERROR_IDS.RILL_P002, 'Unexpected end of input', {
     line: 1,
@@ -120,7 +120,7 @@ export function peek(state: ParserState, offset = 0): Token {
   const idx = state.pos + offset;
   const token = state.tokens[idx];
   if (token) return token;
-  const last = state.tokens[state.tokens.length - 1];
+  const last = state.tokens.at(-1);
   if (last) return last;
   throw new ParseError(ERROR_IDS.RILL_P002, 'Unexpected end of input', {
     line: 1,
@@ -156,7 +156,8 @@ export function expect(
   if (check(state, type)) return advance(state);
   const token = current(state);
   const hint = generateHint(type, token);
-  const fullMessage = hint ? `${message}. ${hint}` : message;
+  const fullMessage =
+    hint !== null && hint !== '' ? `${message}. ${hint}` : message;
   throw new ParseError(errorId, fullMessage, token.span.start);
 }
 
@@ -251,7 +252,7 @@ function generateHint(expectedType: string, actualToken: Token): string | null {
       mp: 'map',
     };
     const suggestion = typoHints[value.toLowerCase()];
-    if (suggestion) {
+    if (suggestion !== undefined && suggestion !== '') {
       return `Hint: Did you mean '${suggestion}'?`;
     }
   }

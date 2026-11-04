@@ -202,7 +202,7 @@ export function setVariable(
  */
 export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
   // Handle pipe variable ($)
-  if (node.isPipeVar && !node.name) {
+  if (node.isPipeVar && (node.name === null || node.name === '')) {
     if (s.ctx.pipeValue === null) {
       throwCatchableHostHalt(
         {
@@ -219,7 +219,7 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
   }
 
   // Handle named variable ($name)
-  if (node.name) {
+  if (node.name !== null && node.name !== '') {
     const result = getVariable(s.ctx, node.name);
     if (result === undefined) {
       throwCatchableHostHalt(
@@ -237,7 +237,7 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
   }
 
   // Should not reach here - all variable nodes have either isPipeVar or name
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     {
       location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
@@ -339,7 +339,7 @@ export async function applyBracketIndex(
       }
       return entry[1];
     }
-    throwCatchableHostHalt(
+    return throwCatchableHostHalt(
       { location, sourceId: s.ctx.sourceId, fn },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
       `Ordered index must be string or number, got ${inferType(indexValue)}`
@@ -367,7 +367,7 @@ export async function applyBracketIndex(
     return result;
   } else if (isIterator(receiver)) {
     // Must precede isDict: an iterator is structurally a dict.
-    throwCatchableHostHalt(
+    return throwCatchableHostHalt(
       { location, sourceId: s.ctx.sourceId, fn },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
       'Cannot index iterator'
@@ -405,7 +405,7 @@ export async function applyBracketIndex(
       return result;
     }
   } else {
-    throwCatchableHostHalt(
+    return throwCatchableHostHalt(
       { location, sourceId: s.ctx.sourceId, fn },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
       `Cannot index ${inferType(receiver)}`
@@ -434,10 +434,8 @@ export async function evaluateExistenceCheck(
   // Helper: check type match using structural resolution (mismatch returns false)
   const matchesType = async (fieldValue: RillValue): Promise<boolean> => {
     if (typeRef === null) return true;
-    const resolved = await resolveTypeRef(
-      s,
-      typeRef,
-      (name: string) => getVariable(s.ctx, name) as RillValue
+    const resolved = await resolveTypeRef(s, typeRef, (name: string) =>
+      getVariable(s.ctx, name)
     );
     return structureMatches(fieldValue, resolved.structure);
   };
@@ -626,7 +624,7 @@ export async function evaluateExistenceCheck(
   }
 
   // For other access kinds (block, alternatives, annotation), not supported
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     {
       location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
@@ -650,7 +648,7 @@ export async function evaluateVariableAsync(
   // Get base value ($ or $name)
   let value: RillValue;
 
-  if (node.isPipeVar && !node.name) {
+  if (node.isPipeVar && (node.name === null || node.name === '')) {
     // Pipe variable ($)
     if (s.ctx.pipeValue === null) {
       throwCatchableHostHalt(
@@ -665,7 +663,7 @@ export async function evaluateVariableAsync(
       );
     }
     value = s.ctx.pipeValue;
-  } else if (node.name) {
+  } else if (node.name !== null && node.name !== '') {
     // Named variable ($name)
     const result = getVariable(s.ctx, node.name);
     if (result === undefined) {
@@ -929,7 +927,7 @@ export async function evaluateVariableAsync(
     const trigger =
       node.accessChain.length > 0
         ? isVacant(value)
-        : node.isPipeTarget
+        : node.isPipeTarget === true
           ? value === null || isInvalid(value)
           : isVacant(value);
     if (trigger) {
@@ -952,10 +950,8 @@ async function evaluateCapture(
 ): Promise<RillValue> {
   if (node.typeRef !== null) {
     // Resolve TypeRef and validate against the declared type
-    const resolved = await resolveTypeRef(
-      s,
-      node.typeRef,
-      (name: string) => getVariable(s.ctx, name) as RillValue
+    const resolved = await resolveTypeRef(s, node.typeRef, (name: string) =>
+      getVariable(s.ctx, name)
     );
     setVariable(s, node.name, input, resolved.structure, node.span.start);
   } else {

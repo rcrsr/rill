@@ -3,14 +3,7 @@
  * individual rule modules.
  */
 
-import type {
-  ASTNode,
-  ExpressionNode,
-  PipeChainNode,
-  PostfixExprNode,
-  SourceSpan,
-  VariableNode,
-} from '@rcrsr/rill';
+import type { ASTNode, ExpressionNode, SourceSpan } from '@rcrsr/rill';
 import type { Diagnostic, RuleContext } from './types.js';
 
 // ============================================================
@@ -62,7 +55,7 @@ export function getSplitLines(source: string): string[] {
 export function extractContextLine(line: number, source: string): string {
   const lines = getSplitLines(source);
   const sourceLine = lines[line - 1];
-  return sourceLine ? sourceLine.trim() : '';
+  return sourceLine?.trim() ?? '';
 }
 
 // ============================================================
@@ -88,7 +81,7 @@ export function isBareReference(
     return false;
   }
 
-  const pipeChain = expr as PipeChainNode;
+  const pipeChain = expr;
 
   // Must have no pipe targets (just the head)
   if (pipeChain.pipes.length > 0 || pipeChain.terminator !== null) {
@@ -102,7 +95,7 @@ export function isBareReference(
     return false;
   }
 
-  const postfix = head as PostfixExprNode;
+  const postfix = head;
 
   // Must have no method calls (just the primary)
   if (postfix.methods.length > 0) {
@@ -115,7 +108,7 @@ export function isBareReference(
     return false;
   }
 
-  const variable = primary as VariableNode;
+  const variable = primary;
 
   // Must be pipe variable ($) with no access chain, default value, or
   // existence check
@@ -134,14 +127,11 @@ export function isBareReference(
 
 /**
  * Validate that a SourceSpan has valid coordinates.
- * Returns false if span, start, or end are missing, or if line/column
- * values are less than 1.
+ * Returns false if span is missing, or if line/column values are less
+ * than 1. Callers pass parser-built spans, which always carry start and end.
  */
 export function isValidSpan(span: SourceSpan | null | undefined): boolean {
-  if (!span) {
-    return false;
-  }
-  if (!span.start || !span.end) {
+  if (span === null || span === undefined) {
     return false;
   }
   if (
@@ -164,8 +154,8 @@ export function extractSpanText(span: SourceSpan, source: string): string {
 
   if (span.start.line === span.end.line) {
     const line = lines[span.start.line - 1];
-    if (!line) return '';
-    return line.substring(span.start.column - 1, span.end.column - 1);
+    if (line === undefined || line === '') return '';
+    return line.slice(span.start.column - 1, span.end.column - 1);
   }
 
   const result: string[] = [];
@@ -175,9 +165,9 @@ export function extractSpanText(span: SourceSpan, source: string): string {
     if (line === undefined) continue;
 
     if (i === span.start.line - 1) {
-      result.push(line.substring(span.start.column - 1));
+      result.push(line.slice(span.start.column - 1));
     } else if (i === span.end.line - 1) {
-      result.push(line.substring(0, span.end.column - 1));
+      result.push(line.slice(0, span.end.column - 1));
     } else {
       result.push(line);
     }

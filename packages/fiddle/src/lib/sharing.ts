@@ -206,7 +206,7 @@ export async function readSourceFromURL(): Promise<DecodeResult> {
   const params = new URLSearchParams(window.location.search);
   const encoded = params.get('code');
 
-  if (!encoded) {
+  if (encoded === null || encoded === '') {
     return { ok: false, reason: 'absent' };
   }
 
@@ -245,7 +245,7 @@ export async function copyLinkToClipboard(
   }
 
   // Check for clipboard API availability
-  if (!navigator.clipboard || !navigator.clipboard.writeText) {
+  if (typeof navigator.clipboard?.writeText !== 'function') {
     console.warn('Clipboard API not available');
     return {
       status: 'error',

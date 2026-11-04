@@ -112,7 +112,7 @@ function collectVerbatimRegions(ast: ASTNode): VerbatimRegion[] {
 
   const merged: VerbatimRegion[] = [];
   for (const region of regions) {
-    const last = merged[merged.length - 1];
+    const last = merged.at(-1);
     if (last !== undefined && region.startOffset <= last.endOffset) {
       if (region.endOffset > last.endOffset) {
         merged[merged.length - 1] = {

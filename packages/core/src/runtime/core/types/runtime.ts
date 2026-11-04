@@ -193,7 +193,7 @@ export interface LifecycleContext {
    * resolves to `#R001`. Behavior bound at construction
    * site in context.ts (task 3.2).
    */
-  invalidate(error: unknown, meta: InvalidateMeta): RillValue;
+  invalidate: (error: unknown, meta: InvalidateMeta) => RillValue;
   /**
    * Execute a Promise-returning thunk; on rejection, run the detector to
    * classify the error. When the detector returns a non-null {@link InvalidMeta},
@@ -201,10 +201,10 @@ export interface LifecycleContext {
    * returns `null`, produce an invalid value with code `#R999`.
    * Behavior bound at construction site in context.ts (task 3.2).
    */
-  catch<T>(
+  catch: <T>(
     thunk: () => Promise<T>,
     detector: (e: unknown) => InvalidMeta | null
-  ): Promise<T | RillValue>;
+  ) => Promise<T | RillValue>;
   /**
    * Aborts the factory-scope signal, awaits in-flight operations with a
    * bounded timeout, then flips the disposed flag. Calls made after the
@@ -214,25 +214,25 @@ export interface LifecycleContext {
    * Signal abort propagates through the same chain that feeds
    * `ExtensionFactoryCtx.signal` and host-function `ctx.signal`.
    */
-  dispose(): Promise<void>;
+  dispose: () => Promise<void>;
   /**
    * True once `dispose()` has finished waiting for in-flight operations.
    * Host-function dispatch consults it to short-circuit with
    * {@link createDisposedResult} when a call outlives the abort check.
    */
-  isDisposed(): boolean;
+  isDisposed: () => boolean;
   /**
    * Produce an invalid RillValue carrying `.!code == #DISPOSED` without
    * dispatching to user code. Used by post-dispose guard paths.
    */
-  createDisposedResult(): RillValue;
+  createDisposedResult: () => RillValue;
   /**
    * Register an in-flight extension-dispatch promise so `dispose()` awaits
    * its settlement before flipping the disposed flag. No-op when
    * the context is not attached to a factory lifecycle (e.g. minimal test
    * contexts); safe to call from any dispatch site.
    */
-  trackInflight(promise: Promise<unknown>): void;
+  trackInflight: (promise: Promise<unknown>) => void;
 }
 
 /** Control-flow facade: pipe value, call stack, annotations, and execution limits */
@@ -473,7 +473,7 @@ export function bindDictCallables(value: RillValue): RillValue {
       v !== null &&
       '__type' in v &&
       v.__type === 'callable' &&
-      !('boundDict' in v && (v as Record<string, unknown>)['boundDict'])
+      !('boundDict' in v && v['boundDict'] !== undefined)
     ) {
       hasBoundCallables = true;
       break;
@@ -490,7 +490,7 @@ export function bindDictCallables(value: RillValue): RillValue {
       v !== null &&
       '__type' in v &&
       v.__type === 'callable' &&
-      !('boundDict' in v && (v as Record<string, unknown>)['boundDict'])
+      !('boundDict' in v && v['boundDict'] !== undefined)
     ) {
       const bound = { ...v, boundDict: result } as RillValue;
       copyExtensionIdentity(v as RillCallable, bound as RillCallable);

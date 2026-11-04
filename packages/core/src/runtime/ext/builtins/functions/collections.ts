@@ -121,7 +121,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           ctx as RuntimeContext,
           node,
           'seq',
-          async (element) => {
+          (element) => {
             const childCtx = createChildContext(ctx as RuntimeContext);
             childCtx.pipeValue = element;
             const closureToInvoke = isScriptCallable(body)
@@ -262,7 +262,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           concurrency = concurrencyOpt;
         }
 
-        for (const key of Object.keys(options as Record<string, RillValue>)) {
+        for (const key of Object.keys(options)) {
           if (key !== 'concurrency') {
             throwFatalHostHalt(
               buildSite('fan', ctx, location),
@@ -659,7 +659,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           concurrency = concurrencyOpt;
         }
 
-        for (const key of Object.keys(options as Record<string, RillValue>)) {
+        for (const key of Object.keys(options)) {
           if (key !== 'concurrency') {
             throwFatalHostHalt(
               buildSite('filter', ctx, location),
@@ -826,10 +826,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         const dictInput = input as Record<string, RillValue>;
         // Combine string keys with number/boolean (typed) keys; the extractor
         // sees each key with its real type so `{ $.key }` sorts numerically.
-        const entries: [RillValue, RillValue][] = [
-          ...(Object.entries(dictInput) as [string, RillValue][]),
+        const entries: [string | number | boolean, RillValue][] = [
+          ...Object.entries(dictInput),
           ...typedKeyEntries(dictInput).map(
-            (e) => [e.key, e.value] as [RillValue, RillValue]
+            (e) => [e.key, e.value] as [string | number | boolean, RillValue]
           ),
         ];
         const keyFn = keyFnArg ?? DICT_DEFAULT_KEY_FN;
@@ -844,12 +844,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             childCtx.pipeValue = entry;
             let key: RillValue;
             try {
-              key = await invokeCallable(
-                keyFn as Parameters<typeof invokeCallable>[0],
-                [entry],
-                childCtx,
-                location
-              );
+              key = await invokeCallable(keyFn, [entry], childCtx, location);
             } catch (e) {
               rejectBreakAsHalt(e, site);
               throw e;
@@ -921,12 +916,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           childCtx.pipeValue = el;
           let key: RillValue;
           try {
-            key = await invokeCallable(
-              keyFnArg as Parameters<typeof invokeCallable>[0],
-              [el],
-              childCtx,
-              location
-            );
+            key = await invokeCallable(keyFnArg, [el], childCtx, location);
           } catch (e) {
             rejectBreakAsHalt(e, site);
             throw e;

@@ -28,19 +28,18 @@ import { isBuiltinFunctionName } from './builtin-registry.js';
 import { anyTypeValue } from './types/any-type.js';
 import type {
   AnnotationArg,
-  CaptureNode,
   ClosureNode,
   ClosureParamNode,
   LiteralNode,
-  NamedArgNode,
   PipeChainNode,
   PostfixExprNode,
   ScriptNode,
   StatementNode,
-  StringLiteralNode,
   TypeConstructorNode,
 } from '../../types.js';
 import { isPipeChainNode } from '../../types.js';
+import { throwFatalHostHalt } from './types/halt.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import type { TypeRef } from '../../value-types.js';
 
 /**
@@ -105,7 +104,14 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
   const result: FunctionMetadata[] = [];
 
   // Defensive: handle invalid context
-  if (!ctx || !ctx.functions || !ctx.variables) {
+  if (
+    ctx === null ||
+    ctx === undefined ||
+    ctx.functions === null ||
+    ctx.functions === undefined ||
+    ctx.variables === null ||
+    ctx.variables === undefined
+  ) {
     return result;
   }
 
@@ -119,7 +125,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
       // Check if this is an ApplicationCallable with metadata (host function)
       const callable = fn as RillValue;
       if (isApplicationCallable(callable)) {
-        if (callable.params) {
+        if (callable.params !== undefined) {
           const params: ParamMetadata[] = callable.params.map((p) => ({
             name: p.name,
             type: p.type !== undefined ? formatStructure(p.type) : 'any',
@@ -554,6 +560,11 @@ function typeRefToString(ref: TypeRef | null): string {
     case 'union':
       return ref.members.map(typeRefToString).join(' | ');
   }
+  return throwFatalHostHalt(
+    { fn: 'typeRefToString' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unhandled type reference kind'
+  );
 }
 
 /**
@@ -604,9 +615,11 @@ function extractLiteralValue(node: LiteralNode): unknown {
     case 'BoolLiteral':
       return node.value;
     case 'StringLiteral': {
-      const strNode = node as StringLiteralNode;
+      const strNode = node;
       // Skip strings with interpolations
-      if (strNode.parts.some((p) => typeof p !== 'string')) return undefined;
+      if (!strNode.parts.every((p): p is string => typeof p === 'string')) {
+        return undefined;
+      }
       return strNode.parts.join('');
     }
     default:
@@ -626,7 +639,7 @@ function extractDescription(
   let docFallback: string | undefined;
   for (const arg of annotations) {
     if (arg.type !== 'NamedArg') continue;
-    const named = arg as NamedArgNode;
+    const named = arg;
     if (named.name !== 'description' && named.name !== 'doc') continue;
 
     // Navigate: value → PipeChainNode.head → PostfixExprNode.primary → StringLiteralNode
@@ -639,8 +652,10 @@ function extractDescription(
     const primary = head.primary;
     if (primary.type !== 'StringLiteral') continue;
 
-    const strNode = primary as StringLiteralNode;
-    if (strNode.parts.some((p) => typeof p !== 'string')) continue;
+    const strNode = primary;
+    if (!strNode.parts.every((p): p is string => typeof p === 'string')) {
+      continue;
+    }
 
     const value = strNode.parts.join('');
     if (named.name === 'description') return value;
@@ -653,16 +668,16 @@ function extractDescription(
 function findClosureInChain(chain: PipeChainNode): ClosureNode | null {
   // Check head: PostfixExprNode with primary being a ClosureNode
   if (chain.head.type === 'PostfixExpr') {
-    const postfix = chain.head as PostfixExprNode;
+    const postfix = chain.head;
     if (postfix.primary.type === 'Closure') {
-      return postfix.primary as unknown as ClosureNode;
+      return postfix.primary;
     }
   }
 
   // Check pipes for a ClosureNode
   for (const pipe of chain.pipes) {
     if (pipe.type === 'Closure') {
-      return pipe as unknown as ClosureNode;
+      return pipe;
     }
   }
 
@@ -705,11 +720,9 @@ export function introspectHandlerFromAST(
 
     // Check for matching capture in pipes or terminator
     const hasMatchingCapture =
-      chain.pipes.some(
-        (p) => p.type === 'Capture' && (p as CaptureNode).name === handlerName
-      ) ||
+      chain.pipes.some((p) => p.type === 'Capture' && p.name === handlerName) ||
       (chain.terminator?.type === 'Capture' &&
-        (chain.terminator as CaptureNode).name === handlerName);
+        chain.terminator.name === handlerName);
 
     if (!hasMatchingCapture) {
       continue;

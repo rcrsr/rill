@@ -61,7 +61,9 @@ export const BUILTIN_FUNCTIONS: Record<string, RillFunction> = (() => {
     TIME_DOMAIN_FUNCTIONS,
     TEMPORAL_FUNCTIONS,
   ];
-  const merged: Record<string, RillFunction> = Object.assign({}, ...groups);
+  const merged: Record<string, RillFunction> = Object.fromEntries(
+    groups.flatMap((g) => Object.entries(g))
+  );
   // Spreading silently drops an earlier definition when two groups declare the
   // same name, which would leave the key count intact and slip past both checks
   // below. Compare against the summed group sizes so a collision halts instead.

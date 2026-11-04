@@ -210,7 +210,7 @@ Parser.prototype.recoverToNextStatement = function (
     const matchesTop =
       isClosing &&
       expectedClosers.length > 0 &&
-      expectedClosers[expectedClosers.length - 1] === tokenType;
+      expectedClosers.at(-1) === tokenType;
 
     if (expectedCloser !== undefined) {
       expectedClosers.push(expectedCloser);
@@ -304,10 +304,7 @@ function trySalvagePartialExpression(
     type: 'PartialExpression',
     message,
     children,
-    span: makeSpan(
-      children[0]!.span.start,
-      children[children.length - 1]!.span.end
-    ),
+    span: makeSpan(children[0]!.span.start, children.at(-1)!.span.end),
   };
 }
 

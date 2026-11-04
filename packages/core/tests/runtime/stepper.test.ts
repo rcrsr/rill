@@ -285,9 +285,9 @@ describe('Rill Runtime: Step Execution', () => {
       const spyFn: RillFunction = {
         params: [],
         returnType: anyTypeValue,
-        fn: async () => {
+        fn: () => {
           calls++;
-          return 0;
+          return Promise.resolve(0);
         },
       };
       const ctx = createRuntimeContext({

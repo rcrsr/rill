@@ -48,17 +48,19 @@ describe('measureP95', () => {
   });
 
   it('returns a finite, non-negative duration', () => {
+    let sink = 0;
     const p95 = measureP95(
       () => {
         let counter = 0;
         for (let i = 0; i < 1000; i++) {
           counter += i;
         }
-        return counter;
+        sink = counter;
       },
       { samples: 10, warmup: 2 }
     );
 
+    expect(sink).toBe(499_500);
     expect(Number.isFinite(p95)).toBe(true);
     expect(p95).toBeGreaterThanOrEqual(0);
   });

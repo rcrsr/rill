@@ -395,7 +395,7 @@ function deriveUnvalidatedMethodReceivers(
   const bypass = new Set<string>();
   for (const reg of registrations) {
     for (const [name, method] of Object.entries(reg.methods)) {
-      if (method.skipReceiverValidation) {
+      if (method.skipReceiverValidation === true) {
         bypass.add(name);
       }
     }
@@ -539,9 +539,10 @@ export function createRuntimeContext(
     seenTypeNames.add(reg.name);
   }
 
-  // Validate every registration has protocol.format.
+  // Validate every registration has protocol.format. The type marks it
+  // required, but hand-built BUILT_IN_TYPES entries can still omit it.
   for (const reg of BUILT_IN_TYPES) {
-    if (!reg.protocol.format) {
+    if (typeof reg.protocol.format !== 'function') {
       throw new RuntimeError(
         ERROR_IDS.RILL_R072,
         `Type '${reg.name}' missing required format protocol`
@@ -568,7 +569,7 @@ export function createRuntimeContext(
 
   for (const reg of BUILT_IN_TYPES) {
     const methods = reg.methods;
-    if (!methods || Object.keys(methods).length === 0) continue;
+    if (Object.keys(methods).length === 0) continue;
 
     const seen = methodRegistry.get(reg.name) ?? new Set<string>();
     methodRegistry.set(reg.name, seen);
@@ -587,7 +588,7 @@ export function createRuntimeContext(
       const appCallable: ApplicationCallable = {
         __type: 'callable',
         kind: 'application',
-        params: fn.params as RillParam[],
+        params: fn.params,
         returnType: fn.returnType,
         annotations: fn.annotations ?? {},
         isProperty: false,
@@ -652,8 +653,8 @@ export function createRuntimeContext(
     // Lifecycle methods bound below via bindLifecycleMethods; transient
     // placeholders satisfy strict interface typing until that call returns.
     invalidate: () => null,
-    catch: async () => null,
-    dispose: async () => undefined,
+    catch: () => Promise.resolve(null),
+    dispose: () => Promise.resolve(),
     isDisposed: () => false,
     createDisposedResult: () => null,
     trackInflight: () => {},
@@ -837,7 +838,6 @@ export function getCallStack(
 ): readonly import('../../types.js').CallFrame[] {
   // Non-RillError passed
   if (
-    !error ||
     typeof error !== 'object' ||
     !(error instanceof Error) ||
     !('errorId' in error)

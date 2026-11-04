@@ -46,7 +46,8 @@ describe('executeRill with context resolver', () => {
         config
       );
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result!).value).toBe(
+      expect(JSON.parse(result.result!)).toHaveProperty(
+        'value',
         DEMO_CONTEXT_VALUES['timeout']
       );
     });
@@ -58,7 +59,8 @@ describe('executeRill with context resolver', () => {
         config
       );
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result!).value).toBe(
+      expect(JSON.parse(result.result!)).toHaveProperty(
+        'value',
         DEMO_CONTEXT_VALUES['environment']
       );
     });
@@ -77,7 +79,10 @@ describe('executeRill with context resolver', () => {
         config
       );
       expect(result.status).toBe('success');
-      expect(JSON.parse(result.result!).value).toBe('mount-path-value');
+      expect(JSON.parse(result.result!)).toHaveProperty(
+        'value',
+        'mount-path-value'
+      );
     });
   });
 
@@ -90,7 +95,10 @@ describe('executeRill with context resolver', () => {
       );
       expect(result.status).toBe('success');
       const limits = DEMO_CONTEXT_VALUES['limits'] as Record<string, unknown>;
-      expect(JSON.parse(result.result!).value).toBe(limits['max_tokens']);
+      expect(JSON.parse(result.result!)).toHaveProperty(
+        'value',
+        limits['max_tokens']
+      );
     });
 
     it('resolves limits.max_retries via dot-path traversal', async () => {
@@ -101,7 +109,10 @@ describe('executeRill with context resolver', () => {
       );
       expect(result.status).toBe('success');
       const limits = DEMO_CONTEXT_VALUES['limits'] as Record<string, unknown>;
-      expect(JSON.parse(result.result!).value).toBe(limits['max_retries']);
+      expect(JSON.parse(result.result!)).toHaveProperty(
+        'value',
+        limits['max_retries']
+      );
     });
   });
 });

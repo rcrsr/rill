@@ -30,11 +30,14 @@ function asyncIterableFrom(values: RillValue[]): AsyncIterable<RillValue> {
     [Symbol.asyncIterator]() {
       let index = 0;
       return {
-        async next() {
+        next() {
           if (index < values.length) {
-            return { value: values[index++]!, done: false as const };
+            return Promise.resolve({
+              value: values[index++]!,
+              done: false as const,
+            });
           }
-          return { value: undefined, done: true as const };
+          return Promise.resolve({ value: undefined, done: true as const });
         },
       };
     },
@@ -112,7 +115,7 @@ describe('Stream Reflection', () => {
               fn: () => {
                 return createRillStream({
                   chunks: asyncIterableFrom(['a']),
-                  resolve: async () => 'done',
+                  resolve: () => Promise.resolve('done'),
                 });
               },
             },
@@ -159,7 +162,7 @@ describe('Stream Invocation', () => {
             fn: () => {
               return createRillStream({
                 chunks: asyncIterableFrom([1, 2]),
-                resolve: async () => 'done',
+                resolve: () => Promise.resolve('done'),
               });
             },
           },
@@ -186,9 +189,9 @@ describe('Stream Invocation', () => {
             fn: () => {
               return createRillStream({
                 chunks: asyncIterableFrom([1, 2]),
-                resolve: async () => {
+                resolve: () => {
                   resolveCalls++;
-                  return `r${resolveCalls}`;
+                  return Promise.resolve(`r${resolveCalls}`);
                 },
               });
             },
@@ -216,8 +219,8 @@ describe('Stream Invocation', () => {
                 fn: () => {
                   return createRillStream({
                     chunks: asyncIterableFrom([1]),
-                    resolve: async () => {
-                      throw new Error('resolution failed');
+                    resolve: () => {
+                      return Promise.reject(new Error('resolution failed'));
                     },
                   });
                 },
@@ -233,9 +236,9 @@ describe('Stream Invocation', () => {
     let resolveCount = 0;
     const stream = createRillStream({
       chunks: asyncIterableFrom(['a', 'b']),
-      resolve: async () => {
+      resolve: () => {
         resolveCount++;
-        return 'resolved';
+        return Promise.resolve('resolved');
       },
     });
 
@@ -283,7 +286,7 @@ describe('Scope Exit Cleanup', () => {
             fn: () => {
               return createRillStream({
                 chunks: asyncIterableFrom(['a', 'b']),
-                resolve: async () => 'resolved',
+                resolve: () => Promise.resolve('resolved'),
                 dispose: () => {
                   disposed = true;
                 },
@@ -321,7 +324,7 @@ describe('Scope Exit Cleanup', () => {
             fn: () => {
               return createRillStream({
                 chunks: asyncIterableFrom(['a']),
-                resolve: async () => 'resolved',
+                resolve: () => Promise.resolve('resolved'),
               });
             },
           },
@@ -359,7 +362,7 @@ describe('Scope Exit Cleanup', () => {
               const label = args['label'] as string;
               return createRillStream({
                 chunks: asyncIterableFrom([label]),
-                resolve: async () => 'resolved',
+                resolve: () => Promise.resolve('resolved'),
                 dispose: () => {
                   disposeOrder.push(label);
                 },
@@ -398,7 +401,7 @@ describe('Scope Exit Cleanup', () => {
                 fn: () => {
                   return createRillStream({
                     chunks: asyncIterableFrom(['a']),
-                    resolve: async () => 'resolved',
+                    resolve: () => Promise.resolve('resolved'),
                     dispose: () => {
                       throw new Error('cleanup failed');
                     },

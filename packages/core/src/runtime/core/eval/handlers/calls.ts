@@ -18,7 +18,7 @@ import {
   marshalArgs,
 } from '../../callable.js';
 import { getVariable } from '../../context.js';
-import type { RillValue, RillStream } from '../../types/structures.js';
+import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isStream } from '../../types/guards.js';
 import { anyTypeValue } from '../../values.js';
@@ -180,6 +180,7 @@ export async function evaluateHostCall(
 }
 
 /** Evaluate host function reference: ns::name. Returns callable when pipeValue is null. */
+// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
 export async function evaluateHostRef(
   s: EvalState,
   node: HostRefNode
@@ -216,7 +217,7 @@ export async function evaluateHostRef(
   }
 
   if (s.ctx.pipeValue === null) {
-    return appCallable as RillValue;
+    return appCallable;
   }
   const isTypedZeroParam =
     appCallable.params !== undefined && appCallable.params.length === 0;
@@ -231,7 +232,7 @@ export async function evaluateHostRef(
 }
 
 /** Evaluate closure call: $fn(args). */
-export async function evaluateClosureCall(
+export function evaluateClosureCall(
   s: EvalState,
   node: ClosureCallNode
 ): Promise<RillValue> {
@@ -298,7 +299,7 @@ export async function evaluateClosureCallWithPipe(
   }
 
   if (isStream(value)) {
-    return invokeStream(s, value as RillStream, getNodeLocation(s, node));
+    return invokeStream(s, value, getNodeLocation(s, node));
   }
   if (!isCallable(value)) {
     throwCatchableHostHalt(

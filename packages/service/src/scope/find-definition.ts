@@ -46,4 +46,5 @@ export function findDefinition(
     case 'none':
       return null;
   }
+  throw new Error('unreachable: unhandled locate target kind');
 }

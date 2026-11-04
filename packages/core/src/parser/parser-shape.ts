@@ -83,7 +83,7 @@ Parser.prototype.parseTypeConstructor = function (
 
   return {
     type: 'TypeConstructor',
-    constructorName: constructorName as TypeConstructorNode['constructorName'],
+    constructorName: constructorName,
     args,
     span: makeSpan(start, rparen.span.end),
   };
