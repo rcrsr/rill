@@ -10,7 +10,6 @@
 
 import type { ASTNode, SourceLocation } from '../../../types.js';
 import { isCallable } from '../callable.js';
-import type { RillCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
 import type { TimeoutScheduler } from '../types/runtime.js';
 import { isOrdered, isPlainDict, isStream } from '../types/guards.js';
@@ -47,7 +46,7 @@ export function getNodeLocation(
  * when the signal is aborted.
  */
 export function checkAborted(s: EvalState, node?: ASTNode): void {
-  if (s.ctx.signal?.aborted) {
+  if (s.ctx.signal?.aborted === true) {
     const site: TypeHaltSite = {
       location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
@@ -72,21 +71,16 @@ const realSetTimeout: typeof setTimeout | undefined =
  * messages posted during a port handler in the same pass, so timers never
  * get a turn.
  */
-const scheduleMacrotask: ((callback: () => void) => void) | undefined = (() => {
-  if (realSetImmediate !== undefined) {
-    const schedule = realSetImmediate;
-    return (callback: () => void): void => {
-      schedule(callback);
-    };
-  }
-  if (realSetTimeout !== undefined) {
-    const schedule = realSetTimeout;
-    return (callback: () => void): void => {
-      schedule(callback, 0);
-    };
-  }
-  return;
-})();
+const scheduleMacrotask: ((callback: () => void) => void) | undefined =
+  realSetImmediate !== undefined
+    ? (callback: () => void): void => {
+        realSetImmediate(callback);
+      }
+    : realSetTimeout !== undefined
+      ? (callback: () => void): void => {
+          realSetTimeout(callback, 0);
+        }
+      : undefined;
 
 /**
  * Longest stretch the event loop may stay occupied before a yield is due.
@@ -240,7 +234,7 @@ export function withTimeout<T>(
           { functionName, timeoutMs }
         );
       } catch (haltSignal) {
-        reject(haltSignal as Error);
+        reject(haltSignal);
       }
     };
     timer = sched.setTimeout(onExpire, timeoutMs);
@@ -361,7 +355,7 @@ export async function accessDictField(
       // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
       // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
       const args = dictValue.kind === 'script' ? [] : [value];
-      return await invokeCallable(s, dictValue as RillCallable, args, location);
+      return await invokeCallable(s, dictValue, args, location);
     }
   }
 
@@ -374,3 +368,15 @@ export async function accessDictField(
 // they must not depend on (see §NOD.2.1). Re-exported here so existing
 // eval/handlers/* call sites keep importing it from this module.
 export { setDictField } from '../types/dict-keys.js';
+
+/** A dict literal key after evaluation: only scalars can key a dict. */
+export type DictKeyScalar = string | number | boolean;
+
+/** Narrow a runtime value to a scalar usable as a dict key. */
+export function isDictKeyScalar(value: RillValue): value is DictKeyScalar {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean'
+  );
+}

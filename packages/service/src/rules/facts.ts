@@ -50,8 +50,6 @@ import type {
   DictEntryNode,
   PipeChainNode,
   SourceSpan,
-  TypeConstructorNode,
-  VariableNode,
 } from '@rcrsr/rill';
 
 import { traverseForRules } from './traversal.js';
@@ -178,12 +176,12 @@ function isStreamClosure(chain: PipeChainNode): boolean {
 
   if (head.primary.type !== 'Closure') return false;
 
-  const closure = head.primary as ClosureNode;
+  const closure = head.primary;
   const returnType = closure.returnTypeTarget;
   if (!returnType) return false;
 
   if ('type' in returnType && returnType.type === 'TypeConstructor') {
-    return (returnType as TypeConstructorNode).constructorName === 'stream';
+    return returnType.constructorName === 'stream';
   }
 
   if ('kind' in returnType && returnType.kind === 'static') {
@@ -204,7 +202,7 @@ function getPipeHeadVariableName(chain: PipeChainNode): string | null {
   if (head.primary.type !== 'Variable') return null;
   if (head.methods.length > 0) return null;
 
-  const variable = head.primary as VariableNode;
+  const variable = head.primary;
   if (variable.isPipeVar || variable.name === null) return null;
   if (variable.accessChain.length > 0) return null;
 
@@ -242,9 +240,9 @@ function dictBoundClosureFromEntry(entry: DictEntryNode): ClosureNode | null {
 function isExplicitCapturePipeChain(node: ASTNode): boolean {
   if (node.type !== 'PipeChain') return false;
   const head = node.head;
-  if (!head || head.type !== 'PostfixExpr') return false;
+  if (head.type !== 'PostfixExpr') return false;
   const primary = head.primary;
-  if (!primary || primary.type !== 'Variable') return false;
+  if (primary.type !== 'Variable') return false;
   if (!primary.isPipeVar) return false;
   for (const pipe of node.pipes) {
     if (pipe.type === 'Capture') return true;

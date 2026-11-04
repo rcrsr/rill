@@ -17,7 +17,6 @@ import {
   execute,
   parse,
   parseWithRecovery,
-  type RillValue,
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
@@ -139,10 +138,10 @@ function resolveWith<T>(value: T): Promise<T> {
 describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
   it('EC-5: detector returning null yields #R999', async () => {
     const ctx = createRuntimeContext({});
-    const result = (await ctx.catch(
+    const result = await ctx.catch(
       () => rejectWith(new Error('unclassified')),
       () => null
-    )) as RillValue;
+    );
 
     expect(isInvalid(result)).toBe(true);
     expect(getStatus(result).code).toBe(resolveAtom('R999'));
@@ -150,12 +149,12 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
 
   it('EC-6: non-Error throw records raw.original = String(thrown)', async () => {
     const ctx = createRuntimeContext({});
-    const result = (await ctx.catch(
+    const result = await ctx.catch(
       () => rejectWith('plainString'),
       // Detector never runs for non-Error throws; the non-Error path
       // short-circuits to #R999 in bindLifecycleMethods (context.ts).
       () => null
-    )) as RillValue;
+    );
 
     expect(isInvalid(result)).toBe(true);
     const status = getStatus(result);
@@ -166,10 +165,10 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
 
   it('EC-6: numeric throw records raw.original as String(number)', async () => {
     const ctx = createRuntimeContext({});
-    const result = (await ctx.catch(
+    const result = await ctx.catch(
       () => rejectWith(42),
       () => null
-    )) as RillValue;
+    );
 
     expect(isInvalid(result)).toBe(true);
     const raw = getStatus(result).raw as unknown as { original?: unknown };
@@ -178,14 +177,14 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
 
   it('IR-12: detector-provided meta drives the atom code', async () => {
     const ctx = createRuntimeContext({});
-    const result = (await ctx.catch(
+    const result = await ctx.catch(
       () => rejectWith(new Error('upstream slow')),
       (_err) => ({
         code: 'TIMEOUT',
         provider: 'upstream',
         raw: { message: 'took too long' },
       })
-    )) as RillValue;
+    );
 
     expect(isInvalid(result)).toBe(true);
     const status = getStatus(result);
@@ -196,13 +195,13 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
 
   it('IR-12: detector-provided unregistered code falls back to #R001', async () => {
     const ctx = createRuntimeContext({});
-    const result = (await ctx.catch(
+    const result = await ctx.catch(
       () => rejectWith(new Error('x')),
       (_err) => ({
         code: 'NEVER_REGISTERED_CODE',
         provider: 'p',
       })
-    )) as RillValue;
+    );
 
     expect(isInvalid(result)).toBe(true);
     expect(getStatus(result).code).toBe(resolveAtom('R001'));
@@ -220,13 +219,13 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
   it('IR-12: detector receives the original error for classification', async () => {
     const ctx = createRuntimeContext({});
     const seen: unknown[] = [];
-    const result = (await ctx.catch(
+    const result = await ctx.catch(
       () => rejectWith(new Error('classify-me')),
       (err) => {
         seen.push(err);
         return { code: 'AUTH', provider: 'idp' };
       }
-    )) as RillValue;
+    );
 
     expect(seen).toHaveLength(1);
     expect(seen[0]).toBeInstanceOf(Error);

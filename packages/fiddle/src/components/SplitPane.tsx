@@ -154,8 +154,8 @@ export function SplitPane({
     setIsDragging(true);
   }
 
-  useEffect(() => {
-    if (!isDragging) return;
+  useEffect((): (() => void) | undefined => {
+    if (!isDragging) return undefined;
 
     function handleDragMove(event: MouseEvent | TouchEvent) {
       const container = containerRef.current;

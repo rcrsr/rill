@@ -170,7 +170,7 @@ export function orderedDictEntries(
     for (const entry of map.values()) {
       const target =
         typeof entry.key === 'number' ? numberEntries : booleanEntries;
-      target.push({ key: entry.key as RillValue, value: entry.value });
+      target.push({ key: entry.key, value: entry.value });
     }
   }
   numberEntries.sort((a, b) => (a.key as number) - (b.key as number));

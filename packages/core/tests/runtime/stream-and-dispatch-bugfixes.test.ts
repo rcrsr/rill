@@ -91,7 +91,7 @@ describe('zero-param dict-stored callables invoke with zero args', () => {
       params: [],
       returnType: anyTypeValue,
       fn: () => 'hi',
-    }) as ApplicationCallable;
+    });
 
     const result = await run('$d.fn()', {
       variables: { d: { fn: fn as unknown as RillValue } },

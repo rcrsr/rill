@@ -222,7 +222,7 @@ export async function evaluateFieldAccessVariable(
   }
 
   // Other types (dict, closure) - fall through to type error
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     {
       location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
@@ -429,7 +429,7 @@ export async function evaluateFieldAccessComputed(
   }
 
   // Shouldn't reach here due to exhaustive type checks above
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     {
       location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,
@@ -495,7 +495,7 @@ export async function evaluateFieldAccessAlternatives(
   if (allowMissing) {
     return null;
   }
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     {
       location: getNodeLocation(s, node),
       sourceId: s.ctx.sourceId,

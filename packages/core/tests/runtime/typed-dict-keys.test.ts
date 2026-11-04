@@ -27,6 +27,8 @@ import {
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
+const anyString = (): unknown => expect.any(String);
+
 describe('Type-aware dict keys (#266)', () => {
   describe('1. coexistence of number and string keys', () => {
     it('number 1 and string "1" are two distinct entries', async () => {
@@ -351,7 +353,8 @@ describe('Type-aware dict keys (#266)', () => {
       // String and number keys of the same spelling collapse in JSON (field
       // names are strings); last write wins. This must not crash.
       const out = (await run('dict[1: "a", "1": "b"] -> json')) as string;
-      expect(JSON.parse(out)).toEqual({ '1': expect.any(String) });
+      const parsed: unknown = JSON.parse(out);
+      expect(parsed).toEqual({ '1': anyString() });
     });
   });
 

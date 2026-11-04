@@ -282,13 +282,12 @@ describe('EC-10: Non-Error throws materialize as #R999 at the dispatch boundary'
         thrower: {
           params: [],
           returnType: anyTypeValue,
-          fn: (): Promise<RillValue> =>
-            Promise.reject('raw-string-throw' as unknown as Error),
+          fn: (): Promise<RillValue> => Promise.reject('raw-string-throw'),
         },
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['original']).toBe('raw-string-throw');
   });
@@ -304,7 +303,7 @@ describe('EC-10: Non-Error throws materialize as #R999 at the dispatch boundary'
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['original']).toBe('null');
   });
@@ -332,7 +331,7 @@ describe('W-1/W-2: sync throws and non-object throws reach the same reshape as a
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['message']).toBe('sync boom');
   });
@@ -351,7 +350,7 @@ describe('W-1/W-2: sync throws and non-object throws reach the same reshape as a
       },
     });
 
-    expect(atomName(getStatus(result as RillValue).code)).toBe('R999');
+    expect(atomName(getStatus(result).code)).toBe('R999');
   });
 
   it('a synchronous `throw "str"` materializes as a #R999 invalid value', async () => {
@@ -368,7 +367,7 @@ describe('W-1/W-2: sync throws and non-object throws reach the same reshape as a
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['original']).toBe('str');
   });
@@ -384,7 +383,7 @@ describe('W-1/W-2: sync throws and non-object throws reach the same reshape as a
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['original']).toBe('str');
   });
@@ -460,7 +459,7 @@ describe('BC-NOD-2: host JS RangeError from a synchronous host-fn throw reshapes
       },
     });
 
-    const status = getStatus(result as RillValue);
+    const status = getStatus(result);
     expect(atomName(status.code)).toBe('R999');
     expect(status.raw['message']).toBe('Maximum call stack size exceeded');
   });

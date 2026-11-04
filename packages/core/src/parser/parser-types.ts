@@ -122,7 +122,7 @@ function parseTypeRefImpl(
 
     if (!afterPipeIsDollar && !afterPipeIsTypeName) {
       // "|" is followed by a non-identifier token (e.g. "{", EOF, newline).
-      if (opts?.allowTrailingPipe) {
+      if (opts?.allowTrailingPipe === true) {
         // Closure contexts own the trailing "|" as a delimiter — leave it unconsumed.
         break;
       }

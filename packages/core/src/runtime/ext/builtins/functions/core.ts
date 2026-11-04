@@ -182,7 +182,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
 
       // Carry an integer step index rather than the accumulated float value:
       // start + i * step avoids compounding floating-point drift across steps.
-      return makeGenericIterator(0 as RillValue, (current) => {
+      return makeGenericIterator(0, (current) => {
         const i = current as number;
         const c = start + i * step;
         const done = step > 0 ? c >= end : c <= end;
@@ -234,7 +234,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      return makeGenericIterator(count as RillValue, (current) => {
+      return makeGenericIterator(count, (current) => {
         const remaining = current as number;
         if (remaining <= 0) return { done: true };
         return { done: false, value, next: (remaining - 1) as RillValue };
@@ -319,7 +319,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         return invokeCallable(arg, [value], ctx as RuntimeContext, location);
       }
 
-      throwFatalHostHalt(
+      return throwFatalHostHalt(
         {
           location,
           sourceId: (ctx as RuntimeContext).sourceId,

@@ -9,14 +9,7 @@
  *   AST flag distinguishes these from bare-identifier keys, which still fire.
  */
 
-import type {
-  ASTNode,
-  CaptureNode,
-  ClosureParamNode,
-  DictEntryNode,
-  SourceLocation,
-  SourceSpan,
-} from '@rcrsr/rill';
+import type { ASTNode, SourceLocation, SourceSpan } from '@rcrsr/rill';
 import type {
   Diagnostic,
   DiagnosticEdit,
@@ -264,7 +257,7 @@ export const namingSnakeCase: Rule = {
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
     switch (node.type) {
       case 'ClosureParam': {
-        const paramNode = node as ClosureParamNode;
+        const paramNode = node;
         const name = paramNode.name;
 
         if (!isSnakeCase(name)) {
@@ -283,7 +276,7 @@ export const namingSnakeCase: Rule = {
       }
 
       case 'DictEntry': {
-        const entryNode = node as DictEntryNode;
+        const entryNode = node;
         const key = entryNode.key;
 
         if (typeof key !== 'string') {
@@ -317,7 +310,7 @@ export const namingSnakeCase: Rule = {
       }
 
       case 'Capture': {
-        const captureNode = node as CaptureNode;
+        const captureNode = node;
         const name = captureNode.name;
 
         if (!isSnakeCase(name)) {

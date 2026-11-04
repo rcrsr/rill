@@ -182,12 +182,9 @@ export function isEmpty(value: RillValue): boolean {
     if ('__rill_vector' in value) return false;
     // Plain dict check; other branded runtime types (callable, stream,
     // datetime, duration, etc.) return false here.
-    const proto = Object.getPrototypeOf(value);
+    const proto = Reflect.getPrototypeOf(value);
     if (proto === Object.prototype || proto === null) {
-      return (
-        Object.keys(value as Record<string, unknown>).length === 0 &&
-        typedKeyCount(value) === 0
-      );
+      return Object.keys(value).length === 0 && typedKeyCount(value) === 0;
     }
   }
   return false;
@@ -400,7 +397,7 @@ function attachStatus(base: RillValue, status: RillStatus): RillValue {
       writable: true,
       configurable: true,
     });
-    return clone as RillValue;
+    return clone;
   }
   // Plain object / branded runtime record: shallow clone, attach status
   // at the Symbol-keyed sidecar slot. Symbol properties are invisible to
@@ -415,5 +412,5 @@ function attachStatus(base: RillValue, status: RillStatus): RillValue {
     writable: true,
     configurable: true,
   });
-  return clone as RillValue;
+  return clone;
 }

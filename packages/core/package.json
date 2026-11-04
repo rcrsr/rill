@@ -34,7 +34,7 @@
     "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/ ../../README.md",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.test.json",
-    "lint": "oxlint --config ../../.oxlintrc.json src/ tests/",
+    "lint": "oxlint --config ../../.oxlintrc.json --type-aware src/ tests/",
     "docs:errors": "tsx scripts/generate-error-docs.ts",
     "docs:llms-full": "tsx scripts/generate-llms-full.ts",
     "check": "pnpm run build && pnpm run typecheck:tests && pnpm run test && pnpm run test:examples && pnpm run lint"

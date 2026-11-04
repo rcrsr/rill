@@ -12,7 +12,7 @@
  * - $str != "" (direct comparison)
  */
 
-import type { ASTNode, BinaryExprNode, StringLiteralNode } from '@rcrsr/rill';
+import type { ASTNode, BinaryExprNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -23,7 +23,7 @@ function isEmptyStringLiteral(node: ASTNode): boolean {
     return false;
   }
 
-  const stringNode = node as StringLiteralNode;
+  const stringNode = node;
 
   if (stringNode.parts.length === 0) {
     return true;

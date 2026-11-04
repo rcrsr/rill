@@ -134,15 +134,15 @@ function buildHostFunctions(): Record<BaselineHostFunctionName, RillFunction> {
       const compare = definition?.protocol.compare;
       if (compare === undefined) throw new Error('duration compare missing');
       return compare(
-        { __rill_duration: true, months: 12, ms: 0 } as unknown as RillValue,
-        { __rill_duration: true, months: 0, ms: 1000 } as unknown as RillValue
-      ) as unknown as RillValue;
+        { __rill_duration: true, months: 12, ms: 0 },
+        { __rill_duration: true, months: 0, ms: 1000 }
+      );
     }),
     delay_then_head: makeHostFunction((_args, ctx, location) => {
       const work = (async (): Promise<RillValue> => {
         await expiryFired;
         return BUILTIN_METHODS.string['head']!.fn(
-          { receiver: 5 } as unknown as Record<string, RillValue>,
+          { receiver: 5 },
           ctx,
           location
         );
@@ -277,6 +277,7 @@ function replayDirect(call: BaselineDirectCall): Promise<unknown> {
       );
     }
   }
+  throw new Error('unsupported direct call target');
 }
 
 async function captureDirect(call: BaselineDirectCall): Promise<Captured> {
@@ -341,7 +342,7 @@ function mapAtomToErrorId(atom: string): string {
 }
 
 function readHaltRaw(halt: RillValue): Record<string, unknown> {
-  return getStatus(halt).raw as Record<string, unknown>;
+  return getStatus(halt).raw;
 }
 
 /**
@@ -473,7 +474,7 @@ describe('halt migration parity', () => {
             `guard {\n${trigger.source}\n}`,
             trigger.options
           );
-          expect(guarded.threw).toBe(!entry.guardRecovers);
+          expect(guarded.threw).toBe(entry.guardRecovers !== true);
         });
       }
     });

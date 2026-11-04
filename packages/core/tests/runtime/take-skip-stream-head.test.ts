@@ -350,7 +350,7 @@ describe('take() never pulls beyond its cap (#417)', () => {
                 disposeCounter.count++;
               },
             }),
-        } as RillFunction,
+        },
       },
     });
     expect(disposeCounter.count).toBe(1);

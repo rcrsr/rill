@@ -14,6 +14,9 @@ pre-commit:
         - packages/web/**
       run: pnpm exec oxfmt {staged_files}
       stage_fixed: true
+    # Type-aware rules are not run here: they need a whole-program type check,
+    # which does not fit a staged-files hook. They run in each package's `lint`
+    # script and in CI.
     oxlint:
       priority: 2
       glob: '*.{ts,tsx}'

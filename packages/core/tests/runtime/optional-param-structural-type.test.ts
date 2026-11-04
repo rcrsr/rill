@@ -12,7 +12,6 @@ import {
   structureToTypeValue,
   type ApplicationCallable,
   type TypeStructure,
-  type RillValue,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
@@ -127,7 +126,7 @@ describe('Optional parameter structural types', () => {
         annotations: {},
       };
 
-      const result = inferStructure(fn as unknown as RillValue);
+      const result = inferStructure(fn);
       expect(result.kind).toBe('closure');
       if (isClosureStructure(result)) {
         expect(result.params).toEqual([
@@ -155,7 +154,7 @@ describe('Optional parameter structural types', () => {
         annotations: {},
       };
 
-      const result = inferStructure(fn as unknown as RillValue);
+      const result = inferStructure(fn);
       expect(result.kind).toBe('closure');
       if (isClosureStructure(result)) {
         expect(result.params![0]).toEqual({
@@ -456,7 +455,7 @@ describe('Optional parameter structural types', () => {
         annotations: {},
       };
 
-      const result = inferStructure(fn as unknown as RillValue);
+      const result = inferStructure(fn);
       expect(result.kind).toBe('closure');
       if (isClosureStructure(result)) {
         expect(result.params![0]!.annotations).toEqual({
@@ -483,7 +482,7 @@ describe('Optional parameter structural types', () => {
         annotations: {},
       };
 
-      const result = inferStructure(fn as unknown as RillValue);
+      const result = inferStructure(fn);
       expect(result.kind).toBe('closure');
       if (isClosureStructure(result)) {
         expect(result.params![0]!.annotations).toBeUndefined();

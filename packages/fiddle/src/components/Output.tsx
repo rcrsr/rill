@@ -117,7 +117,7 @@ export const Output = React.memo(function Output({
                   {error.category === 'parse' && 'Parse'}
                   {error.category === 'runtime' && 'Runtime'}
                 </span>
-                {error.errorId && (
+                {error.errorId !== null && error.errorId !== '' && (
                   <span className="output-error-id">{error.errorId}</span>
                 )}
               </div>
@@ -202,17 +202,17 @@ export const Output = React.memo(function Output({
                 </div>
               )}
 
-              {error.cause && (
+              {error.cause !== undefined && error.cause !== '' && (
                 <div className="output-error-cause">{error.cause}</div>
               )}
 
-              {error.resolution && (
+              {error.resolution !== undefined && error.resolution !== '' && (
                 <div className="output-error-resolution">
                   <strong>Fix:</strong> {error.resolution}
                 </div>
               )}
 
-              {error.helpUrl && (
+              {error.helpUrl !== undefined && error.helpUrl !== '' && (
                 <div className="output-error-help">
                   <a
                     href={error.helpUrl}

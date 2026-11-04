@@ -4,15 +4,7 @@
  * branching.
  */
 
-import type {
-  ASTNode,
-  BinaryExprNode,
-  ConditionalNode,
-  GroupedExprNode,
-  HostCallNode,
-  PipeChainNode,
-  PostfixExprNode,
-} from '@rcrsr/rill';
+import type { ASTNode, BinaryExprNode, ConditionalNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -30,19 +22,19 @@ import { registeredRules } from './rules-registry.js';
  */
 function unwrapConditionToBinary(cond: ConditionalNode): BinaryExprNode | null {
   const expr = cond.condition;
-  if (!expr) return null;
+  if (expr === null) return null;
 
   let inner: ASTNode | null = expr;
   if (inner.type === 'GroupedExpr') {
-    inner = (inner as GroupedExprNode).expression;
+    inner = inner.expression;
   }
-  if (inner && inner.type === 'PipeChain') {
-    const chain = inner as PipeChainNode;
+  if (inner.type === 'PipeChain') {
+    const chain = inner;
     if (chain.pipes.length > 0) return null;
     inner = chain.head;
   }
-  if (inner && inner.type === 'BinaryExpr') {
-    return inner as BinaryExprNode;
+  if (inner.type === 'BinaryExpr') {
+    return inner;
   }
   return null;
 }
@@ -54,11 +46,11 @@ function unwrapConditionToBinary(cond: ConditionalNode): BinaryExprNode | null {
 function operandIsNil(operand: ASTNode | null | undefined): boolean {
   if (!operand) return false;
   if (operand.type !== 'PostfixExpr') return false;
-  const postfix = operand as PostfixExprNode;
+  const postfix = operand;
   if (postfix.methods.length > 0) return false;
   const primary = postfix.primary;
   if (primary.type !== 'HostCall') return false;
-  const call = primary as HostCallNode;
+  const call = primary;
   return call.name === 'nil' && call.args.length === 0;
 }
 

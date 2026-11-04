@@ -67,7 +67,7 @@ function makeInfiniteCountingIterFn(pullCounter: {
       value: n,
       done: false,
       next: callable(() => step(n + 1)),
-    } as unknown as RillValue;
+    };
   };
   return {
     params: [],

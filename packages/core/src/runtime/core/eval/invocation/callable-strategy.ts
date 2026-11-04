@@ -90,7 +90,7 @@ export class CallableInvocationStrategy {
    * embedding `path` and `location` in the error context.
    */
   validate(target: RillCallable, path: string, location: SourceLocation): void {
-    if (!isCallable(target as RillValue)) {
+    if (!isCallable(target)) {
       throwCatchableHostHalt(
         { location, sourceId: this.getCtx().sourceId, fn: 'validate' },
         ERROR_ATOMS[ERROR_IDS.RILL_R001],
@@ -183,7 +183,7 @@ export class CallableInvocationStrategy {
       if (
         error instanceof RillError &&
         ctx.callStack.length > 0 &&
-        !error.context?.['callStack']
+        error.context?.['callStack'] === undefined
       ) {
         // Preserve extension-throw tag across the rewrap (markExtensionThrow
         // tracks identity in a WeakSet, so the new object needs re-marking).

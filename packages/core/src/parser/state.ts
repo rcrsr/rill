@@ -156,7 +156,8 @@ export function expect(
   if (check(state, type)) return advance(state);
   const token = current(state);
   const hint = generateHint(type, token);
-  const fullMessage = hint ? `${message}. ${hint}` : message;
+  const fullMessage =
+    hint !== null && hint !== '' ? `${message}. ${hint}` : message;
   throw new ParseError(errorId, fullMessage, token.span.start);
 }
 
@@ -251,7 +252,7 @@ function generateHint(expectedType: string, actualToken: Token): string | null {
       mp: 'map',
     };
     const suggestion = typoHints[value.toLowerCase()];
-    if (suggestion) {
+    if (suggestion !== undefined && suggestion !== '') {
       return `Hint: Did you mean '${suggestion}'?`;
     }
   }

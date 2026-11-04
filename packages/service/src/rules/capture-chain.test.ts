@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { parse } from '@rcrsr/rill';
-import type { ASTNode, ScriptNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import {
   getInnerStatement,
   getPrimaryFromHead,
@@ -16,7 +16,7 @@ import {
 describe('isImmediatelyChained', () => {
   it('returns true for a reference inside the immediately-following statement', () => {
     const source = 'prompt("Read file") => $raw\n$raw -> log\n';
-    const scriptNode = parse(source) as unknown as ScriptNode;
+    const scriptNode = parse(source);
     const statements: readonly ASTNode[] = scriptNode.statements;
 
     // statements[1] is `$raw -> log`; its head Variable node is the
@@ -30,7 +30,7 @@ describe('isImmediatelyChained', () => {
 
   it('returns false for a reference in a non-adjacent statement', () => {
     const source = 'prompt("Read file") => $raw\nlog("noop")\n$raw -> log\n';
-    const scriptNode = parse(source) as unknown as ScriptNode;
+    const scriptNode = parse(source);
     const statements: readonly ASTNode[] = scriptNode.statements;
 
     // statements[2] is `$raw -> log`, two statements away from the

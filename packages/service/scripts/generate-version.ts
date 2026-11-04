@@ -37,7 +37,7 @@ function main(): void {
   };
 
   // Check version field exists
-  if (!packageData.version) {
+  if (packageData.version === undefined || packageData.version === '') {
     console.error('ERROR: package.json missing version field');
     process.exit(1);
   }

@@ -246,12 +246,13 @@ describe('Rill Runtime: moduleResolver', () => {
       } catch (err) {
         expect(err).toBeInstanceOf(RillError);
         const json = formatRillErrorJson(err as RillError);
-        const parsed = JSON.parse(json);
+        const parsed = JSON.parse(json) as {
+          sourceId: string;
+          callStack: { sourceId?: string }[];
+        };
         expect(parsed.sourceId).toBe('/path/to/greet.rill');
         expect(
-          parsed.callStack.some(
-            (f: { sourceId?: string }) => f.sourceId === '/path/to/greet.rill'
-          )
+          parsed.callStack.some((f) => f.sourceId === '/path/to/greet.rill')
         ).toBe(true);
       }
     });
@@ -407,7 +408,7 @@ describe('Rill Runtime: extResolver', () => {
     it('throws RILL-R052 when extension name not in config', () => {
       expect(() => extResolver('qdrant', {})).toThrow(RuntimeError);
       try {
-        extResolver('qdrant', {});
+        void extResolver('qdrant', {});
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R052');
@@ -416,7 +417,7 @@ describe('Rill Runtime: extResolver', () => {
 
     it('EC-4: RILL-R052 message includes extension name', () => {
       try {
-        extResolver('qdrant', {});
+        void extResolver('qdrant', {});
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as Error).message).toContain(
@@ -427,7 +428,7 @@ describe('Rill Runtime: extResolver', () => {
 
     it('EC-4: throws RILL-R052 when config is omitted (empty config)', () => {
       try {
-        extResolver('missing');
+        void extResolver('missing');
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R052');
@@ -439,10 +440,7 @@ describe('Rill Runtime: extResolver', () => {
     it('throws RILL-R053 when first dot-path member not found', () => {
       const cfg = { qdrant: { search: 'ok' } };
       try {
-        extResolver(
-          'qdrant.nonexistent',
-          cfg as unknown as Record<string, RillValue>
-        );
+        void extResolver('qdrant.nonexistent', cfg);
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R053');
@@ -452,10 +450,7 @@ describe('Rill Runtime: extResolver', () => {
     it('EC-5: RILL-R053 message includes member path and extension name', () => {
       const cfg = { qdrant: { search: 'ok' } };
       try {
-        extResolver(
-          'qdrant.nonexistent',
-          cfg as unknown as Record<string, RillValue>
-        );
+        void extResolver('qdrant.nonexistent', cfg);
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as Error).message).toContain(
@@ -467,10 +462,7 @@ describe('Rill Runtime: extResolver', () => {
     it('throws RILL-R053 when nested path member not found', () => {
       const cfg = { qdrant: { filters: { range: 'ok' } } };
       try {
-        extResolver(
-          'qdrant.filters.missing',
-          cfg as unknown as Record<string, RillValue>
-        );
+        void extResolver('qdrant.filters.missing', cfg);
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R053');
@@ -491,7 +483,7 @@ describe('Rill Runtime: extResolver', () => {
 
     function expectR053(resource: string, config: Record<string, RillValue>) {
       try {
-        extResolver(resource, config);
+        void extResolver(resource, config);
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R053');
@@ -509,26 +501,26 @@ describe('Rill Runtime: extResolver', () => {
     it('traverses a plain dict shaped like an iterator', () => {
       const result = extResolver('cursor.value', {
         cursor: { done: true, next: host, value: 'v' },
-      } as unknown as Record<string, RillValue>);
+      });
       expect(result).toEqual({ kind: 'value', value: 'v' });
     });
 
     it('throws RILL-R053 when descending into a tuple', () => {
       expectR053('kb.t.entries', {
         kb: { t: createTuple([1, 2]) },
-      } as unknown as Record<string, RillValue>);
+      });
     });
 
     it('throws RILL-R053 when descending into an ordered value', () => {
       expectR053('kb.o.entries', {
         kb: { o: createOrdered([['a', 1]]) },
-      } as unknown as Record<string, RillValue>);
+      });
     });
 
     it('throws RILL-R053 when descending into a vector', () => {
       expectR053('kb.v.data', {
         kb: { v: createVector(new Float32Array(2), 'm') },
-      } as unknown as Record<string, RillValue>);
+      });
     });
 
     it('returns the configured callable itself as the final segment', async () => {
@@ -540,7 +532,7 @@ describe('Rill Runtime: extResolver', () => {
     it('still traverses a nested plain dict', () => {
       const result = extResolver('kb.a.b', {
         kb: { a: { b: 'deep' } },
-      } as unknown as Record<string, RillValue>);
+      });
       expect(result).toEqual({ kind: 'value', value: 'deep' });
     });
   });

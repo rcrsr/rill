@@ -170,7 +170,9 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
       const ctx = createRuntimeContext({
         callbacks: {
           onLog: () => {},
-          onLogEvent: (ev) => events.push(ev),
+          onLogEvent: (ev) => {
+            events.push(ev);
+          },
         },
       });
 
@@ -206,7 +208,9 @@ describe('RuntimeContext.dispose (IR-13, FR-ERR-24)', () => {
       const logs: string[] = [];
       const ctx = createRuntimeContext({
         callbacks: {
-          onLog: (msg) => logs.push(msg),
+          onLog: (msg) => {
+            logs.push(msg);
+          },
         },
       });
 

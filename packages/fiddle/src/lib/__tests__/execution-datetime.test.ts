@@ -18,11 +18,11 @@ describe('executeRill datetime/duration envelope', () => {
     expect(result.status).toBe('success');
     expect(result.error).toBe(null);
 
-    const parsed = JSON.parse(result.result!);
-    expect(parsed.rillTypeName).toBe('datetime');
     // 2026-03-13T08:00:00Z = 1773388800000 ms since epoch
-    expect(parsed.value.unix).toBe(1773388800000);
-    expect(parsed.value.iso).toBe('2026-03-13T08:00:00.000Z');
+    expect(JSON.parse(result.result!)).toMatchObject({
+      rillTypeName: 'datetime',
+      value: { unix: 1773388800000, iso: '2026-03-13T08:00:00.000Z' },
+    });
   });
 
   it('serializes a duration with its rillTypeName, months, and ms fields', async () => {
@@ -32,10 +32,10 @@ describe('executeRill datetime/duration envelope', () => {
     expect(result.status).toBe('success');
     expect(result.error).toBe(null);
 
-    const parsed = JSON.parse(result.result!);
-    expect(parsed.rillTypeName).toBe('duration');
-    expect(parsed.value.months).toBe(0);
-    expect(parsed.value.ms).toBe(7_200_000);
+    expect(JSON.parse(result.result!)).toMatchObject({
+      rillTypeName: 'duration',
+      value: { months: 0, ms: 7_200_000 },
+    });
   });
 
   it('converts an invalid datetime component to a runtime FiddleError', async () => {

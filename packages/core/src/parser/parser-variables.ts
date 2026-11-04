@@ -230,9 +230,10 @@ Parser.prototype.parseFieldAccessElement = function (
   // Handle .$variable (variable key access)
   if (check(this.state, TOKEN_TYPES.DOLLAR)) {
     advance(this.state);
-    const errorMsg = isExistenceCheck
-      ? 'Expected variable name after .?$'
-      : 'Expected variable name after .$';
+    const errorMsg =
+      isExistenceCheck === true
+        ? 'Expected variable name after .?$'
+        : 'Expected variable name after .$';
     const nameToken = expectVariableName(this.state, errorMsg);
     return {
       kind: 'variable',
@@ -290,7 +291,7 @@ Parser.prototype.parseComputedOrAlternatives = function (
   advance(this.state);
 
   // For existence checks, only parse computed expressions, not alternatives
-  if (!isExistenceCheck) {
+  if (isExistenceCheck !== true) {
     const alternatives = this.tryParseAlternatives();
     if (alternatives) {
       expect(

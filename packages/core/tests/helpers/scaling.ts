@@ -8,7 +8,7 @@
  */
 
 async function timeOnce(
-  runAt: (n: number) => unknown | Promise<unknown>,
+  runAt: (n: number) => unknown,
   n: number
 ): Promise<number> {
   const start = performance.now();
@@ -27,7 +27,7 @@ async function timeOnce(
  * blocks move the ratio past its bound under a parallel test run.
  */
 export async function scalingRatio(
-  runAt: (n: number) => unknown | Promise<unknown>,
+  runAt: (n: number) => unknown,
   small: number,
   large: number,
   repeats: number

@@ -45,7 +45,7 @@ async function execInContext(
 
 // Helper: build a typed callable from a RillFunction definition
 function typedCallable(def: RillFunction): RillValue {
-  return toCallable(def) as unknown as RillValue;
+  return toCallable(def);
 }
 
 describe('createTestContext', () => {
@@ -68,7 +68,7 @@ describe('createTestContext', () => {
         myext: {
           value: {
             greet: greetFn,
-          } as RillValue,
+          },
         },
       });
 
@@ -83,7 +83,7 @@ describe('createTestContext', () => {
         myext: {
           value: {
             version: '1.2.3',
-          } as RillValue,
+          },
         },
       });
 
@@ -98,7 +98,7 @@ describe('createTestContext', () => {
         myext: {
           value: {
             items: ['a', 'b', 'c'],
-          } as RillValue,
+          },
         },
       });
 
@@ -115,7 +115,7 @@ describe('createTestContext', () => {
         myext: {
           value: {
             args: tuple,
-          } as RillValue,
+          },
         },
       });
 
@@ -128,7 +128,7 @@ describe('createTestContext', () => {
     it('creates context from extension with empty dict value', async () => {
       const ctx = createTestContext({
         myext: {
-          value: {} as RillValue,
+          value: {},
         },
       });
 
@@ -149,7 +149,7 @@ describe('createTestContext', () => {
                 level3: 'deep-value',
               },
             },
-          } as RillValue,
+          },
         },
       });
 
@@ -175,7 +175,7 @@ describe('createTestContext', () => {
                 run: deepFn,
               },
             },
-          } as RillValue,
+          },
         },
       });
 
@@ -203,7 +203,7 @@ describe('createTestContext', () => {
           value: {
             dispose: disposeFn,
             run: runFn,
-          } as RillValue,
+          },
           dispose: () => {
             lifecycleDisposed = true;
           },
@@ -323,7 +323,7 @@ describe('createTestContext', () => {
       expect(() =>
         createTestContext({
           broken: {
-            value: untypedCallable as RillValue,
+            value: untypedCallable,
           },
         })
       ).not.toThrow();
@@ -351,7 +351,7 @@ describe('AC-15: traversal into scalar extension value throws RILL-R053', () => 
   it('throws RILL-R053 when dot-path traverses into a string value', async () => {
     const ctx = createTestContext({
       myext: {
-        value: 'just-a-string' as RillValue,
+        value: 'just-a-string',
       },
     });
 
@@ -364,7 +364,7 @@ describe('AC-15: traversal into scalar extension value throws RILL-R053', () => 
   it('throws RILL-R053 when dot-path traverses into a number value', async () => {
     const ctx = createTestContext({
       myext: {
-        value: 42 as RillValue,
+        value: 42,
       },
     });
 
@@ -377,7 +377,7 @@ describe('AC-15: traversal into scalar extension value throws RILL-R053', () => 
   it('error is wrapped as RILL-R056 by the use<> resolver', async () => {
     const ctx = createTestContext({
       myext: {
-        value: 'scalar' as RillValue,
+        value: 'scalar',
       },
     });
 
@@ -434,7 +434,7 @@ describe('AC-17: traversal into missing dict property throws RILL-R053', () => {
       myext: {
         value: {
           existing: 'value',
-        } as RillValue,
+        },
       },
     });
 
@@ -449,7 +449,7 @@ describe('AC-17: traversal into missing dict property throws RILL-R053', () => {
       myext: {
         value: {
           existing: 'value',
-        } as RillValue,
+        },
       },
     });
 
@@ -468,7 +468,7 @@ describe('AC-17: traversal into missing dict property throws RILL-R053', () => {
           level1: {
             level2: 'leaf',
           },
-        } as RillValue,
+        },
       },
     });
 
@@ -486,12 +486,12 @@ describe('AC-17: traversal into missing dict property throws RILL-R053', () => {
 describe('AC-5: extension dict mutation reflected in subsequent resolution', () => {
   it('returns updated value after dict property mutation', async () => {
     const extDict: Record<string, RillValue> = {
-      version: '1.0.0' as RillValue,
+      version: '1.0.0',
     };
 
     const ctx = createTestContext({
       myext: {
-        value: extDict as RillValue,
+        value: extDict,
       },
     });
 
@@ -509,12 +509,12 @@ describe('AC-5: extension dict mutation reflected in subsequent resolution', () 
 
   it('returns new property added after initial registration', async () => {
     const extDict: Record<string, RillValue> = {
-      original: 'yes' as RillValue,
+      original: 'yes',
     };
 
     const ctx = createTestContext({
       myext: {
-        value: extDict as RillValue,
+        value: extDict,
       },
     });
 
@@ -574,7 +574,7 @@ describe('AC-1: nested dict with closures at all leaves resolves via use<ext:>',
             upsert: upsertFn,
             delete: deleteFn,
           },
-        } as RillValue,
+        },
       },
     });
 
@@ -612,7 +612,7 @@ describe('AC-1: nested dict with closures at all leaves resolves via use<ext:>',
             timeout: 5000,
             run: runFn,
           },
-        } as RillValue,
+        },
       },
     });
 

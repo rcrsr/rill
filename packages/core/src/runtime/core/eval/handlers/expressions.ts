@@ -26,6 +26,7 @@ import type {
 } from '../../../../types.js';
 import {
   throwCatchableHostHalt,
+  throwFatalHostHalt,
   RuntimeHaltSignal,
   enrichHaltOriginLocation,
 } from '../../types/halt.js';
@@ -380,6 +381,15 @@ function evaluateBinaryComparison(
     case '>=':
       return cmp >= 0;
   }
+  return throwFatalHostHalt(
+    {
+      location: node.span.start,
+      sourceId: s.ctx.sourceId,
+      fn: 'evaluateBinaryComparison',
+    },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unsupported comparison operator'
+  );
 }
 
 /**
@@ -453,6 +463,11 @@ function evaluateExprHead(s: EvalState, node: ArithHead): Promise<RillValue> {
     case 'PostfixExpr':
       return evaluatePostfixExpr(s, node);
   }
+  return throwFatalHostHalt(
+    { sourceId: s.ctx.sourceId, fn: 'evaluateExprHead' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unsupported expression head'
+  );
 }
 
 /**

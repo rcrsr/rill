@@ -15,12 +15,7 @@
  *   [1, 2, 3] -> acc(0) { $@ + 1 }              # returns [1, 2, 3]
  */
 
-import type {
-  ASTNode,
-  ClosureNode,
-  DoWhileLoopNode,
-  WhileLoopNode,
-} from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -42,15 +37,11 @@ export const loopOuterCapture: Rule = {
     let body: ASTNode | null = null;
     if (isCollectionOpCall(node)) {
       const arg = getCollectionOpBody(node);
-      body = arg
-        ? arg.type === 'Closure'
-          ? (arg as ClosureNode).body
-          : arg
-        : null;
+      body = arg ? (arg.type === 'Closure' ? arg.body : arg) : null;
     } else if (node.type === 'WhileLoop') {
-      body = (node as WhileLoopNode).body;
+      body = node.body;
     } else if (node.type === 'DoWhileLoop') {
-      body = (node as DoWhileLoopNode).body;
+      body = node.body;
     }
 
     if (!body) return diagnostics;

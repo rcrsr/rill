@@ -123,7 +123,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
 
       // Return type of suspend() must be unknown
       const suspendFn: (() => unknown) | undefined = ext.suspend;
-      expectTypeOf(suspendFn!).returns.toBeUnknown();
+      expectTypeOf(suspendFn).returns.toBeUnknown();
     });
 
     it('suspend can return any value because return type is unknown', () => {
@@ -167,7 +167,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
 
       // Parameter type of restore must be unknown
       const restoreFn: ((state: unknown) => void) | undefined = ext.restore;
-      expectTypeOf(restoreFn!).parameter(0).toBeUnknown();
+      expectTypeOf(restoreFn).parameter(0).toBeUnknown();
     });
 
     it('restore implementation may narrow the unknown state internally', () => {
@@ -184,7 +184,7 @@ describe('Rill Runtime: ExtensionFactoryResult Suspend/Restore Type Contract', (
         },
       } satisfies ExtensionFactoryResult;
 
-      expectTypeOf(ext.restore!).parameter(0).toBeUnknown();
+      expectTypeOf(ext.restore).parameter(0).toBeUnknown();
     });
   });
 });

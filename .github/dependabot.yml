@@ -30,6 +30,8 @@ updates:
         patterns:
           - 'oxlint'
           - 'oxfmt'
+          # Optional peer of oxlint; the two must move together.
+          - 'oxlint-tsgolint'
       typescript:
         patterns:
           - 'typescript'

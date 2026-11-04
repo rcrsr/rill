@@ -90,6 +90,74 @@
     "unicorn/explicit-length-check": "error",
     "unicorn/prefer-string-slice": "error",
 
+    // Type-aware rules. These run through oxlint-tsgolint and only fire when
+    // oxlint is given --type-aware; without the flag they are inert and
+    // report nothing, so the package `lint` scripts for core, service and
+    // fiddle pass it. packages/dev is untyped CommonJS and stays without it.
+    // The flag ignores --tsconfig and discovers the nearest tsconfig.json per
+    // file, which is why each tests/ tree carries its own tsconfig.json.
+    // Pre-commit does not run them (see lefthook.yml).
+    //
+    // Two options are decided rather than defaulted:
+    // - typescript/return-await uses "error-handling-correctness-only". The
+    //   default "in-try-catch" demands `return await` inside try blocks and
+    //   conflicts with the `return await` that the require-await fixes added.
+    //   The spelling is load-bearing: an invalid enum value panics tsgolint.
+    // - typescript/switch-exhaustiveness-check sets
+    //   considerDefaultExhaustiveForUnions, so a `default` counts as covering
+    //   a union switch. allowDefaultCaseForExhaustiveSwitch stays at its
+    //   default. The array form keeps the severity readable as "error".
+    //
+    // Outcome per rule at enablement, as "fixed A, disabled inline B, exempt
+    // C". Exempt sites sit in the locked tests/language arbiter, which the lock
+    // forbids editing, or in a tests override below.
+    // - no-unnecessary-type-assertion: fixed 445, disabled inline 0, exempt 24
+    // - strict-boolean-expressions: fixed 105, disabled inline 0, exempt 24
+    // - consistent-return: fixed 41, disabled inline 0, exempt 0
+    // - strict-void-return: fixed 68, disabled inline 0, exempt 0
+    // - return-await: fixed 4, disabled inline 0, exempt 0
+    // - unbound-method: fixed 24, disabled inline 0, exempt 0
+    // - no-base-to-string: fixed 12, disabled inline 2, exempt 108 (87 in
+    //   tests, 21 in the arbiter). The two inline disables are in
+    //   error-registry.ts (template context values are arbitrary host data)
+    //   and types/registrations.ts (the fallback only sees primitives or
+    //   values with a registered protocol); each carries its reason.
+    // - switch-exhaustiveness-check: fixed 2, disabled inline 0, exempt 0
+    // - no-floating-promises: fixed 19, disabled inline 0, exempt 0
+    // - no-unsafe-member-access: fixed 36, disabled inline 0, exempt 230
+    // - no-unsafe-assignment: fixed 40, disabled inline 0, exempt 112
+    // - no-unsafe-call: fixed 3, disabled inline 0, exempt 0
+    // - no-unsafe-return: fixed 2, disabled inline 0, exempt 1
+    // - no-unsafe-argument: fixed 2, disabled inline 0, exempt 0
+    //
+    // Five more typescript rules fire under --type-aware because they sit in
+    // the `correctness` category set to error above. They are driven by the
+    // category and deliberately not listed in `rules`, so the shared baseline
+    // does not bind consumers to rules measured only here. Same outcome form:
+    // - restrict-template-expressions: fixed 1, disabled inline 0, exempt 91
+    //   (75 in tests, 16 in the arbiter)
+    // - no-redundant-type-constituents: fixed 3, disabled inline 0, exempt 7
+    // - no-duplicate-type-constituents: fixed 3, disabled inline 0, exempt 0
+    // - no-misused-spread: fixed 7, disabled inline 0, exempt 0
+    // - require-array-sort-compare: fixed 1, disabled inline 0, exempt 0
+    "typescript/no-unnecessary-type-assertion": "error",
+    "typescript/strict-boolean-expressions": "error",
+    "typescript/consistent-return": "error",
+    "typescript/strict-void-return": "error",
+    "typescript/return-await": ["error", "error-handling-correctness-only"],
+    "typescript/unbound-method": "error",
+    "typescript/no-base-to-string": "error",
+    "typescript/switch-exhaustiveness-check": [
+      "error",
+      { "considerDefaultExhaustiveForUnions": true }
+    ],
+    "typescript/no-floating-promises": "error",
+    "typescript/no-unsafe-member-access": "error",
+    "typescript/no-unsafe-assignment": "error",
+    "typescript/no-unsafe-call": "error",
+    "typescript/no-unsafe-return": "error",
+    "typescript/no-unsafe-argument": "error",
+
     // These four ship in their plugin's `correctness` category, so loading the
     // plugin above turns them on against the `categories` setting. Each is
     // switched off deliberately rather than by omission. Counts are measured on
@@ -208,13 +276,32 @@
       // unicorn/prefer-string-slice (7), unicorn/no-useless-undefined (5) and
       // unicorn/prefer-at (4). The other four Tier 1 rules report 0 here and
       // stay on.
+      //
+      // It also exempts five type-aware rules, for the same reason: the lock
+      // forbids edits that would clear them. Measured inside the arbiter:
+      // typescript/no-unsafe-member-access (230),
+      // typescript/no-unsafe-assignment (112),
+      // typescript/no-unnecessary-type-assertion (24),
+      // typescript/strict-boolean-expressions (24) and
+      // typescript/no-unsafe-return (1), plus two category-driven rules:
+      // typescript/restrict-template-expressions (16) and
+      // typescript/no-redundant-type-constituents (7).
+      // typescript/no-base-to-string (21) is off for all tests by the tests
+      // override below.
       "files": ["**/tests/language/**/*.ts"],
       "rules": {
         "typescript/no-explicit-any": "off",
         "require-await": "off",
         "unicorn/prefer-string-slice": "off",
         "unicorn/no-useless-undefined": "off",
-        "unicorn/prefer-at": "off"
+        "unicorn/prefer-at": "off",
+        "typescript/no-unsafe-member-access": "off",
+        "typescript/no-unsafe-assignment": "off",
+        "typescript/no-unnecessary-type-assertion": "off",
+        "typescript/strict-boolean-expressions": "off",
+        "typescript/no-unsafe-return": "off",
+        "typescript/restrict-template-expressions": "off",
+        "typescript/no-redundant-type-constituents": "off"
       }
     },
     {
@@ -383,7 +470,14 @@
       // locked, so the length cap applies to shipped source only.
       "files": ["**/tests/**", "**/__tests__/**"],
       "rules": {
-        "max-lines": "off"
+        "max-lines": "off",
+        // 108 hits across tests (87 outside the arbiter, 21 inside) for
+        // no-base-to-string, and 75 outside the arbiter for
+        // restrict-template-expressions. Fixtures interpolate rill values whose
+        // runtime type the declared rill param fixes, and the only mechanical
+        // fix is a cast.
+        "typescript/no-base-to-string": "off",
+        "typescript/restrict-template-expressions": "off"
       }
     },
     {

@@ -9,12 +9,7 @@
  * omission here.
  */
 
-import type {
-  ASTNode,
-  BracketAccess,
-  PostfixExprNode,
-  VariableNode,
-} from '@rcrsr/rill';
+import type { ASTNode, PostfixExprNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import {
   extractContextLine,
@@ -39,14 +34,14 @@ export const spacingBrackets: Rule = {
       return diagnostics;
     }
 
-    const variableNode = postfixNode.primary as VariableNode;
+    const variableNode = postfixNode.primary;
 
     for (const access of variableNode.accessChain) {
       if (!('accessKind' in access) || access.accessKind !== 'bracket') {
         continue;
       }
 
-      const bracketAccess = access as BracketAccess;
+      const bracketAccess = access;
 
       if (!isValidSpan(bracketAccess.span)) {
         continue;

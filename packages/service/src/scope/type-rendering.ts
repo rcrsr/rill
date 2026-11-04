@@ -36,4 +36,5 @@ export function typeRefToString(ref: TypeRef | null): string {
     case 'union':
       return ref.members.map(typeRefToString).join(' | ');
   }
+  throw new Error('unreachable: unhandled type reference kind');
 }

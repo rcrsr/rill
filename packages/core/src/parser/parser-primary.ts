@@ -181,8 +181,20 @@ export const postfixDispatchTable: Record<
   string,
   (this: Parser, loopState: PostfixLoopState, start: SourceLocation) => void
 > = {
-  [TOKEN_TYPES.DOT_BANG]: Parser.prototype.parsePostfixDotBang,
-  [TOKEN_TYPES.COLON]: Parser.prototype.parsePostfixColon,
+  [TOKEN_TYPES.DOT_BANG]: function (
+    this: Parser,
+    loopState: PostfixLoopState,
+    start: SourceLocation
+  ): void {
+    this.parsePostfixDotBang(loopState, start);
+  },
+  [TOKEN_TYPES.COLON]: function (
+    this: Parser,
+    loopState: PostfixLoopState,
+    start: SourceLocation
+  ): void {
+    this.parsePostfixColon(loopState, start);
+  },
   [TOKEN_TYPES.LPAREN]: function (
     this: Parser,
     loopState: PostfixLoopState

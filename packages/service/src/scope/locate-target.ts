@@ -299,6 +299,7 @@ function accessDescription(access: PropertyAccess): string {
     case 'annotation':
       return `annotation \`^${access.key}\``;
   }
+  throw new Error('unreachable: unhandled property access kind');
 }
 
 function isBracketAccess(access: PropertyAccess): access is BracketAccess {

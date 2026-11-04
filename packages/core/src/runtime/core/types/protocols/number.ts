@@ -16,7 +16,7 @@ import { throwFatalHostHalt } from '../halt.js';
 // ============================================================
 
 function formatNumber(v: RillValue): string {
-  return String(v as number);
+  return String(Number(v));
 }
 
 // ============================================================
@@ -47,13 +47,13 @@ function compareNumber(a: RillValue, b: RillValue): number {
 // ============================================================
 
 const numberConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue => String(v as number),
+  string: (v: RillValue): RillValue => String(Number(v)),
   bool: (v: RillValue): RillValue => {
     const n = v as number;
     if (n === 0) return false;
     if (n === 1) return true;
     const message = `cannot convert number ${n} to bool`;
-    throwFatalHostHalt(
+    return throwFatalHostHalt(
       { fn: 'number-to-bool', preserveHostShape: true },
       ERROR_ATOMS[ERROR_IDS.RILL_R066],
       message

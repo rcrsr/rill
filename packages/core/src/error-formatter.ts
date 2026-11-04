@@ -145,10 +145,9 @@ export function formatRillError(
 
   // -- Primary location ------------------------------------------------------
   // Cross-module source text for snippet rendering (stored on error context)
+  const rawSourceText = data.context?.['sourceText'];
   const crossModuleSource =
-    data.context?.['sourceText'] !== undefined
-      ? String(data.context['sourceText'])
-      : undefined;
+    typeof rawSourceText === 'string' ? rawSourceText : undefined;
 
   // Resolve which source map (and label override) applies, if any, before
   // branching into the shared snippet-rendering block below.
@@ -325,7 +324,13 @@ function appendCallStack(
     if (!data.location) return true;
     const loc = frame.location.start;
     // Frames from a different source never duplicate the primary location
-    if (frame.sourceId && frame.sourceId !== data.sourceId) return true;
+    if (
+      frame.sourceId !== undefined &&
+      frame.sourceId !== '' &&
+      frame.sourceId !== data.sourceId
+    ) {
+      return true;
+    }
     return (
       loc.line !== data.location.line || loc.column !== data.location.column
     );
@@ -350,7 +355,7 @@ function appendCallStack(
       const loc = frame.location.start;
       const frameFile =
         frame.sourceId ?? (isCrossModule ? filePath : undefined);
-      if (!frame.sourceId) {
+      if (frame.sourceId === undefined || frame.sourceId === '') {
         // Frame from the root script — try to show source snippet
         const snippet = resolveSourceSnippet(
           { line: loc.line, column: loc.column },
@@ -359,7 +364,7 @@ function appendCallStack(
         );
         if (snippet.sourceLine !== undefined) {
           // Show file:line:col label before snippet for cross-module errors
-          if (frameFile) {
+          if (frameFile !== undefined && frameFile !== '') {
             parts.push(`  ${frameFile}:${loc.line}:${loc.column}`);
           }
           parts.push(
@@ -373,7 +378,7 @@ function appendCallStack(
         } else {
           const name =
             frame.functionName !== undefined ? ` in ${frame.functionName}` : '';
-          if (frameFile) {
+          if (frameFile !== undefined && frameFile !== '') {
             parts.push(`  at ${frameFile}:${loc.line}:${loc.column}${name}`);
           } else {
             parts.push(`  at ${loc.line}:${loc.column}${name}`);
@@ -394,7 +399,7 @@ function appendCallStack(
       const frameLabel = frame.sourceId;
       const name =
         frame.functionName !== undefined ? ` in ${frame.functionName}` : '';
-      if (frameLabel) {
+      if (frameLabel !== undefined && frameLabel !== '') {
         parts.push(`  at ${frameLabel}:${loc.line}:${loc.column}${name}`);
       } else {
         parts.push(`  at ${loc.line}:${loc.column}${name}`);

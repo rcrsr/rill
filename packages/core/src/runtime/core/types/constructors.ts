@@ -110,8 +110,7 @@ export function createRillStream(options: {
   if (
     chunks === null ||
     chunks === undefined ||
-    typeof (chunks as AsyncIterable<RillValue>)[Symbol.asyncIterator] !==
-      'function'
+    typeof chunks[Symbol.asyncIterator] !== 'function'
   ) {
     throw new RuntimeError(
       ERROR_IDS.RILL_R003,
@@ -144,7 +143,7 @@ export function createRillStream(options: {
   function makeStep(
     iterResult: IteratorResult<RillValue, undefined>
   ): RillStream {
-    if (iterResult.done) {
+    if (iterResult.done === true) {
       exhausted = true;
       if (!disposed && dispose) {
         disposed = true;
@@ -281,7 +280,7 @@ export function copyValue(value: RillValue): RillValue {
   )
     return value;
   // Mutable list (Array but not tuple/ordered — those were checked above)
-  if (Array.isArray(value)) return (value as RillValue[]).map(copyValue);
+  if (Array.isArray(value)) return value.map(copyValue);
   // Iterator: mutable but opaque — return same reference
   if (isIterator(value)) return value;
   // Stream: immutable — return same reference

@@ -43,7 +43,7 @@ describe('marshalArgs', () => {
   ): RillParam {
     return {
       name,
-      type: type as RillParam['type'],
+      type: type,
       defaultValue: defaultValue as RillParam['defaultValue'],
       annotations: {},
     };

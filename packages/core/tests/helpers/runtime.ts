@@ -178,12 +178,24 @@ export function createEventCollector(): {
   };
 
   const callbacks: ObservabilityCallbacks = {
-    onStepStart: (e) => events.stepStart.push(e),
-    onStepEnd: (e) => events.stepEnd.push(e),
-    onHostCall: (e) => events.hostCall.push(e),
-    onFunctionReturn: (e) => events.functionReturn.push(e),
-    onCapture: (e) => events.capture.push(e),
-    onError: (e) => events.error.push(e),
+    onStepStart: (e) => {
+      events.stepStart.push(e);
+    },
+    onStepEnd: (e) => {
+      events.stepEnd.push(e);
+    },
+    onHostCall: (e) => {
+      events.hostCall.push(e);
+    },
+    onFunctionReturn: (e) => {
+      events.functionReturn.push(e);
+    },
+    onCapture: (e) => {
+      events.capture.push(e);
+    },
+    onError: (e) => {
+      events.error.push(e);
+    },
   };
 
   return { events, callbacks };
@@ -198,7 +210,9 @@ export function createLogCollector(): {
   return {
     logs,
     callbacks: {
-      onLog: (message: string) => logs.push(message),
+      onLog: (message: string) => {
+        logs.push(message);
+      },
     },
   };
 }

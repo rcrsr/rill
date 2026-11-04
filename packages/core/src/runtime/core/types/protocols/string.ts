@@ -85,7 +85,7 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     if (s === 'true') return true;
     if (s === 'false') return false;
     const message = `cannot convert string "${s}" to bool`;
-    throwFatalHostHalt(
+    return throwFatalHostHalt(
       { fn: 'string-to-bool', preserveHostShape: true },
       ERROR_ATOMS[ERROR_IDS.RILL_R065],
       message

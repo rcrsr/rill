@@ -9,7 +9,7 @@
  * are less common there.)
  */
 
-import type { ASTNode, ClosureNode, HostCallNode } from '@rcrsr/rill';
+import type { ASTNode, HostCallNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -33,7 +33,7 @@ export const closureLateBinding: Rule = {
     const arg = getCollectionOpBody(opCall);
     if (!arg) return [];
 
-    const innerBody = arg.type === 'Closure' ? (arg as ClosureNode).body : arg;
+    const innerBody = arg.type === 'Closure' ? arg.body : arg;
 
     const hasClosureCreation =
       context.facts.bySubtree.get(innerBody)?.hasClosure === true;

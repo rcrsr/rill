@@ -21,7 +21,7 @@ const DENY_UNIDENTIFIED: Filter = Object.freeze({
   access: 'deny',
   inTransforms: Object.freeze([]),
   outTransforms: Object.freeze([]),
-}) as Filter;
+});
 
 /**
  * Build a filter resolver over a resolved policy.

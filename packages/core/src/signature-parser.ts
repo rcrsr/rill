@@ -69,7 +69,7 @@ function staticTypeRefToTypeStructure(
   const { typeName, args } = typeRef;
 
   if (!args || args.length === 0) {
-    return { kind: typeName } as TypeStructure;
+    return { kind: typeName };
   }
 
   // Parameterized types

@@ -10,7 +10,6 @@ import type {
   BodyNode,
   ConditionalNode,
   PipeChainNode,
-  PostfixExprNode,
 } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
@@ -44,7 +43,7 @@ function getPrimaryFromHead(chain: PipeChainNode): ASTNode | null {
   const head = chain.head;
 
   if (head.type === 'PostfixExpr') {
-    return (head as PostfixExprNode).primary;
+    return head.primary;
   }
 
   return null;
@@ -88,7 +87,7 @@ export const captureBeforeBranch: Rule = {
     );
     const elseBranch = conditional.elseBranch;
     const elseReferences =
-      elseBranch && elseBranch.type !== 'Conditional'
+      elseBranch !== null && elseBranch.type !== 'Conditional'
         ? referencesBareDollar(context, elseBranch)
         : false;
 

@@ -16,7 +16,7 @@ function transform(tag: string): RillValue {
       { name: '0', type: undefined, defaultValue: undefined, annotations: {} },
     ],
     returnType: anyTypeValue,
-  }) as unknown as RillValue;
+  });
 }
 
 function mockExtensions(): Map<string, RillValue> {
@@ -24,7 +24,7 @@ function mockExtensions(): Map<string, RillValue> {
     sanitize: transform('sanitized'),
     sanitize_for_prompt: transform('prompt_safe'),
     version: '1.0',
-  } as unknown as RillValue;
+  };
 
   return new Map<string, RillValue>([['filter', filterExt]]);
 }
@@ -134,9 +134,7 @@ describe('resolvePolicy', () => {
   });
 
   it('rejects a transform reference into a non-dict extension', () => {
-    const extensions = new Map<string, RillValue>([
-      ['list_ext', [1, 2, 3] as unknown as RillValue],
-    ]);
+    const extensions = new Map<string, RillValue>([['list_ext', [1, 2, 3]]]);
     expect(() =>
       resolvePolicy(
         { kb: { search: { access: 'allow', out: ['list_ext.sanitize'] } } },

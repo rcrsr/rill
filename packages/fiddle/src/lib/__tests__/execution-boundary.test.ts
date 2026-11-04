@@ -134,14 +134,14 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         expect(result.status).toBe('success');
-        const parsed = JSON.parse(result.result!);
-        expect(parsed.rillTypeName).toBe('list');
-        let node = parsed.value;
-        for (let i = 1; i < depth; i++) {
-          expect(node).toHaveLength(1);
-          node = node[0];
+        let expected: unknown = 42;
+        for (let i = 0; i < depth; i++) {
+          expected = [expected];
         }
-        expect(node).toEqual([42]);
+        expect(JSON.parse(result.result!)).toMatchObject({
+          rillTypeName: 'list',
+          value: expected,
+        });
       }, 10000);
 
       it('evaluates deeply nested dicts', async () => {
@@ -156,13 +156,14 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         expect(result.status).toBe('success');
-        const parsed = JSON.parse(result.result!);
-        expect(parsed.rillTypeName).toBe('dict');
-        let node = parsed.value;
-        for (let i = 1; i < depth; i++) {
-          node = node.x;
+        let expected: unknown = 42;
+        for (let i = 0; i < depth; i++) {
+          expected = { x: expected };
         }
-        expect(node).toEqual({ x: 42 });
+        expect(JSON.parse(result.result!)).toMatchObject({
+          rillTypeName: 'dict',
+          value: expected,
+        });
       }, 10000);
     });
 
@@ -225,12 +226,12 @@ describe('executeRill', () => {
       });
 
       it('resolves to a timeout error state and terminates the worker when it never replies', async () => {
-        const terminate = vi.fn();
+        const terminate = vi.fn<RunnerWorker['terminate']>();
         const mockWorker: RunnerWorker = {
-          postMessage: vi.fn(),
+          postMessage: vi.fn<RunnerWorker['postMessage']>(),
           terminate,
-          addEventListener: vi.fn(),
-          removeEventListener: vi.fn(),
+          addEventListener: vi.fn<RunnerWorker['addEventListener']>(),
+          removeEventListener: vi.fn<RunnerWorker['removeEventListener']>(),
         };
 
         const { promise } = runInWorker('42', () => mockWorker, 10);
@@ -244,7 +245,7 @@ describe('executeRill', () => {
       });
 
       it('resolves with the posted ExecutionState and terminates the worker on reply', async () => {
-        const terminate = vi.fn();
+        const terminate = vi.fn<RunnerWorker['terminate']>();
         const postedState: ExecutionState = {
           status: 'success',
           result: '42',
@@ -257,16 +258,18 @@ describe('executeRill', () => {
           | ((event: MessageEvent<ExecutionState>) => void)
           | undefined;
         const mockWorker: RunnerWorker = {
-          postMessage: vi.fn(() => {
+          postMessage: vi.fn<RunnerWorker['postMessage']>(() => {
             messageListener?.({
               data: postedState,
             } as MessageEvent<ExecutionState>);
           }),
           terminate,
-          addEventListener: vi.fn((_type, listener) => {
-            messageListener = listener;
-          }),
-          removeEventListener: vi.fn(),
+          addEventListener: vi.fn<RunnerWorker['addEventListener']>(
+            (_type, listener) => {
+              messageListener = listener;
+            }
+          ),
+          removeEventListener: vi.fn<RunnerWorker['removeEventListener']>(),
         };
 
         const { promise } = runInWorker('42', () => mockWorker, 5000);
@@ -416,14 +419,14 @@ describe('executeRill', () => {
         const result = await executeRill(source);
 
         expect(result.status).toBe('success');
-        const parsed = JSON.parse(result.result!);
-        expect(parsed.rillTypeName).toBe('list');
-        let node = parsed.value;
-        for (let i = 1; i < depth; i++) {
-          expect(node).toHaveLength(1);
-          node = node[0];
+        let expected: unknown = [];
+        for (let i = 0; i < depth; i++) {
+          expected = [expected];
         }
-        expect(node).toEqual([[]]);
+        expect(JSON.parse(result.result!)).toMatchObject({
+          rillTypeName: 'list',
+          value: expected,
+        });
       }, 10000);
 
       it('handles large strings in source', async () => {

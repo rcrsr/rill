@@ -16,7 +16,6 @@ import {
   callable,
   type ApplicationCallable,
   type RillFunction,
-  type RillParam,
 } from './callable.js';
 
 // Parsed once at registration time, not per context creation.
@@ -41,7 +40,7 @@ export function registerBuiltinFunctions(
     }
     BUILTIN_FN_CACHE.set(name, {
       ...appCallable,
-      params: entry.params as RillParam[],
+      params: entry.params,
       returnType: entry.returnType,
     });
   }

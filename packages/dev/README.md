@@ -88,6 +88,12 @@ pnpm add -D @rcrsr/rill-dev
    `RuntimeError` construction, so in practice it applies to `rill` alone;
    leaving it off elsewhere is a recorded decision, not a gap.
 
+   `baseline.json` also carries type-aware rules (the `typescript/*` rules that
+   need type information). They are inert unless `oxlint-tsgolint` is
+   installed and the `lint` script passes `--type-aware`, and each linted tree
+   needs a governing `tsconfig.json`; a tree without one is linted under the
+   backend's defaults, which lack `noUncheckedIndexedAccess`.
+
 2. **Wire up the two binaries** in the root `package.json`, and call
    `check:standards` from the root `check` script:
 

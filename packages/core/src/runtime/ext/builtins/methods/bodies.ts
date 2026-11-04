@@ -70,11 +70,11 @@ export const mLen: RillMethod = (receiver) => {
   // common case) use .length directly instead of materializing the full
   // code-point array.
   if (typeof receiver === 'string') {
-    return isBmpOnly(receiver) ? receiver.length : [...receiver].length;
+    return isBmpOnly(receiver) ? receiver.length : Array.from(receiver).length;
   }
   if (Array.isArray(receiver)) return receiver.length;
   if (isOrdered(receiver)) return receiver.entries.length;
-  if (receiver && typeof receiver === 'object') {
+  if (receiver !== null && typeof receiver === 'object') {
     return Object.keys(receiver).length + typedKeyCount(receiver);
   }
   return 0;
@@ -104,9 +104,9 @@ export const mHead: RillMethod = (receiver, _args, ctx, location) => {
       );
     }
     // First code point, never a lone surrogate half of an astral character.
-    return isBmpOnly(receiver) ? receiver.charAt(0) : [...receiver][0]!;
+    return isBmpOnly(receiver) ? receiver.charAt(0) : Array.from(receiver)[0]!;
   }
-  throwFatalHostHalt(
+  return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'head', preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
     `head requires list or string, got ${inferType(receiver)}`
@@ -135,10 +135,10 @@ export const mTail: RillMethod = (receiver, _args, ctx, location) => {
     }
     // Last code point, never a lone surrogate half of an astral character.
     if (isBmpOnly(receiver)) return receiver.at(-1)!;
-    const cps = [...receiver];
+    const cps = Array.from(receiver);
     return cps.at(-1)!;
   }
-  throwFatalHostHalt(
+  return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'tail', preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
     `tail requires list or string, got ${inferType(receiver)}`
@@ -164,7 +164,7 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
         'Stream .next must be a closure'
       );
     }
-    return (await invokeCallableState(nextRaw, [], ctx, loc)) as RillValue;
+    return await invokeCallableState(nextRaw, [], ctx, loc);
   }
   if (isIterator(receiver)) return receiver;
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
@@ -181,9 +181,8 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
       `first requires list, string, dict, or iterator, got ${inferType(receiver)}`
     );
   }
-  if (isDict(receiver))
-    return makeDictIterator(receiver as Record<string, RillValue>, 0);
-  throwFatalHostHalt(
+  if (isDict(receiver)) return makeDictIterator(receiver, 0);
+  return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'first', preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
     `first requires list, string, dict, or iterator, got ${inferType(receiver)}`
@@ -233,7 +232,7 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
       }
       return receiver.charAt(idx);
     }
-    const cps = [...receiver];
+    const cps = Array.from(receiver);
     if (idx < 0 || idx >= cps.length) {
       throwCatchableHostHalt(
         { location, sourceId: ctx.sourceId, fn: 'at' },
@@ -260,7 +259,7 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
     }
     return receiver.entries[idx]!;
   }
-  throwFatalHostHalt(
+  return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'at', preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
     `Cannot call .at() on ${typeof receiver}`
@@ -273,7 +272,7 @@ export const mSplit: RillMethod = (receiver, args) => {
   const sep = typeof args[0] === 'string' ? args[0] : '\n';
   // Empty separator splits into code points, not UTF-16 code units, so astral
   // characters stay whole instead of becoming lone surrogate pairs.
-  if (sep === '') return [...str];
+  if (sep === '') return Array.from(str);
   return str.split(sep);
 };
 

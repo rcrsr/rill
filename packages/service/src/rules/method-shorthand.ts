@@ -34,7 +34,7 @@ export const methodShorthand: Rule = {
     if (isBlockWrappingMethod(body)) {
       const methodName = getMethodName(body);
 
-      if (methodName) {
+      if (methodName !== undefined && methodName !== '') {
         return [
           {
             code: 'METHOD_SHORTHAND',

@@ -121,7 +121,7 @@ function createStreamChannel(): StreamChannel {
   let terminated = false;
   let settled = false;
   let closedResolution: RillValue | undefined;
-  let closedError: unknown | undefined;
+  let closedError: unknown;
 
   return {
     push(value: RillValue): Promise<void> {

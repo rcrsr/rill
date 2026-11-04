@@ -199,9 +199,11 @@ export async function evaluateWhileLoop(
   let iterCount = 0;
   // Evaluate operator-level annotations (node.annotations) to read limit.
   // Statement-level annotationStack is not consulted.
-  const operatorAnnotations = node.annotations?.length
-    ? await evaluateAnnotations(s, node.annotations)
-    : undefined;
+  const annotationNodes = node.annotations;
+  const operatorAnnotations =
+    annotationNodes !== undefined && annotationNodes.length > 0
+      ? await evaluateAnnotations(s, annotationNodes)
+      : undefined;
   const maxIter = getIterationLimit(s, operatorAnnotations);
 
   try {
@@ -282,9 +284,11 @@ export async function evaluateDoWhileLoop(
 
   // Evaluate operator-level annotations (node.annotations) to read limit.
   // Statement-level annotationStack is not consulted.
-  const operatorAnnotations = node.annotations?.length
-    ? await evaluateAnnotations(s, node.annotations)
-    : undefined;
+  const annotationNodes = node.annotations;
+  const operatorAnnotations =
+    annotationNodes !== undefined && annotationNodes.length > 0
+      ? await evaluateAnnotations(s, annotationNodes)
+      : undefined;
   const maxIter = getIterationLimit(s, operatorAnnotations);
   let iterCount = 0;
 
@@ -591,6 +595,11 @@ export function evaluateBody(s: EvalState, node: BodyNode): Promise<RillValue> {
     case 'PipeChain':
       return evaluatePipeChain(s, node);
   }
+  return throwFatalHostHalt(
+    { sourceId: s.ctx.sourceId, fn: 'evaluateBody' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unsupported body node'
+  );
 }
 
 /**

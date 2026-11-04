@@ -13,10 +13,12 @@ import { measureP95 } from '../../../tests/helpers/measure.js';
 // Type-safe helper to ensure methods exist
 const highlighter = {
   name: rillHighlighter.name,
-  startState: rillHighlighter.startState!,
-  token: rillHighlighter.token!,
-  copyState: rillHighlighter.copyState!,
-  blankLine: rillHighlighter.blankLine!,
+  startState: (indentUnit: number) => rillHighlighter.startState!(indentUnit),
+  token: (stream: StringStream, state: RillHighlightState) =>
+    rillHighlighter.token(stream, state),
+  copyState: (state: RillHighlightState) => rillHighlighter.copyState!(state),
+  blankLine: (state: RillHighlightState, indentUnit: number) =>
+    rillHighlighter.blankLine!(state, indentUnit),
 };
 
 // ============================================================
@@ -797,7 +799,7 @@ describe('highlighting performance', () => {
 
       const p95 = measureP95(
         () => {
-          rillHighlighter.token!(mockStream, state);
+          rillHighlighter.token(mockStream, state);
         },
         { samples: 200, warmup: 20 }
       );
@@ -835,7 +837,7 @@ describe('highlighting performance', () => {
             } as unknown as StringStream;
 
             while (!mockStream.eol()) {
-              rillHighlighter.token!(mockStream, state);
+              rillHighlighter.token(mockStream, state);
             }
           }
         },
@@ -875,7 +877,7 @@ describe('highlighting performance', () => {
             } as unknown as StringStream;
 
             while (!mockStream.eol()) {
-              rillHighlighter.token!(mockStream, state);
+              rillHighlighter.token(mockStream, state);
             }
           }
         },
@@ -920,7 +922,7 @@ describe('highlighting performance', () => {
           mockStream.pos = 0;
           const sampleState = rillHighlighter.startState!(2);
           while (!mockStream.eol()) {
-            rillHighlighter.token!(mockStream, sampleState);
+            rillHighlighter.token(mockStream, sampleState);
           }
         },
         { samples: 50, warmup: 5 }

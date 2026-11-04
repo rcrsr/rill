@@ -2,12 +2,7 @@
  * Loop convention rules: enforces idioms for `while` and `do-while` loops.
  */
 
-import type {
-  ASTNode,
-  DoWhileLoopNode,
-  PipeChainNode,
-  WhileLoopNode,
-} from '@rcrsr/rill';
+import type { ASTNode, DoWhileLoopNode, WhileLoopNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -31,7 +26,7 @@ function callsRetryFunction(node: ASTNode): boolean {
   }
 
   if (node.type === 'PipeChain') {
-    const chain = node as PipeChainNode;
+    const chain = node;
     const head = chain.head;
 
     if (head.type === 'PostfixExpr') {

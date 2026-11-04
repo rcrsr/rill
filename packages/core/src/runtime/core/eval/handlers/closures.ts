@@ -8,7 +8,6 @@ import type {
   SourceSpan,
   ExpressionNode,
   SpreadArgNode,
-  BlockNode,
 } from '../../../../types.js';
 import { RillError, RuntimeError } from '../../../../types.js';
 import type {
@@ -44,7 +43,6 @@ import {
   activeStreamContexts,
 } from '../invocation/index.js';
 import type { BoundArguments } from '../invocation/index.js';
-import type { InvocationCaller } from '../invocation/callable-strategy.js';
 import {
   throwTypeHalt,
   throwCatchableHostHalt,
@@ -175,28 +173,17 @@ function getInvocationStrategy(s: EvalState): CallableInvocationStrategy {
   const strategy = new CallableInvocationStrategy(
     () => s.ctx,
     argumentsBinder,
-    ((
+    (
       callable: RillCallable,
       args: RillValue[],
       location: SourceLocation | undefined,
       functionName?: string
     ) => {
       if (callable.kind === 'script') {
-        return invokeScriptCallable(
-          s,
-          callable as ScriptCallable,
-          args,
-          location
-        );
+        return invokeScriptCallable(s, callable, args, location);
       }
-      return invokeFnCallable(
-        s,
-        callable as RuntimeCallable | ApplicationCallable,
-        args,
-        location,
-        functionName
-      );
-    }) as InvocationCaller
+      return invokeFnCallable(s, callable, args, location, functionName);
+    }
   );
   s.invocationStrategy = strategy;
   return strategy;
@@ -224,7 +211,7 @@ export async function bindOrdered(
     node.span.start,
     s.ctx.sourceId
   );
-  return callable.params!.map((p) => bound.params.get(p.name));
+  return callable.params.map((p) => bound.params.get(p.name));
 }
 
 /** Evaluate argument expressions, preserving the current pipeValue. */
@@ -369,7 +356,7 @@ export async function invokeCallable(
         functionName
       );
       if (isStream(internalResult)) {
-        trackStream(s, internalResult as RillStream);
+        trackStream(s, internalResult);
       }
       return internalResult;
     }
@@ -479,7 +466,7 @@ export async function invokeCallable(
     }
 
     if (isStream(result)) {
-      trackStream(s, result as RillStream);
+      trackStream(s, result);
     }
     return result;
   } finally {
@@ -767,7 +754,7 @@ async function invokeRegularScriptCallable(
     params[0]!.type === undefined
   ) {
     const only = params[0]!;
-    callableCtx.variables.set(only.name, args[0]!);
+    callableCtx.variables.set(only.name, args[0]);
     if (only.name === '$') {
       callableCtx.pipeValue = args[0]!;
     }
@@ -785,10 +772,7 @@ async function invokeRegularScriptCallable(
       callableCtx.pipeValue = record['$']!;
     }
   }
-  if (
-    callable.body.type === 'Block' &&
-    (callable.body as BlockNode).statements.length === 0
-  ) {
+  if (callable.body.type === 'Block' && callable.body.statements.length === 0) {
     throwFatalHostHalt(
       {
         location: callLocation,
@@ -824,7 +808,10 @@ async function invokeRegularScriptCallable(
           sourceId: callableCtx.sourceId,
           // sourceText travels with sourceId: filled together or not at all.
           contextExtras:
-            callableCtx.sourceId && callableCtx.sourceText
+            callableCtx.sourceId !== undefined &&
+            callableCtx.sourceId !== '' &&
+            callableCtx.sourceText !== undefined &&
+            callableCtx.sourceText !== ''
               ? { sourceText: callableCtx.sourceText }
               : undefined,
         }),
@@ -842,12 +829,19 @@ async function invokeRegularScriptCallable(
     // RuntimeError throws that bypass the halt builders still need sourceId
     // enriched at this boundary so host callers observe the documented
     // sourceId contract.
-    if (e instanceof RillError && !e.sourceId && callableCtx.sourceId) {
+    if (
+      e instanceof RillError &&
+      (e.sourceId === undefined || e.sourceId === '') &&
+      callableCtx.sourceId !== undefined &&
+      callableCtx.sourceId !== ''
+    ) {
       // Enrich on a fresh clone; never mutate the caught error's context in
       // place. That object may be shared with a rewrapped copy, so an
       // in-place `e.context` mutation would bleed sourceText across errors.
       const enriched = e.withContext(
-        callableCtx.sourceText ? { sourceText: callableCtx.sourceText } : {}
+        callableCtx.sourceText !== undefined && callableCtx.sourceText !== ''
+          ? { sourceText: callableCtx.sourceText }
+          : {}
       );
       // The clone is fresh and unshared, so setting sourceId on it is safe.
       (enriched as { sourceId: string }).sourceId = callableCtx.sourceId;
@@ -879,16 +873,11 @@ export async function invokeStream(
   let current: RillStream = stream;
   while (!current.done) {
     const nextCallable = current['next'];
-    if (!nextCallable || !isCallable(nextCallable)) break;
+    if (!isCallable(nextCallable)) break;
     try {
       const next = await invokeCallable(s, nextCallable, []);
-      if (
-        typeof next !== 'object' ||
-        next === null ||
-        !isStream(next as RillValue)
-      )
-        break;
-      current = next as unknown as RillStream;
+      if (typeof next !== 'object' || next === null || !isStream(next)) break;
+      current = next;
     } catch (err) {
       // The one designated clean-end signal: `createRillStream`'s `next`
       // marks its context `{ alreadyConsumed: true }` when this exact

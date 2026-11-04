@@ -78,6 +78,7 @@ export function getHover(
     case 'none':
       return null;
   }
+  throw new Error('unreachable: unhandled locate target kind');
 }
 
 function hoverForVariable(

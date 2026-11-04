@@ -68,7 +68,7 @@ function makeTypeValue(typeName: string): RillTypeValue {
     typeName: typeName as RillTypeValue['typeName'],
     structure: {
       kind: typeName as RillTypeValue['typeName'],
-    } as RillTypeValue['structure'],
+    },
   };
 }
 
@@ -77,7 +77,7 @@ function makeIterator(
   done: boolean,
   value?: RillValue
 ): Record<string, RillValue> {
-  const nextFn = callable(() => makeIterator(true) as RillValue);
+  const nextFn = callable(() => makeIterator(true));
   const iter: Record<string, RillValue> = {
     done,
     next: nextFn,
@@ -130,12 +130,12 @@ const testValues: {
   },
   {
     typeName: 'field_descriptor',
-    value: { __rill_field_descriptor: true } as unknown as RillValue,
+    value: { __rill_field_descriptor: true },
     formatted: 'type(field_descriptor)',
   },
   {
     typeName: 'iterator',
-    value: makeIterator(false, 1) as RillValue,
+    value: makeIterator(false, 1),
     formatted: 'type(iterator)',
   },
   { typeName: 'list', value: [1, 2, 3], formatted: 'list[1, 2, 3]' },
@@ -378,7 +378,7 @@ describe('types/registrations', () => {
     it('throws RuntimeError for type value', () => {
       const typeVal = makeTypeValue('string');
       try {
-        serializeValue(typeVal as RillValue);
+        serializeValue(typeVal);
         expect.unreachable('should have thrown');
       } catch (e) {
         expect(e).toBeInstanceOf(RuntimeError);
@@ -392,7 +392,7 @@ describe('types/registrations', () => {
     it('throws RuntimeError for iterator', () => {
       const iter = makeIterator(false, 1);
       try {
-        serializeValue(iter as RillValue);
+        serializeValue(iter);
         expect.unreachable('should have thrown');
       } catch (e) {
         expect(e).toBeInstanceOf(RuntimeError);

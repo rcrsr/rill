@@ -654,7 +654,7 @@ describe('Rill Runtime: Host Integration', () => {
         returnType: structureToTypeValue({ kind: 'dict' }),
         annotations: {},
       };
-      const result = inferStructure(fn as unknown as RillValue);
+      const result = inferStructure(fn);
       expect(result.kind).toBe('closure');
       if (isClosureStructure(result)) {
         expect(result.params).toEqual([
@@ -674,7 +674,7 @@ describe('Rill Runtime: Host Integration', () => {
         returnType: anyTypeValue,
         annotations: {},
       };
-      const result = inferStructure(fn as unknown as RillValue);
+      const result = inferStructure(fn);
       expect(result.kind).toBe('closure');
       if (isClosureStructure(result)) {
         expect(result.params).toEqual([]);
@@ -691,7 +691,7 @@ describe('Rill Runtime: Host Integration', () => {
         returnType: anyTypeValue,
         annotations: {},
       };
-      const result = inferStructure(fn as unknown as RillValue);
+      const result = inferStructure(fn);
       expect(result.kind).toBe('closure');
       if (isClosureStructure(result)) {
         expect(result.ret).toEqual({ kind: 'any' });
@@ -1091,7 +1091,7 @@ describe('Spread marshaling: host function (ApplicationCallable)', () => {
 
       // Act: dict spread maps by name regardless of key order in the dict literal
       await run('$fn(...dict[y: 2, x: 1])', {
-        variables: { fn: fn as unknown as RillValue },
+        variables: { fn: fn },
       });
 
       // Assert: host receives named keys; x=1, y=2 regardless of dict insertion order
@@ -1103,7 +1103,7 @@ describe('Spread marshaling: host function (ApplicationCallable)', () => {
       const { capturedArgs, fn } = makeCaptureXY();
 
       await run('$fn(...dict[x: 10, y: 20])', {
-        variables: { fn: fn as unknown as RillValue },
+        variables: { fn: fn },
       });
 
       expect(capturedArgs['x']).toBe(10);
@@ -1118,7 +1118,7 @@ describe('Spread marshaling: host function (ApplicationCallable)', () => {
 
       // Act: tuple spread maps values positionally; position 0 → x, position 1 → y
       await run('$fn(...tuple[1, 2])', {
-        variables: { fn: fn as unknown as RillValue },
+        variables: { fn: fn },
       });
 
       // Assert: host receives named keys keyed by param name
@@ -1130,7 +1130,7 @@ describe('Spread marshaling: host function (ApplicationCallable)', () => {
       const { capturedArgs, fn } = makeCaptureXY();
 
       await run('tuple[5, 6] -> $fn(...)', {
-        variables: { fn: fn as unknown as RillValue },
+        variables: { fn: fn },
       });
 
       expect(capturedArgs['x']).toBe(5);
@@ -1148,7 +1148,7 @@ describe('Spread marshaling: host function (ApplicationCallable)', () => {
       try {
         await run('$fn(...$nullVar)', {
           variables: {
-            fn: fn as unknown as RillValue,
+            fn: fn,
             nullVar: null,
           },
         });
@@ -1166,7 +1166,7 @@ describe('Spread marshaling: host function (ApplicationCallable)', () => {
       try {
         // "z" is not a declared parameter
         await run('$fn(...dict[x: 1, z: 99])', {
-          variables: { fn: fn as unknown as RillValue },
+          variables: { fn: fn },
         });
         expect.fail('Should have thrown');
       } catch (err) {
@@ -1179,7 +1179,7 @@ describe('Spread marshaling: host function (ApplicationCallable)', () => {
 
       try {
         await run('$fn(...dict[x: 1, badKey: 99])', {
-          variables: { fn: fn as unknown as RillValue },
+          variables: { fn: fn },
         });
         expect.fail('Should have thrown');
       } catch (err) {
@@ -1390,7 +1390,7 @@ describe('AC-16: Untyped callable (params undefined) skips marshaling, works as 
     });
 
     const result = await run('$myFn("test")', {
-      variables: { myFn: fn as unknown as RillValue },
+      variables: { myFn: fn },
     });
 
     expect(result).toBe('test');
@@ -1411,7 +1411,7 @@ describe('AC-16: Untyped callable (params undefined) skips marshaling, works as 
     });
 
     const result = await run('"piped" -> $myFn', {
-      variables: { myFn: fn as unknown as RillValue },
+      variables: { myFn: fn },
     });
 
     expect(result).toBe('piped');
@@ -2181,7 +2181,7 @@ describe('Host function return-value validation (non-finite numbers)', () => {
     const badFn: RillFunction = {
       params: [],
       returnType: anyTypeValue,
-      fn: () => ({ field: NaN }) as unknown as RillValue,
+      fn: () => ({ field: NaN }),
     };
     await expectHaltMessage(
       () => run('badFn()', { functions: { badFn } }),
@@ -2193,7 +2193,7 @@ describe('Host function return-value validation (non-finite numbers)', () => {
     const badFn: RillFunction = {
       params: [],
       returnType: anyTypeValue,
-      fn: () => [1, NaN] as unknown as RillValue,
+      fn: () => [1, NaN],
     };
     await expectHaltMessage(
       () => run('badFn()', { functions: { badFn } }),

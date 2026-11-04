@@ -192,7 +192,7 @@ function normalizeStructure(ts: TypeStructure): TypeStructure {
   if (ts.kind !== undefined) return ts;
   const legacy = ts as unknown as Record<string, unknown>;
   if (typeof legacy['type'] === 'string') {
-    return { ...legacy, kind: legacy['type'] as string } as TypeStructure;
+    return { ...legacy, kind: legacy['type'] };
   }
   return ts;
 }
@@ -623,7 +623,7 @@ export function structureMatches(
       const typeHasDefault = field.defaultValue !== undefined;
       if (!valueHasDefault && typeHasDefault) return false;
       if (valueHasDefault && typeHasDefault) {
-        if (!registryDeepEquals(param.defaultValue!, field.defaultValue!))
+        if (!registryDeepEquals(param.defaultValue, field.defaultValue!))
           return false;
       }
       // value has default + type lacks → compatible (superset satisfies)
@@ -893,12 +893,12 @@ export function inferStructure(value: RillValue): TypeStructure {
     }
     return { kind: 'dict', fields };
   }
-  throwTypeHalt(
+  return throwTypeHalt(
     { fn: 'inferStructure' },
     'INVALID_INPUT',
     isCallable(value)
       ? 'Cannot infer structural type for a callable without a return type'
-      : `Cannot infer structural type for ${registryFormatValue(value as RillValue)}`,
+      : `Cannot infer structural type for ${registryFormatValue(value)}`,
     'runtime',
     undefined,
     'host'
@@ -1029,7 +1029,7 @@ export function commonType(
     a.kind === 'ordered' ||
     a.kind === 'union'
   ) {
-    return { kind: a.kind } as TypeStructure;
+    return { kind: a.kind };
   }
 
   return null;

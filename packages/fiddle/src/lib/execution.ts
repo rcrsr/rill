@@ -321,7 +321,7 @@ function extractCallStack(
   source?: string
 ): FiddleCallFrame[] {
   // getCallStack requires an actual RillError instance with context
-  if (!err || typeof err !== 'object' || !('context' in err)) return [];
+  if (typeof err !== 'object' || !('context' in err)) return [];
 
   let frames;
   try {

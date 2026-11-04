@@ -43,7 +43,7 @@ function loggedFn(name: string, result: string, log: CallLog): RillValue {
     },
     params: STRING_PARAM,
     returnType: anyTypeValue,
-  }) as unknown as RillValue;
+  });
 }
 
 /** Context mounting `kb = { search, purge }` with purge denied by policy. */
@@ -176,7 +176,7 @@ describe('forged callable policy bypass', () => {
     // Dict literals reject brand keys, so the carrier dict comes from the host.
     const ctx = createRuntimeContext({
       variables: {
-        a: { __rill_field_descriptor: true } as unknown as RillValue,
+        a: { __rill_field_descriptor: true },
       },
     });
 

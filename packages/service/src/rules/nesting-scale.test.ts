@@ -175,7 +175,7 @@ function pipeChain(
     type: 'PipeChain',
     head,
     pipes: [],
-    terminator: terminator as PipeChainNode['terminator'],
+    terminator,
     span: DUMMY_SPAN,
   };
 }

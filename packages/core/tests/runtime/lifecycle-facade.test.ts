@@ -137,7 +137,7 @@ describe('LifecycleContext', () => {
       const ctx = createRuntimeContext({});
       await ctx.dispose();
 
-      const unhandled = vi.fn();
+      const unhandled = vi.fn<(reason: unknown) => void>();
       process.on('unhandledRejection', unhandled);
       try {
         ctx.trackInflight(Promise.reject(new Error('post-dispose')));

@@ -279,7 +279,7 @@ describe('Toolbar', () => {
     });
 
     it('rendered when onCopyLink provided', () => {
-      const mockOnCopyLink = vi.fn();
+      const mockOnCopyLink = vi.fn<() => void>();
       const { container } = render(
         <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
       );
@@ -289,7 +289,7 @@ describe('Toolbar', () => {
     });
 
     it('triggers onCopyLink on click', () => {
-      const mockOnCopyLink = vi.fn();
+      const mockOnCopyLink = vi.fn<() => void>();
       const { container } = render(
         <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
       );
@@ -304,7 +304,7 @@ describe('Toolbar', () => {
     });
 
     it('shows "Copied!" text when copyLinkState is copied', () => {
-      const mockOnCopyLink = vi.fn();
+      const mockOnCopyLink = vi.fn<() => void>();
       const { container } = render(
         <Toolbar
           {...defaultProps}
@@ -319,7 +319,7 @@ describe('Toolbar', () => {
     });
 
     it('shows "Error" text when copyLinkState is error', () => {
-      const mockOnCopyLink = vi.fn();
+      const mockOnCopyLink = vi.fn<() => void>();
       const { container } = render(
         <Toolbar
           {...defaultProps}
@@ -334,7 +334,7 @@ describe('Toolbar', () => {
     });
 
     it('shows "Share" text when copyLinkState is idle', () => {
-      const mockOnCopyLink = vi.fn();
+      const mockOnCopyLink = vi.fn<() => void>();
       const { container } = render(
         <Toolbar
           {...defaultProps}
@@ -349,7 +349,7 @@ describe('Toolbar', () => {
     });
 
     it('disabled when disabled prop is true', () => {
-      const mockOnCopyLink = vi.fn();
+      const mockOnCopyLink = vi.fn<() => void>();
       const { container } = render(
         <Toolbar
           {...defaultProps}
@@ -364,7 +364,7 @@ describe('Toolbar', () => {
     });
 
     it('has accessible ARIA label', () => {
-      const mockOnCopyLink = vi.fn();
+      const mockOnCopyLink = vi.fn<() => void>();
       const { container } = render(
         <Toolbar {...defaultProps} onCopyLink={mockOnCopyLink} />
       );
@@ -375,7 +375,7 @@ describe('Toolbar', () => {
     });
 
     it('does not trigger callback when disabled', () => {
-      const mockOnCopyLink = vi.fn();
+      const mockOnCopyLink = vi.fn<() => void>();
       const { container } = render(
         <Toolbar
           {...defaultProps}
@@ -401,7 +401,7 @@ describe('Toolbar', () => {
   describe('accessibility', () => {
     it('all buttons have type="button"', () => {
       const { container } = render(
-        <Toolbar {...defaultProps} onCopyLink={vi.fn()} />
+        <Toolbar {...defaultProps} onCopyLink={vi.fn<() => void>()} />
       );
       const buttons = Array.from(container.querySelectorAll('button'));
 

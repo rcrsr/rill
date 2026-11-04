@@ -35,7 +35,7 @@ function immediateRun(state: ExecutionState): {
   promise: Promise<ExecutionState>;
   cancel: () => void;
 } {
-  return { promise: Promise.resolve(state), cancel: vi.fn() };
+  return { promise: Promise.resolve(state), cancel: vi.fn<() => void>() };
 }
 
 /** Wraps an ExecutionState into a { promise, cancel } pair that never settles. */
@@ -43,7 +43,10 @@ function pendingRun(): {
   promise: Promise<ExecutionState>;
   cancel: () => void;
 } {
-  return { promise: new Promise<ExecutionState>(() => {}), cancel: vi.fn() };
+  return {
+    promise: new Promise<ExecutionState>(() => {}),
+    cancel: vi.fn<() => void>(),
+  };
 }
 
 /** A { promise, cancel } pair whose promise settles when the test calls resolve. */
@@ -56,7 +59,7 @@ function deferredRun(): {
   const promise = new Promise<ExecutionState>((r) => {
     resolve = r;
   });
-  return { promise, cancel: vi.fn(), resolve };
+  return { promise, cancel: vi.fn<() => void>(), resolve };
 }
 
 /** Builds a successful ExecutionState carrying the given result text. */
@@ -142,16 +145,21 @@ describe('App', () => {
     // Mock localStorage. happy-dom exposes window.localStorage as a getter-only
     // property, so it must be stubbed rather than assigned.
     const storage = new Map<string, string>();
-    vi.stubGlobal('localStorage', {
+    const mockStorage: Storage = {
       getItem: (key: string) => storage.get(key) ?? null,
-      setItem: (key: string, value: string) => storage.set(key, value),
-      removeItem: (key: string) => storage.delete(key),
+      setItem: (key: string, value: string) => {
+        storage.set(key, value);
+      },
+      removeItem: (key: string) => {
+        storage.delete(key);
+      },
       clear: () => storage.clear(),
       key: (index: number) => Array.from(storage.keys())[index] ?? null,
       get length() {
         return storage.size;
       },
-    } as Storage);
+    };
+    vi.stubGlobal('localStorage', mockStorage);
   });
 
   afterEach(() => {
@@ -672,15 +680,16 @@ describe('App', () => {
         });
       });
 
-      const hasMarker = expect.objectContaining({
-        lastSource: expect.stringContaining(marker),
-      });
-      expect(persistSpy).not.toHaveBeenCalledWith(hasMarker);
+      const persistedMarker = (): boolean =>
+        persistSpy.mock.calls.some(([state]) =>
+          state.lastSource.includes(marker)
+        );
+      expect(persistedMarker()).toBe(false);
 
       await act(async () => {
         await vi.advanceTimersByTimeAsync(500);
       });
-      expect(persistSpy).toHaveBeenCalledWith(hasMarker);
+      expect(persistedMarker()).toBe(true);
     });
 
     it('coalesces rapid source changes into a single persistEditorState call', async () => {

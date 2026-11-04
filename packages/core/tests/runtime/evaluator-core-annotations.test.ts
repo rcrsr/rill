@@ -31,8 +31,10 @@ describe('Rill Runtime: core handler error contracts', () => {
       // Modify the AST to have an invalid type
       if (ast.statements[0]?.type === 'Statement') {
         const stmt = ast.statements[0];
-        // @ts-expect-error Testing invalid type
-        stmt.expression.head.primary.type = 'InvalidType';
+        const head = stmt.expression.head;
+        if ('primary' in head) {
+          Object.assign(head.primary, { type: 'InvalidType' });
+        }
       }
 
       await expectHalt(() => execute(ast, ctx), {
@@ -48,8 +50,10 @@ describe('Rill Runtime: core handler error contracts', () => {
       // Modify the AST to have an invalid type
       if (ast.statements[0]?.type === 'Statement') {
         const stmt = ast.statements[0];
-        // @ts-expect-error Testing invalid type
-        stmt.expression.head.primary.type = 'UnknownNode';
+        const head = stmt.expression.head;
+        if ('primary' in head) {
+          Object.assign(head.primary, { type: 'UnknownNode' });
+        }
       }
 
       await expectHalt(() => execute(ast, ctx), {
@@ -286,7 +290,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
           },
         },
       });
-      expect(atomName(getStatus(result as RillValue).code)).toBe('R999');
+      expect(atomName(getStatus(result).code)).toBe('R999');
     });
 
     it('propagates abort halt from annotated statement', async () => {

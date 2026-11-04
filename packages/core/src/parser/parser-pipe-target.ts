@@ -161,7 +161,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
       methods,
       defaultValue,
       span: makeSpan(start, defaultValue.span.end),
-    } as PostfixExprNode;
+    };
   }
 
   // Single method: return as-is. The first entry is always a MethodCallNode
@@ -179,7 +179,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     methods,
     defaultValue: null,
     span: makeSpan(start, previous(this.state).span.end),
-  } as PostfixExprNode;
+  };
 };
 
 // Handler: -> [...] — bare bracket literal (tuple or dict) with optional nullish coalesce
@@ -284,7 +284,9 @@ const pipeTargetDispatchTable: Record<
       token.span.start
     );
   },
-  [TOKEN_TYPES.DOT]: Parser.prototype.parsePipeTargetDot,
+  [TOKEN_TYPES.DOT]: function (this: Parser): PipeTargetNode {
+    return this.parsePipeTargetDot();
+  },
   // Bare presence probe on the piped value: `$value -> .?`. Mirrors the
   // postfix DOT_QUESTION handling in runPostfixDispatchLoop, but here the
   // receiver is the implicit pipe var rather than an accumulated primary.
@@ -321,7 +323,9 @@ const pipeTargetDispatchTable: Record<
   [TOKEN_TYPES.STRING]: function (this: Parser) {
     return this.parseString();
   },
-  [TOKEN_TYPES.LBRACKET]: Parser.prototype.parsePipeTargetBracket,
+  [TOKEN_TYPES.LBRACKET]: function (this: Parser): PipeTargetNode {
+    return this.parsePipeTargetBracket();
+  },
   [TOKEN_TYPES.LIST_LBRACKET]: function (this: Parser): PipeTargetNode {
     const listStart = current(this.state).span.start;
     advance(this.state); // consume list[
@@ -337,7 +341,9 @@ const pipeTargetDispatchTable: Record<
     }
     return listLiteral;
   },
-  [TOKEN_TYPES.DICT_LBRACKET]: Parser.prototype.parsePipeTargetDictLiteral,
+  [TOKEN_TYPES.DICT_LBRACKET]: function (this: Parser): PipeTargetNode {
+    return this.parsePipeTargetDictLiteral();
+  },
 };
 
 // ============================================================

@@ -758,7 +758,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
         elements: [],
         defaultValue: null,
         span: makeSpan(tupleStart, rbracket.span.end),
-      } as ListLiteralNode;
+      };
     } else {
       key = this.parseTuple(tupleStart);
     }

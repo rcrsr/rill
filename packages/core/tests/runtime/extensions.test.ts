@@ -158,7 +158,9 @@ describe('Rill Runtime: Extension System', () => {
       const events: ExtensionEvent[] = [];
       const ctx = createRuntimeContext({
         callbacks: {
-          onLogEvent: (event) => events.push(event),
+          onLogEvent: (event) => {
+            events.push(event);
+          },
         },
       });
 
@@ -187,7 +189,9 @@ describe('Rill Runtime: Extension System', () => {
       const events: ExtensionEvent[] = [];
       const ctx = createRuntimeContext({
         callbacks: {
-          onLogEvent: (event) => events.push(event),
+          onLogEvent: (event) => {
+            events.push(event);
+          },
         },
       });
 
@@ -220,7 +224,9 @@ describe('Rill Runtime: Extension System', () => {
       const events: ExtensionEvent[] = [];
       const ctx = createRuntimeContext({
         callbacks: {
-          onLogEvent: (event) => events.push(event),
+          onLogEvent: (event) => {
+            events.push(event);
+          },
         },
       });
 
@@ -313,7 +319,7 @@ describe('Rill Runtime: Extension System', () => {
 
         expect(() => {
           emitExtensionEvent(ctx, {
-            event: undefined as never,
+            event: undefined,
             subsystem: 'extension:test',
           });
         }).toThrow('Event must include non-empty event field');

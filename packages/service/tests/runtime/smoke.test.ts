@@ -22,10 +22,11 @@ describe('Rill Language Service: Smoke Test', () => {
   });
 
   it('matches package.json version and follows semver shape', () => {
-    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
-    const expectedVersion = packageJson.version as string;
+    const packageJson: unknown = JSON.parse(
+      readFileSync(packageJsonPath, 'utf-8')
+    );
 
-    expect(serviceVersion).toBe(expectedVersion);
+    expect(packageJson).toMatchObject({ version: serviceVersion });
 
     const semverPattern = /^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?$/;
     expect(serviceVersion).toMatch(semverPattern);

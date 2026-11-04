@@ -5,12 +5,7 @@
  * missing space immediately before or after the operator.
  */
 
-import type {
-  ASTNode,
-  BinaryExprNode,
-  PipeChainNode,
-  SourceSpan,
-} from '@rcrsr/rill';
+import type { ASTNode, SourceSpan } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import {
   extractContextLine,
@@ -72,7 +67,7 @@ export const spacingOperator: Rule = {
     const diagnostics: Diagnostic[] = [];
 
     if (node.type === 'BinaryExpr') {
-      const binaryNode = node as BinaryExprNode;
+      const binaryNode = node;
       const operator = binaryNode.op;
 
       if (checkOperatorSpacing(operator, binaryNode.span, context.source)) {
@@ -91,7 +86,7 @@ export const spacingOperator: Rule = {
     }
 
     if (node.type === 'PipeChain') {
-      const pipeNode = node as PipeChainNode;
+      const pipeNode = node;
 
       if (checkPipeSpacing(pipeNode.span, context.source)) {
         diagnostics.push({

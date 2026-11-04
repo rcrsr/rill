@@ -95,7 +95,7 @@ export async function getIterableElements(
     return input;
   }
   if (typeof input === 'string') {
-    return [...input];
+    return Array.from(input);
   }
   const evaluator: EvalState = getEvalState(ctx);
   // Check for stream BEFORE iterator (streams satisfy iterator shape)
@@ -141,7 +141,7 @@ export async function getIterableElements(
     }));
   }
   // Non-iterable [RILL-R002] — catchable: user supplied wrong type
-  throwCatchableHostHalt(
+  return throwCatchableHostHalt(
     {
       location: node.span.start,
       sourceId: ctx.sourceId,
@@ -171,7 +171,7 @@ async function expandIterator(
   let current = iterator as Record<string, RillValue>;
   let count = 0;
 
-  while (!current['done'] && count < limit) {
+  while (current['done'] !== true && count < limit) {
     checkAborted(evaluator);
     const val = current['value'];
     if (val !== undefined) {
@@ -219,7 +219,7 @@ async function expandIterator(
   // count reached the limit. Only the latter — more elements remaining past the
   // ceiling — is an overrun. Exactly `limit` elements that fully consume the
   // iterator is within bounds; the (limit+1)th element triggers the halt.
-  if (count >= limit && !current['done']) {
+  if (count >= limit && current['done'] !== true) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
       {
@@ -363,7 +363,7 @@ export async function walkStreamOrIteratorElements(
   };
 
   try {
-    while (!current['done'] && count < limit) {
+    while (current['done'] !== true && count < limit) {
       checkAborted(evaluator);
       // The pending head has no `value` key; every non-done step
       // (including the initial produced chunk) carries one. Streams accept
@@ -425,7 +425,7 @@ export async function walkStreamOrIteratorElements(
       // access uses so it surfaces as a catchable halt carrying the
       // original message/trace instead of being cast into a malformed
       // stream step and misreported as a `.next` protocol violation.
-      accessHaltGate(nextStep as RillValue, site);
+      accessHaltGate(nextStep, site);
       if (typeof nextStep !== 'object' || nextStep === null) {
         // fatal: stream/iterator invariant violation, not user-recoverable
         throwFatalHostHalt(
@@ -449,7 +449,7 @@ export async function walkStreamOrIteratorElements(
   // Exactly `limit` counted raw steps (the stream's pending head is not
   // counted) that fully drain the source (done) is within bounds; only a
   // source still producing past the ceiling is an overrun.
-  if (count >= limit && !current['done']) {
+  if (count >= limit && current['done'] !== true) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
       site,
@@ -506,7 +506,7 @@ async function expandStream(
         // not the raw step count.
         const chunkIndex = elements.length;
         validateStreamChunk(val, chunkIndex, site);
-        const actualType = inferType(val as RillValue);
+        const actualType = inferType(val);
         if (expectedType === undefined) {
           expectedType = actualType;
         } else if (actualType !== expectedType) {
@@ -518,7 +518,7 @@ async function expandStream(
             { expectedType, actualType }
           );
         }
-        elements.push(val as RillValue);
+        elements.push(val);
       }
       if (headExempt) {
         headExempt = false;
@@ -551,7 +551,7 @@ async function expandStream(
       // access uses so it surfaces as a catchable halt carrying the
       // original message/trace instead of being cast into a malformed
       // stream step and misreported as a `.next` protocol violation.
-      accessHaltGate(nextStep as RillValue, site);
+      accessHaltGate(nextStep, site);
       if (typeof nextStep !== 'object' || nextStep === null) {
         // fatal: stream invariant violation, not user-recoverable
         throwFatalHostHalt(

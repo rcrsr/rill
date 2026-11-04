@@ -11,7 +11,6 @@ import type {
   DestructureNode,
   DestructNode,
   SliceNode,
-  GroupedExprNode,
   ListLiteralNode,
   DictLiteralNode,
   TupleLiteralNode,
@@ -21,7 +20,10 @@ import type {
   DictEntryNode,
   SourceLocation,
 } from '../../../../types.js';
-import { throwCatchableHostHalt } from '../../types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+} from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import { inferElementType } from '../../types/operations.js';
@@ -36,6 +38,8 @@ import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
 import {
   setDictField,
+  isDictKeyScalar,
+  type DictKeyScalar,
   isFieldReceiver,
   readOwnField,
   STREAM_STEP_FIELDS,
@@ -128,10 +132,8 @@ export async function evaluateDestructure(
 
       const dictResolved =
         elem.typeRef !== null
-          ? await resolveTypeRef(
-              s,
-              elem.typeRef,
-              (name: string) => getVariable(s.ctx, name) as RillValue
+          ? await resolveTypeRef(s, elem.typeRef, (name: string) =>
+              getVariable(s.ctx, name)
             )
           : undefined;
       setVariable(
@@ -156,7 +158,7 @@ export async function evaluateDestructure(
       );
     }
 
-    const listInput = input as RillValue[];
+    const listInput = input;
     if (node.elements.length !== listInput.length) {
       throwCatchableHostHalt(
         {
@@ -198,10 +200,8 @@ export async function evaluateDestructure(
 
       const listResolved =
         elem.typeRef !== null
-          ? await resolveTypeRef(
-              s,
-              elem.typeRef,
-              (name: string) => getVariable(s.ctx, name) as RillValue
+          ? await resolveTypeRef(s, elem.typeRef, (name: string) =>
+              getVariable(s.ctx, name)
             )
           : undefined;
       setVariable(
@@ -301,10 +301,7 @@ async function evaluateSliceBound(
     }
 
     case 'GroupedExpr': {
-      const value = await evaluateExpression(
-        s,
-        (bound as GroupedExprNode).expression
-      );
+      const value = await evaluateExpression(s, bound.expression);
       if (typeof value !== 'number') {
         throwCatchableHostHalt(
           {
@@ -319,6 +316,11 @@ async function evaluateSliceBound(
       return value;
     }
   }
+  return throwFatalHostHalt(
+    { location, sourceId: s.ctx.sourceId, fn: 'evaluateSliceBound' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unsupported slice bound'
+  );
 }
 
 /**
@@ -486,11 +488,16 @@ export async function evaluateCollectionLiteral(
     case 'OrderedLiteral': {
       // Ordered literals keep string keys; stringify any typed key.
       const pairs = (await evaluateDictLiteralEntries(s, node.entries)).map(
-        ([key, value]) => [String(key), value] as [string, RillValue]
+        ([key, value]): [string, RillValue] => [String(key), value]
       );
       return createOrdered(pairs);
     }
   }
+  return throwFatalHostHalt(
+    { sourceId: s.ctx.sourceId, fn: 'evaluateCollectionLiteral' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Unsupported collection literal'
+  );
 }
 
 /**
@@ -527,6 +534,15 @@ export async function evaluateListLiteralElements(
 }
 
 /**
+ * Render an evaluated or unevaluated key with the runtime's default string
+ * coercion. Computed keys can hold any value, and the published rendering of
+ * a non-scalar key is the default coercion result, so it is kept as is.
+ */
+function stringifyDictKey(key: unknown): string {
+  return String(key);
+}
+
+/**
  * Evaluate dict/ordered literal entries, returning [key, value] pairs. Number
  * and boolean keys are returned with their original type; the DictLiteral
  * caller routes them to the typed-key sidecar, while the OrderedLiteral caller
@@ -536,13 +552,13 @@ export async function evaluateListLiteralElements(
 async function evaluateDictLiteralEntries(
   s: EvalState,
   entries: DictEntryNode[]
-): Promise<[RillValue, RillValue][]> {
+): Promise<[DictKeyScalar, RillValue][]> {
   // Keyed by a type-qualified encoding so a spread-introduced key that a
   // later literal key (or a later spread) overrides keeps its original
   // position — matching plain-object/Map override semantics — instead of
   // being appended again at the end.
-  const merged = new Map<string, [RillValue, RillValue]>();
-  const setMergedEntry = (key: RillValue, value: RillValue): void => {
+  const merged = new Map<string, [DictKeyScalar, RillValue]>();
+  const setMergedEntry = (key: DictKeyScalar, value: RillValue): void => {
     merged.set(`${typeof key}:${String(key)}`, [key, value]);
   };
 
@@ -560,7 +576,9 @@ async function evaluateDictLiteralEntries(
         }
       } else if (isPlainDict(spreadValue)) {
         for (const { key: k, value: v } of orderedDictEntries(spreadValue)) {
-          setMergedEntry(k, v);
+          if (isDictKeyScalar(k)) {
+            setMergedEntry(k, v);
+          }
         }
       } else {
         throwCatchableHostHalt(
@@ -589,32 +607,30 @@ async function evaluateDictLiteralEntries(
       // Object key (DictKeyVariable or DictKeyComputed) — evaluate like evaluateDict
       if ('kind' in key) {
         if (key.kind === 'variable') {
-          const varVal = evaluateVariable
-            ? evaluateVariable(s, {
-                type: 'Variable',
-                span: {
-                  start: { line: 0, column: 0, offset: 0 },
-                  end: { line: 0, column: 0, offset: 0 },
-                },
-                name: key.variableName,
-                isPipeVar: false,
-                accessChain: [],
-                defaultValue: null,
-                existenceCheck: null,
-              })
-            : undefined;
+          const varVal = evaluateVariable(s, {
+            type: 'Variable',
+            span: {
+              start: { line: 0, column: 0, offset: 0 },
+              end: { line: 0, column: 0, offset: 0 },
+            },
+            name: key.variableName,
+            isPipeVar: false,
+            accessChain: [],
+            defaultValue: null,
+            existenceCheck: null,
+          });
           stringKey =
             typeof varVal === 'string'
               ? varVal
-              : String(varVal ?? key.variableName);
+              : stringifyDictKey(varVal ?? key.variableName);
         } else {
           // computed: evaluate expression
           const computed = await evaluateExpression(s, key.expression);
-          stringKey = String(computed);
+          stringKey = stringifyDictKey(computed);
         }
         assertUsableDictKey(s, stringKey, entry.span);
       } else {
-        stringKey = String(key);
+        stringKey = stringifyDictKey(key);
         assertUsableDictKey(s, stringKey, entry.span);
       }
     }

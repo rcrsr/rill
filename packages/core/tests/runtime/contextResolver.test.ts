@@ -55,7 +55,7 @@ describe('Rill Runtime: contextResolver', () => {
   describe('IC-2: Empty config fallback', () => {
     it('throws RILL-R062 for any key when config is omitted', () => {
       try {
-        contextResolver('anykey');
+        void contextResolver('anykey');
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R062');
@@ -64,7 +64,7 @@ describe('Rill Runtime: contextResolver', () => {
 
     it('throws RILL-R062 for any key when config is empty object', () => {
       try {
-        contextResolver('anykey', {});
+        void contextResolver('anykey', {});
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R062');
@@ -75,7 +75,7 @@ describe('Rill Runtime: contextResolver', () => {
   describe('EC-17: Missing key -> RILL-R062', () => {
     it('throws RILL-R062 when flat key is absent from config', () => {
       try {
-        contextResolver('missing', { other: 'value' });
+        void contextResolver('missing', { other: 'value' });
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R062');
@@ -90,7 +90,7 @@ describe('Rill Runtime: contextResolver', () => {
 
     it('RILL-R062 message includes the key name', () => {
       try {
-        contextResolver('timeout', {});
+        void contextResolver('timeout', {});
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as Error).message).toContain(
@@ -101,7 +101,9 @@ describe('Rill Runtime: contextResolver', () => {
 
     it('throws RILL-R062 when nested path leaf is absent', () => {
       try {
-        contextResolver('limits.missing', { limits: { max_tokens: 4096 } });
+        void contextResolver('limits.missing', {
+          limits: { max_tokens: 4096 },
+        });
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R062');
@@ -110,7 +112,9 @@ describe('Rill Runtime: contextResolver', () => {
 
     it('RILL-R062 message includes the full dot-path key', () => {
       try {
-        contextResolver('limits.missing', { limits: { max_tokens: 4096 } });
+        void contextResolver('limits.missing', {
+          limits: { max_tokens: 4096 },
+        });
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as Error).message).toContain(
@@ -123,7 +127,7 @@ describe('Rill Runtime: contextResolver', () => {
   describe('EC-18: Segment not a dict -> RILL-R063', () => {
     it('throws RILL-R063 when intermediate segment is a string, not a dict', () => {
       try {
-        contextResolver('timeout.sub', { timeout: 'not-a-dict' });
+        void contextResolver('timeout.sub', { timeout: 'not-a-dict' });
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R063');
@@ -132,7 +136,7 @@ describe('Rill Runtime: contextResolver', () => {
 
     it('throws RILL-R063 when intermediate segment is a number, not a dict', () => {
       try {
-        contextResolver('limits.max_tokens.sub', {
+        void contextResolver('limits.max_tokens.sub', {
           limits: { max_tokens: 4096 },
         });
         expect.fail('Should have thrown');
@@ -143,7 +147,7 @@ describe('Rill Runtime: contextResolver', () => {
 
     it('throws RILL-R063 when intermediate segment is an array, not a dict', () => {
       try {
-        contextResolver('items.first', { items: [1, 2, 3] });
+        void contextResolver('items.first', { items: [1, 2, 3] });
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R063');
@@ -158,7 +162,7 @@ describe('Rill Runtime: contextResolver', () => {
 
     it('RILL-R063 message includes the resource path and offending segment', () => {
       try {
-        contextResolver('timeout.sub', { timeout: 'flat' });
+        void contextResolver('timeout.sub', { timeout: 'flat' });
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as Error).message).toContain("Context path 'timeout.sub'");
@@ -168,7 +172,7 @@ describe('Rill Runtime: contextResolver', () => {
 
     function expectR063(resource: string, config: Record<string, unknown>) {
       try {
-        contextResolver(resource, config as Record<string, RillValue>);
+        void contextResolver(resource, config);
         expect.fail('Should have thrown');
       } catch (err) {
         expect((err as RuntimeError).errorId).toBe('RILL-R063');

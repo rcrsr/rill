@@ -17,7 +17,6 @@ import {
   getStatus,
   toNative,
   type RillFunction,
-  type RillValue,
 } from '@rcrsr/rill';
 import { mockAsyncFn, run, runWithFakeTimers } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
@@ -143,7 +142,7 @@ describe('.at() fractional index guard', () => {
 describe('setDictField rebuild sites: toNative() and JSON serialization', () => {
   it('toNative() on an own __proto__-keyed dict does not reparent the native object', async () => {
     const result = await run('dict[("__proto__"): dict[x: 1]]');
-    const native = toNative(result as RillValue);
+    const native = toNative(result);
     const value = native.value as Record<string, unknown>;
     expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
     expect(Object.hasOwn(value, '__proto__')).toBe(true);
@@ -167,7 +166,7 @@ describe('setDictField rebuild sites: hydrateStructure and convertToDictWithSig'
     const result = await run(
       '|d: dict(__proto__: number = 1)| ($d) => $f\n$f(dict[])'
     );
-    const native = toNative(result as RillValue);
+    const native = toNative(result);
     const value = native.value as Record<string, unknown>;
     expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
     expect(Object.hasOwn(value, '__proto__')).toBe(true);
@@ -176,7 +175,7 @@ describe('setDictField rebuild sites: hydrateStructure and convertToDictWithSig'
 
   it('convertToDictWithSig copies a present __proto__-named field as an own property', async () => {
     const result = await run('dict[__proto__: 1] -> dict(__proto__: number)');
-    const native = toNative(result as RillValue);
+    const native = toNative(result);
     const value = native.value as Record<string, unknown>;
     expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
     expect(Object.hasOwn(value, '__proto__')).toBe(true);
@@ -185,7 +184,7 @@ describe('setDictField rebuild sites: hydrateStructure and convertToDictWithSig'
 
   it('convertToDictWithSig fills a missing __proto__-named field from its default as an own property', async () => {
     const result = await run('dict[] -> dict(__proto__: number = 1)');
-    const native = toNative(result as RillValue);
+    const native = toNative(result);
     const value = native.value as Record<string, unknown>;
     expect(Object.getPrototypeOf(value)).toBe(Object.prototype);
     expect(Object.hasOwn(value, '__proto__')).toBe(true);
@@ -251,7 +250,7 @@ describe('reserved brand keys as type-constructor field names', () => {
 
   it('a reserved method name is still allowed as a type field name', async () => {
     const result = await run('dict[] -> dict(len: string = "x")');
-    expect(toNative(result as RillValue).value).toEqual({ len: 'x' });
+    expect(toNative(result).value).toEqual({ len: 'x' });
   });
 });
 
