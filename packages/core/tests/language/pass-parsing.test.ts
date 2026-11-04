@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { getStatementView } from '../helpers/ast.js';
 import { parse } from '@rcrsr/rill';
 
 describe('Rill Language: Pass Keyword Parsing', () => {
@@ -14,7 +15,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       expect(ast.type).toBe('Script');
       expect(ast.statements).toHaveLength(1);
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       expect(stmt.type).toBe('Statement');
       expect(stmt.expression.type).toBe('PipeChain');
 
@@ -34,7 +35,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('dict[a: pass, b: pass]');
       expect(ast.type).toBe('Script');
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       const dict = stmt.expression.head.primary;
       expect(dict.type).toBe('Dict');
       expect(dict.entries).toHaveLength(2);
@@ -54,7 +55,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('true ? pass ! "fallback"');
       expect(ast.type).toBe('Script');
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       expect(stmt.expression.type).toBe('PipeChain');
 
       const head = stmt.expression.head;
@@ -71,7 +72,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('($ > 0) ? (($ < 10) ? pass ! 10) ! 0');
       expect(ast.type).toBe('Script');
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       const outerConditional = stmt.expression.head.primary;
       expect(outerConditional.type).toBe('Conditional');
 
@@ -91,7 +92,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('$items -> fan({ ($ > 0) ? pass ! 0 })');
       expect(ast.type).toBe('Script');
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       expect(stmt.expression.type).toBe('PipeChain');
       expect(stmt.expression.pipes).toHaveLength(1);
 
@@ -119,7 +120,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('$x -> dict["match": pass]');
       expect(ast.type).toBe('Script');
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       expect(stmt.expression.type).toBe('PipeChain');
       expect(stmt.expression.pipes).toHaveLength(1);
 
@@ -135,7 +136,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('pass');
       expect(ast.type).toBe('Script');
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       expect(stmt.expression.head.primary.type).toBe('Pass');
     });
 
@@ -143,7 +144,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('list[pass, pass]');
       expect(ast.type).toBe('Script');
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       const listLit = stmt.expression.head.primary;
       expect(listLit.type).toBe('ListLiteral');
       expect(listLit.elements).toHaveLength(2);
@@ -155,7 +156,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('pass -> string');
       expect(ast.type).toBe('Script');
 
-      const stmt = ast.statements[0]!;
+      const stmt = getStatementView(ast);
       expect(stmt.expression.head.primary.type).toBe('Pass');
       expect(stmt.expression.pipes).toHaveLength(1);
       expect(stmt.expression.pipes[0]!.type).toBe('TypeNameExpr');
@@ -167,7 +168,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('pass { "hello" }.upper');
       expect(ast.statements).toHaveLength(1);
 
-      const head = ast.statements[0]!.expression.head;
+      const head = getStatementView(ast).expression.head;
       expect(head.type).toBe('PostfixExpr');
       expect(head.primary.type).toBe('PassBlock');
       expect(head.methods).toHaveLength(1);
@@ -179,7 +180,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('5 -> pass { $ } . upper');
       expect(ast.statements).toHaveLength(1);
 
-      const pipeExpr = ast.statements[0]!.expression.pipes[0]!;
+      const pipeExpr = getStatementView(ast).expression.pipes[0]!;
       expect(pipeExpr.type).toBe('PostfixExpr');
       expect(pipeExpr.primary.type).toBe('PassBlock');
       expect(pipeExpr.methods).toHaveLength(1);
@@ -192,7 +193,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse(script);
       expect(ast.statements).toHaveLength(1);
 
-      const pipeExpr = ast.statements[0]!.expression.pipes[0]!;
+      const pipeExpr = getStatementView(ast).expression.pipes[0]!;
       expect(pipeExpr.type).toBe('PostfixExpr');
       expect(pipeExpr.primary.type).toBe('PassBlock');
       expect(pipeExpr.methods).toHaveLength(1);
@@ -204,7 +205,7 @@ describe('Rill Language: Pass Keyword Parsing', () => {
       const ast = parse('5 -> pass { list[$, $] } [0]');
       expect(ast.statements).toHaveLength(1);
 
-      const pipeExpr = ast.statements[0]!.expression.pipes[0]!;
+      const pipeExpr = getStatementView(ast).expression.pipes[0]!;
       expect(pipeExpr.type).toBe('PostfixExpr');
       expect(pipeExpr.primary.type).toBe('PassBlock');
       expect(pipeExpr.methods).toHaveLength(1);

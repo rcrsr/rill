@@ -4,8 +4,15 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { callable, isTuple, parse, ParseError } from '@rcrsr/rill';
+import {
+  callable,
+  isTuple,
+  parse,
+  ParseError,
+  type RillValue,
+} from '@rcrsr/rill';
 
+import { hostFn } from '../helpers/host.js';
 import { run } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
 
@@ -83,7 +90,7 @@ describe('explicit spread call syntax', () => {
     let received: unknown = undefined;
     await run('tuple[3, 4] -> captureArg()', {
       functions: {
-        captureArg: {
+        captureArg: hostFn({
           params: [
             {
               name: 'x',
@@ -96,17 +103,17 @@ describe('explicit spread call syntax', () => {
             received = args['x'];
             return '';
           },
-        },
+        }),
       },
     });
-    expect(isTuple(received)).toBe(true);
+    expect(isTuple(received as RillValue)).toBe(true);
   });
 
   it('AC-9: no spread — ordered value passed as single arg to host function', async () => {
     let received: unknown = undefined;
     await run('ordered[a: 1] -> captureArg()', {
       functions: {
-        captureArg: {
+        captureArg: hostFn({
           params: [
             {
               name: 'x',
@@ -119,13 +126,13 @@ describe('explicit spread call syntax', () => {
             received = args['x'];
             return '';
           },
-        },
+        }),
       },
     });
     expect(received).not.toBeNull();
     expect(typeof received).toBe('object');
     // ordered values carry the __rill_ordered marker
-    expect((received as Record<string, unknown>).__rill_ordered).toBe(true);
+    expect((received as Record<string, unknown>)['__rill_ordered']).toBe(true);
   });
 
   it('AC-10: dict-bound closure invoked with spread', async () => {
@@ -243,7 +250,7 @@ describe('explicit spread call syntax', () => {
     await expect(
       run('tuple[1, 2] -> $myFn(...)', {
         variables: {
-          myFn: callable((args) => args[0]),
+          myFn: callable((args) => args[0]!),
         },
       })
     ).rejects.toThrow(/parameter metadata required/i);
@@ -299,7 +306,7 @@ describe('explicit spread call syntax', () => {
     let received: Record<string, unknown> | undefined;
     await run('tuple[dict[b: 42]] -> process(...)', {
       functions: {
-        process: {
+        process: hostFn({
           params: [
             {
               name: 'opts',
@@ -318,7 +325,7 @@ describe('explicit spread call syntax', () => {
             received = args['opts'] as Record<string, unknown>;
             return '';
           },
-        },
+        }),
       },
     });
     expect(received).toEqual({ a: 'hello', b: 42 });
@@ -328,7 +335,7 @@ describe('explicit spread call syntax', () => {
     let received: Record<string, unknown> | undefined;
     await run('ordered[opts: dict[b: 42]] -> process(...)', {
       functions: {
-        process: {
+        process: hostFn({
           params: [
             {
               name: 'opts',
@@ -347,7 +354,7 @@ describe('explicit spread call syntax', () => {
             received = args['opts'] as Record<string, unknown>;
             return '';
           },
-        },
+        }),
       },
     });
     expect(received).toEqual({ a: 'hello', b: 42 });
@@ -355,7 +362,7 @@ describe('explicit spread call syntax', () => {
 
   it('AC-30: spread and direct call produce identical results with dict-typed param', async () => {
     // Regression guard: both paths converge on marshalArgs Stage 2.5
-    const paramDef = {
+    const paramDef = hostFn({
       params: [
         {
           name: 'opts',
@@ -370,10 +377,11 @@ describe('explicit spread call syntax', () => {
           annotations: {},
         },
       ],
-      fn: (args: Record<string, unknown>) => {
-        return (args['opts'] as Record<string, unknown>)['a'] ?? null;
+      fn: (args: Record<string, RillValue>) => {
+        return ((args['opts'] as Record<string, unknown>)['a'] ??
+          null) as RillValue;
       },
-    };
+    });
     const viaSpread = await run('tuple[dict[b: 42]] -> process(...)', {
       functions: { process: paramDef },
     });
@@ -387,7 +395,7 @@ describe('explicit spread call syntax', () => {
     let received: Record<string, unknown> | undefined;
     await run('dict[opts: dict[b: 42]] -> process(...)', {
       functions: {
-        process: {
+        process: hostFn({
           params: [
             {
               name: 'opts',
@@ -406,7 +414,7 @@ describe('explicit spread call syntax', () => {
             received = args['opts'] as Record<string, unknown>;
             return '';
           },
-        },
+        }),
       },
     });
     expect(received).toEqual({ a: 'hello', b: 42 });
@@ -416,7 +424,7 @@ describe('explicit spread call syntax', () => {
     let received: Record<string, unknown> | undefined;
     await run('tuple[dict[a: 1, inner: dict[y: 99]]] -> process(...)', {
       functions: {
-        process: {
+        process: hostFn({
           params: [
             {
               name: 'opts',
@@ -446,7 +454,7 @@ describe('explicit spread call syntax', () => {
             received = args['opts'] as Record<string, unknown>;
             return '';
           },
-        },
+        }),
       },
     });
     expect((received as Record<string, unknown>)['inner']).toEqual({

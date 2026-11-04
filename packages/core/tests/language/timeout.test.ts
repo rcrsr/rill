@@ -27,7 +27,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse, ParseError, type RuntimeContext } from '@rcrsr/rill';
+import {
+  parse,
+  ParseError,
+  type CallableFn,
+  type RuntimeContext,
+} from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import { run } from '../helpers/runtime.js';
@@ -42,14 +47,16 @@ import { expectHalt } from '../helpers/halt.js';
  * immediately when `ctx.signal` fires. This lets timeout tests reliably
  * interrupt the body before the delay completes.
  */
+type CallableCtx = Parameters<CallableFn>[1];
+
 function makeSlowFn(delayMs: number) {
   return {
     params: [] as never,
     returnType: { __type: 'any' } as never,
-    fn: async (_args: Record<string, unknown>, ctx: RuntimeContext) => {
+    fn: async (_args: Record<string, unknown>, ctx: CallableCtx) => {
       await new Promise<void>((resolve, reject) => {
         const handle = setTimeout(resolve, delayMs);
-        ctx.signal?.addEventListener(
+        (ctx as RuntimeContext).signal?.addEventListener(
           'abort',
           () => {
             clearTimeout(handle);

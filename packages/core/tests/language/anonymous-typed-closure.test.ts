@@ -10,6 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
+import type { RillValue, RillVector } from '@rcrsr/rill';
 
 import { run, createLogCollector } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
@@ -17,10 +18,10 @@ import { expectHalt } from '../helpers/halt.js';
 // Ordered and vector are special internal types not constructable via rill syntax.
 // Provide them as host variables so |ordered| and |vector| can be exercised.
 const ORDERED_VAL = {
-  __rill_ordered: true,
-  entries: [['a', 1]] as [string, unknown][],
+  __rill_ordered: true as const,
+  entries: [['a', 1]] as [string, RillValue][],
 };
-const VECTOR_VAL = {
+const VECTOR_VAL: RillVector = {
   __rill_vector: true,
   data: new Float32Array([1.0, 2.0]),
   model: 'test',
@@ -157,8 +158,8 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
         string,
         unknown
       >;
-      expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('number');
+      expect(result['__rill_type']).toBe(true);
+      expect(result['typeName']).toBe('number');
     });
   });
 
@@ -250,7 +251,7 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
         string,
         unknown
       >;
-      expect(result.__rill_type).toBe(true);
+      expect(result['__rill_type']).toBe(true);
     });
 
     it('AC-41: |type| accepts a type value (string)', async () => {
@@ -258,8 +259,8 @@ describe('Rill Language: Anonymous Typed Closure Parameters', () => {
         string,
         unknown
       >;
-      expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('string');
+      expect(result['__rill_type']).toBe(true);
+      expect(result['typeName']).toBe('string');
     });
   });
 

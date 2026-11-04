@@ -11,13 +11,15 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import {
+  anyTypeValue,
   RuntimeError,
   RuntimeHaltSignal,
   getStatus,
   toNative,
+  type RillFunction,
   type RillValue,
 } from '@rcrsr/rill';
-import { mockAsyncFn, run } from '../helpers/runtime.js';
+import { mockAsyncFn, run, runWithFakeTimers } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 import { RESERVED_BRAND_KEYS } from '../../src/runtime/core/values.js';
 
@@ -284,12 +286,11 @@ describe('#268: fractional slice bounds halt', () => {
 describe('#270: timeout timer + catchability', () => {
   it('an unguarded timeout escapes as a RuntimeError coded RILL-R012', async () => {
     const slowFn = mockAsyncFn(200, 'done');
-    let caught: unknown;
-    try {
-      await run('slowFn()', { functions: { slowFn }, timeout: 20 });
-    } catch (e) {
-      caught = e;
-    }
+    const { error: caught } = await runWithFakeTimers(
+      'slowFn()',
+      { functions: { slowFn }, timeout: 20 },
+      20
+    );
     expect(caught).toBeInstanceOf(RuntimeError);
     expect((caught as RuntimeError).errorId).toBe('RILL-R012');
     expect((caught as RuntimeError).message).toContain('timed out');
@@ -297,10 +298,12 @@ describe('#270: timeout timer + catchability', () => {
 
   it('guard recovers a timeout and reports it as #RILL_R012', async () => {
     const slowFn = mockAsyncFn(200, 'done');
-    const result = await run(
+    const { value: result, error } = await runWithFakeTimers(
       'guard { slowFn() } => $r  $r.! ? ($r.!code == #RILL_R012) ! false',
-      { functions: { slowFn }, timeout: 20 }
+      { functions: { slowFn }, timeout: 20 },
+      20
     );
+    expect(error).toBeUndefined();
     expect(result).toBe(true);
   });
 
@@ -316,7 +319,11 @@ describe('#270: timeout timer + catchability', () => {
     }) as typeof setTimeout);
     const clearSpy = vi.spyOn(globalThis, 'clearTimeout');
     try {
-      const fastFn = mockAsyncFn(1, 'done');
+      const fastFn: RillFunction = {
+        params: [],
+        returnType: anyTypeValue,
+        fn: async () => 'done',
+      };
       const result = await run('fastFn()', {
         functions: { fastFn },
         timeout: 10_000,

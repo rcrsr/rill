@@ -10,8 +10,10 @@ import {
   isScriptCallable,
   callable,
   type ApplicationCallable,
+  type RillValue,
 } from '@rcrsr/rill';
 import { run, runWithContext } from '../helpers/runtime.js';
+import { createHostCallable } from '../helpers/structure.js';
 
 describe('Rill Runtime: Annotations', () => {
   describe('Parsing', () => {
@@ -906,7 +908,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '^(doc: "test") |x|($x * 2) => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -919,7 +921,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '^(timeout: 10 + 20) |x|($x) => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -931,7 +933,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '^(doc: "test", timeout: 30) |x|($x) => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -944,7 +946,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '100 => $limit\n^(max: $limit) |x|($x) => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -961,7 +963,7 @@ describe('Rill Runtime: Annotations', () => {
           true
         `;
         const { context } = await runWithContext(script);
-        const alias = context.variables.get('alias');
+        const alias = context.variables.get('alias') as RillValue;
 
         expect(isScriptCallable(alias)).toBe(true);
         if (isScriptCallable(alias)) {
@@ -977,7 +979,7 @@ describe('Rill Runtime: Annotations', () => {
           true
         `;
         const { context } = await runWithContext(script);
-        const alias2 = context.variables.get('alias2');
+        const alias2 = context.variables.get('alias2') as RillValue;
 
         expect(isScriptCallable(alias2)).toBe(true);
         if (isScriptCallable(alias2)) {
@@ -990,7 +992,7 @@ describe('Rill Runtime: Annotations', () => {
     describe('Empty Annotations (AC-12)', () => {
       it('results in empty objects when no annotations present', async () => {
         const { context } = await runWithContext('|x|($x) => $fn\ntrue');
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1005,7 +1007,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '|^(min: 0) x: number|{ $x } => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1022,7 +1024,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '|^(min: 0) x: number|{ $x } => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1039,7 +1041,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '|^(min: 0, max: 100) x: number|{ $x } => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1056,7 +1058,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '|^(min: 0) x: number, ^(required: true) y: string|{ $x } => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1073,7 +1075,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '5 => $limit\n|^(max: $limit * 2) x: number|{ $x } => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1097,7 +1099,7 @@ describe('Rill Runtime: Annotations', () => {
         const { context } = await runWithContext(
           '|x: number, y: string|{ $x } => $fn\ntrue'
         );
-        const fn = context.variables.get('fn');
+        const fn = context.variables.get('fn') as RillValue;
 
         expect(isScriptCallable(fn)).toBe(true);
         if (isScriptCallable(fn)) {
@@ -1255,7 +1257,7 @@ describe('Rill Runtime: Annotations', () => {
     describe('AC-23: $fn.^input on host function with defined params returns a closure structural type', () => {
       it('structural type params array matches registered param names (AC-23)', async () => {
         // Inject the callable directly as a variable to avoid bare-name invocation.
-        const hostFn: ApplicationCallable = {
+        const hostFn: ApplicationCallable = createHostCallable({
           __type: 'callable',
           kind: 'application',
           params: [
@@ -1274,7 +1276,7 @@ describe('Rill Runtime: Annotations', () => {
           ],
           fn: () => null,
           isProperty: false,
-        };
+        });
         expect(
           isScriptCallable(hostFn) ||
             (hostFn !== null &&
@@ -1325,7 +1327,7 @@ describe('Rill Runtime: Annotations', () => {
       it('structural type param entry is stable across multiple reads (AC-34)', async () => {
         // $fn.^input returns RillTypeValue: { __rill_type: true, typeName: 'ordered', structure: ... }
         // Access the structural type twice and verify both reads return the same value
-        const processCallable: ApplicationCallable = {
+        const processCallable: ApplicationCallable = createHostCallable({
           __type: 'callable',
           kind: 'application',
           params: [
@@ -1336,9 +1338,9 @@ describe('Rill Runtime: Annotations', () => {
               annotations: {},
             },
           ],
-          fn: (args) => args['data'],
+          fn: (args) => args['data'] as RillValue,
           isProperty: false,
-        };
+        });
         const result1 = await run(`$fn.^input`, {
           variables: { fn: processCallable },
         });
@@ -1363,13 +1365,13 @@ describe('Rill Runtime: Annotations', () => {
 
     describe('AC-35: paramsToStructuralType() with empty params array returns closure with empty params', () => {
       it('zero-param host function ^input returns closure structural type with empty params (AC-35)', async () => {
-        const noopCallable: ApplicationCallable = {
+        const noopCallable: ApplicationCallable = createHostCallable({
           __type: 'callable',
           kind: 'application',
           params: [],
           fn: () => null,
           isProperty: false,
-        };
+        });
         const result = await run(`$fn.^input`, {
           variables: { fn: noopCallable },
         });
@@ -1388,7 +1390,7 @@ describe('Rill Runtime: Annotations', () => {
       it('host callable with typed RillParam maps to correct type value without throwing (EC-5)', async () => {
         // ^input reads param.type (TypeStructure) and converts via structureToTypeValue.
         // Build an ApplicationCallable with a RillParam using type: { kind: 'string' }.
-        const fn: ApplicationCallable = {
+        const fn: ApplicationCallable = createHostCallable({
           __type: 'callable',
           kind: 'application',
           params: [
@@ -1401,7 +1403,7 @@ describe('Rill Runtime: Annotations', () => {
           ],
           fn: () => null,
           isProperty: false,
-        };
+        });
         const result = await run(`$fn.^input`, { variables: { fn } });
         const shape = result as {
           __rill_type: true;

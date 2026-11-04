@@ -17,7 +17,7 @@ import {
   ParseError,
   RuntimeHaltSignal,
   type RillStream,
-  type TypeStructure,
+  type RillParam,
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
@@ -27,7 +27,7 @@ import { run } from '../helpers/runtime.js';
 // Helper: host function returning a RillStream over provided values
 function makeStreamFn(chunks: RillValue[], resolution: RillValue = null) {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [] as RillParam[],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({
@@ -41,6 +41,7 @@ function makeStreamFn(chunks: RillValue[], resolution: RillValue = null) {
 
 // Helper: host function wrapping a numeric doubling operation
 const double = {
+  returnType: anyTypeValue,
   params: [
     {
       name: 'x',
@@ -773,7 +774,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       // simulates a #DISPOSED-style non-catchable halt. The pass<> block must
       // not suppress it even when on_error: #IGNORE is set.
       const throw_noncatchable = {
-        params: [] as { name: string; type: TypeStructure }[],
+        params: [] as RillParam[],
         returnType: anyTypeValue,
         fn: (): never => {
           throw new RuntimeHaltSignal(null, false);
@@ -802,7 +803,11 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   describe('pass<...> parser validation (RILL_P004)', () => {
     it('AC-PASSPARSE-1: pass<> with empty options is a parse error (RILL-P004)', async () => {
       try {
-        await run('5 -> pass<> { log($) }', { functions: { log: () => '' } });
+        await run('5 -> pass<> { log($) }', {
+          functions: {
+            log: { params: [], returnType: anyTypeValue, fn: () => '' },
+          },
+        });
         expect.fail('Should have thrown ParseError');
       } catch (err) {
         expect(err).toBeInstanceOf(ParseError);
@@ -813,7 +818,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     it('AC-PASSPARSE-2: pass<unknown_key: #IGNORE> rejects unknown option key', async () => {
       await expect(
         run('5 -> pass<bad_key: #IGNORE> { log($) }', {
-          functions: { log: () => '' },
+          functions: {
+            log: { params: [], returnType: anyTypeValue, fn: () => '' },
+          },
         })
       ).rejects.toBeInstanceOf(ParseError);
     });
@@ -821,7 +828,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     it('AC-PASSPARSE-3: pass<on_error: 42> rejects non-atom value', async () => {
       await expect(
         run('5 -> pass<on_error: 42> { log($) }', {
-          functions: { log: () => '' },
+          functions: {
+            log: { params: [], returnType: anyTypeValue, fn: () => '' },
+          },
         })
       ).rejects.toBeInstanceOf(ParseError);
     });
@@ -829,7 +838,9 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     it('AC-PASSPARSE-4: pass<on_error: #INVALID_INPUT> rejects atom other than #IGNORE', async () => {
       await expect(
         run('5 -> pass<on_error: #INVALID_INPUT> { log($) }', {
-          functions: { log: () => '' },
+          functions: {
+            log: { params: [], returnType: anyTypeValue, fn: () => '' },
+          },
         })
       ).rejects.toBeInstanceOf(ParseError);
     });

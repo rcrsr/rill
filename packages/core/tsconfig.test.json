@@ -14,6 +14,7 @@
     "src/**/*",
     "tests/*.ts",
     "tests/helpers/**/*",
+    "tests/language/**/*",
     "tests/parser/**/*",
     "tests/runtime/**/*"
   ]

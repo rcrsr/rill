@@ -6,7 +6,9 @@
  */
 
 import {
+  anyTypeValue,
   isTypeValue,
+  type ApplicationCallable,
   type RillTypeValue,
   type RillValue,
   type TypeStructure,
@@ -44,4 +46,11 @@ export function expectOrderedStructure(value: RillValue): OrderedStructure {
     throw new Error(`expected an ordered structure, got ${structure.kind}`);
   }
   return structure;
+}
+
+/** Fill the neutral `annotations` and `returnType` fields of a host callable literal. */
+export function createHostCallable(
+  definition: Omit<ApplicationCallable, 'annotations' | 'returnType'>
+): ApplicationCallable {
+  return { ...definition, annotations: {}, returnType: anyTypeValue };
 }

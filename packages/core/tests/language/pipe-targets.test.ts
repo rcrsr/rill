@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
+import { anyTypeValue } from '@rcrsr/rill';
 
 describe('Rill Runtime: Pipe Targets', () => {
   describe('Invoke Pipe Target (-> $())', () => {
@@ -42,6 +43,7 @@ describe('Rill Runtime: Pipe Targets', () => {
     it('invokes closure returned from function', async () => {
       // Function that returns a closure
       const greet: RillFunction = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'name',
@@ -140,6 +142,7 @@ describe('Rill Runtime: Pipe Targets', () => {
 
     it('uses custom function with bare name', async () => {
       const double: RillFunction = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'x',
@@ -364,6 +367,7 @@ $fn(3)`;
   describe('Pipe Binding Rule (IR-8)', () => {
     // Helper: 3-param host function that returns its args as a list
     const makeCollect3: () => RillFunction = () => ({
+      returnType: anyTypeValue,
       params: [
         {
           name: 'a',
@@ -390,6 +394,7 @@ $fn(3)`;
 
     // Helper: 2-param host function that returns its args as a list
     const makeCollect2: () => RillFunction = () => ({
+      returnType: anyTypeValue,
       params: [
         {
           name: 'a',
@@ -410,6 +415,7 @@ $fn(3)`;
 
     // Helper: zero-param host function that returns a fixed value
     const makeZeroParam: () => RillFunction = () => ({
+      returnType: anyTypeValue,
       params: [],
       fn: (): RillValue => 'zero-param-result',
     });
@@ -530,6 +536,7 @@ $fn(3)`;
 
     it('indexes the result of an arg-bearing host-call target', async () => {
       const collect2: RillFunction = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'a',

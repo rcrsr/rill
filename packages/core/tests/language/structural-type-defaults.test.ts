@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isTuple, parse, ParseError } from '@rcrsr/rill';
+import { isTuple, parse, ParseError, type RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 import { isOrdered, orderedEntries } from '../helpers/ordered.js';
@@ -71,7 +71,7 @@ describe('Rill Language: Structural Type Default Values', () => {
         '[a: "a", b: "b", c: "c"] -> dict(a: string, b: string)'
       );
       expect(result).toEqual({ a: 'a', b: 'b' });
-      expect((result as Record<string, unknown>).c).toBeUndefined();
+      expect((result as Record<string, unknown>)['c']).toBeUndefined();
     });
   });
 
@@ -101,10 +101,10 @@ describe('Rill Language: Structural Type Default Values', () => {
         '[b: "c"] -> dict(b: string, a: string = "default")'
       );
       // Both have the default, but different b values — they are independent
-      expect((result1 as Record<string, unknown>).a).toBe('default');
-      expect((result2 as Record<string, unknown>).a).toBe('default');
-      expect((result1 as Record<string, unknown>).b).toBe('b');
-      expect((result2 as Record<string, unknown>).b).toBe('c');
+      expect((result1 as Record<string, unknown>)['a']).toBe('default');
+      expect((result2 as Record<string, unknown>)['a']).toBe('default');
+      expect((result1 as Record<string, unknown>)['b']).toBe('b');
+      expect((result2 as Record<string, unknown>)['b']).toBe('c');
     });
   });
 
@@ -257,11 +257,11 @@ describe('Rill Language: Structural Type Default Values', () => {
     it('two conversions using the same type with nested dict default produce independent values', async () => {
       const result1 = await run('dict[] -> dict(cfg: dict = [x: 99])');
       const result2 = await run('dict[] -> dict(cfg: dict = [x: 99])');
-      const cfg1 = (result1 as Record<string, unknown>).cfg as Record<
+      const cfg1 = (result1 as Record<string, unknown>)['cfg'] as Record<
         string,
         unknown
       >;
-      const cfg2 = (result2 as Record<string, unknown>).cfg as Record<
+      const cfg2 = (result2 as Record<string, unknown>)['cfg'] as Record<
         string,
         unknown
       >;
@@ -341,7 +341,7 @@ describe('Rill Language: Structural Type Default Values', () => {
         '[outer: [y: "z"]] -> dict(outer: ordered(x: number = 42, y: string))'
       );
       expect(result).toMatchObject({ outer: expect.anything() });
-      const outer = (result as Record<string, unknown>).outer;
+      const outer = (result as Record<string, unknown>)['outer'];
       expect(isOrdered(outer)).toBe(true);
       const innerEntries = orderedEntries(outer);
       expect(innerEntries).toEqual([
@@ -658,7 +658,7 @@ describe('Rill Language: Structural Type Default Values', () => {
       const result = await run(
         'dict[] -> dict(items: ordered(x: number = 1, y: string = "hi"))'
       );
-      const items = (result as Record<string, unknown>).items;
+      const items = (result as Record<string, unknown>)['items'];
       expect(isOrdered(items)).toBe(true);
       const entries = orderedEntries(items);
       expect(entries).toEqual([
@@ -675,7 +675,7 @@ describe('Rill Language: Structural Type Default Values', () => {
       const result = await run(
         'dict[] -> dict(pair: tuple(number = 0, string = ""))'
       );
-      const pair = (result as Record<string, unknown>).pair;
+      const pair = (result as Record<string, unknown>)['pair'] as RillValue;
       expect(isTuple(pair)).toBe(true);
       const tupleResult = pair as { entries: unknown[] };
       expect(tupleResult.entries).toEqual([0, '']);
@@ -726,7 +726,7 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('keyword tuple literal default hydrates a missing field', async () => {
       const result = await run('dict[] -> dict(pair: tuple = tuple[1, "a"])');
-      const pair = (result as Record<string, unknown>).pair;
+      const pair = (result as Record<string, unknown>)['pair'] as RillValue;
       expect(isTuple(pair)).toBe(true);
       expect((pair as { entries: unknown[] }).entries).toEqual([1, 'a']);
     });
@@ -735,7 +735,7 @@ describe('Rill Language: Structural Type Default Values', () => {
       const result = await run(
         'dict[] -> dict(items: ordered = ordered[x: 1])'
       );
-      const items = (result as Record<string, unknown>).items;
+      const items = (result as Record<string, unknown>)['items'];
       expect(isOrdered(items)).toBe(true);
       expect(orderedEntries(items)).toEqual([['x', 1]]);
     });

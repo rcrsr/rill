@@ -16,10 +16,12 @@ import {
   isRillStream,
   isTypeValue,
   parse,
+  type RillParam,
   type RillStream,
   type RillValue,
   type TypeStructure,
 } from '@rcrsr/rill';
+import { getNextFn, hostParam } from '../helpers/host.js';
 import { run, runFull } from '../helpers/runtime.js';
 import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
@@ -55,7 +57,7 @@ function makeStreamFn(
   }
 ) {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [] as RillParam[],
     returnType: anyTypeValue,
     fn: () =>
       createRillStream({
@@ -460,14 +462,14 @@ describe('Streams: Error Cases', () => {
       });
 
       // Advance once to get first step
-      const step1 = (await stream.next.fn(
+      const step1 = (await getNextFn(stream)(
         {},
         {} as never
       )) as unknown as RillStream;
       // Advance again to get second step (makes step1 stale)
-      await step1.next.fn({}, {} as never);
+      await getNextFn(step1)({}, {} as never);
       // Trying step1.next again should fail
-      await expect(step1.next.fn({}, {} as never)).rejects.toThrow(
+      await expect(getNextFn(step1)({}, {} as never)).rejects.toThrow(
         'Stream already consumed'
       );
     });
@@ -681,7 +683,7 @@ describe('Streams: Boundary Conditions', () => {
         {
           functions: {
             make_stream: {
-              params: [{ name: '_', type: { kind: 'any' as const } }],
+              params: [hostParam('_', { kind: 'any' })],
               returnType: anyTypeValue,
               fn: () =>
                 createRillStream({
@@ -713,7 +715,7 @@ describe('Streams: Boundary Conditions', () => {
         {
           functions: {
             make_stream: {
-              params: [{ name: '_', type: { kind: 'any' as const } }],
+              params: [hostParam('_', { kind: 'any' })],
               returnType: anyTypeValue,
               fn: () =>
                 createRillStream({
@@ -742,7 +744,7 @@ describe('Streams: Boundary Conditions', () => {
         {
           functions: {
             make_stream: {
-              params: [{ name: 'label', type: { kind: 'string' as const } }],
+              params: [hostParam('label', { kind: 'string' })],
               returnType: anyTypeValue,
               fn: (args: Record<string, RillValue>) => {
                 const label = args['label'] as string;
@@ -980,7 +982,7 @@ describe('Streams: Error Contracts', () => {
           {
             functions: {
               make_stream: {
-                params: [{ name: '_', type: { kind: 'any' as const } }],
+                params: [hostParam('_', { kind: 'any' })],
                 returnType: anyTypeValue,
                 fn: () =>
                   createRillStream({

@@ -52,7 +52,7 @@ import {
   createRillStream,
   type RillStream,
   type RillValue,
-  type TypeStructure,
+  type RillParam,
 } from '@rcrsr/rill';
 
 import { expectHalt } from '../helpers/halt.js';
@@ -64,7 +64,7 @@ import { run } from '../helpers/runtime.js';
 
 function makeStreamFn(chunks: RillValue[], resolution: RillValue = null) {
   return {
-    params: [] as { name: string; type: TypeStructure }[],
+    params: [] as RillParam[],
     returnType: anyTypeValue,
     fn: (): RillStream =>
       createRillStream({

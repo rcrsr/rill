@@ -57,8 +57,8 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.name).toBeDefined();
-      expect(fields.name!.annotations).toEqual({ description: 'label' });
+      expect(fields['name']).toBeDefined();
+      expect(fields['name']!.annotations).toEqual({ description: 'label' });
     });
   });
 
@@ -133,8 +133,11 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.f).toBeDefined();
-      expect(fields.f!.annotations).toEqual({ description: 'd', enum: 'a,b' });
+      expect(fields['f']).toBeDefined();
+      expect(fields['f']!.annotations).toEqual({
+        description: 'd',
+        enum: 'a,b',
+      });
     });
 
     it('accesses multi-key annotations via .^type in rill script', async () => {
@@ -146,8 +149,8 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.f!.annotations).toHaveProperty('description', 'd');
-      expect(fields.f!.annotations).toHaveProperty('enum', 'a,b');
+      expect(fields['f']!.annotations).toHaveProperty('description', 'd');
+      expect(fields['f']!.annotations).toHaveProperty('enum', 'a,b');
     });
   });
 
@@ -161,8 +164,8 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.name).toBeDefined();
-      expect(fields.name!.annotations).toBeUndefined();
+      expect(fields['name']).toBeDefined();
+      expect(fields['name']!.annotations).toBeUndefined();
     });
 
     it('ordered(name: string) field has no annotations', async () => {
@@ -198,14 +201,14 @@ describe('Dict Field Annotations', () => {
       ).fields;
 
       // Verify name field
-      expect(fields.name).toBeDefined();
-      expect(fields.name!.type).toEqual({ kind: 'string' });
-      expect(fields.name!.annotations).toEqual({ description: 'Full name' });
+      expect(fields['name']).toBeDefined();
+      expect(fields['name']!.type).toEqual({ kind: 'string' });
+      expect(fields['name']!.annotations).toEqual({ description: 'Full name' });
 
       // Verify age field
-      expect(fields.age).toBeDefined();
-      expect(fields.age!.type).toEqual({ kind: 'number' });
-      expect(fields.age!.annotations).toEqual({ description: 'User age' });
+      expect(fields['age']).toBeDefined();
+      expect(fields['age']!.type).toEqual({ kind: 'number' });
+      expect(fields['age']!.annotations).toEqual({ description: 'User age' });
     });
 
     it('host reads ordered field annotations from structure', async () => {
@@ -246,10 +249,10 @@ describe('Dict Field Annotations', () => {
       ).fields;
 
       // Annotated field
-      expect(fields.name!.annotations).toEqual({ description: 'labeled' });
+      expect(fields['name']!.annotations).toEqual({ description: 'labeled' });
 
       // Unannotated field
-      expect(fields.age!.annotations).toBeUndefined();
+      expect(fields['age']!.annotations).toBeUndefined();
     });
   });
 
@@ -270,10 +273,10 @@ describe('Dict Field Annotations', () => {
       ).fields;
 
       // rill-ext buildJsonSchemaFromStructuralType reads annotations['description']
-      expect(fields.name!.annotations).toBeDefined();
-      expect(fields.name!.annotations!['description']).toBe('User name');
-      expect(fields.age!.annotations).toBeDefined();
-      expect(fields.age!.annotations!['description']).toBe('User age');
+      expect(fields['name']!.annotations).toBeDefined();
+      expect(fields['name']!.annotations!['description']).toBe('User name');
+      expect(fields['age']!.annotations).toBeDefined();
+      expect(fields['age']!.annotations!['description']).toBe('User age');
     });
 
     it('structure.fields[name].annotations.enum exists for enum-annotated fields', async () => {
@@ -285,9 +288,9 @@ describe('Dict Field Annotations', () => {
       ).fields;
 
       // rill-ext buildJsonSchemaFromStructuralType reads annotations['enum']
-      expect(fields.status!.annotations).toBeDefined();
-      expect(fields.status!.annotations!['description']).toBe('status');
-      expect(fields.status!.annotations!['enum']).toBe('active,inactive');
+      expect(fields['status']!.annotations).toBeDefined();
+      expect(fields['status']!.annotations!['description']).toBe('status');
+      expect(fields['status']!.annotations!['enum']).toBe('active,inactive');
     });
 
     it('unannotated fields have no annotations property for schema builder', async () => {
@@ -299,9 +302,9 @@ describe('Dict Field Annotations', () => {
       ).fields;
 
       // Schema builder skips fields without annotations
-      expect(fields.name!.annotations).toBeDefined();
-      expect(fields.name!.annotations!['description']).toBe('labeled');
-      expect(fields.age!.annotations).toBeUndefined();
+      expect(fields['name']!.annotations).toBeDefined();
+      expect(fields['name']!.annotations!['description']).toBe('labeled');
+      expect(fields['age']!.annotations).toBeUndefined();
     });
   });
 
@@ -320,7 +323,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.f!.annotations).toEqual({ description: 'desc' });
+      expect(fields['f']!.annotations).toEqual({ description: 'desc' });
     });
 
     it('annotation value resolves variable from earlier pipeline step', async () => {
@@ -330,7 +333,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.greeting!.annotations).toEqual({ description: 'hello' });
+      expect(fields['greeting']!.annotations).toEqual({ description: 'hello' });
     });
 
     it('annotation value resolves computed expression with variable', async () => {
@@ -340,7 +343,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.count!.annotations).toEqual({ limit: 20 });
+      expect(fields['count']!.annotations).toEqual({ limit: 20 });
     });
   });
 
@@ -519,8 +522,8 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.name).toBeDefined();
-      expect(fields.name!.annotations).toEqual({});
+      expect(fields['name']).toBeDefined();
+      expect(fields['name']!.annotations).toEqual({});
     });
 
     it('ordered(^() name: string) field carries empty annotations record', async () => {
@@ -543,9 +546,9 @@ describe('Dict Field Annotations', () => {
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
       // ^() produces empty record
-      expect(fields.name!.annotations).toEqual({});
+      expect(fields['name']!.annotations).toEqual({});
       // unannotated field has no annotations property
-      expect(fields.age!.annotations).toBeUndefined();
+      expect(fields['age']!.annotations).toBeUndefined();
     });
   });
 
@@ -561,7 +564,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.name!.annotations).toEqual({
+      expect(fields['name']!.annotations).toEqual({
         description: 'label',
         enum: 'a,b',
       });
@@ -597,7 +600,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.score!.annotations).toEqual({
+      expect(fields['score']!.annotations).toEqual({
         description: 'label',
         min: 0,
         max: 100,
@@ -617,8 +620,8 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.name!.annotations).toEqual({ description: 'label' });
-      expect(fields.age!.annotations).toBeUndefined();
+      expect(fields['name']!.annotations).toEqual({ description: 'label' });
+      expect(fields['age']!.annotations).toBeUndefined();
     });
 
     it('only annotated fields carry annotations property in ordered', async () => {
@@ -658,7 +661,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.name!.annotations).toEqual({ description: 3 });
+      expect(fields['name']!.annotations).toEqual({ description: 3 });
     });
 
     it('multiplication expression evaluates in annotation value', async () => {
@@ -666,7 +669,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.name!.annotations).toEqual({ limit: 100 });
+      expect(fields['name']!.annotations).toEqual({ limit: 100 });
     });
 
     it('boolean expression evaluates in annotation value', async () => {
@@ -676,7 +679,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.name!.annotations).toEqual({ required: true });
+      expect(fields['name']!.annotations).toEqual({ required: true });
     });
 
     it('variable expression evaluates in annotation value', async () => {
@@ -686,7 +689,7 @@ describe('Dict Field Annotations', () => {
       const fields = (
         result.structure as { fields: Record<string, RillFieldDef> }
       ).fields;
-      expect(fields.count!.annotations).toEqual({ max: 50 });
+      expect(fields['count']!.annotations).toEqual({ max: 50 });
     });
   });
 });

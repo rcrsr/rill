@@ -8,6 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { getStatementView } from '../helpers/ast.js';
 import { parse, tokenize } from '@rcrsr/rill';
 
 // ============================================================
@@ -18,7 +19,7 @@ describe('Stream Type Registration', () => {
   it('stream is recognized as a valid type name by the parser', () => {
     // If stream is in VALID_TYPE_NAMES, bare 'stream' parses as TypeNameExpr
     const ast = parse('stream');
-    const head = ast.statements[0]!.expression.head;
+    const head = getStatementView(ast).expression.head;
     expect(head.primary.type).toBe('TypeNameExpr');
     expect(head.primary.typeName).toBe('stream');
   });
@@ -52,7 +53,7 @@ describe('Yield Token Lexing', () => {
 describe('Yield Parsing in Stream Closures', () => {
   it('parses bare yield as $ -> yield inside stream closure', () => {
     const ast = parse('|x| yield :stream()');
-    const stmt = ast.statements[0]!;
+    const stmt = getStatementView(ast);
     const closure = stmt.expression.head.primary;
     expect(closure.type).toBe('Closure');
 
@@ -69,7 +70,7 @@ describe('Yield Parsing in Stream Closures', () => {
 
   it('parses pipe target yield: expr -> yield inside stream closure', () => {
     const ast = parse('|x| ($x -> yield) :stream()');
-    const stmt = ast.statements[0]!;
+    const stmt = getStatementView(ast);
     const closure = stmt.expression.head.primary;
     expect(closure.type).toBe('Closure');
 
@@ -81,7 +82,7 @@ describe('Yield Parsing in Stream Closures', () => {
 
   it('parses yield in block body of stream closure', () => {
     const ast = parse('|x| { $x -> yield } :stream(string)');
-    const stmt = ast.statements[0]!;
+    const stmt = getStatementView(ast);
     const closure = stmt.expression.head.primary;
     expect(closure.type).toBe('Closure');
 
@@ -93,7 +94,7 @@ describe('Yield Parsing in Stream Closures', () => {
 
   it('parses yield in stream closure with no-param syntax (||)', () => {
     const ast = parse('|| yield :stream()');
-    const stmt = ast.statements[0]!;
+    const stmt = getStatementView(ast);
     const closure = stmt.expression.head.primary;
     expect(closure.type).toBe('Closure');
     expect(closure.params).toHaveLength(0);
@@ -147,7 +148,7 @@ describe('Yield as Identifier', () => {
 describe('Stream Type Constructor Parsing', () => {
   it('parses stream() with no args', () => {
     const ast = parse('|x| yield :stream()');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     expect(closure.type).toBe('Closure');
 
     const returnType = closure.returnTypeTarget;
@@ -159,7 +160,7 @@ describe('Stream Type Constructor Parsing', () => {
 
   it('parses stream(number) with chunk type', () => {
     const ast = parse('|x| yield :stream(number)');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     const returnType = closure.returnTypeTarget;
     expect(returnType).toBeDefined();
     expect(returnType!.type).toBe('TypeConstructor');
@@ -173,7 +174,7 @@ describe('Stream Type Constructor Parsing', () => {
 
   it('parses stream(string) with string chunk type', () => {
     const ast = parse('|x| yield :stream(string)');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     const returnType = closure.returnTypeTarget;
     expect(returnType!.constructorName).toBe('stream');
     expect(returnType!.args).toHaveLength(1);
@@ -185,7 +186,7 @@ describe('Stream Type Constructor Parsing', () => {
 
   it('parses stream(number):string with both chunk and resolution types', () => {
     const ast = parse('|x| yield :stream(number):string');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     const returnType = closure.returnTypeTarget;
     expect(returnType).toBeDefined();
     expect(returnType!.type).toBe('TypeConstructor');
@@ -207,7 +208,7 @@ describe('Stream Type Constructor Parsing', () => {
 
   it('parses stream():number with resolution type and no chunk type', () => {
     const ast = parse('|x| yield :stream():number');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     const returnType = closure.returnTypeTarget;
     expect(returnType!.constructorName).toBe('stream');
     // 1 implicit any chunk arg + 1 resolution arg = 2
@@ -224,7 +225,7 @@ describe('Stream Type Constructor Parsing', () => {
 
   it('parses stream(number) in expression position as type constructor', () => {
     const ast = parse('stream(number)');
-    const stmt = ast.statements[0]!;
+    const stmt = getStatementView(ast);
     const head = stmt.expression.head;
     expect(head.type).toBe('PostfixExpr');
     expect(head.primary.type).toBe('TypeConstructor');
@@ -234,7 +235,7 @@ describe('Stream Type Constructor Parsing', () => {
 
   it('parses bare stream as type name expression', () => {
     const ast = parse('stream');
-    const stmt = ast.statements[0]!;
+    const stmt = getStatementView(ast);
     const head = stmt.expression.head;
     expect(head.type).toBe('PostfixExpr');
     expect(head.primary.type).toBe('TypeNameExpr');
@@ -255,14 +256,14 @@ describe('Stream Type Constructor Parsing', () => {
 describe('Stream Type in Closure Return Types', () => {
   it('parses closure with :stream() return type (no params)', () => {
     const ast = parse('|| yield :stream()');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     expect(closure.returnTypeTarget!.type).toBe('TypeConstructor');
     expect(closure.returnTypeTarget!.constructorName).toBe('stream');
   });
 
   it('parses anonymous typed closure with stream return type', () => {
     const ast = parse('|string| yield :stream(number)');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     expect(closure.type).toBe('Closure');
     expect(closure.params).toHaveLength(1);
     expect(closure.params[0]!.name).toBe('$');
@@ -271,7 +272,7 @@ describe('Stream Type in Closure Return Types', () => {
 
   it('parses named param closure with stream return type', () => {
     const ast = parse('|x: string| yield :stream(number):bool');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     expect(closure.type).toBe('Closure');
     expect(closure.params).toHaveLength(1);
     expect(closure.params[0]!.name).toBe('x');
@@ -289,7 +290,7 @@ describe('Stream Type in Closure Return Types', () => {
 describe('IC-2: Non-regression', () => {
   it('break still parses as chain terminator', () => {
     const ast = parse('while (true) do { break }');
-    const loop = ast.statements[0]!.expression.head.primary;
+    const loop = getStatementView(ast).expression.head.primary;
     expect(loop.type).toBe('WhileLoop');
     const block = loop.body;
     expect(block.type).toBe('Block');
@@ -298,26 +299,24 @@ describe('IC-2: Non-regression', () => {
 
   it('return still parses as chain terminator', () => {
     const ast = parse('|x| return');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     expect(closure.body.terminator!.type).toBe('Return');
   });
 
   it('list() type constructor still parses', () => {
     const ast = parse('list(string)');
-    const head = ast.statements[0]!.expression.head;
+    const head = getStatementView(ast).expression.head;
     expect(head.primary.type).toBe('TypeConstructor');
     expect(head.primary.constructorName).toBe('list');
   });
 
   it('closure with :string return type still parses', () => {
     const ast = parse('|x| { $x } :string');
-    const closure = ast.statements[0]!.expression.head.primary;
+    const closure = getStatementView(ast).expression.head.primary;
     expect(closure.type).toBe('Closure');
     expect(closure.returnTypeTarget).toBeDefined();
     // TypeRef has 'kind' property, not 'type'
-    expect((closure.returnTypeTarget as { kind: string }).kind).toBe('static');
-    expect((closure.returnTypeTarget as { typeName: string }).typeName).toBe(
-      'string'
-    );
+    expect(closure.returnTypeTarget!.kind).toBe('static');
+    expect(closure.returnTypeTarget!.typeName).toBe('string');
   });
 });

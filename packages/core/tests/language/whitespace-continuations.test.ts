@@ -6,6 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { anyTypeValue, parse, ParseError } from '@rcrsr/rill';
 
+import { asPostfixHead, getStatementAt } from '../helpers/ast.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Whitespace Continuations', () => {
@@ -87,7 +88,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     it('bracket at start of next line starts a new statement, not an index continuation', () => {
       const script = parse(`$x\n[0]`);
       expect(script.statements).toHaveLength(2);
-      const second = script.statements[1];
+      const second = script.statements[1]!;
       if (second.type !== 'Statement') {
         expect.fail('Expected second statement to be a plain Statement node');
       }
@@ -264,7 +265,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
               },
             ],
             returnType: anyTypeValue,
-            fn: (args) => args.value,
+            fn: (args) => args['value']!,
           },
         },
       });
@@ -309,7 +310,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
               },
             ],
             returnType: anyTypeValue,
-            fn: (args) => args.value,
+            fn: (args) => args['value']!,
           },
         },
       });
@@ -437,7 +438,7 @@ describe('Rill Runtime: Whitespace Continuations', () => {
     it('trailing .! continues onto the optional field name on the next line', () => {
       const script = parse('$x.!\ncode');
       expect(script.statements).toHaveLength(1);
-      const head = script.statements[0]!.expression.head as {
+      const head = asPostfixHead(getStatementAt(script, 0).expression.head) as {
         primary: { type: string; field?: string };
       };
       expect(head.primary.type).toBe('StatusProbe');

@@ -124,7 +124,7 @@ describe('Rill Runtime: Host Integration', () => {
               },
             ],
             fn: async (args) => {
-              await new Promise((r) => setTimeout(r, 10));
+              await Promise.resolve();
               return `fetched:${args['url']}`;
             },
           },

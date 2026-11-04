@@ -3,7 +3,12 @@
  * Tests for vector type operations, methods, and error conditions
  */
 
-import { createVector, isVector, type RillValue } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  createVector,
+  isVector,
+  type RillValue,
+} from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
@@ -15,10 +20,7 @@ describe('Rill Runtime: Vector Type', () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'test-model');
       const actual = (await run('get_vector() => $v\n$v.^type', {
         functions: {
-          get_vector: {
-            params: [],
-            fn: () => vec,
-          },
+          get_vector: { returnType: anyTypeValue, params: [], fn: () => vec },
         },
       })) as any;
       expect(actual.typeName).toBe('vector');
@@ -31,8 +33,8 @@ describe('Rill Runtime: Vector Type', () => {
       const vecB = createVector(new Float32Array([2.0, 0.0, 0.0]), 'model-a');
       const result = await run('$a -> .similarity($b)', {
         functions: {
-          vec_a: { params: [], fn: () => vecA },
-          vec_b: { params: [], fn: () => vecB },
+          vec_a: { returnType: anyTypeValue, params: [], fn: () => vecA },
+          vec_b: { returnType: anyTypeValue, params: [], fn: () => vecB },
         },
         variables: {
           a: vecA,

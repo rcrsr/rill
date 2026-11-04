@@ -97,7 +97,7 @@ describe('Rill Runtime: core handler error contracts', () => {
         fn: async (): Promise<RillValue> => {
           callCount++;
           controller.abort();
-          await new Promise((r) => setTimeout(r, 10));
+          await Promise.resolve();
           return callCount;
         },
       };
@@ -220,7 +220,7 @@ describe('Rill Runtime: core handler error contracts', () => {
                 if (callCount >= 1) {
                   controller.abort();
                 }
-                await new Promise((r) => setTimeout(r, 5));
+                await Promise.resolve();
                 return args['input'] ?? null;
               },
             },

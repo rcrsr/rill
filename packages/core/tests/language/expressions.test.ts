@@ -3,6 +3,7 @@
  * Tests for pipes, methods, and function calls
  */
 
+import { anyTypeValue, type RillValue } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { createLogCollector, run } from '../helpers/runtime.js';
@@ -91,6 +92,7 @@ describe('Rill Runtime: Expressions', () => {
 
     it('calls custom function', async () => {
       const double = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'n',
@@ -99,7 +101,7 @@ describe('Rill Runtime: Expressions', () => {
             annotations: {},
           },
         ],
-        fn: (args): number => {
+        fn: (args: Record<string, RillValue>): number => {
           const n = args['n'] as number;
           return n * 2;
         },
@@ -109,6 +111,7 @@ describe('Rill Runtime: Expressions', () => {
 
     it('calls async custom function', async () => {
       const asyncFn = {
+        returnType: anyTypeValue,
         params: [
           {
             name: 'input',
@@ -117,7 +120,7 @@ describe('Rill Runtime: Expressions', () => {
             annotations: {},
           },
         ],
-        fn: async (args): Promise<string> => {
+        fn: async (args: Record<string, RillValue>): Promise<string> => {
           await new Promise((r) => setTimeout(r, 10));
           return `async:${args['input']}`;
         },
