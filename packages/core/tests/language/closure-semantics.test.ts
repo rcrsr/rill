@@ -222,7 +222,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       const a = context.variables.get('a');
       expect(a).toHaveProperty('y');
       expect(
-        ((await run('$result.y.^type', { variables: { result: a } })) as any)
+        ((await run('$result.y.^type', { variables: { result: a! } })) as any)
           .typeName
       ).toBe('closure');
     });

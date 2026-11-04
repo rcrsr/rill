@@ -4,6 +4,8 @@ import type {
   DictEntryNode,
   DictKeyVariable,
   DictKeyComputed,
+  RillValue,
+  StatementNode,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
@@ -16,7 +18,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
       const ast = parse(source);
 
       expect(ast.type).toBe('Script');
-      const stmt = ast.statements[0]!;
+      const stmt = ast.statements[0]! as StatementNode;
       const pipeChain = stmt.expression!;
       const expr = (pipeChain as any).head.primary;
       expect(expr.type).toBe('Dict');
@@ -38,7 +40,9 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
         parse(source);
         expect.fail('Should have thrown ParseError');
       } catch (err: any) {
-        expect(err.message).toContain('Expected variable name after $');
+        expect((err as Error).message).toContain(
+          'Expected variable name after $'
+        );
       }
     });
   });
@@ -50,7 +54,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
       const ast = parse(source);
 
       expect(ast.type).toBe('Script');
-      const stmt = ast.statements[0]!;
+      const stmt = ast.statements[0]! as StatementNode;
       const pipeChain = stmt.expression!;
       const expr = (pipeChain as any).head.primary;
       expect(expr.type).toBe('Dict');
@@ -73,7 +77,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
         parse(source);
         expect.fail('Should have thrown ParseError');
       } catch (err: any) {
-        expect(err.message).toContain(
+        expect((err as Error).message).toContain(
           'Expected ) after computed key expression'
         );
       }
@@ -86,7 +90,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
       const ast = parse(source);
 
       expect(ast.type).toBe('Script');
-      const stmt = ast.statements[0]!;
+      const stmt = ast.statements[0]! as StatementNode;
       const pipeChain = stmt.expression!;
       const expr = (pipeChain as any).head.primary;
       expect(expr.type).toBe('Dict');
@@ -117,7 +121,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
       const source = 'dict[static: 0, $key: "value"]';
       const ast = parse(source);
 
-      const stmt = ast.statements[0]!;
+      const stmt = ast.statements[0]! as StatementNode;
       const pipeChain = stmt.expression!;
       const expr = (pipeChain as any).head.primary;
       expect(expr.type).toBe('Dict');
@@ -134,7 +138,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
       const source = 'dict[static: 0, ($x -> .upper): "value"]';
       const ast = parse(source);
 
-      const stmt = ast.statements[0]!;
+      const stmt = ast.statements[0]! as StatementNode;
       const pipeChain = stmt.expression!;
       const expr = (pipeChain as any).head.primary;
       expect(expr.type).toBe('Dict');
@@ -152,7 +156,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
         'dict[static: 0, $shortKey: 1, ($x -> .upper -> .trim): 2]';
       const ast = parse(source);
 
-      const stmt = ast.statements[0]!;
+      const stmt = ast.statements[0]! as StatementNode;
       const pipeChain = stmt.expression!;
       const expr = (pipeChain as any).head.primary;
       expect(expr.type).toBe('Dict');
@@ -186,7 +190,9 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
         parse(source);
         expect.fail('Should have thrown ParseError');
       } catch (err: any) {
-        expect(err.message).toContain('Expected variable name after $');
+        expect((err as Error).message).toContain(
+          'Expected variable name after $'
+        );
       }
     });
 
@@ -198,7 +204,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
         parse(source);
         expect.fail('Should have thrown ParseError');
       } catch (err: any) {
-        expect(err.message).toContain(
+        expect((err as Error).message).toContain(
           'Expected ) after computed key expression'
         );
       }
@@ -212,7 +218,7 @@ describe('Dict Variable and Computed Keys - Parser (Task 1.3)', () => {
         parse(source);
         expect.fail('Should have thrown ParseError');
       } catch (err: any) {
-        expect(err.message).toContain(
+        expect((err as Error).message).toContain(
           'Dict key must be identifier, string, number, boolean, variable, or expression'
         );
       }
@@ -330,7 +336,10 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
         `;
         const result = await run(code);
         expect(result).toHaveProperty('outer');
-        expect(result.outer).toHaveProperty('inner', 'nested');
+        expect((result as Record<string, RillValue>)['outer']).toHaveProperty(
+          'inner',
+          'nested'
+        );
       });
 
       it('uses variable key in value position', async () => {
@@ -355,7 +364,9 @@ describe('Dict Variable and Computed Keys - Runtime (Task 2.5)', () => {
           expect.fail('Should have thrown');
         } catch (err) {
           expect(err).toHaveProperty('errorId', 'RILL-R005');
-          expect(err.message).toMatch(/Variable 'undefined' is undefined/i);
+          expect((err as Error).message).toMatch(
+            /Variable 'undefined' is undefined/i
+          );
         }
       });
     });
@@ -606,7 +617,7 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId', 'RILL-R009');
-        expect(err.message).toMatch(/Undefined dict key: 2/i);
+        expect((err as Error).message).toMatch(/Undefined dict key: 2/i);
       }
     });
 
@@ -648,7 +659,7 @@ describe('Dynamic field access on dicts with typed (number/boolean) keys', () =>
         expect.fail('Should have thrown');
       } catch (err) {
         expect(err).toHaveProperty('errorId', 'RILL-R009');
-        expect(err.message).toMatch(/Undefined dict key: 2/i);
+        expect((err as Error).message).toMatch(/Undefined dict key: 2/i);
       }
     });
 

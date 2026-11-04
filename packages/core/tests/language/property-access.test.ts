@@ -401,7 +401,11 @@ describe('implicit $ property access bug', () => {
         '"%s" is a PostfixExpr whose last postfix method is IndexAccess',
         (src) => {
           const ast = parse(src);
-          expect(terminalPostfixMethodType(ast)).toBe('IndexAccess');
+          expect(
+            terminalPostfixMethodType(
+              ast as { statements: readonly StatementNode[] }
+            )
+          ).toBe('IndexAccess');
         }
       );
     });

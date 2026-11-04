@@ -4,6 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import type { RillValue } from '@rcrsr/rill';
 
 import { run } from '../helpers/runtime.js';
 
@@ -204,8 +205,8 @@ describe('Rill Runtime: Literals', () => {
         });
 
         expect(result).toHaveLength(10000);
-        expect(result[0]).toBe(0);
-        expect(result[9999]).toBe(9999);
+        expect((result as RillValue[])[0]).toBe(0);
+        expect((result as RillValue[])[9999]).toBe(9999);
       });
     });
 

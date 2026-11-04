@@ -6,9 +6,10 @@
  */
 import { describe, expect, it } from 'vitest';
 
-import type { TimeoutScheduler } from '@rcrsr/rill';
+import { anyTypeValue } from '@rcrsr/rill';
+import type { RillFunction, TimeoutScheduler } from '@rcrsr/rill';
 
-import { mockAsyncFn, run } from '../helpers/runtime.js';
+import { run } from '../helpers/runtime.js';
 
 describe('child context time-field inheritance', () => {
   it('now() inside a seq body reflects the parent nowMs virtual clock', async () => {
@@ -55,28 +56,42 @@ describe('child context time-field inheritance', () => {
   });
 
   it('timeout<> inside a seq body uses the parent-injected scheduler', async () => {
-    // The fake scheduler fires almost immediately regardless of the
+    // The fake scheduler fires on the next timer turn regardless of the
     // requested duration, proving it (not the real global scheduler)
-    // is the one servicing the timer. The script requests a duration
-    // far longer than the test's real wall-clock budget, and the host
-    // body takes long enough that only an inherited fake scheduler can
+    // is the one servicing the timer. The host body stays pending until
+    // the scheduler has fired, so only an inherited fake scheduler can
     // expire the timeout before the body resolves.
     const fired: number[] = [];
+    let markExpired: () => void = () => undefined;
+    const expired = new Promise<void>((resolve) => {
+      markExpired = resolve;
+    });
     const fakeScheduler: TimeoutScheduler = {
       setTimeout(fn, ms) {
         fired.push(ms);
-        return setTimeout(fn, 5);
+        return setTimeout(() => {
+          fn();
+          markExpired();
+        }, 0);
       },
       clearTimeout(handle) {
         clearTimeout(handle);
       },
     };
+    const slow: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: async () => {
+        await expired;
+        return 'done';
+      },
+    };
 
     const result = await run(
-      'list[1] -> seq({ guard { timeout<total: duration(0,0,1)> { $slow() } } => $r\n$r.! ? "timed_out" ! "completed" })',
+      'list[1] -> seq({ guard { timeout<total: duration(0,0,1)> { slow() } } => $r\n$r.! ? "timed_out" ! "completed" })',
       {
         scheduler: fakeScheduler,
-        functions: { slow: mockAsyncFn(200, 'done') },
+        functions: { slow },
       }
     );
 

@@ -332,13 +332,24 @@ describe('Rill Runtime: event-loop yielding', () => {
     });
 
     it('stays on the fast path after the loop has idled for 50 ms', async () => {
-      await runFresh();
-      await new Promise((r) => setTimeout(r, 50));
+      // Load the module once under a variable clock so both runs share its
+      // liveness state.
+      let clock = 0;
+      vi.resetModules();
+      vi.spyOn(performance, 'now').mockImplementation(() => clock);
+      const fresh = await import('@rcrsr/rill');
+      const runShort = (): Promise<unknown> =>
+        fresh.execute(fresh.parse(SHORT), fresh.createRuntimeContext());
+      await runShort();
+      // Advance past the yield slice, then let one macrotask turn pass so the
+      // probe clears the baseline and the elapsed time counts as idle.
+      clock = 50;
+      await new Promise((r) => setImmediate(r));
       let flag = false;
       setImmediate(() => {
         flag = true;
       });
-      await runFresh();
+      await runShort();
       expect(flag).toBe(false);
       await new Promise((r) => setImmediate(r));
     });

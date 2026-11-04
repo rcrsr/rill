@@ -27,7 +27,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse, ParseError, type RuntimeContext } from '@rcrsr/rill';
+import {
+  parse,
+  ParseError,
+  type CallableFn,
+  type RuntimeContext,
+} from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import { run } from '../helpers/runtime.js';
@@ -38,25 +43,26 @@ import { expectHalt } from '../helpers/halt.js';
 // ---------------------------------------------------------------------------
 
 /**
- * Build a signal-aware host function that waits `delayMs` ms but aborts
- * immediately when `ctx.signal` fires. This lets timeout tests reliably
- * interrupt the body before the delay completes.
+ * Build a signal-aware host function that never settles on its own: it
+ * rejects only when `ctx.signal` aborts. A timeout test therefore cannot
+ * pass unless the timeout fires, and no host timer races the deadline.
  */
-function makeSlowFn(delayMs: number) {
+type CallableCtx = Parameters<CallableFn>[1];
+
+function makeSlowFn() {
   return {
     params: [] as never,
     returnType: { __type: 'any' } as never,
-    fn: async (_args: Record<string, unknown>, ctx: RuntimeContext) => {
-      await new Promise<void>((resolve, reject) => {
-        const handle = setTimeout(resolve, delayMs);
-        ctx.signal?.addEventListener(
-          'abort',
-          () => {
-            clearTimeout(handle);
-            reject(new Error('aborted'));
-          },
-          { once: true }
-        );
+    fn: async (_args: Record<string, unknown>, ctx: CallableCtx) => {
+      await new Promise<void>((_resolve, reject) => {
+        const signal = (ctx as RuntimeContext).signal;
+        if (!signal || signal.aborted) {
+          reject(new Error('aborted'));
+          return;
+        }
+        signal.addEventListener('abort', () => reject(new Error('aborted')), {
+          once: true,
+        });
       });
       return 'done';
     },
@@ -103,7 +109,7 @@ describe('AC-12 / EC-1: timeout<total:> fires #TIMEOUT_TOTAL', () => {
     // Guard catches the catchable TIMEOUT_TOTAL halt and returns the invalid value.
     const result = await run(
       'guard { timeout<total: duration(0, 0, 0, 0, 0, 0, 50)> { slow_op() } }',
-      { functions: { slow_op: makeSlowFn(500) } }
+      { functions: { slow_op: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
     expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R082'));
@@ -112,7 +118,7 @@ describe('AC-12 / EC-1: timeout<total:> fires #TIMEOUT_TOTAL', () => {
   it('#TIMEOUT_TOTAL atom code matches expected resolveAtom value', async () => {
     const result = await run(
       'guard { timeout<total: duration(0, 0, 0, 0, 0, 0, 50)> { slow_fn() } }',
-      { functions: { slow_fn: makeSlowFn(500) } }
+      { functions: { slow_fn: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
     const code = getStatus(result as never).code;
@@ -157,7 +163,7 @@ describe('AC-15 / EC-2: timeout<idle:> fires #TIMEOUT_IDLE', () => {
     // timeout. A signal-aware host function aborts when the idle timer fires.
     const result = await run(
       'guard { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { idle_slow() } }',
-      { functions: { idle_slow: makeSlowFn(500) } }
+      { functions: { idle_slow: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
     expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R083'));
@@ -167,7 +173,7 @@ describe('AC-15 / EC-2: timeout<idle:> fires #TIMEOUT_IDLE', () => {
     // Same as above; verifies the guard path explicitly.
     const result = await run(
       'guard { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { idle_slow() } }',
-      { functions: { idle_slow: makeSlowFn(500) } }
+      { functions: { idle_slow: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
     expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R083'));
@@ -249,7 +255,7 @@ describe('AC-20 / BC-3: nested timeouts — outer fires first', () => {
           }
         }
       }`,
-      { functions: { outer_slow: makeSlowFn(500) } }
+      { functions: { outer_slow: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
     expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R082'));
@@ -269,7 +275,7 @@ describe('AC-22 / BC-5: timeout<total:> recovery via guard + ??', () => {
     // (which only handles RILL_R007/R008 and isInvalid return values).
     const result = await run(
       'guard { timeout<total: duration(0, 0, 0, 0, 0, 0, 50)> { slow_for_fallback() } } ?? "timeout"',
-      { functions: { slow_for_fallback: makeSlowFn(500) } }
+      { functions: { slow_for_fallback: makeSlowFn() } }
     );
     expect(result).toBe('timeout');
     expect(isInvalid(result as never)).toBe(false);
@@ -291,7 +297,7 @@ describe('AC-23 / BC-6: timeout<idle:> invalid value inspectable via guard', () 
   it('guard catches #TIMEOUT_IDLE and the invalid value is inspectable', async () => {
     const result = await run(
       'guard { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { idle_for_guard() } }',
-      { functions: { idle_for_guard: makeSlowFn(500) } }
+      { functions: { idle_for_guard: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
     const code = getStatus(result as never).code;
@@ -301,7 +307,7 @@ describe('AC-23 / BC-6: timeout<idle:> invalid value inspectable via guard', () 
   it('guard<on: list[#RILL_R083]> catches only the matching idle timeout', async () => {
     const result = await run(
       'guard<on: list[#RILL_R083]> { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { guard_idle_fn() } } ?? "idle_timeout"',
-      { functions: { guard_idle_fn: makeSlowFn(500) } }
+      { functions: { guard_idle_fn: makeSlowFn() } }
     );
     expect(result).toBe('idle_timeout');
   });

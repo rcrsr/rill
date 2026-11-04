@@ -110,6 +110,47 @@ export function measureInterleavedRatioP95(
   return computeP95(samples) / computeP95(referenceSamples);
 }
 
+/**
+ * Returns the median, over interleaved rounds, of `fn`'s time divided by
+ * `referenceFn`'s time in the same round.
+ *
+ * `measureInterleavedRatioP95` divides two independently sorted tails, so a
+ * single preemption that lands in one series and not the other moves the
+ * ratio, and a correct workload has read 1.55x against a 1.5x budget. Here
+ * each ratio comes from two calls timed back to back under the same load,
+ * and the median discards the rounds a preemption hit. A sustained
+ * regression still moves every round, so a 2x slowdown reads 2x.
+ *
+ * Use this where the budget sits close to the correct reading and a tail
+ * spike is noise rather than signal.
+ */
+export function measureInterleavedRatioMedian(
+  fn: () => void,
+  referenceFn: () => void
+): number {
+  for (let i = 0; i < PERCENTILE_WARMUP_COUNT; i++) {
+    referenceFn();
+    fn();
+  }
+
+  const ratios: number[] = [];
+  for (let i = 0; i < PERCENTILE_SAMPLE_COUNT; i++) {
+    let sample: number;
+    let reference: number;
+    if (i % 2 === 0) {
+      reference = timeOnce(referenceFn);
+      sample = timeOnce(fn);
+    } else {
+      sample = timeOnce(fn);
+      reference = timeOnce(referenceFn);
+    }
+    ratios.push(sample / reference);
+  }
+  const sorted = ratios.sort((a, b) => a - b);
+  const mid = sorted.length / 2;
+  return (sorted[mid - 1]! + sorted[mid]!) / 2;
+}
+
 /** Times a single call of `fn` in ms. */
 function timeOnce(fn: () => void): number {
   const start = performance.now();

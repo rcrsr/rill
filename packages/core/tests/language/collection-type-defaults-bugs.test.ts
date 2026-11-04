@@ -17,6 +17,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { isTuple } from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHaltMessage } from '../helpers/halt.js';
 import { isOrdered, orderedEntries } from '../helpers/ordered.js';
@@ -91,7 +92,7 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
       const result = await run(
         '[items: tuple[1]] -> dict(items: tuple(number, string = "default"))'
       );
-      const items = (result as Record<string, unknown>).items;
+      const items = (result as Record<string, RillValue>)['items'] as RillValue;
       expect(isTuple(items)).toBe(true);
       const tupleResult = items as { entries: unknown[] };
       expect(tupleResult.entries).toEqual([1, 'default']);
@@ -105,7 +106,7 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
       const entries = orderedEntries(result);
       expect(entries).toHaveLength(1);
       expect(entries[0]![0]).toBe('items');
-      const items = entries[0]![1];
+      const items = entries[0]![1] as RillValue;
       expect(isTuple(items)).toBe(true);
       const tupleResult = items as { entries: unknown[] };
       expect(tupleResult.entries).toEqual([1, 'default']);

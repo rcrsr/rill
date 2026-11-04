@@ -63,7 +63,7 @@ describe('AST keyForm metadata', () => {
     expect(passBlock).toBeTruthy();
     const entry = passBlock.options.entries[0];
     expect(entry).toBeTruthy();
-    expect(entry.keyForm).toBe('identifier');
+    expect(entry!.keyForm).toBe('identifier');
   });
 
   const reservedWordKeys = [

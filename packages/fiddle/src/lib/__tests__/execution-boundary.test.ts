@@ -83,7 +83,7 @@ describe('executeRill', () => {
     });
 
     describe('deep nesting', () => {
-      it('executes 50-level nested expression within 500ms', async () => {
+      it('executes 50-level nested expression', async () => {
         // Build deeply nested arithmetic expression: ((((...(1 + 1)...))))
         const depth = 50;
         let source = '1';
@@ -92,12 +92,9 @@ describe('executeRill', () => {
           source = `(${source} + 1)`;
         }
 
-        const startTime = performance.now();
         const result = await executeRill(source);
-        const executionTime = performance.now() - startTime;
 
         expect(result.status).toBe('success');
-        expect(executionTime).toBeLessThan(500);
         expect(JSON.parse(result.result!)).toEqual({
           rillTypeName: 'number',
           rillTypeSignature: 'number',

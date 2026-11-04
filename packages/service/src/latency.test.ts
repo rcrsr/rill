@@ -26,7 +26,7 @@ import {
 } from './scope/index.js';
 import { createDefaultConfig, runRules } from './rules/index.js';
 import {
-  measureInterleavedRatioP95,
+  measureInterleavedRatioMedian,
   measureP95,
   measureRatioP95,
 } from './percentile.js';
@@ -93,6 +93,13 @@ const P95_BUDGET_X_PARSE = 0.5;
 // described above was an accepted trade, and a budget that trips on a
 // change the maintainers chose is a budget that gets raised again. Re-run
 // that change today and it lands at ~1.22x, under the ceiling.
+//
+// The budget now applies to the median of per-round paired ratios, not to
+// p95(runRules) / p95(parse). Dividing two independently sorted tails let a
+// single preemption in one series push a correct run to 1.553x on CI. A
+// paired median discards the rounds a preemption hit. Measured locally
+// (3 runs each, median / p95): correct 0.70-0.88 / 0.77-0.85, injected 2x
+// 1.39-1.41 / 1.45-1.64, injected 3x 2.02-2.54 / 2.40-2.78.
 //
 // The 350ms ceiling this replaces allowed 8.1x over the local p95 of the
 // day. If this one breaches, the fix is to find out which of the two
@@ -254,13 +261,15 @@ describe('provider latency on a 2,000-line script', () => {
   );
 
   it(
-    'runRules stays at or under the p95 budget',
+    'runRules stays at or under the median paired-ratio budget',
     () => {
       // Sampled interleaved with the parse reference rather than against
       // parseRefP95: this budget sits closest to its correct reading, and a
       // reference measured at the start of the suite let load that rose
-      // during a parallel run push a correct runRules to 1.526x.
-      const xParse = measureInterleavedRatioP95(
+      // during a parallel run push a correct runRules to 1.526x. Each round
+      // yields one paired ratio, and the median of those absorbs a tail
+      // spike that lands in only one of the two series.
+      const xParse = measureInterleavedRatioMedian(
         () => {
           runRules(parsed, source, config);
         },

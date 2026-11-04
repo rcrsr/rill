@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { hostFn } from '../helpers/host.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: Namespaced Functions', () => {
@@ -12,7 +13,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('calls single-level namespaced function', async () => {
       const result = await run('math::double(21)', {
         functions: {
-          'math::double': {
+          'math::double': hostFn({
             params: [
               {
                 name: 'x',
@@ -22,7 +23,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => (args['x'] as number) * 2,
-          },
+          }),
         },
       });
       expect(result).toBe(42);
@@ -31,7 +32,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('calls two-level namespaced function', async () => {
       const result = await run('std::math::add(1, 2)', {
         functions: {
-          'std::math::add': {
+          'std::math::add': hostFn({
             params: [
               {
                 name: 'a',
@@ -47,7 +48,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => (args['a'] as number) + (args['b'] as number),
-          },
+          }),
         },
       });
       expect(result).toBe(3);
@@ -56,7 +57,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('calls three-level namespaced function', async () => {
       const result = await run('org::pkg::mod::func("test")', {
         functions: {
-          'org::pkg::mod::func': {
+          'org::pkg::mod::func': hostFn({
             params: [
               {
                 name: 'input',
@@ -66,7 +67,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => `called:${args['input']}`,
-          },
+          }),
         },
       });
       expect(result).toBe('called:test');
@@ -77,7 +78,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('pipes to namespaced function without parens', async () => {
       const result = await run('"hello" -> str::upper', {
         functions: {
-          'str::upper': {
+          'str::upper': hostFn({
             params: [
               {
                 name: 'input',
@@ -87,7 +88,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => String(args['input']).toUpperCase(),
-          },
+          }),
         },
       });
       expect(result).toBe('HELLO');
@@ -96,7 +97,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('pipes to two-level namespace without parens', async () => {
       const result = await run('10 -> math::ops::square', {
         functions: {
-          'math::ops::square': {
+          'math::ops::square': hostFn({
             params: [
               {
                 name: 'x',
@@ -106,7 +107,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => (args['x'] as number) ** 2,
-          },
+          }),
         },
       });
       expect(result).toBe(100);
@@ -117,7 +118,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('mixes regular and namespaced functions', async () => {
       const result = await run('math::add(1, 2) -> double', {
         functions: {
-          'math::add': {
+          'math::add': hostFn({
             params: [
               {
                 name: 'a',
@@ -133,8 +134,8 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => (args['a'] as number) + (args['b'] as number),
-          },
-          double: {
+          }),
+          double: hostFn({
             params: [
               {
                 name: 'x',
@@ -144,7 +145,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => (args['x'] as number) * 2,
-          },
+          }),
         },
       });
       expect(result).toBe(6);
@@ -153,7 +154,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('chains namespaced functions', async () => {
       const result = await run('5 -> math::double -> math::double', {
         functions: {
-          'math::double': {
+          'math::double': hostFn({
             params: [
               {
                 name: 'x',
@@ -163,7 +164,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => (args['x'] as number) * 2,
-          },
+          }),
         },
       });
       expect(result).toBe(20);
@@ -172,7 +173,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('uses namespaced function in conditional', async () => {
       const result = await run('check::positive(5) ? "yes" ! "no"', {
         functions: {
-          'check::positive': {
+          'check::positive': hostFn({
             params: [
               {
                 name: 'x',
@@ -182,7 +183,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args) => (args['x'] as number) > 0,
-          },
+          }),
         },
       });
       expect(result).toBe('yes');
@@ -193,7 +194,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('passes multiple arguments to namespaced function', async () => {
       const result = await run('str::join(", ", "a", "b", "c")', {
         functions: {
-          'str::join': {
+          'str::join': hostFn({
             params: [
               {
                 name: 'sep',
@@ -225,7 +226,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               const items = [args['a'], args['b'], args['c']].map(String);
               return items.join(sep);
             },
-          },
+          }),
         },
       });
       expect(result).toBe('a, b, c');
@@ -236,7 +237,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
       // str::pad receives ("hello", 10, "-") matching (str, len, char).
       const result = await run('"hello" -> str::pad(10, "-")', {
         functions: {
-          'str::pad': {
+          'str::pad': hostFn({
             params: [
               {
                 name: 'str',
@@ -263,7 +264,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               const char = String(args['char'] ?? ' ');
               return str.padEnd(len, char);
             },
-          },
+          }),
         },
       });
       expect(result).toBe('hello-----');
@@ -275,7 +276,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
       const result = await run('ctx::getVar("name")', {
         variables: { name: 'Alice' },
         functions: {
-          'ctx::getVar': {
+          'ctx::getVar': hostFn({
             params: [
               {
                 name: 'varName',
@@ -285,7 +286,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: (args, ctx) => ctx.variables.get(String(args['varName'])) ?? '',
-          },
+          }),
         },
       });
       expect(result).toBe('Alice');
@@ -294,7 +295,7 @@ describe('Rill Runtime: Namespaced Functions', () => {
     it('namespaced function can be async', async () => {
       const result = await run('io::delay(10)', {
         functions: {
-          'io::delay': {
+          'io::delay': hostFn({
             params: [
               {
                 name: 'ms',
@@ -304,10 +305,10 @@ describe('Rill Runtime: Namespaced Functions', () => {
               },
             ],
             fn: async (args) => {
-              await new Promise((r) => setTimeout(r, args['ms'] as number));
-              return 'done';
+              await Promise.resolve();
+              return args['ms'] === 10 ? 'done' : 'wrong-arg';
             },
-          },
+          }),
         },
       });
       expect(result).toBe('done');

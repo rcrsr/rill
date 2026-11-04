@@ -4,7 +4,7 @@
  * arithmetic, comparison, serialization, and error conditions.
  */
 
-import { toNative, type RillFunction } from '@rcrsr/rill';
+import { structureToTypeValue, toNative, type RillFunction } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -485,7 +485,7 @@ describe('Rill Language: Datetime Type', () => {
     it('datetime(unix: NaN) halts', async () => {
       const getNaN: RillFunction = {
         params: [],
-        returnType: { kind: 'number' },
+        returnType: structureToTypeValue({ kind: 'number' }),
         fn: () => NaN,
       };
       await expectHaltMessage(
@@ -500,7 +500,7 @@ describe('Rill Language: Datetime Type', () => {
     it('datetime(unix: Infinity) halts', async () => {
       const getInf: RillFunction = {
         params: [],
-        returnType: { kind: 'number' },
+        returnType: structureToTypeValue({ kind: 'number' }),
         fn: () => Infinity,
       };
       await expectHaltMessage(

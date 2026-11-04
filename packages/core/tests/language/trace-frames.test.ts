@@ -198,8 +198,8 @@ describe('Wrap frame (FR-ERR-13; IR-3, IR-5)', () => {
     const last = frames[frames.length - 1]!;
     expect(last.kind).toBe('wrap');
     const wrapped = last.wrapped as Record<string, unknown>;
-    expect(wrapped.message).toBe('failed: boom');
-    expect(wrapped.provider).toBe('runtime');
+    expect(wrapped['message']).toBe('failed: boom');
+    expect(wrapped['provider']).toBe('runtime');
   });
 
   it('AC-4 / TC-HSM-4: literal `error "literal message"` emits no wrap frame', async () => {
@@ -244,7 +244,7 @@ describe('Wrap frame (FR-ERR-13; IR-3, IR-5)', () => {
     const wrapFrame = frames.find((f) => f.kind === 'wrap');
     expect(wrapFrame).toBeDefined();
     const wrapped = wrapFrame!.wrapped as Record<string, unknown>;
-    expect(wrapped.message).toBe('');
+    expect(wrapped['message']).toBe('');
   });
 
   it('AC-12: `error ""` (empty literal) emits no wrap frame; raw.message is empty', async () => {
@@ -254,7 +254,7 @@ describe('Wrap frame (FR-ERR-13; IR-3, IR-5)', () => {
     expect(haltStatus.message).toBe('');
     const frames = haltStatus.trace;
     expect(frames.some((f) => f.kind === 'wrap')).toBe(false);
-    expect(haltStatus.raw.message).toBe('');
+    expect(haltStatus.raw['message']).toBe('');
   });
 
   it('AC-13: `error "{$x}"` with invalid $x halts with RILL_R016 status; wrap frame attached', async () => {
@@ -275,10 +275,10 @@ describe('Wrap frame (FR-ERR-13; IR-3, IR-5)', () => {
     const wrapFrame = frames.find((f) => f.kind === 'wrap');
     expect(wrapFrame).toBeDefined();
     const wrapped = wrapFrame!.wrapped as Record<string, unknown>;
-    expect(typeof wrapped.code).toBe('string');
-    expect(wrapped.provider).toBe('runtime');
+    expect(typeof wrapped['code']).toBe('string');
+    expect(wrapped['provider']).toBe('runtime');
     // Message contains the stringified invalid.
-    expect(typeof wrapped.message).toBe('string');
-    expect((wrapped.message as string).startsWith('wrapped: ')).toBe(true);
+    expect(typeof wrapped['message']).toBe('string');
+    expect((wrapped['message'] as string).startsWith('wrapped: ')).toBe(true);
   });
 });

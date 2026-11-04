@@ -4,7 +4,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { isInvalid, isTuple, ParseError, toCallable } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  isInvalid,
+  isTuple,
+  ParseError,
+  toCallable,
+} from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { isOrdered } from '../helpers/ordered.js';
 
@@ -70,6 +76,7 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_data: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => ({ name: 'test' }), // no status field
             },
@@ -88,6 +95,7 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_data: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => ({ name: 'test' }),
             },
@@ -106,6 +114,7 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_data: {
+              returnType: anyTypeValue,
               params: [],
               fn: () => ({ status: 'active', name: 'test' }),
             },
@@ -130,6 +139,7 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_frontmatter: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'path',
@@ -159,6 +169,7 @@ describe('Default Value Operator (??)', () => {
         {
           functions: {
             get_frontmatter: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'path',
@@ -250,6 +261,7 @@ describe('Default Value Operator (??)', () => {
       const result = await run(`get_data().status ?? "default"`, {
         functions: {
           get_data: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => ({ status: 'active', name: 'test' }),
           },
@@ -262,6 +274,7 @@ describe('Default Value Operator (??)', () => {
       const result = await run(`get_data().status ?? "default"`, {
         functions: {
           get_data: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => ({ name: 'test' }), // no status field
           },
@@ -274,6 +287,7 @@ describe('Default Value Operator (??)', () => {
       const result = await run(`api().result.nested ?? 0`, {
         functions: {
           api: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => ({ result: {} }), // nested missing
           },
@@ -286,6 +300,7 @@ describe('Default Value Operator (??)', () => {
       const result = await run(`func().field ?? dict[a: 1]`, {
         functions: {
           func: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => ({}), // field missing
           },
@@ -297,10 +312,7 @@ describe('Default Value Operator (??)', () => {
     it('works with empty string as default', async () => {
       const result = await run(`func().x ?? ""`, {
         functions: {
-          func: {
-            params: [],
-            fn: () => ({}),
-          },
+          func: { returnType: anyTypeValue, params: [], fn: () => ({}) },
         },
       });
       expect(result).toBe('');
@@ -310,12 +322,18 @@ describe('Default Value Operator (??)', () => {
       const result = await run(`a().b().c().d ?? 0`, {
         functions: {
           a: {
+            returnType: anyTypeValue,
             params: [],
             fn: () => ({
               b: toCallable({
+                returnType: anyTypeValue,
                 params: [],
                 fn: () => ({
-                  c: toCallable({ params: [], fn: () => ({}) }), // d missing
+                  c: toCallable({
+                    returnType: anyTypeValue,
+                    params: [],
+                    fn: () => ({}),
+                  }), // d missing
                 }),
               }),
             }),
@@ -328,10 +346,7 @@ describe('Default Value Operator (??)', () => {
     it('evaluates complex expressions as default', async () => {
       const result = await run(`f().x ?? (1 + 2 * 3)`, {
         functions: {
-          f: {
-            params: [],
-            fn: () => ({}),
-          },
+          f: { returnType: anyTypeValue, params: [], fn: () => ({}) },
         },
       });
       expect(result).toBe(7);

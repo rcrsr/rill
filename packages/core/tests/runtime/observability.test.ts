@@ -4,14 +4,21 @@
  */
 
 import {
+  anyTypeValue,
   atomName,
   getStatus,
   RuntimeError,
   RuntimeHaltSignal,
+  type RillFunction,
 } from '@rcrsr/rill';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { createEventCollector, mockAsyncFn, run } from '../helpers/runtime.js';
+import {
+  createEventCollector,
+  mockAsyncFn,
+  run,
+  runWithFakeTimers,
+} from '../helpers/runtime.js';
 
 describe('Rill Runtime: Observability', () => {
   describe('onStepStart', () => {
@@ -145,14 +152,29 @@ describe('Rill Runtime: Observability', () => {
     });
 
     it('measures async function duration', async () => {
-      const slowFn = mockAsyncFn(50, 'done');
-      const { events, callbacks } = createEventCollector();
-      await run('slowFn()', {
-        functions: { slowFn },
-        observability: callbacks,
-      });
+      let clock = 1000;
+      const nowSpy = vi
+        .spyOn(performance, 'now')
+        .mockImplementation(() => clock);
+      try {
+        const slowFn: RillFunction = {
+          params: [],
+          returnType: anyTypeValue,
+          fn: async () => {
+            clock += 50;
+            return 'done';
+          },
+        };
+        const { events, callbacks } = createEventCollector();
+        await run('slowFn()', {
+          functions: { slowFn },
+          observability: callbacks,
+        });
 
-      expect(events.functionReturn[0]?.durationMs).toBeGreaterThanOrEqual(40);
+        expect(events.functionReturn[0]?.durationMs).toBe(50);
+      } finally {
+        nowSpy.mockRestore();
+      }
     });
 
     it('fires in correct order relative to onHostCall', async () => {
@@ -257,15 +279,11 @@ describe('Rill Runtime: Observability', () => {
       const slowFn = mockAsyncFn(200, 'done');
       const { events, callbacks } = createEventCollector();
 
-      try {
-        await run('slowFn()', {
-          functions: { slowFn },
-          timeout: 50,
-          observability: callbacks,
-        });
-      } catch {
-        // Expected
-      }
+      await runWithFakeTimers(
+        'slowFn()',
+        { functions: { slowFn }, timeout: 50, observability: callbacks },
+        50
+      );
 
       // Bug #270: a timeout is a catchable halt whose atom is mapped to a
       // host-facing error ID, so it escapes as a RuntimeError.

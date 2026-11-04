@@ -31,8 +31,8 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       `;
       const result = await run(script);
       const typeValue = result as Record<string, unknown>;
-      expect(typeValue.__rill_type).toBe(true);
-      expect(typeValue.typeName).toBe('number');
+      expect(typeValue['__rill_type']).toBe(true);
+      expect(typeValue['typeName']).toBe('number');
     });
 
     it('AC-27/AC-47: .^output type value compares equal to number type keyword', async () => {
@@ -52,8 +52,8 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       `;
       const result = await run(script);
       const typeValue = result as Record<string, unknown>;
-      expect(typeValue.__rill_type).toBe(true);
-      expect(typeValue.typeName).toBe('any');
+      expect(typeValue['__rill_type']).toBe(true);
+      expect(typeValue['typeName']).toBe('any');
     });
 
     it('AC-28/AC-47: .^output type value compares equal to any type keyword', async () => {

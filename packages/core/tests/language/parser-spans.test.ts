@@ -5,7 +5,17 @@
 
 import { describe, it, expect } from 'vitest';
 import { parse } from '@rcrsr/rill';
-import type { VariableNode, PropertyAccess } from '@rcrsr/rill';
+import type {
+  FieldAccessComputed,
+  FieldAccessLiteral,
+  FieldAccessVariable,
+  VariableNode,
+} from '@rcrsr/rill';
+
+type SpannedAccess =
+  | FieldAccessLiteral
+  | FieldAccessVariable
+  | FieldAccessComputed;
 
 function findVariable(node: unknown, name: string): VariableNode | null {
   if (!node || typeof node !== 'object') return null;
@@ -770,7 +780,7 @@ describe('Parser Spans', () => {
       expect(variable).toBeTruthy();
       expect(variable!.accessChain.length).toBe(2);
 
-      const [barAccess, bazAccess] = variable!.accessChain as PropertyAccess[];
+      const [barAccess, bazAccess] = variable!.accessChain as SpannedAccess[];
 
       expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
       expect(sliceSpan(source, bazAccess!.span)).toBe('.baz');
@@ -784,7 +794,7 @@ describe('Parser Spans', () => {
       expect(variable).toBeTruthy();
       expect(variable!.accessChain.length).toBe(1);
 
-      const [barAccess] = variable!.accessChain as PropertyAccess[];
+      const [barAccess] = variable!.accessChain as SpannedAccess[];
       expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
     });
 
@@ -797,7 +807,7 @@ describe('Parser Spans', () => {
       expect(variable!.accessChain.length).toBe(3);
 
       const [barAccess, bazAccess, quxAccess] = variable!
-        .accessChain as PropertyAccess[];
+        .accessChain as SpannedAccess[];
 
       expect(sliceSpan(source, barAccess!.span)).toBe('.bar');
       expect(sliceSpan(source, bazAccess!.span)).toBe('.baz');
@@ -812,7 +822,7 @@ describe('Parser Spans', () => {
       expect(variable).toBeTruthy();
       expect(variable!.accessChain.length).toBe(2);
 
-      const [keyAccess, barAccess] = variable!.accessChain as PropertyAccess[];
+      const [keyAccess, barAccess] = variable!.accessChain as SpannedAccess[];
 
       expect(keyAccess).toHaveProperty('kind', 'variable');
       expect(sliceSpan(source, keyAccess!.span)).toBe('.$key');
@@ -828,7 +838,7 @@ describe('Parser Spans', () => {
       expect(variable!.accessChain.length).toBe(2);
 
       const [computedAccess, barAccess] = variable!
-        .accessChain as PropertyAccess[];
+        .accessChain as SpannedAccess[];
 
       expect(computedAccess).toHaveProperty('kind', 'computed');
       expect(sliceSpan(source, computedAccess!.span)).toBe('.($x -> .upper)');
@@ -842,7 +852,7 @@ describe('Parser Spans', () => {
       const variable = findVariable(ast, 'foo');
       expect(variable).toBeTruthy();
 
-      for (const access of variable!.accessChain as PropertyAccess[]) {
+      for (const access of variable!.accessChain as SpannedAccess[]) {
         expect(access.span.start.offset).toBeLessThan(access.span.end.offset);
         const text = sliceSpan(source, access.span);
         expect(text.length).toBeGreaterThan(0);

@@ -5,9 +5,13 @@
  * reference is the one way a latency suite can go green without measuring
  * anything. These cases pin that shut.
  */
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { measureP95, measureRatioP95 } from './percentile.js';
+import {
+  measureInterleavedRatioMedian,
+  measureP95,
+  measureRatioP95,
+} from './percentile.js';
 
 const noop = (): void => {};
 
@@ -50,5 +54,27 @@ describe('measureP95', () => {
     expect(counter).toBeGreaterThan(0);
     expect(p95).toBeGreaterThanOrEqual(0);
     expect(Number.isFinite(p95)).toBe(true);
+  });
+});
+
+describe('measureInterleavedRatioMedian', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns the median paired ratio and ignores a one-sided spike', () => {
+    let clock = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => clock);
+    let call = 0;
+    // fn costs 2 units and the reference 1, except every tenth fn call,
+    // which stalls for 50 units as a preemption would.
+    const fn = (): void => {
+      call += 1;
+      clock += call % 10 === 0 ? 50 : 2;
+    };
+    const reference = (): void => {
+      clock += 1;
+    };
+    expect(measureInterleavedRatioMedian(fn, reference)).toBe(2);
   });
 });

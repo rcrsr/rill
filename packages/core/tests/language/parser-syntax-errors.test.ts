@@ -5,7 +5,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { parse, ParseError } from '@rcrsr/rill';
-import type { ScriptNode, DictNode, StatementNode } from '@rcrsr/rill';
+import type { ScriptNode, DictNode } from '@rcrsr/rill';
+import { asPostfixHead, getStatementAt } from '../helpers/ast.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Parser Syntax Errors', () => {
@@ -16,93 +17,93 @@ describe('Parser Syntax Errors', () => {
       expect(ast.type).toBe('Script');
 
       // Navigate to Dict node through AST structure
-      const statement = ast.statements[0] as StatementNode;
+      const statement = getStatementAt(ast, 0);
       const pipeChain = statement.expression;
-      const postfixExpr = pipeChain.head;
+      const postfixExpr = asPostfixHead(pipeChain.head);
       const dictNode = postfixExpr.primary as DictNode;
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(1);
-      expect(typeof dictNode.entries[0].key).toBe('number');
-      expect(dictNode.entries[0].key).toBe(1);
+      expect(typeof dictNode.entries[0]!.key).toBe('number');
+      expect(dictNode.entries[0]!.key).toBe(1);
     });
 
     it('parses dict with boolean keys to DictNode (AC-2)', () => {
       const source = 'dict[true: "yes", false: "no"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0] as StatementNode;
+      const statement = getStatementAt(ast, 0);
       const pipeChain = statement.expression;
-      const postfixExpr = pipeChain.head;
+      const postfixExpr = asPostfixHead(pipeChain.head);
       const dictNode = postfixExpr.primary as DictNode;
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(2);
-      expect(typeof dictNode.entries[0].key).toBe('boolean');
-      expect(dictNode.entries[0].key).toBe(true);
-      expect(typeof dictNode.entries[1].key).toBe('boolean');
-      expect(dictNode.entries[1].key).toBe(false);
+      expect(typeof dictNode.entries[0]!.key).toBe('boolean');
+      expect(dictNode.entries[0]!.key).toBe(true);
+      expect(typeof dictNode.entries[1]!.key).toBe('boolean');
+      expect(dictNode.entries[1]!.key).toBe(false);
     });
 
     it('parses dict with identifier key (AC-5, backward compatibility)', () => {
       const source = 'dict[name: "alice"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0] as StatementNode;
+      const statement = getStatementAt(ast, 0);
       const pipeChain = statement.expression;
-      const postfixExpr = pipeChain.head;
+      const postfixExpr = asPostfixHead(pipeChain.head);
       const dictNode = postfixExpr.primary as DictNode;
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(1);
-      expect(typeof dictNode.entries[0].key).toBe('string');
-      expect(dictNode.entries[0].key).toBe('name');
+      expect(typeof dictNode.entries[0]!.key).toBe('string');
+      expect(dictNode.entries[0]!.key).toBe('name');
     });
 
     it('parses dict with positive integer number key', () => {
       const source = 'dict[42: "answer"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0] as StatementNode;
+      const statement = getStatementAt(ast, 0);
       const pipeChain = statement.expression;
-      const postfixExpr = pipeChain.head;
+      const postfixExpr = asPostfixHead(pipeChain.head);
       const dictNode = postfixExpr.primary as DictNode;
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(1);
-      expect(typeof dictNode.entries[0].key).toBe('number');
-      expect(dictNode.entries[0].key).toBe(42);
+      expect(typeof dictNode.entries[0]!.key).toBe('number');
+      expect(dictNode.entries[0]!.key).toBe(42);
     });
 
     it('parses dict with decimal number key (AC-10)', () => {
       const source = 'dict[3.14: "pi"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0] as StatementNode;
+      const statement = getStatementAt(ast, 0);
       const pipeChain = statement.expression;
-      const postfixExpr = pipeChain.head;
+      const postfixExpr = asPostfixHead(pipeChain.head);
       const dictNode = postfixExpr.primary as DictNode;
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(1);
-      expect(typeof dictNode.entries[0].key).toBe('number');
-      expect(dictNode.entries[0].key).toBe(3.14);
+      expect(typeof dictNode.entries[0]!.key).toBe('number');
+      expect(dictNode.entries[0]!.key).toBe(3.14);
     });
 
     it('parses dict with mixed key types', () => {
       const source = 'dict[name: "alice", 1: "one", true: "yes"]';
       const ast = parse(source) as ScriptNode;
 
-      const statement = ast.statements[0] as StatementNode;
+      const statement = getStatementAt(ast, 0);
       const pipeChain = statement.expression;
-      const postfixExpr = pipeChain.head;
+      const postfixExpr = asPostfixHead(pipeChain.head);
       const dictNode = postfixExpr.primary as DictNode;
 
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(3);
-      expect(dictNode.entries[0].key).toBe('name');
-      expect(dictNode.entries[1].key).toBe(1);
-      expect(dictNode.entries[2].key).toBe(true);
+      expect(dictNode.entries[0]!.key).toBe('name');
+      expect(dictNode.entries[1]!.key).toBe(1);
+      expect(dictNode.entries[2]!.key).toBe(true);
     });
 
     it('parses dict with negative number key', () => {
@@ -110,14 +111,15 @@ describe('Parser Syntax Errors', () => {
       const source = 'dict[-1: "negative", 0: "zero", 1: "positive"]';
       const ast = parse(source);
       expect(ast.type).toBe('Script');
-      const stmt = ast.statements[0];
+      const stmt = ast.statements[0]!;
       expect(stmt.type).toBe('Statement');
-      const dictNode = stmt.expression.head.primary as DictNode;
+      const dictNode = asPostfixHead(getStatementAt(ast, 0).expression.head)
+        .primary as DictNode;
       expect(dictNode.type).toBe('Dict');
       expect(dictNode.entries).toHaveLength(3);
-      expect(dictNode.entries[0].key).toBe(-1);
-      expect(dictNode.entries[1].key).toBe(0);
-      expect(dictNode.entries[2].key).toBe(1);
+      expect(dictNode.entries[0]!.key).toBe(-1);
+      expect(dictNode.entries[1]!.key).toBe(0);
+      expect(dictNode.entries[2]!.key).toBe(1);
     });
   });
 

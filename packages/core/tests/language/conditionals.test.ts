@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
+import { anyTypeValue } from '@rcrsr/rill';
 
 describe('Rill Runtime: Conditionals', () => {
   describe('Basic Conditionals', () => {
@@ -225,6 +226,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             handle: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -247,6 +249,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             process: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -269,6 +272,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             flagError: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -291,6 +295,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             processMsg: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -313,6 +318,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             flagError: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -324,6 +330,7 @@ describe('Rill Runtime: Conditionals', () => {
               fn: (args) => `error:${args['input']}`,
             },
             processMsg: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -346,6 +353,7 @@ describe('Rill Runtime: Conditionals', () => {
         {
           functions: {
             handleError: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -357,6 +365,7 @@ describe('Rill Runtime: Conditionals', () => {
               fn: (args) => `error:${args['input']}`,
             },
             handleWarn: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
@@ -368,6 +377,7 @@ describe('Rill Runtime: Conditionals', () => {
               fn: (args) => `warn:${args['input']}`,
             },
             handleInfo: {
+              returnType: anyTypeValue,
               params: [
                 {
                   name: 'input',
