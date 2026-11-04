@@ -92,7 +92,12 @@ pnpm add -D @rcrsr/rill-dev
    need type information). They are inert unless `oxlint-tsgolint` is
    installed and the `lint` script passes `--type-aware`, and each linted tree
    needs a governing `tsconfig.json`; a tree without one is linted under the
-   backend's defaults, which lack `noUncheckedIndexedAccess`.
+   backend's defaults, which lack `noUncheckedIndexedAccess`. `baseline.json`
+   pins only the severity of each rule. rill also sets `typescript/return-await`
+   to `error-handling-correctness-only` and
+   `typescript/switch-exhaustiveness-check` to
+   `considerDefaultExhaustiveForUnions: true`; set the same options in your
+   `.oxlintrc.json`, or lint fails where rill passes.
 
 2. **Wire up the two binaries** in the root `package.json`, and call
    `check:standards` from the root `check` script:

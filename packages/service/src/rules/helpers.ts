@@ -127,8 +127,8 @@ export function isBareReference(
 
 /**
  * Validate that a SourceSpan has valid coordinates.
- * Returns false if span, start, or end are missing, or if line/column
- * values are less than 1.
+ * Returns false if span is missing, or if line/column values are less
+ * than 1. Callers pass parser-built spans, which always carry start and end.
  */
 export function isValidSpan(span: SourceSpan | null | undefined): boolean {
   if (span === null || span === undefined) {

@@ -565,7 +565,9 @@ export async function evaluateDict(
       const spreadValue = await evaluateExpression(s, entry.value);
       const pairs: [DictKeyScalar, RillValue][] = [];
       if (isOrdered(spreadValue)) {
-        pairs.push(...orderedValueEntries(spreadValue));
+        for (const pair of orderedValueEntries(spreadValue)) {
+          pairs.push(pair);
+        }
       } else if (isDict(spreadValue)) {
         for (const { key, value } of orderedDictEntries(spreadValue)) {
           if (isDictKeyScalar(key)) {

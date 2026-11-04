@@ -539,6 +539,17 @@ export function createRuntimeContext(
     seenTypeNames.add(reg.name);
   }
 
+  // Validate every registration has protocol.format. The type marks it
+  // required, but hand-built BUILT_IN_TYPES entries can still omit it.
+  for (const reg of BUILT_IN_TYPES) {
+    if (typeof reg.protocol.format !== 'function') {
+      throw new RuntimeError(
+        ERROR_IDS.RILL_R072,
+        `Type '${reg.name}' missing required format protocol`
+      );
+    }
+  }
+
   // Derive leafTypes from registrations where isLeaf === true, plus 'any'
   // which has no registration but rejects type arguments.
   const leafTypes: ReadonlySet<string> = Object.freeze(

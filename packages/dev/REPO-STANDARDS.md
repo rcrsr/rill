@@ -387,6 +387,12 @@ autofixes there can disagree with `tsc`. A `tsconfig.json` whose `include`
 covers `src/` but not `tests/` leaves the test files in that state, so give
 each linted tree a governing `tsconfig.json`.
 
+`STD-LINT-9` compares severity only, so rule options are not checked. rill sets
+`typescript/return-await` to `error-handling-correctness-only` and
+`typescript/switch-exhaustiveness-check` to `considerDefaultExhaustiveForUnions: true`.
+A repository that keeps the default `return-await` mode conflicts with the
+`return await` that `require-await` fixes add.
+
 **Verify**
 
 ```bash

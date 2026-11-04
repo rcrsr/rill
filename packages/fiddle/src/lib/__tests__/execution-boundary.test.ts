@@ -138,10 +138,12 @@ describe('executeRill', () => {
         for (let i = 0; i < depth; i++) {
           expected = [expected];
         }
-        expect(JSON.parse(result.result!)).toMatchObject({
-          rillTypeName: 'list',
-          value: expected,
-        });
+        const parsed = JSON.parse(result.result!) as {
+          rillTypeName: string;
+          value: unknown;
+        };
+        expect(parsed.rillTypeName).toBe('list');
+        expect(parsed.value).toEqual(expected);
       }, 10000);
 
       it('evaluates deeply nested dicts', async () => {
@@ -160,10 +162,12 @@ describe('executeRill', () => {
         for (let i = 0; i < depth; i++) {
           expected = { x: expected };
         }
-        expect(JSON.parse(result.result!)).toMatchObject({
-          rillTypeName: 'dict',
-          value: expected,
-        });
+        const parsed = JSON.parse(result.result!) as {
+          rillTypeName: string;
+          value: unknown;
+        };
+        expect(parsed.rillTypeName).toBe('dict');
+        expect(parsed.value).toEqual(expected);
       }, 10000);
     });
 
@@ -423,10 +427,12 @@ describe('executeRill', () => {
         for (let i = 0; i < depth; i++) {
           expected = [expected];
         }
-        expect(JSON.parse(result.result!)).toMatchObject({
-          rillTypeName: 'list',
-          value: expected,
-        });
+        const parsed = JSON.parse(result.result!) as {
+          rillTypeName: string;
+          value: unknown;
+        };
+        expect(parsed.rillTypeName).toBe('list');
+        expect(parsed.value).toEqual(expected);
       }, 10000);
 
       it('handles large strings in source', async () => {
