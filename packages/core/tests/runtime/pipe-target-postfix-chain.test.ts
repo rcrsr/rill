@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('pipe target postfix chains', () => {
   it('applies a method to a pass block target', async () => {
@@ -29,5 +30,22 @@ describe('pipe target postfix chains', () => {
     expect(
       await run('"a" -> timeout<total: duration(0,0,1)> { "x" } .upper')
     ).toBe('X');
+  });
+
+  it('applies a method after a type assertion on a pass block target', async () => {
+    expect(await run('"a" -> pass { "x" }:string.upper')).toBe('A');
+  });
+
+  it('applies a method after a type assertion on a timeout block target', async () => {
+    expect(
+      await run('"a" -> timeout<total: duration(0,0,1)> { "x" }:string.upper')
+    ).toBe('X');
+  });
+
+  it('halts catchably on a status probe chain over a pass block target', async () => {
+    await expectHalt(() => run('"a" -> pass { "x" }.!.len'), {
+      code: 'INVALID_INPUT',
+      messagePattern: /Unsupported pipe target type: StatusProbe/,
+    });
   });
 });
