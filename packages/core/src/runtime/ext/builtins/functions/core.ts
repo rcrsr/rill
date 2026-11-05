@@ -15,7 +15,7 @@ import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, makeGenericIterator } from '../shared.js';
+import { MAX_ITER, makeGenericIterator, getPositionalArgs } from '../shared.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
@@ -48,7 +48,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
     fn: (args, ctx, location) => {
       // log is in UNTYPED_BUILTINS (allows excess args), receives positional array cast as Record.
       // Use index 0 for the message value.
-      const positional = args as unknown as RillValue[];
+      const positional = getPositionalArgs(args);
       if (positional.length === 0) {
         throwCatchableHostHalt(
           { location, sourceId: ctx.sourceId, fn: 'log' },
@@ -181,15 +181,14 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
 
       // Carry an integer step index rather than the accumulated float value:
       // start + i * step avoids compounding floating-point drift across steps.
-      return makeGenericIterator(0, (current) => {
-        const i = current as number;
+      return makeGenericIterator(0, (i) => {
         const c = start + i * step;
         const done = step > 0 ? c >= end : c <= end;
         if (done) return { done: true };
         return {
           done: false,
-          value: c as RillValue,
-          next: (i + 1) as RillValue,
+          value: c,
+          next: i + 1,
         };
       });
     },
@@ -233,10 +232,9 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      return makeGenericIterator(count, (current) => {
-        const remaining = current as number;
+      return makeGenericIterator(count, (remaining) => {
         if (remaining <= 0) return { done: true };
-        return { done: false, value, next: (remaining - 1) as RillValue };
+        return { done: false, value, next: remaining - 1 };
       });
     },
   },
@@ -268,7 +266,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       // chain is in UNTYPED_BUILTINS, receives positional array cast as Record.
       // Pipe position: 5 -> chain($closure) sends args=[$closure] with pipeValue=5.
       // Detect this by checking if there is exactly one arg and a pipe value is set.
-      const positional = args as unknown as RillValue[];
+      const positional = getPositionalArgs(args);
       let value: RillValue;
       let arg: RillValue;
       let argSupplied: boolean;
@@ -362,7 +360,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       // iterate is in UNTYPED_BUILTINS; receives a positional array cast as Record.
       // Pipe form: $seed -> iterate($closure) sends args=[$closure] with pipeValue=$seed.
       // Detect by checking whether there is exactly one arg and a pipe value is set.
-      const positional = args as unknown as RillValue[];
+      const positional = getPositionalArgs(args);
       let seed: RillValue;
       let closureArg: RillValue;
       let closureArgSupplied: boolean;

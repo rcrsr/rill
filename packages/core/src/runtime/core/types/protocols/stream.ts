@@ -10,7 +10,7 @@
 
 import type { RillValue, TypeStructure } from '../structures.js';
 import type { TypeDefinition } from './types.js';
-import { isStream } from '../guards.js';
+import { isStream, getStreamTypeSidecar } from '../guards.js';
 import { throwNotSerializable } from './shared.js';
 
 // ============================================================
@@ -26,9 +26,8 @@ function formatStream(_v: RillValue): string {
 // ============================================================
 
 function streamStructure(v: RillValue): TypeStructure {
-  const raw = v as unknown as Record<string, TypeStructure | undefined>;
-  const chunk = raw['__rill_stream_chunk_type'];
-  const ret = raw['__rill_stream_ret_type'];
+  const chunk = isStream(v) ? getStreamTypeSidecar(v, 'chunk') : undefined;
+  const ret = isStream(v) ? getStreamTypeSidecar(v, 'ret') : undefined;
   const result: {
     kind: 'stream';
     chunk?: TypeStructure;

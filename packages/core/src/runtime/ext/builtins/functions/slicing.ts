@@ -37,12 +37,10 @@ import {
  */
 function disposeStreamInput(input: RillValue, site: TypeHaltSite): void {
   if (!isStream(input)) return;
-  const disposeFn = (
-    input as unknown as Record<string, (() => void) | undefined>
-  )['__rill_stream_dispose'];
-  if (typeof disposeFn !== 'function') return;
+  const hook: unknown = input['__rill_stream_dispose'];
+  if (typeof hook !== 'function') return;
   try {
-    disposeFn();
+    Reflect.apply(hook, undefined, []);
   } catch (e) {
     if (e instanceof RuntimeHaltSignal || e instanceof ControlSignal) {
       throw e;
@@ -224,7 +222,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         // calls below to consume; only a failed walk (invariant violation,
         // chunk type mismatch) needs to dispose here, since no further
         // consumption of `input` will happen on that path.
-        let tail: Record<string, unknown>;
+        let tail: RillValue;
         try {
           ({ tail } = await walkIteratorSteps(
             input,
@@ -239,12 +237,12 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         }
 
         // If the iterator/stream is already done after skipping, return empty.
-        if (tail['done'] === true) {
+        if (isDict(tail) && tail['done'] === true) {
           return [];
         }
 
         // Materialize the remainder using the tail iterator/stream state.
-        return getIterableElements(tail as unknown as RillValue, ctx, node);
+        return getIterableElements(tail, ctx, node);
       }
 
       // All other iterables (dict, string): materialize then slice
@@ -287,9 +285,9 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       // Build a cycling iterator: infinite linked list that wraps at elements.length
       const makeCycleIterator = (index: number): RillValue => {
-        const pos = index % elements.length;
+        const value = elements[index % elements.length] ?? null;
         return {
-          value: elements[pos]!,
+          value,
           done: false,
           next: callable(() => makeCycleIterator(index + 1)),
         };
@@ -427,11 +425,10 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       const chunks = chunkSlice(elements, n);
 
       // Drop the trailing partial chunk when requested
+      const lastChunk = chunks.at(-1);
       const effectiveChunks =
-        dropPartial && chunks.length > 0
-          ? chunks.at(-1)!.length < n
-            ? chunks.slice(0, -1)
-            : chunks
+        dropPartial && lastChunk !== undefined && lastChunk.length < n
+          ? chunks.slice(0, -1)
           : chunks;
 
       // Cap chunk count at MAX_ITER

@@ -172,6 +172,49 @@ describe('take/skip on a value-less custom iterator halts recoverably at MAX_ITE
   });
 });
 
+/** Host function returning an iterator whose `.next` yields `bad` instead of a step dict. */
+function makeBadNextIterFn(bad: RillValue): RillFunction {
+  return {
+    params: [],
+    returnType: anyTypeValue,
+    fn: (): RillValue => ({
+      done: false,
+      value: 1,
+      next: callable(() => bad),
+    }),
+  };
+}
+
+describe('take/skip reject malformed .next results', () => {
+  it('halts RILL-R002 when .next returns a list', async () => {
+    await expectHalt(
+      () =>
+        run('bad_iter() -> take(3)', {
+          functions: { bad_iter: makeBadNextIterFn([1, 2]) },
+        }),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Iterator\/stream \.next must be a closure/,
+      }
+    );
+  });
+
+  it('halts RILL-R002 when .next returns a number', async () => {
+    await expectHalt(
+      () =>
+        run('bad_iter() -> take(3)', {
+          functions: { bad_iter: makeBadNextIterFn(5) },
+        }),
+      {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
+        messagePattern: /Iterator\/stream \.next must return an object/,
+      }
+    );
+  });
+});
+
 describe('take/skip enforce stream chunk-type homogeneity (#342)', () => {
   it('take over a mixed number/string stream halts #TYPE_MISMATCH', async () => {
     const result = await run(

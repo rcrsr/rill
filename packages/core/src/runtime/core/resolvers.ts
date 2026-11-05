@@ -9,7 +9,23 @@ import { RuntimeError } from '../../error-classes.js';
 import type { ResolverResult, SchemeResolver } from './types/runtime.js';
 import type { RillValue } from './types/structures.js';
 import { ERROR_IDS } from '../../error-registry.js';
-import { isPlainDict } from './types/guards.js';
+import { isObjectRecord, isPlainDict } from './types/guards.js';
+
+// ============================================================
+// HOST CONFIG BOUNDARY
+// ============================================================
+
+// SchemeResolver config is publicly typed unknown; host-supplied maps pass
+// through unchecked, so the cast documents the trust boundary.
+function hostConfigRecord(config: unknown): Record<string, unknown> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- config is publicly typed unknown and the host owns its shape; a guard would change which hosts resolve today
+  return (config ?? {}) as Record<string, unknown>;
+}
+
+function hostConfigValue(value: unknown): RillValue {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- config values are host-supplied through an unknown-typed boundary and pass through unchecked
+  return value as RillValue;
+}
 
 // ============================================================
 // MODULE RESOLVER
@@ -31,16 +47,14 @@ export const moduleResolver: SchemeResolver = async (
   resource: string,
   config?: unknown
 ): Promise<ResolverResult> => {
-  if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+  if (!isObjectRecord(config) || Array.isArray(config)) {
     throw new RuntimeError(
       ERROR_IDS.RILL_R059,
       'moduleResolver config must be a plain object'
     );
   }
 
-  const cfg = config as Record<string, string>;
-
-  const filePath = cfg[resource];
+  const filePath = config[resource];
   if (typeof filePath !== 'string') {
     throw new RuntimeError(
       ERROR_IDS.RILL_R050,
@@ -117,7 +131,7 @@ export const contextResolver: SchemeResolver = (
   resource: string,
   config?: unknown
 ): ResolverResult => {
-  const cfg = (config ?? {}) as Record<string, unknown>;
+  const cfg = hostConfigRecord(config);
 
   const segments = resource.split('.');
   const key = segments[0] ?? resource;
@@ -135,9 +149,9 @@ export const contextResolver: SchemeResolver = (
 
   let value: unknown = cfg[key];
 
-  for (let i = 1; i < segments.length; i++) {
-    const segment = segments[i] as string;
-    const current = value as RillValue;
+  for (const [i, segment] of segments.entries()) {
+    if (i === 0) continue;
+    const current = hostConfigValue(value);
     if (!isPlainDict(current)) {
       const path = segments.slice(0, i).join('.');
       throw new RuntimeError(
@@ -166,14 +180,14 @@ export const contextResolver: SchemeResolver = (
     }
   }
 
-  return { kind: 'value', value: value as RillValue };
+  return { kind: 'value', value: hostConfigValue(value) };
 };
 
 export const extResolver: SchemeResolver = (
   resource: string,
   config?: unknown
 ): ResolverResult => {
-  const cfg = (config ?? {}) as Record<string, RillValue>;
+  const cfg = hostConfigRecord(config);
 
   const segments = resource.split('.');
   const name = segments[0] ?? resource;
@@ -189,10 +203,10 @@ export const extResolver: SchemeResolver = (
     );
   }
 
-  let value: RillValue = cfg[name] as RillValue;
+  let value: RillValue = hostConfigValue(cfg[name]);
 
-  for (let i = 1; i < segments.length; i++) {
-    const segment = segments[i] as string;
+  for (const [i, segment] of segments.entries()) {
+    if (i === 0) continue;
     if (!isPlainDict(value) || !Object.hasOwn(value, segment)) {
       const path = segments.slice(1, i + 1).join('.');
       throw new RuntimeError(
@@ -202,7 +216,7 @@ export const extResolver: SchemeResolver = (
         { path, name }
       );
     }
-    value = (value as Record<string, RillValue>)[segment] as RillValue;
+    value = hostConfigValue(value[segment]);
   }
 
   return { kind: 'value', value };

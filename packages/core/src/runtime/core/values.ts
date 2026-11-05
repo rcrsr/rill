@@ -12,26 +12,22 @@
  */
 
 import type { RillTypeName } from '../../types.js';
-import { VALID_TYPE_NAMES } from '../../constants.js';
-import type { RillCallable } from './callable.js';
+import { isRillTypeName } from '../../types.js';
 import {
-  isCallable as _isCallableGuard,
+  isCallable,
   isDatetime,
   isDict,
   isDuration,
   isIterator,
   isOrdered,
   isStream,
+  isStructureKind,
   isTuple,
+  getStreamTypeSidecar,
   isTypeValue,
   isVector,
 } from './types/guards.js';
 export { isEmpty } from './types/status.js';
-
-/** isCallable guard widened to narrow to full RillCallable (not just CallableMarker) */
-const isCallable = _isCallableGuard as (
-  value: RillValue
-) => value is RillCallable;
 import { inferType } from './types/registrations.js';
 import {
   setDictField,
@@ -43,12 +39,8 @@ import type {
   TypeStructure,
 } from './types/structures.js';
 
-import type {
-  DictStructure,
-  OrderedStructure,
-  TupleStructure,
-} from './types/operations.js';
 import { formatStructure, inferStructure } from './types/operations.js';
+import { throwTypeHalt } from './types/halt.js';
 
 /**
  * Check if a value is of the expected type.
@@ -190,12 +182,8 @@ function toNativeValue(value: RillValue): NativeValue {
       __type: 'stream',
       done: value.done,
     };
-    const chunkType = (value as unknown as Record<string, unknown>)[
-      '__rill_stream_chunk_type'
-    ] as TypeStructure | undefined;
-    const retType = (value as unknown as Record<string, unknown>)[
-      '__rill_stream_ret_type'
-    ] as TypeStructure | undefined;
+    const chunkType = getStreamTypeSidecar(value, 'chunk');
+    const retType = getStreamTypeSidecar(value, 'ret');
     descriptor['chunkType'] = chunkType ? formatStructure(chunkType) : null;
     descriptor['resolutionType'] = retType ? formatStructure(retType) : null;
     return descriptor;
@@ -205,8 +193,18 @@ function toNativeValue(value: RillValue): NativeValue {
     return { done: value.done };
   }
 
-  // Plain dict
-  const dict = value as Record<string, RillValue>;
+  // Plain dict. Every other shape was handled above.
+  if (!isDict(value)) {
+    return throwTypeHalt(
+      { fn: 'toNativeValue' },
+      'INVALID_INPUT',
+      `Cannot convert ${formatStructure(inferStructure(value))} to a native value`,
+      'runtime',
+      undefined,
+      'host'
+    );
+  }
+  const dict = value;
   const result: { [key: string]: NativeValue } = {};
   for (const [k, v] of Object.entries(dict)) {
     setDictField(result, k, toNativeValue(v));
@@ -279,12 +277,9 @@ export { anyTypeValue } from './types/any-type.js';
  * Falls back to 'any' for compound types that lack a direct RillTypeName mapping.
  */
 export function structureToTypeValue(type: TypeStructure): RillTypeValue {
-  const validNames: readonly string[] = VALID_TYPE_NAMES;
   return Object.freeze({
     __rill_type: true as const,
-    typeName: (validNames.includes(type.kind)
-      ? type.kind
-      : 'any') as RillTypeName,
+    typeName: isRillTypeName(type.kind) ? type.kind : 'any',
     structure: type,
   });
 }
@@ -295,17 +290,14 @@ export function structureToTypeValue(type: TypeStructure): RillTypeValue {
  * synthesized and hydrated.
  */
 export function hasCollectionFields(type: TypeStructure): boolean {
-  return (
-    (type.kind === 'dict' &&
-      (!!(type as DictStructure).fields ||
-        !!(type as DictStructure).valueType)) ||
-    (type.kind === 'ordered' &&
-      (!!(type as OrderedStructure).fields ||
-        !!(type as OrderedStructure).valueType)) ||
-    (type.kind === 'tuple' &&
-      (!!(type as TupleStructure).elements ||
-        !!(type as TupleStructure).valueType))
-  );
+  if (isStructureKind(type, 'dict')) return !!type.fields || !!type.valueType;
+  if (isStructureKind(type, 'ordered')) {
+    return !!type.fields || !!type.valueType;
+  }
+  if (isStructureKind(type, 'tuple')) {
+    return !!type.elements || !!type.valueType;
+  }
+  return false;
 }
 
 /** Check if a key name is reserved */

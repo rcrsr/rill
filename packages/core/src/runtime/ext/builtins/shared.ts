@@ -3,7 +3,7 @@ import type { RuntimeContext } from '../../core/types/runtime.js';
 import type { SourceLocation } from '../../../types.js';
 import type { EvalState } from '../../core/eval/state.js';
 import { callable, isCallable } from '../../core/callable.js';
-import { isStream } from '../../core/types/guards.js';
+import { isDict, isStream } from '../../core/types/guards.js';
 import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import { checkAborted } from '../../core/eval/shared.js';
 import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/closures.js';
@@ -14,6 +14,24 @@ import {
   throwTypeHalt,
 } from '../../core/types/halt.js';
 import { inferType } from '../../core/types/registrations.js';
+
+const EMPTY_STEP: Record<string, RillValue> = Object.freeze({});
+
+/** Read view of a step: the step itself when it is a dict, else an empty record. */
+function getStepView(step: RillValue): Record<string, RillValue> {
+  return isDict(step) ? step : EMPTY_STEP;
+}
+
+/**
+ * Positional argument list of an untyped built-in. Untyped built-ins receive
+ * their arguments as an array in place of the named-args record.
+ */
+export function getPositionalArgs(
+  args: Record<string, RillValue>
+): RillValue[] {
+  const widened: RillValue = args;
+  return Array.isArray(widened) ? widened : Object.values(args);
+}
 
 /**
  * Walk an iterator or stream until `cap` value-bearing elements have been
@@ -44,19 +62,19 @@ import { inferType } from '../../core/types/registrations.js';
  * take()/skip() input.
  */
 export async function walkIteratorSteps(
-  start: Record<string, unknown>,
+  start: RillValue,
   cap: number,
   evaluator: EvalState,
   location: { line: number; column: number; offset: number },
   sourceId: string | undefined,
   stopAtCap: boolean = false
-): Promise<{ elements: RillValue[]; tail: Record<string, unknown> }> {
+): Promise<{ elements: RillValue[]; tail: RillValue }> {
   const elements: RillValue[] = [];
-  let current = start;
+  let current: RillValue = start;
   // The `__rill_stream` discriminator persists across every step a stream
   // produces (see createRillStream), so checking it once up front correctly
   // classifies every subsequent step too.
-  const streamInput = isStream(start as unknown as RillValue);
+  const streamInput = isStream(start);
   const site = {
     location,
     sourceId: sourceId ?? '<unknown>',
@@ -67,11 +85,12 @@ export async function walkIteratorSteps(
   let steps = 0;
   // A stream's starting step is its value-less pending head: the one step
   // exempt from the raw-step budget. Every later step counts.
-  let headExempt = streamInput && !('value' in current);
+  let headExempt = streamInput && !('value' in getStepView(current));
   let expectedType: string | undefined;
   while (produced < cap) {
     checkAborted(evaluator);
-    if (current['done'] === true) break;
+    const view = getStepView(current);
+    if (view['done'] === true) break;
     if (steps >= MAX_ITER) {
       throwCatchableHostHalt(
         site,
@@ -84,21 +103,20 @@ export async function walkIteratorSteps(
     } else {
       steps++;
     }
-    const val = current['value'];
+    const val: RillValue | undefined = view['value'];
     // Streams accept any step with a `value` key (so `validateStreamChunk`
     // can reject an explicit `undefined`); iterators, matching
     // expandIterator, only treat `value !== undefined` as a produced
     // element.
-    const hasValue = streamInput ? 'value' in current : val !== undefined;
+    if (streamInput && 'value' in view) {
+      validateStreamChunk(val, produced, site);
+    }
 
     // Count this step toward `cap` only when it produced a value, and do so
     // before advancing: `take()` needs to stop without pulling the next
     // chunk once it has what it needs.
-    if (hasValue) {
-      if (streamInput) {
-        validateStreamChunk(val as RillValue | undefined, produced, site);
-      }
-      const actualType = inferType(val as RillValue);
+    if (val !== undefined) {
+      const actualType = inferType(val);
       if (expectedType === undefined) {
         expectedType = actualType;
       } else if (actualType !== expectedType) {
@@ -110,7 +128,7 @@ export async function walkIteratorSteps(
           { expectedType, actualType }
         );
       }
-      elements.push(val as RillValue);
+      elements.push(val);
       produced++;
     }
 
@@ -126,9 +144,8 @@ export async function walkIteratorSteps(
     // Advance to the next step regardless of whether this step carried a
     // value: the value-less stream head still has to be stepped over to
     // reach the first chunk.
-    const nextRaw = current['next'];
-    const nextClosure = nextRaw as RillValue;
-    if (nextRaw === undefined || !isCallable(nextClosure)) {
+    const nextClosure = view['next'];
+    if (nextClosure === undefined || !isCallable(nextClosure)) {
       throwCatchableHostHalt(
         site,
         'RILL_R002',
@@ -158,7 +175,7 @@ export async function walkIteratorSteps(
         'Iterator/stream .next must return an object'
       );
     }
-    current = nextStep as Record<string, unknown>;
+    current = nextStep;
   }
 
   return { elements, tail: current };
@@ -211,11 +228,12 @@ export type RillMethod = (
  * Returns { value, done, next } dict.
  */
 export function makeListIterator(list: RillValue[], index: number): RillValue {
-  if (index >= list.length) {
+  const value = list[index];
+  if (value === undefined) {
     return { done: true, next: callable(() => makeListIterator(list, index)) };
   }
   return {
-    value: list[index]!,
+    value,
     done: false,
     next: callable(() => makeListIterator(list, index + 1)),
   };
@@ -240,14 +258,15 @@ export function makeStringIterator(str: string, index: number): RillValue {
  * every `.next`.
  */
 function makeCodePointIterator(codePoints: string[], index: number): RillValue {
-  if (index >= codePoints.length) {
+  const value = codePoints[index];
+  if (value === undefined) {
     return {
       done: true,
       next: callable(() => makeCodePointIterator(codePoints, index)),
     };
   }
   return {
-    value: codePoints[index]!,
+    value,
     done: false,
     next: callable(() => makeCodePointIterator(codePoints, index + 1)),
   };
@@ -262,20 +281,21 @@ export function makeDictIterator(
   dict: Record<string, RillValue>,
   index: number
 ): RillValue {
-  const stringKeys = Object.keys(dict).sort();
-  const entries: Array<{ key: RillValue; value: RillValue }> = stringKeys.map(
-    (key) => ({ key, value: dict[key]! })
-  );
+  const entries: Array<{ key: RillValue; value: RillValue }> = [];
+  for (const key of Object.keys(dict).sort()) {
+    const value = dict[key];
+    if (value !== undefined) entries.push({ key, value });
+  }
   for (const e of typedKeyEntries(dict)) {
     entries.push({ key: e.key, value: e.value });
   }
-  if (index >= entries.length) {
+  const entry = entries[index];
+  if (entry === undefined) {
     return {
       done: true,
       next: callable(() => makeDictIterator(dict, index)),
     };
   }
-  const entry = entries[index]!;
   return {
     value: { key: entry.key, value: entry.value },
     done: false,
@@ -298,7 +318,7 @@ export const MAX_ITER = 10000;
  */
 type GenericStepResult =
   | { done: true }
-  | { done: false; value: RillValue; next: RillValue };
+  | { done: false; value: RillValue; next: number };
 
 /**
  * Build a lazy iterator from a seed value and a pure step function.
@@ -312,10 +332,10 @@ type GenericStepResult =
  * @internal
  */
 export function makeGenericIterator(
-  seed: RillValue,
-  fn: (current: RillValue) => GenericStepResult
+  seed: number,
+  fn: (current: number) => GenericStepResult
 ): RillValue {
-  const step = (current: RillValue): RillValue => {
+  const step = (current: number): RillValue => {
     const result = fn(current);
     if (result.done) {
       return { done: true, next: callable(() => step(current)) };

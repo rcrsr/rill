@@ -59,6 +59,32 @@ export function isFieldDescriptor(
   );
 }
 
+/** Internal: object with a string `kind` (matches any TypeStructure member). */
+function isTypeStructure(value: unknown): value is TypeStructure {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'kind' in value &&
+    typeof value.kind === 'string'
+  );
+}
+
+/**
+ * Internal: read a stream's chunk or resolution type sidecar. A sidecar that
+ * is not a TypeStructure is treated as absent.
+ */
+export function getStreamTypeSidecar(
+  stream: RillStream,
+  which: 'chunk' | 'ret'
+): TypeStructure | undefined {
+  const fields: Record<string, unknown> = stream;
+  const raw =
+    which === 'chunk'
+      ? fields['__rill_stream_chunk_type']
+      : fields['__rill_stream_ret_type'];
+  return isTypeStructure(raw) ? raw : undefined;
+}
+
 /** Internal: narrow a TypeStructure to the variant with the given kind. */
 export function isStructureKind<K extends TypeStructure['kind']>(
   s: TypeStructure,

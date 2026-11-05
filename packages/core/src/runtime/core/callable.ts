@@ -42,20 +42,9 @@ import {
 } from './types/guards.js';
 import type {
   TypeStructure,
-  RillAtomValue,
-  RillDatetime,
-  RillDuration,
-  RillOrdered,
-  RillStream,
   RillTypeValue,
   RillValue,
-  RillVector,
 } from './types/structures.js';
-import type {
-  DictStructure,
-  TupleStructure,
-  OrderedStructure,
-} from './types/operations.js';
 import { formatValue, inferType } from './types/registrations.js';
 import {
   formatStructure,
@@ -159,10 +148,10 @@ export type RillCallable =
   | RuntimeCallable
   | ApplicationCallable;
 
-/** Type guard for any callable (delegates to types/guards.ts) */
-export const isCallable = _isCallableGuard as (
-  value: RillValue
-) => value is RillCallable;
+/** Type guard for any callable (delegates to types/guards.ts). CallableMarker implies RillCallable by construction. */
+export function isCallable(value: RillValue): value is RillCallable {
+  return _isCallableGuard(value);
+}
 
 /** Type guard for script callable */
 export function isScriptCallable(value: RillValue): value is ScriptCallable {
@@ -235,7 +224,10 @@ function annotationsEqual(
 
   for (const key of keysA) {
     if (!(key in b)) return false;
-    if (!valueEquals(a[key] as RillValue, b[key] as RillValue)) return false;
+    const valueA = a[key];
+    const valueB = b[key];
+    if (valueA === undefined || valueB === undefined) return false;
+    if (!valueEquals(valueA, valueB)) return false;
   }
 
   return true;
@@ -414,25 +406,23 @@ export function hydrateStructure(
   type: TypeStructure,
   policy: HydrationPolicy
 ): RillValue {
-  if (
-    type.kind === 'dict' &&
-    (type as DictStructure).fields &&
-    isPlainDict(value)
-  ) {
-    const t = type as DictStructure;
-    const dictValue = value as Record<string, RillValue>;
+  if (isStructureKind(type, 'dict') && type.fields && isPlainDict(value)) {
+    const dictValue = value;
     const result: Record<string, RillValue> = policy.keepExtras
       ? { ...dictValue }
       : {};
     if (policy.keepExtras) {
       copyTypedKeys(dictValue, result);
     }
-    for (const [fieldName, fieldDef] of Object.entries(t.fields!)) {
-      if (Object.hasOwn(dictValue, fieldName)) {
+    for (const [fieldName, fieldDef] of Object.entries(type.fields)) {
+      const ownValue = Object.hasOwn(dictValue, fieldName)
+        ? dictValue[fieldName]
+        : undefined;
+      if (ownValue !== undefined) {
         setDictField(
           result,
           fieldName,
-          hydrateStructure(dictValue[fieldName]!, fieldDef.type, policy)
+          hydrateStructure(ownValue, fieldDef.type, policy)
         );
       } else if (fieldDef.defaultValue !== undefined) {
         setDictField(
@@ -464,26 +454,23 @@ export function hydrateStructure(
   }
 
   if (
-    type.kind === 'ordered' &&
-    (type as OrderedStructure).fields &&
+    isStructureKind(type, 'ordered') &&
+    type.fields &&
     (isOrdered(value) || (policy.coerceOrderedFromDict && isPlainDict(value)))
   ) {
-    const t = type as OrderedStructure;
     const source = isOrdered(value) ? 'ordered' : 'dict';
     const lookup = new Map<string, RillValue>(
       isOrdered(value)
-        ? value.entries.map(([k, v]) => [k, v] as [string, RillValue])
-        : Object.entries(value as Record<string, RillValue>)
+        ? value.entries.map(([k, v]): [string, RillValue] => [k, v])
+        : Object.entries(value)
     );
-    const fieldNames = new Set<string>(t.fields!.map((f) => f.name ?? ''));
+    const fieldNames = new Set<string>(type.fields.map((f) => f.name ?? ''));
     const resultEntries: [string, RillValue][] = [];
-    for (const field of t.fields!) {
+    for (const field of type.fields) {
       const name = field.name ?? '';
-      if (lookup.has(name)) {
-        resultEntries.push([
-          name,
-          hydrateStructure(lookup.get(name)!, field.type, policy),
-        ]);
+      const found = lookup.get(name);
+      if (found !== undefined) {
+        resultEntries.push([name, hydrateStructure(found, field.type, policy)]);
       } else if (field.defaultValue !== undefined) {
         resultEntries.push([
           name,
@@ -507,7 +494,7 @@ export function hydrateStructure(
     if (policy.keepExtras) {
       const sourceEntries = isOrdered(value)
         ? value.entries
-        : Object.entries(value as Record<string, RillValue>);
+        : Object.entries(value);
       for (const [k, v] of sourceEntries) {
         if (!fieldNames.has(k)) {
           resultEntries.push([k, v]);
@@ -517,18 +504,14 @@ export function hydrateStructure(
     return createOrdered(resultEntries);
   }
 
-  if (
-    type.kind === 'tuple' &&
-    (type as TupleStructure).elements &&
-    isTuple(value)
-  ) {
-    const elements = (type as TupleStructure).elements!;
+  if (isStructureKind(type, 'tuple') && type.elements && isTuple(value)) {
+    const elements = type.elements;
     const entries = value.entries;
     const resultEntries: RillValue[] = [];
-    for (let i = 0; i < elements.length; i++) {
-      const el = elements[i]!;
-      if (i < entries.length) {
-        resultEntries.push(hydrateStructure(entries[i]!, el.type, policy));
+    for (const [i, el] of elements.entries()) {
+      const entry = entries[i];
+      if (entry !== undefined) {
+        resultEntries.push(hydrateStructure(entry, el.type, policy));
       } else if (el.defaultValue !== undefined) {
         resultEntries.push(
           hydrateStructure(copyValue(el.defaultValue), el.type, policy)
@@ -549,7 +532,8 @@ export function hydrateStructure(
     }
     if (policy.keepExtras) {
       for (let i = elements.length; i < entries.length; i++) {
-        resultEntries.push(entries[i]!);
+        const extra = entries[i];
+        if (extra !== undefined) resultEntries.push(extra);
       }
     }
     // resultEntries is a freshly-built array exclusively owned by this call;
@@ -814,88 +798,69 @@ function throwHostResultError(
  * adding a matching row here, or a forged host object with the right
  * discriminator key and garbage fields slips past validation.
  */
-const BRAND_SHAPE_CHECKS: ReadonlyArray<{
-  test: (v: RillValue) => boolean;
-  valid: (v: RillValue) => boolean;
-  label: string;
-}> = [
-  {
-    label: 'atom',
-    test: isAtom,
-    valid: (v) => {
-      const atom: unknown = (v as RillAtomValue).atom;
-      return (
-        typeof atom === 'object' &&
-        atom !== null &&
-        '__rill_atom' in atom &&
-        atom.__rill_atom === true &&
-        'name' in atom &&
-        typeof atom.name === 'string' &&
-        'kind' in atom &&
-        typeof atom.kind === 'string'
-      );
-    },
-  },
-  {
-    label: 'vector',
-    test: isVector,
-    valid: (v) => {
-      const vector = v as RillVector;
-      return (
-        vector.data instanceof Float32Array && typeof vector.model === 'string'
-      );
-    },
-  },
-  {
-    label: 'datetime',
-    test: isDatetime,
-    valid: (v) => Number.isFinite((v as RillDatetime).unix),
-  },
-  {
-    label: 'duration',
-    test: isDuration,
-    valid: (v) => {
-      const duration = v as RillDuration;
-      return (
-        Number.isFinite(duration.months) &&
-        duration.months >= 0 &&
-        Number.isFinite(duration.ms) &&
-        duration.ms >= 0
-      );
-    },
-  },
-  {
-    label: 'ordered',
-    test: isOrdered,
-    valid: (v) => Array.isArray((v as RillOrdered).entries),
-  },
-  {
-    label: 'typevalue',
-    test: isTypeValue,
-    valid: (v) => {
-      const typeValue = v as RillTypeValue;
-      return (
-        typeof typeValue.typeName === 'string' &&
-        typeof typeValue.structure === 'object' &&
-        typeValue.structure !== null &&
-        typeof typeValue.structure.kind === 'string'
-      );
-    },
-  },
-  {
-    label: 'stream',
-    test: isStream,
-    valid: (v) => {
-      const stream = v as RillStream;
-      if (typeof stream.done !== 'boolean' || !isCallable(stream.next))
-        return false;
-      if (stream.done) return true;
-      if ('__rill_stream_head' in stream) {
-        return typeof stream['__rill_stream_resolve'] === 'function';
-      }
-      return 'value' in stream;
-    },
-  },
+interface BrandShapeCheck {
+  readonly label: string;
+  readonly test: (v: RillValue) => boolean;
+  readonly valid: (v: RillValue) => boolean;
+}
+
+/** Pair a brand guard with a field check that receives the narrowed value. */
+function brandRow<T extends RillValue>(
+  label: string,
+  test: (v: RillValue) => v is T,
+  valid: (v: T) => boolean
+): BrandShapeCheck {
+  return { label, test, valid: (v) => test(v) && valid(v) };
+}
+
+const BRAND_SHAPE_CHECKS: ReadonlyArray<BrandShapeCheck> = [
+  brandRow('atom', isAtom, (v) => {
+    const atom: unknown = v.atom;
+    return (
+      typeof atom === 'object' &&
+      atom !== null &&
+      '__rill_atom' in atom &&
+      atom.__rill_atom === true &&
+      'name' in atom &&
+      typeof atom.name === 'string' &&
+      'kind' in atom &&
+      typeof atom.kind === 'string'
+    );
+  }),
+  brandRow(
+    'vector',
+    isVector,
+    (v) => v.data instanceof Float32Array && typeof v.model === 'string'
+  ),
+  brandRow('datetime', isDatetime, (v) => Number.isFinite(v.unix)),
+  brandRow(
+    'duration',
+    isDuration,
+    (v) =>
+      Number.isFinite(v.months) &&
+      v.months >= 0 &&
+      Number.isFinite(v.ms) &&
+      v.ms >= 0
+  ),
+  brandRow('ordered', isOrdered, (v) => Array.isArray(v.entries)),
+  brandRow(
+    'typevalue',
+    isTypeValue,
+    (v) =>
+      typeof v.typeName === 'string' &&
+      typeof v.structure === 'object' &&
+      v.structure !== null &&
+      typeof v.structure.kind === 'string'
+  ),
+  brandRow('stream', isStream, (stream) => {
+    if (typeof stream.done !== 'boolean' || !isCallable(stream.next))
+      return false;
+    if (stream.done) return true;
+    if ('__rill_stream_head' in stream) {
+      return typeof stream['__rill_stream_resolve'] === 'function';
+    }
+    return 'value' in stream;
+  }),
 ];
 
 /** One container on the path from the result root to the value being walked. */
@@ -915,7 +880,8 @@ function renderHostPath(
   for (let f = parent; f !== null; f = f.parent) segments.push(f.key);
   let path = '<root>';
   for (let i = segments.length - 1; i >= 0; i--) {
-    const seg = segments[i]!;
+    const seg = segments[i];
+    if (seg === undefined) continue;
     if (typeof seg === 'number') path += `[${seg}]`;
     else path = path === '<root>' ? `.${seg}` : `${path}.${seg}`;
   }
@@ -968,6 +934,9 @@ function walkHostResult(
 
   // Remaining case: t === 'object'
   const obj = value;
+  // The object is the validator's input and the public brand guards take
+  // RillValue; the walk below is the check that it really is one.
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- host result is unvalidated input; the walk itself performs the check
   const rillValue = value as RillValue;
 
   if (seen.has(obj)) {

@@ -4,6 +4,12 @@ import { VALID_TYPE_NAMES } from './constants.js';
 /** Rill type names for type annotations */
 export type RillTypeName = (typeof VALID_TYPE_NAMES)[number];
 
+/** Narrow a string to a RillTypeName when it is a registered type name. */
+export function isRillTypeName(name: string): name is RillTypeName {
+  const validNames: readonly string[] = VALID_TYPE_NAMES;
+  return validNames.includes(name);
+}
+
 /**
  * A single argument in a parameterized type reference or type constructor.
  *

@@ -86,25 +86,27 @@ export const mTrim: RillMethod = (receiver) => formatValue(receiver).trim();
 /** Get first element of list or first char of string */
 export const mHead: RillMethod = (receiver, _args, ctx, location) => {
   if (Array.isArray(receiver)) {
-    if (receiver.length === 0) {
+    const first = receiver[0];
+    if (first === undefined) {
       throwCatchableHostHalt(
         { location, sourceId: ctx.sourceId, fn: 'head' },
         'RILL_R002',
         'Cannot get head of empty list'
       );
     }
-    return receiver[0]!;
+    return first;
   }
   if (typeof receiver === 'string') {
-    if (receiver.length === 0) {
+    // First code point, never a lone surrogate half of an astral character.
+    const firstCp = receiver.codePointAt(0);
+    if (firstCp === undefined) {
       throwCatchableHostHalt(
         { location, sourceId: ctx.sourceId, fn: 'head' },
         'RILL_R002',
         'Cannot get head of empty string'
       );
     }
-    // First code point, never a lone surrogate half of an astral character.
-    return isBmpOnly(receiver) ? receiver.charAt(0) : Array.from(receiver)[0]!;
+    return String.fromCodePoint(firstCp);
   }
   return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'head', preserveHostShape: true },
@@ -116,27 +118,27 @@ export const mHead: RillMethod = (receiver, _args, ctx, location) => {
 /** Get last element of list or last char of string */
 export const mTail: RillMethod = (receiver, _args, ctx, location) => {
   if (Array.isArray(receiver)) {
-    if (receiver.length === 0) {
+    const last = receiver.at(-1);
+    if (last === undefined) {
       throwCatchableHostHalt(
         { location, sourceId: ctx.sourceId, fn: 'tail' },
         'RILL_R002',
         'Cannot get tail of empty list'
       );
     }
-    return receiver.at(-1)!;
+    return last;
   }
   if (typeof receiver === 'string') {
-    if (receiver.length === 0) {
+    // Last code point, never a lone surrogate half of an astral character.
+    const cp = (isBmpOnly(receiver) ? receiver : Array.from(receiver)).at(-1);
+    if (cp === undefined) {
       throwCatchableHostHalt(
         { location, sourceId: ctx.sourceId, fn: 'tail' },
         'RILL_R002',
         'Cannot get tail of empty string'
       );
     }
-    // Last code point, never a lone surrogate half of an astral character.
-    if (isBmpOnly(receiver)) return receiver.at(-1)!;
-    const cps = Array.from(receiver);
-    return cps.at(-1)!;
+    return cp;
   }
   return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'tail', preserveHostShape: true },
@@ -154,9 +156,7 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
   // internal fields (__rill_stream, next, ...) instead of stepping it.
   if (isStream(receiver)) {
     const loc = location ?? { line: 0, column: 0, offset: 0 };
-    const nextRaw = (receiver as unknown as Record<string, unknown>)[
-      'next'
-    ] as RillValue;
+    const nextRaw = receiver.next;
     if (!isCallable(nextRaw)) {
       throwCatchableHostHalt(
         { location: loc, sourceId: ctx.sourceId, fn: 'first' },
@@ -203,14 +203,15 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
         `List index must be an integer, got ${idx}`
       );
     }
-    if (idx < 0 || idx >= receiver.length) {
+    const item = receiver[idx];
+    if (item === undefined) {
       throwCatchableHostHalt(
         { location, sourceId: ctx.sourceId, fn: 'at' },
         'RILL_R002',
         `List index out of bounds: ${idx}`
       );
     }
-    return receiver[idx]!;
+    return item;
   }
   if (typeof receiver === 'string') {
     // Index by code point so an astral character occupies a single position
@@ -233,14 +234,15 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
       return receiver.charAt(idx);
     }
     const cps = Array.from(receiver);
-    if (idx < 0 || idx >= cps.length) {
+    const cp = cps[idx];
+    if (cp === undefined) {
       throwCatchableHostHalt(
         { location, sourceId: ctx.sourceId, fn: 'at' },
         'RILL_R002',
         `String index out of bounds: ${idx}`
       );
     }
-    return cps[idx]!;
+    return cp;
   }
   if (isTuple(receiver)) {
     if (!Number.isInteger(idx)) {
@@ -250,14 +252,15 @@ export const mAt: RillMethod = (receiver, args, ctx, location) => {
         `Tuple index must be an integer, got ${idx}`
       );
     }
-    if (idx < 0 || idx >= receiver.entries.length) {
+    const entry = receiver.entries[idx];
+    if (entry === undefined) {
       throwCatchableHostHalt(
         { location, sourceId: ctx.sourceId, fn: 'at' },
         'RILL_R002',
         `Tuple index out of bounds: ${idx}`
       );
     }
-    return receiver.entries[idx]!;
+    return entry;
   }
   return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'at', preserveHostShape: true },
@@ -625,7 +628,7 @@ export const mValues: RillMethod = (receiver, _args, ctx, location) => {
 /** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
 export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
   if (isOrdered(receiver))
-    return orderedValueEntries(receiver).map(([k, v]) => [k, v] as RillValue);
+    return orderedValueEntries(receiver).map(([k, v]): RillValue => [k, v]);
   if (isBrandedNonDict(receiver)) {
     throwFatalHostHalt(
       {
@@ -639,7 +642,7 @@ export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
     );
   }
   return isDict(receiver) && !isStream(receiver)
-    ? orderedDictEntries(receiver).map((e) => [e.key, e.value] as RillValue)
+    ? orderedDictEntries(receiver).map((e): RillValue => [e.key, e.value])
     : [];
 };
 
@@ -859,8 +862,9 @@ export const mSimilarity: RillMethod = (receiver, args, ctx, location) => {
   let normA = 0;
   let normB = 0;
   for (let i = 0; i < receiver.data.length; i++) {
-    const a = receiver.data[i]!;
-    const b = other.data[i]!;
+    const a = receiver.data[i] ?? 0;
+    // Unreachable fallback: lengths are verified equal above.
+    const b = other.data[i] ?? 0;
     dotProduct += a * b;
     normA += a * a;
     normB += b * b;
@@ -896,7 +900,9 @@ export const mDot: RillMethod = (receiver, args, ctx, location) => {
   }
   let result = 0;
   for (let i = 0; i < receiver.data.length; i++) {
-    result += receiver.data[i]! * other.data[i]!;
+    const a = receiver.data[i] ?? 0;
+    // Unreachable fallback: lengths are verified equal above.
+    result += a * (other.data[i] ?? 0);
   }
   return result;
 };
@@ -942,7 +948,9 @@ export const mDistance: RillMethod = (receiver, args, ctx, location) => {
   }
   let sumSquares = 0;
   for (let i = 0; i < receiver.data.length; i++) {
-    const diff = receiver.data[i]! - other.data[i]!;
+    const a = receiver.data[i] ?? 0;
+    // Unreachable fallback: lengths are verified equal above.
+    const diff = a - (other.data[i] ?? 0);
     sumSquares += diff * diff;
   }
   return Math.sqrt(sumSquares);
@@ -958,8 +966,7 @@ export const mNorm: RillMethod = (receiver, _args, ctx, location) => {
     );
   }
   let sumSquares = 0;
-  for (let i = 0; i < receiver.data.length; i++) {
-    const val = receiver.data[i]!;
+  for (const val of receiver.data) {
     sumSquares += val * val;
   }
   return Math.sqrt(sumSquares);
@@ -980,15 +987,15 @@ export const mNormalize: RillMethod = (receiver, _args, ctx, location) => {
     );
   }
   let sumSquares = 0;
-  for (let i = 0; i < receiver.data.length; i++) {
-    const val = receiver.data[i]!;
+  for (const val of receiver.data) {
     sumSquares += val * val;
   }
   const magnitude = Math.sqrt(sumSquares);
   if (magnitude === 0) return receiver;
   const normalized = new Float32Array(receiver.data.length);
   for (let i = 0; i < receiver.data.length; i++) {
-    normalized[i] = receiver.data[i]! / magnitude;
+    const val = receiver.data[i] ?? 0;
+    normalized[i] = val / magnitude;
   }
   return {
     __rill_vector: true,

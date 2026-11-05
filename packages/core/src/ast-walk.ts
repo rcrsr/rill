@@ -406,12 +406,12 @@ function dictKeyChildren(key: DictEntryNode['key']): ASTNode[] {
  */
 export function walkAst(root: ASTNode, visit: (node: ASTNode) => void): void {
   const stack: ASTNode[] = [root];
-  while (stack.length > 0) {
-    const node = stack.pop()!;
+  for (let node = stack.pop(); node !== undefined; node = stack.pop()) {
     visit(node);
     const children = astChildren(node);
     for (let i = children.length - 1; i >= 0; i--) {
-      stack.push(children[i]!);
+      const child = children[i];
+      if (child !== undefined) stack.push(child);
     }
   }
 }
@@ -521,11 +521,9 @@ export function nodeAtPosition(root: ASTNode, offset: number): ASTNode | null {
     { node: root, children: astChildren(root), childIndex: 0 },
   ];
 
-  while (stack.length > 0) {
-    const frame = stack.at(-1)!;
-
-    if (frame.childIndex < frame.children.length) {
-      const child = frame.children[frame.childIndex]!;
+  for (let frame = stack.at(-1); frame !== undefined; frame = stack.at(-1)) {
+    const child = frame.children[frame.childIndex];
+    if (child !== undefined) {
       frame.childIndex++;
       if (child.type === 'Variable' || spanContains(child.span, offset)) {
         stack.push({

@@ -17,13 +17,13 @@ import {
   marshalArgs,
 } from '../../callable.js';
 import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
-import type {
-  RillValue,
-  RillTypeValue,
-  TypeStructure,
-} from '../../types/structures.js';
+import type { RillValue, RillTypeValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTypeValue, isStream } from '../../types/guards.js';
+import {
+  isTypeValue,
+  isStream,
+  getStreamTypeSidecar,
+} from '../../types/guards.js';
 import {
   paramToFieldDef,
   inferStructure,
@@ -334,16 +334,12 @@ export async function evaluateAnnotationAccess(
 
   if (isStream(value)) {
     if (key === 'chunk') {
-      const chunkType = (
-        value as unknown as Record<string, TypeStructure | undefined>
-      )['__rill_stream_chunk_type'];
+      const chunkType = getStreamTypeSidecar(value, 'chunk');
       if (chunkType === undefined) return anyTypeValue;
       return structureToTypeValue(chunkType);
     }
     if (key === 'output') {
-      const retType = (
-        value as unknown as Record<string, TypeStructure | undefined>
-      )['__rill_stream_ret_type'];
+      const retType = getStreamTypeSidecar(value, 'ret');
       if (retType === undefined) return anyTypeValue;
       return structureToTypeValue(retType);
     }

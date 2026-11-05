@@ -85,12 +85,12 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
       // consecutive chunks is 0. Only the last chunk has an Infinity gap
       // (no follower), so only it passes when durationMs > 0.
       const result: RillValue[] = [];
-      for (let i = 0; i < elements.length; i++) {
+      for (const [i, element] of elements.entries()) {
         // Gap to next chunk: 0 for non-terminal (static clock); Infinity for last.
         const tGap = i + 1 < elements.length ? 0 : Infinity;
         // Emit if silence gap (time to next chunk) meets or exceeds durationMs.
         if (tGap >= durationMs) {
-          result.push(elements[i]!);
+          result.push(element);
         }
       }
 
@@ -170,11 +170,11 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
       // Gate tracks the earliest time the next chunk is allowed through.
       let nextAllowedMs = -Infinity;
 
-      for (let i = 0; i < elements.length; i++) {
+      for (const element of elements) {
         // Static clock: all chunks share timestamp 0 (batch processing, no Date.now()).
         const tChunk = 0;
         if (tChunk >= nextAllowedMs) {
-          result.push(elements[i]!);
+          result.push(element);
           nextAllowedMs = tChunk + durationMs;
         }
       }
@@ -245,14 +245,15 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
       // Iteration cap enforced by the getIterableElements limit; halts propagate
       const elements = await getIterableElements(input, ctx, node);
 
-      if (elements.length === 0) {
+      const latest = elements.at(-1);
+      if (latest === undefined) {
         return [];
       }
 
       // Static clock: all chunks share timestamp 0 (batch processing, no
       // Date.now()), so every element falls into the same interval window
       // and the latest-seen value at that checkpoint is the last element.
-      return [elements.at(-1)!];
+      return [latest];
     },
   },
 };
