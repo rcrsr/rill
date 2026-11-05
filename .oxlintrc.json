@@ -491,7 +491,7 @@
       // untouched. no-unsafe-type-assertion is type-aware and runs only in
       // package lint scripts; no-non-null-assertion also runs in the
       // pre-commit hook. At enablement: 182 non-null hits in 46 files and
-      // 391 cast hits in 77 files over shipped src/, held by the ratchets below.
+      // 376 cast hits in 76 files over shipped src/, held by the ratchets below.
       "files": ["packages/*/src/**/*.{ts,tsx}"],
       "rules": {
         "typescript/no-non-null-assertion": "error",
@@ -571,7 +571,7 @@
       }
     },
     {
-      // Cast ratchet: 391 hits in 77 files (core 384 in 71, service 4 in 4,
+      // Cast ratchet: 376 hits in 76 files (core 369 in 70, service 4 in 4,
       // fiddle 3 in 2). Remove a path once its file reports zero; never add
       // one. packages/service/src/rules/corpus-loader.ts is build-excluded
       // test support named like source, so it stays listed.
@@ -583,7 +583,6 @@
         "packages/core/src/parser/parser-closure.ts",
         "packages/core/src/parser/parser-control.ts",
         "packages/core/src/parser/parser-functions.ts",
-        "packages/core/src/parser/parser-literals.ts",
         "packages/core/src/parser/parser-pipe-target.ts",
         "packages/core/src/parser/parser-primary.ts",
         "packages/core/src/parser/parser-shape.ts",

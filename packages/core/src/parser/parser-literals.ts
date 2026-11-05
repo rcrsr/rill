@@ -118,13 +118,10 @@ declare module './parser.js' {
     parseTupleElement(): ExpressionNode | ListSpreadNode;
     parseDict(start: SourceLocation): DictNode;
     parseDictEntry(): DictEntryNode;
-    parseCollectionLiteral(
-      collectionType: 'list' | 'dict' | 'tuple' | 'ordered'
-    ):
-      | ListLiteralNode
-      | DictLiteralNode
-      | TupleLiteralNode
-      | OrderedLiteralNode;
+    parseCollectionLiteral(collectionType: 'list'): ListLiteralNode;
+    parseCollectionLiteral(collectionType: 'dict'): DictLiteralNode;
+    parseCollectionLiteral(collectionType: 'tuple'): TupleLiteralNode;
+    parseCollectionLiteral(collectionType: 'ordered'): OrderedLiteralNode;
   }
 }
 
@@ -765,7 +762,7 @@ Parser.prototype.parseDictEntry = function (this: Parser): DictEntryNode {
   } else if (check(this.state, TOKEN_TYPES.LIST_LBRACKET)) {
     // Parse list[...] literal as multi-key: dict[list["a", "b"]: value]
     advance(this.state); // consume list[
-    const literal = this.parseCollectionLiteral('list') as ListLiteralNode;
+    const literal = this.parseCollectionLiteral('list');
     key = literal;
   } else if (check(this.state, TOKEN_TYPES.DICT_LBRACKET)) {
     // dict[...] is not a valid key — reject with clear error
@@ -951,7 +948,23 @@ function keyToString(key: DictEntryNode['key']): string {
  *
  * Spread (`...$x`) is valid inside all four variants.
  */
-Parser.prototype.parseCollectionLiteral = function (
+function parseCollectionLiteral(
+  this: Parser,
+  collectionType: 'list'
+): ListLiteralNode;
+function parseCollectionLiteral(
+  this: Parser,
+  collectionType: 'dict'
+): DictLiteralNode;
+function parseCollectionLiteral(
+  this: Parser,
+  collectionType: 'tuple'
+): TupleLiteralNode;
+function parseCollectionLiteral(
+  this: Parser,
+  collectionType: 'ordered'
+): OrderedLiteralNode;
+function parseCollectionLiteral(
   this: Parser,
   collectionType: 'list' | 'dict' | 'tuple' | 'ordered'
 ): ListLiteralNode | DictLiteralNode | TupleLiteralNode | OrderedLiteralNode {
@@ -1113,4 +1126,6 @@ Parser.prototype.parseCollectionLiteral = function (
     return { type: 'DictLiteral', entries, span } satisfies DictLiteralNode;
   }
   return { type: 'OrderedLiteral', entries, span } satisfies OrderedLiteralNode;
-};
+}
+
+Parser.prototype.parseCollectionLiteral = parseCollectionLiteral;

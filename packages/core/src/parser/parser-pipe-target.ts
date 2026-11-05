@@ -19,7 +19,6 @@ import type {
   PipeTargetNode,
   PostfixExprNode,
   RillTypeName,
-  ListLiteralNode,
   SourceLocation,
   SourceSpan,
   TypeConstructorNode,
@@ -329,7 +328,7 @@ const pipeTargetDispatchTable: Record<
   [TOKEN_TYPES.LIST_LBRACKET]: function (this: Parser): PipeTargetNode {
     const listStart = current(this.state).span.start;
     advance(this.state); // consume list[
-    const listLiteral = this.parseCollectionLiteral('list') as ListLiteralNode;
+    const listLiteral = this.parseCollectionLiteral('list');
     if (check(this.state, TOKEN_TYPES.NULLISH_COALESCE)) {
       advance(this.state);
       const defaultValue = this.parseDefaultValue();

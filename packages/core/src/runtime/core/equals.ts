@@ -288,6 +288,11 @@ function fieldsEqual(
   return true;
 }
 
+/** Duck-type check: a string `type` tag plus a `span` marks an AST node. */
+function isASTNodeLike(value: object): value is ASTNode {
+  return 'span' in value && 'type' in value && typeof value.type === 'string';
+}
+
 function structuralValueEquals(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (typeof a !== 'object' || typeof b !== 'object') return false;
@@ -296,10 +301,10 @@ function structuralValueEquals(a: unknown, b: unknown): boolean {
     if (!Array.isArray(a) || !Array.isArray(b)) return false;
     return arrayEquals(a as unknown[], b as unknown[], structuralValueEquals);
   }
-  const aType = (a as { type?: unknown }).type;
-  if (typeof aType === 'string' && 'span' in a) {
-    return astEquals(a as ASTNode, b as ASTNode);
-  }
+  const aIsNode = isASTNodeLike(a);
+  const bIsNode = isASTNodeLike(b);
+  if (aIsNode && bIsNode) return astEquals(a, b);
+  if (aIsNode || bIsNode) return false;
   return fieldsEqual(
     a as Record<string, unknown>,
     b as Record<string, unknown>
