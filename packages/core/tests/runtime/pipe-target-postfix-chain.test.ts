@@ -48,4 +48,33 @@ describe('pipe target postfix chains', () => {
       messagePattern: /Unsupported pipe target type: StatusProbe/,
     });
   });
+
+  it('halts with a type mismatch when a trailing assertion fails on a pass block target', async () => {
+    await expectHalt(() => run('"a" -> pass { 1 }:number'), {
+      code: 'TYPE_MISMATCH',
+      messagePattern: /Type assertion failed: expected number, got string/,
+    });
+  });
+
+  it('passes the piped value through when a trailing assertion holds on a pass block target', async () => {
+    expect(await run('"a" -> pass { "x" }:string')).toBe('a');
+  });
+
+  it('returns a boolean for a trailing type check on a pass block target', async () => {
+    expect(await run('"a" -> pass { 1 }:?string')).toBe(true);
+  });
+
+  it('halts catchably on a bare status probe over a pass block target', async () => {
+    await expectHalt(() => run('"a" -> pass { 1 }.!'), {
+      code: 'INVALID_INPUT',
+      messagePattern: /Unsupported pipe target type: StatusProbe/,
+    });
+  });
+
+  it('halts catchably on a code status probe over a pass block target', async () => {
+    await expectHalt(() => run('"a" -> pass { 1 }.!code'), {
+      code: 'INVALID_INPUT',
+      messagePattern: /Unsupported pipe target type: StatusProbe/,
+    });
+  });
 });
