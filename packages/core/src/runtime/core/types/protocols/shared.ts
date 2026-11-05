@@ -311,28 +311,34 @@ export function throwNotSerializable(
 // RECEIVER NARROWING
 // ============================================================
 
-/** Narrow a value to a datetime, or halt with RILL-R003 naming `site.fn`. */
+/**
+ * Narrow a value to a datetime, or halt with RILL-R003 naming `site.fn`.
+ * `operand` names the value in the message. Callers on hot paths test
+ * `isDatetime` first so the site object is built only on failure.
+ */
 export function requireDatetime(
   value: RillValue,
-  site: TypeHaltSite
+  site: TypeHaltSite,
+  operand: string = 'receiver'
 ): RillDatetime {
   if (isDatetime(value)) return value;
   return throwFatalHostHalt(
     site,
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
-    `${site.fn} requires datetime receiver`
+    `${site.fn} requires datetime ${operand}`
   );
 }
 
 /** Narrow a value to a duration, or halt with RILL-R003 naming `site.fn`. */
 export function requireDuration(
   value: RillValue,
-  site: TypeHaltSite
+  site: TypeHaltSite,
+  operand: string = 'receiver'
 ): RillDuration {
   if (isDuration(value)) return value;
   return throwFatalHostHalt(
     site,
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
-    `${site.fn} requires duration receiver`
+    `${site.fn} requires duration ${operand}`
   );
 }

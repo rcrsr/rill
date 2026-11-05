@@ -60,7 +60,7 @@ export function isFieldDescriptor(
 }
 
 /** Internal: narrow a TypeStructure to the variant with the given kind. */
-export function isStructureKind<K extends string>(
+export function isStructureKind<K extends TypeStructure['kind']>(
   s: TypeStructure,
   kind: K
 ): s is Extract<TypeStructure, { kind: K }> {

@@ -277,7 +277,9 @@ export async function evaluateUseExpr(
               ERROR_IDS.RILL_R056,
               `Resolver error for '${key}': ${err instanceof RillError ? err.rawMessage : message}`,
               parseLocation,
-              { sourceId: key }
+              { sourceId: key },
+              undefined,
+              key
             )
           : // oxlint-disable-next-line rill/no-new-runtime-error -- carries the parse error as .cause, which a halt cannot deliver to the host
             new RuntimeError(
@@ -288,7 +290,6 @@ export async function evaluateUseExpr(
               node.span,
               key
             );
-      Object.defineProperty(wrapped, 'sourceId', { value: key });
       wrapped.cause = err;
       throw wrapped;
     }

@@ -27,7 +27,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * Clock decomposition: days, hours, minutes, seconds, ms from the ms field.
  */
 function formatDuration(v: RillValue): string {
-  const dur = requireDuration(v, { fn: 'format-duration' });
+  const dur = isDuration(v) ? v : requireDuration(v, { fn: 'format-duration' });
   const parts: string[] = [];
 
   // Calendar components
@@ -76,12 +76,16 @@ function eqDuration(a: RillValue, b: RillValue): boolean {
  * so we halt with RILL-R002.
  */
 function compareDuration(a: RillValue, b: RillValue): number {
-  const da = requireDuration(a, { fn: 'compareDuration' });
-  const db = requireDuration(b, { fn: 'compareDuration' });
+  const da = isDuration(a)
+    ? a
+    : requireDuration(a, { fn: 'compare-duration' }, 'left operand');
+  const db = isDuration(b)
+    ? b
+    : requireDuration(b, { fn: 'compare-duration' }, 'right operand');
   if (da.months !== db.months) {
     const message = 'Cannot order durations with different calendar components';
     throwFatalHostHalt(
-      { fn: 'compareDuration', preserveHostShape: true },
+      { fn: 'compare-duration', preserveHostShape: true },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
       message
     );
@@ -99,7 +103,9 @@ function compareDuration(a: RillValue, b: RillValue): number {
  * Calendar durations (months>0): {months, ms} object.
  */
 function serializeDuration(v: RillValue): unknown {
-  const dur = requireDuration(v, { fn: 'serialize-duration' });
+  const dur = isDuration(v)
+    ? v
+    : requireDuration(v, { fn: 'serialize-duration' });
   if (dur.months === 0) return dur.ms;
   return { months: dur.months, ms: dur.ms };
 }

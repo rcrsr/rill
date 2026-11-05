@@ -117,9 +117,9 @@ function carriesStatus(value: RillValue): value is RillValue & StatusCarrier {
   return typeof value === 'object' && value !== null && STATUS_SYM in value;
 }
 
-/** Returns true when `value` has a status sidecar property attached. */
+/** Returns true when `value` has a defined status sidecar attached. */
 export function hasStatusSidecar(value: RillValue): boolean {
-  return carriesStatus(value);
+  return carriesStatus(value) && value[STATUS_SYM] !== undefined;
 }
 
 /**

@@ -51,7 +51,7 @@ function assertRepresentable(unix: number, fn: string): void {
 // ============================================================
 
 function formatDatetime(v: RillValue): string {
-  const dt = requireDatetime(v, { fn: 'format-datetime' });
+  const dt = isDatetime(v) ? v : requireDatetime(v, { fn: 'format-datetime' });
   assertRepresentable(dt.unix, 'format-datetime');
   return new Date(dt.unix).toISOString();
 }
@@ -70,9 +70,13 @@ function eqDatetime(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 function compareDatetime(a: RillValue, b: RillValue): number {
-  const da = requireDatetime(a, { fn: 'compare-datetime' }).unix;
-  const db = requireDatetime(b, { fn: 'compare-datetime' }).unix;
-  return da - db;
+  const da = isDatetime(a)
+    ? a
+    : requireDatetime(a, { fn: 'compare-datetime' }, 'left operand');
+  const db = isDatetime(b)
+    ? b
+    : requireDatetime(b, { fn: 'compare-datetime' }, 'right operand');
+  return da.unix - db.unix;
 }
 
 // ============================================================
@@ -81,7 +85,9 @@ function compareDatetime(a: RillValue, b: RillValue): number {
 
 /** Serialize datetime as ISO 8601 string with milliseconds. */
 function serializeDatetime(v: RillValue): unknown {
-  const dt = requireDatetime(v, { fn: 'serialize-datetime' });
+  const dt = isDatetime(v)
+    ? v
+    : requireDatetime(v, { fn: 'serialize-datetime' });
   assertRepresentable(dt.unix, 'serialize-datetime');
   return new Date(dt.unix).toISOString();
 }

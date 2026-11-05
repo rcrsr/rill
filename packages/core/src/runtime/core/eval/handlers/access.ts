@@ -32,10 +32,9 @@
 
 import type { SourceLocation } from '../../../../types.js';
 import {
-  STATUS_SYM,
   appendTraceFrame,
+  hasStatusSidecar,
   isInvalid,
-  type RillStatus,
 } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
 import { RuntimeHaltSignal } from '../../types/halt.js';
@@ -143,11 +142,7 @@ export function accessHaltGateFast(
   // Fast path: inline the symbol-keyed probe. Primitives (string /
   // number / boolean / null) and any object without the sidecar symbol
   // fall through immediately.
-  if (
-    value === null ||
-    typeof value !== 'object' ||
-    (value as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] === undefined
-  ) {
+  if (!hasStatusSidecar(value)) {
     return value;
   }
   // Slow path: full gate semantics. Re-check validity via `isInvalid`

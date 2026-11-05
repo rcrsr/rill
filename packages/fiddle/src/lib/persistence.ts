@@ -37,7 +37,7 @@ function getDefaultState(): EditorState {
  * Narrow a parsed JSON value to a non-null object with string keys.
  */
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 /**
@@ -117,15 +117,13 @@ export function loadEditorState(): EditorState {
       return getDefaultState();
     }
 
-    const state = parsed;
-
     const splitRatio =
-      typeof state['splitRatio'] === 'number'
-        ? clampSplitRatio(state['splitRatio'])
+      typeof parsed['splitRatio'] === 'number'
+        ? clampSplitRatio(parsed['splitRatio'])
         : 50;
     const lastSource =
-      typeof state['lastSource'] === 'string'
-        ? state['lastSource']
+      typeof parsed['lastSource'] === 'string'
+        ? parsed['lastSource']
         : DEFAULT_SOURCE;
 
     return { splitRatio, lastSource };

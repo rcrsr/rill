@@ -33,6 +33,7 @@ function datetimeReceiver(
   ctx: RuntimeContext,
   location: SourceLocation | undefined
 ): RillDatetime {
+  if (isDatetime(receiver)) return receiver;
   return requireDatetime(receiver, {
     location,
     sourceId: ctx.sourceId,
@@ -47,6 +48,7 @@ function durationReceiver(
   ctx: RuntimeContext,
   location: SourceLocation | undefined
 ): RillDuration {
+  if (isDuration(receiver)) return receiver;
   return requireDuration(receiver, {
     location,
     sourceId: ctx.sourceId,
