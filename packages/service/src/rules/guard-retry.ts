@@ -2,7 +2,7 @@
  * Lints idiomatic use of `guard` and `retry` error-recovery blocks.
  */
 
-import type { ASTNode, GuardBlockNode, RetryBlockNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -23,7 +23,8 @@ export const guardBare: Rule = {
   category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const guard = node as GuardBlockNode;
+    if (node.type !== 'GuardBlock') return [];
+    const guard = node;
     if (guard.onCodes && guard.onCodes.length > 0) return [];
 
     return [
@@ -55,7 +56,8 @@ export const retryTrivial: Rule = {
   category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const retry = node as RetryBlockNode;
+    if (node.type !== 'RetryBlock') return [];
+    const retry = node;
     if (retry.attempts > 1) return [];
 
     return [

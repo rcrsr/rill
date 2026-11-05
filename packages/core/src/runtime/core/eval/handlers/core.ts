@@ -47,6 +47,7 @@ import type { EvalState } from '../state.js';
 import { accessHaltGateFast, formatAccessSite } from './access.js';
 import {
   throwCatchableHostHalt,
+  throwFatalHostHalt,
   throwTypeHalt,
   RuntimeHaltSignal,
 } from '../../types/halt.js';
@@ -870,13 +871,54 @@ async function evaluatePipeTarget(
           primary.isPipeVar &&
           primary.name === null &&
           primary.accessChain.length === 0;
-        // Non-synthetic primaries only ever reach parsePipeTarget's
-        // attachPipeTargetIndex path (HostCall, HostRef, TypeConstructor,
-        // TypeNameExpr) — all members of PipeTargetNode, narrower than the
-        // general PrimaryNode this field is typed for elsewhere.
-        value = isSyntheticPipeVar
-          ? input
-          : await evaluatePipeTarget(s, primary as PipeTargetNode, input);
+        // Non-synthetic primaries only ever reach this node through
+        // parsePipeTarget's attachPipeTargetIndex path (HostCall, HostRef,
+        // TypeConstructor, TypeNameExpr) or attachPipeTargetPostfixChain
+        // (PassBlock, TimeoutBlock, WhileLoop, DoWhileLoop). The postfix
+        // dispatch loop there can also wrap the primary in a TypeAssertion or
+        // TypeCheck (`:type`, `:?type`), both PipeTargetNode members. A
+        // StatusProbe (`.!`) wrapper is not a PipeTargetNode member and halts
+        // as an unsupported target, as evaluatePipeTarget does for any
+        // unhandled type.
+        if (isSyntheticPipeVar) {
+          value = input;
+        } else if (
+          primary.type === 'HostCall' ||
+          primary.type === 'HostRef' ||
+          primary.type === 'TypeConstructor' ||
+          primary.type === 'TypeNameExpr' ||
+          primary.type === 'PassBlock' ||
+          primary.type === 'TimeoutBlock' ||
+          primary.type === 'WhileLoop' ||
+          primary.type === 'DoWhileLoop' ||
+          primary.type === 'TypeAssertion' ||
+          primary.type === 'TypeCheck'
+        ) {
+          value = await evaluatePipeTarget(s, primary, input);
+        } else if (primary.type === 'StatusProbe') {
+          throwTypeHalt(
+            {
+              location: getNodeLocation(s, target),
+              sourceId: s.ctx.sourceId,
+              fn: '->',
+            },
+            'INVALID_INPUT',
+            `Unsupported pipe target type: ${primary.type}`,
+            'runtime',
+            { nodeType: primary.type },
+            'host'
+          );
+        } else {
+          throwFatalHostHalt(
+            {
+              location: getNodeLocation(s, target),
+              sourceId: s.ctx.sourceId,
+              fn: 'evaluatePipeChain',
+            },
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
+            `Unexpected pipe target primary: ${primary.type}`
+          );
+        }
         for (const method of target.methods) {
           if (method.type === 'AnnotationAccess') {
             value = await evaluateAnnotationAccess(

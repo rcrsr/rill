@@ -7,7 +7,6 @@
 
 import type {
   AnnotatedStatementNode,
-  AnnotationAccessNode,
   AnnotationArg,
   ASTNode,
   BinaryExprNode,
@@ -25,12 +24,9 @@ import type {
   HostCallNode,
   ClosureNode,
   GroupedExprNode,
-  InterpolationNode,
   InvokeNode,
-  IndexAccessNode,
   PipeInvokeNode,
   MethodCallNode,
-  NumberLiteralNode,
   PipeChainNode,
   PostfixExprNode,
   PropertyAccess,
@@ -54,8 +50,6 @@ import type {
   TypeRef,
   FieldArg,
   LiteralNode,
-  BoolLiteralNode,
-  AtomLiteralNode,
 } from '../../types.js';
 import { isPipeChainNode } from '../../types.js';
 import { throwFatalHostHalt } from './types/halt.js';
@@ -96,141 +90,150 @@ function arrayEquals<T>(
 /** Reusable pair comparator for `arrayEquals(..., astEqualsPair)` call sites. */
 const astEqualsPair = (x: ASTNode, y: ASTNode): boolean => astEquals(x, y);
 
+/**
+ * Narrow `b` to the variant of its union whose `type` matches `a`'s.
+ * Replaces casts after a same-type comparison.
+ */
+function sameNodeType<
+  T extends { readonly type: string },
+  U extends { readonly type: string },
+>(a: T, b: U): b is Extract<U, { readonly type: T['type'] }> {
+  return a.type === b.type;
+}
+
 export function astEquals(a: ASTNode, b: ASTNode): boolean {
   // Different node types are never equal
   if (a.type !== b.type) return false;
 
   switch (a.type) {
     case 'Block':
-      return blockEquals(a, b as BlockNode);
+      return sameNodeType(a, b) && blockEquals(a, b);
 
     case 'Statement':
-      return statementEquals(a, b as StatementNode);
+      return sameNodeType(a, b) && statementEquals(a, b);
 
     case 'AnnotatedStatement':
-      return annotatedStatementEquals(a, b as AnnotatedStatementNode);
+      return sameNodeType(a, b) && annotatedStatementEquals(a, b);
 
     case 'PipeChain': {
-      const bNode = b as ExpressionNode;
-      // `a.type === b.type` was already checked above, so `bNode` is
-      // guaranteed to be a PipeChainNode here. This check is a defensive
-      // narrowing that is unreachable in normal execution.
-      if (!isPipeChainNode(bNode)) {
+      // The top-level type check already guarantees matching types; this
+      // narrowing is defensive and unreachable in normal execution.
+      if (!sameNodeType(a, b)) {
         throwFatalHostHalt(
           { fn: 'astEquals' },
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
           'Expected matching PipeChain node for equality comparison'
         );
       }
-      return pipeChainEquals(a, bNode);
+      return pipeChainEquals(a, b);
     }
 
     case 'PostfixExpr':
-      return postfixExprEquals(a, b as PostfixExprNode);
+      return sameNodeType(a, b) && postfixExprEquals(a, b);
 
     case 'StringLiteral':
-      return stringLiteralEquals(a, b as StringLiteralNode);
+      return sameNodeType(a, b) && stringLiteralEquals(a, b);
 
     case 'NumberLiteral':
-      return a.value === (b as NumberLiteralNode).value;
+      return sameNodeType(a, b) && a.value === b.value;
 
     case 'BoolLiteral':
-      return a.value === (b as typeof a).value;
+      return sameNodeType(a, b) && a.value === b.value;
 
     case 'Variable':
-      return variableEquals(a, b as VariableNode);
+      return sameNodeType(a, b) && variableEquals(a, b);
 
     case 'HostCall':
-      return functionCallEquals(a, b as HostCallNode);
+      return sameNodeType(a, b) && functionCallEquals(a, b);
 
     case 'ClosureCall':
-      return closureCallEquals(a, b as ClosureCallNode);
+      return sameNodeType(a, b) && closureCallEquals(a, b);
 
     case 'MethodCall':
-      return methodCallEquals(a, b as MethodCallNode);
+      return sameNodeType(a, b) && methodCallEquals(a, b);
 
     case 'Invoke':
-      return invokeEquals(a, b as InvokeNode);
+      return sameNodeType(a, b) && invokeEquals(a, b);
 
     case 'IndexAccess':
-      return expressionEquals(a.index, (b as IndexAccessNode).index);
+      return sameNodeType(a, b) && expressionEquals(a.index, b.index);
 
     case 'AnnotationAccess':
-      return a.key === (b as AnnotationAccessNode).key;
+      return sameNodeType(a, b) && a.key === b.key;
 
     case 'PipeInvoke':
-      return pipeInvokeEquals(a, b as PipeInvokeNode);
+      return sameNodeType(a, b) && pipeInvokeEquals(a, b);
 
     case 'Conditional':
-      return conditionalEquals(a, b as ConditionalNode);
+      return sameNodeType(a, b) && conditionalEquals(a, b);
 
     case 'WhileLoop':
-      return whileLoopEquals(a, b as WhileLoopNode);
+      return sameNodeType(a, b) && whileLoopEquals(a, b);
 
     case 'DoWhileLoop':
-      return doWhileLoopEquals(a, b as DoWhileLoopNode);
+      return sameNodeType(a, b) && doWhileLoopEquals(a, b);
 
     case 'ListSpread':
-      return listSpreadEquals(a, b as ListSpreadNode);
+      return sameNodeType(a, b) && listSpreadEquals(a, b);
 
     case 'Dict':
-      return dictEquals(a, b as DictNode);
+      return sameNodeType(a, b) && dictEquals(a, b);
 
     case 'DictEntry':
-      return dictEntryEquals(a, b as DictEntryNode);
+      return sameNodeType(a, b) && dictEntryEquals(a, b);
 
     case 'Closure':
-      return closureEquals(a, b as ClosureNode);
+      return sameNodeType(a, b) && closureEquals(a, b);
 
     case 'ClosureParam':
-      return closureParamEquals(a, b as ClosureParamNode);
+      return sameNodeType(a, b) && closureParamEquals(a, b);
 
     case 'BinaryExpr':
-      return binaryExprEquals(a, b as BinaryExprNode);
+      return sameNodeType(a, b) && binaryExprEquals(a, b);
 
     case 'UnaryExpr':
-      return unaryExprEquals(a, b as UnaryExprNode);
+      return sameNodeType(a, b) && unaryExprEquals(a, b);
 
     case 'GroupedExpr':
-      return groupedExprEquals(a, b as GroupedExprNode);
+      return sameNodeType(a, b) && groupedExprEquals(a, b);
 
     case 'Destructure':
-      return destructureEquals(a, b as DestructureNode);
+      return sameNodeType(a, b) && destructureEquals(a, b);
 
     case 'DestructPattern':
-      return destructElemEquals(a, b as DestructPatternNode);
+      return sameNodeType(a, b) && destructElemEquals(a, b);
 
     case 'Slice':
-      return sliceEquals(a, b as SliceNode);
+      return sameNodeType(a, b) && sliceEquals(a, b);
 
     case 'ListLiteral':
-      return listLiteralEquals(a, b as ListLiteralNode);
+      return sameNodeType(a, b) && listLiteralEquals(a, b);
 
     case 'DictLiteral':
-      return dictLiteralEquals(a, b as DictLiteralNode);
+      return sameNodeType(a, b) && dictLiteralEquals(a, b);
 
     case 'TupleLiteral':
-      return tupleLiteralEquals(a, b as TupleLiteralNode);
+      return sameNodeType(a, b) && tupleLiteralEquals(a, b);
 
     case 'OrderedLiteral':
-      return orderedLiteralEquals(a, b as OrderedLiteralNode);
+      return sameNodeType(a, b) && orderedLiteralEquals(a, b);
 
     case 'Destruct':
-      return destructNodeEquals(a, b as DestructNode);
+      return sameNodeType(a, b) && destructNodeEquals(a, b);
 
     case 'Capture': {
-      const bCapture = b as typeof a;
-      if (a.name !== bCapture.name) return false;
+      if (!sameNodeType(a, b)) return false;
+      if (a.name !== b.name) return false;
       // Compare inlineShape
       const aShape = a.inlineShape;
-      const bShape = bCapture.inlineShape;
+      const bShape = b.inlineShape;
       if ((aShape === null) !== (bShape === null)) return false;
       if (aShape !== null && bShape !== null) {
         if (!astEquals(aShape, bShape)) return false;
       }
       // Compare typeRef
       const aRef = a.typeRef;
-      const bRef = bCapture.typeRef;
+      const bRef = b.typeRef;
       if (aRef === null && bRef === null) return true;
       if (aRef === null || bRef === null) return false;
       if (aRef.kind !== bRef.kind) return false;
@@ -247,16 +250,13 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
       return true; // Break, Return, and Pass nodes have no value property
 
     case 'Interpolation':
-      return expressionEquals(
-        a.expression,
-        (b as InterpolationNode).expression
-      );
+      return sameNodeType(a, b) && expressionEquals(a.expression, b.expression);
 
     case 'PartialExpression':
-      return partialExpressionEquals(a, b as PartialExpressionNode);
+      return sameNodeType(a, b) && partialExpressionEquals(a, b);
 
     case 'RecoveryError':
-      return recoveryErrorEquals(a, b as RecoveryErrorNode);
+      return sameNodeType(a, b) && recoveryErrorEquals(a, b);
 
     default:
       // Node kinds without a dedicated comparator compare field by field.
@@ -288,6 +288,11 @@ function fieldsEqual(
   return true;
 }
 
+/** Duck-type check: a string `type` tag plus a `span` marks an AST node. */
+function isASTNodeLike(value: object): value is ASTNode {
+  return 'span' in value && 'type' in value && typeof value.type === 'string';
+}
+
 function structuralValueEquals(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (typeof a !== 'object' || typeof b !== 'object') return false;
@@ -296,10 +301,10 @@ function structuralValueEquals(a: unknown, b: unknown): boolean {
     if (!Array.isArray(a) || !Array.isArray(b)) return false;
     return arrayEquals(a as unknown[], b as unknown[], structuralValueEquals);
   }
-  const aType = (a as { type?: unknown }).type;
-  if (typeof aType === 'string' && 'span' in a) {
-    return astEquals(a as ASTNode, b as ASTNode);
-  }
+  const aIsNode = isASTNodeLike(a);
+  const bIsNode = isASTNodeLike(b);
+  if (aIsNode && bIsNode) return astEquals(a, b);
+  if (aIsNode || bIsNode) return false;
   return fieldsEqual(
     a as Record<string, unknown>,
     b as Record<string, unknown>
@@ -308,11 +313,12 @@ function structuralValueEquals(a: unknown, b: unknown): boolean {
 
 function blockEquals(a: BlockNode, b: BlockNode): boolean {
   return arrayEquals(a.statements, b.statements, (stmtA, stmtB) => {
-    if (stmtA.type !== stmtB.type) return false;
     if (stmtA.type === 'AnnotatedStatement') {
-      return annotatedStatementEquals(stmtA, stmtB as AnnotatedStatementNode);
+      return (
+        sameNodeType(stmtA, stmtB) && annotatedStatementEquals(stmtA, stmtB)
+      );
     }
-    return statementEquals(stmtA, stmtB as StatementNode);
+    return sameNodeType(stmtA, stmtB) && statementEquals(stmtA, stmtB);
   });
 }
 
@@ -330,23 +336,19 @@ function annotatedStatementEquals(
 }
 
 function annotationArgEquals(a: AnnotationArg, b: AnnotationArg): boolean {
-  if (a.type !== b.type) return false;
   if (a.type === 'NamedArg') {
-    const bNamed = b as typeof a;
-    if (a.name !== bNamed.name) return false;
-    return expressionEquals(a.value, bNamed.value);
-  } else {
-    // SpreadArg
-    const aSpread = a;
-    const bSpread = b as typeof aSpread;
-    return expressionEquals(aSpread.expression, bSpread.expression);
+    if (!sameNodeType(a, b)) return false;
+    if (a.name !== b.name) return false;
+    return expressionEquals(a.value, b.value);
   }
+  // SpreadArg
+  return sameNodeType(a, b) && expressionEquals(a.expression, b.expression);
 }
 
 function expressionEquals(a: ExpressionNode, b: ExpressionNode): boolean {
   if (a.type !== b.type) return false;
   if (a.type === 'PartialExpression') {
-    return partialExpressionEquals(a, b as PartialExpressionNode);
+    return sameNodeType(a, b) && partialExpressionEquals(a, b);
   }
   // `a.type === b.type` was already checked above, so `b` is guaranteed to
   // be a PipeChainNode here. This check is a defensive narrowing that is
@@ -431,22 +433,21 @@ function fieldAccessEquals(a: FieldAccess, b: FieldAccess): boolean {
   if (a.kind !== b.kind) return false;
   switch (a.kind) {
     case 'literal':
-      return a.field === (b as typeof a).field;
+      return b.kind === 'literal' && a.field === b.field;
     case 'variable':
-      return a.variableName === (b as typeof a).variableName;
+      return b.kind === 'variable' && a.variableName === b.variableName;
     case 'computed':
-      return astEquals(a.expression, (b as typeof a).expression);
+      return b.kind === 'computed' && astEquals(a.expression, b.expression);
     case 'block':
-      return astEquals(a.block, (b as typeof a).block);
+      return b.kind === 'block' && astEquals(a.block, b.block);
     case 'alternatives':
       return (
-        a.alternatives.length === (b as typeof a).alternatives.length &&
-        a.alternatives.every(
-          (alt, i) => alt === (b as typeof a).alternatives[i]
-        )
+        b.kind === 'alternatives' &&
+        a.alternatives.length === b.alternatives.length &&
+        a.alternatives.every((alt, i) => alt === b.alternatives[i])
       );
     case 'annotation':
-      return a.key === (b as typeof a).key;
+      return b.kind === 'annotation' && a.key === b.key;
   }
   return throwFatalHostHalt(
     { fn: 'fieldAccessEquals' },
@@ -767,31 +768,30 @@ function literalNodeEquals(
 ): boolean {
   if (a === undefined && b === undefined) return true;
   if (a === undefined || b === undefined) return false;
-  if (a.type !== b.type) return false;
 
   switch (a.type) {
     case 'StringLiteral':
-      return stringLiteralEquals(a, b as StringLiteralNode);
+      return sameNodeType(a, b) && stringLiteralEquals(a, b);
     case 'NumberLiteral':
-      return a.value === (b as NumberLiteralNode).value;
+      return sameNodeType(a, b) && a.value === b.value;
     case 'BoolLiteral':
-      return a.value === (b as BoolLiteralNode).value;
+      return sameNodeType(a, b) && a.value === b.value;
     case 'ListLiteral':
-      return listLiteralEquals(a, b as ListLiteralNode);
+      return sameNodeType(a, b) && listLiteralEquals(a, b);
     case 'Dict':
-      return dictEquals(a, b as DictNode);
+      return sameNodeType(a, b) && dictEquals(a, b);
     case 'Closure':
-      return closureEquals(a, b as ClosureNode);
+      return sameNodeType(a, b) && closureEquals(a, b);
     case 'AtomLiteral':
-      return a.name === (b as AtomLiteralNode).name;
+      return sameNodeType(a, b) && a.name === b.name;
     case 'DictLiteral':
-      return dictLiteralEquals(a, b as DictLiteralNode);
+      return sameNodeType(a, b) && dictLiteralEquals(a, b);
     case 'TupleLiteral':
-      return tupleLiteralEquals(a, b as TupleLiteralNode);
+      return sameNodeType(a, b) && tupleLiteralEquals(a, b);
     case 'OrderedLiteral':
-      return orderedLiteralEquals(a, b as OrderedLiteralNode);
+      return sameNodeType(a, b) && orderedLiteralEquals(a, b);
     case 'RecoveryError':
-      return recoveryErrorEquals(a, b as RecoveryErrorNode);
+      return sameNodeType(a, b) && recoveryErrorEquals(a, b);
   }
   // Compile error here when a LiteralNode member lacks a case above.
   const unhandled: never = a;

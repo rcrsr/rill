@@ -14,7 +14,7 @@
  * SPACING_CLOSURE in direct conflict with idiomatic rill.
  */
 
-import type { ASTNode, ClosureNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -26,8 +26,9 @@ export const spacingClosure: Rule = {
   category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
+    if (node.type !== 'Closure') return [];
     const diagnostics: Diagnostic[] = [];
-    const closureNode = node as ClosureNode;
+    const closureNode = node;
     const source = context.source;
     const pipeOffset = closureNode.span.start.offset;
 

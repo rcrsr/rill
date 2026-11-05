@@ -195,7 +195,8 @@ export const useDefaultOperator: Rule = {
   category: 'conditionals',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const conditional = node as ConditionalNode;
+    if (node.type !== 'Conditional') return [];
+    const conditional = node;
 
     if (isVerboseDefaultPattern(conditional)) {
       return [

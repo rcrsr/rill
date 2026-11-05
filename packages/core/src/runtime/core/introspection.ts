@@ -32,7 +32,6 @@ import type {
   ClosureParamNode,
   LiteralNode,
   PipeChainNode,
-  PostfixExprNode,
   ScriptNode,
   StatementNode,
   TypeConstructorNode,
@@ -646,7 +645,7 @@ function extractDescription(
     if (!isPipeChainNode(named.value)) continue;
     const chain = named.value;
 
-    const head = chain.head as PostfixExprNode;
+    const head = chain.head;
     if (head.type !== 'PostfixExpr') continue;
 
     const primary = head.primary;

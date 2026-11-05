@@ -5,12 +5,7 @@
  * captured once, ahead of the branch, rather than re-derived twice.
  */
 
-import type {
-  ASTNode,
-  BodyNode,
-  ConditionalNode,
-  PipeChainNode,
-} from '@rcrsr/rill';
+import type { ASTNode, BodyNode, PipeChainNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -60,7 +55,8 @@ export const captureBeforeBranch: Rule = {
   category: 'flow',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const conditional = node as ConditionalNode;
+    if (node.type !== 'Conditional') return [];
+    const conditional = node;
 
     if (!conditional.elseBranch) {
       return [];

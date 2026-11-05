@@ -12,7 +12,7 @@
  * - $str != "" (direct comparison)
  */
 
-import type { ASTNode, BinaryExprNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -44,7 +44,8 @@ export const useEmptyMethod: Rule = {
   category: 'strings',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const binaryNode = node as BinaryExprNode;
+    if (node.type !== 'BinaryExpr') return [];
+    const binaryNode = node;
 
     if (binaryNode.op !== '==' && binaryNode.op !== '!=') {
       return [];

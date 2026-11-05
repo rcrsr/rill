@@ -12,7 +12,7 @@
  * `warning` under `'permissive'` or `undefined`.
  */
 
-import type { ASTNode, UseExprNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -28,7 +28,8 @@ export const useDynamicIdentifier: Rule = {
   category: 'anti-patterns',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const useNode = node as UseExprNode;
+    if (node.type !== 'UseExpr') return [];
+    const useNode = node;
     const identifier = useNode.identifier;
 
     if (identifier.kind !== 'variable' && identifier.kind !== 'computed') {
@@ -69,7 +70,8 @@ export const useUntypedHostRef: Rule = {
   category: 'types',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const useNode = node as UseExprNode;
+    if (node.type !== 'UseExpr') return [];
+    const useNode = node;
     const identifier = useNode.identifier;
 
     if (identifier.kind !== 'static') {

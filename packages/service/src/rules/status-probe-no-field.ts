@@ -4,7 +4,7 @@
  * `.!provider` are usually what callers want to read the record fields.
  */
 
-import type { ASTNode, StatusProbeNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -16,7 +16,8 @@ export const statusProbeNoField: Rule = {
   category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const probe = node as StatusProbeNode;
+    if (node.type !== 'StatusProbe') return [];
+    const probe = node;
     if (probe.field !== undefined) return [];
 
     return [

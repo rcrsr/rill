@@ -19,6 +19,23 @@ interface BodyPair {
 
 const BODY_PAIRS: readonly BodyPair[] = [
   { name: 'binary operator', base: '$x + 1', variant: '$x - 1' },
+  {
+    name: 'annotated vs plain statement',
+    base: '^(a: 1) $x + 1',
+    variant: '$x + 1',
+  },
+  {
+    name: 'named vs spread annotation argument',
+    base: '^(a: 1) $x + 1',
+    variant: '^(...$x) $x + 1',
+  },
+  {
+    name: 'literal vs computed field access kind',
+    base: '$x.a',
+    variant: '$x.("a")',
+  },
+  { name: 'literal field access name', base: '$x.a', variant: '$x.b' },
+  { name: 'variable field access name', base: '$x.$k', variant: '$x.$j' },
   { name: 'unary operator', base: '-$x', variant: '!$x' },
   { name: 'grouped expression', base: '($x + 1) * 2', variant: '($x + 2) * 2' },
   { name: 'interpolation', base: '"a {$x + 1}"', variant: '"a {$x + 2}"' },

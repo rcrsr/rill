@@ -25,7 +25,7 @@
  * even for top-level captures of the same name that are genuinely dead.
  */
 
-import type { ASTNode, CaptureNode, ScriptNode } from '@rcrsr/rill';
+import type { ASTNode, CaptureNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import type { CaptureEntry, ReferenceEntry } from './facts.js';
 import { extractContextLine } from './helpers.js';
@@ -202,7 +202,8 @@ export const throwawayCapture: Rule = {
   category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const scriptNode = node as ScriptNode;
+    if (node.type !== 'Script') return [];
+    const scriptNode = node;
     const { captureLog, referenceLog } = context.facts.script;
 
     const disqualified = collectDisqualifiedNames(captureLog, referenceLog);

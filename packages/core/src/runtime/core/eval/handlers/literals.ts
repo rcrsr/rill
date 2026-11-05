@@ -30,6 +30,7 @@ import type {
   DictNode,
   ClosureNode,
   BlockNode,
+  PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
   BodyNode,
@@ -197,32 +198,6 @@ export async function evaluateAnnotations(
   }
 
   return result;
-}
-
-/**
- * Narrows a dict-entry value expression to its PipeChainNode head.
- *
- * Bare-closure and bare-block dict entries are parsed inline while building
- * a live dict literal (never via the statement-level recovery path), so
- * `expr` only ever holds a PipeChainNode here; PartialExpressionNode is
- * reserved for parser error recovery. The check below is a defensive
- * narrowing that is unreachable in normal execution.
- *
- * @internal
- */
-function requirePipeChainHead(
-  expr: ExpressionNode,
-  ctx: RuntimeContext,
-  fn: string
-): PostfixExprNode {
-  if (!isPipeChainNode(expr)) {
-    throwFatalHostHalt(
-      { sourceId: ctx.sourceId, fn },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      'Expected a PipeChain node with PostfixExpr head'
-    );
-  }
-  return expr.head as PostfixExprNode;
 }
 
 /**
@@ -472,20 +447,10 @@ export async function evaluateDictMultiKeyFromList(
   // Evaluate value once
   let evaluatedValue: RillValue;
   if (isBlockExpr(value)) {
-    const head = requirePipeChainHead(
-      value,
-      s.ctx,
-      'evaluateDictMultiKeyFromList'
-    );
-    const blockNode = head.primary as BlockNode;
+    const blockNode = value.head.primary;
     evaluatedValue = createBlockClosure(s, blockNode);
   } else if (isClosureExpr(value)) {
-    const head = requirePipeChainHead(
-      value,
-      s.ctx,
-      'evaluateDictMultiKeyFromList'
-    );
-    const fnLit = head.primary as ClosureNode;
+    const fnLit = value.head.primary;
     evaluatedValue = await createClosure(s, fnLit);
   } else {
     evaluatedValue = await evaluateExpression(s, value);
@@ -669,21 +634,11 @@ export async function evaluateDict(
 
           // Evaluate value and store with resolved key
           if (isBlockExpr(entry.value)) {
-            const head = requirePipeChainHead(
-              entry.value,
-              s.ctx,
-              'evaluateDict'
-            );
-            const blockNode = head.primary as BlockNode;
+            const blockNode = entry.value.head.primary;
             const closure = createBlockClosure(s, blockNode);
             setDictField(result, stringKey, closure);
           } else if (isClosureExpr(entry.value)) {
-            const head = requirePipeChainHead(
-              entry.value,
-              s.ctx,
-              'evaluateDict'
-            );
-            const fnLit = head.primary as ClosureNode;
+            const fnLit = entry.value.head.primary;
             const closure = await createClosure(s, fnLit);
             setDictField(result, stringKey, closure);
           } else {
@@ -697,67 +652,55 @@ export async function evaluateDict(
           continue;
         }
 
-        // Handle DictKeyComputed: evaluate expression and validate string type
-        if (keyObj.kind === 'computed') {
-          // Computed dict keys are parsed inline while building a live
-          // dict literal (never via the statement-level recovery
-          // path), so they only ever hold PipeChainNode;
-          // PartialExpressionNode is reserved for parser error recovery.
-          if (!isPipeChainNode(keyObj.expression)) {
-            throwFatalHostHalt(
-              {
-                location: entry.span.start,
-                sourceId: s.ctx.sourceId,
-                fn: 'evaluateDict',
-              },
-              ERROR_ATOMS[ERROR_IDS.RILL_R002],
-              'Computed dict key expression must be a pipe chain'
-            );
-          }
-          const computedValue = await evaluatePipeChain(s, keyObj.expression);
-
-          // Computed key must evaluate to string
-          assertStringComputedKey(s, computedValue, entry.span, 'evaluateDict');
-
-          // Use resolved string as dict key
-          const stringKey = computedValue;
-
-          assertUsableDictKey(s, stringKey, entry.span);
-
-          // Evaluate value and store with resolved key
-          if (isBlockExpr(entry.value)) {
-            const head = requirePipeChainHead(
-              entry.value,
-              s.ctx,
-              'evaluateDict'
-            );
-            const blockNode = head.primary as BlockNode;
-            const closure = createBlockClosure(s, blockNode);
-            setDictField(result, stringKey, closure);
-          } else if (isClosureExpr(entry.value)) {
-            const head = requirePipeChainHead(
-              entry.value,
-              s.ctx,
-              'evaluateDict'
-            );
-            const fnLit = head.primary as ClosureNode;
-            const closure = await createClosure(s, fnLit);
-            setDictField(result, stringKey, closure);
-          } else {
-            setDictField(
-              result,
-              stringKey,
-              await evaluateExpression(s, entry.value)
-            );
-          }
-
-          continue;
+        // Remaining kind is DictKeyComputed: evaluate expression and validate string type
+        // Computed dict keys are parsed inline while building a live
+        // dict literal (never via the statement-level recovery
+        // path), so they only ever hold PipeChainNode;
+        // PartialExpressionNode is reserved for parser error recovery.
+        if (!isPipeChainNode(keyObj.expression)) {
+          throwFatalHostHalt(
+            {
+              location: entry.span.start,
+              sourceId: s.ctx.sourceId,
+              fn: 'evaluateDict',
+            },
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
+            'Computed dict key expression must be a pipe chain'
+          );
         }
+        const computedValue = await evaluatePipeChain(s, keyObj.expression);
+
+        // Computed key must evaluate to string
+        assertStringComputedKey(s, computedValue, entry.span, 'evaluateDict');
+
+        // Use resolved string as dict key
+        const stringKey = computedValue;
+
+        assertUsableDictKey(s, stringKey, entry.span);
+
+        // Evaluate value and store with resolved key
+        if (isBlockExpr(entry.value)) {
+          const blockNode = entry.value.head.primary;
+          const closure = createBlockClosure(s, blockNode);
+          setDictField(result, stringKey, closure);
+        } else if (isClosureExpr(entry.value)) {
+          const fnLit = entry.value.head.primary;
+          const closure = await createClosure(s, fnLit);
+          setDictField(result, stringKey, closure);
+        } else {
+          setDictField(
+            result,
+            stringKey,
+            await evaluateExpression(s, entry.value)
+          );
+        }
+
+        continue;
       }
       // At this point, entry.key is ListLiteralNode (multi-key entry)
       const pairs = await evaluateDictMultiKeyFromList(
         s,
-        entry.key as ListLiteralNode,
+        entry.key,
         entry.value
       );
       for (const [key, value] of pairs) {
@@ -796,12 +739,10 @@ export async function evaluateDict(
     };
 
     if (isBlockExpr(entry.value)) {
-      const head = requirePipeChainHead(entry.value, s.ctx, 'evaluateDict');
-      const blockNode = head.primary as BlockNode;
+      const blockNode = entry.value.head.primary;
       store(createBlockClosure(s, blockNode));
     } else if (isClosureExpr(entry.value)) {
-      const head = requirePipeChainHead(entry.value, s.ctx, 'evaluateDict');
-      const fnLit = head.primary as ClosureNode;
+      const fnLit = entry.value.head.primary;
       store(await createClosure(s, fnLit));
     } else {
       store(await evaluateExpression(s, entry.value));
@@ -1298,7 +1239,7 @@ export function createBlockClosure(
  * Helper: Check if expression is a bare closure (no pipes, no methods).
  * Used to detect dict entries that should be treated as closures.
  */
-function isClosureExpr(expr: ExpressionNode): boolean {
+function isClosureExpr(expr: ExpressionNode): expr is BareClosureExpr {
   if (!isPipeChainNode(expr)) return false;
   if (expr.pipes.length > 0) return false;
   if (expr.head.type !== 'PostfixExpr') return false;
@@ -1307,11 +1248,21 @@ function isClosureExpr(expr: ExpressionNode): boolean {
   return head.primary.type === 'Closure';
 }
 
+/** Pipe chain whose head is a bare block: no pipes, no methods. */
+type BareBlockExpr = PipeChainNode & {
+  readonly head: PostfixExprNode & { readonly primary: BlockNode };
+};
+
+/** Pipe chain whose head is a bare closure: no pipes, no methods. */
+type BareClosureExpr = PipeChainNode & {
+  readonly head: PostfixExprNode & { readonly primary: ClosureNode };
+};
+
 /**
  * Helper: Check if expression is a bare block (no pipes, no methods).
  * Used to detect dict entries that should be treated as block closures.
  */
-function isBlockExpr(expr: ExpressionNode): boolean {
+function isBlockExpr(expr: ExpressionNode): expr is BareBlockExpr {
   if (!isPipeChainNode(expr)) return false;
   if (expr.pipes.length > 0) return false;
   if (expr.head.type !== 'PostfixExpr') return false;

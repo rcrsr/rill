@@ -4,7 +4,7 @@
  * value at invocation time, not definition time.
  */
 
-import type { ASTNode, ClosureNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -20,7 +20,8 @@ export const closureBareDollar: Rule = {
   category: 'closures',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const closureNode = node as ClosureNode;
+    if (node.type !== 'Closure') return [];
+    const closureNode = node;
 
     if (closureNode.params.length > 0) {
       return [];
