@@ -658,6 +658,21 @@ describe('structureMatches typed stream', () => {
     ).toBe(true);
   });
 
+  it.each([
+    ['a number', 5],
+    ['an empty object', {}],
+  ])('treats a forged chunk sidecar that is %s as absent', (_label, forged) => {
+    const stream = makeTypedStream();
+    Object.defineProperty(stream, '__rill_stream_chunk_type', {
+      value: forged,
+      enumerable: false,
+    });
+    expect(
+      structureMatches(stream, { kind: 'stream', chunk: { kind: 'number' } })
+    ).toBe(true);
+    expect(inferStructure(stream)).toEqual({ kind: 'stream' });
+  });
+
   it('typed stream with mismatching chunk type fails chunk assertion', () => {
     const stream = makeTypedStream({ kind: 'string' });
     expect(

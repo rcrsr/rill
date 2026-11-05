@@ -26,7 +26,7 @@ import {
   isTuple,
   isTypeValue,
   isVector,
-  streamTypeSidecar,
+  getStreamTypeSidecar,
 } from './guards.js';
 import { throwTypeHalt } from './halt.js';
 import {
@@ -39,7 +39,7 @@ import { quoteRillString } from './format-string.js';
 import { typedKeyEntries, setDictField } from './dict-keys.js';
 import { ERROR_IDS } from '../../../error-registry.js';
 
-/** isCallable guard widened to narrow to full RillCallable (not just CallableMarker) */
+/** isCallable guard widened to narrow to full RillCallable (not just CallableMarker); a CallableMarker implies RillCallable by construction. */
 function isCallable(value: RillValue): value is RillCallable {
   return _isCallableGuard(value);
 }
@@ -540,12 +540,12 @@ export function structureMatches(
     const { chunk, ret } = type;
     if (chunk === undefined && ret === undefined) return true;
     if (chunk !== undefined) {
-      const valueChunk = streamTypeSidecar(value, 'chunk');
+      const valueChunk = getStreamTypeSidecar(value, 'chunk');
       if (valueChunk !== undefined && !structureEquals(valueChunk, chunk))
         return false;
     }
     if (ret !== undefined) {
-      const valueRet = streamTypeSidecar(value, 'ret');
+      const valueRet = getStreamTypeSidecar(value, 'ret');
       if (valueRet !== undefined && !structureEquals(valueRet, ret))
         return false;
     }
@@ -721,11 +721,12 @@ export function paramToFieldDef(
  * Mixed types throw RILL-R002.
  */
 export function inferElementType(elements: RillValue[]): TypeStructure {
-  const [firstElem, ...rest] = elements;
+  const firstElem = elements[0];
   if (firstElem === undefined) return { kind: 'any' };
   let accType = inferStructure(firstElem);
-  for (const [offset, elem] of rest.entries()) {
-    const i = offset + 1;
+  for (let i = 1; i < elements.length; i++) {
+    const elem = elements[i];
+    if (elem === undefined) continue;
     const elemType = inferStructure(elem);
     const merged = commonType(accType, elemType);
     if (merged === null) {
@@ -777,8 +778,8 @@ export function inferStructure(value: RillValue): TypeStructure {
     return { kind: 'vector' };
   }
   if (isStream(value)) {
-    const chunk = streamTypeSidecar(value, 'chunk');
-    const ret = streamTypeSidecar(value, 'ret');
+    const chunk = getStreamTypeSidecar(value, 'chunk');
+    const ret = getStreamTypeSidecar(value, 'ret');
     const result: {
       kind: 'stream';
       chunk?: TypeStructure;
@@ -865,14 +866,13 @@ function mergeUniformValueType(
 
   // Sub-case B: both carry structural fields
   if (aFields !== undefined && bFields !== undefined) {
-    const allTypes = [
-      ...aFields.map((f) => f.type),
-      ...bFields.map((f) => f.type),
-    ];
-    const [first, ...rest] = allTypes;
+    const allTypes = aFields.concat(bFields);
+    const first = allTypes[0];
     if (first === undefined) return undefined;
-    let merged: TypeStructure = first;
-    for (const member of rest) {
+    let merged: TypeStructure = first.type;
+    for (let i = 1; i < allTypes.length; i++) {
+      const member = allTypes[i]?.type;
+      if (member === undefined) continue;
       const next = commonType(merged, member);
       if (next === null) return undefined;
       merged = next;

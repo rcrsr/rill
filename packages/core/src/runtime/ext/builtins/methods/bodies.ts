@@ -861,7 +861,8 @@ export const mSimilarity: RillMethod = (receiver, args, ctx, location) => {
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
-  for (const [i, a] of receiver.data.entries()) {
+  for (let i = 0; i < receiver.data.length; i++) {
+    const a = receiver.data[i] ?? 0;
     // Unreachable fallback: lengths are verified equal above.
     const b = other.data[i] ?? 0;
     dotProduct += a * b;
@@ -898,7 +899,8 @@ export const mDot: RillMethod = (receiver, args, ctx, location) => {
     );
   }
   let result = 0;
-  for (const [i, a] of receiver.data.entries()) {
+  for (let i = 0; i < receiver.data.length; i++) {
+    const a = receiver.data[i] ?? 0;
     // Unreachable fallback: lengths are verified equal above.
     result += a * (other.data[i] ?? 0);
   }
@@ -945,7 +947,8 @@ export const mDistance: RillMethod = (receiver, args, ctx, location) => {
     );
   }
   let sumSquares = 0;
-  for (const [i, a] of receiver.data.entries()) {
+  for (let i = 0; i < receiver.data.length; i++) {
+    const a = receiver.data[i] ?? 0;
     // Unreachable fallback: lengths are verified equal above.
     const diff = a - (other.data[i] ?? 0);
     sumSquares += diff * diff;
@@ -990,7 +993,8 @@ export const mNormalize: RillMethod = (receiver, _args, ctx, location) => {
   const magnitude = Math.sqrt(sumSquares);
   if (magnitude === 0) return receiver;
   const normalized = new Float32Array(receiver.data.length);
-  for (const [i, val] of receiver.data.entries()) {
+  for (let i = 0; i < receiver.data.length; i++) {
+    const val = receiver.data[i] ?? 0;
     normalized[i] = val / magnitude;
   }
   return {

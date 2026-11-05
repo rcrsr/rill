@@ -15,7 +15,7 @@ import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, makeGenericIterator, positionalArgs } from '../shared.js';
+import { MAX_ITER, makeGenericIterator, getPositionalArgs } from '../shared.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
@@ -48,7 +48,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
     fn: (args, ctx, location) => {
       // log is in UNTYPED_BUILTINS (allows excess args), receives positional array cast as Record.
       // Use index 0 for the message value.
-      const positional = positionalArgs(args);
+      const positional = getPositionalArgs(args);
       if (positional.length === 0) {
         throwCatchableHostHalt(
           { location, sourceId: ctx.sourceId, fn: 'log' },
@@ -266,7 +266,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       // chain is in UNTYPED_BUILTINS, receives positional array cast as Record.
       // Pipe position: 5 -> chain($closure) sends args=[$closure] with pipeValue=5.
       // Detect this by checking if there is exactly one arg and a pipe value is set.
-      const positional = positionalArgs(args);
+      const positional = getPositionalArgs(args);
       let value: RillValue;
       let arg: RillValue;
       let argSupplied: boolean;
@@ -360,7 +360,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       // iterate is in UNTYPED_BUILTINS; receives a positional array cast as Record.
       // Pipe form: $seed -> iterate($closure) sends args=[$closure] with pipeValue=$seed.
       // Detect by checking whether there is exactly one arg and a pipe value is set.
-      const positional = positionalArgs(args);
+      const positional = getPositionalArgs(args);
       let seed: RillValue;
       let closureArg: RillValue;
       let closureArgSupplied: boolean;

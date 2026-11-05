@@ -73,7 +73,7 @@ function isTypeStructure(value: unknown): value is TypeStructure {
  * Internal: read a stream's chunk or resolution type sidecar. A sidecar that
  * is not a TypeStructure is treated as absent.
  */
-export function streamTypeSidecar(
+export function getStreamTypeSidecar(
   stream: RillStream,
   which: 'chunk' | 'ret'
 ): TypeStructure | undefined {

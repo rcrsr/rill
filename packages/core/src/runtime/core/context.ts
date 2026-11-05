@@ -5,7 +5,11 @@
  * Public API for host applications.
  */
 
-import { RuntimeError, formatMessageAtLocation } from '../../types.js';
+import {
+  RuntimeError,
+  formatMessageAtLocation,
+  isRillTypeName,
+} from '../../types.js';
 import { getBuiltinFunctionCache } from './builtin-registry.js';
 import { BUILT_IN_TYPES } from './types/registrations.js';
 import type {
@@ -431,11 +435,8 @@ export function createRuntimeContext(
       // Bind callables in dicts to their containing dict
       const boundValue = bindDictCallables(value);
       variables.set(name, boundValue);
-      variableTypes.set(
-        name,
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- variableTypes is a public facade field typed by RillTypeName; inferType can also return 'field_descriptor', which the map never reads back
-        inferType(boundValue) as import('../../types.js').RillTypeName
-      );
+      const inferred = inferType(boundValue);
+      variableTypes.set(name, isRillTypeName(inferred) ? inferred : 'any');
     }
   }
 

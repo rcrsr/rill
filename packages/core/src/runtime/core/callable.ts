@@ -148,7 +148,7 @@ export type RillCallable =
   | RuntimeCallable
   | ApplicationCallable;
 
-/** Type guard for any callable (delegates to types/guards.ts) */
+/** Type guard for any callable (delegates to types/guards.ts). CallableMarker implies RillCallable by construction. */
 export function isCallable(value: RillValue): value is RillCallable {
   return _isCallableGuard(value);
 }
@@ -531,7 +531,10 @@ export function hydrateStructure(
       }
     }
     if (policy.keepExtras) {
-      resultEntries.push(...entries.slice(elements.length));
+      for (let i = elements.length; i < entries.length; i++) {
+        const extra = entries[i];
+        if (extra !== undefined) resultEntries.push(extra);
+      }
     }
     // resultEntries is a freshly-built array exclusively owned by this call;
     // freeze directly instead of going through createTuple's defensive copy.

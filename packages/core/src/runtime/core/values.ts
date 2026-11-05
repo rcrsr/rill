@@ -23,7 +23,7 @@ import {
   isStream,
   isStructureKind,
   isTuple,
-  streamTypeSidecar,
+  getStreamTypeSidecar,
   isTypeValue,
   isVector,
 } from './types/guards.js';
@@ -40,6 +40,7 @@ import type {
 } from './types/structures.js';
 
 import { formatStructure, inferStructure } from './types/operations.js';
+import { throwTypeHalt } from './types/halt.js';
 
 /**
  * Check if a value is of the expected type.
@@ -181,8 +182,8 @@ function toNativeValue(value: RillValue): NativeValue {
       __type: 'stream',
       done: value.done,
     };
-    const chunkType = streamTypeSidecar(value, 'chunk');
-    const retType = streamTypeSidecar(value, 'ret');
+    const chunkType = getStreamTypeSidecar(value, 'chunk');
+    const retType = getStreamTypeSidecar(value, 'ret');
     descriptor['chunkType'] = chunkType ? formatStructure(chunkType) : null;
     descriptor['resolutionType'] = retType ? formatStructure(retType) : null;
     return descriptor;
@@ -192,9 +193,17 @@ function toNativeValue(value: RillValue): NativeValue {
     return { done: value.done };
   }
 
-  // Plain dict. Every other shape was handled above, so this guard only
-  // narrows the type.
-  if (!isDict(value)) return {};
+  // Plain dict. Every other shape was handled above.
+  if (!isDict(value)) {
+    return throwTypeHalt(
+      { fn: 'toNativeValue' },
+      'INVALID_INPUT',
+      `Cannot convert ${formatStructure(inferStructure(value))} to a native value`,
+      'runtime',
+      undefined,
+      'host'
+    );
+  }
   const dict = value;
   const result: { [key: string]: NativeValue } = {};
   for (const [k, v] of Object.entries(dict)) {

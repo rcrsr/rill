@@ -18,7 +18,7 @@ import { inferType } from '../../core/types/registrations.js';
 const EMPTY_STEP: Record<string, RillValue> = Object.freeze({});
 
 /** Read view of a step: the step itself when it is a dict, else an empty record. */
-function stepView(step: RillValue): Record<string, RillValue> {
+function getStepView(step: RillValue): Record<string, RillValue> {
   return isDict(step) ? step : EMPTY_STEP;
 }
 
@@ -26,7 +26,9 @@ function stepView(step: RillValue): Record<string, RillValue> {
  * Positional argument list of an untyped built-in. Untyped built-ins receive
  * their arguments as an array in place of the named-args record.
  */
-export function positionalArgs(args: Record<string, RillValue>): RillValue[] {
+export function getPositionalArgs(
+  args: Record<string, RillValue>
+): RillValue[] {
   const widened: RillValue = args;
   return Array.isArray(widened) ? widened : Object.values(args);
 }
@@ -83,11 +85,11 @@ export async function walkIteratorSteps(
   let steps = 0;
   // A stream's starting step is its value-less pending head: the one step
   // exempt from the raw-step budget. Every later step counts.
-  let headExempt = streamInput && !('value' in stepView(current));
+  let headExempt = streamInput && !('value' in getStepView(current));
   let expectedType: string | undefined;
   while (produced < cap) {
     checkAborted(evaluator);
-    const view = stepView(current);
+    const view = getStepView(current);
     if (view['done'] === true) break;
     if (steps >= MAX_ITER) {
       throwCatchableHostHalt(
