@@ -1099,10 +1099,16 @@ if [ -f "$LINTRC" ]; then
     if [ -z "$L" ]; then
       NOSCRIPT="$NOSCRIPT$d "
     else
-      case "$L" in
-        *--type-aware*) ;;
-        *) [ "$TYPEAWARE_CFG" = "yes" ] || NOFLAG="$NOFLAG$d " ;;
-      esac
+      # The flag must be a whole token inside the &&/;/|-delimited segment that
+      # runs oxlint; a look-alike (--type-awareness, --type-aware=false) or the
+      # flag on another command in the chain does not count.
+      HASFLAG="$(node -e '
+        const segs = process.argv[1].split(/&&|\|\||[;|]/);
+        const hit = segs.some((s) =>
+          /(^|[^A-Za-z0-9_-])oxlint([^A-Za-z0-9_-]|$)/.test(s) &&
+          /(^|[\s"\x27])--type-aware([\s"\x27]|$)/.test(s));
+        process.stdout.write(hit ? "yes" : "no")' "$L" 2>/dev/null)"
+      [ "$HASFLAG" = "yes" ] || [ "$TYPEAWARE_CFG" = "yes" ] || NOFLAG="$NOFLAG$d "
     fi
   done
   if [ -z "$TS_DIRS" ]; then
@@ -1112,7 +1118,10 @@ if [ -f "$LINTRC" ]; then
   else
     LINT11_DETAIL=""
     [ -n "$NOFLAG" ] && LINT11_DETAIL="lint script lacks --type-aware in: $NOFLAG"
-    has_dep oxlint-tsgolint || LINT11_DETAIL="${LINT11_DETAIL}oxlint-tsgolint not declared in package.json"
+    if ! has_dep oxlint-tsgolint; then
+      [ -n "$LINT11_DETAIL" ] && LINT11_DETAIL="$LINT11_DETAIL; "
+      LINT11_DETAIL="${LINT11_DETAIL}oxlint-tsgolint not declared in package.json"
+    fi
     if [ -n "$LINT11_DETAIL" ]; then
       bad "STD-LINT-11" "type-aware lint with backend declared" "$LINT11_DETAIL"
     elif [ -n "$NOSCRIPT" ]; then
@@ -1225,8 +1234,8 @@ fi
 
 # STD-LINT-12: every rule the reference config enables (error or warn) is
 # configured in the repository's top-level `rules`, spelled as the baseline
-# spells it. Required = baseline lintRules whose value is not "off"; an off rule
-# is never required. Overrides are not read: a rule set only inside an override
+# spells it. Required = baseline lintRules whose value is not "off", "allow" or 0;
+# an off rule is never required. An empty or absent baseline lintRules is skip. Overrides are not read: a rule set only inside an override
 # is not configured at the top level. Missing rules are listed in baseline key
 # order. A parse failure is bad, never ok.
 if [ ! -f "$LINTRC" ]; then
@@ -1247,12 +1256,19 @@ elif baseline_gate "STD-LINT-12" "reference rules configured"; then
     MISSING12="$(node -e '
       const have = new Set(JSON.parse(process.argv[1] || "[]") ?? []);
       const want = JSON.parse(process.argv[2] || "{}") ?? {};
-      const out = Object.keys(want).filter((k) => want[k] !== "off" && !have.has(k));
+      const keys = Object.keys(want);
+      if (keys.length === 0) { process.stdout.write("NO_BASELINE_RULES"); process.exit(0); }
+      const off = (v) => v === "off" || v === "allow" || v === 0;
+      const out = keys.filter((k) => !off(want[k]) && !have.has(k));
       process.stdout.write(out.join(", "));
     ' "$HAVE12" "$WANT12")"
-    [ -z "$MISSING12" ] &&
-      ok "STD-LINT-12" "reference rules configured" ||
+    if [ "$MISSING12" = "NO_BASELINE_RULES" ]; then
+      skip "STD-LINT-12" "reference rules configured" "baseline carries no lintRules"
+    elif [ -z "$MISSING12" ]; then
+      ok "STD-LINT-12" "reference rules configured"
+    else
       bad "STD-LINT-12" "reference rules configured" "not in top-level rules: $MISSING12"
+    fi
   fi
 fi
 

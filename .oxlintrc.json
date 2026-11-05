@@ -181,7 +181,7 @@
     // Also deliberately NOT enabled. Re-check before adding:
     // - promise/param-names (16 hits): stylistic; requires Promise executor
     //   params be named resolve/reject.
-    // - import/no-duplicates (18 hits): only 7 are real duplicates. The other
+    // - import/no-duplicates (21 hits): only 7 are real duplicates. The other
     //   11 are `import type` + `import` from one module, which is the split
     //   verbatimModuleSyntax encourages and this tree uses widely; the
     //   prefer-inline option reports 98. It is a style choice, not a defect.
@@ -290,7 +290,7 @@
     //
     // Deferred, not declined:
     // - typescript/no-non-null-assertion (988 hits over src/ and tests/)
-    // - typescript/no-unsafe-type-assertion (1854 hits over src/ and tests/)
+    // - typescript/no-unsafe-type-assertion (1853 hits over src/ and tests/)
     //   A ban in packages/*/src/ is decided and tracked in
     //   https://github.com/rcrsr/rill/issues/501. Neither rule is enabled
     //   until that work lands, so the tests keep their assertions.

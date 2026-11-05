@@ -10,11 +10,13 @@ tooling, not language surface, so its version numbers carry no relationship to
 the language version. Language changes are recorded in the
 [root changelog](https://github.com/rcrsr/rill/blob/main/CHANGELOG.md).
 
+## Unreleased
+
 ## 0.2.8 - 2026-11-04
 
 ### Added
 
-- **`STD-LINT-11`: type-aware linting is wired.** `REPO-STANDARDS.md` gains an element requiring type-aware linting in every TypeScript package. A consumer fails until each TypeScript package's `lint` script passes `--type-aware` (or its oxlint config sets `options.typeAware`) and `oxlint-tsgolint` is declared at the baseline range, `^7.0.2005` (read `sharedTooling` in `baseline.json`). ([#502](https://github.com/rcrsr/rill/issues/502)) ([#510](https://github.com/rcrsr/rill/pull/510))
+- **`STD-LINT-11`: type-aware linting is wired.** `REPO-STANDARDS.md` gains an element requiring type-aware linting in every TypeScript package. A consumer fails until each TypeScript package's `lint` script passes `--type-aware` (or its oxlint config sets `options.typeAware`) and declares `oxlint-tsgolint`. The flag must be a whole `--type-aware` token on the oxlint command itself; look-alikes such as `--type-awareness` and `--type-aware=false`, and a flag on a different `&&` command, fail. `STD-LINT-11` checks only that the dependency is declared; `STD-DEP-1` enforces the baseline range, `^7.0.2005` (read `sharedTooling` in `baseline.json`). ([#502](https://github.com/rcrsr/rill/issues/502)) ([#510](https://github.com/rcrsr/rill/pull/510))
 - **`STD-LINT-12`: every baseline `error` and `warn` rule is enabled.** `REPO-STANDARDS.md` gains an element requiring each rule that `baseline.json` pins at `error` or `warn` in the top-level `rules` of the consumer's oxlint config. Match the baseline severity, and relax per file in `overrides`. Sibling repositories fail until they adopt the rules ([#500](https://github.com/rcrsr/rill/issues/500)). ([#503](https://github.com/rcrsr/rill/issues/503)) ([#510](https://github.com/rcrsr/rill/pull/510))
 - **README type-aware wiring step and declined-rule records:** the README documents how to wire type-aware linting, and `.oxlintrc.json` records the rules rill declines, with the reason for each. ([#502](https://github.com/rcrsr/rill/issues/502)) ([#510](https://github.com/rcrsr/rill/pull/510))
 
