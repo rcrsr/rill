@@ -139,7 +139,7 @@ export function accessHaltGateFast(
   locFn: () => SourceLocation | undefined,
   sourceId: string | undefined
 ): RillValue {
-  // Fast path: inline the symbol-keyed probe. Primitives (string /
+  // Fast path: single sidecar probe. Primitives (string /
   // number / boolean / null) and any object without the sidecar symbol
   // fall through immediately.
   if (!hasStatusSidecar(value)) {

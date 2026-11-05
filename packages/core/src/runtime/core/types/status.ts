@@ -75,9 +75,9 @@ export interface InvalidateMeta {
  *    unaffected.
  *
  * The Symbol is not exported from the package barrel; it is internal
- * to the status module and the fast-path gate.
+ * to the status module.
  */
-export const STATUS_SYM: unique symbol = Symbol('rillStatus');
+const STATUS_SYM: unique symbol = Symbol('rillStatus');
 
 // ============================================================
 // FROZEN DEFAULTS
