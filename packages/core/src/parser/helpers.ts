@@ -17,6 +17,7 @@ import {
   peek,
   expect,
   current,
+  previous,
   advance,
 } from './state.js';
 import { VALID_TYPE_NAMES } from '../constants.js';
@@ -359,14 +360,15 @@ export function parseTypeName<T extends string>(
   validTypes: readonly T[]
 ): T {
   const typeToken = expect(state, TOKEN_TYPES.IDENTIFIER, 'Expected type name');
-  if (!validTypes.includes(typeToken.value as T)) {
+  const found = validTypes.find((t) => t === typeToken.value);
+  if (found === undefined) {
     throw new ParseError(
       ERROR_IDS.RILL_P003,
       `Invalid type: ${typeToken.value} (expected: ${validTypes.join(', ')})`,
       typeToken.span.start
     );
   }
-  return typeToken.value as T;
+  return found;
 }
 
 /**
@@ -418,7 +420,7 @@ export function makeBoolLiteralBlock(
 export function parseBareHostCall(
   state: ParserState
 ): HostCallNode | HostRefNode {
-  const start = state.tokens[state.pos]!.span.start;
+  const start = current(state).span.start;
   let name = expect(state, TOKEN_TYPES.IDENTIFIER, 'Expected identifier').value;
   let hasNamespace = false;
 
@@ -442,7 +444,7 @@ export function parseBareHostCall(
     state.pos++; // consume the identifier or keyword
   }
 
-  const span = { start, end: state.tokens[state.pos - 1]!.span.end };
+  const span = { start, end: previous(state).span.end };
 
   // Namespaced bare identifier → host function reference
   if (hasNamespace) {

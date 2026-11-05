@@ -18,7 +18,6 @@ import type {
   ExistenceCheck,
   PipeTargetNode,
   PostfixExprNode,
-  RillTypeName,
   SourceLocation,
   SourceSpan,
   TypeConstructorNode,
@@ -46,12 +45,12 @@ import {
   isMethodCall,
   isClosureStart,
   parseBareHostCall,
-  VALID_TYPE_NAMES,
   describeToken,
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
+import { isRillTypeName } from '../types.js';
 import {
   postfixDispatchTable,
   type PostfixLoopState,
@@ -140,10 +139,12 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     skipNewlinesIfFollowedBy(this.state, TOKEN_TYPES.DOT);
   }
 
+  const firstSpan = methods[0]?.span ?? makeSpan(start, start);
+
   if (check(this.state, TOKEN_TYPES.QUESTION)) {
     const postfixExpr: PostfixExprNode = {
       type: 'PostfixExpr',
-      primary: makePipeVarPrimary(methods[0]!.span),
+      primary: makePipeVarPrimary(firstSpan),
       methods,
       defaultValue: null,
       span: makeSpan(start, previous(this.state).span.end),
@@ -156,7 +157,7 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
     const defaultValue = this.parseDefaultValue();
     return {
       type: 'PostfixExpr',
-      primary: makePipeVarPrimary(methods[0]!.span),
+      primary: makePipeVarPrimary(firstSpan),
       methods,
       defaultValue,
       span: makeSpan(start, defaultValue.span.end),
@@ -167,14 +168,19 @@ Parser.prototype.parsePipeTargetDot = function (this: Parser): PipeTargetNode {
   // or AnnotationAccessNode — dispatch into this function only happens on a
   // leading DOT token, so an IndexAccessNode (which can only follow a
   // preceding method/annotation) can never be the sole entry.
-  if (methods.length === 1 && methods[0]!.type !== 'IndexAccess') {
-    return methods[0]!;
+  const [only] = methods;
+  if (
+    methods.length === 1 &&
+    only !== undefined &&
+    only.type !== 'IndexAccess'
+  ) {
+    return only;
   }
 
   // Multiple methods: wrap in PostfixExpr with $ as primary
   return {
     type: 'PostfixExpr',
-    primary: makePipeVarPrimary(methods[0]!.span),
+    primary: makePipeVarPrimary(firstSpan),
     methods,
     defaultValue: null,
     span: makeSpan(start, previous(this.state).span.end),
@@ -385,7 +391,7 @@ function attachPipeTargetIndex(
     primary,
     methods,
     defaultValue: null,
-    span: makeSpan(primary.span.start, methods.at(-1)!.span.end),
+    span: makeSpan(primary.span.start, (methods.at(-1) ?? primary).span.end),
   } satisfies PostfixExprNode;
 }
 
@@ -544,15 +550,16 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   // Produces TypeNameExprNode (mirrors parseBareHostCall's dispatch location
   // but routes type keywords through the TypeNameExpr node rather than HostCall).
   // Type keywords are reserved; no ambiguity with host/closure names.
+  const typeKeyword = current(this.state).value;
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    VALID_TYPE_NAMES.includes(current(this.state).value as RillTypeName) &&
+    isRillTypeName(typeKeyword) &&
     this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.LPAREN
   ) {
     const token = advance(this.state);
     const typeNameExpr: TypeNameExprNode = {
       type: 'TypeNameExpr',
-      typeName: token.value as RillTypeName,
+      typeName: typeKeyword,
       span: token.span,
     };
     return attachPipeTargetIndex.call(this, typeNameExpr);

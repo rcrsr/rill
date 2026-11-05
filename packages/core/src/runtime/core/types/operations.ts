@@ -22,9 +22,11 @@ import {
   isIterator,
   isOrdered,
   isStream,
+  isStructureKind,
   isTuple,
   isTypeValue,
   isVector,
+  streamTypeSidecar,
 } from './guards.js';
 import { throwTypeHalt } from './halt.js';
 import {
@@ -38,40 +40,9 @@ import { typedKeyEntries, setDictField } from './dict-keys.js';
 import { ERROR_IDS } from '../../../error-registry.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker) */
-const isCallable = _isCallableGuard as (
-  value: RillValue
-) => value is RillCallable;
-
-// ============================================================
-// NARROWED VARIANT TYPES
-// ============================================================
-
-// The catch-all `{ kind: string; data?: unknown }` prevents TypeScript from
-// narrowing to specific variants. After a `kind` check, cast to the matching
-// variant type so field access compiles without errors.
-
-type ListStructure = { kind: 'list'; element?: TypeStructure };
-export type DictStructure = {
-  kind: 'dict';
-  fields?: Record<string, RillFieldDef>;
-  valueType?: TypeStructure;
-};
-export type TupleStructure = {
-  kind: 'tuple';
-  elements?: RillFieldDef[];
-  valueType?: TypeStructure;
-};
-export type OrderedStructure = {
-  kind: 'ordered';
-  fields?: RillFieldDef[];
-  valueType?: TypeStructure;
-};
-type UnionStructure = { kind: 'union'; members: TypeStructure[] };
-type ClosureStructure = {
-  kind: 'closure';
-  params?: RillFieldDef[];
-  ret?: TypeStructure;
-};
+function isCallable(value: RillValue): value is RillCallable {
+  return _isCallableGuard(value);
+}
 
 // ============================================================
 // FIELD COMPARISON DISPATCH
@@ -122,58 +93,55 @@ export function compareStructuredFields<T>(
   callbacks: FieldComparisonCallbacks<T>,
   fallback: T
 ): T {
-  if (a.kind === 'dict') {
-    const aDict = a as DictStructure;
-    const bDict = b as DictStructure;
-    const aHasValue = aDict.valueType !== undefined;
-    const bHasValue = bDict.valueType !== undefined;
-    if (aHasValue || bHasValue) {
-      if (!aHasValue || !bHasValue) return callbacks.onValueTypeMismatch();
-      return callbacks.onValueType(aDict.valueType!, bDict.valueType!);
+  if (isStructureKind(a, 'dict') && isStructureKind(b, 'dict')) {
+    const aValue = a.valueType;
+    const bValue = b.valueType;
+    if (aValue !== undefined || bValue !== undefined) {
+      if (aValue === undefined || bValue === undefined)
+        return callbacks.onValueTypeMismatch();
+      return callbacks.onValueType(aValue, bValue);
     }
-    if (aDict.fields === undefined && bDict.fields === undefined) {
+    if (a.fields === undefined && b.fields === undefined) {
       return callbacks.onBothEmpty();
     }
-    if (aDict.fields === undefined || bDict.fields === undefined) {
+    if (a.fields === undefined || b.fields === undefined) {
       return callbacks.onFieldPresenceMismatch();
     }
-    return callbacks.onDictFields(aDict.fields, bDict.fields);
+    return callbacks.onDictFields(a.fields, b.fields);
   }
 
-  if (a.kind === 'tuple') {
-    const aTuple = a as TupleStructure;
-    const bTuple = b as TupleStructure;
-    const aHasValue = aTuple.valueType !== undefined;
-    const bHasValue = bTuple.valueType !== undefined;
-    if (aHasValue || bHasValue) {
-      if (!aHasValue || !bHasValue) return callbacks.onValueTypeMismatch();
-      return callbacks.onValueType(aTuple.valueType!, bTuple.valueType!);
+  if (isStructureKind(a, 'tuple') && isStructureKind(b, 'tuple')) {
+    const aValue = a.valueType;
+    const bValue = b.valueType;
+    if (aValue !== undefined || bValue !== undefined) {
+      if (aValue === undefined || bValue === undefined)
+        return callbacks.onValueTypeMismatch();
+      return callbacks.onValueType(aValue, bValue);
     }
-    if (aTuple.elements === undefined && bTuple.elements === undefined) {
+    if (a.elements === undefined && b.elements === undefined) {
       return callbacks.onBothEmpty();
     }
-    if (aTuple.elements === undefined || bTuple.elements === undefined) {
+    if (a.elements === undefined || b.elements === undefined) {
       return callbacks.onFieldPresenceMismatch();
     }
-    return callbacks.onTupleElements(aTuple.elements, bTuple.elements);
+    return callbacks.onTupleElements(a.elements, b.elements);
   }
 
-  if (a.kind === 'ordered') {
-    const aOrd = a as OrderedStructure;
-    const bOrd = b as OrderedStructure;
-    const aHasValue = aOrd.valueType !== undefined;
-    const bHasValue = bOrd.valueType !== undefined;
-    if (aHasValue || bHasValue) {
-      if (!aHasValue || !bHasValue) return callbacks.onValueTypeMismatch();
-      return callbacks.onValueType(aOrd.valueType!, bOrd.valueType!);
+  if (isStructureKind(a, 'ordered') && isStructureKind(b, 'ordered')) {
+    const aValue = a.valueType;
+    const bValue = b.valueType;
+    if (aValue !== undefined || bValue !== undefined) {
+      if (aValue === undefined || bValue === undefined)
+        return callbacks.onValueTypeMismatch();
+      return callbacks.onValueType(aValue, bValue);
     }
-    if (aOrd.fields === undefined && bOrd.fields === undefined) {
+    if (a.fields === undefined && b.fields === undefined) {
       return callbacks.onBothEmpty();
     }
-    if (aOrd.fields === undefined || bOrd.fields === undefined) {
+    if (a.fields === undefined || b.fields === undefined) {
       return callbacks.onFieldPresenceMismatch();
     }
-    return callbacks.onOrderedFields(aOrd.fields, bOrd.fields);
+    return callbacks.onOrderedFields(a.fields, b.fields);
   }
 
   return fallback;
@@ -235,14 +203,11 @@ export function formatRillLiteral(value: RillValue): string {
   }
 
   // Dict: bare bracket form [key: val, ...] or [:] for empty
-  if (typeof value === 'object' && value !== null) {
-    const keys = Object.keys(value);
-    if (keys.length === 0) return '[:]';
-    const inner = keys
-      .map(
-        (k) =>
-          `${k}: ${formatRillLiteral((value as Record<string, RillValue>)[k]!)}`
-      )
+  if (isDict(value)) {
+    const entries = Object.entries(value);
+    if (entries.length === 0) return '[:]';
+    const inner = entries
+      .map(([k, v]) => `${k}: ${formatRillLiteral(v)}`)
       .join(', ');
     return `[${inner}]`;
   }
@@ -261,9 +226,9 @@ function compareSequentialFields(
   named: boolean
 ): boolean {
   if (aFields.length !== bFields.length) return false;
-  for (let i = 0; i < aFields.length; i++) {
-    const aField = aFields[i]!;
-    const bField = bFields[i]!;
+  for (const [i, aField] of aFields.entries()) {
+    const bField = bFields[i];
+    if (bField === undefined) return false;
     if (named && aField.name !== bField.name) return false;
     if (!structureEquals(aField.type, bField.type)) return false;
     const aDefault = aField.defaultValue;
@@ -289,18 +254,17 @@ const equalsCallbacks: FieldComparisonCallbacks<boolean> = {
     const aKeys = Object.keys(aFields).sort();
     const bKeys = Object.keys(bFields).sort();
     if (aKeys.length !== bKeys.length) return false;
-    for (let i = 0; i < aKeys.length; i++) {
-      const key = aKeys[i]!;
+    for (const [i, key] of aKeys.entries()) {
       if (key !== bKeys[i]) return false;
-      const aField = aFields[key]!;
-      const bField = bFields[key]!;
-      const aHasDefault = aField.defaultValue !== undefined;
-      const bHasDefault = bField.defaultValue !== undefined;
-      if (aHasDefault !== bHasDefault) return false;
+      const aField = aFields[key];
+      const bField = bFields[key];
+      if (aField === undefined || bField === undefined) return false;
+      const aDefault = aField.defaultValue;
+      const bDefault = bField.defaultValue;
+      if ((aDefault !== undefined) !== (bDefault !== undefined)) return false;
       if (!structureEquals(aField.type, bField.type)) return false;
-      if (aHasDefault && bHasDefault) {
-        if (!registryDeepEquals(aField.defaultValue!, bField.defaultValue!))
-          return false;
+      if (aDefault !== undefined && bDefault !== undefined) {
+        if (!registryDeepEquals(aDefault, bDefault)) return false;
       }
     }
     return true;
@@ -330,13 +294,10 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
     return true;
   }
 
-  if (a.kind === 'list' && b.kind === 'list') {
-    const aList = a as ListStructure;
-    const bList = b as ListStructure;
-    if (aList.element === undefined && bList.element === undefined) return true;
-    if (aList.element === undefined || bList.element === undefined)
-      return false;
-    return structureEquals(aList.element, bList.element);
+  if (isStructureKind(a, 'list') && isStructureKind(b, 'list')) {
+    if (a.element === undefined && b.element === undefined) return true;
+    if (a.element === undefined || b.element === undefined) return false;
+    return structureEquals(a.element, b.element);
   }
 
   // Delegate dict/tuple/ordered to compareStructuredFields
@@ -344,9 +305,9 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
     return compareStructuredFields(a, b, equalsCallbacks, false);
   }
 
-  if (a.kind === 'union' && b.kind === 'union') {
-    const aUnion = a as UnionStructure;
-    const bUnion = b as UnionStructure;
+  if (isStructureKind(a, 'union') && isStructureKind(b, 'union')) {
+    const aUnion = a;
+    const bUnion = b;
     // Unions are sets: equal iff they have the same members regardless of
     // order. Each member of `a` must have a structural match in `b`, and
     // vice versa. Equal lengths plus one-directional coverage suffices
@@ -362,17 +323,9 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
     return everyBInA;
   }
 
-  if (a.kind === 'stream' && b.kind === 'stream') {
-    const aStream = a as {
-      kind: 'stream';
-      chunk?: TypeStructure;
-      ret?: TypeStructure;
-    };
-    const bStream = b as {
-      kind: 'stream';
-      chunk?: TypeStructure;
-      ret?: TypeStructure;
-    };
+  if (isStructureKind(a, 'stream') && isStructureKind(b, 'stream')) {
+    const aStream = a;
+    const bStream = b;
     const chunkEq =
       aStream.chunk === undefined && bStream.chunk === undefined
         ? true
@@ -389,18 +342,18 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
     return retEq;
   }
 
-  if (a.kind === 'closure' && b.kind === 'closure') {
-    const aCls = a as ClosureStructure;
-    const bCls = b as ClosureStructure;
+  if (isStructureKind(a, 'closure') && isStructureKind(b, 'closure')) {
+    const aCls = a;
+    const bCls = b;
     if (aCls.params === undefined && bCls.params === undefined) {
       // Both absent: compare ret
     } else if (aCls.params === undefined || bCls.params === undefined) {
       return false;
     } else {
       if (aCls.params.length !== bCls.params.length) return false;
-      for (let i = 0; i < aCls.params.length; i++) {
-        const aParam = aCls.params[i]!;
-        const bParam = bCls.params[i]!;
+      for (const [i, aParam] of aCls.params.entries()) {
+        const bParam = bCls.params[i];
+        if (bParam === undefined) return false;
         if (aParam.name !== bParam.name) return false;
         if (!structureEquals(aParam.type, bParam.type)) return false;
         const aDefault = aParam.defaultValue;
@@ -442,7 +395,7 @@ function createMatchesCallbacks(
         return value.entries.every(([, v]) => structureMatches(v, valueType));
       }
       if (isDict(value)) {
-        const dict = value as Record<string, RillValue>;
+        const dict = value;
         const vals = Object.values(dict);
         if (!vals.every((v) => structureMatches(v, valueType))) return false;
         // Number/boolean keys are stored outside the string-keyed record,
@@ -459,15 +412,15 @@ function createMatchesCallbacks(
     onDictFields(fields) {
       const dictKeys = Object.keys(fields);
       if (dictKeys.length === 0) return true;
-      const dict = value as Record<string, RillValue>;
-      for (const key of dictKeys) {
-        if (!(key in dict)) {
-          const field = fields[key]!;
+      if (!isDict(value)) return false;
+      for (const [key, field] of Object.entries(fields)) {
+        if (!(key in value)) {
           if (field.defaultValue !== undefined) continue;
           return false;
         }
-        const field = fields[key]!;
-        if (!structureMatches(dict[key]!, field.type)) return false;
+        const actual = value[key];
+        if (actual === undefined || !structureMatches(actual, field.type))
+          return false;
       }
       return true;
     },
@@ -476,13 +429,13 @@ function createMatchesCallbacks(
       if (elements.length === 0) return value.entries.length === 0;
       if (value.entries.length > elements.length) return false;
       if (value.entries.length < elements.length) {
-        for (let i = value.entries.length; i < elements.length; i++) {
-          const field = elements[i]!;
+        for (const field of elements.slice(value.entries.length)) {
           if (field.defaultValue === undefined) return false;
         }
       }
-      for (let i = 0; i < value.entries.length; i++) {
-        if (!structureMatches(value.entries[i]!, elements[i]!.type))
+      for (const [i, entry] of value.entries.entries()) {
+        const field = elements[i];
+        if (field === undefined || !structureMatches(entry, field.type))
           return false;
       }
       return true;
@@ -492,14 +445,13 @@ function createMatchesCallbacks(
       if (fields.length === 0) return value.entries.length === 0;
       if (value.entries.length > fields.length) return false;
       if (value.entries.length < fields.length) {
-        for (let i = value.entries.length; i < fields.length; i++) {
-          const field = fields[i]!;
+        for (const field of fields.slice(value.entries.length)) {
           if (field.defaultValue === undefined) return false;
         }
       }
-      for (let i = 0; i < value.entries.length; i++) {
-        const field = fields[i]!;
-        const [actualName, actualValue] = value.entries[i]!;
+      for (const [i, [actualName, actualValue]] of value.entries.entries()) {
+        const field = fields[i];
+        if (field === undefined) return false;
         if (actualName !== field.name) return false;
         if (!structureMatches(actualValue, field.type)) return false;
       }
@@ -541,12 +493,11 @@ export function structureMatches(
     return registryInferType(value) === type.kind;
   }
 
-  if (type.kind === 'list') {
-    const t = type as ListStructure;
+  if (isStructureKind(type, 'list')) {
     if (!Array.isArray(value)) return false;
-    if (t.element === undefined) return true;
-    if (t.element.kind === 'any') return true;
-    return value.every((elem) => structureMatches(elem, t.element!));
+    const element = type.element;
+    if (element === undefined || element.kind === 'any') return true;
+    return value.every((elem) => structureMatches(elem, element));
   }
 
   // Delegate dict/tuple/ordered to compareStructuredFields
@@ -584,59 +535,51 @@ export function structureMatches(
     );
   }
 
-  if (type.kind === 'stream') {
+  if (isStructureKind(type, 'stream')) {
     if (!isStream(value)) return false;
-    const t = type as {
-      kind: 'stream';
-      chunk?: TypeStructure;
-      ret?: TypeStructure;
-    };
-    if (t.chunk === undefined && t.ret === undefined) return true;
-    const raw = value as unknown as Record<string, TypeStructure | undefined>;
-    if (t.chunk !== undefined) {
-      const valueChunk = raw['__rill_stream_chunk_type'];
-      if (valueChunk !== undefined && !structureEquals(valueChunk, t.chunk))
+    const { chunk, ret } = type;
+    if (chunk === undefined && ret === undefined) return true;
+    if (chunk !== undefined) {
+      const valueChunk = streamTypeSidecar(value, 'chunk');
+      if (valueChunk !== undefined && !structureEquals(valueChunk, chunk))
         return false;
     }
-    if (t.ret !== undefined) {
-      const valueRet = raw['__rill_stream_ret_type'];
-      if (valueRet !== undefined && !structureEquals(valueRet, t.ret))
+    if (ret !== undefined) {
+      const valueRet = streamTypeSidecar(value, 'ret');
+      if (valueRet !== undefined && !structureEquals(valueRet, ret))
         return false;
     }
     return true;
   }
 
-  if (type.kind === 'closure') {
-    const t = type as ClosureStructure;
+  if (isStructureKind(type, 'closure')) {
     if (!isCallable(value) || value.returnType === undefined) return false;
-    if (t.params === undefined) return true;
+    if (type.params === undefined) return true;
     const valueParams = value.params ?? [];
-    if (valueParams.length !== t.params.length) return false;
-    for (let i = 0; i < t.params.length; i++) {
-      const field = t.params[i]!;
-      const param = valueParams[i]!;
+    if (valueParams.length !== type.params.length) return false;
+    for (const [i, field] of type.params.entries()) {
+      const param = valueParams[i];
+      if (param === undefined) return false;
       if (param.name !== field.name) return false;
       const paramType: TypeStructure = param.type ?? { kind: 'any' };
       if (!structureEquals(paramType, field.type)) return false;
       // Directional default rules: value (superset) satisfies type (contract)
-      const valueHasDefault = param.defaultValue !== undefined;
-      const typeHasDefault = field.defaultValue !== undefined;
-      if (!valueHasDefault && typeHasDefault) return false;
-      if (valueHasDefault && typeHasDefault) {
-        if (!registryDeepEquals(param.defaultValue, field.defaultValue!))
-          return false;
+      const valueDefault = param.defaultValue;
+      const typeDefault = field.defaultValue;
+      if (valueDefault === undefined && typeDefault !== undefined) return false;
+      if (valueDefault !== undefined && typeDefault !== undefined) {
+        if (!registryDeepEquals(valueDefault, typeDefault)) return false;
       }
       // value has default + type lacks → compatible (superset satisfies)
       // neither has default → compatible
     }
     const retType: TypeStructure = value.returnType.structure;
-    if (t.ret === undefined) return true;
-    return structureEquals(retType, t.ret);
+    if (type.ret === undefined) return true;
+    return structureEquals(retType, type.ret);
   }
 
-  if (type.kind === 'union') {
-    const t = type as UnionStructure;
-    return t.members.some((member) => structureMatches(value, member));
+  if (isStructureKind(type, 'union')) {
+    return type.members.some((member) => structureMatches(value, member));
   }
 
   if (type.kind === 'datetime') return isDatetime(value);
@@ -664,10 +607,9 @@ const formatCallbacks: FieldComparisonCallbacks<string | null> = {
   onBothEmpty: () => null,
   onFieldPresenceMismatch: () => null,
   onDictFields(fields) {
-    const parts = Object.keys(fields)
-      .sort()
-      .map((k) => {
-        const field = fields[k]!;
+    const parts = Object.entries(fields)
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([k, field]) => {
         const base = `${k}: ${formatStructure(field.type)}`;
         if (field.defaultValue === undefined) return base;
         return `${base} = ${formatRillLiteral(field.defaultValue)}`;
@@ -709,10 +651,9 @@ export function formatStructure(type: TypeStructure): string {
     return type.kind;
   }
 
-  if (type.kind === 'list') {
-    const t = type as ListStructure;
-    if (t.element === undefined) return 'list';
-    return `list(${formatStructure(t.element)})`;
+  if (isStructureKind(type, 'list')) {
+    if (type.element === undefined) return 'list';
+    return `list(${formatStructure(type.element)})`;
   }
 
   // Delegate dict/tuple/ordered to compareStructuredFields
@@ -727,35 +668,30 @@ export function formatStructure(type: TypeStructure): string {
     return `${type.kind}(${inner})`;
   }
 
-  if (type.kind === 'stream') {
-    const t = type as {
-      kind: 'stream';
-      chunk?: TypeStructure;
-      ret?: TypeStructure;
-    };
-    if (t.chunk === undefined && t.ret === undefined) return 'stream';
-    const chunkStr = t.chunk !== undefined ? formatStructure(t.chunk) : 'any';
-    const retStr = t.ret !== undefined ? `:${formatStructure(t.ret)}` : '';
+  if (isStructureKind(type, 'stream')) {
+    if (type.chunk === undefined && type.ret === undefined) return 'stream';
+    const chunkStr =
+      type.chunk !== undefined ? formatStructure(type.chunk) : 'any';
+    const retStr =
+      type.ret !== undefined ? `:${formatStructure(type.ret)}` : '';
     return `stream(${chunkStr})${retStr}`;
   }
 
-  if (type.kind === 'closure') {
-    const t = type as ClosureStructure;
-    if (t.params === undefined) return 'closure';
-    const params = t.params
+  if (isStructureKind(type, 'closure')) {
+    if (type.params === undefined) return 'closure';
+    const params = type.params
       .map((field) => {
         const base = `${field.name}: ${formatStructure(field.type)}`;
         if (field.defaultValue === undefined) return base;
         return `${base} = ${formatRillLiteral(field.defaultValue)}`;
       })
       .join(', ');
-    const ret = t.ret !== undefined ? formatStructure(t.ret) : 'any';
+    const ret = type.ret !== undefined ? formatStructure(type.ret) : 'any';
     return `|${params}| :${ret}`;
   }
 
-  if (type.kind === 'union') {
-    const t = type as UnionStructure;
-    return t.members.map(formatStructure).join('|');
+  if (isStructureKind(type, 'union')) {
+    return type.members.map(formatStructure).join('|');
   }
 
   return 'any';
@@ -785,11 +721,11 @@ export function paramToFieldDef(
  * Mixed types throw RILL-R002.
  */
 export function inferElementType(elements: RillValue[]): TypeStructure {
-  if (elements.length === 0) return { kind: 'any' };
-  const firstElem = elements[0]!;
+  const [firstElem, ...rest] = elements;
+  if (firstElem === undefined) return { kind: 'any' };
   let accType = inferStructure(firstElem);
-  for (let i = 1; i < elements.length; i++) {
-    const elem = elements[i]!;
+  for (const [offset, elem] of rest.entries()) {
+    const i = offset + 1;
     const elemType = inferStructure(elem);
     const merged = commonType(accType, elemType);
     if (merged === null) {
@@ -841,9 +777,8 @@ export function inferStructure(value: RillValue): TypeStructure {
     return { kind: 'vector' };
   }
   if (isStream(value)) {
-    const raw = value as unknown as Record<string, TypeStructure | undefined>;
-    const chunk = raw['__rill_stream_chunk_type'];
-    const ret = raw['__rill_stream_ret_type'];
+    const chunk = streamTypeSidecar(value, 'chunk');
+    const ret = streamTypeSidecar(value, 'ret');
     const result: {
       kind: 'stream';
       chunk?: TypeStructure;
@@ -881,8 +816,8 @@ export function inferStructure(value: RillValue): TypeStructure {
   if (isIterator(value)) {
     return { kind: 'iterator' };
   }
-  if (typeof value === 'object' && !isCallable(value)) {
-    const dict = value as Record<string, RillValue>;
+  if (isDict(value)) {
+    const dict = value;
     const fields: Record<string, RillFieldDef> = {};
     for (const [k, v] of Object.entries(dict)) {
       setDictField(fields, k, { type: inferStructure(v) });
@@ -934,10 +869,11 @@ function mergeUniformValueType(
       ...aFields.map((f) => f.type),
       ...bFields.map((f) => f.type),
     ];
-    if (allTypes.length === 0) return undefined;
-    let merged: TypeStructure = allTypes[0]!;
-    for (let i = 1; i < allTypes.length; i++) {
-      const next = commonType(merged, allTypes[i]!);
+    const [first, ...rest] = allTypes;
+    if (first === undefined) return undefined;
+    let merged: TypeStructure = first;
+    for (const member of rest) {
+      const next = commonType(merged, member);
       if (next === null) return undefined;
       merged = next;
     }
@@ -974,49 +910,41 @@ export function commonType(
   if (structureEquals(a, b)) return a;
 
   // 3. Recursive list element merging
-  if (a.kind === 'list' && b.kind === 'list') {
-    const aList = a as ListStructure;
-    const bList = b as ListStructure;
-    if (aList.element !== undefined && bList.element !== undefined) {
-      const inner = commonType(aList.element, bList.element);
+  if (isStructureKind(a, 'list') && isStructureKind(b, 'list')) {
+    if (a.element !== undefined && b.element !== undefined) {
+      const inner = commonType(a.element, b.element);
       if (inner !== null) return { kind: 'list', element: inner };
     }
     return { kind: 'list' };
   }
 
   // 3b. Uniform valueType merging for dict/tuple/ordered
-  if (a.kind === 'dict' && b.kind === 'dict') {
-    const aDict = a as DictStructure;
-    const bDict = b as DictStructure;
+  if (isStructureKind(a, 'dict') && isStructureKind(b, 'dict')) {
     const merged = mergeUniformValueType(
-      aDict.valueType,
-      bDict.valueType,
-      aDict.fields ? Object.values(aDict.fields) : undefined,
-      bDict.fields ? Object.values(bDict.fields) : undefined
+      a.valueType,
+      b.valueType,
+      a.fields ? Object.values(a.fields) : undefined,
+      b.fields ? Object.values(b.fields) : undefined
     );
     if (merged !== undefined) return { kind: 'dict', valueType: merged };
   }
 
-  if (a.kind === 'tuple' && b.kind === 'tuple') {
-    const aTuple = a as TupleStructure;
-    const bTuple = b as TupleStructure;
+  if (isStructureKind(a, 'tuple') && isStructureKind(b, 'tuple')) {
     const merged = mergeUniformValueType(
-      aTuple.valueType,
-      bTuple.valueType,
-      aTuple.elements,
-      bTuple.elements
+      a.valueType,
+      b.valueType,
+      a.elements,
+      b.elements
     );
     if (merged !== undefined) return { kind: 'tuple', valueType: merged };
   }
 
-  if (a.kind === 'ordered' && b.kind === 'ordered') {
-    const aOrd = a as OrderedStructure;
-    const bOrd = b as OrderedStructure;
+  if (isStructureKind(a, 'ordered') && isStructureKind(b, 'ordered')) {
     const merged = mergeUniformValueType(
-      aOrd.valueType,
-      bOrd.valueType,
-      aOrd.fields,
-      bOrd.fields
+      a.valueType,
+      b.valueType,
+      a.fields,
+      b.fields
     );
     if (merged !== undefined) return { kind: 'ordered', valueType: merged };
   }

@@ -40,7 +40,7 @@ function isLeapYear(year: number): boolean {
 
 export function maxDayInMonth(year: number, month: number): number {
   if (month === 2 && isLeapYear(year)) return 29;
-  return DAYS_IN_MONTH[month]!;
+  return DAYS_IN_MONTH[month] ?? 0;
 }
 
 /**
@@ -252,7 +252,7 @@ export function constructDatetime(
   }
 
   // Form 2: Named components
-  const year = args['year'] as number;
+  const year = args['year'];
   const month = args['month'];
   const day = args['day'];
 
@@ -260,7 +260,7 @@ export function constructDatetime(
     throwTypeHalt(
       { location, fn: 'datetime' },
       'INVALID_INPUT',
-      `Invalid datetime component year: ${formatValue(year)}`,
+      `Invalid datetime component year: ${formatValue(year ?? null)}`,
       'runtime',
       { component: 'year' }
     );

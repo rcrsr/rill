@@ -665,6 +665,20 @@ describe('structureMatches typed stream', () => {
     ).toBe(false);
   });
 
+  it('createRillStream with chunkType string fails stream(number) and passes stream(string)', () => {
+    const stream = createRillStream({
+      chunks: asyncIterableFrom(['a']),
+      resolve: () => Promise.resolve(null),
+      chunkType: { kind: 'string' },
+    });
+    expect(
+      structureMatches(stream, { kind: 'stream', chunk: { kind: 'number' } })
+    ).toBe(false);
+    expect(
+      structureMatches(stream, { kind: 'stream', chunk: { kind: 'string' } })
+    ).toBe(true);
+  });
+
   it('typed stream with matching ret type passes ret assertion', () => {
     const stream = makeTypedStream(undefined, { kind: 'dict' });
     expect(

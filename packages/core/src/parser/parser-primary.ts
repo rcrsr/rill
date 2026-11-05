@@ -17,7 +17,6 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   PrimaryNode,
-  RillTypeName,
   SourceLocation,
   SpreadArgNode,
   StatusProbeNode,
@@ -46,13 +45,13 @@ import {
   isLiteralStart,
   isClosureStart,
   parseBareHostCall,
-  VALID_TYPE_NAMES,
   describeToken,
 } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
 import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
+import { isRillTypeName } from '../types.js';
 
 /**
  * Mutable state shared between parsePostfixExprBase and its dispatch handlers.
@@ -392,9 +391,7 @@ Parser.prototype.parsePostfixExprBase = function (
   // (see the DOT_QUESTION branch above), so loopState.primary/methods
   // already reflect its span; no separate terminal existenceCheck case is
   // needed here.
-  const endLocation = (
-    loopState.methods.length > 0 ? loopState.methods.at(-1)! : loopState.primary
-  ).span.end;
+  const endLocation = (loopState.methods.at(-1) ?? loopState.primary).span.end;
 
   return {
     type: 'PostfixExpr',
@@ -414,13 +411,15 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
   const args: (ExpressionNode | SpreadArgNode)[] = [];
   let hasSpread = false;
   if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    args.push(parseSpreadOrArg(this, { allowSpread: true, hasSpread }));
-    if (args.at(-1)!.type === 'SpreadArg') hasSpread = true;
+    const firstArg = parseSpreadOrArg(this, { allowSpread: true, hasSpread });
+    args.push(firstArg);
+    if (firstArg.type === 'SpreadArg') hasSpread = true;
     while (check(this.state, TOKEN_TYPES.COMMA)) {
       advance(this.state);
       skipNewlines(this.state);
-      args.push(parseSpreadOrArg(this, { allowSpread: true, hasSpread }));
-      if (args.at(-1)!.type === 'SpreadArg') hasSpread = true;
+      const nextArg = parseSpreadOrArg(this, { allowSpread: true, hasSpread });
+      args.push(nextArg);
+      if (nextArg.type === 'SpreadArg') hasSpread = true;
     }
   }
   skipNewlines(this.state);
@@ -490,15 +489,14 @@ function isClosureSigLiteralStart(state: {
   // scan must stop there rather than searching unboundedly into later
   // statements for an unrelated `|...|:` pair.
   let i = state.pos + 1;
-  while (i < state.tokens.length) {
-    const tok = state.tokens[i]!;
+  for (let tok = state.tokens[i]; tok !== undefined; tok = state.tokens[i]) {
     if (tok.type === TOKEN_TYPES.PIPE_BAR) {
       const afterClose = state.tokens[i + 1];
       if (afterClose?.type === TOKEN_TYPES.COLON) return true;
       const afterCloseIsDollar = afterClose?.type === TOKEN_TYPES.DOLLAR;
       const afterCloseIsTypeName =
         afterClose?.type === TOKEN_TYPES.IDENTIFIER &&
-        (VALID_TYPE_NAMES as readonly string[]).includes(afterClose.value);
+        isRillTypeName(afterClose.value);
       if (!afterCloseIsDollar && !afterCloseIsTypeName) return false;
     }
     i += 1;
@@ -727,15 +725,16 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
 
   // Type name expression: bare type name in expression position (e.g. `number`, `string`)
   // Invalid type names fall through to the host call path.
+  const typeKeyword = current(this.state).value;
   if (
     check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    VALID_TYPE_NAMES.includes(current(this.state).value as RillTypeName) &&
+    isRillTypeName(typeKeyword) &&
     this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.LPAREN
   ) {
     const token = advance(this.state);
     return {
       type: 'TypeNameExpr',
-      typeName: token.value as RillTypeName,
+      typeName: typeKeyword,
       span: token.span,
     } satisfies TypeNameExprNode;
   }

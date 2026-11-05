@@ -36,7 +36,7 @@ import {
   walkStreamOrIteratorElements,
 } from '../../../core/eval/handlers/collections.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, chunkSlice } from '../shared.js';
+import { MAX_ITER, chunkSlice, positionalArgs } from '../shared.js';
 import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
 /**
@@ -45,14 +45,9 @@ import { typedKeyEntries } from '../../../core/types/dict-keys.js';
  * Constructed once at module load; not re-allocated per call.
  */
 const DICT_DEFAULT_KEY_FN = callable((args) => {
-  const entry = (args as unknown as RillValue[])[0] ?? null;
-  if (
-    entry !== null &&
-    typeof entry === 'object' &&
-    !Array.isArray(entry) &&
-    'key' in (entry as Record<string, unknown>)
-  ) {
-    return (entry as Record<string, RillValue>)['key'] ?? null;
+  const entry = positionalArgs(args)[0] ?? null;
+  if (isDict(entry) && 'key' in entry) {
+    return entry['key'] ?? null;
   }
   return null;
 });

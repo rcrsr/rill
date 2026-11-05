@@ -34,7 +34,6 @@ import { createTraceFrame } from './types/trace.js';
 import {
   validateDefaultValueType,
   type ApplicationCallable,
-  type RillParam,
 } from './callable.js';
 import { ERROR_IDS } from '../../error-registry.js';
 import {
@@ -98,7 +97,7 @@ const DEFERRED_HALT_SYM: unique symbol = Symbol('rill.deferredHalt');
 export function markDeferredHalt(reason: unknown): unknown {
   if (reason !== null && typeof reason === 'object') {
     try {
-      (reason as Record<PropertyKey, unknown>)[DEFERRED_HALT_SYM] = true;
+      Reflect.set(reason, DEFERRED_HALT_SYM, true);
     } catch {
       // Frozen/sealed reason: leave unmarked. It will not be surfaced,
       // but re-throwing here would turn a diagnostic into a crash.
@@ -115,7 +114,8 @@ function isDeferredHalt(reason: unknown): boolean {
   return (
     reason !== null &&
     typeof reason === 'object' &&
-    (reason as Record<PropertyKey, unknown>)[DEFERRED_HALT_SYM] === true
+    DEFERRED_HALT_SYM in reason &&
+    reason[DEFERRED_HALT_SYM] === true
   );
 }
 
@@ -433,6 +433,7 @@ export function createRuntimeContext(
       variables.set(name, boundValue);
       variableTypes.set(
         name,
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- variableTypes is a public facade field typed by RillTypeName; inferType can also return 'field_descriptor', which the map never reads back
         inferType(boundValue) as import('../../types.js').RillTypeName
       );
     }
@@ -446,10 +447,8 @@ export function createRuntimeContext(
   // Set custom functions (can override built-ins)
   if (options.functions) {
     for (const [name, definition] of Object.entries(options.functions)) {
-      const params = definition.params as RillParam[];
-      const description = definition.annotations?.['description'] as
-        | string
-        | undefined;
+      const params = definition.params;
+      const description = definition.annotations?.['description'];
 
       // Validate default values at registration time
       for (const param of params) {

@@ -514,25 +514,21 @@
       }
     },
     {
-      // Non-null ratchet: 182 hits in 46 files (core 152 in 36, service 25 in
-      // 8, fiddle 5 in 2). Remove a path once its file reports zero; never add
+      // Non-null ratchet. At enablement: 182 hits in 46 files (core 152 in 36,
+      // service 25 in 8, fiddle 5 in 2). Remaining in core: 65 hits in 25
+      // files (measured). Remove a path once its file reports zero; never add
       // one. packages/service/src/percentile.ts is build-excluded test support
       // named like source, so it stays listed.
       "files": [
-        "packages/core/src/ast-walk.ts",
         "packages/core/src/error-formatter.ts",
         "packages/core/src/error-registry.ts",
         "packages/core/src/lexer/tokenizer.ts",
-        "packages/core/src/parser/helpers.ts",
         "packages/core/src/parser/parser-expr.ts",
         "packages/core/src/parser/parser-functions.ts",
         "packages/core/src/parser/parser-literals.ts",
-        "packages/core/src/parser/parser-pipe-target.ts",
-        "packages/core/src/parser/parser-primary.ts",
         "packages/core/src/parser/parser-script.ts",
         "packages/core/src/parser/parser-types.ts",
         "packages/core/src/parser/parser-variables.ts",
-        "packages/core/src/runtime/core/callable.ts",
         "packages/core/src/runtime/core/eval/handlers/closures.ts",
         "packages/core/src/runtime/core/eval/handlers/conversion.ts",
         "packages/core/src/runtime/core/eval/handlers/core.ts",
@@ -547,14 +543,8 @@
         "packages/core/src/runtime/core/policy/identity.ts",
         "packages/core/src/runtime/core/types/dict-keys.ts",
         "packages/core/src/runtime/core/types/halt.ts",
-        "packages/core/src/runtime/core/types/operations.ts",
         "packages/core/src/runtime/core/types/registrations.ts",
         "packages/core/src/runtime/core/types/status.ts",
-        "packages/core/src/runtime/ext/builtins/functions/slicing.ts",
-        "packages/core/src/runtime/ext/builtins/functions/time-domain.ts",
-        "packages/core/src/runtime/ext/builtins/methods/bodies.ts",
-        "packages/core/src/runtime/ext/builtins/shared.ts",
-        "packages/core/src/runtime/ext/builtins/temporal/construct.ts",
         "packages/fiddle/src/components/SplitPane.tsx",
         "packages/fiddle/src/lib/highlight.ts",
         "packages/service/src/document-symbols.ts",
@@ -572,23 +562,19 @@
     },
     {
       // Cast ratchet. At enablement: 376 hits in 76 files (core 369 in 70,
-      // service 4 in 4, fiddle 3 in 2). Remove a path once its file reports zero; never add
+      // service 4 in 4, fiddle 3 in 2). Remaining in core: 129 hits in 46
+      // files (measured). Remove a path once its file reports zero; never add
       // one. packages/service/src/rules/corpus-loader.ts is build-excluded
       // test support named like source, so it stays listed.
       "files": [
         "packages/core/src/error-classes.ts",
         "packages/core/src/error-registry.ts",
         "packages/core/src/lexer/readers.ts",
-        "packages/core/src/parser/helpers.ts",
         "packages/core/src/parser/parser-closure.ts",
         "packages/core/src/parser/parser-control.ts",
         "packages/core/src/parser/parser-functions.ts",
-        "packages/core/src/parser/parser-pipe-target.ts",
-        "packages/core/src/parser/parser-primary.ts",
         "packages/core/src/parser/parser-shape.ts",
         "packages/core/src/runtime/core/callable-factory.ts",
-        "packages/core/src/runtime/core/callable.ts",
-        "packages/core/src/runtime/core/context.ts",
         "packages/core/src/runtime/core/equals.ts",
         "packages/core/src/runtime/core/eval/handlers/access.ts",
         "packages/core/src/runtime/core/eval/handlers/calls.ts",
@@ -608,12 +594,10 @@
         "packages/core/src/runtime/core/execute.ts",
         "packages/core/src/runtime/core/field-descriptor.ts",
         "packages/core/src/runtime/core/introspection.ts",
-        "packages/core/src/runtime/core/resolvers.ts",
         "packages/core/src/runtime/core/types/constructors.ts",
         "packages/core/src/runtime/core/types/dict-keys.ts",
         "packages/core/src/runtime/core/types/guards.ts",
         "packages/core/src/runtime/core/types/halt.ts",
-        "packages/core/src/runtime/core/types/operations.ts",
         "packages/core/src/runtime/core/types/protocols/atom.ts",
         "packages/core/src/runtime/core/types/protocols/bool.ts",
         "packages/core/src/runtime/core/types/protocols/dict.ts",
@@ -629,13 +613,6 @@
         "packages/core/src/runtime/core/types/registrations.ts",
         "packages/core/src/runtime/core/types/runtime.ts",
         "packages/core/src/runtime/core/types/status.ts",
-        "packages/core/src/runtime/core/values.ts",
-        "packages/core/src/runtime/ext/builtins/functions/collections.ts",
-        "packages/core/src/runtime/ext/builtins/functions/core.ts",
-        "packages/core/src/runtime/ext/builtins/functions/slicing.ts",
-        "packages/core/src/runtime/ext/builtins/methods/bodies.ts",
-        "packages/core/src/runtime/ext/builtins/shared.ts",
-        "packages/core/src/runtime/ext/builtins/temporal/construct.ts",
         "packages/core/src/runtime/ext/extensions.ts",
         "packages/fiddle/src/lib/execution.ts",
         "packages/service/src/rules/collection-ops.ts",
