@@ -376,7 +376,7 @@ baseline_json() {
 }
 
 # baseline_gate <id> <label> — the skip/bad wrapper every baseline-derived
-# element opens with (STD-LINT-1/5/9, STD-PM-2, STD-DEP-1/2/5): no baseline at
+# element opens with (STD-LINT-1/5/9/12, STD-PM-2, STD-DEP-1/2/5): no baseline at
 # all is a skip, and a stale committed baseline in the owning repository is a
 # bad. Emits the line and returns non-zero when it already handled the
 # element; returns 0 when the caller should run its own check.
@@ -1072,8 +1072,58 @@ if [ -f "$LINTRC" ]; then
   [ -z "$UNSCOPED" ] &&
     ok "STD-LINT-4" "lint scope covers src/ and tests/" ||
     bad "STD-LINT-4" "lint scope covers src/ and tests/" "tests/ not linted in: $UNSCOPED"
+  # STD-LINT-11: type-aware lint. Two halves, both required: every TypeScript
+  # directory's lint script that invokes oxlint carries --type-aware (or the
+  # config sets options.typeAware), and the backend is declared at the root.
+  # Without either, type-aware rules are listed, report nothing, and read as
+  # satisfied. Same call sites as STD-LINT-4; only directories holding
+  # TypeScript count. A config that cannot be parsed is bad, never ok.
+  TYPEAWARE_CFG="$(node -e '
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      const cfg = readJSONC(process.argv[2]);
+      process.stdout.write(cfg && cfg.options && cfg.options.typeAware === true ? "yes" : "no");
+    } catch (e) { process.stdout.write("PARSE_ERROR"); }
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+  TS_DIRS=""
+  NOFLAG=""
+  NOSCRIPT=""
+  for d in "${LINT4_DIRS[@]}"; do
+    has_ts "$d" || continue
+    TS_DIRS="$TS_DIRS$d "
+    L="$(node -e 'const fs = require("fs");
+      const scripts = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).scripts || {};
+      const hit = process.argv.slice(2).find((n) => scripts[n] && /(^|[^A-Za-z0-9_-])oxlint([^A-Za-z0-9_-]|$)/.test(scripts[n]));
+      process.stdout.write(hit ? scripts[hit] : "")' \
+      "$d/package.json" "${LINT4_NAMES[@]}" 2>/dev/null)"
+    if [ -z "$L" ]; then
+      NOSCRIPT="$NOSCRIPT$d "
+    else
+      case "$L" in
+        *--type-aware*) ;;
+        *) [ "$TYPEAWARE_CFG" = "yes" ] || NOFLAG="$NOFLAG$d " ;;
+      esac
+    fi
+  done
+  if [ -z "$TS_DIRS" ]; then
+    skip "STD-LINT-11" "type-aware lint with backend declared" "N/A: the repository ships no TypeScript"
+  elif [ "$TYPEAWARE_CFG" = "PARSE_ERROR" ]; then
+    bad "STD-LINT-11" "type-aware lint with backend declared" "could not parse $LINTRC as JSONC"
+  else
+    LINT11_DETAIL=""
+    [ -n "$NOFLAG" ] && LINT11_DETAIL="lint script lacks --type-aware in: $NOFLAG"
+    has_dep oxlint-tsgolint || LINT11_DETAIL="${LINT11_DETAIL}oxlint-tsgolint not declared in package.json"
+    if [ -n "$LINT11_DETAIL" ]; then
+      bad "STD-LINT-11" "type-aware lint with backend declared" "$LINT11_DETAIL"
+    elif [ -n "$NOSCRIPT" ]; then
+      skip "STD-LINT-11" "type-aware lint with backend declared" \
+        "no lint script invoking oxlint directly in: $NOSCRIPT"
+    else
+      ok "STD-LINT-11" "type-aware lint with backend declared"
+    fi
+  fi
 else
-  skip "STD-LINT-2,3,4,7,8,10" "lint configuration" "no $LINTRC in this repository"
+  skip "STD-LINT-2,3,4,7,8,10,11" "lint configuration" "no $LINTRC in this repository"
 fi
 
 # STD-LINT-1: shared linter and formatter. The baseline names the two package
@@ -1128,8 +1178,8 @@ skip "STD-LINT-6" "disabled rules carry counts" "the comment is prose, not machi
 # STD-LINT-9: rules shared with the reference config carry the same severity.
 # Read only rules present in BOTH configs — the element compares the
 # intersection, not rill's full set against a consumer that legitimately
-# carries fewer rules (rill ~40, rill-config ~26, 25 shared today). A rule the
-# baseline does not carry at all says nothing about this element.
+# carries fewer rules. A rule the baseline does not carry at all says nothing
+# about this element; presence is STD-LINT-12's claim.
 if [ ! -f "$LINTRC" ]; then
   skip "STD-LINT-9" "shared rules carry the same severity" "no $LINTRC in this repository"
 elif baseline_gate "STD-LINT-9" "shared rules carry the same severity"; then
@@ -1170,6 +1220,39 @@ elif baseline_gate "STD-LINT-9" "shared rules carry the same severity"; then
     [ -z "$MISMATCH" ] &&
       ok "STD-LINT-9" "shared rules carry the same severity" ||
       bad "STD-LINT-9" "shared rules carry the same severity" "$MISMATCH"
+  fi
+fi
+
+# STD-LINT-12: every rule the reference config enables (error or warn) is
+# configured in the repository's top-level `rules`, spelled as the baseline
+# spells it. Required = baseline lintRules whose value is not "off"; an off rule
+# is never required. Overrides are not read: a rule set only inside an override
+# is not configured at the top level. Missing rules are listed in baseline key
+# order. A parse failure is bad, never ok.
+if [ ! -f "$LINTRC" ]; then
+  skip "STD-LINT-12" "reference rules configured" "no $LINTRC in this repository"
+elif baseline_gate "STD-LINT-12" "reference rules configured"; then
+  WANT12="$(baseline_json lintRules)"
+  HAVE12="$(node -e '
+    let cfg;
+    try {
+      const { readJSONC } = require(process.argv[1]);
+      cfg = readJSONC(process.argv[2]);
+    } catch (e) { console.log("PARSE_ERROR"); process.exit(0); }
+    process.stdout.write(JSON.stringify(Object.keys(cfg.rules || {})));
+  ' "$SELF_DIR/jsonc.cjs" "$LINTRC" 2>/dev/null)"
+  if [ "$HAVE12" = "PARSE_ERROR" ] || [ -z "$HAVE12" ]; then
+    bad "STD-LINT-12" "reference rules configured" "could not parse $LINTRC as JSONC"
+  else
+    MISSING12="$(node -e '
+      const have = new Set(JSON.parse(process.argv[1] || "[]") ?? []);
+      const want = JSON.parse(process.argv[2] || "{}") ?? {};
+      const out = Object.keys(want).filter((k) => want[k] !== "off" && !have.has(k));
+      process.stdout.write(out.join(", "));
+    ' "$HAVE12" "$WANT12")"
+    [ -z "$MISSING12" ] &&
+      ok "STD-LINT-12" "reference rules configured" ||
+      bad "STD-LINT-12" "reference rules configured" "not in top-level rules: $MISSING12"
   fi
 fi
 

@@ -5,8 +5,8 @@
  * `check-standards.sh` guards its own baseline by regenerating it in memory
  * from the tree under test (via `gen-baseline.cjs`) and diffing that against
  * the committed `baseline.json`, as canonicalised JSON values. When the two
- * disagree it reports the six baseline-derived elements (STD-LINT-1/5/9,
- * STD-PM-2, STD-DEP-1/2) as `bad` with "baseline.json is stale". That guard is
+ * disagree it reports the eight baseline-derived elements (STD-LINT-1/5/9/12,
+ * STD-PM-2, STD-DEP-1/2/5) as `bad` with "baseline.json is stale". That guard is
  * what stops a pinned-tool bump from shipping a stale baseline to every
  * consumer, but until now nothing regression-tested the guard itself: a
  * refactor of `generate()` or the comparator that stopped reflecting a pin
@@ -536,6 +536,158 @@ function runCheckStandardsFixtureTests() {
       'STD-LINT-10: an override scoped away from src fails',
       elsewhere
     );
+  }
+
+  // (l) STD-LINT-11: every TypeScript directory's oxlint script carries
+  // --type-aware (or the config sets options.typeAware) and the backend is
+  // declared. One tree per case so one verdict cannot leak into the next.
+  {
+    const TS = 'export const a: number = 1;\n';
+    const CJS = 'module.exports = {};\n';
+    const FLAGGED = 'oxlint --type-aware src/ tests/';
+    const PLAIN = 'oxlint src/ tests/';
+    const deps = { 'oxlint-tsgolint': '^0.1.0' };
+    // A manifest with the given lint script; `backend` declares oxlint-tsgolint.
+    const man = (scripts, backend) =>
+      JSON.stringify({
+        name: 'f',
+        private: true,
+        scripts,
+        devDependencies: backend ? deps : {},
+      });
+    const one = (scripts, backend = true) => ({
+      'src/index.ts': TS,
+      'package.json': man(scripts, backend),
+    });
+    const ok11 = /ok\s+STD-LINT-11\s/;
+    const cases = [
+      [
+        '--type-aware with the backend declared is ok',
+        ok11,
+        one({ lint: FLAGGED }),
+      ],
+      [
+        'a missing flag fails and names the directory',
+        /FAIL\s+STD-LINT-11\s[\s\S]*lacks --type-aware in: \.(\s|$)/,
+        one({ lint: PLAIN }),
+      ],
+      [
+        'an undeclared oxlint-tsgolint fails and names it, with no baseline present',
+        /FAIL\s+STD-LINT-11\s[\s\S]*oxlint-tsgolint not declared/,
+        one({ lint: FLAGGED }, false),
+      ],
+      [
+        'a root check:lint delegating to a flagged lint is ok',
+        ok11,
+        one({ 'check:lint': 'pnpm run lint', lint: FLAGGED }),
+      ],
+      [
+        'options.typeAware in the config satisfies the flag half',
+        ok11,
+        {
+          ...one({ lint: PLAIN }),
+          '.oxlintrc.json': '{"options":{"typeAware":true}}',
+        },
+      ],
+      [
+        'a workspace with a flagged TS package and an unflagged .cjs-only package is ok',
+        ok11,
+        {
+          'package.json': man({}, true),
+          'packages/a/package.json': man({ lint: FLAGGED }),
+          'packages/a/src/index.ts': TS,
+          'packages/b/package.json': man({ lint: PLAIN }),
+          'packages/b/src/index.cjs': CJS,
+        },
+      ],
+      [
+        'a workspace with one unflagged TS package fails and names it',
+        /FAIL\s+STD-LINT-11\s[\s\S]*packages\/a/,
+        {
+          'package.json': man({}, true),
+          'packages/a/package.json': man({ lint: PLAIN }),
+          'packages/a/src/index.ts': TS,
+        },
+      ],
+      [
+        'no TypeScript anywhere reports -- with N/A',
+        /--\s+STD-LINT-11\s[\s\S]*N\/A: the repository ships no TypeScript/,
+        { 'package.json': man({ lint: PLAIN }), 'src/index.cjs': CJS },
+      ],
+    ];
+    for (const [label, re, files] of cases) {
+      const out = runCheckStandards(
+        writeFixtureTree({ '.oxlintrc.json': '{}\n', ...files })
+      ).stdout;
+      check(re.test(out), `STD-LINT-11: ${label}`, out);
+    }
+  }
+
+  // (m) STD-LINT-12: every non-off baseline rule is configured in the
+  // top-level rules. The consumer lookup path is
+  // node_modules/@rcrsr/rill-dev/baseline.json, written by this helper.
+  {
+    const withBaseline = (lintRules, rcText) => {
+      const files = { 'package.json': MINIMAL_PKG, '.oxlintrc.json': rcText };
+      if (lintRules !== null) {
+        const dir = 'node_modules/@rcrsr/rill-dev/';
+        files[dir + 'package.json'] = JSON.stringify({
+          name: '@rcrsr/rill-dev',
+          version: '0.0.0',
+          exports: { './baseline.json': './baseline.json' },
+        });
+        files[dir + 'baseline.json'] = JSON.stringify({ lintRules });
+      }
+      return runCheckStandards(writeFixtureTree(files)).stdout;
+    };
+    const rc = (rules, overrides = []) => JSON.stringify({ rules, overrides });
+    const WANT = { 'rule-a': 'error', 'rule-b': 'warn', 'rule-c': 'off' };
+    const BOTH = { 'rule-a': 'error', 'rule-b': 'warn' };
+    const ok12 = /ok\s+STD-LINT-12\s/;
+    const MISSING_A =
+      /FAIL\s+STD-LINT-12\s[\s\S]*not in top-level rules: rule-a(\s|$)/;
+    const ruleA = (level) => [
+      { files: ['src/**'], rules: { 'rule-a': level } },
+    ];
+    const cases = [
+      ['every non-off baseline rule present is ok', ok12, WANT, rc(BOTH)],
+      [
+        'an absent error rule fails and is named',
+        MISSING_A,
+        WANT,
+        rc({ 'rule-b': 'warn' }),
+      ],
+      ['a baseline-off rule absent is not required', ok12, WANT, rc(BOTH)],
+      [
+        'a rule present only in an override fails',
+        MISSING_A,
+        WANT,
+        rc({ 'rule-b': 'warn' }, ruleA('error')),
+      ],
+      [
+        'a top-level rule relaxed in a src override is ok',
+        ok12,
+        WANT,
+        rc(BOTH, ruleA('off')),
+      ],
+      [
+        'a rule at warn against an error baseline fails STD-LINT-9 but is ok here',
+        /FAIL\s+STD-LINT-9\s[\s\S]*ok\s+STD-LINT-12\s/,
+        { 'rule-a': 'error' },
+        rc({ 'rule-a': 'warn' }),
+      ],
+      [
+        'an unparseable config fails',
+        /FAIL\s+STD-LINT-12\s/,
+        WANT,
+        '{ "rules": \n',
+      ],
+      ['no baseline installed reports --', /--\s+STD-LINT-12\s/, null, rc({})],
+    ];
+    for (const [label, re, lintRules, rcText] of cases) {
+      const out = withBaseline(lintRules, rcText);
+      check(re.test(out), `STD-LINT-12: ${label}`, out);
+    }
   }
 
   // (g) grep_noncomment: a stripped-check token that appears only inside a
