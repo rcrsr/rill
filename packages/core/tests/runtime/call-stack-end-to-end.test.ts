@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { run, toRuntimeContext } from '../helpers/runtime.js';
+import { run } from '../helpers/runtime.js';
 import {
   anyTypeValue,
   type CallFrame,
@@ -31,14 +31,9 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
             params: [],
             fn: (_args, ctx) => {
               // Verify infrastructure can track at least one frame
-              maxStackDepth = Math.max(
-                maxStackDepth,
-                toRuntimeContext(ctx).callStack.length
-              );
-              expect(toRuntimeContext(ctx).callStack.length).toBe(1);
-              expect(toRuntimeContext(ctx).callStack[0]?.functionName).toBe(
-                'testFn'
-              );
+              maxStackDepth = Math.max(maxStackDepth, ctx.callStack.length);
+              expect(ctx.callStack.length).toBe(1);
+              expect(ctx.callStack[0]?.functionName).toBe('testFn');
               return 'ok';
             },
           },
@@ -61,7 +56,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              snapshot = [...toRuntimeContext(ctx).callStack];
+              snapshot = [...ctx.callStack];
               return '';
             },
           },
@@ -86,7 +81,7 @@ describe('Rill Runtime: Call Stack End-to-End', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              snapshot = [...toRuntimeContext(ctx).callStack];
+              snapshot = [...ctx.callStack];
               return '';
             },
           },

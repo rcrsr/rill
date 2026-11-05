@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { run, toRuntimeContext } from '../helpers/runtime.js';
+import { run } from '../helpers/runtime.js';
 import { expectRuntimeError } from '../helpers/halt.js';
 import {
   anyTypeValue,
@@ -27,10 +27,8 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              expect(toRuntimeContext(ctx).callStack).toHaveLength(1);
-              expect(toRuntimeContext(ctx).callStack[0]?.functionName).toBe(
-                'testFn'
-              );
+              expect(ctx.callStack).toHaveLength(1);
+              expect(ctx.callStack[0]?.functionName).toBe('testFn');
               return 'ok';
             },
           },
@@ -47,7 +45,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              capturedStack = [...toRuntimeContext(ctx).callStack];
+              capturedStack = [...ctx.callStack];
               return '';
             },
           },
@@ -67,8 +65,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              capturedLocation =
-                toRuntimeContext(ctx).callStack[0]?.location ?? null;
+              capturedLocation = ctx.callStack[0]?.location ?? null;
               return '';
             },
           },
@@ -88,7 +85,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              capturedName = toRuntimeContext(ctx).callStack[0]?.functionName;
+              capturedName = ctx.callStack[0]?.functionName;
               return '';
             },
           },
@@ -108,7 +105,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              ctx = toRuntimeContext(c);
+              ctx = c;
               return 'ok';
             },
           },
@@ -126,7 +123,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              ctx = toRuntimeContext(c);
+              ctx = c;
               return '';
             },
           },
@@ -151,7 +148,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
               },
             ],
             fn: (_args, c) => {
-              ctx = toRuntimeContext(c);
+              ctx = c;
               return '';
             },
           },
@@ -170,7 +167,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              depthInBody = toRuntimeContext(c).callStack.length;
+              depthInBody = c.callStack.length;
               throw new RuntimeError('RILL-R001', 'Test error');
             },
           },
@@ -223,7 +220,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              depth3 = toRuntimeContext(ctx).callStack.length;
+              depth3 = ctx.callStack.length;
               return 'done';
             },
           },
@@ -231,7 +228,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              depth2 = toRuntimeContext(ctx).callStack.length;
+              depth2 = ctx.callStack.length;
               return '';
             },
           },
@@ -239,7 +236,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              depth1 = toRuntimeContext(ctx).callStack.length;
+              depth1 = ctx.callStack.length;
               return '';
             },
           },
@@ -260,7 +257,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              capturedStack = [...toRuntimeContext(ctx).callStack];
+              capturedStack = [...ctx.callStack];
               return '';
             },
           },
@@ -290,7 +287,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
               },
             ],
             fn: (_args, ctx) => {
-              capturedStack = [...toRuntimeContext(ctx).callStack];
+              capturedStack = [...ctx.callStack];
               return '';
             },
           },
@@ -311,8 +308,7 @@ describe('Rill Runtime: Call Stack Integration', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, ctx) => {
-              callSiteLocation =
-                toRuntimeContext(ctx).callStack[0]?.location ?? null;
+              callSiteLocation = ctx.callStack[0]?.location ?? null;
               return '';
             },
           },

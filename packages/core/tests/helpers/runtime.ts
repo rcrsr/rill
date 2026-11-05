@@ -4,7 +4,6 @@
 
 import {
   anyTypeValue,
-  type CallableFn,
   createRuntimeContext,
   execute,
   type ExecutionResult,
@@ -78,26 +77,6 @@ export async function runWithContext(
   const { ast, ctx } = setup(source, options);
   const result = await execute(ast, ctx);
   return { result, context: ctx };
-}
-
-/** Context parameter type that host functions receive */
-type HostFnContext = Parameters<CallableFn>[1];
-
-/** Narrow the minimal context a host function receives to the full RuntimeContext */
-function isRuntimeContext(ctx: HostFnContext): ctx is RuntimeContext {
-  return 'callStack' in ctx && 'annotationStack' in ctx && 'functions' in ctx;
-}
-
-/**
- * Return the full RuntimeContext behind a host function's context parameter.
- * Host functions are typed with a minimal context; the evaluator always passes
- * the real one, so tests that inspect call or annotation state narrow it here.
- */
-export function toRuntimeContext(ctx: HostFnContext): RuntimeContext {
-  if (!isRuntimeContext(ctx)) {
-    throw new Error('host function context is not a full RuntimeContext');
-  }
-  return ctx;
 }
 
 /**

@@ -38,7 +38,12 @@ import type {
   RillFieldDef,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isTuple, isOrdered, isPlainDict } from '../../types/guards.js';
+import {
+  isTuple,
+  isOrdered,
+  isPlainDict,
+  isStructureKind,
+} from '../../types/guards.js';
 import {
   createOrdered,
   createTuple,
@@ -316,12 +321,8 @@ async function convertToOrderedWithSig(
   const typeValue = await evaluateTypeConstructor(s, sigNode);
   const { structure: orderedStructure } = typeValue;
   let resolvedFields: RillFieldDef[] = [];
-  if (orderedStructure.kind === 'ordered') {
-    const os = orderedStructure as {
-      kind: 'ordered';
-      fields?: RillFieldDef[];
-    };
-    resolvedFields = os.fields ?? [];
+  if (isStructureKind(orderedStructure, 'ordered')) {
+    resolvedFields = orderedStructure.fields ?? [];
   }
 
   const entries: [string, RillValue][] = [];
@@ -401,12 +402,8 @@ async function convertToDictWithSig(
   const typeValue = await evaluateTypeConstructor(s, sigNode);
   const { structure: dictStructure } = typeValue;
   let resolvedFields: Record<string, RillFieldDef> = {};
-  if (dictStructure.kind === 'dict') {
-    const ds = dictStructure as {
-      kind: 'dict';
-      fields?: Record<string, RillFieldDef>;
-    };
-    resolvedFields = ds.fields ?? {};
+  if (isStructureKind(dictStructure, 'dict')) {
+    resolvedFields = dictStructure.fields ?? {};
   }
   const result: Record<string, RillValue> = {};
 
@@ -508,12 +505,8 @@ async function convertToTupleWithSig(
   const typeValue = await evaluateTypeConstructor(s, sigNode);
   const { structure: tupleStructure } = typeValue;
   let resolvedElements: RillFieldDef[] = [];
-  if (tupleStructure.kind === 'tuple') {
-    const ts = tupleStructure as {
-      kind: 'tuple';
-      elements?: RillFieldDef[];
-    };
-    resolvedElements = ts.elements ?? [];
+  if (isStructureKind(tupleStructure, 'tuple')) {
+    resolvedElements = tupleStructure.elements ?? [];
   }
 
   const inputEntries: RillValue[] = isTupleInput ? input.entries : input;

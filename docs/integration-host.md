@@ -262,7 +262,7 @@ The `fn` property in `RillFunction` uses the `CallableFn` type:
 ```typescript
 type CallableFn = (
   args: Record<string, RillValue>,
-  ctx: RuntimeContextLike,
+  ctx: RuntimeContext,
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
 ```

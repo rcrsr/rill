@@ -1,6 +1,5 @@
 import type { RillFunction } from '../../../core/callable.js';
 import { callable, isCallable, isDict } from '../../../core/callable.js';
-import type { RuntimeContext } from '../../../core/types/runtime.js';
 import {
   throwTypeHalt,
   throwCatchableHostHalt,
@@ -52,7 +51,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       const positional = args as unknown as RillValue[];
       if (positional.length === 0) {
         throwCatchableHostHalt(
-          { location, sourceId: (ctx as RuntimeContext).sourceId, fn: 'log' },
+          { location, sourceId: ctx.sourceId, fn: 'log' },
           ERROR_ATOMS[ERROR_IDS.RILL_R044],
           "Missing argument for parameter 'message'",
           { functionName: 'log', paramName: 'message' }
@@ -60,7 +59,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       }
       const value = positional[0] ?? null;
       const message = formatValue(value);
-      (ctx as RuntimeContext).callbacks.onLog(message);
+      ctx.callbacks.onLog(message);
       return value;
     },
   },
@@ -87,7 +86,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
           throwTypeHalt(
             {
               location,
-              sourceId: (ctx as RuntimeContext).sourceId,
+              sourceId: ctx.sourceId,
               fn: 'json',
             },
             'INVALID_INPUT',
@@ -171,7 +170,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         throwFatalHostHalt(
           {
             location,
-            sourceId: (ctx as RuntimeContext).sourceId,
+            sourceId: ctx.sourceId,
             fn: 'range',
             preserveHostShape: true,
           },
@@ -225,7 +224,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         throwFatalHostHalt(
           {
             location,
-            sourceId: (ctx as RuntimeContext).sourceId,
+            sourceId: ctx.sourceId,
             fn: 'repeat',
             preserveHostShape: true,
           },
@@ -296,7 +295,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
             throwFatalHostHalt(
               {
                 location,
-                sourceId: (ctx as RuntimeContext).sourceId,
+                sourceId: ctx.sourceId,
                 fn: 'chain',
                 preserveHostShape: true,
               },
@@ -304,25 +303,20 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
               `chain: list element must be a closure, got ${inferType(item)}`
             );
           }
-          result = await invokeCallable(
-            item,
-            [result],
-            ctx as RuntimeContext,
-            location
-          );
+          result = await invokeCallable(item, [result], ctx, location);
         }
         return result;
       }
 
       if (isCallable(arg)) {
         // Single closure: invoke with value
-        return invokeCallable(arg, [value], ctx as RuntimeContext, location);
+        return invokeCallable(arg, [value], ctx, location);
       }
 
       return throwFatalHostHalt(
         {
           location,
-          sourceId: (ctx as RuntimeContext).sourceId,
+          sourceId: ctx.sourceId,
           fn: 'chain',
           preserveHostShape: true,
         },
@@ -372,11 +366,8 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       let seed: RillValue;
       let closureArg: RillValue;
       let closureArgSupplied: boolean;
-      if (
-        positional.length === 1 &&
-        (ctx as RuntimeContext).pipeValue !== null
-      ) {
-        seed = (ctx as RuntimeContext).pipeValue;
+      if (positional.length === 1 && ctx.pipeValue !== null) {
+        seed = ctx.pipeValue;
         closureArg = positional[0] ?? null;
         closureArgSupplied = positional.length > 0;
       } else {
@@ -387,7 +378,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'iterate',
       };
 
@@ -408,7 +399,6 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       }
 
       const closure = closureArg;
-      const runtimeCtx = ctx as RuntimeContext;
       let stepCount = 0;
 
       // Build a chunk lazily: emit `current` now, defer closure invocation
@@ -427,7 +417,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
                 `iterate: iteration exceeded ${MAX_ITER} limit`
               );
             }
-            const childCtx = createChildContext(runtimeCtx);
+            const childCtx = createChildContext(ctx);
             childCtx.pipeValue = current;
             const nextSeed = await invokeCallable(
               closure,

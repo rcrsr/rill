@@ -190,9 +190,9 @@ export function compareStructuredFields<T>(
  */
 function normalizeStructure(ts: TypeStructure): TypeStructure {
   if (ts.kind !== undefined) return ts;
-  const legacy = ts as unknown as Record<string, unknown>;
-  if (typeof legacy['type'] === 'string') {
-    return { ...legacy, kind: legacy['type'] };
+  const legacy: object = ts;
+  if ('type' in legacy && typeof legacy.type === 'string') {
+    return { ...legacy, kind: legacy.type };
   }
   return ts;
 }

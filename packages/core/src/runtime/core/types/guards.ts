@@ -10,7 +10,7 @@
  * - No imports from values.ts or callable.ts
  */
 
-import type { CallableMarker } from './markers.js';
+import type { CallableMarker, FieldDescriptorMarker } from './markers.js';
 import type {
   RillAtomValue,
   RillDatetime,
@@ -22,6 +22,7 @@ import type {
   RillTypeValue,
   RillValue,
   RillVector,
+  TypeStructure,
 } from './structures.js';
 
 /**
@@ -37,6 +38,33 @@ export function isAtom(value: unknown): value is RillAtomValue {
     '__rill_atom' in value &&
     (value as RillAtomValue).__rill_atom === true
   );
+}
+
+/** Internal: object and non-null (arrays included). */
+export function isObjectRecord(
+  value: unknown
+): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+/** Internal: field descriptor marker check. */
+export function isFieldDescriptor(
+  value: unknown
+): value is FieldDescriptorMarker {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    '__rill_field_descriptor' in value &&
+    value.__rill_field_descriptor === true
+  );
+}
+
+/** Internal: narrow a TypeStructure to the variant with the given kind. */
+export function isStructureKind<K extends TypeStructure['kind']>(
+  s: TypeStructure,
+  kind: K
+): s is Extract<TypeStructure, { kind: K }> {
+  return s.kind === kind;
 }
 
 /** Type guard for RillTuple (spread args) */

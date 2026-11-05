@@ -26,16 +26,15 @@ import { markExtensionThrow } from '../../extension-throw.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import type { RillValue, RillStream } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
-import { isStream } from '../../types/guards.js';
+import { isObjectRecord, isStream } from '../../types/guards.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
 import { ControlSignal, YieldSignal } from '../../signals.js';
 import type { EvalState } from '../state.js';
 import { haltSlowPath } from './access.js';
 import {
-  STATUS_SYM,
   appendTraceFrame,
   getStatus,
-  type RillStatus,
+  hasStatusSidecar,
 } from '../../types/status.js';
 import {
   ArgumentsBinder,
@@ -117,18 +116,16 @@ export function hasTopLevelDollarInAST(
  * because `$` inside either is late-bound and not a pipe placeholder.
  */
 function containsDollar(node: unknown): boolean {
-  if (node === null || typeof node !== 'object' || Array.isArray(node))
-    return false;
-  const n = node as Record<string, unknown>;
+  if (!isObjectRecord(node) || Array.isArray(node)) return false;
 
   // Stop at closure / block boundaries — `$` inside is late-bound
-  if (n['type'] === 'Closure' || n['type'] === 'Block') return false;
+  if (node['type'] === 'Closure' || node['type'] === 'Block') return false;
 
   // Bare `$` pipe placeholder
-  if (n['type'] === 'Variable' && n['isPipeVar'] === true) return true;
+  if (node['type'] === 'Variable' && node['isPipeVar'] === true) return true;
 
   // Recurse into child properties
-  for (const value of Object.values(n)) {
+  for (const value of Object.values(node)) {
     if (Array.isArray(value)) {
       for (const item of value) {
         if (containsDollar(item)) return true;
@@ -228,11 +225,7 @@ export async function evaluateArgs(
       const expr = isSpread ? arg.expression : arg;
       const evaluated = await evaluateExpression(s, expr);
       let gated: RillValue;
-      if (
-        evaluated !== null &&
-        typeof evaluated === 'object' &&
-        (evaluated as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !== undefined
-      ) {
+      if (hasStatusSidecar(evaluated)) {
         gated = haltSlowPath(
           evaluated,
           isSpread ? '...' : 'arg',
@@ -651,7 +644,7 @@ export function createCallableContext(
   const hasExplicitParams =
     callable.params.length > 0 && callable.params[0]!.name !== '$';
 
-  const defScope = callable.definingScope as RuntimeContext;
+  const defScope = callable.definingScope;
   const callableCtx: RuntimeContext = {
     ...s.ctx,
     parent: defScope,
@@ -844,7 +837,9 @@ async function invokeRegularScriptCallable(
           : {}
       );
       // The clone is fresh and unshared, so setting sourceId on it is safe.
-      (enriched as { sourceId: string }).sourceId = callableCtx.sourceId;
+      Object.defineProperty(enriched, 'sourceId', {
+        value: callableCtx.sourceId,
+      });
       throw enriched;
     }
     throw e;

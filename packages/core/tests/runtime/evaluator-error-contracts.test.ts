@@ -17,11 +17,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { anyTypeValue, getStatus, RuntimeError } from '@rcrsr/rill';
-import {
-  run,
-  runWithFakeTimers,
-  toRuntimeContext,
-} from '../helpers/runtime.js';
+import { run, runWithFakeTimers } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Evaluator Base Class', () => {
@@ -211,7 +207,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
               params: [],
               fn: async (_args, ctx) => {
                 // Call another async function that will timeout
-                const innerFn = toRuntimeContext(ctx).functions.get('inner');
+                const innerFn = ctx.functions.get('inner');
                 if (innerFn && 'fn' in innerFn) {
                   return await innerFn.fn({}, ctx);
                 }

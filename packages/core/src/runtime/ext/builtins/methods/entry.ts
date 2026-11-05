@@ -1,5 +1,4 @@
 import type { RillFunction } from '../../../core/callable.js';
-import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { throwFatalHostHalt } from '../../../core/types/halt.js';
 import { parseSignatureRegistration } from '../../../../signature-parser.js';
@@ -39,7 +38,7 @@ export function buildMethodEntry(
         throwFatalHostHalt(
           {
             location,
-            sourceId: (ctx as RuntimeContext).sourceId,
+            sourceId: ctx.sourceId,
             fn: name,
             preserveHostShape: true,
           },
@@ -51,11 +50,12 @@ export function buildMethodEntry(
       // Reconstruct positional args array for RillMethod from named params in order.
       // UNVALIDATED_METHOD_PARAMS methods pass __positionalArgs to preserve actual
       // arg count so method body arity checks (args.length !== 1) fire correctly.
-      const positionalArgs: RillValue[] =
-        '__positionalArgs' in args
-          ? (args['__positionalArgs'] as unknown as RillValue[])
-          : methodParams.map((p) => args[p.name] ?? null);
-      return method(receiver, positionalArgs, ctx as RuntimeContext, location);
+      // A non-array `__positionalArgs` is intentionally ignored; the param-mapped args apply.
+      const forwarded = args['__positionalArgs'];
+      const positionalArgs: RillValue[] = Array.isArray(forwarded)
+        ? forwarded
+        : methodParams.map((p) => args[p.name] ?? null);
+      return method(receiver, positionalArgs, ctx, location);
     },
     annotations:
       parsed.description !== undefined

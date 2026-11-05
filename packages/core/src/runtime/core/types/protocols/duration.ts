@@ -8,10 +8,11 @@
  * MUST NOT import from ../registrations.js or sibling protocols/*.
  */
 
-import type { RillValue, RillDuration } from '../structures.js';
+import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isDuration } from '../guards.js';
 import { throwTypeHalt, throwFatalHostHalt } from '../halt.js';
+import { requireDuration } from './shared.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
@@ -26,7 +27,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * Clock decomposition: days, hours, minutes, seconds, ms from the ms field.
  */
 function formatDuration(v: RillValue): string {
-  const dur = v as unknown as RillDuration;
+  const dur = isDuration(v) ? v : requireDuration(v, { fn: 'format-duration' });
   const parts: string[] = [];
 
   // Calendar components
@@ -75,12 +76,16 @@ function eqDuration(a: RillValue, b: RillValue): boolean {
  * so we halt with RILL-R002.
  */
 function compareDuration(a: RillValue, b: RillValue): number {
-  const da = a as unknown as RillDuration;
-  const db = b as unknown as RillDuration;
+  const da = isDuration(a)
+    ? a
+    : requireDuration(a, { fn: 'compare-duration' }, 'left operand');
+  const db = isDuration(b)
+    ? b
+    : requireDuration(b, { fn: 'compare-duration' }, 'right operand');
   if (da.months !== db.months) {
     const message = 'Cannot order durations with different calendar components';
     throwFatalHostHalt(
-      { fn: 'compareDuration', preserveHostShape: true },
+      { fn: 'compare-duration', preserveHostShape: true },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
       message
     );
@@ -98,7 +103,9 @@ function compareDuration(a: RillValue, b: RillValue): number {
  * Calendar durations (months>0): {months, ms} object.
  */
 function serializeDuration(v: RillValue): unknown {
-  const dur = v as unknown as RillDuration;
+  const dur = isDuration(v)
+    ? v
+    : requireDuration(v, { fn: 'serialize-duration' });
   if (dur.months === 0) return dur.ms;
   return { months: dur.months, ms: dur.ms };
 }

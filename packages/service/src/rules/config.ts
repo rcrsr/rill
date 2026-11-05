@@ -26,6 +26,10 @@ const DIAGNOSTIC_SEVERITIES: readonly DiagnosticSeverity[] = [
   'info',
 ];
 
+function isStringKeyedRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 function isRuleState(value: unknown): value is RuleState {
   return (
     typeof value === 'string' &&
@@ -93,10 +97,8 @@ export function validateConfig(config: CheckConfig): ValidationError[] | null {
   const knownCodes = getKnownRuleCodes();
   const rulesMap: unknown = config.rules;
 
-  if (typeof rulesMap === 'object' && rulesMap !== null) {
-    for (const [code, state] of Object.entries(
-      rulesMap as Record<string, unknown>
-    )) {
+  if (isStringKeyedRecord(rulesMap)) {
+    for (const [code, state] of Object.entries(rulesMap)) {
       if (!knownCodes.has(code)) {
         errors.push({
           code: 'UNKNOWN_RULE_CODE',

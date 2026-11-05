@@ -1,6 +1,5 @@
 import type { RillFunction } from '../../../core/callable.js';
 import { callable, isCallable } from '../../../core/callable.js';
-import type { RuntimeContext } from '../../../core/types/runtime.js';
 import {
   rejectBreakAsHalt,
   RuntimeHaltSignal,
@@ -87,7 +86,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'take',
       };
 
@@ -123,7 +122,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       // This handles infinite iterators (e.g. cycle) correctly.
       if (isStream(input) || isIterator(input)) {
         const loc = location ?? { line: 0, column: 0, offset: 0 };
-        const evaluator = getEvalState(ctx as RuntimeContext);
+        const evaluator = getEvalState(ctx);
 
         // Host streams (not plain iterators) may hold resources released via
         // an idempotent dispose hook. take() only ever consumes a prefix, so
@@ -137,7 +136,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
             clamped,
             evaluator,
             loc,
-            (ctx as RuntimeContext).sourceId,
+            ctx.sourceId,
             true
           );
           return elements;
@@ -150,11 +149,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
       return elements.slice(0, clamped);
     },
   },
@@ -188,7 +183,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'skip',
       };
 
@@ -217,11 +212,11 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       if (isStream(input) || isIterator(input)) {
         const loc = location ?? { line: 0, column: 0, offset: 0 };
         const node = { span: { start: loc } };
-        const evaluator = getEvalState(ctx as RuntimeContext);
+        const evaluator = getEvalState(ctx);
 
         if (n === 0) {
           // No skipping: materialize the whole sequence normally.
-          return getIterableElements(input, ctx as RuntimeContext, node);
+          return getIterableElements(input, ctx, node);
         }
 
         // Walk n steps to skip them, then materialize the remainder. A
@@ -236,7 +231,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
             n,
             evaluator,
             loc,
-            (ctx as RuntimeContext).sourceId
+            ctx.sourceId
           ));
         } catch (e) {
           disposeStreamInput(input, site);
@@ -249,22 +244,14 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         }
 
         // Materialize the remainder using the tail iterator/stream state.
-        return getIterableElements(
-          tail as unknown as RillValue,
-          ctx as RuntimeContext,
-          node
-        );
+        return getIterableElements(tail as unknown as RillValue, ctx, node);
       }
 
       // All other iterables (dict, string): materialize then slice
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
       return elements.slice(n);
     },
   },
@@ -291,11 +278,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       // Empty input → empty iterator (empty guard)
       if (elements.length === 0) {
@@ -365,7 +348,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'batch',
       };
 
@@ -439,11 +422,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       const chunks = chunkSlice(elements, n);
 
@@ -508,7 +487,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'window',
       };
 
@@ -553,11 +532,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       const windows: RillValue[] = [];
       let start = 0;
@@ -609,7 +584,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'start_when',
       };
 
@@ -624,11 +599,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       const result: RillValue[] = [];
       let triggered = false;
@@ -637,7 +608,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       try {
         for (const element of elements) {
           if (!triggered) {
-            const childCtx = createChildContext(ctx as RuntimeContext);
+            const childCtx = createChildContext(ctx);
             childCtx.pipeValue = element;
             const testResult = await invokeCallable(
               predicate,
@@ -704,7 +675,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'stop_when',
       };
 
@@ -719,11 +690,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       const result: RillValue[] = [];
 
@@ -736,7 +703,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
               `stop_when: yield count exceeded ${MAX_ITER} limit`
             );
           }
-          const childCtx = createChildContext(ctx as RuntimeContext);
+          const childCtx = createChildContext(ctx);
           childCtx.pipeValue = element;
           const testResult = await invokeCallable(
             predicate,

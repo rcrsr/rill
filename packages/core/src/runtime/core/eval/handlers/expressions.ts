@@ -37,7 +37,7 @@ import { createChildContext } from '../../context.js';
 import { isCallable } from '../../callable.js';
 import type { EvalState } from '../state.js';
 import { accessHaltGate, haltSlowPath } from './access.js';
-import { STATUS_SYM, type RillStatus } from '../../types/status.js';
+import { hasStatusSidecar } from '../../types/status.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { invokeCallable } from './closures.js';
 import { evaluatePostfixExpr, evaluatePipeChain } from './core.js';
@@ -190,11 +190,7 @@ export async function evaluateBinaryExpr(
   // required in this hot loop. Slow path delegates to
   // `haltSlowPath` which reads `node.span.start` itself.
   let resolvedLeft: RillValue;
-  if (
-    resolvedLeftRaw !== null &&
-    typeof resolvedLeftRaw === 'object' &&
-    (resolvedLeftRaw as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !== undefined
-  ) {
+  if (hasStatusSidecar(resolvedLeftRaw)) {
     resolvedLeft = haltSlowPath(resolvedLeftRaw, op, node.left, s.ctx.sourceId);
   } else {
     resolvedLeft = resolvedLeftRaw;
@@ -215,12 +211,7 @@ export async function evaluateBinaryExpr(
   const rawRight = await evaluateExprHead(s, node.right);
   const resolvedRightRaw = await resolveExpressionValue(s, rawRight);
   let resolvedRight: RillValue;
-  if (
-    resolvedRightRaw !== null &&
-    typeof resolvedRightRaw === 'object' &&
-    (resolvedRightRaw as { [STATUS_SYM]?: RillStatus })[STATUS_SYM] !==
-      undefined
-  ) {
+  if (hasStatusSidecar(resolvedRightRaw)) {
     resolvedRight = haltSlowPath(
       resolvedRightRaw,
       op,

@@ -34,6 +34,13 @@ function getDefaultState(): EditorState {
 }
 
 /**
+ * Narrow a parsed JSON value to a non-null object with string keys.
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
  * Calculate valid splitRatio bounds that enforce minimum panel width.
  *
  * Uses actual viewport width when available (browser context).
@@ -106,19 +113,17 @@ export function loadEditorState(): EditorState {
 
     const parsed: unknown = JSON.parse(stored);
 
-    if (typeof parsed !== 'object' || parsed === null) {
+    if (!isRecord(parsed)) {
       return getDefaultState();
     }
 
-    const state = parsed as Record<string, unknown>;
-
     const splitRatio =
-      typeof state['splitRatio'] === 'number'
-        ? clampSplitRatio(state['splitRatio'])
+      typeof parsed['splitRatio'] === 'number'
+        ? clampSplitRatio(parsed['splitRatio'])
         : 50;
     const lastSource =
-      typeof state['lastSource'] === 'string'
-        ? state['lastSource']
+      typeof parsed['lastSource'] === 'string'
+        ? parsed['lastSource']
         : DEFAULT_SOURCE;
 
     return { splitRatio, lastSource };

@@ -1,5 +1,4 @@
 import type { RillFunction } from '../../../core/callable.js';
-import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { throwCatchableHostHalt } from '../../../core/types/halt.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
@@ -46,7 +45,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'debounce',
       };
 
@@ -74,11 +73,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       // Iteration cap enforced by the getIterableElements limit; halts propagate
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       if (elements.length === 0) {
         return [];
@@ -137,7 +132,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'throttle',
       };
 
@@ -165,11 +160,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       // Iteration cap enforced by the getIterableElements limit; halts propagate
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       if (elements.length === 0) {
         return [];
@@ -225,7 +216,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'sample',
       };
 
@@ -252,11 +243,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       // Iteration cap enforced by the getIterableElements limit; halts propagate
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       if (elements.length === 0) {
         return [];

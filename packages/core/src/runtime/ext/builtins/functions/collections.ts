@@ -13,7 +13,7 @@ import {
   isStream,
   isVector,
 } from '../../../core/types/guards.js';
-import type { RuntimeContext } from '../../../core/types/runtime.js';
+import type { MetadataContext } from '../../../core/types/runtime.js';
 import type { SourceLocation } from '../../../../source-location.js';
 import {
   rejectBreakAsHalt,
@@ -60,12 +60,12 @@ const DICT_DEFAULT_KEY_FN = callable((args) => {
 /** Halt-site descriptor shared by the collection built-ins' host halts. */
 function buildSite(
   fn: string,
-  ctx: unknown,
+  ctx: MetadataContext,
   location: SourceLocation | undefined
 ): TypeHaltSite {
   return {
     location,
-    sourceId: (ctx as RuntimeContext).sourceId,
+    sourceId: ctx.sourceId,
     fn,
     preserveHostShape: true,
   };
@@ -118,11 +118,11 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       if (isStream(input) || isIterator(input)) {
         const { results } = await walkStreamOrIteratorElements(
           input,
-          ctx as RuntimeContext,
+          ctx,
           node,
           'seq',
           (element) => {
-            const childCtx = createChildContext(ctx as RuntimeContext);
+            const childCtx = createChildContext(ctx);
             childCtx.pipeValue = element;
             const closureToInvoke = isScriptCallable(body)
               ? { ...body, definingScope: childCtx }
@@ -138,11 +138,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return results;
       }
 
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       const results: RillValue[] = [];
       let iterCount = 0;
@@ -162,7 +158,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             );
           }
 
-          const childCtx = createChildContext(ctx as RuntimeContext);
+          const childCtx = createChildContext(ctx);
           childCtx.pipeValue = element;
           const closureToInvoke = isScriptCallable(body)
             ? { ...body, definingScope: childCtx }
@@ -276,11 +272,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       if (elements.length === 0) {
         return [];
@@ -288,14 +280,14 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'fan',
       };
 
       if (concurrency === undefined) {
         // Unbounded parallel: Promise.all over all elements
         const promises = elements.map((element) => {
-          const childCtx = createChildContext(ctx as RuntimeContext, {
+          const childCtx = createChildContext(ctx, {
             forkCallDepth: true,
           });
           childCtx.pipeValue = element;
@@ -313,7 +305,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const results: RillValue[] = [];
       for (const batch of chunkSlice(elements, concurrency)) {
         const batchPromises = batch.map((element) => {
-          const childCtx = createChildContext(ctx as RuntimeContext, {
+          const childCtx = createChildContext(ctx, {
             forkCallDepth: true,
           });
           childCtx.pipeValue = element;
@@ -384,11 +376,11 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         let lazyAccumulator: RillValue = seed;
         const { results: lazyResults } = await walkStreamOrIteratorElements(
           input,
-          ctx as RuntimeContext,
+          ctx,
           node,
           'acc',
           async (element) => {
-            const childCtx = createChildContext(ctx as RuntimeContext);
+            const childCtx = createChildContext(ctx);
             childCtx.variables.set('@', lazyAccumulator);
             childCtx.pipeValue = element;
             const closureToInvoke = isScriptCallable(body)
@@ -417,11 +409,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return lazyResults;
       }
 
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       const results: RillValue[] = [];
       let accumulator: RillValue = seed;
@@ -442,7 +430,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             );
           }
 
-          const childCtx = createChildContext(ctx as RuntimeContext);
+          const childCtx = createChildContext(ctx);
           childCtx.variables.set('@', accumulator);
           childCtx.pipeValue = element;
           const closureToInvoke = isScriptCallable(body)
@@ -520,18 +508,14 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       let accumulator: RillValue = seed;
       let iterCount = 0;
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'fold',
       };
 
@@ -549,7 +533,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           );
         }
 
-        const childCtx = createChildContext(ctx as RuntimeContext);
+        const childCtx = createChildContext(ctx);
         childCtx.variables.set('@', accumulator);
         childCtx.pipeValue = element;
         const closureToInvoke = isScriptCallable(body)
@@ -673,11 +657,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       if (elements.length === 0) {
         return [];
@@ -685,13 +665,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'filter',
       };
 
       /** Run the predicate for a single element and return keep/discard result. */
       const runPredicate = async (element: RillValue) => {
-        const childCtx = createChildContext(ctx as RuntimeContext, {
+        const childCtx = createChildContext(ctx, {
           forkCallDepth: true,
         });
         childCtx.pipeValue = element;
@@ -784,7 +764,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
       const site = {
         location,
-        sourceId: (ctx as RuntimeContext).sourceId,
+        sourceId: ctx.sourceId,
         fn: 'sort',
       };
 
@@ -838,7 +818,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         const keyed = await Promise.all(
           entries.map(async ([k, v]) => {
             const entry: RillValue = { key: k, value: v };
-            const childCtx = createChildContext(ctx as RuntimeContext, {
+            const childCtx = createChildContext(ctx, {
               forkCallDepth: true,
             });
             childCtx.pipeValue = entry;
@@ -883,11 +863,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
-      const elements = await getIterableElements(
-        input,
-        ctx as RuntimeContext,
-        node
-      );
+      const elements = await getIterableElements(input, ctx, node);
 
       if (!keyFnArg) {
         // Default identity: compare elements directly via resolvedCompareValue.
@@ -910,7 +886,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       // With key_fn: pre-extract sort keys asynchronously (extractor halts propagate naturally).
       const keyed = await Promise.all(
         elements.map(async (el) => {
-          const childCtx = createChildContext(ctx as RuntimeContext, {
+          const childCtx = createChildContext(ctx, {
             forkCallDepth: true,
           });
           childCtx.pipeValue = el;
