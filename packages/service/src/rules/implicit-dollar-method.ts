@@ -10,7 +10,7 @@
  * over the whole source.
  */
 
-import type { ASTNode, MethodCallNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -26,7 +26,8 @@ export const implicitDollarMethod: Rule = {
   category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const methodNode = node as MethodCallNode;
+    if (node.type !== 'MethodCall') return [];
+    const methodNode = node;
 
     // No receiverSpan means implicit receiver (already correct form).
     if (methodNode.receiverSpan === null) {

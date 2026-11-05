@@ -13,7 +13,7 @@
  * dot in `.{block}`, `.(a || b)`, and `.^key` goes unreported.
  */
 
-import type { ASTNode, FieldAccess, VariableNode } from '@rcrsr/rill';
+import type { ASTNode, FieldAccess } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import {
   extractContextLine,
@@ -53,8 +53,9 @@ export const spacingMember: Rule = {
   category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
+    if (node.type !== 'Variable') return [];
     const diagnostics: Diagnostic[] = [];
-    const variableNode = node as VariableNode;
+    const variableNode = node;
 
     // The `.?path` existence check is not part of accessChain: the parser
     // hangs its final field off existenceCheck, so checking accessChain

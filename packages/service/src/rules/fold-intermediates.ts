@@ -19,7 +19,7 @@
  * other non-adjacent consumer, stays silent.
  */
 
-import type { ASTNode, PipeChainNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { isCollectionOpCall } from './collection-ops.js';
@@ -32,7 +32,8 @@ export const foldIntermediates: Rule = {
   category: 'collections',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const pipeChainNode = node as PipeChainNode;
+    if (node.type !== 'PipeChain') return [];
+    const pipeChainNode = node;
     const pipes = pipeChainNode.pipes;
     const diagnostics: Diagnostic[] = [];
 

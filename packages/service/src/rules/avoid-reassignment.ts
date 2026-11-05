@@ -4,7 +4,7 @@
  * flow control. Prefer functional style or new variables.
  */
 
-import type { ASTNode, CaptureNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -17,7 +17,8 @@ export const avoidReassignment: Rule = {
   category: 'anti-patterns',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const captureNode = node as CaptureNode;
+    if (node.type !== 'Capture') return [];
+    const captureNode = node;
     const varName = captureNode.name;
 
     if (context.variables.has(varName)) {

@@ -7,7 +7,7 @@
  * but it's a good practice for critical paths.
  */
 
-import type { ASTNode, HostCallNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -66,7 +66,8 @@ export const validateExternal: Rule = {
   category: 'types',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const hostCallNode = node as HostCallNode;
+    if (node.type !== 'HostCall') return [];
+    const hostCallNode = node;
     const functionName = hostCallNode.name;
 
     // Skip namespaced functions (ns::func) - these are trusted host APIs.

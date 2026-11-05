@@ -65,7 +65,8 @@ export const presenceOverNullGuard: Rule = {
   category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const cond = node as ConditionalNode;
+    if (node.type !== 'Conditional') return [];
+    const cond = node;
     const binExpr = unwrapConditionToBinary(cond);
     if (!binExpr) return [];
     if (binExpr.op !== '==' && binExpr.op !== '!=') return [];

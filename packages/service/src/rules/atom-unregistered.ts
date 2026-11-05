@@ -5,7 +5,7 @@
  */
 
 import { BUILTIN_ATOMS } from '@rcrsr/rill';
-import type { ASTNode, AtomLiteralNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -24,7 +24,8 @@ export const atomUnregistered: Rule = {
   category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const atom = node as AtomLiteralNode;
+    if (node.type !== 'AtomLiteral') return [];
+    const atom = node;
     if (BUILTIN_ATOM_SET.has(atom.name)) return [];
 
     return [

@@ -15,7 +15,7 @@
  * though many of them are equally certain to halt at runtime.
  */
 
-import type { ASTNode, BodyNode, ConditionalNode } from '@rcrsr/rill';
+import type { ASTNode, BodyNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -112,7 +112,8 @@ export const conditionType: Rule = {
   category: 'conditionals',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const conditionalNode = node as ConditionalNode;
+    if (node.type !== 'Conditional') return [];
+    const conditionalNode = node;
     const primary = unwrapCondition(conditionalNode.condition);
 
     if (primary === null || !NON_BOOL_PRIMARY_TYPES.has(primary.type)) {

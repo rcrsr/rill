@@ -5,7 +5,7 @@
  * form.
  */
 
-import type { ASTNode, ConditionalNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -21,7 +21,8 @@ export const guardOverTryCatch: Rule = {
   category: 'errors',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const cond = node as ConditionalNode;
+    if (node.type !== 'Conditional') return [];
+    const cond = node;
     if (!cond.condition) return [];
     if (context.facts.bySubtree.get(cond.condition)?.hasStatusProbe !== true)
       return [];

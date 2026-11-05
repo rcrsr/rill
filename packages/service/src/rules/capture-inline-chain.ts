@@ -22,7 +22,7 @@
  * top-level-only lookahead without adding a new field to `RuleContext`.
  */
 
-import type { ASTNode, ScriptNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -102,7 +102,8 @@ export const captureInlineChain: Rule = {
   category: 'flow',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const scriptNode = node as ScriptNode;
+    if (node.type !== 'Script') return [];
+    const scriptNode = node;
     return checkStatementList(scriptNode.statements, context.source);
   },
 };

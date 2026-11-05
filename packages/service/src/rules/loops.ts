@@ -2,7 +2,7 @@
  * Loop convention rules: enforces idioms for `while` and `do-while` loops.
  */
 
-import type { ASTNode, DoWhileLoopNode, WhileLoopNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -51,7 +51,8 @@ export const loopAccumulator: Rule = {
   category: 'loops',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const loop = node as WhileLoopNode | DoWhileLoopNode;
+    if (node.type !== 'WhileLoop' && node.type !== 'DoWhileLoop') return [];
+    const loop = node;
 
     const capturedNames = capturesInSubtree(context.facts, loop.body).map(
       (capture) => `$${capture.name}`
@@ -100,7 +101,8 @@ export const preferDoWhile: Rule = {
   category: 'loops',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const loop = node as WhileLoopNode;
+    if (node.type !== 'WhileLoop') return [];
+    const loop = node;
 
     if (callsRetryFunction(loop.body)) {
       return [
@@ -131,7 +133,8 @@ export const useEach: Rule = {
   category: 'loops',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const loop = node as WhileLoopNode;
+    if (node.type !== 'WhileLoop') return [];
+    const loop = node;
 
     const hasLenCheck =
       context.facts.bySubtree.get(loop.condition)?.hasLenFieldAccess ?? false;

@@ -3,7 +3,7 @@
  * single argument is a bare $, the pipe form `-> foo` is preferred.
  */
 
-import type { ASTNode, HostCallNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { bareDollarSingleArgDiagnostic, isBareReference } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -19,7 +19,8 @@ export const implicitDollarFunction: Rule = {
   category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const hostCallNode = node as HostCallNode;
+    if (node.type !== 'HostCall') return [];
+    const hostCallNode = node;
 
     if (hostCallNode.args.length === 0) {
       return [];

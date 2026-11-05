@@ -9,7 +9,7 @@
  * omission here.
  */
 
-import type { ASTNode, PostfixExprNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import {
   extractContextLine,
@@ -26,8 +26,9 @@ export const spacingBrackets: Rule = {
   category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
+    if (node.type !== 'PostfixExpr') return [];
     const diagnostics: Diagnostic[] = [];
-    const postfixNode = node as PostfixExprNode;
+    const postfixNode = node;
 
     // Only process if primary is a Variable (contains accessChain).
     if (postfixNode.primary.type !== 'Variable') {

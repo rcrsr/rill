@@ -15,7 +15,7 @@
  * are invalid rill syntax.
  */
 
-import type { ASTNode, PipeChainNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractSpanText } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -42,8 +42,9 @@ export const indentContinuation: Rule = {
   category: 'formatting',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
+    if (node.type !== 'PipeChain') return [];
     const diagnostics: Diagnostic[] = [];
-    const pipeNode = node as PipeChainNode;
+    const pipeNode = node;
 
     // Single-line chain: nothing to check.
     if (pipeNode.span.start.line === pipeNode.span.end.line) {

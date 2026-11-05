@@ -144,7 +144,8 @@ export const unnecessaryAssertion: Rule = {
   category: 'types',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const assertionNode = node as TypeAssertionNode;
+    if (node.type !== 'TypeAssertion') return [];
+    const assertionNode = node;
     const operand = assertionNode.operand;
 
     // Bare assertions (:type) are valid - they check the pipe value.

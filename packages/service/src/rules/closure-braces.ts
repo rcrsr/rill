@@ -4,7 +4,7 @@
  * scan; braces make control flow visually explicit.
  */
 
-import type { ASTNode, ClosureNode } from '@rcrsr/rill';
+import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -20,7 +20,8 @@ export const closureBraces: Rule = {
   category: 'closures',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    const closureNode = node as ClosureNode;
+    if (node.type !== 'Closure') return [];
+    const closureNode = node;
     const body = closureNode.body;
 
     if (body.type === 'GroupedExpr') {
