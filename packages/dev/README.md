@@ -28,7 +28,7 @@ its lint and conformance setup from what is here.
 `pnpm-workspace.yaml` as the canonical pins for the ecosystem's shared tooling.
 A consuming repository has neither file, so every element that compared
 against them used to report `--`. `baseline.json` closes that gap for
-STD-LINT-1, STD-LINT-5, STD-LINT-9, STD-PM-2, STD-DEP-1, STD-DEP-2, and
+STD-LINT-1, STD-LINT-5, STD-LINT-9, STD-LINT-12, STD-PM-2, STD-DEP-1, STD-DEP-2, and
 STD-DEP-5: it ships in the tarball, sits in `node_modules/@rcrsr/rill-dev/`
 next to the checker, and `rill-check-standards` reads it there.
 
@@ -87,19 +87,37 @@ pnpm add -D @rcrsr/rill-dev
    before the first identifier lands. `no-duplicate-error-id` is keyed to
    `RuntimeError` construction, so in practice it applies to `rill` alone;
    leaving it off elsewhere is a recorded decision, not a gap.
+   `STD-LINT-12` requires every rule `baseline.json` sets to `error` or `warn`
+   in the top-level `rules`, relaxed per file in `overrides`.
 
-   `baseline.json` also carries type-aware rules (the `typescript/*` rules that
-   need type information). They are inert unless `oxlint-tsgolint` is
-   installed and the `lint` script passes `--type-aware`, and each linted tree
-   needs a governing `tsconfig.json`; a tree without one is linted under the
-   backend's defaults, which lack `noUncheckedIndexedAccess`. `baseline.json`
-   pins only the severity of each rule. rill also sets `typescript/return-await`
-   to `error-handling-correctness-only` and
+2. **Enable the type-aware rules** (`STD-LINT-11`). `baseline.json` carries
+   type-aware rules (the `typescript/*` rules that need type information). They
+   are inert unless `oxlint-tsgolint` is installed and the `lint` script passes
+   `--type-aware`. Install it at the range `baseline.json` pins under
+   `sharedTooling`:
+
+   ```bash
+   pnpm add -D oxlint-tsgolint@^7.0.2005
+   ```
+
+   ```json
+   {
+     "scripts": {
+       "lint": "oxlint --type-aware src/ tests/"
+     }
+   }
+   ```
+
+   Setting `options.typeAware: true` in `.oxlintrc.json` is the equivalent.
+   Each linted tree needs a governing `tsconfig.json`; a tree without one is
+   linted under the backend's defaults, which lack `noUncheckedIndexedAccess`.
+   `baseline.json` pins only the severity of each rule. rill also sets
+   `typescript/return-await` to `error-handling-correctness-only` and
    `typescript/switch-exhaustiveness-check` to
    `considerDefaultExhaustiveForUnions: true`; set the same options in your
    `.oxlintrc.json`, or lint fails where rill passes.
 
-2. **Wire up the two binaries** in the root `package.json`, and call
+3. **Wire up the two binaries** in the root `package.json`, and call
    `check:standards` from the root `check` script:
 
    ```json

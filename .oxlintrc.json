@@ -181,7 +181,7 @@
     // Also deliberately NOT enabled. Re-check before adding:
     // - promise/param-names (16 hits): stylistic; requires Promise executor
     //   params be named resolve/reject.
-    // - import/no-duplicates (18 hits): only 7 are real duplicates. The other
+    // - import/no-duplicates (21 hits): only 7 are real duplicates. The other
     //   11 are `import type` + `import` from one module, which is the split
     //   verbatimModuleSyntax encourages and this tree uses widely; the
     //   prefer-inline option reports 98. It is a style choice, not a defect.
@@ -189,30 +189,111 @@
     //   invariant guards (a const and an options field) where a different
     //   conjunct advances parser state and terminates the loop.
 
-    // `suspicious` and `perf` were evaluated as categories and both declined.
-    // Counts measured on this tree with the full src/ + tests/ scope. Recorded
-    // here so the next reader does not have to re-measure to find out whether
-    // omitting them was a decision.
+    // Every oxlint category beyond `correctness` was evaluated, and so were
+    // the type-aware rules not enabled above. None of the rules below is on,
+    // and each is off as a decision, not by omission. Scope: full src/ +
+    // tests/ scope, oxlint 1.86.0. Counts are hits over core, service and
+    // fiddle with the rule enabled alone on the command line (type-aware
+    // rules with --type-aware), before any override in this file. A category
+    // total excludes rules this config already enables and the type-aware
+    // rules, which are counted in their own subsection. Recorded here so the
+    // next reader does not have to re-measure to find out whether omitting
+    // them was a decision.
     //
-    // perf, 96 hits, 91 of them one rule:
-    // - no-await-in-loop (91): this is the semantics, not a defect. rill is a
+    // perf, 130 hits, 122 of them one rule:
+    // - no-await-in-loop (122): this is the semantics, not a defect. rill is a
     //   sequential interpreter and its `seq` operator is defined to await each
     //   element in order. Parallelising is what `fan` is for.
-    // - unicorn/prefer-set-has (3): the rule assumes a large array. Both
+    // - unicorn/prefer-set-has (5): the rule assumes a large array. The
     //   production hits are 3-element constant lists where a Set is slower.
-    // - oxc/no-map-spread (2): the fix it suggests, Object.assign or in-place
+    // - oxc/no-map-spread (3): the fix it suggests, Object.assign or in-place
     //   assignment, is worse than the conditional-spread idiom it flags.
     //
-    // suspicious, 287 hits, 88 inside the locked language arbiter:
-    // - no-underscore-dangle (106): contradicts this config's own
+    // suspicious, 357 hits, 75 inside the locked language arbiter:
+    // - unicorn/consistent-function-scoping (106): stylistic.
+    // - no-underscore-dangle (92): contradicts this config's own
     //   argsIgnorePattern of ^_, which is how unused params are marked here.
-    // - no-new (61): every hit is in tests/runtime, constructing a value to
+    // - import/no-unassigned-import (52): side-effect imports in test setup.
+    // - no-new (45): every hit is in tests/runtime, constructing a value to
     //   assert on the constructor. That is the test, not a side effect.
-    // - unicorn/consistent-function-scoping (49): stylistic.
-    // - import/no-unassigned-import (47): side-effect imports in test setup.
-    // - unicorn/no-array-sort (16): wants toSorted; a style choice.
-    // - promise/always-return (5), no-unmodified-loop-condition (2, already
-    //   covered above), unicorn/no-array-reverse (1).
+    // - unicorn/no-array-sort (24): wants toSorted; a style choice.
+    // - oxc/no-this-in-exported-function (21): stylistic.
+    // - promise/always-return (11), unicorn/require-post-message-target-origin
+    //   (3), no-unmodified-loop-condition (2, already covered above),
+    //   unicorn/no-array-reverse (1).
+    //
+    // pedantic, 2518 hits across the rules not enabled above. Most of the
+    // volume is two rules that fight how this tree is written:
+    // - max-lines-per-function (975): the default is 50 lines, and every
+    //   evaluator handler is a long switch by design.
+    // - no-inline-comments (331): trailing comments are used throughout to
+    //   annotate table rows and union members.
+    // - require-unicode-regexp (528): wants the `u` flag on every regex, which
+    //   changes matching for no gain on the ASCII-only patterns used here.
+    // - vitest/no-conditional-in-test (356): same reason as
+    //   vitest/no-conditional-expect above; tests narrow unions with guards.
+    // - no-negated-condition (136, 68 eslint and 68 unicorn): the two rules
+    //   report the same sites; `if (!x) a else b` is often the clearer order.
+    // - max-depth (35): parser and evaluator nesting follows the grammar.
+    // - unicorn/prefer-string-replace-all (26): replace with a global regex is
+    //   equivalent and already common.
+    // - import/max-dependencies (29): barrel and test files import widely.
+    // - no-lonely-if (28, 24 unicorn and 4 eslint): `else { if }` is used to
+    //   keep a distinct condition readable.
+    // - unicorn/no-array-callback-reference (14): passing a named function to
+    //   map or filter is deliberate.
+    // - remaining 14 rules, 60 hits combined.
+    //
+    // style, 47930 hits, stylistic throughout:
+    // - one-var (5711), no-magic-numbers (6294), sort-keys (4148),
+    //   capitalized-comments (2694), import/no-named-export (1037),
+    //   func-style (1173), curly (997), id-length (1973),
+    //   unicorn/no-null (1324): each contradicts the house style, which uses
+    //   one declaration per binding, named exports, short loop names, and
+    //   brace-free single statements. unicorn/no-null also flags the null
+    //   that host APIs and JSON legitimately return.
+    // - remaining 87 rules, 22579 hits combined, mostly vitest assertion-style
+    //   preferences (prefer-expect-assertions alone is 7838).
+    //
+    // restriction, 17898 hits. These ban language features this codebase
+    // uses on purpose:
+    // - vitest/require-test-timeout (7790): the suite sets a global timeout
+    //   and removes real-timer sleeps, so a per-test value adds nothing.
+    // - oxc/no-async-await (5743): the host API is async.
+    // - no-undefined (1220): `| undefined` is required on optional properties.
+    // - oxc/no-optional-chaining (1063): idiomatic TypeScript.
+    // - import/no-relative-parent-imports (1044): the layout imports across
+    //   sibling folders with `../`.
+    // - no-use-before-define (385): function declarations are hoisted and
+    //   helpers sit below their callers.
+    // - no-plusplus (302): loop counters.
+    // - remaining 20 rules, 351 hits combined.
+    //
+    // nursery, 257 hits:
+    // - no-undef (257): all false positives under TypeScript, which resolves
+    //   names itself. The other two nursery rules are type-aware and are
+    //   counted below.
+    //
+    // type-aware, 3889 hits across the rules not enabled above:
+    // - typescript/prefer-readonly-parameter-types (2646): demands deep
+    //   readonly on every parameter; the AST and RillValue types are not
+    //   declared that way.
+    // - typescript/promise-function-async (744): stylistic.
+    // - typescript/no-unnecessary-condition (140): reports guards that
+    //   protect against values the types do not model, such as host input.
+    // - typescript/method-signature-style (117): property-style signatures are
+    //   used consistently.
+    // - typescript/explicit-member-accessibility (75): `public` on members is
+    //   noise in a tree that avoids classes.
+    // - typescript/non-nullable-type-assertion-style (57): stylistic.
+    // - remaining 11 rules, 110 hits combined.
+    //
+    // Deferred, not declined:
+    // - typescript/no-non-null-assertion (988 hits over src/ and tests/)
+    // - typescript/no-unsafe-type-assertion (1853 hits over src/ and tests/)
+    //   A ban in packages/*/src/ is decided and tracked in
+    //   https://github.com/rcrsr/rill/issues/501. Neither rule is enabled
+    //   until that work lands, so the tests keep their assertions.
   },
   "ignorePatterns": [
     "**/dist/**",

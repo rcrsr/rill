@@ -5,8 +5,8 @@
  * `check-standards.sh` guards its own baseline by regenerating it in memory
  * from the tree under test (via `gen-baseline.cjs`) and diffing that against
  * the committed `baseline.json`, as canonicalised JSON values. When the two
- * disagree it reports the six baseline-derived elements (STD-LINT-1/5/9,
- * STD-PM-2, STD-DEP-1/2) as `bad` with "baseline.json is stale". That guard is
+ * disagree it reports the eight baseline-derived elements (STD-LINT-1/5/9/12,
+ * STD-PM-2, STD-DEP-1/2/5) as `bad` with "baseline.json is stale". That guard is
  * what stops a pinned-tool bump from shipping a stale baseline to every
  * consumer, but until now nothing regression-tested the guard itself: a
  * refactor of `generate()` or the comparator that stopped reflecting a pin
@@ -373,108 +373,52 @@ function runCheckStandardsFixtureTests() {
   // (e) STD-HOOK-5: a formatter glob that reduces to a lockfile the tool's
   // own ignorePatterns fully covers is bad when lefthook carries no matching
   // exclude, and ok once one is added — the same shape as the packages/web
-  // case this element was minted to catch.
+  // case this element was minted to catch. (f) repeats it for the oxlint
+  // branch, whose config is JSONC (a `//` comment must survive readJSONC) and
+  // which (e), driving only oxfmt and plain JSON, never exercises.
   {
-    const lefthookNoExclude =
-      'pre-commit:\n' +
-      '  piped: true\n' +
-      '  commands:\n' +
-      '    oxfmt:\n' +
-      "      glob: '*.{yaml,yml,json}'\n" +
-      '      run: pnpm exec oxfmt {staged_files}\n';
-    const rootBad = writeFixtureTree({
-      'package.json': MINIMAL_PKG,
-      '.oxfmtrc.json': JSON.stringify({
-        ignorePatterns: ['pnpm-lock.yaml'],
-      }),
-      'lefthook.yml': lefthookNoExclude,
-      'pnpm-lock.yaml': 'lockfile: true\n',
-    });
-    const bad = runCheckStandards(rootBad);
-    check(
-      /FAIL\s+STD-HOOK-5\s/.test(bad.stdout),
-      'STD-HOOK-5: a glob reaching an ignored lockfile with no exclude is bad',
-      bad.stdout
+    const hookCase = (tool, rcName, rcText, tag) => {
+      const lefthook = (exclude) =>
+        'pre-commit:\n' +
+        '  piped: true\n' +
+        '  commands:\n' +
+        `    ${tool}:\n` +
+        "      glob: '*.{yaml,yml,json}'\n" +
+        exclude +
+        `      run: pnpm exec ${tool} {staged_files}\n`;
+      const verdict = (exclude) =>
+        runCheckStandards(
+          writeFixtureTree({
+            'package.json': MINIMAL_PKG,
+            [rcName]: rcText,
+            'lefthook.yml': lefthook(exclude),
+            'pnpm-lock.yaml': 'lockfile: true\n',
+          })
+        ).stdout;
+      const bad = verdict('');
+      check(
+        /FAIL\s+STD-HOOK-5\s/.test(bad),
+        `STD-HOOK-5${tag}: a glob reaching an ignored lockfile with no exclude is bad`,
+        bad
+      );
+      const ok_ = verdict('      exclude:\n        - pnpm-lock.yaml\n');
+      check(
+        /ok\s+STD-HOOK-5\s/.test(ok_),
+        `STD-HOOK-5${tag}: the same glob is ok once lefthook excludes the lockfile`,
+        ok_
+      );
+    };
+    hookCase(
+      'oxfmt',
+      '.oxfmtrc.json',
+      JSON.stringify({ ignorePatterns: ['pnpm-lock.yaml'] }),
+      ''
     );
-
-    const lefthookExcluded =
-      'pre-commit:\n' +
-      '  piped: true\n' +
-      '  commands:\n' +
-      '    oxfmt:\n' +
-      "      glob: '*.{yaml,yml,json}'\n" +
-      '      exclude:\n' +
-      '        - pnpm-lock.yaml\n' +
-      '      run: pnpm exec oxfmt {staged_files}\n';
-    const rootOk = writeFixtureTree({
-      'package.json': MINIMAL_PKG,
-      '.oxfmtrc.json': JSON.stringify({
-        ignorePatterns: ['pnpm-lock.yaml'],
-      }),
-      'lefthook.yml': lefthookExcluded,
-      'pnpm-lock.yaml': 'lockfile: true\n',
-    });
-    const ok_ = runCheckStandards(rootOk);
-    check(
-      /ok\s+STD-HOOK-5\s/.test(ok_.stdout),
-      'STD-HOOK-5: the same glob is ok once lefthook excludes the lockfile',
-      ok_.stdout
-    );
-  }
-
-  // (f) STD-HOOK-5, oxlint/JSONC branch: the same shape as (e) but driving
-  // the `oxlint` tool-detection path and `.oxlintrc.json` read via
-  // `readJSONC` (a `//` comment in the config), which (e) never exercises
-  // since it only drives `oxfmt`/plain-JSON.
-  {
-    const lefthookNoExclude =
-      'pre-commit:\n' +
-      '  piped: true\n' +
-      '  commands:\n' +
-      '    oxlint:\n' +
-      "      glob: '*.{yaml,yml,json}'\n" +
-      '      run: pnpm exec oxlint {staged_files}\n';
-    const rootBad = writeFixtureTree({
-      'package.json': MINIMAL_PKG,
-      '.oxlintrc.json':
-        '{\n' +
-        '  // ignore the lockfile; JSONC comments must survive readJSONC\n' +
-        '  "ignorePatterns": ["pnpm-lock.yaml"]\n' +
-        '}\n',
-      'lefthook.yml': lefthookNoExclude,
-      'pnpm-lock.yaml': 'lockfile: true\n',
-    });
-    const bad = runCheckStandards(rootBad);
-    check(
-      /FAIL\s+STD-HOOK-5\s/.test(bad.stdout),
-      'STD-HOOK-5 (oxlint/JSONC): a glob reaching an ignored lockfile with no exclude is bad',
-      bad.stdout
-    );
-
-    const lefthookExcluded =
-      'pre-commit:\n' +
-      '  piped: true\n' +
-      '  commands:\n' +
-      '    oxlint:\n' +
-      "      glob: '*.{yaml,yml,json}'\n" +
-      '      exclude:\n' +
-      '        - pnpm-lock.yaml\n' +
-      '      run: pnpm exec oxlint {staged_files}\n';
-    const rootOk = writeFixtureTree({
-      'package.json': MINIMAL_PKG,
-      '.oxlintrc.json':
-        '{\n' +
-        '  // ignore the lockfile; JSONC comments must survive readJSONC\n' +
-        '  "ignorePatterns": ["pnpm-lock.yaml"]\n' +
-        '}\n',
-      'lefthook.yml': lefthookExcluded,
-      'pnpm-lock.yaml': 'lockfile: true\n',
-    });
-    const ok_ = runCheckStandards(rootOk);
-    check(
-      /ok\s+STD-HOOK-5\s/.test(ok_.stdout),
-      'STD-HOOK-5 (oxlint/JSONC): the same glob is ok once lefthook excludes the lockfile',
-      ok_.stdout
+    hookCase(
+      'oxlint',
+      '.oxlintrc.json',
+      '{\n  // ignore the lockfile; JSONC comments must survive readJSONC\n  "ignorePatterns": ["pnpm-lock.yaml"]\n}\n',
+      ' (oxlint/JSONC)'
     );
   }
 
@@ -486,56 +430,230 @@ function runCheckStandardsFixtureTests() {
       runCheckStandards(
         writeFixtureTree({ 'package.json': MINIMAL_PKG, '.oxlintrc.json': rc })
       ).stdout;
-    const topOk = lint10(
-      '{\n  // cap\n  "rules": { "max-lines": ["error", { "max": 1000 }] }\n}\n'
-    );
-    check(
-      /ok\s+STD-LINT-10\s/.test(topOk),
-      'STD-LINT-10: top-level max-lines error at 1000 is ok',
-      topOk
-    );
-    const defaultMax = lint10('{ "rules": { "max-lines": "error" } }\n');
-    check(
-      /ok\s+STD-LINT-10\s/.test(defaultMax),
-      'STD-LINT-10: an omitted max (tool default 300) is ok',
-      defaultMax
-    );
-    const loose = lint10(
-      '{ "rules": { "max-lines": ["error", { "max": 2000 }] } }\n'
-    );
-    check(
-      /FAIL\s+STD-LINT-10\s[^\n]*\n?[^\n]*2000/.test(loose),
-      'STD-LINT-10: a 2000-line limit fails and names the limit',
-      loose
-    );
-    const warned = lint10('{ "rules": { "max-lines": "warn" } }\n');
-    check(
-      /FAIL\s+STD-LINT-10\s/.test(warned),
-      'STD-LINT-10: max-lines at warn fails',
-      warned
-    );
-    const absent = lint10('{ "rules": {} }\n');
-    check(
-      /FAIL\s+STD-LINT-10\s/.test(absent),
-      'STD-LINT-10: no max-lines rule fails',
-      absent
-    );
-    const srcOverride = lint10(
-      '{ "overrides": [{ "files": ["src/**/*.ts"], "rules": { "max-lines": "error" } }] }\n'
-    );
-    check(
-      /ok\s+STD-LINT-10\s/.test(srcOverride),
-      'STD-LINT-10: an override at error with a src glob is ok',
-      srcOverride
-    );
-    const elsewhere = lint10(
-      '{ "overrides": [{ "files": ["scripts/**"], "rules": { "max-lines": "error" } }] }\n'
-    );
-    check(
-      /FAIL\s+STD-LINT-10\s/.test(elsewhere),
-      'STD-LINT-10: an override scoped away from src fails',
-      elsewhere
-    );
+    const ok10 = /ok\s+STD-LINT-10\s/;
+    const fail10 = /FAIL\s+STD-LINT-10\s/;
+    const ovr = (files) =>
+      `{ "overrides": [{ "files": ["${files}"], "rules": { "max-lines": "error" } }] }\n`;
+    const cases10 = [
+      [
+        'top-level max-lines error at 1000 is ok',
+        ok10,
+        '{\n  // cap\n  "rules": { "max-lines": ["error", { "max": 1000 }] }\n}\n',
+      ],
+      [
+        'an omitted max (tool default 300) is ok',
+        ok10,
+        '{ "rules": { "max-lines": "error" } }\n',
+      ],
+      [
+        'a 2000-line limit fails and names the limit',
+        /FAIL\s+STD-LINT-10\s[^\n]*\n?[^\n]*2000/,
+        '{ "rules": { "max-lines": ["error", { "max": 2000 }] } }\n',
+      ],
+      [
+        'max-lines at warn fails',
+        fail10,
+        '{ "rules": { "max-lines": "warn" } }\n',
+      ],
+      ['no max-lines rule fails', fail10, '{ "rules": {} }\n'],
+      ['an override at error with a src glob is ok', ok10, ovr('src/**/*.ts')],
+      ['an override scoped away from src fails', fail10, ovr('scripts/**')],
+    ];
+    for (const [label, re, rc] of cases10) {
+      const out = lint10(rc);
+      check(re.test(out), `STD-LINT-10: ${label}`, out);
+    }
+  }
+
+  // (l) STD-LINT-11: every TypeScript directory's oxlint script carries
+  // --type-aware (or the config sets options.typeAware) and the backend is
+  // declared. One tree per case so one verdict cannot leak into the next.
+  {
+    const TS = 'export const a: number = 1;\n';
+    const CJS = 'module.exports = {};\n';
+    const FLAGGED = 'oxlint --type-aware src/ tests/';
+    const PLAIN = 'oxlint src/ tests/';
+    const deps = { 'oxlint-tsgolint': '^0.1.0' };
+    // A manifest with the given lint script; `backend` declares oxlint-tsgolint.
+    const man = (scripts, backend) =>
+      JSON.stringify({
+        name: 'f',
+        private: true,
+        scripts,
+        devDependencies: backend ? deps : {},
+      });
+    const one = (scripts, backend = true) => ({
+      'src/index.ts': TS,
+      'package.json': man(scripts, backend),
+    });
+    const ok11 = /ok\s+STD-LINT-11\s/;
+    const lacks11 =
+      /FAIL\s+STD-LINT-11\s[\s\S]*lacks --type-aware in: \.(\s|$)/;
+    const cases = [
+      [
+        '--type-aware with the backend declared is ok',
+        ok11,
+        one({ lint: FLAGGED }),
+      ],
+      [
+        'a missing flag fails and names the directory',
+        lacks11,
+        one({ lint: PLAIN }),
+      ],
+      [
+        'an undeclared oxlint-tsgolint fails and names it, with no baseline present',
+        /FAIL\s+STD-LINT-11\s[\s\S]*oxlint-tsgolint not declared/,
+        one({ lint: FLAGGED }, false),
+      ],
+      [
+        'a root check:lint delegating to a flagged lint is ok',
+        ok11,
+        one({ 'check:lint': 'pnpm run lint', lint: FLAGGED }),
+      ],
+      [
+        'options.typeAware in the config satisfies the flag half',
+        ok11,
+        {
+          ...one({ lint: PLAIN }),
+          '.oxlintrc.json': '{"options":{"typeAware":true}}',
+        },
+      ],
+      [
+        'a workspace with a flagged TS package and an unflagged .cjs-only package is ok',
+        ok11,
+        {
+          'package.json': man({}, true),
+          'packages/a/package.json': man({ lint: FLAGGED }),
+          'packages/a/src/index.ts': TS,
+          'packages/b/package.json': man({ lint: PLAIN }),
+          'packages/b/src/index.cjs': CJS,
+        },
+      ],
+      [
+        'a workspace with one unflagged TS package fails and names it',
+        /FAIL\s+STD-LINT-11\s[\s\S]*packages\/a/,
+        {
+          'package.json': man({}, true),
+          'packages/a/package.json': man({ lint: PLAIN }),
+          'packages/a/src/index.ts': TS,
+        },
+      ],
+      [
+        'the flag on the oxlint segment of a && chain is ok',
+        ok11,
+        one({ lint: 'tsc --noEmit && oxlint --type-aware src/ tests/' }),
+      ],
+      ...[
+        'oxlint --type-awareness src/ tests/',
+        'pnpm exec oxlint --type-aware=false src/ tests/',
+        'oxlint src/ tests/ && tsc --type-aware',
+      ].map((lint) => [`look-alike fails: ${lint}`, lacks11, one({ lint })]),
+      [
+        'an unparseable config fails with a parse message',
+        /FAIL\s+STD-LINT-11\s[\s\S]*could not parse/,
+        { ...one({ lint: FLAGGED }), '.oxlintrc.json': '{"options":' },
+      ],
+      [
+        'both failures are joined with a semicolon',
+        /lacks --type-aware in: \. ; oxlint-tsgolint not declared/,
+        one({ lint: PLAIN }, false),
+      ],
+      [
+        'no TypeScript anywhere reports -- with N/A',
+        /--\s+STD-LINT-11\s[\s\S]*N\/A: the repository ships no TypeScript/,
+        { 'package.json': man({ lint: PLAIN }), 'src/index.cjs': CJS },
+      ],
+    ];
+    for (const [label, re, files] of cases) {
+      const out = runCheckStandards(
+        writeFixtureTree({ '.oxlintrc.json': '{}\n', ...files })
+      ).stdout;
+      check(re.test(out), `STD-LINT-11: ${label}`, out);
+    }
+  }
+
+  // (m) STD-LINT-12: every non-off baseline rule is configured in the
+  // top-level rules. The consumer lookup path is
+  // node_modules/@rcrsr/rill-dev/baseline.json, written by this helper.
+  {
+    const withBaseline = (lintRules, rcText) => {
+      const files = { 'package.json': MINIMAL_PKG, '.oxlintrc.json': rcText };
+      if (lintRules !== null) {
+        const dir = 'node_modules/@rcrsr/rill-dev/';
+        files[dir + 'package.json'] = JSON.stringify({
+          name: '@rcrsr/rill-dev',
+          version: '0.0.0',
+          exports: { './baseline.json': './baseline.json' },
+        });
+        files[dir + 'baseline.json'] = JSON.stringify({ lintRules });
+      }
+      return runCheckStandards(writeFixtureTree(files)).stdout;
+    };
+    const rc = (rules, overrides = []) => JSON.stringify({ rules, overrides });
+    const WANT = { 'rule-a': 'error', 'rule-b': 'warn', 'rule-c': 'off' };
+    const BOTH = { 'rule-a': 'error', 'rule-b': 'warn' };
+    const ok12 = /ok\s+STD-LINT-12\s/;
+    const MISSING_A =
+      /FAIL\s+STD-LINT-12\s[\s\S]*not in top-level rules: rule-a(\s|$)/;
+    const ruleA = (level) => [
+      { files: ['src/**'], rules: { 'rule-a': level } },
+    ];
+    const cases = [
+      ['every non-off baseline rule present is ok', ok12, WANT, rc(BOTH)],
+      [
+        'an absent error rule fails and is named',
+        MISSING_A,
+        WANT,
+        rc({ 'rule-b': 'warn' }),
+      ],
+      [
+        'a baseline-off rule set to off at top level is not required',
+        ok12,
+        WANT,
+        rc({ ...BOTH, 'rule-c': 'off' }),
+      ],
+      [
+        'an array-form severity counts as configured',
+        ok12,
+        { 'rule-a': 'error', 'rule-x': 'allow', 'rule-y': 0 },
+        rc({ 'rule-a': ['error', {}] }),
+      ],
+      [
+        'an empty baseline lintRules reports --',
+        /--\s+STD-LINT-12\s/,
+        {},
+        rc(BOTH),
+      ],
+      [
+        'a rule present only in an override fails',
+        MISSING_A,
+        WANT,
+        rc({ 'rule-b': 'warn' }, ruleA('error')),
+      ],
+      [
+        'a top-level rule relaxed in a src override is ok',
+        ok12,
+        WANT,
+        rc(BOTH, ruleA('off')),
+      ],
+      [
+        'a rule at warn against an error baseline fails STD-LINT-9 but is ok here',
+        /FAIL\s+STD-LINT-9\s[\s\S]*ok\s+STD-LINT-12\s/,
+        { 'rule-a': 'error' },
+        rc({ 'rule-a': 'warn' }),
+      ],
+      [
+        'an unparseable config fails',
+        /FAIL\s+STD-LINT-12\s/,
+        WANT,
+        '{ "rules": \n',
+      ],
+      ['no baseline installed reports --', /--\s+STD-LINT-12\s/, null, rc({})],
+    ];
+    for (const [label, re, lintRules, rcText] of cases) {
+      const out = withBaseline(lintRules, rcText);
+      check(re.test(out), `STD-LINT-12: ${label}`, out);
+    }
   }
 
   // (g) grep_noncomment: a stripped-check token that appears only inside a
