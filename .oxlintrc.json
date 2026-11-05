@@ -571,8 +571,8 @@
       }
     },
     {
-      // Cast ratchet: 376 hits in 76 files (core 369 in 70, service 4 in 4,
-      // fiddle 3 in 2). Remove a path once its file reports zero; never add
+      // Cast ratchet. At enablement: 376 hits in 76 files (core 369 in 70,
+      // service 4 in 4, fiddle 3 in 2). Remove a path once its file reports zero; never add
       // one. packages/service/src/rules/corpus-loader.ts is build-excluded
       // test support named like source, so it stays listed.
       "files": [
@@ -596,14 +596,12 @@
         "packages/core/src/runtime/core/eval/handlers/collections.ts",
         "packages/core/src/runtime/core/eval/handlers/conversion.ts",
         "packages/core/src/runtime/core/eval/handlers/core.ts",
-        "packages/core/src/runtime/core/eval/handlers/expressions.ts",
         "packages/core/src/runtime/core/eval/handlers/extraction.ts",
         "packages/core/src/runtime/core/eval/handlers/field-access.ts",
         "packages/core/src/runtime/core/eval/handlers/literals.ts",
         "packages/core/src/runtime/core/eval/handlers/methods.ts",
         "packages/core/src/runtime/core/eval/handlers/recovery.ts",
         "packages/core/src/runtime/core/eval/handlers/types.ts",
-        "packages/core/src/runtime/core/eval/handlers/use.ts",
         "packages/core/src/runtime/core/eval/handlers/variables.ts",
         "packages/core/src/runtime/core/eval/invocation/callable-strategy.ts",
         "packages/core/src/runtime/core/eval/invocation/stream-closures.ts",
@@ -618,10 +616,7 @@
         "packages/core/src/runtime/core/types/operations.ts",
         "packages/core/src/runtime/core/types/protocols/atom.ts",
         "packages/core/src/runtime/core/types/protocols/bool.ts",
-        "packages/core/src/runtime/core/types/protocols/datetime.ts",
         "packages/core/src/runtime/core/types/protocols/dict.ts",
-        "packages/core/src/runtime/core/types/protocols/duration.ts",
-        "packages/core/src/runtime/core/types/protocols/field-descriptor.ts",
         "packages/core/src/runtime/core/types/protocols/list.ts",
         "packages/core/src/runtime/core/types/protocols/number.ts",
         "packages/core/src/runtime/core/types/protocols/ordered.ts",
@@ -638,18 +633,12 @@
         "packages/core/src/runtime/ext/builtins/functions/collections.ts",
         "packages/core/src/runtime/ext/builtins/functions/core.ts",
         "packages/core/src/runtime/ext/builtins/functions/slicing.ts",
-        "packages/core/src/runtime/ext/builtins/functions/temporal.ts",
-        "packages/core/src/runtime/ext/builtins/functions/time-domain.ts",
         "packages/core/src/runtime/ext/builtins/methods/bodies.ts",
-        "packages/core/src/runtime/ext/builtins/methods/entry.ts",
         "packages/core/src/runtime/ext/builtins/shared.ts",
         "packages/core/src/runtime/ext/builtins/temporal/construct.ts",
-        "packages/core/src/runtime/ext/builtins/temporal/methods.ts",
         "packages/core/src/runtime/ext/extensions.ts",
         "packages/fiddle/src/lib/execution.ts",
-        "packages/fiddle/src/lib/persistence.ts",
         "packages/service/src/rules/collection-ops.ts",
-        "packages/service/src/rules/config.ts",
         "packages/service/src/rules/corpus-loader.ts",
         "packages/service/src/rules/helpers.ts"
       ],

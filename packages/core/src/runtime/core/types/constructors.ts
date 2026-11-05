@@ -20,6 +20,7 @@ import type {
 } from './structures.js';
 import {
   isCallable,
+  isFieldDescriptor,
   isIterator,
   isOrdered,
   isStream,
@@ -273,12 +274,8 @@ export function copyValue(value: RillValue): RillValue {
     isCallable(value)
   )
     return value;
-  // field_descriptor: immutable (no guard exported from guards.ts)
-  if (
-    '__rill_field_descriptor' in (value as Record<string, unknown>) &&
-    (value as Record<string, unknown>)['__rill_field_descriptor'] === true
-  )
-    return value;
+  // field_descriptor: immutable
+  if (isFieldDescriptor(value)) return value;
   // Mutable list (Array but not tuple/ordered — those were checked above)
   if (Array.isArray(value)) return value.map(copyValue);
   // Iterator: mutable but opaque — return same reference

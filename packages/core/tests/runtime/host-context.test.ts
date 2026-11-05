@@ -7,11 +7,7 @@
  * arbitrary values (functions, objects) and defaults to {}.
  */
 
-import {
-  anyTypeValue,
-  createRuntimeContext,
-  type RuntimeContext,
-} from '@rcrsr/rill';
+import { anyTypeValue, createRuntimeContext } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -57,10 +53,8 @@ describe('Rill Runtime: hostContext', () => {
               },
             ],
             fn: (_args, ctx) => {
-              capturedHostContext = (ctx as RuntimeContext).hostContext;
-              return String(
-                (ctx as RuntimeContext).hostContext['region'] ?? ''
-              );
+              capturedHostContext = ctx.hostContext;
+              return String(ctx.hostContext['region'] ?? '');
             },
           },
         },
@@ -88,7 +82,7 @@ describe('Rill Runtime: hostContext', () => {
               },
             ],
             fn: (_args, ctx) => {
-              const hc = (ctx as RuntimeContext).hostContext;
+              const hc = ctx.hostContext;
               const resolve = hc['resolveRoute'] as (path: string) => string;
               resolved = resolve('/users');
               return resolved;
@@ -117,7 +111,7 @@ describe('Rill Runtime: hostContext', () => {
               },
             ],
             fn: (_args, ctx) => {
-              seen = (ctx as RuntimeContext).hostContext['env'];
+              seen = ctx.hostContext['env'];
               return String(seen ?? '');
             },
           },
@@ -143,7 +137,7 @@ describe('Rill Runtime: hostContext', () => {
               },
             ],
             fn: (_args, ctx) => {
-              seen = (ctx as RuntimeContext).hostContext;
+              seen = ctx.hostContext;
               return '';
             },
           },
@@ -176,7 +170,7 @@ true ? ("b" -> capture)`;
               },
             ],
             fn: (_args, ctx) => {
-              refs.push((ctx as RuntimeContext).hostContext);
+              refs.push(ctx.hostContext);
               return '';
             },
           },

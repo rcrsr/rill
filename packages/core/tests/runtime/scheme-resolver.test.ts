@@ -178,6 +178,36 @@ describe('Rill Runtime: moduleResolver', () => {
       }
     });
 
+    it('attaches sourceId and sourceText to host errors thrown during module execution', async () => {
+      const moduleText = 'boom()';
+      try {
+        await run('use<module:g>', {
+          functions: {
+            boom: {
+              params: [],
+              returnType: anyTypeValue,
+              fn: (): RillValue => {
+                throw new RuntimeError('RILL-R001', 'boom');
+              },
+            },
+          },
+          resolvers: {
+            module: (_resource: string): ResolverResult => ({
+              kind: 'source',
+              text: moduleText,
+            }),
+          },
+          parseSource: (text: string) => parse(text),
+        });
+        expect.fail('Should have thrown');
+      } catch (err) {
+        expect(err).toBeInstanceOf(RillError);
+        const rErr = err as RillError;
+        expect(rErr.sourceId).toBe('module:g');
+        expect(rErr.context?.['sourceText']).toBe(moduleText);
+      }
+    });
+
     it('uses resolver sourceId when provided', async () => {
       try {
         await run('use<module:greetings>', {

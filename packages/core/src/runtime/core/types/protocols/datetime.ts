@@ -8,10 +8,11 @@
  * MUST NOT import from ../registrations.js or sibling protocols/*.
  */
 
-import type { RillValue, RillDatetime } from '../structures.js';
+import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isDatetime } from '../guards.js';
 import { throwTypeHalt } from '../halt.js';
+import { requireDatetime } from './shared.js';
 
 // ============================================================
 // RANGE GUARD
@@ -50,7 +51,7 @@ function assertRepresentable(unix: number, fn: string): void {
 // ============================================================
 
 function formatDatetime(v: RillValue): string {
-  const dt = v as unknown as RillDatetime;
+  const dt = requireDatetime(v, { fn: 'format-datetime' });
   assertRepresentable(dt.unix, 'format-datetime');
   return new Date(dt.unix).toISOString();
 }
@@ -69,8 +70,8 @@ function eqDatetime(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 function compareDatetime(a: RillValue, b: RillValue): number {
-  const da = (a as unknown as RillDatetime).unix;
-  const db = (b as unknown as RillDatetime).unix;
+  const da = requireDatetime(a, { fn: 'compare-datetime' }).unix;
+  const db = requireDatetime(b, { fn: 'compare-datetime' }).unix;
   return da - db;
 }
 
@@ -80,7 +81,7 @@ function compareDatetime(a: RillValue, b: RillValue): number {
 
 /** Serialize datetime as ISO 8601 string with milliseconds. */
 function serializeDatetime(v: RillValue): unknown {
-  const dt = v as unknown as RillDatetime;
+  const dt = requireDatetime(v, { fn: 'serialize-datetime' });
   assertRepresentable(dt.unix, 'serialize-datetime');
   return new Date(dt.unix).toISOString();
 }

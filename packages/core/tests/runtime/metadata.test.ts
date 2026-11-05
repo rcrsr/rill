@@ -5,11 +5,7 @@
  * into the RuntimeContext and is accessible to host functions.
  */
 
-import {
-  anyTypeValue,
-  createRuntimeContext,
-  type RuntimeContext,
-} from '@rcrsr/rill';
+import { anyTypeValue, createRuntimeContext } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -64,8 +60,8 @@ describe('Rill Runtime: metadata (IC-11)', () => {
               },
             ],
             fn: (_args, ctx) => {
-              capturedMetadata = (ctx as RuntimeContext).metadata;
-              return (ctx as RuntimeContext).metadata?.['testKey'] ?? '';
+              capturedMetadata = ctx.metadata;
+              return ctx.metadata?.['testKey'] ?? '';
             },
           },
         },
@@ -93,7 +89,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
               },
             ],
             fn: (_args, ctx) => {
-              seen = (ctx as RuntimeContext).metadata?.['env'];
+              seen = ctx.metadata?.['env'];
               return seen ?? '';
             },
           },
@@ -120,7 +116,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
               },
             ],
             fn: (_args, ctx) => {
-              const md = (ctx as RuntimeContext).metadata ?? {};
+              const md = ctx.metadata ?? {};
               Object.assign(collected, md);
               return '';
             },
@@ -147,7 +143,7 @@ describe('Rill Runtime: metadata (IC-11)', () => {
               },
             ],
             fn: (_args, ctx) => {
-              seen = (ctx as RuntimeContext).metadata;
+              seen = ctx.metadata;
               return '';
             },
           },

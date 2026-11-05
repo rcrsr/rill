@@ -17,7 +17,7 @@
  * type guards without duplicating them.
  */
 
-import type { RillValue } from '../structures.js';
+import type { RillValue, RillDatetime, RillDuration } from '../structures.js';
 import { RuntimeError } from '../../../../types.js';
 import { quoteRillString } from '../format-string.js';
 import {
@@ -28,11 +28,17 @@ import {
   isTypeValue,
   isIterator,
   isStream,
+  isDatetime,
+  isDuration,
 } from '../guards.js';
-import { ERROR_IDS } from '../../../../error-registry.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { setDictField } from '../dict-keys.js';
 import { isInvalid, appendTraceFrame } from '../status.js';
-import { RuntimeHaltSignal } from '../halt.js';
+import {
+  RuntimeHaltSignal,
+  throwFatalHostHalt,
+  type TypeHaltSite,
+} from '../halt.js';
 import { createTraceFrame, TRACE_KINDS } from '../trace.js';
 
 // ============================================================
@@ -299,4 +305,34 @@ export function throwNotSerializable(
       `${typeName}s are not JSON-serializable`
     );
   };
+}
+
+// ============================================================
+// RECEIVER NARROWING
+// ============================================================
+
+/** Narrow a value to a datetime, or halt with RILL-R003 naming `site.fn`. */
+export function requireDatetime(
+  value: RillValue,
+  site: TypeHaltSite
+): RillDatetime {
+  if (isDatetime(value)) return value;
+  return throwFatalHostHalt(
+    site,
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `${site.fn} requires datetime receiver`
+  );
+}
+
+/** Narrow a value to a duration, or halt with RILL-R003 naming `site.fn`. */
+export function requireDuration(
+  value: RillValue,
+  site: TypeHaltSite
+): RillDuration {
+  if (isDuration(value)) return value;
+  return throwFatalHostHalt(
+    site,
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `${site.fn} requires duration receiver`
+  );
 }

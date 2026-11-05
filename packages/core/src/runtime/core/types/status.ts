@@ -104,6 +104,24 @@ const EMPTY_STATUS: RillStatus = Object.freeze({
 // STATUS ACCESS
 // ============================================================
 
+/** Object value that has the status sidecar symbol as a property. */
+interface StatusCarrier {
+  readonly [STATUS_SYM]?: RillStatus | undefined;
+}
+
+/**
+ * Module-private carrier predicate: one `in` check, no allocation.
+ * `getStatus` and `isInvalid` read the sidecar through it.
+ */
+function carriesStatus(value: RillValue): value is RillValue & StatusCarrier {
+  return typeof value === 'object' && value !== null && STATUS_SYM in value;
+}
+
+/** Returns true when `value` has a status sidecar property attached. */
+export function hasStatusSidecar(value: RillValue): boolean {
+  return carriesStatus(value);
+}
+
 /**
  * Returns the status sidecar attached to `value`, or the frozen
  * empty-status singleton when no sidecar is present.
@@ -113,12 +131,11 @@ const EMPTY_STATUS: RillStatus = Object.freeze({
  * primitive values (string/number/boolean) and legacy objects as valid.
  */
 export function getStatus(value: RillValue): RillStatus {
-  if (value === null) return EMPTY_STATUS;
-  if (typeof value !== 'object') return EMPTY_STATUS;
+  if (!carriesStatus(value)) return EMPTY_STATUS;
   // Symbol-keyed sidecar: a single property read. Symbol properties are
   // invisible to JSON.stringify / Object.keys / for-in, so there is no
   // collision with user-level dict fields named `status`.
-  const maybeStatus = (value as { [STATUS_SYM]?: RillStatus })[STATUS_SYM];
+  const maybeStatus: RillStatus | undefined = value[STATUS_SYM];
   if (maybeStatus === undefined) return EMPTY_STATUS;
   return maybeStatus;
 }
@@ -141,9 +158,8 @@ export function getStatus(value: RillValue): RillStatus {
  * a single property read.
  */
 export function isInvalid(value: RillValue): boolean {
-  if (value === null) return false;
-  if (typeof value !== 'object') return false;
-  const status = (value as { [STATUS_SYM]?: RillStatus })[STATUS_SYM];
+  if (!carriesStatus(value)) return false;
+  const status: RillStatus | undefined = value[STATUS_SYM];
   if (status === undefined) return false;
   return status.code !== EMPTY_STATUS.code;
 }
@@ -176,8 +192,11 @@ export function isEmpty(value: RillValue): boolean {
   if (Array.isArray(value)) return value.length === 0;
   if (typeof value === 'object') {
     if ('__rill_tuple' in value || '__rill_ordered' in value) {
-      const entries = (value as { entries?: unknown[] }).entries;
-      return Array.isArray(entries) && entries.length === 0;
+      return (
+        'entries' in value &&
+        Array.isArray(value.entries) &&
+        value.entries.length === 0
+      );
     }
     if ('__rill_vector' in value) return false;
     // Plain dict check; other branded runtime types (callable, stream,
@@ -329,7 +348,7 @@ export function mergeRaw(
  * Returns `""` when absent or when the message is not a string.
  */
 function readMessage(raw: Readonly<Record<string, RillValue>>): string {
-  const candidate = (raw as { message?: unknown }).message;
+  const candidate = raw['message'];
   if (typeof candidate === 'string') return candidate;
   return '';
 }

@@ -38,6 +38,7 @@ import type {
 } from '../../types.js';
 import { isPipeChainNode } from '../../types.js';
 import { throwFatalHostHalt } from './types/halt.js';
+import { isStructureKind } from './types/guards.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import type { TypeRef } from '../../value-types.js';
 
@@ -265,8 +266,8 @@ function serializeSignatureType(structure: TypeStructure): string {
   if (structure.kind === 'union') return 'any';
   if (structure.kind === 'closure') return 'closure';
 
-  if (structure.kind === 'list') {
-    const element = (structure as { element?: TypeStructure }).element;
+  if (isStructureKind(structure, 'list')) {
+    const element = structure.element;
     if (element === undefined) return 'list';
     return `list(${serializeSignatureType(element)})`;
   }
@@ -286,7 +287,7 @@ function serializeSignatureType(structure: TypeStructure): string {
     return `${structure.kind}(${inner})`;
   }
 
-  if (structure.kind === 'stream') {
+  if (isStructureKind(structure, 'stream')) {
     // The `stream(<chunk>):<ret>` resolution-type suffix is grammar owned by
     // a real closure's own trailing return-type-target parse (used only
     // right after a closure body); the bodyless `|params|:ret` signature
@@ -296,9 +297,8 @@ function serializeSignatureType(structure: TypeStructure): string {
     // would leave a dangling `:<ret>` the parser cannot attach anywhere, so
     // the resolution type is intentionally omitted rather than collapsing
     // the whole `stream(...)` to `any`.
-    const t = structure as { kind: 'stream'; chunk?: TypeStructure };
-    if (t.chunk === undefined) return 'stream';
-    return `stream(${serializeSignatureType(t.chunk)})`;
+    if (structure.chunk === undefined) return 'stream';
+    return `stream(${serializeSignatureType(structure.chunk)})`;
   }
 
   return formatStructure(structure);

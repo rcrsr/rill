@@ -35,6 +35,7 @@ import type { SourceLocation } from '../../../../types.js';
 import { evaluateExpression } from './core.js';
 import { evaluateVariableAsync } from './variables.js';
 import { validateHostResult } from '../../callable.js';
+import { isObjectRecord } from '../../types/guards.js';
 import { ControlSignal } from '../../signals.js';
 import { brandExtensionValue } from '../../policy/identity.js';
 
@@ -165,7 +166,7 @@ export async function evaluateUseExpr(
     // Validate resolver result shape — a resolver that resolves successfully
     // but returns a malformed object must halt the same way a throwing
     // resolver does, so no undefined/unshaped value leaks into the runtime.
-    if (typeof result !== 'object' || result === null) {
+    if (!isObjectRecord(result)) {
       throwCatchableHostHalt(
         {
           location: getNodeLocation(s, node),
@@ -176,8 +177,7 @@ export async function evaluateUseExpr(
         `Resolver error for '${key}': resolver result must be an object, got ${result === null ? 'null' : typeof result}`
       );
     }
-    const rawResult = result as Record<string, unknown>;
-    const kind = rawResult['kind'];
+    const kind = result['kind'];
     if (kind !== 'value' && kind !== 'source') {
       throwCatchableHostHalt(
         {
@@ -189,7 +189,7 @@ export async function evaluateUseExpr(
         `Resolver error for '${key}': resolver result must have kind 'value' or 'source', got ${JSON.stringify(kind)}`
       );
     }
-    if (kind === 'value' && rawResult['value'] === undefined) {
+    if (kind === 'value' && result['value'] === undefined) {
       throwCatchableHostHalt(
         {
           location: getNodeLocation(s, node),
@@ -204,7 +204,7 @@ export async function evaluateUseExpr(
       // Deep-validate: a raw function, symbol, or bigint nested inside a
       // dict or list would otherwise reach script scope unchecked.
       try {
-        validateHostResult(rawResult['value'], key, getNodeLocation(s, node));
+        validateHostResult(result['value'], key, getNodeLocation(s, node));
       } catch (err) {
         if (err instanceof ControlSignal) throw err;
         const detail = err instanceof Error ? err.message : String(err);
@@ -219,7 +219,7 @@ export async function evaluateUseExpr(
         );
       }
     }
-    if (kind === 'source' && typeof rawResult['text'] !== 'string') {
+    if (kind === 'source' && typeof result['text'] !== 'string') {
       throwCatchableHostHalt(
         {
           location: getNodeLocation(s, node),
@@ -280,13 +280,15 @@ export async function evaluateUseExpr(
               { sourceId: key }
             )
           : // oxlint-disable-next-line rill/no-new-runtime-error -- carries the parse error as .cause, which a halt cannot deliver to the host
-            RuntimeError.fromNode(
+            new RuntimeError(
               ERROR_IDS.RILL_R056,
               `Resolver error for '${key}': ${message}`,
-              node,
-              { sourceId: key }
+              node.span.start,
+              { sourceId: key },
+              node.span,
+              key
             );
-      (wrapped as { sourceId: string }).sourceId = key;
+      Object.defineProperty(wrapped, 'sourceId', { value: key });
       wrapped.cause = err;
       throw wrapped;
     }
@@ -303,10 +305,12 @@ export async function evaluateUseExpr(
         err instanceof RillError &&
         (err.sourceId === undefined || err.sourceId === '')
       ) {
-        (err as { sourceId: string }).sourceId = result.sourceId ?? key;
+        Object.defineProperty(err, 'sourceId', {
+          value: result.sourceId ?? key,
+        });
         const ctx = err.context ?? {};
         ctx['sourceText'] = result.text;
-        (err as { context: Record<string, unknown> }).context = ctx;
+        Object.defineProperty(err, 'context', { value: ctx });
       }
       throw err;
     }

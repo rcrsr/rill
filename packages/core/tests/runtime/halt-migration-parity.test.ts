@@ -40,7 +40,6 @@ import {
   type BaselineJson,
   type BaselineScriptOptions,
 } from './halt-migration-baseline.js';
-import { toRuntimeContext } from '../helpers/runtime.js';
 
 // ============================================================
 // REPLAY HELPERS
@@ -82,7 +81,7 @@ function makeHostFunction(
   return {
     params: [],
     returnType: anyTypeValue,
-    fn: (args, ctx, location) => fn(args, toRuntimeContext(ctx), location),
+    fn: (args, ctx, location) => fn(args, ctx, location),
   };
 }
 

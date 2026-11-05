@@ -1,5 +1,4 @@
 import type { RillFunction } from '../../../core/callable.js';
-import type { RuntimeContext } from '../../../core/types/runtime.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
 import { structureToTypeValue } from '../../../core/values.js';
 import { constructDatetime, constructDuration } from '../temporal/construct.js';
@@ -81,13 +80,13 @@ export const TEMPORAL_FUNCTIONS: Record<string, RillFunction> = {
     params: [],
     returnType: structureToTypeValue({ kind: 'datetime' }),
     fn: (_args, ctx, location) => {
-      const nowMs = (ctx as RuntimeContext).nowMs;
+      const nowMs = ctx.nowMs;
       if (nowMs !== undefined) {
         if (!Number.isFinite(nowMs) || !Number.isInteger(nowMs)) {
           throwTypeHalt(
             {
               location,
-              sourceId: (ctx as RuntimeContext).sourceId,
+              sourceId: ctx.sourceId,
               fn: 'now',
             },
             'INVALID_INPUT',

@@ -13,7 +13,7 @@ import {
   type RillFunction,
   type TimeoutScheduler,
 } from '@rcrsr/rill';
-import { run, toRuntimeContext } from '../helpers/runtime.js';
+import { run } from '../helpers/runtime.js';
 
 interface ManualScheduler {
   readonly scheduler: TimeoutScheduler;
@@ -49,7 +49,7 @@ function makeAbortAwareBody(onStart: () => void): RillFunction {
     fn: async (_args, ctx) => {
       onStart();
       await new Promise<void>((_resolve, reject) => {
-        const signal = toRuntimeContext(ctx).signal;
+        const signal = ctx.signal;
         signal?.addEventListener('abort', () => reject(new Error('aborted')), {
           once: true,
         });

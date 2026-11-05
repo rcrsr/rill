@@ -14,7 +14,7 @@ import {
   execute,
   type RillValue,
 } from '@rcrsr/rill';
-import { run, toRuntimeContext } from '../helpers/runtime.js';
+import { run } from '../helpers/runtime.js';
 import {
   expectAbortHalt,
   expectHalt,
@@ -435,7 +435,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              seen.push(toRuntimeContext(c).annotationStack.length);
+              seen.push(c.annotationStack.length);
               return '';
             },
           },
@@ -457,7 +457,7 @@ describe('Rill Runtime: annotations handler error contracts', () => {
             returnType: anyTypeValue,
             params: [],
             fn: (_args, c) => {
-              seen.push(toRuntimeContext(c).annotationStack.length);
+              seen.push(c.annotationStack.length);
               return '';
             },
           },

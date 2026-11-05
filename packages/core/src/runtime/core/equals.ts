@@ -53,6 +53,7 @@ import type {
 } from '../../types.js';
 import { isPipeChainNode } from '../../types.js';
 import { throwFatalHostHalt } from './types/halt.js';
+import { isObjectRecord } from './types/guards.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 
 /**
@@ -270,10 +271,8 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
  * comparator keep using it. A field set to undefined equals a missing one.
  */
 function structuralNodeEquals(a: ASTNode, b: ASTNode): boolean {
-  return fieldsEqual(
-    a as unknown as Record<string, unknown>,
-    b as unknown as Record<string, unknown>
-  );
+  if (!isObjectRecord(a) || !isObjectRecord(b)) return false;
+  return fieldsEqual(a, b);
 }
 
 function fieldsEqual(
@@ -305,10 +304,8 @@ function structuralValueEquals(a: unknown, b: unknown): boolean {
   const bIsNode = isASTNodeLike(b);
   if (aIsNode && bIsNode) return astEquals(a, b);
   if (aIsNode || bIsNode) return false;
-  return fieldsEqual(
-    a as Record<string, unknown>,
-    b as Record<string, unknown>
-  );
+  if (!isObjectRecord(a) || !isObjectRecord(b)) return false;
+  return fieldsEqual(a, b);
 }
 
 function blockEquals(a: BlockNode, b: BlockNode): boolean {

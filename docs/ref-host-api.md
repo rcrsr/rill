@@ -676,7 +676,7 @@ interface RillParam {
 ```typescript
 type CallableFn = (
   args: Record<string, RillValue>,
-  ctx: RuntimeContextLike,
+  ctx: RuntimeContext,
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
 ```
@@ -684,7 +684,7 @@ type CallableFn = (
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `args` | `Record<string, RillValue>` | Named arguments keyed by parameter name. The runtime marshals positional call-site arguments into this record using the declared `params` list before invoking `fn` |
-| `ctx` | `RuntimeContextLike` | Runtime context for the current execution. Provides access to variables, abort signal, and callbacks |
+| `ctx` | `RuntimeContext` | Runtime context for the current execution. Provides access to variables, abort signal, and callbacks |
 | `location` | `SourceLocation \| undefined` | Source location of the call site. Present when the call originates from a rill script; undefined in programmatic calls |
 
 **Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details. A return value that is not a `RillValue`—including one nested inside a returned array or plain object—halts at the call boundary with `RILL-R085`. A returned non-finite number (`NaN`, `Infinity`, `-Infinity`) halts catchably with `#INVALID_INPUT` instead. See [Return Values](integration-host.md#return-values) for the full contract.

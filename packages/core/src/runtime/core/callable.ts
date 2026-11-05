@@ -22,6 +22,7 @@
 
 import type { BodyNode, SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
+import type { RuntimeContext } from './types/runtime.js';
 import { astEquals } from './equals.js';
 import {
   isAtom,
@@ -30,9 +31,11 @@ import {
   isDict,
   isPlainDict,
   isDuration,
+  isFieldDescriptor,
   isIterator,
   isOrdered,
   isStream,
+  isStructureKind,
   isTuple,
   isTypeValue,
   isVector,
@@ -69,23 +72,13 @@ import { copyTypedKeys, setDictField } from './types/dict-keys.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import { throwCatchableHostHalt, throwFatalHostHalt } from './types/halt.js';
 
-// Forward reference to RuntimeContext (defined in types.ts)
-// Using a minimal interface to avoid circular dependency
-interface RuntimeContextLike {
-  readonly parent?: RuntimeContextLike | undefined;
-  readonly variables: Map<string, RillValue>;
-  pipeValue: RillValue;
-  readonly metadata?: Record<string, string> | undefined;
-  readonly hostContext: Record<string, unknown>;
-}
-
 /**
  * Callable function signature.
  * Used for both host-provided functions and runtime callables.
  */
 export type CallableFn = (
   args: Record<string, RillValue>,
-  ctx: RuntimeContextLike,
+  ctx: RuntimeContext,
   location?: SourceLocation
 ) => RillValue | Promise<RillValue>;
 
@@ -145,7 +138,7 @@ export interface ScriptCallable extends CallableBase {
   readonly kind: 'script';
   readonly body: BodyNode;
   /** Reference to the scope where this closure was defined (late binding) */
-  readonly definingScope: RuntimeContextLike;
+  readonly definingScope: RuntimeContext;
 }
 
 /** Runtime callable - Rill's built-in functions (type, log, json, identity) */
@@ -567,14 +560,14 @@ export function hydrateStructure(
     });
   }
 
-  if (type.kind === 'union') {
+  if (isStructureKind(type, 'union')) {
     // First structural match wins, in declaration order. When two members
     // overlap structurally, the same value hydrates differently depending on
     // which is declared first; declare union members non-overlapping (or
     // most-specific-first) for predictable hydration.
-    const members = (type as { kind: 'union'; members: TypeStructure[] })
-      .members;
-    const match = members.find((member) => structureMatches(value, member));
+    const match = type.members.find((member) =>
+      structureMatches(value, member)
+    );
     if (match) {
       return hydrateStructure(value, match, policy);
     }
@@ -754,18 +747,9 @@ export function validateHostResult(
   );
 }
 
-/** Identity predicate for the field_descriptor brand (mirrors the private
- * helper in types/protocols/field-descriptor.ts, which is not exported). */
-function isFieldDescriptorValue(value: object): boolean {
-  return (
-    '__rill_field_descriptor' in value &&
-    (value as Record<string, unknown>)['__rill_field_descriptor'] === true
-  );
-}
-
 /** True when `value`'s prototype is `Object.prototype` or `null`, i.e. it is
  * a plain object literal rather than a class instance. */
-function isPlainObject(value: object): boolean {
+function isPlainObject(value: object): value is Record<string, unknown> {
   const proto = Reflect.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
@@ -781,9 +765,8 @@ function jsTypeLabel(value: unknown): string {
   if (value instanceof Date) return 'Date';
   if (value instanceof Map) return 'Map';
   if (value instanceof Set) return 'Set';
-  if (t === 'object') {
-    const ctorName = (value as { constructor?: { name?: string } }).constructor
-      ?.name;
+  if (typeof value === 'object') {
+    const ctorName = value.constructor?.name;
     return ctorName !== undefined && ctorName !== '' && ctorName !== 'Object'
       ? ctorName
       : 'object';
@@ -840,13 +823,16 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<{
     label: 'atom',
     test: isAtom,
     valid: (v) => {
-      const atom = (v as RillAtomValue).atom;
+      const atom: unknown = (v as RillAtomValue).atom;
       return (
         typeof atom === 'object' &&
         atom !== null &&
-        (atom as { __rill_atom?: unknown }).__rill_atom === true &&
-        typeof (atom as { name?: unknown }).name === 'string' &&
-        typeof (atom as { kind?: unknown }).kind === 'string'
+        '__rill_atom' in atom &&
+        atom.__rill_atom === true &&
+        'name' in atom &&
+        typeof atom.name === 'string' &&
+        'kind' in atom &&
+        typeof atom.kind === 'string'
       );
     },
   },
@@ -892,7 +878,7 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<{
         typeof typeValue.typeName === 'string' &&
         typeof typeValue.structure === 'object' &&
         typeValue.structure !== null &&
-        typeof (typeValue.structure as { kind?: unknown }).kind === 'string'
+        typeof typeValue.structure.kind === 'string'
       );
     },
   },
@@ -905,11 +891,7 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<{
         return false;
       if (stream.done) return true;
       if ('__rill_stream_head' in stream) {
-        return (
-          typeof (stream as unknown as Record<string, unknown>)[
-            '__rill_stream_resolve'
-          ] === 'function'
-        );
+        return typeof stream['__rill_stream_resolve'] === 'function';
       }
       return 'value' in stream;
     },
@@ -1001,7 +983,7 @@ function walkHostResult(
     isTuple(rillValue) ||
     isCallable(rillValue) ||
     isIterator(rillValue) ||
-    isFieldDescriptorValue(obj)
+    isFieldDescriptor(obj)
   ) {
     return;
   }
@@ -1043,7 +1025,7 @@ function walkHostResult(
   if (isPlainObject(obj)) {
     seen.add(obj);
     const frame = key === undefined ? null : { parent, key };
-    const record = obj as Record<string, unknown>;
+    const record: Record<string, unknown> = obj;
     for (const childKey of Object.keys(record)) {
       walkHostResult(
         record[childKey],
