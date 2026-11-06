@@ -46,6 +46,7 @@ always held exactly equal to core.
 
 ```bash
 pnpm check:versions
+pnpm check:standards
 ```
 
 Confirms core shares root's major.minor and service exactly equals core.

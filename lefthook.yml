@@ -37,3 +37,7 @@ pre-push:
       run: pnpm -r run typecheck
     test:
       run: pnpm -r run test
+    # Reads the tree only (no network). Catches a stale packages/dev/baseline.json
+    # after a version bump, which otherwise first fails in CI.
+    standards:
+      run: pnpm run check:standards
