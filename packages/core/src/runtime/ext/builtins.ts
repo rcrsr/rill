@@ -28,11 +28,7 @@ export const BUILTIN_FUNCTION_NAMES: readonly string[] = Object.freeze(
 // No circular dependency: registrations.ts does not import builtins.ts.
 populateBuiltinMethods(BUILTIN_METHODS);
 
-// Built-ins that reject spread arguments. log formats a single message, so
-// spreading a collection into it is ambiguous and halts.
-const SPREAD_UNSUPPORTED_BUILTINS: ReadonlySet<string> = new Set(['log']);
-
 // Register the function table with core at module load time. Core cannot
 // import this module (layer rule: core must not depend on ext), so the
 // dependency is inverted through the registry.
-registerBuiltinFunctions(BUILTIN_FUNCTIONS, SPREAD_UNSUPPORTED_BUILTINS);
+registerBuiltinFunctions(BUILTIN_FUNCTIONS);

@@ -61,7 +61,7 @@ describe('Rill Runtime: typed-only callable form', () => {
 
     expect(names('chain')).toEqual(['value', 'transform']);
     expect(names('iterate')).toEqual(['seed', 'closure']);
-    expect(names('log')).toEqual(['message', 'extra']);
+    expect(names('log')).toEqual(['message']);
   });
 
   it('rejects a bare function in the functions map at compile time', () => {

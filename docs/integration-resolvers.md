@@ -271,7 +271,7 @@ const closure = result.result; // RillCallable (ScriptCallable)
 // }
 ```
 
-> **Behavioral change (v0.x):** `.^input` now returns an ordered dict for all closure kinds. Previously, host callables without parameter metadata returned `false` as a sentinel. They now return an empty ordered dict. Code that checked `result === false` must be updated to check `result.entries.length === 0` instead.
+> **Note:** `.^input` returns an ordered dict for all closure kinds. A zero-parameter host callable returns an empty ordered dict.
 
 **`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ kind: 'any' }`:
 
@@ -445,7 +445,7 @@ const functions = getFunctions(ctx);
 ```
 
 Returns `FunctionMetadata[]` combining:
-1. Host functions (with full parameter metadata)
+1. Host functions
 2. Built-in functions
 3. Script closures (reads `^(doc: "...")` annotation for description)
 

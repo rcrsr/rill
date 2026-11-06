@@ -11,7 +11,6 @@ import type {
 } from '../../../../types.js';
 import {
   isCallable,
-  isScriptCallable,
   isApplicationCallable,
   marshalArgs,
 } from '../../callable.js';
@@ -276,17 +275,6 @@ async function evaluateInvoke(
   }
 
   if (argumentsBinder.hasSpread(node.args)) {
-    if (!isScriptCallable(receiver) && !isApplicationCallable(receiver)) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateInvoke',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        'Spread not supported for built-in callable'
-      );
-    }
     const orderedArgs = await bindOrdered(
       s,
       receiver,
@@ -421,7 +409,7 @@ export async function evaluateParamsProperty(
   }
 
   const paramsDict: Record<string, RillValue> = {};
-  for (const param of callable.params ?? []) {
+  for (const param of callable.params) {
     const paramEntry: Record<string, RillValue> = {};
     if (param.type !== undefined) {
       paramEntry['type'] = formatStructure(param.type);

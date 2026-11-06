@@ -3,7 +3,7 @@
  *
  * Unified representation for all callable values in Rill:
  * - ScriptCallable: Closures parsed from Rill source code
- * - RuntimeCallable: Rill's built-in functions (type, log, json, identity)
+ * - RuntimeCallable: legacy kind retained for compatibility; the runtime never constructs it
  * - ApplicationCallable: Host application-provided functions
  *
  * Public API for host applications.
@@ -108,7 +108,7 @@ interface CallableBase {
   /**
    * Property-style callable: auto-invoked when accessed from a dict.
    * For script callables, $ is bound to the containing dict.
-   * For runtime callables, the dict is passed as first argument.
+   * For application callables, the dict is passed as the `self` argument.
    */
   readonly isProperty: boolean;
   readonly params: readonly RillParam[];
@@ -131,7 +131,7 @@ export interface ScriptCallable extends CallableBase {
   readonly definingScope: RuntimeContext;
 }
 
-/** Runtime callable - Rill's built-in functions (type, log, json, identity) */
+/** Runtime callable - legacy kind retained for compatibility; the runtime never constructs it (built-ins are application callables) */
 export interface RuntimeCallable extends CallableBase {
   readonly kind: 'runtime';
   readonly fn: CallableFn;

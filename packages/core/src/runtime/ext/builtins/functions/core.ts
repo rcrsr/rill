@@ -43,14 +43,6 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         defaultValue: undefined,
         annotations: {},
       },
-      {
-        name: 'extra',
-        type: { kind: 'any' },
-        defaultValue: '',
-        annotations: {
-          description: 'Accepted and ignored; log formats only message',
-        },
-      },
     ],
     returnType: anyTypeValue,
     fn: (args, ctx) => {

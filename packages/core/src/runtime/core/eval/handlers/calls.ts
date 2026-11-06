@@ -21,7 +21,6 @@ import { getVariable } from '../../context.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isStream } from '../../types/guards.js';
-import { isSpreadUnsupportedBuiltin } from '../../builtin-registry.js';
 import type { EvalState } from '../state.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -73,18 +72,6 @@ export async function evaluateHostCall(
 
   const hasSpread = argumentsBinder.hasSpread(node.args);
   if (hasSpread) {
-    if (fn.params.length === 0 || isSpreadUnsupportedBuiltin(fn)) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateHostCall',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        `Spread not supported for built-in function '${node.name}'`,
-        { functionName: node.name }
-      );
-    }
     const orderedArgs = await bindOrdered(
       s,
       fn,
@@ -268,17 +255,6 @@ export async function evaluateClosureCallWithPipe(
   const closure = value;
 
   if (argumentsBinder.hasSpread(node.args)) {
-    if (!isScriptCallable(closure) && !isApplicationCallable(closure)) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateClosureCallWithPipe',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        `Spread not supported for built-in callable at '${fullPath}'`
-      );
-    }
     const orderedArgs = await bindOrdered(s, closure, node, pipeInput);
     return invokeCallable(s, closure, orderedArgs, node.span.start, fullPath);
   }

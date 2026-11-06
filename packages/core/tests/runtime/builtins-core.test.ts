@@ -26,8 +26,17 @@ describe('Rill Runtime: log built-in', () => {
     expect(result).toBe('x');
   });
 
-  it('tolerates excess arguments without halting', async () => {
-    const result = await run('log("x", 99)');
+  it('halts with an excess-argument error for a second argument', async () => {
+    try {
+      await run('log("x", 99)');
+      expect.fail('Should have thrown');
+    } catch (err) {
+      expect((err as RuntimeError).errorId).toBe('RILL-R045');
+    }
+  });
+
+  it('binds a spread tuple into log like any typed built-in', async () => {
+    const result = await run('tuple["x"] -> log(...)');
     expect(result).toBe('x');
   });
 });

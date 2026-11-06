@@ -20,37 +20,17 @@ import {
 
 // Parsed once at registration time, not per context creation.
 const BUILTIN_FN_CACHE = new Map<string, ApplicationCallable>();
-// Callables, by identity, whose arguments cannot be supplied by spread.
-const SPREAD_UNSUPPORTED = new WeakSet<ApplicationCallable>();
 let registered = false;
 
-/**
- * Register the builtin function table. Called by `runtime/ext/builtins.ts`
- * at module load. `spreadUnsupportedNames` lists builtins that reject spread
- * arguments; it affects spread rejection only.
- */
+/** Register the builtin function table. Called by `runtime/ext/builtins.ts` at module load. */
 export function registerBuiltinFunctions(
-  fns: Record<string, RillFunction>,
-  spreadUnsupportedNames: ReadonlySet<string>
+  fns: Record<string, RillFunction>
 ): void {
   BUILTIN_FN_CACHE.clear();
   for (const [name, entry] of Object.entries(fns)) {
-    const appCallable = toCallable(entry);
-    BUILTIN_FN_CACHE.set(name, appCallable);
-    if (spreadUnsupportedNames.has(name)) {
-      SPREAD_UNSUPPORTED.add(appCallable);
-    }
+    BUILTIN_FN_CACHE.set(name, toCallable(entry));
   }
   registered = true;
-}
-
-/**
- * True when `fn` is the registered builtin callable that rejects spread
- * arguments. Keyed by object identity, so a host override of the same name
- * is not affected.
- */
-export function isSpreadUnsupportedBuiltin(fn: ApplicationCallable): boolean {
-  return SPREAD_UNSUPPORTED.has(fn);
 }
 
 function assertRegistered(): void {

@@ -7,12 +7,12 @@
  *
  * ## Responsibilities
  * - Detect spread arguments (single owner of spread detection)
- * - Validate spread constraints (untyped builtin, extra positional, null source)
+ * - Validate spread constraints (zero-parameter function, extra positional, null source)
  * - Produce BoundArguments map for downstream marshalling
  * - Return pre-allocated empty sentinel for zero-arg or non-spread calls
  *
  * ## Error Cases
- * - Spread on untyped builtin → RILL-R001 (message matches closures.ts:1079)
+ * - Spread on zero-parameter function → RILL-R001 (message matches closures.ts:1079)
  * - Extra positional argument → RILL-R001 (message matches closures.ts:1893)
  * - Null spread source → RILL-R001 (message matches closures.ts:1912)
  * - Spread value not tuple/dict/ordered → RILL-R001
@@ -44,11 +44,7 @@ import {
   throwFatalHostHalt,
 } from '../../types/halt.js';
 import type { RillCallable } from '../../callable.js';
-import {
-  isApplicationCallable,
-  isRuntimeCallable,
-  isDict,
-} from '../../callable.js';
+import { isApplicationCallable, isDict } from '../../callable.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isTuple, isOrdered } from '../../types/guards.js';
@@ -136,21 +132,13 @@ export class ArgumentsBinder {
     }
 
     // Spread needs parameter names to bind by. A zero-parameter host
-    // function has none; a runtime callable is a built-in.
-    if (isRuntimeCallable(callable)) {
-      const name = _getCallableName(callable);
-      throwCatchableHostHalt(
-        { location, sourceId, fn: 'bind' },
-        ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        `Spread not supported for built-in function '${name}'`
-      );
-    }
+    // function has none.
     if (isApplicationCallable(callable) && callable.params.length === 0) {
       const name = _getCallableName(callable);
       throwCatchableHostHalt(
         { location, sourceId, fn: 'bind' },
         ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        `Spread not supported for host function '${name}': parameter metadata required`
+        `Spread not supported for zero-parameter function '${name}'`
       );
     }
 
@@ -325,10 +313,6 @@ export class ArgumentsBinder {
  */
 function _getCallableName(callable: RillCallable): string {
   if (isApplicationCallable(callable)) {
-    const fn = callable.fn;
-    return fn.name !== '' ? fn.name : '<anonymous>';
-  }
-  if (isRuntimeCallable(callable)) {
     const fn = callable.fn;
     return fn.name !== '' ? fn.name : '<anonymous>';
   }
