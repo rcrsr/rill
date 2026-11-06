@@ -1437,29 +1437,18 @@ describe('Zero-parameter callable() factory delivery', () => {
   it('callable() factory function receives a name-keyed record', async () => {
     let receivedArgs: unknown;
 
-    const fn = toCallable({
-      params: [
-        {
-          name: 'text',
-          type: { kind: 'any' },
-          defaultValue: undefined,
-          annotations: {},
-        },
-      ],
-      returnType: anyTypeValue,
-      fn: (args) => {
-        receivedArgs = args;
-        return args['text'] ?? null;
-      },
+    const fn = callable((args) => {
+      receivedArgs = args;
+      return 'done';
     });
 
-    const result = await run('$myFn("test")', {
+    const result = await run('$myFn()', {
       variables: { myFn: fn },
     });
 
-    expect(result).toBe('test');
+    expect(result).toBe('done');
     expect(Array.isArray(receivedArgs)).toBe(false);
-    expect(receivedArgs).toEqual({ text: 'test' });
+    expect(receivedArgs).toEqual({});
   });
 
   it('callable() factory pipe-invoked with value works', async () => {

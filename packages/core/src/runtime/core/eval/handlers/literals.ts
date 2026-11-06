@@ -886,7 +886,9 @@ async function resolveDispatchValue(
     // Check if callable has params to determine invocation style
     const hasParams =
       (value.kind === 'script' && value.params.length > 0) ||
-      (value.kind === 'application' && value.params.length > 0);
+      (value.kind === 'application' &&
+        value.params.length > 0 &&
+        !value.isProperty);
 
     if (hasParams) {
       // Application callable with params: invoke with input as argument
@@ -1066,7 +1068,9 @@ async function resolveDispatchValueRuntime(
     // Check if callable has params to determine invocation style
     const hasParams =
       (value.kind === 'script' && value.params.length > 0) ||
-      (value.kind === 'application' && value.params.length > 0);
+      (value.kind === 'application' &&
+        value.params.length > 0 &&
+        !value.isProperty);
 
     if (hasParams) {
       // Block-closure: invoke with input as argument

@@ -700,7 +700,7 @@ import {
 
 // Create a callable with a declared parameter
 const greet = toCallable({
-  params: [{ name: 'name', type: { kind: 'string' } }],
+  params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
   returnType: anyTypeValue,
   fn: (args) => `Hello, ${args.name}!`,
 });
@@ -761,8 +761,8 @@ const ctx = createRuntimeContext({
     math: {
       add: toCallable({
         params: [
-          { name: 'a', type: { kind: 'number' } },
-          { name: 'b', type: { kind: 'number' } },
+          { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+          { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
         ],
         returnType: anyTypeValue,
         fn: (args) => Number(args.a) + Number(args.b),

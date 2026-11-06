@@ -9,6 +9,7 @@ import { describe, expect, it } from 'vitest';
 import {
   callable,
   createRuntimeContext,
+  generateManifest,
   getFunctions,
   isDict,
   RuntimeError,
@@ -74,5 +75,76 @@ describe('Rill Runtime: typed-only callable form', () => {
   it('binds a spread tuple into chain and returns the transformed value', async () => {
     const result = await run('|x| ($x * 2) => $f\ntuple[5, $f] -> chain(...)');
     expect(result).toBe(10);
+  });
+
+  describe('property-style callables used as pipe and dispatch targets', () => {
+    const makeDict = (): {
+      dict: Record<string, RillValue>;
+      calls: Record<string, RillValue>[];
+    } => {
+      const calls: Record<string, RillValue>[] = [];
+      const prop = callable((args) => {
+        calls.push(args);
+        return 'ok';
+      }, true);
+      return { dict: { first: 'a', name: prop }, calls };
+    };
+
+    const expectSelfIsBoundDict = (
+      calls: Record<string, RillValue>[]
+    ): void => {
+      expect(calls).toHaveLength(1);
+      const self = calls[0]?.['self'];
+      expect(isDict(self ?? null)).toBe(true);
+      expect((self as Record<string, RillValue>)['first']).toBe('a');
+    };
+
+    it('binds the dict as self when a string key dispatches to a property-style callable', async () => {
+      const { dict, calls } = makeDict();
+      await run('"name" -> $d', { variables: { d: dict } });
+      expectSelfIsBoundDict(calls);
+    });
+
+    it('binds the dict as self when a list path dispatches to a property-style callable', async () => {
+      const { dict, calls } = makeDict();
+      await run('list["name"] -> $d', { variables: { d: dict } });
+      expectSelfIsBoundDict(calls);
+    });
+
+    it('binds the dict as self when a piped value calls a property-style callable with parens', async () => {
+      const { dict, calls } = makeDict();
+      await run('5 -> $d.name()', { variables: { d: dict } });
+      expectSelfIsBoundDict(calls);
+    });
+
+    it('binds the dict as self for plain property access and call', async () => {
+      const first = makeDict();
+      await run('$d.name', { variables: { d: first.dict } });
+      expectSelfIsBoundDict(first.calls);
+
+      const second = makeDict();
+      await run('$d.name()', { variables: { d: second.dict } });
+      expectSelfIsBoundDict(second.calls);
+    });
+  });
+
+  it('lists a host function that overrides a built-in name as a host function', () => {
+    const hostLog = callable(() => 'host');
+    const ctx = createRuntimeContext({ functions: { log: hostLog } });
+    const metadata = getFunctions(ctx);
+    const names = metadata.map((m) => m.name);
+    expect(names.filter((n) => n === 'log')).toHaveLength(1);
+    expect(metadata.find((m) => m.name === 'log')?.params).toEqual([]);
+    // Host functions are listed before every built-in, so an overriding host
+    // function is first; a built-in classification would place it after
+    // earlier built-ins such as identity.
+    expect(names.indexOf('log')).toBe(0);
+    expect(names).toContain('chain');
+  });
+
+  it('includes a host function that overrides a built-in name in the manifest', () => {
+    const hostLog = callable(() => 'host');
+    const ctx = createRuntimeContext({ functions: { log: hostLog } });
+    expect(generateManifest(ctx)).toContain('"log"');
   });
 });

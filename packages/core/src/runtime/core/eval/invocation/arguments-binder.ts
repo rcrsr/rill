@@ -12,14 +12,13 @@
  * - Return pre-allocated empty sentinel for zero-arg or non-spread calls
  *
  * ## Error Cases
- * - Spread on zero-parameter function → RILL-R001 (message matches closures.ts:1079)
- * - Extra positional argument → RILL-R001 (message matches closures.ts:1893)
- * - Null spread source → RILL-R001 (message matches closures.ts:1912)
+ * - Spread on zero-parameter function → RILL-R001
+ * - Extra positional argument → RILL-R001
+ * - Null spread source → RILL-R001
  * - Spread value not tuple/dict/ordered → RILL-R001
  * - Dict spread key matches no parameter → RILL-R001
  * - Ordered spread key-order mismatch → RILL-R001
  * - Duplicate binding → RILL-R001
- * - ApplicationCallable with undefined params → RILL-R001
  *
  * ## Implementation Notes
  *

@@ -20,7 +20,7 @@ function createMyExtension(config: { model: string }): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        params: [{ name: 'text', type: { kind: 'string' } }],
+        params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => await callLLM(args.text, config.model),
         annotations: { description: 'Send a prompt to the LLM' },
         returnType: { kind: 'string' },
@@ -86,8 +86,8 @@ const ctx = createRuntimeContext({
       timestamp: callable(() => Date.now(), true),
       format: toCallable({
         params: [
-          { name: 'template', type: { kind: 'string' } },
-          { name: 'value', type: { kind: 'string' } },
+          { name: 'template', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+          { name: 'value', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
         ],
         returnType: anyTypeValue,
         fn: (args) =>
@@ -894,7 +894,7 @@ The output format is a rill dict literal. The dict is the last expression and be
 ]
 ```
 
-An empty function map returns `[:]`. Functions created via `callable()` appear with an empty parameter list.
+An empty function map returns `[:]`. Functions created via `callable(fn)` appear with an empty parameter list; property-style `callable(fn, true)` appears with a single `self: any` parameter.
 
 Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
 

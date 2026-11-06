@@ -15,6 +15,17 @@
 import type { ApplicationCallable, CallableFn, RillParam } from './callable.js';
 import { anyTypeValue } from './types/any-type.js';
 
+const EMPTY_PARAMS: readonly RillParam[] = Object.freeze([]);
+
+const PROPERTY_PARAMS: readonly RillParam[] = Object.freeze([
+  Object.freeze({
+    name: 'self',
+    type: { kind: 'any' },
+    defaultValue: undefined,
+    annotations: {},
+  }),
+]);
+
 /**
  * Create an application callable from a host function.
  * Declares no parameters, or a single any-typed `self` parameter when
@@ -26,16 +37,7 @@ export function callable(
   fn: CallableFn,
   isProperty = false
 ): ApplicationCallable {
-  const params: readonly RillParam[] = isProperty
-    ? [
-        {
-          name: 'self',
-          type: { kind: 'any' },
-          defaultValue: undefined,
-          annotations: {},
-        },
-      ]
-    : [];
+  const params = isProperty ? PROPERTY_PARAMS : EMPTY_PARAMS;
   return {
     __type: 'callable',
     kind: 'application',

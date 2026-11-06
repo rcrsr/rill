@@ -445,8 +445,8 @@ const functions = getFunctions(ctx);
 ```
 
 Returns `FunctionMetadata[]` combining:
-1. Host functions
-2. Built-in functions
+1. Host functions, including any host function that overrides a built-in name
+2. Built-in functions, listed after all host functions
 3. Script closures (reads `^(doc: "...")` annotation for description)
 
 ### getLanguageReference()

@@ -50,9 +50,3 @@ export function getBuiltinFunctionCache(): ReadonlyMap<
   assertRegistered();
   return BUILTIN_FN_CACHE;
 }
-
-/** True when `name` is a registered builtin function. */
-export function isBuiltinFunctionName(name: string): boolean {
-  assertRegistered();
-  return BUILTIN_FN_CACHE.has(name);
-}

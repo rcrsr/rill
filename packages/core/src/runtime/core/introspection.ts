@@ -20,7 +20,7 @@ import { escapeRillStringBody } from './types/format-string.js';
 import { isScriptCallable } from './callable.js';
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
-import { isBuiltinFunctionName } from './builtin-registry.js';
+import { getBuiltinFunctionCache } from './builtin-registry.js';
 import { anyTypeValue } from './types/any-type.js';
 import type {
   AnnotationArg,
@@ -142,7 +142,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
         params,
         returnType: formatStructure(resolveReturnStructure(fn)),
       };
-      if (isBuiltinFunctionName(name)) {
+      if (getBuiltinFunctionCache().get(name) === fn) {
         builtinFunctions.push(metadata);
       } else {
         hostFunctions.push(metadata);
@@ -374,8 +374,9 @@ export function generateManifest(ctx: RuntimeContext): string {
   const entries: string[] = [];
 
   for (const [name, fn] of ctx.functions.entries()) {
-    // Exclude built-in functions by name
-    if (isBuiltinFunctionName(name)) {
+    // Exclude built-ins by identity so a host function overriding a built-in
+    // name is still included
+    if (getBuiltinFunctionCache().get(name) === fn) {
       continue;
     }
 

@@ -267,12 +267,14 @@ export async function evaluateClosureCallWithPipe(
 }
 
 /**
- * True when the callable declares an empty parameter list.
+ * True when the callable declares an empty parameter list, or is
+ * property-style (its `self` parameter is bound to the dict, not piped).
  */
 export function declaresZeroParams(value: RillCallable): boolean {
   return (
     (isScriptCallable(value) && value.params.length === 0) ||
-    (isApplicationCallable(value) && value.params.length === 0)
+    (isApplicationCallable(value) &&
+      (value.params.length === 0 || value.isProperty))
   );
 }
 
