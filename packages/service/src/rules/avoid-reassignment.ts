@@ -21,12 +21,11 @@ export const avoidReassignment: Rule = {
     const captureNode = node;
     const varName = captureNode.name;
 
-    if (context.variables.has(varName)) {
-      const firstLocation = context.variables.get(varName)!;
+    const firstLocation = context.variables.get(varName);
+    if (firstLocation !== undefined) {
       const variableScope = context.variableScopes.get(varName) ?? null;
 
-      const currentClosureScope =
-        context.scopeStack.length > 0 ? context.scopeStack.at(-1)! : null;
+      const currentClosureScope = context.scopeStack.at(-1) ?? null;
 
       const isInSameOrParentScope = isVariableInParentScope(
         variableScope,

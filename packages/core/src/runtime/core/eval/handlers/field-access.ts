@@ -30,11 +30,7 @@ import {
   isFieldReceiver,
   readOwnField,
 } from '../shared.js';
-import {
-  getTypedKey,
-  getTypedKeyMap,
-  hasTypedKey,
-} from '../../types/dict-keys.js';
+import { getTypedKey, getTypedKeyMap } from '../../types/dict-keys.js';
 import { evaluatePipeChain } from './core.js';
 
 /**
@@ -99,7 +95,8 @@ export async function evaluateFieldAccessVariable(
     (typeof keyValue === 'number' || typeof keyValue === 'boolean') &&
     getTypedKeyMap(value) !== undefined
   ) {
-    if (!hasTypedKey(value, keyValue)) {
+    const typedValue = getTypedKey(value, keyValue);
+    if (typedValue === undefined) {
       if (allowMissing) {
         return null;
       }
@@ -113,7 +110,7 @@ export async function evaluateFieldAccessVariable(
         `Undefined dict key: ${keyValue}`
       );
     }
-    return getTypedKey(value, keyValue) as RillValue;
+    return typedValue;
   }
 
   // Validate key type
@@ -306,7 +303,8 @@ export async function evaluateFieldAccessComputed(
     (typeof keyValue === 'number' || typeof keyValue === 'boolean') &&
     getTypedKeyMap(value) !== undefined
   ) {
-    if (!hasTypedKey(value, keyValue)) {
+    const typedValue = getTypedKey(value, keyValue);
+    if (typedValue === undefined) {
       if (allowMissing) {
         return null;
       }
@@ -320,7 +318,7 @@ export async function evaluateFieldAccessComputed(
         `Undefined dict key: ${keyValue}`
       );
     }
-    return getTypedKey(value, keyValue) as RillValue;
+    return typedValue;
   }
 
   // Other invalid types (boolean, list)

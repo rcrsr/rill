@@ -8,17 +8,19 @@
  * MUST NOT import from ../registrations.js or sibling protocols/*.
  */
 
-import type { RillValue, RillVector } from '../structures.js';
+import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isVector } from '../guards.js';
-import { throwNotSerializable } from './shared.js';
+import { throwNotSerializable, requireReceiver } from './shared.js';
 
 // ============================================================
 // FORMAT
 // ============================================================
 
 function formatVector(v: RillValue): string {
-  const vec = v as unknown as RillVector;
+  const vec = isVector(v)
+    ? v
+    : requireReceiver(v, isVector, { fn: 'format-vector' }, 'vector');
   return `vector(${vec.model}, ${vec.data.length}d)`;
 }
 

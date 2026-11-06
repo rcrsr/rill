@@ -31,13 +31,18 @@ declare module './parser.js' {
 type TypeConstructorName = TypeConstructorNode['constructorName'];
 
 /** Canonical list of type-constructor identifiers recognized by the parser. */
-const TYPE_CONSTRUCTOR_NAMES: ReadonlySet<TypeConstructorName> =
-  new Set<TypeConstructorName>(['list', 'dict', 'tuple', 'ordered', 'stream']);
+const TYPE_CONSTRUCTOR_NAMES: ReadonlySet<string> = new Set<string>([
+  'list',
+  'dict',
+  'tuple',
+  'ordered',
+  'stream',
+]);
 
 export function isTypeConstructorName(
   name: string
 ): name is TypeConstructorName {
-  return TYPE_CONSTRUCTOR_NAMES.has(name as TypeConstructorName);
+  return TYPE_CONSTRUCTOR_NAMES.has(name);
 }
 
 /**

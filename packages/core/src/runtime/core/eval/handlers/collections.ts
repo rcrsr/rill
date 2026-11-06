@@ -27,11 +27,11 @@ import {
 } from '../../types/guards.js';
 import type { RillStream } from '../../types/structures.js';
 import type { RuntimeContext } from '../../types/runtime.js';
-import { BreakSignal, ControlSignal } from '../../signals.js';
+import { BreakSignal } from '../../signals.js';
 import { isCallable, isDict } from '../../callable.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
+import { invokeStreamDispose } from '../../types/constructors.js';
 import {
-  RuntimeHaltSignal,
   throwCatchableHostHalt,
   throwFatalHostHalt,
   throwTypeHalt,
@@ -39,10 +39,45 @@ import {
 import type { TypeHaltSite } from '../../types/halt.js';
 import { getEvalState } from '../state.js';
 import type { EvalState } from '../state.js';
-import { checkAborted, DEFAULT_MAX_ITERATIONS } from '../shared.js';
+import {
+  checkAborted,
+  DEFAULT_MAX_ITERATIONS,
+  isFieldReceiver,
+} from '../shared.js';
 import { invokeCallable } from './closures.js';
 import { accessHaltGate } from './access.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+
+// ============================================================
+// STEP VIEW
+// ============================================================
+
+/** Step with no fields; every bracket read on it yields undefined. */
+const EMPTY_STEP: Readonly<Record<string, RillValue>> = Object.freeze({});
+
+/**
+ * View an iterator or stream step as a field record. Plain dicts and streams
+ * are returned as-is; any other value reads as a step with no fields, which
+ * matches a bracket read on it.
+ */
+function toStepView(step: RillValue): Record<string, RillValue> {
+  return isFieldReceiver(step) ? step : EMPTY_STEP;
+}
+
+/**
+ * Host stream steps may carry a non-boolean `done`; any JS-truthy value ends
+ * the stream, matching the original truthiness test.
+ */
+function isStreamStepDone(step: Record<string, RillValue>): boolean {
+  const done: unknown = step['done'];
+  return (
+    done !== undefined &&
+    done !== false &&
+    done !== 0 &&
+    done !== '' &&
+    !Number.isNaN(done)
+  );
+}
 
 // ============================================================
 // EXPORTED ITERABLE HELPERS
@@ -168,7 +203,7 @@ async function expandIterator(
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
   const elements: RillValue[] = [];
-  let current = iterator as Record<string, RillValue>;
+  let current = toStepView(iterator);
   let count = 0;
 
   while (current['done'] !== true && count < limit) {
@@ -212,7 +247,7 @@ async function expandIterator(
         'Iterator .next must return iterator'
       );
     }
-    current = nextIterator as Record<string, RillValue>;
+    current = toStepView(nextIterator);
   }
 
   // The loop halts either because the iterator is exhausted (done) or because
@@ -326,7 +361,7 @@ export async function walkStreamOrIteratorElements(
   const evaluator: EvalState = getEvalState(ctx);
   const streamInput = isStream(input);
   const results: RillValue[] = [];
-  let current: Record<string, RillValue> = input as Record<string, RillValue>;
+  let current: Record<string, RillValue> = toStepView(input);
   let count = 0;
   let expectedType: string | undefined;
   // A stream's starting step is its value-less pending head. It is the one
@@ -340,26 +375,8 @@ export async function walkStreamOrIteratorElements(
   };
 
   const dispose = (): void => {
-    if (!streamInput) return;
-    const disposeFn = (
-      input as unknown as Record<string, (() => void) | undefined>
-    )['__rill_stream_dispose'];
-    if (typeof disposeFn !== 'function') return;
-    try {
-      disposeFn();
-    } catch (disposeErr) {
-      if (
-        disposeErr instanceof RuntimeHaltSignal ||
-        disposeErr instanceof ControlSignal
-      )
-        throw disposeErr;
-      // fatal: dispose failures are not user-recoverable
-      throwFatalHostHalt(
-        site,
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        disposeErr instanceof Error ? disposeErr.message : String(disposeErr)
-      );
-    }
+    if (!streamInput || !isStream(input)) return;
+    invokeStreamDispose(input, site);
   };
 
   try {
@@ -378,7 +395,17 @@ export async function walkStreamOrIteratorElements(
         const index = results.length;
         if (streamInput) {
           validateStreamChunk(val, index, site);
-          const actualType = inferType(val as RillValue);
+        }
+        if (val === undefined) {
+          // fatal: unreachable, chunk validation halts on an undefined value
+          throwFatalHostHalt(
+            site,
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
+            'Stream chunk value is undefined'
+          );
+        }
+        if (streamInput) {
+          const actualType = inferType(val);
           if (expectedType === undefined) {
             expectedType = actualType;
           } else if (actualType !== expectedType) {
@@ -391,7 +418,7 @@ export async function walkStreamOrIteratorElements(
             );
           }
         }
-        const result = await onElement(val as RillValue, index);
+        const result = await onElement(val, index);
         results.push(result);
       }
       if (headExempt) {
@@ -436,7 +463,7 @@ export async function walkStreamOrIteratorElements(
           }`
         );
       }
-      current = nextStep as Record<string, RillValue>;
+      current = toStepView(nextStep);
     }
   } catch (e) {
     dispose();
@@ -482,7 +509,7 @@ async function expandStream(
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
   const elements: RillValue[] = [];
-  let current: RillStream = stream;
+  let current: Record<string, RillValue> = stream;
   let count = 0;
   let expectedType: string | undefined;
   // The starting step is the value-less pending head. It is the one step
@@ -496,7 +523,7 @@ async function expandStream(
   };
 
   try {
-    while (!current.done && count < limit) {
+    while (!isStreamStepDone(current) && count < limit) {
       checkAborted(evaluator);
       // The pending head has no `value` key; every non-done chunk step
       // (including the initial produced chunk) carries one.
@@ -506,6 +533,14 @@ async function expandStream(
         // not the raw step count.
         const chunkIndex = elements.length;
         validateStreamChunk(val, chunkIndex, site);
+        if (val === undefined) {
+          // fatal: unreachable, chunk validation halts on an undefined value
+          throwFatalHostHalt(
+            site,
+            ERROR_ATOMS[ERROR_IDS.RILL_R002],
+            'Stream chunk value is undefined'
+          );
+        }
         const actualType = inferType(val);
         if (expectedType === undefined) {
           expectedType = actualType;
@@ -560,38 +595,19 @@ async function expandStream(
           'Stream .next must return a stream step'
         );
       }
-      current = nextStep as RillStream;
+      current = toStepView(nextStep);
     }
   } catch (e) {
     // Dispose stream resources (idempotent) before re-throwing, regardless
     // of the error kind, for symmetry with `walkStreamOrIteratorElements`.
-    const disposeFn = (
-      stream as unknown as Record<string, (() => void) | undefined>
-    )['__rill_stream_dispose'];
-    if (typeof disposeFn === 'function') {
-      try {
-        disposeFn();
-      } catch (disposeErr) {
-        if (
-          disposeErr instanceof RuntimeHaltSignal ||
-          disposeErr instanceof ControlSignal
-        )
-          throw disposeErr;
-        // fatal: dispose failures are not user-recoverable
-        throwFatalHostHalt(
-          site,
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          disposeErr instanceof Error ? disposeErr.message : String(disposeErr)
-        );
-      }
-    }
+    invokeStreamDispose(stream, site);
     throw e;
   }
 
   // Exactly `limit` counted raw steps (the pending head is not counted) that
   // fully drain the stream (done) is within bounds; only a stream still
   // producing past the ceiling is an overrun.
-  if (count >= limit && !current.done) {
+  if (count >= limit && !isStreamStepDone(current)) {
     // fatal: resource limit exceeded
     throwFatalHostHalt(
       site,

@@ -86,7 +86,8 @@ function mapDecodedIndexToSourceOffset(
   let hi = breakpoints.length;
   while (lo < hi) {
     const mid = (lo + hi) >>> 1;
-    if (breakpoints[mid]! > decodedIndex) {
+    const breakpoint = breakpoints[mid];
+    if (breakpoint !== undefined && breakpoint > decodedIndex) {
       hi = mid;
     } else {
       lo = mid + 1;

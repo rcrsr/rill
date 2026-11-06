@@ -708,5 +708,67 @@ describe('SplitPane', () => {
       expect(onSplitChange).toHaveBeenCalled();
       expect(divider.classList.contains('dragging')).toBe(false);
     });
+
+    it('ignores touchstart without touch points', () => {
+      const onSplitChange = vi.fn<(ratio: number) => void>();
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const windowErrors: unknown[] = [];
+      const onWindowError = (e: ErrorEvent): void => {
+        windowErrors.push(e);
+      };
+      window.addEventListener('error', onWindowError);
+      const { container } = render(
+        <SplitPane
+          {...defaultProps}
+          initialSplitRatio={50}
+          onSplitChange={onSplitChange}
+        />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.touchStart(divider, { touches: [] });
+      });
+      act(() => {
+        fireEvent.touchEnd(document);
+      });
+
+      window.removeEventListener('error', onWindowError);
+      expect(divider.classList.contains('dragging')).toBe(false);
+      expect(onSplitChange).not.toHaveBeenCalled();
+      expect(windowErrors).toHaveLength(0);
+      expect(errorSpy).not.toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
+    it('ignores touchmove without touch points during a drag', () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+      const { container } = render(
+        <SplitPane {...defaultProps} initialSplitRatio={50} />
+      );
+      const divider = container.querySelector(
+        '[role="separator"]'
+      ) as HTMLElement;
+
+      act(() => {
+        fireEvent.touchStart(divider, {
+          touches: [{ clientX: 100, clientY: 100 }],
+        });
+      });
+      const before = divider.getAttribute('aria-valuenow');
+      const preventDefaultSpy = vi.spyOn(Event.prototype, 'preventDefault');
+
+      act(() => {
+        fireEvent.touchMove(document, { touches: [] });
+      });
+
+      expect(preventDefaultSpy).toHaveBeenCalled();
+      expect(divider.getAttribute('aria-valuenow')).toBe(before);
+      expect(errorSpy).not.toHaveBeenCalled();
+      preventDefaultSpy.mockRestore();
+      errorSpy.mockRestore();
+    });
   });
 });

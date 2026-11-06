@@ -83,7 +83,13 @@ function arrayEquals<T>(
 ): boolean {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
-    if (!cmp(a[i] as T, b[i] as T)) return false;
+    const x = a[i];
+    const y = b[i];
+    if (x === undefined || y === undefined) {
+      if (x !== y) return false;
+      continue;
+    }
+    if (!cmp(x, y)) return false;
   }
   return true;
 }
@@ -298,7 +304,7 @@ function structuralValueEquals(a: unknown, b: unknown): boolean {
   if (a === null || b === null) return false;
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b)) return false;
-    return arrayEquals(a as unknown[], b as unknown[], structuralValueEquals);
+    return arrayEquals(a, b, structuralValueEquals);
   }
   const aIsNode = isASTNodeLike(a);
   const bIsNode = isASTNodeLike(b);
@@ -464,18 +470,16 @@ function variableEquals(a: VariableNode, b: VariableNode): boolean {
 }
 
 function propertyAccessEquals(a: PropertyAccess, b: PropertyAccess): boolean {
-  // Check if both are bracket access
-  const aIsBracket = 'accessKind' in a && a.accessKind === 'bracket';
-  const bIsBracket = 'accessKind' in b && b.accessKind === 'bracket';
-
-  if (aIsBracket !== bIsBracket) return false;
-
+  // Bracket access carries `accessKind`; field access never does.
+  const aIsBracket = 'accessKind' in a;
+  const bIsBracket = 'accessKind' in b;
   if (aIsBracket && bIsBracket) {
     return expressionEquals(a.expression, b.expression);
   }
+  if (aIsBracket || bIsBracket) return false;
 
   // Both are field access
-  return fieldAccessEquals(a as FieldAccess, b as FieldAccess);
+  return fieldAccessEquals(a, b);
 }
 
 function functionCallEquals(a: HostCallNode, b: HostCallNode): boolean {

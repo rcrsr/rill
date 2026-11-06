@@ -61,7 +61,7 @@ import {
  */
 export async function evaluateDestructure(
   s: EvalState,
-  node: DestructureNode,
+  node: Pick<DestructureNode, 'elements' | 'span'>,
   input: RillValue
 ): Promise<RillValue> {
   const isList = Array.isArray(input);
@@ -332,20 +332,36 @@ async function evaluateSliceBound(
  * Apply Python-style slice to a list or string.
  * Handles negative indices, step values, and edge cases.
  */
-function applySlice<T extends RillValue[] | string>(
+function applySlice(
   s: EvalState,
-  input: T,
+  input: RillValue[],
   len: number,
   start: number | null,
   stop: number | null,
   step: number | null
-): T {
+): RillValue[];
+function applySlice(
+  s: EvalState,
+  input: string,
+  len: number,
+  start: number | null,
+  stop: number | null,
+  step: number | null
+): string;
+function applySlice(
+  s: EvalState,
+  input: RillValue[] | string,
+  len: number,
+  start: number | null,
+  stop: number | null,
+  step: number | null
+): RillValue[] | string {
   // Strings slice by Unicode code point, not UTF-16 code unit: an astral
   // character such as "😀" occupies a single index and is never split into a
   // lone surrogate. Index into this array (and use its length as the bound)
   // instead of the raw string, then join back for the string result.
-  const codePoints = typeof input === 'string' ? Array.from(input) : null;
-  const effectiveLen = codePoints ? codePoints.length : len;
+  const codePoints = typeof input === 'string' ? Array.from(input) : [];
+  const effectiveLen = typeof input === 'string' ? codePoints.length : len;
 
   const actualStep = step ?? 1;
 
@@ -411,11 +427,22 @@ function applySlice<T extends RillValue[] | string>(
     }
   }
 
-  if (Array.isArray(input)) {
-    return indices.map((i) => input[i]) as T;
-  } else {
-    return indices.map((i) => codePoints![i]).join('') as T;
+  if (typeof input === 'string') {
+    return indices.map((i) => codePoints[i]).join('');
   }
+  const picked: RillValue[] = [];
+  for (const i of indices) {
+    const item = input[i];
+    if (item === undefined) {
+      return throwFatalHostHalt(
+        { sourceId: s.ctx.sourceId, fn: 'applySlice' },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        'Slice index out of range'
+      );
+    }
+    picked.push(item);
+  }
+  return picked;
 }
 
 /**
@@ -430,11 +457,7 @@ export function evaluateDestruct(
 ): Promise<RillValue> {
   // DestructNode has the same elements structure as DestructureNode.
   // Cast to DestructureNode-compatible shape for reuse.
-  return evaluateDestructure(
-    s,
-    { ...node, type: 'Destructure' } as unknown as DestructureNode,
-    input
-  );
+  return evaluateDestructure(s, node, input);
 }
 
 /**

@@ -490,8 +490,10 @@
       // trees fall outside the glob, so the locked language arbiter is
       // untouched. no-unsafe-type-assertion is type-aware and runs only in
       // package lint scripts; no-non-null-assertion also runs in the
-      // pre-commit hook. At enablement: 182 non-null hits in 46 files and
-      // 376 cast hits in 76 files over shipped src/, held by the ratchets below.
+      // pre-commit hook. At enablement: 182 non-null hits in 46 files and 376 cast
+      // hits in 76 files over shipped src/. All are removed and no shipped file
+      // is exempt. A justified exception is an oxlint-disable-next-line comment
+      // at the site with a -- reason, never a path in an override.
       "files": ["packages/*/src/**/*.{ts,tsx}"],
       "rules": {
         "typescript/no-non-null-assertion": "error",
@@ -510,114 +512,6 @@
       ],
       "rules": {
         "typescript/no-non-null-assertion": "off",
-        "typescript/no-unsafe-type-assertion": "off"
-      }
-    },
-    {
-      // Non-null ratchet. At enablement: 182 hits in 46 files (core 152 in 36,
-      // service 25 in 8, fiddle 5 in 2). Remaining in core: 65 hits in 25
-      // files (measured). Remove a path once its file reports zero; never add
-      // one. packages/service/src/percentile.ts is build-excluded test support
-      // named like source, so it stays listed.
-      "files": [
-        "packages/core/src/error-formatter.ts",
-        "packages/core/src/error-registry.ts",
-        "packages/core/src/lexer/tokenizer.ts",
-        "packages/core/src/parser/parser-expr.ts",
-        "packages/core/src/parser/parser-functions.ts",
-        "packages/core/src/parser/parser-literals.ts",
-        "packages/core/src/parser/parser-script.ts",
-        "packages/core/src/parser/parser-types.ts",
-        "packages/core/src/parser/parser-variables.ts",
-        "packages/core/src/runtime/core/eval/handlers/closures.ts",
-        "packages/core/src/runtime/core/eval/handlers/conversion.ts",
-        "packages/core/src/runtime/core/eval/handlers/core.ts",
-        "packages/core/src/runtime/core/eval/handlers/extraction.ts",
-        "packages/core/src/runtime/core/eval/handlers/list-dispatch.ts",
-        "packages/core/src/runtime/core/eval/handlers/literals.ts",
-        "packages/core/src/runtime/core/eval/handlers/types.ts",
-        "packages/core/src/runtime/core/eval/invocation/arguments-binder.ts",
-        "packages/core/src/runtime/core/eval/invocation/stream-closures.ts",
-        "packages/core/src/runtime/core/execute.ts",
-        "packages/core/src/runtime/core/introspection.ts",
-        "packages/core/src/runtime/core/policy/identity.ts",
-        "packages/core/src/runtime/core/types/dict-keys.ts",
-        "packages/core/src/runtime/core/types/halt.ts",
-        "packages/core/src/runtime/core/types/registrations.ts",
-        "packages/core/src/runtime/core/types/status.ts",
-        "packages/fiddle/src/components/SplitPane.tsx",
-        "packages/fiddle/src/lib/highlight.ts",
-        "packages/service/src/document-symbols.ts",
-        "packages/service/src/percentile.ts",
-        "packages/service/src/rules/avoid-reassignment.ts",
-        "packages/service/src/rules/loop-outer-capture.ts",
-        "packages/service/src/rules/throwaway-capture.ts",
-        "packages/service/src/rules/traversal.ts",
-        "packages/service/src/scope/resolve-scope.ts",
-        "packages/service/src/semantic-tokens.ts"
-      ],
-      "rules": {
-        "typescript/no-non-null-assertion": "off"
-      }
-    },
-    {
-      // Cast ratchet. At enablement: 376 hits in 76 files (core 369 in 70,
-      // service 4 in 4, fiddle 3 in 2). Remaining in core: 126 hits in 45
-      // files (measured). Remove a path once its file reports zero; never add
-      // one. packages/service/src/rules/corpus-loader.ts is build-excluded
-      // test support named like source, so it stays listed.
-      "files": [
-        "packages/core/src/error-classes.ts",
-        "packages/core/src/error-registry.ts",
-        "packages/core/src/lexer/readers.ts",
-        "packages/core/src/parser/parser-closure.ts",
-        "packages/core/src/parser/parser-control.ts",
-        "packages/core/src/parser/parser-functions.ts",
-        "packages/core/src/parser/parser-shape.ts",
-        "packages/core/src/runtime/core/callable-factory.ts",
-        "packages/core/src/runtime/core/equals.ts",
-        "packages/core/src/runtime/core/eval/handlers/calls.ts",
-        "packages/core/src/runtime/core/eval/handlers/closures.ts",
-        "packages/core/src/runtime/core/eval/handlers/collections.ts",
-        "packages/core/src/runtime/core/eval/handlers/conversion.ts",
-        "packages/core/src/runtime/core/eval/handlers/core.ts",
-        "packages/core/src/runtime/core/eval/handlers/extraction.ts",
-        "packages/core/src/runtime/core/eval/handlers/field-access.ts",
-        "packages/core/src/runtime/core/eval/handlers/literals.ts",
-        "packages/core/src/runtime/core/eval/handlers/methods.ts",
-        "packages/core/src/runtime/core/eval/handlers/recovery.ts",
-        "packages/core/src/runtime/core/eval/handlers/types.ts",
-        "packages/core/src/runtime/core/eval/handlers/variables.ts",
-        "packages/core/src/runtime/core/eval/invocation/callable-strategy.ts",
-        "packages/core/src/runtime/core/eval/invocation/stream-closures.ts",
-        "packages/core/src/runtime/core/execute.ts",
-        "packages/core/src/runtime/core/field-descriptor.ts",
-        "packages/core/src/runtime/core/introspection.ts",
-        "packages/core/src/runtime/core/types/constructors.ts",
-        "packages/core/src/runtime/core/types/dict-keys.ts",
-        "packages/core/src/runtime/core/types/guards.ts",
-        "packages/core/src/runtime/core/types/halt.ts",
-        "packages/core/src/runtime/core/types/protocols/atom.ts",
-        "packages/core/src/runtime/core/types/protocols/bool.ts",
-        "packages/core/src/runtime/core/types/protocols/dict.ts",
-        "packages/core/src/runtime/core/types/protocols/list.ts",
-        "packages/core/src/runtime/core/types/protocols/number.ts",
-        "packages/core/src/runtime/core/types/protocols/ordered.ts",
-        "packages/core/src/runtime/core/types/protocols/shared.ts",
-        "packages/core/src/runtime/core/types/protocols/string.ts",
-        "packages/core/src/runtime/core/types/protocols/tuple.ts",
-        "packages/core/src/runtime/core/types/protocols/type.ts",
-        "packages/core/src/runtime/core/types/protocols/vector.ts",
-        "packages/core/src/runtime/core/types/registrations.ts",
-        "packages/core/src/runtime/core/types/runtime.ts",
-        "packages/core/src/runtime/core/types/status.ts",
-        "packages/core/src/runtime/ext/extensions.ts",
-        "packages/fiddle/src/lib/execution.ts",
-        "packages/service/src/rules/collection-ops.ts",
-        "packages/service/src/rules/corpus-loader.ts",
-        "packages/service/src/rules/helpers.ts"
-      ],
-      "rules": {
         "typescript/no-unsafe-type-assertion": "off"
       }
     },

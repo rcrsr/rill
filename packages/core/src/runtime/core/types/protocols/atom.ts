@@ -8,18 +8,21 @@
  * Must NOT import from ../registrations.js.
  */
 
-import type { RillValue, RillAtomValue } from '../structures.js';
+import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isAtom } from '../guards.js';
-import { resolveAtom } from '../atom-registry.js';
+import { resolveAtom, toAtomValue } from '../atom-registry.js';
 import { throwTypeHalt } from '../halt.js';
+import { requireReceiver } from './shared.js';
 
 // ============================================================
 // FORMAT
 // ============================================================
 
 function formatCode(v: RillValue): string {
-  const c = v as unknown as RillAtomValue;
+  const c = isAtom(v)
+    ? v
+    : requireReceiver(v, isAtom, { fn: 'format-atom' }, 'atom');
   return `#${c.atom.name}`;
 }
 
@@ -47,7 +50,10 @@ function eqCode(a: RillValue, b: RillValue): boolean {
  */
 const atomConvertTo: Record<string, (v: RillValue) => RillValue> = {
   string: (v: RillValue): RillValue =>
-    (v as unknown as RillAtomValue).atom.name,
+    (isAtom(v)
+      ? v
+      : requireReceiver(v, isAtom, { fn: 'atom-to-string' }, 'atom')
+    ).atom.name,
 };
 
 // ============================================================
@@ -59,7 +65,9 @@ const atomConvertTo: Record<string, (v: RillValue) => RillValue> = {
  * The `#` sigil is a syntactic convenience, not part of the identity.
  */
 function serializeAtom(v: RillValue): unknown {
-  return (v as unknown as RillAtomValue).atom.name;
+  return (
+    isAtom(v) ? v : requireReceiver(v, isAtom, { fn: 'serialize-atom' }, 'atom')
+  ).atom.name;
 }
 
 // ============================================================
@@ -81,7 +89,7 @@ function deserializeAtom(data: unknown): RillValue {
     );
   }
   const atom = resolveAtom(data);
-  return { __rill_atom: true, atom } as unknown as RillValue;
+  return toAtomValue(atom);
 }
 
 // ============================================================

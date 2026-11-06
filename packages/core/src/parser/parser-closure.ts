@@ -14,7 +14,7 @@ import type {
   TypeConstructorNode,
   TypeRef,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES } from '../types.js';
+import { ParseError, TOKEN_TYPES, isRillTypeName } from '../types.js';
 import {
   check,
   advance,
@@ -26,7 +26,7 @@ import {
   skipNewlinesIfFollowedBy,
   makeSpan,
 } from './state.js';
-import { expectVariableName, VALID_TYPE_NAMES } from './helpers.js';
+import { expectVariableName } from './helpers.js';
 import { parseTypeRef, parseFieldArgList } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -250,12 +250,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     const isTypeStart = (offset: number): boolean => {
       const tok = peek(this.state, offset);
       if (tok.type === TOKEN_TYPES.DOLLAR) return true;
-      if (
-        tok.type === TOKEN_TYPES.IDENTIFIER &&
-        VALID_TYPE_NAMES.includes(
-          tok.value as (typeof VALID_TYPE_NAMES)[number]
-        )
-      ) {
+      if (tok.type === TOKEN_TYPES.IDENTIFIER && isRillTypeName(tok.value)) {
         return true;
       }
       return false;
@@ -298,9 +293,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     }
     if (
       check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-      VALID_TYPE_NAMES.includes(
-        current(this.state).value as (typeof VALID_TYPE_NAMES)[number]
-      )
+      isRillTypeName(current(this.state).value)
     ) {
       // Parameterized type name: list(string), dict(name: type), etc.
       // Next token is LPAREN — this is an anonymous typed closure with type args.
@@ -474,11 +467,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
 
   const nameToken = expectVariableName(this.state, 'Expected parameter name');
 
-  if (
-    VALID_TYPE_NAMES.includes(
-      nameToken.value as (typeof VALID_TYPE_NAMES)[number]
-    )
-  ) {
+  if (isRillTypeName(nameToken.value)) {
     throw new ParseError(
       ERROR_IDS.RILL_P003,
       `Reserved type keyword cannot be used as parameter name: ${nameToken.value}`,

@@ -8,18 +8,20 @@
  * MUST NOT import from ../registrations.js or sibling protocols/*.
  */
 
-import type { RillValue, RillTypeValue } from '../structures.js';
+import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isTypeValue } from '../guards.js';
 import { formatStructure, structureEquals } from '../operations.js';
-import { throwNotSerializable } from './shared.js';
+import { throwNotSerializable, requireReceiver } from './shared.js';
 
 // ============================================================
 // FORMAT
 // ============================================================
 
 function formatTypeValue(v: RillValue): string {
-  const tv = v as unknown as RillTypeValue;
+  const tv = isTypeValue(v)
+    ? v
+    : requireReceiver(v, isTypeValue, { fn: 'format-type' }, 'type');
   return formatStructure(tv.structure);
 }
 

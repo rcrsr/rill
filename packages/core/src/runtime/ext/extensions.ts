@@ -112,6 +112,7 @@ export function emitExtensionEvent(
     // Call callback if defined
     if (ctx.callbacks.onLogEvent !== undefined) {
       // Auto-add timestamp if not present
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- spreading an event collapses its fields into the ExtensionEvent index signature
       const eventWithTimestamp = {
         ...event,
         timestamp: event.timestamp ?? new Date().toISOString(),

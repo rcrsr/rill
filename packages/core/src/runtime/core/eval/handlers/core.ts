@@ -42,7 +42,11 @@ import { inferType } from '../../types/registrations.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
-import { resolveAtom, atomName } from '../../types/atom-registry.js';
+import {
+  resolveAtom,
+  atomName,
+  toAtomValue,
+} from '../../types/atom-registry.js';
 import type { EvalState } from '../state.js';
 import { accessHaltGateFast, formatAccessSite } from './access.js';
 import {
@@ -581,10 +585,7 @@ export async function evaluatePrimary(
       // Atom literals (`#NAME`) resolve via the atom registry. Unregistered
       // names resolve to `#R001` at registry level; the node itself simply
       // materialises a typed atom value.
-      return {
-        __rill_atom: true,
-        atom: resolveAtom(primary.name),
-      } as unknown as RillValue;
+      return toAtomValue(resolveAtom(primary.name));
 
     case 'RecoveryError': {
       // a RecoveryErrorNode reached runtime produces an
@@ -1066,16 +1067,26 @@ async function evaluateHierarchicalDispatch(
     let current = targetValue;
     let lastKey: RillValue | undefined;
 
-    // Traverse all elements except the last
-    for (let i = 0; i < path.length - 1; i++) {
-      // Bounds-checked loop: path[i] is always defined
-      const key = path[i]!;
-      current = await traversePathStep(s, current, key, false, location);
+    // Traverse all elements except the last, which is kept for terminal
+    // closure support.
+    for (const key of path) {
+      if (lastKey !== undefined) {
+        current = await traversePathStep(s, current, lastKey, false, location);
+      }
+      lastKey = key;
     }
 
-    // Handle last element separately for terminal closure support
-    // path.length > 0 is guaranteed above so this index is always valid
-    lastKey = path.at(-1)!;
+    if (lastKey === undefined) {
+      return throwFatalHostHalt(
+        {
+          location,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateHierarchicalDispatch',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        'Hierarchical dispatch path is empty'
+      );
+    }
     const result = await traversePathStep(s, current, lastKey, true, location);
 
     // Resolve terminal value (handles terminal closures with $ = lastKey)
@@ -1225,9 +1236,10 @@ async function resolveIntermediateClosure(
   // Check for parameterized closure (explicit user-defined params)
   // Note: Block-closures have exactly 1 param named '$'
   // Parameterized closures have 1+ params with user-defined names
-  if (value.kind === 'script' && value.params.length > 0) {
+  const firstParam = value.kind === 'script' ? value.params[0] : undefined;
+  if (value.kind === 'script' && firstParam !== undefined) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
-    if (value.params[0]!.name !== '$') {
+    if (firstParam.name !== '$') {
       // Parameterized closures cannot be auto-invoked at an intermediate path position.
       throwCatchableHostHalt(
         {
@@ -1275,9 +1287,10 @@ async function resolveTerminalValue(
   // Check for parameterized closure (explicit user-defined params)
   // Note: Block-closures have exactly 1 param named '$'
   // Parameterized closures have 1+ params with user-defined names
-  if (value.kind === 'script' && value.params.length > 0) {
+  const firstParam = value.kind === 'script' ? value.params[0] : undefined;
+  if (value.kind === 'script' && firstParam !== undefined) {
     // Check if first param is '$' (block-closure) or user-defined (parameterized)
-    if (value.params[0]!.name !== '$') {
+    if (firstParam.name !== '$') {
       // Parameterized closures cannot be auto-invoked at a terminal path position.
       throwCatchableHostHalt(
         {

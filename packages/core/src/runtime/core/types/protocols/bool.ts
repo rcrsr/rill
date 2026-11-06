@@ -15,7 +15,7 @@ import type { TypeDefinition } from './types.js';
 // ============================================================
 
 function formatBool(v: RillValue): string {
-  return (v as boolean) ? 'true' : 'false';
+  return v === true ? 'true' : 'false';
 }
 
 // ============================================================
@@ -31,8 +31,8 @@ function eqBool(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 const boolConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue => ((v as boolean) ? 'true' : 'false'),
-  number: (v: RillValue): RillValue => ((v as boolean) ? 1 : 0),
+  string: (v: RillValue): RillValue => (v === true ? 'true' : 'false'),
+  number: (v: RillValue): RillValue => (v === true ? 1 : 0),
 };
 
 // ============================================================

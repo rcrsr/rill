@@ -212,10 +212,14 @@ export class RillError extends Error {
    * is not shared with the returned instance.
    */
   withContext(patch: Record<string, unknown>): RillError {
-    const clone = Object.create(
+    const created: unknown = Object.create(
       Reflect.getPrototypeOf(this),
       Object.getOwnPropertyDescriptors(this)
-    ) as RillError;
+    );
+    if (!(created instanceof RillError)) {
+      throw new Error('withContext produced a non-RillError clone');
+    }
+    const clone = created;
     // Object.getOwnPropertyDescriptors copies Error's `stack` accessor
     // descriptor as-is (get/set pair). That accessor is backed by V8's
     // internal captured-frames slot on the original instance, not by the
@@ -231,10 +235,15 @@ export class RillError extends Error {
       enumerable: false,
     });
     const merged = { ...this.context, ...patch };
-    (clone as { context: Record<string, unknown> | undefined }).context =
-      this.context === undefined && Object.keys(merged).length === 0
-        ? undefined
-        : merged;
+    Object.defineProperty(clone, 'context', {
+      value:
+        this.context === undefined && Object.keys(merged).length === 0
+          ? undefined
+          : merged,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
     return clone;
   }
 }

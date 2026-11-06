@@ -58,22 +58,53 @@ Parser.prototype.parseArgumentList = function (
   this: Parser,
   allowSpread: boolean = false
 ): (ExpressionNode | SpreadArgNode)[] {
-  const args: (ExpressionNode | SpreadArgNode)[] = [];
   let hasSpread = false;
-  skipNewlines(this.state);
-  if (!check(this.state, TOKEN_TYPES.RPAREN)) {
-    args.push(parseSpreadOrArg(this, { allowSpread, hasSpread }));
-    if (args.at(-1)!.type === 'SpreadArg') hasSpread = true;
-    while (check(this.state, TOKEN_TYPES.COMMA)) {
-      advance(this.state);
-      skipNewlines(this.state);
-      args.push(parseSpreadOrArg(this, { allowSpread, hasSpread }));
-      if (args.at(-1)!.type === 'SpreadArg') hasSpread = true;
+  return parseCommaSeparatedArgs(this, () => {
+    const arg = parseSpreadOrArg(this, { allowSpread, hasSpread });
+    if (arg.type === 'SpreadArg') hasSpread = true;
+    return arg;
+  });
+};
+
+/**
+ * Shared comma loop for argument lists. Consumes newlines around the list
+ * and parses each argument with `parseOne`; stops before the closing `)`.
+ */
+function parseCommaSeparatedArgs<T>(parser: Parser, parseOne: () => T): T[] {
+  const args: T[] = [];
+  skipNewlines(parser.state);
+  if (!check(parser.state, TOKEN_TYPES.RPAREN)) {
+    args.push(parseOne());
+    while (check(parser.state, TOKEN_TYPES.COMMA)) {
+      advance(parser.state);
+      skipNewlines(parser.state);
+      args.push(parseOne());
     }
   }
-  skipNewlines(this.state);
+  skipNewlines(parser.state);
   return args;
-};
+}
+
+/**
+ * Parse an argument list in which spread is not allowed. A `...` token
+ * halts inside parseSpreadOrArg, so every result is an ExpressionNode.
+ */
+function parseExpressionArgumentList(parser: Parser): ExpressionNode[] {
+  return parseCommaSeparatedArgs(parser, () => {
+    const arg = parseSpreadOrArg(parser, {
+      allowSpread: false,
+      hasSpread: false,
+    });
+    if (arg.type === 'SpreadArg') {
+      throw new ParseError(
+        ERROR_IDS.RILL_P006,
+        'Spread not supported in method call argument lists',
+        arg.span.start
+      );
+    }
+    return arg;
+  });
+}
 
 /**
  * Parse one argument in an argument list, handling spread when allowed.
@@ -289,7 +320,7 @@ Parser.prototype.parseMethodCall = function (
     hasParens = true;
     advance(this.state);
     // allowSpread defaults to false — spread not supported in method calls
-    args = this.parseArgumentList() as ExpressionNode[];
+    args = parseExpressionArgumentList(this);
     const rparen = expect(
       this.state,
       TOKEN_TYPES.RPAREN,

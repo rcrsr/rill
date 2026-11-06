@@ -20,7 +20,10 @@ function computeP95(samples: number[]): number {
     sorted.length - 1,
     Math.ceil(sorted.length * 0.95) - 1
   );
-  return sorted[index]!;
+  const value = sorted[index];
+  // Unreachable in practice: measureP95 always passes PERCENTILE_SAMPLE_COUNT
+  // samples. The type system cannot express that, so empty input yields NaN.
+  return value === undefined ? Number.NaN : value;
 }
 
 /**
@@ -148,7 +151,10 @@ export function measureInterleavedRatioMedian(
   }
   const sorted = ratios.sort((a, b) => a - b);
   const mid = sorted.length / 2;
-  return (sorted[mid - 1]! + sorted[mid]!) / 2;
+  const lower = sorted[mid - 1];
+  const upper = sorted[mid];
+  if (lower === undefined || upper === undefined) return Number.NaN;
+  return (lower + upper) / 2;
 }
 
 /** Times a single call of `fn` in ms. */

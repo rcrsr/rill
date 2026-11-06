@@ -19,6 +19,7 @@ import {
 } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 /**
@@ -191,4 +192,46 @@ describe('acc disposes an infinite stream exactly once on break (#419)', () => {
 
     expect(disposeCounter.count).toBe(1);
   });
+});
+
+/** Host function returning a finite stream whose dispose hook throws a plain Error. */
+function makeThrowingDisposeStreamFn(message: string): RillFunction {
+  return {
+    params: [],
+    returnType: anyTypeValue,
+    fn: (): RillStream =>
+      createRillStream({
+        chunks: (async function* () {
+          yield 0;
+          yield 1;
+          yield 2;
+          yield 3;
+        })(),
+        resolve: () => Promise.resolve(null),
+        dispose: () => {
+          throw new Error(message);
+        },
+      }),
+  };
+}
+
+describe('a plain Error thrown by a stream dispose hook becomes a fatal RILL-R002 halt', () => {
+  const scripts: ReadonlyArray<readonly [string, string]> = [
+    ['seq with break', 's() -> seq({ ($ > 1) ? break ! $ })'],
+    ['acc with break', 's() -> acc(0, { ($ > 1) ? break ! ($@ + $) })'],
+    ['take', 's() -> take(2)'],
+    ['skip', 's() -> skip(2)'],
+  ];
+
+  for (const [label, source] of scripts) {
+    it(`halts with the dispose message when ${label} disposes the stream`, async () => {
+      await expectHalt(
+        () =>
+          run(source, {
+            functions: { s: makeThrowingDisposeStreamFn('dispose boom') },
+          }),
+        { code: 'RILL_R002', messagePattern: /dispose boom/ }
+      );
+    });
+  }
 });

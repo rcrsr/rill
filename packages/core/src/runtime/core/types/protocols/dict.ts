@@ -20,13 +20,15 @@ import {
   typedKeyEntries,
   orderedDictEntries,
   setDictField,
-  type TypedKey,
 } from '../dict-keys.js';
+import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import { throwFatalHostHalt } from '../halt.js';
 import { quoteRillString } from '../format-string.js';
 import {
   formatNested,
   compareByDeepEquals,
   serializeListElement,
+  requireReceiver,
 } from './shared.js';
 
 /**
@@ -46,8 +48,14 @@ function formatStringKey(key: string): string {
   return quoteRillString(key);
 }
 
-function formatTypedKey(key: TypedKey): string {
-  return String(key);
+function formatDictKey(key: RillValue): string {
+  if (typeof key === 'string') return formatStringKey(key);
+  if (typeof key === 'number' || typeof key === 'boolean') return String(key);
+  return throwFatalHostHalt(
+    { fn: 'format-dict' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'dict key must be a string, number, or boolean'
+  );
 }
 
 // ============================================================
@@ -55,12 +63,11 @@ function formatTypedKey(key: TypedKey): string {
 // ============================================================
 
 function formatDict(v: RillValue): string {
-  const dict = v as Record<string, RillValue>;
+  const dict = isDict(v)
+    ? v
+    : requireReceiver(v, isDict, { fn: 'format-dict' }, 'dict');
   const parts = orderedDictEntries(dict).map(({ key, value }) => {
-    const formattedKey =
-      typeof key === 'string'
-        ? formatStringKey(key)
-        : formatTypedKey(key as TypedKey);
+    const formattedKey = formatDictKey(key);
     return `${formattedKey}: ${formatNested(value)}`;
   });
   return `dict[${parts.join(', ')}]`;
@@ -74,9 +81,9 @@ function eqDict(a: RillValue, b: RillValue): boolean {
   // Guard the right operand first, like every other eq protocol. Without this,
   // Object.keys(b) on a primitive or array yields [], making an empty dict
   // compare equal to non-dicts (dict[] == 5, dict[] == "", dict[] == list[]).
-  if (!isDict(b)) return false;
-  const aDict = a as Record<string, RillValue>;
-  const bDict = b as Record<string, RillValue>;
+  if (!isDict(a) || !isDict(b)) return false;
+  const aDict = a;
+  const bDict = b;
   const aKeys = Object.keys(aDict);
   const bKeys = Object.keys(bDict);
   if (aKeys.length !== bKeys.length) return false;
@@ -123,7 +130,9 @@ const dictConvertTo: Record<string, (v: RillValue) => RillValue> = {
 // ============================================================
 
 function serializeDict(v: RillValue): unknown {
-  const dict = v as Record<string, RillValue>;
+  const dict = isDict(v)
+    ? v
+    : requireReceiver(v, isDict, { fn: 'serialize-dict' }, 'dict');
   const result: Record<string, unknown> = {};
   for (const [k, val] of Object.entries(dict)) {
     setDictField(result, k, serializeListElement(val));

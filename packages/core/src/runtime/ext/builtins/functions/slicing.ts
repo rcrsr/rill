@@ -2,12 +2,11 @@ import type { RillFunction } from '../../../core/callable.js';
 import { callable, isCallable } from '../../../core/callable.js';
 import {
   rejectBreakAsHalt,
-  RuntimeHaltSignal,
   throwCatchableHostHalt,
-  throwFatalHostHalt,
   type TypeHaltSite,
 } from '../../../core/types/halt.js';
 import type { RillValue } from '../../../core/types/structures.js';
+import { invokeStreamDispose } from '../../../core/types/constructors.js';
 import { inferType } from '../../../core/types/registrations.js';
 import {
   isDict,
@@ -17,7 +16,6 @@ import {
 } from '../../../core/types/guards.js';
 import { anyTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
-import { ControlSignal } from '../../../core/signals.js';
 import { createChildContext } from '../../../core/context.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 import { getEvalState } from '../../../core/eval/state.js';
@@ -37,20 +35,7 @@ import {
  */
 function disposeStreamInput(input: RillValue, site: TypeHaltSite): void {
   if (!isStream(input)) return;
-  const hook: unknown = input['__rill_stream_dispose'];
-  if (typeof hook !== 'function') return;
-  try {
-    Reflect.apply(hook, undefined, []);
-  } catch (e) {
-    if (e instanceof RuntimeHaltSignal || e instanceof ControlSignal) {
-      throw e;
-    }
-    throwFatalHostHalt(
-      site,
-      'RILL_R002',
-      e instanceof Error ? e.message : String(e)
-    );
-  }
+  invokeStreamDispose(input, site);
 }
 
 /** Slicing built-in functions: take, skip, cycle, batch, window, start_when, stop_when. */

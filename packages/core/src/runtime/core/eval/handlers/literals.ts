@@ -38,7 +38,6 @@ import type {
   AnnotationArg,
   PassNode,
   PassBlockNode,
-  TypeRef,
 } from '../../../../types.js';
 import { isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
@@ -87,7 +86,6 @@ import {
 import {
   setTypedKey,
   getTypedKey,
-  hasTypedKey,
   typedKeyEntries,
   orderedDictEntries,
 } from '../../types/dict-keys.js';
@@ -720,21 +718,20 @@ export async function evaluateDict(
     // Number and boolean keys carry their type: they are stored in the
     // sidecar (see dict-keys.ts) so number 1 and string "1" stay distinct.
     // String keys are stored as own string properties, exactly as before.
-    const typedKey =
+    const storeKey =
       typeof entry.key === 'number' || typeof entry.key === 'boolean'
         ? entry.key
-        : undefined;
-    const stringKey = typedKey === undefined ? String(entry.key) : undefined;
+        : String(entry.key);
 
-    if (stringKey !== undefined) {
-      assertUsableDictKey(s, stringKey, entry.span);
+    if (typeof storeKey === 'string') {
+      assertUsableDictKey(s, storeKey, entry.span);
     }
 
     const store = (value: RillValue): void => {
-      if (typedKey !== undefined) {
-        setTypedKey(result, typedKey, value);
+      if (typeof storeKey === 'string') {
+        setDictField(result, storeKey, value);
       } else {
-        setDictField(result, stringKey!, value);
+        setTypedKey(result, storeKey, value);
       }
     };
 
@@ -869,9 +866,10 @@ async function resolveDispatchValue(
     // Check for parameterized closure (explicit user-defined params)
     // Note: Block-closures have exactly 1 param named '$'
     // Parameterized closures have 1+ params with user-defined names
-    if (value.kind === 'script' && value.params.length > 0) {
+    const firstParam = value.kind === 'script' ? value.params[0] : undefined;
+    if (value.kind === 'script' && firstParam !== undefined) {
       // Check if first param is '$' (block-closure) or user-defined (parameterized)
-      if (value.params[0]!.name !== '$') {
+      if (firstParam.name !== '$') {
         // Parameterized closure at terminal position: error
         throwCatchableHostHalt(
           {
@@ -936,8 +934,8 @@ export async function dispatchToDict(
   // keys; string inputs match only string properties. This keeps number 1
   // distinct from string "1" and boolean true distinct from string "true".
   if (typeof input === 'number' || typeof input === 'boolean') {
-    if (hasTypedKey(dict, input)) {
-      const value = getTypedKey(dict, input) as RillValue;
+    const value = getTypedKey(dict, input);
+    if (value !== undefined) {
       if (skipClosureResolution) {
         return value;
       }
@@ -1034,7 +1032,18 @@ export async function dispatchToList(
   }
 
   // Return element at normalized index
-  const element = list[normalizedIndex]!;
+  const element = list[normalizedIndex];
+  if (element === undefined) {
+    throwFatalHostHalt(
+      {
+        location: location.span?.start,
+        sourceId: s.ctx.sourceId,
+        fn: 'dispatchToList',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `List dispatch: index '${index}' not found`
+    );
+  }
   // Skip closure resolution for hierarchical dispatch (caller handles it)
   if (skipClosureResolution) {
     return element;
@@ -1168,15 +1177,12 @@ export async function createClosure(
   // Absent → returnType defaults to anyTypeValue (omission implies :any).
   let returnType = anyTypeValue;
   if (node.returnTypeTarget !== undefined) {
-    if (
-      'type' in node.returnTypeTarget &&
-      node.returnTypeTarget.type === 'TypeConstructor'
-    ) {
+    if ('type' in node.returnTypeTarget) {
       returnType = await evaluateTypeConstructor(s, node.returnTypeTarget);
     } else {
       returnType = await resolveTypeRef(
         s,
-        node.returnTypeTarget as TypeRef,
+        node.returnTypeTarget,
         (name: string) => getVariable(s.ctx, name)
       );
     }

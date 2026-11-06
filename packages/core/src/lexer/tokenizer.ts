@@ -244,19 +244,24 @@ export function tokenize(
   } while (token.type !== TOKEN_TYPES.EOF);
 
   // Post-process: IDENTIFIER or keyword-typed token after DOT/DOT_QUESTION → METHOD_NAME
+  let prev: Token | undefined = tokens[0];
   for (let i = 1; i < tokens.length; i++) {
-    const prev = tokens[i - 1]!;
-    const curr = tokens[i]!;
+    const curr = tokens[i];
+    if (prev === undefined || curr === undefined) break;
     if (
       (curr.type === TOKEN_TYPES.IDENTIFIER ||
         KEYWORD_TOKEN_TYPES.has(curr.type)) &&
       (prev.type === TOKEN_TYPES.DOT || prev.type === TOKEN_TYPES.DOT_QUESTION)
     ) {
-      tokens[i] = {
+      const converted: Token = {
         type: TOKEN_TYPES.METHOD_NAME,
         value: curr.value,
         span: curr.span,
       };
+      tokens[i] = converted;
+      prev = converted;
+    } else {
+      prev = curr;
     }
   }
 

@@ -1017,11 +1017,10 @@ Parser.prototype.parseTimeoutBlock = function (this: Parser): TimeoutBlockNode {
   skipNewlines(this.state);
 
   // Parse exactly one kind key: `total` or `idle`.
-  if (
-    !check(this.state, TOKEN_TYPES.IDENTIFIER) ||
-    (current(this.state).value !== 'total' &&
-      current(this.state).value !== 'idle')
-  ) {
+  const kindText = check(this.state, TOKEN_TYPES.IDENTIFIER)
+    ? current(this.state).value
+    : undefined;
+  if (kindText !== 'total' && kindText !== 'idle') {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
       "Expected 'total:' or 'idle:' inside 'timeout<...>'",
@@ -1029,8 +1028,8 @@ Parser.prototype.parseTimeoutBlock = function (this: Parser): TimeoutBlockNode {
     );
   }
 
-  const kindToken = advance(this.state);
-  const kind = kindToken.value as 'total' | 'idle';
+  advance(this.state);
+  const kind = kindText;
 
   expect(
     this.state,

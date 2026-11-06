@@ -67,13 +67,17 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
   let insideClosureBody = false;
 
   walkAst(root, (node) => {
-    while (
+    for (
+      let top = openFrames.at(-1);
       openFrames.length > 1 &&
-      node.span.start.offset >= openFrames.at(-1)!.span.end.offset
+      top !== undefined &&
+      node.span.start.offset >= top.span.end.offset;
+      top = openFrames.at(-1)
     ) {
       openFrames.pop();
     }
-    const frame = openFrames.at(-1)!;
+    const frame = openFrames.at(-1);
+    if (frame === undefined) return;
 
     switch (node.type) {
       case 'PassBlock':
@@ -209,7 +213,7 @@ export function findVisibleBinding(
   if (candidates.length === 0) return null;
 
   if (insideClosureBody) {
-    return candidates.at(-1)!;
+    return candidates.at(-1) ?? null;
   }
 
   let nearest: Binding | null = null;
@@ -222,5 +226,5 @@ export function findVisibleBinding(
       nearest = candidate;
     }
   }
-  return nearest ?? candidates[0]!;
+  return nearest ?? candidates[0] ?? null;
 }

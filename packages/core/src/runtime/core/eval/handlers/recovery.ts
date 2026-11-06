@@ -43,7 +43,7 @@ import {
 } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
 import type { RillAtom } from '../../types/atom-registry.js';
-import { resolveAtom } from '../../types/atom-registry.js';
+import { resolveAtom, toAtomValue } from '../../types/atom-registry.js';
 import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
@@ -52,6 +52,7 @@ import {
   getHostShape,
   throwAbortHalt,
   throwCatchableHostHalt,
+  throwFatalHostHalt,
 } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { RuntimeContext } from '../../types/runtime.js';
@@ -221,7 +222,19 @@ export async function evaluateRetryBlock(
   // final trace once, replaying every guard-caught frame on top of the
   // LAST attempt's thrown value so its code/message win while every
   // attempt's frame is preserved.
-  let lastInvalid = lastHaltValue as RillValue;
+  if (lastHaltValue === undefined) {
+    // fatal: unreachable, the retry loop runs at least once
+    throwFatalHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'retry',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'retry finished without a recorded failure'
+    );
+  }
+  let lastInvalid: RillValue = lastHaltValue;
   for (const f of caughtFrames) {
     lastInvalid = appendTraceFrame(lastInvalid, f);
   }
@@ -263,10 +276,7 @@ export async function evaluateStatusProbe(
 
   switch (node.field) {
     case 'code':
-      return {
-        __rill_atom: true,
-        atom: status.code,
-      } as unknown as RillValue;
+      return toAtomValue(status.code);
     case 'message':
       return status.message;
     case 'provider':

@@ -256,7 +256,7 @@ export function maskComments(text: string): string {
 
   while (i < len) {
     const ch = text[i];
-    if (ch === '#' && !(i + 1 < len && /[A-Z]/.test(text[i + 1] as string))) {
+    if (ch === '#' && !(i + 1 < len && /[A-Z]/.test(text.charAt(i + 1)))) {
       // Blank through end-of-line (exclusive), preserving the newline.
       while (i < len && text[i] !== '\n') {
         result += ' ';

@@ -68,15 +68,15 @@ function buildSymbolTree(flat: readonly DocumentSymbol[]): DocumentSymbol[] {
   }
 
   for (const symbol of sorted) {
-    while (stack.length > 0) {
-      const top = stack.at(-1)!;
+    for (let top = stack.at(-1); top !== undefined; top = stack.at(-1)) {
       if (rangeContains(top.symbol.range, symbol.range)) break;
-      finish(stack.pop()!);
+      stack.pop();
+      finish(top);
     }
     stack.push({ symbol, children: [] });
   }
-  while (stack.length > 0) {
-    finish(stack.pop()!);
+  for (let top = stack.pop(); top !== undefined; top = stack.pop()) {
+    finish(top);
   }
 
   return roots;

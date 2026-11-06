@@ -37,7 +37,7 @@ import type {
   TypeStructure,
   RillFieldDef,
 } from '../../types/structures.js';
-import { inferType } from '../../types/registrations.js';
+import { inferType, inferTypeName } from '../../types/registrations.js';
 import {
   isTuple,
   isOrdered,
@@ -146,7 +146,7 @@ export function applyConversion(
   targetType: RillTypeName,
   node: ASTNode
 ): RillValue {
-  const sourceType = inferType(input) as RillTypeName;
+  const sourceType = inferTypeName(input);
 
   // Same type = no-op
   if (sourceType === targetType) {
@@ -327,11 +327,30 @@ async function convertToOrderedWithSig(
 
   const entries: [string, RillValue][] = [];
 
-  for (const field of resolvedFields) {
-    const fieldName = field.name!;
+  const throwMissingField = (fieldName: string | undefined): never =>
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'convertToOrderedWithSig',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R044],
+      `cannot convert ${sourceType} to ordered: missing required field '${fieldName}'`,
+      { source: sourceType, target: 'ordered' }
+    );
 
-    if (Object.hasOwn(dictInput, fieldName)) {
-      let fieldValue: RillValue = dictInput[fieldName]!;
+  for (const field of resolvedFields) {
+    const fieldName = field.name;
+    if (fieldName === undefined) {
+      throwMissingField(fieldName);
+      continue;
+    }
+    const presentValue = Object.hasOwn(dictInput, fieldName)
+      ? dictInput[fieldName]
+      : undefined;
+
+    if (presentValue !== undefined) {
+      let fieldValue: RillValue = presentValue;
       fieldValue = hydrateNested(s, fieldValue, field.type, node);
       assertType(s, fieldValue, field.type, node.span.start);
       entries.push([fieldName, fieldValue]);
@@ -346,16 +365,7 @@ async function convertToOrderedWithSig(
         hydrateNested(s, emptyForType(field.type), field.type, node),
       ]);
     } else {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'convertToOrderedWithSig',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R044],
-        `cannot convert ${sourceType} to ordered: missing required field '${fieldName}'`,
-        { source: sourceType, target: 'ordered' }
-      );
+      throwMissingField(fieldName);
     }
   }
 
@@ -413,10 +423,13 @@ async function convertToDictWithSig(
     }
     const fieldName = arg.name;
     const resolvedField = resolvedFields[fieldName];
+    const presentValue = Object.hasOwn(dictInput, fieldName)
+      ? dictInput[fieldName]
+      : undefined;
 
-    if (Object.hasOwn(dictInput, fieldName)) {
+    if (presentValue !== undefined) {
       // Field present in input: use it, recursing if the field type is a nested dict
-      let fieldValue: RillValue = dictInput[fieldName]!;
+      let fieldValue: RillValue = presentValue;
       if (resolvedField !== undefined) {
         fieldValue = hydrateNested(s, fieldValue, resolvedField.type, node);
         assertType(s, fieldValue, resolvedField.type, node.span.start);
@@ -513,17 +526,14 @@ async function convertToTupleWithSig(
 
   const result: RillValue[] = [];
 
-  for (let i = 0; i < resolvedElements.length; i++) {
-    const element = resolvedElements[i]!;
+  let i = -1;
+  for (const element of resolvedElements) {
+    i++;
+    const inputEntry = i < inputEntries.length ? inputEntries[i] : undefined;
 
-    if (i < inputEntries.length) {
+    if (inputEntry !== undefined) {
       // Element present in input: recurse into nested types
-      const elementValue = hydrateNested(
-        s,
-        inputEntries[i]!,
-        element.type,
-        node
-      );
+      const elementValue = hydrateNested(s, inputEntry, element.type, node);
       assertType(s, elementValue, element.type, node.span.start);
       result.push(elementValue);
     } else if (element.defaultValue !== undefined) {

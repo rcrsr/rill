@@ -20,6 +20,7 @@ import {
   isCallable,
   isApplicationCallable,
   marshalArgs,
+  untypedArgsRecord,
   validateHostResult,
 } from '../../callable.js';
 import { markExtensionThrow } from '../../extension-throw.js';
@@ -172,7 +173,7 @@ function getInvocationStrategy(s: EvalState): CallableInvocationStrategy {
     argumentsBinder,
     (
       callable: RillCallable,
-      args: RillValue[],
+      args: (RillValue | undefined)[],
       location: SourceLocation | undefined,
       functionName?: string
     ) => {
@@ -386,7 +387,7 @@ export async function invokeCallable(
       if (filter.inTransforms.length > 0 && args.length > 0) {
         const piped = await applyTransforms(
           filter.inTransforms,
-          args[0] as RillValue,
+          args[0],
           (transform, value) =>
             invokeCallable(
               s,
@@ -406,11 +407,12 @@ export async function invokeCallable(
     let result: RillValue;
     if (callLocation) {
       // Route through invocationStrategy.invoke — single frame-enrichment site.
-      // BoundArguments.params (arguments-binder.ts) is out of scope for the
-      // (RillValue | undefined)[] threading; the cast lands at this boundary.
       const bound: BoundArguments = {
         params: new Map(
-          (effectiveArgs as RillValue[]).map((v, i) => [String(i), v])
+          effectiveArgs.map((v, i): [string, RillValue | undefined] => [
+            String(i),
+            v,
+          ])
         ),
       };
       result = await getInvocationStrategy(s).invoke(
@@ -523,14 +525,12 @@ async function invokeFnCallable(
 
   let fnArgs: Record<string, RillValue>;
   if (isApplicationCallable(callable) && callable.params !== undefined) {
-    // marshalArgs (callable.ts) is out of scope for the (RillValue |
-    // undefined)[] threading; the cast lands at this boundary.
-    fnArgs = marshalArgs(effectiveArgs as RillValue[], callable.params, {
+    fnArgs = marshalArgs(effectiveArgs, callable.params, {
       functionName,
       location: callLocation,
     });
   } else {
-    fnArgs = effectiveArgs as unknown as Record<string, RillValue>;
+    fnArgs = untypedArgsRecord(effectiveArgs);
   }
 
   let result: RillValue;
@@ -641,8 +641,8 @@ export function createCallableContext(
   s: EvalState,
   callable: ScriptCallable
 ): RuntimeContext {
-  const hasExplicitParams =
-    callable.params.length > 0 && callable.params[0]!.name !== '$';
+  const firstParam = callable.params[0];
+  const hasExplicitParams = firstParam !== undefined && firstParam.name !== '$';
 
   const defScope = callable.definingScope;
   const callableCtx: RuntimeContext = {
@@ -724,9 +724,7 @@ export function invokeScriptCallable(
   callLocation?: SourceLocation
 ): Promise<RillValue> {
   if (callable.returnType.structure.kind === 'stream') {
-    // invokeStreamClosure (invocation/stream-closures.ts) is out of scope
-    // for the (RillValue | undefined)[] threading; the cast lands here.
-    return invokeStreamClosure(s, callable, args as RillValue[], callLocation);
+    return invokeStreamClosure(s, callable, args, callLocation);
   }
   return invokeRegularScriptCallable(s, callable, args, callLocation);
 }
@@ -740,29 +738,30 @@ async function invokeRegularScriptCallable(
   const callableCtx = createCallableContext(s, callable);
 
   const params = callable.params;
+  const only = params[0];
+  const onlyArg = args[0];
   if (
     params.length === 1 &&
     args.length === 1 &&
-    args[0] !== undefined &&
-    params[0]!.type === undefined
+    onlyArg !== undefined &&
+    only !== undefined &&
+    only.type === undefined
   ) {
-    const only = params[0]!;
-    callableCtx.variables.set(only.name, args[0]);
+    callableCtx.variables.set(only.name, onlyArg);
     if (only.name === '$') {
-      callableCtx.pipeValue = args[0]!;
+      callableCtx.pipeValue = onlyArg;
     }
   } else {
-    // marshalArgs (callable.ts) is out of scope for the (RillValue |
-    // undefined)[] threading; the cast lands at this boundary.
-    const record = marshalArgs(args as RillValue[], params, {
+    const record = marshalArgs(args, params, {
       functionName: '<anonymous>',
       location: callLocation,
     });
+    const syncsPipe = only?.name === '$';
     for (const [name, value] of Object.entries(record)) {
       callableCtx.variables.set(name, value);
-    }
-    if (params[0]?.name === '$') {
-      callableCtx.pipeValue = record['$']!;
+      if (syncsPipe && name === '$') {
+        callableCtx.pipeValue = value;
+      }
     }
   }
   if (callable.body.type === 'Block' && callable.body.statements.length === 0) {
@@ -854,9 +853,7 @@ export async function invokeStream(
   stream: RillStream,
   callLocation?: SourceLocation
 ): Promise<RillValue> {
-  const resolveFn = (
-    stream as unknown as Record<string, (() => Promise<RillValue>) | undefined>
-  )['__rill_stream_resolve'];
+  const resolveFn: unknown = Reflect.get(stream, '__rill_stream_resolve');
   if (typeof resolveFn !== 'function') {
     throwFatalHostHalt(
       { sourceId: s.ctx.sourceId, fn: 'invokeStream' },
@@ -907,7 +904,7 @@ export async function invokeStream(
   // below — a resolve() that returns raw null/undefined/a
   // non-representable value must halt (RILL-R085) rather than leak into
   // `$s()`/`.len`.
-  const resolution = await resolveFn();
+  const resolution: unknown = await Reflect.apply(resolveFn, undefined, []);
   validateHostResult(resolution, 'stream.resolve', callLocation);
   return resolution;
 }

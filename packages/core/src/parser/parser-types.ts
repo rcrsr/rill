@@ -150,8 +150,9 @@ function parseTypeRefImpl(
   // If only one member accumulated (e.g. a "|" was present but belonged to the
   // outer context such as an anonymous typed closure closing delimiter), return
   // the single member as-is rather than wrapping in a union.
-  if (members.length === 1) {
-    return members[0]!;
+  const [onlyMember] = members;
+  if (members.length === 1 && onlyMember !== undefined) {
+    return onlyMember;
   }
 
   return { kind: 'union', members };

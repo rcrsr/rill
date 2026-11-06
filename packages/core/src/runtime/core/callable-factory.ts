@@ -31,6 +31,7 @@ export function callable(
     // Use undefined to signal "untyped" — skips arity validation in invokeCallable.
     // Explicitly registered callables use params: [] (typed zero-param) and DO validate.
     // See [DEVIATION] in Implementation Notes.
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- public ApplicationCallable.params is typed readonly RillParam[], but an untyped callable uses an undefined sentinel the type cannot express
     params: undefined as unknown as readonly RillParam[],
     annotations: {},
     returnType: anyTypeValue,

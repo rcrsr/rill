@@ -10,9 +10,28 @@
 
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
-import { resolveAtom } from '../atom-registry.js';
+import { resolveAtom, toAtomValue } from '../atom-registry.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../halt.js';
+import { requireReceiver } from './shared.js';
+
+// ============================================================
+// RECEIVER GUARDS
+// ============================================================
+
+function isStringValue(v: RillValue): v is string {
+  return typeof v === 'string';
+}
+
+/**
+ * Narrow a convertTo receiver to its text. The `null` identity of the string
+ * type renders as the text "null", matching how a null receiver coerces.
+ */
+function receiverText(v: RillValue, fn: string): string {
+  if (typeof v === 'string') return v;
+  if (v === null) return 'null';
+  return requireReceiver(v, isStringValue, { fn }, 'string');
+}
 
 // ============================================================
 // FORMAT
@@ -20,7 +39,9 @@ import { throwFatalHostHalt, throwTypeHalt } from '../halt.js';
 
 function formatString(v: RillValue): string {
   if (v === null) return 'type(null)';
-  return v as string;
+  return typeof v === 'string'
+    ? v
+    : requireReceiver(v, isStringValue, { fn: 'format-string' }, 'string');
 }
 
 // ============================================================
@@ -35,9 +56,39 @@ function eqString(a: RillValue, b: RillValue): boolean {
 // COMPARE
 // ============================================================
 
+/**
+ * Ordering when a side is the `null` identity of the string type: the null
+ * side counts as 0 and the string side coerces to a number, so a non-numeric
+ * string orders as equal.
+ */
+function compareWithNull(a: RillValue, b: RillValue): number {
+  const na = a === null ? 0 : Number(receiverText(a, 'compare-string'));
+  const nb = b === null ? 0 : Number(receiverText(b, 'compare-string'));
+  if (na < nb) return -1;
+  if (na > nb) return 1;
+  return 0;
+}
+
 function compareString(a: RillValue, b: RillValue): number {
-  const sa = a as string;
-  const sb = b as string;
+  if (a === null || b === null) return compareWithNull(a, b);
+  const sa = isStringValue(a)
+    ? a
+    : requireReceiver(
+        a,
+        isStringValue,
+        { fn: 'compare-string' },
+        'string',
+        'left operand'
+      );
+  const sb = isStringValue(b)
+    ? b
+    : requireReceiver(
+        b,
+        isStringValue,
+        { fn: 'compare-string' },
+        'string',
+        'right operand'
+      );
   if (sa < sb) return -1;
   if (sa > sb) return 1;
   return 0;
@@ -49,7 +100,7 @@ function compareString(a: RillValue, b: RillValue): number {
 
 const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
   number: (v: RillValue): RillValue => {
-    const str = v as string;
+    const str = receiverText(v, 'string-to-number');
     // Only clean decimal / float strings convert: optional leading minus,
     // integer or fractional digits, optional scientific-notation exponent.
     // This rejects hex/octal/binary prefixes (0x, 0o, 0b), surrounding
@@ -81,7 +132,7 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     return result;
   },
   bool: (v: RillValue): RillValue => {
-    const s = v as string;
+    const s = receiverText(v, 'string-to-bool');
     if (s === 'true') return true;
     if (s === 'false') return false;
     const message = `cannot convert string "${s}" to bool`;
@@ -92,7 +143,7 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
     );
   },
   atom: (v: RillValue): RillValue => {
-    const s = v as string;
+    const s = receiverText(v, 'string-to-atom');
     if (s === 'ok') {
       throwTypeHalt(
         { fn: 'string-to-atom' },
@@ -102,7 +153,7 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
       );
     }
     const atom = resolveAtom(s);
-    return { __rill_atom: true, atom } as unknown as RillValue;
+    return toAtomValue(atom);
   },
 };
 

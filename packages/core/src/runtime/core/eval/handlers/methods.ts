@@ -8,17 +8,17 @@ import type {
   MethodCallNode,
   InvokeNode,
   SourceLocation,
-  RillTypeName,
 } from '../../../../types.js';
 import {
   isCallable,
   isScriptCallable,
   isApplicationCallable,
   marshalArgs,
+  untypedArgsRecord,
 } from '../../callable.js';
 import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
 import type { RillValue, RillTypeValue } from '../../types/structures.js';
-import { inferType } from '../../types/registrations.js';
+import { inferType, inferTypeName } from '../../types/registrations.js';
 import {
   isTypeValue,
   isStream,
@@ -94,7 +94,7 @@ export async function evaluateMethod(
     const effectiveArgs = [receiver, ...args];
     let methodArgs: Record<string, RillValue>;
     if (typeMethod.params === undefined) {
-      methodArgs = effectiveArgs as unknown as Record<string, RillValue>;
+      methodArgs = untypedArgsRecord(effectiveArgs);
     } else if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
       methodArgs = {
         receiver,
@@ -313,7 +313,7 @@ export async function evaluateAnnotationAccess(
   if (key === 'type') {
     const typeValue: RillTypeValue = Object.freeze({
       __rill_type: true as const,
-      typeName: inferType(value) as RillTypeName,
+      typeName: inferTypeName(value),
       structure: inferStructure(value),
     });
     return typeValue;

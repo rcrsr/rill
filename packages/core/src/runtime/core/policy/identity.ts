@@ -280,7 +280,8 @@ function buildPath(entry: PendingEntry): string {
   }
   let path = '';
   for (let i = chain.length - 1; i >= 0; i--) {
-    const e = chain[i]!;
+    const e = chain[i];
+    if (e === undefined) continue;
     if (e.parent === null) path = String(e.segment);
     else if (e.dotted)
       path = path === '' ? String(e.segment) : `${path}.${e.segment}`;
@@ -306,8 +307,8 @@ function members(
   // it. Primitives are skipped but keep their position.
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {
-      const child = value[i]!;
-      if (isWalkable(child)) {
+      const child = value[i];
+      if (child !== undefined && isWalkable(child)) {
         out.push({ value: child, parent, segment: i, dotted: false });
       }
     }
@@ -316,8 +317,8 @@ function members(
 
   if (isTuple(value)) {
     for (let i = 0; i < value.entries.length; i++) {
-      const child = value.entries[i]!;
-      if (isWalkable(child)) {
+      const child = value.entries[i];
+      if (child !== undefined && isWalkable(child)) {
         out.push({ value: child, parent, segment: i, dotted: false });
       }
     }
