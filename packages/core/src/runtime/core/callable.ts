@@ -12,6 +12,8 @@
  * [DEVIATION] Excess-argument error context fields
  * - Spec defines error context as { functionName, paramName, expectedType, actualType }
  * - Excess arguments instead uses { functionName, expectedCount, actualCount }
+ * - Excess arguments also carries expectedNoun, the singular or plural noun
+ *   that agrees with expectedCount, so message renderers need no pluralizing
  * - Rationale: Excess arguments is an arity check, not a type check
  *
  * [ASSUMPTION] validateDefaultValueType _functionName Parameter
@@ -586,21 +588,49 @@ export function hydrateFieldDefaults(
   return hydrateStructure(value, type, MARSHAL_HYDRATION_POLICY);
 }
 
+/** Builds the RILL-R085 message: "Host function '<name>' <detail>". */
+export function hostContractMessage(
+  functionName: string,
+  detail: string
+): string {
+  return `Host function '${functionName}' ${detail}`;
+}
+
 /**
- * Halt when a callable has no parameter declaration. Only a hand-built
- * callable cast through RillValue can lack one; callable() and toCallable
- * always set it.
+ * Describe why a parameter declaration is unusable, or return undefined when
+ * it is a well-formed array of parameter objects. Only a hand-built callable
+ * cast through RillValue can fail this; callable() and toCallable always
+ * produce a valid declaration.
  */
-export function assertParamsDeclared(
+export function paramsDeclarationFault(params: unknown): string | undefined {
+  const rebuild = 'build callables with toCallable or callable()';
+  if (!Array.isArray(params)) {
+    return `has no parameter declaration; ${rebuild}`;
+  }
+  const bad = params.findIndex(
+    (p: unknown) => typeof p !== 'object' || p === null
+  );
+  if (bad !== -1) {
+    return `declares a malformed parameter at index ${bad}; ${rebuild}`;
+  }
+  return undefined;
+}
+
+/**
+ * Halt when a callable has no usable parameter declaration: missing, not an
+ * array, or holding a non-object element.
+ */
+function assertParamsDeclared(
   params: unknown,
   functionName: string,
   location?: SourceLocation
 ): asserts params is readonly RillParam[] {
-  if (!Array.isArray(params)) {
+  const fault = paramsDeclarationFault(params);
+  if (fault !== undefined) {
     throwFatalHostHalt(
       { location, fn: functionName },
       ERROR_ATOMS[ERROR_IDS.RILL_R085],
-      `Host callable '${functionName}' has no parameter declaration; build callables with toCallable or callable()`
+      hostContractMessage(functionName, fault)
     );
   }
 }
@@ -617,8 +647,11 @@ export function declaredParams(
   location?: SourceLocation
 ): readonly RillParam[] {
   const params: unknown = callable.params;
-  if (!Array.isArray(params)) {
-    const jsName = isApplicationCallable(callable) ? callable.fn.name : '';
+  if (paramsDeclarationFault(params) !== undefined) {
+    const jsName =
+      isApplicationCallable(callable) && typeof callable.fn === 'function'
+        ? callable.fn.name
+        : '';
     assertParamsDeclared(
       params,
       functionName ?? (jsName !== '' ? jsName : '<anonymous>'),
@@ -815,7 +848,10 @@ function throwHostResultError(
     reason !== undefined && reason !== ''
       ? `${reason}: ${jsTypeLabel(value)}`
       : jsTypeLabel(value);
-  const message = `Host function '${functionName}' returned an invalid value at ${path}: ${detail}`;
+  const message = hostContractMessage(
+    functionName,
+    `returned an invalid value at ${path}: ${detail}`
+  );
   throwFatalHostHalt(
     { location, fn: 'host-result', preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R085],

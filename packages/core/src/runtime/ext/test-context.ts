@@ -15,6 +15,7 @@ import type {
 } from '../core/types/runtime.js';
 import type { RillParam } from '../core/callable.js';
 import { declaredParams, isCallable } from '../core/callable.js';
+import { isPlainDict } from '../core/types/guards.js';
 import { RuntimeHaltSignal } from '../core/types/halt.js';
 import { ControlSignal } from '../core/signals.js';
 import type { RillValue } from '../core/types/structures.js';
@@ -81,23 +82,6 @@ function formatUseRef(path: string): string {
   return isBarePath
     ? `use<ext:${path}>`
     : `use<(${quoteRillString(`ext:${path}`)})>`;
-}
-
-/**
- * Check if a RillValue is a plain dict (not a callable, tuple, vector, etc.).
- */
-function isPlainDict(value: RillValue): value is Record<string, RillValue> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    !isCallable(value) &&
-    !('__rill_tuple' in value) &&
-    !('__rill_vector' in value) &&
-    !('__rill_ordered' in value) &&
-    !('__rill_type' in value) &&
-    !('__rill_field_descriptor' in value)
-  );
 }
 
 /**

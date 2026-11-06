@@ -12,6 +12,8 @@ import {
 } from '../../types.js';
 import { getBuiltinFunctionCache } from './builtin-registry.js';
 import { BUILT_IN_TYPES } from './types/registrations.js';
+import type { TypeDefinition } from './types/registrations.js';
+import { formatStructure } from './types/operations.js';
 import type {
   RuntimeCallbacks,
   RuntimeContext,
@@ -36,9 +38,11 @@ import {
 } from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
 import {
-  assertParamsDeclared,
+  hostContractMessage,
+  paramsDeclarationFault,
   validateDefaultValueType,
   type ApplicationCallable,
+  type RillFunction,
 } from './callable.js';
 import { ERROR_IDS } from '../../error-registry.js';
 import {
@@ -384,14 +388,55 @@ function logDisposeTimeout(state: LifecycleState): void {
   );
 }
 
+/** Render a parameter list as comparable text: name, type, and default presence. */
+function describeMethodParams(method: RillFunction): string {
+  return method.params
+    .map(
+      (p) =>
+        `${p.name}: ${p.type === undefined ? 'any' : formatStructure(p.type)}${
+          p.defaultValue === undefined ? '' : ' = <default>'
+        }`
+    )
+    .join(', ');
+}
+
+/**
+ * Assert that every method sharing a name across skipReceiverValidation
+ * registrations declares the same parameters (names, types, default presence).
+ * The method-dispatch fallback validates arguments against the first type
+ * dict that has the name, so a divergent sibling would be checked against the
+ * wrong signature. Fails at context creation with a TypeError, because a
+ * divergence is a defect in the built-in tables, not a script or host error.
+ */
+export function assertSharedMethodShapes(
+  registrations: readonly TypeDefinition[]
+): void {
+  const first = new Map<string, { type: string; shape: string }>();
+  for (const reg of registrations) {
+    for (const [name, method] of Object.entries(reg.methods)) {
+      if (method.skipReceiverValidation !== true) continue;
+      const shape = describeMethodParams(method);
+      const seen = first.get(name);
+      if (seen === undefined) {
+        first.set(name, { type: reg.name, shape });
+      } else if (seen.shape !== shape) {
+        throw new TypeError(
+          `Method '${name}' on type '${reg.name}' declares (${shape}) but '${seen.type}' declares (${seen.shape}); methods that skip receiver validation must share one signature`
+        );
+      }
+    }
+  }
+}
+
 /**
  * Derive the set of method names that handle their own receiver type checking.
  * Collects names from methods where skipReceiverValidation is true.
  * Methods without the flag default to standard RILL-R003 receiver validation.
  */
 function deriveUnvalidatedMethodReceivers(
-  registrations: readonly import('./types/registrations.js').TypeDefinition[]
+  registrations: readonly TypeDefinition[]
 ): ReadonlySet<string> {
+  assertSharedMethodShapes(registrations);
   const bypass = new Set<string>();
   for (const reg of registrations) {
     for (const [name, method] of Object.entries(reg.methods)) {
@@ -410,6 +455,9 @@ const defaultCallbacks: RuntimeCallbacks = {
 /**
  * Create a runtime context for script execution.
  * This is the main entry point for configuring the Rill runtime.
+ *
+ * @throws {RuntimeError} RILL-R085 when a `functions` entry has no usable
+ * parameter declaration (a host setup error, thrown before any script runs)
  */
 export function createRuntimeContext(
   options: RuntimeOptions = {}
@@ -443,12 +491,17 @@ export function createRuntimeContext(
   // Set custom functions (can override built-ins)
   if (options.functions) {
     for (const [name, definition] of Object.entries(options.functions)) {
-      const params: unknown = definition.params;
-      assertParamsDeclared(params, name);
+      const fault = paramsDeclarationFault(definition.params);
+      if (fault !== undefined) {
+        throw new RuntimeError(
+          ERROR_IDS.RILL_R085,
+          hostContractMessage(name, fault)
+        );
+      }
       const description = definition.annotations?.['description'];
 
       // Validate default values at registration time
-      for (const param of params) {
+      for (const param of definition.params) {
         validateDefaultValueType(param, name);
       }
 
@@ -467,7 +520,7 @@ export function createRuntimeContext(
         }
 
         // Check parameter descriptions
-        for (const param of params) {
+        for (const param of definition.params) {
           const paramDesc = param.annotations['description'];
           if (
             paramDesc === undefined ||
@@ -488,7 +541,7 @@ export function createRuntimeContext(
         kind: 'application',
         isProperty: false,
         fn: definition.fn,
-        params,
+        params: definition.params,
         annotations: definition.annotations ?? {},
         returnType: definition.returnType,
       };

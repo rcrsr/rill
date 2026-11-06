@@ -305,7 +305,7 @@ This enables pattern matching where the same semantic value (e.g., `1` vs `"1"`)
 
 `.keys`, `.values`, and `.entries` all return dict's canonical order (see Ordered, below).
 
-On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RILL-R003`. `ordered` values are accepted.
+On a non-dict receiver (tuple, stream, string, number, and so on) they halt `RILL-R003`, and `??` does not recover the halt. `ordered` values are accepted.
 
 ```rill
 [name: "test", count: 42] -> .keys      # ["count", "name"]
@@ -938,7 +938,7 @@ $t -> .diff($t) -> .zero -> .display
 
 | Method | Argument | Returns | Description |
 |--------|----------|---------|-------------|
-| `.add(other)` | duration | duration | Sums `months` and `ms` fields independently |
+| `.add(dur)` | duration | duration | Sums `months` and `ms` fields independently |
 | `.subtract(other)` | duration | duration | Subtracts fields; halts if result would be negative |
 | `.multiply(n)` | number | duration | Multiplies both fields by `n`; halts if `n` is negative |
 

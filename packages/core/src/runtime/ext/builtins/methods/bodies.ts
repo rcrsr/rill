@@ -1,4 +1,4 @@
-import { isDict, isCallable } from '../../../core/callable.js';
+import { isCallable } from '../../../core/callable.js';
 import type { RillValue, RillVector } from '../../../core/types/structures.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type { SourceLocation } from '../../../../source-location.js';
@@ -8,14 +8,11 @@ import {
   inferType,
 } from '../../../core/types/registrations.js';
 import {
-  isAtom,
-  isDatetime,
-  isDuration,
   isIterator,
   isOrdered,
+  isPlainDict,
   isStream,
   isTuple,
-  isTypeValue,
   isVector,
   orderedValueEntries,
 } from '../../../core/types/guards.js';
@@ -44,23 +41,6 @@ import {
 // Defined as named RillMethod constants so they can be shared
 // across type groups (e.g. len appears in string, list, dict).
 // ============================================================
-
-/**
- * True for branded values (:atom, ^type, datetime, duration) that satisfy
- * `isDict`'s plain-object structural check but are not actually dicts.
- * Methods dispatched with `skipReceiverValidation: true` bypass the generic
- * RILL-R003 dispatch guard, so call sites that fall back to `isDict(receiver)`
- * must check this first or a brand value silently leaks into the dict path.
- */
-function isBrandedNonDict(receiver: RillValue): boolean {
-  return (
-    isAtom(receiver) ||
-    isTypeValue(receiver) ||
-    isDatetime(receiver) ||
-    isDuration(receiver) ||
-    isVector(receiver)
-  );
-}
 
 /** Get length of string, list, or dict */
 export const mLen: RillMethod = (receiver) => {
@@ -169,19 +149,7 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
   if (isIterator(receiver)) return receiver;
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
   if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
-  if (isBrandedNonDict(receiver) || isOrdered(receiver)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'first',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `first requires list, string, dict, or iterator, got ${inferType(receiver)}`
-    );
-  }
-  if (isDict(receiver)) return makeDictIterator(receiver, 0);
+  if (isPlainDict(receiver)) return makeDictIterator(receiver, 0);
   return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'first', preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
@@ -591,8 +559,7 @@ function requireDictReceiver(
   ctx: RuntimeContext,
   location: SourceLocation | undefined
 ): asserts receiver is Record<string, RillValue> {
-  if (isDict(receiver) && !isBrandedNonDict(receiver) && !isStream(receiver))
-    return;
+  if (isPlainDict(receiver)) return;
   throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn, preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
@@ -651,6 +618,7 @@ export const mHas: RillMethod = (receiver, args, ctx, location) => {
  */
 function listArg(
   value: RillValue | undefined,
+  paramName: string,
   fn: string,
   ctx: RuntimeContext,
   location: SourceLocation | undefined
@@ -659,8 +627,8 @@ function listArg(
   return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn, preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R001],
-    `${fn}() candidates expects list, got ${
-      value === undefined ? 'nothing' : inferType(value)
+    `${fn}() ${paramName} expects list, got ${
+      value === null || value === undefined ? 'nothing' : inferType(value)
     }`
   );
 }
@@ -679,7 +647,7 @@ export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
       `has_any() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  const candidates = listArg(args[0], 'has_any', ctx, location);
+  const candidates = listArg(args[0], 'candidates', 'has_any', ctx, location);
   for (const candidate of candidates) {
     for (const item of receiver) {
       if (deepEquals(item, candidate)) return true;
@@ -702,7 +670,7 @@ export const mHasAll: RillMethod = (receiver, args, ctx, location) => {
       `has_all() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  const candidates = listArg(args[0], 'has_all', ctx, location);
+  const candidates = listArg(args[0], 'candidates', 'has_all', ctx, location);
   for (const candidate of candidates) {
     let found = false;
     for (const item of receiver) {

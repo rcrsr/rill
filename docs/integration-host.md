@@ -60,6 +60,8 @@ Host functions must follow these rules to ensure correct script behavior:
 **Host functions must not mutate input arguments.** rill values are immutable by design—modifying arguments breaks value semantics and causes unpredictable behavior.
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 // WRONG: Mutates input array
 functions: {
   addItem: {
@@ -91,6 +93,7 @@ functions: {
 For maximum safety, consider freezing values passed to host functions:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
 import { deepFreeze } from './utils'; // Your utility
 
 functions: {
@@ -134,6 +137,8 @@ Internal container types host code may encounter in observability callbacks or r
 Functions are called by name: `functionName(arg1, arg2)`.
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
   functions: {
     // Sync function
@@ -185,6 +190,8 @@ const ctx = createRuntimeContext({
 Use `::` to organize functions into namespaces:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
   functions: {
     // Namespaced functions use :: separator
@@ -305,6 +312,8 @@ When running under [`rill-agent-harness`](https://github.com/rcrsr/rill-agent), 
 Read metadata in a host function:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 functions: {
   trace: {
     params: [{ name: 'msg', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
@@ -460,6 +469,8 @@ All host functions must declare parameter types and optional defaults using the 
 Declare parameter types in the `params` array:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
   functions: {
     repeat: {
@@ -508,6 +519,8 @@ See [Type System](topic-type-system.md) for the full `TypeStructure` discriminat
 Parameters with default values are optional. The default applies when the argument is missing:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 functions: {
   greet: {
     params: [
@@ -532,6 +545,8 @@ When a parameter type is `dict`, `ordered`, or `tuple`, the runtime fills missin
 For tuple parameters, missing trailing elements are filled from the element type's `defaultValue`:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 functions: {
   format: {
     params: [
@@ -778,6 +793,8 @@ const ctx = createRuntimeContext({
 Callables stored in dicts can be invoked using method syntax:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
   variables: {
     math: {
@@ -830,7 +847,7 @@ if (isScriptCallable(value)) {
 Use `AbortSignal` to cancel long-running scripts:
 
 ```typescript
-import { RuntimeHaltSignal } from '@rcrsr/rill';
+import { RuntimeHaltSignal, anyTypeValue } from '@rcrsr/rill';
 
 const controller = new AbortController();
 
@@ -899,6 +916,8 @@ One synchronous built-in operation, such as a regex match or building a very lar
 Host functions receive a `ctx.signal` (`AbortSignal | undefined`). Cooperative cancellation requires that each host function observes this signal and stops work when it fires.
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 functions: {
   fetchData: {
     params: [{ name: 'url', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
@@ -1078,6 +1097,8 @@ const ctx = createRuntimeContext({
 The `timeout` option is a per-call limit for each named function call, host functions and built-ins alike. Expiry halts with catchable `RILL-R012`. It does not bound total script time.
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
   timeout: 30000, // 30 seconds per call
   functions: {
@@ -1106,6 +1127,8 @@ await execute(ast, ctx); // throws RuntimeHaltSignal at the next cancellation ch
 Halt execution when output matches patterns:
 
 ```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
   autoExceptions: [
     'error:.*',      // Matches "error: something"

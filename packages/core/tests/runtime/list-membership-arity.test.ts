@@ -39,4 +39,23 @@ describe('list membership direct calls', () => {
       );
     }
   );
+
+  it.each(['has_any', 'has_all'] as const)(
+    'names a missing candidates argument as nothing in %s',
+    (name) => {
+      const ctx = createRuntimeContext({});
+      const method = BUILTIN_METHODS.list[name];
+      expectHaltSync(
+        () => method!.fn({ receiver: [1], candidates: null }, ctx),
+        {
+          code: 'RILL_R001',
+          messagePattern: /candidates expects list, got nothing/,
+        }
+      );
+      expectHaltSync(() => method!.fn({ receiver: [1] }, ctx), {
+        code: 'RILL_R001',
+        messagePattern: /candidates expects list, got nothing/,
+      });
+    }
+  );
 });

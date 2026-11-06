@@ -2179,10 +2179,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     errorId: ERROR_IDS.RILL_R085,
     category: 'runtime',
     description: 'Host function broke the host contract',
-    messageTemplate:
-      "Host callable '{functionName}' broke the host contract: {detail}",
+    messageTemplate: "Host function '{functionName}' {detail}",
     cause:
-      'A host callable has no parameter declaration because it was built by hand instead of with callable() or toCallable. Alternatively, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
+      'Two causes share the message template, each supplying its own {detail}. First, a host callable has no usable parameter declaration (missing, not an array, or holding a non-object entry) because it was built by hand instead of with callable() or toCallable; the detail reads "has no parameter declaration; build callables with toCallable or callable()" or "declares a malformed parameter at index N; ...". Second, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
     resolution:
       'Build every callable with callable() or toCallable so it carries a parameter declaration. For an invalid return value, convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.',
     examples: [

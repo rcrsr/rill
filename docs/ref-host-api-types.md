@@ -495,6 +495,7 @@ interface TypeDefinition {
 
 ```typescript
 import type { TypeDefinition, TypeProtocol } from '@rcrsr/rill';
+import { structureToTypeValue } from '@rcrsr/rill';
 
 const dateType: TypeDefinition = {
   name: 'date',

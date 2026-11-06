@@ -7,8 +7,14 @@
 
 import { describe, expect, it } from 'vitest';
 import * as rill from '@rcrsr/rill';
-import { createTestContext, type RillValue } from '@rcrsr/rill';
-import { expectHaltSync } from '../helpers/halt.js';
+import {
+  createRuntimeContext,
+  createTestContext,
+  type RillFunction,
+  type RillValue,
+} from '@rcrsr/rill';
+import { expectHalt, expectHaltSync } from '../helpers/halt.js';
+import { run } from '../helpers/runtime.js';
 import { ERROR_REGISTRY } from '../../src/error-registry.js';
 
 describe('Rill Runtime: callable follow-ups', () => {
@@ -16,9 +22,76 @@ describe('Rill Runtime: callable follow-ups', () => {
     expect('isRuntimeCallable' in rill).toBe(false);
   });
 
-  it('describes RILL-R085 with a single message template', () => {
-    expect(ERROR_REGISTRY.get('RILL-R085')?.messageTemplate).toBe(
-      "Host callable '{functionName}' broke the host contract: {detail}"
+  it('describes RILL-R085 with one template that both emitters fill', async () => {
+    const template = ERROR_REGISTRY.get('RILL-R085')?.messageTemplate;
+    expect(template).toBe("Host function '{functionName}' {detail}");
+    const prefix = /^Host function '[^']+' /;
+
+    const undeclared = {
+      __type: 'callable',
+      kind: 'application',
+      isProperty: false,
+      fn: () => 'x',
+    } as unknown as RillValue;
+    await expectHalt(() => run('$f(1)', { variables: { f: undeclared } }), {
+      code: 'RILL_R085',
+      messagePattern: new RegExp(
+        `${prefix.source}has no parameter declaration`
+      ),
+    });
+
+    await expectHalt(
+      () =>
+        run('bad()', {
+          functions: {
+            bad: { params: [], fn: () => {}, annotations: {} },
+          } as unknown as Record<string, RillFunction>,
+        }),
+      {
+        code: 'RILL_R085',
+        messagePattern: new RegExp(`${prefix.source}returned an invalid value`),
+      }
+    );
+  });
+
+  it('halts RILL-R085 for a forged callable that has no fn and no params', async () => {
+    const forged = {
+      __type: 'callable',
+      kind: 'application',
+    } as unknown as RillValue;
+    await expectHalt(() => run('$f.params', { variables: { f: forged } }), {
+      code: 'RILL_R085',
+      messagePattern:
+        /Host function '<anonymous>' has no parameter declaration/,
+    });
+  });
+
+  it.each([
+    ['null', null],
+    ['a number', 7],
+    ['a string', 'x'],
+  ])('halts RILL-R085 when params holds %s', async (_label, element) => {
+    const forged = {
+      __type: 'callable',
+      kind: 'application',
+      isProperty: false,
+      fn: () => 'x',
+      params: [element],
+    } as unknown as RillValue;
+    await expectHalt(() => run('$f(1)', { variables: { f: forged } }), {
+      code: 'RILL_R085',
+      messagePattern: /malformed parameter at index 0/,
+    });
+  });
+
+  it('throws RuntimeError RILL-R085 from createRuntimeContext when a params entry is null', () => {
+    const bad = {
+      fn: () => 'x',
+      params: [null],
+      annotations: {},
+    } as unknown as RillFunction;
+    expect(() => createRuntimeContext({ functions: { bad } })).toThrow(
+      expect.objectContaining({ errorId: 'RILL-R085' })
     );
   });
 
