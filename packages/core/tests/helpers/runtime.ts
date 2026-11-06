@@ -136,7 +136,7 @@ interface CollectedEvents {
     value: RillValue;
     durationMs: number;
   }[];
-  hostCall: { name: string; args: RillValue[] }[];
+  hostCall: { name: string; args: (RillValue | undefined)[] }[];
   functionReturn: { name: string; value: RillValue; durationMs: number }[];
   capture: { name: string; value: RillValue }[];
   error: { error: Error; index?: number }[];
