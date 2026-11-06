@@ -36,7 +36,7 @@ export function isAtom(value: unknown): value is RillAtomValue {
     typeof value === 'object' &&
     value !== null &&
     '__rill_atom' in value &&
-    (value as RillAtomValue).__rill_atom === true
+    value.__rill_atom === true
   );
 }
 
@@ -119,7 +119,7 @@ export function isDatetime(value: RillValue): value is RillDatetime {
     typeof value === 'object' &&
     value !== null &&
     '__rill_datetime' in value &&
-    (value as RillDatetime).__rill_datetime === true
+    value.__rill_datetime === true
   );
 }
 
@@ -129,7 +129,7 @@ export function isDuration(value: RillValue): value is RillDuration {
     typeof value === 'object' &&
     value !== null &&
     '__rill_duration' in value &&
-    (value as RillDuration).__rill_duration === true
+    value.__rill_duration === true
   );
 }
 
@@ -139,7 +139,7 @@ export function isOrdered(value: RillValue): value is RillOrdered {
     typeof value === 'object' &&
     value !== null &&
     '__rill_ordered' in value &&
-    (value as RillOrdered).__rill_ordered === true
+    value.__rill_ordered === true
   );
 }
 
@@ -149,7 +149,7 @@ export function isTypeValue(value: RillValue): value is RillTypeValue {
     typeof value === 'object' &&
     value !== null &&
     '__rill_type' in value &&
-    (value as RillTypeValue).__rill_type === true
+    value.__rill_type === true
   );
 }
 
@@ -170,7 +170,7 @@ export function isCallable(value: RillValue): value is CallableMarker {
     typeof value === 'object' &&
     value !== null &&
     '__type' in value &&
-    (value as CallableMarker).__type === 'callable'
+    value.__type === 'callable'
   );
 }
 
@@ -223,7 +223,7 @@ export function isStream(value: RillValue): value is RillStream {
     typeof value === 'object' &&
     value !== null &&
     '__rill_stream' in value &&
-    (value as RillStream).__rill_stream === true
+    value.__rill_stream === true
   );
 }
 
@@ -239,11 +239,10 @@ export const isRillStream: (value: RillValue) => value is RillStream = isStream;
  */
 export function isIterator(value: RillValue): value is RillIterator {
   if (!isDict(value)) return false;
-  const dict = value as Record<string, RillValue>;
-  if (!('done' in dict && typeof dict['done'] === 'boolean')) return false;
-  if (!('next' in dict && isCallable(dict['next']))) return false;
+  if (!('done' in value && typeof value['done'] === 'boolean')) return false;
+  if (!('next' in value && isCallable(value['next']))) return false;
   // 'value' field only required when not done
-  if (!dict['done'] && !('value' in dict)) return false;
+  if (!value['done'] && !('value' in value)) return false;
   return true;
 }
 

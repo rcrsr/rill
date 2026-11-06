@@ -50,13 +50,12 @@ export const loopOuterCapture: Rule = {
     const captures = capturesInSubtree(context.facts, body);
 
     // Get the current closure scope (if we're inside a closure).
-    const currentClosureScope =
-      context.scopeStack.length > 0 ? context.scopeStack.at(-1)! : null;
+    const currentClosureScope = context.scopeStack.at(-1) ?? null;
 
     // Check if any capture targets an outer-scope variable.
     for (const capture of captures) {
-      if (context.variables.has(capture.name)) {
-        const outerLocation = context.variables.get(capture.name)!;
+      const outerLocation = context.variables.get(capture.name);
+      if (outerLocation !== undefined) {
         const variableScope = context.variableScopes.get(capture.name) ?? null;
 
         // Only flag if the variable is in a parent scope, not a sibling closure.

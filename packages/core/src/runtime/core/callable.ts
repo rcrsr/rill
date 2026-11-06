@@ -613,7 +613,7 @@ export function hydrateFieldDefaults(
  * @returns Named argument map keyed by param name
  */
 export function marshalArgs(
-  args: RillValue[],
+  args: readonly (RillValue | undefined)[],
   params: readonly RillParam[],
   options?: MarshalOptions
 ): Record<string, RillValue> {
@@ -720,7 +720,7 @@ export function validateHostResult(
   result: unknown,
   functionName: string,
   location?: SourceLocation
-): void {
+): asserts result is RillValue {
   walkHostResult(
     result,
     functionName,
@@ -729,6 +729,18 @@ export function validateHostResult(
     location,
     new WeakSet()
   );
+}
+
+/**
+ * Views a positional argument array as the Record-typed argument bag that
+ * `CallableFn` declares. Untyped callables (params undefined) receive their
+ * positional arguments as an array-valued bag at runtime.
+ */
+export function untypedArgsRecord(
+  args: readonly (RillValue | undefined)[]
+): Record<string, RillValue> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CallableFn declares a Record argument bag; untyped callables receive the positional array through it by design
+  return args as unknown as Record<string, RillValue>;
 }
 
 /** True when `value`'s prototype is `Object.prototype` or `null`, i.e. it is

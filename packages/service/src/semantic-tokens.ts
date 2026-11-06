@@ -131,7 +131,8 @@ function isCoveredByTypeNameSpan(
   let candidate = -1;
   while (low <= high) {
     const mid = (low + high) >> 1;
-    if (starts[mid]! <= span.start.offset) {
+    const start = starts[mid];
+    if (start !== undefined && start <= span.start.offset) {
       candidate = mid;
       low = mid + 1;
     } else {
@@ -139,7 +140,8 @@ function isCoveredByTypeNameSpan(
     }
   }
   if (candidate === -1) return false;
-  return prefixMaxEnd[candidate]! >= span.end.offset;
+  const maxEnd = prefixMaxEnd[candidate];
+  return maxEnd !== undefined && maxEnd >= span.end.offset;
 }
 
 /** Classifies a single token, applying the type-name heuristic. Returns `null` for unmapped token types. */
@@ -430,12 +432,15 @@ function offsetToLocation(
 ): SourceLocation {
   let low = 0;
   let high = lineStarts.length - 1;
+  let lineStart = 0;
   while (low < high) {
     const mid = Math.ceil((low + high) / 2);
-    if (lineStarts[mid]! <= offset) low = mid;
-    else high = mid - 1;
+    const midStart = lineStarts[mid];
+    if (midStart !== undefined && midStart <= offset) {
+      low = mid;
+      lineStart = midStart;
+    } else high = mid - 1;
   }
-  const lineStart = lineStarts[low]!;
   return { line: low + 1, column: offset - lineStart + 1, offset };
 }
 

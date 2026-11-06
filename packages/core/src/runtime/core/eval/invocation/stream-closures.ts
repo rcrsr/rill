@@ -24,8 +24,6 @@
  */
 
 import type { SourceLocation } from '../../../../types.js';
-import { ControlSignal } from '../../signals.js';
-import { RuntimeHaltSignal } from '../../types/halt.js';
 import type { ScriptCallable } from '../../callable.js';
 import { marshalArgs } from '../../callable.js';
 import type { RuntimeContext } from '../../types/runtime.js';
@@ -35,8 +33,12 @@ import type {
   TypeStructure,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
+import { isStructureKind } from '../../types/guards.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
-import { createRillStream } from '../../types/constructors.js';
+import {
+  createRillStream,
+  invokeStreamDispose,
+} from '../../types/constructors.js';
 import { ReturnSignal } from '../../signals.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { getEvalState } from '../state.js';
@@ -93,7 +95,9 @@ export interface StreamChannel {
  *
  * @internal
  */
-function createStreamChannel(): StreamChannel {
+function createStreamChannel(): StreamChannel & {
+  readonly resolution: RillValue;
+} {
   // FIFO queue of chunks pushed but not yet pulled. Each entry carries the
   // resume callback that resolves the originating push() promise once the
   // chunk is consumed. A queue (rather than a single slot) is what lets
@@ -146,8 +150,8 @@ function createStreamChannel(): StreamChannel {
 
     pull() {
       // Deliver the oldest queued chunk, unblocking its producer.
-      if (queue.length > 0) {
-        const chunk = queue.shift()!;
+      const chunk = queue.shift();
+      if (chunk !== undefined) {
         chunk.resume(); // unblock producer
         return Promise.resolve({ value: chunk.value, done: false as const });
       }
@@ -195,8 +199,9 @@ function createStreamChannel(): StreamChannel {
     cancel(): void {
       terminated = true;
       // Unblock every parked producer so a suspended body can finish.
-      while (queue.length > 0) {
-        queue.shift()!.resume();
+      for (let parked = queue.shift(); parked !== undefined;) {
+        parked.resume();
+        parked = queue.shift();
       }
       // Wake a waiting consumer with done (no more chunks are coming).
       if (pendingPull) {
@@ -210,7 +215,7 @@ function createStreamChannel(): StreamChannel {
     get resolution(): RillValue {
       return closedResolution ?? null;
     },
-  } as StreamChannel & { readonly resolution: RillValue };
+  };
 }
 
 /**
@@ -279,27 +284,13 @@ export function trackStream(s: EvalState, stream: RillStream): void {
  */
 function disposeStreams(s: EvalState, streams: RillStream[]): void {
   for (let i = streams.length - 1; i >= 0; i--) {
-    const stream = streams[i]!;
+    const stream = streams[i];
     // Only dispose streams that are not fully consumed
-    if (stream.done) continue;
-    const disposeFn = (
-      stream as unknown as Record<string, (() => void) | undefined>
-    )['__rill_stream_dispose'];
-    if (typeof disposeFn === 'function') {
-      try {
-        disposeFn();
-      } catch (err) {
-        // Propagate dispose errors — do not swallow
-        if (err instanceof RuntimeHaltSignal || err instanceof ControlSignal) {
-          throw err;
-        }
-        throwFatalHostHalt(
-          { sourceId: s.ctx.sourceId, fn: 'disposeStreams' },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          err instanceof Error ? err.message : String(err)
-        );
-      }
-    }
+    if (stream === undefined || stream.done) continue;
+    invokeStreamDispose(stream, {
+      sourceId: s.ctx.sourceId,
+      fn: 'disposeStreams',
+    });
   }
 }
 
@@ -319,7 +310,7 @@ function disposeStreams(s: EvalState, streams: RillStream[]): void {
 export async function invokeStreamClosure(
   s: EvalState,
   callable: ScriptCallable,
-  args: RillValue[],
+  args: (RillValue | undefined)[],
   callLocation?: SourceLocation
 ): Promise<RillValue> {
   const callableCtx = createCallableContext(s, callable);
@@ -330,27 +321,32 @@ export async function invokeStreamClosure(
     location: callLocation,
   });
 
-  // Bind each named value into the callable context.
+  // Bind each named value into the callable context. A first parameter named
+  // `$` also syncs the pipe value (block closure pipe sync).
+  const syncsPipe = callable.params[0]?.name === '$';
   for (const [name, value] of Object.entries(record)) {
     callableCtx.variables.set(name, value);
-  }
-
-  // Block closure pipe sync
-  if (callable.params[0]?.name === '$') {
-    callableCtx.pipeValue = record['$']!;
+    if (syncsPipe && name === '$') {
+      callableCtx.pipeValue = value;
+    }
   }
 
   // Extract chunk and ret types from the stream structure
-  const streamStructure = callable.returnType.structure as {
-    kind: 'stream';
-    chunk?: TypeStructure;
-    ret?: TypeStructure;
-  };
+  const streamStructure = callable.returnType.structure;
+  if (!isStructureKind(streamStructure, 'stream')) {
+    throwFatalHostHalt(
+      {
+        location: callLocation,
+        sourceId: s.ctx.sourceId,
+        fn: 'invokeStreamClosure',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Stream closure return type is not a stream'
+    );
+  }
 
   // Create channel and async generator for lazy body execution
-  const channel = createStreamChannel() as StreamChannel & {
-    readonly resolution: RillValue;
-  };
+  const channel = createStreamChannel();
 
   // Create a dedicated EvalState for the stream body so that concurrent
   // execution of the body IIFE and the outer consumer (e.g. outer seq)

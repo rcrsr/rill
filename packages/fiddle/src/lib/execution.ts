@@ -16,6 +16,7 @@ import {
   getStatus,
   isInvalid,
   atomName,
+  RillError,
   RuntimeHaltSignal,
   VERSION,
   type RillValue,
@@ -75,7 +76,7 @@ export interface FiddleError {
   /** .!provider text; null when not an invalid-value halt */
   statusProvider: string | null;
   /** .!trace frames (origin first); null when not an invalid-value halt */
-  statusTrace: TraceFrame[] | null;
+  statusTrace: readonly TraceFrame[] | null;
 }
 
 /**
@@ -308,7 +309,7 @@ function convertInvalidValue(value: RillValue): FiddleError {
     statusCode: invalid ? atomName(status.code) : null,
     statusMessage: invalid ? status.message : null,
     statusProvider: invalid ? status.provider : null,
-    statusTrace: invalid ? (status.trace as TraceFrame[]) : null,
+    statusTrace: invalid ? status.trace : null,
   };
 }
 
@@ -320,15 +321,11 @@ function extractCallStack(
   err: RillErrorLike,
   source?: string
 ): FiddleCallFrame[] {
-  // getCallStack requires an actual RillError instance with context
-  if (typeof err !== 'object' || !('context' in err)) return [];
+  // getCallStack requires an actual RillError instance; plain error-shaped
+  // objects carry no call stack.
+  if (!(err instanceof RillError)) return [];
 
-  let frames;
-  try {
-    frames = getCallStack(err as Parameters<typeof getCallStack>[0]);
-  } catch {
-    return [];
-  }
+  const frames = getCallStack(err);
 
   if (frames.length === 0) return [];
 

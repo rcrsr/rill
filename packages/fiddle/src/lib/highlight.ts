@@ -122,10 +122,11 @@ function opensUnterminatedTripleQuote(lineText: string): boolean {
   let i = 0;
   while (i < lineText.length) {
     const ch = lineText[i];
+    const next = lineText[i + 1];
     if (
       !inTriple &&
       ch === '#' &&
-      !(lineText[i + 1] !== undefined && /[A-Z]/.test(lineText[i + 1]!))
+      !(next !== undefined && /[A-Z]/.test(next))
     ) {
       // Line comment: nothing after this point is string content. A `#`
       // immediately followed by an uppercase ASCII letter starts an atom

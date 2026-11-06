@@ -142,7 +142,7 @@ function scanStringLiteral(
   startIndex: number
 ): ScannedLiteral | null {
   let i = startIndex;
-  while (i < text.length && /\s/.test(text[i] as string)) {
+  while (i < text.length && /\s/.test(text.charAt(i))) {
     i++;
   }
   const quote = text[i];

@@ -181,6 +181,24 @@ describe('Rill Runtime: Introspection API', () => {
         expect(legacy?.params).toHaveLength(0);
       });
 
+      it('reports an empty description when the description annotation is not a string', () => {
+        const ctx = createRuntimeContext({
+          functions: {
+            numeric: {
+              params: [],
+              fn: () => 'result',
+              annotations: { description: 5 },
+              returnType: anyTypeValue,
+            },
+          },
+        });
+
+        const numeric = getFunctions(ctx).find((f) => f.name === 'numeric');
+
+        expect(numeric).toBeDefined();
+        expect(numeric?.description).toBe('');
+      });
+
       it('includes both host and built-in functions', () => {
         const ctx = createRuntimeContext({
           functions: {

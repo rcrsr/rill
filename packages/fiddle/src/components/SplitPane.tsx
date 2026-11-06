@@ -140,15 +140,13 @@ export function SplitPane({
     const container = containerRef.current;
     if (!container) return;
 
+    const point = 'touches' in event ? event.touches[0] : event;
+    if (!point) return;
+
     const rect = container.getBoundingClientRect();
-    const pos =
-      'touches' in event
-        ? isVertical
-          ? event.touches[0]!.clientY - rect.top
-          : event.touches[0]!.clientX - rect.left
-        : isVertical
-          ? event.clientY - rect.top
-          : event.clientX - rect.left;
+    const pos = isVertical
+      ? point.clientY - rect.top
+      : point.clientX - rect.left;
 
     dragStartRef.current = { ratio: effectiveRatio, pos };
     setIsDragging(true);
@@ -166,14 +164,11 @@ export function SplitPane({
       if (!(event instanceof MouseEvent)) {
         event.preventDefault();
       }
-      const currentPos =
-        event instanceof MouseEvent
-          ? isVertical
-            ? event.clientY - rect.top
-            : event.clientX - rect.left
-          : isVertical
-            ? event.touches[0]!.clientY - rect.top
-            : event.touches[0]!.clientX - rect.left;
+      const point = event instanceof MouseEvent ? event : event.touches[0];
+      if (!point) return;
+      const currentPos = isVertical
+        ? point.clientY - rect.top
+        : point.clientX - rect.left;
 
       const delta = currentPos - dragStartRef.current.pos;
       const deltaRatio = (delta / liveSize) * 100;

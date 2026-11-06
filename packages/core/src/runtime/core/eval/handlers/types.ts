@@ -63,6 +63,14 @@ import {
   evaluateExpression,
 } from './core.js';
 
+type CollectionTypeName = 'list' | 'dict' | 'tuple' | 'ordered';
+
+function isCollectionTypeName(name: string): name is CollectionTypeName {
+  return (
+    name === 'list' || name === 'dict' || name === 'tuple' || name === 'ordered'
+  );
+}
+
 /**
  * Shared helper that partitions args, enforces validation, evaluates
  * defaults, and constructs a RillTypeValue.
@@ -81,7 +89,7 @@ import {
  */
 async function buildCollectionType(
   s: EvalState,
-  name: 'list' | 'dict' | 'tuple' | 'ordered',
+  name: CollectionTypeName,
   args: FieldArg[],
   resolveArg: (arg: FieldArg) => Promise<TypeStructure>,
   evaluateDefault: (node: LiteralNode) => Promise<RillValue>,
@@ -89,7 +97,8 @@ async function buildCollectionType(
 ): Promise<RillTypeValue> {
   if (name === 'list') {
     // list requires exactly 1 positional arg
-    if (args.length !== 1 || args[0]!.name !== undefined) {
+    const only = args.length === 1 ? args[0] : undefined;
+    if (only === undefined || only.name !== undefined) {
       throwTypeHalt(
         {
           location,
@@ -101,7 +110,7 @@ async function buildCollectionType(
         'runtime'
       );
     }
-    const element = await resolveArg(args[0]!);
+    const element = await resolveArg(only);
     const structure: TypeStructure = { kind: 'list', element };
     return Object.freeze({
       __rill_type: true as const,
@@ -111,15 +120,22 @@ async function buildCollectionType(
   }
 
   if (name === 'dict' || name === 'ordered') {
-    const positional = args.filter((a) => a.name === undefined);
-    const named = args.filter((a) => a.name !== undefined);
+    const positional: FieldArg[] = [];
+    const named: { arg: FieldArg; name: string }[] = [];
+    for (const a of args) {
+      if (a.name === undefined) {
+        positional.push(a);
+      } else {
+        named.push({ arg: a, name: a.name });
+      }
+    }
 
-    for (const arg of named) {
-      if (isReservedBrandKey(arg.name!)) {
+    for (const { name: argName } of named) {
+      if (isReservedBrandKey(argName)) {
         throwCatchableHostHalt(
           { location, sourceId: s.ctx.sourceId, fn: name },
           ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Cannot use reserved brand key '${arg.name!}' as ${name} field name`
+          `Cannot use reserved brand key '${argName}' as ${name} field name`
         );
       }
     }
@@ -139,11 +155,16 @@ async function buildCollectionType(
     }
 
     // Uniform path: exactly 1 positional, 0 named -> valueType
-    if (positional.length === 1 && named.length === 0) {
-      const valueType = await resolveArg(positional[0]!);
+    const soleArg = positional[0];
+    if (
+      soleArg !== undefined &&
+      positional.length === 1 &&
+      named.length === 0
+    ) {
+      const valueType = await resolveArg(soleArg);
       // Default type mismatch on uniform single-arg path
-      if (positional[0]!.defaultValue !== undefined) {
-        const defaultVal = await evaluateDefault(positional[0]!.defaultValue);
+      if (soleArg.defaultValue !== undefined) {
+        const defaultVal = await evaluateDefault(soleArg.defaultValue);
         if (!structureMatches(defaultVal, valueType)) {
           throwTypeHalt(
             {
@@ -186,7 +207,7 @@ async function buildCollectionType(
     // Structural path: named args only -> fields
     if (name === 'dict') {
       const fields: Record<string, RillFieldDef> = {};
-      for (const arg of args) {
+      for (const { arg, name: argName } of named) {
         const resolvedType = await resolveArg(arg);
         const fieldDef: RillFieldDef = { type: resolvedType };
         if (arg.defaultValue !== undefined) {
@@ -223,7 +244,7 @@ async function buildCollectionType(
             fieldDef.annotations = {};
           }
         }
-        setDictField(fields, arg.name!, fieldDef);
+        setDictField(fields, argName, fieldDef);
       }
       const structure: TypeStructure = { kind: 'dict', fields };
       return Object.freeze({
@@ -235,10 +256,10 @@ async function buildCollectionType(
 
     // name === 'ordered': structural path -> fields array with name
     const orderedFields: RillFieldDef[] = [];
-    for (const arg of args) {
+    for (const { arg, name: argName } of named) {
       const resolvedType = await resolveArg(arg);
       const fieldDef: RillFieldDef = {
-        name: arg.name!,
+        name: argName,
         type: resolvedType,
       };
       if (arg.defaultValue !== undefined) {
@@ -305,11 +326,16 @@ async function buildCollectionType(
   }
 
   // Uniform path: exactly 1 positional -> valueType
-  if (args.length === 1 && args[0]!.name === undefined) {
-    const valueType = await resolveArg(args[0]!);
+  const tupleSole = args[0];
+  if (
+    tupleSole !== undefined &&
+    args.length === 1 &&
+    tupleSole.name === undefined
+  ) {
+    const valueType = await resolveArg(tupleSole);
     // Default type mismatch on uniform single-arg path
-    if (args[0]!.defaultValue !== undefined) {
-      const defaultVal = await evaluateDefault(args[0]!.defaultValue);
+    if (tupleSole.defaultValue !== undefined) {
+      const defaultVal = await evaluateDefault(tupleSole.defaultValue);
       if (!structureMatches(defaultVal, valueType)) {
         throwTypeHalt(
           {
@@ -379,8 +405,9 @@ async function buildCollectionType(
   // Tuple non-trailing default — no element without a default
   // may follow an element that has one.
   let sawDefault = false;
-  for (let i = 0; i < elements.length; i++) {
-    const hasDefault = elements[i]!.defaultValue !== undefined;
+  let i = 0;
+  for (const element of elements) {
+    const hasDefault = element.defaultValue !== undefined;
     if (hasDefault) {
       sawDefault = true;
     } else if (sawDefault) {
@@ -395,6 +422,7 @@ async function buildCollectionType(
         'runtime'
       );
     }
+    i++;
   }
 
   const structure: TypeStructure = { kind: 'tuple', elements };
@@ -480,9 +508,10 @@ export async function resolveTypeRef(
     }
 
     // Delegate to buildCollectionType with recursive resolveTypeRef
+    // Non-collection names with args fall through to the tuple path
     return buildCollectionType(
       s,
-      typeName as 'list' | 'dict' | 'tuple' | 'ordered',
+      isCollectionTypeName(typeName) ? typeName : 'tuple',
       args,
       async (arg: FieldArg): Promise<TypeStructure> => {
         const resolved = await resolveTypeRef(s, arg.value, getVariableFn);
@@ -505,6 +534,7 @@ export async function resolveTypeRef(
       members.push(resolved.structure);
     }
     const structure: TypeStructure = { kind: 'union', members };
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- union display string is not a closed RillTypeName member; widening the public RillTypeValue.typeName type would break hosts
     const displayName = members.map(formatStructure).join('|') as RillTypeName;
     return Object.freeze({
       __rill_type: true as const,
@@ -590,8 +620,17 @@ export function assertType(
       return value;
     }
     // Bare structural type (no sub-fields): fall through using type name
-    expected = expected.kind as RillTypeName;
+    return assertBareTypeName(s, value, expected.kind, location);
   }
+  return assertBareTypeName(s, value, expected, location);
+}
+
+function assertBareTypeName(
+  s: EvalState,
+  value: RillValue,
+  expected: string,
+  location?: SourceLocation
+): RillValue {
   // Bare type name path
   if (expected === 'any') return value;
   const actual = inferType(value);

@@ -12,6 +12,7 @@ import type { SourceLocation } from '../../types.js';
 import { RuntimeError } from '../../types.js';
 import type { RillFieldDef, TypeStructure } from './types/structures.js';
 import { ERROR_IDS } from '../../error-registry.js';
+import { isStructureKind } from './types/guards.js';
 
 /**
  * Field descriptor — carries field name and structural type when accessing a
@@ -33,13 +34,9 @@ export function buildFieldDescriptor(
   fieldName: string,
   location: SourceLocation
 ): RillFieldDescriptor {
-  const fields = (
-    structuralType as {
-      kind: 'dict';
-      fields?: Record<string, RillFieldDef>;
-    }
-  ).fields;
-  const fieldType = fields?.[fieldName];
+  const fieldType = isStructureKind(structuralType, 'dict')
+    ? structuralType.fields?.[fieldName]
+    : undefined;
   if (fieldType === undefined) {
     throw new RuntimeError(
       ERROR_IDS.RILL_R003,

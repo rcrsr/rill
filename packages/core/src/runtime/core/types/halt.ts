@@ -110,8 +110,8 @@ function resolveHaltLocation(value: RillValue):
       readonly column: number;
     }
   | undefined {
-  const trace = getStatus(value).trace;
-  return trace.length > 0 ? parseLocationFromSite(trace[0]!.site) : undefined;
+  const origin = getStatus(value).trace[0];
+  return origin !== undefined ? parseLocationFromSite(origin.site) : undefined;
 }
 
 /**
@@ -136,9 +136,9 @@ export function enrichHaltOriginLocation(
   location: SourceLocation | undefined,
   sourceId: string | undefined
 ): RuntimeHaltSignal {
-  const trace = getStatus(signal.value).trace;
-  if (trace.length === 0) return signal;
-  if (parseLocationFromSite(trace[0]!.site) !== undefined) return signal;
+  const origin = getStatus(signal.value).trace[0];
+  if (origin === undefined) return signal;
+  if (parseLocationFromSite(origin.site) !== undefined) return signal;
   const newSite = formatSite(location, sourceId);
   if (parseLocationFromSite(newSite) === undefined) return signal;
   return new RuntimeHaltSignal(
@@ -279,8 +279,27 @@ const HOST_SHAPE_KEY: unique symbol = Symbol('rill.hostErrorShape');
 
 /** Returns the carrier on an invalid value, or `undefined`. */
 export function getHostShape(value: RillValue): HostErrorShape | undefined {
-  const raw = getStatus(value).raw as Record<symbol, unknown>;
-  return raw[HOST_SHAPE_KEY] as HostErrorShape | undefined;
+  const carrier: unknown = Reflect.get(getStatus(value).raw, HOST_SHAPE_KEY);
+  return isHostErrorShape(carrier) ? carrier : undefined;
+}
+
+/** Structural check for the carrier stored under `HOST_SHAPE_KEY`. */
+function isHostErrorShape(value: unknown): value is HostErrorShape {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'location' in value &&
+    'sourceId' in value &&
+    'contextExtras' in value &&
+    isObjectOrUndefined(Reflect.get(value, 'location')) &&
+    (Reflect.get(value, 'sourceId') === undefined ||
+      typeof Reflect.get(value, 'sourceId') === 'string') &&
+    isObjectOrUndefined(Reflect.get(value, 'contextExtras'))
+  );
+}
+
+function isObjectOrUndefined(value: unknown): boolean {
+  return value === undefined || (typeof value === 'object' && value !== null);
 }
 
 /**
@@ -331,7 +350,7 @@ function buildHostRaw(
       sourceId: undefined,
       contextExtras: undefined,
     });
-    (built as Record<symbol, unknown>)[HOST_SHAPE_KEY] = shape;
+    Reflect.set(built, HOST_SHAPE_KEY, shape);
   }
   return built;
 }

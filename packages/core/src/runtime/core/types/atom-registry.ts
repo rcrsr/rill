@@ -1,4 +1,5 @@
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
+import type { RillAtomValue } from './structures.js';
 /**
  * Atom registry for interned error-code identifiers.
  *
@@ -295,4 +296,9 @@ export function okAtom(): RillAtom {
     );
   }
   return ok;
+}
+
+/** Internal: wrap an interned atom as a `:atom` script value. */
+export function toAtomValue(atom: RillAtom): RillAtomValue {
+  return { __rill_atom: true, atom };
 }

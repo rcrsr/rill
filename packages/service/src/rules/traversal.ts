@@ -505,15 +505,15 @@ export function traverseForRules(node: ASTNode, visitor: AstVisitor): void {
 
   const stack: Frame[] = [{ node, childrenPushed: false }];
 
-  while (stack.length > 0) {
-    const frame = stack.at(-1)!;
-
+  for (let frame = stack.at(-1); frame !== undefined; frame = stack.at(-1)) {
     if (!frame.childrenPushed) {
       visitor.enter(frame.node);
       frame.childrenPushed = true;
       const children = getChildren(frame.node);
       for (let i = children.length - 1; i >= 0; i--) {
-        stack.push({ node: children[i]!, childrenPushed: false });
+        const child = children[i];
+        if (child !== undefined)
+          stack.push({ node: child, childrenPushed: false });
       }
       continue;
     }

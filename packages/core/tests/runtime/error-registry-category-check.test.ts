@@ -105,4 +105,12 @@ describe('ErrorRegistryImpl category self-check', () => {
       expect(def.category).toBe(expected);
     }
   });
+
+  it('inverts ERROR_IDS exactly in ERROR_ATOMS', () => {
+    const entries = Object.entries(ERROR_IDS);
+    expect(Object.keys(ERROR_ATOMS)).toHaveLength(entries.length);
+    for (const [atom, id] of entries) {
+      expect(ERROR_ATOMS[id as ErrorId]).toBe(atom);
+    }
+  });
 });

@@ -98,17 +98,15 @@ export async function evaluateHostCall(
     // raw ordered args (which carry `undefined` holes for omitted optional
     // params). Hydrate defaults via marshalArgs before emitting; invocation
     // below re-marshals independently, so this does not change dispatch.
-    // HostCallEvent.args (types/runtime.ts) is out of scope for the
-    // (RillValue | undefined)[] threading; the cast lands at this boundary.
-    let eventArgs: RillValue[];
+    let eventArgs: (RillValue | undefined)[];
     try {
-      const hydrated = marshalArgs(orderedArgs as RillValue[], fn.params, {
+      const hydrated = marshalArgs(orderedArgs, fn.params, {
         functionName: node.name,
         location: node.span.start,
       });
-      eventArgs = fn.params.map((param) => hydrated[param.name] as RillValue);
+      eventArgs = fn.params.map((param) => hydrated[param.name]);
     } catch {
-      eventArgs = orderedArgs as RillValue[];
+      eventArgs = orderedArgs;
     }
     s.ctx.observability.onHostCall?.({
       name: node.name,
@@ -273,8 +271,8 @@ export async function evaluateClosureCallWithPipe(
       );
     }
     if (isFieldReceiver(value)) {
-      value = readOwnField(value, prop) as RillValue;
-      if (value === undefined || value === null) {
+      const field = readOwnField(value, prop);
+      if (field === undefined || field === null) {
         throwCatchableHostHalt(
           {
             location: getNodeLocation(s, node),
@@ -285,6 +283,7 @@ export async function evaluateClosureCallWithPipe(
           `Dict has no field '${prop}'`
         );
       }
+      value = field;
     } else {
       throwCatchableHostHalt(
         {

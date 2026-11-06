@@ -49,7 +49,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  */
 export type InvocationCaller = (
   callable: RillCallable,
-  args: RillValue[],
+  args: (RillValue | undefined)[],
   location: SourceLocation | undefined,
   functionName?: string
 ) => Promise<RillValue>;
@@ -201,7 +201,7 @@ export class CallableInvocationStrategy {
         const priorRaw = getStatus(error.value).raw;
         if (!('callStack' in priorRaw)) {
           const enriched = mergeRaw(error.value, {
-            callStack: [...ctx.callStack] as unknown as RillValue,
+            callStack: [...ctx.callStack],
           });
           const newSignal = new RuntimeHaltSignal(enriched, error.catchable);
           // Preserve extension-throw tag across the rewrap (markExtensionThrow

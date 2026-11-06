@@ -44,7 +44,7 @@ import type {
 } from '../../../../types.js';
 import { RuntimeError, isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
-import { inferType } from '../../types/registrations.js';
+import { inferType, inferTypeName } from '../../types/registrations.js';
 import {
   isTypeValue,
   isOrdered,
@@ -188,7 +188,7 @@ export function setVariable(
     // Store structural type (object) directly so re-assignment checks
     // validate the full shape. Fall back to valueType when no annotation.
     const lockType: RillTypeName | TypeStructure =
-      explicitType !== undefined ? explicitType : (valueType as RillTypeName);
+      explicitType !== undefined ? explicitType : inferTypeName(value);
     s.ctx.variableTypes.set(name, lockType);
   }
 }
@@ -376,14 +376,15 @@ export async function applyBracketIndex(
     // Number/boolean bracket keys resolve against the typed-key sidecar,
     // keeping $d[1] distinct from $d["1"].
     if (typeof indexValue === 'number' || typeof indexValue === 'boolean') {
-      if (!hasTypedKey(receiver, indexValue)) {
+      const typedValue = getTypedKey(receiver, indexValue);
+      if (typedValue === undefined) {
         throwCatchableHostHalt(
           { location, sourceId: s.ctx.sourceId, fn },
           ERROR_ATOMS[ERROR_IDS.RILL_R009],
           `Undefined dict key: ${indexValue}`
         );
       }
-      return getTypedKey(receiver, indexValue) as RillValue;
+      return typedValue;
     } else {
       if (typeof indexValue !== 'string') {
         throwCatchableHostHalt(

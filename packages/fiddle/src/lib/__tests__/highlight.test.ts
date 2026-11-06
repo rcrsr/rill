@@ -767,6 +767,20 @@ describe('integration', () => {
       expect(nextTags).toContain('number');
     });
 
+    it('keeps triple-quote mode when an atom literal precedes the opener', () => {
+      const state = highlighter.startState(2);
+      processLine(state, '~ #TODO """');
+
+      expect(state.inTripleQuoteString).toBe(true);
+    });
+
+    it('treats a trailing bare # as a comment without throwing', () => {
+      const state = highlighter.startState(2);
+
+      expect(() => processLine(state, '~ #')).not.toThrow();
+      expect(state.inTripleQuoteString).toBe(false);
+    });
+
     it('still enters multi-line string mode for a genuine unterminated triple-quote opener', () => {
       const state = highlighter.startState(2);
       const openTags = processLine(state, '"""genuinely unterminated');

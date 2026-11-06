@@ -30,7 +30,7 @@ import { getExtensionIdentity } from './identity.js';
  */
 export type TransformInvoker = (
   transform: RillCallable,
-  value: RillValue
+  value: RillValue | undefined
 ) => Promise<RillValue>;
 
 /**
@@ -53,7 +53,21 @@ export async function applyTransforms(
   invoke: TransformInvoker,
   inFlight: Set<RillCallable> | undefined,
   site: TypeHaltSite
-): Promise<RillValue> {
+): Promise<RillValue>;
+export async function applyTransforms(
+  transforms: readonly RillCallable[],
+  value: RillValue | undefined,
+  invoke: TransformInvoker,
+  inFlight: Set<RillCallable> | undefined,
+  site: TypeHaltSite
+): Promise<RillValue | undefined>;
+export async function applyTransforms(
+  transforms: readonly RillCallable[],
+  value: RillValue | undefined,
+  invoke: TransformInvoker,
+  inFlight: Set<RillCallable> | undefined,
+  site: TypeHaltSite
+): Promise<RillValue | undefined> {
   if (transforms.length === 0) return value;
 
   let current = value;

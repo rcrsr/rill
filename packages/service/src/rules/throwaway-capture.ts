@@ -85,7 +85,8 @@ function computeNextCandidateOffsets(
   const lastOffsetByName = new Map<string, number>();
 
   for (let i = candidates.length - 1; i >= 0; i--) {
-    const candidate = candidates[i]!;
+    const candidate = candidates[i];
+    if (candidate === undefined) continue;
     const name = candidate.node.name;
     nextOffsetByCapture.set(
       candidate.node,
@@ -136,12 +137,14 @@ function collectRefsInWindow(
   readonly nextCursor: number;
 } {
   let i = startCursor;
-  while (i < refs.length && refs[i]!.node.span.start.offset <= offset) {
+  for (let ref = refs[i]; ref !== undefined; ref = refs[i]) {
+    if (ref.node.span.start.offset > offset) break;
     i++;
   }
   const matched: ReferenceEntry[] = [];
-  while (i < refs.length && refs[i]!.node.span.start.offset < nextOffset) {
-    matched.push(refs[i]!);
+  for (let ref = refs[i]; ref !== undefined; ref = refs[i]) {
+    if (ref.node.span.start.offset >= nextOffset) break;
+    matched.push(ref);
     i++;
   }
   return { matched, nextCursor: i };
@@ -230,7 +233,8 @@ export const throwawayCapture: Rule = {
       );
       cursorByName.set(captureNode.name, nextCursor);
 
-      if (matched.length === 0) {
+      const firstMatch = matched[0];
+      if (firstMatch === undefined) {
         diagnostics.push(deadCaptureDiagnostic(captureNode, context.source));
         continue;
       }
@@ -241,7 +245,7 @@ export const throwawayCapture: Rule = {
           statementIndex !== undefined &&
           isImmediatelyChained(
             statementIndex,
-            matched[0]!.node,
+            firstMatch.node,
             scriptNode.statements
           );
         if (!isChained) {

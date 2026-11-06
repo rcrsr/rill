@@ -10,6 +10,11 @@ import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { throwFatalHostHalt } from '../halt.js';
+import { requireReceiver } from './shared.js';
+
+function isNumberValue(v: RillValue): v is number {
+  return typeof v === 'number';
+}
 
 // ============================================================
 // FORMAT
@@ -32,8 +37,24 @@ function eqNumber(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 function compareNumber(a: RillValue, b: RillValue): number {
-  const na = a as number;
-  const nb = b as number;
+  const na = isNumberValue(a)
+    ? a
+    : requireReceiver(
+        a,
+        isNumberValue,
+        { fn: 'compare-number' },
+        'number',
+        'left operand'
+      );
+  const nb = isNumberValue(b)
+    ? b
+    : requireReceiver(
+        b,
+        isNumberValue,
+        { fn: 'compare-number' },
+        'number',
+        'right operand'
+      );
   // Relational comparison rather than subtraction: subtraction yields NaN for
   // equal infinities (Infinity - Infinity), which would make every ordering
   // operator return false and break reflexivity of <= / >=.
@@ -49,7 +70,9 @@ function compareNumber(a: RillValue, b: RillValue): number {
 const numberConvertTo: Record<string, (v: RillValue) => RillValue> = {
   string: (v: RillValue): RillValue => String(Number(v)),
   bool: (v: RillValue): RillValue => {
-    const n = v as number;
+    const n = isNumberValue(v)
+      ? v
+      : requireReceiver(v, isNumberValue, { fn: 'number-to-bool' }, 'number');
     if (n === 0) return false;
     if (n === 1) return true;
     const message = `cannot convert number ${n} to bool`;

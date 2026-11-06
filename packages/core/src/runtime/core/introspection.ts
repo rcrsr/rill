@@ -83,6 +83,14 @@ export function resolveReturnStructure(callable: {
     : anyTypeValue.structure;
 }
 
+/** Read a string `description` annotation; any other value reads as absent. */
+function annotationDescription(
+  annotations: Readonly<Record<string, RillValue>> | undefined
+): string | undefined {
+  const description = annotations?.['description'];
+  return typeof description === 'string' ? description : undefined;
+}
+
 /**
  * Enumerate all callable functions registered in runtime context.
  *
@@ -123,8 +131,8 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
   for (const [name, fn] of ctx.functions.entries()) {
     try {
       // Check if this is an ApplicationCallable with metadata (host function)
-      const callable = fn as RillValue;
-      if (isApplicationCallable(callable)) {
+      if (typeof fn !== 'function' && isApplicationCallable(fn)) {
+        const callable = fn;
         if (callable.params !== undefined) {
           const params: ParamMetadata[] = callable.params.map((p) => ({
             name: p.name,
@@ -138,8 +146,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
 
           hostFunctions.push({
             name,
-            description:
-              (callable.annotations?.['description'] as string) ?? '',
+            description: annotationDescription(callable.annotations) ?? '',
             params,
             returnType: formatStructure(resolveReturnStructure(callable)),
           });
@@ -147,8 +154,7 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
           // ApplicationCallable without params (untyped)
           builtinFunctions.push({
             name,
-            description:
-              (callable.annotations?.['description'] as string) ?? '',
+            description: annotationDescription(callable.annotations) ?? '',
             params: [],
             returnType: 'any',
           });
@@ -227,9 +233,13 @@ const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
   onBothEmpty: () => null,
   onFieldPresenceMismatch: () => null,
   onDictFields(fields) {
-    const parts = Object.keys(fields)
-      .sort()
-      .map((k) => `${k}: ${serializeSignatureType(fields[k]!.type)}`);
+    const parts: string[] = [];
+    for (const k of Object.keys(fields).sort()) {
+      const field = fields[k];
+      if (field !== undefined) {
+        parts.push(`${k}: ${serializeSignatureType(field.type)}`);
+      }
+    }
     return parts.join(', ');
   },
   onTupleElements(elements) {
@@ -386,22 +396,25 @@ export function generateManifest(ctx: RuntimeContext): string {
   const entries: string[] = [];
 
   for (const [name, fn] of ctx.functions.entries()) {
-    const callable = fn as RillValue;
-
     // Exclude RuntimeCallable entries and built-in functions by name
-    if (isRuntimeCallable(callable) || isBuiltinFunctionName(name)) {
+    if (
+      (typeof fn !== 'function' && isRuntimeCallable(fn)) ||
+      isBuiltinFunctionName(name)
+    ) {
       continue;
     }
 
     // Include only ApplicationCallable entries with params defined
-    if (!isApplicationCallable(callable) || callable.params === undefined) {
+    if (typeof fn === 'function' || !isApplicationCallable(fn)) continue;
+    const callable = fn;
+    if (callable.params === undefined) {
       continue;
     }
 
     const signature = serializeClosureSignature(
       callable.params,
       resolveReturnStructure(callable),
-      (callable.annotations?.['description'] as string) ?? undefined
+      annotationDescription(callable.annotations)
     );
 
     entries.push(`  "${name}": ${signature}`);
@@ -600,10 +613,8 @@ function formatReturnTypeTarget(
   target: TypeRef | TypeConstructorNode | undefined
 ): string | undefined {
   if (target === undefined) return undefined;
-  if ('type' in target && target.type === 'TypeConstructor') {
-    return typeConstructorToString(target);
-  }
-  return typeRefToString(target as TypeRef);
+  if ('kind' in target) return typeRefToString(target);
+  return typeConstructorToString(target);
 }
 
 /** Extract a primitive value from a literal AST node. Returns undefined for complex literals. */

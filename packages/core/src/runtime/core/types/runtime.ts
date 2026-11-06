@@ -7,10 +7,12 @@
 
 import type { RillTypeName } from '../../../types.js';
 import type { CallableFn, RillCallable, RillFunction } from '../callable.js';
+import { isCallable } from '../callable.js';
 import { copyExtensionIdentity } from '../policy/identity.js';
 import type { TypeStructure, RillValue } from './structures.js';
 import type { InvalidateMeta } from './status.js';
 import { setDictField } from './dict-keys.js';
+import { isDict } from './guards.js';
 
 export type { NativeArray, NativePlainObject, NativeValue } from '../values.js';
 
@@ -83,8 +85,8 @@ export interface StepEndEvent {
 export interface HostCallEvent {
   /** Function name */
   name: string;
-  /** Arguments passed to function */
-  args: RillValue[];
+  /** Arguments passed to function; omitted optional arguments are undefined */
+  args: (RillValue | undefined)[];
 }
 
 /** Event emitted after a function returns */
@@ -458,23 +460,18 @@ export function bindDictCallables(value: RillValue): RillValue {
     typeof value !== 'object' ||
     value === null ||
     Array.isArray(value) ||
-    '__type' in value
+    '__type' in value ||
+    !isDict(value)
   ) {
     return value;
   }
 
-  const dict = value as Record<string, RillValue>;
+  const dict = value;
   let hasBoundCallables = false;
 
   // Check if any values are callables that need binding
   for (const v of Object.values(dict)) {
-    if (
-      typeof v === 'object' &&
-      v !== null &&
-      '__type' in v &&
-      v.__type === 'callable' &&
-      !('boundDict' in v && v['boundDict'] !== undefined)
-    ) {
+    if (isCallable(v) && v.boundDict === undefined) {
       hasBoundCallables = true;
       break;
     }
@@ -485,15 +482,9 @@ export function bindDictCallables(value: RillValue): RillValue {
   // Create a new dict with bound callables
   const result: Record<string, RillValue> = {};
   for (const [key, v] of Object.entries(dict)) {
-    if (
-      typeof v === 'object' &&
-      v !== null &&
-      '__type' in v &&
-      v.__type === 'callable' &&
-      !('boundDict' in v && v['boundDict'] !== undefined)
-    ) {
-      const bound = { ...v, boundDict: result } as RillValue;
-      copyExtensionIdentity(v as RillCallable, bound as RillCallable);
+    if (isCallable(v) && v.boundDict === undefined) {
+      const bound: RillCallable = { ...v, boundDict: result };
+      copyExtensionIdentity(v, bound);
       setDictField(result, key, bound);
     } else {
       setDictField(result, key, v);

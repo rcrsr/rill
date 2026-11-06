@@ -13,6 +13,7 @@ import type {
   StatementNode,
 } from '../../types.js';
 import { RillError, RuntimeError } from '../../types.js';
+import type { SourceSpan } from '../../types.js';
 
 // ============================================================
 // HALT-SIGNAL MIGRATION BRIDGE (internal, phase-bounded)
@@ -125,10 +126,7 @@ export async function execute(
     // RuntimeError so host callers see the same err.errorId contract
     // they observed pre-migration.
     if (error instanceof RuntimeHaltSignal) {
-      const converted = convertHaltToRuntimeError(
-        error,
-        script as unknown as StatementNode
-      );
+      const converted = convertHaltToRuntimeError(error, script);
       if (converted !== undefined) throw converted;
     }
     throw error;
@@ -642,11 +640,7 @@ function parseSourceIdFromSite(site: string): string | undefined {
 
 function convertHaltToRuntimeError(
   signal: RuntimeHaltSignal,
-  stmt:
-    | StatementNode
-    | AnnotatedStatementNode
-    | RecoveryErrorNode
-    | PartialExpressionNode
+  stmt: { readonly span: SourceSpan }
 ): RuntimeError | undefined {
   const status = getStatus(signal.value);
   const code = atomName(status.code);
@@ -674,8 +668,9 @@ function convertHaltToRuntimeError(
   // callers observe the same err.sourceId contract pre-migration.
   // The first frame is the origin (origin-first ordering per appendFrame).
   const traces = status.trace;
+  const first = traces[0];
   const sourceId =
-    traces.length > 0 ? parseSourceIdFromSite(traces[0]!.site) : undefined;
+    first !== undefined ? parseSourceIdFromSite(first.site) : undefined;
 
   // A migrated site records the shape of the RuntimeError it used to throw;
   // rebuild that error. Span is omitted so RillError derives it from location.

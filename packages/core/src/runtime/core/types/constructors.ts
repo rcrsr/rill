@@ -20,6 +20,7 @@ import type {
 } from './structures.js';
 import {
   isCallable,
+  isDict,
   isFieldDescriptor,
   isIterator,
   isOrdered,
@@ -32,7 +33,11 @@ import { copyTypedKeys, setDictField } from './dict-keys.js';
 import { callable } from '../callable-factory.js';
 import { RuntimeError } from '../../../types.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
-import { RuntimeHaltSignal, throwFatalHostHalt } from './halt.js';
+import {
+  RuntimeHaltSignal,
+  throwFatalHostHalt,
+  type TypeHaltSite,
+} from './halt.js';
 import { ControlSignal } from '../signals.js';
 
 /**
@@ -283,11 +288,37 @@ export function copyValue(value: RillValue): RillValue {
   // Stream: immutable — return same reference
   if (isStream(value)) return value;
   // Mutable dict
-  const dict = value as Record<string, RillValue>;
+  if (!isDict(value)) return value;
   const copy: Record<string, RillValue> = {};
-  for (const [k, v] of Object.entries(dict))
+  for (const [k, v] of Object.entries(value))
     setDictField(copy, k, copyValue(v));
   // Carry number/boolean keys across, deep-copying their values.
-  copyTypedKeys(dict, copy, copyValue);
+  copyTypedKeys(value, copy, copyValue);
   return copy;
+}
+
+/**
+ * Run a stream's idempotent dispose hook, if present. No-op when the stream
+ * carries no hook. Halt and control-flow signals propagate unchanged; any
+ * other error becomes a fatal RILL-R002 halt carrying the error's message.
+ */
+export function invokeStreamDispose(
+  stream: RillStream,
+  site: TypeHaltSite
+): void {
+  const fields: Record<string, unknown> = stream;
+  const hook = fields['__rill_stream_dispose'];
+  if (typeof hook !== 'function') return;
+  try {
+    Reflect.apply(hook, undefined, []);
+  } catch (e) {
+    if (e instanceof RuntimeHaltSignal || e instanceof ControlSignal) {
+      throw e;
+    }
+    throwFatalHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      e instanceof Error ? e.message : String(e)
+    );
+  }
 }

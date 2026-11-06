@@ -161,14 +161,43 @@ export type ErrorId = (typeof ERROR_IDS)[keyof typeof ERROR_IDS];
 type ErrorAtom = keyof typeof ERROR_IDS;
 
 /** Hyphen-form -> underscore atom-form map (`ERROR_ATOMS[ERROR_IDS.RILL_R003] === 'RILL_R003'`). */
-export const ERROR_ATOMS: Readonly<Record<ErrorId, ErrorAtom>> = Object.freeze(
-  Object.fromEntries(
-    (Object.entries(ERROR_IDS) as [ErrorAtom, ErrorId][]).map(([k, v]) => [
-      v,
-      k,
-    ])
-  )
-) as Readonly<Record<ErrorId, ErrorAtom>>;
+export const ERROR_ATOMS: Readonly<Record<ErrorId, ErrorAtom>> =
+  Object.freeze(buildErrorAtoms());
+
+function isErrorAtom(key: string): key is ErrorAtom {
+  return Object.hasOwn(ERROR_IDS, key);
+}
+
+function findMissingAtomId(
+  map: Partial<Record<ErrorId, ErrorAtom>>
+): ErrorId | undefined {
+  for (const key of Object.keys(ERROR_IDS)) {
+    if (isErrorAtom(key) && !Object.hasOwn(map, ERROR_IDS[key])) {
+      return ERROR_IDS[key];
+    }
+  }
+  return undefined;
+}
+
+function isCompleteAtomMap(
+  map: Partial<Record<ErrorId, ErrorAtom>>
+): map is Record<ErrorId, ErrorAtom> {
+  return findMissingAtomId(map) === undefined;
+}
+
+/** Invert ERROR_IDS; throws at module load if any ID lacks an atom. */
+function buildErrorAtoms(): Record<ErrorId, ErrorAtom> {
+  const partial: Partial<Record<ErrorId, ErrorAtom>> = {};
+  for (const key of Object.keys(ERROR_IDS)) {
+    if (isErrorAtom(key)) partial[ERROR_IDS[key]] = key;
+  }
+  if (!isCompleteAtomMap(partial)) {
+    throw new Error(
+      `ERROR_ATOMS is missing an entry for registered error ID ${String(findMissingAtomId(partial))}`
+    );
+  }
+  return partial;
+}
 
 /** Error registry entry containing all metadata for a single error condition */
 export interface ErrorDefinition {
@@ -2361,7 +2390,7 @@ export function renderMessage(
   let i = 0;
 
   while (i < template.length) {
-    const char = template[i]!;
+    const char = template.charAt(i);
 
     if (char === '{') {
       // Check if this is the start of a placeholder

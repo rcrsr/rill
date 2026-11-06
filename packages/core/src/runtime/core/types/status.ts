@@ -242,10 +242,7 @@ export function invalidate(
   }
   const priorStatus = getStatus(base);
   const code = resolveAtom(meta.code);
-  // Cast is local to the invalidate() call site: the public InvalidateMeta
-  // surface intentionally accepts arbitrary provider payloads (unknown
-  // values), while the internal RillStatus.raw remains narrowly typed.
-  const raw = (meta.raw ?? EMPTY_RAW) as Readonly<Record<string, RillValue>>;
+  const raw = adoptRawPayload(meta.raw ?? EMPTY_RAW);
   const message = readMessage(raw);
   const newStatus: RillStatus = Object.freeze({
     code,
@@ -295,8 +292,8 @@ export function appendTraceFrame(
  */
 export function withOriginSite(value: RillValue, site: string): RillValue {
   const prior = getStatus(value);
-  if (prior.trace.length === 0) return value;
-  const originFrame = prior.trace[0]!;
+  const originFrame = prior.trace[0];
+  if (originFrame === undefined) return value;
   const newOriginFrame: TraceFrame = Object.freeze({
     site,
     kind: originFrame.kind,
@@ -325,10 +322,10 @@ export function withOriginSite(value: RillValue, site: string): RillValue {
  */
 export function mergeRaw(
   value: RillValue,
-  extension: Record<string, RillValue>
+  extension: Readonly<Record<string, unknown>>
 ): RillValue {
   const prior = getStatus(value);
-  const newRaw = Object.freeze({ ...prior.raw, ...extension });
+  const newRaw = adoptRawPayload(Object.freeze({ ...prior.raw, ...extension }));
   const newStatus: RillStatus = Object.freeze({
     code: prior.code,
     message: prior.message,
@@ -342,6 +339,18 @@ export function mergeRaw(
 // ============================================================
 // INTERNAL HELPERS
 // ============================================================
+
+/**
+ * Intake point for host-supplied `raw` payloads. The public
+ * `InvalidateMeta.raw` and `mergeRaw` surfaces accept arbitrary provider
+ * values, while `RillStatus.raw` stays narrowly typed.
+ */
+function adoptRawPayload(
+  raw: Readonly<Record<string, unknown>>
+): Readonly<Record<string, RillValue>> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- host provider payloads are unvalidated by contract; this is the single intake narrowing for status raw
+  return raw as Readonly<Record<string, RillValue>>;
+}
 
 /**
  * Extracts a message string from the provider `raw` bag when present.
@@ -422,9 +431,7 @@ function attachStatus(base: RillValue, status: RillStatus): RillValue {
   // at the Symbol-keyed sidecar slot. Symbol properties are invisible to
   // JSON.stringify / Object.keys / for-in, so structural comparisons
   // that iterate own enumerable keys remain unaffected.
-  const clone: Record<string, RillValue> = {
-    ...(base as Record<string, RillValue>),
-  };
+  const clone = { ...base };
   Object.defineProperty(clone, STATUS_SYM, {
     value: status,
     enumerable: false,

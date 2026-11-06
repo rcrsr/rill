@@ -31,6 +31,9 @@ const run: TransformInvoker = (transform, value) => {
       new Error('transform is not a host-invocable callable')
     );
   }
+  if (value === undefined) {
+    return Promise.reject(new Error('transform input is undefined'));
+  }
   return Promise.resolve(transform.fn({ '0': value }, createRuntimeContext()));
 };
 
@@ -80,9 +83,9 @@ describe('applyTransforms', () => {
     const inFlight = new Set<RillCallable>();
 
     const reentrant: TransformInvoker = (transform, value) =>
-      Promise.resolve(
-        applyTransforms([transform], value, reentrant, inFlight, SITE)
-      );
+      value === undefined
+        ? Promise.reject(new Error('transform input is undefined'))
+        : applyTransforms([transform], value, reentrant, inFlight, SITE);
 
     await expectHalt(
       () => applyTransforms([looping], 'x', reentrant, inFlight, SITE),
@@ -96,9 +99,9 @@ describe('applyTransforms', () => {
 
     const inFlight = new Set<RillCallable>();
     const reentrant: TransformInvoker = (transform, value) =>
-      Promise.resolve(
-        applyTransforms([transform], value, reentrant, inFlight, SITE)
-      );
+      value === undefined
+        ? Promise.reject(new Error('transform input is undefined'))
+        : applyTransforms([transform], value, reentrant, inFlight, SITE);
 
     await expectHalt(
       () => applyTransforms([redact], 'x', reentrant, inFlight, SITE),

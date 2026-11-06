@@ -8,7 +8,7 @@
  * MUST NOT import from ../registrations.js or sibling protocols/*.
  */
 
-import type { RillValue, RillTuple } from '../structures.js';
+import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isTuple } from '../guards.js';
 import { throwTypeHalt } from '../halt.js';
@@ -17,6 +17,7 @@ import {
   compareElements,
   compareByDeepEquals,
   throwNotSerializable,
+  requireReceiver,
   resolvedCompareValue,
   resolvedInferElementType,
 } from './shared.js';
@@ -26,7 +27,9 @@ import {
 // ============================================================
 
 function formatTuple(v: RillValue): string {
-  const t = v as unknown as RillTuple;
+  const t = isTuple(v)
+    ? v
+    : requireReceiver(v, isTuple, { fn: 'format-tuple' }, 'tuple');
   return `tuple[${t.entries.map(formatNested).join(', ')}]`;
 }
 
@@ -44,8 +47,24 @@ function formatTuple(v: RillValue): string {
  * Empty tuples compare equal (length 0 == length 0).
  */
 function compareTuple(a: RillValue, b: RillValue): number {
-  const ta = a as unknown as RillTuple;
-  const tb = b as unknown as RillTuple;
+  const ta = isTuple(a)
+    ? a
+    : requireReceiver(
+        a,
+        isTuple,
+        { fn: 'compare-tuple' },
+        'tuple',
+        'left operand'
+      );
+  const tb = isTuple(b)
+    ? b
+    : requireReceiver(
+        b,
+        isTuple,
+        { fn: 'compare-tuple' },
+        'tuple',
+        'right operand'
+      );
 
   if (ta.entries.length !== tb.entries.length) {
     throwTypeHalt(
@@ -57,9 +76,12 @@ function compareTuple(a: RillValue, b: RillValue): number {
   }
 
   for (let i = 0; i < ta.entries.length; i++) {
-    const av = ta.entries[i] as RillValue;
-    const bv = tb.entries[i] as RillValue;
-    const cmp = resolvedCompareValue(av, bv);
+    const av = ta.entries[i];
+    const bv = tb.entries[i];
+    const cmp =
+      av === undefined || bv === undefined
+        ? undefined
+        : resolvedCompareValue(av, bv);
     if (cmp === undefined) {
       throwTypeHalt(
         { fn: 'compareTuple' },
@@ -90,7 +112,11 @@ function eqTuple(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 function tupleToList(v: RillValue): RillValue {
-  const entries = (v as unknown as RillTuple).entries;
+  const entries = (
+    isTuple(v)
+      ? v
+      : requireReceiver(v, isTuple, { fn: 'tuple-to-list' }, 'tuple')
+  ).entries;
   // Validate homogeneity: all entries must share the same structural type,
   // matching the check the list-literal path applies.
   resolvedInferElementType(entries);

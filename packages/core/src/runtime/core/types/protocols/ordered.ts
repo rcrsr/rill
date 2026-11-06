@@ -9,7 +9,7 @@
  * MUST NOT import from ../registrations.js or sibling protocols/*.
  */
 
-import type { RillValue, RillOrdered } from '../structures.js';
+import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isOrdered } from '../guards.js';
 import { setDictField } from '../dict-keys.js';
@@ -18,6 +18,7 @@ import {
   compareElements,
   compareOrderedEntry,
   throwNotSerializable,
+  requireReceiver,
 } from './shared.js';
 
 // ============================================================
@@ -25,7 +26,9 @@ import {
 // ============================================================
 
 function formatOrdered(v: RillValue): string {
-  const o = v as unknown as RillOrdered;
+  const o = isOrdered(v)
+    ? v
+    : requireReceiver(v, isOrdered, { fn: 'format-ordered' }, 'ordered');
   const parts = o.entries.map(([k, val]) => `${k}: ${formatNested(val)}`);
   return `ordered[${parts.join(', ')}]`;
 }
@@ -45,7 +48,9 @@ function eqOrdered(a: RillValue, b: RillValue): boolean {
 
 const orderedConvertTo: Record<string, (v: RillValue) => RillValue> = {
   dict: (v: RillValue): RillValue => {
-    const o = v as unknown as RillOrdered;
+    const o = isOrdered(v)
+      ? v
+      : requireReceiver(v, isOrdered, { fn: 'ordered-to-dict' }, 'ordered');
     const result: Record<string, RillValue> = {};
     for (const [key, value] of o.entries) {
       setDictField(result, key, value);

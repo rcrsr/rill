@@ -536,10 +536,11 @@ Parser.prototype.parsePipeChain = function (this: Parser): PipeChainNode {
     };
   }
 
+  const lastPipe = pipes.at(-1);
   const chainEnd = terminator
     ? terminator.span.end
-    : pipes.length > 0
-      ? pipes.at(-1)!.span.end
+    : lastPipe
+      ? lastPipe.span.end
       : head.span.end;
 
   return {

@@ -20,7 +20,7 @@ import type {
 // COLLECTION-OP NAME SET
 // ============================================================
 
-const COLLECTION_OP_NAMES = new Set([
+const COLLECTION_OP_NAMES: ReadonlySet<string> = new Set([
   'seq',
   'fan',
   'fold',
@@ -40,10 +40,7 @@ const PARALLEL_OPS = new Set<CollectionOpName>(['fan', 'filter']);
 export function isCollectionOpCall(
   node: ASTNode
 ): node is HostCallNode & { name: CollectionOpName } {
-  return (
-    node.type === 'HostCall' &&
-    COLLECTION_OP_NAMES.has(node.name as CollectionOpName)
-  );
+  return node.type === 'HostCall' && COLLECTION_OP_NAMES.has(node.name);
 }
 
 /**

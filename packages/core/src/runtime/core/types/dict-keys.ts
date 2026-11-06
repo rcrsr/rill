@@ -155,25 +155,24 @@ export function typedKeyEntries(
  * than re-deriving the order locally.
  */
 export function orderedDictEntries(
-  dict: object
+  dict: Record<string, RillValue>
 ): ReadonlyArray<{ key: RillValue; value: RillValue }> {
-  const stringEntries = Object.keys(dict)
-    .sort()
-    .map((key) => ({
-      key: key as RillValue,
-      value: (dict as Record<string, RillValue>)[key]!,
-    }));
+  const stringEntries = Object.entries(dict)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([key, value]) => ({ key, value }));
   const map = getTypedKeyMap(dict);
-  const numberEntries: Array<{ key: RillValue; value: RillValue }> = [];
-  const booleanEntries: Array<{ key: RillValue; value: RillValue }> = [];
+  const numberEntries: Array<{ key: number; value: RillValue }> = [];
+  const booleanEntries: Array<{ key: boolean; value: RillValue }> = [];
   if (map !== undefined) {
     for (const entry of map.values()) {
-      const target =
-        typeof entry.key === 'number' ? numberEntries : booleanEntries;
-      target.push({ key: entry.key, value: entry.value });
+      if (typeof entry.key === 'number') {
+        numberEntries.push({ key: entry.key, value: entry.value });
+      } else {
+        booleanEntries.push({ key: entry.key, value: entry.value });
+      }
     }
   }
-  numberEntries.sort((a, b) => (a.key as number) - (b.key as number));
+  numberEntries.sort((a, b) => a.key - b.key);
   booleanEntries.sort((a, b) => Number(a.key) - Number(b.key));
   return [...stringEntries, ...numberEntries, ...booleanEntries];
 }

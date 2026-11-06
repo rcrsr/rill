@@ -449,9 +449,10 @@ export function readIdentifier(state: LexerState): Token {
     value += advance(state);
   }
 
-  const type = Object.hasOwn(KEYWORDS, value)
-    ? (KEYWORDS[value] as TokenType)
-    : TOKEN_TYPES.IDENTIFIER;
+  const keywordType = Object.hasOwn(KEYWORDS, value)
+    ? KEYWORDS[value]
+    : undefined;
+  const type = keywordType ?? TOKEN_TYPES.IDENTIFIER;
   return makeToken(type, value, start, currentLocation(state));
 }
 

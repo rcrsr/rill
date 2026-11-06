@@ -298,13 +298,15 @@ function trySalvagePartialExpression(
   // regardless of how far the salvage attempt progressed.
   state.pos = boundaryPos;
 
-  if (children.length === 0) return null;
+  const firstChild = children[0];
+  const lastChild = children.at(-1);
+  if (firstChild === undefined || lastChild === undefined) return null;
 
   return {
     type: 'PartialExpression',
     message,
     children,
-    span: makeSpan(children[0]!.span.start, children.at(-1)!.span.end),
+    span: makeSpan(firstChild.span.start, lastChild.span.end),
   };
 }
 

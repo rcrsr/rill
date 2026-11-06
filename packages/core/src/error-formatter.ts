@@ -55,14 +55,11 @@ function resolveSourceSnippet(
   if (sources.script !== undefined) {
     const lines = splitLines(sources.script);
     const idx = location.line - 1;
-    if (
-      idx >= 0 &&
-      idx < lines.length &&
-      location.column <= lines[idx]!.length + 1
-    ) {
+    const line = idx >= 0 ? lines[idx] : undefined;
+    if (line !== undefined && location.column <= line.length + 1) {
       return {
         label: filePath ?? '<script>',
-        ...(lines[idx] !== undefined ? { sourceLine: lines[idx] } : {}),
+        sourceLine: line,
       };
     }
   }

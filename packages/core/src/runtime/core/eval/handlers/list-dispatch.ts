@@ -75,8 +75,9 @@ export async function evaluateListLiteralDispatch(
   // Normalize negative indices
   const normalizedIndex = index < 0 ? elements.length + index : index;
 
-  // Check bounds
-  if (normalizedIndex < 0 || normalizedIndex >= elements.length) {
+  // Check bounds: an out-of-range index reads no element
+  const element = elements[normalizedIndex];
+  if (element === undefined) {
     // Use default value if provided via ??
     if (node.defaultValue) {
       return await evaluateBody(s, node.defaultValue);
@@ -93,7 +94,7 @@ export async function evaluateListLiteralDispatch(
     );
   }
 
-  return elements[normalizedIndex]!;
+  return element;
 }
 
 /**

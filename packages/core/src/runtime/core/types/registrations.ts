@@ -4,6 +4,7 @@ import type { RillValue } from './structures.js';
 import type { RillFunction } from '../callable.js';
 import { RuntimeError } from '../../../types.js';
 import { throwTypeHalt } from './halt.js';
+import { isRillTypeName, type RillTypeName } from '../../../value-types.js';
 import {
   initFormatNested,
   initDeepEquals,
@@ -73,6 +74,18 @@ export function inferType(value: RillValue): string {
   return dispatchByIdentity(value, (reg) => reg.name, 'string');
 }
 
+/**
+ * Internal: `inferType` typed as RillTypeName. A host-built field descriptor
+ * infers as `field_descriptor`, which is outside the closed RillTypeName set,
+ * and callers pass it through unchanged.
+ */
+export function inferTypeName(value: RillValue): RillTypeName {
+  const name = inferType(value);
+  if (isRillTypeName(name)) return name;
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- field_descriptor is a host-built value outside the closed RillTypeName set and callers rely on it passing through unchanged
+  return name as RillTypeName;
+}
+
 /** Format a value as a human-readable string. */
 export function formatValue(value: RillValue): string {
   return dispatchByIdentity(
@@ -94,9 +107,12 @@ let _deepEqualsVisited: WeakMap<object, WeakSet<object>> | null = null;
 /** Deep equality. Short-circuits on reference equality. */
 export function deepEquals(a: RillValue, b: RillValue): boolean {
   if (a === b) return true;
-  const isRoot = _deepEqualsVisited === null;
-  if (isRoot) _deepEqualsVisited = new WeakMap<object, WeakSet<object>>();
-  const visited = _deepEqualsVisited!;
+  let visited = _deepEqualsVisited;
+  const isRoot = visited === null;
+  if (visited === null) {
+    visited = new WeakMap<object, WeakSet<object>>();
+    _deepEqualsVisited = visited;
+  }
   const aObj = typeof a === 'object' && a !== null ? (a as object) : null;
   const bObj = typeof b === 'object' && b !== null ? (b as object) : null;
   if (aObj !== null && bObj !== null) {
@@ -166,6 +182,7 @@ export function deserializeValue(data: unknown, typeName: string): RillValue {
   for (const reg of BUILT_IN_TYPES) {
     if (reg.name === typeName) {
       if (reg.protocol.deserialize) return reg.protocol.deserialize(data);
+      // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- public host boundary: data is unknown and types without a deserialize protocol pass it through unchanged
       return data as RillValue;
     }
   }
@@ -199,8 +216,8 @@ const METHOD_BEARING_TYPES = new Set([
 export function populateBuiltinMethods(
   builtinMethods: Record<string, Record<string, RillFunction>>
 ): void {
-  for (const typeName of METHOD_BEARING_TYPES) {
-    if (!(typeName in builtinMethods)) continue;
+  for (const [typeName, methods] of Object.entries(builtinMethods)) {
+    if (!METHOD_BEARING_TYPES.has(typeName)) continue;
     const reg = BUILT_IN_TYPES.find((r) => r.name === typeName);
     if (reg === undefined) continue;
     if (Object.isFrozen(reg)) {
@@ -209,7 +226,6 @@ export function populateBuiltinMethods(
         `populateBuiltinMethods: registration '${reg.name}' is frozen; cannot assign methods`
       );
     }
-    (reg as { methods: Record<string, RillFunction> }).methods =
-      builtinMethods[typeName]!;
+    (reg as { methods: Record<string, RillFunction> }).methods = methods;
   }
 }

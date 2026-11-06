@@ -17,14 +17,21 @@ import {
   compareElements,
   compareByDeepEquals,
   serializeListElement,
+  requireReceiver,
 } from './shared.js';
 
 // ============================================================
 // FORMAT
 // ============================================================
 
+function isListValue(v: RillValue): v is RillValue[] {
+  return Array.isArray(v);
+}
+
 function formatList(v: RillValue): string {
-  const arr = v as RillValue[];
+  const arr = isListValue(v)
+    ? v
+    : requireReceiver(v, isListValue, { fn: 'format-list' }, 'list');
   return `list[${arr.map(formatNested).join(', ')}]`;
 }
 
@@ -42,7 +49,12 @@ function eqList(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 const listConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  tuple: (v: RillValue): RillValue => createTuple(v as RillValue[]),
+  tuple: (v: RillValue): RillValue =>
+    createTuple(
+      isListValue(v)
+        ? v
+        : requireReceiver(v, isListValue, { fn: 'list-to-tuple' }, 'list')
+    ),
   string: (v: RillValue): RillValue => formatList(v),
 };
 
@@ -51,7 +63,10 @@ const listConvertTo: Record<string, (v: RillValue) => RillValue> = {
 // ============================================================
 
 function serializeList(v: RillValue): unknown {
-  return (v as RillValue[]).map(serializeListElement);
+  const arr = isListValue(v)
+    ? v
+    : requireReceiver(v, isListValue, { fn: 'serialize-list' }, 'list');
+  return arr.map(serializeListElement);
 }
 
 // ============================================================

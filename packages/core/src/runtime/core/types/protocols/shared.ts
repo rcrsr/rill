@@ -30,6 +30,7 @@ import {
   isStream,
   isDatetime,
   isDuration,
+  isDict,
 } from '../guards.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { setDictField } from '../dict-keys.js';
@@ -168,10 +169,10 @@ export function resolvedInferElementType(elements: RillValue[]): void {
  * Zero-length collections return true.
  * eqTuple, eqList, eqOrdered delegate loop body here.
  */
-export function compareElements(
-  aEntries: readonly unknown[],
-  bEntries: readonly unknown[],
-  comparator: (a: unknown, b: unknown) => boolean
+export function compareElements<T>(
+  aEntries: readonly T[],
+  bEntries: readonly T[],
+  comparator: (a: T | undefined, b: T | undefined) => boolean
 ): boolean {
   if (aEntries.length !== bEntries.length) return false;
   for (let i = 0; i < aEntries.length; i++) {
@@ -200,17 +201,21 @@ function haltOnNestedInvalid(v: RillValue): void {
 }
 
 /** Element comparator for tuple and list entries: handles undefined, delegates to deepEquals. */
-export function compareByDeepEquals(a: unknown, b: unknown): boolean {
+export function compareByDeepEquals(
+  a: RillValue | undefined,
+  b: RillValue | undefined
+): boolean {
   if (a === undefined || b === undefined) return a === b;
-  haltOnNestedInvalid(a as RillValue);
-  haltOnNestedInvalid(b as RillValue);
-  return resolvedDeepEquals(a as RillValue, b as RillValue);
+  haltOnNestedInvalid(a);
+  haltOnNestedInvalid(b);
+  return resolvedDeepEquals(a, b);
 }
 
 /** Entry comparator for ordered: keys by identity, values by deepEquals. */
-export function compareOrderedEntry(a: unknown, b: unknown): boolean {
-  const aEntry = a as [string, RillValue] | undefined;
-  const bEntry = b as [string, RillValue] | undefined;
+export function compareOrderedEntry(
+  aEntry: readonly [string, RillValue, RillValue?] | undefined,
+  bEntry: readonly [string, RillValue, RillValue?] | undefined
+): boolean {
   if (aEntry === undefined || bEntry === undefined) return false;
   if (aEntry[0] !== bEntry[0]) return false;
   haltOnNestedInvalid(aEntry[1]);
@@ -280,9 +285,15 @@ export function serializeListElement(v: RillValue): unknown {
       'streams are not JSON-serializable'
     );
   // Plain dict
-  const dict = v as Record<string, RillValue>;
+  if (!isDict(v)) {
+    throwFatalHostHalt(
+      { fn: 'json' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'serializeListElement reached a non-dict value'
+    );
+  }
   const result: Record<string, unknown> = {};
-  for (const [k, val] of Object.entries(dict)) {
+  for (const [k, val] of Object.entries(v)) {
     setDictField(result, k, serializeListElement(val));
   }
   return result;
@@ -312,6 +323,25 @@ export function throwNotSerializable(
 // ============================================================
 
 /**
+ * Narrow a value with `guard`, or halt with RILL-R003 naming `site.fn`.
+ * `typeName` and `operand` build the message: `<fn> requires <typeName> <operand>`.
+ */
+export function requireReceiver<T extends RillValue>(
+  value: RillValue,
+  guard: (value: RillValue) => value is T,
+  site: TypeHaltSite,
+  typeName: string,
+  operand: string = 'receiver'
+): T {
+  if (guard(value)) return value;
+  return throwFatalHostHalt(
+    site,
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `${site.fn} requires ${typeName} ${operand}`
+  );
+}
+
+/**
  * Narrow a value to a datetime, or halt with RILL-R003 naming `site.fn`.
  * `operand` names the value in the message. Callers on hot paths test
  * `isDatetime` first so the site object is built only on failure.
@@ -321,12 +351,7 @@ export function requireDatetime(
   site: TypeHaltSite,
   operand: string = 'receiver'
 ): RillDatetime {
-  if (isDatetime(value)) return value;
-  return throwFatalHostHalt(
-    site,
-    ERROR_ATOMS[ERROR_IDS.RILL_R003],
-    `${site.fn} requires datetime ${operand}`
-  );
+  return requireReceiver(value, isDatetime, site, 'datetime', operand);
 }
 
 /** Narrow a value to a duration, or halt with RILL-R003 naming `site.fn`. */
@@ -335,10 +360,5 @@ export function requireDuration(
   site: TypeHaltSite,
   operand: string = 'receiver'
 ): RillDuration {
-  if (isDuration(value)) return value;
-  return throwFatalHostHalt(
-    site,
-    ERROR_ATOMS[ERROR_IDS.RILL_R003],
-    `${site.fn} requires duration ${operand}`
-  );
+  return requireReceiver(value, isDuration, site, 'duration', operand);
 }

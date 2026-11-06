@@ -39,7 +39,10 @@ import type {
   SpreadArgNode,
   SourceLocation,
 } from '../../../../types.js';
-import { throwCatchableHostHalt } from '../../types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+} from '../../types/halt.js';
 import type { RillCallable } from '../../callable.js';
 import {
   isApplicationCallable,
@@ -63,18 +66,18 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
  * undefined for them, and marshalArgs handles defaults and required checks.
  *
  * Phase 2 integration: callers convert this to a positional RillValue[] via
- *   params.map(p => bound.params.get(p.name)!)
+ *   params.map(p => bound.params.get(p.name))
  * and pass that to marshalArgs stages 2-3 (skipping stage 1 excess check,
  * which bind handles differently via per-source arity validation).
  */
 export interface BoundArguments {
-  readonly params: ReadonlyMap<string, RillValue>;
+  readonly params: ReadonlyMap<string, RillValue | undefined>;
 }
 
 // Pre-allocated empty sentinel: returned for zero-arg calls and non-spread paths.
 // Callers must not mutate this object.
 const EMPTY_BOUND_ARGUMENTS: BoundArguments = Object.freeze({
-  params: new Map<string, RillValue>(),
+  params: new Map<string, RillValue | undefined>(),
 });
 
 // ============================================================
@@ -135,10 +138,7 @@ export class ArgumentsBinder {
     // ApplicationCallable with undefined params (e.g. created via callable() helper)
     // has no param metadata. Emit "parameter metadata required" to match baseline behavior.
     // Must be checked before the isUntypedBuiltin (empty params) branch.
-    if (
-      isApplicationCallable(callable) &&
-      (callable.params as unknown) === undefined
-    ) {
+    if (isApplicationCallable(callable) && callable.params === undefined) {
       const name = _getCallableName(callable);
       throwCatchableHostHalt(
         { location, sourceId, fn: 'bind' },
@@ -220,7 +220,15 @@ export class ArgumentsBinder {
             );
           }
           for (let i = 0; i < tupleEntries.length; i++) {
-            const param = params[positionalIndex + i]!;
+            const param = params[positionalIndex + i];
+            const entry = tupleEntries[i];
+            if (param === undefined || entry === undefined) {
+              throwCatchableHostHalt(
+                { location, sourceId, fn: 'bind' },
+                ERROR_ATOMS[ERROR_IDS.RILL_R001],
+                `Spread tuple has ${tupleEntries.length} values but only ${remaining} parameter(s) remain`
+              );
+            }
             // duplicate binding
             if (bound.has(param.name)) {
               throwCatchableHostHalt(
@@ -229,14 +237,22 @@ export class ArgumentsBinder {
                 `Duplicate binding for parameter '${param.name}': already bound positionally`
               );
             }
-            bound.set(param.name, tupleEntries[i]!);
+            bound.set(param.name, entry);
           }
           positionalIndex += tupleEntries.length;
         } else if (isOrdered(spreadValue)) {
           // Ordered: match key by name AND position
           const orderedEntries = spreadValue.entries;
           for (let i = 0; i < orderedEntries.length; i++) {
-            const [key, value] = orderedEntries[i]!;
+            const orderedEntry = orderedEntries[i];
+            if (orderedEntry === undefined) {
+              throwFatalHostHalt(
+                { location, sourceId, fn: 'bind' },
+                ERROR_ATOMS[ERROR_IDS.RILL_R002],
+                `Ordered spread entry at position ${i} is missing`
+              );
+            }
+            const [key, value] = orderedEntry;
             const expectedParam = params[positionalIndex + i];
             // key-order mismatch
             if (expectedParam === undefined || expectedParam.name !== key) {
@@ -260,9 +276,8 @@ export class ArgumentsBinder {
           positionalIndex += orderedEntries.length;
         } else if (isDict(spreadValue)) {
           // Dict: match each key to param by name (order irrelevant)
-          const dictValue = spreadValue as Record<string, RillValue>;
           const paramNames = new Set(params.map((p) => p.name));
-          for (const [key, value] of Object.entries(dictValue)) {
+          for (const [key, value] of Object.entries(spreadValue)) {
             // key matches no parameter
             if (!paramNames.has(key)) {
               const validParams = params.map((p) => p.name).join(', ');
@@ -285,9 +300,10 @@ export class ArgumentsBinder {
           // Advance the positional cursor past any leading parameters the dict
           // spread has now bound, so a following positional targets the next
           // UNBOUND parameter instead of rebinding an already-bound one.
-          while (
-            positionalIndex < params.length &&
-            bound.has(params[positionalIndex]!.name)
+          for (
+            let next = params[positionalIndex];
+            next !== undefined && bound.has(next.name);
+            next = params[positionalIndex]
           ) {
             positionalIndex++;
           }

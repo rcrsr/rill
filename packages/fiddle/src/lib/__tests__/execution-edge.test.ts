@@ -3,7 +3,8 @@
  *
  * Covers paths not exercised by execution-error.test.ts:
  * - Non-Rill errors (plain Error, string throws) produce runtime category
- * - extractCallStack: getCallStack throws, returns empty frames
+ * - extractCallStack: real runtime errors yield source-resolved frames;
+ *   plain error-shaped objects yield no call stack
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -85,6 +86,52 @@ describe('executeRill edge cases', () => {
       expect(result.duration).toBeGreaterThanOrEqual(0);
 
       parseSpy.mockRestore();
+    });
+  });
+
+  describe('call stack extraction', () => {
+    it('resolves source lines for frames of a runtime error raised in a closure', async () => {
+      const source = [
+        '|x| ($x -> .nope) => $inner',
+        '|y| (',
+        '  $inner($y)',
+        ') => $outer',
+        '"a" => $v',
+        '$outer($v)',
+      ].join('\n');
+
+      const result = await executeRill(source);
+
+      expect(result.status).toBe('error');
+      const error = result.error;
+      const frames = error?.callStack;
+      expect(frames).toBeDefined();
+      expect(frames?.length).toBeGreaterThanOrEqual(1);
+      const lines = source.split('\n');
+      for (const frame of frames ?? []) {
+        expect(frame.sourceLine).toBe(lines[frame.line - 1]);
+        expect(
+          frame.line === error?.line && frame.column === error?.column
+        ).toBe(false);
+      }
+    });
+
+    it('omits call stack for a plain error-shaped object', async () => {
+      const rill = await import('@rcrsr/rill');
+      vi.spyOn(rill, 'parse').mockImplementation(() => {
+        // oxlint-disable-next-line no-throw-literal -- exercises handling of a non-Error object with error-like fields
+        throw {
+          errorId: 'RILL-R001',
+          name: 'RuntimeError',
+          message: 'fake',
+          context: { callStack: [] },
+        };
+      });
+
+      const result = await executeRill('1 + 2');
+
+      expect(result.status).toBe('error');
+      expect(result.error?.callStack).toBeUndefined();
     });
   });
 });

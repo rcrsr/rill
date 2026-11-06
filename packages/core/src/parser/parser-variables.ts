@@ -17,6 +17,8 @@ import {
   check,
   advance,
   expect,
+  current,
+  previous,
   makeSpan,
   skipNewlines,
   skipNewlinesIfFollowedBy,
@@ -58,7 +60,7 @@ declare module './parser.js' {
 // ============================================================
 
 Parser.prototype.parseVariable = function (this: Parser): VariableNode {
-  const start = this.state.tokens[this.state.pos]!.span.start;
+  const start = current(this.state).span.start;
 
   if (check(this.state, TOKEN_TYPES.PIPE_VAR)) {
     advance(this.state);
@@ -96,7 +98,7 @@ Parser.prototype.makeVariableWithAccess = function (
   // The last token consumed by parseAccessChain (or, when the chain is
   // empty, the name/$ token already consumed by the caller) anchors the
   // end of the variable's span.
-  const end = this.state.tokens[this.state.pos - 1]!.span.end;
+  const end = previous(this.state).span.end;
 
   // Task 1.4: `.?` and `??` may now compose. Consume the default when
   // present; the evaluator treats vacancy from the existence check as the
