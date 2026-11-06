@@ -6,6 +6,15 @@
 
 ```typescript
 import { parse, execute, createRuntimeContext, anyTypeValue } from '@rcrsr/rill';
+import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
+
+// Fills the fields RillParam requires; adds no behavior.
+const param = (
+  name: string,
+  type: TypeStructure,
+  defaultValue?: RillValue,
+  annotations: Record<string, RillValue> = {}
+): RillParam => ({ name, type, defaultValue, annotations });
 
 const source = `
   "Hello, World!" -> prompt() => $response
@@ -16,7 +25,7 @@ const ast = parse(source);
 const ctx = createRuntimeContext({
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('text', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: async (args) => {
         return await callYourLLM(args.text);
@@ -29,6 +38,8 @@ const result = await execute(ast, ctx);
 console.log(result.result);
 ```
 
+`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
+
 ## RuntimeOptions
 
 The `createRuntimeContext()` function accepts these options:
@@ -36,7 +47,7 @@ The `createRuntimeContext()` function accepts these options:
 | Option | Type | Description |
 |--------|------|-------------|
 | `variables` | `Record<string, RillValue>` | Initial variables accessible as `$name` |
-| `functions` | `Record<string, RillFunction \| RillFunctionSignature>` | Custom functions callable as `name()` |
+| `functions` | `Record<string, RillFunction>` | Custom functions callable as `name()` |
 | `callbacks` | `Partial<RuntimeCallbacks>` | I/O callbacks (e.g., `onLog`) |
 | `observability` | `ObservabilityCallbacks` | Execution monitoring hooks |
 | `timeout` | `number` | Per-call limit in ms for each named function call (host functions and built-ins). Expiry halts with catchable `RILL-R012`. It does not bound total script time |
@@ -65,7 +76,7 @@ import { anyTypeValue } from '@rcrsr/rill';
 // WRONG: Mutates input array
 functions: {
   addItem: {
-    params: [{ name: 'list', type: { kind: 'list' }, defaultValue: undefined, annotations: {} }],
+    params: [param('list', { kind: 'list' })],
     returnType: anyTypeValue,
     fn: (args) => {
       const list = args.list as unknown[];
@@ -78,7 +89,7 @@ functions: {
 // CORRECT: Return new value
 functions: {
   addItem: {
-    params: [{ name: 'list', type: { kind: 'list' }, defaultValue: undefined, annotations: {} }],
+    params: [param('list', { kind: 'list' })],
     returnType: anyTypeValue,
     fn: (args) => {
       const list = args.list as unknown[];
@@ -98,7 +109,7 @@ import { deepFreeze } from './utils'; // Your utility
 
 functions: {
   process: {
-    params: [{ name: 'input', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+    params: [param('input', { kind: 'string' })],
     returnType: anyTypeValue,
     fn: (args) => {
       const frozen = deepFreeze(args.input);
@@ -144,8 +155,8 @@ const ctx = createRuntimeContext({
     // Sync function
     add: {
       params: [
-        { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
-        { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+        param('a', { kind: 'number' }),
+        param('b', { kind: 'number' }),
       ],
       returnType: anyTypeValue,
       fn: (args) => args.a + args.b,
@@ -153,7 +164,7 @@ const ctx = createRuntimeContext({
 
     // Async function
     fetch: {
-      params: [{ name: 'url', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('url', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: async (args, ctx, location) => {
         const response = await fetch(args.url);
@@ -163,7 +174,7 @@ const ctx = createRuntimeContext({
 
     // Function with context access
     getVar: {
-      params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('name', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: (args, ctx) => {
         return ctx.variables.get(args.name) ?? null;
@@ -172,7 +183,7 @@ const ctx = createRuntimeContext({
 
     // Function with location for error reporting
     validate: {
-      params: [{ name: 'value', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('value', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: (args, ctx, location) => {
         if (!args.value) {
@@ -197,41 +208,41 @@ const ctx = createRuntimeContext({
     // Namespaced functions use :: separator
     'math::add': {
       params: [
-        { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
-        { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+        param('a', { kind: 'number' }),
+        param('b', { kind: 'number' }),
       ],
       returnType: anyTypeValue,
       fn: (args) => args.a + args.b,
     },
     'math::multiply': {
       params: [
-        { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
-        { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+        param('a', { kind: 'number' }),
+        param('b', { kind: 'number' }),
       ],
       returnType: anyTypeValue,
       fn: (args) => args.a * args.b,
     },
     'str::upper': {
-      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('text', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: (args) => args.text.toUpperCase(),
     },
     'str::lower': {
-      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('text', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: (args) => args.text.toLowerCase(),
     },
 
     // Multi-level namespaces
     'io::file::read': {
-      params: [{ name: 'path', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('path', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: async (args) => fs.readFile(args.path, 'utf-8'),
     },
     'io::file::write': {
       params: [
-        { name: 'path', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
-        { name: 'content', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+        param('path', { kind: 'string' }),
+        param('content', { kind: 'string' }),
       ],
       returnType: anyTypeValue,
       fn: async (args) => fs.writeFile(args.path, args.content),
@@ -316,7 +327,7 @@ import { anyTypeValue } from '@rcrsr/rill';
 
 functions: {
   trace: {
-    params: [{ name: 'msg', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+    params: [param('msg', { kind: 'string' })],
     returnType: anyTypeValue,
     fn: (args, ctx) => {
       const correlationId = ctx.metadata?.correlationId ?? 'unknown';
@@ -475,8 +486,8 @@ const ctx = createRuntimeContext({
   functions: {
     repeat: {
       params: [
-        { name: 'str', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
-        { name: 'count', type: { kind: 'number' }, defaultValue: 1, annotations: {} },
+        param('str', { kind: 'string' }),
+        param('count', { kind: 'number' }, 1),
       ],
       returnType: anyTypeValue,
       fn: (args) => {
@@ -524,8 +535,8 @@ import { anyTypeValue } from '@rcrsr/rill';
 functions: {
   greet: {
     params: [
-      { name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
-      { name: 'greeting', type: { kind: 'string' }, defaultValue: 'Hello', annotations: {} },
+      param('name', { kind: 'string' }),
+      param('greeting', { kind: 'string' }, 'Hello'),
     ],
     returnType: anyTypeValue,
     fn: (args) => `${args.greeting}, ${args.name}!`,
@@ -547,21 +558,17 @@ For tuple parameters, missing trailing elements are filled from the element type
 ```typescript
 import { anyTypeValue } from '@rcrsr/rill';
 
+// param() as defined in Quick Start
 functions: {
   format: {
     params: [
-      {
-        name: 'point',
-        type: {
-          kind: 'tuple',
-          elements: [
-            { type: { kind: 'number' } },
-            { type: { kind: 'string' }, defaultValue: 'unnamed' },
-          ],
-        },
-        defaultValue: undefined,
-        annotations: {},
-      },
+      param('point', {
+        kind: 'tuple',
+        elements: [
+          { type: { kind: 'number' } },
+          { type: { kind: 'string' }, defaultValue: 'unnamed' },
+        ],
+      }),
     ],
     returnType: anyTypeValue,
     fn: (args) => {
@@ -644,7 +651,7 @@ const ctx = createRuntimeContext({
   functions: {
     greet: {
       params: [
-        { name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: { description: 'Person to greet' } },
+        param('name', { kind: 'string' }, undefined, { description: 'Person to greet' }),
       ],
       annotations: { description: 'Generate a greeting message' },
       returnType: structureToTypeValue({ kind: 'string' }),
@@ -657,43 +664,6 @@ const ctx = createRuntimeContext({
 Missing descriptions throw clear errors:
 - Function: `Function 'name' requires description (requireDescriptions enabled)`
 - Parameter: `Parameter 'x' of function 'name' requires description (requireDescriptions enabled)`
-
-## Signature String Registration
-
-Functions can be registered using a rill closure signature string instead of explicit `RillParam[]`. The runtime parses the signature at registration time and derives the parameter list from it.
-
-```typescript
-const ctx = createRuntimeContext({
-  functions: {
-    greet: {
-      signature: '|name: string| :string',
-      fn: (args) => `Hello, ${args.name}!`,
-    },
-  },
-});
-```
-
-The runtime discriminates `RillFunctionSignature` from `RillFunction` by the presence of the `signature` field.
-
-Signature strings support the full rill closure annotation syntax, including parameter annotations and defaults:
-
-```typescript
-functions: {
-  repeat: {
-    signature: '|^("Times to repeat") count: number = 3, text: string| :string',
-    fn: (args) => String(args.text).repeat(args.count),
-  },
-}
-```
-
-The `signature` value must be a valid rill closure type annotation string. Invalid signatures throw at registration time.
-
-```typescript
-interface RillFunctionSignature {
-  readonly signature: string;  // annotated rill closure type signature
-  readonly fn: CallableFn;
-}
-```
 
 ## Manifest Generation
 
@@ -737,7 +707,7 @@ import {
 
 // Create a callable with a declared parameter
 const greet = toCallable({
-  params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+  params: [param('name', { kind: 'string' })],
   returnType: anyTypeValue,
   fn: (args) => `Hello, ${args.name}!`,
 });
@@ -800,8 +770,8 @@ const ctx = createRuntimeContext({
     math: {
       add: toCallable({
         params: [
-          { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
-          { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+          param('a', { kind: 'number' }),
+          param('b', { kind: 'number' }),
         ],
         returnType: anyTypeValue,
         fn: (args) => Number(args.a) + Number(args.b),
@@ -920,7 +890,7 @@ import { anyTypeValue } from '@rcrsr/rill';
 
 functions: {
   fetchData: {
-    params: [{ name: 'url', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+    params: [param('url', { kind: 'string' })],
     returnType: anyTypeValue,
     fn: async (args, ctx) => {
       const response = await fetch(args.url as string, {
@@ -1136,7 +1106,7 @@ const ctx = createRuntimeContext({
   ],
   functions: {
     process: {
-      params: [{ name: 'input', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('input', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: (args) => {
         // If this returns "error: invalid input",

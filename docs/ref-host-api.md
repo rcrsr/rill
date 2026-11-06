@@ -15,13 +15,24 @@ import {
   structureToTypeValue,
   RuntimeHaltSignal,
   type ExtensionFactoryResult,
+  type RillParam,
+  type RillValue,
+  type TypeStructure,
 } from '@rcrsr/rill';
+
+// Fills the fields RillParam requires; adds no behavior.
+const param = (
+  name: string,
+  type: TypeStructure,
+  defaultValue?: RillValue,
+  annotations: Record<string, RillValue> = {}
+): RillParam => ({ name, type, defaultValue, annotations });
 
 function createMyExtension(config: { model: string }): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('text', { kind: 'string' })],
         fn: async (args) => await callLLM(args.text, config.model),
         annotations: { description: 'Send a prompt to the LLM' },
         returnType: structureToTypeValue({ kind: 'string' }),
@@ -55,6 +66,8 @@ try {
 }
 ```
 
+`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
+
 ### Direct Registration (Legacy)
 
 ```typescript
@@ -87,8 +100,8 @@ const ctx = createRuntimeContext({
       timestamp: callable(() => Date.now(), true),
       format: toCallable({
         params: [
-          { name: 'template', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
-          { name: 'value', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+          param('template', { kind: 'string' }),
+          param('value', { kind: 'string' }),
         ],
         returnType: anyTypeValue,
         fn: (args) =>
@@ -99,7 +112,7 @@ const ctx = createRuntimeContext({
 
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('text', { kind: 'string' })],
       fn: async (args, ctx, location) => {
         console.log(`[prompt at line ${location?.line}]`);
         return await callLLM(args.text);
@@ -811,7 +824,7 @@ import { createRillStream, structureToTypeValue } from '@rcrsr/rill';
 import type { RillFunction, RillValue } from '@rcrsr/rill';
 
 const fn: RillFunction = {
-  params: [{ name: 'prompt', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+  params: [param('prompt', { kind: 'string' })],
   fn: async (args) => {
     async function* generateChunks(): AsyncIterable<RillValue> {
       for await (const token of streamLLM(args.prompt as string)) {

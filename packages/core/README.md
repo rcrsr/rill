@@ -14,13 +14,21 @@ npm install @rcrsr/rill
 
 ```typescript
 import { parse, execute, createRuntimeContext, toCallable, structureToTypeValue } from '@rcrsr/rill';
-import type { ExtensionFactoryResult } from '@rcrsr/rill';
+import type { ExtensionFactoryResult, RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
+
+// Fills the fields RillParam requires; adds no behavior.
+const param = (
+  name: string,
+  type: TypeStructure,
+  defaultValue?: RillValue,
+  annotations: Record<string, RillValue> = {}
+): RillParam => ({ name, type, defaultValue, annotations });
 
 function createMyExtension(): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        params: [{ name: 'message', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('message', { kind: 'string' })],
         fn: async (args) => await callYourLLM(args.message),
         annotations: { description: 'Call your LLM' },
         returnType: structureToTypeValue({ kind: 'string' }),
@@ -42,6 +50,8 @@ const script = `
 const result = await execute(parse(script), ctx);
 console.log(result.result);
 ```
+
+`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior.
 
 ## API
 
@@ -75,7 +85,7 @@ const ctx = createRuntimeContext({
   // Legacy: direct function registration (still supported)
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('text', { kind: 'string' })],
       fn: async (args, ctx, location) => { /* ... */ },
       annotations: {},
       returnType: structureToTypeValue({ kind: 'string' }),

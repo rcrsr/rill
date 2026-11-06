@@ -420,12 +420,21 @@ Enumerate all callable functions registered in the runtime context:
 
 ```typescript
 import { createRuntimeContext, getFunctions, anyTypeValue } from '@rcrsr/rill';
+import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
+
+// Fills the fields RillParam requires; adds no behavior.
+const param = (
+  name: string,
+  type: TypeStructure,
+  defaultValue?: RillValue,
+  annotations: Record<string, RillValue> = {}
+): RillParam => ({ name, type, defaultValue, annotations });
 
 const ctx = createRuntimeContext({
   functions: {
     greet: {
       params: [
-        { name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: { description: 'Person to greet' } },
+        param('name', { kind: 'string' }, undefined, { description: 'Person to greet' }),
       ],
       annotations: { description: 'Generate a greeting message' },
       returnType: anyTypeValue,
@@ -444,6 +453,8 @@ const functions = getFunctions(ctx);
 //   ... built-in functions
 // ]
 ```
+
+`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
 
 Returns `FunctionMetadata[]` combining:
 1. Host functions, including any host function that overrides a built-in name
@@ -532,13 +543,13 @@ import { createRuntimeContext, getDocumentationCoverage, anyTypeValue } from '@r
 const ctx = createRuntimeContext({
   functions: {
     documented: {
-      params: [{ name: 'x', type: { kind: 'string' }, defaultValue: undefined, annotations: { description: 'Input value' } }],
+      params: [param('x', { kind: 'string' }, undefined, { description: 'Input value' })],
       annotations: { description: 'A documented function' },
       returnType: anyTypeValue,
       fn: (args) => args.x,
     },
     undocumented: {
-      params: [{ name: 'x', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      params: [param('x', { kind: 'string' })],
       returnType: anyTypeValue,
       fn: (args) => args.x,
     },

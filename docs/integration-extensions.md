@@ -8,13 +8,21 @@ Create a simple extension with a factory function:
 
 ```typescript
 import { toCallable, createRuntimeContext, structureToTypeValue } from '@rcrsr/rill';
-import type { ExtensionFactoryResult } from '@rcrsr/rill';
+import type { ExtensionFactoryResult, RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
+
+// Fills the fields RillParam requires; adds no behavior.
+const param = (
+  name: string,
+  type: TypeStructure,
+  defaultValue?: RillValue,
+  annotations: Record<string, RillValue> = {}
+): RillParam => ({ name, type, defaultValue, annotations });
 
 function createGreetExtension(config: { prefix: string }): ExtensionFactoryResult {
   return {
     value: {
       greet: toCallable({
-        params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('name', { kind: 'string' })],
         fn: async (args) => `${config.prefix} ${args.name}!`,
         annotations: { description: 'Generate greeting' },
         returnType: structureToTypeValue({ kind: 'string' }),
@@ -31,6 +39,8 @@ const ctx = createRuntimeContext({
 // Script: app.greet("World")
 ```
 
+`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
+
 ## Extension Contract
 
 Every extension exports a factory function returning `ExtensionFactoryResult`:
@@ -45,7 +55,7 @@ function createMyExtension(config: MyConfig): ExtensionFactoryResult {
   return {
     value: {
       greet: toCallable({
-        params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('name', { kind: 'string' })],
         fn: async (args) => `Hello, ${args.name}!`,
         annotations: { description: 'Generate greeting' },
         returnType: structureToTypeValue({ kind: 'string' }),
@@ -274,7 +284,7 @@ function createPooledExtension(config: PoolConfig): ExtensionFactoryResult {
   return {
     value: {
       query: toCallable({
-        params: [{ name: 'sql', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('sql', { kind: 'string' })],
         fn: async (args) => pool.query(args.sql),
         annotations: { description: 'Execute SQL query' },
         returnType: structureToTypeValue({ kind: 'any' }),
@@ -438,8 +448,8 @@ return {
   value: {
     send: toCallable({
       params: [
-        { name: 'message', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
-        { name: 'options', type: { kind: 'dict' }, defaultValue: {}, annotations: {} },
+        param('message', { kind: 'string' }),
+        param('options', { kind: 'dict' }, {}),
       ],
       fn: async (args) => {
         const message = args.message as string;
@@ -498,7 +508,7 @@ function createMyExtension(): ExtensionFactoryResult {
   return {
     value: {
       run: toCallable({
-        params: [{ name: 'cmd', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('cmd', { kind: 'string' })],
         fn: async (args) => {
           const proc = spawn(args.cmd);
           const cleanup = () => proc.kill();
@@ -588,7 +598,7 @@ const context = createTestContext({
     value: {
       greet: toCallable({
         fn: (args) => `Hello, ${args.name}!`,
-        params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('name', { kind: 'string' })],
         returnType: structureToTypeValue({ kind: 'string' }),
         annotations: {}
       })
@@ -644,7 +654,7 @@ function createMyExtension(config: MyConfig): ExtensionFactoryResult {
   return {
     value: {
       greet: toCallable({
-        params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('name', { kind: 'string' })],
         fn: async (args) => `Hello, ${args.name}!`,
         annotations: { description: 'Generate greeting' },
         returnType: structureToTypeValue({ kind: 'string' }),
