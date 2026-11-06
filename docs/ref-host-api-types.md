@@ -291,24 +291,14 @@ Converts a `TypeStructure` descriptor into the `RillTypeValue` runtime represent
 
 ```typescript
 import { structureToTypeValue } from '@rcrsr/rill';
-import type { RillFunction, RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
-
-// Fills the fields RillParam requires; adds no behavior.
-const param = (
-  name: string,
-  type: TypeStructure,
-  defaultValue?: RillValue,
-  annotations: Record<string, RillValue> = {}
-): RillParam => ({ name, type, defaultValue, annotations });
+import type { RillFunction } from '@rcrsr/rill';
 
 const fn: RillFunction = {
-  params: [param('text', { kind: 'string' })],
+  params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
   fn: (args) => args.text,
   returnType: structureToTypeValue({ kind: 'string' }),
 };
 ```
-
-`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
 
 ### `serializeValue`
 
@@ -514,7 +504,7 @@ const dateType: TypeDefinition = {
   immutable: true,
   methods: {
     format: {
-      params: [param('pattern', { kind: 'string' })],
+      params: [{ name: 'pattern', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
       fn: (args) => (args.$self as Date).toLocaleDateString(),
       returnType: structureToTypeValue({ kind: 'string' }),
     },

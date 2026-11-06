@@ -11,6 +11,7 @@ import {
   parse,
   type RillCallable,
   type RillFunction,
+  type RillFunctionDefinition,
   type RillValue,
   type RuntimeContext,
   type RuntimeOptions,
@@ -19,7 +20,7 @@ import { vi } from 'vitest';
 
 /** Options for test execution */
 interface TestOptions extends Omit<RuntimeOptions, 'functions'> {
-  functions?: Record<string, RillFunction>;
+  functions?: Record<string, RillFunctionDefinition>;
 }
 
 /** Shared setup for all execution modes */

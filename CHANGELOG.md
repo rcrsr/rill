@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **Signature shorthand for host functions:** Host functions registered through `toCallable(def)` and `createRuntimeContext({ functions })` now accept `{ signature, fn }` alongside the explicit `{ params, returnType, fn }` form, with optional `annotations` and `description` fields. The `signature` is a string such as `|name: string, n: number = 1|:string`, and it registers the same params, defaults, annotations, and return type as the explicit form, so `^input` and `^output` reflection match. An omitted return type defaults to `any`. Registration halts with `RILL-R091` when the signature fails to lex, parse, or convert to a type structure; when the definition supplies `signature` together with `params` or `returnType`; when `signature` or `description` is not a string; when `annotations` is not an object; or when one annotation key is declared by more than one source, such as the signature and the `annotations` field. The explicit form is still supported. See the [Host API reference](docs/ref-host-api.md). ([#525](https://github.com/rcrsr/rill/issues/525), [#528](https://github.com/rcrsr/rill/pull/528))
+
+### Changed
+
+- **Signature parser errors carry a position and keep signature annotations:** Signature parse errors now end with ` at line:col`, and signature-level `^(key: "v")` annotations are now kept instead of dropped. ([#525](https://github.com/rcrsr/rill/issues/525), [#528](https://github.com/rcrsr/rill/pull/528))
+
 ## 0.22.0 - 2026-11-05
 
 ### Added

@@ -61,6 +61,10 @@ import { hasCollectionFields } from './values.js';
 import { copyTypedKeys, setDictField } from './types/dict-keys.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import { throwCatchableHostHalt, throwFatalHostHalt } from './types/halt.js';
+import {
+  normalizeFunctionDefinition,
+  type RillFunctionDefinition,
+} from './function-shorthand.js';
 
 /**
  * Callable function signature.
@@ -166,19 +170,20 @@ export { callable } from './callable-factory.js';
  * Validates the input and produces a callable value accepted by the loader.
  * Pure function with no side effects.
  *
- * @param def - Host function definition to convert
+ * @param input - Host function definition to convert, explicit or signature shorthand
  * @returns ApplicationCallable with __type, kind, isProperty, and preserved annotations
  */
 export function toCallable(
-  def: RillFunction,
+  input: RillFunctionDefinition,
   isProperty = false
 ): ApplicationCallable {
-  if (def === null || def === undefined) {
+  if (input === null || input === undefined) {
     throw new TypeError('RillFunction cannot be null or undefined');
   }
-  if (typeof def.fn !== 'function') {
+  if (typeof input.fn !== 'function') {
     throw new TypeError('RillFunction.fn must be a function');
   }
+  const def = normalizeFunctionDefinition('<anonymous>', input);
   if (!Array.isArray(def.params)) {
     throw new TypeError('RillFunction.params must be an array');
   }

@@ -79,6 +79,10 @@ export type {
   RillParam,
   ScriptCallable,
 } from './runtime/core/callable.js';
+export type {
+  RillFunctionDefinition,
+  RillFunctionShorthand,
+} from './runtime/core/function-shorthand.js';
 
 export {
   callable,

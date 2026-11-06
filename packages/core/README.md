@@ -13,25 +13,16 @@ npm install @rcrsr/rill
 ## Quick Start
 
 ```typescript
-import { parse, execute, createRuntimeContext, toCallable, structureToTypeValue } from '@rcrsr/rill';
-import type { ExtensionFactoryResult, RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
-
-// Fills the fields RillParam requires; adds no behavior.
-const param = (
-  name: string,
-  type: TypeStructure,
-  defaultValue?: RillValue,
-  annotations: Record<string, RillValue> = {}
-): RillParam => ({ name, type, defaultValue, annotations });
+import { parse, execute, createRuntimeContext, toCallable } from '@rcrsr/rill';
+import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
 function createMyExtension(): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        params: [param('message', { kind: 'string' })],
+        signature: '|message: string|:string',
         fn: async (args) => await callYourLLM(args.message),
-        annotations: { description: 'Call your LLM' },
-        returnType: structureToTypeValue({ kind: 'string' }),
+        description: 'Call your LLM',
       }),
     },
   };
@@ -51,8 +42,6 @@ const result = await execute(parse(script), ctx);
 console.log(result.result);
 ```
 
-`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior.
-
 ## API
 
 ### Core Pipeline
@@ -67,7 +56,7 @@ Source Text → parse() → AST → execute() → Result
 | `execute(ast, ctx)` | Execute an AST with a runtime context |
 | `createRuntimeContext(opts)` | Create a configured runtime context |
 | `callable(fn, isProperty?)` | Wrap a zero-argument function as a rill-callable value (property-style reads `args.self`) |
-| `toCallable(def)` | Convert a `RillFunction` with declared `params` to an `ApplicationCallable` |
+| `toCallable(def)` | Convert a `RillFunction` (`params` and `returnType`) or a `{ signature, fn }` shorthand to an `ApplicationCallable` |
 | `createTestContext(extensions)` | Wire extensions for testing without config infrastructure |
 
 ### Runtime Options
@@ -85,10 +74,8 @@ const ctx = createRuntimeContext({
   // Legacy: direct function registration (still supported)
   functions: {
     prompt: {
-      params: [param('text', { kind: 'string' })],
+      signature: '|text: string|:string',
       fn: async (args, ctx, location) => { /* ... */ },
-      annotations: {},
-      returnType: structureToTypeValue({ kind: 'string' }),
     },
   },
 

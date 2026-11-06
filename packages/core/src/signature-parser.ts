@@ -26,6 +26,8 @@ import {
   isAtEnd,
   parseTypeRef,
 } from './parser/index.js';
+import { formatMessageAtLocation } from './error-classes.js';
+import type { SourceLocation } from './source-location.js';
 import type { TypeRef } from './types.js';
 import type { RillParam } from './runtime/core/callable.js';
 import type {
@@ -39,6 +41,25 @@ import type {
 // ============================================================
 
 /**
+ * Build a registration error ending with the 1-based position inside the
+ * signature string.
+ *
+ * @internal
+ */
+function signatureError(
+  functionName: string,
+  detail: string,
+  at: SourceLocation
+): Error {
+  return new Error(
+    formatMessageAtLocation(
+      `Invalid signature for function '${functionName}': ${detail}`,
+      at
+    )
+  );
+}
+
+/**
  * Convert a static TypeRef to a TypeStructure.
  *
  * Only handles static refs (type names and unions). Dynamic refs ($var)
@@ -48,11 +69,14 @@ import type {
  */
 function staticTypeRefToTypeStructure(
   typeRef: TypeRef,
-  functionName: string
+  functionName: string,
+  at: SourceLocation
 ): TypeStructure {
   if (typeRef.kind === 'dynamic') {
-    throw new Error(
-      `Invalid signature for function '${functionName}': dynamic type references ($variable) are not allowed in signatures`
+    throw signatureError(
+      functionName,
+      'dynamic type references ($variable) are not allowed in signatures',
+      at
     );
   }
 
@@ -60,7 +84,7 @@ function staticTypeRefToTypeStructure(
     return {
       kind: 'union',
       members: typeRef.members.map((m) =>
-        staticTypeRefToTypeStructure(m, functionName)
+        staticTypeRefToTypeStructure(m, functionName, at)
       ),
     };
   }
@@ -79,11 +103,17 @@ function staticTypeRefToTypeStructure(
       args[0] !== undefined &&
       args[0].name === undefined
     ) {
-      const element = staticTypeRefToTypeStructure(args[0].value, functionName);
+      const element = staticTypeRefToTypeStructure(
+        args[0].value,
+        functionName,
+        at
+      );
       return { kind: 'list', element };
     }
-    throw new Error(
-      `Invalid signature for function '${functionName}': list requires exactly one positional type argument`
+    throw signatureError(
+      functionName,
+      'list requires exactly one positional type argument',
+      at
     );
   }
 
@@ -91,12 +121,14 @@ function staticTypeRefToTypeStructure(
     const fields: Record<string, RillFieldDef> = {};
     for (const arg of args) {
       if (arg.name === undefined) {
-        throw new Error(
-          `Invalid signature for function '${functionName}': dict type arguments must be named (e.g. dict(key: string))`
+        throw signatureError(
+          functionName,
+          'dict type arguments must be named (e.g. dict(key: string))',
+          at
         );
       }
       setDictField(fields, arg.name, {
-        type: staticTypeRefToTypeStructure(arg.value, functionName),
+        type: staticTypeRefToTypeStructure(arg.value, functionName, at),
       });
     }
     return { kind: 'dict', fields };
@@ -105,13 +137,15 @@ function staticTypeRefToTypeStructure(
   if (typeName === 'tuple') {
     const elements: RillFieldDef[] = args.map((arg): RillFieldDef => ({
       ...(arg.name !== undefined ? { name: arg.name } : {}),
-      type: staticTypeRefToTypeStructure(arg.value, functionName),
+      type: staticTypeRefToTypeStructure(arg.value, functionName, at),
     }));
     return { kind: 'tuple', elements };
   }
 
-  throw new Error(
-    `Invalid signature for function '${functionName}': type '${typeName}' does not accept type arguments`
+  throw signatureError(
+    functionName,
+    `type '${typeName}' does not accept type arguments`,
+    at
   );
 }
 
@@ -130,8 +164,10 @@ function extractAnnotationStringValue(
   functionName: string
 ): string {
   if (!check(state, TOKEN_TYPES.STRING)) {
-    throw new Error(
-      `Invalid signature for function '${functionName}': annotation values must be string literals`
+    throw signatureError(
+      functionName,
+      'annotation values must be string literals',
+      current(state).span.start
     );
   }
   const tok = advance(state);
@@ -155,7 +191,7 @@ function parseSignatureAnnotations(
     // Support bare string shorthand: "description text" → description: "description text"
     if (check(state, TOKEN_TYPES.STRING)) {
       const tok = advance(state);
-      annotations['description'] = tok.value;
+      setDictField(annotations, 'description', tok.value);
     } else {
       // Named arg: key: "value"
       const nameToken = expect(
@@ -191,6 +227,7 @@ interface ParsedSignature {
   readonly params: RillParam[];
   readonly returnType: TypeStructure | undefined;
   readonly description: string | undefined;
+  readonly annotations: Record<string, string>;
 }
 
 /**
@@ -258,6 +295,7 @@ function parseSignatureBody(
 ): ParsedSignature {
   // Step 1: Optional closure-level annotation ^(...)
   let description: string | undefined = undefined;
+  const closureAnnotations: Record<string, string> = {};
 
   if (check(state, TOKEN_TYPES.CARET)) {
     advance(state); // consume ^
@@ -272,6 +310,9 @@ function parseSignatureBody(
       TOKEN_TYPES.RPAREN,
       `Expected ')' to close annotation in signature for function '${functionName}'`
     );
+    for (const [key, value] of Object.entries(annots)) {
+      setDictField(closureAnnotations, key, value);
+    }
     description = annots['description'];
     skipNewlines(state);
   }
@@ -309,14 +350,18 @@ function parseSignatureBody(
     }
 
     if (!check(state, TOKEN_TYPES.PIPE_BAR)) {
-      throw new Error(
-        `Invalid signature for function '${functionName}': expected '|' to close parameter list`
+      throw signatureError(
+        functionName,
+        "expected '|' to close parameter list",
+        current(state).span.start
       );
     }
     advance(state); // consume closing |
   } else {
-    throw new Error(
-      `Invalid signature for function '${functionName}': expected '|' or '||' to start parameter list`
+    throw signatureError(
+      functionName,
+      "expected '|' or '||' to start parameter list",
+      current(state).span.start
     );
   }
 
@@ -328,19 +373,27 @@ function parseSignatureBody(
   if (check(state, TOKEN_TYPES.COLON)) {
     advance(state); // consume :
     skipNewlines(state);
+    const typeStart = current(state).span.start;
     const typeRef = parseTypeRef(state);
-    returnType = staticTypeRefToTypeStructure(typeRef, functionName);
+    returnType = staticTypeRefToTypeStructure(typeRef, functionName, typeStart);
   }
 
   // Step 5: Verify no trailing tokens
   if (!isAtEnd(state)) {
     const tok = current(state);
-    throw new Error(
-      `Invalid signature for function '${functionName}': unexpected token '${tok.value}' after signature`
+    throw signatureError(
+      functionName,
+      `unexpected token '${tok.value}' after signature`,
+      tok.span.start
     );
   }
 
-  return { params, returnType, description };
+  return {
+    params,
+    returnType,
+    description,
+    annotations: closureAnnotations,
+  };
 }
 
 /**
@@ -391,8 +444,9 @@ function parseSignatureParam(
   if (check(state, TOKEN_TYPES.COLON)) {
     advance(state); // consume :
     skipNewlines(state);
+    const typeStart = current(state).span.start;
     const typeRef = parseTypeRef(state, { allowTrailingPipe: true });
-    type = staticTypeRefToTypeStructure(typeRef, functionName);
+    type = staticTypeRefToTypeStructure(typeRef, functionName, typeStart);
   }
 
   // Optional default value = literal
@@ -445,13 +499,17 @@ function parseSignatureLiteral(
       const tok = advance(state);
       return -parseFloat(tok.value);
     }
-    throw new Error(
-      `Invalid signature for function '${functionName}': expected number after '-' in default value`
+    throw signatureError(
+      functionName,
+      "expected number after '-' in default value",
+      current(state).span.start
     );
   }
 
   const tok = current(state);
-  throw new Error(
-    `Invalid signature for function '${functionName}': unsupported default value '${tok.value}' (only string, number, bool supported)`
+  throw signatureError(
+    functionName,
+    `unsupported default value '${tok.value}' (only string, number, bool supported)`,
+    tok.span.start
   );
 }

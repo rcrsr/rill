@@ -419,25 +419,13 @@ Discover available functions, access language documentation, and check runtime v
 Enumerate all callable functions registered in the runtime context:
 
 ```typescript
-import { createRuntimeContext, getFunctions, anyTypeValue } from '@rcrsr/rill';
-import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
-
-// Fills the fields RillParam requires; adds no behavior.
-const param = (
-  name: string,
-  type: TypeStructure,
-  defaultValue?: RillValue,
-  annotations: Record<string, RillValue> = {}
-): RillParam => ({ name, type, defaultValue, annotations });
+import { createRuntimeContext, getFunctions } from '@rcrsr/rill';
 
 const ctx = createRuntimeContext({
   functions: {
     greet: {
-      params: [
-        param('name', { kind: 'string' }, undefined, { description: 'Person to greet' }),
-      ],
-      annotations: { description: 'Generate a greeting message' },
-      returnType: anyTypeValue,
+      signature: '|^(description: "Person to greet") name: string|:any',
+      description: 'Generate a greeting message',
       fn: (args) => `Hello, ${args.name}!`,
     },
   },
@@ -453,8 +441,6 @@ const functions = getFunctions(ctx);
 //   ... built-in functions
 // ]
 ```
-
-`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
 
 Returns `FunctionMetadata[]` combining:
 1. Host functions, including any host function that overrides a built-in name
@@ -538,19 +524,17 @@ if (!checkCompatibility()) {
 Analyze documentation coverage of functions in a runtime context:
 
 ```typescript
-import { createRuntimeContext, getDocumentationCoverage, anyTypeValue } from '@rcrsr/rill';
+import { createRuntimeContext, getDocumentationCoverage } from '@rcrsr/rill';
 
 const ctx = createRuntimeContext({
   functions: {
     documented: {
-      params: [param('x', { kind: 'string' }, undefined, { description: 'Input value' })],
-      annotations: { description: 'A documented function' },
-      returnType: anyTypeValue,
+      signature: '|^(description: "Input value") x: string|:any',
+      description: 'A documented function',
       fn: (args) => args.x,
     },
     undocumented: {
-      params: [param('x', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|x: string|:any',
       fn: (args) => args.x,
     },
   },

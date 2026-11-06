@@ -5,16 +5,7 @@
 ## Quick Start
 
 ```typescript
-import { parse, execute, createRuntimeContext, anyTypeValue } from '@rcrsr/rill';
-import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
-
-// Fills the fields RillParam requires; adds no behavior.
-const param = (
-  name: string,
-  type: TypeStructure,
-  defaultValue?: RillValue,
-  annotations: Record<string, RillValue> = {}
-): RillParam => ({ name, type, defaultValue, annotations });
+import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
 
 const source = `
   "Hello, World!" -> prompt() => $response
@@ -25,8 +16,7 @@ const ast = parse(source);
 const ctx = createRuntimeContext({
   functions: {
     prompt: {
-      params: [param('text', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|text: string|:any',
       fn: async (args) => {
         return await callYourLLM(args.text);
       },
@@ -38,8 +28,6 @@ const result = await execute(ast, ctx);
 console.log(result.result);
 ```
 
-`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
-
 ## RuntimeOptions
 
 The `createRuntimeContext()` function accepts these options:
@@ -47,7 +35,7 @@ The `createRuntimeContext()` function accepts these options:
 | Option | Type | Description |
 |--------|------|-------------|
 | `variables` | `Record<string, RillValue>` | Initial variables accessible as `$name` |
-| `functions` | `Record<string, RillFunction>` | Custom functions callable as `name()` |
+| `functions` | `Record<string, RillFunctionDefinition>` | Custom functions callable as `name()` |
 | `callbacks` | `Partial<RuntimeCallbacks>` | I/O callbacks (e.g., `onLog`) |
 | `observability` | `ObservabilityCallbacks` | Execution monitoring hooks |
 | `timeout` | `number` | Per-call limit in ms for each named function call (host functions and built-ins). Expiry halts with catchable `RILL-R012`. It does not bound total script time |
@@ -71,13 +59,10 @@ Host functions must follow these rules to ensure correct script behavior:
 **Host functions must not mutate input arguments.** rill values are immutable by design—modifying arguments breaks value semantics and causes unpredictable behavior.
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 // WRONG: Mutates input array
 functions: {
   addItem: {
-    params: [param('list', { kind: 'list' })],
-    returnType: anyTypeValue,
+    signature: '|list: list|:any',
     fn: (args) => {
       const list = args.list as unknown[];
       list.push('new');  // DON'T DO THIS
@@ -89,8 +74,7 @@ functions: {
 // CORRECT: Return new value
 functions: {
   addItem: {
-    params: [param('list', { kind: 'list' })],
-    returnType: anyTypeValue,
+    signature: '|list: list|:any',
     fn: (args) => {
       const list = args.list as unknown[];
       return [...list, 'new'];  // Create new array
@@ -104,13 +88,11 @@ functions: {
 For maximum safety, consider freezing values passed to host functions:
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
 import { deepFreeze } from './utils'; // Your utility
 
 functions: {
   process: {
-    params: [param('input', { kind: 'string' })],
-    returnType: anyTypeValue,
+    signature: '|input: string|:any',
     fn: (args) => {
       const frozen = deepFreeze(args.input);
       return transform(frozen);  // Any mutation throws
@@ -148,24 +130,17 @@ Internal container types host code may encounter in observability callbacks or r
 Functions are called by name: `functionName(arg1, arg2)`.
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 const ctx = createRuntimeContext({
   functions: {
     // Sync function
     add: {
-      params: [
-        param('a', { kind: 'number' }),
-        param('b', { kind: 'number' }),
-      ],
-      returnType: anyTypeValue,
+      signature: '|a: number, b: number|:any',
       fn: (args) => args.a + args.b,
     },
 
     // Async function
     fetch: {
-      params: [param('url', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|url: string|:any',
       fn: async (args, ctx, location) => {
         const response = await fetch(args.url);
         return await response.text();
@@ -174,8 +149,7 @@ const ctx = createRuntimeContext({
 
     // Function with context access
     getVar: {
-      params: [param('name', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|name: string|:any',
       fn: (args, ctx) => {
         return ctx.variables.get(args.name) ?? null;
       },
@@ -183,8 +157,7 @@ const ctx = createRuntimeContext({
 
     // Function with location for error reporting
     validate: {
-      params: [param('value', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|value: string|:any',
       fn: (args, ctx, location) => {
         if (!args.value) {
           throw new Error(`Validation failed at line ${location?.line}`);
@@ -201,50 +174,33 @@ const ctx = createRuntimeContext({
 Use `::` to organize functions into namespaces:
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 const ctx = createRuntimeContext({
   functions: {
     // Namespaced functions use :: separator
     'math::add': {
-      params: [
-        param('a', { kind: 'number' }),
-        param('b', { kind: 'number' }),
-      ],
-      returnType: anyTypeValue,
+      signature: '|a: number, b: number|:any',
       fn: (args) => args.a + args.b,
     },
     'math::multiply': {
-      params: [
-        param('a', { kind: 'number' }),
-        param('b', { kind: 'number' }),
-      ],
-      returnType: anyTypeValue,
+      signature: '|a: number, b: number|:any',
       fn: (args) => args.a * args.b,
     },
     'str::upper': {
-      params: [param('text', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|text: string|:any',
       fn: (args) => args.text.toUpperCase(),
     },
     'str::lower': {
-      params: [param('text', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|text: string|:any',
       fn: (args) => args.text.toLowerCase(),
     },
 
     // Multi-level namespaces
     'io::file::read': {
-      params: [param('path', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|path: string|:any',
       fn: async (args) => fs.readFile(args.path, 'utf-8'),
     },
     'io::file::write': {
-      params: [
-        param('path', { kind: 'string' }),
-        param('content', { kind: 'string' }),
-      ],
-      returnType: anyTypeValue,
+      signature: '|path: string, content: string|:any',
       fn: async (args) => fs.writeFile(args.path, args.content),
     },
   },
@@ -305,7 +261,7 @@ type CallableFn = (
 | `ctx` | Runtime context with variables, pipeValue, and session metadata |
 | `location` | Source location of the call site (for error reporting) |
 
-Every callable receives a name-keyed record. `callable(fn)` declares no parameters, so calling it with arguments halts with `RILL-R045`; use `toCallable` with declared `params` to accept arguments.
+Every callable receives a name-keyed record. `callable(fn)` declares no parameters, so calling it with arguments halts with `RILL-R045`; use `toCallable` with a `signature` or declared `params` to accept arguments.
 
 ### Session Metadata in Host Functions
 
@@ -323,12 +279,9 @@ When running under [`rill-agent-harness`](https://github.com/rcrsr/rill-agent), 
 Read metadata in a host function:
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 functions: {
   trace: {
-    params: [param('msg', { kind: 'string' })],
-    returnType: anyTypeValue,
+    signature: '|msg: string|:any',
     fn: (args, ctx) => {
       const correlationId = ctx.metadata?.correlationId ?? 'unknown';
       console.log(`[${correlationId}] ${args.msg}`);
@@ -473,23 +426,17 @@ Return `null` to pass the call through unfiltered. `resolvedPath` is the script-
 
 ## Host Function Type Declarations
 
-All host functions must declare parameter types and optional defaults using the `RillFunction` interface. The runtime validates arguments before calling your function, eliminating manual type checking.
+All host functions declare parameter types and optional defaults, either as a `signature` string or as explicit `params` and `returnType`. The runtime validates arguments before calling your function, eliminating manual type checking.
 
 ### Parameter Type Declarations
 
-Declare parameter types in the `params` array:
+Declare parameter types in the `signature` string. Each parameter takes a name, a type, and an optional default:
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 const ctx = createRuntimeContext({
   functions: {
     repeat: {
-      params: [
-        param('str', { kind: 'string' }),
-        param('count', { kind: 'number' }, 1),
-      ],
-      returnType: anyTypeValue,
+      signature: '|str: string, count: number = 1|:any',
       fn: (args) => {
         // args.str guaranteed to be string
         // args.count guaranteed to be number (or default)
@@ -506,6 +453,27 @@ Scripts call typed functions the same way:
 repeat("hello", 3)        # "hellohellohello"
 repeat("hi")              # "hi" (uses default count)
 ```
+
+The explicit form declares the same function with `params` and `returnType`. It takes `TypeStructure` objects, as in [Field-Level Default Hydration](#field-level-default-hydration):
+
+```typescript
+import { anyTypeValue } from '@rcrsr/rill';
+
+const ctx = createRuntimeContext({
+  functions: {
+    repeat: {
+      params: [
+        { name: 'str', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+        { name: 'count', type: { kind: 'number' }, defaultValue: 1, annotations: {} },
+      ],
+      returnType: anyTypeValue,
+      fn: (args) => args.str.repeat(args.count),
+    },
+  },
+});
+```
+
+Supplying `signature` together with `params` or `returnType` fails registration with `RILL-R091`.
 
 ### Supported Types
 
@@ -530,15 +498,9 @@ See [Type System](topic-type-system.md) for the full `TypeStructure` discriminat
 Parameters with default values are optional. The default applies when the argument is missing:
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 functions: {
   greet: {
-    params: [
-      param('name', { kind: 'string' }),
-      param('greeting', { kind: 'string' }, 'Hello'),
-    ],
-    returnType: anyTypeValue,
+    signature: '|name: string, greeting: string = "Hello"|:any',
     fn: (args) => `${args.greeting}, ${args.name}!`,
   },
 }
@@ -558,17 +520,21 @@ For tuple parameters, missing trailing elements are filled from the element type
 ```typescript
 import { anyTypeValue } from '@rcrsr/rill';
 
-// param() as defined in Quick Start
 functions: {
   format: {
     params: [
-      param('point', {
-        kind: 'tuple',
-        elements: [
-          { type: { kind: 'number' } },
-          { type: { kind: 'string' }, defaultValue: 'unnamed' },
-        ],
-      }),
+      {
+        name: 'point',
+        type: {
+          kind: 'tuple',
+          elements: [
+            { type: { kind: 'number' } },
+            { type: { kind: 'string' }, defaultValue: 'unnamed' },
+          ],
+        },
+        defaultValue: undefined,
+        annotations: {},
+      },
     ],
     returnType: anyTypeValue,
     fn: (args) => {
@@ -623,38 +589,21 @@ Error details include:
 
 ### RillFunction Interface
 
-```typescript
-interface RillFunction {
-  readonly params: readonly RillParam[];
-  readonly fn: CallableFn;
-  readonly description?: string;       // Human-readable function description
-  readonly returnType?: TypeStructure;      // undefined = any return type
-}
-
-interface RillParam {
-  readonly name: string;
-  readonly type: TypeStructure | undefined;             // undefined = any type
-  readonly defaultValue: RillValue | undefined;    // undefined = required
-  readonly annotations: Record<string, RillValue>; // {} when no annotations
-}
-```
+The explicit `{ params, returnType, fn }` form and its `RillParam` fields are documented in [RillFunction](ref-host-api.md#rillfunction).
 
 ### Documentation Validation
 
 Enable `requireDescriptions` to enforce documentation at registration time:
 
 ```typescript
-import { createRuntimeContext, structureToTypeValue } from '@rcrsr/rill';
+import { createRuntimeContext } from '@rcrsr/rill';
 
 const ctx = createRuntimeContext({
   requireDescriptions: true,
   functions: {
     greet: {
-      params: [
-        param('name', { kind: 'string' }, undefined, { description: 'Person to greet' }),
-      ],
-      annotations: { description: 'Generate a greeting message' },
-      returnType: structureToTypeValue({ kind: 'string' }),
+      signature: '|^(description: "Person to greet") name: string|:string',
+      description: 'Generate a greeting message',
       fn: (args) => `Hello, ${args.name}!`,
     },
   },
@@ -700,15 +649,13 @@ Hosts can create first-class callable values that scripts can store, pass, and i
 ```typescript
 import {
   toCallable,
-  anyTypeValue,
   isCallable,
   isApplicationCallable,
 } from '@rcrsr/rill';
 
 // Create a callable with a declared parameter
 const greet = toCallable({
-  params: [param('name', { kind: 'string' })],
-  returnType: anyTypeValue,
+  signature: '|name: string|:any',
   fn: (args) => `Hello, ${args.name}!`,
 });
 
@@ -763,17 +710,11 @@ const ctx = createRuntimeContext({
 Callables stored in dicts can be invoked using method syntax:
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 const ctx = createRuntimeContext({
   variables: {
     math: {
       add: toCallable({
-        params: [
-          param('a', { kind: 'number' }),
-          param('b', { kind: 'number' }),
-        ],
-        returnType: anyTypeValue,
+        signature: '|a: number, b: number|:any',
         fn: (args) => Number(args.a) + Number(args.b),
       }),
     },
@@ -817,7 +758,7 @@ if (isScriptCallable(value)) {
 Use `AbortSignal` to cancel long-running scripts:
 
 ```typescript
-import { RuntimeHaltSignal, anyTypeValue } from '@rcrsr/rill';
+import { RuntimeHaltSignal } from '@rcrsr/rill';
 
 const controller = new AbortController();
 
@@ -825,8 +766,7 @@ const ctx = createRuntimeContext({
   signal: controller.signal,
   functions: {
     longTask: {
-      params: [],
-      returnType: anyTypeValue,
+      signature: '||:any',
       fn: async () => {
         await new Promise((r) => setTimeout(r, 10000));
         return 'done';
@@ -886,12 +826,9 @@ One synchronous built-in operation, such as a regex match or building a very lar
 Host functions receive a `ctx.signal` (`AbortSignal | undefined`). Cooperative cancellation requires that each host function observes this signal and stops work when it fires.
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 functions: {
   fetchData: {
-    params: [param('url', { kind: 'string' })],
-    returnType: anyTypeValue,
+    signature: '|url: string|:any',
     fn: async (args, ctx) => {
       const response = await fetch(args.url as string, {
         signal: ctx.signal,  // propagate abort to the fetch
@@ -1067,14 +1004,11 @@ const ctx = createRuntimeContext({
 The `timeout` option is a per-call limit for each named function call, host functions and built-ins alike. Expiry halts with catchable `RILL-R012`. It does not bound total script time.
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 const ctx = createRuntimeContext({
   timeout: 30000, // 30 seconds per call
   functions: {
     slowOperation: {
-      params: [],
-      returnType: anyTypeValue,
+      signature: '||:any',
       fn: async () => {
         // Halts with catchable RILL-R012 if this call exceeds 30s
         await longRunningTask();
@@ -1097,8 +1031,6 @@ await execute(ast, ctx); // throws RuntimeHaltSignal at the next cancellation ch
 Halt execution when output matches patterns:
 
 ```typescript
-import { anyTypeValue } from '@rcrsr/rill';
-
 const ctx = createRuntimeContext({
   autoExceptions: [
     'error:.*',      // Matches "error: something"
@@ -1106,8 +1038,7 @@ const ctx = createRuntimeContext({
   ],
   functions: {
     process: {
-      params: [param('input', { kind: 'string' })],
-      returnType: anyTypeValue,
+      signature: '|input: string|:any',
       fn: (args) => {
         // If this returns "error: invalid input",
         // execution halts with a non-catchable RuntimeHaltSignal (atom #R999)

@@ -148,6 +148,7 @@ export const ERROR_IDS = {
   RILL_R088: 'RILL-R088',
   RILL_R089: 'RILL-R089',
   RILL_R090: 'RILL-R090',
+  RILL_R091: 'RILL-R091',
   RILL_C001: 'RILL-C001',
   RILL_C002: 'RILL-C002',
   RILL_C003: 'RILL-C003',
@@ -2183,7 +2184,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     cause:
       'Two causes share the message template, each supplying its own {detail}. First, a host callable has no usable parameter declaration (missing, not an array, or holding a non-object entry) because it was built by hand instead of with callable() or toCallable; the detail reads "has no parameter declaration; build callables with toCallable or callable()" or "declares a malformed parameter at index N; ...". Second, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
     resolution:
-      'Build every callable with callable() or toCallable so it carries a parameter declaration. For an invalid return value, convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.',
+      'Build every callable with callable() or toCallable, or register it with the { signature, fn } shorthand, so it carries a parameter declaration. For an invalid return value, convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.',
     examples: [
       {
         description: 'Host function returns an unsupported JavaScript value',
@@ -2277,6 +2278,28 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Resolver returning an extension of ordinary size',
         code: '# Host code: registerResolver("ext", () => ({ kind: "value", value: kb }))',
+      },
+    ],
+  },
+
+  {
+    errorId: ERROR_IDS.RILL_R091,
+    category: 'runtime',
+    description: 'Invalid host function signature',
+    messageTemplate:
+      "Invalid signature for function '{functionName}': {detail}",
+    cause:
+      'A host function definition carries a signature that cannot be registered. The signature string fails to lex, parse, or convert to a type structure; the definition supplies signature together with params or returnType; the signature is not a string; the description is not a string; the annotations field is not an object; or one annotation key is declared by more than one source, such as the signature and the annotations field.',
+    resolution:
+      'Fix the signature string so it reads |param: type, ...|: return_type, supply either signature or params and returnType but not both, pass strings for signature and description, pass an object for annotations, and declare each annotation key in one place only.',
+    examples: [
+      {
+        description: 'Signature string with an unclosed parameter list',
+        code: '# Host code: { signature: "|x: string", fn }  # rejected',
+      },
+      {
+        description: 'Signature combined with an explicit params list',
+        code: '# Host code: { signature: "|x: string|", params: [], fn }  # rejected',
       },
     ],
   },
