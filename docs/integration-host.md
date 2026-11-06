@@ -5,7 +5,7 @@
 ## Quick Start
 
 ```typescript
-import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext, anyTypeValue } from '@rcrsr/rill';
 
 const source = `
   "Hello, World!" -> prompt() => $response
@@ -16,7 +16,8 @@ const ast = parse(source);
 const ctx = createRuntimeContext({
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { kind: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      returnType: anyTypeValue,
       fn: async (args) => {
         return await callYourLLM(args.text);
       },
@@ -62,7 +63,8 @@ Host functions must follow these rules to ensure correct script behavior:
 // WRONG: Mutates input array
 functions: {
   addItem: {
-    params: [{ name: 'list', type: { kind: 'list' } }],
+    params: [{ name: 'list', type: { kind: 'list' }, defaultValue: undefined, annotations: {} }],
+    returnType: anyTypeValue,
     fn: (args) => {
       const list = args.list as unknown[];
       list.push('new');  // DON'T DO THIS
@@ -74,7 +76,8 @@ functions: {
 // CORRECT: Return new value
 functions: {
   addItem: {
-    params: [{ name: 'list', type: { kind: 'list' } }],
+    params: [{ name: 'list', type: { kind: 'list' }, defaultValue: undefined, annotations: {} }],
+    returnType: anyTypeValue,
     fn: (args) => {
       const list = args.list as unknown[];
       return [...list, 'new'];  // Create new array
@@ -92,7 +95,8 @@ import { deepFreeze } from './utils'; // Your utility
 
 functions: {
   process: {
-    params: [{ name: 'input', type: { kind: 'string' } }],
+    params: [{ name: 'input', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+    returnType: anyTypeValue,
     fn: (args) => {
       const frozen = deepFreeze(args.input);
       return transform(frozen);  // Any mutation throws
@@ -135,15 +139,17 @@ const ctx = createRuntimeContext({
     // Sync function
     add: {
       params: [
-        { name: 'a', type: { kind: 'number' } },
-        { name: 'b', type: { kind: 'number' } },
+        { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+        { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
       ],
+      returnType: anyTypeValue,
       fn: (args) => args.a + args.b,
     },
 
     // Async function
     fetch: {
-      params: [{ name: 'url', type: { kind: 'string' } }],
+      params: [{ name: 'url', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      returnType: anyTypeValue,
       fn: async (args, ctx, location) => {
         const response = await fetch(args.url);
         return await response.text();
@@ -152,7 +158,8 @@ const ctx = createRuntimeContext({
 
     // Function with context access
     getVar: {
-      params: [{ name: 'name', type: { kind: 'string' } }],
+      params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      returnType: anyTypeValue,
       fn: (args, ctx) => {
         return ctx.variables.get(args.name) ?? null;
       },
@@ -160,7 +167,8 @@ const ctx = createRuntimeContext({
 
     // Function with location for error reporting
     validate: {
-      params: [{ name: 'value', type: { kind: 'string' } }],
+      params: [{ name: 'value', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      returnType: anyTypeValue,
       fn: (args, ctx, location) => {
         if (!args.value) {
           throw new Error(`Validation failed at line ${location?.line}`);
@@ -182,37 +190,43 @@ const ctx = createRuntimeContext({
     // Namespaced functions use :: separator
     'math::add': {
       params: [
-        { name: 'a', type: { kind: 'number' } },
-        { name: 'b', type: { kind: 'number' } },
+        { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+        { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
       ],
+      returnType: anyTypeValue,
       fn: (args) => args.a + args.b,
     },
     'math::multiply': {
       params: [
-        { name: 'a', type: { kind: 'number' } },
-        { name: 'b', type: { kind: 'number' } },
+        { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+        { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
       ],
+      returnType: anyTypeValue,
       fn: (args) => args.a * args.b,
     },
     'str::upper': {
-      params: [{ name: 'text', type: { kind: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      returnType: anyTypeValue,
       fn: (args) => args.text.toUpperCase(),
     },
     'str::lower': {
-      params: [{ name: 'text', type: { kind: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      returnType: anyTypeValue,
       fn: (args) => args.text.toLowerCase(),
     },
 
     // Multi-level namespaces
     'io::file::read': {
-      params: [{ name: 'path', type: { kind: 'string' } }],
+      params: [{ name: 'path', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      returnType: anyTypeValue,
       fn: async (args) => fs.readFile(args.path, 'utf-8'),
     },
     'io::file::write': {
       params: [
-        { name: 'path', type: { kind: 'string' } },
-        { name: 'content', type: { kind: 'string' } },
+        { name: 'path', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+        { name: 'content', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
       ],
+      returnType: anyTypeValue,
       fn: async (args) => fs.writeFile(args.path, args.content),
     },
   },
@@ -293,7 +307,8 @@ Read metadata in a host function:
 ```typescript
 functions: {
   trace: {
-    params: [{ name: 'msg', type: { kind: 'string' } }],
+    params: [{ name: 'msg', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+    returnType: anyTypeValue,
     fn: (args, ctx) => {
       const correlationId = ctx.metadata?.correlationId ?? 'unknown';
       console.log(`[${correlationId}] ${args.msg}`);
@@ -449,9 +464,10 @@ const ctx = createRuntimeContext({
   functions: {
     repeat: {
       params: [
-        { name: 'str', type: { kind: 'string' } },
-        { name: 'count', type: { kind: 'number' }, defaultValue: 1 },
+        { name: 'str', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+        { name: 'count', type: { kind: 'number' }, defaultValue: 1, annotations: {} },
       ],
+      returnType: anyTypeValue,
       fn: (args) => {
         // args.str guaranteed to be string
         // args.count guaranteed to be number (or default)
@@ -495,9 +511,10 @@ Parameters with default values are optional. The default applies when the argume
 functions: {
   greet: {
     params: [
-      { name: 'name', type: { kind: 'string' } },
-      { name: 'greeting', type: { kind: 'string' }, defaultValue: 'Hello' },
+      { name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+      { name: 'greeting', type: { kind: 'string' }, defaultValue: 'Hello', annotations: {} },
     ],
+    returnType: anyTypeValue,
     fn: (args) => `${args.greeting}, ${args.name}!`,
   },
 }
@@ -527,8 +544,11 @@ functions: {
             { type: { kind: 'string' }, defaultValue: 'unnamed' },
           ],
         },
+        defaultValue: undefined,
+        annotations: {},
       },
     ],
+    returnType: anyTypeValue,
     fn: (args) => {
       // args.point is always a tuple with 2 elements
       // If caller passed (42,), runtime fills element 1 with "unnamed"
@@ -602,15 +622,17 @@ interface RillParam {
 Enable `requireDescriptions` to enforce documentation at registration time:
 
 ```typescript
+import { createRuntimeContext, structureToTypeValue } from '@rcrsr/rill';
+
 const ctx = createRuntimeContext({
   requireDescriptions: true,
   functions: {
     greet: {
       params: [
-        { name: 'name', type: { kind: 'string' }, annotations: { description: 'Person to greet' } },
+        { name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: { description: 'Person to greet' } },
       ],
-      description: 'Generate a greeting message',
-      returnType: { kind: 'string' },
+      annotations: { description: 'Generate a greeting message' },
+      returnType: structureToTypeValue({ kind: 'string' }),
       fn: (args) => `Hello, ${args.name}!`,
     },
   },
@@ -779,7 +801,6 @@ const ctx = createRuntimeContext({
 | Kind | Type | Description |
 |------|------|-------------|
 | `script` | `ScriptCallable` | Closures from rill source code |
-| `runtime` | `RuntimeCallable` | Callables rill creates internally |
 | `application` | `ApplicationCallable` | Host-provided callables and rill's built-in functions |
 
 ### Type Guards
@@ -788,7 +809,6 @@ const ctx = createRuntimeContext({
 import {
   isCallable,
   isScriptCallable,
-  isRuntimeCallable,
   isApplicationCallable,
 } from '@rcrsr/rill';
 
@@ -819,6 +839,7 @@ const ctx = createRuntimeContext({
   functions: {
     longTask: {
       params: [],
+      returnType: anyTypeValue,
       fn: async () => {
         await new Promise((r) => setTimeout(r, 10000));
         return 'done';
@@ -880,7 +901,8 @@ Host functions receive a `ctx.signal` (`AbortSignal | undefined`). Cooperative c
 ```typescript
 functions: {
   fetchData: {
-    params: [{ name: 'url', type: { kind: 'string' } }],
+    params: [{ name: 'url', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+    returnType: anyTypeValue,
     fn: async (args, ctx) => {
       const response = await fetch(args.url as string, {
         signal: ctx.signal,  // propagate abort to the fetch
@@ -1061,6 +1083,7 @@ const ctx = createRuntimeContext({
   functions: {
     slowOperation: {
       params: [],
+      returnType: anyTypeValue,
       fn: async () => {
         // Halts with catchable RILL-R012 if this call exceeds 30s
         await longRunningTask();
@@ -1090,7 +1113,8 @@ const ctx = createRuntimeContext({
   ],
   functions: {
     process: {
-      params: [{ name: 'input', type: { kind: 'string' } }],
+      params: [{ name: 'input', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+      returnType: anyTypeValue,
       fn: (args) => {
         // If this returns "error: invalid input",
         // execution halts with a non-catchable RuntimeHaltSignal (atom #R999)

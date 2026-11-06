@@ -287,13 +287,14 @@ Builds a `TypeStructure` closure variant from a parameter list. Return type is a
 structureToTypeValue(type: TypeStructure): RillTypeValue
 ```
 
-Converts a `TypeStructure` descriptor into the `RillTypeValue` runtime representation used in `RillFunction.returnType` and `RillParam.type` fields.
+Converts a `TypeStructure` descriptor into the `RillTypeValue` runtime representation used in the `RillFunction.returnType` field.
 
 ```typescript
 import { structureToTypeValue } from '@rcrsr/rill';
+import type { RillFunction } from '@rcrsr/rill';
 
 const fn: RillFunction = {
-  params: [{ name: 'text', type: { kind: 'string' } }],
+  params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
   fn: (args) => args.text,
   returnType: structureToTypeValue({ kind: 'string' }),
 };
@@ -502,7 +503,7 @@ const dateType: TypeDefinition = {
   immutable: true,
   methods: {
     format: {
-      params: [{ name: 'pattern', type: { kind: 'string' } }],
+      params: [{ name: 'pattern', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
       fn: (args) => (args.$self as Date).toLocaleDateString(),
       returnType: structureToTypeValue({ kind: 'string' }),
     },

@@ -7,17 +7,17 @@
 Create a simple extension with a factory function:
 
 ```typescript
-import { toCallable, createRuntimeContext } from '@rcrsr/rill';
+import { toCallable, createRuntimeContext, structureToTypeValue } from '@rcrsr/rill';
 import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
 function createGreetExtension(config: { prefix: string }): ExtensionFactoryResult {
   return {
     value: {
       greet: toCallable({
-        params: [{ name: 'name', type: { kind: 'string' } }],
+        params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => `${config.prefix} ${args.name}!`,
         annotations: { description: 'Generate greeting' },
-        returnType: { kind: 'string' },
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
     },
   };
@@ -36,7 +36,7 @@ const ctx = createRuntimeContext({
 Every extension exports a factory function returning `ExtensionFactoryResult`:
 
 ```typescript
-import { toCallable } from '@rcrsr/rill';
+import { toCallable, structureToTypeValue } from '@rcrsr/rill';
 import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
 function createMyExtension(config: MyConfig): ExtensionFactoryResult {
@@ -45,10 +45,10 @@ function createMyExtension(config: MyConfig): ExtensionFactoryResult {
   return {
     value: {
       greet: toCallable({
-        params: [{ name: 'name', type: { kind: 'string' } }],
+        params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => `Hello, ${args.name}!`,
         annotations: { description: 'Generate greeting' },
-        returnType: { kind: 'string' },
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
       version: '1.0.0',  // scalar string leaf
     },
@@ -265,7 +265,7 @@ Extensions that manage external resources (processes, connections, timers) must 
 `dispose`, `suspend`, and `restore` live on the `ExtensionFactoryResult` object, not inside the `value` dict:
 
 ```typescript
-import { toCallable } from '@rcrsr/rill';
+import { toCallable, structureToTypeValue } from '@rcrsr/rill';
 import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
 function createPooledExtension(config: PoolConfig): ExtensionFactoryResult {
@@ -274,10 +274,10 @@ function createPooledExtension(config: PoolConfig): ExtensionFactoryResult {
   return {
     value: {
       query: toCallable({
-        params: [{ name: 'sql', type: { kind: 'string' } }],
+        params: [{ name: 'sql', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => pool.query(args.sql),
         annotations: { description: 'Execute SQL query' },
-        returnType: { kind: 'any' },
+        returnType: structureToTypeValue({ kind: 'any' }),
       }),
     },
     dispose: () => {
@@ -314,7 +314,7 @@ Extensions that hold in-memory state implement `suspend()` and `restore()` on `E
 `suspend()` returns a JSON-serializable snapshot. `restore(state)` receives the exact value returned by the prior `suspend()` call and restores internal state from it.
 
 ```typescript
-import { toCallable } from '@rcrsr/rill';
+import { toCallable, structureToTypeValue } from '@rcrsr/rill';
 import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
 function createCounterExtension(): ExtensionFactoryResult {
@@ -327,7 +327,7 @@ function createCounterExtension(): ExtensionFactoryResult {
         params: [],
         fn: () => ++state.count,
         annotations: { description: 'Increment counter' },
-        returnType: { kind: 'number' },
+        returnType: structureToTypeValue({ kind: 'number' }),
       }),
     },
     suspend: () => ({ count: state.count }),
@@ -432,14 +432,14 @@ function createMyExtension(config: MyConfig): ExtensionFactoryResult {
 Use rill's parameter type system for automatic validation:
 
 ```typescript
-import { toCallable } from '@rcrsr/rill';
+import { toCallable, structureToTypeValue } from '@rcrsr/rill';
 
 return {
   value: {
     send: toCallable({
       params: [
-        { name: 'message', type: { kind: 'string' } },
-        { name: 'options', type: { kind: 'dict' }, defaultValue: {} },
+        { name: 'message', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+        { name: 'options', type: { kind: 'dict' }, defaultValue: {}, annotations: {} },
       ],
       fn: async (args) => {
         const message = args.message as string;
@@ -451,7 +451,7 @@ return {
         return await doSend(message);
       },
       annotations: { description: 'Send a message' },
-      returnType: { kind: 'dict' },
+      returnType: structureToTypeValue({ kind: 'dict' }),
     }),
   },
 };
@@ -489,7 +489,7 @@ fn: async (args, ctx) => {
 When spawning processes or opening connections, track them for `dispose()`:
 
 ```typescript
-import { toCallable } from '@rcrsr/rill';
+import { toCallable, structureToTypeValue } from '@rcrsr/rill';
 import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
 function createMyExtension(): ExtensionFactoryResult {
@@ -498,7 +498,7 @@ function createMyExtension(): ExtensionFactoryResult {
   return {
     value: {
       run: toCallable({
-        params: [{ name: 'cmd', type: { kind: 'string' } }],
+        params: [{ name: 'cmd', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => {
           const proc = spawn(args.cmd);
           const cleanup = () => proc.kill();
@@ -513,7 +513,7 @@ function createMyExtension(): ExtensionFactoryResult {
           }
         },
         annotations: { description: 'Run command' },
-        returnType: { kind: 'string' },
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
     },
     dispose: () => {
@@ -581,15 +581,15 @@ fn: async (args, ctx) => {
 Use `createTestContext` to wire extensions for testing without config infrastructure. Extension functions follow the same return-value contract as any host function—see [Return Values](integration-host.md#return-values) for the types that halt (`RILL-R085` for shape violations, catchable `#INVALID_INPUT` for non-finite numbers).
 
 ```typescript
-import { createTestContext, toCallable, execute, parse } from '@rcrsr/rill';
+import { createTestContext, toCallable, execute, parse, structureToTypeValue } from '@rcrsr/rill';
 
 const context = createTestContext({
   myExt: {
     value: {
       greet: toCallable({
         fn: (args) => `Hello, ${args.name}!`,
-        params: [{ name: 'name', type: { kind: 'string' } }],
-        returnType: { kind: 'string' },
+        params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        returnType: structureToTypeValue({ kind: 'string' }),
         annotations: {}
       })
     }
@@ -622,7 +622,7 @@ function createMyExtension(config: MyConfig): ExtensionResult {
       params: [{ name: 'name', type: { kind: 'string' } }],
       fn: async (args) => `Hello, ${args.name}!`,
       annotations: { description: 'Generate greeting' },
-      returnType: structureToTypeValue({ kind: 'string' }),
+      returnType: { kind: 'string' },
     },
     dispose: () => cleanup(),
   };
@@ -637,17 +637,17 @@ const ctx = createRuntimeContext({ functions });
 **After (v0.17.0):**
 
 ```typescript
-import { toCallable } from '@rcrsr/rill';
+import { toCallable, structureToTypeValue } from '@rcrsr/rill';
 import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
 function createMyExtension(config: MyConfig): ExtensionFactoryResult {
   return {
     value: {
       greet: toCallable({
-        params: [{ name: 'name', type: { kind: 'string' } }],
+        params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => `Hello, ${args.name}!`,
         annotations: { description: 'Generate greeting' },
-        returnType: { kind: 'string' },
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
     },
     dispose: () => cleanup(),

@@ -12,6 +12,7 @@ import {
   execute,
   createRuntimeContext,
   toCallable,
+  structureToTypeValue,
   RuntimeHaltSignal,
   type ExtensionFactoryResult,
 } from '@rcrsr/rill';
@@ -23,7 +24,7 @@ function createMyExtension(config: { model: string }): ExtensionFactoryResult {
         params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => await callLLM(args.text, config.model),
         annotations: { description: 'Send a prompt to the LLM' },
-        returnType: { kind: 'string' },
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
     },
   };
@@ -98,7 +99,7 @@ const ctx = createRuntimeContext({
 
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { kind: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
       fn: async (args, ctx, location) => {
         console.log(`[prompt at line ${location?.line}]`);
         return await callLLM(args.text);
@@ -166,7 +167,7 @@ export type { Filter, FilterResolver, ExtensionIdentity };
 export type { PolicyConfig, ExtensionMethodPolicy, MethodPolicyRule, ResolvedPolicy };
 
 // Callable types
-export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicationCallable, hydrateFieldDefaults };
+export { callable, isCallable, isScriptCallable, isApplicationCallable, hydrateFieldDefaults };
 export type { RillCallable, ScriptCallable, ApplicationCallable, CallableFn };
 
 // Host function types
@@ -721,6 +722,7 @@ interface RillFunction {
   readonly fn: CallableFn;
   readonly annotations?: Record<string, RillValue>;
   readonly returnType: RillTypeValue;
+  readonly skipReceiverValidation?: boolean;
 }
 ```
 
@@ -730,6 +732,7 @@ interface RillFunction {
 | `fn` | `CallableFn` | The function implementation. The runtime marshals call-site arguments into `Record<string, RillValue>` keyed by parameter name before invoking `fn`. See [CallableFn](#callablefn) |
 | `annotations` | `Record<string, RillValue> \| undefined` | Key-value metadata. `annotations.description` replaces the old `description` field. Optional; defaults to `{}` |
 | `returnType` | `RillTypeValue` | Declared return type. Required. Use `anyTypeValue` as the equivalent of "no constraint". Runtime does NOT validate return values at call time |
+| `skipReceiverValidation` | `boolean \| undefined` | When `true`, skips generic receiver validation (`RILL-R003`) for this method. Optional; used by method tables |
 
 ### Tuple Parameter Hydration
 
@@ -741,6 +744,8 @@ This happens at Stage 2.5 of `marshalArgs`, after argument validation and before
 const fn: RillFunction = {
   params: [{
     name: 'coords',
+    defaultValue: undefined,
+    annotations: {},
     type: {
       kind: 'tuple',
       fields: [
@@ -803,7 +808,7 @@ import { createRillStream } from '@rcrsr/rill';
 import type { RillValue } from '@rcrsr/rill';
 
 const fn: RillFunction = {
-  params: [{ name: 'prompt', type: { kind: 'string' } }],
+  params: [{ name: 'prompt', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
   fn: async (args) => {
     async function* generateChunks(): AsyncIterable<RillValue> {
       for await (const token of streamLLM(args.prompt as string)) {

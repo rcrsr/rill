@@ -13,17 +13,17 @@ npm install @rcrsr/rill
 ## Quick Start
 
 ```typescript
-import { parse, execute, createRuntimeContext, toCallable } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext, toCallable, structureToTypeValue } from '@rcrsr/rill';
 import type { ExtensionFactoryResult } from '@rcrsr/rill';
 
 function createMyExtension(): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        params: [{ name: 'message', type: { kind: 'string' } }],
+        params: [{ name: 'message', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => await callYourLLM(args.message),
         annotations: { description: 'Call your LLM' },
-        returnType: { kind: 'string' },
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
     },
   };
@@ -75,10 +75,10 @@ const ctx = createRuntimeContext({
   // Legacy: direct function registration (still supported)
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { kind: 'string' } }],
+      params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
       fn: async (args, ctx, location) => { /* ... */ },
       annotations: {},
-      returnType: { kind: 'string' },
+      returnType: structureToTypeValue({ kind: 'string' }),
     },
   },
 
