@@ -16,7 +16,12 @@ import type {
   RuntimeCallable,
   ApplicationCallable,
 } from '../../callable.js';
-import { isCallable, marshalArgs, validateHostResult } from '../../callable.js';
+import {
+  declaredParams,
+  isCallable,
+  marshalArgs,
+  validateHostResult,
+} from '../../callable.js';
 import { markExtensionThrow } from '../../extension-throw.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import type { RillValue, RillStream } from '../../types/structures.js';
@@ -203,7 +208,9 @@ export async function bindOrdered(
     node.span.start,
     s.ctx.sourceId
   );
-  return callable.params.map((p) => bound.params.get(p.name));
+  return declaredParams(callable, undefined, node.span.start).map((p) =>
+    bound.params.get(p.name)
+  );
 }
 
 /** Evaluate argument expressions, preserving the current pipeValue. */

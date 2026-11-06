@@ -43,7 +43,11 @@ import {
   throwFatalHostHalt,
 } from '../../types/halt.js';
 import type { RillCallable } from '../../callable.js';
-import { isApplicationCallable, isDict } from '../../callable.js';
+import {
+  declaredParams,
+  isApplicationCallable,
+  isDict,
+} from '../../callable.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isTuple, isOrdered } from '../../types/guards.js';
@@ -132,7 +136,10 @@ export class ArgumentsBinder {
 
     // Spread needs parameter names to bind by. A zero-parameter host
     // function has none.
-    if (isApplicationCallable(callable) && callable.params.length === 0) {
+    if (
+      isApplicationCallable(callable) &&
+      declaredParams(callable, undefined, location).length === 0
+    ) {
       const name = _getCallableName(callable);
       throwCatchableHostHalt(
         { location, sourceId, fn: 'bind' },
@@ -141,7 +148,7 @@ export class ArgumentsBinder {
       );
     }
 
-    const params = callable.params;
+    const params = declaredParams(callable, undefined, location);
     const bound = new Map<string, RillValue>();
 
     // Positional index: next unbound parameter position

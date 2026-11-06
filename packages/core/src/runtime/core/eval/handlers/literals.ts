@@ -54,6 +54,7 @@ import {
   RESERVED_DICT_METHODS,
 } from '../../values.js';
 import {
+  declaredParams,
   isCallable,
   type ScriptCallable,
   type RillParam,
@@ -887,7 +888,7 @@ async function resolveDispatchValue(
     const hasParams =
       (value.kind === 'script' && value.params.length > 0) ||
       (value.kind === 'application' &&
-        value.params.length > 0 &&
+        declaredParams(value).length > 0 &&
         !value.isProperty);
 
     if (hasParams) {
@@ -1069,7 +1070,7 @@ async function resolveDispatchValueRuntime(
     const hasParams =
       (value.kind === 'script' && value.params.length > 0) ||
       (value.kind === 'application' &&
-        value.params.length > 0 &&
+        declaredParams(value).length > 0 &&
         !value.isProperty);
 
     if (hasParams) {

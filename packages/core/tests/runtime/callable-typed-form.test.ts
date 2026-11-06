@@ -16,6 +16,7 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { BUILTIN_FUNCTIONS } from '../../src/runtime/ext/builtins.js';
+import { expectHalt } from '../helpers/halt.js';
 import { run } from '../helpers/runtime.js';
 
 describe('Rill Runtime: typed-only callable form', () => {
@@ -146,5 +147,51 @@ describe('Rill Runtime: typed-only callable form', () => {
     const hostLog = callable(() => 'host');
     const ctx = createRuntimeContext({ functions: { log: hostLog } });
     expect(generateManifest(ctx)).toContain('"log"');
+  });
+
+  describe('callable without a parameter declaration', () => {
+    const undeclared = {
+      __type: 'callable',
+      kind: 'application',
+      isProperty: false,
+      fn: () => 'x',
+    } as unknown as RillValue;
+    const pattern = /'\$f'.*toCallable or callable\(\)/;
+
+    it('halts with a host-contract atom when called directly', async () => {
+      await expectHalt(() => run('$f(1)', { variables: { f: undeclared } }), {
+        code: 'RILL_R085',
+        messagePattern: pattern,
+      });
+    });
+
+    it('halts with a host-contract atom when called through a pipe', async () => {
+      await expectHalt(() => run('1 -> $f', { variables: { f: undeclared } }), {
+        code: 'RILL_R085',
+        messagePattern: pattern,
+      });
+    });
+
+    it.each([
+      ['a pipe into a call', '1 -> $f()'],
+      ['a spread call', '$f(...list[1])'],
+      ['dict dispatch', '"a" -> dict[a: $f]'],
+      ['a dispatch literal', 'dict[a: $f] => $d\n"a" -> $d'],
+      ['.params access', '$f.params'],
+      ['.^input reflection', '$f.^input'],
+    ])('halts with a host-contract atom for %s', async (_label, source) => {
+      await expectHalt(() => run(source, { variables: { f: undeclared } }), {
+        code: 'RILL_R085',
+        messagePattern:
+          /Host callable '[^']+' has no parameter declaration.*toCallable or callable\(\)/,
+      });
+    });
+
+    it('leaves a callable built with callable() unaffected', async () => {
+      const result = await run('$f()', {
+        variables: { f: callable(() => 'ok') },
+      });
+      expect(result).toBe('ok');
+    });
   });
 });

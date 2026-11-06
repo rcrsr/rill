@@ -591,6 +591,48 @@ export function hydrateFieldDefaults(
 }
 
 /**
+ * Halt when a callable has no parameter declaration. Only a hand-built
+ * callable cast through RillValue can lack one; callable() and toCallable
+ * always set it.
+ */
+function assertParamsDeclared(
+  params: unknown,
+  functionName: string,
+  location?: SourceLocation
+): void {
+  if (!Array.isArray(params)) {
+    throwFatalHostHalt(
+      { location, fn: functionName },
+      ERROR_ATOMS[ERROR_IDS.RILL_R085],
+      `Host callable '${functionName}' has no parameter declaration; build callables with toCallable or callable()`
+    );
+  }
+}
+
+/**
+ * Read a callable's parameter declaration, halting when it has none.
+ * Use this instead of reading `.params` directly on application callables
+ * in invoke, dispatch, spread, and reflection paths. Without an explicit
+ * `functionName`, the label is the host function's JS name or '<anonymous>'.
+ */
+export function declaredParams(
+  callable: RillCallable,
+  functionName?: string,
+  location?: SourceLocation
+): readonly RillParam[] {
+  const params: unknown = callable.params;
+  if (!Array.isArray(params)) {
+    const jsName = isApplicationCallable(callable) ? callable.fn.name : '';
+    assertParamsDeclared(
+      params,
+      functionName ?? (jsName !== '' ? jsName : '<anonymous>'),
+      location
+    );
+  }
+  return callable.params;
+}
+
+/**
  * Unified marshaling entry point for all 3 invocation paths.
  *
  * Builds a named argument map from positional args, hydrates defaults,
@@ -620,6 +662,8 @@ export function marshalArgs(
 ): Record<string, RillValue> {
   const functionName = options?.functionName ?? '<anonymous>';
   const location = options?.location;
+
+  assertParamsDeclared(params, functionName, location);
 
   // Stage 1: Excess args check
   if (args.length > params.length) {

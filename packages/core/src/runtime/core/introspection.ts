@@ -17,7 +17,7 @@ import {
 } from './types/operations.js';
 import type { FieldComparisonCallbacks } from './types/operations.js';
 import { escapeRillStringBody } from './types/format-string.js';
-import { isScriptCallable } from './callable.js';
+import { declaredParams, isScriptCallable } from './callable.js';
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
 import { getBuiltinFunctionCache } from './builtin-registry.js';
@@ -383,7 +383,7 @@ export function generateManifest(ctx: RuntimeContext): string {
     const callable = fn;
 
     const signature = serializeClosureSignature(
-      callable.params,
+      declaredParams(callable, name),
       resolveReturnStructure(callable),
       annotationDescription(callable.annotations)
     );

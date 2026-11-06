@@ -12,6 +12,7 @@ import type {
 } from '../../../../types.js';
 import type { RillCallable } from '../../callable.js';
 import {
+  declaredParams,
   isCallable,
   isScriptCallable,
   isApplicationCallable,
@@ -113,7 +114,7 @@ export async function evaluateHostCall(
   }
 
   const args = await evaluateArgs(s, node.args);
-  const isTypedZeroParam = fn.params.length === 0;
+  const isTypedZeroParam = declaredParams(fn, node.name).length === 0;
   // pipe-binding rule.
   // In pipe-target position: auto-prepend when no top-level `$` in args.
   // In primary-expression position: preserve legacy guard (args.length === 0)
@@ -165,7 +166,8 @@ export async function evaluateHostRef(
   if (s.ctx.pipeValue === null) {
     return fn;
   }
-  const args: RillValue[] = fn.params.length === 0 ? [] : [s.ctx.pipeValue];
+  const args: RillValue[] =
+    declaredParams(fn, node.name).length === 0 ? [] : [s.ctx.pipeValue];
   return invokeCallable(s, fn, args, getNodeLocation(s, node), node.name);
 }
 
@@ -274,7 +276,7 @@ export function declaresZeroParams(value: RillCallable): boolean {
   return (
     (isScriptCallable(value) && value.params.length === 0) ||
     (isApplicationCallable(value) &&
-      (value.params.length === 0 || value.isProperty))
+      (declaredParams(value).length === 0 || value.isProperty))
   );
 }
 

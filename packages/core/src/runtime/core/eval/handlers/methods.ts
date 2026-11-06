@@ -10,6 +10,7 @@ import type {
   SourceLocation,
 } from '../../../../types.js';
 import {
+  declaredParams,
   isCallable,
   isApplicationCallable,
   marshalArgs,
@@ -357,7 +358,7 @@ export async function evaluateAnnotationAccess(
     return value.annotations['description'] ?? '';
   }
   if (key === 'input') {
-    const fields = value.params.map((param) =>
+    const fields = declaredParams(value, undefined, location).map((param) =>
       paramToFieldDef(
         param.name,
         param.type ?? { kind: 'any' },
@@ -409,7 +410,7 @@ export async function evaluateParamsProperty(
   }
 
   const paramsDict: Record<string, RillValue> = {};
-  for (const param of callable.params) {
+  for (const param of declaredParams(callable, undefined, location)) {
     const paramEntry: Record<string, RillValue> = {};
     if (param.type !== undefined) {
       paramEntry['type'] = formatStructure(param.type);
