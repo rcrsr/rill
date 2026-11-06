@@ -233,6 +233,13 @@ export async function executeRill(
  * Convert thrown error to FiddleError structure
  */
 function convertError(err: unknown, source?: string): FiddleError {
+  // RuntimeHaltSignal escaping unguarded execution. Checked before the
+  // duck-typed RillError branch: its errorId is a prototype getter that can
+  // be undefined, so isRillError would otherwise match it.
+  if (err instanceof RuntimeHaltSignal) {
+    return convertInvalidValue(err.value);
+  }
+
   // RillError hierarchy (LexerError, ParseError, RuntimeError)
   if (isRillError(err)) {
     const basicError: FiddleError = {
@@ -268,11 +275,6 @@ function convertError(err: unknown, source?: string): FiddleError {
     }
 
     return basicError;
-  }
-
-  // RuntimeHaltSignal escaping unguarded execution
-  if (err instanceof RuntimeHaltSignal) {
-    return convertInvalidValue(err.value);
   }
 
   // Unexpected error (non-Rill errors)
