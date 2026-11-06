@@ -49,7 +49,8 @@ pnpm check:versions
 pnpm check:standards
 ```
 
-Confirms core shares root's major.minor and service exactly equals core.
+`check:versions` confirms core shares root's major.minor and service exactly equals core.
+`check:standards` confirms `packages/dev/baseline.json` matches the bumped versions.
 
 ### Changelog to stamp
 
