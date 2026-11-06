@@ -36,6 +36,7 @@ import {
 } from './types/halt.js';
 import { createTraceFrame } from './types/trace.js';
 import {
+  assertParamsDeclared,
   validateDefaultValueType,
   type ApplicationCallable,
 } from './callable.js';
@@ -383,11 +384,6 @@ function logDisposeTimeout(state: LifecycleState): void {
   );
 }
 
-// Built-in methods that do their own internal arg validation with specific error
-// messages expected by protected language tests. Generic marshalArgs
-// must not fire before the method body's own check.
-export const UNVALIDATED_METHOD_PARAMS = new Set(['has', 'has_any', 'has_all']);
-
 /**
  * Derive the set of method names that handle their own receiver type checking.
  * Collects names from methods where skipReceiverValidation is true.
@@ -447,7 +443,8 @@ export function createRuntimeContext(
   // Set custom functions (can override built-ins)
   if (options.functions) {
     for (const [name, definition] of Object.entries(options.functions)) {
-      const params = definition.params;
+      const params: unknown = definition.params;
+      assertParamsDeclared(params, name);
       const description = definition.annotations?.['description'];
 
       // Validate default values at registration time

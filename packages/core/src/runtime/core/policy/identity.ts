@@ -218,7 +218,7 @@ function walkAndBrand(
 
     if (isCallable(member)) {
       if (callTime) {
-        if (member.kind === 'script' || member.kind === 'runtime') continue;
+        if (member.kind === 'script') continue;
         if (identities.has(member) || target.has(member)) continue;
         if (isHostRegistered(member)) continue;
         target.set(member, { extension, method: buildPath(entry) });

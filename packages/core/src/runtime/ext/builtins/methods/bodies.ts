@@ -655,13 +655,6 @@ export const mHas: RillMethod = (receiver, args, ctx, location) => {
       `has() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  if (args.length !== 1) {
-    throwFatalHostHalt(
-      { location, sourceId: ctx.sourceId, fn: 'has', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has() expects 1 argument, got ${args.length}`
-    );
-  }
   const searchValue = args[0] ?? null;
   for (const item of receiver) {
     if (deepEquals(item, searchValue)) return true;
@@ -683,19 +676,8 @@ export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
       `has_any() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  if (args.length !== 1) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'has_any',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has_any() expects 1 argument, got ${args.length}`
-    );
-  }
   const candidates = args[0] ?? null;
+  // marshalArgs enforces the list param; this narrows the type for direct callers.
   if (!Array.isArray(candidates)) {
     throwFatalHostHalt(
       {
@@ -730,19 +712,8 @@ export const mHasAll: RillMethod = (receiver, args, ctx, location) => {
       `has_all() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  if (args.length !== 1) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'has_all',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has_all() expects 1 argument, got ${args.length}`
-    );
-  }
   const candidates = args[0] ?? null;
+  // marshalArgs enforces the list param; this narrows the type for direct callers.
   if (!Array.isArray(candidates)) {
     throwFatalHostHalt(
       {

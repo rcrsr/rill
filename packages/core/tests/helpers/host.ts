@@ -5,7 +5,6 @@
 import {
   anyTypeValue,
   isApplicationCallable,
-  isRuntimeCallable,
   type CallableFn,
   type RillFunction,
   type RillParam,
@@ -41,7 +40,7 @@ export function hostFn(def: {
  */
 export function getNextFn(step: RillStream): CallableFn {
   const next = step.next;
-  if (!isApplicationCallable(next) && !isRuntimeCallable(next)) {
+  if (!isApplicationCallable(next)) {
     throw new Error('stream next is not a host-invocable callable');
   }
   return next.fn;

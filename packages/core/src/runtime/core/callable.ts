@@ -3,7 +3,6 @@
  *
  * Unified representation for all callable values in Rill:
  * - ScriptCallable: Closures parsed from Rill source code
- * - RuntimeCallable: legacy kind retained for compatibility; the runtime never constructs it
  * - ApplicationCallable: Host application-provided functions
  *
  * Public API for host applications.
@@ -131,12 +130,6 @@ export interface ScriptCallable extends CallableBase {
   readonly definingScope: RuntimeContext;
 }
 
-/** Runtime callable - legacy kind retained for compatibility; the runtime never constructs it (built-ins are application callables) */
-export interface RuntimeCallable extends CallableBase {
-  readonly kind: 'runtime';
-  readonly fn: CallableFn;
-}
-
 /** Application callable - host application-provided functions */
 export interface ApplicationCallable extends CallableBase {
   readonly kind: 'application';
@@ -144,10 +137,7 @@ export interface ApplicationCallable extends CallableBase {
 }
 
 /** Union of all callable types */
-export type RillCallable =
-  | ScriptCallable
-  | RuntimeCallable
-  | ApplicationCallable;
+export type RillCallable = ScriptCallable | ApplicationCallable;
 
 /** Type guard for any callable (delegates to types/guards.ts). CallableMarker implies RillCallable by construction. */
 export function isCallable(value: RillValue): value is RillCallable {
@@ -157,11 +147,6 @@ export function isCallable(value: RillValue): value is RillCallable {
 /** Type guard for script callable */
 export function isScriptCallable(value: RillValue): value is ScriptCallable {
   return isCallable(value) && value.kind === 'script';
-}
-
-/** Type guard for runtime callable */
-export function isRuntimeCallable(value: RillValue): value is RuntimeCallable {
-  return isCallable(value) && value.kind === 'runtime';
 }
 
 /** Type guard for application callable */
@@ -595,11 +580,11 @@ export function hydrateFieldDefaults(
  * callable cast through RillValue can lack one; callable() and toCallable
  * always set it.
  */
-function assertParamsDeclared(
+export function assertParamsDeclared(
   params: unknown,
   functionName: string,
   location?: SourceLocation
-): void {
+): asserts params is readonly RillParam[] {
   if (!Array.isArray(params)) {
     throwFatalHostHalt(
       { location, fn: functionName },

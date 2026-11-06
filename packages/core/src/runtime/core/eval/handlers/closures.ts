@@ -13,7 +13,6 @@ import { RillError, RuntimeError } from '../../../../types.js';
 import type {
   RillCallable,
   ScriptCallable,
-  RuntimeCallable,
   ApplicationCallable,
 } from '../../callable.js';
 import {
@@ -499,10 +498,10 @@ function createHostRegisteredCheck(
   };
 }
 
-/** Invoke runtime or application callable (native function). */
+/** Invoke an application callable (native function). */
 async function invokeFnCallable(
   s: EvalState,
-  callable: RuntimeCallable | ApplicationCallable,
+  callable: ApplicationCallable,
   args: (RillValue | undefined)[],
   callLocation?: SourceLocation,
   functionName = 'callable'

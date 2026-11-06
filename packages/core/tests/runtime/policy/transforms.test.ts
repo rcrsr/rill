@@ -4,7 +4,6 @@ import type { TransformInvoker } from '../../../src/runtime/core/policy/transfor
 import { brandExtensionValue } from '../../../src/runtime/core/policy/identity.js';
 import {
   isApplicationCallable,
-  isRuntimeCallable,
   toCallable,
 } from '../../../src/runtime/core/callable.js';
 import { createRuntimeContext } from '../../../src/runtime/core/context.js';
@@ -26,7 +25,7 @@ function tagger(tag: string): RillCallable {
 
 /** Invoker that actually runs the callable's fn against the value. */
 const run: TransformInvoker = (transform, value) => {
-  if (!isApplicationCallable(transform) && !isRuntimeCallable(transform)) {
+  if (!isApplicationCallable(transform)) {
     return Promise.reject(
       new Error('transform is not a host-invocable callable')
     );

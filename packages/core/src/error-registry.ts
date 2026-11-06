@@ -2180,7 +2180,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'Host function broke the host contract',
     messageTemplate:
-      "Host function '{functionName}' returned an invalid value at {path}: {jsType}; or: Host callable '{functionName}' has no parameter declaration",
+      "Host callable '{functionName}' broke the host contract: {detail}",
     cause:
       'A host callable has no parameter declaration because it was built by hand instead of with callable() or toCallable. Alternatively, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
     resolution:

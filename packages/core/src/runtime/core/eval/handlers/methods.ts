@@ -15,7 +15,6 @@ import {
   isApplicationCallable,
   marshalArgs,
 } from '../../callable.js';
-import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
 import type { RillValue, RillTypeValue } from '../../types/structures.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
 import {
@@ -91,18 +90,10 @@ export async function evaluateMethod(
   if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
     const callLocation = getNodeLocation(s, node);
     const effectiveArgs = [receiver, ...args];
-    let methodArgs: Record<string, RillValue>;
-    if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
-      methodArgs = {
-        receiver,
-        __positionalArgs: args,
-      };
-    } else {
-      methodArgs = marshalArgs(effectiveArgs, typeMethod.params, {
-        functionName: node.name,
-        location: callLocation,
-      });
-    }
+    const methodArgs = marshalArgs(effectiveArgs, typeMethod.params, {
+      functionName: node.name,
+      location: callLocation,
+    });
     try {
       const result = typeMethod.fn(methodArgs, s.ctx, callLocation);
       return result instanceof Promise ? await result : result;
