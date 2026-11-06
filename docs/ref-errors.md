@@ -1946,17 +1946,20 @@ guard { timeout<idle: 200ms> { $stream } }
 
 ### rill-r085
 
-**Description:** Host function returned an invalid value
+**Description:** Host function broke the host contract
 
-**Cause:** A host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.
+**Cause:** A host callable has no parameter declaration because it was built by hand instead of with callable() or toCallable. Alternatively, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.
 
-**Resolution:** Convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.
+**Resolution:** Build every callable with callable() or toCallable so it carries a parameter declaration. For an invalid return value, convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.
 
 **Example:**
 
 ```text
 # Host function returns an unsupported JavaScript value
 # Host code: registerFunction("bad", () => new Map())  # rejected
+
+# Hand-built callable without a parameter declaration
+# Host code: { __type: "callable", kind: "application", fn }  # rejected; use callable(fn)
 ```
 
 ---

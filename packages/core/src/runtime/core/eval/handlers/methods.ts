@@ -10,11 +10,10 @@ import type {
   SourceLocation,
 } from '../../../../types.js';
 import {
+  declaredParams,
   isCallable,
-  isScriptCallable,
   isApplicationCallable,
   marshalArgs,
-  untypedArgsRecord,
 } from '../../callable.js';
 import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
 import type { RillValue, RillTypeValue } from '../../types/structures.js';
@@ -93,9 +92,7 @@ export async function evaluateMethod(
     const callLocation = getNodeLocation(s, node);
     const effectiveArgs = [receiver, ...args];
     let methodArgs: Record<string, RillValue>;
-    if (typeMethod.params === undefined) {
-      methodArgs = untypedArgsRecord(effectiveArgs);
-    } else if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
+    if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
       methodArgs = {
         receiver,
         __positionalArgs: args,
@@ -279,17 +276,6 @@ async function evaluateInvoke(
   }
 
   if (argumentsBinder.hasSpread(node.args)) {
-    if (!isScriptCallable(receiver) && !isApplicationCallable(receiver)) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateInvoke',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        'Spread not supported for built-in callable'
-      );
-    }
     const orderedArgs = await bindOrdered(
       s,
       receiver,
@@ -372,10 +358,7 @@ export async function evaluateAnnotationAccess(
     return value.annotations['description'] ?? '';
   }
   if (key === 'input') {
-    if (value.params === undefined) {
-      return structureToTypeValue({ kind: 'ordered', fields: [] });
-    }
-    const fields = value.params.map((param) =>
+    const fields = declaredParams(value, undefined, location).map((param) =>
       paramToFieldDef(
         param.name,
         param.type ?? { kind: 'any' },
@@ -427,7 +410,7 @@ export async function evaluateParamsProperty(
   }
 
   const paramsDict: Record<string, RillValue> = {};
-  for (const param of callable.params ?? []) {
+  for (const param of declaredParams(callable, undefined, location)) {
     const paramEntry: Record<string, RillValue> = {};
     if (param.type !== undefined) {
       paramEntry['type'] = formatStructure(param.type);

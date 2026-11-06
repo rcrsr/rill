@@ -28,13 +28,7 @@ export const BUILTIN_FUNCTION_NAMES: readonly string[] = Object.freeze(
 // No circular dependency: registrations.ts does not import builtins.ts.
 populateBuiltinMethods(BUILTIN_METHODS);
 
-// Built-in functions that are genuinely variadic and must skip arg validation.
-// log: tests call log("msg", extraValue) — extra args are silently ignored.
-// chain: pipe form sends 1 arg when signature declares 2 (pipeValue is the first).
-// iterate: pipe form sends 1 arg when signature declares 2 (pipeValue is the seed).
-const UNTYPED_BUILTINS = new Set(['log', 'chain', 'iterate']);
-
 // Register the function table with core at module load time. Core cannot
 // import this module (layer rule: core must not depend on ext), so the
 // dependency is inverted through the registry.
-registerBuiltinFunctions(BUILTIN_FUNCTIONS, UNTYPED_BUILTINS);
+registerBuiltinFunctions(BUILTIN_FUNCTIONS);

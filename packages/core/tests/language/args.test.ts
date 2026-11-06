@@ -240,20 +240,20 @@ describe('explicit spread call syntax', () => {
     ).rejects.toThrow(/missing argument for parameter/i);
   });
 
-  it('AC-18 (EC-10): spread on built-in log() errors', async () => {
+  it('AC-18 (EC-10): spread of a non-collection into log() errors', async () => {
     await expect(run('42 -> log(...)')).rejects.toThrow(
-      /spread not supported for built-in/i
+      /spread requires a tuple, dict, or ordered value, got number/i
     );
   });
 
-  it('AC-19 (EC-11): spread on host function without params metadata errors', async () => {
+  it('AC-19 (EC-11): spread on zero-parameter host function errors', async () => {
     await expect(
       run('tuple[1, 2] -> $myFn(...)', {
         variables: {
-          myFn: callable((args) => args[0]!),
+          myFn: callable(() => null),
         },
       })
-    ).rejects.toThrow(/parameter metadata required/i);
+    ).rejects.toThrow(/spread not supported for zero-parameter function/i);
   });
 
   it('AC-22 (Boundary): spread of empty tuple with required params errors', async () => {

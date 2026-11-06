@@ -6,7 +6,7 @@
  */
 
 import type { RillTypeName } from '../../../types.js';
-import type { CallableFn, RillCallable, RillFunction } from '../callable.js';
+import type { RillCallable, RillFunction } from '../callable.js';
 import { isCallable } from '../callable.js';
 import { copyExtensionIdentity } from '../policy/identity.js';
 import type { TypeStructure, RillValue } from './structures.js';
@@ -159,11 +159,8 @@ export interface ScopeContext {
 
 /** Dispatch facade: function tables and type method registries */
 export interface DispatchContext {
-  /** Built-in and user-defined functions (CallableFn for untyped, ApplicationCallable for typed) */
-  readonly functions: Map<
-    string,
-    CallableFn | import('../callable.js').ApplicationCallable
-  >;
+  /** Built-in and host-provided functions */
+  readonly functions: Map<string, import('../callable.js').ApplicationCallable>;
   /**
    * Per-type method dictionaries: maps type name to a frozen dict of ApplicationCallable values.
    * Keys: "string", "list", "dict", "number", "bool", "vector".

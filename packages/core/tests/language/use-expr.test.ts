@@ -6,10 +6,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   extResolver,
+  anyTypeValue,
   isCallable,
   moduleResolver,
   parse,
   ParseError,
+  toCallable,
 } from '@rcrsr/rill';
 import type { SchemeResolver, ResolverResult, RillValue } from '@rcrsr/rill';
 
@@ -172,18 +174,38 @@ describe('Rill Language: use<> Expressions', () => {
 
     describe('Inline invocation with ext member resolution', () => {
       it('AC-3: use<ext:qdrant.search>(...) resolves member and invokes with 3 args', async () => {
-        const receivedArgs: RillValue[] = [];
-        const searchFn = {
-          __type: 'callable' as const,
-          kind: 'application' as const,
-          isProperty: false,
-          params: undefined,
-          fn: (args: RillValue[]) => {
-            receivedArgs.push(...args);
-            return `search:${args[0]}:${args[1]}:${args[2]}`;
+        const receivedArgs: (RillValue | undefined)[] = [];
+        const searchFn = toCallable({
+          params: [
+            {
+              name: 'collection',
+              type: undefined,
+              defaultValue: undefined,
+              annotations: {},
+            },
+            {
+              name: 'vector',
+              type: undefined,
+              defaultValue: undefined,
+              annotations: {},
+            },
+            {
+              name: 'limit',
+              type: undefined,
+              defaultValue: undefined,
+              annotations: {},
+            },
+          ],
+          returnType: anyTypeValue,
+          fn: (args) => {
+            receivedArgs.push(
+              args['collection'],
+              args['vector'],
+              args['limit']
+            );
+            return `search:${args['collection']}:${args['vector']}:${args['limit']}`;
           },
-          boundDict: undefined,
-        } as RillValue;
+        });
 
         const result = await run(
           '"embedding-value" => $embedding\nuse<ext:qdrant.search>("my-collection", $embedding, 10)',
@@ -208,15 +230,18 @@ describe('Rill Language: use<> Expressions', () => {
           resolvers: {
             host: (_resource): ResolverResult => ({
               kind: 'value',
-              value: {
-                __type: 'callable' as const,
-                kind: 'application' as const,
-                isProperty: false,
-                params: undefined,
-                fn: (args: import('@rcrsr/rill').RillValue[]) =>
-                  `invoked:${args[0]}`,
-                boundDict: undefined,
-              } as import('@rcrsr/rill').RillValue,
+              value: toCallable({
+                params: [
+                  {
+                    name: 'arg',
+                    type: undefined,
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                returnType: anyTypeValue,
+                fn: (args) => `invoked:${args['arg']}`,
+              }),
             }),
           },
         });

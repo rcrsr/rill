@@ -247,7 +247,7 @@ Dict fields are sorted alphabetically in the formatted output.
 
 All callable kinds expose their parameter and return type shapes via `.^input` and `.^output`.
 
-**`.^input`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures, application callables, and runtime callables. Untyped host callables return an empty ordered dict, not `false`.
+**`.^input`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures, application callables, and runtime callables. A callable with no parameters returns an empty ordered dict.
 
 ```typescript
 // Script closure returned from execute():
@@ -271,7 +271,7 @@ const closure = result.result; // RillCallable (ScriptCallable)
 // }
 ```
 
-> **Behavioral change (v0.x):** `.^input` now returns an ordered dict for all closure kinds. Previously, untyped host callables returned `false` as a sentinel. They now return an empty ordered dict. Code that checked `result === false` must be updated to check `result.entries.length === 0` instead.
+> **Note:** `.^input` returns an ordered dict for all closure kinds. A zero-parameter host callable returns an empty ordered dict.
 
 **`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ kind: 'any' }`:
 
@@ -445,8 +445,8 @@ const functions = getFunctions(ctx);
 ```
 
 Returns `FunctionMetadata[]` combining:
-1. Host functions (with full parameter metadata)
-2. Built-in functions
+1. Host functions, including any host function that overrides a built-in name
+2. Built-in functions, listed after all host functions
 3. Script closures (reads `^(doc: "...")` annotation for description)
 
 ### getLanguageReference()

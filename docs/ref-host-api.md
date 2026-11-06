@@ -20,7 +20,7 @@ function createMyExtension(config: { model: string }): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        params: [{ name: 'text', type: { kind: 'string' } }],
+        params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
         fn: async (args) => await callLLM(args.text, config.model),
         annotations: { description: 'Send a prompt to the LLM' },
         returnType: { kind: 'string' },
@@ -62,6 +62,8 @@ import {
   execute,
   createRuntimeContext,
   callable,
+  toCallable,
+  anyTypeValue,
   structureToTypeValue,
   RuntimeHaltSignal,
   type RillValue,
@@ -82,12 +84,14 @@ const ctx = createRuntimeContext({
     utils: {
       // Property-style callable (computed property)
       timestamp: callable(() => Date.now(), true),
-      // Untyped callable: params is undefined, args is RillValue[] (no marshaling)
-      format: callable((args) => {
-        const [template, ...values] = args as unknown as RillValue[];
-        return String(template).replace(/\{\}/g, () =>
-          String(values.shift() ?? '')
-        );
+      format: toCallable({
+        params: [
+          { name: 'template', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+          { name: 'value', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+        ],
+        returnType: anyTypeValue,
+        fn: (args) =>
+          String(args.template).replace(/\{\}/g, () => String(args.value)),
       }),
     },
   },
@@ -689,7 +693,7 @@ type CallableFn = (
 
 **Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details. A return value that is not a `RillValue`—including one nested inside a returned array or plain object—halts at the call boundary with `RILL-R085`. A returned non-finite number (`NaN`, `Infinity`, `-Infinity`) halts catchably with `#INVALID_INPUT` instead. See [Return Values](integration-host.md#return-values) for the full contract.
 
-**Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Untyped callables created via `callable()` (where `params` is `undefined`) bypass marshaling and still receive `RillValue[]`; their internal type cast is unchanged.
+**Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Every callable is marshaled, including those created via `callable()`. `callable(fn)` declares no parameters, so calling it with arguments halts with `RILL-R045`; property-style `callable(fn, true)` reads the bound dict from `args.self`, not `args[0]`. Use `toCallable` with declared `params` for callables that take arguments.
 
 ### Typed dict keys
 
@@ -890,7 +894,7 @@ The output format is a rill dict literal. The dict is the last expression and be
 ]
 ```
 
-An empty function map returns `[:]`. Functions with `params: undefined` (created via the `callable()` helper) are excluded.
+An empty function map returns `[:]`. Functions created via `callable(fn)` appear with an empty parameter list; property-style `callable(fn, true)` appears with a single `self: any` parameter.
 
 Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
 

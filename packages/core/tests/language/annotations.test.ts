@@ -756,7 +756,7 @@ describe('Rill Runtime: Annotations', () => {
     });
 
     it('parses multi-line function call arguments (AC-4)', async () => {
-      const script = `log(\n  "hello",\n  42\n)`;
+      const script = `log(\n  "hello"\n)`;
       await expect(run(script)).resolves.not.toThrow();
     });
 

@@ -23,17 +23,6 @@ function getStepView(step: RillValue): Record<string, RillValue> {
 }
 
 /**
- * Positional argument list of an untyped built-in. Untyped built-ins receive
- * their arguments as an array in place of the named-args record.
- */
-export function getPositionalArgs(
-  args: Record<string, RillValue>
-): RillValue[] {
-  const widened: RillValue = args;
-  return Array.isArray(widened) ? widened : Object.values(args);
-}
-
-/**
  * Walk an iterator or stream until `cap` value-bearing elements have been
  * produced (or the sequence is exhausted), collecting those values.
  * Returns the collected elements and the tail step positioned immediately

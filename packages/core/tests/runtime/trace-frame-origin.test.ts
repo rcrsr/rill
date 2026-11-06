@@ -13,24 +13,44 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  anyTypeValue,
   createRuntimeContext,
   execute,
   parse,
   getStatus,
   isInvalid,
 } from '@rcrsr/rill';
+import type { RillValue } from '@rcrsr/rill';
+import { throwCatchableHostHalt } from '../../src/runtime/core/types/halt.js';
 
 async function run(src: string): Promise<unknown> {
-  const ctx = createRuntimeContext({});
+  const ctx = createRuntimeContext({
+    functions: {
+      // Raises a catchable halt inside the async dispatch so the host-fn
+      // boundary in invokeFnCallable intercepts it.
+      hostFail: {
+        params: [],
+        returnType: anyTypeValue,
+        fn: (): Promise<RillValue> =>
+          new Promise<RillValue>(() => {
+            throwCatchableHostHalt(
+              { fn: 'hostFail', sourceId: 'test.rill' },
+              'TEST_HALT',
+              'host function failed'
+            );
+          }),
+      },
+    },
+  });
   const { result } = await execute(parse(src), ctx);
   return result;
 }
 
 describe('trace-frame kind reflects real halt origin', () => {
   it('a halt escaping a host-registered function dispatch appends a `host`-kind frame', async () => {
-    // `log()` with no arguments halts catchable inside invokeFnCallable's
+    // `hostFail()` halts catchable inside invokeFnCallable's
     // native-function dispatch (a genuine host boundary).
-    const result = await run('guard { log() }');
+    const result = await run('guard { hostFail() }');
     expect(isInvalid(result as never)).toBe(true);
     const trace = getStatus(result as never).trace;
     const hostFrames = trace.filter((f) => f.kind === 'host');
@@ -65,7 +85,7 @@ describe('trace-frame kind reflects real halt origin', () => {
   });
 
   it('the two boundary shapes produce different trace-frame kinds for their respective call-boundary frame', async () => {
-    const hostResult = await run('guard { log() }');
+    const hostResult = await run('guard { hostFail() }');
     const hostTrace = getStatus(hostResult as never).trace;
     expect(hostTrace.some((f) => f.kind === 'host')).toBe(true);
 

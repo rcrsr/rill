@@ -246,10 +246,21 @@ describe('Rill Runtime: Host Integration', () => {
         column: -1,
         offset: -1,
       };
-      const fn = callable((_args, _ctx, location) => {
-        calls++;
-        received = location;
-        return 'ok';
+      const fn = toCallable({
+        params: [
+          {
+            name: 'x',
+            type: { kind: 'any' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        returnType: anyTypeValue,
+        fn: (_args, _ctx, location) => {
+          calls++;
+          received = location;
+          return 'ok';
+        },
       });
 
       const result = await invokeCallable(fn, [1], ctx);
@@ -510,7 +521,7 @@ describe('Rill Runtime: Host Integration', () => {
 
   describe('Application Callables', () => {
     it('callable() creates an application callable', () => {
-      const fn = callable((args) => args[0]!);
+      const fn = callable((args) => args['x']!);
       expect(isCallable(fn)).toBe(true);
       expect(isApplicationCallable(fn)).toBe(true);
       expect(fn.kind).toBe('application');
@@ -528,7 +539,19 @@ describe('Rill Runtime: Host Integration', () => {
           getGreeter: {
             returnType: anyTypeValue,
             params: [],
-            fn: () => callable((args) => `Hello, ${args[0]}!`),
+            fn: () =>
+              toCallable({
+                params: [
+                  {
+                    name: 'name',
+                    type: { kind: 'any' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                returnType: anyTypeValue,
+                fn: (args) => `Hello, ${args['name']}!`,
+              }),
           },
         },
       });
@@ -542,7 +565,19 @@ describe('Rill Runtime: Host Integration', () => {
           getGreeter: {
             returnType: anyTypeValue,
             params: [],
-            fn: () => callable((args) => `Hello, ${args[0]}!`),
+            fn: () =>
+              toCallable({
+                params: [
+                  {
+                    name: 'name',
+                    type: { kind: 'any' },
+                    defaultValue: undefined,
+                    annotations: {},
+                  },
+                ],
+                returnType: anyTypeValue,
+                fn: (args) => `Hello, ${args['name']}!`,
+              }),
           },
         },
       });
@@ -553,7 +588,18 @@ describe('Rill Runtime: Host Integration', () => {
       const result = await run('$obj.greet("World")', {
         variables: {
           obj: {
-            greet: callable((args) => `Hello, ${args[0]}!`),
+            greet: toCallable({
+              params: [
+                {
+                  name: 'name',
+                  type: { kind: 'any' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              returnType: anyTypeValue,
+              fn: (args) => `Hello, ${args['name']}!`,
+            }),
           },
         },
       });
@@ -578,7 +624,7 @@ describe('Rill Runtime: Host Integration', () => {
             first: 'John',
             last: 'Doe',
             fullName: callable((args) => {
-              const dict = args[0] as Record<string, RillValue>;
+              const dict = args['self'] as Record<string, RillValue>;
               return `${dict['first']} ${dict['last']}`;
             }, true),
           },
@@ -605,9 +651,20 @@ describe('Rill Runtime: Host Integration', () => {
       let capturedLocation: SourceLocation | undefined;
       await run('$fn("test")', {
         variables: {
-          fn: callable((_args, _ctx, location) => {
-            capturedLocation = location;
-            return 'done';
+          fn: toCallable({
+            params: [
+              {
+                name: 'x',
+                type: { kind: 'any' },
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            returnType: anyTypeValue,
+            fn: (_args, _ctx, location) => {
+              capturedLocation = location;
+              return 'done';
+            },
           }),
         },
       });
@@ -1376,31 +1433,26 @@ describe('AC-8: Method dispatch — bound dict fills first ordered entry', () =>
   });
 });
 
-describe('AC-16: Untyped callable (params undefined) skips marshaling, works as before', () => {
-  it('callable() factory function receives raw array cast as Record', async () => {
-    let receivedFirst: RillValue = null;
-
+describe('Zero-parameter callable() factory delivery', () => {
+  it('callable() factory function receives a name-keyed record', async () => {
     let receivedArgs: unknown;
 
     const fn = callable((args) => {
-      // Untyped callables receive positional array (RillValue[]), not a Record.
       receivedArgs = args;
-      receivedFirst = (args as unknown as RillValue[])[0] ?? null;
-      return receivedFirst;
+      return 'done';
     });
 
-    const result = await run('$myFn("test")', {
+    const result = await run('$myFn()', {
       variables: { myFn: fn },
     });
 
-    expect(result).toBe('test');
-    expect(receivedFirst).toBe('test');
-    // AC-16: verify delivery is RillValue[] (array), not a Record
-    expect(Array.isArray(receivedArgs)).toBe(true);
+    expect(result).toBe('done');
+    expect(Array.isArray(receivedArgs)).toBe(false);
+    expect(receivedArgs).toEqual({});
   });
 
   it('callable() factory pipe-invoked with value works', async () => {
-    // When an untyped callable is pipe-invoked (`"piped" -> $myFn`), the runtime
+    // When a zero-param callable is pipe-invoked (`"piped" -> $myFn`), the runtime
     // treats it as zero-param style: the pipe value is accessible via ctx.pipeValue,
     // not via args (which remains empty for zero-param style invocation).
     let capturedPipe: RillValue = null;

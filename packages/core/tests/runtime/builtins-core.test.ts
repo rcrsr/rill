@@ -26,24 +26,31 @@ describe('Rill Runtime: log built-in', () => {
     expect(result).toBe('x');
   });
 
-  it('tolerates excess arguments without halting', async () => {
-    const result = await run('log("x", 99)');
+  it('halts with an excess-argument error for a second argument', async () => {
+    try {
+      await run('log("x", 99)');
+      expect.fail('Should have thrown');
+    } catch (err) {
+      expect((err as RuntimeError).errorId).toBe('RILL-R045');
+    }
+  });
+
+  it('binds a spread tuple into log like any typed built-in', async () => {
+    const result = await run('tuple["x"] -> log(...)');
     expect(result).toBe('x');
   });
 });
 
 describe('Rill Runtime: chain built-in missing-argument message', () => {
-  it('names a genuinely absent transform argument as missing, not string', async () => {
+  it('halts with a missing-parameter error for an absent transform argument', async () => {
     try {
       await run('chain(5)');
       expect.fail('Should have thrown');
     } catch (err) {
       expect(err).toBeInstanceOf(RuntimeError);
       const runtimeErr = err as RuntimeError;
-      expect(runtimeErr.errorId).toBe('RILL-R040');
-      expect(runtimeErr.message).toContain(
-        'chain: second argument must be a closure or list of closures, got missing'
-      );
+      expect(runtimeErr.errorId).toBe('RILL-R044');
+      expect(runtimeErr.message).toContain("parameter 'transform'");
     }
   });
 
@@ -63,17 +70,15 @@ describe('Rill Runtime: chain built-in missing-argument message', () => {
 });
 
 describe('Rill Runtime: iterate built-in missing-argument message', () => {
-  it('names a genuinely absent closure argument as missing, not string', async () => {
+  it('halts with a missing-parameter error for an absent closure argument', async () => {
     try {
       await run('iterate(0)');
       expect.fail('Should have thrown');
     } catch (err) {
       expect(err).toBeInstanceOf(RuntimeError);
       const runtimeErr = err as RuntimeError;
-      expect(runtimeErr.errorId).toBe('RILL-R006');
-      expect(runtimeErr.message).toContain(
-        'iterate: closure must be a callable, got missing'
-      );
+      expect(runtimeErr.errorId).toBe('RILL-R044');
+      expect(runtimeErr.message).toContain("parameter 'closure'");
     }
   });
 

@@ -56,8 +56,8 @@ Source Text → parse() → AST → execute() → Result
 | `parse(source)` | Parse rill source into an AST |
 | `execute(ast, ctx)` | Execute an AST with a runtime context |
 | `createRuntimeContext(opts)` | Create a configured runtime context |
-| `callable(fn, isProperty?)` | Wrap a function as a rill-callable value |
-| `toCallable(def)` | Convert a `RillFunction` to an `ApplicationCallable` |
+| `callable(fn, isProperty?)` | Wrap a zero-argument function as a rill-callable value (property-style reads `args.self`) |
+| `toCallable(def)` | Convert a `RillFunction` with declared `params` to an `ApplicationCallable` |
 | `createTestContext(extensions)` | Wire extensions for testing without config infrastructure |
 
 ### Runtime Options

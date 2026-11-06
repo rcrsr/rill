@@ -17,10 +17,9 @@ import type {
   ApplicationCallable,
 } from '../../callable.js';
 import {
+  declaredParams,
   isCallable,
-  isApplicationCallable,
   marshalArgs,
-  untypedArgsRecord,
   validateHostResult,
 } from '../../callable.js';
 import { markExtensionThrow } from '../../extension-throw.js';
@@ -209,7 +208,9 @@ export async function bindOrdered(
     node.span.start,
     s.ctx.sourceId
   );
-  return callable.params.map((p) => bound.params.get(p.name));
+  return declaredParams(callable, undefined, node.span.start).map((p) =>
+    bound.params.get(p.name)
+  );
 }
 
 /** Evaluate argument expressions, preserving the current pipeValue. */
@@ -523,15 +524,10 @@ async function invokeFnCallable(
       ? [callable.boundDict]
       : args;
 
-  let fnArgs: Record<string, RillValue>;
-  if (isApplicationCallable(callable) && callable.params !== undefined) {
-    fnArgs = marshalArgs(effectiveArgs, callable.params, {
-      functionName,
-      location: callLocation,
-    });
-  } else {
-    fnArgs = untypedArgsRecord(effectiveArgs);
-  }
+  const fnArgs = marshalArgs(effectiveArgs, callable.params, {
+    functionName,
+    location: callLocation,
+  });
 
   let result: RillValue;
   try {

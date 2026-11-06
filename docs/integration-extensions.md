@@ -216,11 +216,11 @@ See [rill-run Config](ref-config.md) for how `extensions.mounts` entries referen
 Extensions emit structured diagnostic events through `emitExtensionEvent()`:
 
 ```typescript
-import { emitExtensionEvent, type RuntimeContext } from '@rcrsr/rill';
+import { emitExtensionEvent, type RillValue, type RuntimeContext } from '@rcrsr/rill';
 
-function myFunction(args: RillValue[], ctx: RuntimeContext) {
+function myFunction(args: Record<string, RillValue>, ctx: RuntimeContext) {
   const start = Date.now();
-  const result = doWork(args[0]);
+  const result = doWork(args.input);
 
   emitExtensionEvent(ctx, {
     event: 'my-ext:operation',

@@ -273,7 +273,7 @@ type CallableFn = (
 | `ctx` | Runtime context with variables, pipeValue, and session metadata |
 | `location` | Source location of the call site (for error reporting) |
 
-Untyped callables created via `callable()` (no `params`) still receive `RillValue[]`.
+Every callable receives a name-keyed record. `callable(fn)` declares no parameters, so calling it with arguments halts with `RILL-R045`; use `toCallable` with declared `params` to accept arguments.
 
 ### Session Metadata in Host Functions
 
@@ -691,11 +691,19 @@ The manifest file format is valid rill. Host tools can pass it to static analysi
 Hosts can create first-class callable values that scripts can store, pass, and invoke.
 
 ```typescript
-import { callable, isCallable, isApplicationCallable } from '@rcrsr/rill';
+import {
+  toCallable,
+  anyTypeValue,
+  isCallable,
+  isApplicationCallable,
+} from '@rcrsr/rill';
 
-// Create a callable
-// Untyped callable: params is undefined, args is RillValue[] (no marshaling)
-const greet = callable((args) => `Hello, ${args[0]}!`);
+// Create a callable with a declared parameter
+const greet = toCallable({
+  params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+  returnType: anyTypeValue,
+  fn: (args) => `Hello, ${args.name}!`,
+});
 
 // Use in variables
 const ctx = createRuntimeContext({
@@ -715,8 +723,10 @@ function callable(fn: CallableFn, isProperty?: boolean): ApplicationCallable;
 
 | Parameter | Description |
 |-----------|-------------|
-| `fn` | The function to wrap |
-| `isProperty` | If `true`, auto-invokes when accessed from dict |
+| `fn` | The function to wrap. Receives a name-keyed record |
+| `isProperty` | If `true`, auto-invokes when accessed from dict and declares one `self` parameter |
+
+`callable()` declares `params: []`, or a single `self: any` parameter when `isProperty` is `true`. Use it for zero-argument callables; use `toCallable` when the callable takes arguments.
 
 ### Property-Style Callables
 
@@ -730,8 +740,8 @@ const ctx = createRuntimeContext({
       lastName: 'Doe',
       // Auto-invokes on access, receives bound dict
       fullName: callable((args) => {
-        // Property-style callable: args[0] is the bound dict this callable was accessed from, not a positional argument
-        const dict = args[0] as Record<string, RillValue>;
+        // Property-style callable: args.self is the bound dict this callable was accessed from
+        const dict = args.self as Record<string, RillValue>;
         return `${dict.firstName} ${dict.lastName}`;
       }, true),
     },
@@ -749,11 +759,13 @@ Callables stored in dicts can be invoked using method syntax:
 const ctx = createRuntimeContext({
   variables: {
     math: {
-      add: callable((args) => {
-        // Untyped callable: params is undefined, args is RillValue[] (no marshaling)
-        const a = typeof args[0] === 'number' ? args[0] : 0;
-        const b = typeof args[1] === 'number' ? args[1] : 0;
-        return a + b;
+      add: toCallable({
+        params: [
+          { name: 'a', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+          { name: 'b', type: { kind: 'number' }, defaultValue: undefined, annotations: {} },
+        ],
+        returnType: anyTypeValue,
+        fn: (args) => Number(args.a) + Number(args.b),
       }),
     },
   },
@@ -767,8 +779,8 @@ const ctx = createRuntimeContext({
 | Kind | Type | Description |
 |------|------|-------------|
 | `script` | `ScriptCallable` | Closures from rill source code |
-| `runtime` | `RuntimeCallable` | rill's built-in functions |
-| `application` | `ApplicationCallable` | Host-provided callables |
+| `runtime` | `RuntimeCallable` | Callables rill creates internally |
+| `application` | `ApplicationCallable` | Host-provided callables and rill's built-in functions |
 
 ### Type Guards
 

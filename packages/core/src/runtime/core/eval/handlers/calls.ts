@@ -10,8 +10,9 @@ import type {
   ClosureCallNode,
   PipeInvokeNode,
 } from '../../../../types.js';
-import type { RillCallable, ApplicationCallable } from '../../callable.js';
+import type { RillCallable } from '../../callable.js';
 import {
+  declaredParams,
   isCallable,
   isScriptCallable,
   isApplicationCallable,
@@ -21,7 +22,6 @@ import { getVariable } from '../../context.js';
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isStream } from '../../types/guards.js';
-import { anyTypeValue } from '../../values.js';
 import type { EvalState } from '../state.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -73,21 +73,6 @@ export async function evaluateHostCall(
 
   const hasSpread = argumentsBinder.hasSpread(node.args);
   if (hasSpread) {
-    const isUntypedBuiltin =
-      typeof fn === 'function' ||
-      (isApplicationCallable(fn) && (fn.params?.length ?? 0) === 0);
-    if (isUntypedBuiltin) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateHostCall',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        `Spread not supported for built-in function '${node.name}'`,
-        { functionName: node.name }
-      );
-    }
     const orderedArgs = await bindOrdered(
       s,
       fn,
@@ -129,11 +114,7 @@ export async function evaluateHostCall(
   }
 
   const args = await evaluateArgs(s, node.args);
-  const isTypedZeroParam =
-    typeof fn !== 'function' &&
-    isApplicationCallable(fn) &&
-    fn.params !== undefined &&
-    fn.params.length === 0;
+  const isTypedZeroParam = declaredParams(fn, node.name).length === 0;
   // pipe-binding rule.
   // In pipe-target position: auto-prepend when no top-level `$` in args.
   // In primary-expression position: preserve legacy guard (args.length === 0)
@@ -150,24 +131,7 @@ export async function evaluateHostCall(
   s.ctx.observability.onHostCall?.({ name: node.name, args });
   const startTime = performance.now();
 
-  const invoke =
-    typeof fn === 'function'
-      ? invokeCallable(
-          s,
-          {
-            __type: 'callable' as const,
-            kind: 'runtime' as const,
-            fn,
-            isProperty: false,
-            params: [],
-            annotations: {},
-            returnType: anyTypeValue,
-          },
-          args,
-          node.span.start,
-          node.name
-        )
-      : invokeCallable(s, fn, args, node.span.start, node.name);
+  const invoke = invokeCallable(s, fn, args, node.span.start, node.name);
   const result = await withTimeout(s, invoke, s.ctx.timeout, node.name, node);
   s.ctx.observability.onFunctionReturn?.({
     name: node.name,
@@ -199,34 +163,12 @@ export async function evaluateHostRef(
     );
   }
 
-  let appCallable: ApplicationCallable;
-  if (typeof fn === 'function') {
-    appCallable = {
-      __type: 'callable' as const,
-      kind: 'application' as const,
-      fn,
-      params: [],
-      annotations: {},
-      returnType: anyTypeValue,
-      isProperty: false,
-    };
-  } else {
-    appCallable = fn;
-  }
-
   if (s.ctx.pipeValue === null) {
-    return appCallable;
+    return fn;
   }
-  const isTypedZeroParam =
-    appCallable.params !== undefined && appCallable.params.length === 0;
-  const args: RillValue[] = isTypedZeroParam ? [] : [s.ctx.pipeValue];
-  return invokeCallable(
-    s,
-    appCallable,
-    args,
-    getNodeLocation(s, node),
-    node.name
-  );
+  const args: RillValue[] =
+    declaredParams(fn, node.name).length === 0 ? [] : [s.ctx.pipeValue];
+  return invokeCallable(s, fn, args, getNodeLocation(s, node), node.name);
 }
 
 /** Evaluate closure call: $fn(args). */
@@ -315,17 +257,6 @@ export async function evaluateClosureCallWithPipe(
   const closure = value;
 
   if (argumentsBinder.hasSpread(node.args)) {
-    if (!isScriptCallable(closure) && !isApplicationCallable(closure)) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateClosureCallWithPipe',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        `Spread not supported for built-in callable at '${fullPath}'`
-      );
-    }
     const orderedArgs = await bindOrdered(s, closure, node, pipeInput);
     return invokeCallable(s, closure, orderedArgs, node.span.start, fullPath);
   }
@@ -338,17 +269,14 @@ export async function evaluateClosureCallWithPipe(
 }
 
 /**
- * True when the callable declares an empty parameter list, or when arity is
- * unknown (`params === undefined` on an ApplicationCallable). Unknown arity
- * is treated as "do not inject" (the safe default): a loosely-typed host
- * callable built outside the documented registration API should not
- * silently receive a pipe value it never declared a parameter for.
+ * True when the callable declares an empty parameter list, or is
+ * property-style (its `self` parameter is bound to the dict, not piped).
  */
 export function declaresZeroParams(value: RillCallable): boolean {
   return (
     (isScriptCallable(value) && value.params.length === 0) ||
     (isApplicationCallable(value) &&
-      (value.params === undefined || value.params.length === 0))
+      (declaredParams(value).length === 0 || value.isProperty))
   );
 }
 

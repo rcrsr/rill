@@ -37,7 +37,11 @@ import {
   isTypeValue,
   isPlainDict,
 } from '../../types/guards.js';
-import { isCallable, isScriptCallable } from '../../callable.js';
+import {
+  declaredParams,
+  isCallable,
+  isScriptCallable,
+} from '../../callable.js';
 import { inferType } from '../../types/registrations.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
@@ -631,13 +635,14 @@ async function invokePipeCallable(
   s: EvalState,
   value: Parameters<typeof invokeCallable>[1],
   input: RillValue,
-  location: ReturnType<typeof getNodeLocation>
+  location: ReturnType<typeof getNodeLocation>,
+  functionName = 'callable'
 ): Promise<RillValue> {
   const hasParams =
     (value.kind === 'script' && value.params.length > 0) ||
     (value.kind === 'application' &&
-      value.params !== undefined &&
-      value.params.length > 0);
+      declaredParams(value, functionName, location).length > 0 &&
+      !value.isProperty);
 
   if (hasParams) {
     return invokeCallable(s, value, [input], location);
@@ -800,7 +805,13 @@ async function evaluatePipeTarget(
       // If value is callable, invoke it with the pipe input
       // Per closure-semantics spec: check params.length to determine invocation style
       if (isCallable(value)) {
-        return invokePipeCallable(s, value, input, getNodeLocation(s, target));
+        return invokePipeCallable(
+          s,
+          value,
+          input,
+          getNodeLocation(s, target),
+          `$${target.name ?? ''}`
+        );
       }
 
       // Slot 6: Type value dispatch — delegate to applyConversion.
@@ -1308,8 +1319,8 @@ async function resolveTerminalValue(
   const hasParams =
     (value.kind === 'script' && value.params.length > 0) ||
     (value.kind === 'application' &&
-      value.params !== undefined &&
-      value.params.length > 0);
+      declaredParams(value).length > 0 &&
+      !value.isProperty);
 
   if (hasParams) {
     // Block-closure or application callable with params: invoke with finalKey as argument

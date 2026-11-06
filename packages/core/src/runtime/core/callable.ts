@@ -3,7 +3,7 @@
  *
  * Unified representation for all callable values in Rill:
  * - ScriptCallable: Closures parsed from Rill source code
- * - RuntimeCallable: Rill's built-in functions (type, log, json, identity)
+ * - RuntimeCallable: legacy kind retained for compatibility; the runtime never constructs it
  * - ApplicationCallable: Host application-provided functions
  *
  * Public API for host applications.
@@ -64,6 +64,7 @@ import { throwCatchableHostHalt, throwFatalHostHalt } from './types/halt.js';
 /**
  * Callable function signature.
  * Used for both host-provided functions and runtime callables.
+ * The first argument is always a record keyed by declared parameter name.
  */
 export type CallableFn = (
   args: Record<string, RillValue>,
@@ -107,7 +108,7 @@ interface CallableBase {
   /**
    * Property-style callable: auto-invoked when accessed from a dict.
    * For script callables, $ is bound to the containing dict.
-   * For runtime callables, the dict is passed as first argument.
+   * For application callables, the dict is passed as the `self` argument.
    */
   readonly isProperty: boolean;
   readonly params: readonly RillParam[];
@@ -130,7 +131,7 @@ export interface ScriptCallable extends CallableBase {
   readonly definingScope: RuntimeContext;
 }
 
-/** Runtime callable - Rill's built-in functions (type, log, json, identity) */
+/** Runtime callable - legacy kind retained for compatibility; the runtime never constructs it (built-ins are application callables) */
 export interface RuntimeCallable extends CallableBase {
   readonly kind: 'runtime';
   readonly fn: CallableFn;
@@ -590,6 +591,48 @@ export function hydrateFieldDefaults(
 }
 
 /**
+ * Halt when a callable has no parameter declaration. Only a hand-built
+ * callable cast through RillValue can lack one; callable() and toCallable
+ * always set it.
+ */
+function assertParamsDeclared(
+  params: unknown,
+  functionName: string,
+  location?: SourceLocation
+): void {
+  if (!Array.isArray(params)) {
+    throwFatalHostHalt(
+      { location, fn: functionName },
+      ERROR_ATOMS[ERROR_IDS.RILL_R085],
+      `Host callable '${functionName}' has no parameter declaration; build callables with toCallable or callable()`
+    );
+  }
+}
+
+/**
+ * Read a callable's parameter declaration, halting when it has none.
+ * Use this instead of reading `.params` directly on application callables
+ * in invoke, dispatch, spread, and reflection paths. Without an explicit
+ * `functionName`, the label is the host function's JS name or '<anonymous>'.
+ */
+export function declaredParams(
+  callable: RillCallable,
+  functionName?: string,
+  location?: SourceLocation
+): readonly RillParam[] {
+  const params: unknown = callable.params;
+  if (!Array.isArray(params)) {
+    const jsName = isApplicationCallable(callable) ? callable.fn.name : '';
+    assertParamsDeclared(
+      params,
+      functionName ?? (jsName !== '' ? jsName : '<anonymous>'),
+      location
+    );
+  }
+  return callable.params;
+}
+
+/**
  * Unified marshaling entry point for all 3 invocation paths.
  *
  * Builds a named argument map from positional args, hydrates defaults,
@@ -605,7 +648,7 @@ export function hydrateFieldDefaults(
  * - args contains already-evaluated RillValue[]
  * - pipe value already inserted as first element by caller
  * - boundDict already prepended as first element by caller
- * - params is defined (caller skips marshalArgs for untyped callables)
+ * - params is the callable's declared parameter list (empty for zero-param)
  *
  * @param args - Positional arguments (already evaluated)
  * @param params - Parameter definitions
@@ -619,6 +662,8 @@ export function marshalArgs(
 ): Record<string, RillValue> {
   const functionName = options?.functionName ?? '<anonymous>';
   const location = options?.location;
+
+  assertParamsDeclared(params, functionName, location);
 
   // Stage 1: Excess args check
   if (args.length > params.length) {
@@ -729,18 +774,6 @@ export function validateHostResult(
     location,
     new WeakSet()
   );
-}
-
-/**
- * Views a positional argument array as the Record-typed argument bag that
- * `CallableFn` declares. Untyped callables (params undefined) receive their
- * positional arguments as an array-valued bag at runtime.
- */
-export function untypedArgsRecord(
-  args: readonly (RillValue | undefined)[]
-): Record<string, RillValue> {
-  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CallableFn declares a Record argument bag; untyped callables receive the positional array through it by design
-  return args as unknown as Record<string, RillValue>;
 }
 
 /** True when `value`'s prototype is `Object.prototype` or `null`, i.e. it is

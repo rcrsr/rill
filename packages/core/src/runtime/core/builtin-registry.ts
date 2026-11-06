@@ -13,7 +13,7 @@
  */
 
 import {
-  callable,
+  toCallable,
   type ApplicationCallable,
   type RillFunction,
 } from './callable.js';
@@ -22,27 +22,13 @@ import {
 const BUILTIN_FN_CACHE = new Map<string, ApplicationCallable>();
 let registered = false;
 
-/**
- * Register the builtin function table. Called by `runtime/ext/builtins.ts`
- * at module load. `untypedNames` lists builtins that are genuinely variadic
- * and must skip arg validation.
- */
+/** Register the builtin function table. Called by `runtime/ext/builtins.ts` at module load. */
 export function registerBuiltinFunctions(
-  fns: Record<string, RillFunction>,
-  untypedNames: ReadonlySet<string>
+  fns: Record<string, RillFunction>
 ): void {
   BUILTIN_FN_CACHE.clear();
   for (const [name, entry] of Object.entries(fns)) {
-    const appCallable = callable(entry.fn, false);
-    if (untypedNames.has(name)) {
-      BUILTIN_FN_CACHE.set(name, appCallable);
-      continue;
-    }
-    BUILTIN_FN_CACHE.set(name, {
-      ...appCallable,
-      params: entry.params,
-      returnType: entry.returnType,
-    });
+    BUILTIN_FN_CACHE.set(name, toCallable(entry));
   }
   registered = true;
 }
@@ -63,10 +49,4 @@ export function getBuiltinFunctionCache(): ReadonlyMap<
 > {
   assertRegistered();
   return BUILTIN_FN_CACHE;
-}
-
-/** True when `name` is a registered builtin function. */
-export function isBuiltinFunctionName(name: string): boolean {
-  assertRegistered();
-  return BUILTIN_FN_CACHE.has(name);
 }

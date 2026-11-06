@@ -17,14 +17,10 @@ import {
 } from './types/operations.js';
 import type { FieldComparisonCallbacks } from './types/operations.js';
 import { escapeRillStringBody } from './types/format-string.js';
-import {
-  isApplicationCallable,
-  isRuntimeCallable,
-  isScriptCallable,
-} from './callable.js';
+import { declaredParams, isScriptCallable } from './callable.js';
 import type { RillParam } from './callable.js';
 import { LANGUAGE_REFERENCE } from '../../generated/introspection-data.js';
-import { isBuiltinFunctionName } from './builtin-registry.js';
+import { getBuiltinFunctionCache } from './builtin-registry.js';
 import { anyTypeValue } from './types/any-type.js';
 import type {
   AnnotationArg,
@@ -130,43 +126,26 @@ export function getFunctions(ctx: RuntimeContext): FunctionMetadata[] {
   // Enumerate functions in ctx.functions
   for (const [name, fn] of ctx.functions.entries()) {
     try {
-      // Check if this is an ApplicationCallable with metadata (host function)
-      if (typeof fn !== 'function' && isApplicationCallable(fn)) {
-        const callable = fn;
-        if (callable.params !== undefined) {
-          const params: ParamMetadata[] = callable.params.map((p) => ({
-            name: p.name,
-            type: p.type !== undefined ? formatStructure(p.type) : 'any',
-            description:
-              typeof p.annotations['description'] === 'string'
-                ? p.annotations['description']
-                : '',
-            defaultValue: p.defaultValue ?? undefined,
-          }));
+      const params: ParamMetadata[] = fn.params.map((p) => ({
+        name: p.name,
+        type: p.type !== undefined ? formatStructure(p.type) : 'any',
+        description:
+          typeof p.annotations['description'] === 'string'
+            ? p.annotations['description']
+            : '',
+        defaultValue: p.defaultValue ?? undefined,
+      }));
 
-          hostFunctions.push({
-            name,
-            description: annotationDescription(callable.annotations) ?? '',
-            params,
-            returnType: formatStructure(resolveReturnStructure(callable)),
-          });
-        } else {
-          // ApplicationCallable without params (untyped)
-          builtinFunctions.push({
-            name,
-            description: annotationDescription(callable.annotations) ?? '',
-            params: [],
-            returnType: 'any',
-          });
-        }
+      const metadata: FunctionMetadata = {
+        name,
+        description: annotationDescription(fn.annotations) ?? '',
+        params,
+        returnType: formatStructure(resolveReturnStructure(fn)),
+      };
+      if (getBuiltinFunctionCache().get(name) === fn) {
+        builtinFunctions.push(metadata);
       } else {
-        // Built-in function (no parameter metadata)
-        builtinFunctions.push({
-          name,
-          description: '',
-          params: [],
-          returnType: 'any',
-        });
+        hostFunctions.push(metadata);
       }
     } catch {
       // Malformed function entry skipped
@@ -383,9 +362,8 @@ function serializeClosureSignature(
  * Returns a string containing a valid rill file: a dict literal of
  * string-keyed closure type signatures followed by `-> export`.
  *
- * Only `ApplicationCallable` entries with `params !== undefined` are included.
- * `RuntimeCallable` entries are excluded. Built-in functions (by registered builtin name) are excluded.
- * `ApplicationCallable` entries with `params: undefined` are skipped silently.
+ * Every registered host function is included. Built-in functions (by registered
+ * builtin name) are excluded.
  *
  * Empty function map produces `[:]` followed by `-> export`.
  *
@@ -396,23 +374,16 @@ export function generateManifest(ctx: RuntimeContext): string {
   const entries: string[] = [];
 
   for (const [name, fn] of ctx.functions.entries()) {
-    // Exclude RuntimeCallable entries and built-in functions by name
-    if (
-      (typeof fn !== 'function' && isRuntimeCallable(fn)) ||
-      isBuiltinFunctionName(name)
-    ) {
+    // Exclude built-ins by identity so a host function overriding a built-in
+    // name is still included
+    if (getBuiltinFunctionCache().get(name) === fn) {
       continue;
     }
 
-    // Include only ApplicationCallable entries with params defined
-    if (typeof fn === 'function' || !isApplicationCallable(fn)) continue;
     const callable = fn;
-    if (callable.params === undefined) {
-      continue;
-    }
 
     const signature = serializeClosureSignature(
-      callable.params,
+      declaredParams(callable, name),
       resolveReturnStructure(callable),
       annotationDescription(callable.annotations)
     );

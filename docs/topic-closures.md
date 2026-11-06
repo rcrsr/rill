@@ -227,7 +227,6 @@ $fn()
 | Named param `\|x: string\| { ... }` | `ordered(x: string)` |
 | Named with default `\|a: string, b: string = "hi"\| { ... }` | `ordered(a: string, b: string = "hi")` |
 | Zero-param host callable | `ordered()` |
-| Untyped host callable | `ordered()` |
 | Non-callable value | Raises RILL-R003 |
 
 ```rill

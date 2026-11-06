@@ -724,9 +724,9 @@ import { createRuntimeContext, toCallable } from '@rcrsr/rill';
 
 const ctx = createRuntimeContext({
   variables: {
-    prompt: toCallable({ params: [{ name: 'text', type: { kind: 'string' } }], fn: async (args) => await callLLM(args[0]) }),
+    prompt: toCallable({ params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }], fn: async (args) => await callLLM(args.text) }),
     io: {
-      read: toCallable({ params: [{ name: 'path', type: { kind: 'string' } }], fn: async (args) => fs.readFile(String(args[0]), 'utf-8') }),
+      read: toCallable({ params: [{ name: 'path', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }], fn: async (args) => fs.readFile(String(args.path), 'utf-8') }),
     },
     config: { apiUrl: 'https://api.example.com' },
   },

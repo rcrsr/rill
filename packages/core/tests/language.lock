@@ -6,10 +6,10 @@
 #
 # 99 files.
 8c19b450531ab683eb902280ec7026d2eaa8c90295acc57478f7146a9e8c7513  packages/core/tests/language/access-halt.test.ts
-0ca7c6bd28cc79821c8f8bd049bc44e52b65fd979bb314317d15ebc43b5f12d8  packages/core/tests/language/annotations.test.ts
+b4a4c672aa0346c65c391a22869c852b64f21340e7326fe7d16ee06a47873cd5  packages/core/tests/language/annotations.test.ts
 eefe3850b2801446bebdb57e6e4a16adc6abc03d066640651db92872c251e551  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
 e872cfed8454e0ae867e90e64d7ba4c12525c1ae0dfd5fc571f68770c030b0ce  packages/core/tests/language/anonymous-typed-closure.test.ts
-0b494af36a3196a41eb5387dd5ac2fc9bf0723c68651643e808ef40419e8b332  packages/core/tests/language/args.test.ts
+7f0692c761ca29da590eab5e594dea432488ed0180fd847a15de4b918605c8fd  packages/core/tests/language/args.test.ts
 647b3cacab99904cad02f54998d17a996d14e6a97267adf83d0bf3503af7b2d2  packages/core/tests/language/arithmetic.test.ts
 bc7319046983e414375a542e25279b6c60d812eac108dfba07d68ca08a93f2c1  packages/core/tests/language/assert.test.ts
 62fa45fce3632f1b937efdfbfda3ea07bb72112c550303c365a759d98ece7fc5  packages/core/tests/language/atoms.test.ts
@@ -98,7 +98,7 @@ e1e4f2b3264cbeaffeb39cf5de1e0f6a5322725f05fe4b21881b592e689ece1e  packages/core/
 70a8f2c2af95401ef2cc64dd2001be0c18ea46a3bbb46cc09dfce203ba7f2679  packages/core/tests/language/unified-dispatch.test.ts
 6753b0cc5bde25eee5987db0a6d0bf28a815f908baefa0ceb861541cd6e79ea6  packages/core/tests/language/uniform-value-type.test.ts
 e3bc188bd0d6129bc77618459d9fd17ff9d373fae19aaa4c801bbced7fa06354  packages/core/tests/language/union-types.test.ts
-1aff3eb3ba15ad9bf9f429a1de0b79792bb31854a6a7ec06cc137ece421b3bdf  packages/core/tests/language/use-expr.test.ts
+0e68d923055235d4b155c40212109251c62c38060c0309a588356c236019915d  packages/core/tests/language/use-expr.test.ts
 4653ac606a658d04ec6d8943eef31093b5d5b0c51ebb91ecb70fb85d69be767b  packages/core/tests/language/vacancy-coerce.test.ts
 430ca46cac1368974a677c9481c9375b4036b2ec9fa2356368224950a7151deb  packages/core/tests/language/variable-method-calls.test.ts
 fc077bc9db205847b64e2d9940e8045347cf7c93cc850d3964cb3b69a6139d6d  packages/core/tests/language/variables.test.ts

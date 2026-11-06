@@ -179,13 +179,14 @@ iterate(0, { $ + 1 }) -> seq({ $ })
 
 | Condition | Error |
 |-----------|-------|
-| Closure is missing or not invocable | Catchable halt: `RILL_R006` |
+| Closure is missing | `RILL-R044`, a non-catchable halt (`guard` does not catch it) |
+| Closure is not invocable | Catchable halt: `RILL_R006` |
 | Closure produces a catchable halt | Propagates as catchable |
 | Closure produces a non-catchable halt | Propagates as non-catchable |
 | Iteration exceeds 10,000 chunks | Non-catchable halt `RILL_R010` at a materializing consumer such as `seq` or `fold`; catchable when `take` or `skip` raises it |
 
 ```text
-# Error: RILL_R006 — closure is required
+# Error: RILL-R044 — Missing argument for parameter 'closure'
 iterate(0)
 ```
 

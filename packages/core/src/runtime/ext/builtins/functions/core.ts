@@ -15,7 +15,7 @@ import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, makeGenericIterator, getPositionalArgs } from '../shared.js';
+import { MAX_ITER, makeGenericIterator } from '../shared.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
@@ -45,21 +45,9 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       },
     ],
     returnType: anyTypeValue,
-    fn: (args, ctx, location) => {
-      // log is in UNTYPED_BUILTINS (allows excess args), receives positional array cast as Record.
-      // Use index 0 for the message value.
-      const positional = getPositionalArgs(args);
-      if (positional.length === 0) {
-        throwCatchableHostHalt(
-          { location, sourceId: ctx.sourceId, fn: 'log' },
-          ERROR_ATOMS[ERROR_IDS.RILL_R044],
-          "Missing argument for parameter 'message'",
-          { functionName: 'log', paramName: 'message' }
-        );
-      }
-      const value = positional[0] ?? null;
-      const message = formatValue(value);
-      ctx.callbacks.onLog(message);
+    fn: (args, ctx) => {
+      const value = args['message'] ?? null;
+      ctx.callbacks.onLog(formatValue(value));
       return value;
     },
   },
@@ -263,27 +251,9 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: async (args, ctx, location) => {
-      // chain is in UNTYPED_BUILTINS, receives positional array cast as Record.
-      // Pipe position: 5 -> chain($closure) sends args=[$closure] with pipeValue=5.
-      // Detect this by checking if there is exactly one arg and a pipe value is set.
-      const positional = getPositionalArgs(args);
-      let value: RillValue;
-      let arg: RillValue;
-      let argSupplied: boolean;
-      if (positional.length === 1 && ctx.pipeValue !== null) {
-        value = ctx.pipeValue;
-        arg = positional[0] ?? null;
-        argSupplied = positional.length > 0;
-      } else {
-        value = positional[0] ?? null;
-        arg = positional[1] ?? null;
-        argSupplied = positional.length > 1;
-      }
-      // A genuinely absent argument (no positional slot at all) is distinct
-      // from a supplied value that happens to be rill's null (which the type
-      // system reports as 'string'). Report the absence itself rather than
-      // running the missing slot through inferType's string fallback.
-      const argTypeName = argSupplied ? inferType(arg) : 'missing';
+      const value: RillValue = args['value'] ?? null;
+      const arg: RillValue = args['transform'] ?? null;
+      const argTypeName = inferType(arg);
 
       if (Array.isArray(arg)) {
         // List of closures: fold left-to-right
@@ -329,7 +299,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
    * produce the next value (which becomes the next seed).
    *
    * Call form:  iterate(seed, closure)
-   * Pipe form:  $seed -> iterate(closure)   (pipeValue auto-detected)
+   * Pipe form:  $seed -> iterate(closure)   (pipe value supplies the seed)
    *
    * The stream is unbounded; bound it externally with take(n), stop_when,
    * or let RILL_R010 enforce the MAX_ITER ceiling.
@@ -338,7 +308,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
    *   Closure throws catchable halt   → propagates (catchable)
    *   Closure throws non-catchable    → propagates (non-catchable)
    *   Iteration exceeds MAX_ITER      → RILL_R010 (non-catchable)
-   *   Closure missing/not invocable   → RILL_R006 (catchable)
+   *   Closure not invocable           → RILL_R006 (catchable)
    */
   iterate: {
     params: [
@@ -357,22 +327,8 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
     ],
     returnType: anyTypeValue,
     fn: (args, ctx, location) => {
-      // iterate is in UNTYPED_BUILTINS; receives a positional array cast as Record.
-      // Pipe form: $seed -> iterate($closure) sends args=[$closure] with pipeValue=$seed.
-      // Detect by checking whether there is exactly one arg and a pipe value is set.
-      const positional = getPositionalArgs(args);
-      let seed: RillValue;
-      let closureArg: RillValue;
-      let closureArgSupplied: boolean;
-      if (positional.length === 1 && ctx.pipeValue !== null) {
-        seed = ctx.pipeValue;
-        closureArg = positional[0] ?? null;
-        closureArgSupplied = positional.length > 0;
-      } else {
-        seed = positional[0] ?? null;
-        closureArg = positional[1] ?? null;
-        closureArgSupplied = positional.length > 1;
-      }
+      const seed: RillValue = args['seed'] ?? null;
+      const closureArg: RillValue = args['closure'] ?? null;
 
       const site = {
         location,
@@ -381,18 +337,10 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       if (!isCallable(closureArg)) {
-        // A genuinely absent argument (no positional slot at all) is
-        // distinct from a supplied value that happens to be rill's null
-        // (which the type system reports as 'string'). Report the absence
-        // itself rather than running the missing slot through inferType's
-        // string fallback.
-        const closureTypeName = closureArgSupplied
-          ? inferType(closureArg)
-          : 'missing';
         throwCatchableHostHalt(
           site,
-          'RILL_R006',
-          `iterate: closure must be a callable, got ${closureTypeName}`
+          ERROR_ATOMS[ERROR_IDS.RILL_R006],
+          `iterate: closure must be a callable, got ${inferType(closureArg)}`
         );
       }
 
@@ -411,7 +359,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
             if (stepCount > MAX_ITER) {
               throwFatalHostHalt(
                 site,
-                'RILL_R010',
+                ERROR_ATOMS[ERROR_IDS.RILL_R010],
                 `iterate: iteration exceeded ${MAX_ITER} limit`
               );
             }

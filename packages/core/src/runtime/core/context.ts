@@ -426,8 +426,7 @@ export function createRuntimeContext(
   >();
   const functions = new Map<
     string,
-    | import('./callable.js').CallableFn
-    | import('./callable.js').ApplicationCallable
+    import('./callable.js').ApplicationCallable
   >();
   // Set initial variables (and infer their types)
   if (options.variables) {

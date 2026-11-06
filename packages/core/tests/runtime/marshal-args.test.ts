@@ -1078,10 +1078,9 @@ describe('.^input default preservation', () => {
     });
   });
 
-  describe('AC-20: untyped callable → empty ordered type', () => {
-    it('callable() factory (untyped host callable) returns empty ordered type for .^input', async () => {
-      // The callable() factory sets params to undefined (untyped).
-      // evaluateAnnotationAccess returns structureToTypeValue({ kind: 'ordered', fields: [] }) for this case.
+  describe('zero-param callable → empty ordered type', () => {
+    it('callable() factory (zero-param host callable) returns empty ordered type for .^input', async () => {
+      // The callable() factory declares params: [], so .^input is an empty ordered type.
       const { callable } = await import('@rcrsr/rill');
       const result = (await run('$fn.^input', {
         variables: {
