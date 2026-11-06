@@ -12,30 +12,17 @@ import {
   execute,
   createRuntimeContext,
   toCallable,
-  structureToTypeValue,
   RuntimeHaltSignal,
   type ExtensionFactoryResult,
-  type RillParam,
-  type RillValue,
-  type TypeStructure,
 } from '@rcrsr/rill';
-
-// Fills the fields RillParam requires; adds no behavior.
-const param = (
-  name: string,
-  type: TypeStructure,
-  defaultValue?: RillValue,
-  annotations: Record<string, RillValue> = {}
-): RillParam => ({ name, type, defaultValue, annotations });
 
 function createMyExtension(config: { model: string }): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        params: [param('text', { kind: 'string' })],
+        signature: '|text: string|:string',
         fn: async (args) => await callLLM(args.text, config.model),
-        annotations: { description: 'Send a prompt to the LLM' },
-        returnType: structureToTypeValue({ kind: 'string' }),
+        description: 'Send a prompt to the LLM',
       }),
     },
   };
@@ -66,8 +53,6 @@ try {
 }
 ```
 
-`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
-
 ### Direct Registration (Legacy)
 
 ```typescript
@@ -77,10 +62,7 @@ import {
   createRuntimeContext,
   callable,
   toCallable,
-  anyTypeValue,
-  structureToTypeValue,
   RuntimeHaltSignal,
-  type RillValue,
 } from '@rcrsr/rill';
 
 const script = `
@@ -99,11 +81,7 @@ const ctx = createRuntimeContext({
       // Property-style callable (computed property)
       timestamp: callable(() => Date.now(), true),
       format: toCallable({
-        params: [
-          param('template', { kind: 'string' }),
-          param('value', { kind: 'string' }),
-        ],
-        returnType: anyTypeValue,
+        signature: '|template: string, value: string|:any',
         fn: (args) =>
           String(args.template).replace(/\{\}/g, () => String(args.value)),
       }),
@@ -112,13 +90,12 @@ const ctx = createRuntimeContext({
 
   functions: {
     prompt: {
-      params: [param('text', { kind: 'string' })],
+      signature: '|text: string|:string',
       fn: async (args, ctx, location) => {
         console.log(`[prompt at line ${location?.line}]`);
         return await callLLM(args.text);
       },
-      annotations: { description: 'Send a prompt to the LLM and return the response' },
-      returnType: structureToTypeValue({ kind: 'string' }),
+      description: 'Send a prompt to the LLM and return the response',
     },
   },
 
@@ -278,6 +255,7 @@ export type { Token, TokenType };
 // Extension types
 export type { ExtensionFactoryResult, ExtensionFactory, ExtensionEvent, ExtensionManifest, ExtensionConfigSchema };
 export type { ExtensionFactoryCtx };
+export type { RillFunctionShorthand, RillFunctionDefinition };
 
 // Extension utilities
 export { toCallable, createTestContext, emitExtensionEvent };
@@ -707,7 +685,7 @@ type CallableFn = (
 
 **Returns:** `RillValue` or `Promise<RillValue>`. `RillStream` is a valid `RillValue` return. Use `createRillStream` to build a stream from an `AsyncIterable`. See [Stream Helpers](#stream-helpers) for construction details. A return value that is not a `RillValue`—including one nested inside a returned array or plain object—halts at the call boundary with `RILL-R085`. A returned non-finite number (`NaN`, `Infinity`, `-Infinity`) halts catchably with `#INVALID_INPUT` instead. See [Return Values](integration-host.md#return-values) for the full contract.
 
-**Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Every callable is marshaled, including those created via `callable()`. `callable(fn)` declares no parameters, so calling it with arguments halts with `RILL-R045`; property-style `callable(fn, true)` reads the bound dict from `args.self`, not `args[0]`. Use `toCallable` with declared `params` for callables that take arguments.
+**Migration note:** The `args` parameter changed from `RillValue[]` (positional) to `Record<string, RillValue>` (named). Replace `args[0]` with `args.paramName` for each parameter. Every callable is marshaled, including those created via `callable()`. `callable(fn)` declares no parameters, so calling it with arguments halts with `RILL-R045`; property-style `callable(fn, true)` reads the bound dict from `args.self`, not `args[0]`. Use `toCallable` with declared `params` or a `signature` for callables that take arguments.
 
 ### Typed dict keys
 
@@ -727,7 +705,7 @@ A dict value in `args` is a live `RillValue`; its number- and boolean-keyed entr
 
 ## RillFunction
 
-`RillFunction` is the single registration path for all host functions.
+`RillFunction` is the explicit form of a host function declaration. `toCallable(def)` and `createRuntimeContext({ functions })` also accept the signature shorthand. Both input forms declare the same function; the runtime normalizes the shorthand to a `RillFunction` at registration.
 
 ```typescript
 interface RillFunction {
@@ -777,6 +755,74 @@ const fn: RillFunction = {
 
 Hydration applies only to trailing elements. A missing non-trailing element with no default raises `RILL-R009`. Hydration does not apply to list, dict, ordered, or closure types.
 
+### Signature Shorthand
+
+```typescript
+interface RillFunctionShorthand {
+  readonly signature: string;
+  readonly fn: CallableFn;
+  readonly annotations?: Record<string, RillValue>;
+  readonly description?: string;
+}
+
+type RillFunctionDefinition = RillFunction | RillFunctionShorthand;
+```
+
+```typescript
+const greet: RillFunctionShorthand = {
+  signature: '|^(description: "Name to greet") name: string, times: number = 1|:string',
+  fn: (args) => `hello ${args.name}`,
+  description: 'Greet a caller',
+};
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `signature` | `string` | Signature in the form `\|name: type, ...\|:returnType`. Supplies `params` and `returnType`. An omitted return type means `any` |
+| `fn` | `CallableFn` | The function implementation. See [CallableFn](#callablefn) |
+| `annotations` | `Record<string, RillValue> \| undefined` | Function-level metadata. Optional |
+| `description` | `string \| undefined` | Stored as `annotations.description`. Optional |
+
+| Entry point | Accepts shorthand |
+|-------------|-------------------|
+| `toCallable(def)` | Yes |
+| `createRuntimeContext({ functions })` | Yes |
+| `TypeDefinition.methods` and other `RillFunction` fields | No |
+
+| Supported syntax | Example |
+|------------------|---------|
+| Type names | `string`, `number`, `bool`, `any` |
+| Unions | `string\|number` |
+| List type | `list(string)` |
+| Named dict type | `dict(k: string)` |
+| Tuple type | `tuple(number, string)` |
+| Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
+| Parameter annotations | `^(description: "text") name: string` |
+| Function annotations | `^(category: "io") \|a: string\|` before the parameter list |
+
+Annotation values in a signature are string-valued. `||` declares no parameters.
+
+Use the explicit form for these declarations:
+
+| Declaration | Reason |
+|-------------|--------|
+| Tuple field defaults | The signature cannot express `fields[].defaultValue` |
+| Stream types | The signature cannot express `stream(...)` |
+| Dict defaults | Defaults are limited to string, number, and bool literals |
+| `skipReceiverValidation` | The shorthand has no such field |
+
+Registration throws `RuntimeError` with `RILL-R091` in these cases:
+
+| Condition | Message |
+|-----------|---------|
+| Signature fails to lex, parse, or convert | `Invalid signature for function '{name}': {detail} at {line}:{col}`; the position is 1-based inside the signature string |
+| `params` or `returnType` supplied with `signature` | `Invalid signature for function '{name}': supply either signature or params and returnType, not both` |
+| `signature` is not a string | `Invalid signature for function '{name}': signature must be a string` |
+| `description` is not a string | `Invalid signature for function '{name}': description must be a string` |
+| One annotation key declared by more than one source (signature, `annotations`, `description`) | `Invalid signature for function '{name}': annotation '{key}' is declared more than once` |
+
+`{name}` is the key in `functions`. `toCallable` has no key, so it reports `<anonymous>`. A default that does not match its declared type keeps `RILL-R077`.
+
 ---
 
 ## Stream Helpers
@@ -824,7 +870,7 @@ import { createRillStream, structureToTypeValue } from '@rcrsr/rill';
 import type { RillFunction, RillValue } from '@rcrsr/rill';
 
 const fn: RillFunction = {
-  params: [param('prompt', { kind: 'string' })],
+  params: [{ name: 'prompt', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
   fn: async (args) => {
     async function* generateChunks(): AsyncIterable<RillValue> {
       for await (const token of streamLLM(args.prompt as string)) {

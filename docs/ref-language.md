@@ -723,28 +723,18 @@ rill is a vanilla language. The host application registers domain-specific funct
 
 ```typescript
 import { createRuntimeContext, toCallable } from '@rcrsr/rill';
-import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
-
-// Fills the fields RillParam requires; adds no behavior.
-const param = (
-  name: string,
-  type: TypeStructure,
-  defaultValue?: RillValue,
-  annotations: Record<string, RillValue> = {}
-): RillParam => ({ name, type, defaultValue, annotations });
 
 const ctx = createRuntimeContext({
   variables: {
-    prompt: toCallable({ params: [param('text', { kind: 'string' })], fn: async (args) => await callLLM(args.text) }),
+    prompt: toCallable({ signature: '|text: string|:string', fn: async (args) => await callLLM(args.text) }),
     io: {
-      read: toCallable({ params: [param('path', { kind: 'string' })], fn: async (args) => fs.readFile(String(args.path), 'utf-8') }),
+      read: toCallable({ signature: '|path: string|:string', fn: async (args) => fs.readFile(String(args.path), 'utf-8') }),
     },
     config: { apiUrl: 'https://api.example.com' },
   },
 });
 ```
 
-`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior.
 
 Scripts call these as `prompt("text")` or `io.read("file.txt")`.
 

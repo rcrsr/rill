@@ -6,7 +6,8 @@
  */
 
 import type { RillTypeName } from '../../../types.js';
-import type { RillCallable, RillFunction } from '../callable.js';
+import type { RillCallable } from '../callable.js';
+import type { RillFunctionDefinition } from '../function-shorthand.js';
 import { isCallable } from '../callable.js';
 import { copyExtensionIdentity } from '../policy/identity.js';
 import type { TypeStructure, RillValue } from './structures.js';
@@ -341,7 +342,7 @@ export interface RuntimeOptions {
   /** Initial variables */
   variables?: Record<string, RillValue>;
   /** Host functions: structured definitions */
-  functions?: Record<string, RillFunction>;
+  functions?: Record<string, RillFunctionDefinition>;
   /** I/O callbacks */
   callbacks?: Partial<RuntimeCallbacks>;
   /** Observability callbacks for monitoring execution */

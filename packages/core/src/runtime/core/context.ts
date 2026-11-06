@@ -45,6 +45,7 @@ import {
   type RillFunction,
 } from './callable.js';
 import { ERROR_IDS } from '../../error-registry.js';
+import { normalizeFunctionDefinition } from './function-shorthand.js';
 import {
   inheritPolicyState,
   installFilterResolver,
@@ -457,7 +458,8 @@ const defaultCallbacks: RuntimeCallbacks = {
  * This is the main entry point for configuring the Rill runtime.
  *
  * @throws {RuntimeError} RILL-R085 when a `functions` entry has no usable
- * parameter declaration (a host setup error, thrown before any script runs)
+ * parameter declaration, or RILL-R091 when its signature shorthand is invalid
+ * (host setup errors, thrown before any script runs)
  */
 export function createRuntimeContext(
   options: RuntimeOptions = {}
@@ -490,7 +492,8 @@ export function createRuntimeContext(
 
   // Set custom functions (can override built-ins)
   if (options.functions) {
-    for (const [name, definition] of Object.entries(options.functions)) {
+    for (const [name, rawDefinition] of Object.entries(options.functions)) {
+      const definition = normalizeFunctionDefinition(name, rawDefinition);
       const fault = paramsDeclarationFault(definition.params);
       if (fault !== undefined) {
         throw new RuntimeError(
