@@ -31,6 +31,8 @@ version, then run the sync command. The tag must equal the **root** version.
   `packages/core` exactly (character-for-character), and reconciles core's
   major.minor to root. Run it after editing the two manifests above; it owns
   `packages/service/package.json`, so never hand-edit that file.
+- **Then run `pnpm fix:baseline`** and commit `packages/dev/baseline.json`; it records the
+  published `@rcrsr/rill` versions, and `pnpm check:standards` fails CI as stale otherwise.
 - **Do NOT bump:** `packages/dev` (its own `dev-v*` track), `packages/fiddle`,
   `packages/web` (private, pinned at `0.1.0`).
 
