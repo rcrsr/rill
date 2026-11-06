@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.0 - 2026-11-05
+
 ### Added
 
 - **`TimeoutScheduler` type export:** `@rcrsr/rill` now exports `TimeoutScheduler`, the type of the `scheduler` option on `createRuntimeContext()`. Hosts that inject their own timers no longer need to derive it from `RuntimeOptions`. The `scheduler` option is now documented in the host integration guide and the Host API reference: it drives the `timeout<total:>` and `timeout<idle:>` block timers and the per-call `timeout` option. ([#488](https://github.com/rcrsr/rill/pull/488))
