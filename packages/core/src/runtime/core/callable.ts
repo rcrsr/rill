@@ -776,6 +776,18 @@ export function validateHostResult(
   );
 }
 
+/**
+ * Views a positional argument array as the Record-typed argument bag that
+ * `CallableFn` declares. Untyped callables (params undefined) receive their
+ * positional arguments as an array-valued bag at runtime.
+ */
+export function untypedArgsRecord(
+  args: readonly (RillValue | undefined)[]
+): Record<string, RillValue> {
+  // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- CallableFn declares a Record argument bag; untyped callables receive the positional array through it by design
+  return args as unknown as Record<string, RillValue>;
+}
+
 /** True when `value`'s prototype is `Object.prototype` or `null`, i.e. it is
  * a plain object literal rather than a class instance. */
 function isPlainObject(value: object): value is Record<string, unknown> {
