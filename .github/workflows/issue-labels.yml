@@ -63,6 +63,18 @@ jobs:
             const { owner, repo } = context.repo;
             const number = context.payload.issue.number;
 
+            // Settle window. `gh issue create --label --type` (and the web form)
+            // attach the Issue Type a few seconds AFTER `opened`; on #525 the
+            // `opened` run read the issue before the type landed and posted the
+            // guidance comment 9s after creation, although the issue conformed
+            // moments later. Reading fresh state does not help when the state
+            // has not been written yet, so the run that would comment waits for
+            // the burst to finish first. Later events in the burst queue behind
+            // this run in the concurrency group and re-sync the label.
+            if (['opened', 'reopened'].includes(context.payload.action)) {
+              await new Promise(resolve => setTimeout(resolve, 30_000));
+            }
+
             // Read every axis fresh at execution time rather than trusting
             // `context.payload.issue`, which is a snapshot frozen when the event
             // fired and can be arbitrarily stale by the time this job runs.
@@ -133,11 +145,24 @@ jobs:
             const hasTriage = names.includes(TRIAGE);
 
             if (ok) {
-              // Fully triaged: drop the flag if present, say nothing.
+              // Fully triaged: drop the flag if present.
               if (hasTriage) {
                 await github.rest.issues.removeLabel({
                   owner, repo, issue_number: number, name: TRIAGE,
                 }).catch(() => {}); // tolerate concurrent removal
+              }
+              // Retract our own guidance comment: once the issue conforms it is
+              // stale (it asks for metadata that is already set). Only comments
+              // this workflow posted are touched.
+              const prior = await github.paginate(github.rest.issues.listComments, {
+                owner, repo, issue_number: number, per_page: 100,
+              });
+              for (const c of prior) {
+                if (c.user?.login === 'github-actions[bot]' && c.body.includes(MARKER)) {
+                  await github.rest.issues.deleteComment({
+                    owner, repo, comment_id: c.id,
+                  }).catch(() => {}); // tolerate concurrent deletion
+                }
               }
               return;
             }
