@@ -664,10 +664,23 @@ export const mHas: RillMethod = (receiver, args, ctx, location) => {
 
 /**
  * Narrow a `list`-typed signature argument. marshalArgs rejects non-lists
- * before the body runs, so the empty fallback only types the direct-call path.
+ * before the body runs, so a non-list here means a direct call bypassed
+ * marshalling; halt instead of treating it as an empty list.
  */
-function listArg(value: RillValue | undefined): readonly RillValue[] {
-  return Array.isArray(value) ? value : [];
+function listArg(
+  value: RillValue | undefined,
+  fn: string,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined
+): readonly RillValue[] {
+  if (Array.isArray(value)) return value;
+  return throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn, preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R001],
+    `${fn}() candidates expects list, got ${
+      value === undefined ? 'nothing' : inferType(value)
+    }`
+  );
 }
 
 /** Check if list contains any value from candidates (deep equality) */
@@ -684,7 +697,7 @@ export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
       `has_any() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  const candidates = listArg(args[0]);
+  const candidates = listArg(args[0], 'has_any', ctx, location);
   for (const candidate of candidates) {
     for (const item of receiver) {
       if (deepEquals(item, candidate)) return true;
@@ -707,7 +720,7 @@ export const mHasAll: RillMethod = (receiver, args, ctx, location) => {
       `has_all() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  const candidates = listArg(args[0]);
+  const candidates = listArg(args[0], 'has_all', ctx, location);
   for (const candidate of candidates) {
     let found = false;
     for (const item of receiver) {

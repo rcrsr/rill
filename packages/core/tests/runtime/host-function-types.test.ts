@@ -571,7 +571,7 @@ describe('Rill Runtime: Host Function Type Safety', () => {
           })
         ).rejects.toMatchObject({
           errorId: 'RILL-R045',
-          message: stringContaining('expects 1 arguments, got 2'),
+          message: stringContaining('expects 1 argument, got 2'),
           context: objectContaining({
             functionName: 'test',
             expectedCount: 1,

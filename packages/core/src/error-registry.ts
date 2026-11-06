@@ -1516,13 +1516,13 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R044,
     category: 'runtime',
-    description: 'Missing required member in conversion',
+    description: 'Missing required member or missing argument',
     messageTemplate:
       "cannot convert {source} to {target}: missing required member '{name}'",
     cause:
-      'The `-> type` form requires all fields/elements without defaults to be present in the source value.',
+      'The `-> type` form requires all fields/elements without defaults to be present in the source value. A call also raises this code with the message "Missing argument for parameter \'<name>\'" when a required parameter receives no argument.',
     resolution:
-      'Supply the missing field or element in the source value, or add a default to the type annotation.',
+      'Supply the missing field or element in the source value, or add a default to the type annotation. For a call, pass the missing argument or give the parameter a default.',
     examples: [
       {
         description: 'Dict missing a required field',
@@ -1540,7 +1540,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'Too many arguments passed to callable',
     messageTemplate:
-      'Function expects {expectedCount} arguments, got {actualCount}',
+      'Function expects {expectedCount} {expectedNoun}, got {actualCount}',
     cause:
       'The number of arguments passed to a callable exceeds the number of declared parameters.',
     resolution:

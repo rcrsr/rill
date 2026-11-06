@@ -303,7 +303,7 @@ describe('Rill Runtime: Closure Semantics', () => {
         `),
         {
           code: 'RILL-R045',
-          messagePattern: /expects 1 arguments, got 2/,
+          messagePattern: /expects 1 argument, got 2/,
         }
       );
     });

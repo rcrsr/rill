@@ -33,9 +33,9 @@
  *   stricter, pre-existing guard; the `isTypeValue` check added to the
  *   method bodies is defense in depth for callers that reach the method
  *   body directly, not the path exercised by `^type -> .first()` here.
- * - a bare number receiver does not halt at all for `.keys`/`.values`/
- *   `.entries` (a pre-existing, separate leniency in the
- *   `skipReceiverValidation` fallback scan, out of this task's scope), so
+ * - a plain non-dict, non-brand receiver (a bare number or string) returns
+ *   `[]` for `.keys`/`.values`/`.entries` by language contract (see
+ *   `returns empty list for non-dict` in tests/language/spread.test.ts), so
  *   it is not usable as the parity baseline for those three methods.
  *
  * `vector` is a fifth branded shape (`__rill_vector`) guarded the same way
@@ -143,6 +143,27 @@ describe('brand-value guards against the generic dict path', () => {
       });
     }
   );
+
+  describe('non-dict receivers', () => {
+    it.each(['keys', 'values', 'entries'])(
+      'number receiver returns [] for .%s, matching the string contract',
+      async (method) => {
+        expect(await run(`5 -> .${method}`)).toEqual([]);
+        expect(await run(`"hello" -> .${method}`)).toEqual([]);
+      }
+    );
+
+    it.each(['5', '"s"', 'true', 'list[1]'])(
+      'halts .zero on %s instead of returning a datetime',
+      async (expr) => {
+        const halt = await haltOf(`${expr} -> .zero`);
+        expect(halt.errorId).toBe('RILL-R003');
+        expect(halt.message).toMatch(
+          /zero requires datetime or duration receiver/
+        );
+      }
+    );
+  });
 
   // vector is not constructable via rill syntax, so it is exercised outside
   // the BRANDS table above (which drives its cases from a parseable rill

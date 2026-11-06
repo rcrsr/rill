@@ -320,6 +320,11 @@ export function validateDefaultValueType(
   }
 }
 
+/** Noun agreeing with an argument count: "argument" for 1, else "arguments". */
+function argumentNoun(count: number): string {
+  return count === 1 ? 'argument' : 'arguments';
+}
+
 /**
  * Options for marshalArgs error reporting.
  */
@@ -328,6 +333,12 @@ export interface MarshalOptions {
   readonly functionName: string;
   /** Source location for error reporting */
   readonly location: SourceLocation | undefined;
+  /**
+   * Number of leading args and params that are an implicit receiver rather
+   * than user-written arguments (1 for type methods). Arity messages and
+   * context subtract it so counts match what the script wrote.
+   */
+  readonly receiverOffset?: number | undefined;
 }
 
 /**
@@ -652,14 +663,19 @@ export function marshalArgs(
 
   // Stage 1: Excess args check
   if (args.length > params.length) {
+    const offset = options?.receiverOffset ?? 0;
+    const expectedCount = params.length - offset;
+    const actualCount = args.length - offset;
+    const expectedNoun = argumentNoun(expectedCount);
     throw new RuntimeError(
       ERROR_IDS.RILL_R045,
-      `Function expects ${params.length} arguments, got ${args.length}`,
+      `Function expects ${expectedCount} ${expectedNoun}, got ${actualCount}`,
       location,
       {
         functionName,
-        expectedCount: params.length,
-        actualCount: args.length,
+        expectedCount,
+        expectedNoun,
+        actualCount,
       }
     );
   }

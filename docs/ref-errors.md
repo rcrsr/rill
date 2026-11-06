@@ -1284,11 +1284,11 @@ $dict -> ordered  # Ambiguous field order
 
 ### rill-r044
 
-**Description:** Missing required member in conversion
+**Description:** Missing required member or missing argument
 
-**Cause:** The `-> type` form requires all fields/elements without defaults to be present in the source value.
+**Cause:** The `-> type` form requires all fields/elements without defaults to be present in the source value. A call also raises this code with the message "Missing argument for parameter '<name>'" when a required parameter receives no argument.
 
-**Resolution:** Supply the missing field or element in the source value, or add a default to the type annotation.
+**Resolution:** Supply the missing field or element in the source value, or add a default to the type annotation. For a call, pass the missing argument or give the parameter a default.
 
 **Example:**
 

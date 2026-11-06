@@ -4,13 +4,14 @@
  */
 
 import { describe, it } from 'vitest';
+import { BUILTIN_METHODS, createRuntimeContext } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectRuntimeError } from '../helpers/halt.js';
+import { expectHaltSync, expectRuntimeError } from '../helpers/halt.js';
 
 describe('list membership method argument errors', () => {
   it.each([
     ['.has()', 'RILL-R044', /Missing argument for parameter 'value'/],
-    ['.has(1, 2)', 'RILL-R045', /expects \d+ arguments, got \d+/],
+    ['.has(1, 2)', 'RILL-R045', /Function expects 1 argument, got 2/],
     ['.has_any()', 'RILL-R044', /'candidates'/],
     ['.has_any(1)', 'RILL-R001', /candidates expects list/],
     ['.has_all()', 'RILL-R044', /'candidates'/],
@@ -22,6 +23,20 @@ describe('list membership method argument errors', () => {
         code,
         messagePattern,
       });
+    }
+  );
+});
+
+describe('list membership direct calls', () => {
+  it.each(['has_any', 'has_all'] as const)(
+    'halts %s with RILL-R001 when candidates is not a list',
+    (name) => {
+      const ctx = createRuntimeContext({});
+      const method = BUILTIN_METHODS.list[name];
+      expectHaltSync(
+        () => method!.fn({ receiver: [1, 2, 3], candidates: 5 }, ctx),
+        { code: 'RILL_R001', messagePattern: /candidates expects list/ }
+      );
     }
   );
 });

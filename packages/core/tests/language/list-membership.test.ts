@@ -124,7 +124,7 @@ describe('Rill Runtime: List Membership Methods', () => {
 
       it('throws when called with too many arguments', async () => {
         await expect(run('list[1, 2, 3] -> .has(1, 2)')).rejects.toThrow(
-          'Function expects 2 arguments, got 3'
+          'Function expects 1 argument, got 2'
         );
       });
     });
@@ -277,7 +277,7 @@ describe('Rill Runtime: List Membership Methods', () => {
       it('throws when called with too many arguments', async () => {
         await expect(
           run('list[1, 2, 3] -> .has_any(list[1], list[2])')
-        ).rejects.toThrow('Function expects 2 arguments, got 3');
+        ).rejects.toThrow('Function expects 1 argument, got 2');
       });
     });
 
@@ -417,7 +417,7 @@ describe('Rill Runtime: List Membership Methods', () => {
       it('throws when called with too many arguments', async () => {
         await expect(
           run('list[1, 2, 3] -> .has_all(list[1], list[2])')
-        ).rejects.toThrow('Function expects 2 arguments, got 3');
+        ).rejects.toThrow('Function expects 1 argument, got 2');
       });
     });
 
