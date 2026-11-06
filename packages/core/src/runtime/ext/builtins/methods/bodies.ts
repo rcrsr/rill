@@ -662,6 +662,14 @@ export const mHas: RillMethod = (receiver, args, ctx, location) => {
   return false;
 };
 
+/**
+ * Narrow a `list`-typed signature argument. marshalArgs rejects non-lists
+ * before the body runs, so the empty fallback only types the direct-call path.
+ */
+function listArg(value: RillValue | undefined): readonly RillValue[] {
+  return Array.isArray(value) ? value : [];
+}
+
 /** Check if list contains any value from candidates (deep equality) */
 export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
   if (!Array.isArray(receiver)) {
@@ -676,20 +684,7 @@ export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
       `has_any() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  const candidates = args[0] ?? null;
-  // marshalArgs enforces the list param; this narrows the type for direct callers.
-  if (!Array.isArray(candidates)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'has_any',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has_any() expects list argument, got ${inferType(candidates)}`
-    );
-  }
+  const candidates = listArg(args[0]);
   for (const candidate of candidates) {
     for (const item of receiver) {
       if (deepEquals(item, candidate)) return true;
@@ -712,20 +707,7 @@ export const mHasAll: RillMethod = (receiver, args, ctx, location) => {
       `has_all() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  const candidates = args[0] ?? null;
-  // marshalArgs enforces the list param; this narrows the type for direct callers.
-  if (!Array.isArray(candidates)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'has_all',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has_all() expects list argument, got ${inferType(candidates)}`
-    );
-  }
+  const candidates = listArg(args[0]);
   for (const candidate of candidates) {
     let found = false;
     for (const item of receiver) {
