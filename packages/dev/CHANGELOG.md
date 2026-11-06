@@ -12,6 +12,12 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+## 0.2.9 - 2026-11-06
+
+### Changed
+
+- **Baseline pins the refreshed toolchain:** `baseline.json` now records pnpm 12.18.0 as `packageManager`, and pins `vitest` `^5.1.0`, `oxlint` `^1.91.0`, `oxfmt` `^0.76.0`, `oxlint-tsgolint` `^7.0.2006`, `knip` `^6.44.1`, `lefthook` `^2.2.1`, and `@types/node` `^26.6.6` for `STD-PM-2`, `STD-DEP-1`, and `STD-DEP-2`. A consumer on the 0.2.8 values fails those elements until it moves to these versions. ([#529](https://github.com/rcrsr/rill/pull/529))
+
 ## 0.2.8 - 2026-11-04
 
 ### Added
