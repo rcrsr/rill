@@ -11,9 +11,15 @@ import {
   createRuntimeContext,
   generateManifest,
   getFunctions,
+  inferStructure,
   isDict,
+  structureMatches,
+  anyTypeValue,
   RuntimeError,
+  RuntimeHaltSignal,
+  type RillFunction,
   type RillValue,
+  type TypeStructure,
 } from '@rcrsr/rill';
 import { BUILTIN_FUNCTIONS } from '../../src/runtime/ext/builtins.js';
 import { expectHalt } from '../helpers/halt.js';
@@ -183,8 +189,62 @@ describe('Rill Runtime: typed-only callable form', () => {
       await expectHalt(() => run(source, { variables: { f: undeclared } }), {
         code: 'RILL_R085',
         messagePattern:
-          /Host callable '[^']+' has no parameter declaration.*toCallable or callable\(\)/,
+          /Host function '[^']+' has no parameter declaration.*toCallable or callable\(\)/,
       });
+    });
+
+    const undeclaredTyped = {
+      __type: 'callable',
+      kind: 'application',
+      isProperty: false,
+      fn: () => 'x',
+      returnType: anyTypeValue,
+    } as unknown as RillValue;
+    it('halts when a closure type check reads its params', () => {
+      const closureType: TypeStructure = {
+        kind: 'closure',
+        params: [],
+        ret: { kind: 'any' },
+      };
+      expect(() => structureMatches(undeclaredTyped, closureType)).toThrow(
+        /has no parameter declaration/
+      );
+    });
+
+    it('halts when type inference reads its params', () => {
+      expect(() => inferStructure(undeclaredTyped)).toThrow(
+        /has no parameter declaration/
+      );
+    });
+
+    it('halts from createRuntimeContext when a functions entry lacks params', () => {
+      const bad = { fn: () => 'x', annotations: {} } as unknown as RillFunction;
+      expect(() => createRuntimeContext({ functions: { bad } })).toThrow(
+        /Host function 'bad' has no parameter declaration.*toCallable or callable\(\)/
+      );
+      expect(() => createRuntimeContext({ functions: { bad } })).toThrow(
+        expect.objectContaining({ errorId: 'RILL-R085' })
+      );
+    });
+
+    it('throws a RuntimeError, not a halt, from createRuntimeContext setup', () => {
+      const bad = { fn: () => 'x', annotations: {} } as unknown as RillFunction;
+      let caught: unknown;
+      try {
+        createRuntimeContext({ functions: { bad } });
+      } catch (err) {
+        caught = err;
+      }
+      expect(caught).toBeInstanceOf(RuntimeError);
+      expect(caught).not.toBeInstanceOf(RuntimeHaltSignal);
+    });
+
+    it('omits a params-less function from getFunctions instead of halting', () => {
+      const ctx = createRuntimeContext();
+      ctx.functions.set('broken', undeclared as never);
+      const names = getFunctions(ctx).map((m) => m.name);
+      expect(names).not.toContain('broken');
+      expect(names).toContain('log');
     });
 
     it('leaves a callable built with callable() unaffected', async () => {

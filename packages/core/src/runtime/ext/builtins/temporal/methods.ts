@@ -57,6 +57,29 @@ function durationReceiver(
   });
 }
 
+/**
+ * Receiver check for `.zero`, which exists on both datetime and duration.
+ * Names both types when the receiver is neither, so the message is accurate
+ * for a fallback dispatch from an unrelated type.
+ */
+function zeroReceiver(
+  receiver: RillValue,
+  expected: 'datetime' | 'duration',
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined
+): void {
+  const matches = expected === 'datetime' ? isDatetime : isDuration;
+  if (matches(receiver)) return;
+  const other = isDatetime(receiver) || isDuration(receiver);
+  throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn: 'zero', preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    other
+      ? `zero requires ${expected} receiver`
+      : 'zero requires datetime or duration receiver'
+  );
+}
+
 // ============================================================
 // DATETIME METHOD BODIES
 // ============================================================
@@ -117,7 +140,8 @@ export const mDtWeekday: RillMethod = (receiver, _args, ctx, location) => {
 };
 
 /** .zero property - returns datetime(unix: 0) */
-export const mDtZero: RillMethod = () => {
+export const mDtZero: RillMethod = (receiver, _args, ctx, location) => {
+  zeroReceiver(receiver, 'datetime', ctx, location);
   return { __rill_datetime: true, unix: 0 };
 };
 
@@ -404,7 +428,8 @@ export const mDurDisplay: RillMethod = (receiver, _args, ctx, location) => {
 };
 
 /** .zero property - returns duration(ms: 0) */
-export const mDurZero: RillMethod = () => {
+export const mDurZero: RillMethod = (receiver, _args, ctx, location) => {
+  zeroReceiver(receiver, 'duration', ctx, location);
   return {
     __rill_duration: true,
     months: 0,

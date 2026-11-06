@@ -291,7 +291,7 @@ export const DURATION_METHODS = Object.freeze({
   zero: buildMethodEntry('zero', '||:duration', mDurZero, true),
 
   // Arithmetic methods
-  add: buildMethodEntry('add', '|other: any|:duration', mDurAdd, true),
+  add: buildMethodEntry('add', '|dur: any|:duration', mDurAdd, true),
   subtract: buildMethodEntry(
     'subtract',
     '|other: any|:duration',

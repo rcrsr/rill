@@ -14,7 +14,10 @@ import type {
   ResolverResult,
 } from '../core/types/runtime.js';
 import type { RillParam } from '../core/callable.js';
-import { isCallable } from '../core/callable.js';
+import { declaredParams, isCallable } from '../core/callable.js';
+import { isPlainDict } from '../core/types/guards.js';
+import { RuntimeHaltSignal } from '../core/types/halt.js';
+import { ControlSignal } from '../core/signals.js';
 import type { RillValue } from '../core/types/structures.js';
 import { setDictField } from '../core/types/dict-keys.js';
 import { formatStructure } from '../core/types/operations.js';
@@ -82,23 +85,6 @@ function formatUseRef(path: string): string {
 }
 
 /**
- * Check if a RillValue is a plain dict (not a callable, tuple, vector, etc.).
- */
-function isPlainDict(value: RillValue): value is Record<string, RillValue> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    !isCallable(value) &&
-    !('__rill_tuple' in value) &&
-    !('__rill_vector' in value) &&
-    !('__rill_ordered' in value) &&
-    !('__rill_type' in value) &&
-    !('__rill_field_descriptor' in value)
-  );
-}
-
-/**
  * Generate rill source for a nested value tree.
  * Callable leaves produce `use<ext:path>:|params| :returnType`.
  * Dict nodes recurse. All other values produce `use<ext:path>`.
@@ -110,7 +96,7 @@ function buildNestedSource(
 ): string {
   if (isCallable(value)) {
     const c = value;
-    const paramStr = c.params.map(formatParam).join(', ');
+    const paramStr = declaredParams(c, path).map(formatParam).join(', ');
     const returnSuffix = ` :${formatStructure(resolveReturnStructure(c))}`;
     return `${formatUseRef(path)}:|${paramStr}|${returnSuffix}`;
   }
@@ -136,6 +122,7 @@ function buildNestedSource(
  * Returns a rill dict literal suitable for use as module:ext source.
  *
  * @throws {ExtensionBindingError} when binding generation fails
+ * @throws {RuntimeHaltSignal} RILL-R085 when a callable has no parameter declaration
  */
 function buildExtensionBindings(extensions: Record<string, RillValue>): string {
   const entries = Object.entries(extensions);
@@ -157,6 +144,8 @@ function buildExtensionBindings(extensions: Record<string, RillValue>): string {
     // than as a RILL-R056 the first time a consumer calls execute().
     parseSource(bindingSource);
   } catch (err) {
+    if (err instanceof RuntimeHaltSignal || err instanceof ControlSignal)
+      throw err;
     const reason = err instanceof Error ? err.message : String(err);
     const keys = entries.map(([name]) => name).join(', ');
     throw new ExtensionBindingError(

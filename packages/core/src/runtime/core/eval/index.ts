@@ -70,11 +70,10 @@ export async function executeStatement(
 }
 
 /**
- * Invoke any callable (script, runtime, or application) with positional arguments.
+ * Invoke any callable (script or application) with positional arguments.
  *
  * Dispatches to invokeCallable which handles all callable kinds:
  * - ScriptCallable: executes the Rill closure body in a new scope
- * - RuntimeCallable: calls the native fn directly
  * - ApplicationCallable: calls the native fn with optional validation
  *
  * @param callable - The callable to invoke

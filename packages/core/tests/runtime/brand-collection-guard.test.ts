@@ -33,10 +33,9 @@
  *   stricter, pre-existing guard; the `isTypeValue` check added to the
  *   method bodies is defense in depth for callers that reach the method
  *   body directly, not the path exercised by `^type -> .first()` here.
- * - a bare number receiver does not halt at all for `.keys`/`.values`/
- *   `.entries` (a pre-existing, separate leniency in the
- *   `skipReceiverValidation` fallback scan, out of this task's scope), so
- *   it is not usable as the parity baseline for those three methods.
+ * - a plain non-dict, non-brand receiver (a bare number, string, bool, or
+ *   list) also halts `RILL-R003` for `.keys`/`.values`/`.entries`; ordered
+ *   values and dicts are the only accepted receivers.
  *
  * `vector` is a fifth branded shape (`__rill_vector`) guarded the same way
  * in `mFirst`/`mKeys`/`mValues`/`mEntries`, but is exercised in its own
@@ -143,6 +142,64 @@ describe('brand-value guards against the generic dict path', () => {
       });
     }
   );
+
+  describe('non-dict receivers', () => {
+    it.each(['keys', 'values', 'entries'])(
+      'halts RILL-R003 for .%s on non-dict receivers',
+      async (method) => {
+        for (const expr of ['5', '"hello"', 'true', 'list[1]']) {
+          const halt = await haltOf(`${expr} -> .${method}`);
+          expect(halt.errorId).toBe('RILL-R003');
+        }
+      }
+    );
+
+    it.each([
+      ['keys', ['a']],
+      ['values', [1]],
+      ['entries', [['a', 1]]],
+    ])('.%s still works on a dict receiver', async (method, expected) => {
+      expect(await run(`dict[a: 1] -> .${method}`)).toEqual(expected);
+    });
+
+    it.each(['keys', 'values', 'entries'])(
+      'halts RILL-R003 for .%s on tuple and stream receivers',
+      async (method) => {
+        const tupleHalt = await haltOf(`tuple[1, 2] -> .${method}`);
+        expect(tupleHalt.errorId).toBe('RILL-R003');
+
+        const streamHalt = await haltOf(
+          `|| ("a" -> yield) :stream(string) => $gen\n$gen() => $s\n$s -> .${method}`
+        );
+        expect(streamHalt.errorId).toBe('RILL-R003');
+      }
+    );
+
+    it('keeps ordered and spread-built dicts working', async () => {
+      expect(await run('ordered[a: 1, b: 2] -> .entries')).toEqual([
+        ['a', 1],
+        ['b', 2],
+      ]);
+      const spread = 'dict[a: 1] => $x\ndict[...$x, b: 2] => $d\n';
+      expect(await run(`${spread}$d -> .keys`)).toEqual(['a', 'b']);
+      expect(await run(`${spread}$d -> .values`)).toEqual([1, 2]);
+      expect(await run(`${spread}$d -> .entries`)).toEqual([
+        ['a', 1],
+        ['b', 2],
+      ]);
+    });
+
+    it.each(['5', '"s"', 'true', 'list[1]'])(
+      'halts .zero on %s instead of returning a datetime',
+      async (expr) => {
+        const halt = await haltOf(`${expr} -> .zero`);
+        expect(halt.errorId).toBe('RILL-R003');
+        expect(halt.message).toMatch(
+          /zero requires datetime or duration receiver/
+        );
+      }
+    );
+  });
 
   // vector is not constructable via rill syntax, so it is exercised outside
   // the BRANDS table above (which drives its cases from a parseable rill

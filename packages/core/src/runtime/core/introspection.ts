@@ -92,7 +92,10 @@ function annotationDescription(
  *
  * Returns flat list combining host functions, built-ins, and script closures.
  * Namespaced functions preserve `::` separator in name field.
- * Malformed entries silently skipped (valid entries returned).
+ * Malformed entries silently skipped (valid entries returned). This includes
+ * a hand-built function entry without a parameter declaration: introspection
+ * omits it rather than halting, because enumeration must not fail on one bad
+ * entry. Invoking such an entry halts with RILL-R085.
  * Script closures: reads `^(description: "...")` (including the bare-string
  * shorthand) or, when absent, the legacy `^(doc: "...")` annotation for description.
  * Script closures: returnType reflects the closure's declared/inferred return type,

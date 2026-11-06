@@ -376,13 +376,13 @@ export function createHost() {
 Only add custom host functions when no extension covers the requirement. Add them to the generated `host.ts` using `toCallable`:
 
 ```typescript
-import { toCallable } from '@rcrsr/rill';
+import { toCallable, structureToTypeValue } from '@rcrsr/rill';
 
 const appValue = {
   greet: toCallable({
     fn: async (args) => `Hello, ${args.name}!`,
-    params: [{ name: 'name', type: { kind: 'string' } }],
-    returnType: { kind: 'string' },
+    params: [{ name: 'name', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+    returnType: structureToTypeValue({ kind: 'string' }),
     annotations: {},
   }),
 };

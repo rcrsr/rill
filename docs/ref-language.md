@@ -482,6 +482,8 @@ Terminal closures receive `$` bound to the final path key.
 | `.entries` | Dict | List | Key-value pairs |
 | `.params` | Closure | Dict | Parameter metadata (type, __annotations) |
 
+`.keys`, `.values`, and `.entries` halt `RILL-R003` on a non-dict receiver (tuple, stream, string, number, and so on); `??` and `guard` do not recover the halt, so check the receiver first. `ordered` values are accepted.
+
 See [Strings](topic-strings.md) for detailed string method documentation.
 
 ### Global Functions
@@ -721,17 +723,28 @@ rill is a vanilla language. The host application registers domain-specific funct
 
 ```typescript
 import { createRuntimeContext, toCallable } from '@rcrsr/rill';
+import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
+
+// Fills the fields RillParam requires; adds no behavior.
+const param = (
+  name: string,
+  type: TypeStructure,
+  defaultValue?: RillValue,
+  annotations: Record<string, RillValue> = {}
+): RillParam => ({ name, type, defaultValue, annotations });
 
 const ctx = createRuntimeContext({
   variables: {
-    prompt: toCallable({ params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }], fn: async (args) => await callLLM(args.text) }),
+    prompt: toCallable({ params: [param('text', { kind: 'string' })], fn: async (args) => await callLLM(args.text) }),
     io: {
-      read: toCallable({ params: [{ name: 'path', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }], fn: async (args) => fs.readFile(String(args.path), 'utf-8') }),
+      read: toCallable({ params: [param('path', { kind: 'string' })], fn: async (args) => fs.readFile(String(args.path), 'utf-8') }),
     },
     config: { apiUrl: 'https://api.example.com' },
   },
 });
 ```
+
+`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior.
 
 Scripts call these as `prompt("text")` or `io.read("file.txt")`.
 

@@ -1516,13 +1516,13 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R044,
     category: 'runtime',
-    description: 'Missing required member in conversion',
+    description: 'Missing required member or missing argument',
     messageTemplate:
       "cannot convert {source} to {target}: missing required member '{name}'",
     cause:
-      'The `-> type` form requires all fields/elements without defaults to be present in the source value.',
+      'The `-> type` form requires all fields/elements without defaults to be present in the source value. A call also raises this code with the message "Missing argument for parameter \'<name>\'" when a required parameter receives no argument.',
     resolution:
-      'Supply the missing field or element in the source value, or add a default to the type annotation.',
+      'Supply the missing field or element in the source value, or add a default to the type annotation. For a call, pass the missing argument or give the parameter a default.',
     examples: [
       {
         description: 'Dict missing a required field',
@@ -1540,7 +1540,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     category: 'runtime',
     description: 'Too many arguments passed to callable',
     messageTemplate:
-      'Function expects {expectedCount} arguments, got {actualCount}',
+      'Function expects {expectedCount} {expectedNoun}, got {actualCount}',
     cause:
       'The number of arguments passed to a callable exceeds the number of declared parameters.',
     resolution:
@@ -2179,10 +2179,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     errorId: ERROR_IDS.RILL_R085,
     category: 'runtime',
     description: 'Host function broke the host contract',
-    messageTemplate:
-      "Host function '{functionName}' returned an invalid value at {path}: {jsType}; or: Host callable '{functionName}' has no parameter declaration",
+    messageTemplate: "Host function '{functionName}' {detail}",
     cause:
-      'A host callable has no parameter declaration because it was built by hand instead of with callable() or toCallable. Alternatively, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
+      'Two causes share the message template, each supplying its own {detail}. First, a host callable has no usable parameter declaration (missing, not an array, or holding a non-object entry) because it was built by hand instead of with callable() or toCallable; the detail reads "has no parameter declaration; build callables with toCallable or callable()" or "declares a malformed parameter at index N; ...". Second, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.',
     resolution:
       'Build every callable with callable() or toCallable so it carries a parameter declaration. For an invalid return value, convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.',
     examples: [

@@ -47,14 +47,10 @@ export function buildMethodEntry(
         );
       }
       const receiver = args['receiver'] ?? null;
-      // Reconstruct positional args array for RillMethod from named params in order.
-      // UNVALIDATED_METHOD_PARAMS methods pass __positionalArgs to preserve actual
-      // arg count so method body arity checks (args.length !== 1) fire correctly.
-      // A non-array `__positionalArgs` is intentionally ignored; the param-mapped args apply.
-      const forwarded = args['__positionalArgs'];
-      const positionalArgs: RillValue[] = Array.isArray(forwarded)
-        ? forwarded
-        : methodParams.map((p) => args[p.name] ?? null);
+      // Reconstruct the positional args array for RillMethod from named params in order.
+      const positionalArgs: RillValue[] = methodParams.map(
+        (p) => args[p.name] ?? null
+      );
       return method(receiver, positionalArgs, ctx, location);
     },
     annotations:

@@ -247,7 +247,7 @@ Dict fields are sorted alphabetically in the formatted output.
 
 All callable kinds expose their parameter and return type shapes via `.^input` and `.^output`.
 
-**`.^input`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures, application callables, and runtime callables. A callable with no parameters returns an empty ordered dict.
+**`.^input`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures and application callables. A callable with no parameters returns an empty ordered dict.
 
 ```typescript
 // Script closure returned from execute():
@@ -419,15 +419,25 @@ Discover available functions, access language documentation, and check runtime v
 Enumerate all callable functions registered in the runtime context:
 
 ```typescript
-import { createRuntimeContext, getFunctions } from '@rcrsr/rill';
+import { createRuntimeContext, getFunctions, anyTypeValue } from '@rcrsr/rill';
+import type { RillParam, RillValue, TypeStructure } from '@rcrsr/rill';
+
+// Fills the fields RillParam requires; adds no behavior.
+const param = (
+  name: string,
+  type: TypeStructure,
+  defaultValue?: RillValue,
+  annotations: Record<string, RillValue> = {}
+): RillParam => ({ name, type, defaultValue, annotations });
 
 const ctx = createRuntimeContext({
   functions: {
     greet: {
       params: [
-        { name: 'name', type: { kind: 'string' }, annotations: { description: 'Person to greet' } },
+        param('name', { kind: 'string' }, undefined, { description: 'Person to greet' }),
       ],
-      description: 'Generate a greeting message',
+      annotations: { description: 'Generate a greeting message' },
+      returnType: anyTypeValue,
       fn: (args) => `Hello, ${args.name}!`,
     },
   },
@@ -443,6 +453,8 @@ const functions = getFunctions(ctx);
 //   ... built-in functions
 // ]
 ```
+
+`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
 
 Returns `FunctionMetadata[]` combining:
 1. Host functions, including any host function that overrides a built-in name
@@ -526,17 +538,19 @@ if (!checkCompatibility()) {
 Analyze documentation coverage of functions in a runtime context:
 
 ```typescript
-import { createRuntimeContext, getDocumentationCoverage } from '@rcrsr/rill';
+import { createRuntimeContext, getDocumentationCoverage, anyTypeValue } from '@rcrsr/rill';
 
 const ctx = createRuntimeContext({
   functions: {
     documented: {
-      params: [{ name: 'x', type: { kind: 'string' }, annotations: { description: 'Input value' } }],
-      description: 'A documented function',
+      params: [param('x', { kind: 'string' }, undefined, { description: 'Input value' })],
+      annotations: { description: 'A documented function' },
+      returnType: anyTypeValue,
       fn: (args) => args.x,
     },
     undocumented: {
-      params: [{ name: 'x', type: { kind: 'string' } }],
+      params: [param('x', { kind: 'string' })],
+      returnType: anyTypeValue,
       fn: (args) => args.x,
     },
   },

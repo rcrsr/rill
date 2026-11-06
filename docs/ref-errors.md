@@ -1284,11 +1284,11 @@ $dict -> ordered  # Ambiguous field order
 
 ### rill-r044
 
-**Description:** Missing required member in conversion
+**Description:** Missing required member or missing argument
 
-**Cause:** The `-> type` form requires all fields/elements without defaults to be present in the source value.
+**Cause:** The `-> type` form requires all fields/elements without defaults to be present in the source value. A call also raises this code with the message "Missing argument for parameter '<name>'" when a required parameter receives no argument.
 
-**Resolution:** Supply the missing field or element in the source value, or add a default to the type annotation.
+**Resolution:** Supply the missing field or element in the source value, or add a default to the type annotation. For a call, pass the missing argument or give the parameter a default.
 
 **Example:**
 
@@ -1948,7 +1948,7 @@ guard { timeout<idle: 200ms> { $stream } }
 
 **Description:** Host function broke the host contract
 
-**Cause:** A host callable has no parameter declaration because it was built by hand instead of with callable() or toCallable. Alternatively, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.
+**Cause:** Two causes share the message template, each supplying its own {detail}. First, a host callable has no usable parameter declaration (missing, not an array, or holding a non-object entry) because it was built by hand instead of with callable() or toCallable; the detail reads "has no parameter declaration; build callables with toCallable or callable()" or "declares a malformed parameter at index N; ...". Second, a host function returned a JavaScript value that has no representation in the rill value model, such as undefined, null, a symbol, a bigint, a plain function, a Date, a Map, a Set, or a non-plain class instance. The value may have been nested inside a returned array or plain object.
 
 **Resolution:** Build every callable with callable() or toCallable so it carries a parameter declaration. For an invalid return value, convert the returned value to a rill-representable shape (primitive, dict, list, tuple, atom, datetime, duration, or callable) before returning it from the host function.
 

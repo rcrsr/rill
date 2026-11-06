@@ -118,13 +118,13 @@ describe('Rill Runtime: List Membership Methods', () => {
 
       it('throws when called without arguments (EC-5, AC-20)', async () => {
         await expect(run('list[1, 2, 3] -> .has()')).rejects.toThrow(
-          'has() expects 1 argument, got 0'
+          "Missing argument for parameter 'value'"
         );
       });
 
       it('throws when called with too many arguments', async () => {
         await expect(run('list[1, 2, 3] -> .has(1, 2)')).rejects.toThrow(
-          'has() expects 1 argument, got 2'
+          'Function expects 1 argument, got 2'
         );
       });
     });
@@ -249,31 +249,35 @@ describe('Rill Runtime: List Membership Methods', () => {
       it('throws for non-list argument (EC-7, AC-21)', async () => {
         await expect(
           run('list[1, 2, 3] -> .has_any("not a list")')
-        ).rejects.toThrow('has_any() expects list argument, got string');
+        ).rejects.toThrow(
+          'Parameter type mismatch: candidates expects list, got string'
+        );
       });
 
       it('throws for number argument', async () => {
         await expect(run('list[1, 2, 3] -> .has_any(42)')).rejects.toThrow(
-          'has_any() expects list argument, got number'
+          'Parameter type mismatch: candidates expects list, got number'
         );
       });
 
       it('throws for dict argument', async () => {
         await expect(
           run('list[1, 2, 3] -> .has_any(dict[a: 1])')
-        ).rejects.toThrow('has_any() expects list argument, got dict');
+        ).rejects.toThrow(
+          'Parameter type mismatch: candidates expects list, got dict'
+        );
       });
 
       it('throws when called without arguments (EC-8)', async () => {
         await expect(run('list[1, 2, 3] -> .has_any()')).rejects.toThrow(
-          'has_any() expects 1 argument, got 0'
+          "Missing argument for parameter 'candidates'"
         );
       });
 
       it('throws when called with too many arguments', async () => {
         await expect(
           run('list[1, 2, 3] -> .has_any(list[1], list[2])')
-        ).rejects.toThrow('has_any() expects 1 argument, got 2');
+        ).rejects.toThrow('Function expects 1 argument, got 2');
       });
     });
 
@@ -385,31 +389,35 @@ describe('Rill Runtime: List Membership Methods', () => {
       it('throws for non-list argument (EC-10)', async () => {
         await expect(
           run('list[1, 2, 3] -> .has_all("not a list")')
-        ).rejects.toThrow('has_all() expects list argument, got string');
+        ).rejects.toThrow(
+          'Parameter type mismatch: candidates expects list, got string'
+        );
       });
 
       it('throws for number argument', async () => {
         await expect(run('list[1, 2, 3] -> .has_all(42)')).rejects.toThrow(
-          'has_all() expects list argument, got number'
+          'Parameter type mismatch: candidates expects list, got number'
         );
       });
 
       it('throws for dict argument', async () => {
         await expect(
           run('list[1, 2, 3] -> .has_all(dict[a: 1])')
-        ).rejects.toThrow('has_all() expects list argument, got dict');
+        ).rejects.toThrow(
+          'Parameter type mismatch: candidates expects list, got dict'
+        );
       });
 
       it('throws when called without arguments (EC-11)', async () => {
         await expect(run('list[1, 2, 3] -> .has_all()')).rejects.toThrow(
-          'has_all() expects 1 argument, got 0'
+          "Missing argument for parameter 'candidates'"
         );
       });
 
       it('throws when called with too many arguments', async () => {
         await expect(
           run('list[1, 2, 3] -> .has_all(list[1], list[2])')
-        ).rejects.toThrow('has_all() expects 1 argument, got 2');
+        ).rejects.toThrow('Function expects 1 argument, got 2');
       });
     });
 

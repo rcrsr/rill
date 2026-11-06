@@ -5,7 +5,6 @@
 import {
   createRuntimeContext,
   isApplicationCallable,
-  isRuntimeCallable,
   isStream,
   type RillStream,
   type RillValue,
@@ -18,7 +17,7 @@ import {
  */
 export function invokeNext(step: RillStream): RillValue | Promise<RillValue> {
   const next = step.next;
-  if (!isApplicationCallable(next) && !isRuntimeCallable(next)) {
+  if (!isApplicationCallable(next)) {
     throw new Error('stream next is not a host-invocable callable');
   }
   return next.fn({}, createRuntimeContext());

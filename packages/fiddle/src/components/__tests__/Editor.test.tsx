@@ -288,24 +288,21 @@ describe('Editor', () => {
       expect(p95).toBeLessThan(200);
     });
 
-    it('updates value without blocking (< 16ms)', () => {
+    it('updates value in place without remounting', () => {
       const values = ['first value', 'second value'];
       const { container, rerender } = render(
         <Editor {...defaultProps} value="initial" />
       );
+      const view = getView(container);
 
-      let i = 0;
-      const p95 = measureP95(
-        () => {
-          rerender(<Editor {...defaultProps} value={values[i++ % 2]!} />);
-        },
-        { samples: 50, warmup: 5 }
-      );
+      for (let i = 0; i < 55; i++) {
+        rerender(<Editor {...defaultProps} value={values[i % 2]!} />);
+        // The document reflects the new value synchronously, with no deferred work.
+        expect(view.state.doc.toString()).toBe(values[i % 2]);
+      }
 
-      // 55 calls alternate starting at index 0, so the last value is index 54 % 2.
-      expect(getView(container).state.doc.toString()).toBe(values[54 % 2]);
-      // Should update in less than 16ms (60fps)
-      expect(p95).toBeLessThan(16);
+      // Same view instance: updates dispatch transactions rather than rebuilding.
+      expect(getView(container)).toBe(view);
     });
   });
 

@@ -12,18 +12,30 @@ import {
   execute,
   createRuntimeContext,
   toCallable,
+  structureToTypeValue,
   RuntimeHaltSignal,
   type ExtensionFactoryResult,
+  type RillParam,
+  type RillValue,
+  type TypeStructure,
 } from '@rcrsr/rill';
+
+// Fills the fields RillParam requires; adds no behavior.
+const param = (
+  name: string,
+  type: TypeStructure,
+  defaultValue?: RillValue,
+  annotations: Record<string, RillValue> = {}
+): RillParam => ({ name, type, defaultValue, annotations });
 
 function createMyExtension(config: { model: string }): ExtensionFactoryResult {
   return {
     value: {
       prompt: toCallable({
-        params: [{ name: 'text', type: { kind: 'string' }, defaultValue: undefined, annotations: {} }],
+        params: [param('text', { kind: 'string' })],
         fn: async (args) => await callLLM(args.text, config.model),
         annotations: { description: 'Send a prompt to the LLM' },
-        returnType: { kind: 'string' },
+        returnType: structureToTypeValue({ kind: 'string' }),
       }),
     },
   };
@@ -53,6 +65,8 @@ try {
   await ext.dispose?.();
 }
 ```
+
+`param` fills the `defaultValue` and `annotations` fields that `RillParam` requires and adds no behavior. Later examples in this document use it without redefining it.
 
 ### Direct Registration (Legacy)
 
@@ -86,8 +100,8 @@ const ctx = createRuntimeContext({
       timestamp: callable(() => Date.now(), true),
       format: toCallable({
         params: [
-          { name: 'template', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
-          { name: 'value', type: { kind: 'string' }, defaultValue: undefined, annotations: {} },
+          param('template', { kind: 'string' }),
+          param('value', { kind: 'string' }),
         ],
         returnType: anyTypeValue,
         fn: (args) =>
@@ -98,7 +112,7 @@ const ctx = createRuntimeContext({
 
   functions: {
     prompt: {
-      params: [{ name: 'text', type: { kind: 'string' } }],
+      params: [param('text', { kind: 'string' })],
       fn: async (args, ctx, location) => {
         console.log(`[prompt at line ${location?.line}]`);
         return await callLLM(args.text);
@@ -166,7 +180,7 @@ export type { Filter, FilterResolver, ExtensionIdentity };
 export type { PolicyConfig, ExtensionMethodPolicy, MethodPolicyRule, ResolvedPolicy };
 
 // Callable types
-export { callable, isCallable, isScriptCallable, isRuntimeCallable, isApplicationCallable, hydrateFieldDefaults };
+export { callable, isCallable, isScriptCallable, isApplicationCallable, hydrateFieldDefaults };
 export type { RillCallable, ScriptCallable, ApplicationCallable, CallableFn };
 
 // Host function types
@@ -721,6 +735,7 @@ interface RillFunction {
   readonly fn: CallableFn;
   readonly annotations?: Record<string, RillValue>;
   readonly returnType: RillTypeValue;
+  readonly skipReceiverValidation?: boolean;
 }
 ```
 
@@ -730,6 +745,7 @@ interface RillFunction {
 | `fn` | `CallableFn` | The function implementation. The runtime marshals call-site arguments into `Record<string, RillValue>` keyed by parameter name before invoking `fn`. See [CallableFn](#callablefn) |
 | `annotations` | `Record<string, RillValue> \| undefined` | Key-value metadata. `annotations.description` replaces the old `description` field. Optional; defaults to `{}` |
 | `returnType` | `RillTypeValue` | Declared return type. Required. Use `anyTypeValue` as the equivalent of "no constraint". Runtime does NOT validate return values at call time |
+| `skipReceiverValidation` | `boolean \| undefined` | When `true`, the method may be dispatched to a mismatched receiver and must check the receiver itself (`RILL-R003`). Arguments are still validated first (`RILL-R044`, `RILL-R045`, `RILL-R001`). Optional; used by method tables |
 
 ### Tuple Parameter Hydration
 
@@ -738,9 +754,14 @@ When a host function parameter type is `{ kind: 'tuple' }` and `type.fields` con
 This happens at Stage 2.5 of `marshalArgs`, after argument validation and before `fn` is called.
 
 ```typescript
+import { structureToTypeValue } from '@rcrsr/rill';
+import type { RillFunction } from '@rcrsr/rill';
+
 const fn: RillFunction = {
   params: [{
     name: 'coords',
+    defaultValue: undefined,
+    annotations: {},
     type: {
       kind: 'tuple',
       fields: [
@@ -799,11 +820,11 @@ Builds a `RillStream` from an `AsyncIterable` of chunk values and a resolution c
 A stream stepped by hand with `.first()` and `.next()` is disposed only when a step reaches the end of the chunks. A hand-stepped chain abandoned before that point is not disposed; the host remains responsible for that resource. A stream assigned inside a block is disposed on the enclosing block's scope exit even if no expression ever consumed it; only a stream that is the script's own top-level result, with no enclosing block, is left for the host to dispose.
 
 ```typescript
-import { createRillStream } from '@rcrsr/rill';
-import type { RillValue } from '@rcrsr/rill';
+import { createRillStream, structureToTypeValue } from '@rcrsr/rill';
+import type { RillFunction, RillValue } from '@rcrsr/rill';
 
 const fn: RillFunction = {
-  params: [{ name: 'prompt', type: { kind: 'string' } }],
+  params: [param('prompt', { kind: 'string' })],
   fn: async (args) => {
     async function* generateChunks(): AsyncIterable<RillValue> {
       for await (const token of streamLLM(args.prompt as string)) {

@@ -9,13 +9,13 @@ import type {
   InvokeNode,
   SourceLocation,
 } from '../../../../types.js';
+import type { ApplicationCallable } from '../../callable.js';
 import {
   declaredParams,
   isCallable,
   isApplicationCallable,
   marshalArgs,
 } from '../../callable.js';
-import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
 import type { RillValue, RillTypeValue } from '../../types/structures.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
 import {
@@ -51,6 +51,46 @@ import {
   invokeStream,
 } from './closures.js';
 import { declaresZeroParams } from './calls.js';
+
+/**
+ * Call a built-in type method with the receiver prepended. Arguments go
+ * through marshalArgs so arity and types are validated the same way for every
+ * receiver; counts in arity errors exclude the receiver.
+ */
+async function invokeTypeMethod(
+  s: EvalState,
+  node: MethodCallNode,
+  method: ApplicationCallable,
+  receiver: RillValue,
+  args: readonly RillValue[]
+): Promise<RillValue> {
+  const callLocation = getNodeLocation(s, node);
+  const methodArgs = marshalArgs([receiver, ...args], method.params, {
+    functionName: node.name,
+    location: callLocation,
+    receiverOffset: 1,
+  });
+  try {
+    const result = method.fn(methodArgs, s.ctx, callLocation);
+    return result instanceof Promise ? await result : result;
+  } catch (e) {
+    // Enrichment site: type-method boundary. `method.fn` is a built-in type
+    // method (host-registered `RillFunction`), so `host` is the correct
+    // origin kind here.
+    if (e instanceof RuntimeHaltSignal) {
+      const enriched = appendTraceFrame(
+        e.value,
+        createTraceFrame({
+          site: formatCallSite(callLocation, s.ctx.sourceId),
+          kind: TRACE_KINDS.HOST,
+          fn: node.name,
+        })
+      );
+      throw new RuntimeHaltSignal(enriched, e.catchable);
+    }
+    throw e;
+  }
+}
 
 /** Evaluate method call on receiver: value.method(args). */
 export async function evaluateMethod(
@@ -89,40 +129,7 @@ export async function evaluateMethod(
   const typeDict = s.ctx.typeMethodDicts.get(typeName);
   const typeMethod = typeDict?.[node.name];
   if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
-    const callLocation = getNodeLocation(s, node);
-    const effectiveArgs = [receiver, ...args];
-    let methodArgs: Record<string, RillValue>;
-    if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
-      methodArgs = {
-        receiver,
-        __positionalArgs: args,
-      };
-    } else {
-      methodArgs = marshalArgs(effectiveArgs, typeMethod.params, {
-        functionName: node.name,
-        location: callLocation,
-      });
-    }
-    try {
-      const result = typeMethod.fn(methodArgs, s.ctx, callLocation);
-      return result instanceof Promise ? await result : result;
-    } catch (e) {
-      // Enrichment site 3: type-method boundary. `typeMethod.fn` is a
-      // built-in type method (host-registered `RillFunction`), so `host`
-      // is the correct origin kind here.
-      if (e instanceof RuntimeHaltSignal) {
-        const enriched = appendTraceFrame(
-          e.value,
-          createTraceFrame({
-            site: formatCallSite(callLocation, s.ctx.sourceId),
-            kind: TRACE_KINDS.HOST,
-            fn: node.name,
-          })
-        );
-        throw new RuntimeHaltSignal(enriched, e.catchable);
-      }
-      throw e;
-    }
+    return invokeTypeMethod(s, node, typeMethod, receiver, args);
   }
   // Read the field once: readOwnField re-validates the receiver on each call.
   const ownField = readOwnField(receiver, node.name);
@@ -194,38 +201,7 @@ export async function evaluateMethod(
         fallbackMethod !== undefined &&
         isApplicationCallable(fallbackMethod)
       ) {
-        try {
-          const fbMethodArgs: Record<string, RillValue> = { receiver };
-          for (let i = 1; i < fallbackMethod.params.length; i++) {
-            const p = fallbackMethod.params[i];
-            if (p) setDictField(fbMethodArgs, p.name, args[i - 1] ?? null);
-          }
-          const result = fallbackMethod.fn(
-            fbMethodArgs,
-            s.ctx,
-            getNodeLocation(s, node)
-          );
-          return result instanceof Promise ? await result : result;
-        } catch (e) {
-          // Enrichment site 4: fallback-method boundary. `fallbackMethod.fn`
-          // is a built-in fallback method (host-registered
-          // `RillFunction`), so `host` is the correct origin kind here —
-          // same category as the type-method boundary above, not the
-          // script-callable boundary in `invokeRegularScriptCallable`.
-          const callLocation = getNodeLocation(s, node);
-          if (e instanceof RuntimeHaltSignal) {
-            const enriched = appendTraceFrame(
-              e.value,
-              createTraceFrame({
-                site: formatCallSite(callLocation, s.ctx.sourceId),
-                kind: TRACE_KINDS.HOST,
-                fn: node.name,
-              })
-            );
-            throw new RuntimeHaltSignal(enriched, e.catchable);
-          }
-          throw e;
-        }
+        return invokeTypeMethod(s, node, fallbackMethod, receiver, args);
       }
     }
   }

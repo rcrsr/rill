@@ -86,7 +86,6 @@ export {
   isApplicationCallable,
   isCallable,
   isDict,
-  isRuntimeCallable,
   isScriptCallable,
   marshalArgs,
   toCallable,

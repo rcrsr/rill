@@ -1,4 +1,4 @@
-import { isDict, isCallable } from '../../../core/callable.js';
+import { isCallable } from '../../../core/callable.js';
 import type { RillValue, RillVector } from '../../../core/types/structures.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type { SourceLocation } from '../../../../source-location.js';
@@ -8,14 +8,11 @@ import {
   inferType,
 } from '../../../core/types/registrations.js';
 import {
-  isAtom,
-  isDatetime,
-  isDuration,
   isIterator,
   isOrdered,
+  isPlainDict,
   isStream,
   isTuple,
-  isTypeValue,
   isVector,
   orderedValueEntries,
 } from '../../../core/types/guards.js';
@@ -44,23 +41,6 @@ import {
 // Defined as named RillMethod constants so they can be shared
 // across type groups (e.g. len appears in string, list, dict).
 // ============================================================
-
-/**
- * True for branded values (:atom, ^type, datetime, duration) that satisfy
- * `isDict`'s plain-object structural check but are not actually dicts.
- * Methods dispatched with `skipReceiverValidation: true` bypass the generic
- * RILL-R003 dispatch guard, so call sites that fall back to `isDict(receiver)`
- * must check this first or a brand value silently leaks into the dict path.
- */
-function isBrandedNonDict(receiver: RillValue): boolean {
-  return (
-    isAtom(receiver) ||
-    isTypeValue(receiver) ||
-    isDatetime(receiver) ||
-    isDuration(receiver) ||
-    isVector(receiver)
-  );
-}
 
 /** Get length of string, list, or dict */
 export const mLen: RillMethod = (receiver) => {
@@ -169,19 +149,7 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
   if (isIterator(receiver)) return receiver;
   if (Array.isArray(receiver)) return makeListIterator(receiver, 0);
   if (typeof receiver === 'string') return makeStringIterator(receiver, 0);
-  if (isBrandedNonDict(receiver) || isOrdered(receiver)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'first',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `first requires list, string, dict, or iterator, got ${inferType(receiver)}`
-    );
-  }
-  if (isDict(receiver)) return makeDictIterator(receiver, 0);
+  if (isPlainDict(receiver)) return makeDictIterator(receiver, 0);
   return throwFatalHostHalt(
     { location, sourceId: ctx.sourceId, fn: 'first', preserveHostShape: true },
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
@@ -584,6 +552,21 @@ export const mLe: RillMethod = (receiver, args, ctx, location) =>
 export const mGe: RillMethod = (receiver, args, ctx, location) =>
   orderedCompare(receiver, args, ctx, location, 'ge') >= 0;
 
+/** Halt RILL-R003 unless receiver is a plain dict (not ordered, branded, or stream). */
+function requireDictReceiver(
+  receiver: RillValue,
+  fn: string,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined
+): asserts receiver is Record<string, RillValue> {
+  if (isPlainDict(receiver)) return;
+  throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn, preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `${fn}() requires dict receiver, got ${inferType(receiver)}`
+  );
+}
+
 /**
  * Get all keys of a dict as a list, in canonical order: sorted string keys,
  * then number keys ascending, then boolean keys (false before true).
@@ -592,58 +575,24 @@ export const mKeys: RillMethod = (receiver, _args, ctx, location) => {
   // Ordered values dispatch before isDict: the JS wrapper object also
   // satisfies isDict's structural shape check.
   if (isOrdered(receiver)) return orderedValueEntries(receiver).map(([k]) => k);
-  if (isBrandedNonDict(receiver)) {
-    throwFatalHostHalt(
-      { location, sourceId: ctx.sourceId, fn: 'keys', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `keys() requires dict receiver, got ${inferType(receiver)}`
-    );
-  }
-  return isDict(receiver) && !isStream(receiver)
-    ? orderedDictEntries(receiver).map((e) => e.key)
-    : [];
+  requireDictReceiver(receiver, 'keys', ctx, location);
+  return orderedDictEntries(receiver).map((e) => e.key);
 };
 
 /** Get all values of a dict as a list, in canonical key order. */
 export const mValues: RillMethod = (receiver, _args, ctx, location) => {
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([, v]) => v);
-  if (isBrandedNonDict(receiver)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'values',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `values() requires dict receiver, got ${inferType(receiver)}`
-    );
-  }
-  return isDict(receiver) && !isStream(receiver)
-    ? orderedDictEntries(receiver).map((e) => e.value)
-    : [];
+  requireDictReceiver(receiver, 'values', ctx, location);
+  return orderedDictEntries(receiver).map((e) => e.value);
 };
 
 /** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
 export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([k, v]): RillValue => [k, v]);
-  if (isBrandedNonDict(receiver)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'entries',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `entries() requires dict receiver, got ${inferType(receiver)}`
-    );
-  }
-  return isDict(receiver) && !isStream(receiver)
-    ? orderedDictEntries(receiver).map((e): RillValue => [e.key, e.value])
-    : [];
+  requireDictReceiver(receiver, 'entries', ctx, location);
+  return orderedDictEntries(receiver).map((e): RillValue => [e.key, e.value]);
 };
 
 /** Check if list contains value (deep equality) */
@@ -655,19 +604,34 @@ export const mHas: RillMethod = (receiver, args, ctx, location) => {
       `has() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  if (args.length !== 1) {
-    throwFatalHostHalt(
-      { location, sourceId: ctx.sourceId, fn: 'has', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has() expects 1 argument, got ${args.length}`
-    );
-  }
   const searchValue = args[0] ?? null;
   for (const item of receiver) {
     if (deepEquals(item, searchValue)) return true;
   }
   return false;
 };
+
+/**
+ * Narrow a `list`-typed signature argument. marshalArgs rejects non-lists
+ * before the body runs, so a non-list here means a direct call bypassed
+ * marshalling; halt instead of treating it as an empty list.
+ */
+function listArg(
+  value: RillValue | undefined,
+  paramName: string,
+  fn: string,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined
+): readonly RillValue[] {
+  if (Array.isArray(value)) return value;
+  return throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn, preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R001],
+    `${fn}() ${paramName} expects list, got ${
+      value === null || value === undefined ? 'nothing' : inferType(value)
+    }`
+  );
+}
 
 /** Check if list contains any value from candidates (deep equality) */
 export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
@@ -683,31 +647,7 @@ export const mHasAny: RillMethod = (receiver, args, ctx, location) => {
       `has_any() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  if (args.length !== 1) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'has_any',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has_any() expects 1 argument, got ${args.length}`
-    );
-  }
-  const candidates = args[0] ?? null;
-  if (!Array.isArray(candidates)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'has_any',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has_any() expects list argument, got ${inferType(candidates)}`
-    );
-  }
+  const candidates = listArg(args[0], 'candidates', 'has_any', ctx, location);
   for (const candidate of candidates) {
     for (const item of receiver) {
       if (deepEquals(item, candidate)) return true;
@@ -730,31 +670,7 @@ export const mHasAll: RillMethod = (receiver, args, ctx, location) => {
       `has_all() requires list receiver, got ${inferType(receiver)}`
     );
   }
-  if (args.length !== 1) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'has_all',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has_all() expects 1 argument, got ${args.length}`
-    );
-  }
-  const candidates = args[0] ?? null;
-  if (!Array.isArray(candidates)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'has_all',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R001],
-      `has_all() expects list argument, got ${inferType(candidates)}`
-    );
-  }
+  const candidates = listArg(args[0], 'candidates', 'has_all', ctx, location);
   for (const candidate of candidates) {
     let found = false;
     for (const item of receiver) {
