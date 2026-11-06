@@ -229,40 +229,117 @@ describe('host function signature shorthand', () => {
 
   describe('registration-time failure', () => {
     const invalid = [
-      ['two names without a separator', '|a b|'],
-      ['trailing tokens', '|a| extra'],
-      ['a variable as a type', '|a: $t|'],
-      ['an unterminated string', '|a: string = "oops|'],
+      ['two names without a separator', '|a b|', '1:4'],
+      ['trailing tokens', '|a| extra', '1:5'],
+      ['a variable as a type', '|a: $t|', '1:5'],
+      ['an unterminated string', '|a: string = "oops|', '1:14'],
+      ['an error on the second line', '|\n  a: string,\n  b c\n|', '3:5'],
+      ['dict type arguments without names', '|a: dict(string)|', '1:5'],
+      ['list type with two arguments', '|a: list(string, number)|', '1:5'],
+      ['a variable inside tuple arguments', '|a: tuple(string, $t)|', '1:5'],
+      ['a bad return type', '|a: list(string)|:dict(string)', '1:19'],
+      ['an unsupported default literal', '|a: string = foo|', '1:14'],
+      ['a minus without a number', '|a: number = -x|', '1:15'],
+      ['a non-string annotation value', '|^(k: 5) a: string|', '1:7'],
     ] as const;
 
     it.each(invalid)(
       'createRuntimeContext throws R091 with function key and position: %s',
-      (_label, signature) => {
+      (_label, signature, position) => {
         const err = catchRegistration(() =>
           createRuntimeContext({ functions: { myFn: { signature, fn } } })
         );
         expect(err.errorId).toBe('RILL-R091');
-        expect(err.message).toContain('myFn');
-        expect(err.message).toMatch(/\sat \d+:\d+$/);
+        expect(err.message).toContain("function 'myFn'");
+        expect(err.message.endsWith(` at ${position}`)).toBe(true);
       }
     );
 
     it.each(invalid)(
       'toCallable throws R091 naming <anonymous>: %s',
-      (_label, signature) => {
+      (_label, signature, position) => {
         const err = catchRegistration(() => toCallable({ signature, fn }));
         expect(err.errorId).toBe('RILL-R091');
-        expect(err.message).toContain('<anonymous>');
-        expect(err.message).toMatch(/\sat \d+:\d+$/);
+        expect(err.message).toContain("function '<anonymous>'");
+        expect(err.message.endsWith(` at ${position}`)).toBe(true);
       }
     );
 
-    it('fails before any script executes', () => {
+    it('keeps the original parser error as cause', () => {
+      const err = catchRegistration(() =>
+        toCallable({ signature: '|a b|', fn })
+      );
+      expect(err.cause).toBeInstanceOf(Error);
+      expect((err.cause as Error).message).toContain(
+        "expected ',' or '|' between parameters"
+      );
+    });
+
+    it('does not invoke an earlier function when a later one is invalid', () => {
+      let calls = 0;
       expect(() =>
         createRuntimeContext({
-          functions: { myFn: { signature: '|a b|', fn } },
+          functions: {
+            first: {
+              signature: '||',
+              fn: () => {
+                calls += 1;
+                return 'ok';
+              },
+            },
+            second: { signature: '|a b|', fn },
+          },
         })
       ).toThrow(RuntimeError);
+      expect(calls).toBe(0);
+    });
+
+    it('reports a signature error before the missing-description check', () => {
+      const err = catchRegistration(() =>
+        createRuntimeContext({
+          functions: { myFn: { signature: '|a b|', fn } },
+          requireDescriptions: true,
+        })
+      );
+      expect(err.errorId).toBe('RILL-R091');
+    });
+  });
+
+  describe('requireDescriptions', () => {
+    it('rejects a shorthand without a function description with R069', () => {
+      const err = catchRegistration(() =>
+        createRuntimeContext({
+          functions: { myFn: { signature: '|a: string|', fn } },
+          requireDescriptions: true,
+        })
+      );
+      expect(err.errorId).toBe('RILL-R069');
+    });
+
+    it('rejects a shorthand without a parameter description with R070', () => {
+      const err = catchRegistration(() =>
+        createRuntimeContext({
+          functions: {
+            myFn: { signature: '|a: string|', description: 'does it', fn },
+          },
+          requireDescriptions: true,
+        })
+      );
+      expect(err.errorId).toBe('RILL-R070');
+    });
+
+    it('accepts descriptions supplied through the signature and the field', () => {
+      const ctx = createRuntimeContext({
+        functions: {
+          myFn: {
+            signature: '|^(description: "the input") a: string|',
+            description: 'does it',
+            fn,
+          },
+        },
+        requireDescriptions: true,
+      });
+      expect(getFunctions(ctx)[0]?.description).toBe('does it');
     });
   });
 
@@ -341,6 +418,9 @@ describe('host function signature shorthand', () => {
     it.each([
       ['non-string signature', { signature: 42, fn }],
       ['non-string description', { signature: '||', description: 7, fn }],
+      ['string annotations', { signature: '||', annotations: 'abc', fn }],
+      ['array annotations', { signature: '||', annotations: ['a'], fn }],
+      ['null annotations', { signature: '||', annotations: null, fn }],
     ])('rejects a %s with R091 from both entry points', (_l, def) => {
       const typed = def as unknown as RillFunctionDefinition;
       const viaContext = catchRegistration(() =>
@@ -349,6 +429,17 @@ describe('host function signature shorthand', () => {
       expect(viaContext.errorId).toBe('RILL-R091');
       const viaCallable = catchRegistration(() => toCallable(typed));
       expect(viaCallable.errorId).toBe('RILL-R091');
+    });
+  });
+
+  describe('non-object definitions', () => {
+    it('reaches the existing RILL-R085 path instead of a TypeError', () => {
+      const err = catchRegistration(() =>
+        createRuntimeContext({
+          functions: { f: 5 as unknown as RillFunctionDefinition },
+        })
+      );
+      expect(err.errorId).toBe('RILL-R085');
     });
   });
 

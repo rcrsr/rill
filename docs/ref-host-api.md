@@ -807,7 +807,7 @@ Use the explicit form for these declarations:
 | Declaration | Reason |
 |-------------|--------|
 | Tuple field defaults | The signature cannot express `fields[].defaultValue` |
-| Stream types | The signature cannot express `stream(...)` |
+| Stream, ordered, and closure types with arguments | Signature type arguments are limited to `list`, `dict`, and `tuple` |
 | Dict defaults | Defaults are limited to string, number, and bool literals |
 | `skipReceiverValidation` | The shorthand has no such field |
 
@@ -819,6 +819,7 @@ Registration throws `RuntimeError` with `RILL-R091` in these cases:
 | `params` or `returnType` supplied with `signature` | `Invalid signature for function '{name}': supply either signature or params and returnType, not both` |
 | `signature` is not a string | `Invalid signature for function '{name}': signature must be a string` |
 | `description` is not a string | `Invalid signature for function '{name}': description must be a string` |
+| `annotations` is not an object | `Invalid signature for function '{name}': annotations must be an object` |
 | One annotation key declared by more than one source (signature, `annotations`, `description`) | `Invalid signature for function '{name}': annotation '{key}' is declared more than once` |
 
 `{name}` is the key in `functions`. `toCallable` has no key, so it reports `<anonymous>`. A default that does not match its declared type keeps `RILL-R077`.

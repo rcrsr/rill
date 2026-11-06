@@ -40,7 +40,12 @@ export type RillFunctionDefinition = RillFunction | RillFunctionShorthand;
 function isShorthand(
   def: RillFunctionDefinition
 ): def is RillFunctionShorthand {
-  return 'signature' in def && def.signature !== undefined;
+  return (
+    typeof def === 'object' &&
+    def !== null &&
+    'signature' in def &&
+    def.signature !== undefined
+  );
 }
 
 function registrationFault(message: string): RuntimeError {
@@ -61,7 +66,8 @@ function signatureFault(name: string, detail: string): RuntimeError {
  * shorthand form is parsed with parseSignatureRegistration.
  *
  * @throws {RuntimeError} RILL-R091 when the shorthand is malformed, mixes
- * forms, or declares an annotation key from more than one source
+ * forms, has a non-object annotations field, or declares an annotation key
+ * from more than one source
  *
  * @internal
  */
@@ -84,13 +90,24 @@ export function normalizeFunctionDefinition(
   if (def.description !== undefined && typeof def.description !== 'string') {
     throw signatureFault(name, 'description must be a string');
   }
+  if (
+    def.annotations !== undefined &&
+    (typeof def.annotations !== 'object' ||
+      def.annotations === null ||
+      Array.isArray(def.annotations))
+  ) {
+    throw signatureFault(name, 'annotations must be an object');
+  }
 
   let parsed;
   try {
     parsed = parseSignatureRegistration(def.signature, name);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    throw registrationFault(message);
+    const wrapped = registrationFault(message);
+    // Keep the original parser error reachable through the standard cause chain
+    wrapped.cause = err;
+    throw wrapped;
   }
 
   const annotations: Record<string, RillValue> = {};
