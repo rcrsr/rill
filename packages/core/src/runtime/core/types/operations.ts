@@ -555,7 +555,7 @@ export function structureMatches(
   if (isStructureKind(type, 'closure')) {
     if (!isCallable(value) || value.returnType === undefined) return false;
     if (type.params === undefined) return true;
-    const valueParams = value.params ?? [];
+    const valueParams = value.params;
     if (valueParams.length !== type.params.length) return false;
     for (const [i, field] of type.params.entries()) {
       const param = valueParams[i];
@@ -792,7 +792,7 @@ export function inferStructure(value: RillValue): TypeStructure {
     return result;
   }
   if (isCallable(value) && value.returnType !== undefined) {
-    const params = (value.params ?? []).map((p) =>
+    const params = value.params.map((p) =>
       paramToFieldDef(
         p.name,
         p.type ?? { kind: 'any' },

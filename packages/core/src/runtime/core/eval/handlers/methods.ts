@@ -14,7 +14,6 @@ import {
   isScriptCallable,
   isApplicationCallable,
   marshalArgs,
-  untypedArgsRecord,
 } from '../../callable.js';
 import { UNVALIDATED_METHOD_PARAMS } from '../../context.js';
 import type { RillValue, RillTypeValue } from '../../types/structures.js';
@@ -93,9 +92,7 @@ export async function evaluateMethod(
     const callLocation = getNodeLocation(s, node);
     const effectiveArgs = [receiver, ...args];
     let methodArgs: Record<string, RillValue>;
-    if (typeMethod.params === undefined) {
-      methodArgs = untypedArgsRecord(effectiveArgs);
-    } else if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
+    if (UNVALIDATED_METHOD_PARAMS.has(node.name)) {
       methodArgs = {
         receiver,
         __positionalArgs: args,
@@ -372,9 +369,6 @@ export async function evaluateAnnotationAccess(
     return value.annotations['description'] ?? '';
   }
   if (key === 'input') {
-    if (value.params === undefined) {
-      return structureToTypeValue({ kind: 'ordered', fields: [] });
-    }
     const fields = value.params.map((param) =>
       paramToFieldDef(
         param.name,

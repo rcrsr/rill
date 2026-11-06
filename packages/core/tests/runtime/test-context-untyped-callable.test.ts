@@ -1,18 +1,15 @@
 /**
- * Rill Runtime Tests: createTestContext with untyped callables
+ * Rill Runtime Tests: createTestContext with factory-built callables
  *
- * Bug #279: createTestContext threw an internal TypeError
- * ("Cannot read properties of undefined (reading 'map')") when an extension
- * value contained a callable produced by the public `callable()` factory, whose
- * `params` field is `undefined` (untyped). buildNestedSource now treats an
- * undefined param list as an untyped binding instead of dereferencing it.
+ * createTestContext must accept extension values containing a callable
+ * produced by the public `callable()` factory, which declares `params: []`.
  */
 
 import { describe, expect, it } from 'vitest';
 import { callable, createTestContext, execute, parse } from '@rcrsr/rill';
 
-describe('Bug #279: createTestContext accepts untyped callables', () => {
-  it('does not throw for a nested untyped callable value', () => {
+describe('createTestContext accepts factory-built callables', () => {
+  it('does not throw for a nested factory-built callable value', () => {
     expect(() =>
       createTestContext({
         ext: { value: { f: callable(() => 1) } },
@@ -20,7 +17,7 @@ describe('Bug #279: createTestContext accepts untyped callables', () => {
     ).not.toThrow();
   });
 
-  it('does not throw for a top-level untyped callable value', () => {
+  it('does not throw for a top-level factory-built callable value', () => {
     expect(() =>
       createTestContext({
         f: { value: callable(() => 1) },

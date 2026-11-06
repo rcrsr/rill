@@ -17,7 +17,8 @@ import { anyTypeValue } from './types/any-type.js';
 
 /**
  * Create an application callable from a host function.
- * Creates an untyped callable (params: undefined) that skips validation.
+ * Declares no parameters, or a single any-typed `self` parameter when
+ * `isProperty` is set. The function receives a name-keyed argument record.
  * @param fn The function to wrap
  * @param isProperty If true, auto-invokes when accessed from dict (property-style)
  */
@@ -25,14 +26,20 @@ export function callable(
   fn: CallableFn,
   isProperty = false
 ): ApplicationCallable {
+  const params: readonly RillParam[] = isProperty
+    ? [
+        {
+          name: 'self',
+          type: { kind: 'any' },
+          defaultValue: undefined,
+          annotations: {},
+        },
+      ]
+    : [];
   return {
     __type: 'callable',
     kind: 'application',
-    // Use undefined to signal "untyped" — skips arity validation in invokeCallable.
-    // Explicitly registered callables use params: [] (typed zero-param) and DO validate.
-    // See [DEVIATION] in Implementation Notes.
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- public ApplicationCallable.params is typed readonly RillParam[], but an untyped callable uses an undefined sentinel the type cannot express
-    params: undefined as unknown as readonly RillParam[],
+    params,
     annotations: {},
     returnType: anyTypeValue,
     fn,

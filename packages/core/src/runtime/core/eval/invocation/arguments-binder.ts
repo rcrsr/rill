@@ -135,10 +135,17 @@ export class ArgumentsBinder {
       return EMPTY_BOUND_ARGUMENTS;
     }
 
-    // ApplicationCallable with undefined params (e.g. created via callable() helper)
-    // has no param metadata. Emit "parameter metadata required" to match baseline behavior.
-    // Must be checked before the isUntypedBuiltin (empty params) branch.
-    if (isApplicationCallable(callable) && callable.params === undefined) {
+    // Spread needs parameter names to bind by. A zero-parameter host
+    // function has none; a runtime callable is a built-in.
+    if (isRuntimeCallable(callable)) {
+      const name = _getCallableName(callable);
+      throwCatchableHostHalt(
+        { location, sourceId, fn: 'bind' },
+        ERROR_ATOMS[ERROR_IDS.RILL_R001],
+        `Spread not supported for built-in function '${name}'`
+      );
+    }
+    if (isApplicationCallable(callable) && callable.params.length === 0) {
       const name = _getCallableName(callable);
       throwCatchableHostHalt(
         { location, sourceId, fn: 'bind' },
@@ -147,22 +154,7 @@ export class ArgumentsBinder {
       );
     }
 
-    // Spread on untyped builtin — ApplicationCallable with empty params array.
-    // Message matches closures.ts:1079 verbatim.
-    const isUntypedBuiltin =
-      isRuntimeCallable(callable) ||
-      (isApplicationCallable(callable) && (callable.params?.length ?? 0) === 0);
-
-    if (isUntypedBuiltin) {
-      const name = _getCallableName(callable);
-      throwCatchableHostHalt(
-        { location, sourceId, fn: 'bind' },
-        ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        `Spread not supported for built-in function '${name}'`
-      );
-    }
-
-    const params = callable.params as readonly { name: string }[];
+    const params = callable.params;
     const bound = new Map<string, RillValue>();
 
     // Positional index: next unbound parameter position

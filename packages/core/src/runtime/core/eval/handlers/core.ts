@@ -635,9 +635,7 @@ async function invokePipeCallable(
 ): Promise<RillValue> {
   const hasParams =
     (value.kind === 'script' && value.params.length > 0) ||
-    (value.kind === 'application' &&
-      value.params !== undefined &&
-      value.params.length > 0);
+    (value.kind === 'application' && value.params.length > 0);
 
   if (hasParams) {
     return invokeCallable(s, value, [input], location);
@@ -1307,9 +1305,7 @@ async function resolveTerminalValue(
   // Check if callable has params to determine invocation style
   const hasParams =
     (value.kind === 'script' && value.params.length > 0) ||
-    (value.kind === 'application' &&
-      value.params !== undefined &&
-      value.params.length > 0);
+    (value.kind === 'application' && value.params.length > 0);
 
   if (hasParams) {
     // Block-closure or application callable with params: invoke with finalKey as argument

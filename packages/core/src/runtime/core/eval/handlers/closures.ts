@@ -16,13 +16,7 @@ import type {
   RuntimeCallable,
   ApplicationCallable,
 } from '../../callable.js';
-import {
-  isCallable,
-  isApplicationCallable,
-  marshalArgs,
-  untypedArgsRecord,
-  validateHostResult,
-} from '../../callable.js';
+import { isCallable, marshalArgs, validateHostResult } from '../../callable.js';
 import { markExtensionThrow } from '../../extension-throw.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import type { RillValue, RillStream } from '../../types/structures.js';
@@ -523,15 +517,10 @@ async function invokeFnCallable(
       ? [callable.boundDict]
       : args;
 
-  let fnArgs: Record<string, RillValue>;
-  if (isApplicationCallable(callable) && callable.params !== undefined) {
-    fnArgs = marshalArgs(effectiveArgs, callable.params, {
-      functionName,
-      location: callLocation,
-    });
-  } else {
-    fnArgs = untypedArgsRecord(effectiveArgs);
-  }
+  const fnArgs = marshalArgs(effectiveArgs, callable.params, {
+    functionName,
+    location: callLocation,
+  });
 
   let result: RillValue;
   try {

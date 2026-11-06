@@ -13,38 +13,44 @@
  */
 
 import {
-  callable,
+  toCallable,
   type ApplicationCallable,
   type RillFunction,
 } from './callable.js';
 
 // Parsed once at registration time, not per context creation.
 const BUILTIN_FN_CACHE = new Map<string, ApplicationCallable>();
+// Callables, by identity, whose arguments cannot be supplied by spread.
+const SPREAD_UNSUPPORTED = new WeakSet<ApplicationCallable>();
 let registered = false;
 
 /**
  * Register the builtin function table. Called by `runtime/ext/builtins.ts`
- * at module load. `untypedNames` lists builtins that are genuinely variadic
- * and must skip arg validation.
+ * at module load. `spreadUnsupportedNames` lists builtins that reject spread
+ * arguments; it affects spread rejection only.
  */
 export function registerBuiltinFunctions(
   fns: Record<string, RillFunction>,
-  untypedNames: ReadonlySet<string>
+  spreadUnsupportedNames: ReadonlySet<string>
 ): void {
   BUILTIN_FN_CACHE.clear();
   for (const [name, entry] of Object.entries(fns)) {
-    const appCallable = callable(entry.fn, false);
-    if (untypedNames.has(name)) {
-      BUILTIN_FN_CACHE.set(name, appCallable);
-      continue;
+    const appCallable = toCallable(entry);
+    BUILTIN_FN_CACHE.set(name, appCallable);
+    if (spreadUnsupportedNames.has(name)) {
+      SPREAD_UNSUPPORTED.add(appCallable);
     }
-    BUILTIN_FN_CACHE.set(name, {
-      ...appCallable,
-      params: entry.params,
-      returnType: entry.returnType,
-    });
   }
   registered = true;
+}
+
+/**
+ * True when `fn` is the registered builtin callable that rejects spread
+ * arguments. Keyed by object identity, so a host override of the same name
+ * is not affected.
+ */
+export function isSpreadUnsupportedBuiltin(fn: ApplicationCallable): boolean {
+  return SPREAD_UNSUPPORTED.has(fn);
 }
 
 function assertRegistered(): void {

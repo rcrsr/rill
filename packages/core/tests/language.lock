@@ -98,7 +98,7 @@ e1e4f2b3264cbeaffeb39cf5de1e0f6a5322725f05fe4b21881b592e689ece1e  packages/core/
 70a8f2c2af95401ef2cc64dd2001be0c18ea46a3bbb46cc09dfce203ba7f2679  packages/core/tests/language/unified-dispatch.test.ts
 6753b0cc5bde25eee5987db0a6d0bf28a815f908baefa0ceb861541cd6e79ea6  packages/core/tests/language/uniform-value-type.test.ts
 e3bc188bd0d6129bc77618459d9fd17ff9d373fae19aaa4c801bbced7fa06354  packages/core/tests/language/union-types.test.ts
-1aff3eb3ba15ad9bf9f429a1de0b79792bb31854a6a7ec06cc137ece421b3bdf  packages/core/tests/language/use-expr.test.ts
+0e68d923055235d4b155c40212109251c62c38060c0309a588356c236019915d  packages/core/tests/language/use-expr.test.ts
 4653ac606a658d04ec6d8943eef31093b5d5b0c51ebb91ecb70fb85d69be767b  packages/core/tests/language/vacancy-coerce.test.ts
 430ca46cac1368974a677c9481c9375b4036b2ec9fa2356368224950a7151deb  packages/core/tests/language/variable-method-calls.test.ts
 fc077bc9db205847b64e2d9940e8045347cf7c93cc850d3964cb3b69a6139d6d  packages/core/tests/language/variables.test.ts

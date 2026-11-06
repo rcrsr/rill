@@ -1,6 +1,6 @@
 import type { RillFunction } from '../../../core/callable.js';
 import {
-  callable,
+  toCallable,
   isCallable,
   isDict,
   isScriptCallable,
@@ -36,7 +36,7 @@ import {
   walkStreamOrIteratorElements,
 } from '../../../core/eval/handlers/collections.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, chunkSlice, getPositionalArgs } from '../shared.js';
+import { MAX_ITER, chunkSlice } from '../shared.js';
 import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
 /**
@@ -44,12 +44,23 @@ import { typedKeyEntries } from '../../../core/types/dict-keys.js';
  * Receives a { key, value } entry dict and returns the key string.
  * Constructed once at module load; not re-allocated per call.
  */
-const DICT_DEFAULT_KEY_FN = callable((args) => {
-  const entry = getPositionalArgs(args)[0] ?? null;
-  if (isDict(entry) && 'key' in entry) {
-    return entry['key'] ?? null;
-  }
-  return null;
+const DICT_DEFAULT_KEY_FN = toCallable({
+  params: [
+    {
+      name: 'entry',
+      type: { kind: 'any' },
+      defaultValue: undefined,
+      annotations: {},
+    },
+  ],
+  returnType: anyTypeValue,
+  fn: (args) => {
+    const entry = args['entry'] ?? null;
+    if (isDict(entry) && 'key' in entry) {
+      return entry['key'] ?? null;
+    }
+    return null;
+  },
 });
 
 /** Halt-site descriptor shared by the collection built-ins' host halts. */

@@ -313,11 +313,9 @@ describe('createTestContext', () => {
   });
 
   describe('EC-10: binding generation failure propagates ExtensionBindingError', () => {
-    it('binds an untyped callable() value without throwing (bug #279)', () => {
-      // callable() creates untyped callables with params=undefined. The binding
-      // generator previously dereferenced c.params.map() and threw a raw
-      // TypeError, wrapped as ExtensionBindingError. Untyped callables now bind
-      // gracefully as an untyped ext resource instead of failing.
+    it('binds a callable() factory value without throwing', () => {
+      // callable() declares params: [], so the binding generator emits a
+      // typed zero-parameter binding.
       const untypedCallable = callable(() => null);
 
       expect(() =>
