@@ -76,7 +76,7 @@ eb53d81150ab657eb0fc0fd7f1aba2c929d9faeeebc940c9fa3cdb1ae70296af  packages/core/
 5294aa757904d72958099912367d030480e86f5beb8c4ed6c0a24ae5788dfc6b  packages/core/tests/language/ref-llms-full-assertions.test.ts
 6176f0dada7075f1f1766672729878e37f8b0a714118281457a3307423c8d52f  packages/core/tests/language/scope-isolation.test.ts
 0917e533b18c41e1f014d7c324f8a9d4d98fb74e52585a79de0670b42827a243  packages/core/tests/language/sort.test.ts
-89fa6241a2545325e735029afd37a526dbb79dca851362843e400d0f024d279c  packages/core/tests/language/spread.test.ts
+7d84a78d2e8921f05129dadde61858d1fa7a097867ca5b65c2dd7173fa1f8506  packages/core/tests/language/spread.test.ts
 0928c23385451e6aa9192ebaccd812ad31e0e2a7a8c643cbe5f69ac999c1e95d  packages/core/tests/language/statement-boundaries.test.ts
 e40bcd948d58b2e0a9468e7a5a36b88c1192ea774358965a6b17f9407e6e680e  packages/core/tests/language/status-probe.test.ts
 4c4e2d91c4d5c33fa3f87b1b6224a92f32d7d0daef21f90e0f8d711cf790bffc  packages/core/tests/language/stream-type-parsing.test.ts

@@ -584,6 +584,22 @@ export const mLe: RillMethod = (receiver, args, ctx, location) =>
 export const mGe: RillMethod = (receiver, args, ctx, location) =>
   orderedCompare(receiver, args, ctx, location, 'ge') >= 0;
 
+/** Halt RILL-R003 unless receiver is a plain dict (not ordered, branded, or stream). */
+function requireDictReceiver(
+  receiver: RillValue,
+  fn: string,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined
+): asserts receiver is Record<string, RillValue> {
+  if (isDict(receiver) && !isBrandedNonDict(receiver) && !isStream(receiver))
+    return;
+  throwFatalHostHalt(
+    { location, sourceId: ctx.sourceId, fn, preserveHostShape: true },
+    ERROR_ATOMS[ERROR_IDS.RILL_R003],
+    `${fn}() requires dict receiver, got ${inferType(receiver)}`
+  );
+}
+
 /**
  * Get all keys of a dict as a list, in canonical order: sorted string keys,
  * then number keys ascending, then boolean keys (false before true).
@@ -592,58 +608,24 @@ export const mKeys: RillMethod = (receiver, _args, ctx, location) => {
   // Ordered values dispatch before isDict: the JS wrapper object also
   // satisfies isDict's structural shape check.
   if (isOrdered(receiver)) return orderedValueEntries(receiver).map(([k]) => k);
-  if (isBrandedNonDict(receiver)) {
-    throwFatalHostHalt(
-      { location, sourceId: ctx.sourceId, fn: 'keys', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `keys() requires dict receiver, got ${inferType(receiver)}`
-    );
-  }
-  return isDict(receiver) && !isStream(receiver)
-    ? orderedDictEntries(receiver).map((e) => e.key)
-    : [];
+  requireDictReceiver(receiver, 'keys', ctx, location);
+  return orderedDictEntries(receiver).map((e) => e.key);
 };
 
 /** Get all values of a dict as a list, in canonical key order. */
 export const mValues: RillMethod = (receiver, _args, ctx, location) => {
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([, v]) => v);
-  if (isBrandedNonDict(receiver)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'values',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `values() requires dict receiver, got ${inferType(receiver)}`
-    );
-  }
-  return isDict(receiver) && !isStream(receiver)
-    ? orderedDictEntries(receiver).map((e) => e.value)
-    : [];
+  requireDictReceiver(receiver, 'values', ctx, location);
+  return orderedDictEntries(receiver).map((e) => e.value);
 };
 
 /** Get all entries of a dict as a list of [key, value] pairs, in canonical key order. */
 export const mEntries: RillMethod = (receiver, _args, ctx, location) => {
   if (isOrdered(receiver))
     return orderedValueEntries(receiver).map(([k, v]): RillValue => [k, v]);
-  if (isBrandedNonDict(receiver)) {
-    throwFatalHostHalt(
-      {
-        location,
-        sourceId: ctx.sourceId,
-        fn: 'entries',
-        preserveHostShape: true,
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `entries() requires dict receiver, got ${inferType(receiver)}`
-    );
-  }
-  return isDict(receiver) && !isStream(receiver)
-    ? orderedDictEntries(receiver).map((e): RillValue => [e.key, e.value])
-    : [];
+  requireDictReceiver(receiver, 'entries', ctx, location);
+  return orderedDictEntries(receiver).map((e): RillValue => [e.key, e.value]);
 };
 
 /** Check if list contains value (deep equality) */

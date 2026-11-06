@@ -215,8 +215,10 @@ describe('Rill Runtime: Dict Methods', () => {
       expect(await run('dict[] -> .keys')).toEqual([]);
     });
 
-    it('returns empty list for non-dict', async () => {
-      expect(await run('"hello" -> .keys')).toEqual([]);
+    it('halts RILL-R003 for non-dict', async () => {
+      await expect(run('"hello" -> .keys')).rejects.toMatchObject({
+        errorId: 'RILL-R003',
+      });
     });
   });
 
@@ -230,8 +232,10 @@ describe('Rill Runtime: Dict Methods', () => {
       expect(await run('dict[] -> .values')).toEqual([]);
     });
 
-    it('returns empty list for non-dict', async () => {
-      expect(await run('"hello" -> .values')).toEqual([]);
+    it('halts RILL-R003 for non-dict', async () => {
+      await expect(run('"hello" -> .values')).rejects.toMatchObject({
+        errorId: 'RILL-R003',
+      });
     });
   });
 

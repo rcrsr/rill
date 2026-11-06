@@ -482,6 +482,8 @@ Terminal closures receive `$` bound to the final path key.
 | `.entries` | Dict | List | Key-value pairs |
 | `.params` | Closure | Dict | Parameter metadata (type, __annotations) |
 
+`.keys`, `.values`, and `.entries` halt `RILL-R003` on a non-dict receiver (tuple, stream, string, number, and so on). `ordered` values are accepted.
+
 See [Strings](topic-strings.md) for detailed string method documentation.
 
 ### Global Functions
