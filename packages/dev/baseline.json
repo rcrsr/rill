@@ -88,7 +88,7 @@
     "vitest": "^5.1.0"
   },
   "publishedVersions": {
-    "@rcrsr/rill": "0.22.0",
-    "@rcrsr/rill-language-service": "0.22.0"
+    "@rcrsr/rill": "0.23.0",
+    "@rcrsr/rill-language-service": "0.23.0"
   }
 }
