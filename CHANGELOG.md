@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Signature parser errors carry a position and keep signature annotations:** Signature parse errors now end with ` at line:col`, and signature-level `^(key: "v")` annotations are now kept instead of dropped. ([#525](https://github.com/rcrsr/rill/issues/525), [#528](https://github.com/rcrsr/rill/pull/528))
+- **Toolchain refreshed:** pnpm 12.9.1 to 12.18.0, vitest and `@vitest/coverage-v8` to 5.1.0, oxlint to 1.91.0, oxfmt to 0.76.0, knip to 6.44.1, lefthook to 2.2.1 (2.2.2 is held back by the `no-downgrade` trust policy), `actions/setup-node` to v7.1.0, `github/codeql-action` to v4.39.3, plus refreshes across the fiddle front-end dependencies, including happy-dom 20.14.5 to 21.0.4. ([#529](https://github.com/rcrsr/rill/pull/529))
 
 ## 0.22.0 - 2026-11-05
 

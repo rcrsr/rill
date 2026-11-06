@@ -75,17 +75,17 @@
     "vitest/require-mock-type-parameters": "off",
     "promise/valid-params": "off"
   },
-  "packageManager": "pnpm@12.9.1+sha512.06b055fff5cd20dc12781de173ced3310ce0951bf2ec620211a16045d5444d5c93a663210764ef29a653a610459ba0368f0e74f84d80c54723cf95aae7bc0d6d",
+  "packageManager": "pnpm@12.18.0+sha512.9d7882d5dc82147ecfc4e062aa34834e0ad0296710a1837a1115ae012127d36b7109e321ac1598a1dd0a65597681b1e99917e12ed0d749eae91187943363beb3",
   "typescriptMajor": "7",
   "sharedTooling": {
-    "@types/node": "^26.6.4",
-    "knip": "^6.39.0",
-    "lefthook": "^2.1.16",
-    "oxfmt": "^0.71.0",
-    "oxlint": "^1.86.0",
-    "oxlint-tsgolint": "^7.0.2005",
+    "@types/node": "^26.6.6",
+    "knip": "^6.44.1",
+    "lefthook": "^2.2.1",
+    "oxfmt": "^0.76.0",
+    "oxlint": "^1.91.0",
+    "oxlint-tsgolint": "^7.0.2006",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.1.0"
   },
   "publishedVersions": {
     "@rcrsr/rill": "0.22.0",
