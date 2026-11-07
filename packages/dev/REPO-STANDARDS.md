@@ -593,7 +593,7 @@ on paper while verifying nothing on install.
 | STD-DEP-2 | One compiler major across the ecosystem. A repository consuming another's emitted declarations must not read them with an older compiler major. | — |
 | STD-DEP-3 | A tool incompatible with the current compiler major is handled by a **scoped nested override**, never by downgrading the whole workspace. | No tool conflicts with the current compiler major. |
 | STD-DEP-4 | Test runner declared consistently: either in every package or in none, relying on root resolution. | The repository is a single package. |
-| STD-DEP-5 | Cross-repository peer ranges track the current published version. | The repository has no cross-repository peer dependency. |
+| STD-DEP-5 | Cross-repository peer ranges are at least the baseline published version (major.minor); a newer range passes. | The repository has no cross-repository peer dependency. |
 
 This document deliberately names no versions. The canonical pins are `rill`'s
 root `package.json` and `pnpm-workspace.yaml`. Dependabot (STD-SUP-1) keeps them
@@ -604,7 +604,7 @@ hold travel as `packages/dev/baseline.json`: generated from rill's tree by
 `rill-gen-baseline` (`pnpm fix:baseline` in this repository), committed, and
 published in the `@rcrsr/rill-dev` tarball. STD-LINT-1, STD-LINT-5, STD-LINT-9,
 STD-LINT-12, STD-PM-2, STD-DEP-1, STD-DEP-2, and STD-DEP-5 (which reads only the one
-`publishedVersions` fact it needs: the current version of each package the
+`publishedVersions` fact it needs: the minimum version of each package the
 ecosystem's peer ranges point at) read it to decide what used to be `--` in
 every repository but rill. `rill-check-standards` regenerates the baseline in
 memory whenever it runs against rill's own tree and fails rather than trusting
