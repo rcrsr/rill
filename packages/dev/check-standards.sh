@@ -2056,7 +2056,7 @@ else
   esac
 fi
 
-# STD-DEP-5: cross-repository peer ranges track the current published version.
+# STD-DEP-5: cross-repository peer ranges are at least the baseline published version.
 # The baseline's publishedVersions map is the current published version for
 # each package this ecosystem's peer ranges point at; only @rcrsr/* peer
 # dependencies count, and only the workspace-external kind. A `workspace:`
@@ -2078,25 +2078,26 @@ PEER_LINES="$(node -e '
   process.stdout.write(out.join("\n"));
 ' "${PKG_DIRS[@]}")"
 if [ -z "$PEER_LINES" ]; then
-  skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
+  skip "STD-DEP-5" "cross-repository peer ranges are at least the baseline published version" \
     "N/A: no cross-repository peer dependency"
-elif baseline_gate "STD-DEP-5" "cross-repository peer ranges track the current published version"; then
+elif baseline_gate "STD-DEP-5" "cross-repository peer ranges are at least the baseline published version"; then
   EXP_VERSIONS="$(baseline_json publishedVersions)"
-  # Tracks the published version by major.minor, not the exact patch: a `~`
-  # or `^` peer range names the release its author last verified against, and
-  # a patch bump on the pinned package is exactly the case such a range is
-  # written to keep tracking without an edit.
+  # The baseline is a floor, not a pin: a peer range fails only when its
+  # major.minor is older than the baseline's. A range that is newer than a
+  # stale snapshot passes, so a consumer never waits on a rill-dev release
+  # that exists only to refresh publishedVersions.
   PEER_MISMATCH="$(node -e '
     const versions = JSON.parse(process.argv[1] || "{}") ?? {};
     const lines = process.argv[2].split("\n").filter(Boolean);
-    const majorMinor = (v) => (String(v).match(/(\d+)\.(\d+)/) || []).slice(1, 3).join(".");
+    const majorMinor = (v) => (String(v).match(/(\d+)\.(\d+)/) || []).slice(1, 3).map(Number);
+    const older = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
     const out = [];
     const unresolved = [];
     for (const line of lines) {
       const [name, range] = line.split(/ (.*)/s);
       if (!(name in versions)) { unresolved.push(name); continue; }
-      if (majorMinor(range) !== majorMinor(versions[name])) {
-        out.push(name + ": peer " + range + " vs published " + versions[name]);
+      if (older(majorMinor(range), majorMinor(versions[name]))) {
+        out.push(name + ": peer " + range + " is older than minimum " + versions[name]);
       }
     }
     process.stdout.write(JSON.stringify({ mismatch: out, unresolved, checked: lines.length - unresolved.length }));
@@ -2104,12 +2105,12 @@ elif baseline_gate "STD-DEP-5" "cross-repository peer ranges track the current p
   PM_CHECKED="$(printf '%s' "$PEER_MISMATCH" | node -e 'process.stdout.write(String(JSON.parse(require("fs").readFileSync(0,"utf8")).checked))')"
   PM_BAD="$(printf '%s' "$PEER_MISMATCH" | node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(0,"utf8")).mismatch.join("; "))')"
   if [ "$PM_CHECKED" -eq 0 ]; then
-    skip "STD-DEP-5" "cross-repository peer ranges track the current published version" \
+    skip "STD-DEP-5" "cross-repository peer ranges are at least the baseline published version" \
       "no baseline pin for the peer dependency this repository declares"
   elif [ -z "$PM_BAD" ]; then
-    ok "STD-DEP-5" "cross-repository peer ranges track the current published version"
+    ok "STD-DEP-5" "cross-repository peer ranges are at least the baseline published version"
   else
-    bad "STD-DEP-5" "cross-repository peer ranges track the current published version" "$PM_BAD"
+    bad "STD-DEP-5" "cross-repository peer ranges are at least the baseline published version" "$PM_BAD"
   fi
 fi
 

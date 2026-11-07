@@ -12,6 +12,12 @@ the language version. Language changes are recorded in the
 
 ## Unreleased
 
+## 0.3.0 - 2026-11-06
+
+### Changed
+
+- **`STD-DEP-5`: the baseline is a floor, not a pin.** A cross-repository peer range now fails only when its major.minor is older than `publishedVersions` in `baseline.json`. A range at or above the baseline passes, so a consumer no longer waits on a rill-dev release that only refreshes the snapshot. The failure message reads `peer X is older than minimum Y`. A consumer whose peer range was ahead of the snapshot, and failed before, now passes.
+
 ## 0.2.9 - 2026-11-06
 
 ### Changed
