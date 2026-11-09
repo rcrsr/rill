@@ -147,8 +147,7 @@ describe('collections handlers', () => {
 
     it('raises error when body is not a closure', async () => {
       await expectHalt(() => run('list[1] -> seq(42)'), {
-        code: 'RILL_R040',
-        hostErrorId: 'RILL-R040',
+        code: 'TYPE_MISMATCH',
         messagePattern: /seq.*closure/i,
       });
     });
@@ -296,8 +295,7 @@ describe('collections handlers', () => {
 
     it('raises error when body is not a closure', async () => {
       await expectHalt(() => run('list[1] -> fold(0, 42)'), {
-        code: 'RILL_R040',
-        hostErrorId: 'RILL-R040',
+        code: 'TYPE_MISMATCH',
         messagePattern: /fold.*closure/i,
       });
     });

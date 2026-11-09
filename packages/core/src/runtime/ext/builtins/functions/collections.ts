@@ -106,9 +106,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('seq', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `seq: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -222,9 +222,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const options = args['options'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('fan', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `fan: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -364,9 +364,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('acc', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `acc: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -504,9 +504,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('fold', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `fold: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -607,9 +607,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const options = args['options'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('filter', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `filter: body must be a closure, got ${inferType(body)}`
         );
       }

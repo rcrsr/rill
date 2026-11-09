@@ -20,6 +20,36 @@ const BIG_LIST: number[] = Array.from({ length: 15000 }, (_, i) => i + 1);
 
 const CASES: readonly RecoverableCase[] = [
   {
+    name: 'seq with a non-closure body',
+    source: 'list[1] -> seq(5)',
+    code: '#TYPE_MISMATCH',
+    message: 'seq: body must be a closure, got number',
+  },
+  {
+    name: 'fan with a non-closure body',
+    source: 'list[1] -> fan(5)',
+    code: '#TYPE_MISMATCH',
+    message: 'fan: body must be a closure, got number',
+  },
+  {
+    name: 'acc with a non-closure body',
+    source: 'list[1] -> acc(0, 5)',
+    code: '#TYPE_MISMATCH',
+    message: 'acc: body must be a closure, got number',
+  },
+  {
+    name: 'fold with a non-closure body',
+    source: 'list[1] -> fold(0, 5)',
+    code: '#TYPE_MISMATCH',
+    message: 'fold: body must be a closure, got number',
+  },
+  {
+    name: 'filter with a non-closure body',
+    source: 'list[1] -> filter(5)',
+    code: '#TYPE_MISMATCH',
+    message: 'filter: body must be a closure, got number',
+  },
+  {
     name: 'range with a zero step',
     source: 'range(0, 5, 0)',
     code: '#INVALID_INPUT',

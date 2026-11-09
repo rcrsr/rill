@@ -302,22 +302,25 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   // ── Error Cases ──────────────────────────────────────────────────────────
 
   describe('Error Cases', () => {
-    it('AC-18/EC-1 (seq): non-callable body raises RILL-R040', async () => {
-      await expect(run('list[1] -> seq(42)')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R040' })
-      );
+    it('AC-18/EC-1 (seq): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1] -> seq(42)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /seq: body must be a closure/,
+      });
     });
 
-    it('EC-1 (fold): non-callable body raises RILL-R040', async () => {
-      await expect(run('list[1] -> fold(0, 42)')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R040' })
-      );
+    it('EC-1 (fold): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1] -> fold(0, 42)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /fold: body must be a closure/,
+      });
     });
 
-    it('EC-1 (filter): non-callable body raises RILL-R040', async () => {
-      await expect(run('list[1] -> filter(42)')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R040' })
-      );
+    it('EC-1 (filter): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1] -> filter(42)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /filter: body must be a closure/,
+      });
     });
 
     it('AC-19/EC-2 (fold): 3-parameter named closure raises arity mismatch', async () => {
