@@ -106,7 +106,7 @@ export interface FiddleResolverConfig {
   resolvers: Record<string, SchemeResolver>;
   /** Per-scheme configuration data passed to each resolver */
   configurations: { resolvers: Record<string, unknown> };
-  /** Host functions exposed to scripts (e.g. "ext::fn") */
+  /** Host functions exposed to scripts (bare names called as `name(...)`, e.g. "echo") */
   functions?: Record<string, RillFunction> | undefined;
 }
 

@@ -120,8 +120,6 @@ function astChildren(node: ASTNode): ASTNode[] {
       return [node.index];
     case 'HostCall':
       return [...node.args];
-    case 'HostRef':
-      return [];
     case 'ClosureCall':
       return [...node.args];
     case 'PipeInvoke':

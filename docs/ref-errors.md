@@ -376,8 +376,8 @@ $x: string|  # Error: missing type after |
 **Example:**
 
 ```text
-# app:: direct-call syntax removed
-app::fn()  # Error: use use<host:fn> instead
+# Namespaced host-call syntax removed
+math::add(1, 2)  # Error: use use<ext:math> => $math, then $math.add(1, 2)
 
 # -> export pipe syntax removed
 "value" -> export  # Error: use last-expression result instead
@@ -601,7 +601,7 @@ $x  # $x only exists inside block
 leng("hello")  # Should be length()
 
 # Missing host function
-app::fetch($url)  # Host must provide app::fetch
+fetch($url)  # Host must register fetch
 ```
 
 ---
@@ -718,10 +718,10 @@ range(0, 1000000) -> each |x| $x  # May exceed default limit
 
 ```text
 # Slow host function
-app::slow_api()  # Times out if exceeds limit
+$app.slow_api()  # Times out if exceeds limit
 
 # Setting higher timeout
-^(timeout: 30000) app::slow_api()  # 30 seconds
+^(timeout: 30000) $app.slow_api()  # 30 seconds
 ```
 
 ---
@@ -812,7 +812,7 @@ error "Invalid configuration"
 
 ```text
 # Unknown mount
-fs::read("unknown", "file.txt")  # Mount "unknown" not in config
+$fs.read("unknown", "file.txt")  # Mount "unknown" not in config
 
 # Invalid mount path
 # createFsExtension({ mounts: { data: { path: "/nonexistent", mode: "read" } } })
@@ -832,10 +832,10 @@ fs::read("unknown", "file.txt")  # Mount "unknown" not in config
 
 ```text
 # Path traversal with ..
-fs::read("data", "../../etc/passwd")  # Attempts escape
+$fs.read("data", "../../etc/passwd")  # Attempts escape
 
 # Symlink escape
-fs::read("data", "symlink_to_root")  # Symlink points outside mount
+$fs.read("data", "symlink_to_root")  # Symlink points outside mount
 ```
 
 ---
@@ -852,10 +852,10 @@ fs::read("data", "symlink_to_root")  # Symlink points outside mount
 
 ```text
 # Glob mismatch
-fs::read("csv_only", "data.json")  # Mount configured with glob: "*.csv"
+$fs.read("csv_only", "data.json")  # Mount configured with glob: "*.csv"
 
 # Multiple extensions
-fs::read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
+$fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
 ```
 
 ---
@@ -872,10 +872,10 @@ fs::read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"
 
 ```text
 # Write to read-only mount
-fs::write("readonly", "file.txt", "data")  # Mount mode: "read"
+$fs.write("readonly", "file.txt", "data")  # Mount mode: "read"
 
 # Read from write-only mount
-fs::read("writeonly", "file.txt")  # Mount mode: "write"
+$fs.read("writeonly", "file.txt")  # Mount mode: "write"
 ```
 
 ---
@@ -892,10 +892,10 @@ fs::read("writeonly", "file.txt")  # Mount mode: "write"
 
 ```text
 # Permission denied
-fs::read("data", "protected.txt")  # File exists but no read permission
+$fs.read("data", "protected.txt")  # File exists but no read permission
 
 # File not found
-fs::read("data", "missing.txt")  # File does not exist
+$fs.read("data", "missing.txt")  # File does not exist
 ```
 
 ---
@@ -912,10 +912,10 @@ fs::read("data", "missing.txt")  # File does not exist
 
 ```text
 # HTTP 404 Not Found
-fetch::get("api", "/nonexistent")  # Returns 404
+$fetch.get("api", "/nonexistent")  # Returns 404
 
 # HTTP 400 Bad Request
-fetch::post("api", "/users", [invalid: "data"])  # Returns 400
+$fetch.post("api", "/users", [invalid: "data"])  # Returns 400
 ```
 
 ---
@@ -932,7 +932,7 @@ fetch::post("api", "/users", [invalid: "data"])  # Returns 400
 
 ```text
 # HTTP 503 Service Unavailable
-fetch::get("api", "/resource")  # Server returns 503
+$fetch.get("api", "/resource")  # Server returns 503
 ```
 
 ---
@@ -949,7 +949,7 @@ fetch::get("api", "/resource")  # Server returns 503
 
 ```text
 # Slow API endpoint
-fetch::get("api", "/slow")  # Times out if exceeds limit
+$fetch.get("api", "/slow")  # Times out if exceeds limit
 ```
 
 ---
@@ -966,7 +966,7 @@ fetch::get("api", "/slow")  # Times out if exceeds limit
 
 ```text
 # Connection refused
-fetch::get("api", "/endpoint")  # Server not running
+$fetch.get("api", "/endpoint")  # Server not running
 ```
 
 ---
@@ -983,7 +983,7 @@ fetch::get("api", "/endpoint")  # Server not running
 
 ```text
 # HTML error page returned as JSON
-fetch::get("api", "/endpoint")  # Server returns HTML instead of JSON
+$fetch.get("api", "/endpoint")  # Server returns HTML instead of JSON
 ```
 
 ---
@@ -1000,7 +1000,7 @@ fetch::get("api", "/endpoint")  # Server returns HTML instead of JSON
 
 ```text
 # Missing required parameter
-ahi::parser([])  # Agent expects a non-empty params dict
+$ahi.parser([])  # Agent expects a non-empty params dict
 ```
 
 ---
@@ -1034,7 +1034,7 @@ ahi::parser([])  # Agent expects a non-empty params dict
 
 ```text
 # Unhandled error in downstream agent
-ahi::parser([input: $text])  # Downstream agent crashes
+$ahi.parser([input: $text])  # Downstream agent crashes
 ```
 
 ---
@@ -1085,7 +1085,7 @@ ahi::parser([input: $text])  # Downstream agent crashes
 
 ```text
 # Too many concurrent requests
-ahi::parser([input: $text])  # Agent enforces per-second request quota
+$ahi.parser([input: $text])  # Agent enforces per-second request quota
 ```
 
 ---
@@ -1119,7 +1119,7 @@ ahi::parser([input: $text])  # Agent enforces per-second request quota
 
 ```text
 # HTTP 503 Service Unavailable
-ahi::parser([input: $text])  # Downstream returns 503
+$ahi.parser([input: $text])  # Downstream returns 503
 ```
 
 ---
@@ -1383,7 +1383,7 @@ $add(1, 2, 3)  # 3 args, 2 params
 
 ```text
 # Nonexistent member
-# ext::qdrant.missing — "missing" key not in qdrant extension
+use<ext:qdrant.missing>  # "missing" key not in qdrant extension
 ```
 
 ---

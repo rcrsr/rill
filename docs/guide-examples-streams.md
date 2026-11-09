@@ -172,7 +172,8 @@ iterate(0, { $ + 1 }) -> take(5)
 Wrap a host fetch in `timeout<>` inside `guard` to recover from slow responses with a cached value:
 
 ```text
-guard { timeout<total: duration(0,0,0,0,0,0,500)> { app::fetch("https://api.example.com") } } ?? "cached"
+use<ext:app> => $app
+guard { timeout<total: duration(0,0,0,0,0,0,500)> { $app.fetch("https://api.example.com") } } ?? "cached"
 ```
 
 ### Fire-and-Forget with `pass<async: true>`
@@ -180,7 +181,8 @@ guard { timeout<total: duration(0,0,0,0,0,0,500)> { app::fetch("https://api.exam
 Pipe a value through `pass<async: true, on_error: #IGNORE>` to trigger a side-effect audit log without blocking the pipeline:
 
 ```text
-42 -> pass<async: true, on_error: #IGNORE> { app::audit_log($) }
+use<ext:app> => $app
+42 -> pass<async: true, on_error: #IGNORE> { $app.audit_log($) }
 ```
 
 ## See Also

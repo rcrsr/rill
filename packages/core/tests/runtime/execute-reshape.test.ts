@@ -128,8 +128,8 @@ describe('EC-13: RillError from extension boundary propagates unchanged', () => 
       },
     };
 
-    const err = await run('ext::throwRillError()', {
-      functions: { 'ext::throwRillError': hostFn },
+    const err = await run('throwRillError()', {
+      functions: { throwRillError: hostFn },
     }).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(RuntimeError);
@@ -168,8 +168,8 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
     };
 
     // The script resolves (not rejects) because the error is reshaped to an invalid.
-    const result = await run('ext::throwPlain()', {
-      functions: { 'ext::throwPlain': hostFn },
+    const result = await run('throwPlain()', {
+      functions: { throwPlain: hostFn },
     });
 
     expect(isInvalid(result)).toBe(true);
@@ -184,8 +184,8 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
       },
     };
 
-    const result = await run('ext::fail()', {
-      functions: { 'ext::fail': hostFn },
+    const result = await run('fail()', {
+      functions: { fail: hostFn },
     });
 
     const status = getStatus(result);
@@ -207,8 +207,8 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
       },
     };
 
-    const result = await run('ext::throwMsg()', {
-      functions: { 'ext::throwMsg': hostFn },
+    const result = await run('throwMsg()', {
+      functions: { throwMsg: hostFn },
     });
 
     const status = getStatus(result);
@@ -226,7 +226,7 @@ describe('EC-14 / EC-NOD-4: generic JS Error from extension reshapes to #R999', 
     };
 
     await expect(
-      runFull('ext::throwFull()', { functions: { 'ext::throwFull': hostFn } })
+      runFull('throwFull()', { functions: { throwFull: hostFn } })
     ).resolves.toBeDefined();
   });
 });
@@ -309,21 +309,21 @@ describe('AC-NOD-6: convertHaltToRuntimeError output baseline', () => {
 
   describe('RILL-R006 (unknown function)', () => {
     it('errorId is RILL-R006', async () => {
-      const err = await run('unknown::fn()').catch((e: unknown) => e);
+      const err = await run('unknown_fn()').catch((e: unknown) => e);
       expect(err).toBeInstanceOf(RuntimeError);
       expect((err as RuntimeError).errorId).toBe('RILL-R006');
     });
 
     it('message contains the unknown function name', async () => {
-      const err = await run('unknown::fn()').catch((e: unknown) => e);
-      expect((err as RuntimeError).message).toContain('unknown::fn');
+      const err = await run('unknown_fn()').catch((e: unknown) => e);
+      expect((err as RuntimeError).message).toContain('unknown_fn');
     });
 
     it('context carries functionName field', async () => {
-      const err = await run('unknown::fn()').catch((e: unknown) => e);
+      const err = await run('unknown_fn()').catch((e: unknown) => e);
       expect((err as RuntimeError).context).toBeDefined();
       expect((err as RuntimeError).context?.['functionName']).toBe(
-        'unknown::fn'
+        'unknown_fn'
       );
     });
   });
@@ -481,8 +481,8 @@ describe('BC-NOD-4: top-level break surfaces as a coded RuntimeError', () => {
       },
     };
 
-    const err = await run('ext::throwYield()', {
-      functions: { 'ext::throwYield': hostFn },
+    const err = await run('throwYield()', {
+      functions: { throwYield: hostFn },
     }).catch((e: unknown) => e);
 
     // YieldSignal is a ControlSignal, not a RillError, so reshapeUnhandledThrow

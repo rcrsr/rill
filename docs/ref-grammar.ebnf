@@ -604,9 +604,8 @@ capture-type  = type-ref ;  (* all type names and type variables accepted for ca
 
 host-call = host-name , "(" , [ arguments ] , ")" ;
 
-host-name = identifier , { "::" , identifier } ;
-              (* Namespaced functions use :: separator: math::add, io::file::read
-                 rill is a vanilla language. The host provides all domain functions.
+host-name = identifier ;
+              (* rill is a vanilla language. The host provides all domain functions.
 
                  Core global functions (built-in):
                  - log($value)   -- logs value using formatValue, returns value unchanged (passthrough)

@@ -181,8 +181,9 @@ $out.!
 Add `<on: list[#CODE, ...]>` to catch only specific atoms. Halts with non-matching codes propagate:
 
 ```text
+use<ext:app> => $app
 guard<on: list[#TIMEOUT]> {
-  app::fetch("https://api.example.com")
+  $app.fetch("https://api.example.com")
 }
 ```
 
@@ -248,9 +249,10 @@ See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the fu
 Wrap the timeout block in `guard` to prevent the halt from stopping execution:
 
 ```text
+use<ext:app> => $app
 guard {
   timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
-    app::fetch("https://api.example.com/slow")
+    $app.fetch("https://api.example.com/slow")
   }
 } ?? "fallback"
 ```
@@ -260,9 +262,10 @@ The `??` operator after `guard` supplies the fallback when guard catches the exp
 Branch on the specific atom to handle timeout distinctly from other errors:
 
 ```text
+use<ext:app> => $app
 guard {
   timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
-    app::fetch("https://api.example.com/slow")
+    $app.fetch("https://api.example.com/slow")
   }
 } => $result
 $result.! ? {
@@ -280,8 +283,9 @@ See [Control Flow](topic-control-flow.md#timeout-blocks) for the full timeout bl
 `retry<limit: N>` re-enters its body up to N times. Each failed attempt appends a `guard-caught` trace frame. On success, the body result is returned. If all N attempts fail, the final invalid value is returned with N trace frames.
 
 ```text
+use<ext:app> => $app
 retry<limit: 3> {
-  app::fetch("https://api.example.com")
+  $app.fetch("https://api.example.com")
 }
 ```
 
@@ -295,16 +299,18 @@ Attempt count rules:
 `retry<limit: N>` with a filtered `on:` list behaves like `guard`: non-matching halts propagate immediately.
 
 ```text
+use<ext:app> => $app
 retry<limit: 3, on: list[#UNAVAILABLE]> {
-  app::fetch("https://api.example.com")
+  $app.fetch("https://api.example.com")
 }
 ```
 
 After all attempts fail, read the trace to see how many attempts ran:
 
 ```text
+use<ext:app> => $app
 retry<limit: 3> {
-  app::fetch("https://api.example.com")
+  $app.fetch("https://api.example.com")
 } => $result
 $result.!trace -> .len      # up to 3 guard-caught frames
 ```
@@ -388,7 +394,8 @@ Frame kinds:
 Read the trace with `.!trace`:
 
 ```text
-guard { app::fetch("https://api.example.com") } => $result
+use<ext:app> => $app
+guard { $app.fetch("https://api.example.com") } => $result
 $result.!trace -> seq({
   "{$.kind} at {$.site}"
 })
@@ -437,8 +444,9 @@ $out.! ? "failed: {$out.!message}" ! $out
 Combine `retry<limit: N>` and `??` for resilient access:
 
 ```text
+use<ext:app> => $app
 retry<limit: 3> {
-  app::fetch("https://api.example.com")
+  $app.fetch("https://api.example.com")
 } => $result
 $result ?? "fallback response"
 ```
@@ -448,12 +456,13 @@ $result ?? "fallback response"
 Handle specific errors differently using filtered guard:
 
 ```text
+use<ext:app> => $app
 guard<on: list[#TIMEOUT]> {
-  app::fetch("https://api.example.com/slow")
+  $app.fetch("https://api.example.com/slow")
 } => $timeout_result
 
 guard<on: list[#AUTH]> {
-  app::fetch("https://api.example.com/secure")
+  $app.fetch("https://api.example.com/secure")
 } => $auth_result
 ```
 
@@ -462,7 +471,8 @@ guard<on: list[#AUTH]> {
 Branch on the specific error atom:
 
 ```text
-guard { app::fetch("https://api.example.com") } => $result
+use<ext:app> => $app
+guard { $app.fetch("https://api.example.com") } => $result
 $result.! ? {
   ($result.!code -> .eq(#TIMEOUT)) ? "timed out"
   ! ($result.!code -> .eq(#AUTH)) ? "auth failed"

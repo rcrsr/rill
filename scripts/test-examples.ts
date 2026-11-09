@@ -25,7 +25,7 @@ import {
   type ScriptNode,
 } from '@rcrsr/rill';
 import {
-  createExtExtensionDict,
+  createMockExtensions,
   createMockFunctions,
   createMockVariables,
 } from './test-examples-mock-host.js';
@@ -105,7 +105,7 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
     resolvers: { ext: extResolver },
     configurations: {
       resolvers: {
-        ext: createExtExtensionDict(mockFunctions),
+        ext: createMockExtensions(),
       },
     },
   });
@@ -177,9 +177,7 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
     }
 
     // Track unknown functions
-    const unknownMatch = errorMessage.match(
-      /Unknown function: (\w+(?:::\w+)*)/
-    );
+    const unknownMatch = errorMessage.match(/Unknown function: (\w+)/);
     if (unknownMatch) {
       trackUnknownFunction(unknownMatch[1]!, location);
     }

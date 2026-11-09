@@ -29,7 +29,7 @@ import {
   peek,
   skipNewlines,
 } from './state.js';
-import { isIdentifierOrKeyword, expectVariableName } from './helpers.js';
+import { expectVariableName } from './helpers.js';
 import { parseTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -191,30 +191,12 @@ export function parseSpreadOrArg(
 Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
   const start = current(this.state).span.start;
 
-  // Collect namespaced name: ident or ident::ident::...
   // Accept keywords as identifiers (e.g., error(...) for custom functions)
   const firstToken = current(this.state);
-  let name = advance(this.state).value;
-  while (check(this.state, TOKEN_TYPES.DOUBLE_COLON)) {
-    advance(this.state); // consume ::
-
-    // After ::, accept identifier or keyword
-    const token = current(this.state);
-
-    if (!isIdentifierOrKeyword(token)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P001,
-        'Expected identifier or keyword after ::',
-        token.span.start
-      );
-    }
-
-    name += '::' + token.value;
-    advance(this.state); // consume the identifier or keyword
-  }
+  const name = advance(this.state).value;
 
   // app:: syntax was removed; use use<host:...> instead
-  if (name === 'app' || name.startsWith('app::')) {
+  if (name === 'app') {
     throw new ParseError(
       ERROR_IDS.RILL_P012,
       'Syntax removed: app:: direct-call syntax removed; use use<host:...>',

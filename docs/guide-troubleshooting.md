@@ -380,7 +380,8 @@ $out.! ? "halted: {$out.!message}" ! $out
 To find which operation halted, read `.!trace`:
 
 ```text
-guard { app::fetch("https://api.example.com") } => $result
+use<ext:app> => $app
+guard { $app.fetch("https://api.example.com") } => $result
 $result.!trace -> seq({ log("{$.kind} at {$.site}") })
 ```
 
@@ -432,8 +433,9 @@ guard { error "fatal" }
 **Cause 2:** A filtered `guard<on: list[#CODE]>` did not match the actual error code. Non-matching codes propagate.
 
 ```text
+use<ext:app> => $app
 guard<on: list[#TIMEOUT]> {
-  app::fetch("https://api.example.com")
+  $app.fetch("https://api.example.com")
   # If this returns #AUTH, the halt propagates — not caught
 }
 ```
@@ -450,6 +452,30 @@ $out.!
 ```
 
 The filter `<on: list[...]>` is optional. Without it, `guard` catches every catchable halt.
+
+## Why Does `ns::fn()` Fail to Parse?
+
+The namespaced host-call form `ns::fn()` was removed. A script that uses it halts at parse time with RILL-P012 and the message "Syntax removed".
+
+```rill
+math::add(1, 2)  # Error: Syntax removed
+```
+
+The pipe-target form fails the same way:
+
+```rill
+"hello" -> str::upper  # Error: Syntax removed
+```
+
+Bind the extension with `use<ext:name>`, then call its members through the variable:
+
+```rill
+use<ext:math> => $math
+$math.add(1, 2)
+# Result: 3
+```
+
+Nested namespaces become nested dict members, so `io::file::read` is `$io.file.read` after `use<ext:io> => $io`.
 
 ## See Also
 

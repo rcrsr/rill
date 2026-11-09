@@ -164,10 +164,6 @@ const ctx = createRuntimeContext({
 
 `extResolver` returns `{ kind: 'value', value: RillValue }`.
 
-### ext::fn() Compatibility
-
-The `ext::fn()` calling pattern is retained for compatibility but is not recommended for new code. In `strict` checker mode, `ext::fn()` calls are flagged. Use `use<ext:...>` imports instead.
-
 ---
 
 ## Value Types
@@ -554,7 +550,7 @@ Empty context returns `{ total: 0, documented: 0, percentage: 100 }`.
 
 ```typescript
 interface FunctionMetadata {
-  readonly name: string;        // Function name (e.g., "math::add")
+  readonly name: string;        // Function name (e.g., "greet")
   readonly description: string; // Human-readable description
   readonly params: readonly ParamMetadata[];
   readonly returnType: string;  // Return type (default: 'any')

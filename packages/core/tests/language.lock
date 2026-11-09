@@ -4,7 +4,7 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 99 files.
+# 98 files.
 8c19b450531ab683eb902280ec7026d2eaa8c90295acc57478f7146a9e8c7513  packages/core/tests/language/access-halt.test.ts
 b4a4c672aa0346c65c391a22869c852b64f21340e7326fe7d16ee06a47873cd5  packages/core/tests/language/annotations.test.ts
 eefe3850b2801446bebdb57e6e4a16adc6abc03d066640651db92872c251e551  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
@@ -61,7 +61,6 @@ a850c17c85b46c6d905cd81a99e3b0e90827eb59de19cea8a2ef23913b4acf6e  packages/core/
 353999c26afb8c408cfe2b96e8de77a1485a5f7fcc05d5c7fcdc98497557e917  packages/core/tests/language/literals.test.ts
 6db1af69deca82e877be47c1b1419a2315fdba0fd4ccf535466850e4fd3864c8  packages/core/tests/language/loops.test.ts
 f54694971a03457c2805f84d164373faf712918c2f32b360e1c25bfd9b33f9e0  packages/core/tests/language/methods.test.ts
-7cf8e032446595c9fcd728b34e242c28c8b602d267d26a8dab142a6efe4b801e  packages/core/tests/language/namespaced-functions.test.ts
 0790543a2b74c4c56541ff2121250e2fcf17578b4ed3db723ce7fecff67f9734  packages/core/tests/language/ordered-access.test.ts
 64d8075cfe283580891878262eeb406f2252b569224e21df4ef13ed144ff6b26  packages/core/tests/language/parameterized-destruct.test.ts
 bfa988e04586407338bfe790a091262a8a0b02ff5f01c617425e6d02e3c423a6  packages/core/tests/language/parameterized-existence.test.ts
@@ -98,7 +97,7 @@ e1e4f2b3264cbeaffeb39cf5de1e0f6a5322725f05fe4b21881b592e689ece1e  packages/core/
 70a8f2c2af95401ef2cc64dd2001be0c18ea46a3bbb46cc09dfce203ba7f2679  packages/core/tests/language/unified-dispatch.test.ts
 6753b0cc5bde25eee5987db0a6d0bf28a815f908baefa0ceb861541cd6e79ea6  packages/core/tests/language/uniform-value-type.test.ts
 e3bc188bd0d6129bc77618459d9fd17ff9d373fae19aaa4c801bbced7fa06354  packages/core/tests/language/union-types.test.ts
-0e68d923055235d4b155c40212109251c62c38060c0309a588356c236019915d  packages/core/tests/language/use-expr.test.ts
+69e94122c9e8ee59cf4e9fbf6fa8e9b15d070be65c7a7a658ac811f819ec0611  packages/core/tests/language/use-expr.test.ts
 4653ac606a658d04ec6d8943eef31093b5d5b0c51ebb91ecb70fb85d69be767b  packages/core/tests/language/vacancy-coerce.test.ts
 430ca46cac1368974a677c9481c9375b4036b2ec9fa2356368224950a7151deb  packages/core/tests/language/variable-method-calls.test.ts
 fc077bc9db205847b64e2d9940e8045347cf7c93cc850d3964cb3b69a6139d6d  packages/core/tests/language/variables.test.ts

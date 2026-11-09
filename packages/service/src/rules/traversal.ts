@@ -434,7 +434,6 @@ function getChildren(node: ASTNode): ASTNode[] {
       return node.message ? [node.message] : [];
 
     case 'TypeNameExpr':
-    case 'HostRef':
       return [];
 
     case 'AnnotatedExpr':

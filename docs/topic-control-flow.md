@@ -834,8 +834,9 @@ Two forms are available:
 ### Wall-Time Bound (`total`)
 
 ```text
+use<ext:app> => $app
 timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
-  app::fetch("https://api.example.com/data")
+  $app.fetch("https://api.example.com/data")
 }
 ```
 
@@ -874,9 +875,10 @@ duration(0, 0, 0, 0, 0, 0, 500) => $d_500ms
 Wrap the timeout block with `guard` to catch expiry as an invalid value:
 
 ```text
+use<ext:app> => $app
 guard {
   timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
-    app::fetch("https://api.example.com/slow")
+    $app.fetch("https://api.example.com/slow")
   }
 } => $result
 $result.! ? "timed out" ! $result
@@ -885,9 +887,10 @@ $result.! ? "timed out" ! $result
 Use `??` after the `guard` expression for a simple fallback:
 
 ```text
+use<ext:app> => $app
 guard {
   timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
-    app::fetch("https://api.example.com/slow")
+    $app.fetch("https://api.example.com/slow")
   }
 } ?? "fallback response"
 ```
@@ -899,9 +902,10 @@ guard {
 Timeout blocks may be nested. The outer timer fires independently of the inner timer:
 
 ```text
+use<ext:app> => $app
 timeout<total: duration(0, 0, 0, 0, 0, 0, 1000)> {
   timeout<total: duration(0, 0, 0, 0, 0, 0, 200)> {
-    app::fetch("https://api.example.com/fast")
+    $app.fetch("https://api.example.com/fast")
   }
 }
 ```

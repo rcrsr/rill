@@ -744,7 +744,7 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
     return this.parseHostCall();
   }
 
-  // Bare function name: "greet" or "ns::func" (no parens)
+  // Bare function name: "greet" (no parens)
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
     return parseBareHostCall(this.state);
   }

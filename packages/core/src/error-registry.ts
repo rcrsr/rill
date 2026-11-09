@@ -661,8 +661,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     resolution: 'Migrate to the replacement syntax shown in the error message.',
     examples: [
       {
-        description: 'app:: direct-call syntax removed',
-        code: 'app::fn()  # Error: use use<host:fn> instead',
+        description: 'Namespaced host-call syntax removed',
+        code: 'math::add(1, 2)  # Error: use use<ext:math> => $math, then $math.add(1, 2)',
       },
       {
         description: '-> export pipe syntax removed',
@@ -876,7 +876,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
       {
         description: 'Missing host function',
-        code: 'app::fetch($url)  # Host must provide app::fetch',
+        code: 'fetch($url)  # Host must register fetch',
       },
     ],
   },
@@ -989,11 +989,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Slow host function',
-        code: 'app::slow_api()  # Times out if exceeds limit',
+        code: '$app.slow_api()  # Times out if exceeds limit',
       },
       {
         description: 'Setting higher timeout',
-        code: '^(timeout: 30000) app::slow_api()  # 30 seconds',
+        code: '^(timeout: 30000) $app.slow_api()  # 30 seconds',
       },
     ],
   },
@@ -1078,7 +1078,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Unknown mount',
-        code: 'fs::read("unknown", "file.txt")  # Mount "unknown" not in config',
+        code: '$fs.read("unknown", "file.txt")  # Mount "unknown" not in config',
       },
       {
         description: 'Invalid mount path',
@@ -1098,11 +1098,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Path traversal with ..',
-        code: 'fs::read("data", "../../etc/passwd")  # Attempts escape',
+        code: '$fs.read("data", "../../etc/passwd")  # Attempts escape',
       },
       {
         description: 'Symlink escape',
-        code: 'fs::read("data", "symlink_to_root")  # Symlink points outside mount',
+        code: '$fs.read("data", "symlink_to_root")  # Symlink points outside mount',
       },
     ],
   },
@@ -1118,11 +1118,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Glob mismatch',
-        code: 'fs::read("csv_only", "data.json")  # Mount configured with glob: "*.csv"',
+        code: '$fs.read("csv_only", "data.json")  # Mount configured with glob: "*.csv"',
       },
       {
         description: 'Multiple extensions',
-        code: 'fs::read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"',
+        code: '$fs.read("configs", "app.ini")  # Mount glob: "*.{json,yaml}"',
       },
     ],
   },
@@ -1138,11 +1138,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Write to read-only mount',
-        code: 'fs::write("readonly", "file.txt", "data")  # Mount mode: "read"',
+        code: '$fs.write("readonly", "file.txt", "data")  # Mount mode: "read"',
       },
       {
         description: 'Read from write-only mount',
-        code: 'fs::read("writeonly", "file.txt")  # Mount mode: "write"',
+        code: '$fs.read("writeonly", "file.txt")  # Mount mode: "write"',
       },
     ],
   },
@@ -1158,11 +1158,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Permission denied',
-        code: 'fs::read("data", "protected.txt")  # File exists but no read permission',
+        code: '$fs.read("data", "protected.txt")  # File exists but no read permission',
       },
       {
         description: 'File not found',
-        code: 'fs::read("data", "missing.txt")  # File does not exist',
+        code: '$fs.read("data", "missing.txt")  # File does not exist',
       },
     ],
   },
@@ -1177,11 +1177,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'HTTP 404 Not Found',
-        code: 'fetch::get("api", "/nonexistent")  # Returns 404',
+        code: '$fetch.get("api", "/nonexistent")  # Returns 404',
       },
       {
         description: 'HTTP 400 Bad Request',
-        code: 'fetch::post("api", "/users", [invalid: "data"])  # Returns 400',
+        code: '$fetch.post("api", "/users", [invalid: "data"])  # Returns 400',
       },
     ],
   },
@@ -1196,7 +1196,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'HTTP 503 Service Unavailable',
-        code: 'fetch::get("api", "/resource")  # Server returns 503',
+        code: '$fetch.get("api", "/resource")  # Server returns 503',
       },
     ],
   },
@@ -1211,7 +1211,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Slow API endpoint',
-        code: 'fetch::get("api", "/slow")  # Times out if exceeds limit',
+        code: '$fetch.get("api", "/slow")  # Times out if exceeds limit',
       },
     ],
   },
@@ -1227,7 +1227,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Connection refused',
-        code: 'fetch::get("api", "/endpoint")  # Server not running',
+        code: '$fetch.get("api", "/endpoint")  # Server not running',
       },
     ],
   },
@@ -1242,7 +1242,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'HTML error page returned as JSON',
-        code: 'fetch::get("api", "/endpoint")  # Server returns HTML instead of JSON',
+        code: '$fetch.get("api", "/endpoint")  # Server returns HTML instead of JSON',
       },
     ],
   },
@@ -1258,7 +1258,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Missing required parameter',
-        code: 'ahi::parser([])  # Agent expects a non-empty params dict',
+        code: '$ahi.parser([])  # Agent expects a non-empty params dict',
       },
     ],
   },
@@ -1286,7 +1286,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Unhandled error in downstream agent',
-        code: 'ahi::parser([input: $text])  # Downstream agent crashes',
+        code: '$ahi.parser([input: $text])  # Downstream agent crashes',
       },
     ],
   },
@@ -1332,7 +1332,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Too many concurrent requests',
-        code: 'ahi::parser([input: $text])  # Agent enforces per-second request quota',
+        code: '$ahi.parser([input: $text])  # Agent enforces per-second request quota',
       },
     ],
   },
@@ -1362,7 +1362,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'HTTP 503 Service Unavailable',
-        code: 'ahi::parser([input: $text])  # Downstream returns 503',
+        code: '$ahi.parser([input: $text])  # Downstream returns 503',
       },
     ],
   },
@@ -1612,7 +1612,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     examples: [
       {
         description: 'Nonexistent member',
-        code: '# ext::qdrant.missing — "missing" key not in qdrant extension',
+        code: 'use<ext:qdrant.missing>  # "missing" key not in qdrant extension',
       },
     ],
   },

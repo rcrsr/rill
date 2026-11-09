@@ -165,15 +165,6 @@ describe('VALIDATE_EXTERNAL', () => {
     expect(result).toEqual([]);
   });
 
-  it('does not fire for namespaced host calls', () => {
-    const source = 'ns::fetch_data()\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [validateExternal]);
-
-    expect(result).toEqual([]);
-  });
-
   it('does not fire for HostCall names without fetch/read/load', () => {
     const source = 'compute_total()\n';
     const parsed = toParseResult(source);

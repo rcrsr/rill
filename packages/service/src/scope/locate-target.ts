@@ -121,7 +121,7 @@ export function locateTarget(
     return { kind: 'closureCall', name: node.name, span: node.span };
   }
 
-  if (node.type === 'HostCall' || node.type === 'HostRef') {
+  if (node.type === 'HostCall') {
     return { kind: 'hostCall', name: node.name, span: node.span };
   }
 

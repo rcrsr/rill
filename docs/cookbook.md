@@ -838,7 +838,8 @@ $result.! ? "error occurred" ! $result
 For real error routing with host functions, use a `text` fence since the harness cannot produce specific error atoms:
 
 ```text
-guard { app::fetch("https://api.example.com") } => $result
+use<ext:app> => $app
+guard { $app.fetch("https://api.example.com") } => $result
 $result.! ? {
   ($result.!code == #TIMEOUT) ? "Request timed out — try again later"
   ! ($result.!code == #AUTH) ? "Authentication failed — check credentials"
@@ -854,7 +855,8 @@ Read `.!code` to branch by error type. The default branch handles unrecognized c
 Add context to an error by wrapping it with `error "..."` before re-raising:
 
 ```text
-guard { app::fetch("https://api.example.com/users") } => $fetch_result
+use<ext:app> => $app
+guard { $app.fetch("https://api.example.com/users") } => $fetch_result
 $fetch_result.! ? {
   error "user-fetch failed: {$fetch_result.!message}"
 } ! $fetch_result
@@ -977,7 +979,8 @@ iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ 
 The closure advances the Fibonacci pair at each step; `seq` extracts `$.a` from each emitted state.
 ### Timeout Recovery via `??`
 ```text
-guard { timeout<total: duration(0,0,0,0,0,0,500)> { app::fetch("https://api.example.com") } } ?? "cached"
+use<ext:app> => $app
+guard { timeout<total: duration(0,0,0,0,0,0,500)> { $app.fetch("https://api.example.com") } } ?? "cached"
 ```
 Expiry emits `#RILL_R082`. `guard` catches the halt; `??` replaces it with the fallback.
 ### Debounce, Throttle, and Sample

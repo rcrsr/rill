@@ -180,6 +180,19 @@ describe('executeRill', () => {
       expect(ERROR_REGISTRY.has(errorId!)).toBe(true);
       expect(result.error?.helpUrl).toBe(getHelpUrl(errorId!, VERSION));
     });
+
+    it('reports removed namespaced host-call syntax as a parse error with registry guidance', async () => {
+      const result = await executeRill('"x" => $a\next::fn("arg")');
+      const definition = ERROR_REGISTRY.get('RILL-P012');
+
+      expect(result.status).toBe('error');
+      expect(result.error?.category).toBe('parse');
+      expect(result.error?.errorId).toBe('RILL-P012');
+      expect(result.error?.line).toBe(2);
+      expect(result.error?.helpUrl).toBe(getHelpUrl('RILL-P012', VERSION));
+      expect(definition).toBeDefined();
+      expect(result.error?.examples).toEqual(definition!.examples);
+    });
   });
 
   // errorId not in ERROR_REGISTRY produces FiddleError without enrichment fields
