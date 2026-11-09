@@ -722,11 +722,11 @@ export function paramToFieldDef(
  * Mixed types throw RILL-R002.
  */
 export function inferElementType(elements: RillValue[]): TypeStructure {
-  const mismatch = findElementTypeMismatch(elements);
-  if (mismatch !== undefined) {
-    throw new RuntimeError(ERROR_IDS.RILL_R002, mismatch);
+  const scan = scanElementTypes(elements);
+  if (scan.mismatch !== undefined) {
+    throw new RuntimeError(ERROR_IDS.RILL_R002, scan.mismatch);
   }
-  return elementTypeOf(elements);
+  return scan.type;
 }
 
 /**
@@ -736,8 +736,22 @@ export function inferElementType(elements: RillValue[]): TypeStructure {
 export function findElementTypeMismatch(
   elements: RillValue[]
 ): string | undefined {
+  return scanElementTypes(elements).mismatch;
+}
+
+/**
+ * Single pass over list elements: merged element type, plus the mismatch
+ * message when two elements share no common type. One pass keeps nested
+ * lists linear per level; inferring each element twice would double the
+ * work at every nesting level.
+ */
+function scanElementTypes(elements: RillValue[]): {
+  type: TypeStructure;
+  mismatch: string | undefined;
+} {
   const firstElem = elements[0];
-  if (firstElem === undefined) return undefined;
+  if (firstElem === undefined)
+    return { type: { kind: 'any' }, mismatch: undefined };
   let accType = inferStructure(firstElem);
   for (let i = 1; i < elements.length; i++) {
     const elem = elements[i];
@@ -745,24 +759,14 @@ export function findElementTypeMismatch(
     const elemType = inferStructure(elem);
     const merged = commonType(accType, elemType);
     if (merged === null) {
-      return `List elements must be the same type: expected ${formatStructure(accType)}, got ${formatStructure(elemType)} at index ${i}`;
+      return {
+        type: accType,
+        mismatch: `List elements must be the same type: expected ${formatStructure(accType)}, got ${formatStructure(elemType)} at index ${i}`,
+      };
     }
     accType = merged;
   }
-  return undefined;
-}
-
-/** Merged element type of a list already known to be homogeneous. */
-function elementTypeOf(elements: RillValue[]): TypeStructure {
-  const firstElem = elements[0];
-  if (firstElem === undefined) return { kind: 'any' };
-  let accType = inferStructure(firstElem);
-  for (let i = 1; i < elements.length; i++) {
-    const elem = elements[i];
-    if (elem === undefined) continue;
-    accType = commonType(accType, inferStructure(elem)) ?? accType;
-  }
-  return accType;
+  return { type: accType, mismatch: undefined };
 }
 
 /** Infer the structural type descriptor for any Rill value. */

@@ -1474,3 +1474,13 @@ describe('Rill Runtime: Mixed-type list literal halt', () => {
     expect((caught as RuntimeError).errorId).toBe('RILL-R002');
   });
 });
+
+describe('Rill Runtime: nested list literal inference cost', () => {
+  it('evaluates 40 nested list literals in linear work per level', async () => {
+    // Inferring each element twice per level made this exponential in depth.
+    let source = '42';
+    for (let i = 0; i < 40; i++) source = `list[${source}]`;
+    const result = await run(source);
+    expect(Array.isArray(result)).toBe(true);
+  }, 5000);
+});
