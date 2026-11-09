@@ -499,11 +499,11 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ### rill-r001
 
-**Description:** Parameter type mismatch
+**Description:** Argument or binding mismatch
 
-**Cause:** Argument passed to function does not match declared parameter type.
+**Cause:** An argument does not match the declared parameter type, the call has the wrong arity or a spread binding error, a typed or type-locked variable receives a value of another type, a script reassigns an outer variable, or the call target is not callable.
 
-**Resolution:** Pass value of correct type, or convert the value before passing. Check function signature for expected types.
+**Resolution:** Pass a value of the correct type, or convert it before passing. Check the function signature for expected types and arity, keep variable types stable after first assignment, capture to a new name instead of reassigning an outer variable, and call only callable values.
 
 **Example:**
 
@@ -512,17 +512,17 @@ Runtime errors occur during script execution when operations fail due to type mi
 |x: number| $x * 2
 "5" -> $()
 
-# Number passed to string method
-123 -> .split(",")  # split expects string
+# String assigned to number-locked variable
+"a" => $x:number  # Error: string does not match number
 ```
 
 ---
 
 ### rill-r002
 
-**Description:** Operator type mismatch
+**Description:** Operation not applicable to its operands
 
-**Cause:** Binary operator applied to incompatible types. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
+**Cause:** Operator applied to incompatible operand types, or operand values that leave the operation undefined: division or modulo by zero, slice step 0, ordering durations with different calendar components, mixed element types in a list literal, or a .at index out of range. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
 
 **Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.
 
@@ -532,11 +532,11 @@ Runtime errors occur during script execution when operations fail due to type mi
 # Adding string and number
 "5" + 1  # Error: no implicit coercion
 
-# Comparing different types
-"10" == 10  # Always false, no coercion
+# Division by zero
+10 / 0
 
-# Arithmetic on non-numbers
-"hello" * 2
+# Mixed element types in a list literal
+list[1, "a"]
 ```
 
 ---
@@ -645,9 +645,9 @@ $stmt.^timeout  # No ^(timeout: ...) set
 
 ### rill-r009
 
-**Description:** Property not found
+**Description:** Key or index not found
 
-**Cause:** Dict key or tuple index does not exist in the value.
+**Cause:** A dict or ordered key, or a list, tuple or ordered index, does not exist in the value.
 
 **Resolution:** Check property name spelling, verify the property exists, or use null-coalescing (??) to provide default. For safe access, use .? operator.
 
@@ -655,13 +655,14 @@ $stmt.^timeout  # No ^(timeout: ...) set
 
 ```text
 # Missing dict key
-[name: "x"] -> .age  # age key not in dict
+dict[name: "x"] -> .age  # age key not in dict
 
 # Index out of bounds
-[1, 2, 3] -> [5]  # Only 3 elements (0-2)
+list[1, 2, 3] => $items
+$items[5]  # Only 3 elements (0-2)
 
 # Safe alternative
-[name: "x"] -> .age ?? 0  # Returns 0 if missing
+dict[name: "x"] -> .age ?? 0  # Returns 0 if missing
 ```
 
 ---
@@ -670,9 +671,9 @@ $stmt.^timeout  # No ^(timeout: ...) set
 
 **Description:** Iteration limit exceeded
 
-**Cause:** Loop or collection operation exceeded configured iteration limit (prevents infinite loops).
+**Cause:** Loop or collection operation exceeded configured iteration limit (prevents infinite loops). The output caps of take, batch, window, start_when and stop_when raise the same code.
 
-**Resolution:** Reduce data size, adjust iteration limit via RuntimeOptions, or check for infinite loop conditions.
+**Resolution:** Reduce data size, adjust iteration limit via RuntimeOptions, or check for infinite loop conditions. Loops, recursion, iterate and materializing consumers halt fatally and cannot be recovered. Bounded slicing operators (take, batch, window, start_when, stop_when) halt catchably, so guard or ?? can recover.
 
 **Example:**
 
@@ -681,7 +682,7 @@ $stmt.^timeout  # No ^(timeout: ...) set
 while (true) do { "looping" }  # Never terminates
 
 # Large collection with default limit
-range(0, 1000000) -> each |x| $x  # May exceed default limit
+range(0, 20000) -> seq({ $ })  # May exceed default limit
 ```
 
 ---

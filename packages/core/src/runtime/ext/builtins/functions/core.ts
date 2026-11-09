@@ -15,7 +15,11 @@ import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, makeGenericIterator } from '../shared.js';
+import {
+  MAX_ITER,
+  makeGenericIterator,
+  requireNonNegativeInteger,
+} from '../shared.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
@@ -155,14 +159,13 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
       const step = typeof args['step'] === 'number' ? args['step'] : 1;
 
       if (step === 0) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           {
             location,
             sourceId: ctx.sourceId,
             fn: 'range',
-            preserveHostShape: true,
           },
-          ERROR_ATOMS[ERROR_IDS.RILL_R001],
+          'INVALID_INPUT',
           'range step cannot be zero'
         );
       }
@@ -204,21 +207,12 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
     returnType: anyTypeValue,
     fn: (args, ctx, location) => {
       const value = args['value'] ?? '';
-      const count =
-        typeof args['count'] === 'number' ? Math.floor(args['count']) : 0;
-
-      if (count < 0) {
-        throwFatalHostHalt(
-          {
-            location,
-            sourceId: ctx.sourceId,
-            fn: 'repeat',
-            preserveHostShape: true,
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R001],
-          'repeat count cannot be negative'
-        );
-      }
+      const count = requireNonNegativeInteger(
+        typeof args['count'] === 'number' ? args['count'] : 0,
+        'repeat',
+        'count',
+        { location, sourceId: ctx.sourceId, fn: 'repeat' }
+      );
 
       return makeGenericIterator(count, (remaining) => {
         if (remaining <= 0) return { done: true };

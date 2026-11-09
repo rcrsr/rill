@@ -79,4 +79,17 @@ describe('sort: key extractor vacancy check', () => {
       });
     });
   });
+
+  describe('iterator input', () => {
+    it('materializes an iterator the same way as a list', async () => {
+      const result = await run('range(0, 5) -> sort');
+      expect(result).toEqual([0, 1, 2, 3, 4]);
+    });
+
+    it('keeps the iteration-cap overrun fatal under guard', async () => {
+      await expectHalt(() => run('guard { range(0, 10001) -> sort }'), {
+        code: 'RILL_R010',
+      });
+    });
+  });
 });

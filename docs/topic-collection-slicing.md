@@ -31,7 +31,7 @@ All operators chain with `->`. Error contracts apply identically to list and str
 
 **Signature:** `take(n: int): list[T]`
 
-`take` returns the first `n` elements of a list, iterator, or stream as a list. Input after position `n` is discarded. `take` is eager: it materializes the result immediately. On a host stream, `take` disposes the source once it has collected `n` elements, releasing host resources the same way `break` does (see [Collection Operators](topic-collections.md)).
+`take` returns the first `n` elements of a list, iterator, or stream as a list. Input after position `n` is discarded. `take` is eager: it materializes the result immediately. `take` returns at most 10,000 elements and halts catchably with `RILL_R010` past that, like `batch` and `window`. On a host stream, `take` disposes the source once it has collected `n` elements, releasing host resources the same way `break` does (see [Collection Operators](topic-collections.md)).
 
 ```rill
 range(1, 11) -> take(5)
@@ -65,12 +65,20 @@ range(1, 11) -> take(5)
 |-----------|----------|
 | `n` equals 0 | Returns `[]` |
 | `n` exceeds input length | Returns all elements |
-| `n` exceeds 10,000 (MAX_ITER) | Clamps to 10,000; no error |
+| Result would exceed 10,000 elements | Catchable halt: `RILL_R010`; `guard` recovers it |
 | `n` is negative | Halts with `#INVALID_INPUT` |
 
 ```text
 # Error: #INVALID_INPUT — negative n
 range(1, 11) -> take(-1)
+```
+
+`guard` recovers the `RILL_R010` halt:
+
+```rill
+guard { range(0, 10002) -> take(10001) } => $r
+$r.!code -> string
+# Result: "RILL_R010"
 ```
 
 ---
@@ -148,7 +156,7 @@ range(1, 11) -> skip(-1)
 
 ### Iteration Ceiling
 
-`cycle` produces elements until the consumer finishes or until the iteration ceiling (MAX_ITER = 10,000) is reached. Consuming past 10,000 elements without a bound halts execution with `#RILL_R010`.
+`cycle` produces elements until the consumer finishes or until the iteration ceiling (10,000 elements) is reached. Consuming past 10,000 elements without a bound halts execution with `#RILL_R010`.
 
 ```text
 # Error: #RILL_R010 — iteration ceiling exceeded
@@ -230,6 +238,7 @@ When the idle timer expires and the buffer is non-empty, the partial batch flush
 | Empty input | Returns `[]` (no chunks produced) |
 | `n` is 0 or negative | Halts with `#INVALID_INPUT` |
 | `idle_flush` is not a duration | Catchable halt: `TYPE_MISMATCH` |
+| Output exceeds 10,000 chunks | Catchable halt: `RILL_R010` |
 
 ```rill
 [] -> batch(3)
@@ -287,6 +296,7 @@ When the remaining elements are fewer than `n`, they form a partial window. Use 
 | `n` is 0 or negative | Halts with `#INVALID_INPUT` |
 | `step` is 0 | Halts with `#INVALID_INPUT` |
 | `step` is negative | Halts with `#INVALID_INPUT` |
+| Output exceeds 10,000 windows | Catchable halt: `RILL_R010` |
 
 ```rill
 [1, 2] -> window(5)
@@ -437,7 +447,7 @@ The current implementation uses synchronous batch materialization via `getIterab
 | Condition | Error |
 |-----------|-------|
 | Input is a list | Catchable halt: `#INVALID_INPUT` |
-| `duration` argument is not a duration | Catchable halt: `RILL-R001` type mismatch |
+| `duration` argument is not a duration | Non-catchable halt: `RILL-R001` parameter type mismatch |
 | Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
 
 ```text
@@ -481,7 +491,7 @@ Under the synchronous batch path, `ctx.nowMs` does not advance between chunks. A
 | Condition | Error |
 |-----------|-------|
 | Input is a list | Catchable halt: `#INVALID_INPUT` |
-| `duration` argument is not a duration | Catchable halt: `RILL-R001` type mismatch |
+| `duration` argument is not a duration | Non-catchable halt: `RILL-R001` parameter type mismatch |
 | Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
 
 ```text
@@ -528,7 +538,7 @@ Under the synchronous batch path, `ctx.nowMs` does not advance between chunks. A
 | Condition | Error |
 |-----------|-------|
 | Input is a list | Catchable halt: `#INVALID_INPUT` |
-| `duration` argument is not a duration | Catchable halt: `RILL-R001` type mismatch |
+| `duration` argument is not a duration | Non-catchable halt: `RILL-R001` parameter type mismatch |
 | Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
 
 ```text

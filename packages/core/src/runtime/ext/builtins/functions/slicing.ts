@@ -19,10 +19,12 @@ import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 import { getEvalState } from '../../../core/eval/state.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import {
   MAX_ITER,
   chunkSlice,
   makeListIterator,
+  requireNonNegativeInteger,
   walkIteratorSteps,
 } from '../shared.js';
 
@@ -42,10 +44,11 @@ function disposeStreamInput(input: RillValue, site: TypeHaltSite): void {
 export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
   /**
    * Slice at most n elements from the front of a list, iterator, or stream.
-   * Negative n halts with #INVALID_INPUT.
-   * n > MAX_ITER is clamped to MAX_ITER without halting.
-   * Iterator/stream inputs are walked lazily to avoid RILL_R010 on infinite
-   * sequences (e.g. cycle). clamped===0 returns [] without touching the input.
+   * Negative or non-integer n halts with #INVALID_INPUT.
+   * Iterator/stream inputs are walked lazily with cap n; a walk past the step
+   * limit halts with a catchable #RILL_R010. List and materialized inputs halt
+   * with a catchable #RILL_R010 when min(n, length) exceeds MAX_ITER.
+   * n === 0 returns [] without touching the input.
    */
   take: {
     params: [
@@ -73,35 +76,37 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'take',
       };
 
-      if (typeof nRaw !== 'number' || !Number.isInteger(nRaw)) {
+      if (typeof nRaw !== 'number') {
         throwCatchableHostHalt(
           site,
           'INVALID_INPUT',
           `take: n must be an integer, got ${inferType(nRaw)}`
         );
       }
-      const n = nRaw;
-      if (n < 0) {
-        throwCatchableHostHalt(
-          site,
-          'INVALID_INPUT',
-          `take: n must be >= 0, got ${n}`
-        );
-      }
-      const clamped = Math.min(n, MAX_ITER);
-
-      // List input: pure array slice, return list
-      if (Array.isArray(input)) {
-        return input.slice(0, clamped);
-      }
+      const n = requireNonNegativeInteger(nRaw, 'take', 'n', site);
 
       // n===0: return empty immediately without touching the input.
-      // This avoids RILL_R010 on streams with clamped===0.
-      if (clamped === 0) {
+      if (n === 0) {
         return [];
       }
 
-      // Iterator/stream input: walk lazily up to `clamped` steps.
+      const assertWithinLimit = (length: number): void => {
+        if (Math.min(n, length) > MAX_ITER) {
+          throwCatchableHostHalt(
+            site,
+            ERROR_ATOMS[ERROR_IDS.RILL_R010],
+            `take: element count exceeded ${MAX_ITER} limit`
+          );
+        }
+      };
+
+      // List input: pure array slice, return list
+      if (Array.isArray(input)) {
+        assertWithinLimit(input.length);
+        return input.slice(0, n);
+      }
+
+      // Iterator/stream input: walk lazily up to `n` steps.
       // This handles infinite iterators (e.g. cycle) correctly.
       if (isStream(input) || isIterator(input)) {
         const loc = location ?? { line: 0, column: 0, offset: 0 };
@@ -116,7 +121,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         try {
           const { elements } = await walkIteratorSteps(
             input,
-            clamped,
+            n,
             evaluator,
             loc,
             ctx.sourceId,
@@ -133,7 +138,8 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
       const elements = await getIterableElements(input, ctx, node);
-      return elements.slice(0, clamped);
+      assertWithinLimit(elements.length);
+      return elements.slice(0, n);
     },
   },
 
@@ -170,21 +176,14 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'skip',
       };
 
-      if (typeof nRaw !== 'number' || !Number.isInteger(nRaw)) {
+      if (typeof nRaw !== 'number') {
         throwCatchableHostHalt(
           site,
           'INVALID_INPUT',
           `skip: n must be an integer, got ${inferType(nRaw)}`
         );
       }
-      const n = nRaw;
-      if (n < 0) {
-        throwCatchableHostHalt(
-          site,
-          'INVALID_INPUT',
-          `skip: n must be >= 0, got ${n}`
-        );
-      }
+      const n = requireNonNegativeInteger(nRaw, 'skip', 'n', site);
 
       // List input: pure array slice, return list
       if (Array.isArray(input)) {

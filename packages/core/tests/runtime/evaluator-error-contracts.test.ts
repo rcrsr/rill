@@ -16,7 +16,13 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { anyTypeValue, getStatus, RuntimeError } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  atomName,
+  getStatus,
+  inferStructure,
+  RuntimeError,
+} from '@rcrsr/rill';
 import { run, runWithFakeTimers } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
 
@@ -1436,5 +1442,35 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         expect(result).toEqual({ outer: { inner: [1, 2, 3] } });
       });
     });
+  });
+});
+
+describe('Rill Runtime: Mixed-type list literal halt', () => {
+  it('guard recovers a mixed-type list literal as invalid with #RILL_R002', async () => {
+    const result = await run('guard { list[1, "a"] }');
+    expect(atomName(getStatus(result).code)).toBe('RILL_R002');
+  });
+
+  it('surfaces an uncaught mixed-type list literal as RuntimeError with haltValue', async () => {
+    try {
+      await run('list[1, "a"]');
+      expect.fail('Should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(RuntimeError);
+      const runtimeErr = err as RuntimeError & { haltValue?: unknown };
+      expect(runtimeErr.errorId).toBe('RILL-R002');
+      expect(runtimeErr.haltValue).toBeDefined();
+    }
+  });
+
+  it('keeps inferStructure throwing RuntimeError for mixed elements', () => {
+    let caught: unknown;
+    try {
+      inferStructure([1, 'a']);
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(RuntimeError);
+    expect((caught as RuntimeError).errorId).toBe('RILL-R002');
   });
 });

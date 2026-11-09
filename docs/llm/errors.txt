@@ -54,13 +54,18 @@ Pre-registered atom literals (must start with uppercase letter):
     #INVALID_INPUT                 # also: `sort` key extractor returned vacant;
                                    #       negative n for take/skip;
                                    #       n <= 0 for batch/window;
-                                   #       step <= 0 for window
+                                   #       step <= 0 for window;
+                                   #       negative/non-integer count for repeat(), .repeat, .pad_start, .pad_end;
+                                   #       non-positive concurrency for fan/filter;
+                                   #       zero step for range
     #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                 # failed `:type` assertion;
                                    # also: `sort` key extractor mixed types,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
-                                   #       start_when/stop_when predicate non-bool
+                                   #       start_when/stop_when predicate non-bool,
+                                   #       wrong-typed argument to duration()/datetime(),
+                                   #       non-dict options for fan/filter
     #IGNORE                        # sentinel for `pass<on_error: #IGNORE> { body }`
 
 `.!code` reports `#ok` on valid values, but `#ok` is a runtime-only sentinel and is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.

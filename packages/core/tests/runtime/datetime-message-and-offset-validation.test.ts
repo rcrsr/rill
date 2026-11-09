@@ -80,3 +80,52 @@ describe('.iso()/.local_iso offset validity (#431c)', () => {
     expect(result).toBe(true);
   });
 });
+
+describe('duration/datetime argument type halts', () => {
+  const cases: [string, string, string][] = [
+    ['duration("x")', 'TYPE_MISMATCH', 'duration'],
+    [
+      'datetime(1.5)',
+      'TYPE_MISMATCH',
+      'datetime input must be a string, got number',
+    ],
+    [
+      'datetime(...dict[year: 2024, month: 1, day: 1, hour: "x"])',
+      'TYPE_MISMATCH',
+      'Invalid datetime component hour: x',
+    ],
+    ['duration(-1)', 'INVALID_INPUT', 'duration'],
+  ];
+
+  for (const [expr, atom, text] of cases) {
+    it(`halts ${expr} with #${atom} and guard recovers`, async () => {
+      const result = await run(
+        `guard { ${expr} } => $r\n($r.!code == #${atom})`
+      );
+      expect(result).toBe(true);
+    });
+
+    it(`reports the message for ${expr}`, async () => {
+      const message = await run(`guard { ${expr} } => $r\n$r.!message`);
+      expect(message).toContain(text);
+    });
+  }
+});
+
+describe('duration ordering compare recovery', () => {
+  const expr = 'duration(1, 0, 0) < duration(0, 0, 1)';
+
+  it('guard recovers a mixed-month duration compare with RILL_R002', async () => {
+    const result = await run(
+      `guard { ${expr} } => $r\n($r.!code == #RILL_R002)`
+    );
+    expect(result).toBe(true);
+  });
+
+  it('keeps the calendar-component message', async () => {
+    const message = await run(`guard { ${expr} } => $r\n$r.!message`);
+    expect(message).toBe(
+      'Cannot order durations with different calendar components'
+    );
+  });
+});

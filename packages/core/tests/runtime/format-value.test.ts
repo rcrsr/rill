@@ -43,7 +43,7 @@ import {
   type RillValue,
 } from '@rcrsr/rill';
 import { run, runFull, createLogCollector } from '../helpers/runtime.js';
-import { expectHaltMessage, expectRuntimeError } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/eval/handlers/access.js';
 
 // ============================================================
@@ -737,8 +737,9 @@ describe('Script-level integration', () => {
 
   describe('AC-11: json([1, closure, 3]) throws RuntimeError', () => {
     it('json on list containing closure rejects', async () => {
-      await expectRuntimeError(() => run('list[1, ||{ "fn" }, 3] -> json'), {
-        code: 'RILL-R002',
+      await expectHalt(() => run('list[1, ||{ "fn" }, 3] -> json'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
       });
     });
   });

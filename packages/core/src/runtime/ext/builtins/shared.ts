@@ -12,6 +12,7 @@ import { accessHaltGate } from '../../core/eval/handlers/access.js';
 import {
   throwCatchableHostHalt,
   throwTypeHalt,
+  type TypeHaltSite,
 } from '../../core/types/halt.js';
 import { inferType } from '../../core/types/registrations.js';
 
@@ -20,6 +21,33 @@ const EMPTY_STEP: Record<string, RillValue> = Object.freeze({});
 /** Read view of a step: the step itself when it is a dict, else an empty record. */
 function getStepView(step: RillValue): Record<string, RillValue> {
   return isDict(step) ? step : EMPTY_STEP;
+}
+
+/**
+ * Validate that `value` is a non-negative integer and return it.
+ * Halts catchably with #INVALID_INPUT otherwise. `site` must carry `fn`.
+ */
+export function requireNonNegativeInteger(
+  value: number,
+  fn: string,
+  param: string,
+  site: TypeHaltSite
+): number {
+  if (!Number.isInteger(value)) {
+    throwCatchableHostHalt(
+      site,
+      'INVALID_INPUT',
+      `${fn}: ${param} must be an integer, got ${value}`
+    );
+  }
+  if (value < 0) {
+    throwCatchableHostHalt(
+      site,
+      'INVALID_INPUT',
+      `${fn}: ${param} cannot be negative, got ${value}`
+    );
+  }
+  return value;
 }
 
 /**
@@ -295,8 +323,7 @@ export function makeDictIterator(
 /**
  * Iteration step cap shared by unbounded collection operators.
  * Enforced as a hard cap (halts with #RILL_R010 when exceeded) by seq, acc,
- * fold, iterate, batch, window, start_when, and stop_when. take is the sole
- * exception: n > MAX_ITER is silently clamped to MAX_ITER without halting.
+ * fold, iterate, batch, window, start_when, stop_when, and take.
  */
 export const MAX_ITER = 10000;
 

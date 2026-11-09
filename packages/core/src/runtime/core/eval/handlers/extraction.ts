@@ -26,7 +26,7 @@ import {
 } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
-import { inferElementType } from '../../types/operations.js';
+import { findElementTypeMismatch } from '../../types/operations.js';
 import { isPlainDict, isStream } from '../../types/guards.js';
 import { isOrdered, orderedValueEntries } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
@@ -485,7 +485,18 @@ export async function evaluateCollectionLiteral(
     case 'ListLiteral': {
       const listItems = await evaluateListLiteralElements(s, node.elements);
       // Validate homogeneity: all elements must share the same structural type
-      inferElementType(listItems);
+      const mismatch = findElementTypeMismatch(listItems);
+      if (mismatch !== undefined) {
+        throwCatchableHostHalt(
+          {
+            location: node.span?.start,
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateCollectionLiteral',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R002],
+          mismatch
+        );
+      }
       return listItems;
     }
 

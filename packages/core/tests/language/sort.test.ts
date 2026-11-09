@@ -11,18 +11,14 @@
  *
  * Implementation notes:
  *
- * [SPEC] AC-SORT-9: The spec states "range(5) -> sort returns [0,1,2,3,4]".
- * In practice, range(n1, n2) returns a dict-shaped iterator ({value, done, next}).
- * Since isDict() matches before the getIterableElements path in sort, range input
- * takes the dict path and gets sorted by its literal keys, not materialized.
- * The test covers the materialization intent by piping through seq first.
+ * [SPEC] AC-SORT-9: range(n1, n2) returns an iterator, which sort
+ * materializes through getIterableElements, so `range(0, 5) -> sort` returns
+ * [0,1,2,3,4] directly.
  *
- * [SPEC] EC-6: The spec states sort propagates RILL_R010 via getIterableElements.
- * The getIterableElements path in sort is only reached for non-dict inputs (plain
- * arrays). range() iterators are dicts and take the dict path. Streams are also
- * dict-shaped. The EC-6 path cannot be triggered from rill script without a host-
- * injected stream. The test uses the seq -> sort chain to demonstrate that large
- * range inputs raise RILL-R010 before the sorted list is ever constructed.
+ * [SPEC] EC-6: sort propagates RILL_R010 from getIterableElements when an
+ * iterator exceeds the iteration ceiling. The test materializes a large range
+ * through seq before sort to show the error surfaces before the sorted list
+ * is ever constructed.
  *
  * [SPEC] AC-ERR-1: "list[1, \"2\"] -> sort" fails at list construction (RILL-R002)
  * before sort is reached, because list[] enforces homogeneous element types.
@@ -116,12 +112,8 @@ describe('Rill Language: sort primitive', () => {
       expect(await run(script)).toEqual([3, 2, 1]);
     });
 
-    it('AC-SORT-9: iterator materialization — seq(range) -> sort returns sorted list', async () => {
-      // [SPEC] range() returns a dict-shaped iterator; sort takes the dict path.
-      // The materialization-then-sort intent is exercised by piping through seq first.
-      expect(await run('range(0, 5) -> seq({ $ }) -> sort')).toEqual([
-        0, 1, 2, 3, 4,
-      ]);
+    it('AC-SORT-9: range iterator input is materialized and sorted', async () => {
+      expect(await run('range(0, 5) -> sort')).toEqual([0, 1, 2, 3, 4]);
     });
   });
 

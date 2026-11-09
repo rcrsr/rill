@@ -233,3 +233,28 @@ describe('#357: replacement metacharacters are inserted literally', () => {
     expect(await run(`"ab" -> .replace_all("a", "$$")`)).toBe('$$b');
   });
 });
+
+describe('.repeat and .pad_* argument validation', () => {
+  const cases: Array<[string, string]> = [
+    ['"a" -> .repeat(-1)', 'repeat: count cannot be negative, got -1'],
+    ['"a" -> .pad_start(-1)', 'pad_start: length cannot be negative, got -1'],
+    ['"a" -> .pad_end(2.5)', 'pad_end: length must be an integer, got 2.5'],
+  ];
+
+  for (const [src, message] of cases) {
+    it(`halts #INVALID_INPUT for ${src}`, async () => {
+      await expectHalt(() => run(src), {
+        code: 'INVALID_INPUT',
+        messagePattern: message,
+      });
+    });
+
+    it(`guard recovers ${src}`, async () => {
+      expect(await run(`guard { ${src} } => $r\n$r.!`)).toBe(true);
+    });
+  }
+
+  it('keeps a pad length shorter than the receiver as a no-op', async () => {
+    expect(await run('"abc" -> .pad_start(1)')).toBe('abc');
+  });
+});

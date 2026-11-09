@@ -1,7 +1,7 @@
 import type { SourceLocation } from '../../../../types.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
 import type { RillValue } from '../../../core/types/structures.js';
-import { formatValue } from '../../../core/types/registrations.js';
+import { formatValue, inferType } from '../../../core/types/registrations.js';
 
 // ============================================================
 // DATETIME CONSTRUCTION HELPERS
@@ -89,6 +89,25 @@ function validateComponent(
       { component: name }
     );
   }
+}
+
+/** Read an optional numeric component; absent defaults to 0, non-number halts. */
+function optionalComponent(
+  name: string,
+  value: RillValue | undefined,
+  location?: SourceLocation
+): number {
+  if (value === undefined || value === null) return 0;
+  if (typeof value !== 'number') {
+    throwTypeHalt(
+      { location, fn: 'datetime' },
+      'TYPE_MISMATCH',
+      `Invalid datetime component ${name}: ${formatValue(value)}`,
+      'runtime',
+      { component: name }
+    );
+  }
+  return value;
 }
 
 /**
@@ -230,8 +249,8 @@ export function constructDatetime(
   if (hasInput) {
     throwTypeHalt(
       { location, fn: 'datetime' },
-      'INVALID_INPUT',
-      `Invalid ISO 8601 string: ${formatValue(input)}`,
+      'TYPE_MISMATCH',
+      `datetime input must be a string, got ${inferType(input)}`,
       'runtime'
     );
   }
@@ -242,7 +261,7 @@ export function constructDatetime(
     if (typeof unix !== 'number' || !Number.isFinite(unix)) {
       throwTypeHalt(
         { location, fn: 'datetime' },
-        'INVALID_INPUT',
+        typeof unix === 'number' ? 'INVALID_INPUT' : 'TYPE_MISMATCH',
         `Invalid datetime component unix: ${formatValue(unix ?? null)}`,
         'runtime',
         { component: 'unix' }
@@ -259,7 +278,7 @@ export function constructDatetime(
   if (typeof year !== 'number') {
     throwTypeHalt(
       { location, fn: 'datetime' },
-      'INVALID_INPUT',
+      'TYPE_MISMATCH',
       `Invalid datetime component year: ${formatValue(year ?? null)}`,
       'runtime',
       { component: 'year' }
@@ -277,7 +296,7 @@ export function constructDatetime(
   if (typeof month !== 'number') {
     throwTypeHalt(
       { location, fn: 'datetime' },
-      'INVALID_INPUT',
+      'TYPE_MISMATCH',
       `Invalid datetime component month: ${formatValue(month)}`,
       'runtime',
       { component: 'month' }
@@ -295,7 +314,7 @@ export function constructDatetime(
   if (typeof day !== 'number') {
     throwTypeHalt(
       { location, fn: 'datetime' },
-      'INVALID_INPUT',
+      'TYPE_MISMATCH',
       `Invalid datetime component day: ${formatValue(day)}`,
       'runtime',
       { component: 'day' }
@@ -306,10 +325,10 @@ export function constructDatetime(
   validateComponent('month', month, 1, 12, location);
   validateComponent('day', day, 1, maxDayInMonth(year, month), location);
 
-  const hour = typeof args['hour'] === 'number' ? args['hour'] : 0;
-  const minute = typeof args['minute'] === 'number' ? args['minute'] : 0;
-  const second = typeof args['second'] === 'number' ? args['second'] : 0;
-  const ms = typeof args['ms'] === 'number' ? args['ms'] : 0;
+  const hour = optionalComponent('hour', args['hour'], location);
+  const minute = optionalComponent('minute', args['minute'], location);
+  const second = optionalComponent('second', args['second'], location);
+  const ms = optionalComponent('ms', args['ms'], location);
 
   validateComponent('hour', hour, 0, 23, location);
   validateComponent('minute', minute, 0, 59, location);
@@ -354,7 +373,16 @@ function validateDurationParam(
   location?: SourceLocation,
   requireInteger = false
 ): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) {
+  if (typeof value !== 'number') {
+    throwTypeHalt(
+      { location, fn: 'duration' },
+      'TYPE_MISMATCH',
+      `duration ${name} must be a finite number: ${formatValue(value)}`,
+      'runtime',
+      { parameter: name }
+    );
+  }
+  if (!Number.isFinite(value)) {
     throwTypeHalt(
       { location, fn: 'duration' },
       'INVALID_INPUT',

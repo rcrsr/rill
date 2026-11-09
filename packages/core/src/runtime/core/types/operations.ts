@@ -722,8 +722,22 @@ export function paramToFieldDef(
  * Mixed types throw RILL-R002.
  */
 export function inferElementType(elements: RillValue[]): TypeStructure {
+  const mismatch = findElementTypeMismatch(elements);
+  if (mismatch !== undefined) {
+    throw new RuntimeError(ERROR_IDS.RILL_R002, mismatch);
+  }
+  return elementTypeOf(elements);
+}
+
+/**
+ * Non-throwing homogeneity check for list elements.
+ * Returns the mismatch message, or undefined when all elements share a type.
+ */
+export function findElementTypeMismatch(
+  elements: RillValue[]
+): string | undefined {
   const firstElem = elements[0];
-  if (firstElem === undefined) return { kind: 'any' };
+  if (firstElem === undefined) return undefined;
   let accType = inferStructure(firstElem);
   for (let i = 1; i < elements.length; i++) {
     const elem = elements[i];
@@ -731,12 +745,22 @@ export function inferElementType(elements: RillValue[]): TypeStructure {
     const elemType = inferStructure(elem);
     const merged = commonType(accType, elemType);
     if (merged === null) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        `List elements must be the same type: expected ${formatStructure(accType)}, got ${formatStructure(elemType)} at index ${i}`
-      );
+      return `List elements must be the same type: expected ${formatStructure(accType)}, got ${formatStructure(elemType)} at index ${i}`;
     }
     accType = merged;
+  }
+  return undefined;
+}
+
+/** Merged element type of a list already known to be homogeneous. */
+function elementTypeOf(elements: RillValue[]): TypeStructure {
+  const firstElem = elements[0];
+  if (firstElem === undefined) return { kind: 'any' };
+  let accType = inferStructure(firstElem);
+  for (let i = 1; i < elements.length; i++) {
+    const elem = elements[i];
+    if (elem === undefined) continue;
+    accType = commonType(accType, inferStructure(elem)) ?? accType;
   }
   return accType;
 }
