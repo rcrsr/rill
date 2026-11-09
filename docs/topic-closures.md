@@ -630,23 +630,32 @@ Closures can appear inline in expressions:
 
 ### Typed Parameters with a Bare Variable Body
 
-A typed closure may use a body without braces, such as `|x: number| $x` or `|x: number| log($x)`. A body that is only a variable, such as `|x: number| $x`, followed directly by a comma is read as the start of a second parameter, so the parse fails when another argument or list element follows. Bodies like `log($x)` or `$x.name` are unaffected:
-
-```text
-fan(|x: number| $x, 2)              # parse error: Expected parameter name
-list[|x: number| $x, 2]             # parse error: Expected parameter name
-```
-
-Wrap the body in `{ }` or `( )` when a comma follows. A closure in the last position needs no wrapper:
+A typed closure may use a body without braces, such as `|x: number| $x` or `|x: number| log($x)`. A body that is only a variable may be followed by a comma, so it works as a non-final argument or list element:
 
 ```rill
-[1, 2, 3] -> fan(|x: number| { $x * 2 })
-# Result: [2, 4, 6]
-```
-
-```rill
-[1, 2, 3] -> fan(|x: number| $x)
+[1, 2, 3] -> fan(|x: number| $x, dict[concurrency: 2])
 # Result: [1, 2, 3]
+```
+
+```rill
+list[|x: number| $x, |x: number| ($x * 2)] => $fns
+$fns[1](5)
+# Result: 10
+```
+
+A lone `$name` body followed by a comma still fails when the next element looks like another parameter: `key: $v`, `key: ident...`, `key: ||...`, a bare identifier followed by `,`, `|` or `=`, `typename(...)`, `^(...) name`, or `$name |`. The parser reads it as a typed parameter and raises a parse error (`RILL-P005`):
+
+```rill
+dict[f: |x: number| $x, g: $y]
+# Error: Expected |
+```
+
+Wrap the body in `{ }` or `( )` to avoid the ambiguity:
+
+```rill
+dict[f: |x: number| ($x), g: 2] => $d
+$d.f(5)
+# Result: 5
 ```
 
 ---
