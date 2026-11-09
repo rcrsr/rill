@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking: namespaced `ns::fn()` host calls removed:** Any `ns::fn(...)` call or `-> ns::fn` pipe target now halts at parse time with `RILL-P012` ("Syntax removed"), with a hint to use `use<ext:ns> => $ns` then `$ns.fn()`. Before: `math::add(1, 2)`. After: `use<ext:math> => $math` then `$math.add(1, 2)`. Nested namespaces become nested members, so `io::file::read` is `$io.file.read`. Host function keys containing `::` can't be reached from scripts; group them into an extension dict and serve it through `extResolver`. The `HostRefNode` type and the `'HostRef'` `NodeType` member are removed from the public API. The `::` token in slice shorthand such as `slice<::2>` is unchanged. Downstream repositories (rill-ext, rill-agent, rill-cli) may need updates. ([#537](https://github.com/rcrsr/rill/issues/537), [#540](https://github.com/rcrsr/rill/issues/540), [#541](https://github.com/rcrsr/rill/pull/541))
 
+### Fixed
+
+- **LLM fragments and host API docs match the runtime:** `docs/llm/stdlib.txt` and `docs/llm/types.txt` now state that `.keys`, `.values`, and `.entries` halt with `RILL-R003` on non-dict receivers, and `docs/llm/anti-patterns.txt` no longer shows a string `+` that halts. `docs/ref-host-api.md` documents `ctx.dispose()` instead of a top-level `dispose` export that does not exist, and gains a `BUILTIN_METHODS` section. A new test parses every `Right:` snippet in `docs/llm/*.txt`. ([#537](https://github.com/rcrsr/rill/issues/537), [#541](https://github.com/rcrsr/rill/pull/541))
+
 ## 0.23.0 - 2026-11-06
 
 ### Added

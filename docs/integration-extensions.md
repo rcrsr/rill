@@ -302,7 +302,7 @@ try {
 - Always call `dispose()` in a `finally` block.
 - `ctx.signal` in the factory fires when the runtime disposes before factory completion. Pass it to long-running setup operations.
 
-The top-level `dispose()` function from `@rcrsr/rill` shuts down the runtime and fires abort signals to all in-flight calls. See [Host API Reference](ref-host-api.md#dispose-lifecycle) for contract details.
+The `ctx.dispose()` method on `RuntimeContext` shuts down the runtime and fires abort signals to all in-flight calls. See [Host API Reference](ref-host-api.md#ctxdispose-lifecycle) for contract details.
 
 ## State Persistence
 

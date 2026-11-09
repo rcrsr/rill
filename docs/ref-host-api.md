@@ -630,6 +630,18 @@ const isKeyword = (token: string) => keywordSet.has(token);
 
 Editor tooling (LSP completion, syntax highlighting) reads this list instead of vendoring a separate copy. The array is frozen at module load; `KEYWORDS.push(...)` throws.
 
+## BUILTIN_METHODS
+
+`BUILTIN_METHODS` is an object keyed by receiver type, then by method name. Each value is the callable definition for that method. The type keys are `string`, `list`, `dict`, `number`, `bool`, `vector`, `datetime`, `duration`, `tuple`, and `ordered`. Key insertion order is observable: language-service hover and completion iterate `Object.values(BUILTIN_METHODS)`.
+
+```typescript
+import { BUILTIN_METHODS } from '@rcrsr/rill';
+
+const stringMethodNames = Object.keys(BUILTIN_METHODS.string);
+```
+
+Unlike `BUILTIN_FUNCTIONS`, `KEYWORDS`, and `BUILTIN_ATOMS`, this is not a `readonly string[]`. Read method names from the keys of each per-type record.
+
 ## BUILTIN_ATOMS
 
 `BUILTIN_ATOMS` is a `readonly string[]` listing the atom names core pre-registers, without the leading `#`. It lists builtins only; atoms a host adds with `registerErrorCode` are not included.
@@ -1341,18 +1353,18 @@ fn: async (args, ctx) => {
 
 ---
 
-## `dispose()` Lifecycle
+## `ctx.dispose()` Lifecycle
 
-`dispose()` is a top-level async function that shuts down the runtime. It is idempotent.
+`dispose()` is an async method on `RuntimeContext` that shuts down that context's runtime. It is idempotent. `@rcrsr/rill` exports no top-level `dispose` function.
 
 ```typescript
-function dispose(): Promise<void>
+dispose: () => Promise<void>
 ```
 
-Calling `dispose()` fires the `AbortSignal` on all in-flight extension calls. In-flight work receives abort via `AbortSignal.any()` combined with an internal timeout. After the timeout, `dispose()` resolves regardless.
+Calling `ctx.dispose()` fires the `AbortSignal` on all in-flight extension calls. In-flight work receives abort via `AbortSignal.any()` combined with an internal timeout. After the timeout, `dispose()` resolves regardless.
 
 ```typescript
-import { parse, execute, createRuntimeContext, dispose } from '@rcrsr/rill';
+import { parse, execute, createRuntimeContext } from '@rcrsr/rill';
 
 const ctx = createRuntimeContext({ /* ... */ });
 
@@ -1360,7 +1372,7 @@ try {
   const result = await execute(parse(script), ctx);
   console.log(result.result);
 } finally {
-  await dispose();
+  await ctx.dispose();
 }
 ```
 

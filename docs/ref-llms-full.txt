@@ -821,7 +821,7 @@ The 8 dict method names are reserved and cannot be used as dict keys:
     dict[len: "fake"]                # halts: reserved method name 'len'
     dict[label: "fake"].len          # fine: dict length (non-reserved key)
 
-`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule).
+`.keys`/`.values`/`.entries` and dict iteration visit dict's canonical order (see the Types reference for the exact rule). On a non-dict receiver these three methods halt (`RILL-R003`) instead of returning an empty list.
 
 ## Tuple lexicographic comparison
 
@@ -1152,6 +1152,8 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.keys` | keys as list |
 | `.values` | values as list |
 | `.entries` | list of `tuple[k, v]` pairs |
+
+`.keys`, `.values`, and `.entries` halt (`RILL-R003`) on a non-dict receiver such as a list, string, number, bool, or tuple. `??` and `guard` do not recover it. Check first: `$x -> :?dict ? ($x -> .keys) ! list[]`.
 
 ## Comparison methods
 
