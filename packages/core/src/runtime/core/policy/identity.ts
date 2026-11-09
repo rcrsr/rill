@@ -11,7 +11,7 @@
  * resolved value with the resource name it was resolved under. The brand
  * lives in a module-private WeakMap keyed on the callable object, so it
  * travels with the value through every call syntax (`$kb.search`,
- * `ns::name`, bare names, `receiver.method`) and cannot be reached,
+ * bare names, `receiver.method`) and cannot be reached,
  * forged, or rewritten by host functions, which never see this module.
  *
  * Callables created at call time are covered too. A branded method that

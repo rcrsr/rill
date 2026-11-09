@@ -4,12 +4,7 @@
  * @internal This module contains internal parser utilities
  */
 
-import type {
-  BlockNode,
-  HostCallNode,
-  HostRefNode,
-  SourceSpan,
-} from '../types.js';
+import type { BlockNode, HostCallNode, SourceSpan } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import {
   type ParserState,
@@ -105,8 +100,7 @@ export function isIdentifierOrKeyword(token: { type: string }): boolean {
 }
 
 /**
- * Check for function call: identifier( or namespace::func(
- * Supports: func(), ns::func(), ns::sub::func()
+ * Check for function call: identifier(
  * Keywords can be used as function names when followed by parentheses.
  * @internal
  */
@@ -116,29 +110,7 @@ export function isHostCall(state: ParserState): boolean {
     return false;
   }
 
-  // Simple case: identifier(
-  if (peek(state, 1).type === TOKEN_TYPES.LPAREN) {
-    return true;
-  }
-
-  // Namespaced case: identifier::identifier(
-  // Scan ahead for pattern: IDENT (:: IDENT)* (
-  let offset = 1;
-  while (peek(state, offset).type === TOKEN_TYPES.DOUBLE_COLON) {
-    offset++; // skip ::
-    const nextToken = peek(state, offset);
-    if (!isIdentifierOrKeyword(nextToken)) {
-      return false; // :: must be followed by identifier or keyword
-    }
-    offset++; // skip identifier/keyword
-  }
-
-  // If we consumed at least one ::, check for (
-  if (offset > 1) {
-    return peek(state, offset).type === TOKEN_TYPES.LPAREN;
-  }
-
-  return false;
+  return peek(state, 1).type === TOKEN_TYPES.LPAREN;
 }
 
 /**
@@ -412,53 +384,42 @@ export function makeBoolLiteralBlock(
 // ============================================================
 
 /**
- * Parse a bare function name (no parens): `func` or `ns::func` or `ns::sub::func`
- * Returns a HostRefNode for namespaced names (ns::name) and a HostCallNode
- * with empty args for simple bare identifiers (no ::).
+ * Parse a bare function name (no parens): `func`.
+ * Returns a HostCallNode with empty args. A `::` after the identifier is the
+ * removed namespaced host-call form and raises RILL-P012.
  * @internal
  */
-export function parseBareHostCall(
-  state: ParserState
-): HostCallNode | HostRefNode {
+export function parseBareHostCall(state: ParserState): HostCallNode {
   const start = current(state).span.start;
-  let name = expect(state, TOKEN_TYPES.IDENTIFIER, 'Expected identifier').value;
-  let hasNamespace = false;
+  const first = expect(state, TOKEN_TYPES.IDENTIFIER, 'Expected identifier');
 
-  // Collect namespaced name: ident::ident::...
-  while (check(state, TOKEN_TYPES.DOUBLE_COLON)) {
-    state.pos++; // consume ::
-    hasNamespace = true;
-
-    // After ::, accept identifier or keyword
-    const token = current(state);
-
-    if (!isIdentifierOrKeyword(token)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P001,
-        'Expected identifier or keyword after ::',
-        token.span.start
-      );
+  if (check(state, TOKEN_TYPES.DOUBLE_COLON)) {
+    const chain: string[] = [first.value];
+    while (check(state, TOKEN_TYPES.DOUBLE_COLON)) {
+      state.pos++; // consume ::
+      const token = current(state);
+      if (isIdentifierOrKeyword(token)) {
+        chain.push(token.value);
+        state.pos++;
+      } else {
+        chain.push('fn');
+        break;
+      }
     }
-
-    name += '::' + token.value;
-    state.pos++; // consume the identifier or keyword
-  }
-
-  const span = { start, end: previous(state).span.end };
-
-  // Namespaced bare identifier → host function reference
-  if (hasNamespace) {
-    return {
-      type: 'HostRef',
-      name,
-      span,
-    };
+    const [ext = first.value, ...members] = chain;
+    const shown = chain.join('::');
+    const hintMembers = members.join('.');
+    throw new ParseError(
+      ERROR_IDS.RILL_P012,
+      `Syntax removed: ${shown} namespaced host call removed; use use<ext:${ext}> => $${ext}, then $${ext}.${hintMembers}()`,
+      first.span.start
+    );
   }
 
   return {
     type: 'HostCall',
-    name,
+    name: first.value,
     args: [],
-    span,
+    span: { start, end: previous(state).span.end },
   };
 }

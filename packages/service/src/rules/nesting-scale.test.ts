@@ -362,7 +362,6 @@ const ALL_NODE_TYPES: readonly NodeType[] = [
   'Invoke',
   'AnnotationAccess',
   'HostCall',
-  'HostRef',
   'ClosureCall',
   'PipeInvoke',
   'Variable',

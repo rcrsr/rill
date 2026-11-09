@@ -1,12 +1,11 @@
 /**
- * Host function and closure call evaluation: host calls, host refs, closure
+ * Host function and closure call evaluation: host calls, closure
  * calls, and pipe invocation.
  * @internal
  */
 
 import type {
   HostCallNode,
-  HostRefNode,
   ClosureCallNode,
   PipeInvokeNode,
 } from '../../../../types.js';
@@ -139,36 +138,6 @@ export async function evaluateHostCall(
     durationMs: performance.now() - startTime,
   });
   return result;
-}
-
-/** Evaluate host function reference: ns::name. Returns callable when pipeValue is null. */
-// oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
-export async function evaluateHostRef(
-  s: EvalState,
-  node: HostRefNode
-): Promise<RillValue> {
-  checkAborted(s, node);
-
-  const fn = s.ctx.functions.get(node.name);
-  if (!fn) {
-    throwCatchableHostHalt(
-      {
-        location: getNodeLocation(s, node),
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateHostRef',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R006],
-      `Function "${node.name}" not found`,
-      { functionName: node.name }
-    );
-  }
-
-  if (s.ctx.pipeValue === null) {
-    return fn;
-  }
-  const args: RillValue[] =
-    declaredParams(fn, node.name).length === 0 ? [] : [s.ctx.pipeValue];
-  return invokeCallable(s, fn, args, getNodeLocation(s, node), node.name);
 }
 
 /** Evaluate closure call: $fn(args). */

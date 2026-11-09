@@ -43,7 +43,7 @@ import type { TypeRef } from '../../value-types.js';
  * Returned by introspection APIs like getFunctions().
  */
 export interface FunctionMetadata {
-  /** Function name (including namespace if applicable, e.g., "math::add") */
+  /** Function name (reported verbatim as registered) */
   readonly name: string;
   /** Human-readable description of what the function does */
   readonly description: string;
@@ -91,7 +91,7 @@ function annotationDescription(
  * Enumerate all callable functions registered in runtime context.
  *
  * Returns flat list combining host functions, built-ins, and script closures.
- * Namespaced functions preserve `::` separator in name field.
+ * Names are reported verbatim as registered.
  * Malformed entries silently skipped (valid entries returned). This includes
  * a hand-built function entry without a parameter declaration: introspection
  * omits it rather than halting, because enumeration must not fail on one bad

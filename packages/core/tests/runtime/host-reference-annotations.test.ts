@@ -2,10 +2,9 @@
  * Rill Runtime Tests: Host Reference and Expression Annotations
  *
  * Covers:
- * - ns::name (no parens) resolves to an ApplicationCallable
+ * - An extension member without parens resolves to an ApplicationCallable
  * - Expression-position ^(...) before a closure attaches annotations
  * - ^("...") before a non-closure is syntactically valid and ignored
- * - Unknown host reference halts with a function-not-found error
  * - Malformed annotation syntax produces a parse error
  * - `42 -> type` is a type conversion, not a function call
  */
@@ -13,33 +12,54 @@
 import { describe, expect, it } from 'vitest';
 import {
   anyTypeValue,
+  extResolver,
   isApplicationCallable,
   isScriptCallable,
   ParseError,
+  toCallable,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
 import { expectHalt, expectThrowMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Host Reference and Expression Annotations', () => {
-  describe('AC-5: ns::name without parens resolves to ApplicationCallable', () => {
-    it('resolves namespaced host reference to callable', async () => {
-      const result = await run(`greet::user`, {
-        functions: {
-          'greet::user': {
-            params: [
-              {
-                name: 'name',
-                type: { kind: 'string' },
-                defaultValue: undefined,
-                annotations: {},
-              },
-            ],
-            fn: (args) => `Hello, ${args['name']}!`,
-            annotations: { description: 'Greets a user by name' },
-            returnType: anyTypeValue,
+  describe('extension member without parens resolves to ApplicationCallable', () => {
+    function buildOptions(onInvoke: () => void = () => {}) {
+      const user = toCallable({
+        params: [
+          {
+            name: 'name',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: {},
           },
+        ],
+        fn: (args) => {
+          onInvoke();
+          return `Hello, ${args['name']}!`;
         },
+        annotations: { description: 'Greets a user by name' },
+        returnType: anyTypeValue,
       });
+      const hello = toCallable({
+        params: [
+          {
+            name: 'name',
+            type: { kind: 'string' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        fn: (args) => `Hello ${args['name']}`,
+        returnType: anyTypeValue,
+      });
+      return {
+        resolvers: { ext: extResolver },
+        configurations: { resolvers: { ext: { greet: { user, hello } } } },
+      };
+    }
+
+    it('resolves extension member to callable preserving annotations', async () => {
+      const result = await run(`use<ext:greet> => $g\n$g.user`, buildOptions());
       expect(isApplicationCallable(result)).toBe(true);
       if (!isApplicationCallable(result)) return;
       expect(result.annotations['description']).toBe('Greets a user by name');
@@ -47,73 +67,29 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
 
     it('returns callable without invoking when no pipe value', async () => {
       let invocations = 0;
-      const result = await run(`greet::user`, {
-        functions: {
-          'greet::user': {
-            params: [
-              {
-                name: 'name',
-                type: { kind: 'string' },
-                defaultValue: undefined,
-                annotations: {},
-              },
-            ],
-            fn: () => {
-              invocations += 1;
-              return 'invoked';
-            },
-            annotations: { description: 'Greets a user' },
-            returnType: anyTypeValue,
-          },
-        },
-      });
+      const result = await run(
+        `use<ext:greet> => $g\n$g.user`,
+        buildOptions(() => {
+          invocations += 1;
+        })
+      );
       expect(isApplicationCallable(result)).toBe(true);
-      if (!isApplicationCallable(result)) return;
-      expect(result.annotations['description']).toBe('Greets a user');
       expect(invocations).toBe(0);
     });
 
     it('invokes callable when used as pipe stage', async () => {
-      const result = await run(`"World" -> greet::hello`, {
-        functions: {
-          'greet::hello': {
-            params: [
-              {
-                name: 'name',
-                type: { kind: 'string' },
-                defaultValue: undefined,
-                annotations: {},
-              },
-            ],
-            fn: (args) => `Hello ${args['name']}`,
-            returnType: anyTypeValue,
-          },
-        },
-      });
-
+      const result = await run(
+        `use<ext:greet> => $g\n"World" -> $g.hello`,
+        buildOptions()
+      );
       expect(result).toBe('Hello World');
     });
-  });
 
-  describe('ns::name with parens is still a host call', () => {
-    it('calls host function directly when parens provided', async () => {
-      const result = await run(`greet::hello("world")`, {
-        functions: {
-          'greet::hello': {
-            params: [
-              {
-                name: 'name',
-                type: { kind: 'string' },
-                defaultValue: undefined,
-                annotations: {},
-              },
-            ],
-            fn: (args) => `Hello ${args['name']}`,
-            returnType: anyTypeValue,
-          },
-        },
-      });
-
+    it('calls member directly when parens provided', async () => {
+      const result = await run(
+        `use<ext:greet> => $g\n$g.hello("world")`,
+        buildOptions()
+      );
       expect(result).toBe('Hello world');
     });
   });
@@ -158,44 +134,6 @@ describe('Rill Runtime: Host Reference and Expression Annotations', () => {
         hostErrorId: 'RILL-R036',
         messagePattern: 'cannot convert number to type',
       });
-    });
-  });
-
-  describe('AC-11 / EC-4: Unknown host reference throws function-not-found error', () => {
-    it('throws when namespaced reference is not registered', async () => {
-      await expectHalt(() => run(`unknown::fn`), {
-        code: 'RILL_R006',
-        hostErrorId: 'RILL-R006',
-        messagePattern: 'Function "unknown::fn" not found',
-      });
-    });
-
-    it('error message includes the exact function name', async () => {
-      await expectHalt(() => run(`missing::func`), {
-        code: 'RILL_R006',
-        hostErrorId: 'RILL-R006',
-        messagePattern: 'Function "missing::func" not found',
-      });
-    });
-
-    it('throws even when other namespaces are registered', async () => {
-      await expectHalt(
-        () =>
-          run(`wrong::name`, {
-            functions: {
-              'right::name': {
-                params: [],
-                fn: () => 'ok',
-                returnType: anyTypeValue,
-              },
-            },
-          }),
-        {
-          code: 'RILL_R006',
-          hostErrorId: 'RILL-R006',
-          messagePattern: 'Function "wrong::name" not found',
-        }
-      );
     });
   });
 

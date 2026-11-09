@@ -640,6 +640,63 @@ describe('Rill Language: use<> Expressions', () => {
       });
     });
 
+    describe('RILL-P012: namespaced host-call syntax removed', () => {
+      function parseError(source: string): unknown {
+        try {
+          parse(source);
+        } catch (e) {
+          return e;
+        }
+        return undefined;
+      }
+
+      it.each([
+        ['namespaced call', 'math::double(21)'],
+        ['bare namespaced name', 'greet::user'],
+        ['namespaced call as pipe target', '"hello" -> str::pad(10, "-")'],
+        ['bare namespaced pipe target', '"hello" -> str::upper'],
+        ['call inside a closure body', '|x| { ns::f($x) }'],
+      ])('throws RILL-P012 for %s', (_label, source) => {
+        const err = parseError(source);
+        expect(err).toBeInstanceOf(ParseError);
+        expect(err).toHaveProperty('errorId', 'RILL-P012');
+      });
+
+      it('suggests the extension form for a multi-segment name', () => {
+        const err = parseError('std::math::add(1, 2)');
+        expect(err).toHaveProperty('errorId', 'RILL-P012');
+        const message = (err as Error).message;
+        expect(message).toContain('use<ext:std> => $std');
+        expect(message).toContain('$std.math.add()');
+      });
+
+      it('reports the exact migration message', () => {
+        const err = parseError('math::double(21)');
+        expect((err as Error).message).toContain(
+          'Syntax removed: math::double namespaced host call removed; use use<ext:math> => $math, then $math.double()'
+        );
+      });
+
+      it('fails at parse time without invoking a registered function', async () => {
+        let calls = 0;
+        await expect(
+          run('math::double(21)', {
+            functions: {
+              'math::double': {
+                params: [],
+                returnType: anyTypeValue,
+                fn: () => {
+                  calls += 1;
+                  return 42;
+                },
+              },
+            },
+          })
+        ).rejects.toHaveProperty('errorId', 'RILL-P012');
+        expect(calls).toBe(0);
+      });
+    });
+
     describe('AC-13 — RILL-P012: -> export pipe syntax removed', () => {
       it('throws ParseError for -> export syntax', () => {
         expect(() => parse('"value" -> export')).toThrow(ParseError);

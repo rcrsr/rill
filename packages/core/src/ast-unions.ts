@@ -20,7 +20,6 @@ export type NodeType =
   | 'IndexAccess'
   | 'AnnotationAccess'
   | 'HostCall'
-  | 'HostRef'
   | 'ClosureCall'
   | 'PipeInvoke'
   | 'Variable'

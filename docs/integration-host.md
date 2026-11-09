@@ -169,55 +169,68 @@ const ctx = createRuntimeContext({
 });
 ```
 
-### Namespaced Functions
+### Grouping Functions as an Extension
 
-Use `::` to organize functions into namespaces:
+Group related functions into a dict of `toCallable` members and serve it through `extResolver`:
 
 ```typescript
-const ctx = createRuntimeContext({
-  functions: {
-    // Namespaced functions use :: separator
-    'math::add': {
-      signature: '|a: number, b: number|:any',
-      fn: (args) => args.a + args.b,
-    },
-    'math::multiply': {
-      signature: '|a: number, b: number|:any',
-      fn: (args) => args.a * args.b,
-    },
-    'str::upper': {
-      signature: '|text: string|:any',
-      fn: (args) => args.text.toUpperCase(),
-    },
-    'str::lower': {
-      signature: '|text: string|:any',
-      fn: (args) => args.text.toLowerCase(),
-    },
+import { createRuntimeContext, extResolver, toCallable } from '@rcrsr/rill';
 
-    // Multi-level namespaces
-    'io::file::read': {
-      signature: '|path: string|:any',
-      fn: async (args) => fs.readFile(args.path, 'utf-8'),
-    },
-    'io::file::write': {
-      signature: '|path: string, content: string|:any',
-      fn: async (args) => fs.writeFile(args.path, args.content),
+const ctx = createRuntimeContext({
+  resolvers: { ext: extResolver },
+  configurations: {
+    resolvers: {
+      ext: {
+        math: {
+          add: toCallable({
+            signature: '|a: number, b: number|:any',
+            fn: (args) => args.a + args.b,
+          }),
+          multiply: toCallable({
+            signature: '|a: number, b: number|:any',
+            fn: (args) => args.a * args.b,
+          }),
+        },
+        str: {
+          upper: toCallable({
+            signature: '|text: string|:any',
+            fn: (args) => args.text.toUpperCase(),
+          }),
+          lower: toCallable({
+            signature: '|text: string|:any',
+            fn: (args) => args.text.toLowerCase(),
+          }),
+        },
+        // Multi-level grouping is a nested dict
+        io: {
+          file: {
+            read: toCallable({
+              signature: '|path: string|:any',
+              fn: async (args) => fs.readFile(args.path, 'utf-8'),
+            }),
+            write: toCallable({
+              signature: '|path: string, content: string|:any',
+              fn: async (args) => fs.writeFile(args.path, args.content),
+            }),
+          },
+        },
+      },
     },
   },
 });
 ```
 
-Scripts call namespaced functions with the same syntax:
+Scripts bind each extension with `use<ext:name>` and call its members through the variable:
 
 ```rill
-math::add(1, 2)           # 3
-"hello" -> str::upper     # "HELLO"
-io::file::read("config.json")
+use<ext:math> => $math
+use<ext:str> => $str
+$str.upper("hello")
+$math.add(1, 2)
+# Result: 3
 ```
 
-Namespaces help organize host APIs and avoid name collisions without requiring the `$` variable prefix.
-
-The `ext::fn()` calling pattern is retained for compatibility but is not recommended for new code. In `strict` checker mode, `ext::fn()` calls are flagged. Use `use<ext:...>` imports instead (see [Host Resolver Registration](integration-resolvers.md)).
+A nested dict is reached by chaining members, such as `$io.file.read("config.json")`. Function keys containing `::` can't be reached from scripts as of 0.24.0, and a script that writes `ns::fn()` halts with RILL-P012 (see [Why Does `ns::fn()` Fail to Parse?](guide-troubleshooting.md)).
 
 ### Structured Output with generate()
 
@@ -297,7 +310,7 @@ functions: {
 
 A script that resolves an extension through `use<scheme:resource>` can call every method on it. `filterResolver` lets the host decide, per method, whether the call is permitted and what happens to its input and output.
 
-The filter runs at the single site every call syntax funnels through, so `$kb.search()`, `kb::search()`, a bare `search()`, and a method reached through a rebound variable all hit the same rule.
+The filter runs at the single site every call syntax funnels through, so `$kb.search()`, a bare `search()`, and a method reached through a rebound variable all hit the same rule.
 
 ### Configuring a Policy
 

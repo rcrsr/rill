@@ -1,5 +1,5 @@
 /**
- * Tests for executeRill resolver wiring (Task 2.5)
+ * Tests for executeRill resolver wiring
  *
  * Tests FiddleResolverConfig, buildFiddleRuntimeOptions, and executeRill
  * with optional resolverConfig parameter.
@@ -210,10 +210,10 @@ describe('executeRill', () => {
       });
     });
 
-    it('use<ext:...> + ext::fn() in permissive mode — both resolve; ext::fn() returns its argument', async () => {
-      // use<ext:example> captures the resolved ext value; ext::fn() is a
-      // namespace-qualified host function registered in the functions map.
-      const extFn: RillFunction = {
+    it('use<ext:...> with a registered host function resolves both; the function returns its argument', async () => {
+      // use<ext:example> captures the resolved ext value; echo is a bare-name
+      // host function registered in the functions map.
+      const echoFn: RillFunction = {
         params: [
           {
             name: 'arg',
@@ -228,10 +228,10 @@ describe('executeRill', () => {
       const config: FiddleResolverConfig = {
         resolvers: { ext: valueResolver('resolved-ext') },
         configurations: { resolvers: {} },
-        functions: { 'ext::fn': extFn },
+        functions: { echo: echoFn },
       };
       const result = await executeRill(
-        'use<ext:example> => $e\next::fn("arg") => $r\ndict[e: $e, r: $r]',
+        'use<ext:example> => $e\necho("arg") => $r\ndict[e: $e, r: $r]',
         config
       );
       expect(result.status).toBe('success');

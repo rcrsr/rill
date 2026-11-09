@@ -169,7 +169,6 @@ const BODY_PAIRS: readonly BodyPair[] = [
     base: 'dict[($x): 1]',
     variant: 'dict[($x): 2]',
   },
-  { name: 'host reference', base: 'ns::one', variant: 'ns::two' },
 ];
 
 function buildScript(first: string, second: string): string {

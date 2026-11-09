@@ -70,11 +70,6 @@ export const validateExternal: Rule = {
     const hostCallNode = node;
     const functionName = hostCallNode.name;
 
-    // Skip namespaced functions (ns::func) - these are trusted host APIs.
-    if (functionName.includes('::')) {
-      return [];
-    }
-
     // Check if this is a parsing or external data function.
     if (!isExternalDataFunction(functionName)) {
       return [];

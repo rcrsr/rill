@@ -109,7 +109,6 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
 
     Wrong: "Hello " + name
     Right: "Hello {$name}"                 # interpolation
-    Right: "Hello " -> { $ + $name }       # if you really need + (number-string ERROR)
 
     Wrong: name.toUpperCase()
     Right: $name -> .upper
@@ -157,6 +156,10 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
 
     Wrong: |x| ($x * 2) => double          # capture name needs $
     Right: |x| ($x * 2) => $double
+
+    Wrong: app::fetch($url)                # removed namespaced call (RILL-P012)
+    Right: use<ext:app> => $app
+           $app.fetch($url)
 
 ## Whitespace traps
 

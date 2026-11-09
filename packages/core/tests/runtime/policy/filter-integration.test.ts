@@ -1231,16 +1231,19 @@ describe('filter integration: callables returned at call time', () => {
   });
 
   it('leaves script closures and host functions unpoliced when echoed', async () => {
-    const hostFn = {
-      params: [],
-      returnType: anyTypeValue,
-      fn: () => 'host ok',
-    };
     const ctx = buildContext(
       { kb: { '*': { access: 'deny' }, echo: { access: 'allow' } } },
       { kb: { echo: echo() } },
-      { functions: { 'host::fn': hostFn } }
+      {
+        functions: {
+          hostFn: { params: [], returnType: anyTypeValue, fn: () => 'host ok' },
+        },
+      }
     );
+    // Hand the registered host callable to the script as a value.
+    const registered = ctx.functions.get('hostFn');
+    if (registered === undefined) throw new Error('hostFn not registered');
+    ctx.variables.set('hostFn', registered);
 
     const closure = await execute(
       parse(
@@ -1251,7 +1254,7 @@ describe('filter integration: callables returned at call time', () => {
     expect(closure.result).toBe('closure ok');
 
     const host = await execute(
-      parse('use<ext:kb> => $kb\n$kb.echo(host::fn) => $h\n$h()'),
+      parse('use<ext:kb> => $kb\n$kb.echo($hostFn) => $h\n$h()'),
       ctx
     );
     expect(host.result).toBe('host ok');

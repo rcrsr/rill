@@ -9,7 +9,6 @@ import type {
   DoWhileLoopNode,
   WhileLoopNode,
   HostCallNode,
-  HostRefNode,
   IndexAccessNode,
   MethodCallNode,
   PassBlockNode,
@@ -357,7 +356,7 @@ const pipeTargetDispatchTable: Record<
 
 /**
  * Attaches a trailing `[i]` bracket index (or chain of them) to a pipe
- * target that has no `.method` chain of its own — a bare/namespaced host
+ * target that has no `.method` chain of its own — a bare host
  * call, a parameterized type constructor, or a bare type-keyword target.
  * `list[3,1,2] -> sort[0]` yields `1`. Only same-line brackets are
  * collected; a newline before `[` starts a new statement instead, matching
@@ -365,7 +364,7 @@ const pipeTargetDispatchTable: Record<
  */
 function attachPipeTargetIndex(
   this: Parser,
-  primary: HostCallNode | HostRefNode | TypeConstructorNode | TypeNameExprNode
+  primary: HostCallNode | TypeConstructorNode | TypeNameExprNode
 ): PipeTargetNode {
   if (!check(this.state, TOKEN_TYPES.LBRACKET)) {
     return primary;
@@ -570,7 +569,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     return attachPipeTargetIndex.call(this, this.parseHostCall());
   }
 
-  // Bare function name: "-> greet" or "-> ns::func"
+  // Bare function name: "-> greet"
   if (check(this.state, TOKEN_TYPES.IDENTIFIER)) {
     return attachPipeTargetIndex.call(this, parseBareHostCall(this.state));
   }

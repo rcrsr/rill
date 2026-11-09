@@ -263,7 +263,7 @@ function dispatchByKind(
 /**
  * Invoke any callable; dispatches by kind.
  *
- * All four call syntaxes (`$obj.method()`, `hostCall()`, `ns::name`,
+ * All three call syntaxes (`$obj.method()`, `hostCall()`,
  * `receiver.method`) funnel here, which is why the policy filter runs at
  * this one site: filtering anywhere else would leave the other syntaxes
  * unsanitized.
@@ -907,7 +907,6 @@ export async function invokeStream(
 // Moved evaluators stay importable from this module.
 export {
   evaluateHostCall,
-  evaluateHostRef,
   evaluateClosureCall,
   evaluateClosureCallWithPipe,
   evaluatePipeInvoke,

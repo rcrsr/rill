@@ -39,7 +39,6 @@ const KNOWN_NODE_TYPES_RECORD = {
   Invoke: true,
   AnnotationAccess: true,
   HostCall: true,
-  HostRef: true,
   ClosureCall: true,
   PipeInvoke: true,
   Variable: true,
@@ -228,7 +227,6 @@ $f(^(k: 1) 5)
 use<host:fn> => $u
 use<host:fn>:|p: number| => $u2
 number(1)
-ns::thing
 |p = dict[a: 1]| ($p) => $dd
 |x: closure|{ $x } => $z
 |^("lbl") x: string|:number => $sig

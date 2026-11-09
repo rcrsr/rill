@@ -683,7 +683,7 @@ prompt("Get role") => $role
 
 ## Checker Modes
 
-rill supports two checker modes that control how the type checker treats dynamic `use` forms, untyped host references, and direct extension calls.
+rill supports two checker modes that control how the type checker treats dynamic `use` forms and untyped host references.
 
 ### Strict Mode
 
@@ -696,11 +696,8 @@ use<$module_name>
 # Rejected in strict mode: computed use-id form
 use<($get_module())>
 
-# Rejected in strict mode: untyped host reference
-app::fetch($url)    # host function without declared return type
-
-# Rejected in strict mode: direct extension call
-ext::fn()           # extension function called without module binding
+# Rejected in strict mode: untyped host reference (no :type annotation)
+use<host:fetch>
 ```
 
 These forms are rejected because they cannot be resolved at check time. LLM-generated scripts benefit from this restriction because it surfaces ambiguities before execution.
@@ -713,8 +710,8 @@ Permissive mode is the default for human-authored code. The checker emits warnin
 # Allowed in permissive mode (warning issued): variable use-id
 use<$module_name>
 
-# Allowed in permissive mode (warning issued): untyped host reference
-app::fetch($url)
+# Allowed in permissive mode (warning issued): untyped host reference (no :type annotation)
+use<host:fetch>
 ```
 
 Use permissive mode when iterating on scripts interactively, where runtime behavior is the primary feedback mechanism.

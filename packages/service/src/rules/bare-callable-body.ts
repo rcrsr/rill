@@ -8,7 +8,7 @@
  * always a mistake:
  * - Likely intended: seq({ name($) })   -- wrap in a closure
  * - Likely intended: seq($name)         -- reference a script-defined closure
- * - Likely intended: seq(ns::name)      -- reference a namespaced callable
+ * - Likely intended: seq($ext.name)     -- reference an extension member
  */
 
 import type { ASTNode } from '@rcrsr/rill';
@@ -34,7 +34,7 @@ export const bareCallableBody: Rule = {
     return [
       {
         code: 'BARE_CALLABLE_BODY',
-        message: `Bare '${name}' is a zero-arg call here, not a callable — ${node.name} body must be a closure. Wrap it ({ ${name}($) }) or reference a callable ($var or ns::name).`,
+        message: `Bare '${name}' is a zero-arg call here, not a callable — ${node.name} body must be a closure. Wrap it ({ ${name}($) }) or reference a callable ($var or $ext.name).`,
         severity: 'warning',
         location: bareCall.span.start,
         context: extractContextLine(bareCall.span.start.line, context.source),

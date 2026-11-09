@@ -27,7 +27,7 @@ const ctx = createRuntimeContext({
   variables: { app: ext.value },
 });
 
-// Script: app.greet("World")
+// Script: use<ext:app> => $app, then $app.greet("World")
 ```
 
 ## Extension Contract
@@ -302,7 +302,7 @@ try {
 - Always call `dispose()` in a `finally` block.
 - `ctx.signal` in the factory fires when the runtime disposes before factory completion. Pass it to long-running setup operations.
 
-The top-level `dispose()` function from `@rcrsr/rill` shuts down the runtime and fires abort signals to all in-flight calls. See [Host API Reference](ref-host-api.md#dispose-lifecycle) for contract details.
+The `ctx.dispose()` method on `RuntimeContext` shuts down the runtime and fires abort signals to all in-flight calls. See [Host API Reference](ref-host-api.md#ctxdispose-lifecycle) for contract details.
 
 ## State Persistence
 
@@ -599,7 +599,7 @@ const result = await execute(parse('myExt.greet("World")'), context);
 
 ## Migration: ExtensionResult to ExtensionFactoryResult
 
-v0.17.0 introduces a breaking change to the extension factory return type. `ExtensionResult` is replaced by `ExtensionFactoryResult`. The `hoistExtension` and `prefixFunctions` utilities are removed. Sub-dict organization replaces the `namespace::fn` flat function pattern.
+v0.17.0 introduces a breaking change to the extension factory return type. `ExtensionResult` is replaced by `ExtensionFactoryResult`. The `hoistExtension` and `prefixFunctions` utilities are removed. Sub-dict organization replaces the `namespace::fn` flat function pattern. The `namespace::fn()` call form was removed entirely in 0.24.0 and halts with RILL-P012.
 
 ### Before and After
 
@@ -698,14 +698,14 @@ const ctx = createRuntimeContext({ variables: { app: ext.value } });
 await ext.dispose?.();
 ```
 
-**Step 4: Update script call syntax from `namespace::fn()` to `namespace.fn()`**
+**Step 4: Update script call syntax from `namespace::fn()` to `$namespace.fn()`**
 
 ```text
 // Before
 app::greet("World")
 
 // After
-app.greet("World")
+$app.greet("World")
 ```
 
 **Step 5: Update import statements**

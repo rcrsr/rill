@@ -27,7 +27,7 @@ export const TOKEN_TYPES = {
   AT: 'AT', // @
   CARET: 'CARET', // ^ (annotation prefix)
   COLON: 'COLON', // :
-  DOUBLE_COLON: 'DOUBLE_COLON', // :: (namespace separator)
+  DOUBLE_COLON: 'DOUBLE_COLON', // slice shorthand (empty bound), e.g. slice<::2>
   COMMA: 'COMMA', // ,
 
   // Boolean operators

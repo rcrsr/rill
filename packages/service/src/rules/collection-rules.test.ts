@@ -214,8 +214,8 @@ describe('BARE_CALLABLE_BODY', () => {
     );
   });
 
-  it('does not fire when the body is a namespaced host reference', () => {
-    const source = 'fan(ns::helper)\n';
+  it('does not fire when the body is an extension member reference', () => {
+    const source = 'fan($tools.helper)\n';
     const parsed = toParseResult(source);
 
     expect(runRules(parsed, source, makeConfig(), [bareCallableBody])).toEqual(

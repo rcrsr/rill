@@ -60,6 +60,8 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.values` | values as list |
 | `.entries` | list of `tuple[k, v]` pairs |
 
+`.keys`, `.values`, and `.entries` halt (`RILL-R003`) on a non-dict receiver such as a list, string, number, bool, or tuple. `??` and `guard` do not recover it. Check first: `$x -> :?dict ? ($x -> .keys) ! list[]`.
+
 ## Comparison methods
 
 Method form mirrors operators. Use when piping.

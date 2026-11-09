@@ -65,7 +65,6 @@ import {
   invokeCallable,
   evaluateMethod,
   evaluateAnnotationAccess,
-  evaluateHostRef,
   evaluateHostCall,
   evaluateYield,
   evaluatePipeInvoke,
@@ -423,9 +422,6 @@ export async function evaluatePrimary(
     case 'HostCall':
       return evaluateHostCall(s, primary);
 
-    case 'HostRef':
-      return evaluateHostRef(s, primary);
-
     case 'AnnotatedExpr': {
       // Set immediateAnnotation before evaluating the inner primary so
       // createClosure() can consume it via captureClosureAnnotations.
@@ -676,11 +672,6 @@ async function evaluatePipeTarget(
       // applies: auto-prepend fires when no top-level `$` is in args.
       return evaluateHostCall(s, target, true);
 
-    case 'HostRef':
-      // pipeValue is already set to input above; evaluateHostRef invokes
-      // with it when pipeValue is non-null.
-      return evaluateHostRef(s, target);
-
     case 'ClosureCall':
       return evaluateClosureCallWithPipe(s, target, input);
 
@@ -884,7 +875,7 @@ async function evaluatePipeTarget(
           primary.name === null &&
           primary.accessChain.length === 0;
         // Non-synthetic primaries only ever reach this node through
-        // parsePipeTarget's attachPipeTargetIndex path (HostCall, HostRef,
+        // parsePipeTarget's attachPipeTargetIndex path (HostCall,
         // TypeConstructor, TypeNameExpr) or attachPipeTargetPostfixChain
         // (PassBlock, TimeoutBlock, WhileLoop, DoWhileLoop). The postfix
         // dispatch loop there can also wrap the primary in a TypeAssertion or
@@ -896,7 +887,6 @@ async function evaluatePipeTarget(
           value = input;
         } else if (
           primary.type === 'HostCall' ||
-          primary.type === 'HostRef' ||
           primary.type === 'TypeConstructor' ||
           primary.type === 'TypeNameExpr' ||
           primary.type === 'PassBlock' ||

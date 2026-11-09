@@ -321,7 +321,6 @@ export type PrimaryNode =
   | OrderedLiteralNode
   | VariableNode
   | HostCallNode
-  | HostRefNode
   | AnnotatedExprNode
   | ClosureCallNode
   | MethodCallNode
@@ -349,7 +348,6 @@ export type PrimaryNode =
 
 export type PipeTargetNode =
   | HostCallNode
-  | HostRefNode
   | ClosureCallNode
   | MethodCallNode
   | PipeInvokeNode
@@ -733,7 +731,7 @@ export type PropertyAccess = FieldAccess | BracketAccess;
  *
  * Examples:
  *   ^("describe it") |x| ($x * 2)    -- closure gets description annotation
- *   ^(label: "add") app::add         -- host ref gets annotation (runtime: ignored)
+ *   ^(label: "add") $ext.add         -- host member gets annotation (runtime: ignored)
  */
 export interface AnnotatedExprNode extends BaseNode {
   readonly type: 'AnnotatedExpr';
@@ -749,11 +747,6 @@ export interface HostCallNode extends BaseNode {
   readonly type: 'HostCall';
   readonly name: string;
   readonly args: (ExpressionNode | SpreadArgNode)[];
-}
-
-export interface HostRefNode extends BaseNode {
-  readonly type: 'HostRef';
-  readonly name: string;
 }
 
 export interface MethodCallNode extends BaseNode {
@@ -1179,7 +1172,6 @@ export type ASTNode =
   | IndexAccessNode
   | AnnotationAccessNode
   | HostCallNode
-  | HostRefNode
   | ClosureCallNode
   | PipeInvokeNode
   | VariableNode
