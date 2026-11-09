@@ -51,7 +51,10 @@ describe('typed closure parameter followed by a body', () => {
     const c = closureOf(src);
     expect(c.params).toHaveLength(1);
     expect(c.params[0]?.typeRef).toEqual({ kind: 'static', typeName: t });
-    expect(JSON.stringify(c.body)).toContain('"x"');
+    const primary = (c.body as { primary: { type: string; name: string } })
+      .primary;
+    expect(primary.type).toBe('Variable');
+    expect(primary.name).toBe('x');
   });
 
   it('parses a host call body after a typed parameter', () => {
@@ -60,7 +63,10 @@ describe('typed closure parameter followed by a body', () => {
       kind: 'static',
       typeName: 'number',
     });
-    expect(JSON.stringify(c.body)).toContain('log');
+    const primary = (c.body as { primary: { type: string; name: string } })
+      .primary;
+    expect(primary.type).toBe('HostCall');
+    expect(primary.name).toBe('log');
   });
 
   it('parses an anonymous typed closure with a variable body', () => {
@@ -69,7 +75,11 @@ describe('typed closure parameter followed by a body', () => {
       kind: 'static',
       typeName: 'number',
     });
-    expect(bodyType(c)).toBeDefined();
+    expect(bodyType(c)).toBe('PostfixExpr');
+    const primary = (c.body as { primary: { type: string; name: string } })
+      .primary;
+    expect(primary.type).toBe('Variable');
+    expect(primary.name).toBe('x');
   });
 
   it('returns the argument from a typed closure at runtime', async () => {

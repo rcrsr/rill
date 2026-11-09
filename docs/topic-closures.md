@@ -630,7 +630,7 @@ Closures can appear inline in expressions:
 
 ### Typed Parameters with a Bare Variable Body
 
-A typed closure may use a body without braces, such as `|x: number| $x` or `|x: number| log($x)`. A comma directly after that body is read as the start of a second parameter, so the parse fails when another argument or list element follows:
+A typed closure may use a body without braces, such as `|x: number| $x` or `|x: number| log($x)`. A body that is only a variable, such as `|x: number| $x`, followed directly by a comma is read as the start of a second parameter, so the parse fails when another argument or list element follows. Bodies like `log($x)` or `$x.name` are unaffected:
 
 ```text
 fan(|x: number| $x, 2)              # parse error: Expected parameter name
@@ -640,9 +640,13 @@ list[|x: number| $x, 2]             # parse error: Expected parameter name
 Wrap the body in `{ }` or `( )` when a comma follows. A closure in the last position needs no wrapper:
 
 ```rill
-[1, 2, 3] -> fan(|x: number| { $x * 2 })    # list[2, 4, 6]
+[1, 2, 3] -> fan(|x: number| { $x * 2 })
+# Result: [2, 4, 6]
+```
 
-[1, 2, 3] -> fan(|x: number| $x)             # list[1, 2, 3]
+```rill
+[1, 2, 3] -> fan(|x: number| $x)
+# Result: [1, 2, 3]
 ```
 
 ---

@@ -809,7 +809,6 @@ slice-bound       = number | variable | grouped-expr ;
    pipe target; it appears only in these places:
      - call arguments:        $flip(...dict[a: 1, b: 2])
      - list[ / tuple[ / dict[ / ordered[ literals:  [1, ...$other, 2]
-     - annotation arguments
 
    Key-based matching at invocation:
      - String keys (from dict) match parameters by name
