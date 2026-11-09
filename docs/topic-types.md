@@ -965,7 +965,7 @@ duration(...dict[months: 1]) == duration(...dict[months: 1])
 # Result: true
 ```
 
-Ordering compares the `ms` field only, and only when both durations have equal `months` fields. Comparing durations with different `months` halts:
+Ordering compares the `ms` field only, and only when both durations have equal `months` fields. Comparing durations with different `months` halts with `RILL-R002`, which `guard` recovers:
 
 ```text
 duration(...dict[hours: 1]) < duration(...dict[hours: 2])

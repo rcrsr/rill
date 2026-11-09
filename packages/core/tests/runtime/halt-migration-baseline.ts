@@ -58,11 +58,6 @@ interface BaselineSpan {
  *   and awaits `stream.next.fn({}, ctx)` twice, so the second call throws
  *   from inside the host function. `ctx` is the context the host function
  *   received.
- * - `compare_calendar_durations`: calls the `duration` entry of
- *   `BUILT_IN_TYPES` `protocol.compare` with
- *   `{ __rill_duration: true, months: 12, ms: 0 }` and
- *   `{ __rill_duration: true, months: 0, ms: 1000 }`, from inside the host
- *   function.
  * - `delay_then_head`: async; waits 100 ms ignoring `ctx.signal`, then
  *   returns `BUILTIN_METHODS.string.head.fn({ receiver: 5 }, ctx, location)`
  *   where `ctx` and `location` are the values the host function received.
@@ -75,7 +70,6 @@ const BASELINE_HOST_FUNCTION_NAMES = [
   'make_vec3',
   'return_undefined',
   'stream_next_twice',
-  'compare_calendar_durations',
   'delay_then_head',
 ] as const;
 

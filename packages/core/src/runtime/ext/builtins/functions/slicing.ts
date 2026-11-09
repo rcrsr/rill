@@ -48,7 +48,8 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    * Iterator/stream inputs are walked lazily with cap n; a walk past the step
    * limit halts with a catchable #RILL_R010. List and materialized inputs halt
    * with a catchable #RILL_R010 when min(n, length) exceeds MAX_ITER.
-   * n === 0 returns [] without touching the input.
+   * n === 0 validates the input type like any other n, disposes a stream
+   * input without pulling from it, and returns [].
    */
   take: {
     params: [
@@ -85,11 +86,6 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       }
       const n = requireNonNegativeInteger(nRaw, 'take', 'n', site);
 
-      // n===0: return empty immediately without touching the input.
-      if (n === 0) {
-        return [];
-      }
-
       const assertWithinLimit = (length: number): void => {
         if (Math.min(n, length) > MAX_ITER) {
           throwCatchableHostHalt(
@@ -111,6 +107,11 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       if (isStream(input) || isIterator(input)) {
         const loc = location ?? { line: 0, column: 0, offset: 0 };
         const evaluator = getEvalState(ctx);
+
+        if (n === 0) {
+          disposeStreamInput(input, site);
+          return [];
+        }
 
         // Host streams (not plain iterators) may hold resources released via
         // an idempotent dispose hook. take() only ever consumes a prefix, so

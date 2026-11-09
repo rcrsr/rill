@@ -310,6 +310,19 @@ describe('take() disposes a host stream exactly once (#391)', () => {
     expect(counter.count).toBe(1);
   });
 
+  it('take(0) disposes a host stream exactly once and yields []', async () => {
+    const counter = { count: 0 };
+    const result = await run('s() -> take(0)', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(result).toEqual([]);
+    expect(counter.count).toBe(1);
+  });
+
+  it('take(0) on a non-iterable input halts like take(n) does', async () => {
+    await expectHalt(() => run('5 -> take(0)'), { code: 'RILL_R002' });
+  });
+
   it('take(10) beyond length disposes exactly once on full drain', async () => {
     const counter = { count: 0 };
     await run('s() -> take(10)', {

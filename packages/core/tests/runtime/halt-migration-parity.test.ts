@@ -128,15 +128,6 @@ function buildHostFunctions(): Record<BaselineHostFunctionName, RillFunction> {
       await callStreamNext(stream, ctx);
       return null;
     }),
-    compare_calendar_durations: makeHostFunction(() => {
-      const definition = BUILT_IN_TYPES.find((t) => t.name === 'duration');
-      const compare = definition?.protocol.compare;
-      if (compare === undefined) throw new Error('duration compare missing');
-      return compare(
-        { __rill_duration: true, months: 12, ms: 0 },
-        { __rill_duration: true, months: 0, ms: 1000 }
-      );
-    }),
     delay_then_head: makeHostFunction((_args, ctx, location) => {
       const work = (async (): Promise<RillValue> => {
         await expiryFired;

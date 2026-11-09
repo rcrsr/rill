@@ -11,7 +11,6 @@
  * - Circular with registrations.ts (runtime-safe: no init-time cross-calls)
  */
 
-import { RuntimeError } from '../../../types.js';
 import type { RillCallable } from '../callable.js';
 import { declaredParams } from '../callable.js';
 import {
@@ -29,7 +28,7 @@ import {
   isVector,
   getStreamTypeSidecar,
 } from './guards.js';
-import { throwTypeHalt } from './halt.js';
+import { throwCatchableHostHalt, throwTypeHalt } from './halt.js';
 import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
@@ -38,7 +37,7 @@ import {
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import { quoteRillString } from './format-string.js';
 import { typedKeyEntries, setDictField } from './dict-keys.js';
-import { ERROR_IDS } from '../../../error-registry.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker); a CallableMarker implies RillCallable by construction. */
 function isCallable(value: RillValue): value is RillCallable {
@@ -719,12 +718,16 @@ export function paramToFieldDef(
 /**
  * Infer the element type for a homogeneous list.
  * Empty arrays return { kind: 'any' }.
- * Mixed types throw RILL-R002.
+ * Mixed types halt catchably with #RILL_R002.
  */
 export function inferElementType(elements: RillValue[]): TypeStructure {
   const scan = scanElementTypes(elements);
   if (scan.mismatch !== undefined) {
-    throw new RuntimeError(ERROR_IDS.RILL_R002, scan.mismatch);
+    throwCatchableHostHalt(
+      { fn: 'inferElementType' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      scan.mismatch
+    );
   }
   return scan.type;
 }
