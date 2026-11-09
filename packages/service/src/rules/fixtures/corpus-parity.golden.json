@@ -31286,20 +31286,7 @@
   {
     "index": 2998,
     "file": "sort.test.ts",
-    "diagnostics": [
-      {
-        "code": "PREFER_MAP",
-        "message": "Consider using 'fan' instead of 'seq' for pure transformations (no side effects)",
-        "severity": "info",
-        "location": {
-          "line": 1,
-          "column": 16,
-          "offset": 15
-        },
-        "context": "range(0, 5) -> seq({ $ }) -> sort",
-        "fix": null
-      }
-    ]
+    "diagnostics": []
   },
   {
     "index": 2999,

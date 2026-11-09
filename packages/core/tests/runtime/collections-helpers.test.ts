@@ -147,8 +147,7 @@ describe('collections handlers', () => {
 
     it('raises error when body is not a closure', async () => {
       await expectHalt(() => run('list[1] -> seq(42)'), {
-        code: 'RILL_R040',
-        hostErrorId: 'RILL-R040',
+        code: 'TYPE_MISMATCH',
         messagePattern: /seq.*closure/i,
       });
     });
@@ -240,23 +239,42 @@ describe('collections handlers', () => {
       });
     });
 
-    it('halts with RILL-R001 on fractional concurrency', async () => {
+    it('recovers invalid fan options with guard', async () => {
+      const result = await run(
+        'guard { list[1, 2, 3] -> fan({ $ }, dict[concurrency: 0.5]) } => $r\n$r.!'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('halts catchably with #TYPE_MISMATCH when options is not a dict', async () => {
+      await expectHalt(() => run('list[1] -> fan({ $ }, 5)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /options must be a dict/,
+      });
+    });
+
+    it('halts catchably with #TYPE_MISMATCH when concurrency is not a number', async () => {
+      await expectHalt(
+        () => run('list[1] -> fan({ $ }, dict[concurrency: "2"])'),
+        { code: 'TYPE_MISMATCH', messagePattern: /must be a number/ }
+      );
+    });
+
+    it('halts catchably with #INVALID_INPUT on fractional concurrency', async () => {
       await expectHalt(
         () => run('list[1, 2, 3] -> fan({ $ }, dict[concurrency: 0.5])'),
         {
-          code: 'RILL_R001',
-          hostErrorId: 'RILL-R001',
+          code: 'INVALID_INPUT',
           messagePattern: /positive integer/i,
         }
       );
     });
 
-    it('halts with RILL-R001 on an unknown option key', async () => {
+    it('halts catchably with #INVALID_INPUT on an unknown option key', async () => {
       await expectHalt(
         () => run('list[1, 2, 3] -> fan({ $ }, dict[batch_size: 2])'),
         {
-          code: 'RILL_R001',
-          hostErrorId: 'RILL-R001',
+          code: 'INVALID_INPUT',
           messagePattern:
             /fan: unknown option 'batch_size'; recognized options are 'concurrency'/,
         }
@@ -277,8 +295,7 @@ describe('collections handlers', () => {
 
     it('raises error when body is not a closure', async () => {
       await expectHalt(() => run('list[1] -> fold(0, 42)'), {
-        code: 'RILL_R040',
-        hostErrorId: 'RILL-R040',
+        code: 'TYPE_MISMATCH',
         messagePattern: /fold.*closure/i,
       });
     });
@@ -302,10 +319,30 @@ describe('collections handlers', () => {
 
     it('raises error when predicate does not return bool', async () => {
       await expectHalt(() => run('list[1, 2, 3] -> filter({ $ * 2 })'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
         messagePattern: /predicate must return bool/i,
       });
+    });
+
+    it('recovers a non-bool predicate result with guard', async () => {
+      const result = await run(
+        'guard { list[1, 2, 3] -> filter({ $ * 2 }) } => $r\n$r.!'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('halts catchably with #TYPE_MISMATCH when options is not a dict', async () => {
+      await expectHalt(() => run('list[1] -> filter({ $ > 0 }, 5)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /options must be a dict/,
+      });
+    });
+
+    it('halts catchably with #TYPE_MISMATCH when concurrency is not a number', async () => {
+      await expectHalt(
+        () => run('list[1] -> filter({ $ > 0 }, dict[concurrency: "2"])'),
+        { code: 'TYPE_MISMATCH', messagePattern: /must be a number/ }
+      );
     });
 
     it('respects concurrency option', async () => {
@@ -315,23 +352,21 @@ describe('collections handlers', () => {
       expect(result).toEqual([2, 3, 4]);
     });
 
-    it('halts with RILL-R001 on fractional concurrency', async () => {
+    it('halts catchably with #INVALID_INPUT on fractional concurrency', async () => {
       await expectHalt(
         () => run('list[1, 2, 3] -> filter({ $ > 1 }, dict[concurrency: 0.5])'),
         {
-          code: 'RILL_R001',
-          hostErrorId: 'RILL-R001',
+          code: 'INVALID_INPUT',
           messagePattern: /positive integer/i,
         }
       );
     });
 
-    it('halts with RILL-R001 on an unknown option key', async () => {
+    it('halts catchably with #INVALID_INPUT on an unknown option key', async () => {
       await expectHalt(
         () => run('list[1, 2, 3] -> filter({ $ > 1 }, dict[batch_size: 2])'),
         {
-          code: 'RILL_R001',
-          hostErrorId: 'RILL-R001',
+          code: 'INVALID_INPUT',
           messagePattern:
             /filter: unknown option 'batch_size'; recognized options are 'concurrency'/,
         }

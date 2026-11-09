@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 
 import { ParseError } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
-import { expectHalt, expectRuntimeError } from '../helpers/halt.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
@@ -24,22 +24,25 @@ describe('Rill Language: Structural Type Error Contracts', () => {
 
   describe('Mixed list elements (AC-40)', () => {
     it('throws on list with mixed number and string elements', async () => {
-      await expectRuntimeError(() => run('list[1, "hello", 3]'), {
-        code: 'RILL-R002',
+      await expectHalt(() => run('list[1, "hello", 3]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
         messagePattern: 'List elements must be the same type',
       });
     });
 
     it('throws on list with mixed string and number elements', async () => {
-      await expectRuntimeError(() => run('list["a", 1]'), {
-        code: 'RILL-R002',
+      await expectHalt(() => run('list["a", 1]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
         messagePattern: 'List elements must be the same type',
       });
     });
 
     it('throws on list with mixed bool and number elements', async () => {
-      await expectRuntimeError(() => run('list[true, 1]'), {
-        code: 'RILL-R002',
+      await expectHalt(() => run('list[true, 1]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
         messagePattern: 'List elements must be the same type',
       });
     });
@@ -222,8 +225,9 @@ describe('Rill Language: Structural Type Error Contracts', () => {
 
   describe('Type Inference Cascade Error Contracts', () => {
     it('throws RILL-R002 for list vs string mismatch [AC-12]', async () => {
-      await expectRuntimeError(() => run('list[list[1], "hello"]'), {
-        code: 'RILL-R002',
+      await expectHalt(() => run('list[list[1], "hello"]'), {
+        code: 'RILL_R002',
+        hostErrorId: 'RILL-R002',
         messagePattern: 'List elements must be the same type',
       });
     });

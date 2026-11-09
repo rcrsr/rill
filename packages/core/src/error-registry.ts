@@ -773,32 +773,32 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R001,
     category: 'runtime',
-    description: 'Parameter type mismatch',
+    description: 'Argument or binding mismatch',
     messageTemplate:
       'Function {function} expects parameter {param} (position {position}) to be {expected}, got {actual}',
     cause:
-      'Argument passed to function does not match declared parameter type.',
+      'An argument does not match the declared parameter type, the call has the wrong arity or a spread binding error, a typed or type-locked variable receives a value of another type, a script reassigns an outer variable, or the call target is not callable.',
     resolution:
-      'Pass value of correct type, or convert the value before passing. Check function signature for expected types.',
+      'Pass a value of the correct type, or convert it before passing. Check the function signature for expected types and arity, keep variable types stable after first assignment, capture to a new name instead of reassigning an outer variable, and call only callable values.',
     examples: [
       {
         description: 'String passed to number parameter',
         code: '|x: number| $x * 2\n"5" -> $()',
       },
       {
-        description: 'Number passed to string method',
-        code: '123 -> .split(",")  # split expects string',
+        description: 'String assigned to number-locked variable',
+        code: '"a" => $x:number  # Error: string does not match number',
       },
     ],
   },
   {
     errorId: ERROR_IDS.RILL_R002,
     category: 'runtime',
-    description: 'Operator type mismatch',
+    description: 'Operation not applicable to its operands',
     messageTemplate:
       'Operator {operator} cannot be applied to {leftType} and {rightType}',
     cause:
-      'Binary operator applied to incompatible types. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.',
+      'Operator applied to incompatible operand types, or operand values that leave the operation undefined: division or modulo by zero, slice step 0, ordering durations with different calendar components, mixed element types in a list literal, or a .at index out of range. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.',
     resolution:
       'Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.',
     examples: [
@@ -807,12 +807,12 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '"5" + 1  # Error: no implicit coercion',
       },
       {
-        description: 'Comparing different types',
-        code: '"10" == 10  # Always false, no coercion',
+        description: 'Division by zero',
+        code: '10 / 0',
       },
       {
-        description: 'Arithmetic on non-numbers',
-        code: '"hello" * 2',
+        description: 'Mixed element types in a list literal',
+        code: 'list[1, "a"]',
       },
     ],
   },
@@ -918,23 +918,24 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R009,
     category: 'runtime',
-    description: 'Property not found',
+    description: 'Key or index not found',
     messageTemplate: 'Property {property} not found on {type}',
-    cause: 'Dict key or tuple index does not exist in the value.',
+    cause:
+      'A dict or ordered key, or a list, tuple or ordered index, does not exist in the value.',
     resolution:
       'Check property name spelling, verify the property exists, or use null-coalescing (??) to provide default. For safe access, use .? operator.',
     examples: [
       {
         description: 'Missing dict key',
-        code: '[name: "x"] -> .age  # age key not in dict',
+        code: 'dict[name: "x"] -> .age  # age key not in dict',
       },
       {
         description: 'Index out of bounds',
-        code: '[1, 2, 3] -> [5]  # Only 3 elements (0-2)',
+        code: 'list[1, 2, 3] => $items\n$items[5]  # Only 3 elements (0-2)',
       },
       {
         description: 'Safe alternative',
-        code: '[name: "x"] -> .age ?? 0  # Returns 0 if missing',
+        code: 'dict[name: "x"] -> .age ?? 0  # Returns 0 if missing',
       },
     ],
   },
@@ -944,9 +945,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Iteration limit exceeded',
     messageTemplate: 'Iteration limit of {limit} exceeded',
     cause:
-      'Loop or collection operation exceeded configured iteration limit (prevents infinite loops).',
+      'Loop or collection operation exceeded configured iteration limit (prevents infinite loops). The output caps of take, batch, window, start_when and stop_when raise the same code.',
     resolution:
-      'Reduce data size, adjust iteration limit via RuntimeOptions, or check for infinite loop conditions.',
+      'Reduce data size, adjust iteration limit via RuntimeOptions, or check for infinite loop conditions. Loops, recursion, iterate and materializing consumers halt fatally and cannot be recovered. Bounded slicing operators (take, batch, window, start_when, stop_when) halt catchably, so guard or ?? can recover.',
     examples: [
       {
         description: 'Infinite loop without termination',
@@ -954,7 +955,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
       {
         description: 'Large collection with default limit',
-        code: 'range(0, 1000000) -> each |x| $x  # May exceed default limit',
+        code: 'range(0, 20000) -> seq({ $ })  # May exceed default limit',
       },
     ],
   },

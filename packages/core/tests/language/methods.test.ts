@@ -411,8 +411,10 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(await run('"ab" -> .repeat(1)')).toBe('ab');
     });
 
-    it('handles negative number', async () => {
-      expect(await run('"ab" -> .repeat(-1)')).toBe('');
+    it('halts with #INVALID_INPUT on negative number', async () => {
+      await expectHalt(() => run('"ab" -> .repeat(-1)'), {
+        code: 'INVALID_INPUT',
+      });
     });
 
     it('handles empty string', async () => {

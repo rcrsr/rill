@@ -128,15 +128,6 @@ function buildHostFunctions(): Record<BaselineHostFunctionName, RillFunction> {
       await callStreamNext(stream, ctx);
       return null;
     }),
-    compare_calendar_durations: makeHostFunction(() => {
-      const definition = BUILT_IN_TYPES.find((t) => t.name === 'duration');
-      const compare = definition?.protocol.compare;
-      if (compare === undefined) throw new Error('duration compare missing');
-      return compare(
-        { __rill_duration: true, months: 12, ms: 0 },
-        { __rill_duration: true, months: 0, ms: 1000 }
-      );
-    }),
     delay_then_head: makeHostFunction((_args, ctx, location) => {
       const work = (async (): Promise<RillValue> => {
         await expiryFired;
@@ -425,9 +416,9 @@ const DIRECT_REPLAYS: { entry: BaselineEntry; trigger: DirectTrigger }[] =
 
 describe('halt migration parity', () => {
   describe('halt migration baseline structure', () => {
-    it('holds exactly 67 site entries with distinct site ids', () => {
-      expect(SITES).toHaveLength(67);
-      expect(new Set(SITES.map((e) => e.siteId)).size).toBe(67);
+    it('holds exactly 50 site entries with distinct site ids', () => {
+      expect(SITES).toHaveLength(50);
+      expect(new Set(SITES.map((e) => e.siteId)).size).toBe(50);
     });
 
     it('keeps (siteId, role, path) unique', () => {

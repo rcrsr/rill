@@ -113,9 +113,9 @@ $m -> !.empty ? process($m.groups[0])
 | Method       | Signature                              | Description                    |
 |--------------|----------------------------------------|--------------------------------|
 | `.trim`      | `() -> string`                         | Remove leading/trailing whitespace |
-| `.repeat`    | `(n: number) -> string`                | Repeat string n times          |
-| `.pad_start` | `(length: number, fill: string = " ") -> string` | Pad start to length |
-| `.pad_end`   | `(length: number, fill: string = " ") -> string` | Pad end to length   |
+| `.repeat`    | `(n: number) -> string`                | Repeat string n times; `n` is a non-negative integer |
+| `.pad_start` | `(length: number, fill: string = " ") -> string` | Pad start to length; `length` is a non-negative integer |
+| `.pad_end`   | `(length: number, fill: string = " ") -> string` | Pad end to length; `length` is a non-negative integer |
 
 ```rill
 "  hello  " -> .trim                 # "hello"
@@ -128,6 +128,14 @@ $m -> !.empty ? process($m.groups[0])
 
 "42" -> .pad_end(5)                  # "42   "
 "42" -> .pad_end(5, "0")             # "42000"
+```
+
+A negative or non-integer count or length halts with `#INVALID_INPUT`, and `guard` can recover it. A length at or below the string length returns the string unchanged.
+
+```rill
+guard { "ab" -> .repeat(-1) } => $r
+$r.!code -> string
+# Result: "INVALID_INPUT"
 ```
 
 ---

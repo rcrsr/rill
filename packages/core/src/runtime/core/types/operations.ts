@@ -11,7 +11,6 @@
  * - Circular with registrations.ts (runtime-safe: no init-time cross-calls)
  */
 
-import { RuntimeError } from '../../../types.js';
 import type { RillCallable } from '../callable.js';
 import { declaredParams } from '../callable.js';
 import {
@@ -29,7 +28,7 @@ import {
   isVector,
   getStreamTypeSidecar,
 } from './guards.js';
-import { throwTypeHalt } from './halt.js';
+import { throwCatchableHostHalt, throwTypeHalt } from './halt.js';
 import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
@@ -38,7 +37,7 @@ import {
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import { quoteRillString } from './format-string.js';
 import { typedKeyEntries, setDictField } from './dict-keys.js';
-import { ERROR_IDS } from '../../../error-registry.js';
+import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker); a CallableMarker implies RillCallable by construction. */
 function isCallable(value: RillValue): value is RillCallable {
@@ -719,11 +718,43 @@ export function paramToFieldDef(
 /**
  * Infer the element type for a homogeneous list.
  * Empty arrays return { kind: 'any' }.
- * Mixed types throw RILL-R002.
+ * Mixed types halt catchably with #RILL_R002.
  */
 export function inferElementType(elements: RillValue[]): TypeStructure {
+  const scan = scanElementTypes(elements);
+  if (scan.mismatch !== undefined) {
+    throwCatchableHostHalt(
+      { fn: 'inferElementType' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      scan.mismatch
+    );
+  }
+  return scan.type;
+}
+
+/**
+ * Non-throwing homogeneity check for list elements.
+ * Returns the mismatch message, or undefined when all elements share a type.
+ */
+export function findElementTypeMismatch(
+  elements: RillValue[]
+): string | undefined {
+  return scanElementTypes(elements).mismatch;
+}
+
+/**
+ * Single pass over list elements: merged element type, plus the mismatch
+ * message when two elements share no common type. One pass keeps nested
+ * lists linear per level; inferring each element twice would double the
+ * work at every nesting level.
+ */
+function scanElementTypes(elements: RillValue[]): {
+  type: TypeStructure;
+  mismatch: string | undefined;
+} {
   const firstElem = elements[0];
-  if (firstElem === undefined) return { kind: 'any' };
+  if (firstElem === undefined)
+    return { type: { kind: 'any' }, mismatch: undefined };
   let accType = inferStructure(firstElem);
   for (let i = 1; i < elements.length; i++) {
     const elem = elements[i];
@@ -731,14 +762,14 @@ export function inferElementType(elements: RillValue[]): TypeStructure {
     const elemType = inferStructure(elem);
     const merged = commonType(accType, elemType);
     if (merged === null) {
-      throw new RuntimeError(
-        ERROR_IDS.RILL_R002,
-        `List elements must be the same type: expected ${formatStructure(accType)}, got ${formatStructure(elemType)} at index ${i}`
-      );
+      return {
+        type: accType,
+        mismatch: `List elements must be the same type: expected ${formatStructure(accType)}, got ${formatStructure(elemType)} at index ${i}`,
+      };
     }
     accType = merged;
   }
-  return accType;
+  return { type: accType, mismatch: undefined };
 }
 
 /** Infer the structural type descriptor for any Rill value. */

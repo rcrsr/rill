@@ -106,9 +106,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('seq', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `seq: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -222,9 +222,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const options = args['options'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('fan', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `fan: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -233,9 +233,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       let concurrency: number | undefined;
       if (options !== null && options !== undefined) {
         if (!isDict(options)) {
-          throwFatalHostHalt(
+          throwCatchableHostHalt(
             buildSite('fan', ctx, location),
-            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            'TYPE_MISMATCH',
             `fan: options must be a dict, got ${inferType(options)}`
           );
         }
@@ -244,9 +244,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         ];
         if (concurrencyOpt !== undefined && concurrencyOpt !== null) {
           if (typeof concurrencyOpt !== 'number') {
-            throwFatalHostHalt(
+            throwCatchableHostHalt(
               buildSite('fan', ctx, location),
-              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              'TYPE_MISMATCH',
               `fan: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`
             );
           }
@@ -255,9 +255,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             !Number.isInteger(concurrencyOpt) ||
             concurrencyOpt <= 0
           ) {
-            throwFatalHostHalt(
+            throwCatchableHostHalt(
               buildSite('fan', ctx, location),
-              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              'INVALID_INPUT',
               `fan: options.concurrency must be a positive integer, got ${concurrencyOpt}`
             );
           }
@@ -266,9 +266,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
         for (const key of Object.keys(options)) {
           if (key !== 'concurrency') {
-            throwFatalHostHalt(
+            throwCatchableHostHalt(
               buildSite('fan', ctx, location),
-              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              'INVALID_INPUT',
               `fan: unknown option '${key}'; recognized options are 'concurrency'`
             );
           }
@@ -364,9 +364,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('acc', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `acc: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -504,9 +504,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const body = args['body'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('fold', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `fold: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -607,9 +607,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       const options = args['options'] ?? null;
 
       if (!isCallable(body)) {
-        throwFatalHostHalt(
+        throwCatchableHostHalt(
           buildSite('filter', ctx, location),
-          ERROR_ATOMS[ERROR_IDS.RILL_R040],
+          'TYPE_MISMATCH',
           `filter: body must be a closure, got ${inferType(body)}`
         );
       }
@@ -618,9 +618,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       let concurrency: number | undefined;
       if (options !== null && options !== undefined) {
         if (!isDict(options)) {
-          throwFatalHostHalt(
+          throwCatchableHostHalt(
             buildSite('filter', ctx, location),
-            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            'TYPE_MISMATCH',
             `filter: options must be a dict, got ${inferType(options)}`
           );
         }
@@ -629,9 +629,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         ];
         if (concurrencyOpt !== undefined && concurrencyOpt !== null) {
           if (typeof concurrencyOpt !== 'number') {
-            throwFatalHostHalt(
+            throwCatchableHostHalt(
               buildSite('filter', ctx, location),
-              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              'TYPE_MISMATCH',
               `filter: options.concurrency must be a number, got ${inferType(concurrencyOpt)}`
             );
           }
@@ -640,9 +640,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             !Number.isInteger(concurrencyOpt) ||
             concurrencyOpt <= 0
           ) {
-            throwFatalHostHalt(
+            throwCatchableHostHalt(
               buildSite('filter', ctx, location),
-              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              'INVALID_INPUT',
               `filter: options.concurrency must be a positive integer, got ${concurrencyOpt}`
             );
           }
@@ -651,9 +651,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
         for (const key of Object.keys(options)) {
           if (key !== 'concurrency') {
-            throwFatalHostHalt(
+            throwCatchableHostHalt(
               buildSite('filter', ctx, location),
-              ERROR_ATOMS[ERROR_IDS.RILL_R001],
+              'INVALID_INPUT',
               `filter: unknown option '${key}'; recognized options are 'concurrency'`
             );
           }
@@ -695,9 +695,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           );
         }
         if (typeof result !== 'boolean') {
-          throwFatalHostHalt(
+          throwCatchableHostHalt(
             buildSite('filter', ctx, location),
-            ERROR_ATOMS[ERROR_IDS.RILL_R001],
+            'TYPE_MISMATCH',
             `filter: predicate must return bool, got ${inferType(result)}`
           );
         }
@@ -808,7 +808,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       // Streams are dict-shaped (next, __rill_stream, ...) but must fall
       // through to the list path below, which materializes their chunks via
       // getIterableElements instead of sorting the stream's internal fields.
-      if (isDict(input) && !isStream(input)) {
+      if (isDict(input) && !isStream(input) && !isIterator(input)) {
         const dictInput = input as Record<string, RillValue>;
         // Combine string keys with number/boolean (typed) keys; the extractor
         // sees each key with its real type so `{ $.key }` sorts numerically.

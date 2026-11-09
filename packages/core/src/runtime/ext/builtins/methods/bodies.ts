@@ -34,6 +34,7 @@ import {
   makeStringIterator,
   makeDictIterator,
   isBmpOnly,
+  requireNonNegativeInteger,
 } from '../shared.js';
 
 // ============================================================
@@ -394,7 +395,12 @@ export const mIndexOf: RillMethod = (receiver, args) => {
 /** Repeat string n times */
 export const mRepeat: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
-  const n = typeof args[0] === 'number' ? Math.max(0, Math.floor(args[0])) : 0;
+  const n = requireNonNegativeInteger(
+    typeof args[0] === 'number' ? args[0] : 0,
+    'repeat',
+    'count',
+    { location, sourceId: ctx.sourceId, fn: 'repeat' }
+  );
   try {
     return str.repeat(n);
   } catch (e) {
@@ -478,7 +484,12 @@ function buildCodePointPad(
 export const mPadStart: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const strLength = codePointLength(str);
-  const length = typeof args[0] === 'number' ? args[0] : strLength;
+  const length = requireNonNegativeInteger(
+    typeof args[0] === 'number' ? args[0] : strLength,
+    'pad_start',
+    'length',
+    { location, sourceId: ctx.sourceId, fn: 'pad_start' }
+  );
   const fill = typeof args[1] === 'string' ? args[1] : ' ';
   const pad = buildCodePointPad(
     strLength,
@@ -495,7 +506,12 @@ export const mPadStart: RillMethod = (receiver, args, ctx, location) => {
 export const mPadEnd: RillMethod = (receiver, args, ctx, location) => {
   const str = formatValue(receiver);
   const strLength = codePointLength(str);
-  const length = typeof args[0] === 'number' ? args[0] : strLength;
+  const length = requireNonNegativeInteger(
+    typeof args[0] === 'number' ? args[0] : strLength,
+    'pad_end',
+    'length',
+    { location, sourceId: ctx.sourceId, fn: 'pad_end' }
+  );
   const fill = typeof args[1] === 'string' ? args[1] : ' ';
   const pad = buildCodePointPad(
     strLength,

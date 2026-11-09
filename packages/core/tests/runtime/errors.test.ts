@@ -541,7 +541,7 @@ describe('Rill Runtime: Error Taxonomy', () => {
         (ex) => ex.description === 'Large collection with default limit'
       );
       expect(largeCollectionExample).toBeDefined();
-      expect(largeCollectionExample?.code).toContain('range(0, 1000000)');
+      expect(largeCollectionExample?.code).toContain('range(0, 20000)');
       expect(largeCollectionExample?.code).not.toMatch(/range\(\d+\)(?!\s*,)/);
     });
 

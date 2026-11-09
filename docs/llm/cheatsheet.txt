@@ -155,8 +155,8 @@ Use parentheses to override.
 | `filter` | `filter(list, closure)` | Keep items where body returns `true` |
 | `fold` | `fold(list, init, closure)` | Reduce to single value; `$@` = accumulator |
 | `acc` | `acc(list, init, closure)` | Like `fold` but emits accumulator at each step |
-| `sort` | `sort(list, key_fn?)` | Stable ascending sort; dict input returns `ordered` |
-| `take` | `take(list, n: int) -> list[T]` | First n elements; `n < 0` halts `#INVALID_INPUT`; `n > MAX_ITER` clamps |
+| `sort` | `sort(list, key_fn?)` | Stable ascending sort; dict input returns `ordered`; iterators are materialized and sorted |
+| `take` | `take(list, n: int) -> list[T]` | First n elements; `n < 0` halts `#INVALID_INPUT`; a result over 10,000 halts `RILL_R010` (catchable) |
 | `skip` | `skip(list, n: int) -> list[T]` | Drop first n elements; `n < 0` halts `#INVALID_INPUT`; n past length → empty |
 | `cycle` | `cycle(list) -> iterator[T]` | Repeat input indefinitely as iterator; empty input → empty; bound at consumer |
 | `batch` | `batch(list, n: int, options?) -> stream[list[T]]` | Chunks of n; `drop_partial: true` discards trailing short chunk |

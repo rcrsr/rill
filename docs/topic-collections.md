@@ -519,7 +519,7 @@ An empty stream returns `[]`.
 
 **Dict signature:** `sort(dict: dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable) -> ordered[[key: K, value: V]]`
 
-`sort` orders a list or dict using a stable sort (`Array.prototype.sort`, ES2019+). Equal elements preserve their original relative order. Iterators are eagerly materialized before sorting.
+`sort` orders a list or dict using a stable sort (`Array.prototype.sort`, ES2019+). Equal elements preserve their original relative order.
 
 ### List Form
 
@@ -589,10 +589,10 @@ This is the same postfix `[i]` that follows `-> .reverse[0]`.
 
 ### Iterator Materialization
 
-`range(...)` iterators are structurally dicts in rill. A direct `range -> sort` takes the dict path. Use `seq({ $ })` to materialize as a list first.
+`sort` accepts iterators by materializing them, so `range(0, 5) -> sort` sorts `[0, 1, 2, 3, 4]` like a list. An iterator past the 10,000-element ceiling halts fatally with `RILL_R010`.
 
 ```rill
-range(0, 5) -> seq({ $ }) -> sort
+range(0, 5) -> sort
 # Result: [0, 1, 2, 3, 4]
 ```
 
@@ -612,6 +612,7 @@ Empty list returns `[]`. Empty dict returns an empty `ordered`.
 | `#TYPE_MISMATCH` | Key extractor returns mixed types (e.g., number and string) | See [Error Handling](topic-error-handling.md) |
 | `#INVALID_INPUT` | Key extractor returns a vacant value | See [Error Handling](topic-error-handling.md) |
 | `#TYPE_MISMATCH` | `key_fn` argument is not callable | See [Error Handling](topic-error-handling.md) |
+| `RILL_R010` | Iterator input exceeds 10,000 elements (fatal) | See [Error Handling](topic-error-handling.md) |
 
 ---
 
@@ -754,8 +755,10 @@ Combine operators for multi-stage transformations.
 | Non-iterable input | `42 -> seq({ $ })` | RILL-R002 |
 | Vector input | `$vec -> seq({ $ })` | RILL-R003 |
 | Iteration exceeds 10,000 | `range(0, 10001) -> seq({ $ })` | RILL-R010 |
-| Options not a dict | `[1] -> filter({ $ > 0 }, 42)` | RILL-R001 |
-| Concurrency not positive integer | `[1] -> fan({ $ }, [concurrency: -1])` | RILL-R001 |
+| Options not a dict | `[1] -> filter({ $ > 0 }, 42)` | `#TYPE_MISMATCH` (catchable) |
+| Concurrency not a number | `[1] -> fan({ $ }, dict[concurrency: "a"])` | `#TYPE_MISMATCH` (catchable) |
+| Concurrency not positive integer | `[1] -> fan({ $ }, dict[concurrency: -1])` | `#INVALID_INPUT` (catchable) |
+| Unknown option key | `[1] -> fan({ $ }, dict[bogus: 1])` | `#INVALID_INPUT` (catchable) |
 | Typed closure type violation | `[1,2,3] -> fold(0, \|string, number\|{ $@ + $ })` | RILL-R001 |
 
 ---

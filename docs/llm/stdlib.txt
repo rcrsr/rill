@@ -25,9 +25,9 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.replace_all(p, r)` | replace all regex matches |
 | `.match(regex)` | first match info: dict with `matched`, `index`, `groups` |
 | `.is_match(regex)` | boolean regex check |
-| `.repeat(n)` | repeat n times |
-| `.pad_start(n, f)` | pad start |
-| `.pad_end(n, f)` | pad end |
+| `.repeat(n)` | repeat n times (n non-negative integer) |
+| `.pad_start(n, f)` | pad start (n non-negative integer) |
+| `.pad_end(n, f)` | pad end (n non-negative integer) |
 
 `replace` vs `replace_all`:
 
@@ -80,7 +80,7 @@ Example:
 | `json(val)` | convert to JSON string |
 | `identity(val)` | returns input unchanged |
 | `range(start, end, step?)` | number sequence (iterator) |
-| `repeat(val, count)` | repeat value n times (iterator) |
+| `repeat(val, count)` | repeat value n times (iterator); count is a non-negative integer |
 | `enumerate(coll)` | lists: `list[dict[index, value]]`; dicts: `list[dict[index, key, value]]` |
 | `chain($fn)` | apply single closure; `chain(val, list[$f, $g])` applies in sequence |
 | `now()` | current datetime |
@@ -127,9 +127,9 @@ Descending order: pipe through `.reverse` after sort. `.reverse` is list-only; d
 
     list[3,1,2] -> sort[0]  # 1  (index a pipe-target result)
 
-Iterators are dicts structurally. `range(0, 5) -> sort` takes the dict path. Materialize first if you want list semantics.
+`sort` materializes iterators and sorts them like a list. An iterator past 10,000 elements halts fatally with `RILL_R010`.
 
-    range(0, 5) -> seq({ $ }) -> sort              # list[0, 1, 2, 3, 4]
+    range(0, 5) -> sort                            # list[0, 1, 2, 3, 4]
 
 Errors:
 
@@ -155,13 +155,13 @@ Fibonacci using dict pair as seed:
     iterate(dict[a: 0, b: 1], { dict[a: $.b, b: ($.a + $.b)] }) -> take(8) -> seq({ $.a })
     # list[0, 1, 1, 2, 3, 5, 8, 13]
 
-Consuming >10,000 chunks without bounding halts with `RILL_R010` (non-catchable) at the materializing consumer (e.g., `seq`); the same ceiling raised through `take` or `skip` is catchable, so `guard` recovers it. `take(n)` clamps silently to MAX_ITER without halting.
+Consuming >10,000 chunks without bounding halts with `RILL_R010` (non-catchable) at the materializing consumer (e.g., `seq`); the same ceiling raised through `take` or `skip` is catchable, so `guard` recovers it. `take(n)` returns at most 10,000 elements; a result over that halts with a catchable `RILL_R010` instead of truncating.
 
 ## take
 
 `take(list, n: int) -> list[T]`
 
-Returns the first `n` elements. `n < 0` halts with `#INVALID_INPUT`. `n > MAX_ITER` is clamped to `MAX_ITER`. The `list` argument is auto-prepended when piping.
+Returns the first `n` elements. `n < 0` halts with `#INVALID_INPUT`. A result over 10,000 elements halts with a catchable `RILL_R010`. The `list` argument is auto-prepended when piping.
 
     range(1, 11) -> take(5)    # list[1, 2, 3, 4, 5]
     list["a", "b", "c"] -> take(2)   # list["a", "b"]

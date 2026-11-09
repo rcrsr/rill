@@ -27,15 +27,12 @@
  * `.add()` is a datetime/duration method; it is not defined on numbers. The
  * correct rill idiom for integer increment is `$ + 1`.
  *
- * [SPEC] AC-11 — The spec states "take(15000) halts with RILL_R010 at chunk
- * 10,000". In practice, take() clamps its n argument to MAX_ITER (10,000) and
- * uses walkIteratorSteps to lazily collect exactly 10,000 elements, which
- * never triggers iterate's internal step counter ceiling. The actual observable
- * behaviour is: take(15000) on an iterate stream returns 10,000 elements
- * without halting. The RILL_R010 from iterate fires only when a materialising
- * operator (seq, fan, fold, stop_when) tries to expand the full unbounded
- * stream without a prior take. Tests cover both the clamped-take behaviour and
- * the RILL_R010-via-seq scenario.
+ * [SPEC] AC-11 — take(15000) on an iterate stream halts with a catchable
+ * RILL_R010, because the requested count exceeds the 10,000 element ceiling.
+ * The RILL_R010 from iterate also fires when a materialising operator (seq,
+ * fan, fold, stop_when) tries to expand the full unbounded stream without a
+ * prior take. Tests cover both the take-count halt and the RILL_R010-via-seq
+ * scenario.
  *
  * [SPEC] stop_when on iterate — stop_when calls getIterableElements to
  * materialise the input before applying the predicate, hitting the 10,000
@@ -144,17 +141,11 @@ describe('iterate: stop_when preceded by take()', () => {
 // ---------------------------------------------------------------------------
 
 describe('iterate: RILL_R010 ceiling (AC-11, EC-16)', () => {
-  it('take(15000) clamps to 10000 elements and succeeds without halting', async () => {
-    // take() clamps n to MAX_ITER (10000) and uses walkIteratorSteps lazily.
-    // iterate's internal step counter only reaches 9999 (for elements 1..9999).
-    // The ceiling is never exceeded; RILL_R010 does not fire.
-    // This matches the actual static-clock implementation (Path A).
-    const result = (await run(
-      'iterate(0, { $ + 1 }) -> take(15000)'
-    )) as number[];
-    expect(result).toHaveLength(10000);
-    expect(result[0]).toBe(0);
-    expect(result[9999]).toBe(9999);
+  it('take(15000) halts with a catchable RILL_R010', async () => {
+    await expectHalt(() => run('iterate(0, { $ + 1 }) -> take(15000)'), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
   });
 
   it('seq on unbounded iterate stream hits RILL_R010 ceiling', async () => {

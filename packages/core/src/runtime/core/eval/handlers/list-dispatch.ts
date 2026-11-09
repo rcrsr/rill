@@ -21,7 +21,7 @@ import type {
 } from '../../../../types.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
-import { inferElementType } from '../../types/operations.js';
+import { findElementTypeMismatch } from '../../types/operations.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation } from '../shared.js';
@@ -70,6 +70,19 @@ export async function evaluateListLiteralDispatch(
 
   // Evaluate all elements (supporting ...spread)
   const elements = await evaluateListLiteralElements(s, node.elements);
+  // Validate homogeneity: all elements must share the same structural type
+  const mismatch = findElementTypeMismatch(elements);
+  if (mismatch !== undefined) {
+    throwCatchableHostHalt(
+      {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateListLiteralDispatch',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      mismatch
+    );
+  }
 
   const index = input;
   // Normalize negative indices
@@ -127,7 +140,5 @@ async function evaluateListLiteralElements(
       result.push(await evaluateExpression(s, elem));
     }
   }
-  // Validate homogeneity: all elements must share the same structural type
-  inferElementType(result);
   return result;
 }

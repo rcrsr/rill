@@ -310,6 +310,19 @@ describe('take() disposes a host stream exactly once (#391)', () => {
     expect(counter.count).toBe(1);
   });
 
+  it('take(0) disposes a host stream exactly once and yields []', async () => {
+    const counter = { count: 0 };
+    const result = await run('s() -> take(0)', {
+      functions: { s: makeCountingStreamFn(counter) },
+    });
+    expect(result).toEqual([]);
+    expect(counter.count).toBe(1);
+  });
+
+  it('take(0) on a non-iterable input halts like take(n) does', async () => {
+    await expectHalt(() => run('5 -> take(0)'), { code: 'RILL_R002' });
+  });
+
   it('take(10) beyond length disposes exactly once on full drain', async () => {
     const counter = { count: 0 };
     await run('s() -> take(10)', {
@@ -421,5 +434,55 @@ describe('.first() and sort() on a fresh host stream (#354)', () => {
   it('sort materializes stream chunks via the list path', async () => {
     const result = await run('s() -> sort', streamOf12345);
     expect(result).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe('take() element ceiling', () => {
+  const bigList = (n: number): { functions: Record<string, RillFunction> } => ({
+    functions: {
+      big: {
+        params: [],
+        returnType: anyTypeValue,
+        fn: (): RillValue => Array.from({ length: n }, (_, i) => i),
+      },
+    },
+  });
+
+  it('halts catchably with #RILL_R010 when take exceeds the limit on a 15000-element list', async () => {
+    await expectHalt(() => run('big() -> take(20000)', bigList(15000)), {
+      code: 'RILL_R010',
+      messagePattern: 'take: element count exceeded 10000 limit',
+    });
+  });
+
+  it('guard recovers a take over the limit on a list', async () => {
+    const result = await run(
+      'guard { big() -> take(20000) } => $r\n$r.!',
+      bigList(15000)
+    );
+    expect(result).toBe(true);
+  });
+
+  it('returns 10000 elements for take(10000) on a 15000-element list', async () => {
+    const result = (await run(
+      'big() -> take(10000) -> .len',
+      bigList(15000)
+    )) as number;
+    expect(result).toBe(10000);
+  });
+
+  it('returns 5 elements for take(20000) on a 5-element list', async () => {
+    const result = (await run(
+      'big() -> take(20000) -> .len',
+      bigList(5)
+    )) as number;
+    expect(result).toBe(5);
+  });
+
+  it('guard recovers iterate -> take(15000)', async () => {
+    const result = await run(
+      'guard { iterate(0, { $ + 1 }) -> take(15000) } => $r\n$r.!'
+    );
+    expect(result).toBe(true);
   });
 });

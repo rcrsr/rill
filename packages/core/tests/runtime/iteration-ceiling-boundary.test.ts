@@ -225,3 +225,16 @@ describe('stream ceiling termination guard for value-less heads (issue #464)', (
     expect(result).toBe(true);
   });
 });
+
+describe('repeat() count validation', () => {
+  it('halts with #INVALID_INPUT for a non-integer count', async () => {
+    await expectHalt(() => run('repeat(1, 1.5)'), {
+      code: 'INVALID_INPUT',
+      messagePattern: 'repeat: count must be an integer, got 1.5',
+    });
+  });
+
+  it('guard recovers a non-integer repeat count', async () => {
+    expect(await run('guard { repeat(1, 1.5) } => $r\n$r.!')).toBe(true);
+  });
+});

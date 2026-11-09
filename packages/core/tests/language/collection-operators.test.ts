@@ -302,22 +302,25 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   // ── Error Cases ──────────────────────────────────────────────────────────
 
   describe('Error Cases', () => {
-    it('AC-18/EC-1 (seq): non-callable body raises RILL-R040', async () => {
-      await expect(run('list[1] -> seq(42)')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R040' })
-      );
+    it('AC-18/EC-1 (seq): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1] -> seq(42)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /seq: body must be a closure/,
+      });
     });
 
-    it('EC-1 (fold): non-callable body raises RILL-R040', async () => {
-      await expect(run('list[1] -> fold(0, 42)')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R040' })
-      );
+    it('EC-1 (fold): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1] -> fold(0, 42)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /fold: body must be a closure/,
+      });
     });
 
-    it('EC-1 (filter): non-callable body raises RILL-R040', async () => {
-      await expect(run('list[1] -> filter(42)')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R040' })
-      );
+    it('EC-1 (filter): non-callable body halts with catchable #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1] -> filter(42)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: /filter: body must be a closure/,
+      });
     });
 
     it('AC-19/EC-2 (fold): 3-parameter named closure raises arity mismatch', async () => {
@@ -347,16 +350,18 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       });
     });
 
-    it('AC-22/EC-10 (fan): negative concurrency raises RILL-R001', async () => {
-      await expect(
-        run('list[1, 2, 3] -> fan({ $ * 2 }, [concurrency: -1])')
-      ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
+    it('AC-22/EC-10 (fan): negative concurrency halts with catchable #INVALID_INPUT', async () => {
+      await expectHalt(
+        () => run('list[1, 2, 3] -> fan({ $ * 2 }, [concurrency: -1])'),
+        { code: 'INVALID_INPUT' }
+      );
     });
 
-    it('AC-23/EC-9 (filter): non-number concurrency raises RILL-R001', async () => {
-      await expect(
-        run('list[1, 2] -> filter({ $ > 0 }, [concurrency: "8"])')
-      ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
+    it('AC-23/EC-9 (filter): non-number concurrency halts with catchable #TYPE_MISMATCH', async () => {
+      await expectHalt(
+        () => run('list[1, 2] -> filter({ $ > 0 }, [concurrency: "8"])'),
+        { code: 'TYPE_MISMATCH' }
+      );
     });
 
     it('AC-24/EC-5: non-iterable input to seq raises error', async () => {
@@ -393,16 +398,17 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       ).rejects.toThrow('Collection operators require');
     });
 
-    it('EC-8 (filter): options not a dict raises RILL-R001', async () => {
-      await expect(run('list[1] -> filter({ $ > 0 }, 42)')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R001' })
-      );
+    it('EC-8 (filter): options not a dict halts with catchable #TYPE_MISMATCH', async () => {
+      await expectHalt(() => run('list[1] -> filter({ $ > 0 }, 42)'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
 
-    it('EC-10 (filter): negative concurrency raises RILL-R001', async () => {
-      await expect(
-        run('list[1, 2] -> filter({ $ > 0 }, [concurrency: -1])')
-      ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R001' }));
+    it('EC-10 (filter): negative concurrency halts with catchable #INVALID_INPUT', async () => {
+      await expectHalt(
+        () => run('list[1, 2] -> filter({ $ > 0 }, [concurrency: -1])'),
+        { code: 'INVALID_INPUT' }
+      );
     });
   });
 
@@ -757,16 +763,13 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       expect(result).toEqual([]);
     });
 
-    it('AC-BND-5: take(n) with n > MAX_ITER clamps to 10000', async () => {
+    it('AC-BND-5: take(n) over MAX_ITER elements halts with a catchable RILL_R010', async () => {
       // Host-inject a list of 15000 items to bypass getIterableElements limits.
-      // take(20000) clamps to MAX_ITER (10000) and slices the list.
       const bigList: number[] = Array.from({ length: 15000 }, (_, i) => i + 1);
-      const result = (await run('$big -> take(20000)', {
-        variables: { big: bigList },
-      })) as number[];
-      expect(result).toHaveLength(10000);
-      expect(result[0]).toBe(1);
-      expect(result[9999]).toBe(10000);
+      await expectHalt(
+        () => run('$big -> take(20000)', { variables: { big: bigList } }),
+        { code: 'RILL_R010', hostErrorId: 'RILL-R010' }
+      );
     });
 
     it('AC-BND-6: pass<on_error: #IGNORE> re-throws non-catchable halt', async () => {

@@ -85,7 +85,7 @@ range(0, 1, 0.25)     # 0, 0.25, 0.5, 0.75
 range(5, 5)           # empty (start == end)
 range(5, 3)           # empty (start > end with positive step)
 range(0, 5, -1)       # empty (wrong direction)
-range(0, 5, 0)        # ERROR: step cannot be zero
+range(0, 5, 0)        # Error: #INVALID_INPUT — step cannot be zero
 ```
 
 ### `repeat(value, count)`
@@ -95,7 +95,7 @@ Generate a value repeated n times.
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `value` | any | Value to repeat |
-| `count` | number | Number of repetitions |
+| `count` | number | Number of repetitions: a non-negative integer |
 
 ```rill
 repeat("x", 3)        # "x", "x", "x"
@@ -108,7 +108,14 @@ true
 
 ```rill
 repeat("x", 0)        # empty
-repeat("x", -1)       # ERROR: count cannot be negative
+```
+
+A negative or non-integer `count` halts with `#INVALID_INPUT`, and `guard` can recover it:
+
+```rill
+guard { repeat("x", -1) } => $r
+$r.!code -> string
+# Result: "INVALID_INPUT"
 ```
 
 ---
@@ -173,7 +180,7 @@ Consuming more than 10,000 chunks without bounding halts execution with `RILL_R0
 iterate(0, { $ + 1 }) -> seq({ $ })
 ```
 
-`take(n)` clamps silently to MAX_ITER (10,000) without itself halting. The ceiling fires only when the downstream consumer forces iteration past 10,000 elements.
+`take(n)` returns at most 10,000 elements; when the result would exceed that, `take` halts with a catchable `RILL_R010` instead of truncating.
 
 ### Error contracts
 
