@@ -110,6 +110,33 @@ function parseTypeRefImpl(
     const afterPipeIsUnknownIdent =
       afterPipe.type === TOKEN_TYPES.IDENTIFIER && !afterPipeIsTypeName;
 
+    const closureContext = opts?.allowTrailingPipe === true;
+
+    if (closureContext && afterPipeIsUnknownIdent) {
+      // A non-type identifier after "|" is a closure body, so the "|" closes
+      // the parameter list.
+      break;
+    }
+
+    if (closureContext && afterPipeIsDollar) {
+      // "|" followed by $name continues the union only when the name is itself
+      // followed by another delimiter ("|", ",", "="). Otherwise the "|" is the
+      // closing delimiter and $name starts the closure body. "$@" and a lone
+      // "$" never form a dynamic type.
+      const nameTok = peek(state, 2);
+      let lookahead = 3;
+      while (peek(state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+        lookahead++;
+      }
+      const afterName = peek(state, lookahead).type;
+      const continuesUnion =
+        /^[A-Za-z_]/.test(nameTok.value) &&
+        (afterName === TOKEN_TYPES.PIPE_BAR ||
+          afterName === TOKEN_TYPES.COMMA ||
+          afterName === TOKEN_TYPES.ASSIGN);
+      if (!continuesUnion) break;
+    }
+
     if (afterPipeIsUnknownIdent) {
       // Dangling pipe followed by an unrecognized identifier: RILL-P011.
       advance(state); // consume "|"

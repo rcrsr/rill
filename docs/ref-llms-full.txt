@@ -1190,6 +1190,8 @@ Example:
 | `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
 | `sort(dict, key_fn?)` | stable ascending sort of dict entries; returns `ordered[[key, value]]` |
 
+The other built-ins (`seq`, `fan`, `acc`, `fold`, `filter`, `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `iterate`, `debounce`, `throttle`, `sample`) are covered in the `iterate` through `stop_when` sections below and in the control-flow fragment.
+
 Built-ins are called bare (no `$`):
 
     log("hello")                       # not $log("hello")

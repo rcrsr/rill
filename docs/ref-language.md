@@ -254,15 +254,10 @@ $config.?retry
 
 The same rule applies to `use<>` resource segments, so `use<host:pkg.error>` resolves `error` as a path segment, not a statement keyword.
 
-The 10 non-boolean reserved words are still not valid bare dict keys. `true` and `false` remain valid bare keys because the parser treats them as boolean literal keys.
-
-```text
-dict[error: 1]
-# Error: Dict key must be identifier, string, number, boolean, variable, or expression
-```
+The 10 non-boolean reserved words are valid bare dict keys and parse as string keys, so `dict[error: 1]`, `dict[while: 1]`, and `dict[break: 1]` all work. `true` and `false` are bare keys too, but the parser treats them as boolean literal keys.
 
 ```rill
-dict["error": 1] => $d
+dict[error: 1, while: 2, break: 3] => $d
 $d.error
 # Result: 1
 ```
@@ -280,8 +275,6 @@ dict["true": 1] => $d
 $d.true
 # Result: 1
 ```
-
-Quote the key to use a reserved word as a bare dict entry name.
 
 ### Type Constructors
 
@@ -502,6 +495,8 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `now` | (none) | `datetime` | Current UTC instant |
 | `sort` | `list[T], key_fn?: (item: T) => Comparable` | `list[T]` | Sort list; stable, ascending by default |
 | `sort` | `dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable` | `ordered[[key: K, value: V]]` | Sort dict entries; returns ordered key-value pairs |
+
+The remaining built-ins are `seq`, `fan`, `acc`, `fold`, `filter`, `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `iterate`, `debounce`, `throttle`, and `sample`. See [Collection Operators](#collection-operators) and [Slicing and Restructuring Operators](#slicing-and-restructuring-operators) for their rows.
 
 See [Iterators](topic-iterators.md) for `range` and `repeat` documentation.
 

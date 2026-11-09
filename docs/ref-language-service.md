@@ -115,7 +115,7 @@ The package's version string, held exactly equal to `@rcrsr/rill`'s version, cha
 function resolveScopeAt(parsed: ParseResult, offset: number): Binding[]
 ```
 
-Resolves every name in scope at 0-based `offset` and where each is bound. Four binding constructs feed scope: `CaptureNode`, `ClosureParamNode`, `DestructPatternNode`, and dict keys, across four scope kinds: the implicit top-level script root, `Block`, `Closure`, and `GroupedExpr`. A `PassBlock` opens no scope of its own; its body joins the enclosing scope. Bindings support mutable-outer late binding. A bare `$` is excluded from results. Tolerates recovery nodes; when nothing resolves, returns `[]`.
+Resolves every name in scope at 0-based `offset` and where each is bound. Four binding constructs feed scope: `CaptureNode`, `ClosureParamNode`, `DestructPatternNode`, and dict keys, across four scope kinds: the implicit top-level script root, `Block`, `Closure`, and `GroupedExpr`. A `PassBlock` body opens its own scope, matching the runtime: a capture made inside a `pass` body is not visible after it. Bindings support mutable-outer late binding. A bare `$` is excluded from results. Tolerates recovery nodes; when nothing resolves, returns `[]`.
 
 ```typescript
 interface Binding {
@@ -265,7 +265,7 @@ type RuleState = 'on' | 'off' | 'warn';
 const RULES: readonly Rule[]
 ```
 
-Frozen registry of all 42 built-in rules. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
+Frozen registry of all 42 built-in rules. See [Lint Rules](integration-cli.md#lint-rules) for the full list of rule codes, categories, defaults, and descriptions. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
 
 `CONDITION_TYPE` fires only on a conditional whose condition is a bare non-boolean literal. It performs no type inference and does not flag variables, host calls, method calls, or comparisons.
 

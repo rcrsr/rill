@@ -52,9 +52,6 @@ export const TOKEN_TYPES = {
   LE: 'LE', // <=
   GE: 'GE', // >=
 
-  // Extraction operators
-  UNDERSCORE: 'UNDERSCORE', // _ (skip in destructure)
-
   // Spread operator
   ELLIPSIS: 'ELLIPSIS', // ... (list spread)
 

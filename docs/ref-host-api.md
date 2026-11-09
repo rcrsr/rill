@@ -1052,7 +1052,7 @@ const valueResult: ResolverResult = {
 // Return source text for rill to parse
 const sourceResult: ResolverResult = {
   kind: 'source',
-  text: `|x: string| x -> .upper`,
+  text: `|x: string| { $x -> .upper }`,
 };
 ```
 

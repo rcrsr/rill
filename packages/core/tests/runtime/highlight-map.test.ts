@@ -21,6 +21,7 @@ import {
   TOKEN_HIGHLIGHT_MAP,
   type HighlightCategory,
   TOKEN_TYPES,
+  tokenize,
   type TokenType,
 } from '@rcrsr/rill';
 
@@ -327,6 +328,23 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
     });
   });
 
+  describe('Removed UNDERSCORE token is absent', () => {
+    it('UNDERSCORE is not in TOKEN_TYPES', () => {
+      expect(Object.hasOwn(TOKEN_TYPES, 'UNDERSCORE')).toBe(false);
+    });
+
+    it('UNDERSCORE is not in TOKEN_HIGHLIGHT_MAP', () => {
+      expect(TOKEN_HIGHLIGHT_MAP.has('UNDERSCORE' as TokenType)).toBe(false);
+    });
+
+    it('lexes _ as an IDENTIFIER token', () => {
+      const tokens = tokenize('destruct<$a, _>');
+      expect(
+        tokens.some((t) => t.type === 'IDENTIFIER' && t.value === '_')
+      ).toBe(true);
+    });
+  });
+
   describe('AC-39: Every TOKEN_TYPES entry has a highlight map entry', () => {
     it('no token type in TOKEN_TYPES is missing from TOKEN_HIGHLIGHT_MAP (except NEWLINE and EOF)', () => {
       // AC-39: every token type must have a highlight entry or be intentionally excluded
@@ -366,7 +384,6 @@ describe('Rill Runtime: Highlight Map Completeness', () => {
       expect(TOKEN_HIGHLIGHT_MAP.get('DOLLAR')).toBe('variableName');
       expect(TOKEN_HIGHLIGHT_MAP.get('PIPE_VAR')).toBe('variableName');
       expect(TOKEN_HIGHLIGHT_MAP.get('IDENTIFIER')).toBe('variableName');
-      expect(TOKEN_HIGHLIGHT_MAP.get('UNDERSCORE')).toBe('variableName');
     });
 
     it('maps operator tokens correctly', () => {

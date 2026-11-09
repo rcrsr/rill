@@ -541,15 +541,27 @@ Parser.prototype.parseBlock = function (
 ): BlockNode {
   const start = current(this.state).span.start;
   expect(this.state, TOKEN_TYPES.LBRACE, 'Expected {');
-  skipNewlines(this.state);
+  return parseBlockStatements(this, start, allowEmpty === true);
+};
+
+/**
+ * Parse the statements of a block up to and including the closing `}`.
+ * The opening `{` has already been consumed; `start` is its position.
+ */
+function parseBlockStatements(
+  parser: Parser,
+  start: { line: number; column: number; offset: number },
+  allowEmpty: boolean
+): BlockNode {
+  skipNewlines(parser.state);
 
   const statements: (StatementNode | AnnotatedStatementNode)[] = [];
-  while (!check(this.state, TOKEN_TYPES.RBRACE) && !isAtEnd(this.state)) {
-    statements.push(this.parseStatement());
-    skipNewlines(this.state);
+  while (!check(parser.state, TOKEN_TYPES.RBRACE) && !isAtEnd(parser.state)) {
+    statements.push(parser.parseStatement());
+    skipNewlines(parser.state);
   }
 
-  if (statements.length === 0 && allowEmpty !== true) {
+  if (statements.length === 0 && !allowEmpty) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
       'Empty blocks are not allowed',
@@ -557,14 +569,14 @@ Parser.prototype.parseBlock = function (
     );
   }
 
-  const rbrace = expect(this.state, TOKEN_TYPES.RBRACE, 'Expected }');
+  const rbrace = expect(parser.state, TOKEN_TYPES.RBRACE, 'Expected }');
 
   return {
     type: 'Block',
     statements,
     span: makeSpan(start, rbrace.span.end),
   };
-};
+}
 
 // ============================================================
 // ASSERT
@@ -817,15 +829,17 @@ Parser.prototype.parseGuardBlock = function (
 ): GuardBlockNode | RecoveryErrorNode {
   const start = current(this.state).span.start;
 
-  // Form 1: `guard{` — no option list; the compound token consumes `guard`
-  // but leaves `{` in the stream? Actually the compound-lbrace lexer
-  // recognises `guard{` as a single token, so we advance past it and then
-  // continue parsing the block body manually (LBRACE has already been
-  // consumed virtually). We still need the block parser. Strategy: replace
-  // GUARD_LBRACE with LBRACE semantics by treating it as the block opener.
+  // Form 1: `guard{` — the compound token already consumed the `{`, so
+  // parse the block statements directly. The body starts at the `{`, which
+  // is the last character of the token.
   if (check(this.state, TOKEN_TYPES.GUARD_LBRACE)) {
-    advance(this.state); // consume guard{
-    const body = parseGuardOrRetryBody(this, start);
+    const tokenEnd = advance(this.state).span.end;
+    const braceStart = {
+      line: tokenEnd.line,
+      column: tokenEnd.column - 1,
+      offset: tokenEnd.offset - 1,
+    };
+    const body = parseBlockStatements(this, braceStart, false);
     return {
       type: 'GuardBlock',
       body,
