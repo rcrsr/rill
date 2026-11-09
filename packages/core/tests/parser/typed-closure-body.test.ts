@@ -162,3 +162,49 @@ describe('non-closure contexts are unchanged', () => {
     expect((caught as ParseError).errorId).toBe('RILL-P011');
   });
 });
+
+describe('misspelled union member in a closure parameter list', () => {
+  it('reports RILL-P011 when an unknown identifier is followed by another pipe', () => {
+    let caught: unknown;
+    try {
+      parse('|x: number|strng| $x');
+    } catch (err) {
+      caught = err;
+    }
+    expect(caught).toBeInstanceOf(ParseError);
+    expect((caught as ParseError).errorId).toBe('RILL-P011');
+  });
+
+  it('keeps a bare host name as the closure body', () => {
+    const c = closureOf('|x: number| log($x)');
+    expect(c.params[0]?.typeRef).toEqual({
+      kind: 'static',
+      typeName: 'number',
+    });
+  });
+});
+
+describe('consecutive closure statements on separate lines', () => {
+  it('does not merge a variable body with the next line closure into a union', () => {
+    const ast = parse('|x: number|\n$x\n|y: number| $y');
+    const closures: ClosureShape[] = [];
+    const visit = (n: unknown): void => {
+      if (n === null || typeof n !== 'object') return;
+      const rec = n as Record<string, unknown>;
+      if (rec['type'] === 'Closure') {
+        closures.push(rec as unknown as ClosureShape);
+        return;
+      }
+      for (const v of Object.values(rec)) {
+        if (Array.isArray(v)) v.forEach(visit);
+        else visit(v);
+      }
+    };
+    visit(ast);
+    expect(closures).toHaveLength(2);
+    expect(closures[0]?.params[0]?.typeRef).toEqual({
+      kind: 'static',
+      typeName: 'number',
+    });
+  });
+});

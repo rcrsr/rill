@@ -318,7 +318,10 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
 
   if (isAnonymousTyped) {
     const paramStart = current(this.state).span.start;
-    const firstTypeRef = parseTypeRef(this.state, { allowTrailingPipe: true });
+    const firstTypeRef = parseTypeRef(this.state, {
+      allowTrailingPipe: true,
+      closureBody: true,
+    });
 
     // Two-type anonymous closure: |type, type|{ body }
     // Synthesizes params named '$' and '@' with their respective declared types.
@@ -328,6 +331,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       const secondParamStart = current(this.state).span.start;
       const secondTypeRef = parseTypeRef(this.state, {
         allowTrailingPipe: true,
+        closureBody: true,
       });
       expect(
         this.state,
@@ -484,6 +488,7 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     skipNewlines(this.state);
     typeRef = parseTypeRef(this.state, {
       allowTrailingPipe: true,
+      closureBody: true,
       parseLiteral: () => this.parseLiteral(),
     });
   }
