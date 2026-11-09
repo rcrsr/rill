@@ -192,17 +192,7 @@ Parser.prototype.parseHostCall = function (this: Parser): HostCallNode {
   const start = current(this.state).span.start;
 
   // Accept keywords as identifiers (e.g., error(...) for custom functions)
-  const firstToken = current(this.state);
   const name = advance(this.state).value;
-
-  // app:: syntax was removed; use use<host:...> instead
-  if (name === 'app') {
-    throw new ParseError(
-      ERROR_IDS.RILL_P012,
-      'Syntax removed: app:: direct-call syntax removed; use use<host:...>',
-      firstToken.span.start
-    );
-  }
 
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
   const args = this.parseArgumentList(true);

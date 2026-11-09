@@ -457,14 +457,14 @@ The filter `<on: list[...]>` is optional. Without it, `guard` catches every catc
 
 The namespaced host-call form `ns::fn()` was removed. A script that uses it halts at parse time with RILL-P012 and the message "Syntax removed".
 
-```rill
-math::add(1, 2)  # Error: Syntax removed
+```text
+math::add(1, 2)  # Error: RILL-P012 Syntax removed
 ```
 
 The pipe-target form fails the same way:
 
-```rill
-"hello" -> str::upper  # Error: Syntax removed
+```text
+"hello" -> str::upper  # Error: RILL-P012 Syntax removed
 ```
 
 Bind the extension with `use<ext:name>`, then call its members through the variable:

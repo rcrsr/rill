@@ -312,7 +312,6 @@ export type {
   GroupedExprNode,
   GuardBlockNode,
   HostCallNode,
-  HostRefNode,
   InterpolationNode,
   InvokeNode,
   ListLiteralNode,

@@ -731,7 +731,7 @@ export type PropertyAccess = FieldAccess | BracketAccess;
  *
  * Examples:
  *   ^("describe it") |x| ($x * 2)    -- closure gets description annotation
- *   ^(label: "add") app::add         -- host ref gets annotation (runtime: ignored)
+ *   ^(label: "add") $ext.add         -- host member gets annotation (runtime: ignored)
  */
 export interface AnnotatedExprNode extends BaseNode {
   readonly type: 'AnnotatedExpr';
