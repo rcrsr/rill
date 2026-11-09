@@ -65,7 +65,6 @@ export const TOKEN_HIGHLIGHT_MAP: ReadonlyMap<TokenType, HighlightCategory> =
     ['DOLLAR', 'variableName'],
     ['PIPE_VAR', 'variableName'],
     ['IDENTIFIER', 'variableName'],
-    ['UNDERSCORE', 'variableName'],
 
     // Method names (identifiers after dot)
     ['METHOD_NAME', 'functionName'],

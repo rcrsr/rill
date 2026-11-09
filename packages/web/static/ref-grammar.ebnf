@@ -195,7 +195,7 @@ postfix-expr  = primary
 postfix-type-op = type-assertion | type-check ;
 
 (* Status probe: ".!" reads outcome metadata from a host call or value.
-   - Bare ".!" returns a bool: false when the value is valid, true when invalid.
+   - Fieldless ".!" returns a bool: false when the value is valid, true when invalid.
      Use it as a guard: `result.! ? recover(...) ! result`.
    - ".!field" projects one piece of metadata. Recognised projections:
        .!code       -- :atom (e.g. #OK, #FORBIDDEN, #QUOTA_EXCEEDED)
@@ -205,6 +205,8 @@ postfix-type-op = type-assertion | type-check ;
        .!<raw-key>  -- pulls a raw-status field set by the host
    The probe target is the primary plus any preceding methods accumulated so
    far; subsequent method calls chain on the probe's result.
+   ".!" needs a receiver ($.!, expr.!). It is not a pipe target, and a
+   statement cannot start with it (RILL-P001).
    Examples:
      fetch("url").!                -- bool: true when invalid, false when valid
      fetch("url").!code            -- atom: #OK, #FORBIDDEN, ... *)
@@ -225,7 +227,6 @@ primary       = literal
               | timeout-block       (* timeout<total: duration> { body } / timeout<idle: duration> { body } *)
               | block
               | grouped-expr
-              | spread              (* ...$dict-expr — convert dict to ordered for arg unpacking *)
               | annotated-expr      (* ^(key: val) expr — annotation on expression *)
               | pass-block          (* pass<on_error: #IGNORE> { body } / pass<async: bool> { body } *)
               | pass ;
@@ -391,7 +392,7 @@ literal       = string | number | bool | list | dict | tuple | ordered | closure
    - $fn("arg")      -- call with args
    - $fn -> $()      -- pipe-style invoke (equivalent)
    - "value" -> $fn()  -- pipe value as first arg
-   - ...[a: 1, b: 2] -> $fn()  -- ordered spread unpacking at invocation *)
+   - $fn(...dict[a: 1, b: 2])  -- dict spread unpacking at invocation *)
 
 closure-param    = [ annotation ] , identifier , [ ":" , param-type ] , [ "=" , literal ]
               | [ annotation ] , identifier , "=" , literal ;   (* type inferred from default *)
@@ -471,19 +472,23 @@ list-element  = "..." , expression           (* spread: inline list elements *)
 (* Dict literal: bare bracket form or keyword-prefixed form.
    Both [a: 1] and dict[a: 1] are valid and produce the same result.
    For keyword form, keyword and "[" must be adjacent (no whitespace).
-   [:] and dict[:] are empty dicts.
+   [:] and dict[] are empty dicts.
 
    Examples:
      [:]                              -- empty dict (bare)
      [name: "Alice", age: 30]         -- two-key dict (bare)
      [$key: "value"]                  -- variable key (bare)
-     dict[:]                          -- empty dict (keyword)
+     dict[]                           -- empty dict (keyword)
      dict[name: "Alice", age: 30]     -- two-key dict (keyword) *)
 dict          = "[" , ":" , "]"
               | "[" , dict-entry , { "," , dict-entry } , "]"
-              | "dict" , "[" , ":" , "]"
-              | "dict" , "[" , dict-entry , { "," , dict-entry } , "]" ;
-dict-key      = identifier | number | bool
+              | "dict" , "[" , "]"
+              | "dict" , "[" , dict-element , { "," , dict-element } , "]" ;
+dict-element  = "..." , expression           (* spread: inline dict entries, keyword form only *)
+              | dict-entry ;
+dict-key      = identifier | number | bool | string
+              | "break" | "return" | "yield" | "pass" | "assert" | "error"
+              | "guard" | "retry" | "while" | "do"    (* reserved keywords parse as string keys *)
               | "$" , identifier                      (* variable key: [$keyName: value] *)
               | "(" , pipe-chain , ")" ;              (* computed key: [($expr): value] *)
 dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , ":" , expression ;
@@ -499,9 +504,10 @@ dict-entry    = ( dict-key | "[" , expression , { "," , expression } , "]" ) , "
    tuple[...] — keyword and "[" must be adjacent (no whitespace).
 
    Examples:
+     tuple[]                          -- empty tuple
      tuple[1, "hello", true]          -- three-element tuple
      tuple[...$other]                 -- spread from another tuple *)
-tuple         = "tuple" , "[" , tuple-element , { "," , tuple-element } , "]" ;
+tuple         = "tuple" , "[" , [ tuple-element , { "," , tuple-element } ] , "]" ;
 tuple-element = "..." , expression           (* spread: inline tuple elements *)
               | expression ;                 (* regular element *)
 
@@ -510,9 +516,10 @@ tuple-element = "..." , expression           (* spread: inline tuple elements *)
    Preserves insertion order. Used with spread unpacking at invocation.
 
    Examples:
+     ordered[]                       -- empty ordered container
      ordered[a: 1, b: 2]             -- two-key ordered container
      ordered[...$other]              -- spread from another ordered *)
-ordered       = "ordered" , "[" , ordered-element , { "," , ordered-element } , "]" ;
+ordered       = "ordered" , "[" , [ ordered-element , { "," , ordered-element } ] , "]" ;
 ordered-element = "..." , expression         (* spread: inline ordered elements *)
               | dict-key , ":" , expression ; (* key-value pair *)
 
@@ -572,7 +579,9 @@ default-value = "??" , body ;
    Using :type would suggest type assertion on a non-bool value.
    $data.?field&string means "does field exist and is it a string?" -> bool
    Variable existence: $data.?$keyName checks existence using variable value.
-   Computed existence: $data.?($expr) checks existence using expression result. *)
+   Computed existence: $data.?($expr) checks existence using expression result.
+   ".?field" is valid as a postfix operator and as a pipe target ($x -> .?field),
+   but not at statement head. *)
 existence-check = ".?" , ( identifier
                          | "$" , identifier              (* variable key *)
                          | "(" , pipe-chain , ")" )      (* computed expression *)
@@ -646,7 +655,13 @@ host-name = identifier ;
 
                  All other functions are registered by the host via RuntimeContext.functions. *)
 
-arguments     = expression , { "," , expression } ;
+arguments     = argument , { "," , argument } ;
+argument      = spread-arg | expression ;
+spread-arg    = "..." , [ pipe-chain ] ;
+              (* Spread unpacks a dict into named arguments: $flip(...dict[a: 1, b: 2]).
+                 Bare "..." spreads $.
+                 At most one spread per argument list (RILL-P007).
+                 Not allowed in method-call arguments (RILL-P006). *)
 
 (* ============================================================ *)
 (* METHODS                                                      *)
@@ -712,19 +727,34 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
               | variable           (* $ -> $fn — invoke closure stored in $fn with $ as arg *)
               | host-name      (* $ -> greet — bare name, $ becomes implicit first arg *)
               | method-call        (* $ -> .len — method on $, $ -> .at(0) with args *)
+              | closure            (* $ -> |x| ($x + 1) — inline closure *)
+              | assert-statement   (* $ -> assert ($ > 0) "positive" — assert with optional message *)
+              | pipe-error         (* 42 -> error "msg" or 42 -> error — message optional *)
+              | use-expr           (* $ -> use<scheme:resource> — resolver import *)
+              | pass-block         (* $ -> pass<on_error: #IGNORE> { body } *)
+              | timeout-block      (* $ -> timeout<total: 5s> { body } *)
+              | "pass" , block     (* $ -> pass { body } — bare pass without a block halts RILL-P004 *)
+              | existence-check    (* $x -> .?field — presence probe on $ *)
               | string             (* $ -> "hello {$}" — template with interpolation *)
+              | list               (* $ -> list[1, 2] or $ -> [1, 2], optional ?? default *)
+              | dict               (* $ -> dict[a: 1] or $ -> [a: 1], optional ?? default *)
               | conditional        (* $ -> ? "yes" ! "no" — conditional on $ *)
               | loop               (* $ -> while (cond) do { body } — while loop, or do { body } while (cond) *)
                                    (* Collection operators seq, fan, fold, filter, acc *)
                                    (* parse as ordinary host-call: seq({ body }), fan({ body }), etc. *)
               | block              (* $ -> { .len } — block with implicit $ head *)
               | grouped-expr       (* $ -> ($ + 1) — arithmetic/compound expression *)
+              | "!" , postfix-expr (* $ -> !($ == 1) — boolean negation *)
               | destructure        (* $ -> destruct<$a, $b> — extract elements into vars *)
               | slice              (* $ -> slice<0:3> — extract portion of $ *)
               | type-assertion     (* $ -> :string — assert $ is string type *)
               | type-check         (* $ -> :?string — check if $ is string type *)
-              | type-conversion     (* $ -> type — convert $ to target type *)
-              | spread ;           (* $ -> ... — convert $ dict to ordered for unpacking *)
+              | type-conversion ;  (* $ -> type — convert $ to target type *)
+pipe-error    = "error" , [ string ] ;
+
+(* guard-block and retry-block are primaries only, never pipe targets.
+   To wrap a call, put it inside the body: guard { fetch("url") } => $r.
+   ".!" and spread ("...") are not pipe targets either. *)
 
 (* Dispatch semantics (runtime behavior, not grammar):
    When piping to a dict or list literal, dispatch rules apply:
@@ -775,30 +805,23 @@ destruct-pattern     = "$" , identifier , [ ":" , capture-type ]  (* variable *)
 slice             = "slice" , "<" , [ slice-bound ] , ":" , [ slice-bound ] , [ ":" , [ slice-bound ] ] , ">" ;
 slice-bound       = number | variable | grouped-expr ;
 
-(* Spread: convert a dict to an ordered container for argument unpacking at closure invocation.
-   Only dict operands are valid.
-
-   Syntax:
-     ...[x: 1, y: 2]         -- named spread from dict literal → ordered
-     ...$myDict                  -- named spread from dict variable → ordered
-     [1, ...$other, 2]       -- spread inside list literal
+(* Spread: "..." unpacks a container at its use site. It is not a primary or a
+   pipe target; it appears only in these places:
+     - call arguments:        $flip(...dict[a: 1, b: 2])
+     - list[ / tuple[ / dict[ / ordered[ literals:  [1, ...$other, 2]
 
    Key-based matching at invocation:
-     - String keys (from dict): match parameters by name
+     - String keys (from dict) match parameters by name
 
    Example:
-     |a, b| { [$b, $a] } -> $flip
-     ...[a: 1, b: 2] -> $flip() -- $a=1, $b=2, returns [2, 1]
+     |a, b| { [$b, $a] } => $flip
+     $flip(...dict[a: 1, b: 2])   -- $a=1, $b=2, returns [2, 1]
 
    Strict validation: missing or extra arguments error at invocation.
    Parameter defaults provide explicit opt-in leniency.
 
-   Note: ordered values convert to plain objects via toNative() — native field holds { key: value }. *)
-
-spread            = "..." , postfix-expr ;
-              (* Spread converts a dict to ordered for arg unpacking: ...[a: 1, b: 2]
-                 Only dict spread is valid.
-                 Bare ... in pipe position uses implicit $: seq({ ... }) ≡ seq({ $ -> ... }) *)
+   Note: ordered values convert to plain objects via toNative() — native field holds { key: value }.
+   See spread-arg under arguments for the argument-list constraints. *)
 
 (* Type conversion operator: coerce pipe value to a target type.
    -> type — static type name
@@ -1004,6 +1027,7 @@ else-clause   = conditional | body ;
    For-each iteration uses collection operators (seq, fan, fold, filter, acc).
 
    while_loop:    while (cond) do [<options>] { body }
+                  while (cond) <newline> { body }    -- newline substitutes for "do"
    do_while_loop: do [<options>] { body } while (cond)
 
    construct_options: <limit: N> sets maximum iterations (default 10,000).
@@ -1018,13 +1042,16 @@ else-clause   = conditional | body ;
 
 loop          = while_loop | do_while_loop ;
 
-while_loop    = "while" , "(" , expression , ")" , "do" , [ construct_options ] , body ;
+while_loop    = "while" , "(" , expression , ")" , "do" , [ construct_options ] , block ;
               (* Condition is evaluated before each iteration.
                  The seeded value flows as $ into the first condition check.
                  If condition is false on first check, body never runs.
-                 Example: 0 -> while ($ < 5) do { $ + 1 } *)
+                 Example: 0 -> while ($ < 5) do { $ + 1 }
+                 A newline between "while (cond)" and "{" substitutes for "do".
+                 "while (cond) { }" on one line halts RILL-P004.
+                 The body must be a block: "while (true) do 1" does not parse. *)
 
-do_while_loop = "do" , [ construct_options ] , body , "while" , "(" , expression , ")" ;
+do_while_loop = "do" , [ construct_options ] , block , "while" , "(" , expression , ")" ;
               (* Body executes at least once before condition is checked.
                  Example: 0 -> do { $ + 1 } while ($ < 5) *)
 
@@ -1045,10 +1072,10 @@ option        = identifier , ":" , positive-integer ;
 (* ============================================================ *)
 
 (* guard / retry blocks scope error handling around a body. They are
-   primary expressions, so they participate in pipe chains:
+   primary expressions (never pipe targets):
 
-     fetch("url") -> guard { .! }            -- inspect outcome regardless of failure
-     fetch("url") -> retry<limit: 3> { pass } -- re-run on transient failures
+     guard { fetch("url") } => $r           -- catch failure; then inspect with $r.!
+     retry<limit: 3> { fetch("url") }       -- re-run on transient failures
 
    Guard:
    - guard { body }                  -- catch every error; body runs once

@@ -40,7 +40,7 @@ $double(5) => $result
     expect(closureBinding?.kind).toBe('capture');
   });
 
-  it('surfaces bindings from all four binding constructs, with a PassBlock seeing its parent scope', () => {
+  it('surfaces bindings from all four binding constructs inside a PassBlock body', () => {
     const source = `1 => $outer
 |x: number| ($x * 2) => $double
 [1, 2, 3] -> destruct<$a, $b, $c>
@@ -54,7 +54,7 @@ pass<on_error: #IGNORE> {
 
     // Offset inside the PassBlock body: parent-scope bindings (declared both
     // before and, per the mutable-outer model, anywhere in the same scope)
-    // must remain visible since PassBlock shares its parent's scope.
+    // remain visible from inside the body.
     const offset = source.indexOf('$outer -> log') + 1;
     const bindings = resolveScopeAt(parsed, offset);
     const byName = new Map(bindings.map((binding) => [binding.name, binding]));
@@ -66,6 +66,24 @@ pass<on_error: #IGNORE> {
     expect(byName.get('c')?.kind).toBe('destructure');
     expect(byName.get('name')?.kind).toBe('dictKey');
   });
+
+  it.each([
+    ['pass { 1 => $f }\n$f', 'plain pass'],
+    ['pass<async: true> { 1 => $f }\n$f', 'async pass'],
+    ['1 -> pass { 2 => $f }\n$f', 'piped pass'],
+  ])(
+    'keeps a capture inside a pass body out of the scope after it (%#: %s)',
+    (source) => {
+      const parsed = parseWithRecovery(source);
+      expect(parsed.success).toBe(true);
+
+      const after = resolveScopeAt(parsed, source.lastIndexOf('$f') + 1);
+      expect(after.map((b) => b.name)).not.toContain('f');
+
+      const inside = resolveScopeAt(parsed, source.indexOf('$f') + 1);
+      expect(inside.map((b) => b.name)).toContain('f');
+    }
+  );
 
   it('surfaces a closureParam binding within the closure body scope', () => {
     const source = `1 => $outer
@@ -157,6 +175,24 @@ $name -> log
 
     expect(binding).not.toBeNull();
     expect(binding?.bindingSite.start.offset).toBe(source.indexOf('$name'));
+  });
+
+  it('resolves a read after a pass body to the outer capture, not the capture inside the body', () => {
+    const source = `1 => $f
+pass { 2 => $f }
+$f
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const binding = findVisibleBinding(
+      parsed,
+      source.lastIndexOf('$f') + 1,
+      'f'
+    );
+
+    expect(binding).not.toBeNull();
+    expect(binding?.bindingSite.start.offset).toBe(source.indexOf('$f'));
   });
 
   it('resolves a read inside a closure body to the LAST same-named binding (late binding)', () => {

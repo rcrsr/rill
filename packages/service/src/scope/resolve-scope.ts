@@ -4,7 +4,7 @@
  */
 
 import { walkAst } from '@rcrsr/rill';
-import type { ASTNode, BlockNode, ParseResult } from '@rcrsr/rill';
+import type { ASTNode, ParseResult } from '@rcrsr/rill';
 import type { SourceSpan, TypeRef } from '@rcrsr/rill';
 
 import { dictKeyName, dictKeySpan } from '../dict-key.js';
@@ -30,10 +30,9 @@ interface ScopeState {
  * parent-before-children, left-to-right order. A stack of open
  * `ScopeFrame`s (script, block, closure, grouped-expression) is derived
  * purely from span containment: a frame closes as soon as a later-visited
- * node's span starts at or past the frame's own end. `PassBlock` bodies are
- * recorded before their statements are visited and excluded from the
- * scope-opening set, so a `pass<...> { ... }` body joins the surrounding
- * scope instead of starting one of its own.
+ * node's span starts at or past the frame's own end. Every `Block`, including
+ * a `pass<...> { ... }` body, opens its own frame, so a capture made inside
+ * a block is not visible after it.
  *
  * Every binding discovered in a scope enclosing `offset` is returned
  * regardless of whether it lies textually before or after `offset` within
@@ -59,7 +58,6 @@ export function resolveScopeAt(parsed: ParseResult, offset: number): Binding[] {
  */
 function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
   const root = parsed.ast;
-  const passBlockBodies = new Set<BlockNode>();
 
   const rootFrame: ScopeFrame = { span: root.span, bindings: [] };
   const allFrames: ScopeFrame[] = [rootFrame];
@@ -80,9 +78,6 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
     if (frame === undefined) return;
 
     switch (node.type) {
-      case 'PassBlock':
-        passBlockBodies.add(node.body);
-        break;
       case 'Closure':
         if (spanContainsOffset(node.body.span, offset))
           insideClosureBody = true;
@@ -139,7 +134,7 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
         break;
     }
 
-    if (opensScope(node, passBlockBodies)) {
+    if (opensScope(node)) {
       const newFrame: ScopeFrame = { span: node.span, bindings: [] };
       allFrames.push(newFrame);
       openFrames.push(newFrame);
@@ -156,14 +151,15 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
 }
 
 /**
- * Determines whether `node` opens a new scope frame. `Block` is excluded
- * when it is a `PassBlock` body, since that body shares its parent's scope
- * rather than opening its own.
+ * Determines whether `node` opens a new scope frame. Closures, grouped
+ * expressions, and every block (including `pass` bodies) do.
  */
-function opensScope(node: ASTNode, passBlockBodies: Set<BlockNode>): boolean {
-  if (node.type === 'Closure' || node.type === 'GroupedExpr') return true;
-  if (node.type === 'Block') return !passBlockBodies.has(node);
-  return false;
+function opensScope(node: ASTNode): boolean {
+  return (
+    node.type === 'Closure' ||
+    node.type === 'GroupedExpr' ||
+    node.type === 'Block'
+  );
 }
 
 function createBinding(

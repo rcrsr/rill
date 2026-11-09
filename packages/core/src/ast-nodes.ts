@@ -187,17 +187,18 @@ export interface PassNode extends BaseNode {
 
 /**
  * PassBlock: non-halting side-effect block.
- * Syntax: pass<on_error: #IGNORE> { body }
+ * Syntax: pass { body } or pass<on_error: #IGNORE, async: true> { body }
  *
  * Lexer emits PASS_LANGLE when `pass` is followed immediately by `<`.
- * The body executes in the surrounding scope. In Phase 1, only
- * `on_error: #IGNORE` is recognized in the options dict.
+ * The body runs in a child scope; captures inside it do not escape.
+ * The options dict recognizes `on_error` (`#IGNORE` suppresses halts) and
+ * `async` (bool literal).
  */
 export interface PassBlockNode extends BaseNode {
   readonly type: 'PassBlock';
   /** Raw dict parsed from the angle-bracket head, e.g. `<on_error: #IGNORE>`. */
   readonly options: DictNode;
-  /** Block body sharing the surrounding scope. */
+  /** Block body executed in a child scope. */
   readonly body: BlockNode;
 }
 
@@ -207,8 +208,8 @@ export interface PassBlockNode extends BaseNode {
  *         timeout<idle: duration> { body }
  *
  * Lexer emits TIMEOUT_LANGLE when `timeout` is followed immediately by `<`.
- * On expiry, produces an invalid value carrying #TIMEOUT_TOTAL (kind: 'total')
- * or #TIMEOUT_IDLE (kind: 'idle'). Recovery is via guard/??
+ * On expiry, raises a catchable halt carrying #RILL_R082 (kind: 'total')
+ * or #RILL_R083 (kind: 'idle'). Recovery is via guard or `??`.
  */
 export interface TimeoutBlockNode extends BaseNode {
   readonly type: 'TimeoutBlock';
@@ -789,18 +790,21 @@ export interface ClosureCallNode extends BaseNode {
 // ============================================================
 
 /**
- * Conditional: ?($cond) body : else
- * Body can be any simple-body (block, grouped, or postfix-expr).
+ * Conditional: `cond ? then ! else`, or the piped form `? then ! else`.
+ * Branches can be any simple-body (block, grouped, or postfix-expr).
+ * A null `condition` means the piped form: `$` is the condition and must be
+ * a bool.
  *
  * Examples:
- *   ?($x > 0) "positive" : "negative"    — literals
- *   ?($x > 0) ($x * 2) : ($x / 2)        — grouped
- *   ?($x > 0) { complex } : { other }    — blocks
+ *   ($x > 0) ? "positive" ! "negative"    — literals
+ *   ($x > 0) ? ($x * 2) ! ($x / 2)        — grouped
+ *   ($x > 0) ? { complex } ! { other }    — blocks
+ *   $flag -> ? "yes" ! "no"               — piped, `$` is the condition
  */
 export interface ConditionalNode extends BaseNode {
   readonly type: 'Conditional';
   readonly input: ExpressionNode | null; // null = implied $
-  readonly condition: BodyNode | null; // null = truthy check on input (piped form)
+  readonly condition: BodyNode | null; // null = piped form: `$` is the condition (must be bool)
   readonly thenBranch: BodyNode;
   readonly elseBranch: BodyNode | ConditionalNode | null;
 }
@@ -848,8 +852,7 @@ export interface BlockNode extends BaseNode {
  * `onCodes` (or any code when onCodes is absent), the guard handles it and
  * produces a recovered value. Otherwise the error propagates.
  *
- * Lexer emits GUARD_LBRACE when `guard` is followed immediately by `{`.
- * Parser productions (task 1.4) populate this node.
+ * Both `guard{` and `guard {` parse.
  */
 export interface GuardBlockNode extends BaseNode {
   readonly type: 'GuardBlock';
@@ -865,7 +868,6 @@ export interface GuardBlockNode extends BaseNode {
  * propagates if all attempts fail.
  *
  * Lexer emits RETRY_LANGLE when `retry` is followed immediately by `<`.
- * Parser productions (task 1.4) populate this node.
  */
 export interface RetryBlockNode extends BaseNode {
   readonly type: 'RetryBlock';
@@ -897,8 +899,7 @@ export interface AtomLiteralNode extends BaseNode {
  * Reads the sidecar status associated with a value. Bare `.!` returns the full
  * status record; `.!field` projects a single field.
  *
- * Lexer emits the DOT_BANG token for `.!`. Parser productions (task 1.4)
- * wire this node into the AST.
+ * Lexer emits the DOT_BANG token for `.!`.
  */
 export interface StatusProbeNode extends BaseNode {
   readonly type: 'StatusProbe';

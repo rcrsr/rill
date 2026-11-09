@@ -59,6 +59,7 @@ export function parseTypeRef(
   state: ParserState,
   opts?: {
     allowTrailingPipe?: boolean;
+    closureBody?: boolean;
     parseLiteral?: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
   }
@@ -74,6 +75,7 @@ function parseTypeRefImpl(
   state: ParserState,
   opts?: {
     allowTrailingPipe?: boolean;
+    closureBody?: boolean;
     parseLiteral?: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
   }
@@ -109,6 +111,42 @@ function parseTypeRefImpl(
       (VALID_TYPE_NAMES as readonly string[]).includes(afterPipe.value);
     const afterPipeIsUnknownIdent =
       afterPipe.type === TOKEN_TYPES.IDENTIFIER && !afterPipeIsTypeName;
+
+    const closureContext = opts?.allowTrailingPipe === true;
+
+    if (
+      opts?.closureBody === true &&
+      afterPipeIsUnknownIdent &&
+      peek(state, 2).type !== TOKEN_TYPES.PIPE_BAR
+    ) {
+      // In a closure parameter list, a non-type identifier after "|" is a
+      // closure body, so the "|" closes the parameter list. An identifier
+      // followed by another "|" is a misspelled union member and falls through
+      // to RILL-P011.
+      break;
+    }
+
+    if (closureContext && afterPipeIsDollar) {
+      // "|" followed by $name continues the union only when the name is itself
+      // followed by another delimiter ("|" on the same line, or "," or "="
+      // after optional newlines). Otherwise the "|" is the closing delimiter
+      // and $name starts the closure body. A "|" on a later line never
+      // continues the union, so consecutive closure statements stay separate.
+      // "$@" and a lone "$" never form a dynamic type.
+      const nameTok = peek(state, 2);
+      const sameLineNext = peek(state, 3).type;
+      let lookahead = 3;
+      while (peek(state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+        lookahead++;
+      }
+      const afterName = peek(state, lookahead).type;
+      const continuesUnion =
+        /^[A-Za-z_]/.test(nameTok.value) &&
+        (sameLineNext === TOKEN_TYPES.PIPE_BAR ||
+          afterName === TOKEN_TYPES.COMMA ||
+          afterName === TOKEN_TYPES.ASSIGN);
+      if (!continuesUnion) break;
+    }
 
     if (afterPipeIsUnknownIdent) {
       // Dangling pipe followed by an unrecognized identifier: RILL-P011.

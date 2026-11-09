@@ -22,7 +22,7 @@
  * - TimeoutBlock creates a fresh AbortController, chains it to ctx.signal,
  *   arms a wall-time (total) or idle-tick (idle) timer, and on expiry
  *   aborts the controller and throws a catchable halt carrying
- *   #TIMEOUT_TOTAL or #TIMEOUT_IDLE.
+ *   #RILL_R082 (total) or #RILL_R083 (idle).
  *
  * @internal
  */
@@ -311,7 +311,7 @@ export async function evaluateStatusProbe(
  * injected, falling back to the global scheduler.
  *
  * On expiry: the chained controller is aborted and a catchable
- * `RuntimeHaltSignal` carrying `#TIMEOUT_TOTAL` or `#TIMEOUT_IDLE` is
+ * `RuntimeHaltSignal` carrying `#RILL_R082` (total) or `#RILL_R083` (idle) is
  * thrown. The host body runs under the chained signal so
  * cooperative host functions observing `ctx.signal` halt naturally.
  *
