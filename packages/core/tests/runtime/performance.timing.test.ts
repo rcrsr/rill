@@ -5,7 +5,7 @@
  *
  * A 4x increase in input size must not multiply the best-of-N time by 8x or
  * more. Linear scaling gives a ratio near 4; a quadratic regression gives
- * about 16. The bound matches parse-recovery-performance.test.ts, where 8
+ * about 16. The bound matches parse-recovery-performance.timing.test.ts, where 8
  * leaves room for the noise seen on shared CI runners.
  */
 
