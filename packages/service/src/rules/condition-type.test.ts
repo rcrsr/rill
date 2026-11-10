@@ -118,4 +118,73 @@ describe('CONDITION_TYPE', () => {
 
     expect(result).toEqual([]);
   });
+
+  it.each([
+    ['"hello" ? "a" ! "b"\n', 'string'],
+    ['0 ? "a" ! "b"\n', 'number'],
+    ['list[1] ? "a" ! "b"\n', 'list'],
+    ['dict[a: 1] ? "a" ! "b"\n', 'dict'],
+    ['#ABC ? "a" ! "b"\n', 'atom'],
+  ])('names the literal type in the message for %s', (source, typeName) => {
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [conditionType]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.message).toBe(
+      `Condition is a ${typeName} literal; conditions must evaluate to bool.`
+    );
+  });
+
+  it('fires on a literal while condition', () => {
+    const source = '0 -> while ("go") do { $ + 1 }\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [conditionType]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'CONDITION_TYPE',
+      message:
+        'Condition is a string literal; conditions must evaluate to bool.',
+    });
+  });
+
+  it('fires on a literal do-while condition', () => {
+    const source = '0 -> do { $ + 1 } while (1)\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [conditionType]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'CONDITION_TYPE',
+      message:
+        'Condition is a number literal; conditions must evaluate to bool.',
+    });
+  });
+
+  it('fires on a literal assert condition', () => {
+    const source = '5 -> assert "ok"\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [conditionType]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      code: 'CONDITION_TYPE',
+      message:
+        'Condition is a string literal; conditions must evaluate to bool.',
+    });
+  });
+
+  it('stays silent on comparison conditions in loops and assert', () => {
+    const source =
+      '0 -> while ($ < 3) do { $ + 1 }\n0 -> do { $ + 1 } while ($ < 3)\n5 -> assert ($ > 0)\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [conditionType]);
+
+    expect(result).toEqual([]);
+  });
 });
