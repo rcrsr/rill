@@ -25,7 +25,7 @@ Every rill program answers one question: "What happens to this data as it moves 
 
 ---
 
-## Six Principles That Break Mainstream Habits
+## Seven Principles That Break Mainstream Habits
 
 ### 1. Pipes Replace Assignment
 
@@ -246,7 +246,7 @@ $str -> .empty ? "no" ! "yes"
 | Truthiness (`if ""`) | `.empty`, `== 0`, `:?type` |
 | `try { } catch { }` | `assert`, conditionals, `error` |
 | `for (i = 0; ...)` | `seq`, `fan`, `filter`, `fold`, `acc` |
-| `count += 1` in loop | `fold(0) { $@ + 1 }` or `$` accumulator |
+| `count += 1` in loop | `fold(0, { $@ + 1 })` or `$` accumulator |
 | `a === b` (reference) | `==` always compares by value |
 | `a = b` (shared ref) | `=>` binds immutable values — no mutation possible |
 

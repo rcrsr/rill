@@ -28,7 +28,21 @@ import {
 } from './parser/index.js';
 import { formatMessageAtLocation } from './error-classes.js';
 import type { SourceLocation } from './source-location.js';
-import type { TypeRef } from './types.js';
+import {
+  defaultMismatchMessage,
+  nonTrailingDefaultIndex,
+  nonTrailingDefaultMessage,
+} from './runtime/core/types/field-defaults.js';
+// oxlint-disable-next-line import/no-cycle -- operations.ts reaches this file through callable.ts and function-shorthand.ts; the import is used only when a signature is parsed, never at module-init time
+import { defaultMismatch } from './runtime/core/types/operations.js';
+import type {
+  BoolLiteralNode,
+  FieldArg,
+  LiteralNode,
+  NumberLiteralNode,
+  StringLiteralNode,
+  TypeRef,
+} from './types.js';
 import type { RillParam } from './runtime/core/callable.js';
 import type {
   RillFieldDef,
@@ -127,18 +141,28 @@ function staticTypeRefToTypeStructure(
           at
         );
       }
-      setDictField(fields, arg.name, {
-        type: staticTypeRefToTypeStructure(arg.value, functionName, at),
-      });
+      setDictField(
+        fields,
+        arg.name,
+        signatureFieldDef(arg, `field '${arg.name}'`, functionName, at)
+      );
     }
     return { kind: 'dict', fields };
   }
 
   if (typeName === 'tuple') {
-    const elements: RillFieldDef[] = args.map((arg): RillFieldDef => ({
+    const elements = args.map((arg): RillFieldDef => ({
       ...(arg.name !== undefined ? { name: arg.name } : {}),
-      type: staticTypeRefToTypeStructure(arg.value, functionName, at),
+      ...signatureFieldDef(arg, 'tuple element', functionName, at),
     }));
+    const misplaced = nonTrailingDefaultIndex(elements);
+    if (misplaced !== -1) {
+      throw signatureError(
+        functionName,
+        nonTrailingDefaultMessage(misplaced),
+        at
+      );
+    }
     return { kind: 'tuple', elements };
   }
 
@@ -147,6 +171,33 @@ function staticTypeRefToTypeStructure(
     `type '${typeName}' does not accept type arguments`,
     at
   );
+}
+
+/**
+ * Build the field definition for one dict field or tuple element, carrying
+ * its default when the signature declares one.
+ *
+ * @internal
+ */
+function signatureFieldDef(
+  arg: FieldArg,
+  subject: string,
+  functionName: string,
+  at: SourceLocation
+): RillFieldDef {
+  const type = staticTypeRefToTypeStructure(arg.value, functionName, at);
+  if (arg.defaultValue === undefined) return { type };
+
+  const defaultValue = signatureLiteralValue(arg.defaultValue);
+  const mismatch = defaultMismatch(defaultValue, type);
+  if (mismatch !== null) {
+    throw signatureError(
+      functionName,
+      defaultMismatchMessage(subject, mismatch),
+      at
+    );
+  }
+  return { type, defaultValue };
 }
 
 // ============================================================
@@ -374,7 +425,9 @@ function parseSignatureBody(
     advance(state); // consume :
     skipNewlines(state);
     const typeStart = current(state).span.start;
-    const typeRef = parseTypeRef(state);
+    const typeRef = parseTypeRef(state, {
+      parseLiteral: () => parseSignatureLiteral(state, functionName),
+    });
     returnType = staticTypeRefToTypeStructure(typeRef, functionName, typeStart);
   }
 
@@ -445,7 +498,10 @@ function parseSignatureParam(
     advance(state); // consume :
     skipNewlines(state);
     const typeStart = current(state).span.start;
-    const typeRef = parseTypeRef(state, { allowTrailingPipe: true });
+    const typeRef = parseTypeRef(state, {
+      allowTrailingPipe: true,
+      parseLiteral: () => parseSignatureLiteral(state, functionName),
+    });
     type = staticTypeRefToTypeStructure(typeRef, functionName, typeStart);
   }
 
@@ -456,14 +512,38 @@ function parseSignatureParam(
   if (check(state, TOKEN_TYPES.ASSIGN)) {
     advance(state); // consume =
     skipNewlines(state);
-    defaultValue = parseSignatureLiteral(state, functionName);
+    defaultValue = signatureLiteralValue(
+      parseSignatureLiteral(state, functionName)
+    );
   }
 
   return { name, type, defaultValue, annotations };
 }
 
+/** The literal kinds a signature default may use. */
+type SignatureLiteral = StringLiteralNode | NumberLiteralNode | BoolLiteralNode;
+
 /**
- * Parse a simple literal value for a default parameter value.
+ * The value of a default literal parsed by parseSignatureLiteral.
+ *
+ * @internal
+ */
+function signatureLiteralValue(node: LiteralNode): RillValue {
+  switch (node.type) {
+    case 'NumberLiteral':
+    case 'BoolLiteral':
+      return node.value;
+    case 'StringLiteral':
+      return node.parts
+        .filter((part): part is string => typeof part === 'string')
+        .join('');
+    default:
+      throw new Error(`Unsupported signature default node '${node.type}'`);
+  }
+}
+
+/**
+ * Parse a literal default for a parameter, a dict field, or a tuple element.
  * Supported: string, number, bool (true/false), negative number.
  *
  * @internal
@@ -471,33 +551,45 @@ function parseSignatureParam(
 function parseSignatureLiteral(
   state: ParserState,
   functionName: string
-): RillValue {
+): SignatureLiteral {
   if (check(state, TOKEN_TYPES.STRING)) {
     const tok = advance(state);
-    return tok.value;
+    return {
+      type: 'StringLiteral',
+      parts: [tok.value],
+      isMultiline: false,
+      span: tok.span,
+    };
   }
 
   if (check(state, TOKEN_TYPES.NUMBER)) {
     const tok = advance(state);
-    return parseFloat(tok.value);
+    return {
+      type: 'NumberLiteral',
+      value: parseFloat(tok.value),
+      span: tok.span,
+    };
   }
 
-  if (check(state, TOKEN_TYPES.TRUE)) {
-    advance(state);
-    return true;
-  }
-
-  if (check(state, TOKEN_TYPES.FALSE)) {
-    advance(state);
-    return false;
+  if (check(state, TOKEN_TYPES.TRUE) || check(state, TOKEN_TYPES.FALSE)) {
+    const tok = advance(state);
+    return {
+      type: 'BoolLiteral',
+      value: tok.type === TOKEN_TYPES.TRUE,
+      span: tok.span,
+    };
   }
 
   // Negative number: - NUMBER
   if (check(state, TOKEN_TYPES.MINUS)) {
-    advance(state); // consume -
+    const minus = advance(state); // consume -
     if (check(state, TOKEN_TYPES.NUMBER)) {
       const tok = advance(state);
-      return -parseFloat(tok.value);
+      return {
+        type: 'NumberLiteral',
+        value: -parseFloat(tok.value),
+        span: { start: minus.span.start, end: tok.span.end },
+      };
     }
     throw signatureError(
       functionName,

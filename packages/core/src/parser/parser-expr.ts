@@ -53,7 +53,7 @@ import {
   describeToken,
   expectVariableName,
 } from './helpers.js';
-import { parseTypeRef } from './parser-types.js';
+import { parseScriptTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { runPostfixDispatchLoop } from './parser-pipe-target.js';
 import type { PostfixLoopState } from './parser-primary.js';
@@ -566,7 +566,7 @@ Parser.prototype.parseCapture = function (this: Parser): CaptureNode {
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
     skipNewlines(this.state);
-    typeRef = parseTypeRef(this.state);
+    typeRef = parseScriptTypeRef(this);
     end = peek(this.state, -1).span.end;
   }
 

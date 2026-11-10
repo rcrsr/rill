@@ -808,6 +808,7 @@ const greet: RillFunctionShorthand = {
 | Named dict type | `dict(k: string)` |
 | Tuple type | `tuple(number, string)` |
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
+| Field defaults | `d: dict(a: number, b: number = 0)`, `t: tuple(string, number = 0)` |
 | Parameter annotations | `^(description: "text") name: string` |
 | Function annotations | `^(category: "io") \|a: string\|` before the parameter list |
 
@@ -817,9 +818,8 @@ Use the explicit form for these declarations:
 
 | Declaration | Reason |
 |-------------|--------|
-| Tuple field defaults | The signature cannot express `fields[].defaultValue` |
 | Stream, ordered, and closure types with arguments | Signature type arguments are limited to `list`, `dict`, and `tuple` |
-| Dict defaults | Defaults are limited to string, number, and bool literals |
+| Dict, list, or tuple defaults | Parameter and field defaults are limited to string, number, and bool literals |
 | `skipReceiverValidation` | The shorthand has no such field |
 
 Registration throws `RuntimeError` with `RILL-R091` in these cases:

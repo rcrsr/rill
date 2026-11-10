@@ -27,7 +27,7 @@ import {
   makeSpan,
 } from './state.js';
 import { expectVariableName } from './helpers.js';
-import { parseTypeRef, parseFieldArgList } from './parser-types.js';
+import { parseScriptTypeRef, parseFieldArgList } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
@@ -91,7 +91,7 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
     }
 
     // Parse the resolution type reference
-    const resolutionType = parseTypeRef(parser.state);
+    const resolutionType = parseScriptTypeRef(parser);
 
     // Ensure positional alignment: args[0] = chunk, args[1] = ret.
     // When parens are empty (no chunk type), insert an 'any' placeholder
@@ -197,7 +197,7 @@ function parseClosureReturnTypeTarget(
   }
 
   // Default: plain type name or dynamic type reference
-  return parseTypeRef(parser.state);
+  return parseScriptTypeRef(parser);
 }
 
 /**
@@ -318,7 +318,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
 
   if (isAnonymousTyped) {
     const paramStart = current(this.state).span.start;
-    const firstTypeRef = parseTypeRef(this.state, {
+    const firstTypeRef = parseScriptTypeRef(this, {
       allowTrailingPipe: true,
       closureBody: true,
     });
@@ -329,7 +329,7 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       advance(this.state);
       skipNewlines(this.state);
       const secondParamStart = current(this.state).span.start;
-      const secondTypeRef = parseTypeRef(this.state, {
+      const secondTypeRef = parseScriptTypeRef(this, {
         allowTrailingPipe: true,
         closureBody: true,
       });
@@ -486,10 +486,9 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
     skipNewlines(this.state);
-    typeRef = parseTypeRef(this.state, {
+    typeRef = parseScriptTypeRef(this, {
       allowTrailingPipe: true,
       closureBody: true,
-      parseLiteral: () => this.parseLiteral(),
     });
   }
 

@@ -748,4 +748,216 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect(() => parse('dict(a: number = $x)')).toThrow(ParseError);
     });
   });
+
+  // ============================================================
+  // Inline type assertion (:type) and check (:?type) accept field
+  // defaults in the signature; neither hydrates the value.
+  // ============================================================
+
+  describe('inline type assertion and check accept field defaults', () => {
+    it('assertion with a default returns the input without hydrating', async () => {
+      const result = await run('dict[a: 1] -> :dict(a: number, b: number = 0)');
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('check with a default returns true', async () => {
+      const result = await run(
+        'dict[a: 1] -> :?dict(a: number, b: number = 0)'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('postfix assertion with a default returns the input without hydrating', async () => {
+      const result = await run(
+        'dict[a: 1] => $d\n$d:dict(a: number, b: number = 0)'
+      );
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('postfix check with a default returns true', async () => {
+      const result = await run(
+        'dict[a: 1] => $d\n$d:?dict(a: number, b: number = 0)'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('tuple assertion with a default keeps the original entries', async () => {
+      const result = await run('tuple["x"] -> :tuple(string, number = 0)');
+      expect(isTuple(result as RillValue)).toBe(true);
+      expect((result as { entries: unknown[] }).entries).toEqual(['x']);
+    });
+
+    it('ordered check with a default returns true', async () => {
+      const result = await run(
+        'ordered[a: "x"] -> :?ordered(a: string, b: number = 0)'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('assertion halts when a required field is missing', async () => {
+      await expectHaltMessage(
+        () => run('dict[b: 1] -> :dict(a: number, b: number = 0)'),
+        /Type assertion failed/
+      );
+    });
+
+    it('check returns false when a required field is missing', async () => {
+      const result = await run(
+        'dict[b: 1] -> :?dict(a: number, b: number = 0)'
+      );
+      expect(result).toBe(false);
+    });
+
+    it('a wrong-typed default halts with TYPE_MISMATCH', async () => {
+      await expectHalt(
+        () => run('dict[a: 1] -> :dict(a: number, b: number = "x")'),
+        {
+          code: 'TYPE_MISMATCH',
+          messagePattern: /Default value for field 'b' must be number/,
+        }
+      );
+    });
+
+    it('a nested signature with a default passes', async () => {
+      const result = await run(
+        'dict[o: dict[x: 1]] -> :dict(o: dict(x: number, y: number = 0))'
+      );
+      expect(result).toEqual({ o: { x: 1 } });
+    });
+
+    it('a union containing a signature with a default passes', async () => {
+      const result = await run(
+        'dict[a: 1] -> :dict(a: number, b: number = 0) | string'
+      );
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('a variable reference is rejected as an inline default', () => {
+      expect(() => parse('dict[] -> :dict(a: number = $x)')).toThrow(
+        ParseError
+      );
+    });
+
+    it('an expression is rejected as an inline check default', () => {
+      expect(() => parse('dict[] -> :?dict(a: number = 1 + 1)')).toThrow(
+        ParseError
+      );
+    });
+
+    it('a list missing a comma still raises RILL-P014', () => {
+      try {
+        parse('dict[] -> :dict(a: number b: number)');
+        expect.unreachable('expected ParseError');
+      } catch (e) {
+        expect(e).toBeInstanceOf(ParseError);
+        expect((e as ParseError).errorId).toBe('RILL-P014');
+      }
+    });
+  });
+
+  describe('other inline type positions accept field defaults', () => {
+    it('capture type accepts a default and keeps the value unchanged', async () => {
+      const result = await run(
+        'dict[a: 1] => $x:dict(a: number, b: number = 0)\n$x'
+      );
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('capture type still halts when a required field is missing', async () => {
+      await expectHaltMessage(
+        () => run('dict[b: 1] => $x:dict(a: number, b: number = 0)\n$x'),
+        /cannot assign dict to \$x/
+      );
+    });
+
+    it('capture type accepts a trailing tuple default', async () => {
+      const result = (await run(
+        'tuple["x"] => $x:tuple(string, number = 0)\n$x'
+      )) as RillValue;
+      expect(isTuple(result)).toBe(true);
+      expect((result as { entries: RillValue[] }).entries).toEqual(['x']);
+    });
+
+    it('existence check type accepts a default', async () => {
+      const result = await run(
+        'dict[f: dict[a: 1]] => $d\n$d.?f&dict(a: number, b: number = 0)'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('existence check type returns false when a required field is missing', async () => {
+      const result = await run(
+        'dict[f: dict[b: 1]] => $d\n$d.?f&dict(a: number, b: number = 0)'
+      );
+      expect(result).toBe(false);
+    });
+
+    it('pipe-target existence check type accepts a default', async () => {
+      const result = await run(
+        'dict[f: dict[a: 1]] -> .?f&dict(a: number, b: number = 0)'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('destructure element type accepts a default', async () => {
+      const result = await run(
+        'list[dict[a: 1]] -> destruct<$x:dict(a: number, b: number = 0)>\n$x'
+      );
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('destructure key type accepts a default', async () => {
+      const result = await run(
+        'dict[k: dict[a: 1]] -> destruct<k: $x:dict(a: number, b: number = 0)>\n$x'
+      );
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('closure return type accepts a default', async () => {
+      const result = await run(
+        '|v: number| { dict[a: $v] }:dict(a: number, b: number = 0) => $f\n$f(1)'
+      );
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('closure return type still halts when a required field is missing', async () => {
+      await expectHaltMessage(
+        () =>
+          run(
+            '|v: number| { dict[b: $v] }:dict(a: number, b: number = 0) => $f\n$f(1)'
+          ),
+        /Type assertion failed/
+      );
+    });
+
+    it('anonymous typed closure parameter accepts a default and fills it', async () => {
+      const result = await run(
+        '|dict(a: number, b: number = 0)|{ $.b } => $f\n$f(dict[a: 1])'
+      );
+      expect(result).toBe(0);
+    });
+
+    it('anonymous typed closure parameter still halts when a required field is missing', async () => {
+      await expect(
+        run('dict[b: 1] -> |dict(a: number, b: number = 0)|{ $.b }')
+      ).rejects.toThrow(/Parameter type mismatch/);
+    });
+
+    it('use<> type and stream resolution type parse a default', () => {
+      expect(() =>
+        parse('use<ext:app>:dict(a: number, b: number = 0) => $app')
+      ).not.toThrow();
+      expect(() =>
+        parse(
+          '|v: number| { $v }:stream(number):dict(a: number, b: number = 0) => $f'
+        )
+      ).not.toThrow();
+    });
+
+    it('a variable reference is rejected as a capture type default', () => {
+      expect(() =>
+        parse('dict[a: 1] => $x:dict(a: number, b: number = $y)')
+      ).toThrow(ParseError);
+    });
+  });
 });

@@ -20,7 +20,7 @@ import {
   makeSpan,
   peek,
 } from './state.js';
-import { parseTypeRef } from './parser-types.js';
+import { parseScriptTypeRef } from './parser-types.js';
 import { expectVariableName } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -133,7 +133,7 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
       // Optional return type after :||
       if (check(this.state, TOKEN_TYPES.COLON)) {
         advance(this.state); // consume :
-        typeRef = parseTypeRef(this.state, { parseLiteral });
+        typeRef = parseScriptTypeRef(this);
       }
     } else if (peek(this.state, 1).type === TOKEN_TYPES.PIPE_BAR) {
       // Closure annotation: :|param: type, ...|
@@ -151,9 +151,8 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
           TOKEN_TYPES.COLON,
           'Expected : after parameter name in closure annotation'
         );
-        const paramTypeRef = parseTypeRef(this.state, {
+        const paramTypeRef = parseScriptTypeRef(this, {
           allowTrailingPipe: true,
-          parseLiteral,
         });
         const entry: {
           name: string;
@@ -182,11 +181,11 @@ Parser.prototype.parseUseExpr = function (this: Parser): UseExprNode {
       // Optional return type after :|params|
       if (check(this.state, TOKEN_TYPES.COLON)) {
         advance(this.state); // consume :
-        typeRef = parseTypeRef(this.state, { parseLiteral });
+        typeRef = parseScriptTypeRef(this);
       }
     } else {
       advance(this.state); // consume :
-      typeRef = parseTypeRef(this.state);
+      typeRef = parseScriptTypeRef(this);
     }
   }
 

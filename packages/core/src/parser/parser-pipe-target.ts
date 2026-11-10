@@ -46,7 +46,7 @@ import {
   parseBareHostCall,
   describeToken,
 } from './helpers.js';
-import { parseTypeRef } from './parser-types.js';
+import { parseScriptTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { isRillTypeName } from '../types.js';
@@ -312,7 +312,7 @@ const pipeTargetDispatchTable: Record<
     let typeRef: ExistenceCheck['typeRef'] = null;
     if (check(this.state, TOKEN_TYPES.AMPERSAND)) {
       advance(this.state);
-      typeRef = parseTypeRef(this.state);
+      typeRef = parseScriptTypeRef(this);
     }
     const span = makeSpan(dotToken.span.start, previous(this.state).span.end);
     return {

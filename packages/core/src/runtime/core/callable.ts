@@ -51,6 +51,7 @@ import {
   formatStructure,
   structureEquals,
   structureMatches,
+  defaultMismatch,
 } from './types/operations.js';
 import {
   createOrdered,
@@ -317,12 +318,11 @@ export function validateDefaultValueType(
   // Skip validation when type is undefined (any-typed, all defaults valid)
   if (param.type === undefined) return;
 
-  if (!structureMatches(param.defaultValue, param.type)) {
-    const actualType = inferType(param.defaultValue);
-    const expectedType = formatStructure(param.type);
+  const mismatch = defaultMismatch(param.defaultValue, param.type);
+  if (mismatch !== null) {
     throw new RuntimeError(
       ERROR_IDS.RILL_R077,
-      `Invalid defaultValue for parameter '${param.name}': expected ${expectedType}, got ${actualType}`
+      `Invalid defaultValue for parameter '${param.name}': expected ${mismatch.expectedType}, got ${mismatch.actualType}`
     );
   }
 }

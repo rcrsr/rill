@@ -546,7 +546,7 @@ ordered[x: 5] -> $fn(...)              # 35 (5 + 10 + 20)
 
 Tuple type constructors accept default values on trailing positional fields. When you assert or check against a tuple type, values shorter than the full field count match if every omitted trailing field has a default.
 
-Assign the type constructor to a variable, then use the variable in `:?` or `:` position:
+Write the type constructor inline in `:` or `:?` position, or bind it to a variable first:
 
 ```rill
 tuple(string, number = 0) => $t
@@ -566,7 +566,7 @@ The `:` assertion also accepts the shorter value. No field synthesis occurs; the
 
 Defaults must appear at trailing positions only. A required field after a defaulted field is a type constructor error.
 
-This matches the trailing-default behavior of `dict` and `ordered` type constructors.
+`ordered` follows the same trailing rule. A `dict` value may omit any defaulted field, not only trailing ones. See [Type System](topic-type-system.md) for how defaults interact with assertions and conversion.
 
 #### Nested Default Synthesis
 

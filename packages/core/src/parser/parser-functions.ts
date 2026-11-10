@@ -30,7 +30,7 @@ import {
   skipNewlines,
 } from './state.js';
 import { expectVariableName } from './helpers.js';
-import { parseTypeRef } from './parser-types.js';
+import { parseScriptTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
@@ -346,7 +346,7 @@ Parser.prototype.parseTypeOperation = function (
   // Default: static or union type ref → TypeAssertion / TypeCheck
   // parseTypeRef handles static and union kinds; dynamic ($var) is already
   // handled above, so the result here is always static or union.
-  const typeRef = parseTypeRef(this.state);
+  const typeRef = parseScriptTypeRef(this);
   const span = makeSpan(start, previous(this.state).span.end);
 
   if (isCheck) {
@@ -386,7 +386,7 @@ Parser.prototype.parsePostfixTypeOperation = function (
   // Default: static or union type ref → TypeAssertion / TypeCheck
   // parseTypeRef handles static and union kinds; dynamic ($var) is already
   // handled above, so the result here is always static or union.
-  const typeRef = parseTypeRef(this.state);
+  const typeRef = parseScriptTypeRef(this);
   const span = makeSpan(start, previous(this.state).span.end);
 
   if (isCheck) {
