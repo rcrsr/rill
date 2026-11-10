@@ -208,3 +208,81 @@ describe('consecutive closure statements on separate lines', () => {
     });
   });
 });
+
+describe('typed closure with a variable body inside a comma-separated context', () => {
+  it.each([
+    ['fan(|x: number| $x, 2)'],
+    ['list[|x: number| $x, 2]'],
+    ['list[|x: number| $x, $y]'],
+    ['list[|x: number| $x, |y: number| $y]'],
+    ['list[\n|x: number| $x,\n2\n]'],
+    ['dict[f: |x: number| $x, g: 2]'],
+    ['dict[f: |x: number| $x, g: || { 1 }]'],
+    ['list[|x: number| $x, true, false]'],
+    ['list[|x: number| $x, ^("d") |y| $y]'],
+  ])('parses %j with a variable body named x', (src) => {
+    const c = closureOf(src);
+    expect(c.params).toHaveLength(1);
+    expect(c.params[0]?.typeRef).toEqual({
+      kind: 'static',
+      typeName: 'number',
+    });
+    const primary = (c.body as { primary: { type: string; name: string } })
+      .primary;
+    expect(primary.type).toBe('Variable');
+    expect(primary.name).toBe('x');
+  });
+
+  it('parses an anonymous typed closure followed by a list entry', () => {
+    const c = closureOf('list[|number| $x, 2]');
+    expect(c.params).toHaveLength(1);
+    expect(c.params[0]?.typeRef).toEqual({
+      kind: 'static',
+      typeName: 'number',
+    });
+    const primary = (c.body as { primary: { type: string; name: string } })
+      .primary;
+    expect(primary.type).toBe('Variable');
+    expect(primary.name).toBe('x');
+  });
+
+  it('runs a typed closure passed to fan with an options dict', async () => {
+    const result = await run(
+      'list[1, 2, 3] -> fan(|x: number| $x, dict[concurrency: 2])'
+    );
+    expect(result).toEqual([1, 2, 3]);
+  });
+
+  it('calls a typed closure stored in a dict', async () => {
+    const result = await run('dict[f: |x: number| $x, g: 2] => $d\n$d.f(5)');
+    expect(result).toBe(5);
+  });
+});
+
+describe('union members followed by further parameters stay unions', () => {
+  it.each([
+    ['|a: number|$T, b| $a', 2],
+    ['|a: number|$T, b, c: string| $a', 3],
+    ['|a: number|$T, ^(doc: "x") b: string| $a', 2],
+    ['|a: number|$T, error: string| $a', 2],
+    ['|a: number|$T,\n b: string| $a', 2],
+    ['|number|$T, $U| $', 2],
+    ['|number|$T, list(number)| $', 2],
+  ])('parses %j with a union first parameter', (src, count) => {
+    const c = closureOf(src);
+    expect(c.params).toHaveLength(count);
+    expect(c.params[0]?.typeRef).toMatchObject({ kind: 'union' });
+  });
+});
+
+describe('known limitations', () => {
+  it('KNOWN LIMITATION: dict entry with a dynamic type still reads as a parameter', () => {
+    expect(() => parse('dict[f: |x: number| $x, g: $y]')).toThrow(ParseError);
+  });
+
+  it('KNOWN LIMITATION: dict entry with a call value reads as a parameter type', () => {
+    expect(() => parse('dict[f: |x: number| $x, name: upper("a")]')).toThrow(
+      ParseError
+    );
+  });
+});

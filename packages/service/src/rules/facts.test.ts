@@ -286,6 +286,21 @@ describe('closureOrOpDepth and bindingScopeDepth', () => {
     expect(innerRef).toBeDefined();
   });
 
+  it('sets bindingScopeDepth to 1 for a capture inside a pass body', () => {
+    const source = 'pass { 1 => $y }\n';
+    const facts = collectFacts(parse(source));
+
+    expect(facts.script.captureLog[0]?.bindingScopeDepth).toBe(1);
+  });
+
+  it('sets closureOrOpDepth to 0 for a reference inside a pass body', () => {
+    const source = '1 => $x\npass { $x }\n';
+    const facts = collectFacts(parse(source));
+
+    const ref = facts.script.referenceLog.find((entry) => entry.name === 'x');
+    expect(ref?.closureOrOpDepth).toBe(0);
+  });
+
   it('sets bindingScopeDepth to 1 for a capture inside a GroupedExpr (("a" => $x))', () => {
     const source = '("a" => $x)\n';
     const root = parse(source);

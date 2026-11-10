@@ -27,6 +27,7 @@ import {
   VALID_TYPE_NAMES,
   parseTypeName,
   expectVariableName,
+  isVariableNameToken,
 } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -69,6 +70,83 @@ export function parseTypeRef(
     () => current(state).span.start,
     () => parseTypeRefImpl(state, opts)
   );
+}
+
+/**
+ * Index of the first non-newline token at or after `offset`.
+ */
+function skipNewlinesFrom(state: ParserState, offset: number): number {
+  let i = offset;
+  while (peek(state, i).type === TOKEN_TYPES.NEWLINE) i++;
+  return i;
+}
+
+/**
+ * Decide whether the tokens after a "," (starting at `offset`) begin another
+ * closure parameter, so the "," belongs to the parameter list rather than
+ * separating entries around a closure whose body is a variable.
+ */
+function commaStartsParam(state: ParserState, offset: number): boolean {
+  const i0 = skipNewlinesFrom(state, offset);
+  const t0 = peek(state, i0);
+
+  // Annotated parameter: ^(...) name followed by a parameter delimiter or type
+  if (t0.type === TOKEN_TYPES.CARET) {
+    let i = skipNewlinesFrom(state, i0 + 1);
+    if (peek(state, i).type !== TOKEN_TYPES.LPAREN) return false;
+    let depth = 0;
+    for (; ; i++) {
+      const t = peek(state, i).type;
+      if (t === TOKEN_TYPES.EOF) return false;
+      if (t === TOKEN_TYPES.LPAREN) depth++;
+      else if (t === TOKEN_TYPES.RPAREN && --depth === 0) break;
+    }
+    const iName = skipNewlinesFrom(state, i + 1);
+    if (!isVariableNameToken(peek(state, iName))) return false;
+    const next = peek(state, skipNewlinesFrom(state, iName + 1)).type;
+    return (
+      next === TOKEN_TYPES.COLON ||
+      next === TOKEN_TYPES.COMMA ||
+      next === TOKEN_TYPES.ASSIGN ||
+      next === TOKEN_TYPES.PIPE_BAR
+    );
+  }
+
+  // Parameter name followed by a default, another parameter, the closing
+  // pipe, or a ":" that introduces a type.
+  if (isVariableNameToken(t0)) {
+    const iq = skipNewlinesFrom(state, i0 + 1);
+    const q = peek(state, iq).type;
+    if (q === TOKEN_TYPES.ASSIGN || q === TOKEN_TYPES.PIPE_BAR) return true;
+    if (q === TOKEN_TYPES.COMMA) {
+      return t0.type !== TOKEN_TYPES.TRUE && t0.type !== TOKEN_TYPES.FALSE;
+    }
+    if (q === TOKEN_TYPES.COLON) {
+      const typeStart = peek(state, skipNewlinesFrom(state, iq + 1)).type;
+      return (
+        typeStart === TOKEN_TYPES.DOLLAR || typeStart === TOKEN_TYPES.IDENTIFIER
+      );
+    }
+  }
+
+  // Anonymous dynamic-type parameter: $name |
+  if (t0.type === TOKEN_TYPES.DOLLAR) {
+    const iName = skipNewlinesFrom(state, i0 + 1);
+    const iPipe = skipNewlinesFrom(state, iName + 1);
+    return peek(state, iPipe).type === TOKEN_TYPES.PIPE_BAR;
+  }
+
+  // Anonymous parameterized static type: typeName(
+  if (
+    t0.type === TOKEN_TYPES.IDENTIFIER &&
+    (VALID_TYPE_NAMES as readonly string[]).includes(t0.value)
+  ) {
+    return (
+      peek(state, skipNewlinesFrom(state, i0 + 1)).type === TOKEN_TYPES.LPAREN
+    );
+  }
+
+  return false;
 }
 
 function parseTypeRefImpl(
@@ -128,11 +206,22 @@ function parseTypeRefImpl(
 
     if (closureContext && afterPipeIsDollar) {
       // "|" followed by $name continues the union only when the name is itself
-      // followed by another delimiter ("|" on the same line, or "," or "="
-      // after optional newlines). Otherwise the "|" is the closing delimiter
-      // and $name starts the closure body. A "|" on a later line never
-      // continues the union, so consecutive closure statements stay separate.
-      // "$@" and a lone "$" never form a dynamic type.
+      // followed by another delimiter. Otherwise the "|" is the closing
+      // delimiter and $name starts the closure body. "$@" and a lone "$" never
+      // form a dynamic type.
+      //
+      // - "|" on the same line, or "=" after optional newlines, continues.
+      // - "," continues only when what follows looks like another parameter
+      //   (see commaStartsParam). A "," followed by anything else separates
+      //   list or dict entries around a closure whose body is "$name".
+      // - A "|" on a later line never continues the union, so consecutive
+      //   closure statements stay separate.
+      //
+      // Known limitations: in "dict[f: |x: number| $x, g: $y]" the entry
+      // "g: $y" reads as a typed parameter with a dynamic type, and in
+      // "dict[f: |x: number| $x, name: upper(\"a\")]" the entry reads as a
+      // parameter typed "upper". A dict entry whose value starts with an
+      // identifier or "$" after "name:" is ambiguous with a typed parameter.
       const nameTok = peek(state, 2);
       const sameLineNext = peek(state, 3).type;
       let lookahead = 3;
@@ -143,8 +232,9 @@ function parseTypeRefImpl(
       const continuesUnion =
         /^[A-Za-z_]/.test(nameTok.value) &&
         (sameLineNext === TOKEN_TYPES.PIPE_BAR ||
-          afterName === TOKEN_TYPES.COMMA ||
-          afterName === TOKEN_TYPES.ASSIGN);
+          afterName === TOKEN_TYPES.ASSIGN ||
+          (afterName === TOKEN_TYPES.COMMA &&
+            commaStartsParam(state, lookahead + 1)));
       if (!continuesUnion) break;
     }
 

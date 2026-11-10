@@ -42,6 +42,63 @@ describe('AVOID_REASSIGNMENT', () => {
 
     expect(result).toEqual([]);
   });
+  it.each([
+    'pass { 1 => $y }\n2 => $y\n',
+    'pass<async: true> { 1 => $y }\n2 => $y\n',
+    '1 -> pass { 1 => $y }\n2 => $y\n',
+  ])(
+    'does not fire for a capture inside a pass body then outside: %j',
+    (source) => {
+      const result = runRules(toParseResult(source), source, makeConfig(), [
+        avoidReassignment,
+      ]);
+
+      expect(result).toEqual([]);
+    }
+  );
+
+  it('does not fire for sibling pass bodies capturing the same name', () => {
+    const source = 'pass { 1 => $y }\npass { 2 => $y }\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      avoidReassignment,
+    ]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('still fires once at line 2 for an outer capture reassigned inside a pass body', () => {
+    const source = '1 => $x\npass { 2 => $x }\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      avoidReassignment,
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.location.line).toBe(2);
+  });
+
+  it('fires for a re-capture in the same pass body', () => {
+    const source = 'pass { 1 => $y\n2 => $y }\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      avoidReassignment,
+    ]);
+
+    expect(result).toHaveLength(1);
+  });
+
+  it('re-records the outer scope after a pass-body capture so a later reassignment fires', () => {
+    const source = 'pass { 1 => $y }\n1 => $y\n2 => $y\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      avoidReassignment,
+    ]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.location.line).toBe(3);
+    expect(result[0]?.message).toContain('first defined at line 2');
+  });
 });
 
 describe('LOOP_OUTER_CAPTURE', () => {
@@ -102,6 +159,47 @@ describe('LOOP_OUTER_CAPTURE', () => {
     const result = runRules(parsed, source, makeConfig(), [loopOuterCapture]);
 
     expect(result).toEqual([]);
+  });
+  it('does not fire when a pass body capture precedes a loop capture of the same name', () => {
+    const source = 'pass { 0 => $c }\nlist[1, 2] -> seq({ $ + 1 => $c })\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      loopOuterCapture,
+    ]);
+
+    expect(result).toEqual([]);
+  });
+
+  it('fires once for a loop capture of an outer variable inside a pass body', () => {
+    const source = 'pass { 0 => $c\nlist[1] -> seq({ $c + 1 => $c }) }';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      loopOuterCapture,
+    ]);
+
+    expect(result).toHaveLength(1);
+  });
+
+  it('fires when a loop inside a pass body captures a name defined outside it', () => {
+    const source = '0 => $c\npass { list[1] -> seq({ $ + 1 => $c }) }\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      loopOuterCapture,
+    ]);
+
+    expect(result).toHaveLength(1);
+  });
+});
+
+describe('AVOID_REASSIGNMENT after a loop-body capture', () => {
+  it('flags a later top-level reassignment of a name first captured in a loop body', () => {
+    const source = 'list[1] -> seq({ 1 => $c })\n1 => $c\n2 => $c\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      avoidReassignment,
+    ]);
+
+    expect(result.map((d) => d.location.line)).toEqual([3]);
   });
 });
 

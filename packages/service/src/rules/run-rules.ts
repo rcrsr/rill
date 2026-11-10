@@ -24,6 +24,7 @@ import { RULES } from './rules.js';
 import { traverseForRules, typeAssertedHostCall } from './traversal.js';
 import { collectFacts } from './facts.js';
 import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
+import { isVariableInParentScope } from './scope-helpers.js';
 
 // ============================================================
 // SEVERITY RESOLUTION
@@ -147,30 +148,32 @@ export function runRules(
   const facts = collectFacts(parsed.ast);
   const ruleBuckets = buildEnabledRuleBuckets(rules, config);
 
-  // Loop-body Block nodes get their own scope: a bare `{...}` body of a
-  // collection-op call (`seq`, `fan`, `fold`, `filter`, `acc`) or a
-  // `while`/`do-while` loop. Populated up front from the AST (mirrors
-  // `facts.ts`'s `collectionOpBlockBodies`) so `enter`/`exit` can push/pop
-  // these Blocks onto `scopeStack` without re-deriving membership per node.
-  // Scoped narrowly to loop bodies only - NOT conditional/guard/retry
-  // Blocks - so a script-level variable reassigned inside one of those
-  // still resolves to the enclosing (script) scope and fires reassignment
-  // diagnostics as before.
-  const loopBodyBlocks = new Set<ASTNode>();
-  const collectLoopBodyBlocks = (node: ASTNode): void => {
+  // Scoped body Blocks get their own scope: a bare `{...}` body of a
+  // collection-op call (`seq`, `fan`, `fold`, `filter`, `acc`), a
+  // `while`/`do-while` loop, or a `pass` block. Pass bodies run in a child
+  // scope whose captures do not escape. Populated up front from the AST
+  // (mirrors `facts.ts`'s `collectionOpBlockBodies`) so `enter`/`exit` can
+  // push/pop these Blocks onto `scopeStack` without re-deriving membership
+  // per node. Conditional, guard, retry and timeout Blocks stay unscoped, so
+  // a script-level variable reassigned inside one of those still resolves to
+  // the enclosing scope and fires reassignment diagnostics as before.
+  const scopedBodyBlocks = new Set<ASTNode>();
+  const collectScopedBodyBlocks = (node: ASTNode): void => {
     if (isCollectionOpCall(node)) {
       const body = getCollectionOpBody(node);
       if (body && body.type === 'Block') {
-        loopBodyBlocks.add(body);
+        scopedBodyBlocks.add(body);
       }
     } else if (node.type === 'WhileLoop' || node.type === 'DoWhileLoop') {
       if (node.body.type === 'Block') {
-        loopBodyBlocks.add(node.body);
+        scopedBodyBlocks.add(node.body);
       }
+    } else if (node.type === 'PassBlock') {
+      scopedBodyBlocks.add(node.body);
     }
   };
   traverseForRules(parsed.ast, {
-    enter: collectLoopBodyBlocks,
+    enter: collectScopedBodyBlocks,
     exit: () => {},
   });
 
@@ -190,9 +193,9 @@ export function runRules(
     // Track closure scope entry.
     if (node.type === 'Closure') {
       ruleContext.scopeStack.push(node);
-    } else if (node.type === 'Block' && loopBodyBlocks.has(node)) {
-      // A bare-Block loop body (collection-op or while/do-while) is its own
-      // scope, distinct from sibling loop bodies at the same nesting depth.
+    } else if (node.type === 'Block' && scopedBodyBlocks.has(node)) {
+      // A scoped body Block (loop or pass) is its own scope, distinct from
+      // sibling bodies at the same nesting depth.
       ruleContext.scopeStack.push(node);
     }
 
@@ -231,13 +234,23 @@ export function runRules(
     // Track variable captures after rules run (reassignment detection
     // reads the pre-capture state).
     if (node.type === 'Capture') {
-      if (!ruleContext.variables.has(node.name)) {
+      const currentScope =
+        ruleContext.scopeStack.length > 0
+          ? (ruleContext.scopeStack.at(-1) ?? null)
+          : null;
+      const recordedScope = ruleContext.variableScopes.get(node.name) ?? null;
+      // First capture wins, unless the recorded one lives in a sibling or
+      // child scope that is not visible from here (e.g. a pass body).
+      if (
+        !ruleContext.variables.has(node.name) ||
+        !isVariableInParentScope(
+          recordedScope,
+          currentScope,
+          ruleContext.scopeStack
+        )
+      ) {
         ruleContext.variables.set(node.name, node.span.start);
-        const currentScope =
-          ruleContext.scopeStack.length > 0
-            ? ruleContext.scopeStack.at(-1)
-            : null;
-        ruleContext.variableScopes.set(node.name, currentScope ?? null);
+        ruleContext.variableScopes.set(node.name, currentScope);
       }
     }
   };
@@ -245,7 +258,7 @@ export function runRules(
   const exit = (node: ASTNode): void => {
     if (node.type === 'Closure') {
       ruleContext.scopeStack.pop();
-    } else if (node.type === 'Block' && loopBodyBlocks.has(node)) {
+    } else if (node.type === 'Block' && scopedBodyBlocks.has(node)) {
       ruleContext.scopeStack.pop();
     }
   };

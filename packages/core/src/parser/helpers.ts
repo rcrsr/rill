@@ -63,18 +63,26 @@ const VALUE_CONTEXT_KEYWORD_TYPES: readonly string[] = [
 ];
 
 /**
- * Expect a variable or closure-parameter name: an IDENTIFIER, or any
- * value-context keyword token (true, false, break, return, yield, pass,
- * assert, error, guard, retry, while, do). Keywords are valid names in
- * these positions because there is no ambiguity with their keyword usage.
+ * True when the token can serve as a variable or closure-parameter name: an
+ * IDENTIFIER, or any value-context keyword token (true, false, break, return,
+ * yield, pass, assert, error, guard, retry, while, do). Keywords are valid
+ * names in these positions because there is no ambiguity with their keyword
+ * usage.
+ * @internal
+ */
+export function isVariableNameToken(token: { type: string }): boolean {
+  return (
+    token.type === TOKEN_TYPES.IDENTIFIER ||
+    VALUE_CONTEXT_KEYWORD_TYPES.includes(token.type)
+  );
+}
+
+/**
+ * Expect a variable or closure-parameter name (see isVariableNameToken).
  * @internal
  */
 export function expectVariableName(state: ParserState, message: string): Token {
-  const token = current(state);
-  if (
-    token.type === TOKEN_TYPES.IDENTIFIER ||
-    VALUE_CONTEXT_KEYWORD_TYPES.includes(token.type)
-  ) {
+  if (isVariableNameToken(current(state))) {
     return advance(state);
   }
   return expect(state, TOKEN_TYPES.IDENTIFIER, message);
