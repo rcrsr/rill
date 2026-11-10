@@ -505,7 +505,7 @@ log($env)
 log($max)
 
 # the final value combines context values
-"{$env} allows {$max} tokens, timeout {$timeout}s"`,
+"{$env} allows {$max} tokens, timeout {$timeout}"`,
   },
 };
 

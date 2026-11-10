@@ -6,25 +6,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { contextResolver } from '@rcrsr/rill';
 import type { SchemeResolver } from '@rcrsr/rill';
 import { executeRill, type FiddleResolverConfig } from '../execution.js';
-import { DEMO_CONTEXT_VALUES } from '../context.js';
+import { buildContextResolverConfig } from '../context.js';
 
 // ============================================================
 // HELPERS
 // ============================================================
-
-/** Build a FiddleResolverConfig with the context resolver wired to DEMO_CONTEXT_VALUES. */
-function buildContextConfig(): FiddleResolverConfig {
-  return {
-    resolvers: {
-      context: (resource: string) =>
-        contextResolver(resource, DEMO_CONTEXT_VALUES),
-    },
-    configurations: { resolvers: { context: DEMO_CONTEXT_VALUES } },
-  };
-}
 
 // ============================================================
 // ERROR CASE TESTS
@@ -33,7 +21,7 @@ function buildContextConfig(): FiddleResolverConfig {
 describe('executeRill context resolver — error cases', () => {
   describe('use<context:nonexistent> → FiddleError category runtime', () => {
     it('missing key produces status error with category runtime', async () => {
-      const config = buildContextConfig();
+      const config = buildContextResolverConfig();
       const result = await executeRill('use<context:nonexistent_key>', config);
       expect(result.status).toBe('error');
       expect(result.error).not.toBeNull();
@@ -41,7 +29,7 @@ describe('executeRill context resolver — error cases', () => {
     });
 
     it('missing key error message names the missing key', async () => {
-      const config = buildContextConfig();
+      const config = buildContextResolverConfig();
       const result = await executeRill('use<context:missing_key>', config);
       expect(result.error!.message).toMatch(/missing_key/);
     });

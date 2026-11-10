@@ -5,25 +5,13 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { contextResolver } from '@rcrsr/rill';
 import type { SchemeResolver } from '@rcrsr/rill';
 import { executeRill, type FiddleResolverConfig } from '../execution.js';
-import { DEMO_CONTEXT_VALUES } from '../context.js';
+import { DEMO_CONTEXT_VALUES, buildContextResolverConfig } from '../context.js';
 
 // ============================================================
 // HELPERS
 // ============================================================
-
-/** Build a FiddleResolverConfig with the context resolver wired to DEMO_CONTEXT_VALUES. */
-function buildContextConfig(): FiddleResolverConfig {
-  return {
-    resolvers: {
-      context: (resource: string) =>
-        contextResolver(resource, DEMO_CONTEXT_VALUES),
-    },
-    configurations: { resolvers: { context: DEMO_CONTEXT_VALUES } },
-  };
-}
 
 /** Build a resolver that returns a fixed value. */
 function valueResolver(value: unknown): SchemeResolver {
@@ -40,7 +28,7 @@ function valueResolver(value: unknown): SchemeResolver {
 describe('executeRill with context resolver', () => {
   describe('use<context:key> with present key resolves value', () => {
     it('resolves flat key timeout to its number value', async () => {
-      const config = buildContextConfig();
+      const config = buildContextResolverConfig();
       const result = await executeRill(
         'use<context:timeout>:number => $t\n$t',
         config
@@ -53,7 +41,7 @@ describe('executeRill with context resolver', () => {
     });
 
     it('resolves flat key environment to its string value', async () => {
-      const config = buildContextConfig();
+      const config = buildContextResolverConfig();
       const result = await executeRill(
         'use<context:environment>:string => $e\n$e',
         config
@@ -88,7 +76,7 @@ describe('executeRill with context resolver', () => {
 
   describe('nested dot-path context key resolves correctly', () => {
     it('resolves limits.max_tokens via dot-path traversal', async () => {
-      const config = buildContextConfig();
+      const config = buildContextResolverConfig();
       const result = await executeRill(
         'use<context:limits.max_tokens>:number => $m\n$m',
         config
@@ -102,7 +90,7 @@ describe('executeRill with context resolver', () => {
     });
 
     it('resolves limits.max_retries via dot-path traversal', async () => {
-      const config = buildContextConfig();
+      const config = buildContextResolverConfig();
       const result = await executeRill(
         'use<context:limits.max_retries>:number => $r\n$r',
         config
