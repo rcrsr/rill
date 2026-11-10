@@ -76,16 +76,13 @@ export async function evaluateListLiteralDispatch(
     fn: 'evaluateListLiteralDispatch',
   };
   const position = findIndexPosition(input, elements.length, 'List', site);
-  if (position === undefined) {
+  // `element` is undefined only when the position is out of range
+  const element = position === undefined ? undefined : elements[position];
+  if (element === undefined) {
     // Use default value if provided via ??
     if (node.defaultValue) {
       return await evaluateBody(s, node.defaultValue);
     }
-    return throwIndexOutOfBounds(input, elements.length, 'List', site);
-  }
-
-  const element = elements[position];
-  if (element === undefined) {
     return throwIndexOutOfBounds(input, elements.length, 'List', site);
   }
 
