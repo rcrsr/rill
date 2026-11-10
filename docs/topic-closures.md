@@ -643,7 +643,7 @@ $fns[1](5)
 # Result: 10
 ```
 
-A lone `$name` body followed by a comma still fails when the next element looks like another parameter: `key: $v`, `key: ident...`, `key: ||...`, a bare identifier followed by `,`, `|` or `=`, `typename(...)`, `^(...) name`, or `$name |`. The parser reads it as a typed parameter and raises a parse error (`RILL-P005`):
+A lone `$name` body followed by a comma still fails when the next element looks like another parameter: `key: $v`, `key: ident...`, a bare identifier followed by `|` or `=`, or by `,` unless it is `true` or `false`, `typename(...)`, `^(...) name` followed by `:`, `,`, `=` or `|`, or `$name |`. The parser reads it as a typed parameter, which fails to parse in most contexts (`RILL-P005` for `key: $v`):
 
 ```rill
 dict[f: |x: number| $x, g: $y]

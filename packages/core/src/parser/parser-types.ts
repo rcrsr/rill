@@ -90,27 +90,41 @@ function commaStartsParam(state: ParserState, offset: number): boolean {
   const i0 = skipNewlinesFrom(state, offset);
   const t0 = peek(state, i0);
 
-  // Annotated parameter: ^(...) name
-  if (t0.type === TOKEN_TYPES.CARET) return true;
+  // Annotated parameter: ^(...) name followed by a parameter delimiter or type
+  if (t0.type === TOKEN_TYPES.CARET) {
+    let i = skipNewlinesFrom(state, i0 + 1);
+    if (peek(state, i).type !== TOKEN_TYPES.LPAREN) return false;
+    let depth = 0;
+    for (; ; i++) {
+      const t = peek(state, i).type;
+      if (t === TOKEN_TYPES.EOF) return false;
+      if (t === TOKEN_TYPES.LPAREN) depth++;
+      else if (t === TOKEN_TYPES.RPAREN && --depth === 0) break;
+    }
+    const iName = skipNewlinesFrom(state, i + 1);
+    if (!isVariableNameToken(peek(state, iName))) return false;
+    const next = peek(state, skipNewlinesFrom(state, iName + 1)).type;
+    return (
+      next === TOKEN_TYPES.COLON ||
+      next === TOKEN_TYPES.COMMA ||
+      next === TOKEN_TYPES.ASSIGN ||
+      next === TOKEN_TYPES.PIPE_BAR
+    );
+  }
 
   // Parameter name followed by a default, another parameter, the closing
   // pipe, or a ":" that introduces a type.
   if (isVariableNameToken(t0)) {
     const iq = skipNewlinesFrom(state, i0 + 1);
     const q = peek(state, iq).type;
-    if (
-      q === TOKEN_TYPES.ASSIGN ||
-      q === TOKEN_TYPES.COMMA ||
-      q === TOKEN_TYPES.PIPE_BAR
-    ) {
-      return true;
+    if (q === TOKEN_TYPES.ASSIGN || q === TOKEN_TYPES.PIPE_BAR) return true;
+    if (q === TOKEN_TYPES.COMMA) {
+      return t0.type !== TOKEN_TYPES.TRUE && t0.type !== TOKEN_TYPES.FALSE;
     }
     if (q === TOKEN_TYPES.COLON) {
       const typeStart = peek(state, skipNewlinesFrom(state, iq + 1)).type;
       return (
-        typeStart === TOKEN_TYPES.DOLLAR ||
-        typeStart === TOKEN_TYPES.IDENTIFIER ||
-        typeStart === TOKEN_TYPES.OR
+        typeStart === TOKEN_TYPES.DOLLAR || typeStart === TOKEN_TYPES.IDENTIFIER
       );
     }
   }
@@ -203,8 +217,11 @@ function parseTypeRefImpl(
       // - A "|" on a later line never continues the union, so consecutive
       //   closure statements stay separate.
       //
-      // Known limitation: in "dict[f: |x: number| $x, g: $y]" the entry
-      // "g: $y" reads as a typed parameter with a dynamic type.
+      // Known limitations: in "dict[f: |x: number| $x, g: $y]" the entry
+      // "g: $y" reads as a typed parameter with a dynamic type, and in
+      // "dict[f: |x: number| $x, name: upper(\"a\")]" the entry reads as a
+      // parameter typed "upper". A dict entry whose value starts with an
+      // identifier or "$" after "name:" is ambiguous with a typed parameter.
       const nameTok = peek(state, 2);
       const sameLineNext = peek(state, 3).type;
       let lookahead = 3;

@@ -217,6 +217,9 @@ describe('typed closure with a variable body inside a comma-separated context', 
     ['list[|x: number| $x, |y: number| $y]'],
     ['list[\n|x: number| $x,\n2\n]'],
     ['dict[f: |x: number| $x, g: 2]'],
+    ['dict[f: |x: number| $x, g: || { 1 }]'],
+    ['list[|x: number| $x, true, false]'],
+    ['list[|x: number| $x, ^("d") |y| $y]'],
   ])('parses %j with a variable body named x', (src) => {
     const c = closureOf(src);
     expect(c.params).toHaveLength(1);
@@ -275,5 +278,11 @@ describe('union members followed by further parameters stay unions', () => {
 describe('known limitations', () => {
   it('KNOWN LIMITATION: dict entry with a dynamic type still reads as a parameter', () => {
     expect(() => parse('dict[f: |x: number| $x, g: $y]')).toThrow(ParseError);
+  });
+
+  it('KNOWN LIMITATION: dict entry with a call value reads as a parameter type', () => {
+    expect(() => parse('dict[f: |x: number| $x, name: upper("a")]')).toThrow(
+      ParseError
+    );
   });
 });

@@ -180,14 +180,26 @@ describe('LOOP_OUTER_CAPTURE', () => {
     expect(result).toHaveLength(1);
   });
 
-  it('does not fire when a pass body captures a name defined outside it', () => {
-    const source = '0 => $c\npass { 1 => $c }\n';
+  it('fires when a loop inside a pass body captures a name defined outside it', () => {
+    const source = '0 => $c\npass { list[1] -> seq({ $ + 1 => $c }) }\n';
 
     const result = runRules(toParseResult(source), source, makeConfig(), [
       loopOuterCapture,
     ]);
 
-    expect(result).toEqual([]);
+    expect(result).toHaveLength(1);
+  });
+});
+
+describe('AVOID_REASSIGNMENT after a loop-body capture', () => {
+  it('flags a later top-level reassignment of a name first captured in a loop body', () => {
+    const source = 'list[1] -> seq({ 1 => $c })\n1 => $c\n2 => $c\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      avoidReassignment,
+    ]);
+
+    expect(result.map((d) => d.location.line)).toEqual([3]);
   });
 });
 

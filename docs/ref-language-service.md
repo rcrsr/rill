@@ -273,7 +273,7 @@ Frozen registry of all 42 built-in rules. See [Lint Rules](integration-cli.md#li
 
 `THROWAWAY_CAPTURE` fires when a top-level capture is never referenced, or referenced exactly once away from its capture site. A single use on the statement immediately following the capture is not "away from its capture". That adjacent-head shape belongs to `CAPTURE_INLINE_CHAIN` instead.
 
-`AVOID_REASSIGNMENT` and `LOOP_OUTER_CAPTURE` scope captures as the runtime does: a closure body, a loop body, and a `pass` body each open a scope. Reassigning an outer variable inside a `pass` is flagged (`RILL-R001`); reusing a pass-local name afterwards or in a sibling `pass` is not. `LOOP_OUTER_CAPTURE` fires only for `seq`, `fan`, `fold`, `filter`, `acc`, `while`, and `do-while` bodies, not `pass`.
+`AVOID_REASSIGNMENT` and `LOOP_OUTER_CAPTURE` scope captures as the runtime does: a closure body, a loop body, and a `pass` body each open a scope. Reassigning an outer variable inside a `pass` is flagged, matching the runtime halt `RILL-R001`; reusing a pass-local name afterwards or in a sibling `pass` is not. `LOOP_OUTER_CAPTURE` fires only for `seq`, `fan`, `fold`, `filter`, `acc`, `while`, and `do-while` bodies, not `pass`.
 
 ```typescript
 interface Rule {
