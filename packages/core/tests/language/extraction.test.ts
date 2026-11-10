@@ -230,6 +230,13 @@ describe('Rill Runtime: Extraction Operators', () => {
         );
       });
 
+      it('zero step halt is catchable with INVALID_INPUT code', async () => {
+        const result = await run(
+          `guard { list[1, 2, 3] -> slice<::0> } => $r\n($r.!code == #INVALID_INPUT)`
+        );
+        expect(result).toBe(true);
+      });
+
       it('throws on non-sliceable type', async () => {
         await expect(run(`42 -> slice<0:2>`)).rejects.toThrow(/list.*string/i);
       });

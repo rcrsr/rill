@@ -82,7 +82,7 @@ Tuples support `<`, `>`, `<=`, `>=`, `==`, `!=`. Comparison walks elements left 
     tuple[2, 1] > tuple[1, 9]              # true
     tuple[1, 2] == tuple[1, 2]             # true
 
-Index a tuple with `[i]` or `.at(i)`; `.1` is a parse error.
+Index a tuple with `[i]` or `.at(i)`; negative indexes count from the end; `.1` is a parse error.
 
 Dicts have NO comparison protocol. Use tuples for multi-key ordering, including with `sort({ tuple[$.a, $.b] })`.
 

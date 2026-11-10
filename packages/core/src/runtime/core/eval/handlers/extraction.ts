@@ -368,7 +368,7 @@ function applySlice(
   if (actualStep === 0) {
     throwCatchableHostHalt(
       { sourceId: s.ctx.sourceId, fn: 'applySlice' },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'INVALID_INPUT',
       'Slice step cannot be zero'
     );
   }

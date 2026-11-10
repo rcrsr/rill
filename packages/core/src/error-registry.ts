@@ -573,21 +573,21 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_P008,
     category: 'parse',
-    description: 'Bare bracket at expression start',
+    description: 'Retired: bare bracket at expression start',
     messageTemplate:
       'Bare [ at expression start is not valid; use list[...] or dict[...]',
     cause:
-      'A bare [ token at expression start is ambiguous. Rill requires an explicit keyword prefix to distinguish list and dict literals.',
+      'This error was raised when a bare [ token appeared at expression start, because the parser could not tell a list literal from a dict literal.',
     resolution:
-      'Use list[...] for a list literal or dict[key: val, ...] for a dict literal.',
+      'This error code is no longer thrown. A bare bracket literal is now equivalent to list[...] or dict[key: val, ...].',
     examples: [
       {
-        description: 'Bare list literal',
-        code: '[1, 2, 3]  # Error: use list[1, 2, 3]',
+        description: 'Bare list literal (no longer thrown; same as list[...])',
+        code: '[1, 2, 3]  # now equivalent to list[1, 2, 3]',
       },
       {
-        description: 'Bare dict literal',
-        code: '[a: 1, b: 2]  # Error: use dict[a: 1, b: 2]',
+        description: 'Bare dict literal (no longer thrown; same as dict[...])',
+        code: '[a: 1, b: 2]  # now equivalent to dict[a: 1, b: 2]',
       },
     ],
   },
@@ -798,7 +798,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       'Operator {operator} cannot be applied to {leftType} and {rightType}',
     cause:
-      'Operator applied to incompatible operand types, or operand values that leave the operation undefined: division or modulo by zero, slice step 0, ordering durations with different calendar components, mixed element types in a list literal, or a .at index out of range. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.',
+      'Operator applied to incompatible operand types, or operand values that leave the operation undefined: division or modulo by zero, ordering durations with different calendar components, mixed element types in a list literal, or a non-number index piped to a list[...] dispatch. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.',
     resolution:
       'Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.',
     examples: [
@@ -921,7 +921,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Key or index not found',
     messageTemplate: 'Property {property} not found on {type}',
     cause:
-      'A dict or ordered key, or a list, tuple or ordered index, does not exist in the value.',
+      'A dict or ordered key, or a list, tuple or ordered index, does not exist in the value. Index access through [], .at, .(n), or list[...] dispatch raises it when the index is outside the valid range.',
     resolution:
       'Check property name spelling, verify the property exists, or use null-coalescing (??) to provide default. For safe access, use .? operator.',
     examples: [
@@ -930,7 +930,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: 'dict[name: "x"] -> .age  # age key not in dict',
       },
       {
-        description: 'Index out of bounds',
+        description: 'Index out of bounds (also .at, .(n), list dispatch)',
         code: 'list[1, 2, 3] => $items\n$items[5]  # Only 3 elements (0-2)',
       },
       {
@@ -1001,14 +1001,15 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R013,
     category: 'runtime',
-    description: 'Execution aborted',
+    description: 'Retired: execution aborted',
     messageTemplate: 'Execution aborted by signal',
-    cause: 'Host application cancelled execution via AbortSignal.',
+    cause:
+      'This error was raised when the host application cancelled execution via AbortSignal.',
     resolution:
-      'This is intentional cancellation, not an error. If unexpected, check host abort signal logic.',
+      'This error code is no longer thrown. Cancellation now raises the uncatchable #DISPOSED halt.',
     examples: [
       {
-        description: 'User cancellation in UI',
+        description: 'User cancellation in UI (now halts with #DISPOSED)',
         code: '# Long-running script cancelled by user',
       },
     ],
@@ -1468,14 +1469,16 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R041,
     category: 'runtime',
-    description: 'List dispatch non-integer index',
+    description: 'Retired: list dispatch non-integer index',
     messageTemplate: 'list index must be an integer',
-    cause: 'The index piped to a list[...] dispatch is not an integer.',
+    cause:
+      'This error was raised when the index piped to a list[...] dispatch was not an integer.',
     resolution:
-      'Ensure the index is a whole number. Use math operations to convert if needed.',
+      'This error code is no longer thrown. A non-number index now raises RILL-R002, and a non-integer number halts with #INVALID_INPUT ("<Kind> index must be an integer, got <index>").',
     examples: [
       {
-        description: 'Floating-point index',
+        description:
+          'Floating-point index (no longer raised; now #INVALID_INPUT)',
         code: '1.5 -> list["a", "b"]  # Not an integer',
       },
     ],
@@ -1483,14 +1486,15 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R042,
     category: 'runtime',
-    description: 'List dispatch index out of range',
+    description: 'Retired: list dispatch index out of range',
     messageTemplate: 'list index {n} out of range (length: {m})',
     cause:
-      'The index piped to a list[...] dispatch is outside the valid range.',
-    resolution: 'Use an index within [0, length-1] or add a fallback with ??.',
+      'This error was raised when the index piped to a list[...] dispatch was outside the valid range.',
+    resolution:
+      'This error code is no longer thrown. An out-of-range index now raises RILL-R009 ("<Kind> index out of bounds: <index>"). Use an index within [0, length-1] or add a fallback with ??.',
     examples: [
       {
-        description: 'Index beyond end',
+        description: 'Index beyond end (no longer raised; now RILL-R009)',
         code: '5 -> list["a", "b"]  # Only 2 elements (indices 0-1)',
       },
     ],

@@ -7,10 +7,6 @@
  * Interface requirements:
  * - evaluateListLiteralDispatch(node, input) -> Promise<RillValue>
  *
- * Error Contracts:
- * - RILL-R041: Non-integer index
- * - RILL-R042: Out-of-bounds without ?? fallback
- *
  * @internal
  */
 
@@ -21,6 +17,10 @@ import type {
 } from '../../../../types.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
+import {
+  findIndexPosition,
+  throwIndexOutOfBounds,
+} from '../../types/index-access.js';
 import { findElementTypeMismatch } from '../../types/operations.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -32,8 +32,8 @@ import { evaluateExpression } from './core.js';
  * Evaluate list[...] as a pipe target.
  *
  * The piped value is used as a numeric index. Negative indices count from
- * the end (-1 is last). Non-integer indices throw RILL-R041. Out-of-bounds
- * without a default value throws RILL-R042.
+ * the end (-1 is last). Non-integer indices halt with #INVALID_INPUT.
+ * Out-of-bounds without a default value halts with RILL-R009.
  */
 export async function evaluateListLiteralDispatch(
   s: EvalState,
@@ -48,23 +48,9 @@ export async function evaluateListLiteralDispatch(
         sourceId: s.ctx.sourceId,
         fn: 'evaluateListLiteralDispatch',
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R041],
-      'list index must be an integer',
-      { index: input }
-    );
-  }
-
-  // index must be an integer (no fractional part)
-  if (!Number.isInteger(input)) {
-    throwCatchableHostHalt(
-      {
-        location: getNodeLocation(s, node),
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateListLiteralDispatch',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R041],
-      'list index must be an integer',
-      { index: input }
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `List index must be number, got ${typeof input}`,
+      { input, expectedType: 'number' }
     );
   }
 
@@ -84,27 +70,23 @@ export async function evaluateListLiteralDispatch(
     );
   }
 
-  const index = input;
-  // Normalize negative indices
-  const normalizedIndex = index < 0 ? elements.length + index : index;
-
-  // Check bounds: an out-of-range index reads no element
-  const element = elements[normalizedIndex];
-  if (element === undefined) {
+  const site = {
+    location: getNodeLocation(s, node),
+    sourceId: s.ctx.sourceId,
+    fn: 'evaluateListLiteralDispatch',
+  };
+  const position = findIndexPosition(input, elements.length, 'List', site);
+  if (position === undefined) {
     // Use default value if provided via ??
     if (node.defaultValue) {
       return await evaluateBody(s, node.defaultValue);
     }
-    throwCatchableHostHalt(
-      {
-        location: getNodeLocation(s, node),
-        sourceId: s.ctx.sourceId,
-        fn: 'evaluateListLiteralDispatch',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R042],
-      `list index ${index} out of range (length: ${elements.length})`,
-      { n: index, m: elements.length }
-    );
+    return throwIndexOutOfBounds(input, elements.length, 'List', site);
+  }
+
+  const element = elements[position];
+  if (element === undefined) {
+    return throwIndexOutOfBounds(input, elements.length, 'List', site);
   }
 
   return element;

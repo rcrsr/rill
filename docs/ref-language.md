@@ -417,11 +417,14 @@ Terminal closures receive `$` bound to the final path key.
 | `$idx -> [a, b, c]` | Returns element at index (0-based) |
 | `$idx -> [a, b, c] ?? default` | Returns element or default if out of bounds |
 
+The index must be an integer; a non-integer number halts with `#INVALID_INPUT` and is not truncated.
+
 ```text
 0 -> ["first", "second", "third"]     # "first"
 1 -> ["first", "second", "third"]     # "second"
 -1 -> ["first", "second", "third"]    # "third" (last element)
 5 -> ["a", "b"] ?? "not found"        # "not found" (out of bounds)
+1.5 -> ["a", "b"]  # Error: #INVALID_INPUT
 ```
 
 **Variable Dispatch:** Use stored collections.
@@ -438,12 +441,14 @@ Terminal closures receive `$` bound to the final path key.
 
 **Error Messages:**
 
-| Scenario | Error |
-|----------|-------|
-| Dict dispatch key not found | `Dict dispatch: key '{key}' not found` |
-| List dispatch index not found | `List dispatch: index '{index}' not found` |
-| List dispatch with non-number | `List dispatch requires number index, got {type}` |
-| Dispatch to non-collection | `Cannot dispatch to {type}` |
+| Scenario | Code | Message |
+|----------|------|---------|
+| Dict key not found | RILL-R009 | `Dict dispatch: key '{key}' not found` |
+| List index out of range | RILL-R009 | `{Kind} index out of bounds: {index}` |
+| List index not an integer | `#INVALID_INPUT` | `{Kind} index must be an integer, got {index}` |
+| List dispatch with a non-number | RILL-R002 | `List index must be number, got {type}` |
+| Variable list dispatch with a non-number | RILL-R002 | `List dispatch requires number index, got {type}` |
+| Dispatch to a non-collection | RILL-R002 | `Cannot dispatch to {type}` |
 
 ### Core Methods
 
@@ -453,7 +458,7 @@ Terminal closures receive `$` bound to the final path key.
 | `.trim` | String | String | Remove whitespace |
 | `.head` | String/List | Any | First element |
 | `.tail` | String/List | Any | Last element |
-| `.at(idx)` | String/List | Any | Element at index |
+| `.at(idx)` | String/List | Any | Element at index; negative counts from end |
 | `.split(sep)` | String | List | Split by separator |
 | `.join(sep)` | List | String | Join with separator |
 | `.lines` | String | List | Split on newlines |

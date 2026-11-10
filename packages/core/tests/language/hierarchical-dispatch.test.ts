@@ -225,7 +225,7 @@ describe('Rill Runtime: Hierarchical Dispatch', () => {
     it('throws RUNTIME_PROPERTY_NOT_FOUND for out of bounds index (AC-14/EC-5)', async () => {
       // AC-14/EC-5: Out of bounds list index
       await expect(run('list[0, 5] -> list[list[1, 2]]')).rejects.toThrow(
-        /List dispatch.*not found/i
+        /List index out of bounds/i
       );
     });
 

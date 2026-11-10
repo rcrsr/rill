@@ -65,6 +65,10 @@ import {
   throwTypeHalt,
   RuntimeHaltSignal,
 } from '../../types/halt.js';
+import {
+  findIndexPosition,
+  throwIndexOutOfBounds,
+} from '../../types/index-access.js';
 import { ControlSignal } from '../../signals.js';
 import { resolveAtom } from '../../types/atom-registry.js';
 import { isAtom, isOrdered, orderedValueEntries } from '../../types/guards.js';
@@ -1006,34 +1010,21 @@ export async function dispatchToList(
     );
   }
 
-  // Truncate decimal to integer
-  const index = Math.trunc(input);
-
-  // Normalize negative indices
-  const normalizedIndex = index < 0 ? list.length + index : index;
-
-  // Check bounds
-  if (normalizedIndex < 0 || normalizedIndex >= list.length) {
-    // Check for default value
+  const site = {
+    location: location.span?.start,
+    sourceId: s.ctx.sourceId,
+    fn: 'dispatchToList',
+  };
+  const position = findIndexPosition(input, list.length, 'List', site);
+  if (position === undefined) {
     if (defaultValue) {
       return await evaluateBodyExpression(s, defaultValue);
     }
-
-    // No default - throw error
-    throwCatchableHostHalt(
-      {
-        location: location.span?.start,
-        sourceId: s.ctx.sourceId,
-        fn: 'dispatchToList',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R009],
-      `List dispatch: index '${index}' not found`,
-      { index, listLength: list.length }
-    );
+    return throwIndexOutOfBounds(input, list.length, 'List', site);
   }
 
   // Return element at normalized index
-  const element = list[normalizedIndex];
+  const element = list[position];
   if (element === undefined) {
     throwFatalHostHalt(
       {
@@ -1042,7 +1033,7 @@ export async function dispatchToList(
         fn: 'dispatchToList',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `List dispatch: index '${index}' not found`
+      `List dispatch: index '${input}' not found`
     );
   }
   // Skip closure resolution for hierarchical dispatch (caller handles it)

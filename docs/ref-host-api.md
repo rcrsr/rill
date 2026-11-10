@@ -503,9 +503,9 @@ Highlighters that mapped the removed tokens must update to the replacement token
 ```typescript
 import { ERROR_REGISTRY, getHelpUrl } from '@rcrsr/rill';
 
-const entry = ERROR_REGISTRY.get('RILL-P008');
-console.log(entry?.description);  // "Bare bracket at expression start"
-console.log(getHelpUrl('RILL-P008', '0.4.1'));  // "https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-p008"
+const entry = ERROR_REGISTRY.get('RILL-P007');
+console.log(entry?.description);  // "Keyword and bracket not adjacent"
+console.log(getHelpUrl('RILL-P007', '0.4.1'));  // "https://github.com/rcrsr/rill/blob/v0.4.1/docs/ref-errors.md#rill-p007"
 ```
 
 `getHelpUrl(errorId, version)` is a standalone function, not a method on `ERROR_REGISTRY`. It returns `https://github.com/rcrsr/rill/blob/v{version}/docs/ref-errors.md#{lowercased-errorId}`, or `''` if `errorId` or `version` fails validation.

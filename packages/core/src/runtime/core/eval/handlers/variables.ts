@@ -53,6 +53,10 @@ import {
 } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import { getVariable, hasVariable } from '../../context.js';
+import {
+  findIndexPosition,
+  throwIndexOutOfBounds,
+} from '../../types/index-access.js';
 import { isDict, isCallable } from '../../callable.js';
 import { isVacant, isInvalid, getStatus } from '../../types/status.js';
 import { atomName } from '../../types/atom-registry.js';
@@ -295,18 +299,16 @@ export async function applyBracketIndex(
         `List index must be number, got ${inferType(indexValue)}`
       );
     }
-    let index = indexValue;
-    // Handle negative indices
-    if (index < 0) {
-      index = receiver.length + index;
-    }
-    const result = receiver[index];
+    const site = { location, sourceId: s.ctx.sourceId, fn };
+    const position = findIndexPosition(
+      indexValue,
+      receiver.length,
+      'List',
+      site
+    );
+    const result = position === undefined ? undefined : receiver[position];
     if (result === undefined) {
-      throwCatchableHostHalt(
-        { location, sourceId: s.ctx.sourceId, fn },
-        ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        `List index out of bounds: ${indexValue}`
-      );
+      return throwIndexOutOfBounds(indexValue, receiver.length, 'List', site);
     }
     return result;
   } else if (isOrdered(receiver)) {
@@ -325,16 +327,20 @@ export async function applyBracketIndex(
       return entry[1];
     }
     if (typeof indexValue === 'number') {
-      let index = indexValue;
-      if (index < 0) {
-        index = entries.length + index;
-      }
-      const entry = entries[index];
+      const site = { location, sourceId: s.ctx.sourceId, fn };
+      const position = findIndexPosition(
+        indexValue,
+        entries.length,
+        'Ordered',
+        site
+      );
+      const entry = position === undefined ? undefined : entries[position];
       if (entry === undefined) {
-        throwCatchableHostHalt(
-          { location, sourceId: s.ctx.sourceId, fn },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `Ordered index out of bounds: ${indexValue}`
+        return throwIndexOutOfBounds(
+          indexValue,
+          entries.length,
+          'Ordered',
+          site
         );
       }
       return entry[1];
@@ -352,17 +358,13 @@ export async function applyBracketIndex(
         `Tuple index must be number, got ${inferType(indexValue)}`
       );
     }
-    let index = indexValue;
-    if (index < 0) {
-      index = receiver.entries.length + index;
-    }
-    const result = receiver.entries[index];
+    const site = { location, sourceId: s.ctx.sourceId, fn };
+    const length = receiver.entries.length;
+    const position = findIndexPosition(indexValue, length, 'Tuple', site);
+    const result =
+      position === undefined ? undefined : receiver.entries[position];
     if (result === undefined) {
-      throwCatchableHostHalt(
-        { location, sourceId: s.ctx.sourceId, fn },
-        ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        `Tuple index out of bounds: ${indexValue}`
-      );
+      return throwIndexOutOfBounds(indexValue, length, 'Tuple', site);
     }
     return result;
   } else if (isIterator(receiver)) {

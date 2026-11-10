@@ -176,12 +176,13 @@ $r.!code -> string
 |----------|------------------------|--------------------------|
 | `.head`  | `-> string`            | First character (errors on empty) |
 | `.tail`  | `-> string`            | Last character (errors on empty)  |
-| `.at`    | `(index: number) -> string` | Character at index  |
+| `.at`    | `(index: number) -> string` | Character at index (code points; negative counts from end) |
 
 ```rill
 "hello" -> .head                     # "h"
 "hello" -> .tail                     # "o"
 "hello" -> .at(1)                    # "e"
+"hello" -> .at(-1)                   # "o"
 ```
 
 ---

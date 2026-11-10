@@ -548,4 +548,29 @@ describe('implicit $ property access bug', () => {
       expect(result).toBe('a');
     });
   });
+
+  describe('non-integer and negative positional indexes', () => {
+    it('$l[1.5] halts with #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] => $l\n$l[1.5]'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('$l[1.5] is catchable via guard and keeps the INVALID_INPUT code', async () => {
+      const result = await run(
+        'list[1, 2, 3] => $l\nguard { $l[1.5] } => $r\n($r.!code == #INVALID_INPUT)'
+      );
+      expect(result).toBe(true);
+    });
+
+    it('$l.(1.5) halts with #INVALID_INPUT', async () => {
+      await expectHalt(() => run('list[1, 2, 3] => $l\n$l.(1.5)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('$l[-1] returns the last element', async () => {
+      expect(await run('list[1, 2, 3] => $l\n$l[-1]')).toBe(3);
+    });
+  });
 });

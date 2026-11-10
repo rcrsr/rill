@@ -215,10 +215,8 @@ describe('Rill Runtime: Built-in Methods', () => {
       );
     });
 
-    it('errors for negative index', async () => {
-      await expect(run('list["a", "b"] -> .at(-1)')).rejects.toThrow(
-        'List index out of bounds'
-      );
+    it('wraps a negative index from the end', async () => {
+      expect(await run('list["a", "b"] -> .at(-1)')).toBe('b');
     });
   });
 });

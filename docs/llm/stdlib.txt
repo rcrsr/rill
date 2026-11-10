@@ -13,7 +13,7 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.lower` | lowercase |
 | `.head` | first character |
 | `.tail` | last character |
-| `.at(i)` | character at index |
+| `.at(i)` | character at index (code points; negative counts from end) |
 | `.first()` | iterator at first character |
 | `.split(sep)` | split into list (default sep: newline) |
 | `.lines` | split on newlines |
@@ -43,7 +43,7 @@ String, list, dict methods, comparison helpers, and built-in functions.
 | `.head` | first element |
 | `.tail` | last element |
 | `.first()` | iterator at first element |
-| `.at(i)` | element at index |
+| `.at(i)` | element at index (negative counts from end) |
 | `.join(sep)` | join elements with separator |
 | `.has(val)` | contains value (deep equality) |
 | `.has_any(list)` | contains any value from candidates |

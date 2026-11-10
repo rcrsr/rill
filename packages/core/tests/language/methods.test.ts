@@ -738,12 +738,16 @@ describe('Rill Runtime: Built-in Methods', () => {
       expect(result).toBe(true);
     });
 
-    it('caught .at out-of-bounds halt reports RILL_R002 via .!code -> string', async () => {
+    it('caught .at out-of-bounds halt reports RILL_R009 via .!code -> string', async () => {
       const result = await run(`
         guard { list[1,2,3] -> .at(3) } => $r
         $r.!code -> string
       `);
-      expect(result).toBe('RILL_R002');
+      expect(result).toBe('RILL_R009');
+    });
+
+    it('.at out of bounds falls back to the default via ??', async () => {
+      expect(await run('list[1,2,3] -> .at(9) ?? 0')).toBe(0);
     });
 
     it('caught .head empty-list halt reports RILL_R002 via .!code -> string', async () => {
@@ -783,7 +787,7 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('.at out of bounds on a list halts uncaught with the expected message', async () => {
       await expect(run('list[1,2,3] -> .at(3)')).rejects.toThrow(
         expect.objectContaining({
-          errorId: 'RILL-R002',
+          errorId: 'RILL-R009',
           rawMessage: 'List index out of bounds: 3',
         })
       );
