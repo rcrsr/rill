@@ -5,6 +5,10 @@
  * a real slowdown. A ratio between two input sizes measured on the same
  * machine in the same process cancels out runner speed, so it only moves when
  * the algorithm's growth rate changes.
+ *
+ * A ratio test must be named `*.timing.test.ts`. Those files run alone after
+ * the rest of the suite (see vitest.config.ts), so other files do not compete
+ * for the CPU while a ratio is measured.
  */
 
 async function timeOnce(

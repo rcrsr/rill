@@ -1494,5 +1494,5 @@ describe('Rill Runtime: nested list literal inference cost', () => {
     for (let i = 0; i < 40; i++) source = `list[${source}]`;
     const result = await run(source);
     expect(Array.isArray(result)).toBe(true);
-  }, 5000);
+  });
 });
