@@ -61,6 +61,8 @@ Type constructor fields accept a default value using `= literal` syntax after th
 
 The input `[b: "b"]` omits `a`. The conversion fills `a` with `"a"` from the default.
 
+A default is evaluated each time its type expression runs. This includes `:` and `:?` positions, which check the value and do not fill the default in.
+
 ```rill
 [x: 1] -> ordered(x: number, y: number = 0)
 # Result: ordered[x: 1, y: 0]
@@ -303,23 +305,56 @@ $val -> :dict -> .keys        # assert dict, then get keys
 ["a", "b"] -> :list(number)            # ERROR: expected list(number), got list(string)
 ```
 
-#### Trailing Defaults in Collection Type Assertions
+#### Extra and Missing Dict Fields
 
-`:` and `:?` accept values that omit trailing fields when those fields have defaults in the type constructor. This applies to `dict`, `tuple`, and `ordered`.
+The table shows how each operation treats a dict value whose keys differ from the dict type.
 
-Assign the type constructor to a variable, then use the variable in assertion position:
+| Operation | Extra fields | Missing field with a default | Missing field with no default |
+|-----------|--------------|------------------------------|-------------------------------|
+| `:T` / `:?T` | Accepted; value returned unchanged, extras kept | Accepted; not filled | `:` halts `#TYPE_MISMATCH`; `:?` returns false |
+| `-> T` | Dropped | Filled with the default | Halts RILL-R044, except a collection-typed field whose children all have defaults (see [Nested Collection Synthesis](#nested-collection-synthesis)) |
+| `.^type == T` | false | false | false |
+
+`.^type == T` requires the exact key set, field types, and default presence.
 
 ```rill
-# dict: value omits trailing defaulted field
-dict(b: string, a: string = "a") => $dt
-[b: "b"] -> :$dt
-# Result: [b: "b"]
+dict[a: 1, x: 2] -> :dict(a: number)
+# Result: dict[a: 1, x: 2]
 ```
 
 ```rill
-# dict check
+dict[a: 1, x: 2] -> dict(a: number)
+# Result: dict[a: 1]
+```
+
+```rill
+dict[a: 1, x: 2] => $d
+$d.^type == dict(a: number)
+# Result: false
+```
+
+```rill
+dict[a: 1] => $d
+$d.^type == dict(a: number, b: number = 0)
+# Result: false
+```
+
+#### Defaulted Fields in Collection Type Assertions
+
+`:` and `:?` accept values that omit defaulted fields in the type constructor. Tuple and ordered values may omit trailing defaulted fields. Dict values may omit any defaulted field.
+
+Write the type constructor inline in `:` or `:?` position, or bind it to a variable first:
+
+```rill
+# dict: value omits a non-trailing defaulted field
+dict[b: 1] -> :dict(a: number = 0, b: number)
+# Result: dict[b: 1]
+```
+
+```rill
+# dict check, variable form
 dict(b: string, a: string = "a") => $dt
-[b: "b"] -> :?$dt
+dict[b: "b"] -> :?$dt
 # Result: true
 ```
 
@@ -341,10 +376,10 @@ The assertion passes and returns the original value unchanged. No field synthesi
 
 A missing field without a default causes the assertion to fail:
 
-```text
-# Error: expected dict(b: string, a: string), missing required field 'a'
+```rill
 dict(b: string, a: string) => $dt
-[b: "b"] -> :$dt
+dict[b: "b"] -> :$dt
+# Error: type assertion fails
 ```
 
 ### Check Type (`:?type`)

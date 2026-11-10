@@ -858,8 +858,9 @@ pipe-invoke   = "$" , "(" , [ arguments ] , ")" ;
    - Postfix: 42:number, (expr):type - binds tighter than method calls
    - Pipe target: -> :type - asserts on pipe value ($)
 
-   Trailing defaults: values that omit trailing fields pass assertion
-   when every omitted field has a default in the type constructor.
+   Defaults: values that omit trailing tuple/ordered fields, or any dict
+   field, pass assertion when every omitted field has a default in the
+   type constructor.
    No field synthesis occurs. Use -> type to fill defaults.
 
    Examples:
@@ -920,7 +921,9 @@ type-target   = type-ref ;
    Default values (= literal) are context-dependent:
    - Type constructors: always supported
    - Closure param annotations: supported (defaults fill missing fields)
-   - Assertion/check position: defaults allow trailing field omission
+   - Assertion/check position: defaults allow omitting trailing tuple/ordered fields, or any dict field, that has a default
+   - Capture, destructure, existence-check, use<>, anonymous closure
+     parameter, and closure return types: same rule as assertion position
 
    Field annotations (optional ^(...) prefix):
    - dict, ordered, and tuple type constructors support ^() annotations per field

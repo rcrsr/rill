@@ -99,3 +99,43 @@ describe('UNNECESSARY_ASSERTION fix: non-zero-width range', () => {
     expect(fix!.range.end.offset).toBe(typeEnd);
   });
 });
+
+describe('UNNECESSARY_ASSERTION: collection literals', () => {
+  function check(source: string) {
+    return runRules(parse(source), source, createDefaultConfig(), [
+      unnecessaryAssertion,
+    ]);
+  }
+
+  it.each([
+    ['list[1]:list\n', 'list[1]\n'],
+    ['tuple[1]:tuple\n', 'tuple[1]\n'],
+    ['dict[a: 1]:dict\n', 'dict[a: 1]\n'],
+  ])('flags %j and the fix removes the assertion', (source, expected) => {
+    const result = check(source);
+    expect(result).toHaveLength(1);
+    const fix = result[0]?.fix;
+    expect(fix).not.toBeNull();
+    expect(
+      applyFix(source, fix!.range.start.offset, fix!.range.end.offset)
+    ).toBe(expected);
+  });
+
+  it.each([
+    // Halts at runtime: a tuple is not a list, and a list is not a tuple.
+    'tuple[1]:list\n',
+    'list[1]:tuple\n',
+    // Parameterized assertions check element and field types.
+    'list[1]:list(string)\n',
+    'list[1]:list(number)\n',
+    'tuple[1]:tuple(number)\n',
+    'dict[a: 1]:dict(a: number)\n',
+    'tuple[1]:list(string = ")")\n',
+    // A method, index, or default after the literal changes the value.
+    '"a".len:string\n',
+    'list["a"][0]:list\n',
+    '("a" ?? "b"):string\n',
+  ])('does not flag %j', (source) => {
+    expect(check(source)).toHaveLength(0);
+  });
+});

@@ -4,7 +4,7 @@
 
 ## How to use this index
 
-Load fragments progressively. The cheatsheet alone is enough for most short scripts. Pull additional fragments when the task requires their topic. Load `ref-llms-full.txt` only when you need the entire reference at once.
+Load fragments progressively. The cheatsheet alone is enough for most short scripts. Pull additional fragments when the task requires their topic. Load the [full bundle](/llms-full.txt) only when you need the entire reference at once.
 
 ## Fragments (load on demand)
 

@@ -39,9 +39,15 @@ import type {
   RillFieldDef,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
+import {
+  defaultMismatchMessage,
+  nonTrailingDefaultIndex,
+  nonTrailingDefaultMessage,
+} from '../../types/field-defaults.js';
 import { isTypeValue } from '../../types/guards.js';
 import {
   structureMatches,
+  defaultMismatch,
   inferStructure,
   formatStructure,
 } from '../../types/operations.js';
@@ -68,6 +74,26 @@ type CollectionTypeName = 'list' | 'dict' | 'tuple' | 'ordered';
 function isCollectionTypeName(name: string): name is CollectionTypeName {
   return (
     name === 'list' || name === 'dict' || name === 'tuple' || name === 'ordered'
+  );
+}
+
+/** Halt with TYPE_MISMATCH when a default value does not match its declared type. */
+function requireDefaultMatch(
+  s: EvalState,
+  fn: string,
+  subject: string,
+  value: RillValue,
+  type: TypeStructure,
+  location: SourceLocation | undefined
+): void {
+  const mismatch = defaultMismatch(value, type);
+  if (mismatch === null) return;
+  throwTypeHalt(
+    { location, sourceId: s.ctx.sourceId, fn },
+    'TYPE_MISMATCH',
+    defaultMismatchMessage(subject, mismatch),
+    'runtime',
+    { ...mismatch }
   );
 }
 
@@ -165,22 +191,14 @@ async function buildCollectionType(
       // Default type mismatch on uniform single-arg path
       if (soleArg.defaultValue !== undefined) {
         const defaultVal = await evaluateDefault(soleArg.defaultValue);
-        if (!structureMatches(defaultVal, valueType)) {
-          throwTypeHalt(
-            {
-              location,
-              sourceId: s.ctx.sourceId,
-              fn: name,
-            },
-            'TYPE_MISMATCH',
-            `Default value for ${name} element must be ${formatStructure(valueType)}, got ${inferType(defaultVal)}`,
-            'runtime',
-            {
-              expectedType: formatStructure(valueType),
-              actualType: inferType(defaultVal),
-            }
-          );
-        }
+        requireDefaultMatch(
+          s,
+          name,
+          `${name} element`,
+          defaultVal,
+          valueType,
+          location
+        );
       }
       const structure: TypeStructure = { kind: name, valueType };
       return Object.freeze({
@@ -212,23 +230,14 @@ async function buildCollectionType(
         const fieldDef: RillFieldDef = { type: resolvedType };
         if (arg.defaultValue !== undefined) {
           const defaultVal = await evaluateDefault(arg.defaultValue);
-          // Default type mismatch
-          if (!structureMatches(defaultVal, resolvedType)) {
-            throwTypeHalt(
-              {
-                location,
-                sourceId: s.ctx.sourceId,
-                fn: 'dict',
-              },
-              'TYPE_MISMATCH',
-              `Default value for field '${arg.name}' must be ${formatStructure(resolvedType)}, got ${inferType(defaultVal)}`,
-              'runtime',
-              {
-                expectedType: formatStructure(resolvedType),
-                actualType: inferType(defaultVal),
-              }
-            );
-          }
+          requireDefaultMatch(
+            s,
+            'dict',
+            `field '${arg.name}'`,
+            defaultVal,
+            resolvedType,
+            location
+          );
           fieldDef.defaultValue = defaultVal;
         }
         // Evaluate per-field annotations
@@ -264,23 +273,14 @@ async function buildCollectionType(
       };
       if (arg.defaultValue !== undefined) {
         const defaultVal = await evaluateDefault(arg.defaultValue);
-        // Default type mismatch
-        if (!structureMatches(defaultVal, resolvedType)) {
-          throwTypeHalt(
-            {
-              location,
-              sourceId: s.ctx.sourceId,
-              fn: 'ordered',
-            },
-            'TYPE_MISMATCH',
-            `Default value for field '${arg.name}' must be ${formatStructure(resolvedType)}, got ${inferType(defaultVal)}`,
-            'runtime',
-            {
-              expectedType: formatStructure(resolvedType),
-              actualType: inferType(defaultVal),
-            }
-          );
-        }
+        requireDefaultMatch(
+          s,
+          'ordered',
+          `field '${arg.name}'`,
+          defaultVal,
+          resolvedType,
+          location
+        );
         fieldDef.defaultValue = defaultVal;
       }
       // Evaluate per-field annotations
@@ -336,22 +336,14 @@ async function buildCollectionType(
     // Default type mismatch on uniform single-arg path
     if (tupleSole.defaultValue !== undefined) {
       const defaultVal = await evaluateDefault(tupleSole.defaultValue);
-      if (!structureMatches(defaultVal, valueType)) {
-        throwTypeHalt(
-          {
-            location,
-            sourceId: s.ctx.sourceId,
-            fn: 'tuple',
-          },
-          'TYPE_MISMATCH',
-          `Default value for tuple element must be ${formatStructure(valueType)}, got ${inferType(defaultVal)}`,
-          'runtime',
-          {
-            expectedType: formatStructure(valueType),
-            actualType: inferType(defaultVal),
-          }
-        );
-      }
+      requireDefaultMatch(
+        s,
+        'tuple',
+        `tuple element`,
+        defaultVal,
+        valueType,
+        location
+      );
     }
     const structure: TypeStructure = { kind: 'tuple', valueType };
     return Object.freeze({
@@ -368,23 +360,14 @@ async function buildCollectionType(
     const fieldDef: RillFieldDef = { type: resolvedType };
     if (arg.defaultValue !== undefined) {
       const defaultVal = await evaluateDefault(arg.defaultValue);
-      // Default type mismatch
-      if (!structureMatches(defaultVal, resolvedType)) {
-        throwTypeHalt(
-          {
-            location,
-            sourceId: s.ctx.sourceId,
-            fn: 'tuple',
-          },
-          'TYPE_MISMATCH',
-          `Default value for tuple element must be ${formatStructure(resolvedType)}, got ${inferType(defaultVal)}`,
-          'runtime',
-          {
-            expectedType: formatStructure(resolvedType),
-            actualType: inferType(defaultVal),
-          }
-        );
-      }
+      requireDefaultMatch(
+        s,
+        'tuple',
+        `tuple element`,
+        defaultVal,
+        resolvedType,
+        location
+      );
       fieldDef.defaultValue = defaultVal;
     }
     // Evaluate per-field annotations
@@ -402,27 +385,14 @@ async function buildCollectionType(
     elements.push(fieldDef);
   }
 
-  // Tuple non-trailing default — no element without a default
-  // may follow an element that has one.
-  let sawDefault = false;
-  let i = 0;
-  for (const element of elements) {
-    const hasDefault = element.defaultValue !== undefined;
-    if (hasDefault) {
-      sawDefault = true;
-    } else if (sawDefault) {
-      throwTypeHalt(
-        {
-          location,
-          sourceId: s.ctx.sourceId,
-          fn: 'tuple',
-        },
-        'INVALID_INPUT',
-        `tuple() default values must be trailing: element at position ${i} has no default but a preceding element does`,
-        'runtime'
-      );
-    }
-    i++;
+  const misplaced = nonTrailingDefaultIndex(elements);
+  if (misplaced !== -1) {
+    throwTypeHalt(
+      { location, sourceId: s.ctx.sourceId, fn: 'tuple' },
+      'INVALID_INPUT',
+      nonTrailingDefaultMessage(misplaced),
+      'runtime'
+    );
   }
 
   const structure: TypeStructure = { kind: 'tuple', elements };

@@ -25,7 +25,7 @@ import {
   isAtEnd,
 } from './state.js';
 import { isMethodCallWithArgs, expectVariableName } from './helpers.js';
-import { parseTypeRef } from './parser-types.js';
+import { parseScriptTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { ParseError } from '../error-classes.js';
 
@@ -198,7 +198,7 @@ Parser.prototype.parseAccessChain = function (this: Parser): {
       let typeRef: ExistenceCheck['typeRef'] = null;
       if (check(this.state, TOKEN_TYPES.AMPERSAND)) {
         advance(this.state);
-        typeRef = parseTypeRef(this.state);
+        typeRef = parseScriptTypeRef(this);
       }
 
       existenceCheck = { finalAccess, typeRef };

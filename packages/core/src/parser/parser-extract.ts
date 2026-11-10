@@ -28,7 +28,7 @@ import {
   describeToken,
   expectVariableName,
 } from './helpers.js';
-import { parseTypeRef } from './parser-types.js';
+import { parseScriptTypeRef } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
@@ -120,7 +120,7 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
     let typeRef: TypeRef | null = null;
     if (check(this.state, TOKEN_TYPES.COLON)) {
       advance(this.state);
-      typeRef = parseTypeRef(this.state);
+      typeRef = parseScriptTypeRef(this);
     }
 
     return {
@@ -140,7 +140,7 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
   let typeRef: TypeRef | null = null;
   if (check(this.state, TOKEN_TYPES.COLON)) {
     advance(this.state);
-    typeRef = parseTypeRef(this.state);
+    typeRef = parseScriptTypeRef(this);
   }
 
   return {

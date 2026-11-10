@@ -36,7 +36,7 @@ import { isPipeChainNode } from '../../types.js';
 import { throwFatalHostHalt } from './types/halt.js';
 import { isStructureKind } from './types/guards.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
-import type { TypeRef } from '../../value-types.js';
+import type { FieldArg, TypeRef } from '../../value-types.js';
 
 /**
  * Metadata describing a function's signature and documentation.
@@ -519,6 +519,22 @@ export interface HandlerMetadataStatic {
   readonly returnType?: string;
 }
 
+/** Render one type argument, appending ` = <literal>` when it has a default. */
+function fieldArgToString(arg: FieldArg): string {
+  const valueStr = typeRefToString(arg.value);
+  const named = arg.name !== undefined ? `${arg.name}: ${valueStr}` : valueStr;
+  const literal =
+    arg.defaultValue !== undefined
+      ? extractLiteralValue(arg.defaultValue)
+      : undefined;
+  if (typeof literal === 'string')
+    return `${named} = ${JSON.stringify(literal)}`;
+  if (typeof literal === 'number' || typeof literal === 'boolean') {
+    return `${named} = ${String(literal)}`;
+  }
+  return named;
+}
+
 /**
  * Convert a TypeRef to a human-readable type string. Parameterized types are
  * rendered as `name(arg, arg, ...)` with each named arg as `name: <type>`,
@@ -535,8 +551,7 @@ function typeRefToString(ref: TypeRef | null): string {
       }
       const args = ref.args
         .map((arg) => {
-          const valueStr = typeRefToString(arg.value);
-          return arg.name !== undefined ? `${arg.name}: ${valueStr}` : valueStr;
+          return fieldArgToString(arg);
         })
         .join(', ');
       return `${ref.typeName}(${args})`;
@@ -571,8 +586,7 @@ function typeConstructorToString(node: TypeConstructorNode): string {
   }
   const args = node.args
     .map((arg) => {
-      const valueStr = typeRefToString(arg.value);
-      return arg.name !== undefined ? `${arg.name}: ${valueStr}` : valueStr;
+      return fieldArgToString(arg);
     })
     .join(', ');
   return `${node.constructorName}(${args})`;

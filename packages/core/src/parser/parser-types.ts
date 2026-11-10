@@ -30,6 +30,7 @@ import {
   isVariableNameToken,
 } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
+import type { Parser } from './parser.js';
 
 /**
  * Parse a type reference from the current position in the token stream.
@@ -70,6 +71,25 @@ export function parseTypeRef(
     () => current(state).span.start,
     () => parseTypeRefImpl(state, opts)
   );
+}
+
+/**
+ * Parse a type reference in a script type position.
+ *
+ * Field defaults inside a parameterized type are literals, so every script
+ * type position accepts them. Use this from Parser methods; call
+ * `parseTypeRef` directly only where no Parser exists.
+ *
+ * @internal
+ */
+export function parseScriptTypeRef(
+  parser: Parser,
+  opts?: { allowTrailingPipe?: boolean; closureBody?: boolean }
+): TypeRef {
+  return parseTypeRef(parser.state, {
+    ...opts,
+    parseLiteral: () => parser.parseLiteral(),
+  });
 }
 
 /**

@@ -18,7 +18,7 @@ import { registeredRules } from './rules-registry.js';
 
 function getLiteralType(
   node: ASTNode
-): 'string' | 'number' | 'bool' | 'list' | 'dict' | null {
+): 'string' | 'number' | 'bool' | 'list' | 'tuple' | 'dict' | null {
   switch (node.type) {
     case 'NumberLiteral':
       return 'number';
@@ -26,8 +26,10 @@ function getLiteralType(
       return 'string';
     case 'BoolLiteral':
       return 'bool';
-    case 'TupleLiteral':
+    case 'ListLiteral':
       return 'list';
+    case 'TupleLiteral':
+      return 'tuple';
     case 'Dict':
       return 'dict';
     default:
@@ -81,39 +83,22 @@ function buildFix(
     assertionNode.span.end.offset
   );
 
-  // Search for the ':type' colon starting at the operand's own end, not at
-  // the start of the assertion source, so a colon inside the operand itself
-  // (e.g. a string literal like "a:b") is never mistaken for the type
-  // separator. `operand.span.end` tracks the following sibling's start
-  // rather than the operand's own text end, so the last method call (if
-  // any) or the primary literal's own span is used instead.
-  const lastMethod = operand.methods.at(-1);
-  const operandEndOffset = lastMethod
-    ? lastMethod.span.end.offset
-    : operand.primary.span.end.offset;
-  const searchStart = operandEndOffset - assertionNode.span.start.offset;
+  // Search for the ':type' colon from the end of the literal, so a colon
+  // inside the literal itself (e.g. "a:b") is never mistaken for the type
+  // separator. The rule only fires on a bare literal operand, so the
+  // literal's end is the operand's end.
+  const searchStart =
+    operand.primary.span.end.offset - assertionNode.span.start.offset;
   const colonIndex = assertionSource.indexOf(':', searchStart);
   if (colonIndex === -1) {
     return null;
   }
 
   const typeStart = assertionNode.span.start.offset + colonIndex;
-  let typeEnd = typeStart + 1 + typeRef.typeName.length;
-  if (source[typeEnd] === '(') {
-    let depth = 0;
-    let i = typeEnd;
-    while (i < source.length) {
-      if (source[i] === '(') depth++;
-      else if (source[i] === ')') {
-        depth--;
-        if (depth === 0) {
-          typeEnd = i + 1;
-          break;
-        }
-      }
-      i++;
-    }
-  }
+  // The assertion span ends at the last token of the type reference, so
+  // the type text runs to the span end. Counting parentheses in the source
+  // instead would stop early at a ")" inside a string default.
+  const typeEnd = assertionNode.span.end.offset;
 
   const startPosition = advancePosition(
     assertionNode.span.start,
@@ -153,21 +138,28 @@ export const unnecessaryAssertion: Rule = {
       return [];
     }
 
-    const primary = operand.primary;
-
-    const isLiteral =
-      primary.type === 'NumberLiteral' ||
-      primary.type === 'StringLiteral' ||
-      primary.type === 'BoolLiteral' ||
-      primary.type === 'TupleLiteral';
-
-    if (!isLiteral) {
+    // Only a bare literal has a type known from its syntax. A method call,
+    // index, default, or existence check after it changes the asserted value.
+    if (
+      operand.methods.length > 0 ||
+      operand.defaultValue !== null ||
+      operand.existenceCheck
+    ) {
       return [];
     }
 
-    const literalType = getLiteralType(primary);
+    const literalType = getLiteralType(operand.primary);
+    if (literalType === null) {
+      return [];
+    }
+
     const typeRef = assertionNode.typeRef;
     if (typeRef.kind !== 'static') {
+      return [];
+    }
+    // A parameterized type such as list(string) checks element or field
+    // types, which the literal's kind alone does not guarantee.
+    if (typeRef.args !== undefined && typeRef.args.length > 0) {
       return [];
     }
     const assertedType = typeRef.typeName;

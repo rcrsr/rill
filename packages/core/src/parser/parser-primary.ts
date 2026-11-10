@@ -47,7 +47,7 @@ import {
   parseBareHostCall,
   describeToken,
 } from './helpers.js';
-import { parseTypeRef } from './parser-types.js';
+import { parseScriptTypeRef } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
 import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -306,7 +306,7 @@ Parser.prototype.parsePostfixExprBase = function (
       let typeRef: ExistenceCheck['typeRef'] = null;
       if (check(this.state, TOKEN_TYPES.AMPERSAND)) {
         advance(this.state);
-        typeRef = parseTypeRef(this.state);
+        typeRef = parseScriptTypeRef(this);
       }
       // Wrap accumulated primary+methods plus the existence check as a
       // grouped sub-expression and make it the new primary; resets methods.

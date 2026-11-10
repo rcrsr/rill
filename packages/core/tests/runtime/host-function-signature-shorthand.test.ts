@@ -470,6 +470,111 @@ describe('host function signature shorthand', () => {
     });
   });
 
+  describe('field defaults inside a type', () => {
+    function firstParamType(signature: string): TypeStructure | undefined {
+      return toCallable({ signature, fn }).params[0]?.type;
+    }
+
+    function registrationError(signature: string): RuntimeError {
+      return catchRegistration(() =>
+        createRuntimeContext({ functions: { f: { signature, fn } } })
+      );
+    }
+
+    it('carries dict field defaults of each literal kind', () => {
+      expect(
+        firstParamType(
+          '|d: dict(a: number, s: string = "x", t: bool = true, n: number = -2)|'
+        )
+      ).toEqual({
+        kind: 'dict',
+        fields: {
+          a: { type: numT },
+          s: { type: strT, defaultValue: 'x' },
+          t: { type: { kind: 'bool' }, defaultValue: true },
+          n: { type: numT, defaultValue: -2 },
+        },
+      });
+    });
+
+    it('carries trailing tuple defaults and nested dict defaults', () => {
+      expect(firstParamType('|d: tuple(string, number = 0)|')).toEqual({
+        kind: 'tuple',
+        elements: [{ type: strT }, { type: numT, defaultValue: 0 }],
+      });
+      expect(
+        firstParamType('|d: dict(o: dict(x: number, y: number = 1))|')
+      ).toEqual({
+        kind: 'dict',
+        fields: {
+          o: {
+            type: {
+              kind: 'dict',
+              fields: { x: { type: numT }, y: { type: numT, defaultValue: 1 } },
+            },
+          },
+        },
+      });
+    });
+
+    it('accepts a field default in the return type', async () => {
+      const out = await reflect(
+        { signature: '||:dict(a: number, b: number = 0)', fn },
+        '^output'
+      );
+      const explicit = await reflect(
+        {
+          params: [],
+          returnType: structureToTypeValue({
+            kind: 'dict',
+            fields: { a: { type: numT }, b: { type: numT, defaultValue: 0 } },
+          }),
+          fn,
+        },
+        '^output'
+      );
+      expect(out).toEqual(explicit);
+    });
+
+    it('fills an omitted defaulted field before the host function runs', async () => {
+      const result = await run('f(dict[a: 1])', {
+        functions: {
+          f: {
+            signature: '|d: dict(a: number, b: number = 0)|',
+            fn: (args) => args['d'] ?? '',
+          },
+        },
+      });
+      expect(result).toEqual({ a: 1, b: 0 });
+    });
+
+    it('rejects a field default that mismatches its type with RILL-R091', () => {
+      const err = registrationError('|d: dict(a: number, b: number = "x")|');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(
+        /Default value for field 'b' must be number, got string/
+      );
+    });
+
+    it('rejects a default on the list element type with RILL-R091', () => {
+      const err = registrationError('|d: list(number = 1)|');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/list element type cannot carry a default/);
+    });
+
+    it('rejects a non-trailing tuple default with RILL-R091', () => {
+      const err = registrationError('|d: tuple(number = 1, string)|');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/default values must be trailing/);
+    });
+
+    it('rejects a non-literal field default with RILL-R091', () => {
+      const err = registrationError('|d: dict(a: number = $x)|');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/unsupported default value/);
+    });
+  });
+
   describe('explicit form is untouched', () => {
     it('keeps the params array identity through toCallable', () => {
       const def: RillFunction = { params: [], returnType: anyTypeValue, fn };

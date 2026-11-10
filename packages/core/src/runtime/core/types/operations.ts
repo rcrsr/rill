@@ -35,6 +35,7 @@ import {
   deepEquals as registryDeepEquals,
 } from './registrations.js';
 import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
+import type { DefaultMismatch } from './field-defaults.js';
 import { quoteRillString } from './format-string.js';
 import { typedKeyEntries, setDictField } from './dict-keys.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
@@ -633,6 +634,18 @@ const formatCallbacks: FieldComparisonCallbacks<string | null> = {
     return parts.join(', ');
   },
 };
+
+/** Describe the mismatch between a default value and its declared type, or null when it matches. */
+export function defaultMismatch(
+  value: RillValue,
+  type: TypeStructure
+): DefaultMismatch | null {
+  if (structureMatches(value, type)) return null;
+  return {
+    expectedType: formatStructure(type),
+    actualType: registryInferType(value),
+  };
+}
 
 /** Format a structural type descriptor as a human-readable string. */
 export function formatStructure(type: TypeStructure): string {
