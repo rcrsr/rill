@@ -13,7 +13,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const TESTS_DIR = join(import.meta.dirname, '..');
-const SCALING_IMPORT = /from\s+'[^']*helpers\/scaling(\.js)?'/;
+// The module path in any quote style, so a double-quoted import, a dynamic
+// import() or a require() of the helper is caught as well.
+const SCALING_IMPORT = /helpers\/scaling(\.js)?['"]/;
 
 function testFiles(dir: string): string[] {
   const found: string[] = [];
