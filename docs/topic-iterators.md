@@ -438,7 +438,7 @@ range(1, 4) -> seq({ $ => $row -> range(1, 4) -> seq({ $row * $ }) })
 
 ## Limits
 
-Iterators are expanded eagerly when passed to collection operators. A default limit of 10000 elements prevents infinite loops:
+`seq` and `acc` pull from an iterator lazily. `fold`, `fan`, `filter`, and `sort` expand it first. A default limit of 10000 elements prevents infinite loops:
 
 ```text
 # This would error after 10000 elements
@@ -446,7 +446,7 @@ Iterators are expanded eagerly when passed to collection operators. A default li
 $inf(0) -> seq({ $ })    # ERROR: Iterator exceeded 10000 elements
 ```
 
-Bound an infinite iterator with `take(n)` to stay within the ceiling. A `break` inside a `seq` body does not help: collection operators expand the iterator eagerly before the body runs, so the ceiling fires before any body `break` can. Only lazy consumers such as `take(n)` bound an infinite iterator:
+Bound an infinite iterator with `take(n)` to stay within the ceiling. A `break` inside a `seq` or `acc` body also bounds it, because those operators pull lazily. A body that never breaks halts at the ceiling. `fold`, `fan`, `filter`, and `sort` expand the iterator before the body runs, so a `break` cannot bound them:
 
 ```text
 $inf(0) -> take(5)    # list[0, 1, 2, 3, 4]

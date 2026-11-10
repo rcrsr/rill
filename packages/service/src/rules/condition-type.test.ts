@@ -187,4 +187,13 @@ describe('CONDITION_TYPE', () => {
 
     expect(result).toEqual([]);
   });
+
+  it('stays silent on a seed-headed while loop with a literal condition', () => {
+    const source = '0 while ("go") do { $ + 1 }\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [conditionType]);
+
+    expect(result).toEqual([]);
+  });
 });

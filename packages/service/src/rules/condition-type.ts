@@ -3,7 +3,7 @@
  *
  * rill has no truthy/falsy semantics (design principle #7: no truthiness).
  * `$cond ? a ! b` requires `$cond` to be an actual `bool` value; anything
- * else halts at runtime with `#TYPE_MISMATCH`. The same halt covers the
+ * else halts at runtime with `RILL-R002` (atom `#RILL_R002`). The same halt covers the
  * condition of `while`, `do ... while`, and `assert`, so the rule checks all
  * four positions (see
  * packages/core/tests/language/ref-llms-full-assertions.test.ts, the
@@ -28,7 +28,8 @@ import { registeredRules } from './rules-registry.js';
 
 /**
  * Primary node types that unambiguously produce a non-bool value, mapped to
- * the rill type name the runtime halt reports for that value.
+ * the rill type name of the literal. The diagnostic message names this type;
+ * it is not guaranteed to match the runtime halt's own wording.
  *
  * `DictLiteralNode` is not in this set: the parser always produces
  * `type: 'Dict'` for `dict[...]` literals (already listed below); no parse
@@ -81,6 +82,8 @@ function unwrapCondition(
         continue;
 
       case 'PipeChain': {
+        // A seed-headed loop (`0 while (...) do { ... }`) is rewritten to a
+        // piped condition, so it lands here and stays silent.
         if (current.pipes.length > 0 || current.terminator !== null) {
           return null;
         }
