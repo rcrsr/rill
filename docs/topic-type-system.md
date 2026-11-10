@@ -61,6 +61,8 @@ Type constructor fields accept a default value using `= literal` syntax after th
 
 The input `[b: "b"]` omits `a`. The conversion fills `a` with `"a"` from the default.
 
+A default is evaluated each time its type expression runs. This includes `:` and `:?` positions, which check the value and do not fill the default in.
+
 ```rill
 [x: 1] -> ordered(x: number, y: number = 0)
 # Result: ordered[x: 1, y: 0]
