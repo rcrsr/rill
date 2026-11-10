@@ -254,7 +254,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         let result = value;
         for (const item of arg) {
           if (!isCallable(item)) {
-            throwFatalHostHalt(
+            throwCatchableHostHalt(
               {
                 location,
                 sourceId: ctx.sourceId,
@@ -275,7 +275,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
         return invokeCallable(arg, [value], ctx, location);
       }
 
-      return throwFatalHostHalt(
+      return throwCatchableHostHalt(
         {
           location,
           sourceId: ctx.sourceId,

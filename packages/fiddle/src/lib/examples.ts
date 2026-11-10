@@ -387,6 +387,111 @@ list[3, 7, 2, 9, 1, 8, 4]
   -> seq({ "{$}" })
   -> .join(", ")`,
   },
+  'guard-status': {
+    id: 'guard-status',
+    label: 'Guard & Status',
+    source: `# guard catches a recoverable halt and returns it as an invalid value
+guard { "x":number } => $out
+log($out.!)
+log($out.!code -> string)
+
+# ?? recovers with a fallback when the value is invalid
+$out ?? "recovered"`,
+  },
+  retry: {
+    id: 'retry',
+    label: 'Retry',
+    source: `# retry runs the body up to 3 times, then returns the last failure
+retry<limit: 3> { "x" -> :number } => $r
+log($r.!)
+log($r.!code -> string)
+
+# ?? recovers once every attempt has failed
+$r ?? "fallback"`,
+  },
+  streams: {
+    id: 'streams',
+    label: 'Streams',
+    source: `# iterate builds an infinite stream: 1, 2, 3, ...
+# take(20) bounds it,
+# start_when drops items until the predicate holds,
+# stop_when ends the stream after the first match
+iterate(1, { $ + 1 })
+  -> take(20)
+  -> start_when({ $ >= 5 })
+  -> stop_when({ $ >= 8 })
+  -> take(10)`,
+  },
+  batching: {
+    id: 'batching',
+    label: 'Take, Skip & Batch',
+    source: `# take and skip slice by position
+range(1, 11) -> skip(2) -> take(3) => $middle
+log($middle)
+
+# cycle repeats a list; take bounds it
+list[1, 2, 3] -> cycle -> take(7) => $looped
+log($looped)
+
+# batch groups items; drop_partial discards the short last group
+range(1, 8) -> batch(3) -> seq({ $ }) => $groups
+log($groups)
+range(1, 8) -> batch(3, dict[drop_partial: true]) -> seq({ $ }) => $full
+log($full)
+
+# window slides over items: size 3, step 2
+range(1, 7) -> window(3, 2) -> seq({ $ })`,
+  },
+  'tuples-ordered': {
+    id: 'tuples-ordered',
+    label: 'Tuples & Ordered',
+    source: `# Tuples compare element by element, left to right
+log(tuple[1, 2] < tuple[1, 3])
+log(tuple[2, 1] > tuple[1, 9])
+
+# A tuple sort key sorts by a, then by b
+list[
+  dict[a: 2, b: 1],
+  dict[a: 1, b: 9],
+  dict[a: 1, b: 3]
+]
+  -> sort({ tuple[$.a, $.b] })
+  -> seq({ "{$.a}/{$.b}" }) => $sorted
+log($sorted)
+
+# ordered[...] unpacks into named parameters
+|a, b| ($a - $b) => $subtract
+log(ordered[a: 10, b: 3] -> $subtract(...))
+
+# ordered converts to dict
+ordered[x: 1, y: 2] -> dict`,
+  },
+  'datetime-duration': {
+    id: 'datetime-duration',
+    label: 'Datetime & Duration',
+    source: `datetime("2024-01-15T10:30:00Z") => $start
+log($start.year)
+log($start.month)
+log($start.day)
+
+# diff returns a duration; display formats it
+datetime("2024-03-01T00:00:00Z") -> .diff(datetime("2024-01-01T00:00:00Z")) -> .display => $gap
+log($gap)
+
+# add shifts a datetime by a duration
+$start -> .add(duration(...dict[days: 1, hours: 2])) -> .iso()`,
+  },
+  'closure-reflection': {
+    id: 'closure-reflection',
+    label: 'Closure Reflection',
+    source: `# A description annotation and a return type on a typed closure
+^("Doubles a number") |x: number| ($x * 2):number => $fn
+
+log($fn.^description)
+log($fn.^input)
+log($fn.^output.name)
+$fn(21)`,
+  },
 };
 
 // ============================================================

@@ -71,9 +71,15 @@ function eqDuration(a: RillValue, b: RillValue): boolean {
 
 /**
  * Three-way comparison for durations.
- * Only defined when both durations have equal months fields.
- * When months differ, ordering is ambiguous (month length varies),
- * so we halt with RILL-R002.
+ * Defined when the two durations agree in direction: one is >= the other in
+ * BOTH the months and ms components. Equal durations (both components equal)
+ * compare as zero.
+ * When the components disagree (one has more months, the other more ms), the
+ * order depends on the length of a month, so we halt with RILL-R002.
+ * The agreement rule is sound for any month length: a month is a nonnegative
+ * number of milliseconds, so a duration that is >= in both components is >= in
+ * total regardless of what length a month takes. This is not lexicographic
+ * ordering, which would rank 1 month above 40 days.
  */
 function compareDuration(a: RillValue, b: RillValue): number {
   const da = isDuration(a)
@@ -82,7 +88,9 @@ function compareDuration(a: RillValue, b: RillValue): number {
   const db = isDuration(b)
     ? b
     : requireDuration(b, { fn: 'compare-duration' }, 'right operand');
-  if (da.months !== db.months) {
+  const monthsDiff = da.months - db.months;
+  const msDiff = da.ms - db.ms;
+  if ((monthsDiff > 0 && msDiff < 0) || (monthsDiff < 0 && msDiff > 0)) {
     const message = 'Cannot order durations with different calendar components';
     throwCatchableHostHalt(
       { fn: 'compare-duration', preserveHostShape: true },
@@ -90,7 +98,7 @@ function compareDuration(a: RillValue, b: RillValue): number {
       message
     );
   }
-  return da.ms - db.ms;
+  return msDiff !== 0 ? msDiff : monthsDiff;
 }
 
 // ============================================================

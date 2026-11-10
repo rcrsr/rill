@@ -931,7 +931,7 @@ duration(...dict[hours: 25]) -> .total_ms
 # Result: 90000000
 ```
 
-Requesting `.total_ms` on a calendar duration halts execution:
+Requesting `.total_ms` on a calendar duration halts with a catchable `#INVALID_INPUT`:
 
 ```text
 # Error: total_ms is not defined for calendar durations
@@ -961,8 +961,10 @@ $t -> .diff($t) -> .zero -> .display
 | Method | Argument | Returns | Description |
 |--------|----------|---------|-------------|
 | `.add(dur)` | duration | duration | Sums `months` and `ms` fields independently |
-| `.subtract(other)` | duration | duration | Subtracts fields; halts if result would be negative |
-| `.multiply(n)` | number | duration | Multiplies both fields by `n`; halts if `n` is negative |
+| `.subtract(other)` | duration | duration | Subtracts fields; halts with `#INVALID_INPUT` if the result would be negative |
+| `.multiply(n)` | number | duration | Multiplies both fields by `n`; halts with `#INVALID_INPUT` if `n` is negative, the result is not finite, or a month result is fractional |
+
+All three halt with `#TYPE_MISMATCH` when the argument has the wrong type. These halts are catchable.
 
 ```text
 duration(...dict[hours: 1]) -> .add(duration(...dict[hours: 1])) -> .display
@@ -987,14 +989,26 @@ duration(...dict[months: 1]) == duration(...dict[months: 1])
 # Result: true
 ```
 
-Ordering compares the `ms` field only, and only when both durations have equal `months` fields. Comparing durations with different `months` halts with `RILL-R002`, which `guard` recovers:
+Two durations order when one is greater than or equal to the other in both `months` and `ms`. When the two fields disagree in direction, ordering halts with `RILL-R002`, which `guard` recovers:
+
+```rill
+duration(1) < duration(2)
+# Result: true
+```
 
 ```text
-duration(...dict[hours: 1]) < duration(...dict[hours: 2])
-# Result: true
-
 # Error: Cannot order durations with different calendar components
 duration(...dict[months: 1]) < duration(...dict[hours: 24])
+```
+
+To compare an incomparable pair, add each duration to the same anchor datetime and compare the results:
+
+```rill
+now() => $anchor
+duration(...dict[months: 1]) => $a
+duration(...dict[hours: 24]) => $b
+($anchor -> .add($a)) < ($anchor -> .add($b))
+# Result: false
 ```
 
 ### JSON

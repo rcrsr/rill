@@ -416,9 +416,9 @@ const DIRECT_REPLAYS: { entry: BaselineEntry; trigger: DirectTrigger }[] =
 
 describe('halt migration parity', () => {
   describe('halt migration baseline structure', () => {
-    it('holds exactly 50 site entries with distinct site ids', () => {
-      expect(SITES).toHaveLength(50);
-      expect(new Set(SITES.map((e) => e.siteId)).size).toBe(50);
+    it('holds exactly 32 site entries with distinct site ids', () => {
+      expect(SITES).toHaveLength(32);
+      expect(new Set(SITES.map((e) => e.siteId)).size).toBe(32);
     });
 
     it('keeps (siteId, role, path) unique', () => {

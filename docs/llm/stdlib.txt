@@ -82,7 +82,7 @@ Example:
 | `range(start, end, step?)` | number sequence (iterator) |
 | `repeat(val, count)` | repeat value n times (iterator); count is a non-negative integer |
 | `enumerate(coll)` | lists: `list[dict[index, value]]`; dicts: `list[dict[index, key, value]]` |
-| `chain($fn)` | apply single closure; `chain(val, list[$f, $g])` applies in sequence |
+| `chain($fn)` | apply single closure; `chain(val, list[$f, $g])` applies in sequence; a non-closure transform halts with catchable `#RILL_R040` |
 | `now()` | current datetime |
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration(y, m, d, h)` | construct duration |

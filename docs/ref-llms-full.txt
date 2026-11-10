@@ -649,14 +649,18 @@ Pre-registered atom literals (must start with uppercase letter):
                                    #       unknown option key for fan/filter;
                                    #       zero step for range;
                                    #       non-integer index for [], .(n), .at, list dispatch;
-                                   #       zero step for slice<>
+                                   #       zero step for slice<>;
+                                   #       negative duration .subtract result, negative .multiply factor,
+                                   #       non-finite or fractional-month .multiply result, .total_ms on calendar duration;
+                                   #       vector dimension mismatch for .similarity/.dot/.distance
     #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                 # failed `:type` assertion;
                                    # also: `sort` key extractor mixed types,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
                                    #       start_when/stop_when predicate non-bool,
-                                   #       wrong-typed argument to duration()/datetime(),
+                                   #       wrong-typed argument to duration()/datetime() or datetime/duration methods,
+                                   #       non-vector argument to .similarity/.dot/.distance,
                                    #       non-dict options for fan/filter,
                                    #       non-number concurrency for fan/filter,
                                    #       filter predicate returns non-bool
@@ -1185,7 +1189,7 @@ Example:
 | `range(start, end, step?)` | number sequence (iterator) |
 | `repeat(val, count)` | repeat value n times (iterator); count is a non-negative integer |
 | `enumerate(coll)` | lists: `list[dict[index, value]]`; dicts: `list[dict[index, key, value]]` |
-| `chain($fn)` | apply single closure; `chain(val, list[$f, $g])` applies in sequence |
+| `chain($fn)` | apply single closure; `chain(val, list[$f, $g])` applies in sequence; a non-closure transform halts with catchable `#RILL_R040` |
 | `now()` | current datetime |
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration(y, m, d, h)` | construct duration |
