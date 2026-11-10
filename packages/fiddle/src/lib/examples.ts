@@ -492,6 +492,21 @@ log($fn.^input)
 log($fn.^output.name)
 $fn(21)`,
   },
+  'context-use': {
+    id: 'context-use',
+    label: 'Context Values',
+    source: `# use<context:key> reads a value from the playground's demo context
+use<context:timeout>:number => $timeout
+use<context:environment>:string => $env
+
+# a dotted key reaches into a nested value
+use<context:limits.max_tokens>:number => $max
+log($env)
+log($max)
+
+# the final value combines context values
+"{$env} allows {$max} tokens, timeout {$timeout}s"`,
+  },
 };
 
 // ============================================================

@@ -3,10 +3,26 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse } from '@rcrsr/rill';
+import { contextResolver, parse } from '@rcrsr/rill';
 
+import { DEMO_CONTEXT_VALUES } from '../context.js';
 import { EXAMPLE_ORDER, loadExample } from '../examples.js';
-import { executeRill } from '../execution.js';
+import { executeRill, type FiddleResolverConfig } from '../execution.js';
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+/** Build a FiddleResolverConfig with the context resolver wired to DEMO_CONTEXT_VALUES. */
+function buildContextConfig(): FiddleResolverConfig {
+  return {
+    resolvers: {
+      context: (resource: string) =>
+        contextResolver(resource, DEMO_CONTEXT_VALUES),
+    },
+    configurations: { resolvers: { context: DEMO_CONTEXT_VALUES } },
+  };
+}
 
 describe('loadExample', () => {
   describe('required examples', () => {
@@ -35,7 +51,7 @@ describe('loadExample', () => {
     it.each(EXAMPLE_ORDER)('%s executes without error', async (id) => {
       const example = loadExample(id);
       expect(example).toBeDefined();
-      const result = await executeRill(example!.source);
+      const result = await executeRill(example!.source, buildContextConfig());
       expect(result.status).toBe('success');
     });
   });
@@ -98,10 +114,15 @@ describe('examples demonstrate their construct', () => {
       42,
       ['Doubles a number', 'ordered(x: number)', 'number'],
     ],
+    [
+      'context-use',
+      'playground allows 4096 tokens, timeout 30s',
+      ['playground', '4096'],
+    ],
   ])('%s ends on its expected value and logs', async (id, expected, logs) => {
     const example = loadExample(id);
     expect(example).toBeDefined();
-    const result = await executeRill(example!.source);
+    const result = await executeRill(example!.source, buildContextConfig());
     expect(result.status).toBe('success');
     expect((JSON.parse(result.result!) as { value: unknown }).value).toEqual(
       expected
