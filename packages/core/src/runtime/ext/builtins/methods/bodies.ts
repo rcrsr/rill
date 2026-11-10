@@ -729,26 +729,26 @@ export const mSimilarity: RillMethod = (receiver, args, ctx, location) => {
   }
   const other = args[0] ?? null;
   if (!isVector(other)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'similarity',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'TYPE_MISMATCH',
       `expected vector, got ${inferType(other)}`
     );
   }
   if (receiver.data.length !== other.data.length) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'similarity',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'INVALID_INPUT',
       `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`
     );
   }
@@ -779,16 +779,16 @@ export const mDot: RillMethod = (receiver, args, ctx, location) => {
   }
   const other = args[0] ?? null;
   if (!isVector(other)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'dot', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'TYPE_MISMATCH',
       `expected vector, got ${inferType(other)}`
     );
   }
   if (receiver.data.length !== other.data.length) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'dot', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'INVALID_INPUT',
       `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`
     );
   }
@@ -817,26 +817,26 @@ export const mDistance: RillMethod = (receiver, args, ctx, location) => {
   }
   const other = args[0] ?? null;
   if (!isVector(other)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'distance',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'TYPE_MISMATCH',
       `expected vector, got ${inferType(other)}`
     );
   }
   if (receiver.data.length !== other.data.length) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'distance',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'INVALID_INPUT',
       `vector dimension mismatch: ${receiver.data.length} vs ${other.data.length}`
     );
   }

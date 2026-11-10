@@ -1,6 +1,10 @@
 import type { SourceLocation } from '../../../../types.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { throwFatalHostHalt, throwTypeHalt } from '../../../core/types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+  throwTypeHalt,
+} from '../../../core/types/halt.js';
 import type { RuntimeContext } from '../../../core/types/runtime.js';
 import type {
   RillDatetime,
@@ -223,9 +227,9 @@ export const mDtAdd: RillMethod = (receiver, args, ctx, location) => {
   const dt = datetimeReceiver(receiver, 'add', ctx, location);
   const dur = args[0] ?? null;
   if (!isDuration(dur)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'add', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'TYPE_MISMATCH',
       'datetime.add() requires a duration argument'
     );
   }
@@ -285,9 +289,9 @@ export const mDtDiff: RillMethod = (receiver, args, ctx, location) => {
   const dt = datetimeReceiver(receiver, 'diff', ctx, location);
   const other = args[0] ?? null;
   if (!isDatetime(other)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'diff', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'TYPE_MISMATCH',
       'datetime.diff() requires a datetime argument'
     );
   }
@@ -380,14 +384,14 @@ export const mDurMs: RillMethod = (receiver, _args, ctx, location) => {
 export const mDurTotalMs: RillMethod = (receiver, _args, ctx, location) => {
   const dur = durationReceiver(receiver, 'total_ms', ctx, location);
   if (dur.months > 0) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'total_ms',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'INVALID_INPUT',
       'total_ms is not defined for calendar durations'
     );
   }
@@ -442,9 +446,9 @@ export const mDurAdd: RillMethod = (receiver, args, ctx, location) => {
   const dur = durationReceiver(receiver, 'add', ctx, location);
   const other = args[0] ?? null;
   if (!isDuration(other)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       { location, sourceId: ctx.sourceId, fn: 'add', preserveHostShape: true },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'TYPE_MISMATCH',
       'duration.add() requires a duration argument'
     );
   }
@@ -461,14 +465,14 @@ export const mDurSubtract: RillMethod = (receiver, args, ctx, location) => {
   const dur = durationReceiver(receiver, 'subtract', ctx, location);
   const other = args[0] ?? null;
   if (!isDuration(other)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'subtract',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'TYPE_MISMATCH',
       'duration.subtract() requires a duration argument'
     );
   }
@@ -476,14 +480,14 @@ export const mDurSubtract: RillMethod = (receiver, args, ctx, location) => {
   const resultMonths = dur.months - otherDur.months;
   const resultMs = dur.ms - otherDur.ms;
   if (resultMonths < 0 || resultMs < 0) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'subtract',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'INVALID_INPUT',
       'duration.subtract() would produce negative result'
     );
   }
@@ -499,52 +503,52 @@ export const mDurMultiply: RillMethod = (receiver, args, ctx, location) => {
   const dur = durationReceiver(receiver, 'multiply', ctx, location);
   const n = args[0] ?? null;
   if (typeof n !== 'number') {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'multiply',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'TYPE_MISMATCH',
       'duration.multiply() requires a number argument'
     );
   }
   if (n < 0) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'multiply',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'INVALID_INPUT',
       'duration.multiply() requires non-negative number'
     );
   }
   const months = dur.months * n;
   const ms = dur.ms * n;
   if (!Number.isFinite(months) || !Number.isFinite(ms)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'multiply',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'INVALID_INPUT',
       'duration.multiply() would produce a non-finite result'
     );
   }
   if (!Number.isInteger(months)) {
-    throwFatalHostHalt(
+    throwCatchableHostHalt(
       {
         location,
         sourceId: ctx.sourceId,
         fn: 'multiply',
         preserveHostShape: true,
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      'INVALID_INPUT',
       'duration.multiply() would produce a fractional month value'
     );
   }

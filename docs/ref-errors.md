@@ -520,9 +520,9 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 ### rill-r002
 
-**Description:** Operation not applicable to its operands
+**Description:** Operation not valid for its operands or context
 
-**Cause:** Operator applied to incompatible operand types, or operand values that leave the operation undefined: division or modulo by zero, ordering durations with different calendar components, mixed element types in a list literal, or a non-number index piped to a list[...] dispatch. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
+**Cause:** An operation received an operand, key, or receiver of the wrong type or shape. Rill does not perform implicit type coercion. Families: an operator applied to incompatible operand types, including division or modulo by zero and logical or negation operators on non-bool values; a list literal with mixed element types; ordering two durations whose calendar and clock components disagree; a list[...] dispatch with a non-number index, a missing index, or a spread that is not a list; a non-bool condition in a conditional, while, do-while, or assert; a non-string message in an `error` statement; an index or key of the wrong type, or a receiver that cannot be indexed (for example "Cannot index string" or "Cannot index iterator"); a destructure pattern that does not match the shape of the value; a call or dispatch on a non-callable target, or property access on a non-dict value; a spread of the wrong type in a list, dict, or annotation literal; a collection operator applied to an input that is not a list, string, dict, iterator, or stream; and an iterator or stream protocol violation, such as a `.next` that is not a closure or does not return the expected step. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
 
 **Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.
 
@@ -532,11 +532,12 @@ Runtime errors occur during script execution when operations fail due to type mi
 # Adding string and number
 "5" + 1  # Error: no implicit coercion
 
-# Division by zero
-10 / 0
-
 # Mixed element types in a list literal
 list[1, "a"]
+
+# Indexing a string
+"abc" => $s
+$s[0]  # Error: Cannot index string
 ```
 
 ---
@@ -1214,17 +1215,20 @@ $dict -> ordered  # Ambiguous field order
 
 ### rill-r040
 
-**Description:** chain() non-closure argument
+**Description:** Non-callable chain, start_when, stop_when arg
 
-**Cause:** The chain() built-in received a value that is neither a closure nor a list of closures.
+**Cause:** The chain() built-in received a value that is neither a closure nor a list of closures, or a list element was not a closure. The start_when and stop_when built-ins received a predicate that is not callable. The halt is catchable for chain(), start_when, and stop_when.
 
-**Resolution:** Pass a single closure or a list of closures to chain().
+**Resolution:** Pass a single closure or a list of closures to chain(), and a closure predicate to start_when and stop_when.
 
 **Example:**
 
 ```text
 # Passing a number to chain()
 5 -> chain(42)  # 42 is not a closure
+
+# Passing a non-closure predicate to start_when
+list[1, 2, 3] -> start_when(42)  # 42 is not a closure
 ```
 
 ---

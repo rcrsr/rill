@@ -67,3 +67,45 @@ describe('loadExample', () => {
     });
   });
 });
+
+describe('examples demonstrate their construct', () => {
+  it.each<[string, unknown, string[]]>([
+    ['guard-status', 'recovered', ['true', 'TYPE_MISMATCH']],
+    ['retry', 'fallback', ['true', 'TYPE_MISMATCH']],
+    ['streams', [5, 6, 7, 8], []],
+    [
+      'batching',
+      [
+        [1, 2, 3],
+        [3, 4, 5],
+        [5, 6],
+      ],
+      [
+        'list[3, 4, 5]',
+        'list[1, 2, 3, 1, 2, 3, 1]',
+        'list[list[1, 2, 3], list[4, 5, 6], list[7]]',
+        'list[list[1, 2, 3], list[4, 5, 6]]',
+      ],
+    ],
+    [
+      'tuples-ordered',
+      { x: 1, y: 2 },
+      ['true', 'true', 'list["1/3", "1/9", "2/1"]', '7'],
+    ],
+    ['datetime-duration', '2024-01-16T12:30:00Z', ['2024', '1', '15', '60d']],
+    [
+      'closure-reflection',
+      42,
+      ['Doubles a number', 'ordered(x: number)', 'number'],
+    ],
+  ])('%s ends on its expected value and logs', async (id, expected, logs) => {
+    const example = loadExample(id);
+    expect(example).toBeDefined();
+    const result = await executeRill(example!.source);
+    expect(result.status).toBe('success');
+    expect((JSON.parse(result.result!) as { value: unknown }).value).toEqual(
+      expected
+    );
+    expect(result.logs).toEqual(logs);
+  });
+});

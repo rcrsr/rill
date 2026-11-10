@@ -4,6 +4,8 @@
  * the halt always had.
  */
 
+import { anyTypeValue, createVector } from '@rcrsr/rill';
+import type { RillFunctionDefinition } from '@rcrsr/rill';
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
@@ -15,6 +17,20 @@ interface RecoverableCase {
   readonly message: string;
   readonly variables?: Record<string, number[]> | undefined;
 }
+
+/** Host-registered vectors for the vector method cases. */
+const VECTOR_FUNCTIONS: Record<string, RillFunctionDefinition> = {
+  make_vec2: {
+    params: [],
+    returnType: anyTypeValue,
+    fn: () => createVector(new Float32Array([1, 2]), 'm'),
+  },
+  make_vec3: {
+    params: [],
+    returnType: anyTypeValue,
+    fn: () => createVector(new Float32Array([1, 2, 3]), 'm'),
+  },
+};
 
 const BIG_LIST: number[] = Array.from({ length: 15000 }, (_, i) => i + 1);
 
@@ -271,12 +287,125 @@ const CASES: readonly RecoverableCase[] = [
     code: '#RILL_R009',
     message: 'List index out of bounds: 5',
   },
+  {
+    name: 'datetime.add with a non-duration',
+    source: 'datetime("2026-03-13T08:00:00Z") -> .add(5)',
+    code: '#TYPE_MISMATCH',
+    message: 'datetime.add() requires a duration argument',
+  },
+  {
+    name: 'datetime.diff with a non-datetime',
+    source: 'datetime("2026-03-13T08:00:00Z") -> .diff(5)',
+    code: '#TYPE_MISMATCH',
+    message: 'datetime.diff() requires a datetime argument',
+  },
+  {
+    name: 'duration.add with a non-duration',
+    source: 'duration(0,0,1) -> .add(5)',
+    code: '#TYPE_MISMATCH',
+    message: 'duration.add() requires a duration argument',
+  },
+  {
+    name: 'duration.subtract with a non-duration',
+    source: 'duration(0,0,1) -> .subtract(5)',
+    code: '#TYPE_MISMATCH',
+    message: 'duration.subtract() requires a duration argument',
+  },
+  {
+    name: 'duration.multiply with a non-number',
+    source: 'duration(0,0,1) -> .multiply("a")',
+    code: '#TYPE_MISMATCH',
+    message: 'duration.multiply() requires a number argument',
+  },
+  {
+    name: 'duration.subtract with a negative result',
+    source: 'duration(0,0,0,1) -> .subtract(duration(0,0,0,3))',
+    code: '#INVALID_INPUT',
+    message: 'duration.subtract() would produce negative result',
+  },
+  {
+    name: 'duration.multiply with a negative factor',
+    source: 'duration(0,0,1) -> .multiply(-1)',
+    code: '#INVALID_INPUT',
+    message: 'duration.multiply() requires non-negative number',
+  },
+  {
+    name: 'duration.multiply with a non-finite result',
+    source:
+      '|x| ($x * $x) => $sq\n10 -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq -> $sq => $big\nduration(0,0,1) -> .multiply($big) -> .multiply($big)',
+    code: '#INVALID_INPUT',
+    message: 'duration.multiply() would produce a non-finite result',
+  },
+  {
+    name: 'duration.multiply with a fractional month result',
+    source: 'duration(1,0,0) -> .multiply(0.1)',
+    code: '#INVALID_INPUT',
+    message: 'duration.multiply() would produce a fractional month value',
+  },
+  {
+    name: '.total_ms on a calendar duration',
+    source: 'duration(1,0,0) -> .total_ms',
+    code: '#INVALID_INPUT',
+    message: 'total_ms is not defined for calendar durations',
+  },
+  {
+    name: '.similarity with a non-vector argument',
+    source: 'make_vec2() -> .similarity(1)',
+    code: '#TYPE_MISMATCH',
+    message: 'expected vector, got number',
+  },
+  {
+    name: '.dot with a non-vector argument',
+    source: 'make_vec2() -> .dot(1)',
+    code: '#TYPE_MISMATCH',
+    message: 'expected vector, got number',
+  },
+  {
+    name: '.distance with a non-vector argument',
+    source: 'make_vec2() -> .distance(1)',
+    code: '#TYPE_MISMATCH',
+    message: 'expected vector, got number',
+  },
+  {
+    name: '.similarity with a dimension mismatch',
+    source: 'make_vec2() -> .similarity(make_vec3())',
+    code: '#INVALID_INPUT',
+    message: 'vector dimension mismatch: 2 vs 3',
+  },
+  {
+    name: '.dot with a dimension mismatch',
+    source: 'make_vec2() -> .dot(make_vec3())',
+    code: '#INVALID_INPUT',
+    message: 'vector dimension mismatch: 2 vs 3',
+  },
+  {
+    name: '.distance with a dimension mismatch',
+    source: 'make_vec2() -> .distance(make_vec3())',
+    code: '#INVALID_INPUT',
+    message: 'vector dimension mismatch: 2 vs 3',
+  },
+  {
+    name: 'chain with a non-closure list element',
+    source: '5 -> chain(list[5])',
+    code: '#RILL_R040',
+    message: 'chain: list element must be a closure, got number',
+  },
+  {
+    name: 'chain with a non-closure second argument',
+    source: '5 -> chain(5)',
+    code: '#RILL_R040',
+    message:
+      'chain: second argument must be a closure or list of closures, got number',
+  },
 ];
 
 describe('argument halts are recoverable with guard', () => {
   for (const c of CASES) {
     it(`recovers ${c.name} with the expected atom and message`, async () => {
-      const options = c.variables ? { variables: c.variables } : {};
+      const options = {
+        functions: VECTOR_FUNCTIONS,
+        ...(c.variables ? { variables: c.variables } : {}),
+      };
       const invalid = await run(`guard { ${c.source} } => $r\n$r.!`, options);
       const code = await run(
         `guard { ${c.source} } => $r\n"{$r.!code}"`,

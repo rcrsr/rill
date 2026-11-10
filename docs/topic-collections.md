@@ -751,7 +751,7 @@ Combine operators for multi-stage transformations.
 
 | Case | Example | Error |
 |------|---------|-------|
-| Non-callable body | `[1,2] -> seq(42)` | RILL-R040 |
+| Non-callable body | `[1,2] -> seq(42)` | `#TYPE_MISMATCH` (catchable) |
 | Non-iterable input | `42 -> seq({ $ })` | RILL-R002 |
 | Vector input | `$vec -> seq({ $ })` | RILL-R003 |
 | Iteration exceeds 10,000 | `range(0, 10001) -> seq({ $ })` | RILL-R010 |
