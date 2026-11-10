@@ -1,9 +1,11 @@
 /**
- * Flags conditional conditions that are trivially non-boolean literals.
+ * Flags conditions that are trivially non-boolean literals.
  *
  * rill has no truthy/falsy semantics (design principle #7: no truthiness).
  * `$cond ? a ! b` requires `$cond` to be an actual `bool` value; anything
- * else halts at runtime (see
+ * else halts at runtime with `RILL-R002` (atom `#RILL_R002`). The same halt covers the
+ * condition of `while`, `do ... while`, and `assert`, so the rule checks all
+ * four positions (see
  * packages/core/tests/language/ref-llms-full-assertions.test.ts, the
  * `"" ? "yes" ! "no" errors (not boolean)` case). This rule only catches the
  * decidable subset: a condition whose syntax is unambiguously a non-bool
@@ -15,7 +17,7 @@
  * though many of them are equally certain to halt at runtime.
  */
 
-import type { ASTNode, BodyNode } from '@rcrsr/rill';
+import type { ASTNode, BodyNode, ExpressionNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
 import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
@@ -25,21 +27,23 @@ import { registeredRules } from './rules-registry.js';
 // ============================================================
 
 /**
- * Primary node types that unambiguously produce a non-bool value.
+ * Primary node types that unambiguously produce a non-bool value, mapped to
+ * the rill type name of the literal. The diagnostic message names this type;
+ * it is not guaranteed to match the runtime halt's own wording.
  *
  * `DictLiteralNode` is not in this set: the parser always produces
  * `type: 'Dict'` for `dict[...]` literals (already listed below); no parse
  * path emits a `DictLiteral`-typed node, so including it would be
  * unreachable dead code.
  */
-const NON_BOOL_PRIMARY_TYPES = new Set([
-  'StringLiteral',
-  'NumberLiteral',
-  'ListLiteral',
-  'TupleLiteral',
-  'OrderedLiteral',
-  'Dict',
-  'AtomLiteral',
+const NON_BOOL_PRIMARY_TYPES: ReadonlyMap<string, string> = new Map([
+  ['StringLiteral', 'string'],
+  ['NumberLiteral', 'number'],
+  ['ListLiteral', 'list'],
+  ['TupleLiteral', 'tuple'],
+  ['OrderedLiteral', 'ordered'],
+  ['Dict', 'dict'],
+  ['AtomLiteral', 'atom'],
 ]);
 
 // ============================================================
@@ -57,7 +61,9 @@ const NON_BOOL_PRIMARY_TYPES = new Set([
  * classified further with confidence (the caller then stays silent), or
  * the current node once nothing more can be unwrapped.
  */
-function unwrapCondition(condition: BodyNode | null): ASTNode | null {
+function unwrapCondition(
+  condition: BodyNode | ExpressionNode | null
+): ASTNode | null {
   if (condition === null) {
     // Piped form: `$x -> ? a ! b`. Not analyzed here.
     return null;
@@ -76,6 +82,8 @@ function unwrapCondition(condition: BodyNode | null): ASTNode | null {
         continue;
 
       case 'PipeChain': {
+        // A seed-headed loop (`0 while (...) do { ... }`) is rewritten to a
+        // piped condition, so it lands here and stays silent.
         if (current.pipes.length > 0 || current.terminator !== null) {
           return null;
         }
@@ -105,26 +113,43 @@ function unwrapCondition(condition: BodyNode | null): ASTNode | null {
 // RULE
 // ============================================================
 
+/**
+ * The condition of a node this rule visits, or `undefined` for any other
+ * node. A piped conditional (`$x -> ? a ! b`) has a `null` condition.
+ */
+function conditionOf(
+  node: ASTNode
+): BodyNode | ExpressionNode | null | undefined {
+  switch (node.type) {
+    case 'Conditional':
+    case 'WhileLoop':
+    case 'DoWhileLoop':
+    case 'Assert':
+      return node.condition;
+    default:
+      return undefined;
+  }
+}
+
 export const conditionType: Rule = {
   code: 'CONDITION_TYPE',
-  nodeTypes: ['Conditional'],
+  nodeTypes: ['Conditional', 'WhileLoop', 'DoWhileLoop', 'Assert'],
   defaultSeverity: 'warning',
   category: 'conditionals',
 
   validate(node: ASTNode, context: RuleContext): Diagnostic[] {
-    if (node.type !== 'Conditional') return [];
-    const conditionalNode = node;
-    const primary = unwrapCondition(conditionalNode.condition);
+    const condition = conditionOf(node);
+    if (condition === undefined) return [];
+    const primary = unwrapCondition(condition);
+    if (primary === null) return [];
 
-    if (primary === null || !NON_BOOL_PRIMARY_TYPES.has(primary.type)) {
-      return [];
-    }
+    const typeName = NON_BOOL_PRIMARY_TYPES.get(primary.type);
+    if (typeName === undefined) return [];
 
     return [
       {
         code: 'CONDITION_TYPE',
-        message:
-          'Condition is a non-bool literal; conditions must evaluate to bool.',
+        message: `Condition is a ${typeName} literal; conditions must evaluate to bool.`,
         severity: 'warning',
         location: primary.span.start,
         context: extractContextLine(primary.span.start.line, context.source),

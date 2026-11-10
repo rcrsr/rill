@@ -267,7 +267,7 @@ const RULES: readonly Rule[]
 
 Frozen registry of all 42 built-in rules. See [Lint Rules](integration-cli.md#lint-rules) for the full list of rule codes, categories, defaults, and descriptions. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
 
-`CONDITION_TYPE` fires only on a conditional whose condition is a bare non-boolean literal. It performs no type inference and does not flag variables, host calls, method calls, or comparisons.
+`CONDITION_TYPE` fires when the condition of a conditional, `while`, `do ... while`, or `assert` is a bare non-boolean literal. The message names the literal's rill type. The runtime halts the same conditions with `RILL-R002`. It performs no type inference and does not flag variables, host calls, method calls, or comparisons.
 
 `FOLD_INTERMEDIATES` fires on an adjacent `acc(...) -> .tail` pair. The running-totals list is built for every step, then thrown away except for the last element. `fold(...)` computes the same final value directly. Only adjacent operator-consumer pairs in one pipe chain are recognized. The capture-then-subscript form (`acc(...) => $t` followed later by `$t[-1]`) needs whole-script analysis and stays silent.
 

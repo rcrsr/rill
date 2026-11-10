@@ -4,7 +4,7 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 98 files.
+# 99 files.
 8c19b450531ab683eb902280ec7026d2eaa8c90295acc57478f7146a9e8c7513  packages/core/tests/language/access-halt.test.ts
 b4a4c672aa0346c65c391a22869c852b64f21340e7326fe7d16ee06a47873cd5  packages/core/tests/language/annotations.test.ts
 eefe3850b2801446bebdb57e6e4a16adc6abc03d066640651db92872c251e551  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
@@ -26,6 +26,7 @@ ee58fd882d7ae9f11de6d02836d4e23d4271435d04334b24f23a5a413b2dcf70  packages/core/
 b35edcbbc868b307464f6a374a1edf76054dff66e3bd4849c6a271f1d2356800  packages/core/tests/language/closure-sig-literal.test.ts
 353b2165bf5818b7f3d56158a9ab720c1ec90aaded4f9d1e501179d0dc152e9b  packages/core/tests/language/collection-literals.test.ts
 2902272b6044a0ec4bca5888979992b4953259b079a06f479298af66f4351b27  packages/core/tests/language/collection-operators.test.ts
+707d87cbcd1442fe104f4b6d551a598c606dc75223ce8bef93a73076e88337b3  packages/core/tests/language/collection-slicing.test.ts
 4cfd9143857d3d256b269ce61d8f9ab98ff8eab2947859c2fb67ae79223db3f3  packages/core/tests/language/collection-type-defaults-bugs.test.ts
 7ecf8306e621a1acb9d89c1e3933bd2d16915b4f17c1ddcd8dcdd0fb034c394c  packages/core/tests/language/conditionals.test.ts
 68b5f19fb0befce11c96f0469a9bf926cfc92de4a109c06d86b7f9b77461aa11  packages/core/tests/language/conversion.test.ts

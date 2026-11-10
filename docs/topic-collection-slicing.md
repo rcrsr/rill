@@ -164,7 +164,14 @@ range(1, 11) -> skip(-1)
 # Halts on the 10,001st element
 ```
 
-Always pair `cycle` with `take(n)` to stay within bounds. A `break` inside a `seq` body does not bound `cycle`: `seq` materializes the iterator through `getIterableElements` before running the body, so the ceiling is already hit before any body `break` can fire. Only lazy consumers such as `take(n)` bound `cycle`.
+Pair `cycle` with `take(n)` to stay within bounds. `seq` also pulls from `cycle` lazily, so a `break` in the body stops consumption before the ceiling is reached.
+
+```rill
+[1, 2, 3] -> cycle -> seq({ ($ == 3) ? break ! $ })
+# Result: [1, 2]
+```
+
+A `seq` body that never calls `break` still halts with `#RILL_R010` at 10,000 elements.
 
 ### Empty Input
 
@@ -435,7 +442,7 @@ $event_stream -> debounce(duration(...dict[ms: 200]))
 
 ### Static-clock behavior
 
-The current implementation uses synchronous batch materialization via `getIterableElements`. Because `ctx.nowMs` does not advance between chunks, all chunks share the same virtual timestamp and fall within the same silence window. The result is the last chunk of the input.
+The current implementation materializes the input synchronously as one batch. Because `ctx.nowMs` does not advance between chunks, all chunks share the same virtual timestamp and fall within the same silence window. The result is the last chunk of the input.
 
 ```text
 # Under sync-batch semantics: debounce returns the last element
