@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+- **Fiddle context example:** Adds a Context Values example that reads the demo context with `use<context:key>`. ([#555](https://github.com/rcrsr/rill/pull/555))
+
 ### Changed
 
 - **Breaking: argument-validation halts are catchable `#INVALID_INPUT` or `#TYPE_MISMATCH` instead of fatal `RILL-R001`:** `range` with a step of 0, `repeat` with a negative count, and invalid `fan` and `filter` options now halt catchably, so `guard` and `??` recover them. A non-dict options value or a non-number `concurrency` halts `#TYPE_MISMATCH`; a `concurrency` that is not a positive integer, or an unknown option key, halts `#INVALID_INPUT`. A `filter` predicate that returns a non-bool now halts catchably with `#TYPE_MISMATCH`. A non-closure body passed to `seq`, `fan`, `acc`, `fold`, or `filter` now halts catchably with `#TYPE_MISMATCH` instead of fatal `RILL-R040`. `.repeat`, `.pad_start`, `.pad_end`, and `repeat()` now halt `#INVALID_INPUT` for a negative or non-integer count or length, which were previously floored, clamped, or ignored. `take` over more than 10,000 elements now halts catchably with `RILL-R010` instead of truncating to 10,000. `sort` on an iterator now materializes the iterator and sorts its values, where it previously sorted the iterator's internal fields. Hosts or scripts matching the old codes must update. ([#533](https://github.com/rcrsr/rill/issues/533), [#542](https://github.com/rcrsr/rill/pull/542))

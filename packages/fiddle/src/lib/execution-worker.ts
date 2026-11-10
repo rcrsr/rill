@@ -2,14 +2,13 @@
  * Execution worker for Rill Fiddle
  *
  * Runs executeRill off the main thread. Receives { source } via postMessage,
- * rebuilds the same resolverConfig App.tsx builds for the main-thread path,
- * runs executeRill, and posts back the resulting ExecutionState. No log
- * streaming: logs return inside ExecutionState.logs on completion.
+ * builds the context resolverConfig, runs executeRill, and posts back the
+ * resulting ExecutionState. No log streaming: logs return inside
+ * ExecutionState.logs on completion.
  */
 
-import { contextResolver } from '@rcrsr/rill';
-import { DEMO_CONTEXT_VALUES } from './context.js';
-import { executeRill, type FiddleResolverConfig } from './execution.js';
+import { buildContextResolverConfig } from './context.js';
+import { executeRill } from './execution.js';
 
 self.addEventListener('message', (event: MessageEvent<{ source: string }>) => {
   // This is a dedicated worker spawned by the app's own page, so it only
@@ -21,13 +20,7 @@ self.addEventListener('message', (event: MessageEvent<{ source: string }>) => {
 
   const { source } = event.data;
 
-  const resolverConfig: FiddleResolverConfig = {
-    resolvers: {
-      context: (resource: string) =>
-        contextResolver(resource, DEMO_CONTEXT_VALUES),
-    },
-    configurations: { resolvers: { context: DEMO_CONTEXT_VALUES } },
-  };
+  const resolverConfig = buildContextResolverConfig();
 
   executeRill(source, resolverConfig)
     .then((state) => {
