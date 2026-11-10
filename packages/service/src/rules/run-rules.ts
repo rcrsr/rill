@@ -2,7 +2,7 @@
  * Rules engine orchestrator.
  * Runs three linear AST passes: a bottom-up fact-collection pass (`facts.ts`)
  * that computes every subtree fact the rules need, a lightweight pass that
- * marks loop-body blocks for scope tracking, then a top-down dispatch pass
+ * marks scoped body blocks for scope tracking, then a top-down dispatch pass
  * that invokes each rule on `enter`. No rule re-walks a subtree; total node
  * visits are 3n, independent of nesting depth.
  * Dispatches every visited node to the rules registered in
@@ -150,13 +150,16 @@ export function runRules(
 
   // Scoped body Blocks get their own scope: a bare `{...}` body of a
   // collection-op call (`seq`, `fan`, `fold`, `filter`, `acc`), a
-  // `while`/`do-while` loop, or a `pass` block. Pass bodies run in a child
-  // scope whose captures do not escape. Populated up front from the AST
-  // (mirrors `facts.ts`'s `collectionOpBlockBodies`) so `enter`/`exit` can
-  // push/pop these Blocks onto `scopeStack` without re-deriving membership
-  // per node. Conditional, guard, retry and timeout Blocks stay unscoped, so
-  // a script-level variable reassigned inside one of those still resolves to
-  // the enclosing scope and fires reassignment diagnostics as before.
+  // `while`/`do-while` loop, a `pass` block, a conditional branch, or a
+  // `timeout`, `guard`, or `retry` block. Captures inside these bodies do
+  // not escape, and a halt that reassigning an outer variable raises is
+  // caught by `guard` and `retry` rather than hidden by sharing scope. A nested
+  // else-if is not registered here; the collector visits that Conditional on
+  // its own. Populated up front from the AST (mirrors `facts.ts`'s
+  // `collectionOpBlockBodies`) so `enter`/`exit` can push/pop these Blocks
+  // onto `scopeStack` without re-deriving membership per node. A
+  // script-level variable has no enclosing scope Block, so reassigning it
+  // inside a scoped body still fires.
   const scopedBodyBlocks = new Set<ASTNode>();
   const collectScopedBodyBlocks = (node: ASTNode): void => {
     if (isCollectionOpCall(node)) {
@@ -169,6 +172,19 @@ export function runRules(
         scopedBodyBlocks.add(node.body);
       }
     } else if (node.type === 'PassBlock') {
+      scopedBodyBlocks.add(node.body);
+    } else if (node.type === 'Conditional') {
+      if (node.thenBranch.type === 'Block') {
+        scopedBodyBlocks.add(node.thenBranch);
+      }
+      if (node.elseBranch !== null && node.elseBranch.type === 'Block') {
+        scopedBodyBlocks.add(node.elseBranch);
+      }
+    } else if (
+      node.type === 'TimeoutBlock' ||
+      node.type === 'GuardBlock' ||
+      node.type === 'RetryBlock'
+    ) {
       scopedBodyBlocks.add(node.body);
     }
   };

@@ -287,20 +287,20 @@ ordered [a: 1]  # Error: use ordered[a: 1]
 
 ### rill-p008
 
-**Description:** Bare bracket at expression start
+**Description:** Retired: bare bracket at expression start
 
-**Cause:** A bare [ token at expression start is ambiguous. Rill requires an explicit keyword prefix to distinguish list and dict literals.
+**Cause:** This error was raised when a bare [ token appeared at expression start, because the parser could not tell a list literal from a dict literal.
 
-**Resolution:** Use list[...] for a list literal or dict[key: val, ...] for a dict literal.
+**Resolution:** This error code is no longer thrown. A bare bracket literal is now equivalent to list[...] or dict[key: val, ...].
 
 **Example:**
 
 ```text
-# Bare list literal
-[1, 2, 3]  # Error: use list[1, 2, 3]
+# Bare list literal (no longer thrown; same as list[...])
+[1, 2, 3]  # now equivalent to list[1, 2, 3]
 
-# Bare dict literal
-[a: 1, b: 2]  # Error: use dict[a: 1, b: 2]
+# Bare dict literal (no longer thrown; same as dict[...])
+[a: 1, b: 2]  # now equivalent to dict[a: 1, b: 2]
 ```
 
 ---
@@ -522,7 +522,7 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Description:** Operation not applicable to its operands
 
-**Cause:** Operator applied to incompatible operand types, or operand values that leave the operation undefined: division or modulo by zero, slice step 0, ordering durations with different calendar components, mixed element types in a list literal, or a .at index out of range. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
+**Cause:** Operator applied to incompatible operand types, or operand values that leave the operation undefined: division or modulo by zero, ordering durations with different calendar components, mixed element types in a list literal, or a non-number index piped to a list[...] dispatch. Rill does not perform implicit type coercion. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
 
 **Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.
 
@@ -647,7 +647,7 @@ $stmt.^timeout  # No ^(timeout: ...) set
 
 **Description:** Key or index not found
 
-**Cause:** A dict or ordered key, or a list, tuple or ordered index, does not exist in the value.
+**Cause:** A dict or ordered key, or a list, tuple or ordered index, does not exist in the value. Index access through [], .at, .(n), or list[...] dispatch raises it when the index is outside the valid range.
 
 **Resolution:** Check property name spelling, verify the property exists, or use null-coalescing (??) to provide default. For safe access, use .? operator.
 
@@ -657,7 +657,7 @@ $stmt.^timeout  # No ^(timeout: ...) set
 # Missing dict key
 dict[name: "x"] -> .age  # age key not in dict
 
-# Index out of bounds
+# Index out of bounds (also .at, .(n), list dispatch)
 list[1, 2, 3] => $items
 $items[5]  # Only 3 elements (0-2)
 
@@ -729,16 +729,16 @@ $app.slow_api()  # Times out if exceeds limit
 
 ### rill-r013
 
-**Description:** Execution aborted
+**Description:** Retired: execution aborted
 
-**Cause:** Host application cancelled execution via AbortSignal.
+**Cause:** This error was raised when the host application cancelled execution via AbortSignal.
 
-**Resolution:** This is intentional cancellation, not an error. If unexpected, check host abort signal logic.
+**Resolution:** This error code is no longer thrown. Cancellation now raises the uncatchable #DISPOSED halt.
 
 **Example:**
 
 ```text
-# User cancellation in UI
+# User cancellation in UI (now halts with #DISPOSED)
 # Long-running script cancelled by user
 ```
 
@@ -1231,16 +1231,16 @@ $dict -> ordered  # Ambiguous field order
 
 ### rill-r041
 
-**Description:** List dispatch non-integer index
+**Description:** Retired: list dispatch non-integer index
 
-**Cause:** The index piped to a list[...] dispatch is not an integer.
+**Cause:** This error was raised when the index piped to a list[...] dispatch was not an integer.
 
-**Resolution:** Ensure the index is a whole number. Use math operations to convert if needed.
+**Resolution:** This error code is no longer thrown. A non-number index now raises RILL-R002, and a non-integer number halts with #INVALID_INPUT ("<Kind> index must be an integer, got <index>").
 
 **Example:**
 
 ```text
-# Floating-point index
+# Floating-point index (no longer raised; now #INVALID_INPUT)
 1.5 -> list["a", "b"]  # Not an integer
 ```
 
@@ -1248,16 +1248,16 @@ $dict -> ordered  # Ambiguous field order
 
 ### rill-r042
 
-**Description:** List dispatch index out of range
+**Description:** Retired: list dispatch index out of range
 
-**Cause:** The index piped to a list[...] dispatch is outside the valid range.
+**Cause:** This error was raised when the index piped to a list[...] dispatch was outside the valid range.
 
-**Resolution:** Use an index within [0, length-1] or add a fallback with ??.
+**Resolution:** This error code is no longer thrown. An out-of-range index now raises RILL-R009 ("<Kind> index out of bounds: <index>"). Use an index within [0, length-1] or add a fallback with ??.
 
 **Example:**
 
 ```text
-# Index beyond end
+# Index beyond end (no longer raised; now RILL-R009)
 5 -> list["a", "b"]  # Only 2 elements (indices 0-1)
 ```
 

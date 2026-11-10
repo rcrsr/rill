@@ -229,6 +229,48 @@ const CASES: readonly RecoverableCase[] = [
     message:
       'List elements must be the same type: expected list(number), got string at index 1',
   },
+  {
+    name: 'slice with a zero step',
+    source: 'list[1, 2, 3] -> slice<::0>',
+    code: '#INVALID_INPUT',
+    message: 'Slice step cannot be zero',
+  },
+  {
+    name: 'list index with a non-integer variable index',
+    source: 'list[1, 2, 3] => $l\n$l[1.5]',
+    code: '#INVALID_INPUT',
+    message: 'List index must be an integer, got 1.5',
+  },
+  {
+    name: '.at with a non-integer index',
+    source: 'list[1, 2, 3] -> .at(1.5)',
+    code: '#INVALID_INPUT',
+    message: 'List index must be an integer, got 1.5',
+  },
+  {
+    name: 'list dispatch with a non-integer index',
+    source: '1.5 -> list["a", "b"]',
+    code: '#INVALID_INPUT',
+    message: 'List index must be an integer, got 1.5',
+  },
+  {
+    name: 'list dispatch of a non-integer through a stored list',
+    source: 'list["a", "b"] => $list\n1.5 -> $list',
+    code: '#INVALID_INPUT',
+    message: 'List index must be an integer, got 1.5',
+  },
+  {
+    name: '.at out of range',
+    source: 'list[1, 2, 3] -> .at(5)',
+    code: '#RILL_R009',
+    message: 'List index out of bounds: 5',
+  },
+  {
+    name: 'list dispatch out of range',
+    source: '5 -> list["a", "b"]',
+    code: '#RILL_R009',
+    message: 'List index out of bounds: 5',
+  },
 ];
 
 describe('argument halts are recoverable with guard', () => {

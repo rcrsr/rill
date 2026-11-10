@@ -17,6 +17,10 @@ import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isOrdered } from '../../types/guards.js';
 import { getVariable } from '../../context.js';
+import {
+  findIndexPosition,
+  throwIndexOutOfBounds,
+} from '../../types/index-access.js';
 import { isDict, isCallable } from '../../callable.js';
 import {
   throwCatchableHostHalt,
@@ -157,49 +161,41 @@ export async function evaluateFieldAccessVariable(
   // Handle number key (list access)
   if (typeof keyValue === 'number') {
     if (Array.isArray(value)) {
-      let index = keyValue;
-      // Handle negative indices
-      if (index < 0) {
-        index = value.length + index;
-      }
-      const result = value[index];
+      const site = {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateFieldAccessVariable',
+      };
+      const position = findIndexPosition(keyValue, value.length, 'List', site);
+      const result = position === undefined ? undefined : value[position];
       if (result === undefined) {
         // Out of bounds. Halt unless a default / existence check permits null.
         if (allowMissing) {
           return null;
         }
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateFieldAccessVariable',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `List index out of bounds: ${keyValue}`
-        );
+        return throwIndexOutOfBounds(keyValue, value.length, 'List', site);
       }
       return result;
     }
     if (isOrdered(value)) {
       const entries = value.entries;
-      let index = keyValue;
-      if (index < 0) {
-        index = entries.length + index;
-      }
-      const entry = entries[index];
+      const site = {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateFieldAccessVariable',
+      };
+      const position = findIndexPosition(
+        keyValue,
+        entries.length,
+        'Ordered',
+        site
+      );
+      const entry = position === undefined ? undefined : entries[position];
       if (entry === undefined) {
         if (allowMissing) {
           return null;
         }
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateFieldAccessVariable',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `Ordered index out of bounds: ${keyValue}`
-        );
+        return throwIndexOutOfBounds(keyValue, entries.length, 'Ordered', site);
       }
       return entry[1];
     }
@@ -365,49 +361,41 @@ export async function evaluateFieldAccessComputed(
   // Handle number key (list access)
   if (typeof keyValue === 'number') {
     if (Array.isArray(value)) {
-      let index = keyValue;
-      // Handle negative indices
-      if (index < 0) {
-        index = value.length + index;
-      }
-      const result = value[index];
+      const site = {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateFieldAccessComputed',
+      };
+      const position = findIndexPosition(keyValue, value.length, 'List', site);
+      const result = position === undefined ? undefined : value[position];
       if (result === undefined) {
         // Out of bounds. Halt unless a default / existence check permits null.
         if (allowMissing) {
           return null;
         }
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateFieldAccessComputed',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `List index out of bounds: ${keyValue}`
-        );
+        return throwIndexOutOfBounds(keyValue, value.length, 'List', site);
       }
       return result;
     }
     if (isOrdered(value)) {
       const entries = value.entries;
-      let index = keyValue;
-      if (index < 0) {
-        index = entries.length + index;
-      }
-      const entry = entries[index];
+      const site = {
+        location: getNodeLocation(s, node),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluateFieldAccessComputed',
+      };
+      const position = findIndexPosition(
+        keyValue,
+        entries.length,
+        'Ordered',
+        site
+      );
+      const entry = position === undefined ? undefined : entries[position];
       if (entry === undefined) {
         if (allowMissing) {
           return null;
         }
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateFieldAccessComputed',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R009],
-          `Ordered index out of bounds: ${keyValue}`
-        );
+        return throwIndexOutOfBounds(keyValue, entries.length, 'Ordered', site);
       }
       return entry[1];
     }

@@ -26,6 +26,10 @@ import {
   throwCatchableHostHalt,
   throwFatalHostHalt,
 } from '../../../core/types/halt.js';
+import {
+  findIndexPosition,
+  throwIndexOutOfBounds,
+} from '../../../core/types/index-access.js';
 import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
 import { invokeCallable as invokeCallableState } from '../../../core/eval/index.js';
 import {
@@ -158,76 +162,34 @@ export const mFirst: RillMethod = async (receiver, _args, ctx, location) => {
   );
 };
 
-/** Get element at index */
+/** Get element at index; a negative index counts from the end */
 export const mAt: RillMethod = (receiver, args, ctx, location) => {
   const idx = typeof args[0] === 'number' ? args[0] : 0;
+  const site = { location, sourceId: ctx.sourceId, fn: 'at' };
   if (Array.isArray(receiver)) {
-    // A fractional index generates a fractional array access (`receiver[1.5]`)
-    // which is `undefined`, violating the no-null invariant. Halt with a
-    // catchable #INVALID_INPUT instead, mirroring applySlice's bound check.
-    if (!Number.isInteger(idx)) {
-      throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'at' },
-        'INVALID_INPUT',
-        `List index must be an integer, got ${idx}`
-      );
-    }
-    const item = receiver[idx];
+    const pos = findIndexPosition(idx, receiver.length, 'List', site);
+    const item = pos === undefined ? undefined : receiver[pos];
     if (item === undefined) {
-      throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'at' },
-        'RILL_R002',
-        `List index out of bounds: ${idx}`
-      );
+      return throwIndexOutOfBounds(idx, receiver.length, 'List', site);
     }
     return item;
   }
   if (typeof receiver === 'string') {
     // Index by code point so an astral character occupies a single position
     // and is never returned as a lone surrogate.
-    if (!Number.isInteger(idx)) {
-      throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'at' },
-        'INVALID_INPUT',
-        `String index must be an integer, got ${idx}`
-      );
-    }
-    if (isBmpOnly(receiver)) {
-      if (idx < 0 || idx >= receiver.length) {
-        throwCatchableHostHalt(
-          { location, sourceId: ctx.sourceId, fn: 'at' },
-          'RILL_R002',
-          `String index out of bounds: ${idx}`
-        );
-      }
-      return receiver.charAt(idx);
-    }
-    const cps = Array.from(receiver);
-    const cp = cps[idx];
+    const cps = isBmpOnly(receiver) ? receiver : Array.from(receiver);
+    const pos = findIndexPosition(idx, cps.length, 'String', site);
+    const cp = pos === undefined ? undefined : cps[pos];
     if (cp === undefined) {
-      throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'at' },
-        'RILL_R002',
-        `String index out of bounds: ${idx}`
-      );
+      return throwIndexOutOfBounds(idx, cps.length, 'String', site);
     }
     return cp;
   }
   if (isTuple(receiver)) {
-    if (!Number.isInteger(idx)) {
-      throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'at' },
-        'INVALID_INPUT',
-        `Tuple index must be an integer, got ${idx}`
-      );
-    }
-    const entry = receiver.entries[idx];
+    const pos = findIndexPosition(idx, receiver.entries.length, 'Tuple', site);
+    const entry = pos === undefined ? undefined : receiver.entries[pos];
     if (entry === undefined) {
-      throwCatchableHostHalt(
-        { location, sourceId: ctx.sourceId, fn: 'at' },
-        'RILL_R002',
-        `Tuple index out of bounds: ${idx}`
-      );
+      return throwIndexOutOfBounds(idx, receiver.entries.length, 'Tuple', site);
     }
     return entry;
   }

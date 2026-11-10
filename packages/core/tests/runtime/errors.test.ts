@@ -432,6 +432,14 @@ describe('Rill Runtime: Error Taxonomy', () => {
       expect(definition?.examples!.length).toBeGreaterThan(0);
     });
 
+    it('retired entries describe themselves as retired', () => {
+      for (const id of ['RILL-R013', 'RILL-P008', 'RILL-R041', 'RILL-R042']) {
+        const definition = ERROR_REGISTRY.get(id);
+        expect(definition).toBeDefined();
+        expect(definition?.description.startsWith('Retired:')).toBe(true);
+      }
+    });
+
     it('RILL-P009 exists in ERROR_REGISTRY with cause, resolution, and examples', () => {
       // AC-36: removed sigil forms error must have all documentation fields
       const definition = ERROR_REGISTRY.get('RILL-P009');

@@ -7,7 +7,7 @@ Atoms, status sidecars, `guard`, `retry`, vacancy, and recovery patterns.
 | Failure | Caused by | Caught by |
 |---|---|---|
 | Runtime error (uncatchable) | `error`, `assert`, parameter type mismatch | nothing — propagates |
-| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index (`RILL-R042`), missing field (`RILL-R007`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
+| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index (`RILL-R009`), missing field (`RILL-R007`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
 
 ## Assert and error
 
@@ -58,7 +58,9 @@ Pre-registered atom literals (must start with uppercase letter):
                                    #       negative/non-integer count for repeat(), .repeat, .pad_start, .pad_end;
                                    #       non-positive or non-integer concurrency for fan/filter;
                                    #       unknown option key for fan/filter;
-                                   #       zero step for range
+                                   #       zero step for range;
+                                   #       non-integer index for [], .(n), .at, list dispatch;
+                                   #       zero step for slice<>
     #PROTOCOL  #DISPOSED
     #TYPE_MISMATCH                 # failed `:type` assertion;
                                    # also: `sort` key extractor mixed types,
@@ -93,7 +95,7 @@ Filtered form (catches only matching atoms):
       $app.fetch($url)
     }
 
-`guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index (`RILL-R042`), missing field access (`RILL-R007`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
+`guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index (`RILL-R009`), missing field access (`RILL-R007`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
 
 ## Retry
 

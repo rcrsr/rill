@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Language: List Dispatch', () => {
   // ============================================================
@@ -86,20 +87,37 @@ describe('Rill Language: List Dispatch', () => {
   describe('error contracts', () => {
     it('throws runtime error when index out of bounds without ?? (AC-32, EC-16)', async () => {
       await expect(run('2 -> list["a", "b"]')).rejects.toThrow(
-        /index.*out of range/i
+        /index out of bounds/i
       );
     });
 
-    it('throws runtime error when index is a float (EC-15)', async () => {
-      await expect(run('1.5 -> list["a", "b"]')).rejects.toThrow(/integer/i);
+    it('halts #INVALID_INPUT when index is a float (EC-15)', async () => {
+      await expectHalt(() => run('1.5 -> list["a", "b"]'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('halts #INVALID_INPUT when a variable list is indexed by a float', async () => {
+      await expectHalt(
+        () =>
+          run(`
+          list["a", "b"] => $list
+          1.5 -> $list
+        `),
+        { code: 'INVALID_INPUT' }
+      );
     });
 
     it('throws runtime error when index is a string (EC-15)', async () => {
-      await expect(run('"0" -> list["a", "b"]')).rejects.toThrow(/integer/i);
+      await expect(run('"0" -> list["a", "b"]')).rejects.toThrow(
+        /must be number/i
+      );
     });
 
     it('throws runtime error when index is a boolean (EC-15)', async () => {
-      await expect(run('true -> list["a", "b"]')).rejects.toThrow(/integer/i);
+      await expect(run('true -> list["a", "b"]')).rejects.toThrow(
+        /must be number/i
+      );
     });
   });
 });

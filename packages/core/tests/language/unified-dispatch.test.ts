@@ -169,7 +169,7 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R009',
             hostErrorId: 'RILL-R009',
-            messagePattern: /List dispatch.*index.*not found/i,
+            messagePattern: /List index out of bounds/i,
           }
         );
       });
@@ -186,7 +186,7 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R009',
             hostErrorId: 'RILL-R009',
-            messagePattern: /List dispatch.*index.*not found/i,
+            messagePattern: /List index out of bounds/i,
           }
         );
       });
@@ -218,7 +218,7 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R009',
             hostErrorId: 'RILL-R009',
-            messagePattern: /List dispatch.*index.*not found/i,
+            messagePattern: /List index out of bounds/i,
           }
         );
       });

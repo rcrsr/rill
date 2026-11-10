@@ -184,13 +184,14 @@ Spreading a non-list throws an error:
 - `[-1]`, `[-2]`: Negative index (from end)
 - `.head`: First element (errors on empty)
 - `.tail`: Last element (errors on empty)
-- `.at(n)`: Element at index
+- `.at(n)`: Element at index (negative counts from end)
 
-**Out-of-bounds access** throws an error:
+**Out-of-range access** halts with `RILL-R009`; a non-integer index halts with `#INVALID_INPUT`. Both are catchable.
 
 ```text
-[] -> .at(0)           # Error: List index out of bounds
-["a"] -> .at(5)        # Error: List index out of bounds
+list[] -> .at(0)  # Error: RILL-R009
+list["a"] -> .at(5)  # Error: RILL-R009
+list["a"] -> .at(0.5)  # Error: #INVALID_INPUT
 ```
 
 Use `??` for safe access with default:
@@ -198,6 +199,22 @@ Use `??` for safe access with default:
 ```rill
 ["a"] => $list
 $list[0] ?? "default"  # "a"
+```
+
+```rill
+list["a", "b", "c"] -> .at(-1)
+# Result: "c"
+```
+
+```rill
+list["a"] -> .at(5) ?? "default"
+# Result: "default"
+```
+
+```rill
+guard { list["a"] -> .at(5) } => $r
+$r.!code -> string
+# Result: "RILL_R009"
 ```
 
 See [Collections](topic-collections.md) for iteration operators.
@@ -437,11 +454,16 @@ Tuples are positional containers created with `tuple[...]` syntax.
 
 ### Element Access
 
-Index a tuple by position with `[i]` (negative indexes count from the end), or with `.at(i)`. Indexing applies directly to a `tuple[...]` literal as well as to a captured tuple.
+Index a tuple by position with `[i]` (negative indexes count from the end for both `[i]` and `.at(i)`), or with `.at(i)`. Indexing applies directly to a `tuple[...]` literal as well as to a captured tuple.
 
 ```rill
 tuple[1, "a"] => $t
 $t[1]
+# Result: "a"
+```
+
+```rill
+tuple[1, "a"] -> .at(-1)
 # Result: "a"
 ```
 

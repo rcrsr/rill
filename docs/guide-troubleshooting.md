@@ -133,10 +133,16 @@ $person.?age ? "has age" ! "no age"
 ```text
 ["a", "b"] => $list
 $list[5]
-# Error: List index out of bounds
+# Error: RILL-R009
 ```
 
-**Fix:** Check length before accessing.
+**Fix:** Supply a default with `??` on `.at(i)`, or check the length first. `.at(5)` without `??` halts the same way.
+
+```rill
+["a", "b"] => $list
+$list -> .at(5) ?? "default"
+# Result: "default"
+```
 
 ```rill
 ["a", "b"] => $list

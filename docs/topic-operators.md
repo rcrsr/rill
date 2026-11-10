@@ -521,8 +521,12 @@ Extract a portion using Python-style `start:stop:step`. Works on lists and strin
 [1, 2, 3] -> slice<2:1>              # [] (empty when start >= stop)
 ```
 
-```text
-[1, 2, 3] -> slice<::0>              # Error: step cannot be zero
+A step of 0 halts with `#INVALID_INPUT`, which `guard` catches.
+
+```rill
+guard { list[1, 2, 3] -> slice<::0> } => $r
+$r.!code -> string
+# Result: "INVALID_INPUT"
 ```
 
 ---
@@ -552,6 +556,14 @@ $list[-1]                    # "c"
 $list[1]                     # "b"
 ```
 
+The index must be an integer. An out-of-range index halts with `RILL-R009` and a non-integer index halts with `#INVALID_INPUT`; both are catchable, and `.at(n) ?? default` supplies a default.
+
+```rill
+["a", "b", "c"] => $list
+$list -> .at(5) ?? "none"
+# Result: "none"
+```
+
 ### Variable Key `.$key`
 
 Use a variable as key:
@@ -564,7 +576,7 @@ $data.$key                       # "alice"
 
 ### Computed Key `.($expr)`
 
-Use an expression as key:
+Use an expression as key. A numeric key indexes a list under the same rules as `[n]`.
 
 ```text
 0 => $i
@@ -640,7 +652,7 @@ Pipe a list path to a target structure. Path elements are applied sequentially:
 
 ```text
 ["missing"] -> [name: "test"]    # Error: key 'missing' not found
-[5] -> list[1, 2, 3]                 # Error: index 5 out of bounds
+[5] -> list[1, 2, 3]                 # Error: RILL-R009
 ```
 
 See [Reference](ref-language.md) for full dispatch semantics including dict dispatch, list dispatch, and default values.
