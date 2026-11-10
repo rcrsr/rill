@@ -67,7 +67,9 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
 
   advance(parser.state); // consume '('
 
-  const args = parseFieldArgList(parser.state);
+  const args = parseFieldArgList(parser.state, {
+    parseLiteral: () => parser.parseLiteral(),
+  });
 
   const rparen = expect(
     parser.state,

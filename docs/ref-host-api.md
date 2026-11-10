@@ -832,8 +832,12 @@ Registration throws `RuntimeError` with `RILL-R091` in these cases:
 | `description` is not a string | `Invalid signature for function '{name}': description must be a string` |
 | `annotations` is not an object | `Invalid signature for function '{name}': annotations must be an object` |
 | One annotation key declared by more than one source (signature, `annotations`, `description`) | `Invalid signature for function '{name}': annotation '{key}' is declared more than once` |
+| Dict-field or tuple-element default does not match its type | `Invalid signature for function '{name}': Default value for field 'b' must be number, got string at {line}:{col}`; a tuple element reads `tuple element` instead of `field 'b'` |
+| Tuple default is not trailing | `Invalid signature for function '{name}': tuple() default values must be trailing: element at position {n} has no default but a preceding element does at {line}:{col}` |
+| Dict-field or tuple-element default is not a literal | `Invalid signature for function '{name}': field 'b' default must be a string, number, or bool literal at {line}:{col}`; a tuple element reads `tuple element default must be ...` |
+| `list(...)` element type carries a default | `Invalid signature for function '{name}': list element type cannot carry a default value at {line}:{col}` |
 
-`{name}` is the key in `functions`. `toCallable` has no key, so it reports `<anonymous>`. A default that does not match its declared type keeps `RILL-R077`.
+`{name}` is the key in `functions`. `toCallable` has no key, so it reports `<anonymous>`. A parameter default that does not match its declared type keeps `RILL-R077`.
 
 ---
 

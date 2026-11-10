@@ -920,6 +920,13 @@ describe('Rill Language: Structural Type Default Values', () => {
       expect(result).toEqual({ a: 1 });
     });
 
+    it('stream closure return type accepts a default in its chunk type', async () => {
+      const result = await run(
+        '|v: number| { $v }:stream(dict(a: number, b: number = 0)):number => $f\n$f.^output -> .signature'
+      );
+      expect(result).toBe('stream(dict(a: number, b: number = 0)):number');
+    });
+
     it('closure return type still halts when a required field is missing', async () => {
       await expectHaltMessage(
         () =>

@@ -117,6 +117,13 @@ function staticTypeRefToTypeStructure(
       args[0] !== undefined &&
       args[0].name === undefined
     ) {
+      if (args[0].defaultValue !== undefined) {
+        throw signatureError(
+          functionName,
+          'list element type cannot carry a default value',
+          at
+        );
+      }
       const element = staticTypeRefToTypeStructure(
         args[0].value,
         functionName,
@@ -188,6 +195,13 @@ function signatureFieldDef(
   const type = staticTypeRefToTypeStructure(arg.value, functionName, at);
   if (arg.defaultValue === undefined) return { type };
 
+  if (!isSignatureLiteral(arg.defaultValue)) {
+    throw signatureError(
+      functionName,
+      `${subject} default must be a string, number, or bool literal`,
+      at
+    );
+  }
   const defaultValue = signatureLiteralValue(arg.defaultValue);
   const mismatch = defaultMismatch(defaultValue, type);
   if (mismatch !== null) {
@@ -523,23 +537,26 @@ function parseSignatureParam(
 /** The literal kinds a signature default may use. */
 type SignatureLiteral = StringLiteralNode | NumberLiteralNode | BoolLiteralNode;
 
+function isSignatureLiteral(node: LiteralNode): node is SignatureLiteral {
+  return (
+    node.type === 'StringLiteral' ||
+    node.type === 'NumberLiteral' ||
+    node.type === 'BoolLiteral'
+  );
+}
+
 /**
  * The value of a default literal parsed by parseSignatureLiteral.
  *
  * @internal
  */
-function signatureLiteralValue(node: LiteralNode): RillValue {
-  switch (node.type) {
-    case 'NumberLiteral':
-    case 'BoolLiteral':
-      return node.value;
-    case 'StringLiteral':
-      return node.parts
-        .filter((part): part is string => typeof part === 'string')
-        .join('');
-    default:
-      throw new Error(`Unsupported signature default node '${node.type}'`);
+function signatureLiteralValue(node: SignatureLiteral): RillValue {
+  if (node.type === 'StringLiteral') {
+    return node.parts
+      .filter((part): part is string => typeof part === 'string')
+      .join('');
   }
+  return node.value;
 }
 
 /**

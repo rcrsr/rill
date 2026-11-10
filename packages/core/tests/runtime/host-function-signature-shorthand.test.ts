@@ -556,6 +556,12 @@ describe('host function signature shorthand', () => {
       );
     });
 
+    it('rejects a default on the list element type with RILL-R091', () => {
+      const err = registrationError('|d: list(number = 1)|');
+      expect(err.errorId).toBe('RILL-R091');
+      expect(err.message).toMatch(/list element type cannot carry a default/);
+    });
+
     it('rejects a non-trailing tuple default with RILL-R091', () => {
       const err = registrationError('|d: tuple(number = 1, string)|');
       expect(err.errorId).toBe('RILL-R091');
