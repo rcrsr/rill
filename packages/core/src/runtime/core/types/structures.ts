@@ -65,6 +65,7 @@ export type TypeStructure =
       valueType?: TypeStructure | undefined;
     }
   | { kind: 'union'; members: TypeStructure[] }
+  | { kind: 'literal'; value: string | number | boolean }
   | { kind: 'iterator' }
   | { kind: 'stream'; chunk?: TypeStructure; ret?: TypeStructure }
   | { kind: string; data?: unknown };

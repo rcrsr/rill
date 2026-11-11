@@ -32,10 +32,13 @@ export interface FieldArg {
  * - `static`: a known RillTypeName literal (e.g. `string`, `number`), optionally
  *   parameterized with `args` (e.g. `list(string)`, `dict(key: string)`)
  * - `dynamic`: a variable name whose runtime value provides the type
+ * - `literal`: a string, number, or bool value used as a union member
+ *   (e.g. `"wired"|"wireless"`); matches by value equality, no coercion
  * - `union`: two or more type refs (flattened at parse time; no nested unions)
  *   Members preserve source order. `members.length >= 2`.
  */
 export type TypeRef =
   | { kind: 'static'; typeName: RillTypeName; args?: FieldArg[] }
   | { kind: 'dynamic'; varName: string }
+  | { kind: 'literal'; value: string | number | boolean }
   | { kind: 'union'; members: TypeRef[] };

@@ -54,6 +54,8 @@ export function typeRefToString(ref: TypeRef | null): string {
       return 'any';
     case 'union':
       return ref.members.map(typeRefToString).join(' | ');
+    case 'literal':
+      return JSON.stringify(ref.value);
   }
   throw new Error('unreachable: unhandled type reference kind');
 }

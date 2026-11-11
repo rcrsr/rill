@@ -26,7 +26,7 @@ import {
   skipNewlinesIfFollowedBy,
   makeSpan,
 } from './state.js';
-import { expectVariableName } from './helpers.js';
+import { expectVariableName, literalTypeTokenCount } from './helpers.js';
 import { parseScriptTypeRef, parseFieldArgList } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
@@ -314,6 +314,17 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
         return checkSecondTypeThenPipe(lookahead);
       }
       return false;
+    }
+    // Literal-led anonymous typed closure: |"a"|"b"| body. A leading true or
+    // false stays a parameter name (|true| ...), so only string and number
+    // literals start one.
+    const leadType = current(this.state).type;
+    const literalWidth =
+      leadType === TOKEN_TYPES.TRUE || leadType === TOKEN_TYPES.FALSE
+        ? 0
+        : literalTypeTokenCount(this.state, 0);
+    if (literalWidth > 0) {
+      return peek(this.state, literalWidth).type === TOKEN_TYPES.PIPE_BAR;
     }
     return false;
   })();

@@ -577,17 +577,11 @@ See [Type System: Defaults in Type Expressions](#defaults-in-type-expressions) a
 
 ## Union Types
 
-A union type matches any one of two or more listed types. Use `T1|T2` syntax wherever a type annotation is accepted.
+A union type matches any one of two or more listed members. Members are types or literal values. Use `T1|T2` syntax wherever a type annotation is accepted.
 
 ### Overview
 
 Union types appear in type assertions, type checks, capture annotations, and destructure patterns. The `|` separator joins members into a union. At runtime, a union matches if the value satisfies any member.
-
-```rill
-# Union assertion: number satisfies string|number
-42 -> :string|number
-# Result: 42
-```
 
 ### Type Assertion
 
@@ -597,6 +591,8 @@ Assert that a value matches at least one union member. Execution halts if no mem
 42 -> :string|number
 # Result: 42
 ```
+
+A failed assertion names the full union:
 
 ```text
 # Error: Type assertion failed: expected string|number, got bool
@@ -655,14 +651,28 @@ Chain additional members with `|`. The runtime checks each member left to right:
 # Result: "hello"
 ```
 
-### Error Behavior
+### Literal Members
 
-A type assertion fails when the value does not satisfy any member. The error message names the full union:
+A union member can be a literal value: a string without interpolation, a number (including negative numbers), or a bool. A value matches a literal member when it equals that literal, with no coercion:
 
-```text
-# Error: Type assertion failed: expected string|number, got bool
-true -> :string|number
+```rill
+"wired" -> :"wired"|"wireless"
+# Result: "wired"
 ```
+
+```rill
+1.0 -> :1|2|3
+# Result: 1
+```
+
+```rill
+"1":?1|2
+# Result: false
+```
+
+A literal is a type only inside a union of two or more members. A lone literal, as in `:"a"`, halts parsing with RILL-P001, and an interpolated string member such as `"{$x}"|"b"` halts parsing with RILL-P003. rill never infers a literal type: `"wired".^type` is `string`.
+
+Closure signature type expressions do not accept literal members; use them in annotations, assertions, captures, and closure parameters. A union cannot yet be written as a standalone expression.
 
 See [Operators](topic-operators.md) for union types in destructure and existence positions.
 
@@ -875,12 +885,6 @@ Type values compare with `==` and `!=`. Structural types compare structurally:
 
 ```rill
 42 => $n
-$n.^type == number
-# Result: true
-```
-
-```rill
-42 => $n
 $n.^type == string
 # Result: false
 ```
@@ -889,12 +893,6 @@ $n.^type == string
 "hello" => $a
 "world" => $b
 $a.^type == $b.^type
-# Result: true
-```
-
-```rill
-[1, 2] => $l
-$l.^type == list(number)
 # Result: true
 ```
 

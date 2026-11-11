@@ -54,4 +54,28 @@ describe('typeRefToString', () => {
     };
     expect(typeRefToString(ref)).toBe('string | number');
   });
+
+  it('renders a union of string literals quoted', () => {
+    const ref: TypeRef = {
+      kind: 'union',
+      members: [
+        { kind: 'literal', value: 'wired' },
+        { kind: 'literal', value: 'wireless' },
+      ],
+    };
+    expect(typeRefToString(ref)).toBe('"wired" | "wireless"');
+  });
+
+  it('renders number and bool literals bare', () => {
+    const ref: TypeRef = {
+      kind: 'union',
+      members: [
+        { kind: 'literal', value: -1 },
+        { kind: 'literal', value: 2.5 },
+        { kind: 'literal', value: true },
+        { kind: 'static', typeName: 'string' },
+      ],
+    };
+    expect(typeRefToString(ref)).toBe('-1 | 2.5 | true | string');
+  });
 });

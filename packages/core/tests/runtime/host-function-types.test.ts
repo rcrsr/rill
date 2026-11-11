@@ -616,6 +616,66 @@ describe('Rill Runtime: Host Function Type Safety', () => {
     });
   });
 
+  describe('Literal union parameters', () => {
+    const literalUnion: TypeStructure = {
+      kind: 'union',
+      members: [
+        { kind: 'literal', value: 'wired' },
+        { kind: 'literal', value: 'wireless' },
+      ],
+    };
+
+    const definitions = (
+      fn: ReturnType<typeof mockFn>
+    ): Record<string, Parameters<typeof run>[1]> => ({
+      structured: {
+        functions: {
+          pick: {
+            returnType: anyTypeValue,
+            params: [
+              {
+                name: 'kind',
+                type: literalUnion,
+                defaultValue: undefined,
+                annotations: {},
+              },
+            ],
+            fn: fn.fn,
+          },
+        },
+      },
+      signature: {
+        functions: {
+          pick: { signature: '|kind: "wired"|"wireless"|:any', fn: fn.fn },
+        },
+      },
+    });
+
+    it.each(['structured', 'signature'])(
+      'accepts a member value when registered by %s',
+      async (form) => {
+        const fn = mockFn('ok');
+        const options = definitions(fn)[form];
+        expect(await run('pick("wired")', options)).toBe('ok');
+        expect(fn.callCount).toBe(1);
+      }
+    );
+
+    it.each(['structured', 'signature'])(
+      'halts RILL-R001 without invoking the function when registered by %s',
+      async (form) => {
+        const fn = mockFn('ok');
+        const options = definitions(fn)[form];
+        await expect(run('pick("wirless")', options)).rejects.toMatchObject({
+          errorId: 'RILL-R001',
+          message: stringContaining('got string "wirless"'),
+          context: objectContaining({ actualType: 'string' }),
+        });
+        expect(fn.callCount).toBe(0);
+      }
+    );
+  });
+
   describe('Registration-Time Validation (EC-4, AC-11)', () => {
     describe('defaultValue type mismatch at registration', () => {
       it('throws Error when defaultValue type does not match declared type', () => {

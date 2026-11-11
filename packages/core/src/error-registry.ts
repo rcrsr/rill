@@ -468,9 +468,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Invalid type annotation',
     messageTemplate: 'Invalid type annotation: {type}',
     cause:
-      'Type name not recognized. Rill supports: string, number, bool, closure, list, dict, tuple.',
+      'Type name not recognized. Rill supports: string, number, bool, closure, list, dict, tuple. A string literal member of a union type must not contain interpolation.',
     resolution:
-      'Use valid type name from supported set. Check spelling and casing (types are lowercase).',
+      'Use valid type name from supported set. Check spelling and casing (types are lowercase). Write union string members as plain literals without interpolation, such as "wired"|"wireless".',
     examples: [
       {
         description: 'Uppercase type name',
@@ -481,8 +481,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '$x => int  # Use "number" for all numeric types',
       },
       {
-        description: 'Angle-bracket generic syntax not supported',
-        code: '$x => list<string>  # Use list(string) for typed lists',
+        description: 'Interpolated string in a literal union',
+        code: '"a" :"{$x}"|"b"  # Use a plain literal such as "a"|"b"',
       },
     ],
   },

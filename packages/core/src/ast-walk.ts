@@ -319,6 +319,7 @@ function fieldArgsChildren(args: FieldArg[]): ASTNode[] {
 function typeRefChildren(ref: TypeRef): ASTNode[] {
   switch (ref.kind) {
     case 'dynamic':
+    case 'literal':
       return [];
     case 'union':
       return ref.members.flatMap((member) => typeRefChildren(member));

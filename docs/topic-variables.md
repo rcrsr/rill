@@ -143,6 +143,25 @@ $x
 true => $x:string|number
 ```
 
+A union of literals locks the variable to those values. A reassignment inside the union passes:
+
+```rill
+"wired" => $link:"wired"|"wireless"
+"wireless" => $link
+$link
+# Result: "wireless"
+```
+
+A value outside the union halts with RILL-R001, and the message names the value:
+
+```rill
+"wired" => $link:"wired"|"wireless"
+"wirless" => $link
+# Error: Type mismatch: cannot assign string "wirless" to $link (locked as "wired"|"wireless")
+```
+
+An unannotated capture never infers a literal type. `"wired" => $link` locks `$link` to string, so any later string passes.
+
 ### Inline Capture with Type
 
 ```rill

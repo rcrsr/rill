@@ -257,6 +257,10 @@ const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
 function serializeSignatureType(structure: TypeStructure): string {
   if (structure.kind === 'union') return 'any';
   if (structure.kind === 'closure') return 'closure';
+  if (isStructureKind(structure, 'literal')) {
+    // A lone literal collapses to its base type name.
+    return typeof structure.value;
+  }
 
   if (isStructureKind(structure, 'list')) {
     const element = structure.element;
@@ -558,6 +562,8 @@ function typeRefToString(ref: TypeRef | null): string {
     }
     case 'dynamic':
       return 'any';
+    case 'literal':
+      return JSON.stringify(ref.value);
     case 'union':
       return ref.members.map(typeRefToString).join(' | ');
   }

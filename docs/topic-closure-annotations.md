@@ -38,6 +38,36 @@ $fn("hello")
 # Result: "hello"
 ```
 
+### Literal Union Parameters
+
+A parameter type can list literal values. The call halts with RILL-R001 before the body runs when the argument is not one of them:
+
+```rill
+|kind: "wired"|"wireless"| { $kind } => $connect
+$connect("wired")
+# Result: "wired"
+```
+
+```rill
+|kind: "wired"|"wireless"| { $kind } => $connect
+$connect("wirless")
+# Error: Parameter type mismatch: kind expects "wired"|"wireless", got string "wirless"
+```
+
+Literals mix with type names, as in `number|"auto"`. The signature keeps the written members:
+
+```rill
+|kind: "wired"|"wireless"| { $kind } => $connect
+$connect.^type.signature
+# Result: "|kind: \"wired\"|\"wireless\"| :any"
+```
+
+```rill
+|mode: number|"auto"| { $mode } => $set
+$set("auto")
+# Result: "auto"
+```
+
 ### Block-Closures
 
 Block-closures have an implicit `$` parameter:

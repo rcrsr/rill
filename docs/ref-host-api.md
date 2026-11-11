@@ -804,6 +804,7 @@ const greet: RillFunctionShorthand = {
 |------------------|---------|
 | Type names | `string`, `number`, `bool`, `any` |
 | Unions | `string\|number` |
+| Literal unions | `"wired"\|"wireless"`, `number\|"auto"` |
 | List type | `list(string)` |
 | Named dict type | `dict(k: string)` |
 | Tuple type | `tuple(number, string)` |
@@ -813,6 +814,8 @@ const greet: RillFunctionShorthand = {
 | Function annotations | `^(category: "io") \|a: string\|` before the parameter list |
 
 Annotation values in a signature are string-valued. `||` declares no parameters.
+
+A literal is a type only inside a union of two or more members. A lone literal, as in `|kind: "a"|`, fails registration with "Invalid signature".
 
 Use the explicit form for these declarations:
 
@@ -980,6 +983,8 @@ The output format is a rill dict literal. The dict is the last expression and be
 An empty function map returns `[:]`. Functions created via `callable(fn)` appear with an empty parameter list; property-style `callable(fn, true)` appears with a single `self: any` parameter.
 
 Every entry is a closure-signature literal that evaluates to a type value, never a real closure body. This holds for zero-param functions (`"now"`) and functions with annotated params (`"greet"`) alike.
+
+Unions, including literal unions, emit as `any`.
 
 Parameter defaults are never emitted, because not every `RillValue` round-trips through a rill literal; every signature carries an explicit return type (`:any` when unset) so the generated manifest always parses.
 

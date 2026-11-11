@@ -45,6 +45,7 @@ type TypeStructure =
   | { kind: 'closure'; params?: RillFieldDef[]; ret?: TypeStructure }
   | { kind: 'type'; typeName: string }
   | { kind: 'union'; types: TypeStructure[] }
+  | { kind: 'literal'; value: string | number | boolean }
   | { kind: 'stream'; chunk?: TypeStructure; ret?: TypeStructure }
   | { kind: 'any' }
   | { kind: string; data?: unknown }; // catch-all for types without parameterized structure
@@ -67,6 +68,7 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 | `vector` | `dimensions` | `number` | Embedding dimension count |
 | `type` | `typeName` | `string` | Name of the registered host type |
 | `union` | `types` | `TypeStructure[]` | Non-empty array of member types |
+| `literal` | `value` | `string \| number \| boolean` | Exact value a union member accepts. Matches by equality with no coercion. Appears only as a union member; rill never infers it from a value |
 | `closure` | `params` | `RillFieldDef[] \| undefined` | Parameter definitions. Absent when closure is untyped |
 | `closure` | `ret` | `TypeStructure \| undefined` | Return type. Absent when return type is unspecified |
 | `stream` | `chunk` | `TypeStructure \| undefined` | Optional structural type of each chunk value |

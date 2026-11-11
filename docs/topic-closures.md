@@ -658,6 +658,22 @@ $d.f(5)
 # Result: 5
 ```
 
+A literal after the parameter type has the same ambiguity. In `|x: number| "a"|"b"`, the parser reads `"a"` as a further member of the parameter type, so the body is `"b"`:
+
+```rill
+|x: number| "a"|"b" => $f
+$f.params.x.type
+# Result: "number|\"a\""
+```
+
+Wrap the body in `{ }` to keep a literal body out of the parameter type:
+
+```rill
+|x: number| { "a" } => $f
+$f(1)
+# Result: "a"
+```
+
 ---
 
 ## Nested Closures

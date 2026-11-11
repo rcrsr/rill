@@ -183,9 +183,9 @@ Parse errors occur when token sequences violate rill syntax rules during AST con
 
 **Description:** Invalid type annotation
 
-**Cause:** Type name not recognized. Rill supports: string, number, bool, closure, list, dict, tuple.
+**Cause:** Type name not recognized. Rill supports: string, number, bool, closure, list, dict, tuple. A string literal member of a union type must not contain interpolation.
 
-**Resolution:** Use valid type name from supported set. Check spelling and casing (types are lowercase).
+**Resolution:** Use valid type name from supported set. Check spelling and casing (types are lowercase). Write union string members as plain literals without interpolation, such as "wired"|"wireless".
 
 **Example:**
 
@@ -196,8 +196,8 @@ $x => String  # Use "string" not "String"
 # Invalid type name
 $x => int  # Use "number" for all numeric types
 
-# Angle-bracket generic syntax not supported
-$x => list<string>  # Use list(string) for typed lists
+# Interpolated string in a literal union
+"a" :"{$x}"|"b"  # Use a plain literal such as "a"|"b"
 ```
 
 ---

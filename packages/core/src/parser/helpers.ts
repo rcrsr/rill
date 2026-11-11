@@ -212,6 +212,47 @@ export function isNegativeNumber(state: ParserState): boolean {
 }
 
 /**
+ * Number of tokens in the type-position literal starting at `offset` from the
+ * current position: 1 for a string, number, `true`, or `false`; 2 for `-`
+ * followed by a number; 0 when no such literal starts there.
+ * @internal
+ */
+export function literalTypeTokenCount(
+  state: ParserState,
+  offset: number
+): number {
+  const type = peek(state, offset).type;
+  if (
+    type === TOKEN_TYPES.STRING ||
+    type === TOKEN_TYPES.NUMBER ||
+    type === TOKEN_TYPES.TRUE ||
+    type === TOKEN_TYPES.FALSE
+  ) {
+    return 1;
+  }
+  if (
+    type === TOKEN_TYPES.MINUS &&
+    peek(state, offset + 1).type === TOKEN_TYPES.NUMBER
+  ) {
+    return 2;
+  }
+  return 0;
+}
+
+/**
+ * True when a literal that can serve as a union member of a type starts at
+ * `offset` from the current position: a string, number (including `-N`), or
+ * bool. Atoms and collection literals are not type members.
+ * @internal
+ */
+export function isLiteralTypeStart(
+  state: ParserState,
+  offset: number
+): boolean {
+  return literalTypeTokenCount(state, offset) > 0;
+}
+
+/**
  * Check if current token is one of the given types and followed by colon
  * @internal
  */

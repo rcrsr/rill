@@ -215,7 +215,7 @@ status-probe  = ".!" , [ identifier ] ;
 primary       = literal
               | atom-literal        (* #NAME — symbolic constant, e.g. #FORBIDDEN, #QUOTA_EXCEEDED *)
               | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T), stream(T):R *)
-              | closure-sig-lit     (* |p: T| -> R — closure signature type expression *)
+              | closure-sig-lit     (* |p: T| -> R — closure signature type expression; param types take no literal members *)
               | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
               | variable
               | closure-call
@@ -903,9 +903,17 @@ type-name     = "string" | "number" | "bool" | "closure"
      string | number                 -- union of two types
      string | number | bool          -- union of three types
      $myType                         -- dynamic type from variable
+     "wired" | "wireless"            -- union of literal values
+     number | "auto"                 -- literal mixed with a type name
      dict(a: number = 5)             -- parameterized with default (annotation context) *)
 type-ref          = type-ref-member , { "|" , type-ref-member } ;
-type-ref-member   = type-name , [ "(" , field-arg-list , ")" ] | "$" , identifier ;
+type-ref-member   = type-name , [ "(" , field-arg-list , ")" ] | "$" , identifier | literal-type ;
+
+(* literal-type is valid only when the flattened union has at least two members.
+   A lone literal in a type position raises RILL-P001 "Expected type name".
+   An interpolated string member raises RILL-P003.
+   A value matches a literal member by equality, with no coercion. *)
+literal-type      = string (* no interpolation *) | number | bool ;
 
 (* type-target selects the assertion/check subject. *)
 type-target   = type-ref ;

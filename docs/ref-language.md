@@ -131,7 +131,7 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 
 Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
 
-**Union types** (`T1|T2`, `T1|T2|T3`) are valid in all annotation positions. A union matches if the value satisfies any member. Members can be parameterized: `list(string)|dict`. See [Type System](topic-type-system.md) for union type documentation.
+**Union types** (`T1|T2`, `T1|T2|T3`) are valid in all annotation positions. A union matches if the value satisfies any member. Members can be parameterized: `list(string)|dict`. Members can also be literal values: `"wired"|"wireless"`, `1|2|3`, `number|"auto"`. A literal is a type only inside a union of two or more members, and a value matches it by equality with no coercion. See [Type System](topic-type-system.md) for union type documentation.
 
 > **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical: they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
 

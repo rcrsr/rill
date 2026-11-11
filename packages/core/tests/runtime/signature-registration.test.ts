@@ -766,6 +766,26 @@ describe('Rill Runtime: Signature Registration', () => {
     });
   });
 
+  describe('parseSignatureRegistration: literal union members', () => {
+    it('registers a literal union parameter with a string return type', () => {
+      const parsed = parseSignatureRegistration('|kind: "a"|"b"|:string', 'fn');
+      expect(parsed.params[0]?.type).toEqual({
+        kind: 'union',
+        members: [
+          { kind: 'literal', value: 'a' },
+          { kind: 'literal', value: 'b' },
+        ],
+      });
+      expect(parsed.returnType).toEqual({ kind: 'string' });
+    });
+
+    it('rejects a trailing literal with Invalid signature', () => {
+      expect(() => parseSignatureRegistration('|kind: "a"|', 'fn')).toThrow(
+        'Invalid signature'
+      );
+    });
+  });
+
   describe('annotation keys named __proto__', () => {
     it('stores a param annotation key __proto__ as an own property', () => {
       const parsed = parseSignatureRegistration(

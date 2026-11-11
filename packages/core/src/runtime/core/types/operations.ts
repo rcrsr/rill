@@ -295,6 +295,10 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
     return true;
   }
 
+  if (isStructureKind(a, 'literal') && isStructureKind(b, 'literal')) {
+    return a.value === b.value;
+  }
+
   if (isStructureKind(a, 'list') && isStructureKind(b, 'list')) {
     if (a.element === undefined && b.element === undefined) return true;
     if (a.element === undefined || b.element === undefined) return false;
@@ -494,6 +498,8 @@ export function structureMatches(
     return registryInferType(value) === type.kind;
   }
 
+  if (isStructureKind(type, 'literal')) return value === type.value;
+
   if (isStructureKind(type, 'list')) {
     if (!Array.isArray(value)) return false;
     const element = type.element;
@@ -647,8 +653,29 @@ export function defaultMismatch(
   };
 }
 
+/**
+ * Describe a mismatching value for an error message: its inferred type name,
+ * plus the value itself when the expected type is or contains a literal.
+ */
+export function formatMismatchActual(
+  value: RillValue,
+  expected: TypeStructure
+): string {
+  const name = registryInferType(value);
+  const hasLiteral =
+    isStructureKind(expected, 'literal') ||
+    (isStructureKind(expected, 'union') &&
+      expected.members.some((m) => isStructureKind(m, 'literal')));
+  const scalar =
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean';
+  return hasLiteral && scalar ? `${name} ${formatRillLiteral(value)}` : name;
+}
+
 /** Format a structural type descriptor as a human-readable string. */
 export function formatStructure(type: TypeStructure): string {
+  if (isStructureKind(type, 'literal')) return formatRillLiteral(type.value);
   if (
     type.kind === 'any' ||
     type.kind === 'number' ||

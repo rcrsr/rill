@@ -301,4 +301,11 @@ describe('traverseForRules / walkAst parity: targeted constructs', () => {
       name: 'description',
     });
   });
+
+  it('Literal union type reference in a capture and a closure parameter', () => {
+    const { viaRules, viaCore } = computeParity(
+      '"a" => $k:"a"|"b"\n|kind: "a"|"b"| { $kind } => $f\n'
+    );
+    expect(viaRules).toEqual(viaCore);
+  });
 });

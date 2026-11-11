@@ -30,6 +30,13 @@ Returns boolean. Never halts.
     42 -> :string|number            # passes
     42:?string|number               # true
     "hello" => $x:string|number     # capture with union
+    "wired" -> :"wired"|"wireless"  # literal members: strings, numbers, bools
+    1.0 -> :1|2|3                   # passes: 1.0 equals 1
+    "1":?1|2                        # false: no coercion
+    |kind: "wired"|"wireless"| { $kind } => $connect   # literal union param
+    $connect("wirless")             # halts RILL-R001: got string "wirless"
+
+A literal is a type only inside a union of two or more members. `:"a"` alone is a parse error.
 
 ## Parameterized constructors
 

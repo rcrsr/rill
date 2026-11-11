@@ -6,7 +6,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { structureToTypeValue } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHaltMessage } from '../helpers/halt.js';
 
 describe('checkType any short-circuit', () => {
   it('42 :? any is true', async () => {
@@ -23,5 +25,24 @@ describe('checkType any short-circuit', () => {
 
   it('42 :? string is false', async () => {
     expect(await run('(42 :? string)')).toBe(false);
+  });
+});
+
+describe('literal type value bound to a variable', () => {
+  const vars = { T: structureToTypeValue({ kind: 'literal', value: 'a' }) };
+
+  it('"b" :? $T is false', async () => {
+    expect(await run('("b" :? $T)', { variables: vars })).toBe(false);
+  });
+
+  it('"a" :? $T is true', async () => {
+    expect(await run('("a" :? $T)', { variables: vars })).toBe(true);
+  });
+
+  it('"b" :$T halts with a type mismatch', async () => {
+    await expectHaltMessage(
+      () => run('"b" :$T', { variables: vars }),
+      /Type assertion failed: expected "a", got string "b"/
+    );
   });
 });

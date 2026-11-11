@@ -50,6 +50,7 @@ import {
   defaultMismatch,
   inferStructure,
   formatStructure,
+  formatMismatchActual,
 } from '../../types/operations.js';
 import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
 import {
@@ -513,6 +514,17 @@ export async function resolveTypeRef(
     });
   }
 
+  if (typeRef.kind === 'literal') {
+    const structure: TypeStructure = { kind: 'literal', value: typeRef.value };
+    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- literal display string is not a closed RillTypeName member; widening the public RillTypeValue.typeName type would break hosts
+    const displayName = formatStructure(structure) as RillTypeName;
+    return Object.freeze({
+      __rill_type: true as const,
+      typeName: displayName,
+      structure,
+    });
+  }
+
   const result = getVariableFn(typeRef.varName);
   if (result === undefined) {
     throwCatchableHostHalt(
@@ -548,6 +560,7 @@ function hasStructuralSubFields(structure: TypeStructure): boolean {
     'fields' in structure ||
     'elements' in structure ||
     'members' in structure ||
+    structure.kind === 'literal' ||
     'valueType' in structure ||
     'params' in structure ||
     'ret' in structure ||
@@ -575,6 +588,12 @@ export function assertType(
       if (!structureMatches(value, expected)) {
         const expectedStr = formatStructure(expected);
         const actualStr = formatStructure(inferStructure(value));
+        // Scalars report the bare type name (plus the value for literal
+        // expectations); composites keep their inferred structure.
+        const actualMsg =
+          typeof value === 'object'
+            ? actualStr
+            : formatMismatchActual(value, expected);
         throwTypeHalt(
           {
             location,
@@ -582,7 +601,7 @@ export function assertType(
             fn: ':',
           },
           'TYPE_MISMATCH',
-          `Type assertion failed: expected ${expectedStr}, got ${actualStr}`,
+          `Type assertion failed: expected ${expectedStr}, got ${actualMsg}`,
           'runtime',
           { expectedType: expectedStr, actualType: actualStr }
         );

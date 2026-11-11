@@ -91,6 +91,16 @@ const BODY_PAIRS: readonly BodyPair[] = [
   { name: 'capture name', base: '$x => $p', variant: '$x => $q' },
   { name: 'capture type', base: '$x => $p:number', variant: '$x => $p:string' },
   {
+    name: 'capture literal union member',
+    base: '$x => $p:"a"|"b"',
+    variant: '$x => $p:"a"|"c"',
+  },
+  {
+    name: 'capture literal member kind',
+    base: '$x => $p:1|2',
+    variant: '$x => $p:"1"|2',
+  },
+  {
     name: 'method arguments',
     base: '$x -> .pad_start(3)',
     variant: '$x -> .pad_start(4)',

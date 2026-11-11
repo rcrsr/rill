@@ -483,6 +483,31 @@ $math.add(1, 2)
 
 Nested namespaces become nested dict members, so `io::file::read` is `$io.file.read` after `use<ext:io> => $io`.
 
+## Why Is a Single Literal Not a Type?
+
+A literal is a type only as a member of a union with two or more members:
+
+```rill
+"wired" -> :"wired"
+# Error: Expected type name
+```
+
+The parser halts with RILL-P001 before the script runs.
+
+List every allowed value with `|`, or use the base type:
+
+```rill
+"wired" -> :"wired"|"wireless"
+# Result: "wired"
+```
+
+```rill
+"wired" -> :string
+# Result: "wired"
+```
+
+An interpolated string member such as `"{$x}"|"b"` halts parsing with RILL-P003, because a type must be known before the script runs.
+
 ## See Also
 
 | Document | Description |

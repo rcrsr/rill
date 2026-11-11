@@ -23,6 +23,8 @@ import {
   generateManifest,
   getFunctions,
   getLanguageReference,
+  introspectHandlerFromAST,
+  parse,
   type RuntimeContext,
   toCallable,
 } from '@rcrsr/rill';
@@ -504,6 +506,14 @@ describe('Rill Runtime: Introspection API', () => {
         const double = functions.find((f) => f.name === 'double');
 
         expect(double?.returnType).toBe('number');
+      });
+
+      it('renders literal union parameter types with spaced bars', () => {
+        const ast = parse('|mode: "a"|"b"| { $mode } => $pick');
+
+        const meta = introspectHandlerFromAST(ast, 'pick');
+
+        expect(meta?.params[0]?.type).toBe('"a" | "b"');
       });
 
       it('falls back to any when no return type is declared', async () => {

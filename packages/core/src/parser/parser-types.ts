@@ -20,6 +20,7 @@ import {
   expect,
   current,
   peek,
+  previous,
   skipNewlines,
   withRecursionDepth,
 } from './state.js';
@@ -28,6 +29,8 @@ import {
   parseTypeName,
   expectVariableName,
   isVariableNameToken,
+  isLiteralTypeStart,
+  literalTypeTokenCount,
 } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 import type { Parser } from './parser.js';
@@ -38,7 +41,8 @@ import type { Parser } from './parser.js';
  * Grammar:
  * ```
  * type-ref          = single-type { "|" single-type }
- * single-type       = "$" identifier | type-name [ "(" type-ref-arg-list ")" ]
+ * single-type       = "$" identifier | literal | type-name [ "(" type-ref-arg-list ")" ]
+ * literal           = string | number | "true" | "false"
  * type-ref-arg-list = type-ref-arg { "," type-ref-arg } [ "," ]
  * type-ref-arg      = identifier ":" type-ref | type-ref
  * ```
@@ -46,6 +50,7 @@ import type { Parser } from './parser.js';
  * - `$identifier`           → `{ kind: 'dynamic', varName: identifier }`
  * - `type-name`             → `{ kind: 'static', typeName }`
  * - `type-name(arg, ...)`   → `{ kind: 'static', typeName, args: [...] }`
+ * - `"a"`, `1`, `-1`, `true`  → `{ kind: 'literal', value }` (union member only)
  * - `A | B | ...`           → `{ kind: 'union', members: [A, B, ...] }`
  *
  * Dynamic refs do not accept parameterization — `$T(...)` is not valid.
@@ -54,6 +59,9 @@ import type { Parser } from './parser.js';
  * Throws ParseError if neither a `$identifier` nor a valid type name
  * is found. Throws ParseError if the arg list is malformed.
  * Throws ParseError (RILL-P011) if `|` is not followed by a valid type start.
+ * Throws ParseError (RILL-P001) if a literal stands alone: a literal is a
+ * type only as a union member. Throws ParseError (RILL-P003) if a union
+ * member is an interpolated string.
  *
  * @internal
  */
@@ -142,9 +150,18 @@ function commaStartsParam(state: ParserState, offset: number): boolean {
       return t0.type !== TOKEN_TYPES.TRUE && t0.type !== TOKEN_TYPES.FALSE;
     }
     if (q === TOKEN_TYPES.COLON) {
-      const typeStart = peek(state, skipNewlinesFrom(state, iq + 1)).type;
+      const iType = skipNewlinesFrom(state, iq + 1);
+      const typeStart = peek(state, iType).type;
+      if (
+        typeStart === TOKEN_TYPES.DOLLAR ||
+        typeStart === TOKEN_TYPES.IDENTIFIER
+      ) {
+        return true;
+      }
+      // Literal-typed parameter: name: literal | ...
+      const width = literalTypeTokenCount(state, iType);
       return (
-        typeStart === TOKEN_TYPES.DOLLAR || typeStart === TOKEN_TYPES.IDENTIFIER
+        width > 0 && peek(state, iType + width).type === TOKEN_TYPES.PIPE_BAR
       );
     }
   }
@@ -170,6 +187,30 @@ function commaStartsParam(state: ParserState, offset: number): boolean {
 }
 
 function parseTypeRefImpl(
+  state: ParserState,
+  opts?: {
+    allowTrailingPipe?: boolean;
+    closureBody?: boolean;
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  }
+): TypeRef {
+  const result = parseUnionOrSingle(state, opts);
+  if (result.kind === 'literal') {
+    throw loneLiteralError(state);
+  }
+  return result;
+}
+
+function loneLiteralError(state: ParserState): ParseError {
+  return new ParseError(
+    ERROR_IDS.RILL_P001,
+    'Expected type name: a literal is a type only as a union member, e.g. "a"|"b"',
+    previous(state).span.start
+  );
+}
+
+function parseUnionOrSingle(
   state: ParserState,
   opts?: {
     allowTrailingPipe?: boolean;
@@ -209,6 +250,11 @@ function parseTypeRefImpl(
       (VALID_TYPE_NAMES as readonly string[]).includes(afterPipe.value);
     const afterPipeIsUnknownIdent =
       afterPipe.type === TOKEN_TYPES.IDENTIFIER && !afterPipeIsTypeName;
+    // Literal members need a parseLiteral callback; without one a literal
+    // after "|" keeps its previous meaning.
+    const literalWidth =
+      opts?.parseLiteral !== undefined ? literalTypeTokenCount(state, 1) : 0;
+    const afterPipeIsLiteral = literalWidth > 0;
 
     const closureContext = opts?.allowTrailingPipe === true;
 
@@ -258,6 +304,27 @@ function parseTypeRefImpl(
       if (!continuesUnion) break;
     }
 
+    if (closureContext && afterPipeIsLiteral) {
+      // Same rule as "$name": a literal after "|" continues the union only
+      // when another delimiter follows it. Otherwise the "|" closes the
+      // parameter list and the literal starts the closure body.
+      //
+      // - "|" on the same line, or "=" after optional newlines, continues.
+      // - "," continues only when what follows looks like another parameter.
+      const sameLineNext = peek(state, 1 + literalWidth).type;
+      let lookahead = 1 + literalWidth;
+      while (peek(state, lookahead).type === TOKEN_TYPES.NEWLINE) {
+        lookahead++;
+      }
+      const afterLiteral = peek(state, lookahead).type;
+      const continuesUnion =
+        sameLineNext === TOKEN_TYPES.PIPE_BAR ||
+        afterLiteral === TOKEN_TYPES.ASSIGN ||
+        (afterLiteral === TOKEN_TYPES.COMMA &&
+          commaStartsParam(state, lookahead + 1));
+      if (!continuesUnion) break;
+    }
+
     if (afterPipeIsUnknownIdent) {
       // Dangling pipe followed by an unrecognized identifier: RILL-P011.
       advance(state); // consume "|"
@@ -268,7 +335,7 @@ function parseTypeRefImpl(
       );
     }
 
-    if (!afterPipeIsDollar && !afterPipeIsTypeName) {
+    if (!afterPipeIsDollar && !afterPipeIsTypeName && !afterPipeIsLiteral) {
       // "|" is followed by a non-identifier token (e.g. "{", EOF, newline).
       if (opts?.allowTrailingPipe === true) {
         // Closure contexts own the trailing "|" as a delimiter — leave it unconsumed.
@@ -325,6 +392,9 @@ function parseSingleType(
     if (check(state, TOKEN_TYPES.COLON)) {
       advance(state); // consume :
       const ret = parseSingleType(state, opts);
+      if (ret.kind === 'literal') {
+        throw loneLiteralError(state);
+      }
       return { kind: 'static', typeName: 'closure', args: [{ value: ret }] };
     }
     // Bare || without :returnType — equivalent to 'closure'
@@ -340,6 +410,10 @@ function parseSingleType(
     return { kind: 'dynamic', varName: nameToken.value };
   }
 
+  if (opts?.parseLiteral !== undefined && isLiteralTypeStart(state, 0)) {
+    return parseLiteralMember(state, opts.parseLiteral);
+  }
+
   const typeName = parseTypeName(state, VALID_TYPE_NAMES);
 
   // Check for parameterized form: type-name "(" type-ref-arg-list ")"
@@ -353,6 +427,42 @@ function parseSingleType(
   advance(state); // consume ")"
 
   return { kind: 'static', typeName, args };
+}
+
+/**
+ * Parse a literal union member. Interpolated strings are not types.
+ */
+function parseLiteralMember(
+  state: ParserState,
+  parseLiteral: () => LiteralNode
+): TypeRef {
+  const start = current(state).span.start;
+  const node = parseLiteral();
+  switch (node.type) {
+    case 'NumberLiteral':
+    case 'BoolLiteral':
+      return { kind: 'literal', value: node.value };
+    case 'StringLiteral': {
+      let text = '';
+      for (const part of node.parts) {
+        if (typeof part !== 'string') {
+          throw new ParseError(
+            ERROR_IDS.RILL_P003,
+            'Expected type name: an interpolated string cannot be a literal type',
+            start
+          );
+        }
+        text += part;
+      }
+      return { kind: 'literal', value: text };
+    }
+    default:
+      throw new ParseError(
+        ERROR_IDS.RILL_P003,
+        'Expected type name: only string, number, and bool literals are types',
+        start
+      );
+  }
 }
 
 // ============================================================

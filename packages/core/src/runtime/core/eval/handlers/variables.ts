@@ -51,7 +51,11 @@ import {
   isTuple,
   isIterator,
 } from '../../types/guards.js';
-import { formatStructure, structureMatches } from '../../types/operations.js';
+import {
+  formatStructure,
+  formatMismatchActual,
+  structureMatches,
+} from '../../types/operations.js';
 import { getVariable, hasVariable } from '../../context.js';
 import {
   findIndexPosition,
@@ -117,7 +121,7 @@ export function setVariable(
         throwCatchableHostHalt(
           { location, sourceId: s.ctx.sourceId, fn: 'setVariable' },
           ERROR_ATOMS[ERROR_IDS.RILL_R001],
-          `Type mismatch: cannot assign ${valueType} to $${name}:${expectedLabel}`,
+          `Type mismatch: cannot assign ${formatMismatchActual(value, explicitType)} to $${name}:${expectedLabel}`,
           {
             variableName: name,
             expectedType: expectedLabel,
@@ -164,7 +168,7 @@ export function setVariable(
         throwCatchableHostHalt(
           { location, sourceId: s.ctx.sourceId, fn: 'setVariable' },
           ERROR_ATOMS[ERROR_IDS.RILL_R001],
-          `Type mismatch: cannot assign ${valueType} to $${name} (locked as ${expectedLabel})`,
+          `Type mismatch: cannot assign ${formatMismatchActual(value, lockedType)} to $${name} (locked as ${expectedLabel})`,
           {
             variableName: name,
             expectedType: expectedLabel,

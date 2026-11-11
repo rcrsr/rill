@@ -254,4 +254,17 @@ $user -> log
     expect(hover).not.toBeNull();
     expect(hover?.contents).toBe('variable `user`');
   });
+
+  it('renders a literal union as the declared type of a capture', () => {
+    const source = `"a" => $k:"a"|"b"
+$k
+`;
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const hover = getHover(parsed, source.lastIndexOf('$k') + 1);
+
+    expect(hover).not.toBeNull();
+    expect(hover?.type).toBe('"a" | "b"');
+  });
 });

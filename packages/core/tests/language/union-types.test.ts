@@ -356,4 +356,174 @@ describe('Union Types', () => {
       ).rejects.toHaveProperty('errorId', 'RILL-R001');
     });
   });
+
+  // ============================================================
+  // Literal Members
+  // ============================================================
+
+  describe('literal members', () => {
+    it('accepts a literal union member in an assertion', async () => {
+      expect(await run('"wired" :"wired"|"wireless"')).toBe('wired');
+    });
+
+    it('halts an assertion on a value outside the literal union', async () => {
+      await expectHalt(() => run('"wirless" :"wired"|"wireless"'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('answers a type check against a literal union', async () => {
+      expect(await run('"wired" :?"wired"|"wireless"')).toBe(true);
+      expect(await run('"other" :?"wired"|"wireless"')).toBe(false);
+    });
+
+    it('does not match a string against a number literal', async () => {
+      expect(await run('"1" :?1|2')).toBe(false);
+    });
+
+    it('matches a number literal by value', async () => {
+      expect(await run('1.0 :?1|2')).toBe(true);
+    });
+
+    it('accepts and rejects bool literal members', async () => {
+      expect(await run('true :?true|"x"')).toBe(true);
+      expect(await run('false :?true|"x"')).toBe(false);
+    });
+
+    it('accepts a mixed number and literal union', async () => {
+      expect(await run('5 :number|"auto"')).toBe(5);
+      expect(await run('"auto" :number|"auto"')).toBe('auto');
+      await expectHalt(() => run('"x" :number|"auto"'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('accepts a string and literal union', async () => {
+      expect(await run('"x" :string|"x"')).toBe('x');
+      expect(await run('"y" :string|"x"')).toBe('y');
+    });
+
+    it('accepts a literal union in a capture and keeps the lock', async () => {
+      const result = await run(
+        '"wired" => $m:"wired"|"wireless"\n"wireless" => $m\n$m'
+      );
+      expect(result).toBe('wireless');
+    });
+
+    it('halts a capture outside the literal union', async () => {
+      await expect(run('"x" => $m:"wired"|"wireless"')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R001'
+      );
+    });
+
+    it('halts re-assignment outside the locked literal union', async () => {
+      await expect(
+        run('"wired" => $m:"wired"|"wireless"\n"x" => $m')
+      ).rejects.toHaveProperty('errorId', 'RILL-R001');
+    });
+
+    it('accepts a literal union in a destructure', async () => {
+      const result = await run(
+        'list["a", "b"] -> destruct<$x:"a"|"b", $y:"a"|"b">\n$y'
+      );
+      expect(result).toBe('b');
+    });
+
+    it('halts a destructure outside the literal union', async () => {
+      await expect(
+        run('list["a", "c"] -> destruct<$x:"a"|"b", $y:"a"|"b">')
+      ).rejects.toHaveProperty('errorId', 'RILL-R001');
+    });
+
+    it('accepts a literal union in an existence check', async () => {
+      expect(await run('dict[k: "a"] => $d\n$d.?k&"a"|"b"')).toBe(true);
+      expect(await run('dict[k: "z"] => $d\n$d.?k&"a"|"b"')).toBe(false);
+    });
+
+    it('accepts a literal union as a dict field type', async () => {
+      expect(await run('dict[k: "a"] :dict(k: "a"|"b")')).toEqual({ k: 'a' });
+      await expectHalt(() => run('dict[k: "z"] :dict(k: "a"|"b")'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('accepts a literal union as a list element type', async () => {
+      expect(await run('list["a", "b"] :list("a"|"b")')).toEqual(['a', 'b']);
+      await expectHalt(() => run('list["a", "z"] :list("a"|"b")'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('accepts a literal union as a closure return type', async () => {
+      expect(await run('|x: string| { $x }:"a"|"b" => $f\n$f("a")')).toBe('a');
+      await expectHalt(() => run('|x: string| { $x }:"a"|"b" => $f\n$f("c")'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    describe('closure parameter', () => {
+      const wired = '|kind: "wired"|"wireless"| { $kind } => $f\n';
+
+      it('accepts a member value', async () => {
+        expect(await run(`${wired}$f("wired")`)).toBe('wired');
+      });
+
+      it('halts RILL-R001 on a non-member and skips the body', async () => {
+        await expect(
+          run(
+            '|kind: "wired"|"wireless"| { never_defined_fn() } => $f\n$f("wirless")'
+          )
+        ).rejects.toMatchObject({
+          errorId: 'RILL-R001',
+          message: expect.stringContaining('got string "wirless"') as string,
+        });
+      });
+
+      it('exposes the literal members through .^input', async () => {
+        const result = await run(`${wired}$f.^input`);
+        expect(result).toMatchObject({
+          structure: {
+            kind: 'ordered',
+            fields: [
+              {
+                name: 'kind',
+                type: {
+                  kind: 'union',
+                  members: [
+                    { kind: 'literal', value: 'wired' },
+                    { kind: 'literal', value: 'wireless' },
+                  ],
+                },
+              },
+            ],
+          },
+        });
+      });
+
+      it('renders the literal members in .^type.signature', async () => {
+        const result = await run(`${wired}$f.^type.signature`);
+        expect(result).toContain('"wired"|"wireless"');
+      });
+    });
+
+    it('keeps the inferred type of a string value as string', async () => {
+      expect(await run('"wired".^type == string')).toBe(true);
+    });
+
+    it('rejects a lone literal as a type with RILL-P001', () => {
+      expect(() => parse('"a" :"a"')).toThrow(
+        expect.objectContaining({
+          errorId: 'RILL-P001',
+          message: expect.stringContaining('Expected type name') as string,
+        }) as Error
+      );
+    });
+
+    it('rejects an interpolated literal member with RILL-P003', () => {
+      expect(() => parse('"a" :"{$x}"|"b"')).toThrow(
+        expect.objectContaining({ errorId: 'RILL-P003' }) as Error
+      );
+    });
+  });
 });

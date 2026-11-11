@@ -52,6 +52,7 @@ import {
   structureEquals,
   structureMatches,
   defaultMismatch,
+  formatMismatchActual,
 } from './types/operations.js';
 import {
   createOrdered,
@@ -761,7 +762,7 @@ export function marshalArgs(
         const actualType = inferType(value);
         throw new RuntimeError(
           ERROR_IDS.RILL_R001,
-          `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${actualType}`,
+          `Parameter type mismatch: ${param.name} expects ${expectedType}, got ${formatMismatchActual(value, param.type)}`,
           location,
           {
             functionName,

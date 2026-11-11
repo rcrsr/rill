@@ -97,7 +97,7 @@ a684cca01d60aec084bda03a7b32ebbb1793d75c318deb67bce2e83c98ce40ed  packages/core/
 2f7ea721dfd9d9eb104657311c1e157c8eff383c4d16920908e1aedf05b39c5a  packages/core/tests/language/typed-atom-migration.test.ts
 ad54110255746ce7353d754d542442cb8ee120a682eef1f4be4a720910ac39d9  packages/core/tests/language/unified-dispatch.test.ts
 6753b0cc5bde25eee5987db0a6d0bf28a815f908baefa0ceb861541cd6e79ea6  packages/core/tests/language/uniform-value-type.test.ts
-e3bc188bd0d6129bc77618459d9fd17ff9d373fae19aaa4c801bbced7fa06354  packages/core/tests/language/union-types.test.ts
+ec7fd6fe9e84ff1b44d5d5f4a95466da0a3f511497b10d1ea0dd2e96be56c6cc  packages/core/tests/language/union-types.test.ts
 69e94122c9e8ee59cf4e9fbf6fa8e9b15d070be65c7a7a658ac811f819ec0611  packages/core/tests/language/use-expr.test.ts
 4653ac606a658d04ec6d8943eef31093b5d5b0c51ebb91ecb70fb85d69be767b  packages/core/tests/language/vacancy-coerce.test.ts
 430ca46cac1368974a677c9481c9375b4036b2ec9fa2356368224950a7151deb  packages/core/tests/language/variable-method-calls.test.ts

@@ -94,6 +94,10 @@ function staticTypeRefToTypeStructure(
     );
   }
 
+  if (typeRef.kind === 'literal') {
+    return { kind: 'literal', value: typeRef.value };
+  }
+
   if (typeRef.kind === 'union') {
     return {
       kind: 'union',
