@@ -666,7 +666,7 @@ See [Operators](topic-operators.md) for union types in destructure and existence
 
 ## Type-Locked Variables
 
-Variables lock type on first assignment. The type is inferred from the value or declared explicitly:
+Variables lock type on first assignment. The lock is the declared type the value carries, or the value's own type when it carries none. An annotation declares a type explicitly:
 
 ```rill
 "hello" => $name              # implicit: locked as string
@@ -680,6 +680,16 @@ Variables lock type on first assignment. The type is inferred from the value or 
 ```rill
 "hello" => $name:string       # explicit: declare and lock as string
 42 => $count:number           # explicit: declare and lock as number
+```
+
+A capture of a value that carries a declaration locks the new variable to that declaration:
+
+```rill
+1 => $x:union(number, string)
+$x => $y                      # $y locks to union(number, string)
+"a" => $y                     # OK: string is a member
+$y
+# Result: "a"
 ```
 
 ### Inline Capture with Type
@@ -783,6 +793,28 @@ $y.^type.signature
 # Result: "number"
 ```
 
+These access forms carry the declared element or field type: `[expr]`, `.name`, and `.$k`. The computed key `.("a")` and methods such as `.head` take the own type:
+
+```rill
+dict[a: 1] => $d:dict(a: union(number, string))
+$d.a.^type.signature
+# Result: "union(number, string)"
+```
+
+```rill
+dict[a: 1] => $d:dict(a: union(number, string))
+$d.("a").^type.signature
+# Result: "number"
+```
+
+A declaration that names no element type projects nothing: a bare `list`, `list(any)`, or `union(list(number), string)` leaves `[0]` reporting the own type. A bare kind annotation also reports only the kind:
+
+```rill
+list[1, 2] => $l:list
+[$l.^type.signature, $l.^effective.signature]
+# Result: list["list", "list(number)"]
+```
+
 A computed result takes its own type. Binary and unary operators, method calls, call results, conditionals, and loops all drop the declaration:
 
 ```rill
@@ -811,6 +843,16 @@ $x.^type.signature
 `any` declares nothing. `1 => $x:any` locks the variable as `number`.
 
 `.^type` reports the declared type when one is carried, else the own type. To dispatch on the runtime type of a value under a declared union, read `.^effective.name`, because `.^type.name` is `"union"`.
+
+At the host boundary, `toNative` reports the own type, not the declaration.
+
+Migrating from own-type reads: write `$v.^effective.name` and `$v.^effective == number` where `$v.^type.name` and `$v.^type == number` used to dispatch. A member check also works, as in `$v -> :?number`:
+
+```rill
+1 => $v:union(number, string)
+$v -> :?number
+# Result: true
+```
 
 ### Annotated Type Fields via `.^type`
 

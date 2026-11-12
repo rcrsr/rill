@@ -391,9 +391,11 @@ export function bindElement(
   const declared = iterationElement(recordArgDeclared(record, collectionIndex));
   setPipe(childCtx, element, declared);
   const callArgs: RillValue[] = [element, ...extra];
-  setArgsDeclared(
-    callArgs,
-    callArgs.map((_, i) => (i === 0 ? declared : undefined))
-  );
+  if (declared !== undefined) {
+    setArgsDeclared(
+      callArgs,
+      callArgs.map((_, i) => (i === 0 ? declared : undefined))
+    );
+  }
   return callArgs;
 }

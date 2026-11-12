@@ -181,6 +181,8 @@ export const argumentsBinder = new ArgumentsBinder();
  * The strategy rebuilds the args array from a bound map, so the sidecar
  * cannot follow it; invokeCallable sets this just before `invoke` and the
  * caller below consumes it synchronously, before any await.
+ * `CallableInvocationStrategy.invoke` must therefore not await before it
+ * calls the caller callback, or another call could overwrite this slot.
  */
 let pendingArgsSource: readonly (RillValue | undefined)[] | undefined;
 
@@ -693,11 +695,12 @@ export function createCallableContext(
     variables: new Map(),
     variableTypes: new Map(),
     pipeValue: hasExplicitParams ? null : s.ctx.pipeValue,
+    pipeDeclared: hasExplicitParams ? undefined : s.ctx.pipeDeclared,
     sourceId: defScope.sourceId ?? s.ctx.sourceId,
     sourceText: defScope.sourceText ?? s.ctx.sourceText,
   };
   if (callable.boundDict) {
-    callableCtx.pipeValue = callable.boundDict;
+    setPipe(callableCtx, callable.boundDict, undefined);
   }
   // This context is spread from the caller's rather than built by
   // createChildContext, so it gets no policy binding from there. Without
@@ -821,7 +824,7 @@ async function invokeRegularScriptCallable(
   ) {
     callableCtx.variables.set(only.name, onlyArg);
     if (only.name === '$') {
-      callableCtx.pipeValue = onlyArg;
+      setPipe(callableCtx, onlyArg, undefined);
     }
     bindParamDeclarations(callableCtx, params, args);
   } else {
@@ -833,7 +836,7 @@ async function invokeRegularScriptCallable(
     for (const [name, value] of Object.entries(record)) {
       callableCtx.variables.set(name, value);
       if (syncsPipe && name === '$') {
-        callableCtx.pipeValue = value;
+        setPipe(callableCtx, value, undefined);
       }
     }
     bindParamDeclarations(callableCtx, params, args);

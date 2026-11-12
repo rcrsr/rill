@@ -329,7 +329,7 @@ $list.^type == list(number)
 # Result: true
 ```
 
-`.^type.name` returns the coarse type name string. `.^type` returns a type value; `.name` then accesses the dot-notation property on that type value (not annotation interception):
+`.^type.name` returns the coarse type name string; under a declared type it reports the declaration (see `.^effective` in [Type System](topic-type-system.md#declared-and-effective-types)). `.^type` returns a type value; `.name` then accesses the dot-notation property on that type value (not annotation interception):
 
 ```rill
 [1, 2, 3] => $list
@@ -593,6 +593,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 ^(type: "custom") name: string   # Error: annotation key "type" is reserved
 ^(input: "text") name: string    # Error: annotation key "input" is reserved
 ^(output: "text") name: string   # Error: annotation key "output" is reserved
+^(effective: "x") name: string   # Error: annotation key "effective" is reserved
 ```
 
 The `name` key is not reserved on closures. On type values, `.name` is a dot-notation property, not annotation access; use `.^type.name` to read a type value's name.

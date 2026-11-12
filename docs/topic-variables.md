@@ -119,6 +119,16 @@ Variables lock type after first assignment:
 5 => $name                    # ERROR: cannot assign number to string
 ```
 
+A capture of a value that carries a declared type locks the new variable to that declaration:
+
+```rill
+1 => $x:union(number, string)
+$x => $y                      # $y locks to union(number, string)
+"a" => $y                     # OK: string is a member
+$y
+# Result: "a"
+```
+
 ### Explicit Type Annotations
 
 Declare type explicitly with `:type`:

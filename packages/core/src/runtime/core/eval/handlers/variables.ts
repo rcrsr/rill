@@ -153,8 +153,12 @@ export function setVariable(
   const lockedType = s.ctx.variableTypes.get(name);
   if (lockedType !== undefined && lockedType !== 'any') {
     if (typeof lockedType === 'object') {
-      // Structural locked type — validate full shape
-      if (!structureMatches(value, lockedType)) {
+      // Structural locked type — validate full shape. Re-capturing the value
+      // this scope already stores needs no recheck: it passed the lock when
+      // it was stored and values are immutable.
+      const alreadyStored =
+        s.ctx.variables.has(name) && s.ctx.variables.get(name) === value;
+      if (!alreadyStored && !structureMatches(value, lockedType)) {
         const expectedLabel = formatStructure(lockedType);
         throwCatchableHostHalt(
           { location, sourceId: s.ctx.sourceId, fn: 'setVariable' },
@@ -292,10 +296,20 @@ export async function applyBracketIndexCarried(
   }
   const indexValue = await evaluatePipeChain(s, indexExpr);
   const value = readBracketElement(s, receiver, indexValue, location, fn);
-  const declared =
-    typeof indexValue === 'string' || typeof indexValue === 'number'
-      ? projectElement(receiverDeclared, indexValue)
-      : undefined;
+  // A negative index counts from the end of the value, not of the declared
+  // type, which may carry trailing defaults the value lacks.
+  let declared: TypeStructure | undefined;
+  if (typeof indexValue === 'number') {
+    const length = Array.isArray(receiver)
+      ? receiver.length
+      : isOrdered(receiver) || isTuple(receiver)
+        ? receiver.entries.length
+        : 0;
+    const position = indexValue < 0 ? length + indexValue : indexValue;
+    declared = projectElement(receiverDeclared, position);
+  } else if (typeof indexValue === 'string') {
+    declared = projectElement(receiverDeclared, indexValue);
+  }
   return { value, declared };
 }
 

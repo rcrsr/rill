@@ -34,6 +34,7 @@ import type {
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isStructureKind } from '../../types/guards.js';
+import { setPipe } from '../../types/declared.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
 import {
   createRillStream,
@@ -330,7 +331,7 @@ export async function invokeStreamClosure(
   for (const [name, value] of Object.entries(record)) {
     callableCtx.variables.set(name, value);
     if (syncsPipe && name === '$') {
-      callableCtx.pipeValue = value;
+      setPipe(callableCtx, value, undefined);
     }
   }
   bindParamDeclarations(callableCtx, callable.params, args);

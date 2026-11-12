@@ -45,8 +45,10 @@ export function declarationOf(
 
 /**
  * Project the declared type of an element read from a declared collection:
- * list(E) -> E; tuple by index, dict by name, ordered by name or index, each
- * falling back to valueType. Unions and bare kinds project nothing.
+ * list(E) -> E; tuple by index, dict by name, ordered by name or index. A
+ * uniform valueType wins over positions and fields, as in the matcher; with
+ * none set, an unmatched key projects nothing. Index keys are non-negative.
+ * Unions and bare kinds project nothing.
  */
 export function projectElement(
   collection: TypeStructure | undefined,
@@ -57,9 +59,10 @@ export function projectElement(
     return declarationOf(collection.element);
   }
   if (isStructureKind(collection, 'tuple')) {
-    if (typeof key === 'number') {
-      const i = key < 0 ? (collection.elements?.length ?? 0) + key : key;
-      const element = collection.elements?.[i];
+    // The matcher checks valueType first and ignores positions when both
+    // are set; project the same way. Callers pass a non-negative index.
+    if (collection.valueType === undefined && typeof key === 'number') {
+      const element = collection.elements?.[key];
       if (element !== undefined) return declarationOf(element.type);
     }
     return declarationOf(collection.valueType);
@@ -67,6 +70,7 @@ export function projectElement(
   if (isStructureKind(collection, 'dict')) {
     const fields = collection.fields;
     if (
+      collection.valueType === undefined &&
       typeof key === 'string' &&
       fields !== undefined &&
       Object.prototype.hasOwnProperty.call(fields, key)
@@ -78,9 +82,11 @@ export function projectElement(
   if (isStructureKind(collection, 'ordered')) {
     const fields = collection.fields;
     const field =
-      typeof key === 'number'
-        ? fields?.[key < 0 ? (fields.length ?? 0) + key : key]
-        : fields?.find((f) => f.name === key);
+      collection.valueType !== undefined
+        ? undefined
+        : typeof key === 'number'
+          ? fields?.[key]
+          : fields?.find((f) => f.name === key);
     if (field !== undefined) return declarationOf(field.type);
     return declarationOf(collection.valueType);
   }
@@ -118,11 +124,8 @@ export function setPipe(
   declared: TypeStructure | undefined
 ): void {
   ctx.pipeValue = value;
-  if (declared === undefined) {
-    delete ctx.pipeDeclared;
-  } else {
-    ctx.pipeDeclared = { value, type: declared };
-  }
+  ctx.pipeDeclared =
+    declared === undefined ? undefined : { value, type: declared };
 }
 
 // ============================================================
@@ -133,11 +136,19 @@ type ArgsDeclared = (TypeStructure | undefined)[];
 
 const argsDeclared = new WeakMap<object, ArgsDeclared>();
 
-/** Attach per-position declarations to an args array. */
+/**
+ * Attach per-position declarations to an args array. When no position has a
+ * declaration, no sidecar is kept: `argDeclaredAt` already reads a missing
+ * entry as undefined.
+ */
 export function setArgsDeclared(
   args: readonly (RillValue | undefined)[],
   declared: readonly (TypeStructure | undefined)[]
 ): void {
+  if (declared.every((d) => d === undefined)) {
+    argsDeclared.delete(args);
+    return;
+  }
   argsDeclared.set(args, [...declared]);
 }
 
@@ -155,7 +166,11 @@ export function insertArgDeclared(
   index: number,
   declared: TypeStructure | undefined
 ): void {
-  const list = argsDeclared.get(args) ?? [];
+  const existing = argsDeclared.get(args);
+  // With no sidecar and nothing to record, every position already reads as
+  // undeclared. An existing sidecar must shift to stay aligned.
+  if (existing === undefined && declared === undefined) return;
+  const list = existing ?? [];
   list.splice(index, 0, declared);
   argsDeclared.set(args, list);
 }

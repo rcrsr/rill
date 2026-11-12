@@ -152,7 +152,9 @@ async function applyPostfixStepsCarried(
       declared = element.declared;
     } else {
       const projected =
-        method.type === 'MethodCall' && isOwnFieldRead(s, method, value)
+        declared !== undefined &&
+        method.type === 'MethodCall' &&
+        isOwnFieldRead(s, method, value)
           ? projectElement(declared, method.name)
           : undefined;
       value = await evaluateMethod(s, method, value);
@@ -178,12 +180,15 @@ export async function evaluatePostfixExprCarried(
   let result: Carried;
   try {
     const primary = await evaluatePrimaryCarried(s, expr.primary);
-    result = await applyPostfixStepsCarried(
-      s,
-      expr.methods,
-      primary,
-      'evaluatePostfixExpr'
-    );
+    result =
+      expr.methods.length === 0
+        ? primary
+        : await applyPostfixStepsCarried(
+            s,
+            expr.methods,
+            primary,
+            'evaluatePostfixExpr'
+          );
   } catch (error) {
     if (expr.defaultValue !== null && isRecoverableMissing(error)) {
       return evaluateDefault(s, expr.defaultValue);
@@ -276,12 +281,15 @@ async function evaluatePostfixTargetCarried(
         `Unexpected pipe target primary: ${primary.type}`
       );
     }
-    result = await applyPostfixStepsCarried(
-      s,
-      target.methods,
-      start,
-      'evaluatePipeChain'
-    );
+    result =
+      target.methods.length === 0
+        ? start
+        : await applyPostfixStepsCarried(
+            s,
+            target.methods,
+            start,
+            'evaluatePipeChain'
+          );
   } catch (error) {
     // Mirrors evaluatePostfixExprCarried's recovery.
     if (target.defaultValue !== null && isRecoverableMissing(error)) {
@@ -304,6 +312,28 @@ async function evaluatePostfixTargetCarried(
     return evaluateDefault(s, target.defaultValue);
   }
   return result;
+}
+
+/**
+ * Whether a pipe target may carry a declaration, decided without awaiting so
+ * the common non-carrying targets skip the carrying dispatch entirely. Must
+ * list the same targets as the cases of `evaluateCarryingPipeTarget`.
+ */
+export function isCarryingPipeTarget(target: PipeTargetNode): boolean {
+  switch (target.type) {
+    case 'TypeAssertion':
+    case 'PassBlock':
+    case 'MethodCall':
+    case 'GroupedExpr':
+    case 'PostfixExpr':
+    case 'Destructure':
+    case 'Destruct':
+      return true;
+    case 'Variable':
+      return target.isPipeVar && (target.name === null || target.name === '');
+    default:
+      return false;
+  }
 }
 
 /**
@@ -334,9 +364,10 @@ export async function evaluateCarryingPipeTarget(
     case 'MethodCall': {
       // A plain own-field read on a declared collection projects the field
       // type; every other method takes its own type.
-      const projected = isOwnFieldRead(s, target, input.value)
-        ? projectElement(input.declared, target.name)
-        : undefined;
+      const projected =
+        input.declared !== undefined && isOwnFieldRead(s, target, input.value)
+          ? projectElement(input.declared, target.name)
+          : undefined;
       const value = await evaluateMethod(s, target, input.value);
       return { value, declared: projected };
     }
@@ -390,9 +421,5 @@ export function restorePipe(
   slot: DeclaredSlot | undefined
 ): void {
   ctx.pipeValue = value;
-  if (slot === undefined) {
-    delete ctx.pipeDeclared;
-  } else {
-    ctx.pipeDeclared = slot;
-  }
+  ctx.pipeDeclared = slot;
 }

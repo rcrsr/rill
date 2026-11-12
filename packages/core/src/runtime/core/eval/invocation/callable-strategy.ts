@@ -144,6 +144,11 @@ export class CallableInvocationStrategy {
    *
    * body RillError — callStack snapshot appended, error re-thrown.
    * body non-Rill error — wrapped as RuntimeError (RILL-R001).
+   *
+   * Must reach `this.caller` synchronously: do not `await` anything before
+   * the caller callback runs. `invokeCallable` hands the args-declaration
+   * sidecar to that callback through a module-level slot that is only valid
+   * until the first suspension point.
    */
   async invoke(
     callable: RillCallable,

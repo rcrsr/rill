@@ -326,11 +326,23 @@ describe('Rill Language: declared types', () => {
       expect(await run(`${f}$f(1)`)).toEqual([true, true]);
     });
 
-    it('locks a typed param to its declared type', async () => {
+    it('halts when a param body reassigns a variable from the child scope', async () => {
       await expectHalt(() => run('|x: number| { "a" => $x } => $f\n$f(1)'), {
         code: 'RILL_R001',
         hostErrorId: 'RILL-R001',
+        messagePattern: 'Cannot reassign outer variable $x',
       });
+    });
+
+    it('locks a capture of a typed param to the declared param type', async () => {
+      await expectHalt(
+        () => run(`|k: ${U}| { $k => $y\ntrue => $y\n$y } => $f\n$f(1)`),
+        {
+          code: 'RILL_R001',
+          hostErrorId: 'RILL-R001',
+          messagePattern: `locked as ${U}`,
+        }
+      );
     });
 
     it('lets a union param accept another member after a capture', async () => {
@@ -367,6 +379,61 @@ describe('Rill Language: declared types', () => {
     it('keeps -> :?number working under a declared union', async () => {
       expect(
         await run('|v: union(string, number)| { $v -> :?number } => $f\n$f(1)')
+      ).toBe(true);
+    });
+  });
+
+  describe('undeclared arguments to a $ param', () => {
+    // The pipe declaration slot is keyed by value, so a call whose argument
+    // equals the caller's declared pipe value must not inherit the slot.
+    const OUTER = `${DECL}`;
+
+    it('reports the own type for a $ param called with an equal undeclared value', async () => {
+      expect(
+        await run(
+          `${OUTER}$x -> { { $.^type } => $f\n$f(1) } => $t\n$t == number`
+        )
+      ).toBe(true);
+    });
+
+    it('locks a capture in a $ param body to the own type of an equal undeclared value', async () => {
+      await expectLocked(
+        `${OUTER}$x -> { { $ => $y\n"s" => $y\n$y } => $f\n$f(1) }`
+      );
+    });
+
+    it('reports the own type for an equal undeclared seed given to chain', async () => {
+      expect(
+        await run(`${OUTER}$x -> { chain(1, { $.^type }) } => $t\n$t == number`)
+      ).toBe(true);
+    });
+
+    it('reports the own type for an equal undeclared seed given to iterate', async () => {
+      expect(
+        await run(
+          `${OUTER}$x -> { iterate(1, { ($.^type == number) ? 5 ! 7 }) -> take(2) -> seq({ $ }) }`
+        )
+      ).toEqual([1, 5]);
+    });
+  });
+
+  describe('negative index on a short value', () => {
+    const SHORT = 'tuple[1] -> :tuple(number, string = "x") => $t\n';
+
+    it('projects the element type from the value length, not the declared length', async () => {
+      expect(await run(`${SHORT}$t[-1].^type == number`)).toBe(true);
+    });
+
+    it('locks a capture of a negative-index element to the projected type', async () => {
+      await expectLocked(`${SHORT}$t[-1] => $v\n"abc" => $v`);
+    });
+  });
+
+  describe('bare kind annotation', () => {
+    it('reports the bare kind for .^type and the inferred structure for .^effective', async () => {
+      expect(await run('list[1, 2] => $l:list\n$l.^type == list')).toBe(true);
+      expect(
+        await run('list[1, 2] => $l:list\n$l.^effective == list(number)')
       ).toBe(true);
     });
   });

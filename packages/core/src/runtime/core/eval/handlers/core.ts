@@ -115,6 +115,7 @@ import { evaluateListLiteralDispatch } from './list-dispatch.js';
 import { evaluateAnnotations } from './annotations.js';
 import {
   evaluateCarryingPipeTarget,
+  isCarryingPipeTarget,
   evaluatePostfixExprCarried,
   evaluatePrimaryCarried,
   restorePipe,
@@ -609,8 +610,10 @@ export async function evaluatePipeTarget(
   carried: Carried
 ): Promise<Carried> {
   setPipe(s.ctx, carried.value, carried.declared);
-  const carrying = await evaluateCarryingPipeTarget(s, target, carried);
-  if (carrying !== undefined) return carrying;
+  if (isCarryingPipeTarget(target)) {
+    const carrying = await evaluateCarryingPipeTarget(s, target, carried);
+    if (carrying !== undefined) return carrying;
+  }
   return {
     value: await evaluatePipeTargetValue(s, target, carried),
     declared: undefined,

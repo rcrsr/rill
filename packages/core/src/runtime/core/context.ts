@@ -701,6 +701,7 @@ export function createRuntimeContext(
     callbacks: mergedCallbacks,
     observability: options.observability ?? {},
     pipeValue: null,
+    pipeDeclared: undefined,
     timeout: options.timeout,
     autoExceptions,
     signal: lifecycle.signal,
@@ -816,9 +817,7 @@ export function createChildContext(
     callbacks: parent.callbacks,
     observability: parent.observability,
     pipeValue: parent.pipeValue,
-    ...(parent.pipeDeclared !== undefined
-      ? { pipeDeclared: parent.pipeDeclared }
-      : {}),
+    pipeDeclared: parent.pipeDeclared,
     timeout: parent.timeout,
     autoExceptions: parent.autoExceptions,
     signal: parent.signal,
