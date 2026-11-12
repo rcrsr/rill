@@ -577,91 +577,94 @@ See [Type System: Defaults in Type Expressions](#defaults-in-type-expressions) a
 
 ## Union Types
 
-A union type matches any one of two or more listed types. Use `T1|T2` syntax wherever a type annotation is accepted.
+A union type matches a value that satisfies any one member. Write it `union(...)`, with types or scalar literals (string, number, bool, atom) as members. A union is accepted wherever a type is.
 
-### Overview
-
-Union types appear in type assertions, type checks, capture annotations, and destructure patterns. The `|` separator joins members into a union. At runtime, a union matches if the value satisfies any member.
+### Assertions, Checks, and Captures
 
 ```rill
-# Union assertion: number satisfies string|number
-42 -> :string|number
-# Result: 42
-```
-
-### Type Assertion
-
-Assert that a value matches at least one union member. Execution halts if no member matches:
-
-```rill
-42 -> :string|number
-# Result: 42
-```
-
-```text
-# Error: Type assertion failed: expected string|number, got bool
-true -> :string|number
-```
-
-### Type Check
-
-Check whether a value matches a union without halting on failure:
-
-```rill
-42:?string|number
-# Result: true
-```
-
-```rill
-"hello":?string|number
-# Result: true
-```
-
-```rill
-true:?string|number
-# Result: false
-```
-
-### Capture Annotation
-
-Annotate a capture variable with a union type. The runtime validates the assigned value against all union members:
-
-```rill
-"hello" => $x:string|number
+42 -> :union(string, number)              # assertion passes: 42
+true:?union(string, number) => $ok        # check returns false
+"hello" => $x:union(string, number)       # capture validates the value
 $x
 # Result: "hello"
 ```
 
-```text
-# Error: Type mismatch: cannot assign bool to $x:string|number
-true => $x:string|number
-```
+### Literal Members
 
-### Parameterized Unions
-
-Union members can be parameterized types. Structural validation applies to each member:
+A type member matches by type. A literal member matches by equality. A closed set of values is a union of literals:
 
 ```rill
-["a", "b"] -> :list(string)|dict
-# Result: list["a", "b"]
+"c" -> :union("c", "f")
+# Result: "c"
 ```
 
-### Three-or-More Members
-
-Chain additional members with `|`. The runtime checks each member left to right:
+The one-value type is `union("c")`. A bare literal after a colon is a parse error:
 
 ```rill
-"hello" -> :string|number|bool
-# Result: "hello"
+# Error: Expected type name
+"c" => $a:"c"
 ```
+
+### Closed-Set Dispatch
+
+An atom is not a dict key. Convert a value from a closed set of atoms to its name before selecting:
+
+```rill
+#wired => $kind:union(#wired, #wireless)
+$kind -> string -> dict[wired: { "cable" }, wireless: { "radio" }]
+# Result: "cable"
+```
+
+### Unions as Type Values
+
+A union is a type value. Capture it and reuse it as a member of another union:
+
+```rill
+union(#wired, #wireless) => $lan
+#mesh -> :union($lan, #mesh)
+# Result: #mesh
+```
+
+```rill
+union(string, number).signature
+# Result: "union(string, number)"
+```
+
+A variable member must hold a type. Any other value halts with `#TYPE_MISMATCH`.
+
+### Set Rules
+
+A union is a set. These rules apply when the union is built:
+
+| Rule | Example | Outcome |
+|------|---------|---------|
+| Order is ignored for equality | `union(string, number) == union(number, string)` | `true` |
+| A duplicate member is rejected | `union(string, string)` | halts `#INVALID_INPUT` |
+| A nested union merges | `union(union(string, number), bool)` | `union(string, number, bool)` |
+| A subsumed member is dropped | `union(list(string), list)` | `list` |
+| One type member equals that type | `union(string) == string` | `true` |
+| An empty union is rejected | `union()` | halts `#INVALID_INPUT` |
+| A compound literal is rejected | `union(list[1, 2])` | halts `#INVALID_INPUT` |
+
+Reduction applies inside nested types:
+
+```rill
+union(list(union(string, number)), list(string)).signature
+# Result: "list(union(string, number))"
+```
+
+### Reserved Name
+
+`union` is a reserved type name. Bare `union` and `union[...]` halt with `RILL-P003`; write `union(...)` with members. A host function registered as `union` is not callable by that bare name, because `union(...)` calls the union constructor. A dict key still works: `dict[union: 1]`.
 
 ### Error Behavior
 
-A type assertion fails when the value does not satisfy any member. The error message names the full union:
+A failed assertion names the whole union and the offending value:
 
-```text
-# Error: Type assertion failed: expected string|number, got bool
-true -> :string|number
+```rill
+guard { "x" -> :union("c", "f") } => $out
+$out.!message
+# Result: Type assertion failed: expected union("c", "f"), got "x"
 ```
 
 See [Operators](topic-operators.md) for union types in destructure and existence positions.

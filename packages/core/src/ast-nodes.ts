@@ -482,7 +482,13 @@ export interface DictEntryNode extends BaseNode {
  */
 export interface TypeConstructorNode extends BaseNode {
   readonly type: 'TypeConstructor';
-  readonly constructorName: 'list' | 'dict' | 'tuple' | 'ordered' | 'stream';
+  readonly constructorName:
+    | 'list'
+    | 'dict'
+    | 'tuple'
+    | 'ordered'
+    | 'stream'
+    | 'union';
   readonly args: FieldArg[];
 }
 

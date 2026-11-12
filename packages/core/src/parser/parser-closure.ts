@@ -322,7 +322,6 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
     const paramStart = current(this.state).span.start;
     const firstTypeRef = parseScriptTypeRef(this, {
       allowTrailingPipe: true,
-      closureBody: true,
     });
 
     // Two-type anonymous closure: |type, type|{ body }
@@ -333,7 +332,6 @@ Parser.prototype.parseClosure = function (this: Parser): ClosureNode {
       const secondParamStart = current(this.state).span.start;
       const secondTypeRef = parseScriptTypeRef(this, {
         allowTrailingPipe: true,
-        closureBody: true,
       });
       expect(
         this.state,
@@ -490,7 +488,6 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
     skipNewlines(this.state);
     typeRef = parseScriptTypeRef(this, {
       allowTrailingPipe: true,
-      closureBody: true,
     });
   }
 

@@ -61,12 +61,12 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   });
 
   // ============================================================
-  // AC-3: dict(a: string | number) as expression literal
+  // AC-3: dict(a: union(string, number)) as expression literal
   // ============================================================
 
   describe('AC-3: dict type constructor with union field', () => {
-    it('dict(a: string | number) produces type value with union field', async () => {
-      const result = (await run('dict(a: string | number)')) as any;
+    it('dict(a: union(string, number)) produces type value with union field', async () => {
+      const result = (await run('dict(a: union(string, number))')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('dict');
       expect(result.structure.kind).toBe('dict');
@@ -79,13 +79,13 @@ describe('Rill Language: Type-Ref Arg Unification', () => {
   });
 
   // ============================================================
-  // AC-4: |a: dict(b: string | number = "x")| invoke with dict[]
+  // AC-4: |a: dict(b: union(string, number) = "x")| invoke with dict[]
   // ============================================================
 
   describe('AC-4: dict with union-typed field and default via closure', () => {
     it('closure param annotation hydrates union-typed default "x"', async () => {
       const result = await run(
-        '|a: dict(b: string | number = "x")| { $a.b } => $fn\n$fn(dict[])'
+        '|a: dict(b: union(string, number) = "x")| { $a.b } => $fn\n$fn(dict[])'
       );
       expect(result).toBe('x');
     });

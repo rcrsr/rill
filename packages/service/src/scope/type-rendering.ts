@@ -16,6 +16,8 @@ function literalToString(node: LiteralNode): string | undefined {
     case 'NumberLiteral':
     case 'BoolLiteral':
       return String(node.value);
+    case 'AtomLiteral':
+      return `#${node.name}`;
     case 'StringLiteral':
       return node.parts.every((p): p is string => typeof p === 'string')
         ? JSON.stringify(node.parts.join(''))
@@ -53,7 +55,9 @@ export function typeRefToString(ref: TypeRef | null): string {
     case 'dynamic':
       return 'any';
     case 'union':
-      return ref.members.map(typeRefToString).join(' | ');
+      return `union(${ref.members.map(typeRefToString).join(', ')})`;
+    case 'literal':
+      return literalToString(ref.value) ?? 'any';
   }
   throw new Error('unreachable: unhandled type reference kind');
 }

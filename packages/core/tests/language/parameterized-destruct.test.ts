@@ -1,7 +1,7 @@
 /**
  * Rill Language Tests: Parameterized destruct<> Type Annotations
  * Tests for type-annotated destructure patterns: destruct<$a:list(string)>,
- * destruct<$a:dict(name: string)>, and union types destruct<$a:string|number>.
+ * destruct<$a:dict(name: string)>, and union types destruct<$a:union(string, number)>.
  *
  * AC = Acceptance Criterion from the type-system-improvements spec.
  * BC = Backward Compatibility criterion.
@@ -97,58 +97,62 @@ describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
   });
 
   // ============================================================
-  // AC-35: destruct<$a:string|number> accepts string or number
+  // AC-35: destruct<$a:union(string, number)> accepts string or number
   // Input: 1-element list with the value being string or number
   // ============================================================
 
-  describe('destruct<$a:string|number> accepts string or number (AC-35)', () => {
+  describe('destruct<$a:union(string, number)> accepts string or number (AC-35)', () => {
     it('accepts string element', async () => {
       const { context } = await runWithContext(
-        'list["hello"] -> destruct<$a:string|number>'
+        'list["hello"] -> destruct<$a:union(string, number)>'
       );
       expect(context.variables.get('a')).toBe('hello');
     });
 
     it('accepts number element', async () => {
       const { context } = await runWithContext(
-        'list[42] -> destruct<$a:string|number>'
+        'list[42] -> destruct<$a:union(string, number)>'
       );
       expect(context.variables.get('a')).toBe(42);
     });
 
     it('returns the original list unchanged for string', async () => {
-      const result = await run('list["test"] -> destruct<$a:string|number>');
+      const result = await run(
+        'list["test"] -> destruct<$a:union(string, number)>'
+      );
       expect(result).toEqual(['test']);
     });
 
     it('returns the original list unchanged for number', async () => {
-      const result = await run('list[99] -> destruct<$a:string|number>');
+      const result = await run(
+        'list[99] -> destruct<$a:union(string, number)>'
+      );
       expect(result).toEqual([99]);
     });
   });
 
   // ============================================================
-  // AC-36, EC-4: destruct<$a:string|number> on bool → RILL-R001
+  // AC-36, EC-4: destruct<$a:union(string, number)> on bool → RILL-R001
   // ============================================================
 
-  describe('destruct<$a:string|number> on bool → RILL-R001 (AC-36, EC-4)', () => {
+  describe('destruct<$a:union(string, number)> on bool → RILL-R001 (AC-36, EC-4)', () => {
     it('throws RILL-R001 when element is bool', async () => {
       await expect(
-        run('list[true] -> destruct<$a:string|number>')
+        run('list[true] -> destruct<$a:union(string, number)>')
       ).rejects.toMatchObject({
         errorId: 'RILL-R001',
       });
     });
 
-    it('error message names string|number expected type (EC-4)', async () => {
+    it('error message names union(string, number) expected type (EC-4)', async () => {
       await expect(
-        run('list[true] -> destruct<$a:string|number>')
-      ).rejects.toThrow('string|number');
+        run('list[true] -> destruct<$a:union(string, number)>')
+      ).rejects.toThrow('union(string, number)');
     });
 
     it('error message names bool actual type (EC-4)', async () => {
       await expect(
-        run('list[true] -> destruct<$a:string|number>')
+        run('list[true] -> destruct<$a:union(string, number)>')
       ).rejects.toThrow('bool');
     });
   });

@@ -807,7 +807,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a union-typed param collapses to any and still parses', () => {
+    it('a union-typed param prints as union(...) and still parses', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -828,7 +828,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('value: any');
+      expect(manifest).toContain('value: union(string, number)');
       expect(() => parse(manifest)).not.toThrow();
     });
 

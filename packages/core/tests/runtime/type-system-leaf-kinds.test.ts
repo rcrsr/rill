@@ -31,26 +31,28 @@ describe('structureEquals leaf kinds (#280)', () => {
 });
 
 describe('union structural equality is order-insensitive (#288)', () => {
-  it('list(string|number) == list(number|string) is true', async () => {
-    expect(await run('(list(string|number) == list(number|string))')).toBe(
-      true
-    );
+  it('list(union(string, number)) == list(union(number, string)) is true', async () => {
+    expect(
+      await run('(list(union(string, number)) == list(union(number, string)))')
+    ).toBe(true);
   });
 
   it('same-order unions remain equal', async () => {
-    expect(await run('(list(string|number) == list(string|number))')).toBe(
-      true
-    );
+    expect(
+      await run('(list(union(string, number)) == list(union(string, number)))')
+    ).toBe(true);
   });
 
   it('unions with different members remain unequal', async () => {
-    expect(await run('(list(string|number) == list(string|bool))')).toBe(false);
+    expect(
+      await run('(list(union(string, number)) == list(union(string, bool)))')
+    ).toBe(false);
   });
 });
 
 describe('structureMatches / reflection for atom and iterator (#282)', () => {
-  it('#TIMEOUT :? atom|string is true', async () => {
-    expect(await run('(#TIMEOUT :? atom|string)')).toBe(true);
+  it('#TIMEOUT :? union(atom, string) is true', async () => {
+    expect(await run('(#TIMEOUT :? union(atom, string))')).toBe(true);
   });
 
   it('#TIMEOUT -> :atom passes (does not halt)', async () => {
@@ -63,8 +65,8 @@ describe('structureMatches / reflection for atom and iterator (#282)', () => {
     expect(await run('#TIMEOUT.^type.signature')).toBe('atom');
   });
 
-  it('range(0,3) :? iterator|string is true', async () => {
-    expect(await run('(range(0, 3) :? iterator|string)')).toBe(true);
+  it('range(0,3) :? union(iterator, string) is true', async () => {
+    expect(await run('(range(0, 3) :? union(iterator, string))')).toBe(true);
   });
 
   it('range(0,3).^type.signature is "iterator"', async () => {

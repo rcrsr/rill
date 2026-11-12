@@ -15,6 +15,7 @@ import {
   tokenize,
   TOKEN_HIGHLIGHT_MAP,
   TOKEN_TYPES,
+  VALID_TYPE_NAMES,
   RillError,
   type HighlightCategory,
   type Token,
@@ -80,25 +81,9 @@ export interface RillHighlightState {
  * intercepts them in getTokenTag() to return 'typeName' instead of
  * 'variableName', producing purple highlight rather than blue.
  *
- * Source: VALID_TYPE_NAMES in core constants.ts (not exported publicly).
+ * Source: VALID_TYPE_NAMES exported by @rcrsr/rill.
  */
-const TYPE_NAME_VALUES: ReadonlySet<string> = new Set([
-  'string',
-  'number',
-  'bool',
-  'closure',
-  'list',
-  'dict',
-  'tuple',
-  'ordered',
-  'vector',
-  'any',
-  'type',
-  'iterator',
-  'stream',
-  'datetime',
-  'duration',
-]);
+const TYPE_NAME_VALUES: ReadonlySet<string> = new Set(VALID_TYPE_NAMES);
 
 /**
  * Report whether a character can start an atom name after `#`: an ASCII

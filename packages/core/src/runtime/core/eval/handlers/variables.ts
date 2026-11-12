@@ -953,8 +953,11 @@ async function evaluateCapture(
 ): Promise<RillValue> {
   if (node.typeRef !== null) {
     // Resolve TypeRef and validate against the declared type
-    const resolved = await resolveTypeRef(s, node.typeRef, (name: string) =>
-      getVariable(s.ctx, name)
+    const resolved = await resolveTypeRef(
+      s,
+      node.typeRef,
+      (name: string) => getVariable(s.ctx, name),
+      node.span.start
     );
     setVariable(s, node.name, input, resolved.structure, node.span.start);
   } else {

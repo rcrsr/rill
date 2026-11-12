@@ -827,7 +827,7 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('a union containing a signature with a default passes', async () => {
       const result = await run(
-        'dict[a: 1] -> :dict(a: number, b: number = 0) | string'
+        'dict[a: 1] -> :union(dict(a: number, b: number = 0), string)'
       );
       expect(result).toEqual({ a: 1 });
     });

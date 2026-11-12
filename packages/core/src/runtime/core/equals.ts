@@ -243,12 +243,7 @@ export function astEquals(a: ASTNode, b: ASTNode): boolean {
       const bRef = b.typeRef;
       if (aRef === null && bRef === null) return true;
       if (aRef === null || bRef === null) return false;
-      if (aRef.kind !== bRef.kind) return false;
-      if (aRef.kind === 'dynamic' && bRef.kind === 'dynamic')
-        return aRef.varName === bRef.varName;
-      if (aRef.kind === 'static' && bRef.kind === 'static')
-        return typeRefStaticEquals(aRef, bRef);
-      return false;
+      return typeRefEquals(aRef, bRef);
     }
 
     case 'Break':
@@ -753,6 +748,9 @@ function typeRefEquals(a: TypeRef, b: TypeRef): boolean {
     return typeRefStaticEquals(a, b);
   if (a.kind === 'union' && b.kind === 'union') {
     return arrayEquals(a.members, b.members, typeRefEquals);
+  }
+  if (a.kind === 'literal' && b.kind === 'literal') {
+    return literalNodeEquals(a.value, b.value);
   }
   return false;
 }

@@ -34,6 +34,7 @@ export const VALID_TYPE_NAMES = [
   'datetime',
   'duration',
   'atom',
+  'union',
 ] as const;
 
 // ============================================================

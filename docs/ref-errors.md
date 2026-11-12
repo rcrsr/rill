@@ -196,8 +196,8 @@ $x => String  # Use "string" not "String"
 # Invalid type name
 $x => int  # Use "number" for all numeric types
 
-# Angle-bracket generic syntax not supported
-$x => list<string>  # Use list(string) for typed lists
+# Bare union without members
+"a" -> :union  # Write union(string, number)
 ```
 
 ---
@@ -350,17 +350,17 @@ $ -> /<1:3>  # Error: use slice<1:3>
 
 ### rill-p011
 
-**Description:** Expected type name after pipe
+**Description:** Removed union separator
 
-**Cause:** A '|' in a type annotation position was not followed by a valid type name or '$' variable reference.
+**Cause:** A '|' followed a type in a type position. Unions are written with the union(...) constructor.
 
-**Resolution:** Provide a valid type name or '$variable' after '|'. Example: 'string|number' or '$T|string'.
+**Resolution:** Replace 'A|B' with 'union(A, B)'. Members are types or string, number, bool, or atom literals.
 
 **Example:**
 
 ```text
-# Trailing pipe with no type
-$x: string|  # Error: missing type after |
+# Pipe-separated union
+1 -> :string|number  # Error: write union(string, number)
 ```
 
 ---

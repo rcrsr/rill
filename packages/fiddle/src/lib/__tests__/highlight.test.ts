@@ -351,6 +351,11 @@ describe('token highlighting', () => {
       expect(tags).toContain('typeName');
     });
 
+    it('highlights "union" in union(string, number) as typeName', () => {
+      const tags = tokenizeLine('union(string, number)');
+      expect(tags[0]).toBe('typeName');
+    });
+
     it('highlights non-type identifier "foo" as variableName not typeName', () => {
       const tags = tokenizeLine('foo');
       expect(tags).toContain('variableName');

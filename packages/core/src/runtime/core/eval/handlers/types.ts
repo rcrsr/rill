@@ -44,14 +44,20 @@ import {
   nonTrailingDefaultIndex,
   nonTrailingDefaultMessage,
 } from '../../types/field-defaults.js';
-import { isTypeValue } from '../../types/guards.js';
+import { isAtom, isStructureKind, isTypeValue } from '../../types/guards.js';
 import {
   structureMatches,
   defaultMismatch,
   inferStructure,
   formatStructure,
+  formatRillLiteral,
 } from '../../types/operations.js';
-import { throwCatchableHostHalt, throwTypeHalt } from '../../types/halt.js';
+import {
+  throwCatchableHostHalt,
+  throwFatalHostHalt,
+  throwTypeHalt,
+} from '../../types/halt.js';
+import { normalizeUnion } from '../../types/unions.js';
 import {
   checkType,
   isReservedBrandKey,
@@ -404,6 +410,45 @@ async function buildCollectionType(
 }
 
 /**
+ * Evaluate a literal written as a union member into a literal structure.
+ * Only string (without interpolation), number, bool, and atom literals are
+ * members; any other literal halts with INVALID_INPUT.
+ */
+async function resolveUnionLiteral(
+  s: EvalState,
+  literal: LiteralNode
+): Promise<TypeStructure> {
+  const allowed =
+    literal.type === 'NumberLiteral' ||
+    literal.type === 'BoolLiteral' ||
+    literal.type === 'AtomLiteral' ||
+    (literal.type === 'StringLiteral' &&
+      literal.parts.every((part) => typeof part === 'string'));
+  if (!allowed) {
+    throwTypeHalt(
+      { location: literal.span.start, sourceId: s.ctx.sourceId, fn: 'union' },
+      'INVALID_INPUT',
+      'union member must be a type or a string, number, bool, or atom literal',
+      'runtime'
+    );
+  }
+  const value = await evaluatePrimary(s, literal);
+  if (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    isAtom(value)
+  ) {
+    return { kind: 'literal', value };
+  }
+  return throwFatalHostHalt(
+    { sourceId: s.ctx.sourceId, fn: 'union' },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    'Union literal member evaluated to a non-scalar value'
+  );
+}
+
+/**
  * Resolve a TypeRef to a RillTypeValue.
  *
  * Static refs with no args return a frozen RillTypeValue directly.
@@ -424,7 +469,8 @@ async function buildCollectionType(
 export async function resolveTypeRef(
   s: EvalState,
   typeRef: TypeRef,
-  getVariableFn: (name: string) => RillValue | undefined
+  getVariableFn: (name: string) => RillValue | undefined,
+  location?: SourceLocation
 ): Promise<RillTypeValue> {
   if (typeRef.kind === 'static') {
     const { typeName, args } = typeRef;
@@ -493,24 +539,42 @@ export async function resolveTypeRef(
     );
   }
 
-  // Union type ref: (A | B) -- resolve each member recursively and
-  // return a RillTypeValue with structure: { kind: 'union', members: [...] }.
-  // typeName is set to a display string for error messages; the structure
-  // field carries the authoritative type shape for validation.
+  // Literal refs exist only as members of a union; reaching one here means
+  // the parser produced a tree the resolver cannot interpret.
+  if (typeRef.kind === 'literal') {
+    return throwFatalHostHalt(
+      { sourceId: s.ctx.sourceId, fn: 'resolveTypeRef' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      'Literal type reference outside a union'
+    );
+  }
+
+  // Union type ref: resolve each member, then normalise the written set.
   if (typeRef.kind === 'union') {
-    const members: TypeStructure[] = [];
+    const written: TypeStructure[] = [];
     for (const member of typeRef.members) {
-      const resolved = await resolveTypeRef(s, member, getVariableFn);
-      members.push(resolved.structure);
+      if (member.kind === 'literal') {
+        written.push(await resolveUnionLiteral(s, member.value));
+      } else {
+        const resolved = await resolveTypeRef(
+          s,
+          member,
+          getVariableFn,
+          location
+        );
+        written.push(resolved.structure);
+      }
     }
-    const structure: TypeStructure = { kind: 'union', members };
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- union display string is not a closed RillTypeName member; widening the public RillTypeValue.typeName type would break hosts
-    const displayName = members.map(formatStructure).join('|') as RillTypeName;
-    return Object.freeze({
-      __rill_type: true as const,
-      typeName: displayName,
-      structure,
-    });
+    const normalized = normalizeUnion(written);
+    if ('rejection' in normalized) {
+      return throwTypeHalt(
+        { location, sourceId: s.ctx.sourceId, fn: 'union' },
+        'INVALID_INPUT',
+        normalized.rejection,
+        'runtime'
+      );
+    }
+    return structureToTypeValue(normalized.structure);
   }
 
   const result = getVariableFn(typeRef.varName);
@@ -555,6 +619,24 @@ function hasStructuralSubFields(structure: TypeStructure): boolean {
   );
 }
 
+/** True for a union that lists at least one literal member. */
+function hasLiteralMember(structure: TypeStructure): boolean {
+  return (
+    isStructureKind(structure, 'union') &&
+    structure.members.some((member) => member.kind === 'literal')
+  );
+}
+
+/** True for the value kinds a union literal member can match. */
+function isScalarValue(value: RillValue): boolean {
+  return (
+    typeof value === 'string' ||
+    typeof value === 'number' ||
+    typeof value === 'boolean' ||
+    isAtom(value)
+  );
+}
+
 /**
  * Assert that a value is of the expected type.
  * Returns the value unchanged if assertion passes, throws on mismatch.
@@ -574,7 +656,10 @@ export function assertType(
     if (hasStructuralSubFields(expected)) {
       if (!structureMatches(value, expected)) {
         const expectedStr = formatStructure(expected);
-        const actualStr = formatStructure(inferStructure(value));
+        const actualStr =
+          hasLiteralMember(expected) && isScalarValue(value)
+            ? formatRillLiteral(value)
+            : formatStructure(inferStructure(value));
         throwTypeHalt(
           {
             location,
@@ -635,8 +720,11 @@ export async function evaluateTypeAssertion(
     ? await evaluatePostfixExpr(s, node.operand)
     : input;
 
-  const resolved = await resolveTypeRef(s, node.typeRef, (name) =>
-    getVariable(s.ctx, name)
+  const resolved = await resolveTypeRef(
+    s,
+    node.typeRef,
+    (name) => getVariable(s.ctx, name),
+    node.span.start
   );
   return assertType(s, value, resolved.structure, node.span.start);
 }
@@ -656,8 +744,11 @@ export async function evaluateTypeCheck(
     ? await evaluatePostfixExpr(s, node.operand)
     : input;
 
-  const resolved = await resolveTypeRef(s, node.typeRef, (name) =>
-    getVariable(s.ctx, name)
+  const resolved = await resolveTypeRef(
+    s,
+    node.typeRef,
+    (name) => getVariable(s.ctx, name),
+    node.span.start
   );
   if (hasStructuralSubFields(resolved.structure)) {
     return structureMatches(value, resolved.structure);
@@ -706,6 +797,15 @@ export async function evaluateTypeConstructor(
       streamStructure.ret = retResolved.structure;
     }
     return structureToTypeValue(streamStructure);
+  }
+
+  if (name === 'union') {
+    const resolved = await resolveTypeRef(
+      s,
+      { kind: 'union', members: node.args.map((arg) => arg.value) },
+      (varName) => getVariable(s.ctx, varName)
+    );
+    return resolved;
   }
 
   return buildCollectionType(

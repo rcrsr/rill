@@ -816,7 +816,8 @@ const greet: RillFunctionShorthand = {
 | Supported syntax | Example |
 |------------------|---------|
 | Type names | `string`, `number`, `bool`, `any` |
-| Unions | `string\|number` |
+| Unions | `union(string, number)` |
+| Literal members | `union("c", "f")` |
 | List type | `list(string)` |
 | Named dict type | `dict(k: string)` |
 | Tuple type | `tuple(number, string)` |
@@ -848,6 +849,7 @@ Registration throws `RuntimeError` with `RILL-R091` in these cases:
 | Dict-field or tuple-element default does not match its type | `Invalid signature for function '{name}': Default value for field 'b' must be number, got string at {line}:{col}`; a tuple element reads `tuple element` instead of `field 'b'` |
 | Tuple default is not trailing | `Invalid signature for function '{name}': tuple() default values must be trailing: element at position {n} has no default but a preceding element does at {line}:{col}` |
 | Dict-field or tuple-element default is not a literal | `Invalid signature for function '{name}': field 'b' default must be a string, number, or bool literal at {line}:{col}`; a tuple element reads `tuple element default must be ...` |
+| Union is empty, lists a member twice, or has a compound literal member | `Invalid signature for function '{name}': union requires at least one member at {line}:{col}`; a repeat reads `union lists string more than once`; a compound literal reads `unsupported union member 'list[' (a member is a type or a string, number, bool, or atom literal)` |
 | `list(...)` element type carries a default | `Invalid signature for function '{name}': list element type cannot carry a default value at {line}:{col}` |
 
 `{name}` is the key in `functions`. `toCallable` has no key, so it reports `<anonymous>`. A parameter default that does not match its declared type keeps `RILL-R077`.

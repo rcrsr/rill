@@ -193,25 +193,25 @@ describe('Rill Language: Closure Annotation Defaults', () => {
   });
 
   // ============================================================
-  // AC-24: Union type with default: |mode: string|number = "auto"|
+  // AC-24: Union type with default: |mode: union(string, number) = "auto"|
   // ============================================================
 
   describe('AC-24: union type with default parses', () => {
-    it('|mode: string|number = "auto"| parses without error', () => {
-      const ast = parse('|mode: string|number = "auto"|{ $mode }');
+    it('|mode: union(string, number) = "auto"| parses without error', () => {
+      const ast = parse('|mode: union(string, number) = "auto"|{ $mode }');
       expect(ast.statements).toHaveLength(1);
     });
 
     it('closure with union type and default executes with default', async () => {
       const result = await run(
-        '|mode: string|number = "auto"|{ $mode } => $fn\n$fn()'
+        '|mode: union(string, number) = "auto"|{ $mode } => $fn\n$fn()'
       );
       expect(result).toBe('auto');
     });
 
     it('closure with union type and default accepts explicit value', async () => {
       const result = await run(
-        '|mode: string|number = "auto"|{ $mode } => $fn\n$fn(42)'
+        '|mode: union(string, number) = "auto"|{ $mode } => $fn\n$fn(42)'
       );
       expect(result).toBe(42);
     });

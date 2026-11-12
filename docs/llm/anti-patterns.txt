@@ -161,6 +161,14 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: use<ext:app> => $app
            $app.fetch($url)
 
+## Union types
+
+    Wrong: 42 -> :string|number
+    Right: 42 -> :union(string, number)
+
+    Wrong: "c" => $unit:"c"|"f"            # TypeScript literal union
+    Right: "c" => $unit:union("c", "f")
+
 ## Comments
 
 `#` followed by a letter or `_` is an atom, not a comment. A comment needs a space after `#`.
