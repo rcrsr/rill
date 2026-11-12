@@ -57,7 +57,7 @@ const atomConvertTo: Record<string, (v: RillValue) => RillValue> = {
 // ============================================================
 
 /**
- * Serialize a `:atom` value as its bare uppercase atom name string.
+ * Serialize a `:atom` value as its bare atom name string.
  * The `#` sigil is a syntactic convenience, not part of the identity.
  */
 function serializeAtom(v: RillValue): unknown {

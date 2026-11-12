@@ -114,7 +114,7 @@ Convert between atoms and strings with the built-in forms:
 | The sentinel name | `"ok" -> atom` | `#ok` |
 | Malformed name | `"1x" -> atom` | Halts `#INVALID_INPUT` |
 
-The `.!code` probe returns the atom value. Pass atoms in option lists as `#CODE` literals.
+The `.!code` probe returns the atom value. Pass `#CODE` literals to `on:` as one atom or a list.
 
 A name is well-formed when it starts with a letter or underscore and continues with letters, digits, or underscores. Atoms with different names are never equal, so `#WIRED` does not equal `#R001`:
 
@@ -152,6 +152,7 @@ rill defines these atoms. Every halt and every invalid value carries one of them
 | `#R001` | Ordinary error code. Carried by an invalid value from a parse-recovery node and by a synthesized or host-built `retry` node with an attempt count below 1 (script `retry<limit: 0>` is a parse error); not a fallback for other atoms |
 | `#R999` | Unhandled extension throw reshaped at the extension boundary |
 | `#TIMEOUT` | Operation exceeded its time limit |
+| `#RILL_R###` | Family of 36 atoms, one per halting registry error. Each is named for its error ID and carries that halt's code, for example `#RILL_R002` for a type error. The names are `RILL_R001`, `RILL_R002`, `RILL_R003`, `RILL_R005` to `RILL_R010`, `RILL_R012`, `RILL_R015`, `RILL_R016`, `RILL_R036` to `RILL_R038`, `RILL_R040` to `RILL_R044`, `RILL_R054` to `RILL_R058`, `RILL_R060`, `RILL_R061`, `RILL_R064` to `RILL_R066`, `RILL_R082`, `RILL_R083`, `RILL_R085`, and `RILL_R088` to `RILL_R090`. See [Error Reference](ref-errors.md) |
 | `#RILL_R082` | `timeout<total:>` wall-time bound exceeded; recover via `guard`/`??` |
 | `#RILL_R083` | `timeout<idle:>` inactivity bound exceeded; recover via `guard`/`??` |
 | `#AUTH` | Authentication failure (HTTP 401) |
@@ -597,7 +598,7 @@ fn: async (args, ctx) => {
 }
 ```
 
-`ctx.catch` returns the thunk's result on success. On a matching throw, it returns an invalid `RillValue`. Non-matching throws propagate.
+`ctx.catch` returns the thunk's result on success. On a matching throw, it returns an invalid `RillValue`. A detector that returns `null` yields an invalid `#R999` value.
 
 Unhandled throws are reshaped to `#R999` at the extension boundary automatically.
 

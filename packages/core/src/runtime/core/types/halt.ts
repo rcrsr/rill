@@ -57,7 +57,7 @@ const ERROR_ID_BY_ATOM_NAME = ERROR_IDS as Readonly<Record<string, string>>;
  */
 function deriveHaltMessage(value: RillValue): string {
   const status = getStatus(value);
-  if (status.code === okAtom()) return 'runtime halt';
+  if (atomName(status.code) === atomName(okAtom())) return 'runtime halt';
   const name = atomName(status.code);
   return status.message.length > 0 ? `#${name}: ${status.message}` : `#${name}`;
 }

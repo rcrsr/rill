@@ -636,8 +636,9 @@ Named symbols, compared by name. Type name is `atom`.
     "1x" -> atom                   # halts #INVALID_INPUT (malformed name)
     #TIMEOUT:?atom                 # true
 
-Built-in atom literals (must start with uppercase letter). All except #IGNORE form the core error set, together with the codes below:
+Built-in atom literals (must start with uppercase letter). The core error set is every built-in atom except #ok and #IGNORE:
 
+    #RILL_R###                     # 36 atoms, one per halting registry error (e.g. #RILL_R002); see BUILTIN_ATOMS
     #R001                          # parse-recovery node, host-built retry node
     #R999                          # unhandled extension throw
     #TIMEOUT  #AUTH  #FORBIDDEN  #RATE_LIMIT  #QUOTA_EXCEEDED

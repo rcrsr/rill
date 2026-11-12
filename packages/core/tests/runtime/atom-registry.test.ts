@@ -12,6 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { BUILTIN_ATOMS } from '@rcrsr/rill';
+import { validateHostResult } from '../../src/runtime/core/callable.js';
 import {
   atomName,
   isValidAtomName,
@@ -67,6 +68,21 @@ describe('atom-registry', () => {
 
     it.each(['', '1x', 'a-b', 'a b', '#a', 'é'])('rejects %j', (name) => {
       expect(isValidAtomName(name)).toBe(false);
+    });
+  });
+
+  describe('host-returned atoms', () => {
+    it('accepts an atom value with only the brand and name fields', () => {
+      const value = { __rill_atom: true, atom: resolveAtom('TIMEOUT') };
+      expect(() => validateHostResult(value, 'host_fn')).not.toThrow();
+    });
+
+    it('rejects an atom value carrying an extra key', () => {
+      const value = {
+        __rill_atom: true,
+        atom: { __rill_atom: true, name: 'TIMEOUT', kind: 'x' },
+      };
+      expect(() => validateHostResult(value, 'host_fn')).toThrow();
     });
   });
 });

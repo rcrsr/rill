@@ -42,7 +42,7 @@ import {
   isInvalid,
 } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
-import { resolveAtom, toAtomValue } from '../../types/atom-registry.js';
+import { atomName, toAtomValue } from '../../types/atom-registry.js';
 import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
@@ -467,9 +467,7 @@ export async function evaluateTimeoutBlock(
 function isAbortHalt(e: unknown): boolean {
   if (!(e instanceof RuntimeHaltSignal) || e.catchable) return false;
   const status = getStatus(e.value);
-  return (
-    status.code === resolveAtom('DISPOSED') && status.provider === 'runtime'
-  );
+  return atomName(status.code) === 'DISPOSED' && status.provider === 'runtime';
 }
 
 // ============================================================
@@ -556,13 +554,13 @@ function createIdleTicker(args: {
 // ============================================================
 
 /**
- * Atom name for total wall-time timeout (underscore form for resolveAtom).
+ * Atom name for total wall-time timeout (the `RILL_Rxxx` atom name).
  * Paired with RILL-R082 in error-registry.ts.
  */
 const TIMEOUT_TOTAL_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R082];
 
 /**
- * Atom name for idle inactivity timeout (underscore form for resolveAtom).
+ * Atom name for idle inactivity timeout (the `RILL_Rxxx` atom name).
  * Paired with RILL-R083 in error-registry.ts.
  */
 const TIMEOUT_IDLE_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R083];

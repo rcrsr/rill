@@ -911,7 +911,9 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<BrandShapeCheck> = [
       atom.__rill_atom === true &&
       'name' in atom &&
       typeof atom.name === 'string' &&
-      isValidAtomName(atom.name)
+      isValidAtomName(atom.name) &&
+      Object.keys(v).length === 2 &&
+      Object.keys(atom).length === 2
     );
   }),
   brandRow(

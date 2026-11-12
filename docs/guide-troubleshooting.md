@@ -398,7 +398,8 @@ Access halts are catchable. Halts from `error "..."` and `assert` are **non-catc
 Atoms compare by name. `#MY_CODE` is a valid atom, but no halt carries a code outside the core error set, so a comparison against it is always false.
 
 ```rill
-(#MY_CODE == #R001)
+guard { 1 / 0 } => $r
+($r.!code == #MY_CODE)
 # Result: false
 ```
 
@@ -420,7 +421,7 @@ $result.! ? "invalid" ! "valid"
 # Result: "valid"
 ```
 
-Common core error codes: `#TIMEOUT`, `#AUTH`, `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`, `#DISPOSED`, `#TYPE_MISMATCH`, `#R001`, `#R999`. See [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the full list. `#ok` is a runtime sentinel, not an error code; the lexer does not emit it as a literal.
+Common core error codes: `#TIMEOUT`, `#AUTH`, `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`, `#DISPOSED`, `#TYPE_MISMATCH`, `#R001`, `#R999`, and the `#RILL_R###` family. See [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the full list. `#ok` is a runtime sentinel, not an error code; the lexer does not emit it as a literal.
 
 To convert an atom to its string name:
 

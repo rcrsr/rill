@@ -152,11 +152,11 @@ export interface RillIterator extends Record<string, RillValue> {
 }
 
 /**
- * Atom primitive - represents a first-class error-code atom.
+ * Atom primitive - represents a first-class atom.
  * The 16th built-in primitive type.
  *
  * A `:atom` value holds a frozen atom identified by its name. Authored in
- * scripts as `#NAME` (uppercase). Compared by name:
+ * scripts as `#NAME`. Compared by name:
  * `#TIMEOUT == #TIMEOUT` because both atoms are named `TIMEOUT`.
  *
  * The optional `status` sidecar lets a `:atom` value carry invalidation
