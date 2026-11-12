@@ -18,7 +18,7 @@
  * invalid LHS coerced to default with ??
  * harness runs as part of pnpm --filter @rcrsr/rill-fiddle test
  * formatHalt export present (release gate)
- * unregistered atom -> #R001 byte-equal
+ * non-built-in atom keeps its own name, byte-equal
  */
 
 import { readFileSync } from 'node:fs';
@@ -181,17 +181,19 @@ describe('error-handling parity: Fiddle vs Node', () => {
     expect(nodeSide).toContain('#TYPE_MISMATCH');
   });
 
-  // unregistered atom #FOO -> #R001
-  it('unregistered #FOO collapses to #R001, byte-equal', async () => {
-    const source = loadFixture('unregistered-atom');
+  // non-built-in atom #FOO keeps its own name
+  it('a non-built-in atom #FOO keeps its own name, byte-equal', async () => {
+    const source = loadFixture('non-builtin-atom');
     const nodeSide = await nodeExecute(source);
     const fiddleSide = await fiddleExecute(source);
     expect(fiddleSide).toBe(nodeSide);
-    // Result is a valid atom value whose atom name is R001
     const native = JSON.parse(nodeSide) as {
+      rillTypeName: string;
       value: { atom: { name: string } };
     };
-    expect(native.value.atom.name).toBe('R001');
+    expect(native.value.atom.name).toBe('FOO');
+    expect(native.value.atom).not.toHaveProperty('kind');
+    expect(native.rillTypeName).toBe('atom');
   });
 
   // error-wrap: thrown error (uncatchable) — not an invalid-value halt

@@ -35,7 +35,7 @@ async function run(src: string): Promise<unknown> {
           new Promise<RillValue>(() => {
             throwCatchableHostHalt(
               { fn: 'hostFail', sourceId: 'test.rill' },
-              'TEST_HALT',
+              'INVALID_INPUT',
               'host function failed'
             );
           }),

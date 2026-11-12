@@ -38,8 +38,7 @@ import { run } from '../helpers/runtime.js';
 
 /**
  * Build a host function that throws a catchable RuntimeHaltSignal with a
- * test-only atom code ('TEST_HALT'). The atom is unregistered, so it
- * resolves to the `#R001` fallback; `execute()` rematerialises the escaped
+ * core error code ('INVALID_INPUT'); `execute()` rematerialises the escaped
  * signal into a `RuntimeError` at the host boundary (the generic fatal
  * error ID), carrying the original invalid value and catchable flag under
  * the non-enumerable `haltValue` / `haltCatchable` properties.
@@ -56,7 +55,7 @@ function makeThrowingHostFn(): RillFunction {
       new Promise<RillValue>(() => {
         throwCatchableHostHalt(
           { fn: 'testThrowingFn', sourceId: 'test.rill' },
-          'TEST_HALT',
+          'INVALID_INPUT',
           'test halt message'
         );
       }),
@@ -163,8 +162,7 @@ describe('EC-8: RuntimeHaltSignal trace-frame enrichment', () => {
     );
 
     const status = getStatus(signal.value);
-    // 'TEST_HALT' is unregistered so it resolves to the 'R001' fallback atom.
-    expect(atomName(status.code)).toBe('R001');
+    expect(atomName(status.code)).toBe('INVALID_INPUT');
   });
 });
 

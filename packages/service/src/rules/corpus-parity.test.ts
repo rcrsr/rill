@@ -264,7 +264,7 @@ describe('ATOM_UNREGISTERED fires only outside the core BUILTIN_ATOMS set', () =
       code: 'ATOM_UNREGISTERED',
       severity: 'warning',
       message:
-        'Atom #CUSTOM_UNREGISTERED_ATOM is not a runtime builtin; ensure the host registers it via registerErrorCode.',
+        'Atom #CUSTOM_UNREGISTERED_ATOM is not a builtin atom; unknown names no longer resolve to #R001.',
       fix: null,
     });
   });
@@ -276,7 +276,7 @@ describe('ATOM_UNREGISTERED fires only outside the core BUILTIN_ATOMS set', () =
       .filter((d) => d.code === 'ATOM_UNREGISTERED');
 
     for (const diagnostic of firings) {
-      const match = /^Atom #(\S+) is not a runtime builtin/.exec(
+      const match = /^Atom #(\S+) is not a builtin atom/.exec(
         diagnostic.message
       );
       expect(match).not.toBeNull();

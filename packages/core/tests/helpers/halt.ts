@@ -26,12 +26,12 @@
 import { expect } from 'vitest';
 import {
   atomName,
+  BUILTIN_ATOMS,
   RuntimeError,
   RuntimeHaltSignal,
   type RillValue,
 } from '@rcrsr/rill';
 import { getStatus } from '../../src/runtime/core/types/status.js';
-import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 
 interface HaltExpectation {
   /** Expected atom name (e.g. `'TYPE_MISMATCH'`, `'INVALID_INPUT'`). */
@@ -56,11 +56,11 @@ function matchMessage(actual: string, pattern: RegExp | string): void {
   }
 }
 
-/** Fails when `code` is unregistered and `resolveAtom` fell back to `#R001`. */
+/** Fails when `code` is not a builtin atom name (a likely typo in a test). */
 function assertAtomRegistered(code: string): void {
-  if (code !== 'R001' && resolveAtom(code) === resolveAtom('R001')) {
+  if (!BUILTIN_ATOMS.includes(code)) {
     throw new Error(
-      `expectHalt: atom '${code}' is not registered in CORE_ATOM_REGISTRATIONS — resolveAtom returned the #R001 fallback. Register the atom or check the code name.`
+      `expectHalt: atom '${code}' is not a builtin atom name. Check the code name.`
     );
   }
 }
@@ -110,7 +110,7 @@ export async function expectHalt(
   }
   const status = getStatus(extractHaltInvalid(caught));
   assertAtomRegistered(expected.code);
-  expect(status.code).toBe(resolveAtom(expected.code));
+  expect(status.code.name).toBe(expected.code);
   if (expected.messagePattern !== undefined) {
     matchMessage(status.message, expected.messagePattern);
   }
@@ -223,7 +223,7 @@ export function expectHaltSync(
   const signal = caught as RuntimeHaltSignal;
   const status = getStatus(signal.value);
   assertAtomRegistered(expected.code);
-  expect(status.code).toBe(resolveAtom(expected.code));
+  expect(status.code.name).toBe(expected.code);
   if (expected.messagePattern !== undefined) {
     matchMessage(status.message, expected.messagePattern);
   }

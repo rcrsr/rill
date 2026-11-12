@@ -128,7 +128,7 @@ export {
   isIterator,
 };
 
-// Error atom registry
+// Atoms
 export { resolveAtom, atomName };
 export type { RillAtom, RillStatus, InvalidateMeta, InvalidMeta, TraceFrame };
 export type { ExtensionFactoryCtx };
@@ -137,7 +137,7 @@ export type { ExtensionFactoryCtx };
 export { formatHalt };
 ```
 
-> Atom registration is **not** a top-level export. Extensions register atoms via `ctx.registerErrorCode(name, kind)` on `ExtensionFactoryCtx` at factory init time. See [`ExtensionFactoryCtx`](#extensionfactoryctx) below and [Error Handling](topic-error-handling.md#extension-authoring) for details.
+> Hosts cannot add atoms or error codes. See [`ExtensionFactoryCtx`](#extensionfactoryctx) below and [Error Handling](topic-error-handling.md#extension-authoring) for how extensions report domain failures.
 
 ### `inferStructure`
 
@@ -340,14 +340,12 @@ Returns `true` when `value` is a lazy rill iterator (produced by `range`, `repea
 
 ```typescript
 interface ExtensionFactoryCtx {
-  registerErrorCode(name: string, kind: string): void;
   readonly signal: AbortSignal;
 }
 ```
 
 | Member | Description |
 |--------|-------------|
-| `registerErrorCode` | Registers a domain atom by name and kind. Atoms become available as `#NAME` literals in scripts. |
 | `signal` | Fires when the runtime disposes before the factory completes. |
 
 See [Host API Reference](ref-host-api.md#factory-scope-context-extensionfactoryctx) for usage examples.
@@ -368,7 +366,7 @@ interface InvalidateMeta {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `code` | `string` | Registered atom name (e.g. `"TIMEOUT"`). Unregistered names resolve to `#R001`. |
+| `code` | `string` | Core error code name (e.g. `"TIMEOUT"`). `ok` or a name outside the core error set throws `RILL-R084` at the call. |
 | `provider` | `string` | Origin identifier for the failure (e.g. the extension name). |
 | `raw` | `Record<string, unknown>` | Optional provider-specific payload. A `message` key populates the display message. |
 
@@ -386,22 +384,20 @@ type InvalidMeta = InvalidateMeta;
 
 ## RillAtom
 
-`RillAtom` is the opaque interned handle for a registered atom. The runtime creates handles exclusively via the atom registry.
+`RillAtom` is a frozen handle identified by name. Compare atoms by `name`, not by reference.
 
 ```typescript
 interface RillAtom {
   readonly __rill_atom: true;
   readonly name: string;
-  readonly kind: string;
 }
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | `string` | Bare uppercase atom name without the `#` sigil (e.g. `"TIMEOUT"`) |
-| `kind` | `string` | Classification tag supplied at registration (e.g. `"network"`, `"domain"`) |
+| `name` | `string` | Atom name without the `#` sigil (e.g. `"TIMEOUT"`) |
 
-Use `atomName(atom)` to retrieve the name string. Use `resolveAtom(name)` to look up a handle by name.
+Use `atomName(atom)` to retrieve the name string. Use `resolveAtom(name)` to build a handle from a well-formed name; it throws on a malformed one.
 
 ```typescript
 import { resolveAtom, atomName } from '@rcrsr/rill';

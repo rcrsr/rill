@@ -121,8 +121,7 @@ const PROTOCOL_CONVERSION_ATOMS: ReadonlySet<string> = new Set([
 
 /**
  * True when a halt carries one of the protocol-converter atoms. Matches on
- * the resolved atom's own name, so an unregistered atom (which resolves to
- * the shared `#R001` fallback) never matches.
+ * the resolved atom's own name.
  */
 function isProtocolConversionHalt(err: RuntimeHaltSignal): boolean {
   return PROTOCOL_CONVERSION_ATOMS.has(getStatus(err.value).code.name);

@@ -62,6 +62,7 @@ import { hasCollectionFields } from './values.js';
 import { copyTypedKeys, setDictField } from './types/dict-keys.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import { throwCatchableHostHalt, throwFatalHostHalt } from './types/halt.js';
+import { isValidAtomName } from './types/atom-registry.js';
 import {
   normalizeFunctionDefinition,
   type RillFunctionDefinition,
@@ -910,8 +911,7 @@ const BRAND_SHAPE_CHECKS: ReadonlyArray<BrandShapeCheck> = [
       atom.__rill_atom === true &&
       'name' in atom &&
       typeof atom.name === 'string' &&
-      'kind' in atom &&
-      typeof atom.kind === 'string'
+      isValidAtomName(atom.name)
     );
   }),
   brandRow(

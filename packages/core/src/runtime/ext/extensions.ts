@@ -34,7 +34,7 @@ export interface ExtensionFactoryResult {
  * Accepts typed configuration and a factory-scope {@link ExtensionFactoryCtx}.
  * Returns (or resolves to) an {@link ExtensionFactoryResult}.
  *
- * The factory-scope ctx exposes exactly `{ registerErrorCode, signal }`
+ * The factory-scope ctx exposes exactly `{ signal }`.
  * Host-scope helpers like `invalidate` and `catch` are
  * intentionally absent at factory init time.
  */

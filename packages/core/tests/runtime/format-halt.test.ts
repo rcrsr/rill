@@ -130,13 +130,4 @@ describe('formatHalt', () => {
     expect(a).toBe(b);
     expect(a.endsWith('\n')).toBe(false);
   });
-
-  it('resolves unregistered atom names to #R001 (fallback)', () => {
-    const value = invalid({
-      code: 'NOT_A_REGISTERED_ATOM_NAME',
-      provider: 'x',
-      raw: { message: 'm' },
-    });
-    expect(formatHalt(value).startsWith('#R001: m')).toBe(true);
-  });
 });

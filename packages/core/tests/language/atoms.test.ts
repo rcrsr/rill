@@ -3,11 +3,8 @@
  *
  * Covers (Phase 1):
  * - FR-ERR-2/3: Atom literals `#NAME` parse into AtomLiteralNode.
- * - AC-3: Atoms with the same name share identity across references.
+ * - Atoms are identified and compared by name; any valid name is an atom.
  * - EC-12: Parse-time malformed atoms produce a RecoveryErrorNode.
- * - EC-13: Unregistered well-formed name via `:atom` deserialize path
- *   returns an atom whose identity equals the pre-registered `#R001`
- *   fallback (registry behavior, `resolveAtom`).
  *
  * Deferred to Phase 2 (evaluator support for AtomLiteralNode):
  * - Running `#TIMEOUT == #TIMEOUT` end-to-end inside a rill script.
@@ -130,139 +127,137 @@ describe('Atom literals (#NAME)', () => {
   });
 });
 
-describe('Atom registry (AC-3, EC-3, EC-13)', () => {
-  it('AC-3: resolveAtom returns the same reference for repeated names', () => {
-    const a = resolveAtom('TIMEOUT');
-    const b = resolveAtom('TIMEOUT');
-    expect(a).toBe(b);
+/** Run a script that must halt and return the halt's status code name. */
+async function haltCode(src: string): Promise<string> {
+  try {
+    await runScript(src);
+  } catch (e) {
+    if (e instanceof RuntimeHaltSignal) {
+      return getStatus(e.value).code.name;
+    }
+    throw e;
+  }
+  throw new Error('expected the script to halt');
+}
+
+describe('Atoms are identified by name', () => {
+  it('resolveAtom returns the shared object for builtin names', () => {
+    expect(resolveAtom('TIMEOUT')).toBe(resolveAtom('TIMEOUT'));
+    expect(atomName(resolveAtom('RATE_LIMIT'))).toBe('RATE_LIMIT');
   });
 
-  it('AC-3: pre-registered atoms identity-equal their registry entries', () => {
-    const timeoutFromAtom = resolveAtom('TIMEOUT');
-    const rateLimitFromAtom = resolveAtom('RATE_LIMIT');
-    expect(atomName(timeoutFromAtom)).toBe('TIMEOUT');
-    expect(atomName(rateLimitFromAtom)).toBe('RATE_LIMIT');
-    expect(timeoutFromAtom).not.toBe(rateLimitFromAtom);
+  it('resolveAtom returns equal-named atoms for non-builtin names', () => {
+    const a = resolveAtom('WIRED');
+    const b = resolveAtom('WIRED');
+    expect(atomName(a)).toBe('WIRED');
+    expect(a.name).toBe(b.name);
   });
 
-  it('EC-3: unregistered name resolves to #R001 fallback', () => {
-    const unregistered = resolveAtom('NEVER_REGISTERED_XYZ');
-    const r001 = resolveAtom('R001');
-    expect(unregistered).toBe(r001);
-    expect(atomName(unregistered)).toBe('R001');
+  it('#TIMEOUT == #TIMEOUT is true', async () => {
+    expect(await runScript('#TIMEOUT == #TIMEOUT')).toBe(true);
   });
 
-  it('EC-3: two distinct unregistered names collapse to the same #R001 atom', () => {
-    const a = resolveAtom('UNREG_ONE');
-    const b = resolveAtom('UNREG_TWO');
-    expect(a).toBe(b);
-    expect(atomName(a)).toBe('R001');
-  });
-});
-
-describe(':atom primitive via deserialize (EC-13)', () => {
-  it('deserializing a registered atom name yields a :atom value with identity-equal atom', () => {
-    const code = deserializeValue('TIMEOUT', 'atom') as RillAtomValue;
-    expect(isAtom(code)).toBe(true);
-    expect(code.atom).toBe(resolveAtom('TIMEOUT'));
-    expect(atomName(code.atom)).toBe('TIMEOUT');
+  it('#TIMEOUT == #NOT_FOUND is false', async () => {
+    expect(await runScript('#TIMEOUT == #NOT_FOUND')).toBe(false);
   });
 
-  it('EC-13: deserializing an unregistered name yields a :atom whose atom is #R001', () => {
-    const code = deserializeValue(
-      'DEFINITELY_NOT_REGISTERED',
-      'atom'
-    ) as RillAtomValue;
-    expect(isAtom(code)).toBe(true);
-    expect(code.atom).toBe(resolveAtom('R001'));
+  it('#TIMEOUT -> string is the bare name', async () => {
+    expect(await runScript('#TIMEOUT -> string')).toBe('TIMEOUT');
   });
 
-  it(':atom values compare by identity across independent deserializations', () => {
-    const a = deserializeValue('TIMEOUT', 'atom') as RillAtomValue;
-    const b = deserializeValue('TIMEOUT', 'atom') as RillAtomValue;
-    // The RillAtomValue wrappers may differ, but the interned atom is shared.
-    expect(a.atom).toBe(b.atom);
+  it('"TIMEOUT" -> atom equals #TIMEOUT', async () => {
+    expect(await runScript('("TIMEOUT" -> atom) == #TIMEOUT')).toBe(true);
   });
-});
 
-describe('-> atom pipe target (AC-8, AC-9, AC-37, AC-38)', () => {
-  it('AC-8: `"TIMEOUT" -> atom` converts the string to the registered TIMEOUT atom', async () => {
-    // AC-8 happy path: a well-formed, pre-registered atom name piped through
-    // `-> atom` returns a `:atom` value whose interned atom is identity-equal
-    // to the registry entry for `#TIMEOUT`. TIMEOUT is pre-registered during
-    // atom-registry bootstrap, so no extra registration is required here.
-    const ast = parse('"TIMEOUT" -> atom');
-    const ctx = createRuntimeContext({});
-    const { result } = await execute(ast, ctx);
+  it('#WIRED is an atom named WIRED', async () => {
+    const result = await runScript('#WIRED');
     expect(isAtom(result as never)).toBe(true);
-    expect((result as RillAtomValue).atom).toBe(resolveAtom('TIMEOUT'));
-    expect(atomName((result as RillAtomValue).atom)).toBe('TIMEOUT');
+    expect(atomName((result as RillAtomValue).atom)).toBe('WIRED');
   });
 
-  it('AC-9: unregistered well-formed name via `-> atom` falls back to #R001', async () => {
-    // AC-9: a syntactically valid but unregistered atom name collapses to
-    // the `#R001` fallback through the registry (EC-3 contract). Identity
-    // equality with `resolveAtom("R001")` holds because atoms intern.
-    const ast = parse('"DEFINITELY_NOT_REGISTERED_XYZ" -> atom');
-    const ctx = createRuntimeContext({});
-    const { result } = await execute(ast, ctx);
+  it('#WIRED == #R001 is false', async () => {
+    expect(await runScript('#WIRED == #R001')).toBe(false);
+  });
+
+  it('#WIRED -> string is "WIRED"', async () => {
+    expect(await runScript('#WIRED -> string')).toBe('WIRED');
+  });
+
+  it('a lowercase name round-trips through atom and string', async () => {
+    expect(await runScript('("wired" -> atom) -> string')).toBe('wired');
+  });
+
+  it('mixed-case and underscore names convert', async () => {
+    const wired = (await runScript('"Wired" -> atom')) as RillAtomValue;
+    const mixed = (await runScript('"A1_b" -> atom')) as RillAtomValue;
+    expect(atomName(wired.atom)).toBe('Wired');
+    expect(atomName(mixed.atom)).toBe('A1_b');
+  });
+
+  it('"ok" -> atom is an atom named ok', async () => {
+    const result = (await runScript('"ok" -> atom')) as RillAtomValue;
     expect(isAtom(result as never)).toBe(true);
-    expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+    expect(atomName(result.atom)).toBe('ok');
   });
 
-  it('AC-37: empty string through `-> atom` falls back to #R001', async () => {
-    // AC-37: empty string is not a registered atom name; resolution falls
-    // back to `#R001`. The stringConvertTo entry delegates to resolveAtom,
-    // which never throws and returns the fallback atom.
-    const ast = parse('"" -> atom');
-    const ctx = createRuntimeContext({});
-    const { result } = await execute(ast, ctx);
-    expect(isAtom(result as never)).toBe(true);
-    expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+  it('the status code of a valid value equals "ok" -> atom', async () => {
+    const src = `
+      "x" => $v
+      $v.!code == ("ok" -> atom)
+    `;
+    expect(await runScript(src)).toBe(true);
   });
 
-  it('AC-38: whitespace-only string through `-> atom` falls back to #R001', async () => {
-    // AC-38: whitespace-only names are never registered, so resolution
-    // collapses to `#R001` via the same fallback path as AC-37.
-    const ast = parse('"   " -> atom');
-    const ctx = createRuntimeContext({});
-    const { result } = await execute(ast, ctx);
-    expect(isAtom(result as never)).toBe(true);
-    expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+  it('list[#WIRED] == list[#WIRED] is true', async () => {
+    expect(await runScript('list[#WIRED] == list[#WIRED]')).toBe(true);
   });
 
-  it('the reserved sentinel "ok" halts #INVALID_INPUT rather than minting the #ok atom, when unguarded', async () => {
-    await expect(runScript('"ok" -> atom')).rejects.toBeInstanceOf(
-      RuntimeHaltSignal
-    );
-  });
+  it.each(['"1x"', '""', '"   "'])(
+    '%s -> atom halts #INVALID_INPUT',
+    async (literal) => {
+      expect(await haltCode(`${literal} -> atom`)).toBe('INVALID_INPUT');
+    }
+  );
 
-  it('`guard { "ok" -> atom }` catches the reserved-sentinel halt as an invalid #INVALID_INPUT value', async () => {
-    const src = `guard { "ok" -> atom }`;
-    const result = await runScript(src);
+  it('guard turns an invalid-name conversion into an invalid value', async () => {
+    const result = await runScript('guard { "1x" -> atom }');
     expect(isInvalid(result as never)).toBe(true);
     expect(getStatus(result as never).code).toBe(resolveAtom('INVALID_INPUT'));
   });
 
   it('`.!code -> string` on the caught halt reports "INVALID_INPUT"', async () => {
     const src = `
-      guard { "ok" -> atom } => $r
+      guard { "1x" -> atom } => $r
       $r.!code -> string
     `;
-    const result = await runScript(src);
-    expect(result).toBe('INVALID_INPUT');
+    expect(await runScript(src)).toBe('INVALID_INPUT');
+  });
+});
+
+describe(':atom primitive via deserialize', () => {
+  it('deserializing a builtin atom name yields an atom of that name', () => {
+    const code = deserializeValue('TIMEOUT', 'atom') as RillAtomValue;
+    expect(isAtom(code)).toBe(true);
+    expect(atomName(code.atom)).toBe('TIMEOUT');
   });
 
-  it('other registered names are unaffected by the reserved-sentinel guard', async () => {
-    const fooAst = parse('"FOO" -> atom');
-    const timeoutAst = parse('"TIMEOUT" -> atom');
-    const ctx = createRuntimeContext({});
-    const { result: fooResult } = await execute(fooAst, ctx);
-    const { result: timeoutResult } = await execute(timeoutAst, ctx);
-    expect(isAtom(fooResult as never)).toBe(true);
-    expect((fooResult as RillAtomValue).atom).toBe(resolveAtom('R001'));
-    expect(isAtom(timeoutResult as never)).toBe(true);
-    expect((timeoutResult as RillAtomValue).atom).toBe(resolveAtom('TIMEOUT'));
+  it('deserializing a non-builtin name yields an atom of that name', () => {
+    const code = deserializeValue('WIRED', 'atom') as RillAtomValue;
+    expect(isAtom(code)).toBe(true);
+    expect(atomName(code.atom)).toBe('WIRED');
+  });
+
+  it('deserializing an invalid name halts #INVALID_INPUT', () => {
+    try {
+      deserializeValue('1x', 'atom');
+    } catch (e) {
+      expect(e).toBeInstanceOf(RuntimeHaltSignal);
+      expect(getStatus((e as RuntimeHaltSignal).value).code.name).toBe(
+        'INVALID_INPUT'
+      );
+      return;
+    }
+    throw new Error('expected deserializeValue to halt');
   });
 });
 
@@ -285,24 +280,12 @@ describe('isAtom safety (EC-4, AC-27)', () => {
 // ============================================================
 
 describe('Atom runtime evaluation (Phase 2)', () => {
-  it('evaluates #TIMEOUT to a :atom value whose atom matches the registry', async () => {
-    // AtomLiteral dispatch landed in Phase 2.2 (core.ts case 'AtomLiteral');
-    // the evaluator materialises a `:atom` value carrying the interned atom.
+  it('evaluates #TIMEOUT to a :atom value named TIMEOUT', async () => {
     const ast = parse('#TIMEOUT');
     const ctx = createRuntimeContext({});
     const { result } = await execute(ast, ctx);
     expect(isAtom(result as never)).toBe(true);
-    expect((result as RillAtomValue).atom).toBe(resolveAtom('TIMEOUT'));
-  });
-
-  it('evaluates unregistered #FOO to a :atom whose atom is #R001', async () => {
-    // EC-12 runtime half: unregistered names collapse to #R001 via the
-    // registry fallback. The evaluator resolves at Phase 2.
-    const ast = parse('#FOO');
-    const ctx = createRuntimeContext({});
-    const { result } = await execute(ast, ctx);
-    expect(isAtom(result as never)).toBe(true);
-    expect((result as RillAtomValue).atom).toBe(resolveAtom('R001'));
+    expect(atomName((result as RillAtomValue).atom)).toBe('TIMEOUT');
   });
 });
 

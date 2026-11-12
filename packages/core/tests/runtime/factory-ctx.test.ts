@@ -1,91 +1,68 @@
 /**
  * Rill Runtime Tests: ExtensionFactoryCtx surface
  *
- * Specification Mapping (task 3.6):
- * - IR-9: ExtensionFactoryCtx surface is exactly `{ registerErrorCode, signal }`.
- * - AC-7  / AC-N5 / EC-15: TypeScript rejects excess properties on
- *   ExtensionFactoryCtx literals via the exact-prop check under `strict`.
- * - AC-E6 / EC-1: Re-registering the same atom name with a different kind
- *   raises an init-time conflict at `registerErrorCode`.
- * - FR-ERR-19 / FR-ERR-20: Positive factory-init registration path.
+ * - ExtensionFactoryCtx exposes exactly `{ signal }`.
+ * - TypeScript rejects excess properties on ExtensionFactoryCtx literals via
+ *   the exact-prop check under `strict`, including the removed
+ *   `registerErrorCode` member.
+ * - `registerErrorCode` is not part of the package exports.
  *
- * Construction strategy:
- * - Core has no construction site for `ExtensionFactoryCtx`; the host builds
- *   it. `makeFactoryCtx` stands in for a host-built context, and tests drive
- *   the factory signature directly by calling the factory with that literal
- *   (see extensions.test.ts).
+ * Core has no construction site for `ExtensionFactoryCtx`; the host builds
+ * it, so tests build literals directly.
  */
 
 import { describe, expect, expectTypeOf, it } from 'vitest';
+import * as rill from '@rcrsr/rill';
 import type {
   ExtensionFactory,
   ExtensionFactoryCtx,
   ExtensionFactoryResult,
 } from '@rcrsr/rill';
-import {
-  atomName,
-  registerErrorCode,
-  resolveAtom,
-} from '../../src/runtime/core/types/atom-registry.js';
-
-/**
- * Builds a factory-scope ctx literal wired to a fresh AbortController.
- * Stands in for a host-built context so tests can exercise the factory
- * contract without spinning up a full runtime.
- */
-function makeFactoryCtx(): ExtensionFactoryCtx {
-  const controller = new AbortController();
-  return {
-    registerErrorCode: (name: string, kind: string): void => {
-      registerErrorCode(name, kind);
-    },
-    signal: controller.signal,
-  };
-}
 
 describe('ExtensionFactoryCtx', () => {
-  describe('AC-7 / AC-N5 / EC-15: exact-prop shape', () => {
-    it('accepts a literal with exactly { registerErrorCode, signal }', () => {
-      const ctx: ExtensionFactoryCtx = makeFactoryCtx();
+  describe('exact-prop shape', () => {
+    it('accepts a literal with exactly { signal }', () => {
+      const controller = new AbortController();
+      const ctx: ExtensionFactoryCtx = { signal: controller.signal };
 
-      // Positive shape evidence: both members are present and correctly typed.
-      expectTypeOf<ExtensionFactoryCtx['registerErrorCode']>().toBeFunction();
       expectTypeOf(ctx.signal).toEqualTypeOf<AbortSignal>();
-
-      // Runtime sanity: the ctx is usable as-is.
-      expect(typeof ctx.registerErrorCode).toBe('function');
+      expectTypeOf<keyof ExtensionFactoryCtx>().toEqualTypeOf<'signal'>();
+      expect(Object.keys(ctx)).toEqual(['signal']);
       expect(ctx.signal).toBeInstanceOf(AbortSignal);
     });
 
     it('TypeScript rejects an extra property via excess-property check', () => {
       const controller = new AbortController();
 
-      // The @ts-expect-error directive asserts the excess-property check
-      // rejects the `extra` member. If the exact-prop contract regresses
-      // and the compiler accepts the extra, tsc flags the directive as
-      // unused, turning this into a compile-time failure (AC-N5 / EC-15).
+      // If the exact-prop contract regresses and the compiler accepts the
+      // extra, tsc flags the directive as unused.
       const withExtra: ExtensionFactoryCtx = {
-        registerErrorCode: () => {},
         signal: controller.signal,
-        // @ts-expect-error AC-N5: ExtensionFactoryCtx rejects excess properties
+        // @ts-expect-error ExtensionFactoryCtx rejects excess properties
         extra: 1,
       };
 
-      // Read the literal so the `withExtra` binding is not optimised out;
-      // the directive sits on the offending property line, where tsc reports
-      // the excess-property error.
-      expect(typeof withExtra.registerErrorCode).toBe('function');
+      expect(withExtra.signal).toBe(controller.signal);
+    });
+
+    it('TypeScript rejects registerErrorCode on a ctx literal', () => {
+      const controller = new AbortController();
+
+      const withRegister: ExtensionFactoryCtx = {
+        signal: controller.signal,
+        // @ts-expect-error registerErrorCode is no longer part of the ctx
+        registerErrorCode: () => {},
+      };
+
+      expect(withRegister.signal).toBe(controller.signal);
     });
 
     it('TypeScript rejects a satisfies-clause with excess properties', () => {
       const controller = new AbortController();
 
-      // `satisfies` also runs the excess-property check when the target is
-      // a structural interface. The directive anchors that behavior.
       const shape = {
-        registerErrorCode: () => {},
         signal: controller.signal,
-        // @ts-expect-error AC-N5: `satisfies` rejects excess property
+        // @ts-expect-error `satisfies` rejects excess property
         extra: 'nope',
       } satisfies ExtensionFactoryCtx;
 
@@ -93,98 +70,32 @@ describe('ExtensionFactoryCtx', () => {
     });
   });
 
-  describe('FR-ERR-19 / FR-ERR-20: Positive factory registration', () => {
-    it('factory receives a ctx whose registerErrorCode registers atoms', () => {
-      // Use a unique name so parallel test runs never conflict. Registry
-      // state is module-scoped (§atom-registry); a well-formed unique
-      // name keeps the test hermetic.
-      const uniqueName = `FACTORY_CTX_OK_${Date.now().toString(36).toUpperCase()}`;
-
-      const factory: ExtensionFactory<{ tag: string }> = (
-        config,
-        ctx
-      ): ExtensionFactoryResult => {
-        ctx.registerErrorCode(uniqueName, 'generic');
-        return { value: { _tag: config.tag } };
-      };
-
-      const ctx = makeFactoryCtx();
-      const result = factory({ tag: 'ok' }, ctx);
-
-      // Runtime observable: the atom is resolvable post-factory.
-      const atom = resolveAtom(uniqueName);
-      expect(atomName(atom)).toBe(uniqueName);
-      expect(atom.kind).toBe('generic');
-      // Factory returned the expected shape.
-      expect('value' in (result as ExtensionFactoryResult)).toBe(true);
-    });
-
-    it('registerErrorCode is idempotent for identical (name, kind)', () => {
-      const uniqueName = `FACTORY_CTX_IDEMP_${Date.now().toString(36).toUpperCase()}`;
-      const ctx = makeFactoryCtx();
-
-      // First registration succeeds.
-      expect(() => ctx.registerErrorCode(uniqueName, 'generic')).not.toThrow();
-
-      // Second identical registration is a no-op; returns existing atom.
-      expect(() => ctx.registerErrorCode(uniqueName, 'generic')).not.toThrow();
-
-      const atom = resolveAtom(uniqueName);
-      expect(atomName(atom)).toBe(uniqueName);
+  describe('package exports', () => {
+    it('does not export registerErrorCode', () => {
+      expect('registerErrorCode' in rill).toBe(false);
     });
   });
 
-  describe('AC-E6 / EC-1: duplicate registration with different kind', () => {
-    it('throws at factory init when re-registering with a different kind', () => {
-      const uniqueName = `FACTORY_CTX_CONFLICT_${Date.now().toString(36).toUpperCase()}`;
-      const ctx = makeFactoryCtx();
-
-      // First registration with kind='generic' succeeds.
-      ctx.registerErrorCode(uniqueName, 'generic');
-
-      // Re-registering the same name with a different kind raises
-      // synchronously inside the factory init path (AC-E6).
-      expect(() => ctx.registerErrorCode(uniqueName, 'auth')).toThrow(
-        /already registered with kind/i
-      );
-    });
-
-    it('rejects well-formed but differently-kinded registration across two factories', () => {
-      const uniqueName = `FACTORY_CTX_CROSS_${Date.now().toString(36).toUpperCase()}`;
-
-      // Factory A registers the atom.
-      const factoryA: ExtensionFactory<unknown> = (
-        _cfg,
+  describe('factory invocation', () => {
+    it('passes the ctx signal through to the factory', () => {
+      const controller = new AbortController();
+      const factory: ExtensionFactory<{ tag: string }> = (
+        config,
         ctx
-      ): ExtensionFactoryResult => {
-        ctx.registerErrorCode(uniqueName, 'generic');
-        return { value: {} };
-      };
-      void factoryA({}, makeFactoryCtx());
+      ): ExtensionFactoryResult => ({
+        value: { _tag: config.tag, aborted: ctx.signal.aborted },
+      });
 
-      // Factory B attempts the same name with a different kind. The
-      // registry is module-scoped so the collision fires across factories.
-      const factoryB: ExtensionFactory<unknown> = (
-        _cfg,
-        ctx
-      ): ExtensionFactoryResult => {
-        ctx.registerErrorCode(uniqueName, 'auth');
-        return { value: {} };
-      };
+      const result = factory({ tag: 'ok' }, { signal: controller.signal });
 
-      expect(() => factoryB({}, makeFactoryCtx())).toThrow(
-        /already registered with kind/i
-      );
+      expect('value' in result).toBe(true);
     });
   });
 
   describe('signal: factory abort propagation', () => {
     it('ctx.signal mirrors the factory-scope controller lifecycle', () => {
       const controller = new AbortController();
-      const ctx: ExtensionFactoryCtx = {
-        registerErrorCode: () => {},
-        signal: controller.signal,
-      };
+      const ctx: ExtensionFactoryCtx = { signal: controller.signal };
 
       expect(ctx.signal.aborted).toBe(false);
       controller.abort();

@@ -70,7 +70,6 @@ import {
   throwIndexOutOfBounds,
 } from '../../types/index-access.js';
 import { ControlSignal } from '../../signals.js';
-import { resolveAtom } from '../../types/atom-registry.js';
 import { isAtom, isOrdered, orderedValueEntries } from '../../types/guards.js';
 import { isDict } from '../../callable.js';
 import type { EvalState } from '../state.js';
@@ -274,7 +273,7 @@ export async function evaluatePassBlock(
   const suppress =
     onErrorValue !== undefined &&
     isAtom(onErrorValue) &&
-    onErrorValue.atom === resolveAtom('IGNORE');
+    onErrorValue.atom.name === 'IGNORE';
 
   // Read async option. Parser enforces BoolLiteral; runtime defends
   // against non-bool at evaluation time [RILL_R003].

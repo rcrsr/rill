@@ -96,7 +96,7 @@ Built-ins are called bare (no `$`):
     log("hello")                       # not $log("hello")
     range(0, 5) -> seq({ $ * 2 })
 
-atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" -> atom yields #TIMEOUT. There is no atom(name) call form -- it halts RILL-R006 Unknown function: atom. Unregistered names collapse to the #R001 fallback.
+atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" -> atom yields #TIMEOUT. There is no atom(name) call form -- it halts RILL-R006 Unknown function: atom. Any well-formed name converts; a malformed name such as "1x" halts #INVALID_INPUT.
 
 ## enumerate example
 

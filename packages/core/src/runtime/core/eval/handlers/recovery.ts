@@ -42,7 +42,6 @@ import {
   isInvalid,
 } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
-import type { RillAtom } from '../../types/atom-registry.js';
 import { resolveAtom, toAtomValue } from '../../types/atom-registry.js';
 import type { EvalState } from '../state.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
@@ -84,19 +83,18 @@ const RETRY_MIN_ATTEMPTS = 1;
 
 /**
  * Resolves a node's atom-literal `onCodes` filter into a set of
- * interned `RillAtom` references. Returns `undefined` when the filter
- * is absent (meaning: catch every catchable halt).
+ * atom names. Returns `undefined` when the filter is absent
+ * (meaning: catch every catchable halt).
  *
- * The registry interns atoms once per name, so identity comparison
- * (`===`) is sufficient for membership checks.
+ * Atoms are compared by name, so membership is a name lookup.
  */
 function resolveOnCodes(
   onCodes: AtomLiteralNode[] | undefined
-): ReadonlySet<RillAtom> | undefined {
+): ReadonlySet<string> | undefined {
   if (onCodes === undefined || onCodes.length === 0) return undefined;
-  const codes = new Set<RillAtom>();
+  const codes = new Set<string>();
   for (const lit of onCodes) {
-    codes.add(resolveAtom(lit.name));
+    codes.add(lit.name);
   }
   return codes;
 }
@@ -109,12 +107,12 @@ function resolveOnCodes(
  */
 function shouldCatch(
   signal: RuntimeHaltSignal,
-  onCodes: ReadonlySet<RillAtom> | undefined
+  onCodes: ReadonlySet<string> | undefined
 ): boolean {
   if (!signal.catchable) return false;
   if (onCodes === undefined) return true;
   const status = getStatus(signal.value);
-  return onCodes.has(status.code);
+  return onCodes.has(status.code.name);
 }
 
 /**

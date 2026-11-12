@@ -198,7 +198,7 @@ postfix-type-op = type-assertion | type-check ;
    - Fieldless ".!" returns a bool: false when the value is valid, true when invalid.
      Use it as a guard: `result.! ? recover(...) ! result`.
    - ".!field" projects one piece of metadata. Recognised projections:
-       .!code       -- :atom (e.g. #OK, #FORBIDDEN, #QUOTA_EXCEEDED)
+       .!code       -- :atom (e.g. #ok, #FORBIDDEN, #QUOTA_EXCEEDED)
        .!message    -- string
        .!provider   -- string
        .!trace      -- list of trace frames
@@ -209,7 +209,7 @@ postfix-type-op = type-assertion | type-check ;
    statement cannot start with it (RILL-P001).
    Examples:
      fetch("url").!                -- bool: true when invalid, false when valid
-     fetch("url").!code            -- atom: #OK, #FORBIDDEN, ... *)
+     fetch("url").!code            -- atom: #ok, #FORBIDDEN, ... *)
 status-probe  = ".!" , [ identifier ] ;
 
 primary       = literal
@@ -222,8 +222,8 @@ primary       = literal
               | host-call
               | conditional
               | loop
-              | guard-block         (* guard { body } / guard<on: list[#X]> { body } *)
-              | retry-block         (* retry<limit: N> { body } / retry<limit: N, on: list[#X]> { body } *)
+              | guard-block         (* guard { body } / guard<on: #X> { body } / guard<on: list[#X]> { body } *)
+              | retry-block         (* retry<limit: N> { body } / retry<limit: N, on: #X> { body } / retry<limit: N, on: list[#X]> { body } *)
               | timeout-block       (* timeout<total: duration> { body } / timeout<idle: duration> { body } *)
               | block
               | grouped-expr
@@ -239,17 +239,19 @@ primary       = literal
      - "#" followed by anything else (lowercase, whitespace, digit, ...) is
        tokenised as a LINE COMMENT and consumed up to end-of-line. Such input
        never produces a parse error on its own; it is simply discarded.
+   Atoms are identified and compared by name. Any well-formed name is an
+   atom; nothing is registered.
    Atom-shape errors (uppercase-leading but otherwise invalid, e.g. #Foo,
    #X_bad with a lowercase tail) emit a RecoveryErrorNode when an
    atom token is required (e.g. inside an `on:` list). Outside atom-required
    positions, malformed atom tokens still surface via parse recovery.
    Examples:
-     #OK                          -- well-formed atom
+     #TIMEOUT                     -- well-formed atom
      #QUOTA_EXCEEDED              -- well-formed atom
-     #FORBIDDEN                   -- pre-registered runtime atom
+     #FORBIDDEN                   -- built-in error code
      #Foo                         -- atom-shape error (uppercase head, lowercase tail) -> RecoveryErrorNode
      #foo                         -- LINE COMMENT (not an atom; consumed by lexer)
-   Use atoms with guard/retry on: list and as resolution-type tags. *)
+   Use atoms with guard/retry on: and as resolution-type tags. *)
 atom-literal  = "#" , uppercase-letter , { uppercase-letter | digit | "_" } ;
 
 (* Pass: returns current pipe value ($) unchanged.
@@ -1082,18 +1084,23 @@ option        = identifier , ":" , positive-integer ;
 
    Guard:
    - guard { body }                  -- catch every error; body runs once
-   - guard<on: list[#X, #Y]> { body } -- catch only the listed atoms; rethrow others
+   - guard<on: #X> { body }          -- catch only that code; rethrow others
+   - guard<on: list[#X, #Y]> { body } -- catch only the listed codes; rethrow others
 
    Retry:
    - retry<limit: N> { body }                       -- retry up to N attempts on any error
+   - retry<limit: N, on: #X> { body }                -- retry only when error code matches
    - retry<limit: N, on: list[#X]> { body }          -- retry only when error code in list
    - "limit:" is a REQUIRED named argument; bare retry<N> is a parse error (RILL-P004).
    - N must be a positive integer literal.
 
-   The on: option list rejects atoms that fail the strict shape [A-Z][A-Z0-9_]*.
-   Invalid atoms become RecoveryErrorNode. *)
+   The on: option rejects atoms that fail the strict shape [A-Z][A-Z0-9_]*.
+   Invalid atoms become RecoveryErrorNode.
+   Every on: name must belong to the core error set: the built-in atoms except
+   ok and IGNORE. A name outside the set is a parse error (RILL-P004), and so
+   is on: list[]. Omit on: to catch every catchable halt. *)
 
-guard-block   = "guard" , [ on-clause ] , block ;
+guard-block   = "guard" , [ "<" , on-clause , ">" ] , block ;
 retry-block   = "retry" , "<" , "limit" , ":" , positive-integer , [ "," , on-clause ] , ">" , block ;
 
 positive-integer = nonzero-digit , { digit } ;
@@ -1101,7 +1108,7 @@ positive-integer = nonzero-digit , { digit } ;
                  Zero, decimals (e.g. retry<limit: 1.5>), and negative numbers
                  are parse errors. *)
 
-on-clause     = "<" , "on" , ":" , "list[" , atom-literal , { "," , atom-literal } , "]" , ">" ;
+on-clause     = "on" , ":" , ( atom-literal | "list[" , atom-literal , { "," , atom-literal } , "]" ) ;
               (* Lexer note: "list[" is a single compound token. The lexer requires
                  NO whitespace between "list" and "[" — `list [ ... ]` is rejected.
                  Likewise, "guard{" and "retry<" are compound tokens when no

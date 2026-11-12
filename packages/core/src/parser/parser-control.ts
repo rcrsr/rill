@@ -44,6 +44,7 @@ import {
 } from './state.js';
 import { ATOM_NAME_SHAPE } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
+import { ERROR_CODE_NAMES } from '../constants.js';
 
 // Declaration merging to add methods to Parser interface
 declare module './parser.js' {
@@ -697,15 +698,16 @@ Parser.prototype.parseError = function (
 // ============================================================
 
 /**
- * Parse the `<on: list[#X, #Y, ...]>` option list that may follow `guard` or
- * `retry<N,`. Returns either the collected atoms or a RecoveryErrorNode when
- * any atom fails the strict shape check.
+ * Parse the `<on: #X>` or `<on: list[#X, #Y, ...]>` option that may follow
+ * `guard` or `retry<N,`. Returns either the collected atoms or a
+ * RecoveryErrorNode when an atom fails the strict shape check, names a code
+ * outside the core error set, or the list is empty.
  *
  * Assumes the opening `<` has NOT yet been consumed by the caller; caller
  * decides based on whether the compound lexer token (GUARD_LBRACE /
  * RETRY_LANGLE) was emitted.
  *
- * Grammar: `<` `on` `:` `list[` atom (`,` atom)* `]` `>`
+ * Grammar: `<` `on` `:` ( atom | `list[` atom (`,` atom)* `]` ) `>`
  */
 function parseOnOptionList(
   parser: Parser,
@@ -727,65 +729,80 @@ function parseOnOptionList(
   expect(parser.state, TOKEN_TYPES.COLON, "Expected ':' after 'on'");
   skipNewlines(parser.state);
 
-  // Require the compound `list[` lexer token (no whitespace between keyword
-  // and bracket); bare `[` is not accepted as the spec syntax is
-  // `list[#X, ...]`.
-  if (!check(parser.state, TOKEN_TYPES.LIST_LBRACKET)) {
-    throw new ParseError(
-      ERROR_IDS.RILL_P004,
-      "Expected 'list[' in on: option list",
-      current(parser.state).span.start
-    );
-  }
-  const listOpen = advance(parser.state); // consume list[
-  skipNewlines(parser.state);
-
   const codes: AtomLiteralNode[] = [];
   let hadInvalid = false;
   let invalidMessage = '';
-  void listOpen;
 
-  while (!check(parser.state, TOKEN_TYPES.RBRACKET)) {
-    if (check(parser.state, TOKEN_TYPES.EOF)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P005,
-        "Expected ']' to close on: option list",
-        current(parser.state).span.start
-      );
-    }
-    if (!check(parser.state, TOKEN_TYPES.ATOM)) {
-      throw new ParseError(
-        ERROR_IDS.RILL_P004,
-        'on: option list entries must be atom literals (e.g. #NAME)',
-        current(parser.state).span.start
-      );
-    }
-    const atomToken = advance(parser.state);
-    if (!ATOM_NAME_SHAPE.test(atomToken.value)) {
+  const collectAtom = (token: {
+    value: string;
+    span: AtomLiteralNode['span'];
+  }): void => {
+    if (!ATOM_NAME_SHAPE.test(token.value)) {
       hadInvalid = true;
-      invalidMessage = `Invalid atom name '#${atomToken.value}' in on: option list`;
+      invalidMessage = `Invalid atom name '#${token.value}' in on: option list`;
+    } else if (!ERROR_CODE_NAMES.includes(token.value)) {
+      hadInvalid = true;
+      invalidMessage = `'#${token.value}' is not a core error code`;
     } else {
-      codes.push({
-        type: 'AtomLiteral',
-        name: atomToken.value,
-        span: atomToken.span,
-      });
+      codes.push({ type: 'AtomLiteral', name: token.value, span: token.span });
     }
-    skipNewlines(parser.state);
-    if (check(parser.state, TOKEN_TYPES.COMMA)) {
-      advance(parser.state);
-      skipNewlines(parser.state);
-    } else {
-      break;
-    }
-  }
+  };
 
-  expect(
-    parser.state,
-    TOKEN_TYPES.RBRACKET,
-    "Expected ']' to close on: option list",
-    ERROR_IDS.RILL_P005
-  );
+  if (check(parser.state, TOKEN_TYPES.ATOM)) {
+    // Single form: `on: #CODE`
+    collectAtom(advance(parser.state));
+  } else if (check(parser.state, TOKEN_TYPES.LIST_LBRACKET)) {
+    // List form: the compound `list[` lexer token (no whitespace between
+    // keyword and bracket); bare `[` is not accepted.
+    advance(parser.state); // consume list[
+    skipNewlines(parser.state);
+
+    let entryCount = 0;
+    while (!check(parser.state, TOKEN_TYPES.RBRACKET)) {
+      if (check(parser.state, TOKEN_TYPES.EOF)) {
+        throw new ParseError(
+          ERROR_IDS.RILL_P005,
+          "Expected ']' to close on: option list",
+          current(parser.state).span.start
+        );
+      }
+      if (!check(parser.state, TOKEN_TYPES.ATOM)) {
+        throw new ParseError(
+          ERROR_IDS.RILL_P004,
+          'on: option list entries must be atom literals (e.g. #NAME)',
+          current(parser.state).span.start
+        );
+      }
+      collectAtom(advance(parser.state));
+      entryCount++;
+      skipNewlines(parser.state);
+      if (check(parser.state, TOKEN_TYPES.COMMA)) {
+        advance(parser.state);
+        skipNewlines(parser.state);
+      } else {
+        break;
+      }
+    }
+
+    expect(
+      parser.state,
+      TOKEN_TYPES.RBRACKET,
+      "Expected ']' to close on: option list",
+      ERROR_IDS.RILL_P005
+    );
+
+    if (entryCount === 0) {
+      hadInvalid = true;
+      invalidMessage =
+        'on: list[] is empty; write guard { ... } to catch every catchable halt';
+    }
+  } else {
+    throw new ParseError(
+      ERROR_IDS.RILL_P004,
+      "Expected '#CODE' or 'list[' after 'on:'",
+      current(parser.state).span.start
+    );
+  }
 
   skipNewlines(parser.state);
   const rangle = expect(
@@ -818,7 +835,8 @@ function parseOnOptionList(
 }
 
 /**
- * Parse a guard block: `guard { body }` or `guard<on: list[#X]> { body }`.
+ * Parse a guard block: `guard { body }`, `guard<on: #X> { body }`, or
+ * `guard<on: list[#X, #Y]> { body }`.
  *
  * Enters with current token being GUARD_LBRACE (compound, no option list)
  * or GUARD (bare keyword, option list follows). Returns a RecoveryErrorNode
@@ -864,7 +882,7 @@ Parser.prototype.parseGuardBlock = function (
   if (!check(this.state, TOKEN_TYPES.LT)) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
-      "Expected '<on: list[#X, ...]> { body }' or 'guard { body }'",
+      "Expected '<on: #X> { body }', '<on: list[#X, ...]> { body }' or 'guard { body }'",
       current(this.state).span.start
     );
   }
@@ -888,7 +906,8 @@ Parser.prototype.parseGuardBlock = function (
 };
 
 /**
- * Parse a retry block: `retry<limit: N> { body }` or `retry<limit: N, on: list[#X]> { body }`.
+ * Parse a retry block: `retry<limit: N> { body }`, `retry<limit: N, on: #X> { body }`, or
+ * `retry<limit: N, on: list[#X]> { body }`.
  *
  * Enters with current token being RETRY_LANGLE (compound) or RETRY (bare).
  * The `limit:` named argument is required; bare `retry<N>` is a parse error.
@@ -909,7 +928,7 @@ Parser.prototype.parseRetryBlock = function (
     if (!check(this.state, TOKEN_TYPES.LT)) {
       throw new ParseError(
         ERROR_IDS.RILL_P004,
-        "Expected 'retry<limit: N> { body }' or 'retry<limit: N, on: list[#X]> { body }'",
+        "Expected 'retry<limit: N> { body }', 'retry<limit: N, on: #X> { body }' or 'retry<limit: N, on: list[#X]> { body }'",
         current(this.state).span.start
       );
     }

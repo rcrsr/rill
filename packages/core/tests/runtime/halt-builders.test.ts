@@ -883,7 +883,7 @@ describe('protocol converter halt remap', () => {
     while (restores.length > 0) restores.pop()?.();
   });
 
-  describe('protocol converter halt remap with unrelated or unregistered atoms', () => {
+  describe('protocol converter halt remap with unrelated or out-of-set atoms', () => {
     it('propagates an unrelated halt unchanged', async () => {
       stubConverter('string', 'number', 'INVALID_INPUT', 'stub failure');
 
@@ -893,15 +893,19 @@ describe('protocol converter halt remap', () => {
       expect(getStatus(halt.value).message).toBe('stub failure');
     });
 
-    it('does not treat the shared fallback atom as a protocol halt', async () => {
-      const unregisteredAtom = 'TEST_NEVER_REGISTERED_ATOM';
-      expect(resolveAtom(unregisteredAtom)).toBe(resolveAtom('R001'));
-      stubConverter('string', 'number', unregisteredAtom, 'stub failure');
+    it('throws RILL-R084 when a converter halts with a code outside the core error set', () => {
+      stubConverter('string', 'number', 'TEST_OUTSIDE_CODE', 'stub failure');
 
-      const halt = await runHalt('"abc" -> number');
+      let thrown: unknown;
+      try {
+        getConverters('string')['number']?.('abc');
+      } catch (e) {
+        thrown = e;
+      }
 
-      expect(getStatus(halt.value).code).toBe(resolveAtom('R001'));
-      expect(getStatus(halt.value).message).toBe('stub failure');
+      expect(thrown).toBeInstanceOf(RuntimeError);
+      expect((thrown as RuntimeError).errorId).toBe(ERROR_IDS.RILL_R084);
+      expect((thrown as RuntimeError).message).toContain('TEST_OUTSIDE_CODE');
     });
 
     it('maps the built-in string-to-number parse failure to R038', async () => {

@@ -847,7 +847,8 @@ export interface BlockNode extends BaseNode {
 }
 
 /**
- * Guard block: guard { body } or guard<on: list[#X, ...]> { body }
+ * Guard block: guard { body }, guard<on: #X> { body } or
+ * guard<on: list[#X, ...]> { body }
  * Intercepts error codes raised by the body. If the body raises a code in
  * `onCodes` (or any code when onCodes is absent), the guard handles it and
  * produces a recovered value. Otherwise the error propagates.
@@ -857,12 +858,16 @@ export interface BlockNode extends BaseNode {
 export interface GuardBlockNode extends BaseNode {
   readonly type: 'GuardBlock';
   readonly body: BlockNode;
-  /** Optional list of atom codes that this guard handles. */
+  /**
+   * Optional atom codes that this guard handles. The single form `on: #X`
+   * yields one element; the list form yields one per atom.
+   */
   readonly onCodes?: AtomLiteralNode[] | undefined;
 }
 
 /**
- * Retry block: retry<limit: N> { body } or retry<limit: N, on: list[#X, ...]> { body }
+ * Retry block: retry<limit: N> { body }, retry<limit: N, on: #X> { body } or
+ * retry<limit: N, on: list[#X, ...]> { body }
  * Runs the body up to N times. On error matching `onCodes` (or any error when
  * onCodes is absent), the body is re-executed. The last attempt's error
  * propagates if all attempts fail.
@@ -874,7 +879,10 @@ export interface RetryBlockNode extends BaseNode {
   /** Maximum number of attempts, derived from the N in `retry<limit: N>`. */
   readonly attempts: number;
   readonly body: BlockNode;
-  /** Optional list of atom codes that trigger retry; absent = any error. */
+  /**
+   * Optional atom codes that trigger retry; absent = any error. The single
+   * form `on: #X` yields one element.
+   */
   readonly onCodes?: AtomLiteralNode[] | undefined;
 }
 

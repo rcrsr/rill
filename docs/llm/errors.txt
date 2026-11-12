@@ -36,18 +36,20 @@ Every value carries a status sidecar. Read with `.!`:
 
 ## Atoms
 
-Interned identifiers. Type name is `atom`.
+Named symbols, compared by name. Type name is `atom`.
 
     #TIMEOUT                       # atom literal
-    #TIMEOUT == #TIMEOUT           # true (identity)
+    #TIMEOUT == #TIMEOUT           # true (same name)
     #TIMEOUT -> string             # "TIMEOUT" (no # sigil)
     "TIMEOUT" -> atom              # #TIMEOUT
-    "BOGUS" -> atom                # #R001 (unknown names fallback)
+    "BOGUS" -> atom                # #BOGUS (any well-formed name)
+    "ok" -> atom                   # #ok
+    "1x" -> atom                   # halts #INVALID_INPUT (malformed name)
     #TIMEOUT:?atom                 # true
 
-Pre-registered atom literals (must start with uppercase letter):
+Built-in atom literals (must start with uppercase letter). All except #IGNORE form the core error set, together with the codes below:
 
-    #R001                          # unknown atom name
+    #R001                          # parse-recovery node, host-built retry node
     #R999                          # unhandled extension throw
     #TIMEOUT  #AUTH  #FORBIDDEN  #RATE_LIMIT  #QUOTA_EXCEEDED
     #UNAVAILABLE  #NOT_FOUND  #CONFLICT
@@ -77,9 +79,9 @@ Pre-registered atom literals (must start with uppercase letter):
                                    #       filter predicate returns non-bool
     #IGNORE                        # sentinel for `pass<on_error: #IGNORE> { body }`
 
-`.!code` reports `#ok` on valid values, but `#ok` is a runtime-only sentinel and is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.
+`.!code` reports `#ok` on valid values, but `#ok` is a sentinel and NOT an error code, and it is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.
 
-Extensions register additional atoms at init.
+The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`.
 
 ## Guard
 
@@ -93,11 +95,17 @@ Runs the body once. If body halts with a catchable signal, returns the invalid v
     $out.!code -> string            # "TYPE_MISMATCH"
     $out.!message                   # "Type assertion failed: expected number, got string"
 
-Filtered form (catches only matching atoms):
+Filtered form (catches only matching codes):
+
+    guard<on: #TIMEOUT> {
+      $app.fetch($url)
+    }
 
     guard<on: list[#TIMEOUT, #UNAVAILABLE]> {
       $app.fetch($url)
     }
+
+Every `on:` name must be in the core error set. A name outside it, and `on: list[]`, are parse errors (`RILL-P004`). A bare `guard { ... }` catches every catchable halt.
 
 `guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index (`RILL-R009`), missing field access (`RILL-R007`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
 
@@ -109,7 +117,11 @@ Re-enters body up to N times. `limit:` is required and must be a positive intege
       $app.fetch($url)
     } => $result
 
-    retry<limit: 3, on: list[#UNAVAILABLE]> {
+    retry<limit: 3, on: #UNAVAILABLE> {
+      $app.fetch($url)
+    }
+
+    retry<limit: 3, on: list[#UNAVAILABLE, #TIMEOUT]> {
       $app.fetch($url)
     }
 

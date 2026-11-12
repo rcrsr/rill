@@ -10,7 +10,7 @@
 
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
-import { resolveAtom, toAtomValue } from '../atom-registry.js';
+import { isValidAtomName, resolveAtom, toAtomValue } from '../atom-registry.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../halt.js';
 import { requireReceiver } from './shared.js';
@@ -144,16 +144,15 @@ const stringConvertTo: Record<string, (v: RillValue) => RillValue> = {
   },
   atom: (v: RillValue): RillValue => {
     const s = receiverText(v, 'string-to-atom');
-    if (s === 'ok') {
+    if (!isValidAtomName(s)) {
       throwTypeHalt(
         { fn: 'string-to-atom' },
         'INVALID_INPUT',
-        'cannot convert reserved status code "ok" to atom',
+        `cannot convert string "${s}" to atom: not a valid atom name`,
         'runtime'
       );
     }
-    const atom = resolveAtom(s);
-    return toAtomValue(atom);
+    return toAtomValue(resolveAtom(s));
   },
 };
 

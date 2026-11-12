@@ -578,8 +578,8 @@ describe('applyConversion enriches the rethrown halt origin location', () => {
     }
   });
 
-  it('"ok" -> atom halts #INVALID_INPUT with a located trace origin', async () => {
-    const caught = await run('"ok" -> atom').catch((e: unknown) => e);
+  it('"1x" -> atom halts #INVALID_INPUT with a located trace origin', async () => {
+    const caught = await run('"1x" -> atom').catch((e: unknown) => e);
     const status = getStatus(extractConversionHaltInvalid(caught));
     expect(status.code).toBe(resolveAtom('INVALID_INPUT'));
     expect(status.trace[0]?.site).toMatch(/:\d+:\d+$/);

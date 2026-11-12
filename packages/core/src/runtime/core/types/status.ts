@@ -20,6 +20,7 @@ import {
   resolveAtom,
   type RillAtom,
 } from './atom-registry.js';
+import { ERROR_CODE_NAMES } from '../../../constants.js';
 import { appendFrame, type TraceFrame } from './trace.js';
 import { typedKeyCount } from './dict-keys.js';
 import { RuntimeError } from '../../../types.js';
@@ -46,8 +47,8 @@ export interface RillStatus {
 /**
  * Caller-supplied metadata for `invalidate`.
  *
- * `code` names a registered atom; unregistered names resolve to `#R001`
- * (never throw). `provider` identifies the origin. `raw` is an optional
+ * `code` names a core error code; a code outside the closed set throws
+ * `RILL-R084`. `provider` identifies the origin. `raw` is an optional
  * provider-specific payload.
  */
 export interface InvalidateMeta {
@@ -217,8 +218,8 @@ export function isEmpty(value: RillValue): boolean {
  * Returns a new invalid RillValue with copy-on-write status.
  *
  * The returned value carries a populated `status` sidecar whose:
- * - `code` resolves `meta.code` via the atom registry (unregistered
- *   names yield `#R001`);
+ * - `code` is the atom named by `meta.code`, which must belong to the
+ *   closed core error set (`ERROR_CODE_NAMES`);
  * - `message` derives from `meta.raw.message` when present, else `""`;
  * - `provider` is `meta.provider`;
  * - `raw` is `meta.raw ?? {}` (frozen);
@@ -238,6 +239,12 @@ export function invalidate(
     throw new RuntimeError(
       ERROR_IDS.RILL_R084,
       'cannot invalidate with reserved status code "ok"'
+    );
+  }
+  if (!ERROR_CODE_NAMES.includes(meta.code)) {
+    throw new RuntimeError(
+      ERROR_IDS.RILL_R084,
+      `cannot invalidate with code "${meta.code}": not a core error code`
     );
   }
   const priorStatus = getStatus(base);

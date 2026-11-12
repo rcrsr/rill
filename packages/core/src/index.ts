@@ -102,11 +102,8 @@ export {
 export type { NativeResult } from './runtime/core/values.js';
 
 // Extracted to types/ sub-modules (via barrel)
-export {
-  atomName,
-  resolveAtom,
-  BUILTIN_ATOM_NAMES as BUILTIN_ATOMS,
-} from './runtime/core/types/atom-registry.js';
+export { atomName, resolveAtom } from './runtime/core/types/atom-registry.js';
+export { BUILTIN_ATOM_NAMES as BUILTIN_ATOMS } from './constants.js';
 export {
   copyValue,
   createOrdered,

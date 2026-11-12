@@ -1129,7 +1129,7 @@ For stream closure syntax and the `:stream(T):R` annotation on closures, see [Cl
 
 ## Atom (`:atom`)
 
-`:atom` is the 16th primitive type. It carries a named error identity via `#NAME` literals. See [Error Handling: Error Atoms](topic-error-handling.md#error-atoms-atom) for full syntax, conversions, pre-registered atoms, and extension registration.
+`:atom` is the 16th primitive type. It carries a name via `#NAME` literals and is compared by name. See [Error Handling: Error Atoms](topic-error-handling.md#error-atoms-atom) for full syntax, conversions, the core error set, and extension error reporting.
 
 ---
 

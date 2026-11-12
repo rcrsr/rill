@@ -1934,17 +1934,20 @@ guard { timeout<idle: 200ms> { $stream } }
 
 ### rill-r084
 
-**Description:** Reserved status code used as invalidation code
+**Description:** Invalidation code outside the core error set
 
-**Cause:** invalidate() (or an equivalent host-boundary call) was given "ok" as the invalidation code. "ok" is reserved for the valid-value sentinel and cannot be minted as an error/invalid status.
+**Cause:** invalidate() (or an equivalent host-boundary call) was given a code outside the closed core error set. "ok" is reserved for the valid-value sentinel, and a host cannot add codes of its own.
 
-**Resolution:** Use a different code for the invalidation, or return the value as valid instead of invalidating it.
+**Resolution:** Use a core error code such as #INVALID_INPUT or #UNAVAILABLE, and carry the specifics in message or provider. To return a valid value, do not invalidate it.
 
 **Example:**
 
 ```text
 # Host attempts to invalidate with the reserved "ok" code
 # Host code: ctx.invalidate({ code: "ok" })  # rejected
+
+# Host attempts to invalidate with a code it invented
+# Host code: ctx.invalidate({ code: "PAYMENT_FAILED" })  # rejected
 ```
 
 ---

@@ -136,10 +136,9 @@ declare module './parser.js' {
  * The lexer emits an ATOM token whose value is the name without the leading
  * `#` sigil (readAtom ensures the first character is uppercase). This parser
  * applies strict shape validation; on failure it emits a RecoveryErrorNode so
- * the evaluator produces #R001 at runtime (hard parse/link error per spec).
+ * the evaluator halts at runtime (hard parse/link error per spec).
  *
- * Registry membership is NOT checked here; unknown-but-well-shaped names
- * resolve to #R001 at runtime via resolveAtom().
+ * Membership is NOT checked here; any well-shaped name is an atom.
  */
 Parser.prototype.parseAtomLiteral = function (
   this: Parser
