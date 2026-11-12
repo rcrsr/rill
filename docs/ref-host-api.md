@@ -816,7 +816,8 @@ const greet: RillFunctionShorthand = {
 | Supported syntax | Example |
 |------------------|---------|
 | Type names | `string`, `number`, `bool`, `any` |
-| Unions | `string\|number` |
+| Unions | `union(string, number)` |
+| Literal members | `union("c", "f")` |
 | List type | `list(string)` |
 | Named dict type | `dict(k: string)` |
 | Tuple type | `tuple(number, string)` |

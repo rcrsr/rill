@@ -306,6 +306,10 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
     return compareStructuredFields(a, b, equalsCallbacks, false);
   }
 
+  if (isStructureKind(a, 'literal') && isStructureKind(b, 'literal')) {
+    return registryDeepEquals(a.value, b.value);
+  }
+
   if (isStructureKind(a, 'union') && isStructureKind(b, 'union')) {
     const aUnion = a;
     const bUnion = b;
@@ -579,6 +583,10 @@ export function structureMatches(
     return structureEquals(retType, type.ret);
   }
 
+  if (isStructureKind(type, 'literal')) {
+    return registryDeepEquals(value, type.value);
+  }
+
   if (isStructureKind(type, 'union')) {
     return type.members.some((member) => structureMatches(value, member));
   }
@@ -704,7 +712,11 @@ export function formatStructure(type: TypeStructure): string {
   }
 
   if (isStructureKind(type, 'union')) {
-    return type.members.map(formatStructure).join('|');
+    return `union(${type.members.map(formatStructure).join(', ')})`;
+  }
+
+  if (isStructureKind(type, 'literal')) {
+    return formatRillLiteral(type.value);
   }
 
   return 'any';

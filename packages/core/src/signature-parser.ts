@@ -35,7 +35,14 @@ import {
 } from './runtime/core/types/field-defaults.js';
 // oxlint-disable-next-line import/no-cycle -- operations.ts reaches this file through callable.ts and function-shorthand.ts; the import is used only when a signature is parsed, never at module-init time
 import { defaultMismatch } from './runtime/core/types/operations.js';
+// oxlint-disable-next-line import/no-cycle -- unions.ts imports operations.ts; the cycle is the same call-time-only edge as the operations.js import above
+import { normalizeUnion } from './runtime/core/types/unions.js';
+import {
+  resolveAtom,
+  toAtomValue,
+} from './runtime/core/types/atom-registry.js';
 import type {
+  AtomLiteralNode,
   BoolLiteralNode,
   FieldArg,
   LiteralNode,
@@ -94,13 +101,52 @@ function staticTypeRefToTypeStructure(
     );
   }
 
+  if (typeRef.kind === 'literal') {
+    throw signatureError(
+      functionName,
+      'a literal is only valid as a union member',
+      at
+    );
+  }
+
   if (typeRef.kind === 'union') {
-    return {
-      kind: 'union',
-      members: typeRef.members.map((m) =>
-        staticTypeRefToTypeStructure(m, functionName, at)
-      ),
-    };
+    const written = typeRef.members.map((member): TypeStructure => {
+      if (member.kind !== 'literal') {
+        return staticTypeRefToTypeStructure(member, functionName, at);
+      }
+      const literal = member.value;
+      if (literal.type === 'AtomLiteral') {
+        return {
+          kind: 'literal',
+          value: toAtomValue(resolveAtom(literal.name)),
+        };
+      }
+      if (!isSignatureLiteral(literal)) {
+        throw signatureError(
+          functionName,
+          'union member must be a type or a string, number, bool, or atom literal',
+          at
+        );
+      }
+      const value = signatureLiteralValue(literal);
+      if (
+        typeof value !== 'string' &&
+        typeof value !== 'number' &&
+        typeof value !== 'boolean'
+      ) {
+        throw signatureError(
+          functionName,
+          'union member must be a type or a string, number, bool, or atom literal',
+          at
+        );
+      }
+      return { kind: 'literal', value };
+    });
+    const normalized = normalizeUnion(written);
+    if ('rejection' in normalized) {
+      throw signatureError(functionName, normalized.rejection, at);
+    }
+    return normalized.structure;
   }
 
   // static kind
@@ -333,7 +379,10 @@ export function parseSignatureRegistration(
     (t) => t.type !== TOKEN_TYPES.NEWLINE && t.type !== TOKEN_TYPES.COMMENT
   );
 
-  const state = createParserState(filtered, { recoveryMode: false });
+  const state = createParserState(filtered, {
+    recoveryMode: false,
+    source: signature,
+  });
 
   try {
     return parseSignatureBody(state, functionName);
@@ -440,7 +489,7 @@ function parseSignatureBody(
     skipNewlines(state);
     const typeStart = current(state).span.start;
     const typeRef = parseTypeRef(state, {
-      parseLiteral: () => parseSignatureLiteral(state, functionName),
+      parseLiteral: () => parseSignatureTypeLiteral(state, functionName),
     });
     returnType = staticTypeRefToTypeStructure(typeRef, functionName, typeStart);
   }
@@ -514,7 +563,7 @@ function parseSignatureParam(
     const typeStart = current(state).span.start;
     const typeRef = parseTypeRef(state, {
       allowTrailingPipe: true,
-      parseLiteral: () => parseSignatureLiteral(state, functionName),
+      parseLiteral: () => parseSignatureTypeLiteral(state, functionName),
     });
     type = staticTypeRefToTypeStructure(typeRef, functionName, typeStart);
   }
@@ -557,6 +606,23 @@ function signatureLiteralValue(node: SignatureLiteral): RillValue {
       .join('');
   }
   return node.value;
+}
+
+/**
+ * Parse a literal inside a type: a union member or a field default. An atom
+ * is a valid union member; a default rejects it where defaults are checked.
+ *
+ * @internal
+ */
+function parseSignatureTypeLiteral(
+  state: ParserState,
+  functionName: string
+): SignatureLiteral | AtomLiteralNode {
+  if (check(state, TOKEN_TYPES.ATOM)) {
+    const tok = advance(state);
+    return { type: 'AtomLiteral', name: tok.value, span: tok.span };
+  }
+  return parseSignatureLiteral(state, functionName);
 }
 
 /**

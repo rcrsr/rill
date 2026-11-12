@@ -644,7 +644,10 @@ describe('Rill Runtime: Signature Registration', () => {
     const prefix = "Invalid signature for function 'fn': ";
 
     it('parses union members', () => {
-      const parsed = parseSignatureRegistration('|a: string|number|', 'fn');
+      const parsed = parseSignatureRegistration(
+        '|a: union(string, number)|',
+        'fn'
+      );
       expect(parsed.params[0]?.type).toEqual({
         kind: 'union',
         members: [{ kind: 'string' }, { kind: 'number' }],
@@ -653,7 +656,7 @@ describe('Rill Runtime: Signature Registration', () => {
 
     it('parses a union return type', () => {
       const parsed = parseSignatureRegistration(
-        '|a: string| : string|number',
+        '|a: string| : union(string, number)',
         'fn'
       );
       expect(parsed.returnType).toEqual({

@@ -52,6 +52,30 @@ describe('typeRefToString', () => {
         { kind: 'static', typeName: 'number' },
       ],
     };
-    expect(typeRefToString(ref)).toBe('string | number');
+    expect(typeRefToString(ref)).toBe('union(string, number)');
+  });
+
+  it('renders literal members of a union', () => {
+    const span = {
+      start: { line: 1, column: 1, offset: 0 },
+      end: { line: 1, column: 2, offset: 1 },
+    };
+    const ref: TypeRef = {
+      kind: 'union',
+      members: [
+        {
+          kind: 'literal',
+          value: {
+            type: 'StringLiteral',
+            parts: ['a'],
+            isMultiline: false,
+            span,
+          },
+        },
+        { kind: 'literal', value: { type: 'NumberLiteral', value: 1, span } },
+        { kind: 'literal', value: { type: 'AtomLiteral', name: 'ok', span } },
+      ],
+    };
+    expect(typeRefToString(ref)).toBe('union("a", 1, #ok)');
   });
 });

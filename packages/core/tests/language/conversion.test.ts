@@ -600,18 +600,25 @@ describe('Rill Language: -> Conversion Operator', () => {
   });
 
   describe('VALID_TYPE_NAMES parser acceptance (AC-BC-4)', () => {
-    // All 16 entries in VALID_TYPE_NAMES must parse as bare-type pipe targets.
+    // Every entry except `union` must parse as a bare-type pipe target;
+    // `union` needs its members and raises RILL-P003 when bare.
     // Runtime behavior varies (convertible types succeed, closure/stream/etc.
     // raise RILL-R036 — covered by AC-BC-2); this test only asserts parsing.
-    it.each(VALID_TYPE_NAMES)(
+    it.each(VALID_TYPE_NAMES.filter((name) => name !== 'union'))(
       'parses "foo" -> %s as a bare-type pipe target',
       (typeName) => {
         expect(() => parse(`"foo" -> ${typeName}`)).not.toThrow();
       }
     );
 
-    it('VALID_TYPE_NAMES has exactly 16 entries', () => {
-      expect(VALID_TYPE_NAMES).toHaveLength(16);
+    it('rejects "foo" -> union as a bare-type pipe target with RILL-P003', () => {
+      expect(() => parse('"foo" -> union')).toThrow(
+        expect.objectContaining({ errorId: 'RILL-P003' })
+      );
+    });
+
+    it('VALID_TYPE_NAMES has exactly 17 entries', () => {
+      expect(VALID_TYPE_NAMES).toHaveLength(17);
     });
   });
 });

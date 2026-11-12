@@ -1,359 +1,318 @@
 /**
- * Rill Language Tests: Union Types
- * Tests for union type annotations (string|number), in all 5 type positions:
- * assertion (:T), type check (:?T), capture ($x:T), destructure (destruct<$a:T>),
- * and existence check (.?field&T). Includes parse-level tests.
+ * Rill Language Tests: union(...) types
  *
- * AC = Acceptance Criterion, EC = Error Contract, BC = Boundary Condition
- * from the type-system-improvements spec (Phase 2, Task 2.5).
- *
- * Covers: AC-8, AC-9, AC-10, AC-11, AC-12, AC-13, AC-14, AC-15, AC-16, AC-17,
- *         AC-18, AC-19, AC-20, AC-21, AC-23, EC-1, EC-2, EC-4, EC-5, EC-7,
- *         BC-1, BC-2, BC-3, BC-4, BC-5
+ * A union type is written union(...), a type constructor whose members are
+ * types or scalar literals. It works in every type position and as an
+ * expression that yields a type value.
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
-import { parse, ParseError } from '@rcrsr/rill';
+import { createRuntimeContext, parse, ParseError } from '@rcrsr/rill';
 
-import { run, runWithContext } from '../helpers/runtime.js';
+import { run } from '../helpers/runtime.js';
 
-describe('Union Types', () => {
-  // ============================================================
-  // Union Parsing
-  // ============================================================
+async function expectParseMessage(
+  source: string,
+  errorId: string,
+  message: string
+): Promise<void> {
+  try {
+    parse(source);
+  } catch (err) {
+    expect(err).toBeInstanceOf(ParseError);
+    expect((err as ParseError).errorId).toBe(errorId);
+    expect((err as ParseError).message).toContain(message);
+    return;
+  }
+  expect.fail(`Expected ${errorId} for: ${source}`);
+}
 
-  describe('union parsing', () => {
-    it('AC-8: :string|number parses without error', () => {
-      expect(() => parse('"hello" :string|number')).not.toThrow();
+async function expectParseError(
+  source: string,
+  errorId: string
+): Promise<void> {
+  try {
+    parse(source);
+  } catch (err) {
+    expect(err).toBeInstanceOf(ParseError);
+    expect((err as ParseError).errorId).toBe(errorId);
+    return;
+  }
+  expect.fail(`Expected ${errorId} for: ${source}`);
+}
+
+describe('union(...) types', () => {
+  describe('as a type value', () => {
+    it('is a type value', async () => {
+      expect(await run('union(string, number) => $t\n$t.^type.name')).toBe(
+        'type'
+      );
     });
 
-    it('AC-9: |x| body closure not misinterpreted as union', () => {
-      // The | delimiters in closure syntax must not be consumed as union pipes
-      expect(() => parse('|x| { $x }')).not.toThrow();
+    it('prints its members through signature', async () => {
+      expect(await run('union(string, number).signature')).toBe(
+        'union(string, number)'
+      );
     });
 
-    it('AC-10: string|number|bool produces flat 3-member union', () => {
-      // Parsing succeeds and the union is not nested
-      expect(() => parse('"hello" :string|number|bool')).not.toThrow();
+    it('has the name union', async () => {
+      expect(await run('union(string, number).name')).toBe('union');
     });
 
-    it('AC-11: list(string|number) parses as parameterized type with union arg', () => {
-      expect(() => parse('list["a", 1] :list(string|number)')).not.toThrow();
+    it('reduces a single type member to that type', async () => {
+      expect(await run('union(string).signature')).toBe('string');
     });
 
-    it('AC-23: |x:string|number| $x parses union on closure param', () => {
-      expect(() => parse('|x:string|number| { $x }')).not.toThrow();
+    it('drops a type member that another member accepts', async () => {
+      expect(await run('union(string, "a").signature')).toBe('string');
     });
 
-    it('EC-5: string|badident (unknown ident after pipe) throws RILL-P011', () => {
-      // RILL-P011 fires when | is followed by an unknown identifier in type position.
-      try {
-        parse('"x" => $v:string|badident');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const parseErr = err as ParseError;
-        expect(parseErr.errorId).toBe('RILL-P011');
-        expect(parseErr.message).toMatch(/Expected type name after '\|'/);
-      }
+    it('has type as its own type for literal members', async () => {
+      expect(await run('union(#a, #b).^type.name')).toBe('type');
     });
 
-    it('AC-28: bare trailing pipe (string|) in assertion context throws RILL-P011', () => {
-      // RILL-P011 fires when | has no following type name (not in closure context).
-      try {
-        parse('42 -> :string|');
-        expect.fail('Should have thrown ParseError');
-      } catch (err) {
-        expect(err).toBeInstanceOf(ParseError);
-        const parseErr = err as ParseError;
-        expect(parseErr.errorId).toBe('RILL-P011');
-        expect(parseErr.message).toMatch(/Expected type name after '\|'/);
-      }
+    it('keeps dict[union: 1] working', async () => {
+      expect(await run('dict[union: 1].union')).toBe(1);
     });
   });
 
-  // ============================================================
-  // Union Assertion (:type)
-  // ============================================================
-
-  describe('union assertion (:type)', () => {
-    it('AC-12: :string|number on string succeeds', async () => {
-      const result = await run('"hello" :string|number');
-      expect(result).toBe('hello');
+  describe('assertion and check', () => {
+    it('passes a member type through assertion', async () => {
+      expect(await run('1 -> :union(string, number)')).toBe(1);
     });
 
-    it('AC-12: :string|number on number succeeds', async () => {
-      const result = await run('42 :string|number');
-      expect(result).toBe(42);
-    });
-
-    it('AC-13: :string|number on bool halts #TYPE_MISMATCH', async () => {
-      await expectHalt(() => run('true :string|number'), {
+    it('halts TYPE_MISMATCH naming the union for a non-member', async () => {
+      await expectHalt(() => run('true -> :union(string, number)'), {
         code: 'TYPE_MISMATCH',
-        messagePattern: 'Type assertion failed',
+        messagePattern: 'union(string, number)',
       });
     });
 
-    it('union assertion passes through value unchanged', async () => {
-      const result = await run('"test" :string|number');
-      expect(result).toBe('test');
+    it('accepts a literal member', async () => {
+      expect(await run('"c" -> :union("c", "f")')).toBe('c');
     });
 
-    it('union assertion can continue a pipe chain', async () => {
-      const result = await run('"hello" :string|number -> .len');
-      expect(result).toBe(5);
-    });
-  });
-
-  // ============================================================
-  // Union Type Check (:?type)
-  // ============================================================
-
-  describe('union type check (:?type)', () => {
-    it('AC-14: :?string|number on string returns true', async () => {
-      const result = await run('"hello" :?string|number');
-      expect(result).toBe(true);
+    it('halts naming the union and the literal for a non-member literal', async () => {
+      await expectHalt(() => run('"x" -> :union("c", "f")'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'expected union("c", "f"), got "x"',
+      });
     });
 
-    it('AC-14: :?string|number on number returns true', async () => {
-      const result = await run('42 :?string|number');
-      expect(result).toBe(true);
+    it('accepts the single literal of union("c")', async () => {
+      expect(await run('"c" -> :union("c")')).toBe('c');
     });
 
-    it('AC-15: :?string|number on bool returns false', async () => {
-      const result = await run('true :?string|number');
-      expect(result).toBe(false);
+    it('halts for a value outside union("c")', async () => {
+      await expectHalt(() => run('"d" -> :union("c")'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
 
-    it('type check result can be used as condition', async () => {
-      const script = `
-        "hello" => $v
-        ($v :?string|number) ? "match" ! "no match"
-      `;
-      expect(await run(script)).toBe('match');
+    it('accepts a member through a named union', async () => {
+      expect(await run('union(1, 2, 3) => $t\n2 -> :$t')).toBe(2);
     });
 
-    it('type check returns false for non-member type in condition', async () => {
-      const script = `
-        true => $v
-        ($v :?string|number) ? "match" ! "no match"
-      `;
-      expect(await run(script)).toBe('no match');
+    it('checks membership with :?', async () => {
+      expect(await run('"c" -> :?union("c", "f")')).toBe(true);
+      expect(await run('"x" -> :?union("c", "f")')).toBe(false);
     });
   });
 
-  // ============================================================
-  // Union Capture ($x:type)
-  // ============================================================
-
-  describe('union capture ($x:type)', () => {
-    it('AC-16: $x:string|number with string succeeds', async () => {
-      const result = await run('"hello" => $x:string|number\n$x');
-      expect(result).toBe('hello');
+  describe('capture annotation', () => {
+    it('accepts a member literal', async () => {
+      expect(await run('"c" => $unit:union("c", "f")\n$unit')).toBe('c');
     });
 
-    it('AC-16: $x:string|number with number succeeds', async () => {
-      const result = await run('42 => $x:string|number\n$x');
-      expect(result).toBe(42);
-    });
-
-    it('AC-17: $x:string|number with bool throws RILL-R001', async () => {
-      await expectHalt(() => run('true => $x:string|number'), {
+    it('halts R001 for a non-member literal', async () => {
+      await expectHalt(() => run('"x" => $unit:union("c", "f")'), {
         code: 'RILL_R001',
         hostErrorId: 'RILL-R001',
         messagePattern: 'Type mismatch',
       });
     });
 
-    it('captured union-typed variable holds the assigned value', async () => {
-      const { context } = await runWithContext('"hello" => $x:string|number');
-      expect(context.variables.get('x')).toBe('hello');
-    });
-  });
-
-  // ============================================================
-  // Re-assignment with Union-Locked Variables
-  // ============================================================
-
-  describe('re-assignment with union-locked variables', () => {
-    it('AC-reass-1: re-assigning string to $x:string|number succeeds', async () => {
-      const result = await run(
-        '"hello" => $x:string|number\n"world" => $x\n$x'
+    it('allows reassignment to another member type', async () => {
+      expect(await run('1 => $x:union(number, string)\n"a" => $x\n$x')).toBe(
+        'a'
       );
-      expect(result).toBe('world');
     });
 
-    it('AC-reass-2: re-assigning number to $x:string|number succeeds', async () => {
-      const result = await run('"hello" => $x:string|number\n42 => $x\n$x');
-      expect(result).toBe(42);
-    });
-
-    it('AC-reass-3: re-assigning bool to $x:string|number throws RILL-R001', async () => {
-      await expect(
-        run('"hello" => $x:string|number\ntrue => $x')
-      ).rejects.toHaveProperty('errorId', 'RILL-R001');
-    });
-
-    it('AC-reass-4: re-assigning list(string) to $x:list(string) succeeds', async () => {
-      const result = await run(
-        'list["a","b"] => $x:list(string)\nlist["c","d"] => $x\n$x'
-      );
-      expect(result).toEqual(['c', 'd']);
-    });
-
-    it('AC-reass-5: re-assigning list(number) to $x:list(string) throws RILL-R001', async () => {
-      await expect(
-        run('list["a","b"] => $x:list(string)\nlist[1,2] => $x')
-      ).rejects.toHaveProperty('errorId', 'RILL-R001');
-    });
-  });
-
-  // ============================================================
-  // Union in Destructure
-  // ============================================================
-
-  describe('union in destructure', () => {
-    it('AC-18: destruct<$a:string|number> accepts string', async () => {
-      const { context } = await runWithContext(
-        'list["hello"] -> destruct<$a:string|number>'
-      );
-      expect(context.variables.get('a')).toBe('hello');
-    });
-
-    it('AC-18: destruct<$a:string|number> accepts number', async () => {
-      const { context } = await runWithContext(
-        'list[42] -> destruct<$a:string|number>'
-      );
-      expect(context.variables.get('a')).toBe(42);
-    });
-
-    it('AC-19: destruct<$a:string|number> on bool throws RILL-R001', async () => {
-      await expectHalt(() => run('list[true] -> destruct<$a:string|number>'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
-        messagePattern: /type|mismatch/i,
-      });
-    });
-  });
-
-  // ============================================================
-  // Boundary Conditions
-  // ============================================================
-
-  describe('boundary conditions', () => {
-    it('BC-1: two-member union valid in assertion position', async () => {
-      expect(await run('"a" :string|number')).toBe('a');
-    });
-
-    it('BC-1: two-member union valid in type check position', async () => {
-      expect(await run('"a" :?string|number')).toBe(true);
-    });
-
-    it('BC-1: two-member union valid in capture position', async () => {
-      expect(await run('"a" => $x:string|number\n$x')).toBe('a');
-    });
-
-    it('BC-1: two-member union valid in destructure position', async () => {
-      const { context } = await runWithContext(
-        'list["a"] -> destruct<$x:string|number>'
-      );
-      expect(context.variables.get('x')).toBe('a');
-    });
-
-    it('BC-1: two-member union valid in existence check position', async () => {
-      expect(await run('dict[v: "a"] => $d\n$d.?v&string|number')).toBe(true);
-    });
-
-    it('BC-2: ten-member union parses and matches correctly', async () => {
-      // Matches the first type (string)
-      const result = await run(
-        '"hello" :string|number|bool|list|dict|closure|type|any|vector|tuple'
-      );
-      expect(result).toBe('hello');
-    });
-
-    it('BC-2: ten-member union type check returns true for member type', async () => {
-      const result = await run(
-        '42 :?string|number|bool|list|dict|closure|type|any|vector|tuple'
-      );
-      expect(result).toBe(true);
-    });
-
-    it('BC-3: union with dynamic member $T resolves at runtime', async () => {
+    it('dispatches on a closed atom set through string conversion', async () => {
       const script = `
-        bool => $T
-        true :string|$T
+        #wired => $kind:union(#wired, #wireless)
+        $kind -> string -> dict[wired: { "cable" }, wireless: { "radio" }]
       `;
-      expect(await run(script)).toBe(true);
+      expect(await run(script)).toBe('cable');
     });
+  });
 
-    it('BC-3: union with dynamic member $T rejects non-member type', async () => {
+  describe('closure parameter', () => {
+    it('halts R001 for an atom outside the closed set', async () => {
       const script = `
-        bool => $T
-        42 :string|$T
+        |kind: union(#wired, #wireless)| { $kind } => $f
+        $f(#mesh)
       `;
-      await expectHalt(() => run(script), { code: 'TYPE_MISMATCH' });
+      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R001');
     });
 
-    it('BC-4: list(string|number) — string list matches union', async () => {
-      // Rill lists are homogeneous; list(string|number) accepts all-string lists
-      const result = await run('list["a", "b"] :list(string|number)');
-      expect(result).toEqual(['a', 'b']);
+    it('accepts an atom inside the closed set', async () => {
+      const script = `
+        |kind: union(#wired, #wireless)| { "{$kind -> string}" } => $f
+        $f(#wired)
+      `;
+      expect(await run(script)).toBe('wired');
     });
 
-    it('BC-4: list(string|number) — number list matches union', async () => {
-      // list(string|number) also accepts all-number lists
-      const result = await run('list[1, 2] :list(string|number)');
-      expect(result).toEqual([1, 2]);
+    it('keeps a single-literal union as the parameter type', async () => {
+      const script = `
+        |x: union("c")| { $x } => $f
+        $f("x")
+      `;
+      await expect(run(script)).rejects.toHaveProperty('errorId', 'RILL-R001');
+      expect(await run('|x: union("c")| { $x } => $f\n$f("c")')).toBe('c');
     });
+  });
 
-    it('BC-4: list(string|number) type check returns true for string list', async () => {
-      const result = await run('list["a", "b"] :?list(string|number)');
-      expect(result).toBe(true);
-    });
-
-    it('BC-5: list(string)|dict(name: number) — list arm matches list', async () => {
-      const result = await run(
-        'list["a", "b"] :?list(string)|dict(name: number)'
+  describe('equality', () => {
+    it('ignores member order', async () => {
+      expect(await run('union(string, number) == union(number, string)')).toBe(
+        true
       );
-      expect(result).toBe(true);
     });
 
-    it('BC-5: list(string)|dict(name: number) — dict arm matches dict', async () => {
-      const result = await run(
-        'dict[name: 42] :?list(string)|dict(name: number)'
-      );
-      expect(result).toBe(true);
+    it('treats a one-type union as that type', async () => {
+      expect(await run('union(string) == string')).toBe(true);
     });
 
-    it('BC-5: list(string)|dict(name: number) — non-member fails assertion', async () => {
-      await expectHalt(() => run('42 :list(string)|dict(name: number)'), {
+    it('reduces a member that another member accepts', async () => {
+      expect(
+        await run(
+          'union(list(union(string, number)), list(string)) == list(union(string, number))'
+        )
+      ).toBe(true);
+    });
+  });
+
+  describe('member rules', () => {
+    it('halts TYPE_MISMATCH when a variable member is not a type', async () => {
+      await expectHalt(() => run('"c" => $v\nunion($v, "f")'), {
         code: 'TYPE_MISMATCH',
+        messagePattern: 'not a valid type reference',
+      });
+    });
+
+    it('halts INVALID_INPUT for a member listed twice', async () => {
+      await expectHalt(() => run('union(string, string)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('halts INVALID_INPUT for a member listed twice in an assertion', async () => {
+      await expectHalt(() => run('1 -> :union(string, string)'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('halts INVALID_INPUT for an empty union', async () => {
+      await expectHalt(() => run('union()'), { code: 'INVALID_INPUT' });
+    });
+
+    it('halts INVALID_INPUT for a compound literal member', async () => {
+      await expectHalt(() => run('union(list[1, 2])'), {
+        code: 'INVALID_INPUT',
       });
     });
   });
 
-  // ============================================================
-  // Union in Closure Parameter (IR-17, AC-23)
-  // ============================================================
-
-  describe('union in closure parameter', () => {
-    it('AC-23: |x:string|number| $x accepts string', async () => {
-      const result = await run('"hello" -> |x:string|number| { $x }');
-      expect(result).toBe('hello');
+  describe('parse errors', () => {
+    it('rejects a bare literal after a colon', async () => {
+      expect(() => parse('"c" => $a:"c"')).toThrow(ParseError);
     });
 
-    it('AC-23: |x:string|number| $x accepts number', async () => {
-      const result = await run('42 -> |x:string|number| { $x }');
-      expect(result).toBe(42);
+    it('rejects an atom as a dict key', async () => {
+      expect(() => parse('dict[#wired: 1]')).toThrow(ParseError);
     });
 
-    it('AC-23: |x:string|number| $x rejects bool with RILL-R001', async () => {
-      await expect(
-        run('true -> |x:string|number| { $x }')
-      ).rejects.toHaveProperty('errorId', 'RILL-R001');
+    it('raises RILL-P003 for a bare union expression', async () => {
+      await expectParseError('union', 'RILL-P003');
+    });
+
+    it('raises RILL-P003 for union[...]', async () => {
+      await expectParseError('union[#a]', 'RILL-P003');
+    });
+
+    it('raises RILL-P003 for a union parameter type without members', async () => {
+      await expectParseError('|union| $', 'RILL-P003');
+    });
+  });
+
+  describe('removed | separator', () => {
+    it('raises RILL-P011 naming union(string, number) in a conversion type', async () => {
+      await expectParseMessage(
+        '1 -> :string|number',
+        'RILL-P011',
+        'union(string, number)'
+      );
+    });
+
+    it('raises RILL-P011 naming union(number, string) in a capture annotation', async () => {
+      await expectParseMessage(
+        '1 => $x:number|string\n$x',
+        'RILL-P011',
+        'union(number, string)'
+      );
+    });
+
+    it('raises RILL-P011 inside a parameterized type argument', async () => {
+      await expectParseMessage(
+        'list(string|number)',
+        'RILL-P011',
+        'union(string, number)'
+      );
+    });
+
+    it('raises RILL-P011 inside a closure parameter list', async () => {
+      await expectParseMessage(
+        '|x: string|number| $x',
+        'RILL-P011',
+        'union(string, number)'
+      );
+    });
+
+    it('raises RILL-P011 for a dynamic member inside a closure parameter list', async () => {
+      await expectParseMessage(
+        '|a: number|$T| $a',
+        'RILL-P011',
+        'union(number, $T)'
+      );
+    });
+
+    it('raises RILL-P011 with the fallback message when no member follows the pipe', async () => {
+      await expectParseMessage(
+        '"x" => $v:string|badident',
+        'RILL-P011',
+        'write unions as union(...)'
+      );
+    });
+
+    it('raises RILL-P011 naming the rewrite for a host signature', () => {
+      expect(() =>
+        createRuntimeContext({
+          functions: { f: { signature: '|a: string|number|', fn: () => 1 } },
+        })
+      ).toThrow('union(string, number)');
+    });
+  });
+
+  describe('conversion', () => {
+    it('halts R036 for a conversion into a union', async () => {
+      await expect(run('"x" -> union("c")')).rejects.toHaveProperty(
+        'errorId',
+        'RILL-R036'
+      );
     });
   });
 });

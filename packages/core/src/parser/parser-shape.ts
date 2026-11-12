@@ -14,7 +14,7 @@ import type {
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
 import { advance, expect, current, makeSpan } from './state.js';
-import { parseFieldArgList } from './parser-types.js';
+import { parseFieldArgList, parseUnionMembers } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
@@ -37,6 +37,7 @@ const TYPE_CONSTRUCTOR_NAMES: ReadonlySet<string> = new Set<string>([
   'tuple',
   'ordered',
   'stream',
+  'union',
 ]);
 
 export function isTypeConstructorName(
@@ -58,7 +59,7 @@ Parser.prototype.parseTypeConstructor = function (
   if (!isTypeConstructorName(constructorName)) {
     throw new ParseError(
       ERROR_IDS.RILL_P001,
-      `Expected type constructor name (list, dict, tuple, ordered, stream), got: ${constructorName}`,
+      `Expected type constructor name (list, dict, tuple, ordered, stream, union), got: ${constructorName}`,
       current(this.state).span.start
     );
   }
@@ -74,10 +75,13 @@ Parser.prototype.parseTypeConstructor = function (
     parseLiteral: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
   } = { parseLiteral };
-  if (constructorName !== 'list') {
+  if (constructorName !== 'list' && constructorName !== 'union') {
     opts.parseAnnotations = () => this.parseAnnotationArgs();
   }
-  const args: FieldArg[] = parseFieldArgList(this.state, opts);
+  const args: FieldArg[] =
+    constructorName === 'union'
+      ? parseUnionMembers(this.state, opts).map((value) => ({ value }))
+      : parseFieldArgList(this.state, opts);
 
   const rparen = expect(
     this.state,

@@ -46,7 +46,7 @@ import {
   parseBareHostCall,
   describeToken,
 } from './helpers.js';
-import { parseScriptTypeRef } from './parser-types.js';
+import { parseScriptTypeRef, throwBareUnion } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { isRillTypeName } from '../types.js';
@@ -555,6 +555,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
     isRillTypeName(typeKeyword) &&
     this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.LPAREN
   ) {
+    if (typeKeyword === 'union') throwBareUnion(current(this.state).span.start);
     const token = advance(this.state);
     const typeNameExpr: TypeNameExprNode = {
       type: 'TypeNameExpr',

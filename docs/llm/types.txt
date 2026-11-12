@@ -27,9 +27,17 @@ Returns boolean. Never halts.
 
 ## Union types
 
-    42 -> :string|number            # passes
-    42:?string|number               # true
-    "hello" => $x:string|number     # capture with union
+    42 -> :union(string, number)    # passes
+    42:?union(string, number)       # true
+    "hello" => $x:union(string, number)   # capture with union
+
+Members may be scalar literals (string, number, bool, atom).
+
+    "c" -> :union("c", "f")         # passes
+    "x" -> :union("c", "f")         # halts #TYPE_MISMATCH
+    union(#wired, #wireless) => $lan   # union type in a variable
+
+`|` is not a type separator, and a bare literal after `:` is a parse error. Write `union("c")`.
 
 ## Parameterized constructors
 

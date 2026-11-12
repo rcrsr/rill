@@ -29,7 +29,7 @@ import { expectRuntimeError } from '../helpers/halt.js';
 const fn = (): RillValue => 'ok';
 
 const FULL_SIGNATURE =
-  '|^(description: "pd") a: string|number, b: dict(k: string), c: list(string), d: number = -3, e: string = "x"|:string';
+  '|^(description: "pd") a: union(string, number), b: dict(k: string), c: list(string), d: number = -3, e: string = "x"|:string';
 
 const strT: TypeStructure = { kind: 'string' };
 const numT: TypeStructure = { kind: 'number' };
@@ -108,7 +108,7 @@ describe('host function signature shorthand', () => {
         description: 'does things',
       });
       expect(meta?.params.map((p) => p.type)).toEqual([
-        'string|number',
+        'union(string, number)',
         'dict(k: string)',
         'list(string)',
         'number',

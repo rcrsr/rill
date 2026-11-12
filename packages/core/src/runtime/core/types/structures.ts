@@ -33,7 +33,8 @@ export interface RillFieldDef {
  * Structural type descriptor - describes the shape of a value in the type system.
  * Discriminated by `.kind` (not `.type`).
  *
- * Includes all 13 built-in variants plus a catch-all for types without
+ * Includes all 13 built-in variants, the `literal` variant (valid only as a
+ * member of a `union`), plus a catch-all for types without
  * parameterized structure (e.g. iterator).
  */
 export type TypeStructure =
@@ -65,6 +66,10 @@ export type TypeStructure =
       valueType?: TypeStructure | undefined;
     }
   | { kind: 'union'; members: TypeStructure[] }
+  | {
+      kind: 'literal';
+      value: string | number | boolean | RillAtomValue;
+    }
   | { kind: 'iterator' }
   | { kind: 'stream'; chunk?: TypeStructure; ret?: TypeStructure }
   | { kind: string; data?: unknown };

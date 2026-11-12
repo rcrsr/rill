@@ -38,10 +38,10 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Spread | `...` (list/tuple spread), `ordered[...]` spread |
 | Extraction | `destruct<>` (destructure), `slice<>` (slice) |
 | Conversion | `-> type` (convert type) |
-| Type | `:type` (assert), `:?type` (check), `:T1\|T2` (union assert/check) |
+| Type | `:type` (assert), `:?type` (check), `:union(T1, T2)` (union assert/check) |
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
-| Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type`, `.?field&T1\|T2` (union), `.?field&list(T)` (parameterized) |
+| Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type`, `.?field&union(T1, T2)` (union), `.?field&list(T)` (parameterized) |
 | Status probe | `.!` (status code), `.!field` (field status code) |
 | Presence probe | `.?` (presence bool, current `$`) |
 
@@ -129,9 +129,9 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 
 **Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `atom`, `any`, `type`
 
-Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
+Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`, `union(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
 
-**Union types** (`T1|T2`, `T1|T2|T3`) are valid in all annotation positions. A union matches if the value satisfies any member. Members can be parameterized: `list(string)|dict`. See [Type System](topic-type-system.md) for union type documentation.
+**Union types** (`union(T1, T2)`, `union(T1, T2, T3)`) are valid in all annotation positions. A union matches if the value satisfies any member. A member is a type or a string, number, bool, or atom literal: `union("c", "f")`. Type members can be parameterized: `union(list(string), dict)`. See [Type System](topic-type-system.md) for union type documentation.
 
 > **List and dict syntax:** Both `[1, 2]` and `list[1, 2]` produce a list; both `[a: 1]` and `dict[a: 1]` produce a dict. The keyword forms (`list[...]`, `dict[...]`) are canonical: they appear in `formatValue` output and the LLM reference. Use either form in source; the runtime treats them identically.
 
@@ -491,7 +491,7 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `identity` | `value: any` | `any` | Returns input unchanged |
 | `log` | `message: any` | `any` | Print to console, pass through |
 | `json` | `value: any` | `string` | Convert to JSON string |
-| `enumerate` | `items: list\|dict` | `list` | Add index to elements |
+| `enumerate` | `items: union(list, dict)` | `list` | Add index to elements |
 | `range` | `start: number, stop: number, step: number = 1` | `iterator` | Generate number sequence |
 | `repeat` | `value: any, count: number` | `iterator` | Repeat value n times |
 | `chain` | `value: any, transform: any` | `any` | Apply closure(s) sequentially |
@@ -546,7 +546,7 @@ Extract portions using Python-style `start:stop:step`:
 "hello" -> slice<1:4>                    # "ell"
 ```
 
-Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:string|number>`. The runtime validates each extracted element against the declared type. See [Operators](topic-operators.md) for detailed extraction operator documentation.
+Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:union(string, number)>`. The runtime validates each extracted element against the declared type. See [Operators](topic-operators.md) for detailed extraction operator documentation.
 
 ---
 

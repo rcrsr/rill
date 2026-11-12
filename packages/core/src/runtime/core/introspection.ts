@@ -240,22 +240,24 @@ const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
  * Serialize a `TypeStructure` into a type-ref string that is always valid in
  * a bodyless `|params| :ret` closure type signature.
  *
- * `formatStructure` renders union members joined by bare `|` and closures as
- * `|params| :ret` — both forms are ambiguous or unparseable when embedded
- * inside the `|...|` delimiters of a manifest closure signature, so they
- * collapse to `any` / `closure` here instead. Every other structure already
+ * `formatStructure` renders closures as `|params| :ret`, a form that is
+ * unparseable when embedded inside the `|...|` delimiters of a manifest
+ * closure signature, so closures collapse to `closure` here instead. Unions
+ * print as `union(...)`, which nests safely. Every other structure already
  * round-trips through `formatStructure` (e.g. `string`, `list(number)`,
  * `dict`).
  *
  * The collapse is recursive: `list`, `dict`, `tuple`, `ordered`, and `stream`
  * walk their element/field/chunk sub-structures through this same function,
- * so a nested closure or union (e.g. a callback list's element type)
+ * so a nested closure (e.g. a callback list's element type)
  * collapses too, not just one carried directly by a param or return type.
  * `stream`'s resolution type (`ret`) is omitted rather than recursed into —
  * see the `stream` branch below for why.
  */
 function serializeSignatureType(structure: TypeStructure): string {
-  if (structure.kind === 'union') return 'any';
+  if (isStructureKind(structure, 'union')) {
+    return `union(${structure.members.map(serializeSignatureType).join(', ')})`;
+  }
   if (structure.kind === 'closure') return 'closure';
 
   if (isStructureKind(structure, 'list')) {
@@ -559,7 +561,16 @@ function typeRefToString(ref: TypeRef | null): string {
     case 'dynamic':
       return 'any';
     case 'union':
-      return ref.members.map(typeRefToString).join(' | ');
+      return `union(${ref.members.map(typeRefToString).join(', ')})`;
+    case 'literal': {
+      if (ref.value.type === 'AtomLiteral') return `#${ref.value.name}`;
+      const literal = extractLiteralValue(ref.value);
+      if (typeof literal === 'string') return JSON.stringify(literal);
+      if (typeof literal === 'number' || typeof literal === 'boolean') {
+        return String(literal);
+      }
+      return 'any';
+    }
   }
   return throwFatalHostHalt(
     { fn: 'typeRefToString' },

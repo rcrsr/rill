@@ -96,10 +96,10 @@ describe('introspectHandlerFromAST', () => {
     });
 
     it('handles union types', () => {
-      const ast = parse('|value: string | number| { $value } => $run');
+      const ast = parse('|value: union(string, number)| { $value } => $run');
       const result = introspectHandlerFromAST(ast, 'run');
       expect(result).not.toBeNull();
-      expect(result!.params[0]!.type).toBe('string | number');
+      expect(result!.params[0]!.type).toBe('union(string, number)');
     });
   });
 

@@ -260,4 +260,16 @@ describe('semanticTokens', () => {
     expect(numberToken?.tokenType).toBe('typeName');
     expect(stringToken?.tokenType).toBe('typeName');
   });
+
+  it('classifies the union constructor token as typeName', () => {
+    const source = 'union(string, number) => $t';
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const tokens = tokenize(source);
+    const decoded = decodeAbsolute(semanticTokens(parsed, tokens, source));
+
+    const unionToken = decoded.find((t) => t.line === 0 && t.character === 0);
+    expect(unionToken?.tokenType).toBe('typeName');
+  });
 });

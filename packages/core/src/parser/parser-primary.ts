@@ -47,7 +47,7 @@ import {
   parseBareHostCall,
   describeToken,
 } from './helpers.js';
-import { parseScriptTypeRef } from './parser-types.js';
+import { parseScriptTypeRef, throwBareUnion } from './parser-types.js';
 import { isTypeConstructorName } from './parser-shape.js';
 import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -447,16 +447,12 @@ Parser.prototype.parseInvoke = function (this: Parser): InvokeNode {
  * A closure literal has `| param |` followed by a body (`{` or expression).
  * A closure sig literal has `| name: typeExpr, ... | :returnType`.
  * The distinguishing pattern is PIPE_BAR at pos+0, IDENTIFIER at pos+1, COLON at pos+2,
- * AND the matching closing PIPE_BAR is followed by COLON (:).
+ * AND the closing PIPE_BAR is followed by COLON (:).
  * This avoids misidentifying typed closures |x: T| { body } as sig literals
  * because those have `{` after the closing `|`, not `:`.
  *
  * This lookahead only decides which parse path to take; it does not
- * guarantee the sig-literal path can fully parse the input. A union type
- * in the param position (e.g. `|x: string | number|: bool`) is correctly
- * routed to `parseClosureSigLiteral` by this scan, but that function's
- * param-type parser (`this.parseExpression()`) has no union-type support
- * and will still throw. Fixing that is a separate, unrelated change.
+ * guarantee the sig-literal path can fully parse the input.
  */
 function isClosureSigLiteralStart(state: {
   tokens: { type: string; value: string }[];
@@ -481,25 +477,12 @@ function isClosureSigLiteralStart(state: {
   ) {
     return false;
   }
-  // Scan forward until we find a PIPE_BAR immediately followed by COLON.
-  // A PIPE_BAR not followed by COLON is only a union type separator (e.g.
-  // `|x: string | number|: bool`) when the token after it starts a type
-  // (a valid type name or `$variable`); otherwise it's the closing `|` of
-  // an ordinary closure param list (e.g. `|x: number| { body }`) and the
-  // scan must stop there rather than searching unboundedly into later
-  // statements for an unrelated `|...|:` pair.
-  let i = state.pos + 1;
-  for (let tok = state.tokens[i]; tok !== undefined; tok = state.tokens[i]) {
-    if (tok.type === TOKEN_TYPES.PIPE_BAR) {
-      const afterClose = state.tokens[i + 1];
-      if (afterClose?.type === TOKEN_TYPES.COLON) return true;
-      const afterCloseIsDollar = afterClose?.type === TOKEN_TYPES.DOLLAR;
-      const afterCloseIsTypeName =
-        afterClose?.type === TOKEN_TYPES.IDENTIFIER &&
-        isRillTypeName(afterClose.value);
-      if (!afterCloseIsDollar && !afterCloseIsTypeName) return false;
+  // The first `|` after the opener closes the parameter list; a sig literal
+  // is the one whose closing `|` is followed by `:`.
+  for (let i = state.pos + 1; i < state.tokens.length; i++) {
+    if (state.tokens[i]?.type === TOKEN_TYPES.PIPE_BAR) {
+      return state.tokens[i + 1]?.type === TOKEN_TYPES.COLON;
     }
-    i += 1;
   }
   return false;
 }
@@ -731,6 +714,7 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
     isRillTypeName(typeKeyword) &&
     this.state.tokens[this.state.pos + 1]?.type !== TOKEN_TYPES.LPAREN
   ) {
+    if (typeKeyword === 'union') throwBareUnion(current(this.state).span.start);
     const token = advance(this.state);
     return {
       type: 'TypeNameExpr',

@@ -10,6 +10,7 @@ import {
   type FieldArg,
   type LiteralNode,
   type AnnotationArg,
+  type SourceLocation,
   TOKEN_TYPES,
   ParseError,
 } from '../types.js';
@@ -19,15 +20,17 @@ import {
   advance,
   expect,
   current,
+  previous,
   peek,
   skipNewlines,
   withRecursionDepth,
 } from './state.js';
 import {
   VALID_TYPE_NAMES,
+  isLiteralStart,
+  isNegativeNumber,
   parseTypeName,
   expectVariableName,
-  isVariableNameToken,
 } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 import type { Parser } from './parser.js';
@@ -37,7 +40,7 @@ import type { Parser } from './parser.js';
  *
  * Grammar:
  * ```
- * type-ref          = single-type { "|" single-type }
+ * type-ref          = single-type
  * single-type       = "$" identifier | type-name [ "(" type-ref-arg-list ")" ]
  * type-ref-arg-list = type-ref-arg { "," type-ref-arg } [ "," ]
  * type-ref-arg      = identifier ":" type-ref | type-ref
@@ -46,14 +49,15 @@ import type { Parser } from './parser.js';
  * - `$identifier`           → `{ kind: 'dynamic', varName: identifier }`
  * - `type-name`             → `{ kind: 'static', typeName }`
  * - `type-name(arg, ...)`   → `{ kind: 'static', typeName, args: [...] }`
- * - `A | B | ...`           → `{ kind: 'union', members: [A, B, ...] }`
+ * - `union(A, B, ...)`    → `{ kind: 'union', members: [A, B, ...] }`
  *
  * Dynamic refs do not accept parameterization — `$T(...)` is not valid.
- * Union members are flattened: nested unions are spread into the member list.
  *
  * Throws ParseError if neither a `$identifier` nor a valid type name
  * is found. Throws ParseError if the arg list is malformed.
- * Throws ParseError (RILL-P011) if `|` is not followed by a valid type start.
+ * Throws ParseError (RILL-P011) if a removed `|` union separator follows a
+ * type. With `allowTrailingPipe`, a `|` that closes a parameter list is left
+ * for the caller.
  *
  * @internal
  */
@@ -61,7 +65,6 @@ export function parseTypeRef(
   state: ParserState,
   opts?: {
     allowTrailingPipe?: boolean;
-    closureBody?: boolean;
     parseLiteral?: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
   }
@@ -84,7 +87,7 @@ export function parseTypeRef(
  */
 export function parseScriptTypeRef(
   parser: Parser,
-  opts?: { allowTrailingPipe?: boolean; closureBody?: boolean }
+  opts?: { allowTrailingPipe?: boolean }
 ): TypeRef {
   return parseTypeRef(parser.state, {
     ...opts,
@@ -93,217 +96,97 @@ export function parseScriptTypeRef(
 }
 
 /**
- * Index of the first non-newline token at or after `offset`.
+ * Whether the token at `offset` starts a type member: a valid type name or
+ * a `$` dynamic-type reference.
  */
-function skipNewlinesFrom(state: ParserState, offset: number): number {
-  let i = offset;
-  while (peek(state, i).type === TOKEN_TYPES.NEWLINE) i++;
-  return i;
+function startsTypeMember(state: ParserState, offset: number): boolean {
+  const t = peek(state, offset);
+  return (
+    t.type === TOKEN_TYPES.DOLLAR ||
+    (t.type === TOKEN_TYPES.IDENTIFIER &&
+      (VALID_TYPE_NAMES as readonly string[]).includes(t.value))
+  );
 }
 
 /**
- * Decide whether the tokens after a "," (starting at `offset`) begin another
- * closure parameter, so the "," belongs to the parameter list rather than
- * separating entries around a closure whose body is a variable.
+ * Decide whether the `|` at the current position is the removed union
+ * separator. Outside a closure parameter list every `|` after a type is one.
+ * Inside a `|`-delimited list the `|` is a separator only when a type name
+ * follows, or `$name` followed by another `|` on the same line or by `=`;
+ * otherwise it closes the list.
  */
-function commaStartsParam(state: ParserState, offset: number): boolean {
-  const i0 = skipNewlinesFrom(state, offset);
-  const t0 = peek(state, i0);
+function pipeIsRemovedSeparator(
+  state: ParserState,
+  inParamList: boolean
+): boolean {
+  if (!inParamList) return true;
+  const after = peek(state, 1);
+  if (after.type === TOKEN_TYPES.IDENTIFIER) return startsTypeMember(state, 1);
+  if (after.type !== TOKEN_TYPES.DOLLAR) return false;
+  if (!/^[A-Za-z_]/.test(peek(state, 2).value)) return false;
+  const next = peek(state, 3).type;
+  if (next === TOKEN_TYPES.PIPE_BAR) return true;
+  let i = 3;
+  while (peek(state, i).type === TOKEN_TYPES.NEWLINE) i++;
+  return peek(state, i).type === TOKEN_TYPES.ASSIGN;
+}
 
-  // Annotated parameter: ^(...) name followed by a parameter delimiter or type
-  if (t0.type === TOKEN_TYPES.CARET) {
-    let i = skipNewlinesFrom(state, i0 + 1);
-    if (peek(state, i).type !== TOKEN_TYPES.LPAREN) return false;
-    let depth = 0;
-    for (; ; i++) {
-      const t = peek(state, i).type;
-      if (t === TOKEN_TYPES.EOF) return false;
-      if (t === TOKEN_TYPES.LPAREN) depth++;
-      else if (t === TOKEN_TYPES.RPAREN && --depth === 0) break;
-    }
-    const iName = skipNewlinesFrom(state, i + 1);
-    if (!isVariableNameToken(peek(state, iName))) return false;
-    const next = peek(state, skipNewlinesFrom(state, iName + 1)).type;
-    return (
-      next === TOKEN_TYPES.COLON ||
-      next === TOKEN_TYPES.COMMA ||
-      next === TOKEN_TYPES.ASSIGN ||
-      next === TOKEN_TYPES.PIPE_BAR
-    );
-  }
+const REMOVED_SEPARATOR_PREFIX = "The '|' type separator was removed; write ";
 
-  // Parameter name followed by a default, another parameter, the closing
-  // pipe, or a ":" that introduces a type.
-  if (isVariableNameToken(t0)) {
-    const iq = skipNewlinesFrom(state, i0 + 1);
-    const q = peek(state, iq).type;
-    if (q === TOKEN_TYPES.ASSIGN || q === TOKEN_TYPES.PIPE_BAR) return true;
-    if (q === TOKEN_TYPES.COMMA) {
-      return t0.type !== TOKEN_TYPES.TRUE && t0.type !== TOKEN_TYPES.FALSE;
-    }
-    if (q === TOKEN_TYPES.COLON) {
-      const typeStart = peek(state, skipNewlinesFrom(state, iq + 1)).type;
-      return (
-        typeStart === TOKEN_TYPES.DOLLAR || typeStart === TOKEN_TYPES.IDENTIFIER
-      );
-    }
-  }
-
-  // Anonymous dynamic-type parameter: $name |
-  if (t0.type === TOKEN_TYPES.DOLLAR) {
-    const iName = skipNewlinesFrom(state, i0 + 1);
-    const iPipe = skipNewlinesFrom(state, iName + 1);
-    return peek(state, iPipe).type === TOKEN_TYPES.PIPE_BAR;
-  }
-
-  // Anonymous parameterized static type: typeName(
-  if (
-    t0.type === TOKEN_TYPES.IDENTIFIER &&
-    (VALID_TYPE_NAMES as readonly string[]).includes(t0.value)
+/**
+ * Raise RILL-P011 for a removed `|` separator. Consumes the remaining
+ * members so the message names the `union(...)` rewrite in written order.
+ */
+function throwRemovedSeparator(
+  state: ParserState,
+  firstText: string,
+  inParamList: boolean,
+  opts: Parameters<typeof parseSingleType>[1]
+): never {
+  const location = current(state).span.start;
+  const texts = [firstText];
+  while (
+    check(state, TOKEN_TYPES.PIPE_BAR) &&
+    startsTypeMember(state, 1) &&
+    pipeIsRemovedSeparator(state, inParamList)
   ) {
-    return (
-      peek(state, skipNewlinesFrom(state, i0 + 1)).type === TOKEN_TYPES.LPAREN
-    );
+    advance(state); // consume "|"
+    const start = current(state).span.start.offset;
+    parseSingleType(state, opts);
+    texts.push(state.source.slice(start, previous(state).span.end.offset));
   }
-
-  return false;
+  const rewrite =
+    texts.length > 1 && texts.every((t) => t !== '')
+      ? `union(${texts.join(', ')})`
+      : 'unions as union(...)';
+  throw new ParseError(
+    ERROR_IDS.RILL_P011,
+    `${REMOVED_SEPARATOR_PREFIX}${rewrite}`,
+    location
+  );
 }
 
 function parseTypeRefImpl(
   state: ParserState,
   opts?: {
     allowTrailingPipe?: boolean;
-    closureBody?: boolean;
     parseLiteral?: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
   }
 ): TypeRef {
+  const startOffset = current(state).span.start.offset;
   const first = parseSingleType(state, opts);
 
-  // Union accumulation: collect additional members after each "|"
-  if (!check(state, TOKEN_TYPES.PIPE_BAR)) {
-    return first;
-  }
+  if (!check(state, TOKEN_TYPES.PIPE_BAR)) return first;
 
-  const members: TypeRef[] = [];
+  const inParamList = opts?.allowTrailingPipe === true;
+  if (!pipeIsRemovedSeparator(state, inParamList)) return first;
 
-  // Flatten: if the first member is itself a union, spread its members
-  if (first.kind === 'union') {
-    members.push(...first.members);
-  } else {
-    members.push(first);
-  }
-
-  while (check(state, TOKEN_TYPES.PIPE_BAR)) {
-    // Peek at what follows "|" without consuming it.
-    // Only treat "|" as a union separator when the next token is a valid type
-    // start ($identifier or a valid type name IDENTIFIER). If the next token is
-    // neither, the "|" belongs to the outer context (e.g. the closing delimiter
-    // of an anonymous typed closure param like |string|) and we stop without
-    // consuming it. RILL-P011 applies when the "|" is clearly a dangling union
-    // pipe: the next token is an IDENTIFIER but not a valid type name.
-    const afterPipe = peek(state, 1);
-    const afterPipeIsDollar = afterPipe.type === TOKEN_TYPES.DOLLAR;
-    const afterPipeIsTypeName =
-      afterPipe.type === TOKEN_TYPES.IDENTIFIER &&
-      (VALID_TYPE_NAMES as readonly string[]).includes(afterPipe.value);
-    const afterPipeIsUnknownIdent =
-      afterPipe.type === TOKEN_TYPES.IDENTIFIER && !afterPipeIsTypeName;
-
-    const closureContext = opts?.allowTrailingPipe === true;
-
-    if (
-      opts?.closureBody === true &&
-      afterPipeIsUnknownIdent &&
-      peek(state, 2).type !== TOKEN_TYPES.PIPE_BAR
-    ) {
-      // In a closure parameter list, a non-type identifier after "|" is a
-      // closure body, so the "|" closes the parameter list. An identifier
-      // followed by another "|" is a misspelled union member and falls through
-      // to RILL-P011.
-      break;
-    }
-
-    if (closureContext && afterPipeIsDollar) {
-      // "|" followed by $name continues the union only when the name is itself
-      // followed by another delimiter. Otherwise the "|" is the closing
-      // delimiter and $name starts the closure body. "$@" and a lone "$" never
-      // form a dynamic type.
-      //
-      // - "|" on the same line, or "=" after optional newlines, continues.
-      // - "," continues only when what follows looks like another parameter
-      //   (see commaStartsParam). A "," followed by anything else separates
-      //   list or dict entries around a closure whose body is "$name".
-      // - A "|" on a later line never continues the union, so consecutive
-      //   closure statements stay separate.
-      //
-      // Known limitations: in "dict[f: |x: number| $x, g: $y]" the entry
-      // "g: $y" reads as a typed parameter with a dynamic type, and in
-      // "dict[f: |x: number| $x, name: upper(\"a\")]" the entry reads as a
-      // parameter typed "upper". A dict entry whose value starts with an
-      // identifier or "$" after "name:" is ambiguous with a typed parameter.
-      const nameTok = peek(state, 2);
-      const sameLineNext = peek(state, 3).type;
-      let lookahead = 3;
-      while (peek(state, lookahead).type === TOKEN_TYPES.NEWLINE) {
-        lookahead++;
-      }
-      const afterName = peek(state, lookahead).type;
-      const continuesUnion =
-        /^[A-Za-z_]/.test(nameTok.value) &&
-        (sameLineNext === TOKEN_TYPES.PIPE_BAR ||
-          afterName === TOKEN_TYPES.ASSIGN ||
-          (afterName === TOKEN_TYPES.COMMA &&
-            commaStartsParam(state, lookahead + 1)));
-      if (!continuesUnion) break;
-    }
-
-    if (afterPipeIsUnknownIdent) {
-      // Dangling pipe followed by an unrecognized identifier: RILL-P011.
-      advance(state); // consume "|"
-      throw new ParseError(
-        ERROR_IDS.RILL_P011,
-        "Expected type name after '|'",
-        current(state).span.start
-      );
-    }
-
-    if (!afterPipeIsDollar && !afterPipeIsTypeName) {
-      // "|" is followed by a non-identifier token (e.g. "{", EOF, newline).
-      if (opts?.allowTrailingPipe === true) {
-        // Closure contexts own the trailing "|" as a delimiter — leave it unconsumed.
-        break;
-      }
-      // In non-closure contexts, a dangling "|" with no following type is an error.
-      advance(state); // consume "|"
-      throw new ParseError(
-        ERROR_IDS.RILL_P011,
-        "Expected type name after '|'",
-        current(state).span.start
-      );
-    }
-
-    advance(state); // consume "|"
-
-    const next = parseSingleType(state, opts);
-
-    // Flatten nested unions
-    if (next.kind === 'union') {
-      members.push(...next.members);
-    } else {
-      members.push(next);
-    }
-  }
-
-  // If only one member accumulated (e.g. a "|" was present but belonged to the
-  // outer context such as an anonymous typed closure closing delimiter), return
-  // the single member as-is rather than wrapping in a union.
-  const [onlyMember] = members;
-  if (members.length === 1 && onlyMember !== undefined) {
-    return onlyMember;
-  }
-
-  return { kind: 'union', members };
+  const firstText =
+    state.source === ''
+      ? ''
+      : state.source.slice(startOffset, previous(state).span.end.offset);
+  return throwRemovedSeparator(state, firstText, inParamList, opts);
 }
 
 /**
@@ -340,19 +223,97 @@ function parseSingleType(
     return { kind: 'dynamic', varName: nameToken.value };
   }
 
+  const nameToken = current(state);
   const typeName = parseTypeName(state, VALID_TYPE_NAMES);
 
   // Check for parameterized form: type-name "(" type-ref-arg-list ")"
   if (!check(state, TOKEN_TYPES.LPAREN)) {
+    if (typeName === 'union') throwBareUnion(nameToken.span.start);
     return { kind: 'static', typeName };
   }
 
   advance(state); // consume "("
 
+  if (typeName === 'union') {
+    const members = parseUnionMembers(state, opts);
+    advance(state); // consume ")"
+    return { kind: 'union', members };
+  }
+
   const args = parseFieldArgList(state, buildTypeRefOpts(opts));
   advance(state); // consume ")"
 
   return { kind: 'static', typeName, args };
+}
+
+// ============================================================
+// UNION MEMBER PARSING
+// ============================================================
+
+/**
+ * Raise the parse error for `union` written without its member list.
+ * @internal
+ */
+export function throwBareUnion(at: SourceLocation): never {
+  throw new ParseError(
+    ERROR_IDS.RILL_P003,
+    'Invalid type: union needs its members, as in union(string, number)',
+    at
+  );
+}
+
+/** True when the current token starts a scalar or compound literal. */
+function startsLiteral(state: ParserState): boolean {
+  return (
+    isLiteralStart(state) ||
+    check(state, TOKEN_TYPES.ATOM) ||
+    isNegativeNumber(state)
+  );
+}
+
+/**
+ * Parse the members of a `union(...)` constructor.
+ *
+ * Grammar: `member { "," member } [ "," ]` where a member is a literal or a
+ * type-ref. Caller has already consumed `(`; this function stops before the
+ * closing `)` without consuming it. Whether a literal is a legal member is
+ * decided at run time, so any literal the literal parser accepts is kept.
+ *
+ * @throws ParseError RILL-P014 if a member is not followed by `,` or `)`
+ * @internal
+ */
+export function parseUnionMembers(
+  state: ParserState,
+  opts?: {
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  }
+): TypeRef[] {
+  const members: TypeRef[] = [];
+  skipNewlines(state);
+
+  while (!check(state, TOKEN_TYPES.RPAREN)) {
+    if (opts?.parseLiteral !== undefined && startsLiteral(state)) {
+      members.push({ kind: 'literal', value: opts.parseLiteral() });
+    } else {
+      members.push(parseTypeRef(state, buildTypeRefOpts(opts)));
+    }
+
+    skipNewlines(state);
+
+    if (check(state, TOKEN_TYPES.COMMA)) {
+      advance(state);
+      skipNewlines(state);
+    } else if (!check(state, TOKEN_TYPES.RPAREN)) {
+      throw new ParseError(
+        ERROR_IDS.RILL_P014,
+        "Expected ',' or ')' in union member list",
+        current(state).span.start
+      );
+    }
+  }
+
+  return members;
 }
 
 // ============================================================

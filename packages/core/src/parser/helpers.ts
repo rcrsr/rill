@@ -62,7 +62,7 @@ const VALUE_CONTEXT_KEYWORD_TYPES: readonly string[] = [
  * usage.
  * @internal
  */
-export function isVariableNameToken(token: { type: string }): boolean {
+function isVariableNameToken(token: { type: string }): boolean {
   return (
     token.type === TOKEN_TYPES.IDENTIFIER ||
     VALUE_CONTEXT_KEYWORD_TYPES.includes(token.type)

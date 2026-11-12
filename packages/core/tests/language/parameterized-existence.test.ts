@@ -1,7 +1,7 @@
 /**
  * Rill Language Tests: Parameterized Existence Checks
  * Tests for type-qualified existence checks with structural types:
- * .?field&list(number), .?field&dict(key: string), .?field&string|number.
+ * .?field&list(number), .?field&dict(key: string), .?field&union(string, number).
  *
  * AC = Acceptance Criterion from the type-system-improvements spec.
  * BC = Backward Compatibility criterion.
@@ -104,22 +104,22 @@ describe('Rill Language: Parameterized Existence Check', () => {
   });
 
   // ============================================================
-  // AC-20: .?field&string|number returns true for string
+  // AC-20: .?field&union(string, number) returns true for string
   // ============================================================
 
-  describe('AC-20: .?field&string|number returns true for string', () => {
-    it('returns true when field is a string and type is string|number', async () => {
+  describe('AC-20: .?field&union(string, number) returns true for string', () => {
+    it('returns true when field is a string and type is union(string, number)', async () => {
       const result = await run(`
         dict[score: "hello"] => $data
-        $data.?score&string|number
+        $data.?score&union(string, number)
       `);
       expect(result).toBe(true);
     });
 
-    it('returns true when field is a number and type is string|number', async () => {
+    it('returns true when field is a number and type is union(string, number)', async () => {
       const result = await run(`
         dict[score: 42] => $data
-        $data.?score&string|number
+        $data.?score&union(string, number)
       `);
       expect(result).toBe(true);
     });
@@ -127,29 +127,29 @@ describe('Rill Language: Parameterized Existence Check', () => {
     it('returns false when the field is absent, even with a union type', async () => {
       const result = await run(`
         dict[other: "x"] => $data
-        $data.?score&string|number
+        $data.?score&union(string, number)
       `);
       expect(result).toBe(false);
     });
   });
 
   // ============================================================
-  // AC-21: .?field&string|number returns false for bool
+  // AC-21: .?field&union(string, number) returns false for bool
   // ============================================================
 
-  describe('AC-21: .?field&string|number returns false for bool', () => {
-    it('returns false when field is bool, type is string|number', async () => {
+  describe('AC-21: .?field&union(string, number) returns false for bool', () => {
+    it('returns false when field is bool, type is union(string, number)', async () => {
       const result = await run(`
         dict[flag: true] => $data
-        $data.?flag&string|number
+        $data.?flag&union(string, number)
       `);
       expect(result).toBe(false);
     });
 
-    it('returns false when field is list, type is string|number', async () => {
+    it('returns false when field is list, type is union(string, number)', async () => {
       const result = await run(`
         dict[items: list[1, 2]] => $data
-        $data.?items&string|number
+        $data.?items&union(string, number)
       `);
       expect(result).toBe(false);
     });

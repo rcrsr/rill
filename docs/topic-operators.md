@@ -463,7 +463,7 @@ $a.name
 **Union type on a destructure capture:**
 
 ```rill
-["hello"] -> destruct<$a:string|number>
+["hello"] -> destruct<$a:union(string, number)>
 $a
 # Result: "hello"
 ```
@@ -774,11 +774,9 @@ $data.?cfg&dict(key: string)
 
 ```rill
 [score: 42] => $data
-$data.?score&string|number
+$data.?score&union(string, number)
 # Result: true
 ```
-
-The `&` operator binds to the entire union expression. `$data.?score&string|number` parses as `$data.?score & (string|number)`, not `($data.?score&string) | number`.
 
 ---
 

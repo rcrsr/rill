@@ -482,8 +482,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '$x => int  # Use "number" for all numeric types',
       },
       {
-        description: 'Angle-bracket generic syntax not supported',
-        code: '$x => list<string>  # Use list(string) for typed lists',
+        description: 'Bare union without members',
+        code: '"a" -> :union  # Write union(string, number)',
       },
     ],
   },
@@ -640,16 +640,16 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_P011,
     category: 'parse',
-    description: 'Expected type name after pipe',
-    messageTemplate: "Expected type name after '|'",
+    description: 'Removed union separator',
+    messageTemplate: "The '|' type separator was removed; write {replacement}",
     cause:
-      "A '|' in a type annotation position was not followed by a valid type name or '$' variable reference.",
+      "A '|' followed a type in a type position. Unions are written with the union(...) constructor.",
     resolution:
-      "Provide a valid type name or '$variable' after '|'. Example: 'string|number' or '$T|string'.",
+      "Replace 'A|B' with 'union(A, B)'. Members are types or string, number, bool, or atom literals.",
     examples: [
       {
-        description: 'Trailing pipe with no type',
-        code: '$x: string|  # Error: missing type after |',
+        description: 'Pipe-separated union',
+        code: '1 -> :string|number  # Error: write union(string, number)',
       },
     ],
   },

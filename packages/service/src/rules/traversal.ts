@@ -141,7 +141,7 @@ function fieldArgsChildren(args: FieldArg[]): ASTNode[] {
 
 /**
  * Yields child ASTNodes carried inside a `TypeRef`. `dynamic` refs carry
- * none. `union` refs recurse into each member. `static` refs recurse into
+ * none. `literal` refs yield their literal node. `union` refs recurse into each member. `static` refs recurse into
  * `args` (via `fieldArgsChildren`) when parameterized. Ported from core's
  * `typeRefChildren` - see the `propertyAccessChildren` comment above.
  */
@@ -149,6 +149,8 @@ function typeRefChildren(ref: TypeRef): ASTNode[] {
   switch (ref.kind) {
     case 'dynamic':
       return [];
+    case 'literal':
+      return [ref.value];
     case 'union':
       return ref.members.flatMap((member) => typeRefChildren(member));
     case 'static':

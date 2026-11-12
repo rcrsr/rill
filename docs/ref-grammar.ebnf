@@ -214,7 +214,7 @@ status-probe  = ".!" , [ identifier ] ;
 
 primary       = literal
               | atom-literal        (* #NAME — symbolic constant, e.g. #FORBIDDEN, #QUOTA_EXCEEDED *)
-              | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T), stream(T):R *)
+              | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T), stream(T):R, union(T, ...) *)
               | closure-sig-lit     (* |p: T| -> R — closure signature type expression *)
               | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
               | variable
@@ -893,18 +893,28 @@ type-name     = "string" | "number" | "bool" | "closure"
                  "shape" and "field" removed: shape system replaced by structural type constructors. *)
 
 (* type-ref: a type reference used in assertion, param, and capture positions.
-   A single type (optionally parameterized), a variable, or a union of types.
-   Union members are flattened: nested unions spread into the member list.
+   A single type (optionally parameterized), a variable, or a union.
    Examples:
      string                          -- single type
      list(number)                    -- parameterized type
      dict(number)                    -- uniform value type (all values same type)
-     string | number                 -- union of two types
-     string | number | bool          -- union of three types
+     union(string, number)           -- union of two types
+     union("c", "f")                 -- union of two string literals
      $myType                         -- dynamic type from variable
      dict(a: number = 5)             -- parameterized with default (annotation context) *)
-type-ref          = type-ref-member , { "|" , type-ref-member } ;
-type-ref-member   = type-name , [ "(" , field-arg-list , ")" ] | "$" , identifier ;
+type-ref          = type-ref-member ;
+type-ref-member   = type-name , [ "(" , field-arg-list , ")" ] | "$" , identifier | union-type ;
+
+(* union-type: a type that accepts a value matching any member.
+   A member is a type-ref or a scalar literal; a literal member matches by equality.
+   The member list may end with a trailing comma. The parser also accepts an
+   empty list and a compound literal member, but evaluation halts with
+   #INVALID_INPUT for union() and for a list, dict, tuple, or ordered literal.
+   Duplicate members halt the same way. "union" is not in type-name, so a bare
+   union without parentheses is a parse error. *)
+union-type        = "union" , "(" , [ union-member , { "," , union-member } , [ "," ] ] , ")" ;
+union-member      = type-ref | union-literal ;
+union-literal     = string | number | bool | atom-literal ;
 
 (* type-target selects the assertion/check subject. *)
 type-target   = type-ref ;
@@ -976,6 +986,7 @@ field-arg        = [ annotation ] , identifier , ":" , type-ref , [ "=" , litera
    These values are used with ^type for structural type inspection. *)
 
 type-constructor = ( "list" | "dict" | "tuple" | "ordered" ) , "(" , [ field-arg-list ] , ")"
+                 | union-type
                  | "stream" , "(" , [ field-arg-list ] , ")" , [ ":" , type-ref ] ;
               (* Stream form: stream(ChunkType):ResolutionType
                  - stream()                    -- chunk type defaults to any, no resolution

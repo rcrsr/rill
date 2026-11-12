@@ -2,8 +2,8 @@
  * Rill Parser Tests: typed closure parameter followed by a closure body
  *
  * The closing `|` of a typed parameter list must not be read as a union
- * separator when the body starts with `$name` or a host call, while declared
- * unions keep working.
+ * separator when the body starts with `$name` or a host call. Unions are
+ * written union(...); a `|` after a type raises RILL-P011.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -94,9 +94,9 @@ describe('typed closure parameter followed by a body', () => {
   });
 });
 
-describe('declared unions in closure parameters are preserved', () => {
+describe('union(...) in closure parameters', () => {
   it('parses a static union', () => {
-    const c = closureOf('|a: number|string| $a');
+    const c = closureOf('|a: union(number, string)| $a');
     expect(c.params[0]?.typeRef).toEqual({
       kind: 'union',
       members: [
@@ -107,7 +107,7 @@ describe('declared unions in closure parameters are preserved', () => {
   });
 
   it('parses a union with a dynamic member', () => {
-    const c = closureOf('|a: number|$T| $a');
+    const c = closureOf('|a: union(number, $T)| $a');
     expect(c.params[0]?.typeRef).toEqual({
       kind: 'union',
       members: [
@@ -118,7 +118,7 @@ describe('declared unions in closure parameters are preserved', () => {
   });
 
   it('parses a union followed by a second parameter', () => {
-    const c = closureOf('|a: number|$T, b: string| $a');
+    const c = closureOf('|a: union(number, $T), b: string| $a');
     expect(c.params).toHaveLength(2);
     expect(c.params[0]?.typeRef).toMatchObject({ kind: 'union' });
     expect(c.params[1]?.typeRef).toEqual({
@@ -128,19 +128,13 @@ describe('declared unions in closure parameters are preserved', () => {
   });
 
   it('parses a union followed by a default value', () => {
-    const c = closureOf('|a: number|$T = 1| $a');
-    expect(c.params[0]?.typeRef).toMatchObject({
-      kind: 'union',
-      members: [
-        { kind: 'static', typeName: 'number' },
-        { kind: 'dynamic', varName: 'T' },
-      ],
-    });
+    const c = closureOf('|a: union(number, $T) = 1| $a');
+    expect(c.params[0]?.typeRef).toMatchObject({ kind: 'union' });
     expect(c.params[0]?.defaultValue).toBeDefined();
   });
 
-  it('parses a two-type anonymous closure with a dynamic first-type union', () => {
-    const c = closureOf('|number|$T, string| $');
+  it('parses a two-type anonymous closure with a union first type', () => {
+    const c = closureOf('|union(number, $T), string| $');
     expect(c.params).toHaveLength(2);
     expect(c.params[0]?.typeRef).toMatchObject({ kind: 'union' });
     expect(c.params[1]?.typeRef).toEqual({
@@ -150,37 +144,44 @@ describe('declared unions in closure parameters are preserved', () => {
   });
 });
 
-describe('non-closure contexts are unchanged', () => {
-  it('still throws RILL-P011 for a dangling pipe before an unknown identifier', () => {
-    let caught: unknown;
+describe('the removed | separator', () => {
+  function errorOf(src: string): ParseError {
     try {
-      parse('"x" => $v:string|badident');
+      parse(src);
     } catch (err) {
-      caught = err;
+      expect(err).toBeInstanceOf(ParseError);
+      return err as ParseError;
     }
-    expect(caught).toBeInstanceOf(ParseError);
-    expect((caught as ParseError).errorId).toBe('RILL-P011');
-  });
-});
+    throw new Error(`expected a parse error for: ${src}`);
+  }
 
-describe('misspelled union member in a closure parameter list', () => {
-  it('reports RILL-P011 when an unknown identifier is followed by another pipe', () => {
-    let caught: unknown;
-    try {
-      parse('|x: number|strng| $x');
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(ParseError);
-    expect((caught as ParseError).errorId).toBe('RILL-P011');
+  it.each([
+    ['"x" => $v:string|number', 'union(string, number)'],
+    ['|a: number|string| $a', 'union(number, string)'],
+    ['|a: number|$T| $a', 'union(number, $T)'],
+    ['|a: number|$T = 1| $a', 'union(number, $T)'],
+  ])('raises RILL-P011 for %j naming the rewrite', (src, rewrite) => {
+    const err = errorOf(src);
+    expect(err.errorId).toBe('RILL-P011');
+    expect(err.message).toContain(rewrite);
   });
 
-  it('keeps a bare host name as the closure body', () => {
-    const c = closureOf('|x: number| log($x)');
-    expect(c.params[0]?.typeRef).toEqual({
-      kind: 'static',
-      typeName: 'number',
-    });
+  it('raises RILL-P011 with the fallback message before an unknown identifier', () => {
+    const err = errorOf('"x" => $v:string|badident');
+    expect(err.errorId).toBe('RILL-P011');
+    expect(err.message).toContain('write unions as union(...)');
+  });
+
+  it('raises a ParseError for a misspelled member after a closing pipe', () => {
+    expect(() => parse('|x: number|strng| $x')).toThrow(ParseError);
+  });
+
+  it('raises a ParseError for an anonymous dynamic union followed by a comma', () => {
+    expect(() => parse('|number|$T, string| $')).toThrow(ParseError);
+  });
+
+  it('raises a ParseError for a dynamic-union parameter followed by a comma', () => {
+    expect(() => parse('|a: number|$T, b: string| $a')).toThrow(ParseError);
   });
 });
 
@@ -259,30 +260,14 @@ describe('typed closure with a variable body inside a comma-separated context', 
   });
 });
 
-describe('union members followed by further parameters stay unions', () => {
-  it.each([
-    ['|a: number|$T, b| $a', 2],
-    ['|a: number|$T, b, c: string| $a', 3],
-    ['|a: number|$T, ^(doc: "x") b: string| $a', 2],
-    ['|a: number|$T, error: string| $a', 2],
-    ['|a: number|$T,\n b: string| $a', 2],
-    ['|number|$T, $U| $', 2],
-    ['|number|$T, list(number)| $', 2],
-  ])('parses %j with a union first parameter', (src, count) => {
-    const c = closureOf(src);
-    expect(c.params).toHaveLength(count);
-    expect(c.params[0]?.typeRef).toMatchObject({ kind: 'union' });
-  });
-});
-
-describe('known limitations', () => {
-  it('KNOWN LIMITATION: dict entry with a dynamic type still reads as a parameter', () => {
-    expect(() => parse('dict[f: |x: number| $x, g: $y]')).toThrow(ParseError);
+describe('formerly ambiguous dict entries', () => {
+  it('parses a dict entry with a variable value after a typed closure', () => {
+    expect(() => parse('dict[f: |x: number| $x, g: $y]')).not.toThrow();
   });
 
-  it('KNOWN LIMITATION: dict entry with a call value reads as a parameter type', () => {
-    expect(() => parse('dict[f: |x: number| $x, name: upper("a")]')).toThrow(
-      ParseError
-    );
+  it('parses a dict entry with a call value after a typed closure', () => {
+    expect(() =>
+      parse('dict[f: |x: number| $x, name: upper("a")]')
+    ).not.toThrow();
   });
 });
