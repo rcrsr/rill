@@ -4,15 +4,16 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 99 files.
-8c19b450531ab683eb902280ec7026d2eaa8c90295acc57478f7146a9e8c7513  packages/core/tests/language/access-halt.test.ts
+# 100 files.
+e40d3d9453fe3b3886f5e26443218272bc9c58edb18e6b784421a8b50b266160  packages/core/tests/language/access-halt.test.ts
 b4a4c672aa0346c65c391a22869c852b64f21340e7326fe7d16ee06a47873cd5  packages/core/tests/language/annotations.test.ts
 eefe3850b2801446bebdb57e6e4a16adc6abc03d066640651db92872c251e551  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
 e872cfed8454e0ae867e90e64d7ba4c12525c1ae0dfd5fc571f68770c030b0ce  packages/core/tests/language/anonymous-typed-closure.test.ts
 7f0692c761ca29da590eab5e594dea432488ed0180fd847a15de4b918605c8fd  packages/core/tests/language/args.test.ts
 647b3cacab99904cad02f54998d17a996d14e6a97267adf83d0bf3503af7b2d2  packages/core/tests/language/arithmetic.test.ts
 bc7319046983e414375a542e25279b6c60d812eac108dfba07d68ca08a93f2c1  packages/core/tests/language/assert.test.ts
-a30d3647287baffb3dfff52f80efeb4ff2a444548f73b72def0b49e11877d15b  packages/core/tests/language/atoms.test.ts
+3b0e4424d3c2e48ff8a180e82ea1f1c2e7311efa27a9ac86b1d2f9fce2042cde  packages/core/tests/language/atom-comment-spelling.test.ts
+47e28002e21fe48dc8229c152a082a59b72c8a045b6cf783c788c62591076d99  packages/core/tests/language/atoms.test.ts
 3494dea880680a2b9d530a743db1a33bc28b08522b60d8546a50187bf3582754  packages/core/tests/language/bare-syntax.test.ts
 043149c6c092cbf0a5743a4f56f65b43878d8136f530005bb4ec860cea2c21e2  packages/core/tests/language/block-scoping.test.ts
 d677c7610d0f1cfbfe23cbc291616dd5c8cbfb08b1e503d7a3c7c209bed59a6e  packages/core/tests/language/boolean.test.ts
@@ -47,7 +48,7 @@ d0778371aef269e629f526e4247f31a648f64e06bf027c69aa5c5498098a2eb8  packages/core/
 404a4feb8558a1cc0410215e7069c5dd13320aa8af90a75e2bc4cea53441b7d8  packages/core/tests/language/extraction.test.ts
 8404933a2906ab4933edb51715298329d254add516323342a634a206ab1cb549  packages/core/tests/language/frontmatter.test.ts
 0e27fbeca4d0465b3655c06391f4a47f242d1494d18181edbc4839baec8bff61  packages/core/tests/language/functions.test.ts
-3d587a7d4de932a3b6c86b4b96d9f7e6378967a0cb03a8b3826c1d3ab1b30e44  packages/core/tests/language/guard-retry.test.ts
+c32fa739b369912ac140cdaaee42d18c4f957e200fbd86623d58867724aa091d  packages/core/tests/language/guard-retry.test.ts
 813588865faf4254d57f8d5e1a98b5cfb72a80556b1361064c0738cb2b234be8  packages/core/tests/language/hierarchical-dispatch.test.ts
 cb4217019805e9c785c5da9ed54a5e342d9b8c9121f8e1d9c5e766d1559d04a8  packages/core/tests/language/identifier-prototype-names.test.ts
 93899cddc19610cb85ef0e9ee3cafca1d075634a1e29f00e9341456b79f7a93c  packages/core/tests/language/interpolation-locations.test.ts
@@ -65,7 +66,7 @@ f0d85ec1442237b5d4dddff69f30dcfc6433f51c48dcfe82c0d8ef231908995a  packages/core/
 0790543a2b74c4c56541ff2121250e2fcf17578b4ed3db723ce7fecff67f9734  packages/core/tests/language/ordered-access.test.ts
 64d8075cfe283580891878262eeb406f2252b569224e21df4ef13ed144ff6b26  packages/core/tests/language/parameterized-destruct.test.ts
 bfa988e04586407338bfe790a091262a8a0b02ff5f01c617425e6d02e3c423a6  packages/core/tests/language/parameterized-existence.test.ts
-bc3664e466f94693324c1fa5946aa92ee141873cfcb4473a2ae05136308d7530  packages/core/tests/language/parser-recovery.test.ts
+ddfab8792de6a77b9b36f918fad7d4653dba751eb3baf3f893c64dd07e358453  packages/core/tests/language/parser-recovery.test.ts
 8d9ec79cc75ade1edd686af00c2e49e8bb62bc289263320316b09c0ca0408bd0  packages/core/tests/language/parser-spans.test.ts
 eb53d81150ab657eb0fc0fd7f1aba2c929d9faeeebc940c9fa3cdb1ae70296af  packages/core/tests/language/parser-syntax-errors.test.ts
 4a37887e53947e96cd77b1484d0a3f70147d7b3afc10611d3e32bba19af436c6  packages/core/tests/language/pass-async.test.ts
@@ -89,7 +90,7 @@ a684cca01d60aec084bda03a7b32ebbb1793d75c318deb67bce2e83c98ce40ed  packages/core/
 39a8be84fdfe49036cd7af1e4361af8584c26b78e59fdae7818402425111e2cf  packages/core/tests/language/structural-type-identity.test.ts
 93830c44db9e2226f8294a9a64c6d0a9442df2835eddc60eea9acde62e413aee  packages/core/tests/language/throttling.test.ts
 0d7b477bd86b232c28202dd847989dbc4b53f83849b723327370abd8cf01541e  packages/core/tests/language/timeout.test.ts
-66fdf35439054965a1ed7882e874407402feb09e28c9d94f9cd11de22b491888  packages/core/tests/language/trace-frames.test.ts
+1f78e96a99571d9300ead774ed3108fba3d9b7c966e12e8b5946acf1f9861676  packages/core/tests/language/trace-frames.test.ts
 8d1d39773b65e4dcbf2b65c278540a4b7d5dbd93255a539c5e97b7a102366f61  packages/core/tests/language/type-assertions.test.ts
 3bac2b8b2dbda5f199650785648867d630b6f054754b410e827074bd9df4b2bd  packages/core/tests/language/type-ref-arg-unification.test.ts
 2103ec491f31a217f77f12f794c7226f0a339c22cfbd8e0cd0f738b8fb8b3e15  packages/core/tests/language/type-values.test.ts
@@ -99,7 +100,7 @@ ad54110255746ce7353d754d542442cb8ee120a682eef1f4be4a720910ac39d9  packages/core/
 6753b0cc5bde25eee5987db0a6d0bf28a815f908baefa0ceb861541cd6e79ea6  packages/core/tests/language/uniform-value-type.test.ts
 e3bc188bd0d6129bc77618459d9fd17ff9d373fae19aaa4c801bbced7fa06354  packages/core/tests/language/union-types.test.ts
 69e94122c9e8ee59cf4e9fbf6fa8e9b15d070be65c7a7a658ac811f819ec0611  packages/core/tests/language/use-expr.test.ts
-4653ac606a658d04ec6d8943eef31093b5d5b0c51ebb91ecb70fb85d69be767b  packages/core/tests/language/vacancy-coerce.test.ts
+f6bad1eee445913648a272a399e79dd99807f27d0912b541072e378d952f8159  packages/core/tests/language/vacancy-coerce.test.ts
 430ca46cac1368974a677c9481c9375b4036b2ec9fa2356368224950a7151deb  packages/core/tests/language/variable-method-calls.test.ts
 fc077bc9db205847b64e2d9940e8045347cf7c93cc850d3964cb3b69a6139d6d  packages/core/tests/language/variables.test.ts
 579763834a953fb46401bacc224feb60c42a7b91a15e035037e4344061b3fe33  packages/core/tests/language/vectors.test.ts

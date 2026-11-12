@@ -9,7 +9,7 @@
 
 // Import every rule module for its self-registration side effect. Order
 // here has no consumer-visible meaning.
-import './atom-unregistered.js';
+import './atoms.js';
 import './avoid-reassignment.js';
 import './bare-callable-body.js';
 import './break-in-parallel.js';

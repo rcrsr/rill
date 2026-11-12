@@ -13,6 +13,7 @@ import type {
   NamedArgNode,
   PartialExpressionNode,
   ScriptNode,
+  SourceLocation,
   SpreadArgNode,
   StatementNode,
 } from '../types.js';
@@ -385,9 +386,20 @@ Parser.prototype.parseStatement = function (
     return this.parseAnnotatedStatement();
   }
 
+  const statement = parseStatementBody(this, start);
+  if (!endsInWrittenType(statement)) {
+    rejectAtomAfterStatement(this);
+  }
+  return statement;
+};
+
+function parseStatementBody(
+  parser: Parser,
+  start: SourceLocation
+): StatementNode {
   // Check for assert statement: assert expression [string-literal]
-  if (check(this.state, TOKEN_TYPES.ASSERT)) {
-    const assertNode = this.parseAssert();
+  if (check(parser.state, TOKEN_TYPES.ASSERT)) {
+    const assertNode = parser.parseAssert();
     return {
       type: 'Statement',
       expression: {
@@ -408,8 +420,8 @@ Parser.prototype.parseStatement = function (
   }
 
   // Check for error statement: error string-literal
-  if (check(this.state, TOKEN_TYPES.ERROR)) {
-    const errorNode = this.parseError(true); // Require message for statement form
+  if (check(parser.state, TOKEN_TYPES.ERROR)) {
+    const errorNode = parser.parseError(true); // Require message for statement form
     return {
       type: 'Statement',
       expression: {
@@ -432,7 +444,7 @@ Parser.prototype.parseStatement = function (
   // parseExpression() itself only ever produces PipeChainNode on a
   // successful parse; PartialExpressionNode is only emitted by the
   // statement-level recovery salvage in parseScript(), never from here.
-  const expression = this.parseExpression();
+  const expression = parser.parseExpression();
   if (!isPipeChainNode(expression)) {
     throw new ParseError(
       ERROR_IDS.RILL_P004,
@@ -446,7 +458,38 @@ Parser.prototype.parseStatement = function (
     expression,
     span: makeSpan(start, expression.span.end),
   };
-};
+}
+
+/**
+ * True when the statement's final element is a written type, where an atom
+ * may legitimately follow as a typed literal (`atom #wired`).
+ */
+function endsInWrittenType(statement: StatementNode): boolean {
+  const chain = statement.expression;
+  if (!isPipeChainNode(chain) || chain.terminator !== null) return false;
+  const last = chain.pipes.at(-1) ?? chain.head;
+  const node =
+    last.type === 'PostfixExpr' &&
+    last.methods.length === 0 &&
+    last.defaultValue === null
+      ? last.primary
+      : last;
+  return node.type === 'TypeNameExpr' || node.type === 'TypeConstructor';
+}
+
+function rejectAtomAfterStatement(parser: Parser): void {
+  const next = current(parser.state);
+  if (
+    next.type === TOKEN_TYPES.ATOM &&
+    next.span.start.line === previous(parser.state).span.end.line
+  ) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P024,
+      `Atom #${next.value} directly follows an expression on the same line; a comment needs a space after '#'`,
+      next.span.start
+    );
+  }
+}
 
 // ============================================================
 // ANNOTATION PARSING

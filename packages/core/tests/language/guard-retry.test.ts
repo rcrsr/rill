@@ -19,15 +19,16 @@
  *           whose code does not match the filter.
  * - AC-E8 : `retry<limit: 3> { halt }` exhausted -> invalid with 3 guard-caught
  *           frames.
- * - EC-14 : `guard<on: list[#X_bad]>` (shape-invalid atom) emits a
- *           RecoveryErrorNode whose runtime materialisation is `#R001`.
+ * - EC-14 : `guard<on: list[#X_bad]>` (name outside the core error set)
+ *           emits a RecoveryErrorNode whose runtime materialisation is `#R001`.
  * - `on:` accepts one core error atom or `list[...]` of them. An empty list or
  *   a name outside the core error set is RILL-P004; a catchable halt matches
  *   by code name.
  *
  * Halt producers used by the tests:
  *   - `$x.field` where `$x` is invalid. We obtain an invalid value via the
- *     parse-recovery path: the malformed atom `#AB0x` parses as a
+ *     parse-recovery path: `guard<on: list[#NOT_A_CODE]> { 1 }` names a code
+ *     outside the core error set, so it parses as a
  *     RecoveryErrorNode which the runtime materialises as a `#R001`
  *     invalid dict `{}` (see core.ts case 'RecoveryError').
  */
@@ -50,12 +51,13 @@ import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 import { run } from '../helpers/runtime.js';
 
 /**
- * Produce an invalid RillValue via parse-recovery. The malformed atom
- * `#AB0x` is shape-invalid (lowercase tail), so the parser emits a
+ * Produce an invalid RillValue via parse-recovery. The selector in
+ * `guard<on: list[#NOT_A_CODE]> { 1 }` is outside the core error set, so
+ * the parser emits a
  * RecoveryErrorNode that the runtime materialises as `{}` with a
  * `#R001` status.
  *
- * Use this helper for scripts that must tolerate shape-invalid atoms
+ * Use this helper for scripts that must tolerate parse-recovery nodes
  * via `parseWithRecovery` rather than the strict `parse` path.
  */
 async function runRecovered(src: string): Promise<unknown> {
@@ -207,7 +209,7 @@ describe('Nested guard frame appends (AC-B4)', () => {
     // through access on the prior result, re-guarded, once per layer.
     //
     // Construction: build a pipeline
-    //   #AB0x => $err
+    //   guard<on: list[#NOT_A_CODE]> { 1 } => $err
     //   guard { $err.a } => $g1
     //   guard { $g1.a } => $g2
     //   ...
@@ -217,7 +219,7 @@ describe('Nested guard frame appends (AC-B4)', () => {
     // running invalid (the access also adds an access frame). We only
     // count guard-caught frames to satisfy AC-B4.
     const depth = 100;
-    const lines: string[] = ['#AB0x => $g0'];
+    const lines: string[] = ['guard<on: list[#NOT_A_CODE]> { 1 } => $g0'];
     for (let i = 1; i <= depth; i++) {
       lines.push(`guard { $g${i - 1}.a } => $g${i}`);
     }
@@ -253,7 +255,7 @@ describe('Guard `<on:>` filter (AC-E7)', () => {
     // the halt propagate, surfacing as a thrown RuntimeHaltSignal; the
     // `run` helper unwraps it into a rejected promise.
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       guard<on: list[#AUTH]> { $x.foo }
     `;
     // The invalid value's access halt is catchable, but its code is
@@ -270,7 +272,7 @@ describe('Guard `<on:>` filter (AC-E7)', () => {
 
   it('AC-E7 inverse: guard<on: list[#R001]> catches the matching halt', async () => {
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       guard<on: list[#R001]> { $x.foo }
     `;
     const result = await runRecovered(src);
@@ -284,7 +286,7 @@ describe('Retry exhaustion (AC-E8)', () => {
     // Each failed attempt adds ONE guard-caught frame plus one access
     // frame (from the `.foo` access that produced the halt).
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       retry<limit: 3> { $x.foo }
     `;
     const result = await runRecovered(src);
@@ -300,11 +302,10 @@ describe('Retry exhaustion (AC-E8)', () => {
   });
 });
 
-describe('Guard with shape-invalid on-codes (EC-14)', () => {
+describe('Guard with on-codes outside the core error set (EC-14)', () => {
   it('EC-14: `guard<on: list[#X_bad]> { body }` parses to a RecoveryErrorNode', () => {
-    // Shape check requires `^[A-Z][A-Z0-9_]*$`; `X_bad` has a lowercase
-    // tail and fails. Parser emits a RecoveryErrorNode for the whole
-    // construct (parseOnOptionList returns `kind: 'invalid'`).
+    // `X_bad` is a valid atom name but not a core error code. Parser emits
+    // a RecoveryErrorNode for the whole construct.
     const result = parseWithRecovery('guard<on: list[#X_bad]> { "ok" }');
     expect(result.success).toBe(false);
     const stmt = result.ast.statements[0];
@@ -314,7 +315,7 @@ describe('Guard with shape-invalid on-codes (EC-14)', () => {
     const primary = expr.head.primary;
     expect(primary.type).toBe('RecoveryError');
     expect((primary as { message: string }).message).toMatch(
-      /Invalid atom name/
+      /not a core error code/
     );
   });
 
@@ -391,7 +392,7 @@ describe('Recovery composed with default operator (??)', () => {
   });
   it('?? does not swallow non-matching halt from filtered guard', async () => {
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       guard<on: list[#AUTH]> { $x.foo } ?? "fb"
     `;
     await expect(

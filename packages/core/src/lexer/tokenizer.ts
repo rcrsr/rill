@@ -49,18 +49,14 @@ function skipWhitespace(state: LexerState): void {
   }
 }
 
-function isUppercaseLetter(ch: string): boolean {
-  return ch >= 'A' && ch <= 'Z';
-}
-
 function readComment(state: LexerState): Token | null {
   if (peek(state) !== '#') {
     return null;
   }
 
-  // Disambiguate: `#NAME` (uppercase letter follows) is an atom literal,
-  // not a comment. Let the main tokenizer path handle it via readAtom().
-  if (isUppercaseLetter(peek(state, 1))) {
+  // Disambiguate: `#` followed by [A-Za-z_] is an atom literal, not a
+  // comment. Let the main tokenizer path handle it via readAtom().
+  if (isIdentifierStart(peek(state, 1))) {
     return null;
   }
 
@@ -153,10 +149,10 @@ function nextToken(state: LexerState): Token {
     return readVariable(state);
   }
 
-  // Atom literal: #NAME (uppercase identifier)
-  // Note: readComment() returns null for `#` followed by an uppercase letter
-  // so execution reaches here to emit an ATOM token.
-  if (ch === '#' && isUppercaseLetter(peek(state, 1))) {
+  // Atom literal: `#` followed by [A-Za-z_]
+  // Note: readComment() returns null for that shape so execution reaches
+  // here to emit an ATOM token.
+  if (ch === '#' && isIdentifierStart(peek(state, 1))) {
     return readAtom(state);
   }
 

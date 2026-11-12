@@ -222,8 +222,8 @@ primary       = literal
               | host-call
               | conditional
               | loop
-              | guard-block         (* guard { body } / guard<on: #X> { body } / guard<on: list[#X]> { body } *)
-              | retry-block         (* retry<limit: N> { body } / retry<limit: N, on: #X> { body } / retry<limit: N, on: list[#X]> { body } *)
+              | guard-block         (* guard { body } / guard<on: #X> { body } / guard<on: list[#X, #Y]> { body } *)
+              | retry-block         (* retry<limit: N> { body } / retry<limit: N, on: #X> { body } / retry<limit: N, on: list[#X, #Y]> { body } *)
               | timeout-block       (* timeout<total: duration> { body } / timeout<idle: duration> { body } *)
               | block
               | grouped-expr
@@ -232,27 +232,24 @@ primary       = literal
               | pass ;
 
 (* Atom literal: a symbolic constant introduced with "#".
-   Names use STRICT shape [A-Z][A-Z0-9_]* — uppercase letter followed by
-   uppercase letters, digits, or underscores.
+   The name follows the variable `identifier` rule and is case-sensitive.
+   Error codes are uppercase by convention only.
    Lexer disambiguation:
-     - "#" followed by an UPPERCASE letter starts an atom token.
-     - "#" followed by anything else (lowercase, whitespace, digit, ...) is
-       tokenised as a LINE COMMENT and consumed up to end-of-line. Such input
-       never produces a parse error on its own; it is simply discarded.
+     - "#" followed by a letter or "_" starts an atom token.
+     - Any other "#" (space, digit, punctuation, end of line) starts a
+       LINE COMMENT consumed up to end-of-line.
+   No whitespace is allowed between "#" and the name.
    Atoms are identified and compared by name. Any well-formed name is an
    atom; nothing is registered.
-   Atom-shape errors (uppercase-leading but otherwise invalid, e.g. #Foo,
-   #X_bad with a lowercase tail) emit a RecoveryErrorNode when an
-   atom token is required (e.g. inside an `on:` list). Outside atom-required
-   positions, malformed atom tokens still surface via parse recovery.
    Examples:
-     #TIMEOUT                     -- well-formed atom
-     #QUOTA_EXCEEDED              -- well-formed atom
-     #FORBIDDEN                   -- built-in error code
-     #Foo                         -- atom-shape error (uppercase head, lowercase tail) -> RecoveryErrorNode
-     #foo                         -- LINE COMMENT (not an atom; consumed by lexer)
+     #TIMEOUT                     -- atom (built-in error code)
+     #wired                       -- atom (lowercase names are valid)
+     #ok                          -- atom
+     #_internal                   -- atom
+     # note                       -- comment
+     #1                           -- comment
    Use atoms with guard/retry on: and as resolution-type tags. *)
-atom-literal  = "#" , uppercase-letter , { uppercase-letter | digit | "_" } ;
+atom-literal  = "#" , identifier ;
 
 (* Pass: returns current pipe value ($) unchanged.
    Used for explicit identity pass-through in conditionals and dict values.
@@ -1090,15 +1087,14 @@ option        = identifier , ":" , positive-integer ;
    Retry:
    - retry<limit: N> { body }                       -- retry up to N attempts on any error
    - retry<limit: N, on: #X> { body }                -- retry only when error code matches
-   - retry<limit: N, on: list[#X]> { body }          -- retry only when error code in list
+   - retry<limit: N, on: list[#X, #Y]> { body }      -- retry only when error code in list
    - "limit:" is a REQUIRED named argument; bare retry<N> is a parse error (RILL-P004).
    - N must be a positive integer literal.
 
-   The on: option rejects atoms that fail the strict shape [A-Z][A-Z0-9_]*.
-   Invalid atoms become RecoveryErrorNode.
    Every on: name must belong to the core error set: the built-in atoms except
    ok and IGNORE. A name outside the set is a parse error (RILL-P004), and so
-   is on: list[]. Omit on: to catch every catchable halt. *)
+   is on: list[]. Names are case-sensitive, so #timeout is outside the set.
+   Omit on: to catch every catchable halt. *)
 
 guard-block   = "guard" , [ "<" , on-clause , ">" ] , block ;
 retry-block   = "retry" , "<" , "limit" , ":" , positive-integer , [ "," , on-clause ] , ">" , block ;
@@ -1245,8 +1241,10 @@ newline       = "\n" | "\r\n" ;
    Newlines are statement terminators except inside syntactic continuations
    (see NEWLINE RULE above).
 
-   Comments start with "#" and extend to end of line, with one exception:
-   "#" immediately followed by an uppercase letter introduces an atom literal
-   (e.g. #OK). The lexer disambiguates on the character after "#":
-     # followed by uppercase letter  -> atom literal
-     # followed by anything else     -> line comment *)
+   Comments start with "#" and extend to end of line. A comment needs a
+   space after "#". "#" immediately followed by a letter or "_" introduces an
+   atom literal (e.g. #OK), so these are parse errors (RILL-P024):
+     1 #note
+     #TODO fix this later
+   A lone "#todo" line is a discarded atom statement; the checker warns on it
+   (ATOM_DISCARDED). *)

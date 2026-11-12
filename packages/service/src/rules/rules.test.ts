@@ -3,8 +3,8 @@ import { RULES } from './index.js';
 import type { RuleCategory } from './index.js';
 
 describe('RULES', () => {
-  it('registers exactly 42 rules', () => {
-    expect(RULES.length).toBe(42);
+  it('registers exactly 45 rules', () => {
+    expect(RULES.length).toBe(45);
   });
 
   it('has unique rule codes', () => {
@@ -29,7 +29,9 @@ describe('RULES', () => {
  * can diff against rill-cli's mapping instead of opening 36 files.
  */
 const EXPECTED_CATEGORIES: Record<string, RuleCategory> = {
-  ATOM_UNREGISTERED: 'errors',
+  ATOM_CASE_MISMATCH: 'errors',
+  ATOM_DISCARDED: 'anti-patterns',
+  ATOM_NOT_ERROR_CODE: 'errors',
   AVOID_REASSIGNMENT: 'anti-patterns',
   BARE_CALLABLE_BODY: 'collections',
   BREAK_IN_PARALLEL: 'collections',
@@ -49,6 +51,7 @@ const EXPECTED_CATEGORIES: Record<string, RuleCategory> = {
   IMPLICIT_DOLLAR_FUNCTION: 'formatting',
   IMPLICIT_DOLLAR_METHOD: 'formatting',
   INDENT_CONTINUATION: 'formatting',
+  ON_LIST_SINGLE: 'errors',
   LOOP_OUTER_CAPTURE: 'anti-patterns',
   LOOP_ACCUMULATOR: 'loops',
   PREFER_DO_WHILE: 'loops',

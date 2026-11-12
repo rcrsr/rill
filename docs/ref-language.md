@@ -125,7 +125,7 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 | Closure | `\|\|{ }` | `\|x\|($x * 2)` | `ScriptCallable` |
 | Stream | `:stream(T):R` | host-provided | Stream value |
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
-| Atom | `#NAME` | `#TIMEOUT`, `#NOT_FOUND` | `:atom` value |
+| Atom | `#NAME` | `#TIMEOUT`, `#wired` | `:atom` value |
 
 **Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `atom`, `any`, `type`
 
@@ -139,7 +139,7 @@ See [Types](topic-types.md) for detailed documentation.
 
 ### Atom Literals
 
-Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a named condition. Atoms are identified and compared by name.
+Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a named condition. Atoms are identified and compared by name. Names are case-sensitive, so `#timeout` and `#TIMEOUT` are different atoms.
 
 | Form | Example | Produces |
 |------|---------|----------|
@@ -149,7 +149,7 @@ Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a nam
 
 `#TIMEOUT -> string` converts a `:atom` value to its string name. `"TIMEOUT" -> atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the atoms that serve as error codes.
 
-`#NAME` only lexes as an atom when an ASCII uppercase letter follows `#`; see [Comments](#comments) for the full carve-out and contrast pairs.
+`#` lexes as an atom when a letter or `_` follows it; any other `#` starts a comment. See [Comments](#comments) for the full rule and the parse errors it produces.
 
 ### Functions
 
@@ -779,22 +779,20 @@ Single-line comments start with `#`:
 "hello"  # inline comment
 ```
 
-A `#` followed by an ASCII uppercase letter starts an atom literal, not a comment; every other `#` starts a comment.
+A comment needs a space after `#`. A `#` followed by a letter or `_` starts an atom literal instead.
 
-| Form | Lexes as |
-|------|----------|
-| `#TODO` | atom (`:atom` value) |
-| `#Note` | atom (`:atom` value) |
-| `# TODO` | comment |
-| `# Note` | comment |
-| `#todo` | comment |
+| Form | Result |
+|------|--------|
+| `# TODO: fix` | comment |
+| `"hello"  # note` | comment after a value |
+| `#TIMEOUT`, `#wired`, `#_internal` | atom (`:atom` value) |
+| `1 #note` | parse error RILL-P024 |
+| `#TODO fix this later` | parse error RILL-P024 |
+| `#todo` alone on a line, or as the whole script | discarded atom statement; the checker warns (ATOM_DISCARDED) |
 
-```text
-#TODO      # atom literal (uppercase letter follows #)
-#Note      # atom literal (uppercase letter follows #)
-# TODO     # comment (space follows #)
-# Note     # comment (space follows #)
-#todo      # comment (lowercase letter follows #)
+```rill
+# Error: atom followed by trailing tokens
+"hello" #inline
 ```
 
 See [Atom Literals](#atom-literals) for the `#NAME` syntax this carve-out enables.

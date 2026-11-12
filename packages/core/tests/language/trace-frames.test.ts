@@ -34,12 +34,12 @@ async function runRecovered(src: string): Promise<unknown> {
 
 describe('Trace frame ordering (SM6)', () => {
   it('SM6: origin-first, latest-last frame order on a guard-caught halt', async () => {
-    // A shape-invalid atom `#AB0x` parses as a RecoveryErrorNode whose
+    // The out-of-set selector `guard<on: list[#NOT_A_CODE]> { 1 }` parses as a RecoveryErrorNode whose
     // runtime materialisation is `#R001` with ONE initial `host` frame
     // (provider: 'parse-recovery'). Accessing it appends `access`; the
     // outer guard appends `guard-caught`.
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       guard { $x.a }
     `;
     const result = await runRecovered(src);
@@ -61,7 +61,7 @@ describe('Trace frame ordering (SM6)', () => {
 
   it('SM6: guard-caught frame labels its fn as `guard`', async () => {
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       guard { $x.a }
     `;
     const result = await runRecovered(src);
@@ -76,7 +76,7 @@ describe('Trace frame ordering (SM6)', () => {
     // frame whose fn is `retry` (recovery.ts convention distinguishing
     // retry from guard at frame creation).
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       retry<limit: 2> { $x.a }
     `;
     const result = await runRecovered(src);
@@ -95,7 +95,7 @@ describe('FR-ERR-12: Append-only, never rewrite prior frames', () => {
     // via `.a`; an outer guard catches again. The final trace retains
     // BOTH `guard-caught` frames in order (inner then outer).
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       guard {
         guard { $x.a } => $inner
         $inner.b
@@ -109,7 +109,7 @@ describe('FR-ERR-12: Append-only, never rewrite prior frames', () => {
 
   it("retry exhaustion retains every attempt's guard-caught frame", async () => {
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       retry<limit: 3> { $x.a }
     `;
     const result = await runRecovered(src);
@@ -125,7 +125,7 @@ describe('FR-ERR-18: Frames survive capture and container inclusion', () => {
     // present on the captured value: the capture is non-access and must
     // not rewrite the sidecar.
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       $x => $y
       $y.!trace
     `;
@@ -141,7 +141,7 @@ describe('FR-ERR-18: Frames survive capture and container inclusion', () => {
     // element back via guard and probe its trace. Accessing `.!trace`
     // on the element does not halt and returns the preserved trace.
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       list[$x] => $batch
       $x.!trace
     `;
@@ -258,12 +258,12 @@ describe('Wrap frame (FR-ERR-13; IR-3, IR-5)', () => {
   });
 
   it('AC-13: `error "{$x}"` with invalid $x halts with RILL_R016 status; wrap frame attached', async () => {
-    // `$x` holds an invalid (#AB0x recovery). Interpolating $x stringifies
+    // `$x` holds an invalid (guard<on: list[#NOT_A_CODE]> { 1 } recovery). Interpolating $x stringifies
     // the invalid via formatValue (no access is performed), so the error
     // halt is RILL_R016 with interpolated=true. The wrap frame carries
     // the RILL_R016 prior status dict per IR-3.
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       error "wrapped: {$x}"
     `;
     const { err, haltStatus } = await runExpectingErrorHalt(src);

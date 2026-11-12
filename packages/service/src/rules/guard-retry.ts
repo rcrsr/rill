@@ -4,7 +4,11 @@
 
 import type { ASTNode } from '@rcrsr/rill';
 import type { Diagnostic, Rule, RuleContext } from './types.js';
-import { extractContextLine } from './helpers.js';
+import {
+  extractContextLine,
+  maskComments,
+  maskStringLiterals,
+} from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 // ============================================================
@@ -73,4 +77,47 @@ export const retryTrivial: Rule = {
   },
 };
 
-registeredRules.push(guardBare, retryTrivial);
+// ============================================================
+// ON_LIST_SINGLE
+// ============================================================
+
+/**
+ * Flags `on: list[#X]` on `guard` and `retry`. A one-element list holds a
+ * single code; the plain form `on: #X` says the same thing directly.
+ */
+export const onListSingle: Rule = {
+  code: 'ON_LIST_SINGLE',
+  nodeTypes: ['GuardBlock', 'RetryBlock'],
+  defaultSeverity: 'info',
+  category: 'errors',
+
+  validate(node: ASTNode, context: RuleContext): Diagnostic[] {
+    if (node.type !== 'GuardBlock' && node.type !== 'RetryBlock') return [];
+    const codes = node.onCodes;
+    const only = codes?.[0];
+    if (codes?.length !== 1 || only === undefined) return [];
+
+    const options = maskComments(
+      maskStringLiterals(
+        context.source.slice(
+          node.span.start.offset,
+          node.body.span.start.offset
+        )
+      )
+    );
+    if (!options.includes('list[')) return [];
+
+    return [
+      {
+        location: node.span.start,
+        severity: 'info',
+        code: 'ON_LIST_SINGLE',
+        message: `on: list[#${only.name}] holds one code; write on: #${only.name}.`,
+        context: extractContextLine(node.span.start.line, context.source),
+        fix: null,
+      },
+    ];
+  },
+};
+
+registeredRules.push(guardBare, retryTrivial, onListSingle);

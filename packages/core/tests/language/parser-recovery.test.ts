@@ -407,22 +407,27 @@ interpolation"""`;
     });
   });
 
-  describe('Atom literal shape validation', () => {
-    it('reports RILL_P004 for a shape-invalid atom in expression position', () => {
-      const source = `#Foo`;
+  describe('Atom directly after an expression', () => {
+    it('reports RILL_P024 for an atom on the same line as a complete expression', () => {
+      const source = `1 #note`;
       const result = parseWithRecovery(source);
 
       expect(result.success).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors[0]?.errorId).toBe(ERROR_IDS.RILL_P004);
-      const recoveryNodes = findNodesByType(result.ast, 'RecoveryError');
-      expect(recoveryNodes.length).toBeGreaterThanOrEqual(1);
+      expect(result.errors[0]?.errorId).toBe(ERROR_IDS.RILL_P024);
     });
 
-    it('throws on strict parse for a shape-invalid atom', () => {
-      const source = `#Foo`;
+    it('throws on strict parse for an atom after a complete expression', () => {
+      const source = `1 #note`;
 
       expect(() => parse(source)).toThrow(ParseError);
+    });
+
+    it('accepts a mixed-case atom on its own', () => {
+      const result = parseWithRecovery(`#Foo`);
+
+      expect(result.success).toBe(true);
+      expect(findNodesByType(result.ast, 'RecoveryError').length).toBe(0);
     });
   });
 

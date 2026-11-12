@@ -783,8 +783,8 @@ Wrap an inner `guard` with an outer retry to re-execute on partial failure:
 ```text
 use<ext:app> => $app
 
-retry<limit: 3, on: list[#UNAVAILABLE]> {
-  guard<on: list[#NOT_FOUND]> {
+retry<limit: 3, on: #UNAVAILABLE> {
+  guard<on: #NOT_FOUND> {
     $app.fetch("https://api.example.com/resource")
   } => $inner
   $inner.! ? (error "not found") ! $inner
@@ -793,7 +793,7 @@ retry<limit: 3, on: list[#UNAVAILABLE]> {
 $result.! ? "all retries failed: {$result.!message}" ! $result
 ```
 
-`guard<on: list[#NOT_FOUND]>` catches only `#NOT_FOUND` halts and surfaces them as values. The inline `error` re-escalates them as non-catchable halts. `retry<limit: 3, on: list[#UNAVAILABLE]>` retries only on service unavailability.
+`guard<on: #NOT_FOUND>` catches only `#NOT_FOUND` halts and surfaces them as values. The inline `error` re-escalates them as non-catchable halts. `retry<limit: 3, on: #UNAVAILABLE>` retries only on service unavailability.
 
 ### Per-Item Collection Recovery
 

@@ -393,9 +393,34 @@ $result.!trace -> seq({ log("{$.kind} at {$.site}") })
 
 Access halts are catchable. Halts from `error "..."` and `assert` are **non-catchable** and propagate through `guard`.
 
+## Why Is My Comment a Parse Error?
+
+A `#` followed by a letter or `_` starts an atom, not a comment. A comment needs a space after `#`. Both examples below halt with RILL-P024.
+
+```rill
+# Error: atom followed by trailing tokens
+list[1, 2] -> .len #count
+```
+
+```rill
+# Error: atom followed by trailing tokens
+#TODO fix this later
+```
+
+**Cause:** `#count` and `#TODO` lex as atoms, and the tokens after them are not valid syntax.
+
+**Fix:** Put a space after `#`, and leave two spaces before an inline comment:
+
+```rill
+list[1, 2] -> .len  # count
+# Result: 2
+```
+
+A lone `#todo` on its own line runs silently as a discarded atom statement. The checker warns with `ATOM_DISCARDED`.
+
 ## Why Does `#MY_CODE` Not Match?
 
-Atoms compare by name. `#MY_CODE` is a valid atom, but no halt carries a code outside the core error set, so a comparison against it is always false.
+Atoms compare by name, and names are case-sensitive. `#MY_CODE` is a valid atom, but no halt carries a code outside the core error set, so a comparison against it is always false.
 
 ```rill
 guard { 1 / 0 } => $r
@@ -421,13 +446,13 @@ $result.! ? "invalid" ! "valid"
 # Result: "valid"
 ```
 
-Common core error codes: `#TIMEOUT`, `#AUTH`, `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`, `#DISPOSED`, `#TYPE_MISMATCH`, `#R001`, `#R999`, and the `#RILL_R###` family. See [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the full list. `#ok` is a runtime sentinel, not an error code; the lexer does not emit it as a literal.
+Common core error codes: `#TIMEOUT`, `#AUTH`, `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`, `#DISPOSED`, `#TYPE_MISMATCH`, `#R001`, `#R999`, and the `#RILL_R###` family. See [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the full list. `#ok` is a runtime sentinel, not an error code. `$r.!code == #ok` tests for a valid value, though `.!` is shorter.
 
 To convert an atom to its string name:
 
 ```rill
 #TIMEOUT -> string
-# Result: TIMEOUT
+# Result: "TIMEOUT"
 ```
 
 ## Guard Did Not Catch My Error

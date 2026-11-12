@@ -63,6 +63,7 @@ export const ERROR_IDS = {
   RILL_P021: 'RILL-P021',
   RILL_P022: 'RILL-P022',
   RILL_P023: 'RILL-P023',
+  RILL_P024: 'RILL-P024',
   RILL_R001: 'RILL-R001',
   RILL_R002: 'RILL-R002',
   RILL_R003: 'RILL-R003',
@@ -765,6 +766,27 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'Closing delimiter with an extra dash',
         code: '---\nmodel: opus\n----\nlog(1)',
+      },
+    ],
+  },
+  {
+    errorId: ERROR_IDS.RILL_P024,
+    category: 'parse',
+    description: "Comment needs a space after '#'",
+    messageTemplate:
+      "Atom #NAME directly follows an expression on the same line; a comment needs a space after '#'",
+    cause:
+      "A '#' followed directly by a letter or underscore starts an atom literal, not a comment. Text such as '#note' after an expression reads as an atom where a comment was meant.",
+    resolution:
+      "Put a space after '#' to write a comment, as in '# note'. Use an atom only where a value is expected.",
+    examples: [
+      {
+        description: "Comment missing the space after '#'",
+        code: '1 #note',
+      },
+      {
+        description: 'Comment text read as an atom followed by a word',
+        code: '#TODO fix this later',
       },
     ],
   },

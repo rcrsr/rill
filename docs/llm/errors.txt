@@ -36,7 +36,7 @@ Every value carries a status sidecar. Read with `.!`:
 
 ## Atoms
 
-Named symbols, compared by name. Type name is `atom`.
+Named symbols, compared by name. Names are case-sensitive; error codes are uppercase by convention. Type name is `atom`.
 
     #TIMEOUT                       # atom literal
     #TIMEOUT == #TIMEOUT           # true (same name)
@@ -45,9 +45,11 @@ Named symbols, compared by name. Type name is `atom`.
     "BOGUS" -> atom                # #BOGUS (any well-formed name)
     "ok" -> atom                   # #ok
     "1x" -> atom                   # halts #INVALID_INPUT (malformed name)
+    #wired                         # atom (lowercase names are valid)
+    #timeout == #TIMEOUT           # false (case-sensitive)
     #TIMEOUT:?atom                 # true
 
-Built-in atom literals (must start with uppercase letter). The core error set is every built-in atom except #ok and #IGNORE:
+Built-in atom literals. The core error set is every built-in atom except #ok and #IGNORE:
 
     #RILL_R###                     # 36 atoms, one per halting registry error (e.g. #RILL_R002); see BUILTIN_ATOMS
     #R001                          # parse-recovery node, host-built retry node
@@ -80,7 +82,7 @@ Built-in atom literals (must start with uppercase letter). The core error set is
                                    #       filter predicate returns non-bool
     #IGNORE                        # sentinel for `pass<on_error: #IGNORE> { body }`
 
-`.!code` reports `#ok` on valid values, but `#ok` is a sentinel and NOT an error code, and it is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.
+`.!code` reports `#ok` on valid values. `#ok` is a sentinel, not an error code, but it is writable as a literal. `$v.!code == #ok` tests for a valid value; `.!` is shorter.
 
 The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`.
 

@@ -6,6 +6,7 @@ import { describe, it, expect } from 'vitest';
 import {
   BUILTIN_ATOMS,
   BUILTIN_FUNCTIONS,
+  ERROR_CODES,
   KEYWORDS,
   resolveAtom,
 } from '@rcrsr/rill';
@@ -103,6 +104,23 @@ describe('Tooling Exports', () => {
 
     it('resolves a non-builtin name to a distinct reference each time', () => {
       expect(resolveAtom('WIRED')).not.toBe(resolveAtom('WIRED'));
+    });
+  });
+
+  describe('ERROR_CODES', () => {
+    it('is frozen', () => {
+      expect(Object.isFrozen(ERROR_CODES)).toBe(true);
+    });
+
+    it('excludes ok and IGNORE', () => {
+      expect(ERROR_CODES).not.toContain('ok');
+      expect(ERROR_CODES).not.toContain('IGNORE');
+    });
+
+    it('equals the builtin atom list minus ok and IGNORE', () => {
+      expect([...ERROR_CODES]).toEqual(
+        BUILTIN_ATOMS.filter((name) => name !== 'ok' && name !== 'IGNORE')
+      );
     });
   });
 });

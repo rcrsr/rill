@@ -42,7 +42,6 @@ import {
   reportError,
   type ParserState,
 } from './state.js';
-import { ATOM_NAME_SHAPE } from './helpers.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { ERROR_CODE_NAMES } from '../constants.js';
 
@@ -737,10 +736,7 @@ function parseOnOptionList(
     value: string;
     span: AtomLiteralNode['span'];
   }): void => {
-    if (!ATOM_NAME_SHAPE.test(token.value)) {
-      hadInvalid = true;
-      invalidMessage = `Invalid atom name '#${token.value}' in on: option list`;
-    } else if (!ERROR_CODE_NAMES.includes(token.value)) {
+    if (!ERROR_CODE_NAMES.includes(token.value)) {
       hadInvalid = true;
       invalidMessage = `'#${token.value}' is not a core error code`;
     } else {

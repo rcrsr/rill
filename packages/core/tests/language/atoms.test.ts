@@ -4,7 +4,6 @@
  * Covers (Phase 1):
  * - FR-ERR-2/3: Atom literals `#NAME` parse into AtomLiteralNode.
  * - Atoms are identified and compared by name; any valid name is an atom.
- * - EC-12: Parse-time malformed atoms produce a RecoveryErrorNode.
  *
  * Deferred to Phase 2 (evaluator support for AtomLiteralNode):
  * - Running `#TIMEOUT == #TIMEOUT` end-to-end inside a rill script.
@@ -21,11 +20,9 @@ import {
   isAtom,
   parse,
   ParseError,
-  parseWithRecovery,
   resolveAtom,
   type RillAtomValue,
 } from '@rcrsr/rill';
-import { ERROR_IDS } from '../../src/error-registry.js';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { RuntimeHaltSignal } from '../../src/runtime/core/types/halt.js';
 
@@ -82,46 +79,24 @@ describe('Atom literals (#NAME)', () => {
       });
     });
 
-    it('the reserved sentinel #ok is not a script-authorable atom literal', () => {
-      // The lexer only emits an ATOM token for `#` followed by an uppercase
-      // letter, so `#ok` is consumed as a comment (no tokens emitted).
-      // The `ok` atom is reachable only through the registry (`resolveAtom("ok")`)
-      // or via the runtime `#ok` constant produced by the evaluator for the
-      // empty status sidecar; it is not a parseable source-level literal.
-      const ast = parse('#ok');
-      expect(ast.statements).toHaveLength(0);
+    it('parses #ok into an AtomLiteralNode named ok', () => {
+      const primary = firstPrimary('#ok');
+      expect(primary).toMatchObject({ type: 'AtomLiteral', name: 'ok' });
     });
   });
 
-  describe('Parse-time malformed atom (EC-12)', () => {
-    it('throws on strict parse for a mixed-case atom (#Timeout)', () => {
-      // readAtom accepts any identifier character after the uppercase
-      // first letter, so #Timeout tokenises successfully. The parser's
-      // ATOM_NAME_SHAPE regex then rejects it; strict parse reports the
-      // shape violation and throws instead of silently returning a
-      // RecoveryErrorNode.
-      expect(() => firstPrimary('#Timeout')).toThrow(/Invalid atom name/);
-    });
-
-    it('produces a RecoveryErrorNode with a RILL_P004 diagnostic under recovery parsing', () => {
-      const result = parseWithRecovery('#Timeout');
-      expect(result.success).toBe(false);
-      expect(result.errors[0]?.errorId).toBe(ERROR_IDS.RILL_P004);
-      const stmt = result.ast.statements[0];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const expr = (stmt as any).expression;
-      const primary = expr.head.primary;
-      expect(primary).toMatchObject({
-        type: 'RecoveryError',
-        text: '#Timeout',
+  describe('Atom name shapes', () => {
+    it('parses mixed-case #Timeout as an atom', () => {
+      expect(firstPrimary('#Timeout')).toMatchObject({
+        type: 'AtomLiteral',
+        name: 'Timeout',
       });
     });
 
-    it('parses a well-formed atom as AtomLiteralNode (no recovery)', () => {
-      const primary = firstPrimary('#TIMEOUT');
-      expect(primary).toMatchObject({
+    it('parses #A1_b as an atom', () => {
+      expect(firstPrimary('#A1_b')).toMatchObject({
         type: 'AtomLiteral',
-        name: 'TIMEOUT',
+        name: 'A1_b',
       });
     });
   });
