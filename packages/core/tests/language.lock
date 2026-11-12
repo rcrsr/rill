@@ -4,7 +4,7 @@
 # An entry changing here means the arbiter changed. That must be a language
 # spec change, never a fix to make an implementation change pass.
 #
-# 100 files.
+# 101 files.
 e40d3d9453fe3b3886f5e26443218272bc9c58edb18e6b784421a8b50b266160  packages/core/tests/language/access-halt.test.ts
 b4a4c672aa0346c65c391a22869c852b64f21340e7326fe7d16ee06a47873cd5  packages/core/tests/language/annotations.test.ts
 eefe3850b2801446bebdb57e6e4a16adc6abc03d066640651db92872c251e551  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
@@ -30,7 +30,7 @@ b35edcbbc868b307464f6a374a1edf76054dff66e3bd4849c6a271f1d2356800  packages/core/
 707d87cbcd1442fe104f4b6d551a598c606dc75223ce8bef93a73076e88337b3  packages/core/tests/language/collection-slicing.test.ts
 4cfd9143857d3d256b269ce61d8f9ab98ff8eab2947859c2fb67ae79223db3f3  packages/core/tests/language/collection-type-defaults-bugs.test.ts
 7ecf8306e621a1acb9d89c1e3933bd2d16915b4f17c1ddcd8dcdd0fb034c394c  packages/core/tests/language/conditionals.test.ts
-647ac3d98ab67facb4a400e879b26664c040b350e9687b6b766cde0a340da9cd  packages/core/tests/language/conversion.test.ts
+d527a445e4adfc8b6b2e690d910f8c1d783b63541312a19102d523569c6717d6  packages/core/tests/language/conversion.test.ts
 85f7c685b5d265efe590e08b8d21a619b7a6cafc7851ad57f81a2c9dfd488464  packages/core/tests/language/datetime.test.ts
 3b6f86aa1004c66a3354e0e6145c17392dc521939d7673b9ca67412fc53811e4  packages/core/tests/language/default-value-operator.test.ts
 283edc5a77b3d536d92872033ed512f91de2387145e1fdf6af1c18b529073acb  packages/core/tests/language/destruct-slice-keyword.test.ts
@@ -41,6 +41,7 @@ b6a28ed68b7482bc1b4b466173d6b2709a966e07b1872d0c5736846a59d10f06  packages/core/
 6265bb0a7b6af057d2983f4145ed1d45efb6c0026811137c7c763178d86e8204  packages/core/tests/language/dict.test.ts
 48c5d5f0343a6b4b75b53a2d0d2b71579c4c9d89d69ad0566abf11b986f2a18d  packages/core/tests/language/duration.test.ts
 2a49edb0527bebefba7e0cae4529ed022985b8bccdb28825562510b714d6daa2  packages/core/tests/language/dynamic-field-access.test.ts
+08654d87dce7403db4c6600065910049f270bce7a40ee29e11be03ffa453df05  packages/core/tests/language/error-code-type.test.ts
 dbb24e53ce61f201146505ed39c04c3588ec585890b190e4f9f4ccfd55317d13  packages/core/tests/language/error.test.ts
 aa20a64341536a57c4a9c3fab1c657897f73998eb32231e09f90d6249e2c257f  packages/core/tests/language/existence-check-dynamic.test.ts
 d0778371aef269e629f526e4247f31a648f64e06bf027c69aa5c5498098a2eb8  packages/core/tests/language/existence-check.test.ts

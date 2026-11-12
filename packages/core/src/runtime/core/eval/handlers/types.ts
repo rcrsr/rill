@@ -39,6 +39,7 @@ import type {
   RillFieldDef,
 } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
+import { bareTypeStructure } from '../../types/error-code.js';
 import {
   defaultMismatchMessage,
   nonTrailingDefaultIndex,
@@ -480,7 +481,7 @@ export async function resolveTypeRef(
       return Object.freeze({
         __rill_type: true as const,
         typeName,
-        structure: { kind: typeName },
+        structure: bareTypeStructure(typeName),
       });
     }
 

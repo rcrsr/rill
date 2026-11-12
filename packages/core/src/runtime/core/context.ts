@@ -608,6 +608,7 @@ export function createRuntimeContext(
     new Set([
       ...BUILT_IN_TYPES.filter((r) => r.isLeaf).map((r) => r.name),
       'any',
+      'error_code',
     ])
   );
 

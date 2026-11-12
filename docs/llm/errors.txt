@@ -27,7 +27,7 @@ Every value carries a status sidecar. Read with `.!`:
 | Probe | Returns |
 |---|---|
 | `$v.!` | bool: is this an invalid value? |
-| `$v.!code` | atom: error code (`#ok` on valid values) |
+| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)` |
 | `$v.!message` | string: human-readable description |
 | `$v.!provider` | string: component that produced the error |
 | `$v.!trace` | list: trace frames |
@@ -84,7 +84,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
 
 `.!code` reports `#ok` on valid values. `#ok` is a sentinel, not an error code, but it is writable as a literal. `$v.!code == #ok` tests for a valid value; `.!` is shorter.
 
-The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`.
+The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`. `error_code` is the type of that set.
 
 ## Guard
 

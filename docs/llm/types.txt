@@ -6,7 +6,7 @@ Type names, assertions, conversion, parameterized types, dict shapes, type inspe
 
     string   number   bool     list     dict     ordered
     tuple    closure  vector   iterator any      type
-    atom     datetime duration
+    atom     datetime duration    error_code
 
 ## Type assertion `:type`
 
@@ -28,6 +28,8 @@ Returns boolean. Never halts.
 ## Union types
 
     42 -> :union(string, number)    # passes
+    #TIMEOUT -> :error_code         # passes
+    #ok -> :error_code              # halts #TYPE_MISMATCH
     42:?union(string, number)       # true
     "hello" => $x:union(string, number)   # capture with union
 

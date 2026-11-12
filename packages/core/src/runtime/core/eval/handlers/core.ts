@@ -93,6 +93,7 @@ import {
   evaluateTypeConstructor,
   evaluateClosureSigLiteral,
 } from './types.js';
+import { ERROR_CODE_STRUCTURE } from '../../types/error-code.js';
 import {
   evaluateTimeoutBlock,
   evaluateStatusProbe,
@@ -534,6 +535,13 @@ export async function evaluatePrimary(
       // unknown names fall back to 'any'. This includes the scalar/branded
       // kinds (datetime, duration, atom, iterator, stream) so that
       // `now().^type == datetime` and `range(0,3).^type == iterator` hold.
+      if (primary.typeName === 'error_code') {
+        return Object.freeze({
+          __rill_type: true as const,
+          typeName: primary.typeName,
+          structure: ERROR_CODE_STRUCTURE,
+        });
+      }
       return Object.freeze({
         __rill_type: true as const,
         typeName: primary.typeName,

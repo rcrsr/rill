@@ -38,6 +38,7 @@ import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import type { DefaultMismatch } from './field-defaults.js';
 import { quoteRillString } from './format-string.js';
 import { typedKeyEntries, setDictField } from './dict-keys.js';
+import { formatUnion } from './error-code.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker); a CallableMarker implies RillCallable by construction. */
@@ -715,7 +716,7 @@ export function formatStructure(type: TypeStructure): string {
   }
 
   if (isStructureKind(type, 'union')) {
-    return `union(${type.members.map(formatStructure).join(', ')})`;
+    return formatUnion(type.members, formatStructure);
   }
 
   if (isStructureKind(type, 'literal')) {

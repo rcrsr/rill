@@ -41,6 +41,7 @@ import {
   resolveAtom,
   toAtomValue,
 } from './runtime/core/types/atom-registry.js';
+import { bareTypeStructure } from './runtime/core/types/error-code.js';
 import type {
   AtomLiteralNode,
   BoolLiteralNode,
@@ -153,7 +154,7 @@ function staticTypeRefToTypeStructure(
   const { typeName, args } = typeRef;
 
   if (!args || args.length === 0) {
-    return { kind: typeName };
+    return bareTypeStructure(typeName);
   }
 
   // Parameterized types

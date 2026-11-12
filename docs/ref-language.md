@@ -42,7 +42,7 @@ For design principles, see [Design Principles](topic-design-principles.md).
 | Member | `.field`, `[index]` |
 | Default | `?? value` |
 | Existence | `.?field`, `.?$var`, `.?($expr)`, `.?field&type`, `.?field&union(T1, T2)` (union), `.?field&list(T)` (parameterized) |
-| Status probe | `.!` (status code), `.!field` (field status code) |
+| Status probe | `.!` (bool: is the value invalid), `.!field` (sidecar field: `code`, `message`, `provider`, `trace`, or a `raw` key) |
 | Presence probe | `.?` (presence bool, current `$`) |
 
 See [Operators](topic-operators.md) for detailed documentation.
@@ -127,7 +127,7 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 | Block | `{ body }` | `{ $ + 1 }` | `ScriptCallable` |
 | Atom | `#NAME` | `#TIMEOUT`, `#wired` | `:atom` value |
 
-**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `atom`, `any`, `type`
+**Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `iterator`, `datetime`, `duration`, `stream`, `atom`, `error_code`, `any`, `type`
 
 `union` is also a type name, valid only as `union(T, ...)`; see [Type System](topic-type-system.md).
 

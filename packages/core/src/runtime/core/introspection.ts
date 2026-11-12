@@ -35,6 +35,7 @@ import type {
 import { isPipeChainNode } from '../../types.js';
 import { throwFatalHostHalt } from './types/halt.js';
 import { isStructureKind } from './types/guards.js';
+import { formatUnion } from './types/error-code.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import type { FieldArg, TypeRef } from '../../value-types.js';
 
@@ -256,7 +257,7 @@ const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
  */
 function serializeSignatureType(structure: TypeStructure): string {
   if (isStructureKind(structure, 'union')) {
-    return `union(${structure.members.map(serializeSignatureType).join(', ')})`;
+    return formatUnion(structure.members, serializeSignatureType);
   }
   if (structure.kind === 'closure') return 'closure';
 
