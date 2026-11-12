@@ -6,8 +6,8 @@
  *
  * Interface requirements (from spec):
  * - assertType(value, expected, location?) -> RillValue
- * - evaluateTypeAssertion(node, input) -> Promise<RillValue>
- * - evaluateTypeCheck(node, input) -> Promise<boolean>
+ * - evaluateTypeAssertionCarried(node, input) -> Promise<Carried>
+ * - evaluateTypeCheck(node, value) -> Promise<boolean>
  * - evaluateTypeConstructor(node) -> Promise<RillTypeValue>
  * - evaluateClosureSigLiteral(node) -> Promise<RillTypeValue>
  * - resolveTypeRef(typeRef, getVariable) -> Promise<RillTypeValue>
@@ -66,6 +66,7 @@ import {
 } from '../../values.js';
 import { setDictField } from '../../types/dict-keys.js';
 import { getVariable } from '../../context.js';
+import { declarationOf, type Carried } from '../../types/declared.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { evaluateAnnotations } from './annotations.js';
@@ -707,44 +708,38 @@ function assertBareTypeName(
 }
 
 /**
- * Evaluate type assertion: expr:type or :type (shorthand for $:type).
- * Returns the value if type matches, throws on mismatch.
+ * Evaluate a type assertion over an operand value the caller already
+ * evaluated. The written type becomes the declaration unless it is `any`;
+ * then the input's declaration carries through.
  */
-export async function evaluateTypeAssertion(
+export async function evaluateTypeAssertionCarried(
   s: EvalState,
   node: TypeAssertionNode,
-  input: RillValue
-): Promise<RillValue> {
-  // If operand is null, use the input (pipe value)
-  // Otherwise, evaluate the operand
-  const value = node.operand
-    ? await evaluatePostfixExpr(s, node.operand)
-    : input;
-
+  input: Carried
+): Promise<Carried> {
   const resolved = await resolveTypeRef(
     s,
     node.typeRef,
     (name) => getVariable(s.ctx, name),
     node.span.start
   );
-  return assertType(s, value, resolved.structure, node.span.start);
+  const value = assertType(s, input.value, resolved.structure, node.span.start);
+  return {
+    value,
+    declared: declarationOf(resolved.structure) ?? input.declared,
+  };
 }
 
 /**
- * Evaluate type check: expr:?type or :?type (shorthand for $:?type).
+ * Evaluate type check: expr:?type or :?type (shorthand for $:?type), over
+ * a value the caller already evaluated, so the operand runs once.
  * Returns true if type matches, false otherwise.
  */
 export async function evaluateTypeCheck(
   s: EvalState,
   node: TypeCheckNode,
-  input: RillValue
+  value: RillValue
 ): Promise<boolean> {
-  // If operand is null, use the input (pipe value)
-  // Otherwise, evaluate the operand
-  const value = node.operand
-    ? await evaluatePostfixExpr(s, node.operand)
-    : input;
-
   const resolved = await resolveTypeRef(
     s,
     node.typeRef,

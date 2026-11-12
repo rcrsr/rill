@@ -37,6 +37,15 @@ export const ERROR_CODE_STRUCTURE: TypeStructure = Object.freeze({
   members: ERROR_CODE_MEMBERS,
 });
 
+/**
+ * Structure of the `.!code` probe: `union(#ok, error_code)` in the spliced
+ * form union normalization produces (literal `#ok`, then each error code).
+ */
+export const STATUS_CODE_STRUCTURE: TypeStructure = Object.freeze({
+  kind: 'union',
+  members: Object.freeze([atomLiteral('ok'), ...ERROR_CODE_MEMBERS]),
+});
+
 /** Structure for a bare type name: `error_code` expands, others are `{ kind }`. */
 export function bareTypeStructure(name: string): TypeStructure {
   return name === ERROR_CODE_TYPE_NAME ? ERROR_CODE_STRUCTURE : { kind: name };

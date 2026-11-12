@@ -141,4 +141,28 @@ describe('Rill Language: error_code type', () => {
       ).rejects.toHaveProperty('errorId', 'RILL-R001');
     });
   });
+
+  describe('declared status code', () => {
+    it('carries union(#ok, error_code) as the declared type of .!code', async () => {
+      expect(await run('"x".!code.^type == union(#ok, error_code)')).toBe(true);
+    });
+
+    it('spells the declared type as #ok plus every error-code literal', async () => {
+      const members = ERROR_CODES.map((c) => `#${c}`).join(', ');
+      expect(await run(`"x".!code.^type == union(#ok, ${members})`)).toBe(true);
+    });
+
+    it('reports atom as the own type of .!code', async () => {
+      expect(await run('"x".!code.^effective == atom')).toBe(true);
+    });
+
+    it('locks a captured .!code to union(#ok, error_code)', async () => {
+      expect(await run('"x".!code => $c\n#TIMEOUT => $c\n$c')).toEqual(
+        atom('TIMEOUT')
+      );
+      await expectHalt(() => run('"x".!code => $c\n"s" => $c'), {
+        code: 'RILL_R001',
+      });
+    });
+  });
 });

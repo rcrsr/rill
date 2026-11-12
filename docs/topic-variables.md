@@ -130,6 +130,22 @@ Declare type explicitly with `:type`:
 
 **Supported types:** `string`, `number`, `bool`, `closure`, `list`, `dict`, `tuple`
 
+An annotation sets the variable's declared type, which `.^type` reports. See [Declared and Effective Types](topic-type-system.md#declared-and-effective-types).
+
+`any` declares nothing, so the variable locks to the value's own type:
+
+```rill
+1 => $x:any
+$x.^type.signature
+# Result: "number"
+```
+
+```rill
+# Error: Type mismatch: cannot assign string to $x (locked as number)
+1 => $x:any
+"a" => $x
+```
+
 Union types, written `union(...)`, are valid in capture annotations. The runtime accepts any value that satisfies at least one union member:
 
 ```rill

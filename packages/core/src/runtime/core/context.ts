@@ -22,7 +22,8 @@ import type {
   InvalidMeta,
 } from './types/runtime.js';
 import { bindDictCallables } from './types/runtime.js';
-import type { RillValue } from './types/structures.js';
+import type { RillValue, TypeStructure } from './types/structures.js';
+import { declarationOf } from './types/declared.js';
 import { inferType } from './types/registrations.js';
 import { setDictField } from './types/dict-keys.js';
 import {
@@ -815,6 +816,9 @@ export function createChildContext(
     callbacks: parent.callbacks,
     observability: parent.observability,
     pipeValue: parent.pipeValue,
+    ...(parent.pipeDeclared !== undefined
+      ? { pipeDeclared: parent.pipeDeclared }
+      : {}),
     timeout: parent.timeout,
     autoExceptions: parent.autoExceptions,
     signal: parent.signal,
@@ -876,6 +880,25 @@ export function getVariable(
  */
 export function hasVariable(ctx: RuntimeContext, name: string): boolean {
   return ctx.hasVariable(name);
+}
+
+/**
+ * Declared type of a variable: the structure stored by the first scope in the
+ * parent chain that owns the name. A kind-name string or `any` means no
+ * declaration.
+ */
+export function getVariableDeclared(
+  ctx: RuntimeContext,
+  name: string
+): TypeStructure | undefined {
+  let scope: RuntimeContext | undefined = ctx;
+  while (scope !== undefined) {
+    if (scope.variables.has(name)) {
+      return declarationOf(scope.variableTypes.get(name));
+    }
+    scope = scope.parent;
+  }
+  return undefined;
 }
 
 /**

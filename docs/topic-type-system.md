@@ -4,7 +4,7 @@
 
 ## Structural Type Values
 
-`^type` returns a structural type value — a first-class value describing the full structure of a collection, not just a coarse type name.
+`^type` returns a structural type value — a first-class value describing the full structure of a collection, not just a coarse type name. It reports the declared type when the value carries one, else the own type. See [Declared and Effective Types](#declared-and-effective-types).
 
 ### `^type` Returns Structural Types
 
@@ -123,20 +123,6 @@ $fn(tuple[])
 
 A tuple annotation with trailing defaults fills all missing positions when the caller passes an empty tuple.
 
-### Comparing Structural Types
-
-```rill
-[1, 2, 3] => $list
-$list.^type == list(number)
-# Result: true
-```
-
-```rill
-[a: 1, b: "hello"] => $d
-$d.^type == dict(a: number, b: string)
-# Result: true
-```
-
 ### Type Inference Cascade
 
 When rill infers the element type of a list literal, it uses a three-level cascade:
@@ -185,22 +171,6 @@ The cascade is recursive. If the bare fallback at one level produces a bare type
 The outer list sees two `list(list(?))` elements where the inner element types differ, so the cascade produces `list(list(list))`.
 
 If the top-level types are incompatible (e.g., mixing a number and a list), rill raises RILL-R002.
-
-### `.^type.name` for Coarse Type Name
-
-`.^type.name` returns the coarse type name as a string:
-
-```rill
-[1, 2, 3] => $list
-$list.^type.name
-# Result: "list"
-```
-
-```rill
-[a: 1] => $d
-$d.^type.name
-# Result: "dict"
-```
 
 ### Metatype Fixed Point
 
@@ -313,9 +283,9 @@ The table shows how each operation treats a dict value whose keys differ from th
 |-----------|--------------|------------------------------|-------------------------------|
 | `:T` / `:?T` | Accepted; value returned unchanged, extras kept | Accepted; not filled | `:` halts `#TYPE_MISMATCH`; `:?` returns false |
 | `-> T` | Dropped | Filled with the default | Halts RILL-R044, except a collection-typed field whose children all have defaults (see [Nested Collection Synthesis](#nested-collection-synthesis)) |
-| `.^type == T` | false | false | false |
+| `.^type == T` (undeclared dict) | false | false | false |
 
-`.^type == T` requires the exact key set, field types, and default presence.
+`.^type == T` requires the exact key set, field types, and default presence on the dict's own type.
 
 ```rill
 dict[a: 1, x: 2] -> :dict(a: number)
@@ -734,7 +704,7 @@ rill has a runtime type named `type`. A type value represents a rill type — in
 
 ### `.^type` Operator
 
-`.^type` returns the structural type value for any rill value:
+`.^type` returns the structural type value for any rill value: the declared type when one is carried, else the own type. The examples here use undeclared values.
 
 ```rill
 42 => $n
@@ -771,6 +741,76 @@ $app.embed("hello world") => $vec
 $vec.^type == vector
 # Result: true
 ```
+
+### Declared and Effective Types
+
+A declared type travels with a value. A union capture shows it:
+
+```rill
+42 => $x:union(string, number)
+$x.^type.signature
+# Result: "union(string, number)"
+```
+
+`.^effective` always reports the own type of the value:
+
+```rill
+42 => $x:union(string, number)
+$x.^effective.signature
+# Result: "number"
+```
+
+A declaration comes from a capture annotation, a `:T` assertion, a typed parameter, or `.!code`. It stays with `$`, captures, grouped expressions, `pass`, destructures, and closure parameters. Element and field reads on a declared collection project the declared element type:
+
+```rill
+list[1, 2] => $xs:list(union(string, number))
+$xs -> seq({ $.^type.name })
+# Result: list["union", "union"]
+```
+
+```rill
+list[1, 2] => $xs:list(union(string, number))
+$xs[0].^effective.name
+# Result: "number"
+```
+
+A new declaration replaces the old one:
+
+```rill
+42 => $x:union(string, number)
+$x => $y:number
+$y.^type.signature
+# Result: "number"
+```
+
+A computed result takes its own type. Binary and unary operators, method calls, call results, conditionals, and loops all drop the declaration:
+
+```rill
+42 => $x:union(string, number)
+($x + 1).^type.signature
+# Result: "number"
+```
+
+A collection without a declaration carries none, so its elements report their own types:
+
+```rill
+list[1, 2] => $xs
+$xs[0].^type.signature
+# Result: "number"
+```
+
+A variable's declared type is its lock, so a later capture does not change it:
+
+```rill
+42 => $x:union(string, number)
+"a" => $x
+$x.^type.signature
+# Result: "union(string, number)"
+```
+
+`any` declares nothing. `1 => $x:any` locks the variable as `number`.
+
+`.^type` reports the declared type when one is carried, else the own type. To dispatch on the runtime type of a value under a declared union, read `.^effective.name`, because `.^type.name` is `"union"`.
 
 ### Annotated Type Fields via `.^type`
 
@@ -816,24 +856,12 @@ $tt.^type == type
 
 ### `.^type.name` Property
 
-Access the coarse type name via `.^type.name` on any value:
+Access the coarse type name via `.^type.name` on any value. Under a declared union it is `"union"`; `.^effective.name` gives the own name.
 
 ```rill
 42 => $n
 $n.^type.name
 # Result: "number"
-```
-
-```rill
-"hello" => $s
-$s.^type.name
-# Result: "string"
-```
-
-```rill
-[1, 2] => $l
-$l.^type.name
-# Result: "list"
 ```
 
 ### Dot-Notation Properties on Type Values
@@ -849,12 +877,6 @@ Type values expose two properties via dot notation:
 number => $t
 $t.name
 # Result: "number"
-```
-
-```rill
-dict => $t
-$t.name
-# Result: "dict"
 ```
 
 `.signature` returns the full structural representation via `formatStructure`:
@@ -902,18 +924,6 @@ number.^name
 Type values compare with `==` and `!=`. Structural types compare structurally:
 
 ```rill
-42 => $n
-$n.^type == number
-# Result: true
-```
-
-```rill
-42 => $n
-$n.^type == string
-# Result: false
-```
-
-```rill
 "hello" => $a
 "world" => $b
 $a.^type == $b.^type
@@ -930,19 +940,6 @@ $l.^type == list(number)
 ["a", "b"] => $strs
 $strs.^type == list(number)
 # Result: false
-```
-
-The type of a type value is `type`:
-
-```rill
-42 => $n
-$n.^type => $tv
-$tv.^type == type
-# Result: true
-
-type => $t
-$t.^type == type
-# Result: true
 ```
 
 ## Built-in Method Signatures

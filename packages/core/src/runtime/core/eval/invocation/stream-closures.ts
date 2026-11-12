@@ -44,7 +44,10 @@ import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { getEvalState } from '../state.js';
 import type { EvalState } from '../state.js';
 import { evaluateBodyExpression } from '../handlers/control-flow.js';
-import { createCallableContext } from '../handlers/closures.js';
+import {
+  bindParamDeclarations,
+  createCallableContext,
+} from '../handlers/closures.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
 // ============================================================
@@ -330,6 +333,7 @@ export async function invokeStreamClosure(
       callableCtx.pipeValue = value;
     }
   }
+  bindParamDeclarations(callableCtx, callable.params, args);
 
   // Extract chunk and ret types from the stream structure
   const streamStructure = callable.returnType.structure;

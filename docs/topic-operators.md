@@ -672,7 +672,7 @@ $result.!message       # string message
 | Form | Returns |
 |------|---------|
 | `$v.!` | `bool` — `false` when valid, `true` when invalid |
-| `$v.!code` | atom, a member of `union(#ok, error_code)` (`#ok` when valid). `.!code.^type` reports `atom` until declared types travel with values |
+| `$v.!code` | atom, a member of `union(#ok, error_code)` (`#ok` when valid). `.!code.^type` reports `union(#ok, error_code)`; `.!code.^effective` reports `atom` |
 | `$v.!message` | `string` status message |
 | `$v.!provider` | `string` provider tag |
 | `$v.!trace` | `list` of trace-frame dicts |
@@ -850,6 +850,14 @@ To get the type name only, chain `.name` on the type value:
 ```text
 [1, 2, 3] -> ^type -> .name      # "list"
 42 -> ^type -> .name             # "number"
+```
+
+`.^type` on a variable reports the declared type when one is carried, else the own type. `.^effective` always reports the own type:
+
+```rill
+42 => $x:union(string, number)
+$x.^effective.signature
+# Result: "number"
 ```
 
 See [Types](topic-types.md) for detailed type system documentation.

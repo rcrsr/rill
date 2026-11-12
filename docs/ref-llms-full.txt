@@ -634,7 +634,7 @@ Every value carries a status sidecar. Read with `.!`:
 | Probe | Returns |
 |---|---|
 | `$v.!` | bool: is this an invalid value? |
-| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)` |
+| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)`; `.^type` reports that union |
 | `$v.!message` | string: human-readable description |
 | `$v.!provider` | string: component that produced the error |
 | `$v.!trace` | list: trace frames |
@@ -950,6 +950,15 @@ Returns a type value for runtime inspection.
     42.^type.name                   # "number"
     list[1, 2].^type.name           # "list"
     list[1, 2].^type.signature      # "list(number)"
+
+Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
+
+    42 => $x:union(string, number)
+    $x.^type.name                   # "union"
+    $x.^effective.name              # "number"
+
+Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
+`1 => $x:any` locks as number.
 
 Equality:
 

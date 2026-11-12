@@ -11,6 +11,7 @@ import type { RillFunctionDefinition } from '../function-shorthand.js';
 import { isCallable } from '../callable.js';
 import { copyExtensionIdentity } from '../policy/identity.js';
 import type { TypeStructure, RillValue } from './structures.js';
+import type { DeclaredSlot } from './declared.js';
 import type { InvalidateMeta } from './status.js';
 import { setDictField } from './dict-keys.js';
 import { isDict } from './guards.js';
@@ -241,6 +242,12 @@ export interface LifecycleContext {
 export interface ControlFlowContext {
   /** Current pipe value ($) */
   pipeValue: RillValue;
+  /**
+   * Declared type of the pipe value; valid only while its `value` is the
+   * current pipe value.
+   * @internal
+   */
+  pipeDeclared?: DeclaredSlot | undefined;
   /** Timeout in milliseconds for user-supplied functions (undefined = no timeout) */
   readonly timeout: number | undefined;
   /** Compiled regex patterns for auto-exceptions */

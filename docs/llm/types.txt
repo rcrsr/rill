@@ -155,6 +155,15 @@ Returns a type value for runtime inspection.
     list[1, 2].^type.name           # "list"
     list[1, 2].^type.signature      # "list(number)"
 
+Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
+
+    42 => $x:union(string, number)
+    $x.^type.name                   # "union"
+    $x.^effective.name              # "number"
+
+Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
+`1 => $x:any` locks as number.
+
 Equality:
 
     $val.^type == list(number)      # true if $val is list(number)

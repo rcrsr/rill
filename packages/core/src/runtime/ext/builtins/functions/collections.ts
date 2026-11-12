@@ -36,7 +36,7 @@ import {
   walkStreamOrIteratorElements,
 } from '../../../core/eval/handlers/collections.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, chunkSlice } from '../shared.js';
+import { MAX_ITER, bindElement, chunkSlice } from '../shared.js';
 import { typedKeyEntries } from '../../../core/types/dict-keys.js';
 
 /**
@@ -129,13 +129,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           'seq',
           (element) => {
             const childCtx = createChildContext(ctx);
-            childCtx.pipeValue = element;
+            const elementArgs = bindElement(childCtx, element, args);
             const closureToInvoke = isScriptCallable(body)
               ? { ...body, definingScope: childCtx }
               : body;
             return invokeCallable(
               closureToInvoke,
-              [element],
+              elementArgs,
               childCtx,
               location
             );
@@ -165,13 +165,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           }
 
           const childCtx = createChildContext(ctx);
-          childCtx.pipeValue = element;
+          const elementArgs = bindElement(childCtx, element, args);
           const closureToInvoke = isScriptCallable(body)
             ? { ...body, definingScope: childCtx }
             : body;
           const result = await invokeCallable(
             closureToInvoke,
-            [element],
+            elementArgs,
             childCtx,
             location
           );
@@ -296,8 +296,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           const childCtx = createChildContext(ctx, {
             forkCallDepth: true,
           });
-          childCtx.pipeValue = element;
-          return invokeCallable(body, [element], childCtx, location);
+          const elementArgs = bindElement(childCtx, element, args);
+          return invokeCallable(body, elementArgs, childCtx, location);
         });
         try {
           return await Promise.all(promises);
@@ -314,8 +314,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           const childCtx = createChildContext(ctx, {
             forkCallDepth: true,
           });
-          childCtx.pipeValue = element;
-          return invokeCallable(body, [element], childCtx, location);
+          const elementArgs = bindElement(childCtx, element, args);
+          return invokeCallable(body, elementArgs, childCtx, location);
         });
         try {
           const batchResults = await Promise.all(batchPromises);
@@ -388,7 +388,6 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           async (element) => {
             const childCtx = createChildContext(ctx);
             childCtx.variables.set('@', lazyAccumulator);
-            childCtx.pipeValue = element;
             const closureToInvoke = isScriptCallable(body)
               ? { ...body, definingScope: childCtx }
               : body;
@@ -400,8 +399,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
               body.params.length === 2 &&
               body.params[1]?.name === '@';
             const invokeArgs: RillValue[] = isTwoTypeBody
-              ? [element, lazyAccumulator]
-              : [element];
+              ? bindElement(childCtx, element, args, [lazyAccumulator])
+              : bindElement(childCtx, element, args);
             const result = await invokeCallable(
               closureToInvoke,
               invokeArgs,
@@ -438,7 +437,6 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
           const childCtx = createChildContext(ctx);
           childCtx.variables.set('@', accumulator);
-          childCtx.pipeValue = element;
           const closureToInvoke = isScriptCallable(body)
             ? { ...body, definingScope: childCtx }
             : body;
@@ -449,8 +447,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             body.params.length === 2 &&
             body.params[1]?.name === '@';
           const invokeArgs: RillValue[] = isTwoTypeBody
-            ? [element, accumulator]
-            : [element];
+            ? bindElement(childCtx, element, args, [accumulator])
+            : bindElement(childCtx, element, args);
           const result = await invokeCallable(
             closureToInvoke,
             invokeArgs,
@@ -541,7 +539,6 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
 
         const childCtx = createChildContext(ctx);
         childCtx.variables.set('@', accumulator);
-        childCtx.pipeValue = element;
         const closureToInvoke = isScriptCallable(body)
           ? { ...body, definingScope: childCtx }
           : body;
@@ -552,8 +549,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           body.params.length === 2 &&
           body.params[1]?.name === '@';
         const invokeArgs: RillValue[] = isTwoTypeBody
-          ? [element, accumulator]
-          : [element];
+          ? bindElement(childCtx, element, args, [accumulator])
+          : bindElement(childCtx, element, args);
         try {
           accumulator = await invokeCallable(
             closureToInvoke,
@@ -680,10 +677,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         const childCtx = createChildContext(ctx, {
           forkCallDepth: true,
         });
-        childCtx.pipeValue = element;
+        const elementArgs = bindElement(childCtx, element, args);
         const result = await invokeCallable(
           body,
-          [element],
+          elementArgs,
           childCtx,
           location
         );
@@ -827,10 +824,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
             const childCtx = createChildContext(ctx, {
               forkCallDepth: true,
             });
-            childCtx.pipeValue = entry;
+            const entryArgs = bindElement(childCtx, entry, args);
             let key: RillValue;
             try {
-              key = await invokeCallable(keyFn, [entry], childCtx, location);
+              key = await invokeCallable(keyFn, entryArgs, childCtx, location);
             } catch (e) {
               rejectBreakAsHalt(e, site);
               throw e;
@@ -895,10 +892,10 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
           const childCtx = createChildContext(ctx, {
             forkCallDepth: true,
           });
-          childCtx.pipeValue = el;
+          const elArgs = bindElement(childCtx, el, args);
           let key: RillValue;
           try {
-            key = await invokeCallable(keyFnArg, [el], childCtx, location);
+            key = await invokeCallable(keyFnArg, elArgs, childCtx, location);
           } catch (e) {
             rejectBreakAsHalt(e, site);
             throw e;

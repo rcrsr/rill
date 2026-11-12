@@ -12,7 +12,7 @@
  * - Default values ($data ?? default) require access.ts or control-flow.ts
  *
  * Interface requirements (from spec):
- * - setVariable(name, value, explicitType?, location?) -> void
+ * - setVariable(name, value, explicitType?, location?, carried?) -> void
  * - evaluateVariable(node) -> RillValue
  * - evaluateVariableAsync(node) -> Promise<RillValue>
  * - evaluateCapture(node, input) -> RillValue
@@ -37,13 +37,18 @@ import type {
   ASTNode,
   VariableNode,
   CaptureNode,
-  RillTypeName,
   SourceLocation,
   MethodCallNode,
   ExpressionNode,
 } from '../../../../types.js';
 import { RuntimeError, isPipeChainNode } from '../../../../types.js';
 import type { TypeStructure, RillValue } from '../../types/structures.js';
+import type { Carried } from '../../types/declared.js';
+import {
+  declarationOf,
+  projectElement,
+  pipeDeclaredOf,
+} from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
 import {
   isTypeValue,
@@ -52,7 +57,11 @@ import {
   isIterator,
 } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
-import { getVariable, hasVariable } from '../../context.js';
+import {
+  getVariable,
+  hasVariable,
+  getVariableDeclared,
+} from '../../context.js';
 import {
   findIndexPosition,
   throwIndexOutOfBounds,
@@ -100,40 +109,26 @@ export function setVariable(
   s: EvalState,
   name: string,
   value: RillValue,
-  explicitType?: RillTypeName | TypeStructure,
-  location?: SourceLocation
+  explicitType?: TypeStructure,
+  location?: SourceLocation,
+  carried?: TypeStructure
 ): void {
   const valueType = inferType(value);
 
-  // Check explicit type annotation matches value.
-  // When explicitType is an object (RillType), use structural matching.
-  // When explicitType is a string (RillTypeName), use inferType comparison.
-  // 'any' type bypasses type checking: accepts any value by definition.
-  if (explicitType !== undefined) {
-    if (typeof explicitType === 'object') {
-      // Structural type check
-      if (!structureMatches(value, explicitType)) {
-        const expectedLabel = formatStructure(explicitType);
-        throwCatchableHostHalt(
-          { location, sourceId: s.ctx.sourceId, fn: 'setVariable' },
-          ERROR_ATOMS[ERROR_IDS.RILL_R001],
-          `Type mismatch: cannot assign ${valueType} to $${name}:${expectedLabel}`,
-          {
-            variableName: name,
-            expectedType: expectedLabel,
-            actualType: valueType,
-          }
-        );
-      }
-    } else if (explicitType !== 'any' && explicitType !== valueType) {
-      // String (RillTypeName) type check
+  // Check the explicit annotation structurally. `any` normalizes away: it
+  // accepts every value and declares nothing, so the variable locks to the
+  // carried or inferred type instead.
+  const explicit = declarationOf(explicitType);
+  if (explicit !== undefined) {
+    if (!structureMatches(value, explicit)) {
+      const expectedLabel = formatStructure(explicit);
       throwCatchableHostHalt(
         { location, sourceId: s.ctx.sourceId, fn: 'setVariable' },
         ERROR_ATOMS[ERROR_IDS.RILL_R001],
-        `Type mismatch: cannot assign ${valueType} to $${name}:${explicitType}`,
+        `Type mismatch: cannot assign ${valueType} to $${name}:${expectedLabel}`,
         {
           variableName: name,
-          expectedType: explicitType,
+          expectedType: expectedLabel,
           actualType: valueType,
         }
       );
@@ -189,10 +184,10 @@ export function setVariable(
   // Set the variable and lock its type in current scope
   s.ctx.variables.set(name, value);
   if (!s.ctx.variableTypes.has(name)) {
-    // Store structural type (object) directly so re-assignment checks
-    // validate the full shape. Fall back to valueType when no annotation.
-    const lockType: RillTypeName | TypeStructure =
-      explicitType !== undefined ? explicitType : inferTypeName(value);
+    // The declared type is the lock: explicit annotation first, then the
+    // type carried with the value, then the inferred kind name. A later
+    // capture never changes it.
+    const lockType = explicit ?? carried ?? inferTypeName(value);
     s.ctx.variableTypes.set(name, lockType);
   }
 }
@@ -270,14 +265,20 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
  * `location` and `fn` are supplied by the caller so trace frames match the
  * calling context exactly (e.g. 'evaluateVariableAsync' for the $var[i]
  * path).
+ *
+ * Bracket-index access that also reports the declared type of the element
+ * read. The element type is projected from `receiverDeclared` by the index
+ * value (list element, tuple position, dict field or value type); a
+ * receiver with no declaration yields none.
  */
-export async function applyBracketIndex(
+export async function applyBracketIndexCarried(
   s: EvalState,
   receiver: RillValue,
   indexExpr: ExpressionNode,
   location: SourceLocation | undefined,
-  fn: string
-): Promise<RillValue> {
+  fn: string,
+  receiverDeclared?: TypeStructure
+): Promise<Carried> {
   // Bracket-index expressions are parsed inline while building a live
   // access/method chain (never via the statement-level recovery path), so
   // they only ever hold a PipeChainNode; PartialExpressionNode is reserved
@@ -290,7 +291,21 @@ export async function applyBracketIndex(
     );
   }
   const indexValue = await evaluatePipeChain(s, indexExpr);
+  const value = readBracketElement(s, receiver, indexValue, location, fn);
+  const declared =
+    typeof indexValue === 'string' || typeof indexValue === 'number'
+      ? projectElement(receiverDeclared, indexValue)
+      : undefined;
+  return { value, declared };
+}
 
+function readBracketElement(
+  s: EvalState,
+  receiver: RillValue,
+  indexValue: RillValue,
+  location: SourceLocation | undefined,
+  fn: string
+): RillValue {
   if (Array.isArray(receiver)) {
     if (typeof indexValue !== 'number') {
       throwCatchableHostHalt(
@@ -638,6 +653,12 @@ export async function evaluateExistenceCheck(
   );
 }
 
+/** True when `receiver` holds a callable own field under `field`. */
+function isCallableField(receiver: RillValue, field: string): boolean {
+  const raw = readOwnField(receiver, field);
+  return raw !== undefined && isCallable(raw);
+}
+
 /**
  * Evaluate variable access asynchronously.
  * Async variant that supports access chains ($.field, $var.field).
@@ -648,8 +669,25 @@ export async function evaluateVariableAsync(
   s: EvalState,
   node: VariableNode
 ): Promise<RillValue> {
+  return (await evaluateVariableCarried(s, node)).value;
+}
+
+/**
+ * Variable access that also reports the declared type of the result.
+ *
+ * The base `$` reads the guarded pipe slot and `$name` reads the owning
+ * scope's lock. Bracket access, literal dict-field access and `.$k` project
+ * the element type from a declared collection. `.^type` receives the
+ * current declared type. Every other step, the `??` default and the `.?`
+ * existence check take their own type, so they report no declaration.
+ */
+export async function evaluateVariableCarried(
+  s: EvalState,
+  node: VariableNode
+): Promise<Carried> {
   // Get base value ($ or $name)
   let value: RillValue;
+  let declared: TypeStructure | undefined;
 
   if (node.isPipeVar && (node.name === null || node.name === '')) {
     // Pipe variable ($)
@@ -666,6 +704,7 @@ export async function evaluateVariableAsync(
       );
     }
     value = s.ctx.pipeValue;
+    declared = pipeDeclaredOf(s.ctx);
   } else if (node.name !== null && node.name !== '') {
     // Named variable ($name)
     const result = getVariable(s.ctx, node.name);
@@ -682,6 +721,7 @@ export async function evaluateVariableAsync(
       );
     }
     value = result;
+    declared = getVariableDeclared(s.ctx, node.name);
   } else {
     throwCatchableHostHalt(
       {
@@ -705,7 +745,10 @@ export async function evaluateVariableAsync(
     if (value === null || isInvalid(value)) {
       // Use default value if available
       if (node.defaultValue) {
-        return evaluateBody(s, node.defaultValue);
+        return {
+          value: await evaluateBody(s, node.defaultValue),
+          declared: undefined,
+        };
       }
       if (value === null) {
         throwCatchableHostHalt(
@@ -726,23 +769,31 @@ export async function evaluateVariableAsync(
         () => getNodeLocation(s, node),
         s.ctx.sourceId
       );
+      declared = undefined;
     }
 
     // Check if this is a bracket access
     if ('accessKind' in access) {
-      // Bracket access: [expr]. Delegates to the shared applyBracketIndex
+      // Bracket access: [expr]. Delegates to the shared applyBracketIndexCarried
       // helper (list negative-index normalization, dict typed-key lookup,
       // and the 'Cannot index <type>' fallback) so this path stays in sync
       // with the postfix expr[i] path in core.ts.
-      value = await applyBracketIndex(
+      const element = await applyBracketIndexCarried(
         s,
         value,
         access.expression,
         getNodeLocation(s, node),
-        'evaluateVariableAsync'
+        'evaluateVariableAsync',
+        declared
       );
+      value = element.value;
+      declared = element.declared;
       continue;
     }
+
+    // Steps below take their own type unless they set `declared` again.
+    const receiverDeclared = declared;
+    declared = undefined;
 
     // Must be a FieldAccess
     if (access.kind === 'literal') {
@@ -803,6 +854,7 @@ export async function evaluateVariableAsync(
           );
         }
       } else if (isDict(value)) {
+        const prior = value;
         // Allow missing fields if there's a default value or existence check
         const allowMissing =
           node.defaultValue !== null || node.existenceCheck !== null;
@@ -813,6 +865,11 @@ export async function evaluateVariableAsync(
           getNodeLocation(s, node),
           allowMissing
         );
+        // A property-style callable was invoked: its result takes its own type.
+        declared =
+          value === null || isCallableField(prior, field)
+            ? undefined
+            : projectElement(receiverDeclared, field);
       } else {
         // Field access on a non-dict. Halt with the same non-dict error the
         // dict path raises, unless a `??` default or `.?` existence check
@@ -834,6 +891,7 @@ export async function evaluateVariableAsync(
     } else if (access.kind === 'variable') {
       const allowMissing =
         node.defaultValue !== null || node.existenceCheck !== null;
+      const prior = value;
       value = await evaluateFieldAccessVariable(
         s,
         access,
@@ -841,6 +899,19 @@ export async function evaluateVariableAsync(
         node,
         allowMissing
       );
+      // Re-read the key without side effects to project the element type.
+      const key =
+        access.variableName === null
+          ? s.ctx.pipeValue
+          : getVariable(s.ctx, access.variableName);
+      if (
+        value !== null &&
+        !isCallable(value) &&
+        (typeof key === 'string' || typeof key === 'number') &&
+        (typeof key === 'number' || !isCallableField(prior, key))
+      ) {
+        declared = projectElement(receiverDeclared, key);
+      }
     } else if (access.kind === 'computed') {
       const allowMissing =
         node.defaultValue !== null || node.existenceCheck !== null;
@@ -870,7 +941,8 @@ export async function evaluateVariableAsync(
           s,
           value,
           access.key,
-          getNodeLocation(s, node)
+          getNodeLocation(s, node),
+          receiverDeclared
         );
       } catch (e) {
         // evaluateAnnotationAccess throws RuntimeHaltSignal with atom RILL_R008
@@ -906,7 +978,10 @@ export async function evaluateVariableAsync(
   // Handle existence check (.?field): return boolean instead of value
   if (node.existenceCheck) {
     // value now contains the result of the access chain (without the final field)
-    return evaluateExistenceCheck(s, value, node.existenceCheck, node);
+    return {
+      value: await evaluateExistenceCheck(s, value, node.existenceCheck, node),
+      declared: undefined,
+    };
   }
 
   // apply default value when the final result is
@@ -934,11 +1009,14 @@ export async function evaluateVariableAsync(
           ? value === null || isInvalid(value)
           : isVacant(value);
     if (trigger) {
-      return evaluateBody(s, node.defaultValue);
+      return {
+        value: await evaluateBody(s, node.defaultValue),
+        declared: undefined,
+      };
     }
   }
 
-  return value;
+  return { value, declared };
 }
 
 /**
@@ -949,7 +1027,8 @@ export async function evaluateVariableAsync(
 async function evaluateCapture(
   s: EvalState,
   node: CaptureNode,
-  input: RillValue
+  input: RillValue,
+  declared?: TypeStructure
 ): Promise<RillValue> {
   if (node.typeRef !== null) {
     // Resolve TypeRef and validate against the declared type
@@ -959,9 +1038,16 @@ async function evaluateCapture(
       (name: string) => getVariable(s.ctx, name),
       node.span.start
     );
-    setVariable(s, node.name, input, resolved.structure, node.span.start);
+    setVariable(
+      s,
+      node.name,
+      input,
+      resolved.structure,
+      node.span.start,
+      declared
+    );
   } else {
-    setVariable(s, node.name, input, undefined, node.span.start);
+    setVariable(s, node.name, input, undefined, node.span.start, declared);
   }
   s.ctx.observability.onCapture?.({ name: node.name, value: input });
   return input;
@@ -974,10 +1060,11 @@ async function evaluateCapture(
 export async function handleCapture(
   s: EvalState,
   capture: CaptureNode | null,
-  value: RillValue
+  value: RillValue,
+  declared?: TypeStructure
 ): Promise<{ name: string; value: RillValue } | undefined> {
   if (!capture) return undefined;
 
-  await evaluateCapture(s, capture, value);
+  await evaluateCapture(s, capture, value, declared);
   return { name: capture.name, value };
 }

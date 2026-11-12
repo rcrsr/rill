@@ -1448,4 +1448,18 @@ describe('Rill Runtime: Annotations', () => {
       ]);
     });
   });
+
+  describe('.^effective', () => {
+    it('reports the own type of an undeclared value', async () => {
+      expect(await run('1 => $a\n$a.^effective == number')).toBe(true);
+    });
+
+    it('agrees with .^type when no declaration is carried', async () => {
+      expect(await run('1 => $a\n$a.^effective == $a.^type')).toBe(true);
+    });
+
+    it('is a reserved annotation key', () => {
+      expect(() => parse('^(effective: 1) "x"')).toThrow(ParseError);
+    });
+  });
 });

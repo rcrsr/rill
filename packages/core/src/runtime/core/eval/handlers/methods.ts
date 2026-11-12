@@ -16,7 +16,12 @@ import {
   isApplicationCallable,
   marshalArgs,
 } from '../../callable.js';
-import type { RillValue, RillTypeValue } from '../../types/structures.js';
+import type {
+  RillValue,
+  RillTypeValue,
+  TypeStructure,
+} from '../../types/structures.js';
+import { insertArgDeclared, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
 import {
   isTypeValue,
@@ -92,6 +97,29 @@ async function invokeTypeMethod(
   }
 }
 
+/**
+ * True when a method-call node is a plain own-field read: no type method of
+ * that name, no parens or args, and the own field is not callable. Mirrors the
+ * resolution order of evaluateMethod without evaluating anything.
+ */
+export function isOwnFieldRead(
+  s: EvalState,
+  node: MethodCallNode | InvokeNode,
+  receiver: RillValue
+): boolean {
+  if (node.type === 'Invoke') return false;
+  if (node.hasParens || node.args.length > 0) return false;
+  if (isCallable(receiver) || isTypeValue(receiver)) return false;
+  const typeMethod = s.ctx.typeMethodDicts.get(inferType(receiver))?.[
+    node.name
+  ];
+  if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
+    return false;
+  }
+  const ownField = readOwnField(receiver, node.name);
+  return ownField !== undefined && !isCallable(ownField);
+}
+
 /** Evaluate method call on receiver: value.method(args). */
 export async function evaluateMethod(
   s: EvalState,
@@ -149,6 +177,7 @@ export async function evaluateMethod(
       s.ctx.pipeValue !== null &&
       !declaresZeroParams(ownField)
     ) {
+      insertArgDeclared(args, args.length, pipeDeclaredOf(s.ctx));
       args.push(s.ctx.pipeValue);
     }
     return invokeCallable(
@@ -264,15 +293,23 @@ async function evaluateInvoke(
   return invokeCallable(s, receiver, args, getNodeLocation(s, node));
 }
 
-/** Evaluate annotation reflection access: .^key on callables, type values, and streams. */
+/**
+ * Evaluate annotation reflection access: .^key on callables, type values, and streams.
+ * `.^type` reports the declared type when one is carried, else the inferred type;
+ * `.^effective` always reports the inferred own type.
+ */
 // oxlint-disable-next-line require-await -- halt builders raise synchronously; the async boundary turns them into rejections
 export async function evaluateAnnotationAccess(
   s: EvalState,
   value: RillValue,
   key: string,
-  location: SourceLocation | undefined
+  location: SourceLocation | undefined,
+  declared?: TypeStructure
 ): Promise<RillValue> {
-  if (key === 'type') {
+  if (key === 'type' && declared !== undefined) {
+    return structureToTypeValue(declared);
+  }
+  if (key === 'type' || key === 'effective') {
     const typeValue: RillTypeValue = Object.freeze({
       __rill_type: true as const,
       typeName: inferTypeName(value),
