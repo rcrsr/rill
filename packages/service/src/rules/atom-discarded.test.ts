@@ -26,6 +26,13 @@ describe('ATOM_DISCARDED', () => {
     expect(run('1\n#done\n')).toEqual([]);
   });
 
+  it('fires when the atom is the only statement of a script', () => {
+    const result = run('#wired\n');
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'ATOM_DISCARDED' });
+  });
+
   it('does not fire on the final statement of a block', () => {
     expect(run('{ log(1)\n#done }\n')).toEqual([]);
   });

@@ -788,7 +788,7 @@ A comment needs a space after `#`. A `#` followed by a letter or `_` starts an a
 | `#TIMEOUT`, `#wired`, `#_internal` | atom (`:atom` value) |
 | `1 #note` | parse error RILL-P024 |
 | `#TODO fix this later` | parse error RILL-P024 |
-| `#todo` alone on a line | discarded atom statement; the checker warns (ATOM_DISCARDED) |
+| `#todo` alone on a line, or as the whole script | discarded atom statement; the checker warns (ATOM_DISCARDED) |
 
 ```rill
 # Error: atom followed by trailing tokens

@@ -125,7 +125,10 @@ export const atomDiscarded: Rule = {
     const diagnostics: Diagnostic[] = [];
 
     statements.forEach((entry, index) => {
-      if (index === statements.length - 1) return;
+      // The last statement is the value; only a script made of one atom is a lone comment.
+      const soleScriptStatement =
+        node.type === 'Script' && statements.length === 1;
+      if (index === statements.length - 1 && !soleScriptStatement) return;
       const statement = getInnerStatement(entry);
       if (statement === null) return;
       const atom = discardedAtom(statement);

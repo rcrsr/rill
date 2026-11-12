@@ -5882,7 +5882,20 @@
   {
     "index": 409,
     "file": "atoms.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "warning",
+        "code": "ATOM_DISCARDED",
+        "message": "Atom #TIMEOUT is a discarded statement; a comment needs a space after '#'.",
+        "context": "#TIMEOUT",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 410,
@@ -27308,7 +27321,20 @@
   {
     "index": 2490,
     "file": "parser-recovery.test.ts",
-    "diagnostics": []
+    "diagnostics": [
+      {
+        "location": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "severity": "warning",
+        "code": "ATOM_DISCARDED",
+        "message": "Atom #Foo is a discarded statement; a comment needs a space after '#'.",
+        "context": "#Foo",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 2491,
