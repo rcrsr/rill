@@ -130,6 +130,17 @@ describe('test-examples.ts fixture: expected-halt.md', () => {
   });
 });
 
+describe('test-examples.ts fixture: atom-leading.md', () => {
+  const fixture = path.join(fixturesDir, 'atom-leading.md');
+
+  it('runs blocks that start with an atom literal and skips the comment-only block', () => {
+    const run = runCli([fixture]);
+
+    const summary = parseSummary(run);
+    expect(summary).toEqual({ passed: 2, failed: 0, skipped: 1, total: 3 });
+  });
+});
+
 describe('test-examples.ts fixture: skip-ratio-guard.md', () => {
   const fixture = path.join(fixturesDir, 'skip-ratio-guard.md');
 

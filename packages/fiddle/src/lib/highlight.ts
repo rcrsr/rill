@@ -101,13 +101,23 @@ const TYPE_NAME_VALUES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Report whether a character can start an atom name after `#`: an ASCII
+ * letter or underscore, matching the core lexer's identifier start.
+ */
+function isAtomStart(ch: string): boolean {
+  return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch === '_';
+}
+
+/**
  * Detect whether a line genuinely opens a triple-quoted string with no
  * matching close on the same line.
  *
  * Scans left-to-right toggling an in/out-of-triple-quote flag on each `"""`
  * sequence and reports whether the line ends inside one. A `#` outside a
  * triple-quote starts a line comment — the rest of the line (including any
- * `"""` it contains) is not scanned. A single- or double-quoted string is
+ * `"""` it contains) is not scanned — unless it is followed by an ASCII
+ * letter or underscore, which makes it an atom literal and the scan
+ * continues. A single- or double-quoted string is
  * skipped wholesale so a `#` or `"""` inside it isn't misread.
  *
  * Used to narrow multi-line-string recovery to the genuine case: a line
@@ -123,14 +133,10 @@ function opensUnterminatedTripleQuote(lineText: string): boolean {
   while (i < lineText.length) {
     const ch = lineText[i];
     const next = lineText[i + 1];
-    if (
-      !inTriple &&
-      ch === '#' &&
-      !(next !== undefined && /[A-Z]/.test(next))
-    ) {
+    if (!inTriple && ch === '#' && !(next !== undefined && isAtomStart(next))) {
       // Line comment: nothing after this point is string content. A `#`
-      // immediately followed by an uppercase ASCII letter starts an atom
-      // literal (e.g. `#TODO`), not a comment.
+      // immediately followed by an ASCII letter or underscore starts an
+      // atom literal (e.g. `#TODO`, `#wired`), not a comment.
       break;
     }
     if (ch === '"' && lineText.slice(i, i + 3) === '"""') {

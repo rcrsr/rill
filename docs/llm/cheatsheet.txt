@@ -63,7 +63,7 @@ All copies are deep. All comparisons are by value. No object identity.
                   """multiline"""        # also interpolates
     Numbers:      42, 3.14, -7
     Booleans:     true, false
-    Atoms:        #TIMEOUT              # named symbols (literal must start uppercase)
+    Atoms:        #TIMEOUT              # named symbols (case-sensitive)
     Lists:        list[1, 2, 3]
                   list[...$xs, 4]       # spread
     Dicts:        dict[name: "alice", age: 30]
@@ -79,7 +79,7 @@ All copies are deep. All comparisons are by value. No object identity.
     Type annot:   "hi" => $x:string
     Modules:      use<module:greet> => $g
     Extensions:   use<ext:llm> => $llm
-    Comments:     # single line only
+    Comments:     # single line only; a space after # is required (#word is an atom)
     Frontmatter:  ---\nkey: value\n---  # YAML at top of script
 
 CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.

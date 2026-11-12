@@ -81,9 +81,9 @@ $v.upper
 # Result: "VALID"
 ```
 
-```text
-# Error: access halt — $x is invalid
-#AB0x => $x
+```rill
+# Error: access halt
+guard { 1 / 0 } => $x
 $x.upper
 ```
 
@@ -91,7 +91,7 @@ $x.upper
 
 ## Error Atoms (`:atom`)
 
-Error codes are atoms. An atom literal is an identifier prefixed with `#` that starts with an uppercase letter. Atoms are identified and compared by name; nothing is registered.
+Error codes are atoms. An atom literal is an identifier prefixed with `#`. Names are case-sensitive; error codes are uppercase by convention only. Atoms are identified and compared by name; nothing is registered.
 
 Read the code from any value's sidecar:
 
@@ -126,6 +126,13 @@ A name is well-formed when it starts with a letter or underscore and continues w
 ```rill
 (#WIRED -> string)
 # Result: "WIRED"
+```
+
+Names are case-sensitive, so a lowercase spelling is a different atom:
+
+```rill
+(#timeout == #TIMEOUT)
+# Result: false
 ```
 
 ```rill
@@ -168,7 +175,12 @@ rill defines these atoms. Every halt and every invalid value carries one of them
 | `#TYPE_MISMATCH` | Failed `:type` assertion or conversion; also: `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, tuple comparison receives different-length or differently-typed tuples, or `start_when`/`stop_when` predicate returns a non-bool value; wrong-typed argument to `duration()`/`datetime()` or to datetime/duration methods such as `.add`, `.subtract`, `.multiply`, `.diff`; non-vector argument to `.similarity`/`.dot`/`.distance`; non-dict options for `fan`/`filter`; non-number `concurrency` for `fan`/`filter`; `filter` predicate returns a non-bool value |
 | `#IGNORE` | Not an error code. Marker for `pass<on_error: #IGNORE> { body }` to suppress catchable halts in the body |
 
-`#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts and hosts cannot produce `#ok` as an error code, and the lexer does not read `#ok` as a literal. Use `"ok" -> atom` to build the value.
+`#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts and hosts cannot produce `#ok` as an error code. You can write `#ok` as a literal to compare against a sidecar code, or build the value with `"ok" -> atom`.
+
+```rill
+("hello".!code == #ok)
+# Result: true
+```
 
 Hosts cannot add error codes. A host reports a domain failure with the nearest core code and carries the detail in `raw`. See [Extension Authoring](#extension-authoring).
 
@@ -501,11 +513,11 @@ Handle specific errors differently using filtered guard:
 
 ```text
 use<ext:app> => $app
-guard<on: list[#TIMEOUT]> {
+guard<on: #TIMEOUT> {
   $app.fetch("https://api.example.com/slow")
 } => $timeout_result
 
-guard<on: list[#AUTH]> {
+guard<on: #AUTH> {
   $app.fetch("https://api.example.com/secure")
 } => $auth_result
 ```

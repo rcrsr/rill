@@ -155,11 +155,19 @@ export function expect(
 ): Token {
   if (check(state, type)) return advance(state);
   const token = current(state);
-  const hint = generateHint(type, token);
+  let hint = generateHint(type, token);
+  if (
+    token.type === TOKEN_TYPES.ATOM &&
+    token.span.start.line === previous(state).span.end.line
+  ) {
+    hint = COMMENT_SPACE_HINT;
+  }
   const fullMessage =
     hint !== null && hint !== '' ? `${message}. ${hint}` : message;
   throw new ParseError(errorId, fullMessage, token.span.start);
 }
+
+const COMMENT_SPACE_HINT = "Hint: a comment needs a space after '#'";
 
 /** @internal */
 export function reportError(

@@ -125,6 +125,28 @@ function tokenizeLine(line: string): Array<string | null> {
   return tags;
 }
 
+/**
+ * Shared probe table: each `#` form with the tags tokenize() emits for it
+ * alone and whether it counts as an atom (true) or a comment (false) when
+ * scanning a line for an unterminated triple-quote opener.
+ */
+const HASH_PROBES: ReadonlyArray<{
+  readonly text: string;
+  readonly isAtom: boolean;
+}> = [
+  { text: '#wired', isAtom: true },
+  { text: '#Wired', isAtom: true },
+  { text: '#A1_b', isAtom: true },
+  { text: '#ok', isAtom: true },
+  { text: '#_x', isAtom: true },
+  { text: '# text', isAtom: false },
+  { text: '#', isAtom: false },
+  { text: '##', isAtom: false },
+  { text: '#---', isAtom: false },
+  { text: '#!', isAtom: false },
+  { text: '#1', isAtom: false },
+];
+
 // ============================================================
 // STREAM PARSER INTERFACE TESTS
 // ============================================================
@@ -386,6 +408,18 @@ describe('token highlighting', () => {
       const tags = tokenizeLine('[1, 2]');
       expect(tags).toContain('bracket');
     });
+  });
+});
+
+describe('atom and comment highlighting', () => {
+  describe.each(HASH_PROBES)('for $text', ({ text, isAtom }) => {
+    it(`tags it as ${isAtom ? 'meta' : 'comment'}`, () => {
+      expect(tokenizeLine(text)).toEqual([isAtom ? 'meta' : 'comment']);
+    });
+  });
+
+  it('tags an atom after a number as meta', () => {
+    expect(tokenizeLine('1 #note')).toEqual(['number', null, 'meta']);
   });
 });
 
@@ -773,6 +807,21 @@ describe('integration', () => {
 
       expect(state.inTripleQuoteString).toBe(true);
     });
+
+    describe.each(HASH_PROBES)(
+      'after $text before a triple-quote opener',
+      ({ text, isAtom }) => {
+        it(`${isAtom ? 'enters' : 'does not enter'} multi-line string mode`, () => {
+          const state = highlighter.startState(2);
+          processLine(state, `~ ${text} """`);
+
+          expect(state.inTripleQuoteString).toBe(isAtom);
+          if (!isAtom) {
+            expect(processLine(state, '42')).toContain('number');
+          }
+        });
+      }
+    );
 
     it('treats a trailing bare # as a comment without throwing', () => {
       const state = highlighter.startState(2);

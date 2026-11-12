@@ -459,13 +459,11 @@ export function readIdentifier(state: LexerState): Token {
 /**
  * Read an atom literal: #NAME
  * Called when the current character is `#` and the next character is an
- * uppercase ASCII letter. Consumes the `#` plus the trailing identifier
+ * identifier start ([A-Za-z_]). Any other `#` is a comment. Consumes the `#` plus the trailing identifier
  * characters and emits an ATOM token whose value is the name WITHOUT the
  * leading `#` sigil.
  *
- * The lexer performs only light shape checks (`[A-Z][A-Z0-9_]*`-ish by virtue
- * of starting on an uppercase letter and continuing on identifier chars). The
- * atom registry enforces strict validation at parse/resolution time.
+ * The lexer applies no further shape check; the atom registry validates names.
  */
 export function readAtom(state: LexerState): Token {
   const start = currentLocation(state);

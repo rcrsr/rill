@@ -115,10 +115,10 @@ describe('Vacancy coerce full semantics (Phase 2)', () => {
     // Task 2.2: widen `??` trigger from null-only to cover invalid
     // values (status.code != #ok) for bare variables. Uses
     // parseWithRecovery to produce an invalid value in rill source:
-    // the malformed atom `#AB0x` (lexer accepts, parser rejects strict
+    // the out-of-set selector `guard<on: list[#NOT_A_CODE]> { 1 }` (parser rejects strict
     // shape) becomes a RecoveryErrorNode that execute() materialises
     // as an invalid #R001 value.
-    const src = '#AB0x => $x\n$x ?? "fallback"';
+    const src = 'guard<on: list[#NOT_A_CODE]> { 1 } => $x\n$x ?? "fallback"';
     const parsed = parseWithRecovery(src);
     const ctx = createRuntimeContext({});
     const result = await execute(parsed.ast, ctx);

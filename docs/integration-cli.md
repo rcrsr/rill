@@ -6,7 +6,7 @@
 |------|---------|
 | [`rill-exec`](#rill-exec) | Execute a rill script file with positional arguments |
 | [`rill-eval`](#rill-eval) | Evaluate a single rill expression (no file context) |
-| [`rill-check`](#rill-check) | Static analysis and lint validation with 42 rules |
+| [`rill-check`](#rill-check) | Static analysis and lint validation with 45 rules |
 | [`rill-run`](#rill-run) | Config-driven execution with extensions and modules |
 
 ## rill-exec
@@ -161,7 +161,10 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `UNNECESSARY_ASSERTION` | types | info | Type assertion on a literal value |
 | `USE_UNTYPED_HOST_REF` | types | warning | Untyped host reference in `use` expression |
 | `VALIDATE_EXTERNAL` | types | info | External data lacks type validation |
-| `ATOM_UNREGISTERED` | errors | warning | Atom literal is not a runtime builtin |
+| `ATOM_CASE_MISMATCH` | errors | warning | Atom differs from a builtin only by case |
+| `ATOM_NOT_ERROR_CODE` | errors | warning | `.!code` compared to an atom that is not `#ok` or a core error code |
+| `ATOM_DISCARDED` | anti-patterns | warning | Bare atom as a discarded statement; a comment needs a space after `#` |
+| `ON_LIST_SINGLE` | errors | info | `on: list[#X]` holds one code; write `on: #X` |
 | `GUARD_BARE` | errors | info | Bare `guard` catches every error |
 | `GUARD_OVER_TRY_CATCH` | errors | info | Branching on `.!` is manual try/catch |
 | `PRESENCE_OVER_NULL_GUARD` | errors | info | Nil-checking conditional instead of `??` |

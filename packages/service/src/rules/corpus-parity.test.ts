@@ -24,9 +24,7 @@
  *     firing position across the corpus;
  *   - INDENT_CONTINUATION firings carry the synthetic
  *     `{ column: 1, offset: 0 }` location and a trimmed continuation-line
- *     context, never routed through `extractContextLine`;
- *   - ATOM_UNREGISTERED only fires for atom names outside the
- *     core's `BUILTIN_ATOMS` export, and never for a name inside it.
+ *     context, never routed through `extractContextLine`.
  *
  * To regenerate the golden fixture after an intentional rule change, run:
  *
@@ -40,13 +38,11 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { BUILTIN_ATOMS, parseWithRecovery } from '@rcrsr/rill';
+import { parseWithRecovery } from '@rcrsr/rill';
 import { loadCorpusSnippets } from './corpus-loader.js';
 import { runRules } from './run-rules.js';
 import { createDefaultConfig } from './config.js';
-import { atomUnregistered } from './atom-unregistered.js';
 import type { Diagnostic } from './types.js';
-import { makeConfig } from './test-support.js';
 
 // ============================================================
 // GOLDEN FIXTURE LOCATION
@@ -246,42 +242,5 @@ describe('INDENT_CONTINUATION synthetic location and context', () => {
       offset: 0,
     });
     expect(firing.context).toBe(firing.context.trim());
-  });
-});
-
-// ============================================================
-// TARGETED: ATOM_UNREGISTERED BOUNDARY
-// ============================================================
-
-describe('ATOM_UNREGISTERED fires only outside the core BUILTIN_ATOMS set', () => {
-  it('fires with a matching message for an atom outside the core BUILTIN_ATOMS set', () => {
-    const source = '#CUSTOM_UNREGISTERED_ATOM\n';
-    const parsed = parseWithRecovery(source);
-    const result = runRules(parsed, source, makeConfig(), [atomUnregistered]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      code: 'ATOM_UNREGISTERED',
-      severity: 'warning',
-      message:
-        'Atom #CUSTOM_UNREGISTERED_ATOM is not a builtin atom; unknown names no longer resolve to #R001.',
-      fix: null,
-    });
-  });
-
-  it('every corpus ATOM_UNREGISTERED firing names an atom outside the core BUILTIN_ATOMS set', () => {
-    const golden = loadGolden();
-    const firings = golden
-      .flatMap((entry) => entry.diagnostics)
-      .filter((d) => d.code === 'ATOM_UNREGISTERED');
-
-    for (const diagnostic of firings) {
-      const match = /^Atom #(\S+) is not a builtin atom/.exec(
-        diagnostic.message
-      );
-      expect(match).not.toBeNull();
-      const atomName = match?.[1] ?? '';
-      expect(BUILTIN_ATOMS).not.toContain(atomName);
-    }
   });
 });

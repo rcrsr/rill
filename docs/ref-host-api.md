@@ -653,7 +653,19 @@ const builtinAtomSet = new Set(BUILTIN_ATOMS);
 const isBuiltinAtom = (name: string) => builtinAtomSet.has(name);
 ```
 
-Tooling such as the language service's `ATOM_UNREGISTERED` rule reads this list instead of vendoring a separate copy. The array is frozen at module load; `BUILTIN_ATOMS.push(...)` throws.
+Tooling such as the language service's `ATOM_CASE_MISMATCH` rule reads this list instead of vendoring a separate copy. The array is frozen at module load; `BUILTIN_ATOMS.push(...)` throws.
+
+## ERROR_CODES
+
+`ERROR_CODES` is a frozen `readonly string[]` of the core error set: every name in `BUILTIN_ATOMS` except `ok` and `IGNORE`, without the leading `#`. It lists the values `.!code` can hold on an invalid value.
+
+```typescript
+import { ERROR_CODES } from '@rcrsr/rill';
+
+const isErrorCode = (name: string) => ERROR_CODES.includes(name);
+```
+
+The language service's `ATOM_NOT_ERROR_CODE` rule reads this list to flag `.!code` comparisons against names outside it.
 
 ## RillParam
 
@@ -1393,5 +1405,5 @@ try {
 - [Extensions](integration-extensions.md): Reusable function packages
 - [Modules](integration-modules.md): Module convention
 - [Host API Types](ref-host-api-types.md): TypeStructure, TypeDefinition, TypeProtocol
-- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 42 rule codes
+- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 45 rule codes
 

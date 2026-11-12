@@ -170,6 +170,25 @@ describe('SPACING_OPERATOR', () => {
       fix: null,
     });
   });
+
+  it('still fires on a lowercase #atom adjacent to an operator', () => {
+    const source = '#ok+2\n';
+    const parsed = toParseResult(source);
+
+    const result = runRules(parsed, source, makeConfig(), [spacingOperator]);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ code: 'SPACING_OPERATOR' });
+  });
+
+  it('masks a comment that starts with a space after #', () => {
+    const source = '# ok -> b\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [spacingOperator])).toEqual(
+      []
+    );
+  });
 });
 
 describe('SPACING_BRACES', () => {

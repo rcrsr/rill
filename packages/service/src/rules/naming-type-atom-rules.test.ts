@@ -6,7 +6,6 @@ import { unnecessaryAssertion } from './types-assertion.js';
 import { streamPreIteration } from './stream-pre-iteration.js';
 import { useDynamicIdentifier, useUntypedHostRef } from './use-expressions.js';
 import { guardBare, retryTrivial } from './guard-retry.js';
-import { atomUnregistered } from './atom-unregistered.js';
 import { statusProbeNoField } from './status-probe-no-field.js';
 import { makeConfig, toParseResult } from './test-support.js';
 
@@ -411,64 +410,6 @@ describe('RETRY_TRIVIAL', () => {
   });
 });
 
-describe('ATOM_UNREGISTERED', () => {
-  it('fires on an atom not in the builtin set', () => {
-    const source = '#CUSTOM_CODE\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [atomUnregistered]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      code: 'ATOM_UNREGISTERED',
-      severity: 'warning',
-      message:
-        'Atom #CUSTOM_CODE is not a builtin atom; unknown names no longer resolve to #R001.',
-      fix: null,
-    });
-  });
-
-  it('does not fire for a builtin atom', () => {
-    const source = '#TIMEOUT\n';
-    const parsed = toParseResult(source);
-
-    expect(runRules(parsed, source, makeConfig(), [atomUnregistered])).toEqual(
-      []
-    );
-  });
-
-  it('does not fire for the pre-registered #IGNORE atom', () => {
-    const source = '#IGNORE\n';
-    const parsed = toParseResult(source);
-
-    expect(runRules(parsed, source, makeConfig(), [atomUnregistered])).toEqual(
-      []
-    );
-  });
-
-  it('does not fire for a pre-registered RILL-R0xx runtime atom', () => {
-    const source = '#RILL_R010\n';
-    const parsed = toParseResult(source);
-
-    expect(runRules(parsed, source, makeConfig(), [atomUnregistered])).toEqual(
-      []
-    );
-  });
-
-  it('fires for an atom not in the pre-registered runtime set', () => {
-    const source = '#R004\n';
-    const parsed = toParseResult(source);
-
-    const result = runRules(parsed, source, makeConfig(), [atomUnregistered]);
-
-    expect(result).toHaveLength(1);
-    expect(result[0]).toMatchObject({
-      code: 'ATOM_UNREGISTERED',
-      severity: 'warning',
-    });
-  });
-});
-
 describe('STATUS_PROBE_NO_FIELD', () => {
   it('fires on a bare .! probe', () => {
     const source = '$x.!\n';
@@ -521,7 +462,6 @@ describe('with all rules from this task on', () => {
       useUntypedHostRef,
       guardBare,
       retryTrivial,
-      atomUnregistered,
       statusProbeNoField,
     ]);
 

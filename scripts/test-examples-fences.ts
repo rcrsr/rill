@@ -218,11 +218,15 @@ function shouldSkipBlock(code: string): string | null {
     return 'pseudo-code syntax';
   }
 
-  // Skip blocks that are pure comments
+  // Skip blocks that are pure comments. A `#` followed by a letter or
+  // underscore is an atom literal (`#TIMEOUT`), which is executable code.
   if (
-    code
-      .split('\n')
-      .every((line) => line.trim().startsWith('#') || !line.trim())
+    code.split('\n').every((line) => {
+      const trimmed = line.trim();
+      return (
+        !trimmed || (trimmed.startsWith('#') && !/^#[A-Za-z_]/.test(trimmed))
+      );
+    })
   ) {
     return 'comments only';
   }

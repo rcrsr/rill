@@ -17,14 +17,13 @@ import type {
   LiteralNode,
   ListSpreadNode,
   OrderedLiteralNode,
-  RecoveryErrorNode,
   SourceLocation,
   StringLiteralNode,
   Token,
   TupleLiteralNode,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { tokenize } from '../lexer/index.js';
+import { KEYWORD_NAMES, tokenize } from '../lexer/index.js';
 import {
   check,
   advance,
@@ -33,11 +32,9 @@ import {
   previous,
   skipNewlines,
   makeSpan,
-  reportError,
   type ParserState,
 } from './state.js';
 import {
-  ATOM_NAME_SHAPE,
   expectVariableName,
   isDictStart,
   isNegativeNumber,
@@ -100,7 +97,7 @@ function mapDecodedIndexToSourceOffset(
 declare module './parser.js' {
   interface Parser {
     parseLiteral(): LiteralNode;
-    parseAtomLiteral(): AtomLiteralNode | RecoveryErrorNode;
+    parseAtomLiteral(): AtomLiteralNode;
     parseString(): StringLiteralNode;
     parseStringParts(
       raw: string,
@@ -134,32 +131,26 @@ declare module './parser.js' {
  * Parse an atom literal: #NAME.
  *
  * The lexer emits an ATOM token whose value is the name without the leading
- * `#` sigil (readAtom ensures the first character is uppercase). This parser
- * applies strict shape validation; on failure it emits a RecoveryErrorNode so
- * the evaluator halts at runtime (hard parse/link error per spec).
+ * `#` sigil. A bare word (identifier or keyword) directly after the atom on
+ * the same line halts, because `#word` there is almost always a comment that
+ * lacks its space.
  *
- * Membership is NOT checked here; any well-shaped name is an atom.
+ * Membership is NOT checked here; any name is an atom.
  */
-Parser.prototype.parseAtomLiteral = function (
-  this: Parser
-): AtomLiteralNode | RecoveryErrorNode {
+Parser.prototype.parseAtomLiteral = function (this: Parser): AtomLiteralNode {
   const token = expect(this.state, TOKEN_TYPES.ATOM, 'Expected atom literal');
   const name = token.value;
 
-  if (!ATOM_NAME_SHAPE.test(name)) {
-    const message = `Invalid atom name '#${name}'; expected [A-Z][A-Z0-9_]*`;
-    // Record the error on the parser's error collection so
-    // parseWithRecovery reports success: false for shape-invalid atoms.
-    // Without this call, parser.errors remains empty and the caller
-    // incorrectly reports a successful parse despite a RecoveryErrorNode
-    // in the AST.
-    reportError(this.state, ERROR_IDS.RILL_P004, message, token.span.start);
-    return {
-      type: 'RecoveryError',
-      message,
-      text: `#${name}`,
-      span: token.span,
-    };
+  const next = current(this.state);
+  const isBareWord =
+    next.type === TOKEN_TYPES.IDENTIFIER ||
+    (next.type !== TOKEN_TYPES.STRING && KEYWORD_NAMES.includes(next.value));
+  if (isBareWord && next.span.start.line === token.span.end.line) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P024,
+      `Atom #${name} is followed by '${next.value}' on the same line; a comment needs a space after '#'`,
+      next.span.start
+    );
   }
 
   return {

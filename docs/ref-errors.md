@@ -14,7 +14,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P023)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P024)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R091)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
@@ -489,6 +489,26 @@ use<module:resource  # Error: missing >
 model: opus
 ----
 log(1)
+```
+
+---
+
+### rill-p024
+
+**Description:** Comment needs a space after '#'
+
+**Cause:** A '#' followed directly by a letter or underscore starts an atom literal, not a comment. Text such as '#note' after an expression reads as an atom where a comment was meant.
+
+**Resolution:** Put a space after '#' to write a comment, as in '# note'. Use an atom only where a value is expected.
+
+**Example:**
+
+```text
+# Comment missing the space after '#'
+1 #note
+
+# Comment text read as an atom followed by a word
+#TODO fix this later
 ```
 
 ---

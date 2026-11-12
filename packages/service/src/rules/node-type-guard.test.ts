@@ -12,7 +12,9 @@ import { traverseForRules } from './traversal.js';
 import type { RuleContext } from './types.js';
 
 const GUARDED_CODES = [
-  'ATOM_UNREGISTERED',
+  'ATOM_CASE_MISMATCH',
+  'ATOM_DISCARDED',
+  'ATOM_NOT_ERROR_CODE',
   'AVOID_REASSIGNMENT',
   'CAPTURE_BEFORE_BRANCH',
   'CAPTURE_INLINE_CHAIN',
@@ -28,6 +30,7 @@ const GUARDED_CODES = [
   'IMPLICIT_DOLLAR_METHOD',
   'INDENT_CONTINUATION',
   'LOOP_ACCUMULATOR',
+  'ON_LIST_SINGLE',
   'PREFER_DO_WHILE',
   'PRESENCE_OVER_NULL_GUARD',
   'RETRY_TRIVIAL',

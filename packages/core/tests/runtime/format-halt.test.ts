@@ -89,7 +89,7 @@ describe('formatHalt', () => {
     // one or more `access` frames (from `$x.a`), then a `guard-caught`
     // frame. formatHalt renders them in append order.
     const src = `
-      #AB0x => $x
+      guard<on: list[#NOT_A_CODE]> { 1 } => $x
       guard { $x.a }
     `;
     const parsed = parseWithRecovery(src);
