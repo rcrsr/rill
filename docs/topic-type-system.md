@@ -632,6 +632,31 @@ union(string, number).signature
 
 A variable member must hold a type. Any other value halts with `#TYPE_MISMATCH`.
 
+### The error_code Type
+
+`error_code` is a built-in type that holds the core error codes. An error code passes the assertion:
+
+```rill
+#TIMEOUT -> :error_code
+# Result: #TIMEOUT
+```
+
+`#ok` is not an error code, so the assertion halts:
+
+```rill
+#ok -> :error_code
+# Error: Type assertion failed: expected error_code, got #ok
+```
+
+The check form reports membership without halting:
+
+```rill
+#BOGUS -> :?error_code
+# Result: false
+```
+
+`error_code` is a reserved type name like `union`, so `|error_code: string|` is a parse error. `$error_code` variables and dict keys are unaffected. `error_code` has no `.inner`. See [Error Handling](topic-error-handling.md) for the `.!code` probe, whose value is always a member of `union(#ok, error_code)`.
+
 ### Set Rules
 
 A union is a set. These rules apply when the union is built:

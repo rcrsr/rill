@@ -68,7 +68,7 @@ The `kind` field is the discriminator. Leaf variants (`number`, `string`, `bool`
 | `vector` | `dimensions` | `number` | Embedding dimension count |
 | `type` | `typeName` | `string` | Name of the registered host type |
 | `union` | `members` | `TypeStructure[]` | Member types in written order, after duplicate and subsumed members are dropped |
-| `literal` | `value` | `string \| number \| boolean \| RillAtomValue` | One scalar value. Appears only inside `union.members` |
+| `literal` | `value` | `string \| number \| boolean \| RillAtomValue` | One scalar value. Appears only inside `union.members`. The `error_code` type is a `union` of one atom literal per name in `ERROR_CODES` |
 | `closure` | `params` | `RillFieldDef[] \| undefined` | Parameter definitions. Absent when closure is untyped |
 | `closure` | `ret` | `TypeStructure \| undefined` | Return type. Absent when return type is unspecified |
 | `stream` | `chunk` | `TypeStructure \| undefined` | Optional structural type of each chunk value |
@@ -426,7 +426,7 @@ interface RillStatus {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `code` | `RillAtom` | Atom identity. `#ok` means valid; any other atom means invalid. |
+| `code` | `RillAtom` | `#ok` on a valid value; a member of `error_code` (a name in `ERROR_CODES`) on an invalid one. |
 | `message` | `string` | Human-readable description. `""` on valid values. |
 | `provider` | `string` | Origin identifier. `""` on valid values. |
 | `raw` | `Record<string, RillValue>` | Provider-specific payload bag. Frozen empty object on valid values. |

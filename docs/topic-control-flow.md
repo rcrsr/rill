@@ -766,7 +766,7 @@ guard { $app.fetch("https://api.example.com/data") } => $result
 $result.? ? $result.data ! error "fetch failed: {$result.!}"
 ```
 
-The `.?` operator tests whether `$result` is valid. The `.!` operator extracts the `:atom` value when it is not.
+The `.?` operator tests whether `$result` is valid. The `.!code` probe reads the error atom when it is not.
 
 ### Invalid Value
 
@@ -776,7 +776,8 @@ An invalid value is a first-class rill value that carries a `:atom` value. It is
 use<ext:app> => $app
 
 guard { $app.risky_call() } => $r
-$r.!              # :atom value (e.g. #TIMEOUT, #AUTH, #ok if valid)
+$r.!code          # #ok if valid, else an error code such as #TIMEOUT
+$r.!              # bool: true if invalid
 $r.?              # bool: true if valid
 ```
 

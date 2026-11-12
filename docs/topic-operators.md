@@ -21,7 +21,7 @@
 | Hierarchical Dispatch | `[path] -> target` |
 | Default | `?? value` |
 | Existence | `.?field`, `.?field&type` |
-| Status probe | `.!` (status code on current `$`), `.!field` (status code on field) |
+| Status probe | `.!` (bool: is the value invalid), `.!field` (sidecar field: `code`, `message`, `provider`, `trace`, or a `raw` key) |
 
 ---
 
@@ -665,14 +665,14 @@ Bare `.!` tests whether a value is invalid (halted). `.!field` projects a named 
 
 ```text
 $result.!              # bool: true if $result is invalid, false if valid
-$result.!code          # :atom status code (#ok when valid)
+$result.!code          # union(#ok, error_code) status code (#ok when valid)
 $result.!message       # string message
 ```
 
 | Form | Returns |
 |------|---------|
 | `$v.!` | `bool` — `false` when valid, `true` when invalid |
-| `$v.!code` | `:atom` status code (`#ok` when valid) |
+| `$v.!code` | `union(#ok, error_code)` status code (`#ok` when valid) |
 | `$v.!message` | `string` status message |
 | `$v.!provider` | `string` provider tag |
 | `$v.!trace` | `list` of trace-frame dicts |
@@ -729,7 +729,7 @@ $result.?           # true if $result is valid, false if invalid
 $value -> .?        # bool: present and valid?
 ```
 
-Use `.?` after `guard` to branch on success vs. invalid result. The status probe `.!` retrieves the specific code when `.?` returns false.
+Use `.?` after `guard` to branch on success vs. invalid result. The status probe `.!code` retrieves the specific code when `.?` returns false.
 
 ### Field Existence `.?field`
 

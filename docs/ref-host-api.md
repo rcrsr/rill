@@ -657,7 +657,7 @@ Tooling such as the language service's `ATOM_CASE_MISMATCH` rule reads this list
 
 ## ERROR_CODES
 
-`ERROR_CODES` is a frozen `readonly string[]` of the core error set: every name in `BUILTIN_ATOMS` except `ok` and `IGNORE`, without the leading `#`. It lists the values `.!code` can hold on an invalid value.
+`ERROR_CODES` is a frozen `readonly string[]` of the core error set: every name in `BUILTIN_ATOMS` except `ok` and `IGNORE`, without the leading `#`. It lists the values `.!code` can hold on an invalid value. The rill type `error_code` holds the same set.
 
 ```typescript
 import { ERROR_CODES } from '@rcrsr/rill';
@@ -819,6 +819,7 @@ const greet: RillFunctionShorthand = {
 | Unions | `union(string, number)` |
 | Literal members | `union("c", "f")` |
 | List type | `list(string)` |
+| Built-in type `error_code` | `list(error_code)` |
 | Named dict type | `dict(k: string)` |
 | Tuple type | `tuple(number, string)` |
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |

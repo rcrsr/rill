@@ -634,7 +634,7 @@ Every value carries a status sidecar. Read with `.!`:
 | Probe | Returns |
 |---|---|
 | `$v.!` | bool: is this an invalid value? |
-| `$v.!code` | atom: error code (`#ok` on valid values) |
+| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)` |
 | `$v.!message` | string: human-readable description |
 | `$v.!provider` | string: component that produced the error |
 | `$v.!trace` | list: trace frames |
@@ -691,7 +691,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
 
 `.!code` reports `#ok` on valid values. `#ok` is a sentinel, not an error code, but it is writable as a literal. `$v.!code == #ok` tests for a valid value; `.!` is shorter.
 
-The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`.
+The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`. `error_code` is the type of that set.
 
 ## Guard
 
@@ -802,7 +802,7 @@ Type names, assertions, conversion, parameterized types, dict shapes, type inspe
 
     string   number   bool     list     dict     ordered
     tuple    closure  vector   iterator any      type
-    atom     datetime duration
+    atom     datetime duration    error_code
 
 ## Type assertion `:type`
 
@@ -824,6 +824,8 @@ Returns boolean. Never halts.
 ## Union types
 
     42 -> :union(string, number)    # passes
+    #TIMEOUT -> :error_code         # passes
+    #ok -> :error_code              # halts #TYPE_MISMATCH
     42:?union(string, number)       # true
     "hello" => $x:union(string, number)   # capture with union
 

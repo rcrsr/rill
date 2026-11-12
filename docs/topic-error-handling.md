@@ -28,7 +28,7 @@ The sidecar has a fixed shape:
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `code` | atom | Error atom, e.g. `#TIMEOUT` |
+| `code` | `union(#ok, error_code)` | `#ok` on a valid value, else an error code such as `#TIMEOUT` |
 | `message` | string | Human-readable description |
 | `provider` | string | Name of the component that produced the error |
 | `raw` | dict | Provider-specific payload |
@@ -116,10 +116,10 @@ Convert between atoms and strings with the built-in forms:
 
 The `.!code` probe returns the atom value. Pass `#CODE` literals to `on:` as one atom or a list.
 
-A name is well-formed when it starts with a letter or underscore and continues with letters, digits, or underscores. Atoms with different names are never equal, so `#WIRED` does not equal `#R001`:
+A name is well-formed when it starts with a letter or underscore and continues with letters, digits, or underscores. Atoms with different names are never equal, so `#WIRED` does not equal `#WIRELESS`:
 
 ```rill
-(#WIRED == #R001)
+(#WIRED == #WIRELESS)
 # Result: false
 ```
 
@@ -156,7 +156,7 @@ rill defines these atoms. Every halt and every invalid value carries one of them
 | Atom | Meaning |
 |------|---------|
 | `#ok` | Not an error code. Code on every valid value; never appears on invalid values |
-| `#R001` | Ordinary error code. Carried by an invalid value from a parse-recovery node and by a synthesized or host-built `retry` node with an attempt count below 1 (script `retry<limit: 0>` is a parse error); not a fallback for other atoms |
+| `#R001` | Ordinary error code. Carried by an invalid value from a parse-recovery node and by a synthesized or host-built `retry` node with an attempt count below 1 (script `retry<limit: 0>` is a parse error) |
 | `#R999` | Unhandled extension throw reshaped at the extension boundary |
 | `#TIMEOUT` | Operation exceeded its time limit |
 | `#RILL_R###` | Family of 36 atoms, one per halting registry error. Each is named for its error ID and carries that halt's code, for example `#RILL_R002` for a type error. The names are `RILL_R001`, `RILL_R002`, `RILL_R003`, `RILL_R005` to `RILL_R010`, `RILL_R012`, `RILL_R015`, `RILL_R016`, `RILL_R036` to `RILL_R038`, `RILL_R040` to `RILL_R044`, `RILL_R054` to `RILL_R058`, `RILL_R060`, `RILL_R061`, `RILL_R064` to `RILL_R066`, `RILL_R082`, `RILL_R083`, `RILL_R085`, and `RILL_R088` to `RILL_R090`. See [Error Reference](ref-errors.md) |
@@ -183,6 +183,23 @@ rill defines these atoms. Every halt and every invalid value carries one of them
 ```
 
 Hosts cannot add error codes. A host reports a domain failure with the nearest core code and carries the detail in `raw`. See [Extension Authoring](#extension-authoring).
+
+The core error set is the type `error_code`. A recovered halt carries a member of it:
+
+```rill
+guard { 1 / 0 } => $r
+$r.!code -> :?error_code
+# Result: true
+```
+
+A valid value's code is `#ok`, which is not a member:
+
+```rill
+"hi".!code -> :?error_code
+# Result: false
+```
+
+Every `.!code` value is a member of `union(#ok, error_code)`.
 
 ---
 

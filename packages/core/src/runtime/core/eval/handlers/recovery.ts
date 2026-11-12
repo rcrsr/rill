@@ -250,7 +250,8 @@ export async function evaluateRetryBlock(
  * Projection semantics:
  * - bare `.!`         -> bool: `false` when valid, `true` when invalid
  *                        (`$valid.!` is `false`).
- * - `.!code`          -> `:atom` atom value.
+ * - `.!code`          -> atom value, always a member of
+ *                        `union(#ok, error_code)`.
  * - `.!message`       -> string.
  * - `.!provider`      -> string.
  * - `.!trace`         -> list of trace-frame dicts.
