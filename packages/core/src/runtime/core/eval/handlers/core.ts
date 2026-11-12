@@ -156,17 +156,26 @@ export async function evaluateExpression(
   s: EvalState,
   expr: ExpressionNode
 ): Promise<RillValue> {
-  return (await evaluateExpressionCarried(s, expr)).value;
+  guardEvaluableExpression(s, expr);
+  return (await evaluatePipeChainCarried(s, expr)).value;
 }
 
 /**
  * Expression evaluation that also reports the declared type of the result.
  */
-// oxlint-disable-next-line require-await -- the PartialExpression guard halts synchronously; the async boundary turns it into a rejection
 export async function evaluateExpressionCarried(
   s: EvalState,
   expr: ExpressionNode
 ): Promise<Carried> {
+  guardEvaluableExpression(s, expr);
+  return await evaluatePipeChainCarried(s, expr);
+}
+
+/** Abort check and parser-recovery guard shared by both entry points. */
+function guardEvaluableExpression(
+  s: EvalState,
+  expr: ExpressionNode
+): asserts expr is Exclude<ExpressionNode, { type: 'PartialExpression' }> {
   checkAborted(s);
   // PartialExpressionNode is produced by parser error recovery for a
   // partially-typed expression fragment. It has no `.head`, so it
@@ -183,7 +192,6 @@ export async function evaluateExpressionCarried(
       expr.message
     );
   }
-  return evaluatePipeChainCarried(s, expr);
 }
 
 /**

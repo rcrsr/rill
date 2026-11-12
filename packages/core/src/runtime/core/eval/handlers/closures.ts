@@ -71,6 +71,7 @@ import {
   argDeclaredAt,
   declarationOf,
   setArgsDeclared,
+  copyArgsDeclared,
   setPipe,
   transferArgsDeclared,
 } from '../../types/declared.js';
@@ -199,12 +200,7 @@ function getInvocationStrategy(s: EvalState): CallableInvocationStrategy {
     ) => {
       const source = pendingArgsSource;
       pendingArgsSource = undefined;
-      if (source !== undefined) {
-        setArgsDeclared(
-          args,
-          args.map((_, i) => argDeclaredAt(source, i))
-        );
-      }
+      if (source !== undefined) copyArgsDeclared(source, args);
       if (callable.kind === 'script') {
         return invokeScriptCallable(s, callable, args, location);
       }

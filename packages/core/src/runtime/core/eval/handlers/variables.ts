@@ -60,7 +60,8 @@ import { formatStructure, structureMatches } from '../../types/operations.js';
 import {
   getVariable,
   hasVariable,
-  getVariableDeclared,
+  findVariableScope,
+  scopeVariableDeclared,
 } from '../../context.js';
 import {
   findIndexPosition,
@@ -721,8 +722,9 @@ export async function evaluateVariableCarried(
     declared = pipeDeclaredOf(s.ctx);
   } else if (node.name !== null && node.name !== '') {
     // Named variable ($name)
-    const result = getVariable(s.ctx, node.name);
-    if (result === undefined) {
+    const owner = findVariableScope(s.ctx, node.name);
+    const result = owner?.variables.get(node.name);
+    if (owner === undefined || result === undefined) {
       throwCatchableHostHalt(
         {
           location: getNodeLocation(s, node),
@@ -735,7 +737,7 @@ export async function evaluateVariableCarried(
       );
     }
     value = result;
-    declared = getVariableDeclared(s.ctx, node.name);
+    declared = scopeVariableDeclared(owner, node.name);
   } else {
     throwCatchableHostHalt(
       {

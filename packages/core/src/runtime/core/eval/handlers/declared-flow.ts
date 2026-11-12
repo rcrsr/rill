@@ -77,10 +77,12 @@ function isRecoverableMissing(error: unknown): boolean {
  * assertions, grouped expressions and status probes carry a declaration; every
  * other primary takes its own type.
  */
-export async function evaluatePrimaryCarried(
+export function evaluatePrimaryCarried(
   s: EvalState,
   primary: PrimaryNode
 ): Promise<Carried> {
+  // Not async: each branch returns its evaluator's promise directly, so the
+  // dispatch adds no async frame on the path every expression takes.
   switch (primary.type) {
     case 'Variable':
       return evaluateVariableCarried(s, primary);
@@ -91,29 +93,43 @@ export async function evaluatePrimaryCarried(
     case 'StatusProbe':
       return evaluateStatusProbeCarried(s, primary);
 
-    case 'TypeAssertion': {
-      if (!primary.operand) {
-        throwTypeHalt(
-          {
-            location: primary.span.start,
-            sourceId: s.ctx.sourceId,
-            fn: ':',
-          },
-          'INVALID_INPUT',
-          'Postfix type assertion requires operand',
-          'runtime',
-          undefined,
-          'host'
-        );
-      }
-      // The operand is evaluated once; the assertion consumes its value.
-      const operand = await evaluatePostfixExprCarried(s, primary.operand);
-      return evaluateTypeAssertionCarried(s, primary, operand);
-    }
+    case 'TypeAssertion':
+      return evaluatePostfixAssertionCarried(s, primary);
 
     default:
-      return { value: await evaluatePrimary(s, primary), declared: undefined };
+      return evaluateOwnPrimary(s, primary);
   }
+}
+
+/** A postfix `expr:type`: the operand is evaluated once, then asserted. */
+async function evaluatePostfixAssertionCarried(
+  s: EvalState,
+  primary: Extract<PrimaryNode, { type: 'TypeAssertion' }>
+): Promise<Carried> {
+  if (!primary.operand) {
+    throwTypeHalt(
+      {
+        location: primary.span.start,
+        sourceId: s.ctx.sourceId,
+        fn: ':',
+      },
+      'INVALID_INPUT',
+      'Postfix type assertion requires operand',
+      'runtime',
+      undefined,
+      'host'
+    );
+  }
+  const operand = await evaluatePostfixExprCarried(s, primary.operand);
+  return evaluateTypeAssertionCarried(s, primary, operand);
+}
+
+/** A primary that takes its own type. */
+async function evaluateOwnPrimary(
+  s: EvalState,
+  primary: PrimaryNode
+): Promise<Carried> {
+  return { value: await evaluatePrimary(s, primary), declared: undefined };
 }
 
 /**

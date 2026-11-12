@@ -882,22 +882,31 @@ export function hasVariable(ctx: RuntimeContext, name: string): boolean {
 }
 
 /**
- * Declared type of a variable: the structure stored by the first scope in the
- * parent chain that owns the name. A kind-name string or `any` means no
- * declaration.
+ * The scope that owns a variable: the first one in the parent chain that
+ * holds the name, or undefined when no scope does. A caller that needs both
+ * the value and the lock reads them from this scope in one walk.
  */
-export function getVariableDeclared(
+export function findVariableScope(
   ctx: RuntimeContext,
   name: string
-): TypeStructure | undefined {
+): RuntimeContext | undefined {
   let scope: RuntimeContext | undefined = ctx;
   while (scope !== undefined) {
-    if (scope.variables.has(name)) {
-      return declarationOf(scope.variableTypes.get(name));
-    }
+    if (scope.variables.has(name)) return scope;
     scope = scope.parent;
   }
   return undefined;
+}
+
+/**
+ * Declared type a scope stores for one of its own variables. A kind-name
+ * string or `any` means no declaration.
+ */
+export function scopeVariableDeclared(
+  scope: RuntimeContext,
+  name: string
+): TypeStructure | undefined {
+  return declarationOf(scope.variableTypes.get(name));
 }
 
 /**

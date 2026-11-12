@@ -175,6 +175,19 @@ export function insertArgDeclared(
   argsDeclared.set(args, list);
 }
 
+/**
+ * Copy one args array's declarations onto another with the same positions.
+ * A source with no sidecar leaves the target untouched, so the common
+ * undeclared call allocates nothing.
+ */
+export function copyArgsDeclared(
+  source: readonly (RillValue | undefined)[],
+  target: readonly (RillValue | undefined)[]
+): void {
+  const list = argsDeclared.get(source);
+  if (list !== undefined) argsDeclared.set(target, [...list]);
+}
+
 /** Move an args array's declarations onto a marshalled record. */
 export function transferArgsDeclared(
   args: readonly (RillValue | undefined)[],
