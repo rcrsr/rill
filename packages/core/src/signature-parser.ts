@@ -608,6 +608,17 @@ function signatureLiteralValue(node: SignatureLiteral): RillValue {
   return node.value;
 }
 
+/** True when the current token starts a string, number, or bool literal. */
+function isScalarLiteralStart(state: ParserState): boolean {
+  return (
+    check(state, TOKEN_TYPES.STRING) ||
+    check(state, TOKEN_TYPES.NUMBER) ||
+    check(state, TOKEN_TYPES.TRUE) ||
+    check(state, TOKEN_TYPES.FALSE) ||
+    check(state, TOKEN_TYPES.MINUS)
+  );
+}
+
 /**
  * Parse a literal inside a type: a union member or a field default. An atom
  * is a valid union member; a default rejects it where defaults are checked.
@@ -621,6 +632,16 @@ function parseSignatureTypeLiteral(
   if (check(state, TOKEN_TYPES.ATOM)) {
     const tok = advance(state);
     return { type: 'AtomLiteral', name: tok.value, span: tok.span };
+  }
+  // A default follows `=`; any other position is a union member.
+  const inDefault = state.tokens[state.pos - 1]?.type === TOKEN_TYPES.ASSIGN;
+  if (!inDefault && !isScalarLiteralStart(state)) {
+    const tok = current(state);
+    throw signatureError(
+      functionName,
+      `unsupported union member '${tok.value}' (a member is a type or a string, number, bool, or atom literal)`,
+      tok.span.start
+    );
   }
   return parseSignatureLiteral(state, functionName);
 }

@@ -203,6 +203,9 @@ export function formatRillLiteral(value: RillValue): string {
     return registryFormatValue(value);
   }
 
+  // Atom: #name
+  if (isAtom(value)) return `#${value.atom.name}`;
+
   // Dict: bare bracket form [key: val, ...] or [:] for empty
   if (isDict(value)) {
     const entries = Object.entries(value);

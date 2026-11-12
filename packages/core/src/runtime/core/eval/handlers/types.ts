@@ -469,7 +469,8 @@ async function resolveUnionLiteral(
 export async function resolveTypeRef(
   s: EvalState,
   typeRef: TypeRef,
-  getVariableFn: (name: string) => RillValue | undefined
+  getVariableFn: (name: string) => RillValue | undefined,
+  location?: SourceLocation
 ): Promise<RillTypeValue> {
   if (typeRef.kind === 'static') {
     const { typeName, args } = typeRef;
@@ -555,14 +556,19 @@ export async function resolveTypeRef(
       if (member.kind === 'literal') {
         written.push(await resolveUnionLiteral(s, member.value));
       } else {
-        const resolved = await resolveTypeRef(s, member, getVariableFn);
+        const resolved = await resolveTypeRef(
+          s,
+          member,
+          getVariableFn,
+          location
+        );
         written.push(resolved.structure);
       }
     }
     const normalized = normalizeUnion(written);
     if ('rejection' in normalized) {
       return throwTypeHalt(
-        { sourceId: s.ctx.sourceId, fn: 'union' },
+        { location, sourceId: s.ctx.sourceId, fn: 'union' },
         'INVALID_INPUT',
         normalized.rejection,
         'runtime'
@@ -714,8 +720,11 @@ export async function evaluateTypeAssertion(
     ? await evaluatePostfixExpr(s, node.operand)
     : input;
 
-  const resolved = await resolveTypeRef(s, node.typeRef, (name) =>
-    getVariable(s.ctx, name)
+  const resolved = await resolveTypeRef(
+    s,
+    node.typeRef,
+    (name) => getVariable(s.ctx, name),
+    node.span.start
   );
   return assertType(s, value, resolved.structure, node.span.start);
 }
@@ -735,8 +744,11 @@ export async function evaluateTypeCheck(
     ? await evaluatePostfixExpr(s, node.operand)
     : input;
 
-  const resolved = await resolveTypeRef(s, node.typeRef, (name) =>
-    getVariable(s.ctx, name)
+  const resolved = await resolveTypeRef(
+    s,
+    node.typeRef,
+    (name) => getVariable(s.ctx, name),
+    node.span.start
   );
   if (hasStructuralSubFields(resolved.structure)) {
     return structureMatches(value, resolved.structure);

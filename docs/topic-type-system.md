@@ -653,6 +653,10 @@ union(list(union(string, number)), list(string)).signature
 # Result: "list(union(string, number))"
 ```
 
+### Reserved Name
+
+`union` is a reserved type name. Bare `union` and `union[...]` halt with `RILL-P003`; write `union(...)` with members. A host function registered as `union` is not callable by that bare name, because `union(...)` calls the union constructor. A dict key still works: `dict[union: 1]`.
+
 ### Error Behavior
 
 A failed assertion names the whole union and the offending value:

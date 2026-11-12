@@ -227,6 +227,104 @@ describe('union(...) types', () => {
     });
   });
 
+  describe('atom, scalar, and mixed members', () => {
+    it('prints atom members as #name through signature', async () => {
+      expect(await run('union(#a, #b).signature')).toBe('union(#a, #b)');
+    });
+
+    it('prints atom members as #name when converted to string', async () => {
+      expect(await run('union(#a, #b) -> .signature')).toBe('union(#a, #b)');
+    });
+
+    it('names atom members in the assertion halt message', async () => {
+      await expectHalt(() => run('#c -> :union(#a, #b)'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'expected union(#a, #b), got',
+      });
+    });
+
+    it('accepts an atom member', async () => {
+      expect(await run('#a -> :?union(#a, #b)')).toBe(true);
+      expect(await run('#c -> :?union(#a, #b)')).toBe(false);
+    });
+
+    it('accepts and rejects number members', async () => {
+      expect(await run('2 -> :?union(1, 2)')).toBe(true);
+      expect(await run('3 -> :?union(1, 2)')).toBe(false);
+    });
+
+    it('accepts and rejects bool members', async () => {
+      expect(await run('true -> :?union(true)')).toBe(true);
+      expect(await run('false -> :?union(true)')).toBe(false);
+    });
+
+    it('accepts each member of a mixed union and rejects others', async () => {
+      expect(await run('"s" -> :?union(string, #a, 1)')).toBe(true);
+      expect(await run('#a -> :?union(string, #a, 1)')).toBe(true);
+      expect(await run('1 -> :?union(string, #a, 1)')).toBe(true);
+      expect(await run('2 -> :?union(string, #a, 1)')).toBe(false);
+      expect(await run('#b -> :?union(string, #a, 1)')).toBe(false);
+    });
+
+    it('prints a mixed union through signature', async () => {
+      expect(await run('union(string, #a, 1).signature')).toBe(
+        'union(string, #a, 1)'
+      );
+    });
+  });
+
+  describe('merging', () => {
+    it('merges a nested union into its parent', async () => {
+      expect(await run('union(union(1, 2), 3).signature')).toBe(
+        'union(1, 2, 3)'
+      );
+    });
+
+    it('combines two named unions', async () => {
+      expect(
+        await run(
+          'union("a", "b") => $lan\nunion("c") => $remote\nunion($lan, $remote).signature'
+        )
+      ).toBe('union("a", "b", "c")');
+    });
+
+    it('accepts a member of either combined union', async () => {
+      expect(
+        await run(
+          'union("a") => $lan\nunion("c") => $remote\nunion($lan, $remote) => $both\n"c" -> :$both'
+        )
+      ).toBe('c');
+    });
+  });
+
+  describe('literal member rejection', () => {
+    it('halts INVALID_INPUT for a tuple literal member', async () => {
+      await expectHalt(() => run('union(tuple[1, 2])'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('halts INVALID_INPUT for a dict literal member', async () => {
+      await expectHalt(() => run('union(dict[a: 1])'), {
+        code: 'INVALID_INPUT',
+      });
+    });
+  });
+
+  describe('property access', () => {
+    it('halts for .len on a union', async () => {
+      await expect(run('union(1, 2).len')).rejects.toMatchObject({
+        errorId: 'RILL-R009',
+      });
+    });
+
+    it('halts for .has on a union', async () => {
+      await expect(run('union(1, 2).has(1)')).rejects.toMatchObject({
+        errorId: 'RILL-R009',
+      });
+    });
+  });
+
   describe('parse errors', () => {
     it('rejects a bare literal after a colon', async () => {
       expect(() => parse('"c" => $a:"c"')).toThrow(ParseError);

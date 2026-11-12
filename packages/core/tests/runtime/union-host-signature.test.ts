@@ -88,7 +88,7 @@ describe('union host signatures', () => {
           },
         },
       })
-    ).toThrow(/Invalid signature for function 'fn'/);
+    ).toThrow(/unsupported union member 'list\['/);
   });
 });
 
@@ -106,5 +106,40 @@ describe('union manifest round-trip', () => {
     const manifest = generateManifest(ctx);
     expect(manifest).toContain('u: union("c", "f")');
     expect(() => parse(manifest)).not.toThrow();
+  });
+});
+
+describe('union atom members in host signatures', () => {
+  it('prints atom members as #name in the manifest and parses it back', () => {
+    const ctx = createRuntimeContext({
+      functions: {
+        pick: {
+          signature: '|u: union(#a, #b)|:string',
+          fn: (): RillValue => 'ok',
+        },
+      },
+    });
+
+    const manifest = generateManifest(ctx);
+    expect(manifest).toContain('u: union(#a, #b)');
+    expect(() => parse(manifest)).not.toThrow();
+  });
+
+  it('names atom members in the R001 mismatch and accepts a member', async () => {
+    const ctx = createRuntimeContext({
+      functions: {
+        pick: {
+          signature: '|u: union(#a, #b)|:string',
+          fn: (): RillValue => 'ok',
+        },
+      },
+    });
+
+    const failure = await execute(parse('pick(#c)'), ctx).catch(
+      (err: unknown) => err
+    );
+    expect(failure).toHaveProperty('errorId', 'RILL-R001');
+    expect(String((failure as Error).message)).toContain('union(#a, #b)');
+    expect((await execute(parse('pick(#a)'), ctx)).result).toBe('ok');
   });
 });

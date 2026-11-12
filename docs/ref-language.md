@@ -129,6 +129,8 @@ See [Collection Slicing](topic-collection-slicing.md) for detailed documentation
 
 **Type names** (valid in `:type` assertions, `:?type` checks, and parameter annotations): `string`, `number`, `bool`, `closure`, `list`, `dict`, `ordered`, `tuple`, `vector`, `datetime`, `duration`, `stream`, `atom`, `any`, `type`
 
+`union` is also a type name, valid only as `union(T, ...)`; see [Type System](topic-type-system.md).
+
 Parameterized forms (`list(T)`, `dict(k: T, ...)`, `tuple(T, ...)`, `stream(T):R`, `union(T, ...)`) are also valid in all annotation positions and deep-validate element types at runtime. See [Types](topic-types.md) for stream type documentation and [Closures](topic-closures.md) for stream closure syntax.
 
 **Union types** (`union(T1, T2)`, `union(T1, T2, T3)`) are valid in all annotation positions. A union matches if the value satisfies any member. A member is a type or a string, number, bool, or atom literal: `union("c", "f")`. Type members can be parameterized: `union(list(string), dict)`. See [Type System](topic-type-system.md) for union type documentation.
