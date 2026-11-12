@@ -57,7 +57,7 @@ const ERROR_ID_BY_ATOM_NAME = ERROR_IDS as Readonly<Record<string, string>>;
  */
 function deriveHaltMessage(value: RillValue): string {
   const status = getStatus(value);
-  if (status.code === okAtom()) return 'runtime halt';
+  if (atomName(status.code) === atomName(okAtom())) return 'runtime halt';
   const name = atomName(status.code);
   return status.message.length > 0 ? `#${name}: ${status.message}` : `#${name}`;
 }
@@ -508,8 +508,8 @@ export function throwAutoExceptionHalt(
  * bad path.
  *
  * Emits a `host`-kind trace frame with `provider="runtime"`. The atom is
- * resolved from `code`; unregistered codes fall back to `#R001` (never
- * throw). Phase 2 tasks register per-code atoms and extend
+ * resolved from `code`, which must belong to the core error set; a code
+ * outside it throws `RILL-R084`. Per-code atoms extend
  * `HALT_ATOM_TO_ERROR_ID` in `execute.ts` so escaped halts surface as
  * properly-coded `RuntimeError` instances.
  *
@@ -570,8 +570,8 @@ export function throwCatchableHostHalt(
  * programmer errors or leave execution in an undefined state.
  *
  * Emits a `host`-kind trace frame with `provider="runtime"`. The atom is
- * resolved from `code`; unregistered codes fall back to `#R001` (never
- * throw). Phase 2 tasks register per-code atoms and extend
+ * resolved from `code`, which must belong to the core error set; a code
+ * outside it throws `RILL-R084`. Per-code atoms extend
  * `HALT_ATOM_TO_ERROR_ID` in `execute.ts`.
  *
  * `raw` accepts arbitrary provider metadata; `message` is stored under

@@ -139,7 +139,7 @@ See [Types](topic-types.md) for detailed documentation.
 
 ### Atom Literals
 
-Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a named error condition.
+Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a named condition. Atoms are identified and compared by name.
 
 | Form | Example | Produces |
 |------|---------|----------|
@@ -147,7 +147,7 @@ Atom literals use `#NAME` syntax. They produce a `:atom` value identifying a nam
 | `#NAME` in invalid value | `#NOT_FOUND` | status code on invalid result |
 | `#IGNORE` sentinel | `pass<on_error: #IGNORE> { body }` | Marks `pass` body for catchable-halt suppression |
 
-`#TIMEOUT -> string` converts a `:atom` value to its string name. `"TIMEOUT" -> atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Error Reference](ref-errors.md) for pre-registered atoms.
+`#TIMEOUT -> string` converts a `:atom` value to its string name. `"TIMEOUT" -> atom` converts a string name to a `:atom` value. See [Types](topic-types.md) for `:atom` documentation and [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the atoms that serve as error codes.
 
 `#NAME` only lexes as an atom when an ASCII uppercase letter follows `#`; see [Comments](#comments) for the full carve-out and contrast pairs.
 

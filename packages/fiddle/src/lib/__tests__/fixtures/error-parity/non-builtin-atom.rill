@@ -1,0 +1,8 @@
+# Non-built-in atom literal #FOO keeps its own name
+#
+# #FOO is a well-formed atom that is not a built-in. It keeps its own
+# name with no fallback. The script returns a valid atom value whose
+# atom name is "FOO". Both runtimes produce identical toNative output
+# since they share the @rcrsr/rill atom resolution.
+
+#FOO

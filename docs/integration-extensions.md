@@ -74,7 +74,7 @@ Lifecycle hooks (`dispose`, `suspend`, `restore`) live on the factory result obj
 
 ### ExtensionFactory Type
 
-The factory signature accepts an optional second argument (`ExtensionFactoryCtx`) for async factories that need to register error codes or observe the dispose signal:
+The factory signature accepts an optional second argument (`ExtensionFactoryCtx`) for async factories that need to observe the dispose signal:
 
 ```typescript
 type ExtensionFactory<TConfig> = (
@@ -85,32 +85,30 @@ type ExtensionFactory<TConfig> = (
 
 Factory functions accept typed configuration and return an isolated extension instance.
 
-## Registering Domain Error Codes
+## Reporting Domain Failures
 
-Extensions register domain-specific error atoms using `ctx.registerErrorCode` in the factory. Registered atoms become available as `#NAME` literals in scripts.
+Extensions cannot add error codes. `ctx.invalidate` accepts only codes in the core error set. Report a domain failure with the nearest core code and carry the specifics in `raw`:
 
 ```typescript
 async function createPaymentExtension(
   config: PaymentConfig,
   ctx: ExtensionFactoryCtx
 ): Promise<ExtensionFactoryResult> {
-  ctx.registerErrorCode('PAYMENT_FAILED', 'domain');
-  ctx.registerErrorCode('CARD_DECLINED', 'domain');
-
   return { value: { charge: toCallable({ /* ... */ }) } };
 }
 ```
 
-The second argument to `registerErrorCode` is the atom kind (`'domain'`, `'network'`, etc.). Kind is informational; scripts use the atom name only.
+`ExtensionFactoryCtx` is `{ readonly signal: AbortSignal }`. A call to `ctx.invalidate` with `ok` or a code outside the core error set throws `RILL-R084` at the call.
 
-Scripts access registered atoms by name:
+Scripts read the detail from the sidecar:
 
 ```text
-guard { app.charge(dict[amount: 100]) } => $result
-$result.! -> ($ == #CARD_DECLINED) ? "Try another card" ! error "Payment error: {$result.!}"
+use<ext:payment> => $pay
+guard { $pay.charge(dict[amount: 100]) } => $result
+($result.!reason == "CARD_DECLINED") ? "Try another card" ! "Payment failed"
 ```
 
-See [Error Reference](ref-errors.md) for pre-registered atoms. Atoms registered by the runtime itself (e.g. `#TIMEOUT`, `#AUTH`) do not need re-registration.
+See [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the codes a host may use.
 
 ---
 
@@ -124,7 +122,11 @@ fn: async (args, ctx) => {
     return await sdkClient.charge(args.amount as number);
   } catch (e) {
     if (e instanceof CardDeclinedError) {
-      return ctx.invalidate(e, { code: 'CARD_DECLINED', provider: 'payment' });
+      return ctx.invalidate(e, {
+        code: 'INVALID_INPUT',
+        provider: 'payment',
+        raw: { message: 'Card declined', reason: 'CARD_DECLINED' },
+      });
     }
     throw e; // re-throw unexpected errors
   }
@@ -138,7 +140,9 @@ fn: async (args, ctx) => {
   return ctx.catch(
     () => sdkClient.charge(args.amount as number),
     (e) => {
-      if (e instanceof CardDeclinedError) return { code: 'CARD_DECLINED', provider: 'payment' };
+      if (e instanceof CardDeclinedError) {
+        return { code: 'INVALID_INPUT', provider: 'payment', raw: { message: 'Card declined', reason: 'CARD_DECLINED' } };
+      }
       if (e instanceof TimeoutError) return { code: 'TIMEOUT', provider: 'payment' };
       return null; // unclassified errors become #R999
     }
@@ -146,7 +150,7 @@ fn: async (args, ctx) => {
 },
 ```
 
-Both approaches produce an invalid value the script can recover from without halting.
+Both approaches produce an invalid value the script can recover from without halting. A code outside the core error set, or `ok`, makes `ctx.invalidate` throw at the call. `ctx.catch` rejects the same way when the detector returns one.
 
 ---
 

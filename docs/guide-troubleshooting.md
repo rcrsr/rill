@@ -395,16 +395,22 @@ Access halts are catchable. Halts from `error "..."` and `assert` are **non-catc
 
 ## Why Does `#MY_CODE` Not Match?
 
-Atom comparison uses identity, not string equality. An atom name that was not registered resolves to `#R001`.
+Atoms compare by name. `#MY_CODE` is a valid atom, but no halt carries a code outside the core error set, so a comparison against it is always false.
 
-```text
-# Error: #MY_CODE resolves to #R001 if not registered
-$result.!code == #MY_CODE ? "matched" ! "no match"
+```rill
+guard { 1 / 0 } => $r
+($r.!code == #MY_CODE)
+# Result: false
 ```
 
-**Cause:** `#MY_CODE` was not registered before the script ran.
+**Cause:** `#MY_CODE` is not in the core error set. A misspelled or invented code in a `.!code` comparison never matches, and the script keeps running with the wrong branch. Inside `on:`, the same name is a parse error:
 
-**Fix:** Use a pre-registered atom, or register the atom via `ctx.registerErrorCode("MY_CODE", "generic")` in your host before running the script.
+```text
+# Error: RILL-P004 '#MY_CODE' is not a core error code
+guard<on: #MY_CODE> { $app.fetch($url) }
+```
+
+**Fix:** Compare against a name from the core error set. Hosts report domain detail in the sidecar `raw` field, so read it with `.!field`, for example `$result.!reason`.
 
 Use `.!` to test validity without comparing atoms:
 
@@ -415,9 +421,9 @@ $result.! ? "invalid" ! "valid"
 # Result: "valid"
 ```
 
-Pre-registered atoms: `#TIMEOUT`, `#AUTH`, `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`, `#DISPOSED`, `#TYPE_MISMATCH`, `#R001`, `#R999`. Note: `#ok` is a runtime sentinel, not a script-level atom literal — the lexer does not emit it.
+Common core error codes: `#TIMEOUT`, `#AUTH`, `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`, `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`, `#DISPOSED`, `#TYPE_MISMATCH`, `#R001`, `#R999`, and the `#RILL_R###` family. See [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set) for the full list. `#ok` is a runtime sentinel, not an error code; the lexer does not emit it as a literal.
 
-To convert a registered atom to its string name:
+To convert an atom to its string name:
 
 ```rill
 #TIMEOUT -> string
@@ -436,11 +442,11 @@ guard { error "fatal" }
 
 **Cause 1:** The halt originated from `error "..."` or `assert`. These are intentional escalations, not recoverable failures.
 
-**Cause 2:** A filtered `guard<on: list[#CODE]>` did not match the actual error code. Non-matching codes propagate.
+**Cause 2:** A filtered `guard<on: #CODE>` or `guard<on: list[#CODE, ...]>` did not match the actual error code. Non-matching codes propagate.
 
 ```text
 use<ext:app> => $app
-guard<on: list[#TIMEOUT]> {
+guard<on: #TIMEOUT> {
   $app.fetch("https://api.example.com")
   # If this returns #AUTH, the halt propagates — not caught
 }
@@ -457,7 +463,7 @@ $out.!
 # Result: false
 ```
 
-The filter `<on: list[...]>` is optional. Without it, `guard` catches every catchable halt.
+The filter is optional. Without it, `guard` catches every catchable halt. `guard<on: list[]>` is a parse error, not a catch-all.
 
 ## Why Does `ns::fn()` Fail to Parse?
 

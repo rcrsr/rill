@@ -2172,16 +2172,20 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
   {
     errorId: ERROR_IDS.RILL_R084,
     category: 'runtime',
-    description: 'Reserved status code used as invalidation code',
-    messageTemplate: 'cannot invalidate with reserved status code "ok"',
+    description: 'Invalidation code outside the core error set',
+    messageTemplate: 'cannot invalidate with {detail}',
     cause:
-      'invalidate() (or an equivalent host-boundary call) was given "ok" as the invalidation code. "ok" is reserved for the valid-value sentinel and cannot be minted as an error/invalid status.',
+      'invalidate() (or an equivalent host-boundary call) was given a code outside the closed core error set. "ok" is reserved for the valid-value sentinel, and a host cannot add codes of its own.',
     resolution:
-      'Use a different code for the invalidation, or return the value as valid instead of invalidating it.',
+      'Use a core error code such as #INVALID_INPUT or #UNAVAILABLE, and carry the specifics in message or provider. To return a valid value, do not invalidate it.',
     examples: [
       {
         description: 'Host attempts to invalidate with the reserved "ok" code',
         code: '# Host code: ctx.invalidate({ code: "ok" })  # rejected',
+      },
+      {
+        description: 'Host attempts to invalidate with a code it invented',
+        code: '# Host code: ctx.invalidate({ code: "PAYMENT_FAILED" })  # rejected',
       },
     ],
   },

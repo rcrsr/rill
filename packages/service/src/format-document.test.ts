@@ -26,6 +26,18 @@ describe('formatDocument', () => {
       expect(edit?.newText).toBe('1 => $a\n2 => $b\n');
     });
 
+    it('leaves single-atom and list on-forms unchanged', () => {
+      const sources = [
+        'guard<on: #TIMEOUT> { 1 }\n',
+        'retry<limit: 2, on: #TIMEOUT> { 1 }\n',
+      ];
+
+      for (const source of sources) {
+        const [edit] = formatDocument(toParseResult(source), source);
+        expect(edit?.newText).toBe(source);
+      }
+    });
+
     it('is idempotent: formatting the output of formatDocument is byte-identical', () => {
       const source = '1 => $a  \n|x| ($x * 2) => $double  \n5 -> $double\n';
       const parsed = toParseResult(source);
@@ -151,6 +163,8 @@ describe('formatDocument', () => {
         'error()',
         'error(1 + 2))\n"after"',
         'guard<on: list[#X_bad]> { "ok" }',
+        'guard<on: list[]> { 1 }',
+        'guard<on: #NOT_A_CODE> { 1 }',
       ];
 
       for (const source of corpus) {

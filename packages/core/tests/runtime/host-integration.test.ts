@@ -17,6 +17,7 @@ import {
   isCallable,
   isScriptCallable,
   parse,
+  resolveAtom,
   RuntimeError,
   RuntimeHaltSignal,
   structureToTypeValue,
@@ -1761,6 +1762,26 @@ describe('Host function return-value validation (RILL-R085)', () => {
       expect(result).toHaveProperty('__rill_atom', true);
     });
 
+    it('toNative carries an atom as its name only', async () => {
+      const result = await run('#TIMEOUT');
+      expect(toNative(result).value).toEqual({
+        __rill_atom: true,
+        atom: { __rill_atom: true, name: 'TIMEOUT' },
+      });
+    });
+
+    it('accepts a host-returned atom whose name is not builtin', async () => {
+      const result = await run('wired() == #WIRED', {
+        functions: {
+          wired: badFn(() => ({
+            __rill_atom: true,
+            atom: resolveAtom('WIRED'),
+          })),
+        },
+      });
+      expect(result).toBe(true);
+    });
+
     it('accepts a datetime', async () => {
       const result = await echoThrough('now()');
       expect(result).toHaveProperty('__rill_datetime', true);
@@ -1859,7 +1880,19 @@ describe('Host function return-value validation (RILL-R085)', () => {
         {
           badFn: badFn(() => ({
             __rill_atom: true,
-            atom: { __rill_atom: true, name: 1, kind: 'x' },
+            atom: { __rill_atom: true, name: 1 },
+          })),
+        },
+        'badFn()'
+      );
+    });
+
+    it('a forged atom with an invalid name halts with RILL-R085', async () => {
+      await expectR085(
+        {
+          badFn: badFn(() => ({
+            __rill_atom: true,
+            atom: { __rill_atom: true, name: '1x' },
           })),
         },
         'badFn()'

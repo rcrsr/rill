@@ -6,12 +6,7 @@
  * still fire.
  */
 import { describe, expect, it } from 'vitest';
-import {
-  BUILTIN_ATOMS,
-  ERROR_REGISTRY,
-  parseWithRecovery,
-  resolveAtom,
-} from '@rcrsr/rill';
+import { BUILTIN_ATOMS, ERROR_REGISTRY, parseWithRecovery } from '@rcrsr/rill';
 import { runRules } from './run-rules.js';
 import { atomUnregistered } from './atom-unregistered.js';
 
@@ -26,11 +21,12 @@ const REGISTRY_ATOM_NAMES: string[] = Array.from(ERROR_REGISTRY.entries())
   .map(([id]) => id.replace('-', '_'))
   .filter((name) => /^[A-Z][A-Z0-9_]*$/.test(name));
 
-const REGISTERED_REGISTRY_NAMES = REGISTRY_ATOM_NAMES.filter(
-  (name) => resolveAtom(name).name === name
+const BUILTIN_NAME_SET: ReadonlySet<string> = new Set(BUILTIN_ATOMS);
+const REGISTERED_REGISTRY_NAMES = REGISTRY_ATOM_NAMES.filter((name) =>
+  BUILTIN_NAME_SET.has(name)
 );
 const UNREGISTERED_REGISTRY_NAMES = REGISTRY_ATOM_NAMES.filter(
-  (name) => resolveAtom(name).name !== name
+  (name) => !BUILTIN_NAME_SET.has(name)
 );
 
 describe('ATOM_UNREGISTERED stays aligned with the runtime registry', () => {

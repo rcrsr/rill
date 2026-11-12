@@ -21,6 +21,9 @@
  *           frames.
  * - EC-14 : `guard<on: list[#X_bad]>` (shape-invalid atom) emits a
  *           RecoveryErrorNode whose runtime materialisation is `#R001`.
+ * - `on:` accepts one core error atom or `list[...]` of them. An empty list or
+ *   a name outside the core error set is RILL-P004; a catchable halt matches
+ *   by code name.
  *
  * Halt producers used by the tests:
  *   - `$x.field` where `$x` is invalid. We obtain an invalid value via the
@@ -403,5 +406,82 @@ describe('Recovery composed with default operator (??)', () => {
     const result = await run('(guard { "a" -> number } ?? "fb") -> .upper');
     expect(result).toBe('FB');
     expect(isInvalid(result as never)).toBe(false);
+  });
+});
+
+describe('Guard and retry `on:` filter over the core error set', () => {
+  function parseErrorOf(src: string): { errorId: string; message: string } {
+    try {
+      parse(src);
+    } catch (e) {
+      const err = e as { errorId: string; message: string };
+      return { errorId: err.errorId, message: err.message };
+    }
+    throw new Error('expected parse to throw');
+  }
+
+  it('guard returns the body value when nothing halts', async () => {
+    expect(await run('guard { 1 }')).toBe(1);
+  });
+
+  it('guard<on: list[#RILL_R002]> catches division by zero', async () => {
+    expect(await run('guard<on: list[#RILL_R002]> { 1 / 0 } ?? 9')).toBe(9);
+  });
+
+  it('guard<on: list[#TIMEOUT]> propagates a non-matching halt', async () => {
+    await expect(
+      run('guard<on: list[#TIMEOUT]> { 1 / 0 }')
+    ).rejects.toMatchObject({ errorId: 'RILL-R002' });
+  });
+
+  it('guard<on: #TIMEOUT> returns the body value when nothing halts', async () => {
+    expect(await run('guard<on: #TIMEOUT> { 1 }')).toBe(1);
+  });
+
+  it('guard<on: #RILL_R002> catches division by zero', async () => {
+    expect(await run('guard<on: #RILL_R002> { 1 / 0 } ?? 9')).toBe(9);
+  });
+
+  it('retry<limit: 2, on: #TIMEOUT> returns the body value', async () => {
+    expect(await run('retry<limit: 2, on: #TIMEOUT> { 1 }')).toBe(1);
+  });
+
+  it('parses the single-atom form to one onCodes element', () => {
+    const ast = parse('guard<on: #TIMEOUT> { 1 }');
+    const primary = (
+      ast.statements[0] as unknown as {
+        expression: { head: { primary: { onCodes: { name: string }[] } } };
+      }
+    ).expression.head.primary;
+    expect(primary.onCodes).toHaveLength(1);
+    expect(primary.onCodes[0]?.name).toBe('TIMEOUT');
+  });
+
+  it('rejects guard<on: list[]> with RILL-P004 and recovers to a RecoveryError node', () => {
+    const err = parseErrorOf('guard<on: list[]> { 1 / 0 }');
+    expect(err.errorId).toBe('RILL-P004');
+    const result = parseWithRecovery('guard<on: list[]> { 1 / 0 }');
+    expect(result.success).toBe(false);
+    const expr = (
+      result.ast.statements[0] as unknown as {
+        expression: { head: { primary: { type: string } } };
+      }
+    ).expression;
+    expect(expr.head.primary.type).toBe('RecoveryError');
+  });
+
+  it.each([
+    'guard<on: list[#NOT_A_CODE]> { 1 }',
+    'guard<on: #NOT_A_CODE> { 1 }',
+    'retry<limit: 2, on: list[#NOT_A_CODE]> { 1 }',
+  ])('rejects %j with RILL-P004 naming #NOT_A_CODE', (src) => {
+    const err = parseErrorOf(src);
+    expect(err.errorId).toBe('RILL-P004');
+    expect(err.message).toContain('#NOT_A_CODE');
+  });
+
+  it('a misspelled code in a comparison is false, not an error', async () => {
+    const result = await run('guard { 1 / 0 } => $r\n$r.!code == #TIMEUOT');
+    expect(result).toBe(false);
   });
 });

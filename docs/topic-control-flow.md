@@ -757,7 +757,7 @@ range(1, 4) -> seq({ $ * 10 }) -> pass { log($) }
 
 ## Operational Recovery with `guard`
 
-`guard { body }` executes its body. When the body halts (via `error`, `assert`, or a throwing extension call), `guard` replaces the halt with an invalid value instead of stopping execution. The invalid value carries a `:atom` value identifying the failure.
+`guard { body }` executes its body. When the body raises a catchable halt (a runtime error such as division by zero, or a failing extension call), `guard` replaces the halt with an invalid value instead of stopping execution. Halts from `error` and `assert` are never caught and stop the script. The invalid value carries a `:atom` value identifying the failure.
 
 ```text
 use<ext:app> => $app
@@ -782,7 +782,7 @@ $r.?              # bool: true if valid
 
 Using an invalid value as an operand in arithmetic or type assertions halts execution. Test with `.?` before use.
 
-See [Error Handling](topic-error-handling.md) for full patterns and [Error Reference](ref-errors.md) for pre-registered atoms.
+See [Error Handling](topic-error-handling.md) for full patterns and [Error Reference](ref-errors.md) for error codes. The atoms that serve as codes are listed in [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set).
 
 ---
 

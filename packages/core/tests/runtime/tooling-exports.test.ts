@@ -6,7 +6,6 @@ import { describe, it, expect } from 'vitest';
 import {
   BUILTIN_ATOMS,
   BUILTIN_FUNCTIONS,
-  ERROR_REGISTRY,
   KEYWORDS,
   resolveAtom,
 } from '@rcrsr/rill';
@@ -91,14 +90,19 @@ describe('Tooling Exports', () => {
       expect(BUILTIN_ATOMS).not.toContain('RILL_R004');
     });
 
-    it('contains every registry error id whose atom form is registered', () => {
-      expect(ERROR_REGISTRY.size).toBeGreaterThan(0);
-      for (const [id] of ERROR_REGISTRY.entries()) {
-        const name = id.replace('-', '_');
-        if (resolveAtom(name).name === name) {
-          expect(BUILTIN_ATOMS).toContain(name);
-        }
+    it('has 52 entries', () => {
+      expect(Object.isFrozen(BUILTIN_ATOMS)).toBe(true);
+      expect(BUILTIN_ATOMS).toHaveLength(52);
+    });
+
+    it('resolves each builtin name to one shared atom reference', () => {
+      for (const name of BUILTIN_ATOMS) {
+        expect(resolveAtom(name)).toBe(resolveAtom(name));
       }
+    });
+
+    it('resolves a non-builtin name to a distinct reference each time', () => {
+      expect(resolveAtom('WIRED')).not.toBe(resolveAtom('WIRED'));
     });
   });
 });

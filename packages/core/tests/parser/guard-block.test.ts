@@ -73,10 +73,22 @@ describe('keyword blocks with an option list and no space before {', () => {
   it.each([
     ['retry<limit: 2>{ 1 }'],
     ['guard<on: list[#RILL_R005]>{ 1 }'],
+    ['guard<on: #RILL_R005>{ 1 }'],
+    ['retry<limit: 2, on: #TIMEOUT>{ 1 }'],
     ['pass<on_error: #IGNORE>{ 1 }'],
     ['timeout<total: duration(0,0,1)>{ 1 }'],
     ['do<limit: 3>{ 1 } while ($ < 0)'],
   ])('parses %j', (src) => {
     expect(() => parse(src)).not.toThrow();
+  });
+});
+
+describe('on: option validation', () => {
+  it.each([
+    ['guard<on: list[]>{ 1 }'],
+    ['guard<on: #NOT_A_CODE>{ 1 }'],
+    ['guard<on: 5>{ 1 }'],
+  ])('rejects %j with RILL-P004', (src) => {
+    expect(parseErrorId(src)).toBe('RILL-P004');
   });
 });

@@ -1,7 +1,7 @@
 /**
- * Warns on `#ATOM` literals whose name is not a runtime builtin. Such atoms
- * must be registered by the host via `registerErrorCode` before use; the
- * lint cannot see host registrations, so this is a best-effort check.
+ * Warns on `#ATOM` literals whose name is not a runtime builtin. Unknown
+ * names no longer resolve to `#R001`; they are plain atoms identified by
+ * name, so this is a best-effort hint that the name may be a typo.
  */
 
 import { BUILTIN_ATOMS } from '@rcrsr/rill';
@@ -11,9 +11,8 @@ import { extractContextLine } from './helpers.js';
 import { registeredRules } from './rules-registry.js';
 
 /**
- * Atoms pre-registered by the runtime, read from core's exported snapshot
- * so the set cannot drift from the registry. Host `registerErrorCode`
- * registrations are not included. Names are stored without the leading '#'.
+ * Builtin atoms, read from core's exported list so the set cannot drift
+ * from the runtime. Names are stored without the leading '#'.
  */
 const BUILTIN_ATOM_SET: ReadonlySet<string> = new Set(BUILTIN_ATOMS);
 
@@ -33,7 +32,7 @@ export const atomUnregistered: Rule = {
         location: atom.span.start,
         severity: 'warning',
         code: 'ATOM_UNREGISTERED',
-        message: `Atom #${atom.name} is not a runtime builtin; ensure the host registers it via registerErrorCode.`,
+        message: `Atom #${atom.name} is not a builtin atom; unknown names no longer resolve to #R001.`,
         context: extractContextLine(atom.span.start.line, context.source),
         fix: null,
       },

@@ -2,8 +2,8 @@
  * Atom Type Protocol Module
  *
  * Defines the TypeDefinition for the 'atom' primitive type.
- * Atoms are interned: resolveAtom returns one frozen RillAtom per name,
- * so identity-based equality is a reference check on atom.atom.
+ * Atoms are identified by name: two atoms are equal when their names are
+ * equal.
  *
  * Must NOT import from ../registrations.js.
  */
@@ -11,7 +11,7 @@
 import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isAtom } from '../guards.js';
-import { resolveAtom, toAtomValue } from '../atom-registry.js';
+import { isValidAtomName, resolveAtom, toAtomValue } from '../atom-registry.js';
 import { throwTypeHalt } from '../halt.js';
 import { requireReceiver } from './shared.js';
 
@@ -30,14 +30,10 @@ function formatCode(v: RillValue): string {
 // EQ
 // ============================================================
 
-/**
- * Atom equality uses interned reference comparison on the nested atom object.
- * resolveAtom interns one frozen RillAtom per name, so identical names
- * share the same atom reference.
- */
+/** Atom equality compares the names of the nested atoms. */
 function eqCode(a: RillValue, b: RillValue): boolean {
   if (!isAtom(a) || !isAtom(b)) return false;
-  return a.atom === b.atom;
+  return a.atom.name === b.atom.name;
 }
 
 // ============================================================
@@ -61,7 +57,7 @@ const atomConvertTo: Record<string, (v: RillValue) => RillValue> = {
 // ============================================================
 
 /**
- * Serialize a `:atom` value as its bare uppercase atom name string.
+ * Serialize a `:atom` value as its bare atom name string.
  * The `#` sigil is a syntactic convenience, not part of the identity.
  */
 function serializeAtom(v: RillValue): unknown {
@@ -76,7 +72,7 @@ function serializeAtom(v: RillValue): unknown {
 
 /**
  * Deserialize a string into a `:atom` value via `resolveAtom`.
- * Unregistered names resolve to `#R001` rather than throwing.
+ * A name that is not a valid atom name halts with `#INVALID_INPUT`.
  */
 function deserializeAtom(data: unknown): RillValue {
   if (typeof data !== 'string') {
@@ -88,8 +84,16 @@ function deserializeAtom(data: unknown): RillValue {
       { actualType: typeof data }
     );
   }
-  const atom = resolveAtom(data);
-  return toAtomValue(atom);
+  if (!isValidAtomName(data)) {
+    throwTypeHalt(
+      { fn: 'deserialize-atom' },
+      'INVALID_INPUT',
+      `Cannot deserialize "${data}" as atom: not a valid atom name`,
+      'runtime',
+      { actualValue: data }
+    );
+  }
+  return toAtomValue(resolveAtom(data));
 }
 
 // ============================================================

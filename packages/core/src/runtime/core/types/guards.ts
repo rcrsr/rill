@@ -28,8 +28,8 @@ import type {
 /**
  * Type guard for RillAtomValue (`:atom` primitive).
  *
- * A `:atom` value carries an interned atom from the atom registry.
- * Compared by atom identity via `deepEquals`.
+ * A `:atom` value carries a frozen atom identified by its name.
+ * Compared by name via `deepEquals`.
  */
 export function isAtom(value: unknown): value is RillAtomValue {
   return (

@@ -135,7 +135,6 @@ describe('Rill Runtime: Extension System', () => {
           timeout: 5000,
         };
         const factoryCtx: ExtensionFactoryCtx = {
-          registerErrorCode: (_name: string, _kind: string) => {},
           signal: new AbortController().signal,
         };
         const extension = await createHttpExtension(validConfig, factoryCtx);

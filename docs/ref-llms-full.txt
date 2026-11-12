@@ -73,7 +73,7 @@ All copies are deep. All comparisons are by value. No object identity.
                   """multiline"""        # also interpolates
     Numbers:      42, 3.14, -7
     Booleans:     true, false
-    Atoms:        #TIMEOUT              # interned identifiers (must start uppercase)
+    Atoms:        #TIMEOUT              # named symbols (literal must start uppercase)
     Lists:        list[1, 2, 3]
                   list[...$xs, 4]       # spread
     Dicts:        dict[name: "alice", age: 30]
@@ -94,7 +94,7 @@ All copies are deep. All comparisons are by value. No object identity.
 
 CRITICAL: `keyword[` must have NO space before `[`. `list [1]` is a parse error.
 
-Unregistered atoms collapse to the #R001 fallback: for any two names the host never registered, #FOO == #BAR is true and both render as #R001. Register atoms via the host/extension. See errors for pre-registered atoms.
+Atoms are identified and compared by name: #FOO == #BAR is false, and any well-formed name is an atom. Nothing is registered. See errors for the built-in atoms and the core error set.
 
 ## Pipes and `$` binding
 
@@ -625,18 +625,21 @@ Every value carries a status sidecar. Read with `.!`:
 
 ## Atoms
 
-Interned identifiers. Type name is `atom`.
+Named symbols, compared by name. Type name is `atom`.
 
     #TIMEOUT                       # atom literal
-    #TIMEOUT == #TIMEOUT           # true (identity)
+    #TIMEOUT == #TIMEOUT           # true (same name)
     #TIMEOUT -> string             # "TIMEOUT" (no # sigil)
     "TIMEOUT" -> atom              # #TIMEOUT
-    "BOGUS" -> atom                # #R001 (unknown names fallback)
+    "BOGUS" -> atom                # #BOGUS (any well-formed name)
+    "ok" -> atom                   # #ok
+    "1x" -> atom                   # halts #INVALID_INPUT (malformed name)
     #TIMEOUT:?atom                 # true
 
-Pre-registered atom literals (must start with uppercase letter):
+Built-in atom literals (must start with uppercase letter). The core error set is every built-in atom except #ok and #IGNORE:
 
-    #R001                          # unknown atom name
+    #RILL_R###                     # 36 atoms, one per halting registry error (e.g. #RILL_R002); see BUILTIN_ATOMS
+    #R001                          # parse-recovery node, host-built retry node
     #R999                          # unhandled extension throw
     #TIMEOUT  #AUTH  #FORBIDDEN  #RATE_LIMIT  #QUOTA_EXCEEDED
     #UNAVAILABLE  #NOT_FOUND  #CONFLICT
@@ -666,9 +669,9 @@ Pre-registered atom literals (must start with uppercase letter):
                                    #       filter predicate returns non-bool
     #IGNORE                        # sentinel for `pass<on_error: #IGNORE> { body }`
 
-`.!code` reports `#ok` on valid values, but `#ok` is a runtime-only sentinel and is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.
+`.!code` reports `#ok` on valid values, but `#ok` is a sentinel and NOT an error code, and it is NOT writable as an atom literal in source. Lowercase `#ok` is consumed as a comment by the lexer. Use `.!` to test validity instead.
 
-Extensions register additional atoms at init.
+The core error set is closed: every built-in atom except `#ok` and `#IGNORE`. Hosts cannot add codes; they report a domain failure with the nearest core code and put the detail in `raw`.
 
 ## Guard
 
@@ -682,11 +685,17 @@ Runs the body once. If body halts with a catchable signal, returns the invalid v
     $out.!code -> string            # "TYPE_MISMATCH"
     $out.!message                   # "Type assertion failed: expected number, got string"
 
-Filtered form (catches only matching atoms):
+Filtered form (catches only matching codes):
+
+    guard<on: #TIMEOUT> {
+      $app.fetch($url)
+    }
 
     guard<on: list[#TIMEOUT, #UNAVAILABLE]> {
       $app.fetch($url)
     }
+
+Every `on:` name must be in the core error set. A name outside it, and `on: list[]`, are parse errors (`RILL-P004`). A bare `guard { ... }` catches every catchable halt.
 
 `guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index (`RILL-R009`), missing field access (`RILL-R007`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
 
@@ -698,7 +707,11 @@ Re-enters body up to N times. `limit:` is required and must be a positive intege
       $app.fetch($url)
     } => $result
 
-    retry<limit: 3, on: list[#UNAVAILABLE]> {
+    retry<limit: 3, on: #UNAVAILABLE> {
+      $app.fetch($url)
+    }
+
+    retry<limit: 3, on: list[#UNAVAILABLE, #TIMEOUT]> {
       $app.fetch($url)
     }
 
@@ -1203,7 +1216,7 @@ Built-ins are called bare (no `$`):
     log("hello")                       # not $log("hello")
     range(0, 5) -> seq({ $ * 2 })
 
-atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" -> atom yields #TIMEOUT. There is no atom(name) call form -- it halts RILL-R006 Unknown function: atom. Unregistered names collapse to the #R001 fallback.
+atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" -> atom yields #TIMEOUT. There is no atom(name) call form -- it halts RILL-R006 Unknown function: atom. Any well-formed name converts; a malformed name such as "1x" halts #INVALID_INPUT.
 
 ## enumerate example
 

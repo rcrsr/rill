@@ -371,6 +371,13 @@ describe('GUARD_BARE', () => {
     });
   });
 
+  it('does not fire for the single-atom on form', () => {
+    const source = 'guard<on: #TIMEOUT> { fetch_data() }\n';
+    const parsed = toParseResult(source);
+
+    expect(runRules(parsed, source, makeConfig(), [guardBare])).toEqual([]);
+  });
+
   it('does not fire when the guard declares on-codes', () => {
     const source = 'guard<on: list[#TIMEOUT]> { fetch_data() }\n';
     const parsed = toParseResult(source);
@@ -416,7 +423,7 @@ describe('ATOM_UNREGISTERED', () => {
       code: 'ATOM_UNREGISTERED',
       severity: 'warning',
       message:
-        'Atom #CUSTOM_CODE is not a runtime builtin; ensure the host registers it via registerErrorCode.',
+        'Atom #CUSTOM_CODE is not a builtin atom; unknown names no longer resolve to #R001.',
       fix: null,
     });
   });

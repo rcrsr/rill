@@ -13,7 +13,7 @@ When a computation fails, the result becomes an **invalid value**. Invalid value
 | Status probe | `$x.!` | Test whether a value is invalid |
 | Status field | `$x.!code` | Read the error atom from the sidecar |
 | Guard recovery | `guard { body }` | Catch a halt; return the invalid value |
-| Filtered guard | `guard<on: list[#AUTH]> { body }` | Catch only specific error atoms |
+| Filtered guard | `guard<on: #AUTH> { body }` | Catch only specific error atoms |
 | Retry | `retry<limit: 3> { body }` | Re-enter the body up to N times |
 | Vacancy default | `$x ?? fallback` | Replace a vacant or missing value |
 | Presence check | `$x.?field` | Test field existence without halting |
@@ -91,7 +91,7 @@ $x.upper
 
 ## Error Atoms (`:atom`)
 
-Error codes are atoms. Atoms are capitalized identifiers prefixed with `#`. They are interned at startup; identity comparison is O(1).
+Error codes are atoms. An atom literal is an identifier prefixed with `#` that starts with an uppercase letter. Atoms are identified and compared by name; nothing is registered.
 
 Read the code from any value's sidecar:
 
@@ -102,7 +102,7 @@ Read the code from any value's sidecar:
 
 A valid value's code is always `#ok`. An invalid value's code is the atom set at invalidation time.
 
-`:atom` is the 16th primitive type in rill. Atoms are interned at registry init time; two atoms with the same name are the same identity.
+`:atom` is the 16th primitive type in rill. Two atoms with the same name are equal.
 
 Convert between atoms and strings with the built-in forms:
 
@@ -110,42 +110,67 @@ Convert between atoms and strings with the built-in forms:
 |-----------|--------|--------|
 | Atom to string | `#TIMEOUT -> string` | `"TIMEOUT"` (no `#` sigil) |
 | String to atom | `"TIMEOUT" -> atom` | `#TIMEOUT` atom identity |
-| Unknown string to atom | `"BOGUS" -> atom` | `#R001` |
+| Any well-formed name | `"BOGUS" -> atom` | `#BOGUS` |
+| The sentinel name | `"ok" -> atom` | `#ok` |
+| Malformed name | `"1x" -> atom` | Halts `#INVALID_INPUT` |
 
-The `.!code` probe returns the atom value. Pass atoms in option lists as `#CODE` literals.
+The `.!code` probe returns the atom value. Pass `#CODE` literals to `on:` as one atom or a list.
 
-Unregistered atom names in `"NAME" -> atom` resolve to `#R001`. The conversion never throws.
+A name is well-formed when it starts with a letter or underscore and continues with letters, digits, or underscores. Atoms with different names are never equal, so `#WIRED` does not equal `#R001`:
+
+```rill
+(#WIRED == #R001)
+# Result: false
+```
+
+```rill
+(#WIRED -> string)
+# Result: "WIRED"
+```
+
+```rill
+"ok" -> atom
+# Result: #ok
+```
+
+A malformed name halts instead of converting:
+
+```rill
+"1x" -> atom
+# Error: cannot convert string "1x" to atom: not a valid atom name
+```
 
 ---
 
-## Pre-Registered Atoms
+## Built-in Atoms and the Core Error Set
 
-These atoms are available in every rill runtime without registration:
+rill defines these atoms. Every halt and every invalid value carries one of them as its code, except `#ok` and `#IGNORE`, which are not error codes. The remaining atoms form the **core error set**, a closed list that hosts cannot extend:
 
-| Atom | Kind | Meaning |
-|------|------|---------|
-| `#ok` | sentinel | Code on every valid value; never appears on invalid values |
-| `#R001` | registry | Unknown atom at parse or link time; default fallback |
-| `#R999` | registry | Unhandled extension throw reshaped at the extension boundary |
-| `#TIMEOUT` | generic | Operation exceeded its time limit |
-| `#RILL_R082` | runtime | `timeout<total:>` wall-time bound exceeded; recover via `guard`/`??` |
-| `#RILL_R083` | runtime | `timeout<idle:>` inactivity bound exceeded; recover via `guard`/`??` |
-| `#AUTH` | generic | Authentication failure (HTTP 401) |
-| `#FORBIDDEN` | generic | Authorization failure after authentication (HTTP 403, scope mismatch, content-filter block) |
-| `#RATE_LIMIT` | generic | Temporal throttling (HTTP 429); recover via retry-after |
-| `#QUOTA_EXCEEDED` | generic | Account-level resource exhaustion (billing credits, plan limit) |
-| `#UNAVAILABLE` | generic | Service or resource not available |
-| `#NOT_FOUND` | generic | Requested resource does not exist |
-| `#CONFLICT` | generic | State conflict (e.g. duplicate write) |
-| `#INVALID_INPUT` | generic | Input failed validation; also: `sort` key extractor returns a vacant value; negative `n` for `take`/`skip`; `n <= 0` for `batch`/`window`; `step <= 0` for `window`; negative or non-integer count for `repeat()`, `.repeat`, `.pad_start` and `.pad_end`; non-positive or non-integer `concurrency` for `fan`/`filter`; unknown option key for `fan`/`filter`; zero `step` for `range`; non-integer index for `[]`, `.(n)`, `.at`, or list dispatch; zero `step` for `slice<>`; negative `.subtract` result, negative `.multiply` factor, non-finite or fractional-month `.multiply` result, and `.total_ms` on a calendar duration; vector dimension mismatch for `.similarity`/`.dot`/`.distance` |
-| `#PROTOCOL` | generic | Response shape violates documented contract (parse failure, schema mismatch) |
-| `#DISPOSED` | generic | Extension was called after disposal |
-| `#TYPE_MISMATCH` | generic | Failed `:type` assertion or conversion; also: `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, tuple comparison receives different-length or differently-typed tuples, or `start_when`/`stop_when` predicate returns a non-bool value; wrong-typed argument to `duration()`/`datetime()` or to datetime/duration methods such as `.add`, `.subtract`, `.multiply`, `.diff`; non-vector argument to `.similarity`/`.dot`/`.distance`; non-dict options for `fan`/`filter`; non-number `concurrency` for `fan`/`filter`; `filter` predicate returns a non-bool value |
-| `#IGNORE` | sentinel | Marker for `pass<on_error: #IGNORE> { body }` to suppress catchable halts in the body |
+| Atom | Meaning |
+|------|---------|
+| `#ok` | Not an error code. Code on every valid value; never appears on invalid values |
+| `#R001` | Ordinary error code. Carried by an invalid value from a parse-recovery node and by a synthesized or host-built `retry` node with an attempt count below 1 (script `retry<limit: 0>` is a parse error); not a fallback for other atoms |
+| `#R999` | Unhandled extension throw reshaped at the extension boundary |
+| `#TIMEOUT` | Operation exceeded its time limit |
+| `#RILL_R###` | Family of 36 atoms, one per halting registry error. Each is named for its error ID and carries that halt's code, for example `#RILL_R002` for a type error. The names are `RILL_R001`, `RILL_R002`, `RILL_R003`, `RILL_R005` to `RILL_R010`, `RILL_R012`, `RILL_R015`, `RILL_R016`, `RILL_R036` to `RILL_R038`, `RILL_R040` to `RILL_R044`, `RILL_R054` to `RILL_R058`, `RILL_R060`, `RILL_R061`, `RILL_R064` to `RILL_R066`, `RILL_R082`, `RILL_R083`, `RILL_R085`, and `RILL_R088` to `RILL_R090`. See [Error Reference](ref-errors.md) |
+| `#RILL_R082` | `timeout<total:>` wall-time bound exceeded; recover via `guard`/`??` |
+| `#RILL_R083` | `timeout<idle:>` inactivity bound exceeded; recover via `guard`/`??` |
+| `#AUTH` | Authentication failure (HTTP 401) |
+| `#FORBIDDEN` | Authorization failure after authentication (HTTP 403, scope mismatch, content-filter block) |
+| `#RATE_LIMIT` | Temporal throttling (HTTP 429); recover via retry-after |
+| `#QUOTA_EXCEEDED` | Account-level resource exhaustion (billing credits, plan limit) |
+| `#UNAVAILABLE` | Service or resource not available |
+| `#NOT_FOUND` | Requested resource does not exist |
+| `#CONFLICT` | State conflict (e.g. duplicate write) |
+| `#INVALID_INPUT` | Input failed validation; also: `sort` key extractor returns a vacant value; negative `n` for `take`/`skip`; `n <= 0` for `batch`/`window`; `step <= 0` for `window`; negative or non-integer count for `repeat()`, `.repeat`, `.pad_start` and `.pad_end`; non-positive or non-integer `concurrency` for `fan`/`filter`; unknown option key for `fan`/`filter`; zero `step` for `range`; non-integer index for `[]`, `.(n)`, `.at`, or list dispatch; zero `step` for `slice<>`; negative `.subtract` result, negative `.multiply` factor, non-finite or fractional-month `.multiply` result, and `.total_ms` on a calendar duration; vector dimension mismatch for `.similarity`/`.dot`/`.distance` |
+| `#PROTOCOL` | Response shape violates documented contract (parse failure, schema mismatch) |
+| `#DISPOSED` | Extension was called after disposal |
+| `#TYPE_MISMATCH` | Failed `:type` assertion or conversion; also: `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, tuple comparison receives different-length or differently-typed tuples, or `start_when`/`stop_when` predicate returns a non-bool value; wrong-typed argument to `duration()`/`datetime()` or to datetime/duration methods such as `.add`, `.subtract`, `.multiply`, `.diff`; non-vector argument to `.similarity`/`.dot`/`.distance`; non-dict options for `fan`/`filter`; non-number `concurrency` for `fan`/`filter`; `filter` predicate returns a non-bool value |
+| `#IGNORE` | Not an error code. Marker for `pass<on_error: #IGNORE> { body }` to suppress catchable halts in the body |
 
-`#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts cannot produce `#ok` as an error code.
+`#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts and hosts cannot produce `#ok` as an error code, and the lexer does not read `#ok` as a literal. Use `"ok" -> atom` to build the value.
 
-Extensions can register additional atoms at factory init time using `ctx.registerErrorCode(name, kind)`. See [Extension Authoring](#extension-authoring).
+Hosts cannot add error codes. A host reports a domain failure with the nearest core code and carries the detail in `raw`. See [Extension Authoring](#extension-authoring).
 
 ---
 
@@ -161,10 +186,10 @@ guard { $result.upper }
 
 When the body halts:
 
-```text
-# guard catches the halt; script continues with invalid value
-guard { #AB0x.field }
-# returns invalid #R001
+```rill
+guard { 1 / 0 } => $r
+$r.!code
+# Result: #RILL_R002
 ```
 
 Use `.!` to check whether `guard` caught a halt:
@@ -178,16 +203,35 @@ $out.!
 
 ### Filtered Guard
 
-Add `<on: list[#CODE, ...]>` to catch only specific atoms. Halts with non-matching codes propagate:
+Add `<on: #CODE>` or `<on: list[#CODE, ...]>` to catch only specific codes. Halts with non-matching codes propagate:
+
+```rill
+guard<on: #RILL_R002> { 1 / 0 } ?? 9
+# Result: 9
+```
 
 ```text
 use<ext:app> => $app
-guard<on: list[#TIMEOUT]> {
+guard<on: list[#TIMEOUT, #UNAVAILABLE]> {
   $app.fetch("https://api.example.com")
 }
 ```
 
-Without a filter, `guard` catches every catchable halt.
+Every name must belong to the core error set (see [Built-in Atoms and the Core Error Set](#built-in-atoms-and-the-core-error-set)). A name outside it is a parse error, so a misspelled code fails before the script runs:
+
+```rill
+guard<on: #CARD_DECLINED> { 1 }
+# Error: '#CARD_DECLINED' is not a core error code
+```
+
+`on: list[]` is also a parse error. It does not mean catch everything:
+
+```rill
+guard<on: list[]> { 1 / 0 }
+# Error: on: list[] is empty
+```
+
+Omit `on:` and write `guard { ... }` to catch every catchable halt.
 
 `guard` does **not** catch halts from `error "..."` or `assert`. Those are non-catchable and always propagate.
 
@@ -296,11 +340,11 @@ Attempt count rules:
 | `>= 1` | Body runs up to N times |
 | `0` | Parse error: `retry<limit: 0>` is rejected by the parser |
 
-`retry<limit: N>` with a filtered `on:` list behaves like `guard`: non-matching halts propagate immediately.
+`retry<limit: N>` accepts the same `on:` forms as `guard` (`on: #CODE` or `on: list[#CODE, ...]`) and the same core error set. Non-matching halts propagate immediately.
 
 ```text
 use<ext:app> => $app
-retry<limit: 3, on: list[#UNAVAILABLE]> {
+retry<limit: 3, on: #UNAVAILABLE> {
   $app.fetch("https://api.example.com")
 }
 ```
@@ -484,36 +528,47 @@ $result.! ? {
 
 ## Extension Authoring
 
-Extensions register error codes and produce invalid values using the `ExtensionFactoryCtx`.
+Extensions produce invalid values using `ctx.invalidate` at call time. They cannot add error codes.
 
-### Register Error Codes
-
-Call `ctx.registerErrorCode(name, kind)` at factory init time:
-
-```typescript
-import type { ExtensionFactoryCtx, ExtensionFactoryResult } from '@rcrsr/rill';
-
-function createMyExtension(
-  config: MyConfig,
-  ctx: ExtensionFactoryCtx
-): ExtensionFactoryResult {
-  ctx.registerErrorCode('MY_ERROR', 'generic');
-  // ...
-}
-```
-
-`ExtensionFactoryCtx` shape:
+The factory receives an `ExtensionFactoryCtx`:
 
 ```typescript
 interface ExtensionFactoryCtx {
-  registerErrorCode(name: string, kind: string): void;
   readonly signal: AbortSignal;
 }
 ```
 
+### Report a Domain Failure
+
+Inside a callable's `fn`, use `ctx.invalidate(error, meta)` to return an invalid value instead of throwing. `meta.code` must belong to the core error set. Pick the nearest code and carry the domain detail in `raw`:
+
+```typescript
+fn: async (args, ctx) => {
+  const result = await charge(args.card);
+  if (result.declined) {
+    return ctx.invalidate(result, {
+      code: 'INVALID_INPUT',
+      provider: 'payment',
+      raw: { message: 'Card declined', reason: 'CARD_DECLINED' },
+    });
+  }
+  return result.id;
+}
+```
+
+`ctx.invalidate` throws `RILL-R084` at the call when `meta.code` is `ok` or outside the core error set. The script reads the detail from the sidecar:
+
+```text
+use<ext:payment> => $pay
+guard { $pay.charge("4111") } => $r
+$r.!reason
+```
+
+When a domain value is a valid result rather than a failure, return it as a string and convert it with `-> atom` in the script.
+
 ### Produce Invalid Values
 
-Inside a callable's `fn`, use `ctx.invalidate(error, meta)` to return an invalid value instead of throwing:
+`ctx.invalidate` takes the same shape for any failure that fits a core code:
 
 ```typescript
 fn: async (args, ctx) => {
@@ -543,7 +598,7 @@ fn: async (args, ctx) => {
 }
 ```
 
-`ctx.catch` returns the thunk's result on success. On a matching throw, it returns an invalid `RillValue`. Non-matching throws propagate.
+`ctx.catch` returns the thunk's result on success. On a matching throw, it returns an invalid `RillValue`. A detector that returns `null` yields an invalid `#R999` value.
 
 Unhandled throws are reshaped to `#R999` at the extension boundary automatically.
 

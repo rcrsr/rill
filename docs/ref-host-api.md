@@ -261,7 +261,7 @@ export type { RillFunctionShorthand, RillFunctionDefinition };
 export { toCallable, createTestContext, emitExtensionEvent };
 export { ExtensionBindingError };
 
-// Atom registry (read-only access at top level)
+// Atoms (name-based; read-only access at top level)
 export { resolveAtom, atomName };
 export type { InvalidateMeta, TraceFrame };
 
@@ -362,7 +362,7 @@ export { nodeAtPosition, walkAst };
 
 > Runtime error sites migrated to the halt builders throw a fatal `RuntimeHaltSignal` (`catchable: false`, code on `errorId`) instead of a `RuntimeError` when reached outside `execute()` and `createStepper()`, for example direct `.fn` calls on `BUILTIN_METHODS` entries. Argument-binding errors from `invokeCallable` (`RILL-R001`, `RILL-R044`, `RILL-R045`) still throw `RuntimeError`, so hosts calling it directly handle both.
 
-> Atom registration happens through `ctx.registerErrorCode(name, kind)` on `ExtensionFactoryCtx` at extension factory init time, not at the top-level export surface.
+> Hosts cannot add atoms or error codes; see `BUILTIN_ATOMS`.
 
 > **Migration note:** `KvExtensionContract` and `FsExtensionContract` types moved to
 > [`@rcrsr/rill-ext-kv`](https://github.com/rcrsr/rill-ext) and
@@ -403,6 +403,7 @@ A dict with a number or boolean key adds a reserved `__rill_typed_keys` field to
 | `stream` | `{ done: boolean }` |
 | `datetime` | `{ unix: number, iso: string }` |
 | `duration` | `{ months: number, ms: number }` |
+| `atom` | `{ __rill_atom: true, atom: { __rill_atom: true, name: string } }` |
 
 See [Host Integration](integration-host.md) for conversion examples and migration guidance.
 
@@ -643,7 +644,7 @@ Unlike `BUILTIN_FUNCTIONS`, `KEYWORDS`, and `BUILTIN_ATOMS`, this is not a `read
 
 ## BUILTIN_ATOMS
 
-`BUILTIN_ATOMS` is a `readonly string[]` listing the atom names core pre-registers, without the leading `#`. It lists builtins only; atoms a host adds with `registerErrorCode` are not included.
+`BUILTIN_ATOMS` is a `readonly string[]` listing the built-in atom names, without the leading `#`. The core error set is this list minus `ok` and `IGNORE`. Hosts cannot add names to it.
 
 ```typescript
 import { BUILTIN_ATOMS } from '@rcrsr/rill';
@@ -1235,11 +1236,10 @@ interface ResolvedPolicy {
 
 ## Factory-Scope Context (`ExtensionFactoryCtx`)
 
-`ExtensionFactoryCtx` is passed as the second argument to async extension factories. It provides pre-execution registration and a lifecycle abort signal.
+`ExtensionFactoryCtx` is passed as the second argument to async extension factories. It provides a lifecycle abort signal.
 
 ```typescript
 interface ExtensionFactoryCtx {
-  registerErrorCode(name: string, kind: string): void;
   readonly signal: AbortSignal;
 }
 
@@ -1251,19 +1251,13 @@ type ExtensionFactory<TConfig> = (
 
 | Member | Type | Description |
 |--------|------|-------------|
-| `registerErrorCode` | `(name: string, kind: string) => void` | Register a domain atom (e.g. `"PAYMENT_FAILED"`, `"domain"`). Available as `#NAME` in scripts. |
 | `signal` | `AbortSignal` | Fires when the runtime disposes. Use to cancel long-running factory setup. |
-
-> **Note:** The function name `registerErrorCode` is intentionally unchanged per TD-NOD-5. `code` here is an English noun meaning "error code", not a reference to the atom primitive type. The `ExtensionFactoryCtx` method returns `void`; the underlying registry creates a `RillAtom` accessible at runtime as `#NAME` and via the standalone `registerErrorCode` export from `@rcrsr/rill`.
 
 ```typescript
 async function createPaymentExtension(
   config: PaymentConfig,
   ctx: ExtensionFactoryCtx
 ): Promise<ExtensionFactoryResult> {
-  ctx.registerErrorCode('PAYMENT_FAILED', 'domain');
-  ctx.registerErrorCode('CARD_DECLINED', 'domain');
-
   const client = await PaymentClient.connect(config.endpoint, {
     signal: ctx.signal,
   });
@@ -1277,7 +1271,7 @@ async function createPaymentExtension(
 }
 ```
 
-See [Extensions](integration-extensions.md) for registering error codes and returning invalid values.
+See [Extensions](integration-extensions.md) for reporting domain failures and returning invalid values.
 
 ---
 
@@ -1291,7 +1285,7 @@ Three helpers on `RuntimeContext` support error-aware extension functions.
 invalidate(error: unknown, meta: InvalidateMeta): RillValue
 ```
 
-Wraps a JavaScript error as an invalid rill value. Returns a `:atom`-tagged invalid value the script can test with `.?` and `.!`.
+Wraps a JavaScript error as an invalid rill value the script can test with `.?` and `.!`. `meta.code` must belong to the core error set (every built-in atom except `ok` and `IGNORE`). Any other code throws `RILL-R084` at the call; carry domain detail in `raw`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -1317,7 +1311,7 @@ catch<T>(
 ): Promise<T | RillValue>
 ```
 
-Runs `thunk`. On throw, calls `detector(e)`. When `detector` returns `InvalidMeta`, returns an invalid value. When `detector` returns `null`, returns an invalid value with code `#R999`.
+Runs `thunk`. On throw, calls `detector(e)`. When `detector` returns `InvalidMeta`, returns an invalid value. When `detector` returns `null`, returns an invalid value with code `#R999`. A detector code outside the core error set rejects with `RILL-R084`.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -1331,7 +1325,7 @@ fn: async (args, ctx) => {
     (e) => {
       if (e instanceof TimeoutError) return { code: 'TIMEOUT', provider: 'my-ext' };
       if (e instanceof AuthError) return { code: 'AUTH', provider: 'my-ext' };
-      return null; // re-throw unknown errors
+      return null; // unclassified errors become #R999
     }
   );
 },

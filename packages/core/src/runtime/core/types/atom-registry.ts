@@ -1,156 +1,78 @@
-import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
+import { BUILTIN_ATOM_NAMES } from '../../../constants.js';
 import type { RillAtomValue } from './structures.js';
 /**
- * Atom registry for interned error-code identifiers.
+ * Atoms: symbols identified and compared by name.
  *
- * RillAtom is an opaque, identity-compared atom authored in scripts as
- * `#NAME`. The registry maps a normalized uppercase name to a single
- * frozen RillAtom instance; every resolution of that name returns the
- * same reference. Unknown names resolve to the pre-registered `#R001`
- * fallback instead of throwing.
+ * RillAtom is a frozen `{ __rill_atom, name }` pair authored in scripts
+ * as `#NAME`. Any valid name is an atom; nothing is registered and no
+ * name falls back to another atom. Two atoms are equal when their names
+ * are equal.
  *
- * Core pre-registers a fixed set of atoms at module load, before any
- * script parses. The set covers four kinds:
- *  - `status` — the `#ok` sentinel (1)
- *  - `registry` — atom-registry fallbacks `#R001` and `#R999` (2)
- *  - `generic` — host-extension taxonomy (`#TIMEOUT`, `#AUTH`,
- *    `#FORBIDDEN`, `#RATE_LIMIT`, `#QUOTA_EXCEEDED`, `#UNAVAILABLE`,
- *    `#NOT_FOUND`, `#CONFLICT`, `#INVALID_INPUT`, `#PROTOCOL`,
- *    `#DISPOSED`, `#IGNORE`, `#TYPE_MISMATCH`)
- *  - `runtime` — internal halt-builder atoms paired with `RILL-Rxxx`
- *    error IDs (a fixed list maintained alongside error-registry.ts)
- *
- * Extensions register additional atoms via
- * `registerErrorCode(name, kind)` at factory init time. Double
- * registration with a different kind is a hard failure.
+ * Builtin names (see `BUILTIN_ATOM_NAMES` in constants.ts) resolve to one
+ * shared frozen object, which status codes rely on for identity checks.
+ * Every other name resolves to a fresh frozen object, so compare atoms
+ * by `.name`, never by reference.
  */
 
 // ============================================================
 // VALIDATION
 // ============================================================
 
-/** Uppercase atom name regex: `[A-Z][A-Z0-9_]*`. Max 64 characters. */
-const ATOM_NAME_REGEX = /^[A-Z][A-Z0-9_]*$/;
+/**
+ * Atom name pattern: a letter or underscore, then letters, digits, or
+ * underscores. Mirrors the lexer's identifier rule in lexer/helpers.ts;
+ * the runtime may not import the lexer, so the pattern is repeated here.
+ */
+const ATOM_NAME_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
-/** Maximum permitted atom name length. */
-const MAX_ATOM_NAME_LENGTH = 64;
+/** Returns true when `name` is a valid atom name. */
+export function isValidAtomName(name: string): boolean {
+  return typeof name === 'string' && ATOM_NAME_REGEX.test(name);
+}
 
 // ============================================================
 // TYPES
 // ============================================================
 
 /**
- * Opaque, interned error-code atom.
- *
- * Produced exclusively by the registry. Compared by identity
- * (`a === b`), never by string equality. `name` carries the bare
- * uppercase form without the `#` sigil. `kind` is a free-form
- * classification tag supplied at registration time.
+ * Frozen atom. `name` carries the bare form without the `#` sigil.
  */
 export interface RillAtom {
   readonly __rill_atom: true;
   readonly name: string;
-  readonly kind: string;
+}
+
+function makeAtom(name: string): RillAtom {
+  return Object.freeze({ __rill_atom: true as const, name });
 }
 
 // ============================================================
-// REGISTRY STATE
+// BUILTIN ATOMS
 // ============================================================
 
-const registry = new Map<string, RillAtom>();
-
-/**
- * Internal constructor. Not exported: raw construction outside the
- * registry is forbidden.
- */
-function makeAtom(name: string, kind: string): RillAtom {
-  return Object.freeze({
-    __rill_atom: true as const,
-    name,
-    kind,
-  });
-}
-
-/**
- * Validates an atom name against the uppercase regex and length limit.
- * Throws on failure.
- */
-function validateAtomName(name: string): void {
-  if (typeof name !== 'string' || name.length === 0) {
-    throw new Error(`Atom name must be a non-empty string, got ${typeof name}`);
-  }
-  if (name.length > MAX_ATOM_NAME_LENGTH) {
-    throw new Error(
-      `Atom name '${name}' exceeds ${MAX_ATOM_NAME_LENGTH}-character limit`
-    );
-  }
-  if (!ATOM_NAME_REGEX.test(name)) {
-    throw new Error(
-      `Atom name '${name}' does not match uppercase pattern [A-Z][A-Z0-9_]*`
-    );
-  }
-}
+const BUILTIN_ATOMS: ReadonlyMap<string, RillAtom> = new Map(
+  BUILTIN_ATOM_NAMES.map((name): [string, RillAtom] => [name, makeAtom(name)])
+);
 
 // ============================================================
 // PUBLIC API
 // ============================================================
 
 /**
- * Interns and registers an error-code atom.
+ * Resolves a name to an atom.
  *
- * Called once per name at factory init time; core pre-registers its
- * set at module load. Idempotent for identical (name, kind); re-registering
- * the same name with a different kind throws.
+ * Builtin names return their shared frozen object; any other valid name
+ * returns a fresh frozen atom.
  *
- * @throws Error when `name` fails the uppercase regex or exceeds 64 chars.
- * @throws Error when `name` was previously registered with a different kind.
- */
-export function registerErrorCode(name: string, kind: string): RillAtom {
-  validateAtomName(name);
-  return registerAtomInternal(name, kind);
-}
-
-/**
- * Internal registration used by core bootstrap only.
- *
- * Skips regex validation so the reserved sentinel `ok` (authored as
- * `#ok` in scripts) can be pre-registered despite its lowercase form.
- * All other atoms still flow through `validateAtomName`.
- */
-function registerAtomInternal(name: string, kind: string): RillAtom {
-  const existing = registry.get(name);
-  if (existing !== undefined) {
-    if (existing.kind !== kind) {
-      throw new Error(
-        `Atom '#${name}' already registered with kind '${existing.kind}', cannot re-register as '${kind}'`
-      );
-    }
-    return existing;
-  }
-  const atom = makeAtom(name, kind);
-  registry.set(name, atom);
-  return atom;
-}
-
-/**
- * Resolves a name to its interned atom, or `#R001` when unregistered.
- *
- * Never throws. Used by parse/link-time atom resolution and by
- * the `:atom(name)` conversion.
+ * @throws Error when `name` is not a valid atom name.
  */
 export function resolveAtom(name: string): RillAtom {
-  const found = registry.get(name);
-  if (found !== undefined) return found;
-  // unregistered -> fallback. `#R001` is pre-registered below
-  // before this function can be called from user code.
-  const fallback = registry.get('R001');
-  if (fallback === undefined) {
-    // Bootstrap guard: should never occur after module load.
-    throw new Error(
-      'Atom registry bootstrap invariant violated: #R001 not pre-registered'
-    );
+  const builtin = BUILTIN_ATOMS.get(name);
+  if (builtin !== undefined) return builtin;
+  if (!isValidAtomName(name)) {
+    throw new Error(`Invalid atom name '${String(name)}'`);
   }
-  return fallback;
+  return makeAtom(name);
 }
 
 /**
@@ -162,143 +84,16 @@ export function atomName(atom: RillAtom): string {
   return atom.name;
 }
 
-// ============================================================
-// PRE-REGISTERED CORE ATOMS
-// ============================================================
-
 /**
- * Pre-registration list executed at module load.
+ * Returns the shared `#ok` atom.
  *
- * Composition: 1 `status` (`#ok`), 2 `registry` (`#R001`, `#R999`),
- * `generic` host-extension taxonomy atoms, and one `runtime` atom
- * per `RILL-Rxxx` halt-builder paired below. See module header for the
- * full generic list.
- *
- * Order matters: `#ok` and `#R001` register first so that
- * - valid-status singletons can reference `#ok`, and
- * - `resolveAtom` fallback (`#R001`) is available before any other
- *   resolve call.
- *
- * `#R004` is explicitly NOT pre-registered.
- */
-const CORE_ATOM_REGISTRATIONS: ReadonlyArray<readonly [string, string]> = [
-  // Bootstrap-critical atoms first.
-  ['ok', 'status'],
-  ['R001', 'registry'],
-  // Remaining generic atoms.
-  ['TIMEOUT', 'generic'],
-  ['AUTH', 'generic'],
-  ['FORBIDDEN', 'generic'],
-  ['RATE_LIMIT', 'generic'],
-  ['QUOTA_EXCEEDED', 'generic'],
-  ['UNAVAILABLE', 'generic'],
-  ['NOT_FOUND', 'generic'],
-  ['CONFLICT', 'generic'],
-  ['INVALID_INPUT', 'generic'],
-  ['PROTOCOL', 'generic'],
-  ['DISPOSED', 'generic'],
-  // `pass<on_error: #IGNORE>` body form: option value used to opt into
-  // catchable-halt suppression. Pre-registered so the option literal does
-  // not collapse to the `#R001` fallback.
-  ['IGNORE', 'generic'],
-  ['R999', 'registry'],
-  // Error taxonomy: typed atom for type-assertion / conversion
-  // failures. Registered here so evaluator handlers and type-layer helpers can
-  // resolve `#TYPE_MISMATCH` before any script parses.
-  ['TYPE_MISMATCH', 'generic'],
-  // error-wrap halt atom. Underscore form required by
-  // ATOM_NAME_REGEX. Host-facing error ID `RILL-R015`/`RILL-R016`
-  // (hyphen form) is a separate string namespace in error-registry.ts.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R016], 'runtime'],
-  // collections.ts halt-builder migration atoms. Underscore form
-  // per ATOM_NAME_REGEX. Host-facing IDs use hyphen form (RILL-Rxxx).
-  [ERROR_ATOMS[ERROR_IDS.RILL_R002], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R003], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R010], 'runtime'],
-  // Type-conversion and list-dispatch atoms.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R036], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R037], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R038], 'runtime'],
-  // builtins.ts collection-operator atoms.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R040], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R041], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R042], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R044], 'runtime'],
-  // use.ts resolver atoms.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R054], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R055], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R056], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R057], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R058], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R061], 'runtime'],
-  // timeout<total:> and timeout<idle:> halt atoms.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R082], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R083], 'runtime'],
-  // createRuntimeContext({ timeout }) host-level execution timeout.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R012], 'runtime'],
-  // Dispatch-boundary policy halt atoms: denied call, transform cycle,
-  // and an extension too large to brand at use<> resolution.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R088], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R089], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R090], 'runtime'],
-  // String, number, and callable built-in halt atoms.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R064], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R065], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R066], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R085], 'runtime'],
-  // Fatal host halts thrown by execute() itself: removed frontmatter key
-  // and script-no-value.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R043], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R060], 'runtime'],
-  // closures.ts halt atoms.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R001], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R005], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R006], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R007], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R008], 'runtime'],
-  [ERROR_ATOMS[ERROR_IDS.RILL_R009], 'runtime'],
-  // control-flow.ts assert halt site.
-  [ERROR_ATOMS[ERROR_IDS.RILL_R015], 'runtime'],
-];
-
-for (const [name, kind] of CORE_ATOM_REGISTRATIONS) {
-  // Bootstrap path bypasses regex validation so reserved sentinel
-  // `ok` (lowercase, `#ok` in script form) can register alongside the
-  // uppercase generics.
-  registerAtomInternal(name, kind);
-}
-
-/**
- * Names of every atom core pre-registers, without the `#` sigil.
- *
- * Builtins only: atoms a host adds through `registerErrorCode` are not
- * included. Derived from the pre-registration list, so it cannot drift.
- */
-export const BUILTIN_ATOM_NAMES: readonly string[] = Object.freeze(
-  CORE_ATOM_REGISTRATIONS.map(([name]) => name)
-);
-
-// ============================================================
-// INTERNAL HELPERS (exported for status module use)
-// ============================================================
-
-/**
- * Returns the pre-registered `#ok` atom.
- *
- * Used by status.ts to build the frozen empty-status singleton without
- * a runtime `resolveAtom` call on every access.
+ * Used by status.ts to build the frozen empty-status singleton.
  */
 export function okAtom(): RillAtom {
-  const ok = registry.get('ok');
-  if (ok === undefined) {
-    throw new Error(
-      'Atom registry bootstrap invariant violated: #ok not pre-registered'
-    );
-  }
-  return ok;
+  return resolveAtom('ok');
 }
 
-/** Internal: wrap an interned atom as a `:atom` script value. */
+/** Internal: wrap an atom as a `:atom` script value. */
 export function toAtomValue(atom: RillAtom): RillAtomValue {
   return { __rill_atom: true, atom };
 }

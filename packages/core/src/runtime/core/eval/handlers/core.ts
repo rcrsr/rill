@@ -582,9 +582,7 @@ export async function evaluatePrimary(
       return evaluateStatusProbe(s, primary);
 
     case 'AtomLiteral':
-      // Atom literals (`#NAME`) resolve via the atom registry. Unregistered
-      // names resolve to `#R001` at registry level; the node itself simply
-      // materialises a typed atom value.
+      // Atom literals (`#NAME`) materialise an atom value named by the literal.
       return toAtomValue(resolveAtom(primary.name));
 
     case 'RecoveryError': {

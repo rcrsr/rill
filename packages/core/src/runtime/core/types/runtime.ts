@@ -189,16 +189,18 @@ export interface DispatchContext {
 export interface LifecycleContext {
   /**
    * Produce an invalid RillValue from an arbitrary error and structured meta.
-   * Never throws at the call site: `meta.code` that names an unregistered atom
-   * resolves to `#R001`. Behavior bound at construction
-   * site in context.ts (task 3.2).
+   * Throws `RILL-R084` at the call site when `meta.code` is `ok` or outside
+   * the closed core error set; carry detail in `message` or `provider`
+   * instead of minting a code. Behavior bound at construction site in
+   * context.ts.
    */
   invalidate: (error: unknown, meta: InvalidateMeta) => RillValue;
   /**
    * Execute a Promise-returning thunk; on rejection, run the detector to
    * classify the error. When the detector returns a non-null {@link InvalidMeta},
    * produce an invalid RillValue via {@link invalidate}. When the detector
-   * returns `null`, produce an invalid value with code `#R999`.
+   * returns `null`, produce an invalid value with code `#R999`. A detector
+   * code outside the core error set rejects with `RILL-R084`.
    * Behavior bound at construction site in context.ts (task 3.2).
    */
   catch: <T>(
@@ -418,7 +420,7 @@ export interface StepResult {
 /**
  * Factory-scope context passed to an `ExtensionFactory` at init time.
  *
- * Surface is exactly `{ registerErrorCode, signal }`.
+ * Surface is exactly `{ signal }`.
  * Factory authors must not receive host-scope helpers like `invalidate` or
  * `catch`; those live on {@link RuntimeContext} at call time only.
  *
@@ -427,8 +429,6 @@ export interface StepResult {
  * check under `strict`.
  */
 export interface ExtensionFactoryCtx {
-  /** Register a custom error code atom with kind metadata. */
-  registerErrorCode(name: string, kind: string): void;
   /** Abort signal scoped to the extension's lifetime. */
   readonly signal: AbortSignal;
 }

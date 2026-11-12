@@ -2,8 +2,8 @@
  * Rill Runtime Tests: ctx.invalidate and ctx.catch (FR-ERR-21/22/23)
  *
  * Specification Mapping (task 3.6):
- * - IR-11 / AC-E5 / EC-4: `ctx.invalidate(error, meta)` never throws and
- *   resolves the atom from `meta.code` (unregistered => `#R001`).
+ * - IR-11: `ctx.invalidate(error, meta)` resolves the atom from `meta.code`
+ *   and throws `RILL-R084` for a code outside the core error set.
  * - IR-12 / EC-5 / EC-6: `ctx.catch(thunk, detector)` reshapes rejected
  *   thunks into invalid values. `detector === null` yields `#R999`; a
  *   non-Error throw records `raw.original = String(thrown)`.
@@ -12,7 +12,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   anyTypeValue,
+  atomName,
   type ApplicationCallable,
+  BUILTIN_ATOMS,
   createRuntimeContext,
   execute,
   parse,
@@ -24,19 +26,75 @@ import { ERROR_IDS } from '../../src/error-registry.js';
 import { RuntimeError } from '../../src/error-classes.js';
 import { expectAbortHalt } from '../helpers/halt.js';
 
-describe('RuntimeContext.invalidate (IR-11)', () => {
-  it('AC-E5 / EC-4: unregistered code falls back to #R001 without throwing', () => {
-    const ctx = createRuntimeContext({});
-    const result = ctx.invalidate(new Error('boom'), {
-      code: 'UNREG_NAME_THAT_NEVER_EXISTS_XYZ',
-      provider: 'test',
-      raw: {},
-    });
+describe('on: parsing agrees with ctx.invalidate', () => {
+  const ctx = createRuntimeContext({});
+  const accepts = (name: string): boolean => {
+    try {
+      ctx.invalidate(new Error('x'), { code: name, provider: 'p' });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const parses = (name: string): boolean => {
+    try {
+      parse(`guard<on: #${name}> { 1 }`);
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
-    expect(isInvalid(result)).toBe(true);
-    const status = getStatus(result);
-    expect(status.code).toBe(resolveAtom('R001'));
-    expect(status.provider).toBe('test');
+  it.each(BUILTIN_ATOMS.filter((n) => /^[A-Z][A-Z0-9_]*$/.test(n)))(
+    'parses #%s exactly when invalidate accepts it',
+    (name) => {
+      expect(parses(name)).toBe(accepts(name));
+    }
+  );
+});
+
+describe('RuntimeContext.invalidate (IR-11)', () => {
+  it('throws RILL-R084 naming a code outside the core error set', () => {
+    const ctx = createRuntimeContext({});
+    try {
+      ctx.invalidate(new Error('boom'), {
+        code: 'PAYMENT_FAILED',
+        provider: 'test',
+      });
+      expect.unreachable('expected invalidate to throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(RuntimeError);
+      expect((err as RuntimeError).errorId).toBe(ERROR_IDS.RILL_R084);
+      expect((err as RuntimeError).message).toContain('PAYMENT_FAILED');
+    }
+  });
+
+  it.each(['IGNORE', '', '1x'])('throws RILL-R084 for the code %j', (code) => {
+    const ctx = createRuntimeContext({});
+    try {
+      ctx.invalidate(new Error('boom'), { code, provider: 'test' });
+      expect.unreachable('expected invalidate to throw');
+    } catch (err) {
+      expect(err).toBeInstanceOf(RuntimeError);
+      expect((err as RuntimeError).errorId).toBe(ERROR_IDS.RILL_R084);
+    }
+  });
+
+  it('accepts every builtin code except ok and IGNORE', () => {
+    const ctx = createRuntimeContext({});
+    const accepted = BUILTIN_ATOMS.filter(
+      (name) => name !== 'ok' && name !== 'IGNORE'
+    );
+
+    expect(accepted).toHaveLength(50);
+    for (const name of accepted) {
+      const result = ctx.invalidate(new Error('boom'), {
+        code: name,
+        provider: 'test',
+      });
+      expect(isInvalid(result)).toBe(true);
+      expect(atomName(getStatus(result).code)).toBe(name);
+    }
   });
 
   it('IR-11: registered code resolves to its atom and carries message', () => {
@@ -104,7 +162,7 @@ describe('RuntimeContext.invalidate (IR-11)', () => {
         code: 'ok',
         provider: 'test',
       })
-    ).toThrow(/reserved status code "ok"/);
+    ).toThrow('cannot invalidate with reserved status code "ok"');
     try {
       ctx.invalidate(new Error('boom'), { code: 'ok', provider: 'test' });
       expect.unreachable('expected invalidate to throw');
@@ -193,9 +251,9 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
     expect(status.message).toBe('took too long');
   });
 
-  it('IR-12: detector-provided unregistered code falls back to #R001', async () => {
+  it('rejects with RILL-R084 when the detector returns a code outside the core error set', async () => {
     const ctx = createRuntimeContext({});
-    const result = await ctx.catch(
+    const pending = ctx.catch(
       () => rejectWith(new Error('x')),
       (_err) => ({
         code: 'NEVER_REGISTERED_CODE',
@@ -203,8 +261,9 @@ describe('RuntimeContext.catch (IR-12, FR-ERR-22)', () => {
       })
     );
 
-    expect(isInvalid(result)).toBe(true);
-    expect(getStatus(result).code).toBe(resolveAtom('R001'));
+    await expect(pending).rejects.toMatchObject({
+      errorId: ERROR_IDS.RILL_R084,
+    });
   });
 
   it('IR-12: successful thunk passes through unchanged', async () => {
