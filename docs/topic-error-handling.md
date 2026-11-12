@@ -28,7 +28,7 @@ The sidecar has a fixed shape:
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `code` | `union(#ok, error_code)` | `#ok` on a valid value, else an error code such as `#TIMEOUT` |
+| `code` | atom, a member of `union(#ok, error_code)` | `#ok` on a valid value, else an error code such as `#TIMEOUT` |
 | `message` | string | Human-readable description |
 | `provider` | string | Name of the component that produced the error |
 | `raw` | dict | Provider-specific payload |

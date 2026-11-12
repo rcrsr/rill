@@ -198,7 +198,7 @@ postfix-type-op = type-assertion | type-check ;
    - Fieldless ".!" returns a bool: false when the value is valid, true when invalid.
      Use it as a guard: `result.! ? recover(...) ! result`.
    - ".!field" projects one piece of metadata. Recognised projections:
-       .!code       -- union(#ok, error_code) (e.g. #ok, #FORBIDDEN, #QUOTA_EXCEEDED)
+       .!code       -- atom, a member of union(#ok, error_code) (e.g. #ok, #FORBIDDEN, #QUOTA_EXCEEDED)
        .!message    -- string
        .!provider   -- string
        .!trace      -- list of trace frames
@@ -209,7 +209,7 @@ postfix-type-op = type-assertion | type-check ;
    statement cannot start with it (RILL-P001).
    Examples:
      fetch("url").!                -- bool: true when invalid, false when valid
-     fetch("url").!code            -- union(#ok, error_code): #ok, #FORBIDDEN, ... *)
+     fetch("url").!code            -- atom, a member of union(#ok, error_code): #ok, #FORBIDDEN, ... *)
 status-probe  = ".!" , [ identifier ] ;
 
 primary       = literal

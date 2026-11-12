@@ -665,14 +665,14 @@ Bare `.!` tests whether a value is invalid (halted). `.!field` projects a named 
 
 ```text
 $result.!              # bool: true if $result is invalid, false if valid
-$result.!code          # union(#ok, error_code) status code (#ok when valid)
+$result.!code          # atom, a member of union(#ok, error_code) (#ok when valid)
 $result.!message       # string message
 ```
 
 | Form | Returns |
 |------|---------|
 | `$v.!` | `bool` — `false` when valid, `true` when invalid |
-| `$v.!code` | `union(#ok, error_code)` status code (`#ok` when valid) |
+| `$v.!code` | atom, a member of `union(#ok, error_code)` (`#ok` when valid). `.!code.^type` reports `atom` until declared types travel with values |
 | `$v.!message` | `string` status message |
 | `$v.!provider` | `string` provider tag |
 | `$v.!trace` | `list` of trace-frame dicts |
