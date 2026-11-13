@@ -150,6 +150,10 @@ export interface ScopeContext {
    * Walk the parent chain and return the value bound to `name`,
    * or `undefined` if no scope in the chain contains a binding.
    * O(depth) lookup.
+   *
+   * A convenience over `variables` and `parent`, which are the contract:
+   * the evaluator reads those two directly for a `$name` reference, so
+   * replacing this method on a context does not change variable resolution.
    */
   getVariable(this: ScopeContext, name: string): RillValue | undefined;
   /**
