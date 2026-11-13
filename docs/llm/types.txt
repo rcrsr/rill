@@ -155,6 +155,18 @@ Returns a type value for runtime inspection.
     list[1, 2].^type.name           # "list"
     list[1, 2].^type.signature      # "list(number)"
 
+Read what a type holds with `.inner` and what a function or stream yields with `.outer`:
+
+    list(number).inner              # number
+    dict(a: number).inner           # dict[a: number]
+    tuple(string).inner             # tuple[string]
+    union("b", "a").inner           # list["a", "b"] (canonical order)
+    string.inner ?? any             # any; leaf types halt RILL-R003 without ??
+    string.?inner                   # false
+    |x: number|{ $x }:string => $f
+    $f.^type.outer                  # string
+    dict(a: string = "x").defaults  # dict[a: "x"]
+
 Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
 
     42 => $x:union(string, number)

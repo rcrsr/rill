@@ -144,10 +144,10 @@ describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
       });
     });
 
-    it('error message names union(string, number) expected type (EC-4)', async () => {
+    it('error message names union(number, string) expected type (EC-4)', async () => {
       await expect(
         run('list[true] -> destruct<$a:union(string, number)>')
-      ).rejects.toThrow('union(string, number)');
+      ).rejects.toThrow('union(number, string)');
     });
 
     it('error message names bool actual type (EC-4)', async () => {

@@ -922,7 +922,7 @@ describe('Rill Language: Structural Type Default Values', () => {
 
     it('stream closure return type accepts a default in its chunk type', async () => {
       const result = await run(
-        '|v: number| { $v }:stream(dict(a: number, b: number = 0)):number => $f\n$f.^output -> .signature'
+        '|v: number| { $v }:stream(dict(a: number, b: number = 0)):number => $f\n$f.^type.outer -> .signature'
       );
       expect(result).toBe('stream(dict(a: number, b: number = 0)):number');
     });

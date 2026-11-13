@@ -193,21 +193,21 @@ describe('Streams: Success Cases', () => {
     });
   });
 
-  // AC-S8: $s.^chunk returns chunk type, $s.^output returns resolution type
+  // AC-S8: $s.^type.inner returns chunk type, $s.^type.outer returns resolution type
   describe('AC-S8: stream reflection', () => {
-    it('^chunk returns chunk type', async () => {
+    it('.^type.inner returns chunk type', async () => {
       const result = await run(
         `
           || ("hello" -> yield) :stream(string) => $gen
           $gen() => $s
-          $s.^chunk
+          $s.^type.inner
         `
       );
       expect(isTypeValue(result)).toBe(true);
       expect((result as { typeName: string }).typeName).toBe('string');
     });
 
-    it('^output returns resolution type', async () => {
+    it('.^type.outer returns resolution type', async () => {
       const result = await run(
         `
           || {
@@ -215,31 +215,31 @@ describe('Streams: Success Cases', () => {
             42
           } :stream(string):number => $gen
           $gen() => $s
-          $s.^output
+          $s.^type.outer
         `
       );
       expect(isTypeValue(result)).toBe(true);
       expect((result as { typeName: string }).typeName).toBe('number');
     });
 
-    it('^chunk returns any when unconstrained', async () => {
+    it('.^type.inner returns any when unconstrained', async () => {
       const result = await run(
         `
           || ("hello" -> yield) :stream() => $gen
           $gen() => $s
-          $s.^chunk
+          $s.^type.inner
         `
       );
       expect(isTypeValue(result)).toBe(true);
       expect((result as { typeName: string }).typeName).toBe('any');
     });
 
-    it('^output returns any when unconstrained', async () => {
+    it('.^type.outer returns any when unconstrained', async () => {
       const result = await run(
         `
           || ("hello" -> yield) :stream() => $gen
           $gen() => $s
-          $s.^output
+          $s.^type.outer
         `
       );
       expect(isTypeValue(result)).toBe(true);

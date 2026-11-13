@@ -165,7 +165,7 @@ $x
 ```
 
 ```rill
-# Error: Type mismatch: cannot assign bool to $x:union(string, number)
+# Error: Type mismatch: cannot assign bool to $x:union(number, string)
 true => $x:union(string, number)
 ```
 

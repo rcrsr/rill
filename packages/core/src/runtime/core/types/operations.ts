@@ -731,7 +731,7 @@ export function formatStructure(type: TypeStructure): string {
 // ============================================================
 
 /** Build a closure param field definition from name, type, and optional default. */
-export function paramToFieldDef(
+function paramToFieldDef(
   name: string,
   type: TypeStructure,
   defaultValue: RillValue | undefined,

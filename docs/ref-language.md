@@ -583,16 +583,12 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 |-----|--------|--------|
 | `type` | Reserved | Intercepted at evaluation time for any value |
 | `effective` | Reserved | Intercepted at evaluation time for any value; returns the own type |
-| `input` | Active | Intercepted on any callable; returns parameter shape as `RillOrdered` |
-| `output` | Active | Intercepted on any callable; returns declared return type as `RillTypeValue` |
 | `description` | User-defined | Not reserved; common metadata key |
 | `enum` | User-defined | Not reserved; common metadata key |
 | `default` | User-defined | Not reserved; common metadata key |
 
 ```text
 ^(type: "custom") name: string   # Error: annotation key "type" is reserved
-^(input: "text") name: string    # Error: annotation key "input" is reserved
-^(output: "text") name: string   # Error: annotation key "output" is reserved
 ^(effective: "x") name: string   # Error: annotation key "effective" is reserved
 ```
 
@@ -647,7 +643,7 @@ Valid return type targets:
 | `any` | Any type (no assertion) |
 | `list(T)`, `dict(k: T, ...)`, `tuple(T, ...)` | Parameterized structural types (deep-validates) |
 
-Declared return type is accessible via `$fn.^output`. See [Closure Annotations](topic-closure-annotations.md#return-type-assertions) for parameterized-type examples and the mismatch error output.
+Declared return type is accessible via `$fn.^type.outer`. See [Closure Annotations](topic-closure-annotations.md#return-type-assertions) for parameterized-type examples and the mismatch error output.
 
 ---
 

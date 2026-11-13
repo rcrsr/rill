@@ -348,20 +348,20 @@ describe('Dict Field Annotations', () => {
   });
 
   // ============================================================
-  // AC-9: Closure .^input forwards annotations
+  // AC-9: Closure .^type forwards annotations
   // ============================================================
 
-  describe('AC-9: closure .^input forwards annotations through paramToFieldDef', () => {
-    it('closure ^input reflects description annotation on parameter', async () => {
+  describe('AC-9: closure .^type forwards annotations through paramToFieldDef', () => {
+    it('closure .^type params reflects description annotation on parameter', async () => {
       const result = await run(
-        '|^("label") x: string|{ $x } => $fn\n$fn.^input'
+        '|^("label") x: string|{ $x } => $fn\n$fn.^type'
       );
       const shape = result as {
         __rill_type: true;
         typeName: string;
         structure: {
           kind: string;
-          fields: {
+          params: {
             name: string;
             type: unknown;
             annotations?: Record<string, unknown>;
@@ -369,78 +369,78 @@ describe('Dict Field Annotations', () => {
         };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.kind).toBe('ordered');
-      expect(shape.structure.fields).toHaveLength(1);
-      expect(shape.structure.fields[0]!.name).toBe('x');
-      expect(shape.structure.fields[0]!.type).toEqual({ kind: 'string' });
-      expect(shape.structure.fields[0]!.annotations).toEqual({
+      expect(shape.structure.kind).toBe('closure');
+      expect(shape.structure.params).toHaveLength(1);
+      expect(shape.structure.params[0]!.name).toBe('x');
+      expect(shape.structure.params[0]!.type).toEqual({ kind: 'string' });
+      expect(shape.structure.params[0]!.annotations).toEqual({
         description: 'label',
       });
     });
 
-    it('closure ^input reflects multi-key annotations on parameter', async () => {
+    it('closure .^type params reflects multi-key annotations on parameter', async () => {
       const result = await run(
-        '|^(description: "name", min: 1) x: string|{ $x } => $fn\n$fn.^input'
+        '|^(description: "name", min: 1) x: string|{ $x } => $fn\n$fn.^type'
       );
       const shape = result as {
         __rill_type: true;
         typeName: string;
         structure: {
           kind: string;
-          fields: {
+          params: {
             name: string;
             type: unknown;
             annotations?: Record<string, unknown>;
           }[];
         };
       };
-      expect(shape.structure.fields[0]!.annotations).toEqual({
+      expect(shape.structure.params[0]!.annotations).toEqual({
         description: 'name',
         min: 1,
       });
     });
 
-    it('closure ^input omits annotations for unannotated parameters', async () => {
-      const result = await run('|x: number|{ $x } => $fn\n$fn.^input');
+    it('closure .^type params omits annotations for unannotated parameters', async () => {
+      const result = await run('|x: number|{ $x } => $fn\n$fn.^type');
       const shape = result as {
         __rill_type: true;
         typeName: string;
         structure: {
           kind: string;
-          fields: {
+          params: {
             name: string;
             type: unknown;
             annotations?: Record<string, unknown>;
           }[];
         };
       };
-      expect(shape.structure.fields[0]!.name).toBe('x');
-      expect(shape.structure.fields[0]!.annotations).toBeUndefined();
+      expect(shape.structure.params[0]!.name).toBe('x');
+      expect(shape.structure.params[0]!.annotations).toBeUndefined();
     });
 
-    it('closure ^input forwards annotations on multiple parameters', async () => {
+    it('closure .^type params forwards annotations on multiple parameters', async () => {
       const result = await run(
-        '|^("first") a: string, ^("second") b: number|{ $a } => $fn\n$fn.^input'
+        '|^("first") a: string, ^("second") b: number|{ $a } => $fn\n$fn.^type'
       );
       const shape = result as {
         __rill_type: true;
         typeName: string;
         structure: {
           kind: string;
-          fields: {
+          params: {
             name: string;
             type: unknown;
             annotations?: Record<string, unknown>;
           }[];
         };
       };
-      expect(shape.structure.fields).toHaveLength(2);
-      expect(shape.structure.fields[0]!.name).toBe('a');
-      expect(shape.structure.fields[0]!.annotations).toEqual({
+      expect(shape.structure.params).toHaveLength(2);
+      expect(shape.structure.params[0]!.name).toBe('a');
+      expect(shape.structure.params[0]!.annotations).toEqual({
         description: 'first',
       });
-      expect(shape.structure.fields[1]!.name).toBe('b');
-      expect(shape.structure.fields[1]!.annotations).toEqual({
+      expect(shape.structure.params[1]!.name).toBe('b');
+      expect(shape.structure.params[1]!.annotations).toEqual({
         description: 'second',
       });
     });

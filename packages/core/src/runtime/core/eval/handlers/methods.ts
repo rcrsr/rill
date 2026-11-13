@@ -23,17 +23,13 @@ import type {
 } from '../../types/structures.js';
 import { insertArgDeclared, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
+import { isTypeValue, isStream } from '../../types/guards.js';
+import { inferStructure, formatStructure } from '../../types/operations.js';
+import { structureToTypeValue } from '../../values.js';
 import {
-  isTypeValue,
-  isStream,
-  getStreamTypeSidecar,
-} from '../../types/guards.js';
-import {
-  paramToFieldDef,
-  inferStructure,
-  formatStructure,
-} from '../../types/operations.js';
-import { anyTypeValue, structureToTypeValue } from '../../values.js';
+  readTypeProperty,
+  throwMissingTypeProperty,
+} from '../../types/type-properties.js';
 import type { EvalState } from '../state.js';
 import { appendTraceFrame } from '../../types/status.js';
 import { throwCatchableHostHalt, RuntimeHaltSignal } from '../../types/halt.js';
@@ -144,12 +140,8 @@ export async function evaluateMethod(
     );
   }
   if (isTypeValue(receiver)) {
-    if (node.name === 'name') {
-      return receiver.typeName;
-    }
-    if (node.name === 'signature') {
-      return formatStructure(receiver.structure);
-    }
+    const read = readTypeProperty(receiver, node.name);
+    if (read !== undefined) return read.value;
   }
 
   const args = await evaluateArgs(s, node.args);
@@ -193,15 +185,14 @@ export async function evaluateMethod(
   }
 
   if (isTypeValue(receiver)) {
-    throwCatchableHostHalt(
+    throwMissingTypeProperty(
       {
         location: getNodeLocation(s, node),
         sourceId: s.ctx.sourceId,
         fn: 'evaluateMethod',
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R009],
-      `Property '${node.name}' not found on type value (available: name, signature)`,
-      { property: node.name, type: 'type value' }
+      receiver,
+      node.name
     );
   }
   if (!s.ctx.unvalidatedMethodReceivers.has(node.name)) {
@@ -293,6 +284,27 @@ async function evaluateInvoke(
   return invokeCallable(s, receiver, args, getNodeLocation(s, node));
 }
 
+/** Retired reflection probes per receiver, with the `.^type` property that replaced each. */
+const RETIRED_PROBE_REPLACEMENTS: Readonly<
+  Record<'callable' | 'stream', Readonly<Record<string, string>>>
+> = {
+  callable: { input: 'inner', output: 'outer' },
+  stream: { chunk: 'inner', output: 'outer' },
+};
+
+/** Suffix naming the `.^type` property that replaced a retired probe, or ''. */
+function retiredProbeHint(
+  key: string,
+  receiverKind: 'callable' | 'stream',
+  receiver: string
+): string {
+  const probes = RETIRED_PROBE_REPLACEMENTS[receiverKind];
+  const replacement = Object.hasOwn(probes, key) ? probes[key] : undefined;
+  return replacement === undefined
+    ? ''
+    : `; use ${receiver}.^type.${replacement}`;
+}
+
 /**
  * Evaluate annotation reflection access: .^key on callables, type values, and streams.
  * `.^type` reports the declared type when one is carried, else the inferred type;
@@ -332,16 +344,6 @@ export async function evaluateAnnotationAccess(
   }
 
   if (isStream(value)) {
-    if (key === 'chunk') {
-      const chunkType = getStreamTypeSidecar(value, 'chunk');
-      if (chunkType === undefined) return anyTypeValue;
-      return structureToTypeValue(chunkType);
-    }
-    if (key === 'output') {
-      const retType = getStreamTypeSidecar(value, 'ret');
-      if (retType === undefined) return anyTypeValue;
-      return structureToTypeValue(retType);
-    }
     throwCatchableHostHalt(
       {
         location,
@@ -349,7 +351,7 @@ export async function evaluateAnnotationAccess(
         fn: 'evaluateAnnotationAccess',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `annotation not found: ^${key}`,
+      `annotation not found: ^${key}${retiredProbeHint(key, 'stream', '$s')}`,
       { actualType: 'stream' }
     );
   }
@@ -370,21 +372,6 @@ export async function evaluateAnnotationAccess(
   if (key === 'description') {
     return value.annotations['description'] ?? '';
   }
-  if (key === 'input') {
-    const fields = declaredParams(value, undefined, location).map((param) =>
-      paramToFieldDef(
-        param.name,
-        param.type ?? { kind: 'any' },
-        param.defaultValue,
-        param.annotations
-      )
-    );
-    return structureToTypeValue({ kind: 'ordered', fields });
-  }
-
-  if (key === 'output') {
-    return value.returnType;
-  }
   const annotationValue = value.annotations[key];
   if (annotationValue === undefined) {
     throwCatchableHostHalt(
@@ -394,7 +381,7 @@ export async function evaluateAnnotationAccess(
         fn: 'evaluateAnnotationAccess',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R008],
-      `Annotation '${key}' not found`,
+      `Annotation '${key}' not found${retiredProbeHint(key, 'callable', '$f')}`,
       { annotationKey: key }
     );
   }

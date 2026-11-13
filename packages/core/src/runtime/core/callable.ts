@@ -296,7 +296,7 @@ export function callableEquals(
 /**
  * Build a TypeStructure closure variant from a closure's parameter list.
  *
- * Called at closure creation time to build the structural type for `$fn.^input`.
+ * Called at closure creation time to build the structural type reported by `$fn.^type`.
  * - Typed params use param.type directly when present
  * - Untyped params (type: undefined) map to { kind: 'any' }
  * - Return type is always { kind: 'any' }

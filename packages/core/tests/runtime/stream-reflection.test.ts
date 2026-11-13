@@ -2,7 +2,7 @@
  * Stream Reflection, Invocation, and Scope Exit Cleanup Tests
  *
  * Covers:
- * - IR-11: ^chunk and ^output reflection on streams
+ * - IR-11: .^type.inner and .^type.outer reflection on streams
  * - IR-11: -> stream halts with RILL-R003
  * - IR-12: $s() invocation returns resolution value
  * - IR-12: $s() is idempotent (cached after first call)
@@ -45,16 +45,16 @@ function asyncIterableFrom(values: RillValue[]): AsyncIterable<RillValue> {
 }
 
 // ============================================================
-// IR-11: STREAM REFLECTION (^chunk, ^output)
+// IR-11: STREAM REFLECTION (.^type.inner, .^type.outer)
 // ============================================================
 
 describe('Stream Reflection', () => {
-  describe('^chunk', () => {
+  describe('.^type.inner', () => {
     it('returns chunk TypeStructure as RillTypeValue', async () => {
       const script = `
         || ("hello" -> yield) :stream(string) => $gen
         $gen() => $s
-        $s.^chunk
+        $s.^type.inner
       `;
       const result = await run(script);
       expect(isTypeValue(result)).toBe(true);
@@ -65,7 +65,7 @@ describe('Stream Reflection', () => {
       const script = `
         || ("hello" -> yield) :stream() => $gen
         $gen() => $s
-        $s.^chunk
+        $s.^type.inner
       `;
       const result = await run(script);
       expect(isTypeValue(result)).toBe(true);
@@ -73,7 +73,7 @@ describe('Stream Reflection', () => {
     });
   });
 
-  describe('^output', () => {
+  describe('.^type.outer', () => {
     it('returns resolution TypeStructure as RillTypeValue', async () => {
       const script = `
         || {
@@ -81,7 +81,7 @@ describe('Stream Reflection', () => {
           42
         } :stream(string):number => $gen
         $gen() => $s
-        $s.^output
+        $s.^type.outer
       `;
       const result = await run(script);
       expect(isTypeValue(result)).toBe(true);
@@ -92,7 +92,7 @@ describe('Stream Reflection', () => {
       const script = `
         || ("hello" -> yield) :stream(string) => $gen
         $gen() => $s
-        $s.^output
+        $s.^type.outer
       `;
       const result = await run(script);
       expect(isTypeValue(result)).toBe(true);

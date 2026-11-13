@@ -536,40 +536,40 @@ describe('Rill Language: Structural Type Identity', () => {
   });
 
   // ============================================================
-  // Reflection: .^input for parameterized param type (AC-11)
+  // Reflection: .^type params for parameterized param type (AC-11)
   // ============================================================
 
-  describe('Reflection: .^input reflects parameterized param type (AC-11)', () => {
-    it('AC-11: |x: list(string)| closure .^input has x typed list(string)', async () => {
+  describe('Reflection: .^type reflects parameterized param type (AC-11)', () => {
+    it('AC-11: |x: list(string)| closure .^type has x typed list(string)', async () => {
       const script = `
         |x: list(string)| { $x } => $fn
-        $fn.^input
+        $fn.^type
       `;
       const result = (await run(script)) as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: { name: string; type: unknown }[] };
+        structure: { type: string; params: { name: string; type: unknown }[] };
       };
       expect(result.__rill_type).toBe(true);
-      expect(result.typeName).toBe('ordered');
-      expect(result.structure.fields).toHaveLength(1);
-      expect(result.structure.fields[0]!.name).toBe('x');
-      expect(result.structure.fields[0]!.type).toEqual({
+      expect(result.typeName).toBe('closure');
+      expect(result.structure.params).toHaveLength(1);
+      expect(result.structure.params[0]!.name).toBe('x');
+      expect(result.structure.params[0]!.type).toEqual({
         kind: 'list',
         element: { kind: 'string' },
       });
     });
 
-    it('AC-11: |x: dict(name: string)| closure .^input reflects dict structure', async () => {
+    it('AC-11: |x: dict(name: string)| closure .^type reflects dict structure', async () => {
       const script = `
         |x: dict(name: string)| { $x } => $fn
-        $fn.^input
+        $fn.^type
       `;
       const result = (await run(script)) as {
         __rill_type: true;
-        structure: { type: string; fields: { name: string; type: unknown }[] };
+        structure: { type: string; params: { name: string; type: unknown }[] };
       };
-      expect(result.structure.fields[0]!.type).toEqual({
+      expect(result.structure.params[0]!.type).toEqual({
         kind: 'dict',
         fields: { name: { type: { kind: 'string' } } },
       });

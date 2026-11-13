@@ -17,7 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
 import {
-  expectOrderedStructure,
+  expectClosureStructure,
   expectTypeValue,
   isClosureStructure,
 } from '../helpers/structure.js';
@@ -166,8 +166,8 @@ describe('Optional parameter structural types', () => {
     });
   });
 
-  describe('param type via ^input', () => {
-    it('host callable with default value shows default in ^input type', async () => {
+  describe('param type via .^type params', () => {
+    it('host callable with default value shows default in .^type params', async () => {
       const fn: ApplicationCallable = {
         __type: 'callable',
         kind: 'application',
@@ -185,12 +185,12 @@ describe('Optional parameter structural types', () => {
         annotations: {},
       };
 
-      const result = await run('$fn.^input', { variables: { fn } });
+      const result = await run('$fn.^type', { variables: { fn } });
       const shape = expectTypeValue(result);
-      const fields = expectOrderedStructure(result).fields ?? [];
+      const fields = expectClosureStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('ordered');
+      expect(shape.typeName).toBe('closure');
       expect(fields[0]).toEqual({
         name: 'name',
         type: { kind: 'string' },
@@ -198,7 +198,7 @@ describe('Optional parameter structural types', () => {
       });
     });
 
-    it('host callable without default omits defaultValue in ^input', async () => {
+    it('host callable without default omits defaultValue in .^type params', async () => {
       const fn: ApplicationCallable = {
         __type: 'callable',
         kind: 'application',
@@ -216,12 +216,12 @@ describe('Optional parameter structural types', () => {
         annotations: {},
       };
 
-      const result = await run('$fn.^input', { variables: { fn } });
+      const result = await run('$fn.^type', { variables: { fn } });
       const shape = expectTypeValue(result);
-      const fields = expectOrderedStructure(result).fields ?? [];
+      const fields = expectClosureStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('ordered');
+      expect(shape.typeName).toBe('closure');
       expect(fields[0]).toEqual({
         name: 'x',
         type: { kind: 'number' },
@@ -356,16 +356,16 @@ describe('Optional parameter structural types', () => {
   });
 
   describe('script closures with default params', () => {
-    it('script closure with string default shows default in ^input', async () => {
+    it('script closure with string default shows default in .^type params', async () => {
       const result = await run(`
         |name: string = "World"| { $name } => $greet
-        $greet.^input
+        $greet.^type
       `);
       const shape = expectTypeValue(result);
-      const fields = expectOrderedStructure(result).fields ?? [];
+      const fields = expectClosureStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('ordered');
+      expect(shape.typeName).toBe('closure');
       expect(fields[0]).toEqual({
         name: 'name',
         type: { kind: 'string' },
@@ -373,16 +373,16 @@ describe('Optional parameter structural types', () => {
       });
     });
 
-    it('script closure with number default shows default in ^input', async () => {
+    it('script closure with number default shows default in .^type params', async () => {
       const result = await run(`
         |count: number = 10| { $count } => $fn
-        $fn.^input
+        $fn.^type
       `);
       const shape = expectTypeValue(result);
-      const fields = expectOrderedStructure(result).fields ?? [];
+      const fields = expectClosureStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('ordered');
+      expect(shape.typeName).toBe('closure');
       expect(fields[0]).toEqual({
         name: 'count',
         type: { kind: 'number' },
@@ -393,13 +393,13 @@ describe('Optional parameter structural types', () => {
     it('mixed required and optional params in script closure', async () => {
       const result = await run(`
         |x: number, y: number = 0| { $x + $y } => $add
-        $add.^input
+        $add.^type
       `);
       const shape = expectTypeValue(result);
-      const fields = expectOrderedStructure(result).fields ?? [];
+      const fields = expectClosureStructure(result).params ?? [];
 
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('ordered');
+      expect(shape.typeName).toBe('closure');
       expect(fields[0]).toEqual({
         name: 'x',
         type: { kind: 'number' },

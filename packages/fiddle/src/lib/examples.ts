@@ -488,8 +488,8 @@ $start -> .add(duration(...dict[days: 1, hours: 2])) -> .iso()`,
 ^("Doubles a number") |x: number| ($x * 2):number => $fn
 
 log($fn.^description)
-log($fn.^input)
-log($fn.^output.name)
+log($fn.^type.inner)
+log($fn.^type.outer.name)
 $fn(21)`,
   },
   'context-use': {

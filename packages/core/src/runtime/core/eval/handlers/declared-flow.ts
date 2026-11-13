@@ -28,7 +28,11 @@ import {
 } from '../../types/declared.js';
 import type { ControlFlowContext } from '../../types/runtime.js';
 import type { RillValue } from '../../types/structures.js';
-import { isVacant } from '../../types/guards.js';
+import { isTypeValue, isVacant } from '../../types/guards.js';
+import {
+  isMissingTypePropertyHalt,
+  readTypeProperty,
+} from '../../types/type-properties.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { EvalState } from '../state.js';
@@ -68,7 +72,12 @@ function isRecoverableMissing(error: unknown): boolean {
       ERROR_IDS.RILL_R008,
       ERROR_ATOMS[ERROR_IDS.RILL_R008]
     ) ||
-    matchesErrorId(error, ERROR_IDS.RILL_R009, ERROR_ATOMS[ERROR_IDS.RILL_R009])
+    matchesErrorId(
+      error,
+      ERROR_IDS.RILL_R009,
+      ERROR_ATOMS[ERROR_IDS.RILL_R009]
+    ) ||
+    isMissingTypePropertyHalt(error)
   );
 }
 
@@ -166,6 +175,21 @@ async function applyPostfixStepsCarried(
       );
       value = element.value;
       declared = element.declared;
+    } else if (
+      method.type === 'MethodCall' &&
+      method.name === 'inner' &&
+      isTypeValue(value) &&
+      !method.hasParens &&
+      method.args.length === 0
+    ) {
+      const read = readTypeProperty(value, method.name);
+      if (read === undefined) {
+        value = await evaluateMethod(s, method, value);
+        declared = undefined;
+      } else {
+        value = read.value;
+        declared = read.declared;
+      }
     } else {
       const projected =
         declared !== undefined &&

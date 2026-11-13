@@ -11,6 +11,7 @@ import { ERROR_CODE_NAMES } from '../../../constants.js';
 import { resolveAtom, toAtomValue } from './atom-registry.js';
 import { isAtom, isStructureKind } from './guards.js';
 import type { TypeStructure } from './structures.js';
+import { canonicalUnionMembers } from './union-order.js';
 
 const ERROR_CODE_TYPE_NAME = 'error_code';
 
@@ -52,29 +53,30 @@ export function bareTypeStructure(name: string): TypeStructure {
 }
 
 /**
- * Format union members, printing the literals of every error code as the
- * single word `error_code` at the position of the first one.
+ * Format union members in canonical order, printing the literals of every
+ * error code as the single word `error_code`, sorted as a type member.
  */
 function formatMembers(
   members: readonly TypeStructure[],
   format: (member: TypeStructure) => string
 ): string[] {
   const present = new Set(members.map(literalAtomName));
-  if (!ERROR_CODE_NAMES.every((name) => present.has(name))) {
-    return members.map(format);
-  }
-  const out: string[] = [];
+  const collapse = ERROR_CODE_NAMES.every((name) => present.has(name));
+  const marker: TypeStructure = { kind: ERROR_CODE_TYPE_NAME };
+  const printed = (member: TypeStructure): string =>
+    member === marker ? ERROR_CODE_TYPE_NAME : format(member);
+  const kept: TypeStructure[] = [];
   let emitted = false;
   for (const member of members) {
     const name = literalAtomName(member);
-    if (name !== undefined && ERROR_CODE_NAMES.includes(name)) {
-      if (!emitted) out.push(ERROR_CODE_TYPE_NAME);
+    if (collapse && name !== undefined && ERROR_CODE_NAMES.includes(name)) {
+      if (!emitted) kept.push(marker);
       emitted = true;
     } else {
-      out.push(format(member));
+      kept.push(member);
     }
   }
-  return out;
+  return canonicalUnionMembers(kept, printed).map(printed);
 }
 
 /**

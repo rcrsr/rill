@@ -155,8 +155,7 @@ export function isTypeValue(value: RillValue): value is RillTypeValue {
 
 /**
  * Entries of a RillOrdered value as `[key, value]` pairs, dropping the
- * optional third element (default value) that closure-parameter reflection
- * (`.^input`) carries. Use this for multi-entry reads (`.keys()`, `.values()`,
+ * optional third element (default value). Use this for multi-entry reads (`.keys()`, `.values()`,
  * `.entries()`); single-key lookups scan `.entries` directly instead of
  * calling this helper, to avoid the O(n) allocation it produces.
  */

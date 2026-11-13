@@ -566,9 +566,9 @@ $s[0]  # Error: Cannot index string
 
 **Description:** Method receiver type mismatch
 
-**Cause:** Method called on value of wrong type. String methods require strings, list methods require lists, etc.
+**Cause:** Method called on value of wrong type. String methods require strings, list methods require lists, etc. Also raised when a type value is asked for a property its kind does not define, such as `inner` on a leaf type.
 
-**Resolution:** Call method on correct type, or convert value before calling. Check method documentation for receiver type.
+**Resolution:** Call method on correct type, or convert value before calling. Check method documentation for receiver type. For a type value, probe with `.?inner` or recover with `??`.
 
 **Example:**
 
@@ -578,6 +578,10 @@ $s[0]  # Error: Cannot index string
 
 # List method on string
 "hello" -> .first()  # first() is list method
+
+# Property a type value does not define
+string => $t
+$t.inner  # Error: a leaf type has no inner
 ```
 
 ---

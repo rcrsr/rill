@@ -65,7 +65,7 @@ describe('type value internals are not readable', () => {
   });
 
   it('rejects a method-style access to the structure field', async () => {
-    await expectErrorId(`${TYPE}$t -> .structure`, 'RILL-R009');
+    await expectErrorId(`${TYPE}$t -> .structure`, 'RILL-R003');
   });
 
   it('rejects bracket access to the structure field', async () => {
@@ -395,7 +395,7 @@ describe('method-call and path forms reject blocked keys', () => {
   const STREAM = 'make_stream() => $s\n';
 
   it('rejects a method-call read of the structure field on a type value', async () => {
-    await expectErrorId(`${TYPE}$t.structure()`, 'RILL-R009');
+    await expectErrorId(`${TYPE}$t.structure()`, 'RILL-R003');
   });
 
   it('rejects a pipe-target read of the stream resolve function', async () => {
@@ -407,7 +407,7 @@ describe('method-call and path forms reject blocked keys', () => {
   });
 
   it('rejects a pipe-target read of the structure field on a type value', async () => {
-    await expectErrorId(`${TYPE}$t -> .structure`, 'RILL-R009');
+    await expectErrorId(`${TYPE}$t -> .structure`, 'RILL-R003');
   });
 
   it('rejects a closure call through a path into a type value', async () => {

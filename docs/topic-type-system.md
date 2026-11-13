@@ -214,29 +214,13 @@ The string representation of structural types follows this format:
 
 ### Stream Reflection
 
-Streams expose two annotation properties: `^chunk` and `^output`. Both return a `RillTypeValue`.
+A stream type answers `.inner` with its chunk type and `.outer` with its resolution type; each is `any` when unconstrained. The closure below declares `stream(number):string`, and `.^type.outer` reads that type:
 
-| Property | Returns | Description |
-|----------|---------|-------------|
-| `^chunk` | `RillTypeValue` | Chunk type; `any` when unconstrained |
-| `^output` | `RillTypeValue` | Resolution type; `any` when unconstrained |
-
-```text
-use<ext:app> => $app
-
-# Accessing ^chunk and ^output on a stream value (requires host-provided stream)
-$app.make_stream() => $s
-$s.^chunk    # returns any (unconstrained stream)
-$s.^output   # returns any (unconstrained stream)
-```
-
-```text
-use<ext:app> => $app
-
-# Typed stream: ^chunk and ^output reflect declared types
-$app.make_typed_stream() => $s   # chunk: string, output: number
-$s.^chunk    # returns string type
-$s.^output   # returns number type
+```rill
+|v: number|{ $v }:stream(number):string => $fn
+$fn.^type.outer => $t
+list[$t.inner, $t.outer]
+# Result: list[number, string]
 ```
 
 Structural subtyping applies to both chunk and resolution types. A `stream(string):number` satisfies `:stream(any):any` and `:stream`.
@@ -597,7 +581,7 @@ union(#wired, #wireless) => $lan
 
 ```rill
 union(string, number).signature
-# Result: "union(string, number)"
+# Result: "union(number, string)"
 ```
 
 A variable member must hold a type. Any other value halts with `#TYPE_MISMATCH`.
@@ -625,7 +609,7 @@ The check form reports membership without halting:
 # Result: false
 ```
 
-`error_code` is a reserved type name like `union`, so `|error_code: string|` is a parse error. `$error_code` variables and dict keys are unaffected. `error_code` has no `.inner`. See [Error Handling](topic-error-handling.md) for the `.!code` probe, whose value is always a member of `union(#ok, error_code)`.
+`error_code` is a reserved type name like `union`, so `|error_code: string|` is a parse error. `$error_code` variables and dict keys are unaffected. `error_code.inner` lists its codes in canonical order. See [Error Handling](topic-error-handling.md) for the `.!code` probe, whose value is always a member of `union(#ok, error_code)`.
 
 ### Set Rules
 
@@ -645,7 +629,7 @@ Reduction applies inside nested types:
 
 ```rill
 union(list(union(string, number)), list(string)).signature
-# Result: "list(union(string, number))"
+# Result: "list(union(number, string))"
 ```
 
 ### Reserved Name
@@ -759,7 +743,7 @@ A declared type travels with a value. A union capture shows it:
 ```rill
 42 => $x:union(string, number)
 $x.^type.signature
-# Result: "union(string, number)"
+# Result: "union(number, string)"
 ```
 
 `.^effective` always reports the own type of the value:
@@ -837,7 +821,7 @@ A variable's declared type is its lock, so a later capture does not change it:
 42 => $x:union(string, number)
 "a" => $x
 $x.^type.signature
-# Result: "union(string, number)"
+# Result: "union(number, string)"
 ```
 
 `any` declares nothing. `1 => $x:any` locks the variable as `number`.
@@ -908,12 +892,15 @@ $n.^type.name
 
 ### Dot-Notation Properties on Type Values
 
-Type values expose two properties via dot notation:
+Type values expose five properties via dot notation:
 
 | Property | Return Type | Description |
 |----------|-------------|-------------|
 | `.name` | `string` | Coarse type name (`"number"`, `"list"`, `"dict"`, etc.) |
 | `.signature` | `string` | Full structural type string |
+| `.inner` | type, collection, or list | What the type holds or takes |
+| `.outer` | type | What a function or stream type yields |
+| `.defaults` | `dict` | Defaults of a dict, ordered, or function type; only fields that have one |
 
 ```rill
 number => $t
@@ -938,21 +925,53 @@ $fn.^type.signature
 Combining `.^type` with `.name` and `.signature` gives both coarse and structural information:
 
 ```rill
-42.^type.name
-# Result: "number"
+tuple[42.^type.name, 42.^type.signature]
+# Result: tuple["number", "number"]
+```
+
+`.inner` returns one value per slot. Named fields and positions return the type's own collection kind, and every entry is a type:
+
+| Type | `.inner` |
+|------|----------|
+| `list(T)`, `dict(T)` | `T` |
+| `dict(a: T)` | `dict[a: T]` |
+| `ordered(a: T)` | `ordered[a: T]` |
+| `tuple(T, U)`, `tuple(T)` | `tuple[T, U]`, `tuple[T]` (always a tuple) |
+| `union(...)`, `error_code` | `list` of members in canonical order |
+| function `\|a: T\|` | `ordered[a: T]` |
+| `stream(T):R` | `T` |
+| `list`, `dict`, `tuple`, `ordered`, `stream` without arguments | `any` |
+| `string`, `number`, `bool`, `atom`, `vector`, `datetime`, `duration`, `type`, `any` | halts RILL-R003 |
+
+A union's `.inner` sorts type members by name first, then literals by kind (atom, bool, number, string) and by value. Equal unions return equal lists, and `.signature` prints the same order:
+
+```rill
+union("x", list, #a, 1, true).inner
+# Result: list[list, #a, true, 1, "x"]
+```
+
+`.outer` is defined on function and stream types and returns the declared result type, `any` when undeclared. Any other type halts RILL-R003. A leaf type has no `.inner`; guard the read with `??`, or test with `.?`. `.defaults` lists only the fields that declare a default: `dict(a: string = "x", b: number).defaults` is `dict[a: "x"]`. It halts RILL-R003 on types other than dict, ordered, and function:
+
+```rill
+string => $t
+tuple[$t.inner ?? any, $t.?name, $t.?inner, $t.missing ?? "x"]
+# Result: tuple[any, true, false, "x"]
 ```
 
 ```rill
-42.^type.signature
-# Result: "number"
+string => $t
+$t.inner
+# Error: Type value has no property "inner"
 ```
 
-Unknown dot properties on type values raise RILL-R009:
+`.^input` and `.^output` on a function halt RILL-R008, `.^chunk` and `.^output` on a stream halt RILL-R003, and each message names the replacement:
 
-```text
-number.unknownProp
-# Error: RILL-R009: Unknown property 'unknownProp' on type value
-```
+| Removed | Use |
+|---------|-----|
+| `$f.^input` | `$f.^type.inner` |
+| `$f.^output` | `$f.^type.outer` |
+| `$s.^chunk` | `$s.^type.inner` |
+| `$s.^output` | `$s.^type.outer` |
 
 `.^name` on a type value raises RILL-R008 ("Annotation access not supported on type values"). Use `.name` (dot notation) instead:
 

@@ -844,9 +844,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Method receiver type mismatch',
     messageTemplate: 'Method {method} cannot be called on {type}',
     cause:
-      'Method called on value of wrong type. String methods require strings, list methods require lists, etc.',
+      'Method called on value of wrong type. String methods require strings, list methods require lists, etc. Also raised when a type value is asked for a property its kind does not define, such as `inner` on a leaf type.',
     resolution:
-      'Call method on correct type, or convert value before calling. Check method documentation for receiver type.',
+      'Call method on correct type, or convert value before calling. Check method documentation for receiver type. For a type value, probe with `.?inner` or recover with `??`.',
     examples: [
       {
         description: 'String method on number',
@@ -855,6 +855,10 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       {
         description: 'List method on string',
         code: '"hello" -> .first()  # first() is list method',
+      },
+      {
+        description: 'Property a type value does not define',
+        code: 'string => $t\n$t.inner  # Error: a leaf type has no inner',
       },
     ],
   },

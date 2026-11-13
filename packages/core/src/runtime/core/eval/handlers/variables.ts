@@ -58,6 +58,10 @@ import {
 } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import {
+  readTypeProperty,
+  throwMissingTypeProperty,
+} from '../../types/type-properties.js';
+import {
   getVariable,
   hasVariable,
   findVariableScope,
@@ -504,6 +508,11 @@ export async function evaluateExistenceCheck(
 
       return exists;
     }
+    if (isTypeValue(value)) {
+      const read = readTypeProperty(value, finalAccess.field);
+      if (read === undefined) return false;
+      return typeRef === null ? true : await matchesType(read.value);
+    }
     return false;
   }
 
@@ -854,19 +863,21 @@ export async function evaluateVariableCarried(
         };
         value = await evaluateMethod(s, methodNode, value);
       } else if (isTypeValue(value)) {
-        if (field === 'name') {
-          value = value.typeName;
-        } else if (field === 'signature') {
-          value = formatStructure(value.structure);
+        const read = readTypeProperty(value, field);
+        if (read !== undefined) {
+          value = read.value;
+          declared = read.declared;
+        } else if (node.defaultValue !== null || node.existenceCheck !== null) {
+          value = null;
         } else {
-          throwCatchableHostHalt(
+          throwMissingTypeProperty(
             {
               location: getNodeLocation(s, node),
               sourceId: s.ctx.sourceId,
               fn: 'evaluateVariableAsync',
             },
-            ERROR_ATOMS[ERROR_IDS.RILL_R003],
-            `Type value has no property "${field}"`
+            value,
+            field
           );
         }
       } else if (isDict(value)) {

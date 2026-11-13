@@ -80,7 +80,7 @@ describe('Rill Language: error_code type', () => {
 
     it('prints a union with #ok and error_code compactly', async () => {
       expect(await run('union(#ok, error_code).signature')).toBe(
-        'union(#ok, error_code)'
+        'union(error_code, #ok)'
       );
     });
 
@@ -88,9 +88,11 @@ describe('Rill Language: error_code type', () => {
       const members = ERROR_CODES.slice(1)
         .map((c) => `#${c}`)
         .join(', ');
-      expect(await run(`union(${members}).signature`)).toBe(
-        `union(${members})`
-      );
+      const sorted = ERROR_CODES.slice(1)
+        .map((c) => `#${c}`)
+        .sort()
+        .join(', ');
+      expect(await run(`union(${members}).signature`)).toBe(`union(${sorted})`);
     });
   });
 

@@ -198,7 +198,7 @@ $f(1)
 1 -> $f()
 1 -> $f
 1 -> $(2)
-$f.^input
+$f.^note
 $d.("a")
 $d.{"a"}
 $d.(a || b)
@@ -206,7 +206,7 @@ $d.^note
 $d.?a&string
 (list[1, 2])[0]
 ($f)(1)
-($f).^input
+($f).^note
 1 -> ($ > 0) ? "y" ! "n"
 1 -> ($ > 0) ? pass ! pass
 0 -> while ($ < 3) do { $ + 1 }

@@ -352,6 +352,11 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: use<ext:app> => $app
            $app.fetch($url)
 
+## Callable reflection
+
+    Wrong: $fn.^input                      # removed; halts naming the replacement
+    Right: $fn.^type.inner                 # ordered[x: number]
+
 ## Union types
 
     Wrong: 42 -> :string|number
@@ -953,6 +958,18 @@ Returns a type value for runtime inspection.
     list[1, 2].^type.name           # "list"
     list[1, 2].^type.signature      # "list(number)"
 
+Read what a type holds with `.inner` and what a function or stream yields with `.outer`:
+
+    list(number).inner              # number
+    dict(a: number).inner           # dict[a: number]
+    tuple(string).inner             # tuple[string]
+    union("b", "a").inner           # list["a", "b"] (canonical order)
+    string.inner ?? any             # any; leaf types halt RILL-R003 without ??
+    string.?inner                   # false
+    |x: number|{ $x }:string => $f
+    $f.^type.outer                  # string
+    dict(a: string = "x").defaults  # dict[a: "x"]
+
 Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
 
     42 => $x:union(string, number)
@@ -1064,16 +1081,16 @@ Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
 
 ## Callable reflection
 
-`.^input` and `.^output` work on every callable type.
+`.^type.inner` and `.^type.outer` work on every callable type.
 
     |x: number, y: string| ($x) => $fn
-    $fn.^input                             # ordered(x: number, y: string)
-    $fn.^output                            # any (no return type declared)
+    $fn.^type.inner                        # ordered[x: number, y: string]
+    $fn.^type.outer                        # any (no return type declared)
 
     |x: number|{ $x * 2 }:number => $fn2
-    $fn2.^output                           # number
+    $fn2.^type.outer                       # number
 
-`.^input` returns ordered dict mapping param names to type values. `.^output` returns the declared return type (`any` if undeclared). Works on script closures, built-ins, host functions.
+`.^type.inner` returns an ordered of param names to types. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script closures, built-ins, host functions.
 
 Description shorthand (bare string in `^(...)` expands to `description: <string>`):
 

@@ -216,43 +216,56 @@ $fn()
 # Error: RILL-R005: $ is not defined in this closure form
 ```
 
-### `.^input` Reflection
+### Reflecting Parameters and Return Type
 
-`.^input` returns an ordered dict of the closure's input parameters. Anonymous params use `$` as the key name. Named params use their declared name. This mirrors `.^output`, which describes the return side of the signature.
+`$fn.^type` returns the closure's type. Its `.inner` holds the parameters as an `ordered` of types, and its `.outer` holds the declared return type. Anonymous params use `$` as the key name. Named params use their declared name.
 
-| Receiver Kind | Return Value |
+| Receiver Kind | `.^type.inner` |
 |---|---|
-| Bare block `{ ... }` | `ordered($: any)` |
-| Anonymous typed `\|string\| { ... }` | `ordered($: string)` |
-| Named param `\|x: string\| { ... }` | `ordered(x: string)` |
-| Named with default `\|a: string, b: string = "hi"\| { ... }` | `ordered(a: string, b: string = "hi")` |
-| Zero-param host callable | `ordered()` |
-| Non-callable value | Raises RILL-R003 |
+| Bare block `{ ... }` | `ordered[$: any]` |
+| Anonymous typed `\|string\| { ... }` | `ordered[$: string]` |
+| Named param `\|x: string\| { ... }` | `ordered[x: string]` |
+| Named with default `\|a: string, b: string = "hi"\| { ... }` | `ordered[a: string, b: string]` |
+| Non-callable value, such as `1` | Raises RILL-R003 |
 
 ```rill
 |string|{ $ } => $fn
-$fn.^input
-# Result: ordered($: string)
+$fn.^type.inner
+# Result: ordered[$: string]
 ```
 
 ```rill
 |list(string)|{ $ } => $fn
-$fn.^input
-# Result: ordered($: list(string))
+$fn.^type.inner
+# Result: ordered[$: list(string)]
 ```
 
 ```rill
 { $ * 2 } => $fn
-$fn.^input
-# Result: ordered($: any)
+$fn.^type.inner
+# Result: ordered[$: any]
 ```
 
-The `.^output` annotation returns the declared return type as a type value. Unannotated closures return `any`:
+Defaults sit under `.defaults`, which lists only the parameters that have one:
+
+```rill
+|a: string, b: string = "hi"|{ $a } => $fn
+$fn.^type.defaults
+# Result: dict[b: "hi"]
+```
+
+`.outer` returns the declared return type. Unannotated closures return `any`:
 
 ```rill
 |number|{ $ * 2 }:number => $fn
-$fn.^output == number
+$fn.^type.outer == number
 # Result: true
+```
+
+```rill
+{ $ } => $fn
+$fn.^type.outer
+# Result: any
 ```
 
 ---

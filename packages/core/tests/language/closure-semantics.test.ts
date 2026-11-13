@@ -755,17 +755,17 @@ describe('Rill Runtime: Closure Semantics', () => {
       );
     });
 
-    it('^output reflects declared return type', async () => {
-      // .^output returns a type value; access typeName via host API
+    it('.^type.outer reflects declared return type', async () => {
+      // .^type.outer returns a type value; access typeName via host API
       const result = (await run(
-        '|x: number| { $x }:number => $fn\n$fn.^output'
+        '|x: number| { $x }:number => $fn\n$fn.^type.outer'
       )) as any;
       expect(result.typeName).toBe('number');
     });
 
-    it('^output defaults to any when no return type declared', async () => {
+    it('.^type.outer defaults to any when no return type declared', async () => {
       const result = (await run(
-        '|x: number| { $x } => $fn\n$fn.^output'
+        '|x: number| { $x } => $fn\n$fn.^type.outer'
       )) as any;
       expect(result.typeName).toBe('any');
     });

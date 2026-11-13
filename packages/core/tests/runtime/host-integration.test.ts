@@ -923,9 +923,9 @@ describe('Callable reflection via ^ operator', () => {
     });
   });
 
-  describe('^input on ApplicationCallable (AC-2, AC-28, AC-29)', () => {
-    it('returns RillTypeValue with ordered type (AC-28)', async () => {
-      const result = (await run('$myFn.^input', {
+  describe('.^type on ApplicationCallable (AC-2, AC-28, AC-29)', () => {
+    it('returns RillTypeValue with closure type (AC-28)', async () => {
+      const result = (await run('$myFn.^type', {
         variables: {
           myFn: callableLiteral({
             __type: 'callable' as const,
@@ -946,11 +946,11 @@ describe('Callable reflection via ^ operator', () => {
         },
       })) as Record<string, unknown>;
       expect(result['__rill_type']).toBe(true);
-      expect(result['typeName']).toBe('ordered');
+      expect(result['typeName']).toBe('closure');
     });
 
-    it('returns empty ordered type for zero-param callable (AC-5, AC-29)', async () => {
-      const result = (await run('$myFn.^input', {
+    it('returns closure type for zero-param callable (AC-5, AC-29)', async () => {
+      const result = (await run('$myFn.^type', {
         variables: {
           myFn: callableLiteral({
             __type: 'callable' as const,
@@ -964,24 +964,26 @@ describe('Callable reflection via ^ operator', () => {
         },
       })) as Record<string, unknown>;
       expect(result['__rill_type']).toBe(true);
-      expect(result['typeName']).toBe('ordered');
+      expect(result['typeName']).toBe('closure');
+      const structure = result['structure'] as Record<string, unknown>;
+      expect(structure['params']).toEqual([]);
     });
   });
 
-  describe('^input on ScriptCallable (AC-37)', () => {
+  describe('.^type on ScriptCallable (AC-37)', () => {
     it('returns RillTypeValue reflecting script closure params', async () => {
       const result = (await run(
-        '|x: string, y: number| { $x } => $fn\n$fn.^input'
+        '|x: string, y: number| { $x } => $fn\n$fn.^type'
       )) as Record<string, unknown>;
       expect(result['__rill_type']).toBe(true);
-      expect(result['typeName']).toBe('ordered');
+      expect(result['typeName']).toBe('closure');
     });
   });
 
-  describe('^output on ApplicationCallable (AC-3, AC-30, AC-31)', () => {
+  describe('.^type.outer on ApplicationCallable (AC-3, AC-30, AC-31)', () => {
     it('returns registered returnType RillTypeValue (AC-30, AC-31)', async () => {
       const returnType = structureToTypeValue({ kind: 'string' });
-      const result = (await run('$myFn.^output', {
+      const result = (await run('$myFn.^type.outer', {
         variables: {
           myFn: callableLiteral({
             __type: 'callable' as const,
@@ -994,14 +996,14 @@ describe('Callable reflection via ^ operator', () => {
           }),
         },
       })) as Record<string, unknown>;
-      // ^output returns the RillTypeValue — which has a __rill_type sentinel
+      // .^type.outer returns the RillTypeValue — which has a __rill_type sentinel
       expect(result).toHaveProperty('__rill_type', true);
       expect(result).toHaveProperty('typeName', 'string');
     });
   });
 
-  describe('^output on RuntimeCallable (AC-33)', () => {
-    it('.^output on log returns anyTypeValue (BC-7)', () => {
+  describe('.^type.outer on RuntimeCallable (AC-33)', () => {
+    it('.^type.outer on log returns anyTypeValue (BC-7)', () => {
       // Access the log callable from context directly and check returnType
       const ctx = createRuntimeContext();
       const logCallable = ctx.functions.get('log') as unknown as {

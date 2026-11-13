@@ -32,12 +32,7 @@ import {
 } from './state.js';
 import { ERROR_IDS } from '../error-registry.js';
 
-const RESERVED_ANNOTATION_KEYS: readonly string[] = [
-  'type',
-  'effective',
-  'input',
-  'output',
-];
+const RESERVED_ANNOTATION_KEYS: readonly string[] = ['type', 'effective'];
 
 // Tokens that open a nested construct tracked by recoverToNextStatement's
 // type-matched resync. Angle-bracket forms (destruct<, slice<, use<, retry<,

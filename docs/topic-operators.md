@@ -672,7 +672,7 @@ $result.!message       # string message
 | Form | Returns |
 |------|---------|
 | `$v.!` | `bool` — `false` when valid, `true` when invalid |
-| `$v.!code` | atom, a member of `union(#ok, error_code)` (`#ok` when valid). `.!code.^type` reports `union(#ok, error_code)`; `.!code.^effective` reports `atom` |
+| `$v.!code` | atom, a member of `union(#ok, error_code)` (`#ok` when valid). `.!code.^type` reports `union(error_code, #ok)`; `.!code.^effective` reports `atom` |
 | `$v.!message` | `string` status message |
 | `$v.!provider` | `string` provider tag |
 | `$v.!trace` | `list` of trace-frame dicts |

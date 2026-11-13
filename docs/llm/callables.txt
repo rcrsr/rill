@@ -87,16 +87,16 @@ Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
 
 ## Callable reflection
 
-`.^input` and `.^output` work on every callable type.
+`.^type.inner` and `.^type.outer` work on every callable type.
 
     |x: number, y: string| ($x) => $fn
-    $fn.^input                             # ordered(x: number, y: string)
-    $fn.^output                            # any (no return type declared)
+    $fn.^type.inner                        # ordered[x: number, y: string]
+    $fn.^type.outer                        # any (no return type declared)
 
     |x: number|{ $x * 2 }:number => $fn2
-    $fn2.^output                           # number
+    $fn2.^type.outer                       # number
 
-`.^input` returns ordered dict mapping param names to type values. `.^output` returns the declared return type (`any` if undeclared). Works on script closures, built-ins, host functions.
+`.^type.inner` returns an ordered of param names to types. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script closures, built-ins, host functions.
 
 Description shorthand (bare string in `^(...)` expands to `description: <string>`):
 

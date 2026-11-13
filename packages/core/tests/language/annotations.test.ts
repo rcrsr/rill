@@ -1254,7 +1254,7 @@ describe('Rill Runtime: Annotations', () => {
   });
 
   describe('ApplicationCallable and paramsToStructuralType edge cases', () => {
-    describe('AC-23: $fn.^input on host function with defined params returns a closure structural type', () => {
+    describe('AC-23: $fn.^type on host function with defined params returns a closure structural type', () => {
       it('structural type params array matches registered param names (AC-23)', async () => {
         // Inject the callable directly as a variable to avoid bare-name invocation.
         const hostFn: ApplicationCallable = createHostCallable({
@@ -1283,8 +1283,8 @@ describe('Rill Runtime: Annotations', () => {
               typeof hostFn === 'object' &&
               '__type' in hostFn)
         ).toBe(true);
-        // $fn.^input returns RillTypeValue: { __rill_type: true, typeName: 'ordered', structure: { kind: 'ordered', fields: [...] } }
-        const inputResult = await run(`$fn.^input`, {
+        // $fn.^type returns RillTypeValue: { __rill_type: true, typeName: 'closure', structure: { kind: 'closure', params: [...] } }
+        const inputResult = await run(`$fn.^type`, {
           variables: { fn: hostFn },
         });
         const shape = inputResult as {
@@ -1292,40 +1292,40 @@ describe('Rill Runtime: Annotations', () => {
           typeName: string;
           structure: {
             type: string;
-            fields: { name: string; type: unknown }[];
+            params: { name: string; type: unknown }[];
           };
         };
         expect(shape.__rill_type).toBe(true);
-        expect(shape.typeName).toBe('ordered');
-        expect(shape.structure.fields).toEqual([
+        expect(shape.typeName).toBe('closure');
+        expect(shape.structure.params).toEqual([
           { name: 'name', type: { kind: 'string' } },
           { name: 'age', type: { kind: 'number' } },
         ]);
       });
     });
 
-    describe('AC-24: $fn.^input on host function with params undefined returns empty ordered', () => {
-      it('returns empty ordered when host function has no params metadata', async () => {
+    describe('AC-24: $fn.^type on host function with params undefined returns closure with empty params', () => {
+      it('returns closure type with empty params when host function has no params metadata', async () => {
         // callable() creates an ApplicationCallable with params: undefined.
         // Inject it as a pre-set variable so the script can access it.
         const untypedFn: ApplicationCallable = callable(() => 'result');
-        const result = await run(`$fn.^input`, {
+        const result = await run(`$fn.^type`, {
           variables: { fn: untypedFn },
         });
         const shape = result as {
           __rill_type: true;
           typeName: string;
-          structure: { type: string; fields: unknown[] };
+          structure: { type: string; params: unknown[] };
         };
         expect(shape.__rill_type).toBe(true);
-        expect(shape.typeName).toBe('ordered');
-        expect(shape.structure.fields).toEqual([]);
+        expect(shape.typeName).toBe('closure');
+        expect(shape.structure.params).toEqual([]);
       });
     });
 
-    describe('AC-34: Concurrent read access to $fn.^input on the same closure is safe', () => {
+    describe('AC-34: Concurrent read access to $fn.^type on the same closure is safe', () => {
       it('structural type param entry is stable across multiple reads (AC-34)', async () => {
-        // $fn.^input returns RillTypeValue: { __rill_type: true, typeName: 'ordered', structure: ... }
+        // $fn.^type returns RillTypeValue: { __rill_type: true, typeName: 'closure', structure: ... }
         // Access the structural type twice and verify both reads return the same value
         const processCallable: ApplicationCallable = createHostCallable({
           __type: 'callable',
@@ -1341,10 +1341,10 @@ describe('Rill Runtime: Annotations', () => {
           fn: (args) => args['data'] as RillValue,
           isProperty: false,
         });
-        const result1 = await run(`$fn.^input`, {
+        const result1 = await run(`$fn.^type`, {
           variables: { fn: processCallable },
         });
-        const result2 = await run(`$fn.^input`, {
+        const result2 = await run(`$fn.^type`, {
           variables: { fn: processCallable },
         });
         expect(result1).toEqual(result2);
@@ -1353,18 +1353,18 @@ describe('Rill Runtime: Annotations', () => {
           typeName: string;
           structure: {
             type: string;
-            fields: { name: string; type: unknown }[];
+            params: { name: string; type: unknown }[];
           };
         };
         expect(shape.__rill_type).toBe(true);
-        expect(shape.structure.fields).toEqual([
+        expect(shape.structure.params).toEqual([
           { name: 'data', type: { kind: 'string' } },
         ]);
       });
     });
 
     describe('AC-35: paramsToStructuralType() with empty params array returns closure with empty params', () => {
-      it('zero-param host function ^input returns closure structural type with empty params (AC-35)', async () => {
+      it('zero-param host function .^type returns closure structural type with empty params (AC-35)', async () => {
         const noopCallable: ApplicationCallable = createHostCallable({
           __type: 'callable',
           kind: 'application',
@@ -1372,23 +1372,23 @@ describe('Rill Runtime: Annotations', () => {
           fn: () => null,
           isProperty: false,
         });
-        const result = await run(`$fn.^input`, {
+        const result = await run(`$fn.^type`, {
           variables: { fn: noopCallable },
         });
         const shape = result as {
           __rill_type: true;
           typeName: string;
-          structure: { type: string; fields: unknown[] };
+          structure: { type: string; params: unknown[] };
         };
         expect(shape.__rill_type).toBe(true);
-        expect(shape.typeName).toBe('ordered');
-        expect(shape.structure.fields).toEqual([]);
+        expect(shape.typeName).toBe('closure');
+        expect(shape.structure.params).toEqual([]);
       });
     });
 
-    describe('EC-5: ^input maps RillParam.type to RillTypeValue in structural type', () => {
+    describe('EC-5: .^type maps RillParam.type to RillTypeValue in structural type', () => {
       it('host callable with typed RillParam maps to correct type value without throwing (EC-5)', async () => {
-        // ^input reads param.type (TypeStructure) and converts via structureToTypeValue.
+        // .^type reads param.type (TypeStructure) and converts via structureToTypeValue.
         // Build an ApplicationCallable with a RillParam using type: { kind: 'string' }.
         const fn: ApplicationCallable = createHostCallable({
           __type: 'callable',
@@ -1404,46 +1404,46 @@ describe('Rill Runtime: Annotations', () => {
           fn: () => null,
           isProperty: false,
         });
-        const result = await run(`$fn.^input`, { variables: { fn } });
+        const result = await run(`$fn.^type`, { variables: { fn } });
         const shape = result as {
           __rill_type: true;
           typeName: string;
           structure: {
             type: string;
-            fields: { name: string; type: unknown }[];
+            params: { name: string; type: unknown }[];
           };
         };
         expect(shape.__rill_type).toBe(true);
-        expect(shape.structure.fields).toEqual([
+        expect(shape.structure.params).toEqual([
           { name: 'x', type: { kind: 'string' } },
         ]);
       });
     });
   });
 
-  describe('ScriptCallable $fn.^input returns closure structural type', () => {
+  describe('ScriptCallable $fn.^type returns closure structural type', () => {
     it('typed param returns primitive structural type entry (VAL-1)', async () => {
-      const result = await run(`|x: number| ($x) => $fn\n$fn.^input`);
+      const result = await run(`|x: number| ($x) => $fn\n$fn.^type`);
       const shape = result as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: { name: string; type: unknown }[] };
+        structure: { type: string; params: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.fields).toEqual([
+      expect(shape.structure.params).toEqual([
         { name: 'x', type: { kind: 'number' } },
       ]);
     });
 
     it('untyped param returns any structural type entry (VAL-1)', async () => {
-      const result = await run(`|x| ($x) => $fn\n$fn.^input`);
+      const result = await run(`|x| ($x) => $fn\n$fn.^type`);
       const shape = result as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: { name: string; type: unknown }[] };
+        structure: { type: string; params: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.fields).toEqual([
+      expect(shape.structure.params).toEqual([
         { name: 'x', type: { kind: 'any' } },
       ]);
     });

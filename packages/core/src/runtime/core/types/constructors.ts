@@ -43,7 +43,7 @@ import { ControlSignal } from '../signals.js';
 /**
  * Create ordered from entries array (named, preserves insertion order).
  * Entries may be 2-element [name, value] or 3-element [name, value, default]
- * tuples; the third element carries a default value for `.^input` reflection.
+ * tuples; the third element is an optional default value.
  */
 export function createOrdered(
   entries: [string, RillValue, RillValue?][]

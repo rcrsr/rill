@@ -119,7 +119,7 @@ $result ?? -1
 
 ## Value Types
 
-Internal container types host code may encounter in observability callbacks or return values. See [Value Types](integration-resolvers.md#value-types) for `RillOrdered`, `RillTuple`, `RillTypeValue`, and closure introspection (`.^input`, `.^output`).
+Internal container types host code may encounter in observability callbacks or return values. See [Value Types](integration-resolvers.md#value-types) for `RillOrdered`, `RillTuple`, `RillTypeValue`, and closure introspection (`.^type.inner`, `.^type.outer`).
 
 ## Value Conversion
 
