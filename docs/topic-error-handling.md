@@ -199,7 +199,7 @@ A valid value's code is `#ok`, which is not a member:
 # Result: false
 ```
 
-Every `.!code` value is a member of `union(#ok, error_code)`, and `.^type` reports that union. `.^effective` reports the own type:
+Every `.!code` value is a member of `union(#ok, error_code)`, and `.^type` reports it, printed `union(error_code, #ok)`. `.^effective` reports the own type:
 
 ```rill
 ("hi".!code.^type == union(#ok, error_code))

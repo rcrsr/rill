@@ -37,6 +37,26 @@ function compareLiteralValues(a: unknown, b: unknown): number {
   return 0;
 }
 
+/** Orders two union members by canonical print order (negative: `a` first). */
+export function compareUnionMembers(
+  a: TypeStructure,
+  b: TypeStructure,
+  format: (member: TypeStructure) => string
+): number {
+  if (a.kind === 'literal' && b.kind === 'literal') {
+    const av = 'value' in a ? a.value : undefined;
+    const bv = 'value' in b ? b.value : undefined;
+    const rank =
+      (LITERAL_KIND_RANK[literalKind(av)] ?? 9) -
+      (LITERAL_KIND_RANK[literalKind(bv)] ?? 9);
+    return rank !== 0 ? rank : compareLiteralValues(av, bv);
+  }
+  if (a.kind === 'literal') return 1;
+  if (b.kind === 'literal') return -1;
+  const byName = compareCodeUnits(a.kind, b.kind);
+  return byName !== 0 ? byName : compareCodeUnits(format(a), format(b));
+}
+
 /**
  * Returns a new array of the members in canonical print order: type members
  * by name (ties by printed form), then literals by kind and value.
@@ -45,19 +65,5 @@ export function canonicalUnionMembers(
   members: readonly TypeStructure[],
   format: (member: TypeStructure) => string
 ): TypeStructure[] {
-  const compare = (a: TypeStructure, b: TypeStructure): number => {
-    if (a.kind === 'literal' && b.kind === 'literal') {
-      const av = 'value' in a ? a.value : undefined;
-      const bv = 'value' in b ? b.value : undefined;
-      const rank =
-        (LITERAL_KIND_RANK[literalKind(av)] ?? 9) -
-        (LITERAL_KIND_RANK[literalKind(bv)] ?? 9);
-      return rank !== 0 ? rank : compareLiteralValues(av, bv);
-    }
-    if (a.kind === 'literal') return 1;
-    if (b.kind === 'literal') return -1;
-    const byName = compareCodeUnits(a.kind, b.kind);
-    return byName !== 0 ? byName : compareCodeUnits(format(a), format(b));
-  };
-  return [...members].sort(compare);
+  return [...members].sort((a, b) => compareUnionMembers(a, b, format));
 }

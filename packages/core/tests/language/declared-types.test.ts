@@ -192,10 +192,17 @@ describe('Rill Language: declared types', () => {
       ).toBe(true);
     });
 
-    it('takes the own type for a computed .(expr) key', async () => {
+    it('carries the declared field type for a computed .(expr) key', async () => {
       const src = `dict[a: 1] => $d:dict(a: ${U})\n`;
-      expect(await run(`${src}$d.("a").^type == number`)).toBe(true);
+      expect(await run(`${src}$d.("a").^type == ${U}`)).toBe(true);
+      expect(await run(`${src}$d.("a").^effective == number`)).toBe(true);
       expect(await run(`${src}$d.a.^type == ${U}`)).toBe(true);
+    });
+
+    it('carries the declared field type through pipe selection', async () => {
+      const src = `dict[a: 1] => $d:dict(a: ${U})\n`;
+      expect(await run(`${src}"a" -> $d => $v\n$v.^type == ${U}`)).toBe(true);
+      expect(await run(`${src}"a" -> $d => $v\n"x" => $v\n$v`)).toBe('x');
     });
 
     it('takes the own type when iterating a non-list', async () => {

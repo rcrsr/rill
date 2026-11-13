@@ -67,10 +67,10 @@ describe('trace-frame kind reflects real halt origin', () => {
     expect(isInvalid(result as never)).toBe(true);
     const trace = getStatus(result as never).trace;
 
-    // Origin frame: accessDictField's own halt (host — a genuine
+    // Origin frame: the field read's own halt (host — a genuine
     // runtime-authored field-access failure, not a call boundary).
     expect(trace[0]!.kind).toBe('host');
-    expect(trace[0]!.fn).toBe('accessDictField');
+    expect(trace[0]!.fn).toBe('evaluateVariableAsync');
 
     // The script-callable call boundary enriches with `access`, not
     // `host` — it is not a host/extension dispatch boundary.
@@ -100,5 +100,34 @@ describe('trace-frame kind reflects real halt origin', () => {
     );
     expect(scriptBoundary!.kind).not.toBe('host');
     expect(scriptBoundary!.kind).toBe('access');
+  });
+});
+
+describe('trace-frame fn names the function that raised the halt', () => {
+  it.each([
+    [
+      'a pipe-selection miss',
+      'dict[a: 1] => $d\nguard { "z" -> $d }',
+      'selectElement',
+    ],
+    [
+      'a list pipe-selection miss',
+      'list[1] => $l\nguard { 5 -> $l }',
+      'selectElement',
+    ],
+    [
+      'a hierarchical type mismatch',
+      'dict[a: 1] => $d\nguard { list["a", "b"] -> $d }',
+      'traversePathStep',
+    ],
+    [
+      'a hierarchical miss',
+      'dict[a: dict[b: 1]] => $d\nguard { list["a", "z"] -> $d }',
+      'selectElement',
+    ],
+  ])('names the raising function for %s', async (_label, src, fn) => {
+    const result = await run(src);
+    expect(isInvalid(result as never)).toBe(true);
+    expect(getStatus(result as never).trace[0]!.fn).toBe(fn);
   });
 });

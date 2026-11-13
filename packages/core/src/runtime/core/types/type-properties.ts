@@ -25,18 +25,11 @@ import type {
   TypeStructure,
 } from './structures.js';
 import { canonicalUnionMembers } from './union-order.js';
-import { normalizeUnion } from './unions.js';
 import { anyTypeValue, structureToTypeValue } from '../values.js';
 
 // ============================================================
 // TYPES
 // ============================================================
-
-/** A property read: the value, plus the type it declares when it carries one. */
-export interface TypePropertyRead {
-  readonly value: RillValue;
-  readonly declared: TypeStructure | undefined;
-}
 
 const MISSING_MARKER = 'missingTypeProperty';
 
@@ -131,46 +124,16 @@ function tupleInner(
   return createTuple(type.elements.map((e) => structureToTypeValue(e.type)));
 }
 
-function literalKindStructure(value: unknown): TypeStructure {
-  if (typeof value === 'string') return { kind: 'string' };
-  if (typeof value === 'number') return { kind: 'number' };
-  if (typeof value === 'boolean') return { kind: 'bool' };
-  return { kind: 'atom' };
-}
-
-/** Declared element type of a union's inner list: the distinct member kinds. */
-function unionElementType(members: readonly TypeStructure[]): TypeStructure {
-  const kinds: TypeStructure[] = [];
-  const seen = new Set<string>();
-  const add = (kind: TypeStructure): void => {
-    if (seen.has(kind.kind)) return;
-    seen.add(kind.kind);
-    kinds.push(kind);
-  };
-  if (members.some((m) => m.kind !== 'literal')) add({ kind: 'type' });
-  for (const member of members) {
-    if (isStructureKind(member, 'literal')) {
-      add(literalKindStructure(member.value));
-    }
-  }
-  const normalized = normalizeUnion(kinds);
-  return 'structure' in normalized ? normalized.structure : { kind: 'any' };
-}
-
 function unionInner(
   type: Extract<TypeStructure, { kind: 'union' }>
-): TypePropertyRead {
+): RillValue {
   const ordered = canonicalUnionMembers(type.members, formatStructure);
-  const value = ordered.map((member): RillValue => {
+  return ordered.map((member): RillValue => {
     if (isStructureKind(member, 'literal')) {
       return member.value;
     }
     return structureToTypeValue(member);
   });
-  return {
-    value,
-    declared: { kind: 'list', element: unionElementType(type.members) },
-  };
 }
 
 function closureInner(
@@ -185,28 +148,16 @@ function closureInner(
   );
 }
 
-function readInner(structure: TypeStructure): TypePropertyRead {
-  const plain = (value: RillValue): TypePropertyRead => ({
-    value,
-    declared: undefined,
-  });
-  if (isStructureKind(structure, 'list')) {
-    return plain(typeOrAny(structure.element));
-  }
-  if (isStructureKind(structure, 'dict')) return plain(dictInner(structure));
-  if (isStructureKind(structure, 'ordered')) {
-    return plain(orderedInner(structure));
-  }
-  if (isStructureKind(structure, 'tuple')) return plain(tupleInner(structure));
+function readInner(structure: TypeStructure): RillValue {
+  if (isStructureKind(structure, 'list')) return typeOrAny(structure.element);
+  if (isStructureKind(structure, 'dict')) return dictInner(structure);
+  if (isStructureKind(structure, 'ordered')) return orderedInner(structure);
+  if (isStructureKind(structure, 'tuple')) return tupleInner(structure);
   if (isStructureKind(structure, 'union')) return unionInner(structure);
-  if (isStructureKind(structure, 'closure')) {
-    return plain(closureInner(structure));
-  }
+  if (isStructureKind(structure, 'closure')) return closureInner(structure);
   // Stream: the chunk type; any other inner-bearing kind never reaches here.
-  return plain(
-    typeOrAny(
-      isStructureKind(structure, 'stream') ? structure.chunk : undefined
-    )
+  return typeOrAny(
+    isStructureKind(structure, 'stream') ? structure.chunk : undefined
   );
 }
 
@@ -241,20 +192,19 @@ function readDefaults(structure: TypeStructure): RillValue {
 
 /**
  * Read a property of a type value. Returns undefined when the type does not
- * define it. `declared` is set only where the value carries a declared type
- * (a union's inner list).
+ * define it.
  */
 export function readTypeProperty(
   type: RillTypeValue,
   name: string
-): TypePropertyRead | undefined {
+): RillValue | undefined {
   if (!hasTypeProperty(type, name)) return undefined;
   const structure = type.structure;
   switch (name) {
     case 'name':
-      return { value: type.typeName, declared: undefined };
+      return type.typeName;
     case 'signature':
-      return { value: formatStructure(structure), declared: undefined };
+      return formatStructure(structure);
     case 'inner':
       return readInner(structure);
     case 'outer': {
@@ -263,10 +213,10 @@ export function readTypeProperty(
         : isStructureKind(structure, 'closure')
           ? structure.ret
           : undefined;
-      return { value: typeOrAny(ret), declared: undefined };
+      return typeOrAny(ret);
     }
     default:
-      return { value: readDefaults(structure), declared: undefined };
+      return readDefaults(structure);
   }
 }
 
@@ -274,17 +224,29 @@ export function readTypeProperty(
 // MISSING PROPERTY
 // ============================================================
 
-/** Halt catchably with RILL-R003 for a property the type does not define. */
+/**
+ * Halt catchably with RILL-R003 for a property the type does not define.
+ * Several names report an alternative access where none of them exist.
+ */
 export function throwMissingTypeProperty(
   site: TypeHaltSite,
   type: RillTypeValue,
-  name: string
+  names: string | readonly string[]
 ): never {
+  const typeLabel = formatStructure(type.structure);
+  if (typeof names === 'string') {
+    return throwCatchableHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R003],
+      `Type value has no property "${names}" (type: ${typeLabel})`,
+      { [MISSING_MARKER]: true, property: names }
+    );
+  }
   return throwCatchableHostHalt(
     site,
     ERROR_ATOMS[ERROR_IDS.RILL_R003],
-    `Type value has no property "${name}" (type: ${formatStructure(type.structure)})`,
-    { [MISSING_MARKER]: true, property: name }
+    `Type value has none of the properties ${names.map((n) => `"${n}"`).join(', ')} (type: ${typeLabel})`,
+    { [MISSING_MARKER]: true, properties: [...names] }
   );
 }
 

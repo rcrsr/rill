@@ -753,7 +753,7 @@ interface RillFunction {
 
 ### Tuple Parameter Hydration
 
-When a host function parameter type is `{ kind: 'tuple' }` and `type.fields` contains fields with `defaultValue !== undefined`, the runtime fills missing trailing positions with deep copies of those defaults before invoking `fn`.
+When a host function parameter type is `{ kind: 'tuple' }` and `type.elements` contains entries with `defaultValue !== undefined`, the runtime fills missing trailing positions with deep copies of those defaults before invoking `fn`.
 
 This happens at Stage 2.5 of `marshalArgs`, after argument validation and before `fn` is called.
 
@@ -779,7 +779,7 @@ const fn: RillFunction = {
 };
 ```
 
-Hydration applies only to trailing elements. A missing non-trailing element with no default raises `RILL-R009`. Hydration does not apply to list, dict, ordered, or closure types.
+Hydration applies only to trailing elements. A missing non-trailing element with no default raises `RILL-R009`. Hydration does not apply to list or closure types. Dict and ordered parameters hydrate named fields with `defaultValue`. When a union parameter matches several members, see [Defaults Under a Union](topic-type-system.md#defaults-under-a-union).
 
 ### Signature Shorthand
 

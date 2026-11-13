@@ -121,7 +121,7 @@ $fn(tuple[])
 # Result: tuple[0, ""]
 ```
 
-A tuple annotation with trailing defaults fills all missing positions when the caller passes an empty tuple.
+A tuple annotation with trailing defaults fills all missing positions when the caller passes an empty tuple. When the annotation is a union, see [Defaults Under a Union](#defaults-under-a-union).
 
 ### Type Inference Cascade
 
@@ -170,11 +170,26 @@ The cascade is recursive. If the bare fallback at one level produces a bare type
 
 The outer list sees two `list(list(?))` elements where the inner element types differ, so the cascade produces `list(list(list))`.
 
-If the top-level types are incompatible (e.g., mixing a number and a list), rill raises RILL-R002.
+A list literal whose top-level kinds differ halts RILL-R002. A list the runtime builds from differing values (a union's `.inner`, dict `.values`, a `seq` result) infers a union element type instead:
+
+```rill
+union(1, "a").inner => $u
+$u.^type.signature
+# Result: "list(union(number, string))"
+```
+
+```rill
+union(1, "a").inner => $u
+$u -> .reverse => $r
+$r
+# Result: list["a", 1]
+```
+
+Runtime-built lists of the same kind that differ in sub-structure still fall back to the bare kind, as in `list(list)`.
 
 ### Metatype Fixed Point
 
-The `^type` of a type value is always `type`. `type.^type` is `type`:
+The `^type` of a type value is always `type`, and every type name is an expression that produces a type value, so `string.^type == type`. `type.^type` is `type`:
 
 ```rill
 list(number) => $lt
@@ -222,7 +237,19 @@ list[$t.inner, $t.outer]
 # Result: list[number, string]
 ```
 
-Structural subtyping applies to both chunk and resolution types. A `stream(string):number` satisfies `:stream(any):any` and `:stream`.
+A script stream value reports its declared chunk and resolution types:
+
+```rill
+|input: string| {
+  yield $input
+  return 3
+}:stream(string):number => $producer
+$producer("x") => $s
+list[$s.^type.inner, $s.^type.outer]
+# Result: list[string, number]
+```
+
+Structural subtyping applies to both chunk and resolution types. The removed `.^chunk` and `.^output` probes are in [Removed Reflection Probes](ref-language.md#removed-reflection-probes). A `stream(string):number` satisfies `:stream(any):any` and `:stream`.
 
 ## Type Assertions
 
@@ -631,6 +658,19 @@ union(list(union(string, number)), list(string)).signature
 # Result: "list(union(number, string))"
 ```
 
+### Defaults Under a Union
+
+When a value matches several members, the narrowest matching member fills defaults. A member is narrower when its accepted values are a strict subset of another matching member's. Matches that are incomparable use the first in canonical order. The order you list members in never decides. The rule applies to closure parameters, host parameters, and fields during `-> type`.
+
+```rill
+|d: union(dict(a: number), dict(a: number, b: number = 9))| { $d.b } => $f
+|d: union(dict(a: number, b: number = 9), dict(a: number))| { $d.b } => $g
+tuple[$f(dict[a: 1]), $g(dict[a: 1])]
+# Result: tuple[9, 9]
+```
+
+Both members accept `dict[a: 1]`. The member with the `b` default accepts fewer values, so it fills `b` in both closures.
+
 ### Reserved Name
 
 `union` is a reserved type name. Bare `union` and `union[...]` halt with `RILL-P003`; write `union(...)` with members. A host function registered as `union` is not callable by that bare name, because `union(...)` calls the union constructor. A dict key still works: `dict[union: 1]`.
@@ -776,7 +816,7 @@ $y.^type.signature
 # Result: "number"
 ```
 
-These access forms carry the declared element or field type: `[expr]`, `.name`, and `.$k`. The computed key `.("a")` and methods such as `.head` take the own type:
+Every element and field read carries the declared element or field type: `[expr]`, `.name`, `.$k`, `.(expr)`, `.(a || b)`, and pipe selection such as `"a" -> $d`. Methods such as `.head` take the own type:
 
 ```rill
 dict[a: 1] => $d:dict(a: union(number, string))
@@ -786,8 +826,9 @@ $d.a.^type.signature
 
 ```rill
 dict[a: 1] => $d:dict(a: union(number, string))
-$d.("a").^type.signature
-# Result: "number"
+"a" -> $d => $v
+tuple[$d.("a").^type.signature, $v.^type.signature]
+# Result: tuple["union(number, string)", "union(number, string)"]
 ```
 
 A declaration that names no element type projects nothing: a bare `list`, `list(any)`, or `union(list(number), string)` leaves `[0]` reporting the own type. A bare kind annotation also reports only the kind:
@@ -835,58 +876,6 @@ Migrating from own-type reads: write `$v.^effective.name` and `$v.^effective == 
 1 => $v:union(number, string)
 $v -> :?number
 # Result: true
-```
-
-### Annotated Type Fields via `.^type`
-
-When a dict, ordered, or tuple type carries field annotations, `.^type` exposes those annotations on each field's type structure. Use this to reflect schema metadata at runtime.
-
-```rill
-dict(^("A person's name") name: string, ^("Age in years") age: number) => $schema
-$schema.name
-# Result: "dict"
-```
-
-The `fields` entries in the resulting type structure carry `annotations` records. For example, `fields["name"].annotations` equals `{description: "A person's name"}`.
-
-Multi-key annotations appear on the same record:
-
-```rill
-dict(^(description: "Status", enum: "active,inactive") status: string) => $d
-$d.name
-# Result: "dict"
-```
-
-Fields without annotations have no `annotations` property on their `RillFieldDef`. Host code reads annotations via `TypeStructure.fields[fieldName].annotations`.
-
-See [Closure Annotations](topic-closure-annotations.md) for full field annotation syntax, ordered and tuple annotation paths, and TypeScript access patterns.
-
-### Type Name Expressions
-
-All type names are valid expressions that produce type values:
-
-```rill
-string => $st
-$st.^type == type
-# Result: true
-
-number => $nt
-$nt.^type == type
-# Result: true
-
-type => $tt
-$tt.^type == type
-# Result: true
-```
-
-### `.^type.name` Property
-
-Access the coarse type name via `.^type.name` on any value. Under a declared union it is `"union"`; `.^effective.name` gives the own name.
-
-```rill
-42 => $n
-$n.^type.name
-# Result: "number"
 ```
 
 ### Dot-Notation Properties on Type Values
@@ -939,7 +928,7 @@ tuple[42.^type.name, 42.^type.signature]
 | `union(...)`, `error_code` | `list` of members in canonical order |
 | function `\|a: T\|` | `ordered[a: T]` |
 | `stream(T):R` | `T` |
-| `list`, `dict`, `tuple`, `ordered`, `stream` without arguments | `any` |
+| `list`, `dict`, `tuple`, `ordered`, `stream`, `closure` without arguments | `any` |
 | `string`, `number`, `bool`, `atom`, `vector`, `datetime`, `duration`, `type`, `any` | halts RILL-R003 |
 
 A union's `.inner` sorts type members by name first, then literals by kind (atom, bool, number, string) and by value. Equal unions return equal lists, and `.signature` prints the same order:
@@ -949,7 +938,7 @@ union("x", list, #a, 1, true).inner
 # Result: list[list, #a, true, 1, "x"]
 ```
 
-`.outer` is defined on function and stream types and returns the declared result type, `any` when undeclared. Any other type halts RILL-R003. A leaf type has no `.inner`; guard the read with `??`, or test with `.?`. `.defaults` lists only the fields that declare a default: `dict(a: string = "x", b: number).defaults` is `dict[a: "x"]`. It halts RILL-R003 on types other than dict, ordered, and function:
+`.outer` is defined on function and stream types and returns the declared result type, `any` when undeclared; bare `closure.outer` is `any` and `closure.defaults` is `dict[]`, so `tuple[closure.inner, closure.outer, closure.defaults]` is `tuple[any, any, dict[]]`. Any other type halts RILL-R003. A leaf type has no `.inner`; guard the read with `??`, or test with `.?`. `.defaults` lists only the fields that declare a default: `dict(a: string = "x", b: number).defaults` is `dict[a: "x"]`. It halts RILL-R003 on types other than dict, ordered, and function:
 
 ```rill
 string => $t
@@ -963,21 +952,18 @@ $t.inner
 # Error: Type value has no property "inner"
 ```
 
-`.^input` and `.^output` on a function halt RILL-R008, `.^chunk` and `.^output` on a stream halt RILL-R003, and each message names the replacement:
+`.inner`, `.("inner")`, `.$k`, `.(a || b)`, `-> .inner`, and `.?inner` agree on what a type value has. The general rule lives in [Language Reference](ref-language.md).
 
-| Removed | Use |
-|---------|-----|
-| `$f.^input` | `$f.^type.inner` |
-| `$f.^output` | `$f.^type.outer` |
-| `$s.^chunk` | `$s.^type.inner` |
-| `$s.^output` | `$s.^type.outer` |
-
-`.^name` on a type value raises RILL-R008 ("Annotation access not supported on type values"). Use `.name` (dot notation) instead:
-
-```text
-number.^name
-# Error: RILL-R008: Annotation access not supported on type values
+```rill
+string => $t
+"signature" => $k
+tuple[$t.$k, $t.("name")]
+# Result: tuple["string", "string"]
 ```
+
+The removed `.^input`, `.^output`, and `.^chunk` probes halt and name their replacements. See [Removed Reflection Probes](ref-language.md#removed-reflection-probes) for the table.
+
+`.^name` on a type value raises RILL-R008 ("Annotation access not supported on type values"); use `.name` instead.
 
 ### Type Value Equality
 
@@ -1002,75 +988,6 @@ $strs.^type == list(number)
 # Result: false
 ```
 
-## Built-in Method Signatures
-
-The following table lists all built-in methods with their typed signatures. Methods marked "any (runtime checked)" accept any receiver but throw at runtime if the receiver type is wrong.
-
-| Method | Receiver Types | Params | Return |
-|--------|---------------|--------|--------|
-| `.len` | string, list, dict | (none) | `number` |
-| `.trim` | string | (none) | `string` |
-| `.head` | string, list | (none) | `any` |
-| `.tail` | string, list | (none) | `any` |
-| `.first` | any (runtime checked) | (none) | `iterator` |
-| `.at` | any (runtime checked) | `index: number` | `any` |
-| `.split` | string | `separator: string = "\n"` | `list` |
-| `.join` | list | `separator: string = ","` | `string` |
-| `.lines` | string | (none) | `list` |
-| `.empty` | string, list, dict, tuple, ordered | (none) | `bool` |
-| `.starts_with` | string | `prefix: string` | `bool` |
-| `.ends_with` | string | `suffix: string` | `bool` |
-| `.lower` | string | (none) | `string` |
-| `.upper` | string | (none) | `string` |
-| `.replace` | string | `pattern: string, replacement: string` | `string` |
-| `.replace_all` | string | `pattern: string, replacement: string` | `string` |
-| `.contains` | string | `search: string` | `bool` |
-| `.match` | string | `pattern: string` | `dict` |
-| `.is_match` | string | `pattern: string` | `bool` |
-| `.index_of` | string | `search: string` | `number` |
-| `.repeat` | string | `count: number` | `string` |
-| `.pad_start` | string | `length: number, fill: string = " "` | `string` |
-| `.pad_end` | string | `length: number, fill: string = " "` | `string` |
-| `.eq` | any | `other: any` | `bool` |
-| `.ne` | any | `other: any` | `bool` |
-| `.lt` | number, string | `other: any` | `bool` |
-| `.gt` | number, string | `other: any` | `bool` |
-| `.le` | number, string | `other: any` | `bool` |
-| `.ge` | number, string | `other: any` | `bool` |
-
-`bool` supports only equality (`==`, `!=`). Ordering (`<`, `>`, `<=`, `>=`) on `bool` raises RILL-R002.
-| `.keys` | dict (runtime checked) | (none) | `list` |
-| `.values` | dict (runtime checked) | (none) | `list` |
-| `.entries` | dict (runtime checked) | (none) | `list` |
-| `.has` | list (runtime checked) | `value: any` | `bool` |
-| `.has_any` | list (runtime checked) | `candidates: list` | `bool` |
-| `.has_all` | list (runtime checked) | `candidates: list` | `bool` |
-| `.dimensions` | vector (runtime checked) | (none) | `number` |
-| `.model` | vector (runtime checked) | (none) | `string` |
-| `.similarity` | vector (runtime checked) | `other: any` | `number` |
-| `.dot` | vector (runtime checked) | `other: any` | `number` |
-| `.distance` | vector (runtime checked) | `other: any` | `number` |
-| `.norm` | vector (runtime checked) | (none) | `number` |
-| `.normalize` | vector (runtime checked) | (none) | `any` |
-
----
-
-## Global Utilities
-
-| Function | Description |
-|----------|-------------|
-| `json` | Convert to JSON string |
-
-```rill
-[a: 1, b: 2] -> json
-# Result: {"a":1,"b":2}
-```
-
-**`json` closure handling:**
-- Direct closure → error: `|x|{ $x } -> json` throws "Cannot serialize closure to JSON"
-- Closures in dicts → skipped: `[a: 1, fn: ||{ 0 }] -> json` returns `'{"a":1}'`
-- Closures in lists → skipped: `[1, ||{ 0 }, 2] -> json` returns `'[1,2]'`
-
 ## See Also
 
 | Document | Description |
@@ -1078,5 +995,6 @@ The following table lists all built-in methods with their typed signatures. Meth
 | [Types](topic-types.md) | Primitives, collections, and value types |
 | [Variables](topic-variables.md) | Declaration, scope, `$` binding |
 | [Closures](topic-closures.md) | Closure semantics and patterns |
+| [Closure Annotations](topic-closure-annotations.md) | Field annotations on dict, ordered, and tuple types, and their TypeScript access |
 | [Operators](topic-operators.md) | Type assertions and existence checks in operators |
 | [Reference](ref-language.md) | Quick reference tables |

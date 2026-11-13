@@ -9,10 +9,9 @@
  */
 
 import type { ASTNode, SourceLocation } from '../../../types.js';
-import { isCallable } from '../callable.js';
 import type { RillValue } from '../types/structures.js';
 import type { TimeoutScheduler } from '../types/runtime.js';
-import { isOrdered, isPlainDict, isStream } from '../types/guards.js';
+import { isPlainDict, isStream } from '../types/guards.js';
 import {
   throwAbortHalt,
   throwAutoExceptionHalt,
@@ -21,7 +20,6 @@ import {
 } from '../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 import type { EvalState } from './state.js';
-import { invokeCallable } from './handlers/closures.js';
 
 /**
  * Default maximum iteration count for iterators and loops, and the headroom
@@ -271,95 +269,8 @@ export function readOwnField(
   key: string
 ): RillValue | undefined {
   if (!isFieldReceiver(value)) return undefined;
-  return readValidatedField(value, key);
-}
-
-/** Read an own field from a value already confirmed by isFieldReceiver. */
-function readValidatedField(
-  value: Record<string, RillValue>,
-  key: string
-): RillValue | undefined {
   if (isStream(value) && !STREAM_STEP_FIELDS.has(key)) return undefined;
   return Object.hasOwn(value, key) ? value[key] : undefined;
-}
-
-/**
- * Access a field on a dict value with property-style callable auto-invocation.
- * Shared by closures.ts, variables.ts, field-access.ts, and methods.ts for
- * consistent property access.
- *
- * @param s - Evaluator state
- * @param value - The dict to access
- * @param field - The field name
- * @param location - Source location for error reporting
- * @param allowMissing - If true, returns null for missing fields instead of throwing
- * @returns The field value
- * @throws RuntimeHaltSignal (catchable) if value is not a dict or field is
- *   missing (unless allowMissing)
- */
-export async function accessDictField(
-  s: EvalState,
-  value: RillValue,
-  field: string,
-  location?: SourceLocation,
-  allowMissing = false
-): Promise<RillValue> {
-  // Ordered values dispatch first: their JS wrapper object would otherwise
-  // be read as a plain field holder. Iterator field reads (.done, .value,
-  // .next) are plain dict reads and go through readOwnField below, which
-  // also admits streams (step fields only) and rejects every other value.
-  if (isOrdered(value)) {
-    const entry = value.entries.find(([key]) => key === field);
-    if (entry === undefined) {
-      if (allowMissing) {
-        return null;
-      }
-      throwCatchableHostHalt(
-        { location, sourceId: s.ctx.sourceId, fn: 'accessDictField' },
-        ERROR_ATOMS[ERROR_IDS.RILL_R009],
-        `Undefined ordered key: ${field}`
-      );
-    }
-    return entry[1];
-  }
-
-  if (!isFieldReceiver(value)) {
-    if (allowMissing) {
-      return null;
-    }
-    throwCatchableHostHalt(
-      { location, sourceId: s.ctx.sourceId, fn: 'accessDictField' },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      `Cannot access field '${field}' on non-dict`
-    );
-  }
-
-  // Receiver already validated above; read the own field directly.
-  const dictValue = readValidatedField(value, field);
-
-  // Check if field exists
-  if (dictValue === undefined || dictValue === null) {
-    if (allowMissing) {
-      return null;
-    }
-    throwCatchableHostHalt(
-      { location, sourceId: s.ctx.sourceId, fn: 'accessDictField' },
-      ERROR_ATOMS[ERROR_IDS.RILL_R009],
-      `Dict has no field '${field}'`
-    );
-  }
-
-  // Property-style callable: auto-invoke when accessed
-  if (isCallable(dictValue)) {
-    if (dictValue.isProperty) {
-      // ApplicationCallable: pass [dict] as args (no boundDict mechanism)
-      // ScriptCallable: pass [] - dict is bound via boundDict -> pipeValue
-      const args = dictValue.kind === 'script' ? [] : [value];
-      return await invokeCallable(s, dictValue, args, location);
-    }
-  }
-
-  return dictValue;
 }
 
 // setDictField lives in types/dict-keys.ts (a types-layer module with no

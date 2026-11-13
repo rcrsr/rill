@@ -19,6 +19,11 @@ export type IndexKind = 'List' | 'Tuple' | 'Ordered' | 'String';
 // INDEX RESOLUTION
 // ============================================================
 
+/** Message for a fractional or non-finite positional index. */
+export function nonIntegerIndexMessage(kind: IndexKind, index: number): string {
+  return `${kind} index must be an integer, got ${index}`;
+}
+
 /**
  * Resolve a positional index against a container length.
  *
@@ -37,7 +42,7 @@ export function findIndexPosition(
     throwCatchableHostHalt(
       site,
       'INVALID_INPUT',
-      `${kind} index must be an integer, got ${index}`
+      nonIntegerIndexMessage(kind, index)
     );
   }
   const position = index < 0 ? length + index : index;

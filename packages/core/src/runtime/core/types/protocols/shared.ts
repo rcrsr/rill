@@ -132,13 +132,14 @@ export function resolvedCompareValue(
 }
 
 // ============================================================
-// LATE-BINDING: inferElementType
+// LATE-BINDING: element-kind check
 // ============================================================
 
 /**
- * Late-bound dispatcher for homogeneous-element-type inference.
- * Wired by initInferElementType(inferElementType) after registrations.ts
- * builds the type dispatcher. Throws RILL-R002 on mixed-type elements.
+ * Late-bound strict element-kind check.
+ * Wired by initInferElementType(assertUniformElementKinds) after
+ * registrations.ts builds the type dispatcher. Halts with RILL-R002 on
+ * elements of differing kinds.
  */
 let _inferElementType: ((elements: RillValue[]) => unknown) | undefined;
 

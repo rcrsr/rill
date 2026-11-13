@@ -26,10 +26,6 @@ import { inferType, inferTypeName } from '../../types/registrations.js';
 import { isTypeValue, isStream } from '../../types/guards.js';
 import { inferStructure, formatStructure } from '../../types/operations.js';
 import { structureToTypeValue } from '../../values.js';
-import {
-  readTypeProperty,
-  throwMissingTypeProperty,
-} from '../../types/type-properties.js';
 import type { EvalState } from '../state.js';
 import { appendTraceFrame } from '../../types/status.js';
 import { throwCatchableHostHalt, RuntimeHaltSignal } from '../../types/halt.js';
@@ -38,10 +34,8 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
   getNodeLocation,
   checkAborted,
-  accessDictField,
   setDictField,
   isFieldReceiver,
-  readOwnField,
 } from '../shared.js';
 import {
   argumentsBinder,
@@ -52,6 +46,8 @@ import {
   invokeStream,
 } from './closures.js';
 import { declaresZeroParams } from './calls.js';
+import type { FieldLocation, FoundField } from './field-access.js';
+import { locateField, readField } from './field-access.js';
 
 /**
  * Call a built-in type method with the receiver prepended. Arguments go
@@ -94,26 +90,39 @@ async function invokeTypeMethod(
 }
 
 /**
- * True when a method-call node is a plain own-field read: no type method of
- * that name, no parens or args, and the own field is not callable. Mirrors the
- * resolution order of evaluateMethod without evaluating anything.
+ * Own field a method-call node names on a dict or stream receiver, located
+ * by locateField. Other receivers carry no own fields.
  */
-export function isOwnFieldRead(
+function locateMethodOwnField(
+  receiver: RillValue,
+  name: string
+): FieldLocation | undefined {
+  return isFieldReceiver(receiver) ? locateField(receiver, name) : undefined;
+}
+
+/**
+ * The located field when a method-call node is a plain own-field read: no type
+ * method of that name, no parens or args, and the own field is not callable.
+ * Mirrors the resolution order of evaluateMethod without evaluating anything.
+ */
+export function locateOwnFieldRead(
   s: EvalState,
   node: MethodCallNode | InvokeNode,
   receiver: RillValue
-): boolean {
-  if (node.type === 'Invoke') return false;
-  if (node.hasParens || node.args.length > 0) return false;
-  if (isCallable(receiver) || isTypeValue(receiver)) return false;
+): FoundField | undefined {
+  if (node.type === 'Invoke') return undefined;
+  if (node.hasParens || node.args.length > 0) return undefined;
+  if (isCallable(receiver) || isTypeValue(receiver)) return undefined;
   const typeMethod = s.ctx.typeMethodDicts.get(inferType(receiver))?.[
     node.name
   ];
   if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
-    return false;
+    return undefined;
   }
-  const ownField = readOwnField(receiver, node.name);
-  return ownField !== undefined && !isCallable(ownField);
+  const located = locateMethodOwnField(receiver, node.name);
+  return located !== undefined && located.found && !isCallable(located.value)
+    ? located
+    : undefined;
 }
 
 /** Evaluate method call on receiver: value.method(args). */
@@ -140,8 +149,12 @@ export async function evaluateMethod(
     );
   }
   if (isTypeValue(receiver)) {
-    const read = readTypeProperty(receiver, node.name);
-    if (read !== undefined) return read.value;
+    const read = await readField(s, receiver, node.name, {
+      allowMissing: true,
+      location: getNodeLocation(s, node),
+      fn: 'evaluateMethod',
+    });
+    if (read.value !== null) return read.value;
   }
 
   const args = await evaluateArgs(s, node.args);
@@ -151,8 +164,12 @@ export async function evaluateMethod(
   if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
     return invokeTypeMethod(s, node, typeMethod, receiver, args);
   }
-  // Read the field once: readOwnField re-validates the receiver on each call.
-  const ownField = readOwnField(receiver, node.name);
+  // Locate the field once.
+  const ownLocation = locateMethodOwnField(receiver, node.name);
+  const ownField =
+    ownLocation !== undefined && ownLocation.found
+      ? ownLocation.value
+      : undefined;
   if (ownField !== undefined && isCallable(ownField)) {
     // Only inject the piped value for an explicit empty-paren call
     // (`.method()`), never for a bare `.field` reference. MethodCallNode
@@ -185,15 +202,13 @@ export async function evaluateMethod(
   }
 
   if (isTypeValue(receiver)) {
-    throwMissingTypeProperty(
-      {
+    return (
+      await readField(s, receiver, node.name, {
+        allowMissing: false,
         location: getNodeLocation(s, node),
-        sourceId: s.ctx.sourceId,
         fn: 'evaluateMethod',
-      },
-      receiver,
-      node.name
-    );
+      })
+    ).value;
   }
   if (!s.ctx.unvalidatedMethodReceivers.has(node.name)) {
     const supportedTypes: string[] = [];
@@ -228,14 +243,20 @@ export async function evaluateMethod(
   if (ownField === undefined && isFieldReceiver(receiver)) {
     // A dict receiver with no field of this name at all (not merely a
     // non-callable one) routes through the same dict-field-access halt
-    // used by `$d.bogus` (accessDictField), so a literal-chain access
+    // used by `$d.bogus` (readField), so a literal-chain access
     // (`dict[a: 1].bogus`) and a variable access (`$d.bogus`) both halt
     // RILL_R009 instead of this generic unknown-method RILL_R007. A field
     // that DOES exist but is non-callable and was invoked with parens
     // (`$d.a(1)` where `a` is a plain number) still falls through to the
     // generic RILL_R007 below — that is a method-call shape error, not a
     // missing-field error. Non-dict receivers fall through unchanged too.
-    return accessDictField(s, receiver, node.name, getNodeLocation(s, node));
+    return (
+      await readField(s, receiver, node.name, {
+        allowMissing: false,
+        location: getNodeLocation(s, node),
+        fn: 'evaluateMethod',
+      })
+    ).value;
   }
   return throwCatchableHostHalt(
     {

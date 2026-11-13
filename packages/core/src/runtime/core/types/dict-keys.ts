@@ -128,12 +128,6 @@ export function getTypedKey(
   return getTypedKeyMap(dict)?.get(encode(key))?.value;
 }
 
-/** Existence check for a number/boolean key. */
-export function hasTypedKey(dict: object, key: TypedKey): boolean {
-  const map = getTypedKeyMap(dict);
-  return map !== undefined && map.has(encode(key));
-}
-
 /** Typed entries in insertion order. */
 export function typedKeyEntries(
   dict: object

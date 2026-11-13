@@ -73,7 +73,7 @@ describe('type value internals are not readable', () => {
   });
 
   it('rejects alternate-key access that names the structure field', async () => {
-    await expectErrorId(`${TYPE}$t.(typeName || structure)`, 'RILL-R002');
+    await expectErrorId(`${TYPE}$t.(typeName || structure)`, 'RILL-R003');
   });
 
   it('reports the structure field as absent via a quoted existence check', async () => {

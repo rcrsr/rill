@@ -33,7 +33,6 @@ import type {
   PipeChainNode,
   PostfixExprNode,
   ExpressionNode,
-  BodyNode,
   SourceLocation,
   AnnotationArg,
   PassNode,
@@ -54,7 +53,6 @@ import {
   RESERVED_DICT_METHODS,
 } from '../../values.js';
 import {
-  declaredParams,
   isCallable,
   type ScriptCallable,
   type RillParam,
@@ -65,10 +63,6 @@ import {
   throwTypeHalt,
   RuntimeHaltSignal,
 } from '../../types/halt.js';
-import {
-  findIndexPosition,
-  throwIndexOutOfBounds,
-} from '../../types/index-access.js';
 import { ControlSignal } from '../../signals.js';
 import { isAtom, isOrdered, orderedValueEntries } from '../../types/guards.js';
 import { isDict } from '../../callable.js';
@@ -89,7 +83,6 @@ import {
 } from '../shared.js';
 import {
   setTypedKey,
-  getTypedKey,
   typedKeyEntries,
   orderedDictEntries,
 } from '../../types/dict-keys.js';
@@ -98,9 +91,12 @@ import {
   evaluatePipeChain,
   evaluatePrimary,
 } from './core.js';
+import {
+  invokeSelected,
+  rejectParameterizedClosure,
+} from './element-dispatch.js';
 import { copyExtensionIdentity } from '../../policy/identity.js';
 import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
-import { invokeCallable } from './closures.js';
 import { assertUsableAnnotationKey } from './annotations.js';
 import { resolveTypeRef, evaluateTypeConstructor } from './types.js';
 import { evaluateListLiteralElements } from './extraction.js';
@@ -808,7 +804,7 @@ export async function evaluateDictDispatch(
           {
             location: entry.span.start,
             sourceId: s.ctx.sourceId,
-            fn: 'dict-dispatch',
+            fn: 'evaluateDictDispatch',
           },
           'INVALID_INPUT',
           'Variable and computed dict keys not yet supported',
@@ -866,219 +862,10 @@ async function resolveDispatchValue(
   input: RillValue,
   node: DictNode
 ): Promise<RillValue> {
-  if (isCallable(value)) {
-    // Check for parameterized closure (explicit user-defined params)
-    // Note: Block-closures have exactly 1 param named '$'
-    // Parameterized closures have 1+ params with user-defined names
-    const firstParam = value.kind === 'script' ? value.params[0] : undefined;
-    if (value.kind === 'script' && firstParam !== undefined) {
-      // Check if first param is '$' (block-closure) or user-defined (parameterized)
-      if (firstParam.name !== '$') {
-        // Parameterized closure at terminal position: error
-        throwCatchableHostHalt(
-          {
-            location: node.span?.start,
-            sourceId: s.ctx.sourceId,
-            fn: 'resolveDispatchValue',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          'Dispatch does not provide arguments for parameterized closure'
-        );
-      }
-    }
-
-    // Check if callable has params to determine invocation style
-    const hasParams =
-      (value.kind === 'script' && value.params.length > 0) ||
-      (value.kind === 'application' &&
-        declaredParams(value).length > 0 &&
-        !value.isProperty);
-
-    if (hasParams) {
-      // Application callable with params: invoke with input as argument
-      // Note: Script callables with params already threw error above
-      return await invokeCallable(s, value, [input], node.span?.start);
-    } else {
-      // Zero-param closure: invoke with args = [] and pipeValue = input
-      const savedPipeValue = s.ctx.pipeValue;
-      s.ctx.pipeValue = input;
-      try {
-        const result = await invokeCallable(s, value, [], node.span?.start);
-        return result;
-      } finally {
-        s.ctx.pipeValue = savedPipeValue;
-      }
-    }
-  }
-  return value;
-}
-
-/**
- * Runtime dict dispatch for variables: search dict for matching key.
- * Supports multi-key entries, auto-invokes closures, handles default values.
- *
- * @param s - Evaluator state
- * @param dict - Runtime dict value
- * @param input - Key to search for
- * @param defaultValue - Optional default value expression node
- * @param location - Source location for error reporting
- * @returns Matched value or default
- */
-export async function dispatchToDict(
-  s: EvalState,
-  dict: Record<string, RillValue>,
-  input: RillValue,
-  defaultValue: BodyNode | null,
-  location: {
-    span?: { start: SourceLocation; end: SourceLocation };
-  },
-  skipClosureResolution = false
-): Promise<RillValue> {
-  // Type-aware key match. Number/boolean inputs match only sidecar (typed)
-  // keys; string inputs match only string properties. This keeps number 1
-  // distinct from string "1" and boolean true distinct from string "true".
-  if (typeof input === 'number' || typeof input === 'boolean') {
-    const value = getTypedKey(dict, input);
-    if (value !== undefined) {
-      if (skipClosureResolution) {
-        return value;
-      }
-      return resolveDispatchValueRuntime(s, value, input, location);
-    }
-  } else {
-    for (const [key, value] of Object.entries(dict)) {
-      // Simple key match using deep equality (string keys only here)
-      if (deepEquals(input, key)) {
-        // Skip closure resolution for hierarchical dispatch (caller handles it)
-        if (skipClosureResolution) {
-          return value;
-        }
-        // Auto-invoke closures if needed
-        return resolveDispatchValueRuntime(s, value, input, location);
-      }
-    }
-  }
-
-  // No match found - check for default value
-  if (defaultValue) {
-    return await evaluateBodyExpression(s, defaultValue);
-  }
-
-  // No match and no default - throw error
-  const loc = location.span?.start;
-  return throwCatchableHostHalt(
-    { location: loc, sourceId: s.ctx.sourceId, fn: 'dispatchToDict' },
-    ERROR_ATOMS[ERROR_IDS.RILL_R009],
-    `Dict dispatch: key '${formatValue(input)}' not found`,
-    { key: input }
-  );
-}
-
-/**
- * Runtime list dispatch for variables: return element at numeric index.
- * Supports negative indices, auto-invokes closures, handles default values.
- *
- * @param s - Evaluator state
- * @param list - Runtime list value
- * @param input - Index value (must be number)
- * @param defaultValue - Optional default value expression node
- * @param location - Source location for error reporting
- * @returns Element at index or default
- */
-export async function dispatchToList(
-  s: EvalState,
-  list: RillValue[],
-  input: RillValue,
-  defaultValue: BodyNode | null,
-  location: {
-    span?: { start: SourceLocation; end: SourceLocation };
-  },
-  skipClosureResolution = false
-): Promise<RillValue> {
-  // Validate input is number
-  if (typeof input !== 'number') {
-    throwCatchableHostHalt(
-      {
-        location: location.span?.start,
-        sourceId: s.ctx.sourceId,
-        fn: 'dispatchToList',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `List dispatch requires number index, got ${typeof input}`,
-      { input, expectedType: 'number' }
-    );
-  }
-
-  const site = {
-    location: location.span?.start,
-    sourceId: s.ctx.sourceId,
-    fn: 'dispatchToList',
-  };
-  const position = findIndexPosition(input, list.length, 'List', site);
-  if (position === undefined) {
-    if (defaultValue) {
-      return await evaluateBodyExpression(s, defaultValue);
-    }
-    return throwIndexOutOfBounds(input, list.length, 'List', site);
-  }
-
-  // Return element at normalized index
-  const element = list[position];
-  if (element === undefined) {
-    throwFatalHostHalt(
-      {
-        location: location.span?.start,
-        sourceId: s.ctx.sourceId,
-        fn: 'dispatchToList',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `List dispatch: index '${input}' not found`
-    );
-  }
-  // Skip closure resolution for hierarchical dispatch (caller handles it)
-  if (skipClosureResolution) {
-    return element;
-  }
-  // Auto-invoke closures if needed
-  return resolveDispatchValueRuntime(s, element, input, location);
-}
-
-/**
- * Resolve dispatch value for runtime values: auto-invoke if closure.
- * Similar to resolveDispatchValue but works with runtime values.
- */
-async function resolveDispatchValueRuntime(
-  s: EvalState,
-  value: RillValue,
-  input: RillValue,
-  location: {
-    span?: { start: SourceLocation; end: SourceLocation };
-  }
-): Promise<RillValue> {
-  if (isCallable(value)) {
-    // Check if callable has params to determine invocation style
-    const hasParams =
-      (value.kind === 'script' && value.params.length > 0) ||
-      (value.kind === 'application' &&
-        declaredParams(value).length > 0 &&
-        !value.isProperty);
-
-    if (hasParams) {
-      // Block-closure: invoke with input as argument
-      return await invokeCallable(s, value, [input], location.span?.start);
-    } else {
-      // Zero-param closure: invoke with args = [] and pipeValue = input
-      const savedPipeValue = s.ctx.pipeValue;
-      s.ctx.pipeValue = input;
-      try {
-        const result = await invokeCallable(s, value, [], location.span?.start);
-        return result;
-      } finally {
-        s.ctx.pipeValue = savedPipeValue;
-      }
-    }
-  }
-  return value;
+  if (!isCallable(value)) return value;
+  const location = node.span?.start;
+  rejectParameterizedClosure(s, value, location, 'resolveDispatchValue');
+  return await invokeSelected(s, value, input, location);
 }
 
 /**

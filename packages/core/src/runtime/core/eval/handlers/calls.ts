@@ -30,7 +30,6 @@ import {
   checkAborted,
   withTimeout,
   isFieldReceiver,
-  readOwnField,
 } from '../shared.js';
 import {
   argumentsBinder,
@@ -41,6 +40,7 @@ import {
   invokeScriptCallable,
   invokeStream,
 } from './closures.js';
+import { locateField } from './field-access.js';
 
 /** Evaluate host function call: functionName(args).
  *
@@ -184,8 +184,8 @@ export async function evaluateClosureCallWithPipe(
       );
     }
     if (isFieldReceiver(value)) {
-      const field = readOwnField(value, prop);
-      if (field === undefined || field === null) {
+      const located = locateField(value, prop);
+      if (!located.found) {
         throwCatchableHostHalt(
           {
             location: getNodeLocation(s, node),
@@ -196,7 +196,7 @@ export async function evaluateClosureCallWithPipe(
           `Dict has no field '${prop}'`
         );
       }
-      value = field;
+      value = located.value;
     } else {
       throwCatchableHostHalt(
         {

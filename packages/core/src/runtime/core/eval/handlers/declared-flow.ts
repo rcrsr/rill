@@ -9,8 +9,11 @@
  * Carrying primaries: variable reads, type assertions, grouped expressions
  * and `.!code` probes. Carrying steps: bracket access on a declared
  * collection and own-field reads. Carrying pipe targets: type assertions,
- * pass blocks, grouped expressions, `$.field` reads, the synthetic `$`
- * postfix, and destructures.
+ * pass blocks, own-field method reads, grouped expressions, `$.field` reads,
+ * the synthetic `$` postfix, and destructures. Element projection comes from
+ * the located element (locateField, projectLocated). A pipe that selects from
+ * a declared collection (`"a" -> $d`) is a variable target handled in core.ts,
+ * which carries the selected element's declared type.
  *
  * @internal
  */
@@ -21,18 +24,11 @@ import type {
   PipeTargetNode,
   BodyNode,
 } from '../../../../types.js';
-import {
-  projectElement,
-  type Carried,
-  type DeclaredSlot,
-} from '../../types/declared.js';
+import type { Carried, DeclaredSlot } from '../../types/declared.js';
 import type { ControlFlowContext } from '../../types/runtime.js';
 import type { RillValue } from '../../types/structures.js';
-import { isTypeValue, isVacant } from '../../types/guards.js';
-import {
-  isMissingTypePropertyHalt,
-  readTypeProperty,
-} from '../../types/type-properties.js';
+import { isVacant } from '../../types/guards.js';
+import { isMissingTypePropertyHalt } from '../../types/type-properties.js';
 import { throwFatalHostHalt, throwTypeHalt } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import type { EvalState } from '../state.js';
@@ -40,7 +36,7 @@ import { getNodeLocation } from '../shared.js';
 import {
   evaluateMethod,
   evaluateAnnotationAccess,
-  isOwnFieldRead,
+  locateOwnFieldRead,
 } from './methods.js';
 import {
   applyBracketIndexCarried,
@@ -53,6 +49,7 @@ import { evaluateStatusProbeCarried } from './recovery.js';
 import { evaluatePassBlock } from './literals.js';
 import { evaluateGroupedExprCarried } from './expressions.js';
 import { evaluateDestructure } from './extraction.js';
+import { projectLocated } from './field-access.js';
 import { evaluatePrimary, evaluatePipeTarget, matchesErrorId } from './core.js';
 
 // ============================================================
@@ -175,28 +172,13 @@ async function applyPostfixStepsCarried(
       );
       value = element.value;
       declared = element.declared;
-    } else if (
-      method.type === 'MethodCall' &&
-      method.name === 'inner' &&
-      isTypeValue(value) &&
-      !method.hasParens &&
-      method.args.length === 0
-    ) {
-      const read = readTypeProperty(value, method.name);
-      if (read === undefined) {
-        value = await evaluateMethod(s, method, value);
-        declared = undefined;
-      } else {
-        value = read.value;
-        declared = read.declared;
-      }
     } else {
-      const projected =
-        declared !== undefined &&
-        method.type === 'MethodCall' &&
-        isOwnFieldRead(s, method, value)
-          ? projectElement(declared, method.name)
+      const located =
+        declared !== undefined && method.type === 'MethodCall'
+          ? locateOwnFieldRead(s, method, value)
           : undefined;
+      const projected =
+        located === undefined ? undefined : projectLocated(declared, located);
       value = await evaluateMethod(s, method, value);
       declared = projected;
     }
@@ -404,10 +386,14 @@ export async function evaluateCarryingPipeTarget(
     case 'MethodCall': {
       // A plain own-field read on a declared collection projects the field
       // type; every other method takes its own type.
-      const projected =
-        input.declared !== undefined && isOwnFieldRead(s, target, input.value)
-          ? projectElement(input.declared, target.name)
+      const located =
+        input.declared !== undefined
+          ? locateOwnFieldRead(s, target, input.value)
           : undefined;
+      const projected =
+        located === undefined
+          ? undefined
+          : projectLocated(input.declared, located);
       const value = await evaluateMethod(s, target, input.value);
       return { value, declared: projected };
     }

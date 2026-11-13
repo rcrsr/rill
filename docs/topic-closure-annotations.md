@@ -525,14 +525,20 @@ list(^("label") string)   # Error: RILL-P001
 
 All four positions use the same `^()` syntax and the same description shorthand. Annotation values follow the same rules in all positions: bare strings expand to `description`, multiple blocks merge, and values are full expressions.
 
-### Closure Parameter Annotations in `.^type`
+### Closure Parameter Annotations on the Type Structure
 
-`$fn.^type` carries the parameter annotations on the closure's type. `.inner` lists the parameter types:
+`$fn.^type` keeps parameter annotations on its structure at `TypeStructure.params[i].annotations` for hosts. `.inner` lists parameter types only. Scripts read parameter annotations through `.params`:
 
 ```rill
 |^("label") x: string|{ $x } => $fn
 $fn.^type.inner
 # Result: ordered[x: string]
+```
+
+```rill
+|^("label") x: string|{ $x } => $fn
+$fn.params.x.__annotations.description
+# Result: "label"
 ```
 
 ### Annotations in Closure Signature Literals
@@ -544,7 +550,7 @@ A bodyless closure signature literal carries the same per-param annotations as a
 $t
 ```
 
-The result is a `closure` type value. `structure.params[0].annotations` equals `{ description: "label" }`, the same forwarding rule as `.^type` on a closure value.
+The result is a `closure` type value. `structure.params[0].annotations` equals `{ description: "label" }`, the same forwarding rule host code sees on `.^type` of a closure value.
 
 ---
 

@@ -26,8 +26,7 @@ import type {
   PostfixExprNode,
   PrimaryNode,
   PipeTargetNode,
-  BodyNode,
-  SourceLocation,
+  VariableNode,
 } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
@@ -42,7 +41,6 @@ import {
   isCallable,
   isScriptCallable,
 } from '../../callable.js';
-import { inferType } from '../../types/registrations.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import { invalidate, getStatus } from '../../types/status.js';
 import { createTraceFrame } from '../../types/trace.js';
@@ -55,7 +53,6 @@ import type { EvalState } from '../state.js';
 import { accessHaltGateFast, formatAccessSite } from './access.js';
 import {
   throwCatchableHostHalt,
-  throwFatalHostHalt,
   throwTypeHalt,
   RuntimeHaltSignal,
 } from '../../types/halt.js';
@@ -71,14 +68,17 @@ import {
   evaluateClosureCallWithPipe,
   evaluateClosureCall,
 } from './closures.js';
-import { handleCapture, evaluateVariableAsync } from './variables.js';
+import {
+  handleCapture,
+  evaluateVariableAsync,
+  evaluateVariableCarried,
+} from './variables.js';
 import {
   evaluateWhileLoop,
   evaluateDoWhileLoop,
   evaluateError,
   evaluateConditional,
   evaluateAssert,
-  evaluateBodyExpression,
 } from './control-flow.js';
 import { evaluateUseExpr } from './use.js';
 import {
@@ -97,8 +97,6 @@ import {
   evaluateString,
   evaluatePassBlock,
   evaluateDict,
-  dispatchToList,
-  dispatchToDict,
   createClosure,
   createBlockClosure,
   evaluatePass,
@@ -112,6 +110,10 @@ import {
 import { evaluateCollectionLiteral, evaluateSlice } from './extraction.js';
 import { applyConversion, applyConstructorConversion } from './conversion.js';
 import { evaluateListLiteralDispatch } from './list-dispatch.js';
+import {
+  evaluateHierarchicalDispatch,
+  selectElement,
+} from './element-dispatch.js';
 import { evaluateAnnotations } from './annotations.js';
 import {
   evaluateCarryingPipeTarget,
@@ -622,10 +624,91 @@ export async function evaluatePipeTarget(
     const carrying = await evaluateCarryingPipeTarget(s, target, carried);
     if (carrying !== undefined) return carrying;
   }
+  if (target.type === 'Variable') {
+    return evaluateVariablePipeTarget(s, target, carried);
+  }
   return {
     value: await evaluatePipeTargetValue(s, target, carried),
     declared: undefined,
   };
+}
+
+/**
+ * Variable pipe target: invoke a callable, convert through a type value, or
+ * select an element from a list or dict. A selection carries the element's
+ * declared type; invocation and conversion take their own type.
+ */
+async function evaluateVariablePipeTarget(
+  s: EvalState,
+  target: VariableNode,
+  carried: Carried
+): Promise<Carried> {
+  const data = await evaluateVariableCarried(s, target);
+  const value = data.value;
+  const input = carried.value;
+
+  // If value is callable, invoke it with the pipe input
+  if (isCallable(value)) {
+    return {
+      value: await invokePipeCallable(
+        s,
+        value,
+        carried,
+        getNodeLocation(s, target),
+        `$${target.name ?? ''}`
+      ),
+      declared: undefined,
+    };
+  }
+
+  // Type value dispatch: delegate to applyConversion. Detection uses the
+  // __rill_type flag on RillTypeValue, not structural duck typing, and must
+  // precede the dict checks since RillTypeValue is a plain object.
+  if (isTypeValue(value)) {
+    return {
+      value: applyConversion(s, input, value.typeName, target),
+      declared: undefined,
+    };
+  }
+
+  if (isPlainDict(value) || (Array.isArray(value) && !isTuple(value))) {
+    // A list (not tuple) input navigates the path it holds.
+    if (Array.isArray(input) && !isTuple(input)) {
+      return await evaluateHierarchicalDispatch(
+        s,
+        data,
+        input,
+        target.defaultValue ?? undefined,
+        getNodeLocation(s, target)
+      );
+    }
+    return await selectElement(
+      s,
+      value,
+      input,
+      data.declared,
+      target.defaultValue,
+      getNodeLocation(s, target),
+      'invoke'
+    );
+  }
+
+  // Non-dispatchable type in pipe context - error
+  const valueType =
+    typeof value === 'object' && value !== null
+      ? Array.isArray(value)
+        ? 'tuple'
+        : 'dict'
+      : typeof value;
+  return throwCatchableHostHalt(
+    {
+      location: getNodeLocation(s, target),
+      sourceId: s.ctx.sourceId,
+      fn: 'evaluateVariablePipeTarget',
+    },
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    `Cannot dispatch to ${valueType}`
+  );
 }
 
 /** Pipe targets that take their own type; carrying targets run above. */
@@ -712,13 +795,14 @@ async function evaluatePipeTargetValue(
       if (Array.isArray(input) && !isTuple(input)) {
         // Evaluate dict literal first, then dispatch through path
         const dictValue = await evaluateDict(s, target);
-        return await evaluateHierarchicalDispatch(
+        const selected = await evaluateHierarchicalDispatch(
           s,
-          dictValue,
+          { value: dictValue, declared: undefined },
           input,
           target.defaultValue ?? undefined,
           getNodeLocation(s, target)
         );
+        return selected.value;
       }
       // Dict dispatch: lookup key matching piped value
       return evaluateDictDispatch(s, target, input);
@@ -729,13 +813,14 @@ async function evaluatePipeTargetValue(
       if (Array.isArray(input) && !isTuple(input)) {
         // Evaluate list literal first, then dispatch through path
         const listValue = await evaluateCollectionLiteral(s, target);
-        return await evaluateHierarchicalDispatch(
+        const selected = await evaluateHierarchicalDispatch(
           s,
-          listValue,
+          { value: listValue, declared: undefined },
           input,
           target.defaultValue ?? undefined,
           getNodeLocation(s, target)
         );
+        return selected.value;
       }
       // list[...] as pipe target: index-based dispatch
       return evaluateListLiteralDispatch(s, target, input);
@@ -750,74 +835,6 @@ async function evaluatePipeTargetValue(
         ? await evaluatePostfixExpr(s, target.operand)
         : input;
       return evaluateTypeCheck(s, target, checked);
-    }
-
-    case 'Variable': {
-      // `$.field` access is handled by the carrying-target path.
-      // Variable in pipe chain: evaluate and invoke if callable
-      const value = await evaluateVariableAsync(s, target);
-      // If value is callable, invoke it with the pipe input
-      // Per closure-semantics spec: check params.length to determine invocation style
-      if (isCallable(value)) {
-        return invokePipeCallable(
-          s,
-          value,
-          carried,
-          getNodeLocation(s, target),
-          `$${target.name ?? ''}`
-        );
-      }
-
-      // Slot 6: Type value dispatch — delegate to applyConversion.
-      // Detection uses the __rill_type flag on RillTypeValue, not structural
-      // duck typing. Must be checked BEFORE isDict and hierarchical dispatch
-      // checks, since RillTypeValue is a plain object that isDict() would
-      // otherwise match.
-      if (isTypeValue(value)) {
-        return applyConversion(s, input, value.typeName, target);
-      }
-
-      // Variable dispatch: if value is dict or list, dispatch into it
-      // Hierarchical dispatch: detect list input (not tuple) for path navigation
-      const defaultVal: BodyNode | null = target.defaultValue;
-      if (Array.isArray(input) && !isTuple(input)) {
-        if (isPlainDict(value) || (Array.isArray(value) && !isTuple(value))) {
-          return await evaluateHierarchicalDispatch(
-            s,
-            value,
-            input,
-            defaultVal ?? undefined,
-            getNodeLocation(s, target)
-          );
-        }
-      }
-
-      if (Array.isArray(value) && !isTuple(value)) {
-        // List dispatch
-        return await dispatchToList(s, value, input, defaultVal, target);
-      }
-
-      if (isPlainDict(value)) {
-        // Dict dispatch
-        return await dispatchToDict(s, value, input, defaultVal, target);
-      }
-
-      // Non-dispatchable type in pipe context - error
-      const valueType =
-        typeof value === 'object' && value !== null
-          ? Array.isArray(value)
-            ? 'tuple'
-            : 'dict'
-          : typeof value;
-      return throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, target),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluatePipeChain',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Cannot dispatch to ${valueType}`
-      );
     }
 
     case 'AnnotationAccess':
@@ -872,299 +889,5 @@ async function evaluatePipeTargetValue(
         { nodeType: (target as { type: string }).type },
         'host'
       );
-  }
-}
-
-/**
- * Navigate nested data structure using list of keys/indexes.
- *
- * Traverses through nested dicts and lists using a path of keys/indexes.
- * Empty path returns target unchanged. Each path element dispatches to
- * current value. Terminal closures receive $ = final path key.
- *
- * @param s - Evaluator state
- * @param target - Already-evaluated dict/list to navigate
- * @param path - List of keys/indexes to traverse
- * @param defaultExpr - Optional default value if path not found
- * @param location - Source location for error reporting
- * @returns Final value at path
- */
-async function evaluateHierarchicalDispatch(
-  s: EvalState,
-  target: RillValue,
-  path: RillValue[],
-  defaultExpr?: BodyNode,
-  location?: SourceLocation
-): Promise<RillValue> {
-  // Target is already evaluated
-  const targetValue = target;
-
-  // Empty path returns target unchanged
-  if (path.length === 0) {
-    return targetValue;
-  }
-
-  try {
-    // Navigate through path elements
-    let current = targetValue;
-    let lastKey: RillValue | undefined;
-
-    // Traverse all elements except the last, which is kept for terminal
-    // closure support.
-    for (const key of path) {
-      if (lastKey !== undefined) {
-        current = await traversePathStep(s, current, lastKey, false, location);
-      }
-      lastKey = key;
-    }
-
-    if (lastKey === undefined) {
-      return throwFatalHostHalt(
-        {
-          location,
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateHierarchicalDispatch',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        'Hierarchical dispatch path is empty'
-      );
-    }
-    const result = await traversePathStep(s, current, lastKey, true, location);
-
-    // Resolve terminal value (handles terminal closures with $ = lastKey)
-    return await resolveTerminalValue(s, result, lastKey, location);
-  } catch (error) {
-    // Handle missing key/index errors with default value.
-    // traversePathStep throws RuntimeHaltSignal with atom RILL_R009 instead
-    // of RuntimeError directly; matchesErrorId handles both the legacy and
-    // halt forms.
-    if (
-      matchesErrorId(
-        error,
-        ERROR_IDS.RILL_R009,
-        ERROR_ATOMS[ERROR_IDS.RILL_R009]
-      )
-    ) {
-      if (defaultExpr) {
-        return await evaluateBodyExpression(s, defaultExpr);
-      }
-      // No default - re-throw original error
-      throw error;
-    }
-    // Type errors and other errors always propagate
-    throw error;
-  }
-}
-
-/**
- * Execute single path step: dispatch key to current value.
- *
- * Handles type-specific dispatch:
- * - Dict + string key -> dispatchToDict
- * - List + number key -> dispatchToList
- * - Other combinations -> type error
- *
- * For non-terminal steps, closures are resolved via resolveIntermediateClosure.
- * Terminal closures are handled by caller with $ = key.
- *
- * @param s - Evaluator state
- * @param current - Current value in traversal
- * @param key - Key/index to dispatch
- * @param isTerminal - Whether this is the final path element
- * @param location - Source location for error reporting
- * @returns Value at key/index
- */
-async function traversePathStep(
-  s: EvalState,
-  current: RillValue,
-  key: RillValue,
-  isTerminal: boolean,
-  location?: SourceLocation
-): Promise<RillValue> {
-  // Dict + string key: dispatch to dict
-  if (isPlainDict(current) && typeof key === 'string') {
-    // Create location-like object for dispatchToDict signature.
-    // exactOptionalPropertyTypes requires explicit conditional assignment.
-    const locObj: {
-      span?: { start: SourceLocation; end: SourceLocation };
-    } = {};
-    if (location) locObj.span = { start: location, end: location };
-    const result = await dispatchToDict(
-      s,
-      current,
-      key,
-      null, // No default value for intermediate steps
-      locObj,
-      true // Skip closure resolution - we handle it here
-    );
-
-    // Non-terminal closures must be resolved via resolveIntermediateClosure
-    if (!isTerminal && isCallable(result)) {
-      return await resolveIntermediateClosure(s, result, location);
-    }
-
-    // Terminal closures will be handled by evaluateHierarchicalDispatch
-    return result;
-  }
-
-  // List + number key: dispatch to list
-  if (Array.isArray(current) && !isTuple(current) && typeof key === 'number') {
-    // Create location-like object for dispatchToList signature.
-    // exactOptionalPropertyTypes requires explicit conditional assignment.
-    const locObj: {
-      span?: { start: SourceLocation; end: SourceLocation };
-    } = {};
-    if (location) locObj.span = { start: location, end: location };
-    const result = await dispatchToList(
-      s,
-      current,
-      key,
-      null, // No default value for intermediate steps
-      locObj,
-      true // Skip closure resolution - we handle it here
-    );
-
-    // Non-terminal closures must be resolved via resolveIntermediateClosure
-    if (!isTerminal && isCallable(result)) {
-      return await resolveIntermediateClosure(s, result, location);
-    }
-
-    // Terminal closures will be handled by evaluateHierarchicalDispatch
-    return result;
-  }
-
-  // Type mismatch: throw error
-  const currentType = Array.isArray(current)
-    ? isTuple(current)
-      ? 'tuple'
-      : 'list'
-    : inferType(current);
-  const keyType = typeof key;
-
-  return throwCatchableHostHalt(
-    {
-      location,
-      sourceId: s.ctx.sourceId,
-      fn: 'hierarchicalDispatch',
-    },
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `Hierarchical dispatch type mismatch: cannot use ${keyType} key with ${currentType} value`,
-    { currentType, keyType, key }
-  );
-}
-
-/**
- * Resolve closure encountered at non-terminal path position.
- *
- * Auto-invokes zero-param closures with args = [].
- * Throws error for parameterized closures (no args available at intermediate position).
- * Returns non-callable values unchanged.
- *
- * @param s - Evaluator state
- * @param value - Value to resolve (may be callable or regular value)
- * @param location - Source location for error reporting
- * @returns Resolved value (invoked result or original value)
- * @throws RuntimeHaltSignal (catchable, RILL-R002) if parameterized closure
- */
-async function resolveIntermediateClosure(
-  s: EvalState,
-  value: RillValue,
-  location?: SourceLocation
-): Promise<RillValue> {
-  if (!isCallable(value)) {
-    return value;
-  }
-
-  // Check for parameterized closure (explicit user-defined params)
-  // Note: Block-closures have exactly 1 param named '$'
-  // Parameterized closures have 1+ params with user-defined names
-  const firstParam = value.kind === 'script' ? value.params[0] : undefined;
-  if (value.kind === 'script' && firstParam !== undefined) {
-    // Check if first param is '$' (block-closure) or user-defined (parameterized)
-    if (firstParam.name !== '$') {
-      // Parameterized closures cannot be auto-invoked at an intermediate path position.
-      throwCatchableHostHalt(
-        {
-          location,
-          sourceId: s.ctx.sourceId,
-          fn: 'resolveIntermediateClosure',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        'Cannot invoke parameterized closure at intermediate path position'
-      );
-    }
-  }
-
-  // Zero-param closure or block-closure: auto-invoke with args = []
-  return await invokeCallable(s, value, [], location);
-}
-
-/**
- * Resolve terminal value in hierarchical dispatch: auto-invoke closures with finalKey.
- * Used when navigating to a final path element.
- *
- * Behavior:
- * - Block-closures (params.length > 0, first param is '$'): invoke with args = [finalKey]
- * - Zero-param closures: invoke with pipeValue = finalKey
- * - Parameterized closures: throw error (dispatch does not provide args)
- * - Non-callable: return unchanged
- *
- * @param s - Evaluator state
- * @param value - Value at terminal path position
- * @param finalKey - Final key from path (becomes $ or first arg)
- * @param location - Source location for error reporting
- * @returns Resolved value (invoked or unchanged)
- * @throws RuntimeHaltSignal (catchable, RILL-R002) if parameterized closure
- */
-async function resolveTerminalValue(
-  s: EvalState,
-  value: RillValue,
-  finalKey: RillValue,
-  location?: SourceLocation
-): Promise<RillValue> {
-  if (!isCallable(value)) {
-    return value;
-  }
-
-  // Check for parameterized closure (explicit user-defined params)
-  // Note: Block-closures have exactly 1 param named '$'
-  // Parameterized closures have 1+ params with user-defined names
-  const firstParam = value.kind === 'script' ? value.params[0] : undefined;
-  if (value.kind === 'script' && firstParam !== undefined) {
-    // Check if first param is '$' (block-closure) or user-defined (parameterized)
-    if (firstParam.name !== '$') {
-      // Parameterized closures cannot be auto-invoked at a terminal path position.
-      throwCatchableHostHalt(
-        {
-          location,
-          sourceId: s.ctx.sourceId,
-          fn: 'resolveTerminalValue',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        'Dispatch does not provide arguments for parameterized closure'
-      );
-    }
-  }
-
-  // Check if callable has params to determine invocation style
-  const hasParams =
-    (value.kind === 'script' && value.params.length > 0) ||
-    (value.kind === 'application' &&
-      declaredParams(value).length > 0 &&
-      !value.isProperty);
-
-  if (hasParams) {
-    // Block-closure or application callable with params: invoke with finalKey as argument
-    return await invokeCallable(s, value, [finalKey], location);
-  } else {
-    // Zero-param closure: invoke with pipeValue = finalKey
-    const savedPipeValue = s.ctx.pipeValue;
-    s.ctx.pipeValue = finalKey;
-    try {
-      const result = await invokeCallable(s, value, [], location);
-      return result;
-    } finally {
-      s.ctx.pipeValue = savedPipeValue;
-    }
   }
 }

@@ -52,7 +52,7 @@ export function declarationOf(
  */
 export function projectElement(
   collection: TypeStructure | undefined,
-  key: string | number
+  key: string | number | boolean
 ): TypeStructure | undefined {
   if (collection === undefined) return undefined;
   if (isStructureKind(collection, 'list')) {
@@ -93,13 +93,16 @@ export function projectElement(
   return undefined;
 }
 
-/** Declared element type for iteration; only list(E) carries one. */
+/**
+ * Declared element type for iteration; only list(E) carries one. Iteration
+ * visits every element rather than looking one up, so it takes the same
+ * projection a list index does.
+ */
 export function iterationElement(
   collection: TypeStructure | undefined
 ): TypeStructure | undefined {
-  if (collection === undefined) return undefined;
-  return isStructureKind(collection, 'list')
-    ? declarationOf(collection.element)
+  return collection !== undefined && isStructureKind(collection, 'list')
+    ? projectElement(collection, 0)
     : undefined;
 }
 

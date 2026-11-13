@@ -6,8 +6,11 @@
  * (`normalizeUnion`). Pure functions: no evaluator state, no halts.
  */
 
-import type { TypeStructure } from './structures.js';
+import type { RillFieldDef, RillValue, TypeStructure } from './structures.js';
 import { isStructureKind } from './guards.js';
+import { compareUnionMembers } from './union-order.js';
+// oxlint-disable-next-line import/no-cycle -- registrations.ts reaches this file through operations.ts; the edge is used only at call time, never at module init
+import { deepEquals as registryDeepEquals } from './registrations.js';
 import {
   formatStructure,
   structureEquals,
@@ -31,6 +34,126 @@ function isBareStructure(ts: TypeStructure): boolean {
     parts['chunk'] === undefined &&
     parts['element'] === undefined
   );
+}
+
+/** True when the field declares a default or its type nests one. */
+function fieldHasDefault(field: RillFieldDef): boolean {
+  return field.defaultValue !== undefined || containsDefault(field.type);
+}
+
+/** True when any field, element, or member of the structure declares a default. */
+function containsDefault(ts: TypeStructure): boolean {
+  if (isStructureKind(ts, 'dict') && ts.fields !== undefined) {
+    return Object.values(ts.fields).some(fieldHasDefault);
+  }
+  if (isStructureKind(ts, 'ordered') && ts.fields !== undefined) {
+    return ts.fields.some(fieldHasDefault);
+  }
+  if (isStructureKind(ts, 'tuple') && ts.elements !== undefined) {
+    return ts.elements.some(fieldHasDefault);
+  }
+  if (isStructureKind(ts, 'list') && ts.element !== undefined) {
+    return containsDefault(ts.element);
+  }
+  if (isStructureKind(ts, 'union')) return ts.members.some(containsDefault);
+  return false;
+}
+
+/** True when `keeper` does not declare the defaults of `dropped` identically. */
+function fieldLosesDefault(
+  dropped: RillFieldDef,
+  keeper: RillFieldDef | undefined
+): boolean {
+  if (keeper === undefined) return fieldHasDefault(dropped);
+  const droppedDefault: RillValue | undefined = dropped.defaultValue;
+  const keeperDefault: RillValue | undefined = keeper.defaultValue;
+  if (droppedDefault !== undefined) {
+    if (keeperDefault === undefined) return true;
+    if (!registryDeepEquals(droppedDefault, keeperDefault)) return true;
+  }
+  return losesDefault(dropped.type, keeper.type);
+}
+
+/**
+ * True when dropping `dropped` in favor of `keeper` (which accepts it) would
+ * lose a default that `keeper` does not declare identically, at any depth.
+ */
+function losesDefault(dropped: TypeStructure, keeper: TypeStructure): boolean {
+  if (isStructureKind(dropped, 'union')) {
+    return dropped.members.some((member) => losesDefault(member, keeper));
+  }
+  if (isStructureKind(keeper, 'union')) {
+    return !keeper.members.some(
+      (member) =>
+        structureAccepts(member, dropped) && !losesDefault(dropped, member)
+    );
+  }
+  if (isStructureKind(dropped, 'dict') && dropped.fields !== undefined) {
+    const keeperFields = isStructureKind(keeper, 'dict')
+      ? keeper.fields
+      : undefined;
+    return Object.entries(dropped.fields).some(([name, field]) =>
+      fieldLosesDefault(
+        field,
+        keeperFields !== undefined && Object.hasOwn(keeperFields, name)
+          ? keeperFields[name]
+          : undefined
+      )
+    );
+  }
+  if (isStructureKind(dropped, 'ordered') && dropped.fields !== undefined) {
+    const keeperFields = isStructureKind(keeper, 'ordered')
+      ? keeper.fields
+      : undefined;
+    return dropped.fields.some((field, i) =>
+      fieldLosesDefault(field, keeperFields?.[i])
+    );
+  }
+  if (isStructureKind(dropped, 'tuple') && dropped.elements !== undefined) {
+    const keeperElements = isStructureKind(keeper, 'tuple')
+      ? keeper.elements
+      : undefined;
+    return dropped.elements.some((field, i) =>
+      fieldLosesDefault(field, keeperElements?.[i])
+    );
+  }
+  if (isStructureKind(dropped, 'list') && dropped.element !== undefined) {
+    return isStructureKind(keeper, 'list') && keeper.element !== undefined
+      ? losesDefault(dropped.element, keeper.element)
+      : containsDefault(dropped.element);
+  }
+  return false;
+}
+
+/**
+ * Named-dict acceptance: `outer` accepts `inner` when every outer key is in
+ * inner, each shared outer type accepts the inner type, an inner default is
+ * matched by an outer default, and every inner-only key has a default.
+ * Mirrors structureMatches, which lets extras pass and defaulted fields
+ * be absent.
+ */
+function dictFieldsAccept(
+  outer: Record<string, RillFieldDef>,
+  inner: Record<string, RillFieldDef>
+): boolean {
+  for (const [name, outerField] of Object.entries(outer)) {
+    if (!Object.hasOwn(inner, name)) return false;
+    const innerField = inner[name];
+    if (innerField === undefined) return false;
+    if (!structureAccepts(outerField.type, innerField.type)) return false;
+    if (
+      innerField.defaultValue !== undefined &&
+      outerField.defaultValue === undefined
+    ) {
+      return false;
+    }
+  }
+  for (const [name, innerField] of Object.entries(inner)) {
+    if (!Object.hasOwn(outer, name) && innerField.defaultValue === undefined) {
+      return false;
+    }
+  }
+  return true;
 }
 
 // ============================================================
@@ -62,6 +185,15 @@ function structureAccepts(outer: TypeStructure, inner: TypeStructure): boolean {
     if (outer.element === undefined) return true;
     if (inner.element === undefined) return false;
     return structureAccepts(outer.element, inner.element);
+  }
+
+  if (
+    isStructureKind(outer, 'dict') &&
+    isStructureKind(inner, 'dict') &&
+    outer.fields !== undefined &&
+    inner.fields !== undefined
+  ) {
+    return dictFieldsAccept(outer.fields, inner.fields);
   }
 
   if (outer.kind === inner.kind && isBareStructure(outer)) return true;
@@ -105,12 +237,17 @@ function normalizeUnion(
 
   const kept = spliced.filter(
     (member, i) =>
-      !spliced.some(
-        (other, j) =>
-          j !== i &&
-          structureAccepts(other, member) &&
-          (!structureAccepts(member, other) || j < i)
-      )
+      !spliced.some((other, j) => {
+        if (j === i) return false;
+        if (!structureAccepts(other, member)) return false;
+        if (losesDefault(member, other)) return false;
+        if (!structureAccepts(member, other)) return true;
+        const order = compareUnionMembers(other, member, formatStructure);
+        return (
+          order < 0 ||
+          (order === 0 && spliced.indexOf(other) < spliced.indexOf(member))
+        );
+      })
   );
 
   const only = kept[0];
@@ -121,7 +258,39 @@ function normalizeUnion(
 }
 
 // ============================================================
+// SELECT UNION MEMBER
+// ============================================================
+
+/**
+ * Pick the member a value hydrates with: the narrowest match, independent of
+ * written order. Incomparable matches resolve to the first in canonical print
+ * order. Returns undefined when no member matches. Pure; never halts.
+ */
+function selectUnionMember(
+  value: RillValue,
+  members: readonly TypeStructure[]
+): TypeStructure | undefined {
+  const matches = members.filter((member) => structureMatches(value, member));
+  const minimal = matches.filter(
+    (member) =>
+      !matches.some(
+        (other) =>
+          other !== member &&
+          structureAccepts(member, other) &&
+          !structureAccepts(other, member)
+      )
+  );
+  const [first, ...rest] = minimal;
+  if (first === undefined) return undefined;
+  return rest.reduce(
+    (best, member) =>
+      compareUnionMembers(member, best, formatStructure) < 0 ? member : best,
+    first
+  );
+}
+
+// ============================================================
 // EXPORTS
 // ============================================================
 
-export { normalizeUnion };
+export { normalizeUnion, selectUnionMember };
