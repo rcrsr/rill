@@ -65,5 +65,17 @@ export function canonicalUnionMembers(
   members: readonly TypeStructure[],
   format: (member: TypeStructure) => string
 ): TypeStructure[] {
-  return [...members].sort((a, b) => compareUnionMembers(a, b, format));
+  const keyed = members.map((member) => ({
+    member,
+    key: member.kind === 'literal' ? '' : format(member),
+  }));
+  // Each member prints once; the comparator reads the cached key.
+  const cached = new Map<TypeStructure, string>(
+    keyed.map(({ member, key }) => [member, key])
+  );
+  return keyed
+    .map(({ member }) => member)
+    .sort((a, b) =>
+      compareUnionMembers(a, b, (m) => cached.get(m) ?? format(m))
+    );
 }

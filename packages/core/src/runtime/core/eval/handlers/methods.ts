@@ -393,7 +393,9 @@ export async function evaluateAnnotationAccess(
   if (key === 'description') {
     return value.annotations['description'] ?? '';
   }
-  const annotationValue = value.annotations[key];
+  const annotationValue = Object.hasOwn(value.annotations, key)
+    ? value.annotations[key]
+    : undefined;
   if (annotationValue === undefined) {
     throwCatchableHostHalt(
       {

@@ -12,18 +12,12 @@ import type {
   LiteralNode,
   AnnotationArg,
 } from '../types.js';
-import { ParseError, TOKEN_TYPES, isRillTypeName } from '../types.js';
-import {
-  advance,
-  check,
-  expect,
-  current,
-  makeSpan,
-  previous,
-} from './state.js';
+import { ParseError, TOKEN_TYPES } from '../types.js';
+import { advance, expect, current, makeSpan, previous } from './state.js';
 import {
   parseFieldArgList,
-  parseScriptTypeRef,
+  appendStreamResolution,
+  atStreamResolutionSuffix,
   parseUnionMembers,
 } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -104,19 +98,9 @@ Parser.prototype.parseTypeConstructor = function (
   // A stream type carries its resolution type after a colon: stream(T):R.
   // Only a type name directly after the colon is the resolution type, so an
   // assertion against a variable type (`:$t`) keeps its meaning.
-  if (
-    constructorName === 'stream' &&
-    check(this.state, TOKEN_TYPES.COLON) &&
-    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.IDENTIFIER &&
-    isRillTypeName(this.state.tokens[this.state.pos + 1]?.value ?? '')
-  ) {
+  if (constructorName === 'stream' && atStreamResolutionSuffix(this.state)) {
     advance(this.state); // consume ':'
-    const resolutionType = parseScriptTypeRef(this);
-    // Positional alignment: args[0] is the chunk type, args[1] the resolution.
-    if (args.length === 0) {
-      args.push({ value: { kind: 'static', typeName: 'any' } });
-    }
-    args.push({ value: resolutionType });
+    appendStreamResolution(this, args);
     return {
       type: 'TypeConstructor',
       constructorName,
