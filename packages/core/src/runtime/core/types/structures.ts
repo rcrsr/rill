@@ -91,8 +91,7 @@ export interface RillTuple {
 /**
  * Ordered type - represents named key-value pairs with preserved insertion order.
  * Created by the * (spread) operator from dicts.
- * Entries may carry an optional third element (default value) when representing
- * closure parameter reflection via `.^input`.
+ * Entries may carry an optional third element (default value).
  */
 export interface RillOrdered {
   readonly __rill_ordered: true;

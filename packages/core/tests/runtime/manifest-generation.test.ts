@@ -828,7 +828,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('value: union(string, number)');
+      expect(manifest).toContain('value: union(number, string)');
       expect(() => parse(manifest)).not.toThrow();
     });
 

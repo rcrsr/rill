@@ -95,7 +95,7 @@ describe('error_code manifest round-trip', () => {
       structure: Parameters<typeof formatStructure>[0];
     };
     const text = formatStructure(printed.structure);
-    expect(text).toBe('union(#ok, error_code)');
+    expect(text).toBe('union(error_code, #ok)');
     expect(await run(`union(#ok, error_code) == ${text}`)).toBe(true);
   });
 });

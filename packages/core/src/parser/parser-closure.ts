@@ -27,7 +27,11 @@ import {
   makeSpan,
 } from './state.js';
 import { expectVariableName } from './helpers.js';
-import { parseScriptTypeRef, parseFieldArgList } from './parser-types.js';
+import {
+  appendStreamResolution,
+  parseFieldArgList,
+  parseScriptTypeRef,
+} from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
@@ -92,16 +96,7 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
       );
     }
 
-    // Parse the resolution type reference
-    const resolutionType = parseScriptTypeRef(parser);
-
-    // Ensure positional alignment: args[0] = chunk, args[1] = ret.
-    // When parens are empty (no chunk type), insert an 'any' placeholder
-    // so the runtime correctly maps arg positions.
-    if (args.length === 0) {
-      args.push({ value: { kind: 'static', typeName: 'any' } });
-    }
-    args.push({ value: resolutionType });
+    appendStreamResolution(parser, args);
 
     return {
       type: 'TypeConstructor',

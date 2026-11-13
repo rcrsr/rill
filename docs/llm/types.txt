@@ -135,6 +135,7 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
 Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults. Nested fields recurse.
+Under a union, the narrowest matching member fills defaults, whatever the written order.
 
 ## Datetime and duration
 
@@ -155,6 +156,20 @@ Returns a type value for runtime inspection.
     list[1, 2].^type.name           # "list"
     list[1, 2].^type.signature      # "list(number)"
 
+Read what a type holds with `.inner` and what a function or stream yields with `.outer`:
+
+    list(number).inner              # number
+    dict(a: number).inner           # dict[a: number]
+    tuple(string).inner             # tuple[string]
+    union("b", "a").inner           # list["a", "b"] (canonical order)
+    union(1, "a").inner => $u
+    $u.^type.signature              # "list(union(number, string))"
+    string.inner ?? any             # any; leaf types halt RILL-R003 without ??
+    string.?inner                   # false
+    |x: number|{ $x }:string => $f
+    $f.^type.outer                  # string
+    dict(a: string = "x").defaults  # dict[a: "x"]
+
 Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
 
     42 => $x:union(string, number)
@@ -164,8 +179,8 @@ Under a declared union, `.^type` reports the declaration and `.^effective` the o
 Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
 `1 => $x:any` locks as number.
 
-A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and `[i]`, `.name`, `.$k` on a declared collection. A capture locks to the carried declaration.
-Computed results (operators, methods like `.head`, calls, computed key `.("a")`) take their own type.
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, `.(expr)`, `.(a || b)`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
+Computed results (operators, methods like `.head`, calls) take their own type.
 A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
 Host boundary: `toNative` reports the own type.
 Migrate `$v.^type == number` to `$v.^effective == number` or `$v -> :?number` under a declared union.

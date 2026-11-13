@@ -15,7 +15,7 @@ Load fragments progressively. The cheatsheet alone is enough for most short scri
 | [control-flow](llm/control-flow.txt) | Writing conditionals, loops, branching, or transforming collections. Includes the operator picker and iterators. |
 | [errors](llm/errors.txt) | Adding `assert`, `error`, `guard`, `retry`, `??`, or inspecting `.!` sidecars. |
 | [types](llm/types.txt) | Asserting types, converting between types, validating dict shapes, or reading `^type` and `.^effective`. |
-| [callables](llm/callables.txt) | Defining closures, typed closures, dispatch tables, or using `.^input` / `.^output` reflection. |
+| [callables](llm/callables.txt) | Defining closures, typed closures, dispatch tables, or using `.^type.inner` / `.^type.outer` reflection. |
 | [stdlib](llm/stdlib.txt) | Calling string, list, or dict methods. Includes built-in functions (`log`, `range`, `enumerate`). |
 | [style](llm/style.txt) | Formatting output. Naming, spacing, line continuations, and idiomatic patterns. |
 

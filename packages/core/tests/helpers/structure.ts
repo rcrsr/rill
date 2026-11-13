@@ -15,20 +15,12 @@ import {
 } from '@rcrsr/rill';
 
 type ClosureStructure = Extract<TypeStructure, { kind: 'closure' }>;
-type OrderedStructure = Extract<TypeStructure, { kind: 'ordered' }>;
 
 /** Narrow a structure to the closure variant. */
 export function isClosureStructure(
   structure: TypeStructure
 ): structure is ClosureStructure {
   return structure.kind === 'closure';
-}
-
-/** Narrow a structure to the ordered variant. */
-function isOrderedStructure(
-  structure: TypeStructure
-): structure is OrderedStructure {
-  return structure.kind === 'ordered';
 }
 
 /** Assert that a value is a type value and return it narrowed. */
@@ -40,10 +32,10 @@ export function expectTypeValue(value: RillValue): RillTypeValue {
 }
 
 /** Assert that a type value holds an ordered structure and return it. */
-export function expectOrderedStructure(value: RillValue): OrderedStructure {
+export function expectClosureStructure(value: RillValue): ClosureStructure {
   const structure = expectTypeValue(value).structure;
-  if (!isOrderedStructure(structure)) {
-    throw new Error(`expected an ordered structure, got ${structure.kind}`);
+  if (!isClosureStructure(structure)) {
+    throw new Error(`expected a closure structure, got ${structure.kind}`);
   }
   return structure;
 }

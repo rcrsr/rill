@@ -17,16 +17,13 @@ import type {
 } from '../../../../types.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
-import {
-  findIndexPosition,
-  throwIndexOutOfBounds,
-} from '../../types/index-access.js';
 import { findElementTypeMismatch } from '../../types/operations.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation } from '../shared.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluateExpression } from './core.js';
+import { locateField, throwFieldMiss } from './field-access.js';
 
 /**
  * Evaluate list[...] as a pipe target.
@@ -75,18 +72,16 @@ export async function evaluateListLiteralDispatch(
     sourceId: s.ctx.sourceId,
     fn: 'evaluateListLiteralDispatch',
   };
-  const position = findIndexPosition(input, elements.length, 'List', site);
-  // `element` is undefined only when the position is out of range
-  const element = position === undefined ? undefined : elements[position];
-  if (element === undefined) {
-    // Use default value if provided via ??
-    if (node.defaultValue) {
+  const located = locateField(elements, input);
+  if (!located.found) {
+    // A fractional index halts even when a default is given.
+    if (located.miss !== 'non-integer' && node.defaultValue) {
       return await evaluateBody(s, node.defaultValue);
     }
-    return throwIndexOutOfBounds(input, elements.length, 'List', site);
+    return throwFieldMiss(elements, input, located.miss, site);
   }
 
-  return element;
+  return located.value;
 }
 
 /**

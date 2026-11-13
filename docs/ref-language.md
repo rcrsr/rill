@@ -215,6 +215,22 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.?field&type` | Existence + type check |
 | `$data.^key` | Annotation reflection |
 
+| Form | Reaches or halts |
+|------|------------------|
+| `.$k`, `.(expr)`, `.(a \|\| b)`, `.?` | Dict data fields, list and tuple positions, ordered entries |
+| Same forms on a type value | `name`, `signature`, `inner`, `outer`, `defaults`, where the type has them |
+| `.len`, `.keys`, closure `.params` | Work only as a written `.name` or a pipe method |
+| `.?len` | `false` |
+| `.("len")` | Halts RILL-R003 on a list, tuple, string, or closure; RILL-R009 on a dict or ordered |
+| `.?k` | `true` exactly when `.("k")` does not halt |
+
+```rill
+tuple[1, "a"] => $t
+1 => $k
+$t.$k
+# Result: "a"
+```
+
 `[index]` is a postfix operator: it applies after any expression yielding an indexable value, not only a `$`-variable.
 
 ```rill
@@ -486,6 +502,43 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 
 See [Strings](topic-strings.md) for detailed string method documentation.
 
+### Method Signatures
+
+Methods marked "runtime checked" accept any receiver at parse time and halt at runtime when the receiver type is wrong.
+
+| Method | Receiver Types | Params | Return |
+|--------|---------------|--------|--------|
+| `.len` | string, list, dict, ordered | (none) | `number` |
+| `.trim` | string | (none) | `string` |
+| `.head`, `.tail` | string, list | (none) | `any` |
+| `.first` | string, list, dict, iterator (runtime checked) | (none) | `iterator` |
+| `.at` | string, list, tuple (runtime checked) | `index: number` | `any` |
+| `.split` | string | `separator: string = "\n"` | `list` |
+| `.join` | list | `separator: string = ","` | `string` |
+| `.reverse` | list | (none) | `list` |
+| `.lines` | string | (none) | `list` |
+| `.empty` | string, list, dict, tuple, ordered | (none) | `bool` |
+| `.starts_with`, `.ends_with` | string | `prefix: string` for `.starts_with`, `suffix: string` for `.ends_with` | `bool` |
+| `.lower`, `.upper` | string | (none) | `string` |
+| `.replace`, `.replace_all` | string | `pattern: string, replacement: string` | `string` |
+| `.contains` | string | `search: string` | `bool` |
+| `.match` | string | `pattern: string` | `dict` |
+| `.is_match` | string | `pattern: string` | `bool` |
+| `.index_of` | string | `search: string` | `number` |
+| `.repeat` | string | `count: number` | `string` |
+| `.pad_start`, `.pad_end` | string | `length: number, fill: string = " "` | `string` |
+| `.eq`, `.ne` | any | `other: any` | `bool` |
+| `.lt`, `.gt`, `.le`, `.ge` | number, string, datetime | `other: any` | `bool` |
+| `.keys`, `.values`, `.entries` | dict, ordered (runtime checked) | (none) | `list` |
+| `.has` | list (runtime checked) | `value: any` | `bool` |
+| `.has_any`, `.has_all` | list (runtime checked) | `candidates: list` | `bool` |
+| `.model` | vector (runtime checked) | (none) | `string` |
+| `.similarity`, `.dot`, `.distance` | vector (runtime checked) | `other: any` | `number` |
+| `.dimensions`, `.norm` | vector (runtime checked) | (none) | `number` |
+| `.normalize` | vector (runtime checked) | (none) | `any` |
+
+`bool` supports only equality (`==`, `!=`). Ordering (`<`, `>`, `<=`, `>=`) on `bool` raises RILL-R002.
+
 ### Global Functions
 
 | Function | Params | Return | Description |
@@ -502,6 +555,8 @@ See [Strings](topic-strings.md) for detailed string method documentation.
 | `now` | (none) | `datetime` | Current UTC instant |
 | `sort` | `list[T], key_fn?: (item: T) => Comparable` | `list[T]` | Sort list; stable, ascending by default |
 | `sort` | `dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable` | `ordered[[key: K, value: V]]` | Sort dict entries; returns ordered key-value pairs |
+
+`json` halts `#INVALID_INPUT` on a closure value, including a closure held in a dict or list.
 
 The remaining built-ins are `seq`, `fan`, `acc`, `fold`, `filter`, `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `iterate`, `debounce`, `throttle`, and `sample`. See [Collection Operators](#collection-operators) and [Slicing and Restructuring Operators](#slicing-and-restructuring-operators) for their rows.
 
@@ -583,20 +638,50 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 |-----|--------|--------|
 | `type` | Reserved | Intercepted at evaluation time for any value |
 | `effective` | Reserved | Intercepted at evaluation time for any value; returns the own type |
-| `input` | Active | Intercepted on any callable; returns parameter shape as `RillOrdered` |
-| `output` | Active | Intercepted on any callable; returns declared return type as `RillTypeValue` |
 | `description` | User-defined | Not reserved; common metadata key |
 | `enum` | User-defined | Not reserved; common metadata key |
 | `default` | User-defined | Not reserved; common metadata key |
+| `input` | User-defined | Not reserved; on a closure `^(input: ...)` is an ordinary annotation, `.^input` returns it, and it shadows the function halt. A stream value is not shadowed |
+| `output` | User-defined | Not reserved; same as `input` |
+| `chunk` | User-defined | Not reserved; same as `input` |
 
 ```text
 ^(type: "custom") name: string   # Error: annotation key "type" is reserved
-^(input: "text") name: string    # Error: annotation key "input" is reserved
-^(output: "text") name: string   # Error: annotation key "output" is reserved
 ^(effective: "x") name: string   # Error: annotation key "effective" is reserved
 ```
 
 The `name` key is not reserved on closures. On type values, `.name` is a dot-notation property, not annotation access; use `.^type.name` to read a type value's name.
+
+### Removed Reflection Probes
+
+`.^input` and `.^output` on a function halt RILL-R008, `.^chunk` and `.^output` on a stream halt RILL-R003, and each message names the replacement:
+
+| Removed | Use |
+|---------|-----|
+| `$f.^input` | `$f.^type.inner` |
+| `$f.^output` | `$f.^type.outer` |
+| `$s.^chunk` | `$s.^type.inner` |
+| `$s.^output` | `$s.^type.outer` |
+
+The function halts are catchable: `$f.^input ?? "none"` gives `"none"`. The stream halts are not: `$s.^chunk ?? "x"` still halts RILL-R003 with the replacement hint.
+
+```rill
+|x|($x) => $f
+$f.^input ?? "none"
+# Result: "none"
+```
+
+```rill
+^(input: "csv") |x|($x) => $f
+$f.^input
+# Result: "csv"
+```
+
+```rill
+|x|($x) => $f
+$f.^input
+# Error: Annotation 'input' not found
+```
 
 ### Field Annotations in Type Constructors
 
@@ -647,7 +732,7 @@ Valid return type targets:
 | `any` | Any type (no assertion) |
 | `list(T)`, `dict(k: T, ...)`, `tuple(T, ...)` | Parameterized structural types (deep-validates) |
 
-Declared return type is accessible via `$fn.^output`. See [Closure Annotations](topic-closure-annotations.md#return-type-assertions) for parameterized-type examples and the mismatch error output.
+Declared return type is accessible via `$fn.^type.outer`. See [Closure Annotations](topic-closure-annotations.md#return-type-assertions) for parameterized-type examples and the mismatch error output.
 
 ---
 

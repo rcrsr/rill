@@ -282,7 +282,7 @@ Mismatched return type halts with `RILL-R004`:
 $double(5)    # RILL-R004: Type assertion failed: expected string, got number
 ```
 
-Declared return type is accessible via `$fn.^output`. Whitespace and newlines are allowed between `}` and `:`:
+Declared return type is accessible via `$fn.^type.outer`. Whitespace and newlines are allowed between `}` and `:`:
 
 ```rill
 |a: number, b: number| { $a + $b }:number => $add
@@ -525,16 +525,21 @@ list(^("label") string)   # Error: RILL-P001
 
 All four positions use the same `^()` syntax and the same description shorthand. Annotation values follow the same rules in all positions: bare strings expand to `description`, multiple blocks merge, and values are full expressions.
 
-### Closure `.^input` Forwards Annotations
+### Closure Parameter Annotations on the Type Structure
 
-When a closure carries parameter annotations, `.^input` reflects those annotations in its `ordered` structure. Each field in `.^input.structure.fields` carries the same `annotations` record as the original parameter:
+`$fn.^type` keeps parameter annotations on its structure at `TypeStructure.params[i].annotations` for hosts. `.inner` lists parameter types only. Scripts read parameter annotations through `.params`:
 
 ```rill
 |^("label") x: string|{ $x } => $fn
-$fn.^input
+$fn.^type.inner
+# Result: ordered[x: string]
 ```
 
-The returned `ordered` type has `structure.fields[0].annotations` equal to `{ description: "label" }`.
+```rill
+|^("label") x: string|{ $x } => $fn
+$fn.params.x.__annotations.description
+# Result: "label"
+```
 
 ### Annotations in Closure Signature Literals
 
@@ -545,7 +550,7 @@ A bodyless closure signature literal carries the same per-param annotations as a
 $t
 ```
 
-The result is a `closure` type value. `structure.params[0].annotations` equals `{ description: "label" }`, the same forwarding rule as `.^input`.
+The result is a `closure` type value. `structure.params[0].annotations` equals `{ description: "label" }`, the same forwarding rule host code sees on `.^type` of a closure value.
 
 ---
 

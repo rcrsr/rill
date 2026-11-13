@@ -1,18 +1,18 @@
 /**
- * Rill Runtime Tests: marshalArgs and .^input default preservation
+ * Rill Runtime Tests: marshalArgs and .^type default preservation
  *
  * Unit tests for the marshalArgs function (error contracts and happy paths)
- * and .^input introspection for closure parameter default values.
+ * and .^type introspection for closure parameter default values.
  *
  * AC-1:  args=[1], params (x, y:2)  → {x:1, y:2}   (pipe + default)
  * AC-2:  args=[1,2], params (x, y)  → {x:1, y:2}   (positional)
- * AC-4:  closure (y=2) .^input → 3-element entry
+ * AC-4:  closure (y=2) .^type → 3-element entry
  * AC-10: missing required y → RILL-R044
  * AC-11: excess args → RILL-R045
  * AC-12: type mismatch → RILL-R001
  * AC-15: args=[], params () → {}
- * AC-19: closure no defaults → 2-element .^input entries
- * AC-20: untyped callable → empty ordered .^input
+ * AC-19: closure no defaults → closure .^type with params
+ * AC-20: untyped callable → closure .^type with empty params
  * EC-4:  buildMethodEntry receiver missing → RILL-R044
  */
 
@@ -1008,26 +1008,26 @@ describe('EC-4: buildMethodEntry receiver missing from record raises RILL-R044',
 });
 
 // ============================================================
-// .^input default preservation tests
+// .^type default preservation tests
 // ============================================================
 
-describe('.^input default preservation', () => {
+describe('.^type default preservation', () => {
   describe('AC-4: closure with default → RillFieldDef with defaultValue', () => {
     it('returns RillFieldDef with defaultValue for param with default', async () => {
       // |y: number = 2| produces a typed param with a default value
       const result = (await run(
-        '|y: number = 2| { $y } => $fn\n$fn.^input'
+        '|y: number = 2| { $y } => $fn\n$fn.^type'
       )) as {
         __rill_type: boolean;
         typeName: string;
         structure: {
           type: string;
-          fields: { name: string; type: unknown; defaultValue?: unknown }[];
+          params: { name: string; type: unknown; defaultValue?: unknown }[];
         };
       };
       expect(result['__rill_type']).toBe(true);
-      expect(result.typeName).toBe('ordered');
-      const fields = result.structure.fields;
+      expect(result.typeName).toBe('closure');
+      const fields = result.structure.params;
       expect(fields).toHaveLength(1);
       expect(fields[0]!.name).toBe('y');
       expect(fields[0]!.defaultValue).toBe(2);
@@ -1036,14 +1036,14 @@ describe('.^input default preservation', () => {
     it('mixed params: defaulted has defaultValue, required omits it', async () => {
       // |x: string, y: number = 10| — x has no default, y has default
       const result = (await run(
-        '|x: string, y: number = 10| { $x } => $fn\n$fn.^input'
+        '|x: string, y: number = 10| { $x } => $fn\n$fn.^type'
       )) as {
         structure: {
           type: string;
-          fields: { name: string; type: unknown; defaultValue?: unknown }[];
+          params: { name: string; type: unknown; defaultValue?: unknown }[];
         };
       };
-      const fields = result.structure.fields;
+      const fields = result.structure.params;
       expect(fields).toHaveLength(2);
       // x: no default → no defaultValue property
       expect(fields[0]!.name).toBe('x');
@@ -1057,18 +1057,18 @@ describe('.^input default preservation', () => {
   describe('AC-19: closure without defaults → RillFieldDef without defaultValue', () => {
     it('returns RillFieldDef fields without defaultValue for undefaulted params', async () => {
       const result = (await run(
-        '|x: string, y: number| { $x } => $fn\n$fn.^input'
+        '|x: string, y: number| { $x } => $fn\n$fn.^type'
       )) as {
         __rill_type: boolean;
         typeName: string;
         structure: {
           type: string;
-          fields: { name: string; type: unknown; defaultValue?: unknown }[];
+          params: { name: string; type: unknown; defaultValue?: unknown }[];
         };
       };
       expect(result['__rill_type']).toBe(true);
-      expect(result.typeName).toBe('ordered');
-      const fields = result.structure.fields;
+      expect(result.typeName).toBe('closure');
+      const fields = result.structure.params;
       expect(fields).toHaveLength(2);
       // Both params have no defaults: no defaultValue property
       expect(fields[0]!.name).toBe('x');
@@ -1078,34 +1078,34 @@ describe('.^input default preservation', () => {
     });
   });
 
-  describe('zero-param callable → empty ordered type', () => {
-    it('callable() factory (zero-param host callable) returns empty ordered type for .^input', async () => {
-      // The callable() factory declares params: [], so .^input is an empty ordered type.
+  describe('zero-param callable → closure type with empty params', () => {
+    it('callable() factory (zero-param host callable) returns closure type with empty params for .^type', async () => {
+      // The callable() factory declares params: [], so .^type is a closure type with empty params.
       const { callable } = await import('@rcrsr/rill');
-      const result = (await run('$fn.^input', {
+      const result = (await run('$fn.^type', {
         variables: {
           fn: callable(() => null),
         },
       })) as {
         __rill_type: boolean;
         typeName: string;
-        structure: { type: string; fields: unknown[] };
+        structure: { type: string; params: unknown[] };
       };
       expect(result['__rill_type']).toBe(true);
-      expect(result.typeName).toBe('ordered');
-      expect(result.structure.fields).toEqual([]);
+      expect(result.typeName).toBe('closure');
+      expect(result.structure.params).toEqual([]);
     });
 
-    it('explicit zero-param closure (||{}) returns empty ordered type for .^input', async () => {
+    it('explicit zero-param closure (||{}) returns closure type with empty params for .^type', async () => {
       // ||{ ... } is a closure with an explicit empty param list (params = [])
-      const result = (await run('||{ "result" } => $fn\n$fn.^input')) as {
+      const result = (await run('||{ "result" } => $fn\n$fn.^type')) as {
         __rill_type: boolean;
         typeName: string;
-        structure: { type: string; fields: unknown[] };
+        structure: { type: string; params: unknown[] };
       };
       expect(result['__rill_type']).toBe(true);
-      expect(result.typeName).toBe('ordered');
-      expect(result.structure.fields).toEqual([]);
+      expect(result.typeName).toBe('closure');
+      expect(result.structure.params).toEqual([]);
     });
   });
 });

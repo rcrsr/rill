@@ -1,14 +1,14 @@
 /**
  * Rill Language Tests: Anonymous Typed Closure Reflection
  *
- * Tests for `.^input` and `.^output` reflection on anonymous typed closures
- * and bare blocks.
+ * Tests for `.^type` structure and `.^type.inner` / `.^type.outer` reflection on
+ * anonymous typed closures and bare blocks.
  *
  * AC = Acceptance Criterion from anonymous-typed-closure spec.
  *
  * Runtime internals:
- * - `.^input` returns RillTypeValue: { __rill_type: true, typeName: 'ordered', structure: { kind: 'ordered', fields: [...] } }
- * - `.^output` returns RillTypeValue: { __rill_type: true, typeName, structure }
+ * - `.^type` returns RillTypeValue: { __rill_type: true, typeName: 'closure', structure: { kind: 'closure', params: [...], ret } }
+ * - `.^type.inner` and `.^type.outer` are comparable values derived from the param and return types
  *
  * Anonymous typed closure `|T|{ body }` produces param `$` with type T.
  * Bare block `{ body }` produces param `$` with no type (any).
@@ -20,14 +20,14 @@ import { run } from '../helpers/runtime.js';
 
 describe('Rill Language: Anonymous Typed Closure Reflection', () => {
   // ============================================================
-  // .^output reflection (AC-11, AC-27, AC-28, AC-47)
+  // .^type.outer reflection (AC-11, AC-27, AC-28, AC-47)
   // ============================================================
 
-  describe('.^output on typed closure (AC-27, AC-47)', () => {
-    it('AC-27/AC-47: |number|{ $ * 2 }:number .^output returns type value with typeName "number"', async () => {
+  describe('.^type.outer on typed closure (AC-27, AC-47)', () => {
+    it('AC-27/AC-47: |number|{ $ * 2 }:number .^type.outer returns type value with typeName "number"', async () => {
       const script = `
         |number|{ $ * 2 }:number => $fn
-        $fn.^output
+        $fn.^type.outer
       `;
       const result = await run(script);
       const typeValue = result as Record<string, unknown>;
@@ -35,20 +35,20 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       expect(typeValue['typeName']).toBe('number');
     });
 
-    it('AC-27/AC-47: .^output type value compares equal to number type keyword', async () => {
+    it('AC-27/AC-47: .^type.outer type value compares equal to number type keyword', async () => {
       const script = `
         |number|{ $ * 2 }:number => $fn
-        $fn.^output == number
+        $fn.^type.outer == number
       `;
       expect(await run(script)).toBe(true);
     });
   });
 
-  describe('.^output on unannotated closure (AC-28, AC-47)', () => {
-    it('AC-28/AC-47: |number|{ $ * 2 } .^output returns type value with typeName "any"', async () => {
+  describe('.^type.outer on unannotated closure (AC-28, AC-47)', () => {
+    it('AC-28/AC-47: |number|{ $ * 2 } .^type.outer returns type value with typeName "any"', async () => {
       const script = `
         |number|{ $ * 2 } => $fn
-        $fn.^output
+        $fn.^type.outer
       `;
       const result = await run(script);
       const typeValue = result as Record<string, unknown>;
@@ -56,114 +56,114 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       expect(typeValue['typeName']).toBe('any');
     });
 
-    it('AC-28/AC-47: .^output type value compares equal to any type keyword', async () => {
+    it('AC-28/AC-47: .^type.outer type value compares equal to any type keyword', async () => {
       const script = `
         |number|{ $ * 2 } => $fn
-        $fn.^output == any
+        $fn.^type.outer == any
       `;
       expect(await run(script)).toBe(true);
     });
   });
 
-  describe('.^output on unannotated closure (AC-11)', () => {
-    it('AC-11: plain unannotated closure .^output returns any type value', async () => {
+  describe('.^type.outer on unannotated closure (AC-11)', () => {
+    it('AC-11: plain unannotated closure .^type.outer returns any type value', async () => {
       const script = `
         |x: string|{ $x } => $fn
-        $fn.^output == any
+        $fn.^type.outer == any
       `;
       expect(await run(script)).toBe(true);
     });
 
-    it('AC-11: bare block .^output returns any type value', async () => {
+    it('AC-11: bare block .^type.outer returns any type value', async () => {
       const script = `
         { $ * 2 } => $fn
-        $fn.^output == any
+        $fn.^type.outer == any
       `;
       expect(await run(script)).toBe(true);
     });
   });
 
   // ============================================================
-  // .^input reflection (AC-10, AC-29, AC-42)
+  // .^type reflection (AC-10, AC-29, AC-42)
   // ============================================================
 
-  describe('.^input on anonymous typed closure (AC-29)', () => {
-    it('AC-29: |string|{ $ } .^input returns closure structural type with $ param typed string', async () => {
+  describe('.^type on anonymous typed closure (AC-29)', () => {
+    it('AC-29: |string|{ $ } .^type returns closure structural type with $ param typed string', async () => {
       const script = `
         |string|{ $ } => $fn
-        $fn.^input
+        $fn.^type
       `;
       const result = await run(script);
       const shape = result as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: { name: string; type: unknown }[] };
+        structure: { type: string; params: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('ordered');
-      expect(shape.structure.fields).toHaveLength(1);
-      expect(shape.structure.fields[0]!.name).toBe('$');
-      expect(shape.structure.fields[0]!.type).toEqual({ kind: 'string' });
+      expect(shape.typeName).toBe('closure');
+      expect(shape.structure.params).toHaveLength(1);
+      expect(shape.structure.params[0]!.name).toBe('$');
+      expect(shape.structure.params[0]!.type).toEqual({ kind: 'string' });
     });
 
-    it('AC-29: |number|{ $ * 2 } .^input has $ param typed number', async () => {
+    it('AC-29: |number|{ $ * 2 } .^type has $ param typed number', async () => {
       const script = `
         |number|{ $ * 2 } => $fn
-        $fn.^input
+        $fn.^type
       `;
       const result = await run(script);
       const shape = result as {
         __rill_type: true;
-        structure: { type: string; fields: { name: string; type: unknown }[] };
+        structure: { type: string; params: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.structure.fields[0]!.type).toEqual({ kind: 'number' });
+      expect(shape.structure.params[0]!.type).toEqual({ kind: 'number' });
     });
 
-    it('AC-29: two |string|{ } closures have equal .^input', async () => {
+    it('AC-29: two |string|{ } closures have equal .^type.inner', async () => {
       const script = `
         |string|{ $ } => $fn1
         |string|{ "different body" } => $fn2
-        $fn1.^input == $fn2.^input
+        $fn1.^type.inner == $fn2.^type.inner
       `;
       expect(await run(script)).toBe(true);
     });
 
-    it('AC-29: |string|{ } and |number|{ } have unequal .^input', async () => {
+    it('AC-29: |string|{ } and |number|{ } have unequal .^type.inner', async () => {
       const script = `
         |string|{ $ } => $fn1
         |number|{ $ * 2 } => $fn2
-        $fn1.^input == $fn2.^input
+        $fn1.^type.inner == $fn2.^type.inner
       `;
       expect(await run(script)).toBe(false);
     });
   });
 
-  describe('.^input on bare block (AC-10, AC-42)', () => {
-    it('AC-10/AC-42: bare block .^input returns closure structural type with $ param typed any', async () => {
+  describe('.^type on bare block (AC-10, AC-42)', () => {
+    it('AC-10/AC-42: bare block .^type returns closure structural type with $ param typed any', async () => {
       const script = `
         { $ * 2 } => $fn
-        $fn.^input
+        $fn.^type
       `;
       const result = await run(script);
       const shape = result as {
         __rill_type: true;
         typeName: string;
-        structure: { type: string; fields: { name: string; type: unknown }[] };
+        structure: { type: string; params: { name: string; type: unknown }[] };
       };
       expect(shape.__rill_type).toBe(true);
-      expect(shape.typeName).toBe('ordered');
-      expect(shape.structure.fields).toHaveLength(1);
-      expect(shape.structure.fields[0]!.name).toBe('$');
+      expect(shape.typeName).toBe('closure');
+      expect(shape.structure.params).toHaveLength(1);
+      expect(shape.structure.params[0]!.name).toBe('$');
       // Bare block uses typeName: 'any' internally
-      expect(shape.structure.fields[0]!.type).toEqual({ kind: 'any' });
+      expect(shape.structure.params[0]!.type).toEqual({ kind: 'any' });
     });
 
-    it('AC-10/AC-42: bare block .^input equals |any|{ } .^input', async () => {
+    it('AC-10/AC-42: bare block .^type.inner equals |any|{ } .^type.inner', async () => {
       const script = `
         { $ * 2 } => $bare
         |any|{ $ * 2 } => $typed
-        $bare.^input == $typed.^input
+        $bare.^type.inner == $typed.^type.inner
       `;
       expect(await run(script)).toBe(true);
     });
@@ -179,51 +179,51 @@ describe('Rill Language: Anonymous Typed Closure Reflection', () => {
       expect(result).toBe('closure');
     });
 
-    it('AC-46: annotation on anonymous typed closure does not break .^output', async () => {
+    it('AC-46: annotation on anonymous typed closure does not break .^type.outer', async () => {
       const script = `
         ^(label: "double") |number|{ $ * 2 }:number => $fn
-        $fn.^output == number
+        $fn.^type.outer == number
       `;
       expect(await run(script)).toBe(true);
     });
 
-    it('AC-46: .^output on annotated closure without return type returns any', async () => {
+    it('AC-46: .^type.outer on annotated closure without return type returns any', async () => {
       const script = `
         ^(label: "id") |string|{ $ } => $fn
-        $fn.^output == any
+        $fn.^type.outer == any
       `;
       expect(await run(script)).toBe(true);
     });
   });
 
   // ============================================================
-  // .^input flows through rill without RILL-R002
+  // .^type.inner flows through rill without RILL-R002
   // ============================================================
 
-  describe('.^input value survives rill operations (no RILL-R002)', () => {
-    it('$fn.^input assigned to variable and compared to itself returns true', async () => {
+  describe('.^type.inner value survives rill operations (no RILL-R002)', () => {
+    it('$fn.^type.inner assigned to variable and compared to itself returns true', async () => {
       const script = `
         |string|{ $ } => $fn
-        $fn.^input => $shape
+        $fn.^type.inner => $shape
         $shape == $shape
       `;
       expect(await run(script)).toBe(true);
     });
 
-    it('$fn.^input compared to itself is true', async () => {
+    it('$fn.^type.inner compared to itself is true', async () => {
       const script = `
         |number|{ $ * 2 } => $fn
-        $fn.^input => $shape
+        $fn.^type.inner => $shape
         $shape == $shape
       `;
       expect(await run(script)).toBe(true);
     });
 
-    it('two closures with same param type have equal .^input', async () => {
+    it('two closures with same param type have equal .^type.inner', async () => {
       const script = `
         |string|{ $ } => $fn1
         |string|{ "other" } => $fn2
-        $fn1.^input == $fn2.^input
+        $fn1.^type.inner == $fn2.^type.inner
       `;
       expect(await run(script)).toBe(true);
     });

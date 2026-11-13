@@ -334,11 +334,11 @@ annotated-expr = annotation , primary ;
 
 (* Annotation access: read annotation values from closures.
    .^key reads the annotation named "key" from a closure value.
-   Chained with method calls: $fn.^output, $fn.^description.
+   Chained with method calls: $fn.^type, $fn.^description.
    .^type reports the declared type, else the own type, on any value.
    .^effective reports the own type on any value.
    Other keys read closure annotations; a missing key errors.
-   Example: $fn.^output         -- read "output" annotation
+   Example: $fn.^type           -- read the declared type
    Example: $fn.^description    -- read "description" annotation *)
 annotation-access = "." , "^" , identifier ;
 
@@ -406,7 +406,7 @@ closure = "|" , [ closure-param , { "," , closure-param } ] , "|" , body , [ ":"
               (* Return type assertion — enforced at runtime (RILL-R004 on mismatch).
                  |x: number| { "{$x}" }:string  -- asserts string return type
                  Whitespace and newlines allowed between "}" and ":".
-                 Declared return type accessible via $fn.^output annotation.
+                 Declared return type accessible via $fn.^type.outer.
 
                  Anonymous typed closure (second alternative):
                  When the single token between | ... | is a type-name keyword, the parser

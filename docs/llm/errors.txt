@@ -27,7 +27,7 @@ Every value carries a status sidecar. Read with `.!`:
 | Probe | Returns |
 |---|---|
 | `$v.!` | bool: is this an invalid value? |
-| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)`; `.^type` reports that union |
+| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)`; `.^type` reports it, printed `union(error_code, #ok)` |
 | `$v.!message` | string: human-readable description |
 | `$v.!provider` | string: component that produced the error |
 | `$v.!trace` | list: trace frames |

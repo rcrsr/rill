@@ -161,6 +161,11 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: use<ext:app> => $app
            $app.fetch($url)
 
+## Callable reflection
+
+    Wrong: $fn.^input                      # removed; halts naming the replacement
+    Right: $fn.^type.inner                 # ordered[x: number]
+
 ## Union types
 
     Wrong: 42 -> :string|number

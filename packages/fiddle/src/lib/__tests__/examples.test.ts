@@ -104,7 +104,7 @@ describe('examples demonstrate their construct', () => {
     [
       'closure-reflection',
       42,
-      ['Doubles a number', 'ordered(x: number)', 'number'],
+      ['Doubles a number', 'ordered[x: number]', 'number'],
     ],
     [
       'context-use',

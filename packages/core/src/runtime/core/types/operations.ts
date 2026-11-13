@@ -731,7 +731,7 @@ export function formatStructure(type: TypeStructure): string {
 // ============================================================
 
 /** Build a closure param field definition from name, type, and optional default. */
-export function paramToFieldDef(
+function paramToFieldDef(
   name: string,
   type: TypeStructure,
   defaultValue: RillValue | undefined,
@@ -745,25 +745,19 @@ export function paramToFieldDef(
 }
 
 /**
- * Infer the element type for a homogeneous list.
- * Empty arrays return { kind: 'any' }.
- * Mixed types halt catchably with #RILL_R002.
+ * Infer the element type of a list. Never halts on mixed elements.
+ * Empty arrays return { kind: 'any' }. Elements of one kind merge through
+ * commonType; elements of several kinds yield a union of the distinct kinds
+ * in first-seen order.
  */
-export function inferElementType(elements: RillValue[]): TypeStructure {
-  const scan = scanElementTypes(elements);
-  if (scan.mismatch !== undefined) {
-    throwCatchableHostHalt(
-      { fn: 'inferElementType' },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      scan.mismatch
-    );
-  }
-  return scan.type;
+function inferElementType(elements: RillValue[]): TypeStructure {
+  return scanElementTypes(elements).type;
 }
 
 /**
- * Non-throwing homogeneity check for list elements.
- * Returns the mismatch message, or undefined when all elements share a type.
+ * Non-throwing homogeneity check for list elements. Compares top-level
+ * kinds only. Returns the mismatch message, or undefined when all elements
+ * share a kind.
  */
 export function findElementTypeMismatch(
   elements: RillValue[]
@@ -772,33 +766,54 @@ export function findElementTypeMismatch(
 }
 
 /**
- * Single pass over list elements: merged element type, plus the mismatch
- * message when two elements share no common type. One pass keeps nested
- * lists linear per level; inferring each element twice would double the
- * work at every nesting level.
+ * Strict homogeneity check: halts catchably with #RILL_R002 when list
+ * elements differ in top-level kind. Wired as the late-bound check behind
+ * tuple-to-list conversion.
+ */
+export function assertUniformElementKinds(elements: RillValue[]): void {
+  const mismatch = findElementTypeMismatch(elements);
+  if (mismatch !== undefined) {
+    throwCatchableHostHalt(
+      { fn: 'inferElementType' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      mismatch
+    );
+  }
+}
+
+/**
+ * Single pass over list elements: element type, plus the mismatch message
+ * for the first element whose kind differs from the elements before it. One
+ * pass keeps nested lists linear per level; inferring each element twice
+ * would double the work at every nesting level.
  */
 function scanElementTypes(elements: RillValue[]): {
   type: TypeStructure;
   mismatch: string | undefined;
 } {
-  const firstElem = elements[0];
-  if (firstElem === undefined)
-    return { type: { kind: 'any' }, mismatch: undefined };
-  let accType = inferStructure(firstElem);
-  for (let i = 1; i < elements.length; i++) {
+  const members: TypeStructure[] = [];
+  let mismatch: string | undefined;
+  for (let i = 0; i < elements.length; i++) {
     const elem = elements[i];
     if (elem === undefined) continue;
     const elemType = inferStructure(elem);
-    const merged = commonType(accType, elemType);
-    if (merged === null) {
-      return {
-        type: accType,
-        mismatch: `List elements must be the same type: expected ${formatStructure(accType)}, got ${formatStructure(elemType)} at index ${i}`,
-      };
+    const slot = members.findIndex((m) => m.kind === elemType.kind);
+    if (slot === -1) {
+      const first = members[0];
+      if (first !== undefined && mismatch === undefined) {
+        mismatch = `List elements must be the same type: expected ${formatStructure(first)}, got ${formatStructure(elemType)} at index ${i}`;
+      }
+      members.push(elemType);
+      continue;
     }
-    accType = merged;
+    const existing = members[slot];
+    if (existing === undefined) continue;
+    members[slot] = commonType(existing, elemType) ?? { kind: existing.kind };
   }
-  return { type: accType, mismatch: undefined };
+  const only = members[0];
+  if (only === undefined) return { type: { kind: 'any' }, mismatch };
+  if (members.length === 1) return { type: only, mismatch };
+  return { type: { kind: 'union', members }, mismatch };
 }
 
 /** Infer the structural type descriptor for any Rill value. */
@@ -954,6 +969,7 @@ function mergeUniformValueType(
  * 3. Recursive list: merge inner element types
  * 3b. Uniform valueType: merge dict/tuple/ordered value types
  * 4. Bare type fallback: same compound type but structural mismatch
+ *    (two unions that differ structurally have no common type: null)
  * 5. Incompatible: different top-level types return null
  */
 export function commonType(
@@ -1015,8 +1031,7 @@ export function commonType(
     a.kind === 'closure' ||
     a.kind === 'dict' ||
     a.kind === 'tuple' ||
-    a.kind === 'ordered' ||
-    a.kind === 'union'
+    a.kind === 'ordered'
   ) {
     return { kind: a.kind };
   }

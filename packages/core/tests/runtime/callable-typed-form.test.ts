@@ -184,7 +184,6 @@ describe('Rill Runtime: typed-only callable form', () => {
       ['dict dispatch', '"a" -> dict[a: $f]'],
       ['a dispatch literal', 'dict[a: $f] => $d\n"a" -> $d'],
       ['.params access', '$f.params'],
-      ['.^input reflection', '$f.^input'],
     ])('halts with a host-contract atom for %s', async (_label, source) => {
       await expectHalt(() => run(source, { variables: { f: undeclared } }), {
         code: 'RILL_R085',
@@ -200,6 +199,18 @@ describe('Rill Runtime: typed-only callable form', () => {
       fn: () => 'x',
       returnType: anyTypeValue,
     } as unknown as RillValue;
+    it('halts with a host-contract atom when .^type reads an undeclared callable', async () => {
+      const typed = {
+        ...(undeclaredTyped as unknown as Record<string, unknown>),
+        annotations: {},
+      } as unknown as RillValue;
+      await expectHalt(() => run('$f.^type', { variables: { f: typed } }), {
+        code: 'RILL_R085',
+        messagePattern:
+          /Host function '[^']+' has no parameter declaration.*toCallable or callable\(\)/,
+      });
+    });
+
     it('halts when a closure type check reads its params', () => {
       const closureType: TypeStructure = {
         kind: 'closure',

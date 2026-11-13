@@ -11,7 +11,7 @@ import {
   initCompareValue,
   initInferElementType,
 } from './protocols/shared.js';
-import { inferElementType } from './operations.js';
+import { assertUniformElementKinds } from './operations.js';
 import type { TypeDefinition } from './protocols/types.js';
 import {
   stringType,
@@ -157,7 +157,7 @@ function compareValue(a: RillValue, b: RillValue): number | undefined {
   );
 }
 initCompareValue(compareValue);
-initInferElementType(inferElementType);
+initInferElementType(assertUniformElementKinds);
 
 /** Serialize a Rill value for JSON transport. */
 export function serializeValue(value: RillValue): unknown {

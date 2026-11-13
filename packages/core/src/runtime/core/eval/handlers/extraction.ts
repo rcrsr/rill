@@ -24,7 +24,7 @@ import {
   throwFatalHostHalt,
 } from '../../types/halt.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
-import { projectElement } from '../../types/declared.js';
+import { locateField, projectLocated } from './field-access.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import { findElementTypeMismatch } from '../../types/operations.js';
 import { isPlainDict, isStream } from '../../types/guards.js';
@@ -41,7 +41,6 @@ import {
   isDictKeyScalar,
   type DictKeyScalar,
   isFieldReceiver,
-  readOwnField,
   STREAM_STEP_FIELDS,
 } from '../shared.js';
 import { setTypedKey, orderedDictEntries } from '../../types/dict-keys.js';
@@ -115,8 +114,8 @@ export async function evaluateDestructure(
       const dictInput = input as Record<string, RillValue>;
       // Own-key gate: an inherited member (constructor, __proto__, ...) must
       // not satisfy a destructure key.
-      const dictValue = readOwnField(dictInput, elem.key);
-      if (dictValue === undefined) {
+      const located = locateField(dictInput, elem.key);
+      if (!located.found) {
         throwCatchableHostHalt(
           {
             location: elem.span.start,
@@ -145,10 +144,10 @@ export async function evaluateDestructure(
       setVariable(
         s,
         elem.name,
-        dictValue,
+        located.value,
         dictResolved?.structure,
         elem.span.start,
-        projectElement(inputDeclared, elem.key)
+        projectLocated(inputDeclared, located)
       );
     }
   } else {
@@ -180,20 +179,18 @@ export async function evaluateDestructure(
 
     for (let i = 0; i < node.elements.length; i++) {
       const elem = node.elements[i];
-      const value = listInput[i];
+      if (elem === undefined || elem.kind === 'skip') continue;
 
-      if (elem === undefined || value === undefined) {
-        continue;
-      }
-
-      if (elem.kind === 'skip') continue;
+      // The length check above puts every position in range.
+      const located = locateField(listInput, i);
+      if (!located.found) continue;
 
       if (elem.kind === 'nested' && elem.nested) {
         await evaluateDestructure(
           s,
           elem.nested,
-          value,
-          projectElement(inputDeclared, i)
+          located.value,
+          projectLocated(inputDeclared, located)
         );
         continue;
       }
@@ -219,10 +216,10 @@ export async function evaluateDestructure(
       setVariable(
         s,
         elem.name,
-        value,
+        located.value,
         listResolved?.structure,
         elem.span.start,
-        projectElement(inputDeclared, i)
+        projectLocated(inputDeclared, located)
       );
     }
   }

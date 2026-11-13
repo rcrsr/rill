@@ -29,7 +29,7 @@
  *   for a non-dict receiver (`mHead`, `mTail`).
  * - typevalue (`^type`) is intercepted earlier by the type-value property
  *   protocol (`evaluateMethod` in eval/handlers/closures.ts), which raises
- *   `RILL-R009` before dispatch ever reaches the method body. This is a
+ *   `RILL-R003` before dispatch ever reaches the method body. This is a
  *   stricter, pre-existing guard; the `isTypeValue` check added to the
  *   method bodies is defense in depth for callers that reach the method
  *   body directly, not the path exercised by `^type -> .first()` here.
@@ -57,7 +57,7 @@ import { expectHalt } from '../helpers/halt.js';
  * id `.first()`/`.keys`/`.values`/`.entries` raise for that brand. */
 const BRANDS: Record<string, { expr: string; dictFallbackErrorId: string }> = {
   atom: { expr: '#IGNORE', dictFallbackErrorId: 'RILL-R003' },
-  typevalue: { expr: '42.^type', dictFallbackErrorId: 'RILL-R009' },
+  typevalue: { expr: '42.^type', dictFallbackErrorId: 'RILL-R003' },
   datetime: { expr: 'now()', dictFallbackErrorId: 'RILL-R003' },
   duration: { expr: 'duration(1)', dictFallbackErrorId: 'RILL-R003' },
 };

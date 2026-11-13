@@ -239,18 +239,18 @@ The structural type formats as a human-readable string via `formatStructure`:
 
 Dict fields are sorted alphabetically in the formatted output.
 
-### Callable Introspection: .^input and .^output
+### Callable Introspection: .^type.inner and .^type.outer
 
-All callable kinds expose their parameter and return type shapes via `.^input` and `.^output`.
+All callable kinds expose their parameter and return type shapes through `.^type`. `$fn.^type.inner` reads the parameters and `$fn.^type.outer` reads the declared return type. Both work on script closures and application callables.
 
-**`.^input`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. `.^input` works on all callable kinds — script closures and application callables. A callable with no parameters returns an empty ordered dict.
+**`.^type.inner`** returns a `RillOrdered` value directly. Each entry is a `[paramName, RillTypeValue]` pair, preserving parameter declaration order. A callable with no parameters returns an empty ordered dict.
 
 ```typescript
 // Script closure returned from execute():
 // |x: number, y: string| x -> string
 
 const closure = result.result; // RillCallable (ScriptCallable)
-// $fn.^input -> ordered[x: ^number, y: ^string]
+// $fn.^type.inner -> ordered[x: number, y: string]
 // Host side: RillOrdered with entries [["x", RillTypeValue], ["y", RillTypeValue]]
 // entries[0][1].structure -> { kind: 'number' }
 // entries[1][1].structure -> { kind: 'string' }
@@ -267,17 +267,15 @@ const closure = result.result; // RillCallable (ScriptCallable)
 // }
 ```
 
-> **Note:** `.^input` returns an ordered dict for all closure kinds. A zero-parameter host callable returns an empty ordered dict.
-
-**`.^output`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ kind: 'any' }`:
+**`.^type.outer`** returns a `RillTypeValue` with the closure's declared return type. When no return type is declared, the fallback structure is `{ kind: 'any' }`:
 
 ```typescript
-// Closure with declared return: |x: number| :string -> ...
-// $fn.^output -> ^string
+// Closure with declared return: |x: number|{ "{$x}" }:string
+// $fn.^type.outer -> string
 // Host side: RillTypeValue with structure { kind: 'string' }
 
 // Closure with no declared return type:
-// $fn.^output -> ^any
+// $fn.^type.outer -> any
 // Host side: RillTypeValue with structure { kind: 'any' }
 ```
 

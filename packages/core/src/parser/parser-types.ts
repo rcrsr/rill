@@ -13,6 +13,7 @@ import {
   type SourceLocation,
   TOKEN_TYPES,
   ParseError,
+  isRillTypeName,
 } from '../types.js';
 import {
   type ParserState,
@@ -457,4 +458,31 @@ export function parseFieldArgList(
   }
 
   return args;
+}
+
+/**
+ * True when the cursor sits on `:<type-name>`, the resolution-type suffix of
+ * a stream type. A `:$t` or `:<non-type>` is not a suffix.
+ * @internal
+ */
+export function atStreamResolutionSuffix(state: ParserState): boolean {
+  return (
+    check(state, TOKEN_TYPES.COLON) &&
+    peek(state, 1).type === TOKEN_TYPES.IDENTIFIER &&
+    isRillTypeName(peek(state, 1).value)
+  );
+}
+
+/**
+ * Parse the resolution type of `stream(T):R` (cursor on R, colon already
+ * consumed) and append it to `args`. Chunk type sits in args[0], resolution
+ * in args[1]; an empty chunk gets an `any` placeholder to keep positions.
+ * @internal
+ */
+export function appendStreamResolution(parser: Parser, args: FieldArg[]): void {
+  const resolutionType = parseScriptTypeRef(parser);
+  if (args.length === 0) {
+    args.push({ value: { kind: 'static', typeName: 'any' } });
+  }
+  args.push({ value: resolutionType });
 }

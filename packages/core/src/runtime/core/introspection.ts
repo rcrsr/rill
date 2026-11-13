@@ -283,15 +283,11 @@ function serializeSignatureType(structure: TypeStructure): string {
   }
 
   if (isStructureKind(structure, 'stream')) {
-    // The `stream(<chunk>):<ret>` resolution-type suffix is grammar owned by
-    // a real closure's own trailing return-type-target parse (used only
-    // right after a closure body); the bodyless `|params|:ret` signature
-    // grammar parses every type — including this one, when it appears as a
-    // param type or return type — through the ordinary expression/type-ref
-    // parser, which does not recognize that suffix at all. Emitting it here
-    // would leave a dangling `:<ret>` the parser cannot attach anywhere, so
-    // the resolution type is intentionally omitted rather than collapsing
-    // the whole `stream(...)` to `any`.
+    // The `stream(<chunk>):<ret>` resolution-type suffix is accepted in
+    // expression position and after a closure body, but not in a type-argument
+    // position, so a stream type nested in a signature cannot be re-parsed
+    // with its resolution type. The resolution type is omitted rather than
+    // collapsing the whole `stream(...)` to `any`.
     if (structure.chunk === undefined) return 'stream';
     return `stream(${serializeSignatureType(structure.chunk)})`;
   }

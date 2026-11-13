@@ -62,7 +62,7 @@ const explicitFull: RillFunction = {
 /** Run a script and return the annotations of a registered function's callable. */
 function reflect(
   def: RillFunctionDefinition,
-  member: '^input' | '^output'
+  member: '^type' | '^type.outer'
 ): Promise<RillValue> {
   return run(`$f.${member}`, {
     variables: { f: toCallable(def) },
@@ -108,7 +108,7 @@ describe('host function signature shorthand', () => {
         description: 'does things',
       });
       expect(meta?.params.map((p) => p.type)).toEqual([
-        'union(string, number)',
+        'union(number, string)',
         'dict(k: string)',
         'list(string)',
         'number',
@@ -129,12 +129,12 @@ describe('host function signature shorthand', () => {
       );
     });
 
-    it('produces equal ^input and ^output from scripts', async () => {
-      expect(await reflect(shorthand, '^input')).toEqual(
-        await reflect(explicitFull, '^input')
+    it('produces equal ^type and ^type.outer from scripts', async () => {
+      expect(await reflect(shorthand, '^type')).toEqual(
+        await reflect(explicitFull, '^type')
       );
-      expect(await reflect(shorthand, '^output')).toEqual(
-        await reflect(explicitFull, '^output')
+      expect(await reflect(shorthand, '^type.outer')).toEqual(
+        await reflect(explicitFull, '^type.outer')
       );
     });
 
@@ -461,10 +461,13 @@ describe('host function signature shorthand', () => {
     });
 
     it('defaults an omitted return type to any', async () => {
-      const out = await reflect({ signature: '|a: string|', fn }, '^output');
+      const out = await reflect(
+        { signature: '|a: string|', fn },
+        '^type.outer'
+      );
       const explicit = await reflect(
         { params: [], returnType: anyTypeValue, fn },
-        '^output'
+        '^type.outer'
       );
       expect(out).toEqual(explicit);
     });
@@ -520,7 +523,7 @@ describe('host function signature shorthand', () => {
     it('accepts a field default in the return type', async () => {
       const out = await reflect(
         { signature: '||:dict(a: number, b: number = 0)', fn },
-        '^output'
+        '^type.outer'
       );
       const explicit = await reflect(
         {
@@ -531,7 +534,7 @@ describe('host function signature shorthand', () => {
           }),
           fn,
         },
-        '^output'
+        '^type.outer'
       );
       expect(out).toEqual(explicit);
     });

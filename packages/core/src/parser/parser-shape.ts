@@ -13,8 +13,13 @@ import type {
   AnnotationArg,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { advance, expect, current, makeSpan } from './state.js';
-import { parseFieldArgList, parseUnionMembers } from './parser-types.js';
+import { advance, expect, current, makeSpan, previous } from './state.js';
+import {
+  parseFieldArgList,
+  appendStreamResolution,
+  atStreamResolutionSuffix,
+  parseUnionMembers,
+} from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
 
 // Declaration merging to add methods to Parser interface
@@ -89,6 +94,20 @@ Parser.prototype.parseTypeConstructor = function (
     'Expected )',
     ERROR_IDS.RILL_P005
   );
+
+  // A stream type carries its resolution type after a colon: stream(T):R.
+  // Only a type name directly after the colon is the resolution type, so an
+  // assertion against a variable type (`:$t`) keeps its meaning.
+  if (constructorName === 'stream' && atStreamResolutionSuffix(this.state)) {
+    advance(this.state); // consume ':'
+    appendStreamResolution(this, args);
+    return {
+      type: 'TypeConstructor',
+      constructorName,
+      args,
+      span: makeSpan(start, previous(this.state).span.end),
+    };
+  }
 
   return {
     type: 'TypeConstructor',

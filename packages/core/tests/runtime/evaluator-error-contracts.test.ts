@@ -1464,26 +1464,25 @@ describe('Rill Runtime: Mixed-type list literal halt', () => {
     }
   });
 
-  it('halts inferStructure catchably with #RILL_R002 for mixed elements', () => {
-    let caught: unknown;
-    try {
-      inferStructure([1, 'a']);
-    } catch (err) {
-      caught = err;
-    }
-    expect(caught).toBeInstanceOf(Error);
-    expect((caught as Error).name).toBe('RuntimeHaltSignal');
-    const halt = caught as Error & { catchable: boolean; value: RillValue };
-    expect(halt.catchable).toBe(true);
-    expect(atomName(getStatus(halt.value).code)).toBe('RILL_R002');
+  it('infers a union element type for mixed elements instead of halting', () => {
+    expect(inferStructure([1, 'a'])).toEqual({
+      kind: 'list',
+      element: {
+        kind: 'union',
+        members: [{ kind: 'number' }, { kind: 'string' }],
+      },
+    });
   });
 
-  it('guard recovers a host-injected mixed-type list inside a list literal', async () => {
+  it('accepts a host-injected mixed-type list inside a list literal', async () => {
     const mixed = [1, 'a'] as unknown as RillValue;
-    const result = await run('guard { list[$m, $m] }', {
+    const result = await run('list[$m, $m]', {
       variables: { m: mixed },
     });
-    expect(atomName(getStatus(result).code)).toBe('RILL_R002');
+    expect(result).toEqual([
+      [1, 'a'],
+      [1, 'a'],
+    ]);
   });
 });
 

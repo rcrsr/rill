@@ -59,6 +59,7 @@ import {
   emptyForType,
 } from './types/constructors.js';
 import { hasCollectionFields } from './values.js';
+import { selectUnionMember } from './types/unions.js';
 import { copyTypedKeys, setDictField } from './types/dict-keys.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../error-registry.js';
 import { throwCatchableHostHalt, throwFatalHostHalt } from './types/halt.js';
@@ -296,7 +297,7 @@ export function callableEquals(
 /**
  * Build a TypeStructure closure variant from a closure's parameter list.
  *
- * Called at closure creation time to build the structural type for `$fn.^input`.
+ * Called at closure creation time to build the structural type reported by `$fn.^type`.
  * - Typed params use param.type directly when present
  * - Untyped params (type: undefined) map to { kind: 'any' }
  * - Return type is always { kind: 'any' }
@@ -550,13 +551,10 @@ export function hydrateStructure(
   }
 
   if (isStructureKind(type, 'union')) {
-    // First structural match wins, in declaration order. When two members
-    // overlap structurally, the same value hydrates differently depending on
-    // which is declared first; declare union members non-overlapping (or
-    // most-specific-first) for predictable hydration.
-    const match = type.members.find((member) =>
-      structureMatches(value, member)
-    );
+    // Hydrates with the narrowest member the value matches, independent of
+    // written order; incomparable matches resolve to the first in canonical
+    // print order.
+    const match = selectUnionMember(value, type.members);
     if (match) {
       return hydrateStructure(value, match, policy);
     }

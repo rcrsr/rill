@@ -119,7 +119,7 @@ $result ?? -1
 
 ## Value Types
 
-Internal container types host code may encounter in observability callbacks or return values. See [Value Types](integration-resolvers.md#value-types) for `RillOrdered`, `RillTuple`, `RillTypeValue`, and closure introspection (`.^input`, `.^output`).
+Internal container types host code may encounter in observability callbacks or return values. See [Value Types](integration-resolvers.md#value-types) for `RillOrdered`, `RillTuple`, `RillTypeValue`, and closure introspection (`.^type.inner`, `.^type.outer`).
 
 ## Value Conversion
 
@@ -573,6 +573,7 @@ The same hydration applies to `dict` and `ordered` parameters: missing named fie
 | `tuple` | Trailing elements without `defaultValue` | Left absent; type check at Stage 3 catches |
 | `dict` | Named fields with `defaultValue` | Filled with deep copy of default |
 | `ordered` | Named fields with `defaultValue` | Filled with deep copy of default |
+| union | The value matches several members | The narrowest matching member hydrates; canonical order breaks ties. See [Type System](topic-type-system.md#defaults-under-a-union) |
 
 Hydration is recursive: if a filled default itself has a structured type with defaults, those are also hydrated.
 

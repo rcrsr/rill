@@ -38660,166 +38660,607 @@
   },
   {
     "index": 3738,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "context": "list(number) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3739,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "context": "list(number) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3740,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 29,
+          "offset": 28
+        },
+        "context": "union(#wired, #wireless) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3741,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 29,
+          "offset": 28
+        },
+        "context": "union(#wired, #wireless) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3742,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3743,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3744,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3745,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3746,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3747,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3748,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3749,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3750,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3751,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3752,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3753,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3754,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3755,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "string => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3756,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3757,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "context": "list(number) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3758,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "number => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3759,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 17,
+          "offset": 16
+        },
+        "context": "list(number) => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3760,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "string => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3761,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3762,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3763,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3764,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3765,
-    "file": "type-ref-arg-unification.test.ts",
-    "diagnostics": []
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 11,
+          "offset": 10
+        },
+        "context": "string => $t",
+        "fix": null
+      }
+    ]
   },
   {
     "index": 3766,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3767,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3768,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3769,
-    "file": "type-ref-arg-unification.test.ts",
+    "file": "type-inner-outer.test.ts",
     "diagnostics": []
   },
   {
     "index": 3770,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3771,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3772,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3773,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3774,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $f -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "context": "|a| { $a } => $f",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3775,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $f -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 15,
+          "offset": 14
+        },
+        "context": "|a| { $a } => $f",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3776,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $f -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 29,
+          "offset": 28
+        },
+        "context": "^(input: \"x\") |a| { $a } => $f",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3777,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3778,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 20,
+          "offset": 19
+        },
+        "context": "stream():string => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3779,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $t -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 19,
+          "offset": 18
+        },
+        "context": "stream(number) => $t",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3780,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "CAPTURE_INLINE_CHAIN",
+        "message": "Consider inline capture: '=> $f -> ...' instead of separate statements",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 45,
+          "offset": 44
+        },
+        "context": "|v: number| { $v }:stream(number):string => $f",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3781,
+    "file": "type-inner-outer.test.ts",
+    "diagnostics": [
+      {
+        "code": "THROWAWAY_CAPTURE",
+        "message": "'$f' is captured but never referenced",
+        "severity": "info",
+        "location": {
+          "line": 1,
+          "column": 45,
+          "offset": 44
+        },
+        "context": "|v: number| { $v }:stream(number):string => $f",
+        "fix": null
+      }
+    ]
+  },
+  {
+    "index": 3782,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3783,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3784,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3785,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3786,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3787,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3788,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3789,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3790,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3791,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3792,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3793,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3794,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3795,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3796,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3797,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3798,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3799,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3800,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3801,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3802,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3803,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3804,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3805,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3806,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3807,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3808,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3809,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3810,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3811,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3812,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3813,
+    "file": "type-ref-arg-unification.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3814,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": [
       {
@@ -38837,37 +39278,37 @@
     ]
   },
   {
-    "index": 3771,
+    "index": 3815,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3772,
+    "index": 3816,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3773,
+    "index": 3817,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3774,
+    "index": 3818,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3775,
+    "index": 3819,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3776,
+    "index": 3820,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3777,
+    "index": 3821,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": [
       {
@@ -38885,97 +39326,97 @@
     ]
   },
   {
-    "index": 3778,
+    "index": 3822,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3779,
+    "index": 3823,
     "file": "type-ref-arg-unification.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3780,
+    "index": 3824,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3781,
+    "index": 3825,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3782,
+    "index": 3826,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3783,
+    "index": 3827,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3784,
+    "index": 3828,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3785,
+    "index": 3829,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3786,
+    "index": 3830,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3787,
+    "index": 3831,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3788,
+    "index": 3832,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3789,
+    "index": 3833,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3790,
+    "index": 3834,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3791,
+    "index": 3835,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3792,
+    "index": 3836,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3793,
+    "index": 3837,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3794,
+    "index": 3838,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3795,
+    "index": 3839,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3796,
+    "index": 3840,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -38993,7 +39434,7 @@
     ]
   },
   {
-    "index": 3797,
+    "index": 3841,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39011,7 +39452,7 @@
     ]
   },
   {
-    "index": 3798,
+    "index": 3842,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39029,7 +39470,7 @@
     ]
   },
   {
-    "index": 3799,
+    "index": 3843,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39047,7 +39488,7 @@
     ]
   },
   {
-    "index": 3800,
+    "index": 3844,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39065,32 +39506,32 @@
     ]
   },
   {
-    "index": 3801,
+    "index": 3845,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3802,
+    "index": 3846,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3803,
+    "index": 3847,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3804,
+    "index": 3848,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3805,
+    "index": 3849,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3806,
+    "index": 3850,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39108,7 +39549,7 @@
     ]
   },
   {
-    "index": 3807,
+    "index": 3851,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39126,32 +39567,32 @@
     ]
   },
   {
-    "index": 3808,
+    "index": 3852,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3809,
+    "index": 3853,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3810,
+    "index": 3854,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3811,
+    "index": 3855,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3812,
+    "index": 3856,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3813,
+    "index": 3857,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39169,7 +39610,7 @@
     ]
   },
   {
-    "index": 3814,
+    "index": 3858,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39187,7 +39628,7 @@
     ]
   },
   {
-    "index": 3815,
+    "index": 3859,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39205,7 +39646,7 @@
     ]
   },
   {
-    "index": 3816,
+    "index": 3860,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39235,37 +39676,37 @@
     ]
   },
   {
-    "index": 3817,
+    "index": 3861,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3818,
+    "index": 3862,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3819,
+    "index": 3863,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3820,
+    "index": 3864,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3821,
+    "index": 3865,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3822,
+    "index": 3866,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3823,
+    "index": 3867,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39283,7 +39724,7 @@
     ]
   },
   {
-    "index": 3824,
+    "index": 3868,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39301,7 +39742,7 @@
     ]
   },
   {
-    "index": 3825,
+    "index": 3869,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39343,7 +39784,7 @@
     ]
   },
   {
-    "index": 3826,
+    "index": 3870,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39373,7 +39814,7 @@
     ]
   },
   {
-    "index": 3827,
+    "index": 3871,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39391,32 +39832,32 @@
     ]
   },
   {
-    "index": 3828,
+    "index": 3872,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3829,
+    "index": 3873,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3830,
+    "index": 3874,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3831,
+    "index": 3875,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3832,
+    "index": 3876,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3833,
+    "index": 3877,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39434,7 +39875,7 @@
     ]
   },
   {
-    "index": 3834,
+    "index": 3878,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39464,7 +39905,7 @@
     ]
   },
   {
-    "index": 3835,
+    "index": 3879,
     "file": "type-values.test.ts",
     "diagnostics": [
       {
@@ -39482,32 +39923,32 @@
     ]
   },
   {
-    "index": 3836,
+    "index": 3880,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3837,
+    "index": 3881,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3838,
+    "index": 3882,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3839,
+    "index": 3883,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3840,
+    "index": 3884,
     "file": "type-values.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3841,
+    "index": 3885,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39525,7 +39966,7 @@
     ]
   },
   {
-    "index": 3842,
+    "index": 3886,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39543,7 +39984,7 @@
     ]
   },
   {
-    "index": 3843,
+    "index": 3887,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39561,7 +40002,7 @@
     ]
   },
   {
-    "index": 3844,
+    "index": 3888,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39579,7 +40020,7 @@
     ]
   },
   {
-    "index": 3845,
+    "index": 3889,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39597,7 +40038,7 @@
     ]
   },
   {
-    "index": 3846,
+    "index": 3890,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39615,7 +40056,7 @@
     ]
   },
   {
-    "index": 3847,
+    "index": 3891,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39633,7 +40074,7 @@
     ]
   },
   {
-    "index": 3848,
+    "index": 3892,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39651,7 +40092,7 @@
     ]
   },
   {
-    "index": 3849,
+    "index": 3893,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39669,7 +40110,7 @@
     ]
   },
   {
-    "index": 3850,
+    "index": 3894,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39723,7 +40164,7 @@
     ]
   },
   {
-    "index": 3851,
+    "index": 3895,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39741,7 +40182,7 @@
     ]
   },
   {
-    "index": 3852,
+    "index": 3896,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39771,7 +40212,7 @@
     ]
   },
   {
-    "index": 3853,
+    "index": 3897,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39801,7 +40242,7 @@
     ]
   },
   {
-    "index": 3854,
+    "index": 3898,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39831,7 +40272,7 @@
     ]
   },
   {
-    "index": 3855,
+    "index": 3899,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39861,7 +40302,7 @@
     ]
   },
   {
-    "index": 3856,
+    "index": 3900,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39891,7 +40332,7 @@
     ]
   },
   {
-    "index": 3857,
+    "index": 3901,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39945,7 +40386,7 @@
     ]
   },
   {
-    "index": 3858,
+    "index": 3902,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39963,7 +40404,7 @@
     ]
   },
   {
-    "index": 3859,
+    "index": 3903,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -39981,12 +40422,12 @@
     ]
   },
   {
-    "index": 3860,
+    "index": 3904,
     "file": "type-var-positions.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3861,
+    "index": 3905,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -40004,7 +40445,7 @@
     ]
   },
   {
-    "index": 3862,
+    "index": 3906,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -40050,7 +40491,7 @@
     ]
   },
   {
-    "index": 3863,
+    "index": 3907,
     "file": "type-var-positions.test.ts",
     "diagnostics": [
       {
@@ -40068,7 +40509,7 @@
     ]
   },
   {
-    "index": 3864,
+    "index": 3908,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -40086,12 +40527,12 @@
     ]
   },
   {
-    "index": 3865,
+    "index": 3909,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3866,
+    "index": 3910,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -40109,7 +40550,7 @@
     ]
   },
   {
-    "index": 3867,
+    "index": 3911,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -40127,7 +40568,7 @@
     ]
   },
   {
-    "index": 3868,
+    "index": 3912,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": [
       {
@@ -40145,52 +40586,52 @@
     ]
   },
   {
-    "index": 3869,
+    "index": 3913,
     "file": "typed-atom-migration.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3870,
+    "index": 3914,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3871,
+    "index": 3915,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3872,
+    "index": 3916,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3873,
+    "index": 3917,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3874,
+    "index": 3918,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3875,
+    "index": 3919,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3876,
+    "index": 3920,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3877,
+    "index": 3921,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3878,
+    "index": 3922,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -40208,7 +40649,7 @@
     ]
   },
   {
-    "index": 3879,
+    "index": 3923,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -40238,7 +40679,7 @@
     ]
   },
   {
-    "index": 3880,
+    "index": 3924,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -40256,72 +40697,72 @@
     ]
   },
   {
-    "index": 3881,
+    "index": 3925,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3882,
+    "index": 3926,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3883,
+    "index": 3927,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3884,
+    "index": 3928,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3885,
+    "index": 3929,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3886,
+    "index": 3930,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3887,
+    "index": 3931,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3888,
+    "index": 3932,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3889,
+    "index": 3933,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3890,
+    "index": 3934,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3891,
+    "index": 3935,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3892,
+    "index": 3936,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3893,
+    "index": 3937,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3894,
+    "index": 3938,
     "file": "unified-dispatch.test.ts",
     "diagnostics": [
       {
@@ -40339,152 +40780,152 @@
     ]
   },
   {
-    "index": 3895,
+    "index": 3939,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3896,
+    "index": 3940,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3897,
+    "index": 3941,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3898,
+    "index": 3942,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3899,
+    "index": 3943,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3900,
+    "index": 3944,
     "file": "unified-dispatch.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3901,
+    "index": 3945,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3902,
+    "index": 3946,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3903,
+    "index": 3947,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3904,
+    "index": 3948,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3905,
+    "index": 3949,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3906,
+    "index": 3950,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3907,
+    "index": 3951,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3908,
+    "index": 3952,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3909,
+    "index": 3953,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3910,
+    "index": 3954,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3911,
+    "index": 3955,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3912,
+    "index": 3956,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3913,
+    "index": 3957,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3914,
+    "index": 3958,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3915,
+    "index": 3959,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3916,
+    "index": 3960,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3917,
+    "index": 3961,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3918,
+    "index": 3962,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3919,
+    "index": 3963,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3920,
+    "index": 3964,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3921,
+    "index": 3965,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3922,
+    "index": 3966,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3923,
+    "index": 3967,
     "file": "uniform-value-type.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3924,
+    "index": 3968,
     "file": "uniform-value-type.test.ts",
     "diagnostics": [
       {
@@ -40502,7 +40943,7 @@
     ]
   },
   {
-    "index": 3925,
+    "index": 3969,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40520,67 +40961,97 @@
     ]
   },
   {
-    "index": 3926,
+    "index": 3970,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3927,
+    "index": 3971,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3928,
+    "index": 3972,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3929,
+    "index": 3973,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3930,
+    "index": 3974,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3931,
+    "index": 3975,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3932,
+    "index": 3976,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3933,
+    "index": 3977,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3934,
+    "index": 3978,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3935,
+    "index": 3979,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3936,
+    "index": 3980,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3937,
+    "index": 3981,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3938,
+    "index": 3982,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3983,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3984,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3985,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3986,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3987,
+    "file": "union-types.test.ts",
+    "diagnostics": []
+  },
+  {
+    "index": 3988,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40598,17 +41069,17 @@
     ]
   },
   {
-    "index": 3939,
+    "index": 3989,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3940,
+    "index": 3990,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3941,
+    "index": 3991,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40626,7 +41097,7 @@
     ]
   },
   {
-    "index": 3942,
+    "index": 3992,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40644,7 +41115,7 @@
     ]
   },
   {
-    "index": 3943,
+    "index": 3993,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40686,27 +41157,27 @@
     ]
   },
   {
-    "index": 3944,
+    "index": 3994,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3945,
+    "index": 3995,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3946,
+    "index": 3996,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3947,
+    "index": 3997,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3948,
+    "index": 3998,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40724,107 +41195,107 @@
     ]
   },
   {
-    "index": 3949,
+    "index": 3999,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3950,
+    "index": 4000,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3951,
+    "index": 4001,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3952,
+    "index": 4002,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3953,
+    "index": 4003,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3954,
+    "index": 4004,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3955,
+    "index": 4005,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3956,
+    "index": 4006,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3957,
+    "index": 4007,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3958,
+    "index": 4008,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3959,
+    "index": 4009,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3960,
+    "index": 4010,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3961,
+    "index": 4011,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3962,
+    "index": 4012,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3963,
+    "index": 4013,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3964,
+    "index": 4014,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3965,
+    "index": 4015,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3966,
+    "index": 4016,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3967,
+    "index": 4017,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3968,
+    "index": 4018,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3969,
+    "index": 4019,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40854,7 +41325,7 @@
     ]
   },
   {
-    "index": 3970,
+    "index": 4020,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40896,42 +41367,42 @@
     ]
   },
   {
-    "index": 3971,
+    "index": 4021,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3972,
+    "index": 4022,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3973,
+    "index": 4023,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3974,
+    "index": 4024,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3975,
+    "index": 4025,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3976,
+    "index": 4026,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3977,
+    "index": 4027,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3978,
+    "index": 4028,
     "file": "union-types.test.ts",
     "diagnostics": [
       {
@@ -40949,22 +41420,22 @@
     ]
   },
   {
-    "index": 3979,
+    "index": 4029,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3980,
+    "index": 4030,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3981,
+    "index": 4031,
     "file": "union-types.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3982,
+    "index": 4032,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -40982,7 +41453,7 @@
     ]
   },
   {
-    "index": 3983,
+    "index": 4033,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41012,7 +41483,7 @@
     ]
   },
   {
-    "index": 3984,
+    "index": 4034,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41030,7 +41501,7 @@
     ]
   },
   {
-    "index": 3985,
+    "index": 4035,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41048,7 +41519,7 @@
     ]
   },
   {
-    "index": 3986,
+    "index": 4036,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41066,12 +41537,12 @@
     ]
   },
   {
-    "index": 3987,
+    "index": 4037,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3988,
+    "index": 4038,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41089,37 +41560,37 @@
     ]
   },
   {
-    "index": 3989,
+    "index": 4039,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3990,
+    "index": 4040,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3991,
+    "index": 4041,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3992,
+    "index": 4042,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3993,
+    "index": 4043,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3994,
+    "index": 4044,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3995,
+    "index": 4045,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41149,7 +41620,7 @@
     ]
   },
   {
-    "index": 3996,
+    "index": 4046,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41167,12 +41638,12 @@
     ]
   },
   {
-    "index": 3997,
+    "index": 4047,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 3998,
+    "index": 4048,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41190,7 +41661,7 @@
     ]
   },
   {
-    "index": 3999,
+    "index": 4049,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41208,12 +41679,12 @@
     ]
   },
   {
-    "index": 4000,
+    "index": 4050,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4001,
+    "index": 4051,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41231,22 +41702,22 @@
     ]
   },
   {
-    "index": 4002,
+    "index": 4052,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4003,
+    "index": 4053,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4004,
+    "index": 4054,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4005,
+    "index": 4055,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41264,52 +41735,52 @@
     ]
   },
   {
-    "index": 4006,
+    "index": 4056,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4007,
+    "index": 4057,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4008,
+    "index": 4058,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4009,
+    "index": 4059,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4010,
+    "index": 4060,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4011,
+    "index": 4061,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4012,
+    "index": 4062,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4013,
+    "index": 4063,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4014,
+    "index": 4064,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4015,
+    "index": 4065,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41327,7 +41798,7 @@
     ]
   },
   {
-    "index": 4016,
+    "index": 4066,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41345,7 +41816,7 @@
     ]
   },
   {
-    "index": 4017,
+    "index": 4067,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41375,7 +41846,7 @@
     ]
   },
   {
-    "index": 4018,
+    "index": 4068,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41405,7 +41876,7 @@
     ]
   },
   {
-    "index": 4019,
+    "index": 4069,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41435,7 +41906,7 @@
     ]
   },
   {
-    "index": 4020,
+    "index": 4070,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41453,77 +41924,77 @@
     ]
   },
   {
-    "index": 4021,
+    "index": 4071,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4022,
+    "index": 4072,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4023,
+    "index": 4073,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4024,
+    "index": 4074,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4025,
+    "index": 4075,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4026,
+    "index": 4076,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4027,
+    "index": 4077,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4028,
+    "index": 4078,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4029,
+    "index": 4079,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4030,
+    "index": 4080,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4031,
+    "index": 4081,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4032,
+    "index": 4082,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4033,
+    "index": 4083,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4034,
+    "index": 4084,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4035,
+    "index": 4085,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41577,7 +42048,7 @@
     ]
   },
   {
-    "index": 4036,
+    "index": 4086,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41607,17 +42078,17 @@
     ]
   },
   {
-    "index": 4037,
+    "index": 4087,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4038,
+    "index": 4088,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4039,
+    "index": 4089,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41635,7 +42106,7 @@
     ]
   },
   {
-    "index": 4040,
+    "index": 4090,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41653,12 +42124,12 @@
     ]
   },
   {
-    "index": 4041,
+    "index": 4091,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4042,
+    "index": 4092,
     "file": "use-expr.test.ts",
     "diagnostics": [
       {
@@ -41676,52 +42147,52 @@
     ]
   },
   {
-    "index": 4043,
+    "index": 4093,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4044,
+    "index": 4094,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4045,
+    "index": 4095,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4046,
+    "index": 4096,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4047,
+    "index": 4097,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4048,
+    "index": 4098,
     "file": "use-expr.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4049,
+    "index": 4099,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4050,
+    "index": 4100,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4051,
+    "index": 4101,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4052,
+    "index": 4102,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41739,7 +42210,7 @@
     ]
   },
   {
-    "index": 4053,
+    "index": 4103,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41757,7 +42228,7 @@
     ]
   },
   {
-    "index": 4054,
+    "index": 4104,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41775,7 +42246,7 @@
     ]
   },
   {
-    "index": 4055,
+    "index": 4105,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41793,7 +42264,7 @@
     ]
   },
   {
-    "index": 4056,
+    "index": 4106,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41811,12 +42282,12 @@
     ]
   },
   {
-    "index": 4057,
+    "index": 4107,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4058,
+    "index": 4108,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41834,7 +42305,7 @@
     ]
   },
   {
-    "index": 4059,
+    "index": 4109,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41852,7 +42323,7 @@
     ]
   },
   {
-    "index": 4060,
+    "index": 4110,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41870,12 +42341,12 @@
     ]
   },
   {
-    "index": 4061,
+    "index": 4111,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4062,
+    "index": 4112,
     "file": "vacancy-coerce.test.ts",
     "diagnostics": [
       {
@@ -41893,7 +42364,7 @@
     ]
   },
   {
-    "index": 4063,
+    "index": 4113,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -41911,7 +42382,7 @@
     ]
   },
   {
-    "index": 4064,
+    "index": 4114,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -41929,7 +42400,7 @@
     ]
   },
   {
-    "index": 4065,
+    "index": 4115,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -41947,7 +42418,7 @@
     ]
   },
   {
-    "index": 4066,
+    "index": 4116,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -41965,7 +42436,7 @@
     ]
   },
   {
-    "index": 4067,
+    "index": 4117,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -41983,7 +42454,7 @@
     ]
   },
   {
-    "index": 4068,
+    "index": 4118,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42001,7 +42472,7 @@
     ]
   },
   {
-    "index": 4069,
+    "index": 4119,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42019,7 +42490,7 @@
     ]
   },
   {
-    "index": 4070,
+    "index": 4120,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42037,7 +42508,7 @@
     ]
   },
   {
-    "index": 4071,
+    "index": 4121,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42055,7 +42526,7 @@
     ]
   },
   {
-    "index": 4072,
+    "index": 4122,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42073,7 +42544,7 @@
     ]
   },
   {
-    "index": 4073,
+    "index": 4123,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42091,7 +42562,7 @@
     ]
   },
   {
-    "index": 4074,
+    "index": 4124,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42109,7 +42580,7 @@
     ]
   },
   {
-    "index": 4075,
+    "index": 4125,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42127,7 +42598,7 @@
     ]
   },
   {
-    "index": 4076,
+    "index": 4126,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42145,7 +42616,7 @@
     ]
   },
   {
-    "index": 4077,
+    "index": 4127,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42163,7 +42634,7 @@
     ]
   },
   {
-    "index": 4078,
+    "index": 4128,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42181,7 +42652,7 @@
     ]
   },
   {
-    "index": 4079,
+    "index": 4129,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42199,7 +42670,7 @@
     ]
   },
   {
-    "index": 4080,
+    "index": 4130,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42217,7 +42688,7 @@
     ]
   },
   {
-    "index": 4081,
+    "index": 4131,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42247,7 +42718,7 @@
     ]
   },
   {
-    "index": 4082,
+    "index": 4132,
     "file": "variable-method-calls.test.ts",
     "diagnostics": [
       {
@@ -42277,7 +42748,7 @@
     ]
   },
   {
-    "index": 4083,
+    "index": 4133,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42295,7 +42766,7 @@
     ]
   },
   {
-    "index": 4084,
+    "index": 4134,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42313,7 +42784,7 @@
     ]
   },
   {
-    "index": 4085,
+    "index": 4135,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42331,7 +42802,7 @@
     ]
   },
   {
-    "index": 4086,
+    "index": 4136,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42361,7 +42832,7 @@
     ]
   },
   {
-    "index": 4087,
+    "index": 4137,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42391,7 +42862,7 @@
     ]
   },
   {
-    "index": 4088,
+    "index": 4138,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42421,7 +42892,7 @@
     ]
   },
   {
-    "index": 4089,
+    "index": 4139,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42439,12 +42910,12 @@
     ]
   },
   {
-    "index": 4090,
+    "index": 4140,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4091,
+    "index": 4141,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42462,7 +42933,7 @@
     ]
   },
   {
-    "index": 4092,
+    "index": 4142,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42480,7 +42951,7 @@
     ]
   },
   {
-    "index": 4093,
+    "index": 4143,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42498,7 +42969,7 @@
     ]
   },
   {
-    "index": 4094,
+    "index": 4144,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42516,7 +42987,7 @@
     ]
   },
   {
-    "index": 4095,
+    "index": 4145,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42558,7 +43029,7 @@
     ]
   },
   {
-    "index": 4096,
+    "index": 4146,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42576,12 +43047,12 @@
     ]
   },
   {
-    "index": 4097,
+    "index": 4147,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4098,
+    "index": 4148,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42599,7 +43070,7 @@
     ]
   },
   {
-    "index": 4099,
+    "index": 4149,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42617,47 +43088,47 @@
     ]
   },
   {
-    "index": 4100,
+    "index": 4150,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4101,
+    "index": 4151,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4102,
+    "index": 4152,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4103,
+    "index": 4153,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4104,
+    "index": 4154,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4105,
+    "index": 4155,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4106,
+    "index": 4156,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4107,
+    "index": 4157,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4108,
+    "index": 4158,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42675,7 +43146,7 @@
     ]
   },
   {
-    "index": 4109,
+    "index": 4159,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42693,7 +43164,7 @@
     ]
   },
   {
-    "index": 4110,
+    "index": 4160,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42711,12 +43182,12 @@
     ]
   },
   {
-    "index": 4111,
+    "index": 4161,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4112,
+    "index": 4162,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42734,7 +43205,7 @@
     ]
   },
   {
-    "index": 4113,
+    "index": 4163,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42752,22 +43223,22 @@
     ]
   },
   {
-    "index": 4114,
+    "index": 4164,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4115,
+    "index": 4165,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4116,
+    "index": 4166,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4117,
+    "index": 4167,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42785,17 +43256,17 @@
     ]
   },
   {
-    "index": 4118,
+    "index": 4168,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4119,
+    "index": 4169,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4120,
+    "index": 4170,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42813,7 +43284,7 @@
     ]
   },
   {
-    "index": 4121,
+    "index": 4171,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42831,12 +43302,12 @@
     ]
   },
   {
-    "index": 4122,
+    "index": 4172,
     "file": "variables.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4123,
+    "index": 4173,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42854,7 +43325,7 @@
     ]
   },
   {
-    "index": 4124,
+    "index": 4174,
     "file": "variables.test.ts",
     "diagnostics": [
       {
@@ -42884,7 +43355,7 @@
     ]
   },
   {
-    "index": 4125,
+    "index": 4175,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -42914,82 +43385,82 @@
     ]
   },
   {
-    "index": 4126,
+    "index": 4176,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4127,
+    "index": 4177,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4128,
+    "index": 4178,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4129,
+    "index": 4179,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4130,
+    "index": 4180,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4131,
+    "index": 4181,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4132,
+    "index": 4182,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4133,
+    "index": 4183,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4134,
+    "index": 4184,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4135,
+    "index": 4185,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4136,
+    "index": 4186,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4137,
+    "index": 4187,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4138,
+    "index": 4188,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4139,
+    "index": 4189,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4140,
+    "index": 4190,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4141,
+    "index": 4191,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -43007,112 +43478,112 @@
     ]
   },
   {
-    "index": 4142,
+    "index": 4192,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4143,
+    "index": 4193,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4144,
+    "index": 4194,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4145,
+    "index": 4195,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4146,
+    "index": 4196,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4147,
+    "index": 4197,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4148,
+    "index": 4198,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4149,
+    "index": 4199,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4150,
+    "index": 4200,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4151,
+    "index": 4201,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4152,
+    "index": 4202,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4153,
+    "index": 4203,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4154,
+    "index": 4204,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4155,
+    "index": 4205,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4156,
+    "index": 4206,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4157,
+    "index": 4207,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4158,
+    "index": 4208,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4159,
+    "index": 4209,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4160,
+    "index": 4210,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4161,
+    "index": 4211,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4162,
+    "index": 4212,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4163,
+    "index": 4213,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -43130,32 +43601,32 @@
     ]
   },
   {
-    "index": 4164,
+    "index": 4214,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4165,
+    "index": 4215,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4166,
+    "index": 4216,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4167,
+    "index": 4217,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4168,
+    "index": 4218,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4169,
+    "index": 4219,
     "file": "vectors.test.ts",
     "diagnostics": [
       {
@@ -43263,17 +43734,17 @@
     ]
   },
   {
-    "index": 4170,
+    "index": 4220,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4171,
+    "index": 4221,
     "file": "vectors.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4172,
+    "index": 4222,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43291,7 +43762,7 @@
     ]
   },
   {
-    "index": 4173,
+    "index": 4223,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43309,7 +43780,7 @@
     ]
   },
   {
-    "index": 4174,
+    "index": 4224,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43327,7 +43798,7 @@
     ]
   },
   {
-    "index": 4175,
+    "index": 4225,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43345,7 +43816,7 @@
     ]
   },
   {
-    "index": 4176,
+    "index": 4226,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43363,7 +43834,7 @@
     ]
   },
   {
-    "index": 4177,
+    "index": 4227,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43381,7 +43852,7 @@
     ]
   },
   {
-    "index": 4178,
+    "index": 4228,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43399,7 +43870,7 @@
     ]
   },
   {
-    "index": 4179,
+    "index": 4229,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43417,7 +43888,7 @@
     ]
   },
   {
-    "index": 4180,
+    "index": 4230,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43435,7 +43906,7 @@
     ]
   },
   {
-    "index": 4181,
+    "index": 4231,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43453,22 +43924,22 @@
     ]
   },
   {
-    "index": 4182,
+    "index": 4232,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4183,
+    "index": 4233,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4184,
+    "index": 4234,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4185,
+    "index": 4235,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43486,12 +43957,12 @@
     ]
   },
   {
-    "index": 4186,
+    "index": 4236,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4187,
+    "index": 4237,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43509,7 +43980,7 @@
     ]
   },
   {
-    "index": 4188,
+    "index": 4238,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43527,37 +43998,37 @@
     ]
   },
   {
-    "index": 4189,
+    "index": 4239,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4190,
+    "index": 4240,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4191,
+    "index": 4241,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4192,
+    "index": 4242,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4193,
+    "index": 4243,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4194,
+    "index": 4244,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4195,
+    "index": 4245,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43587,67 +44058,67 @@
     ]
   },
   {
-    "index": 4196,
+    "index": 4246,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4197,
+    "index": 4247,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4198,
+    "index": 4248,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4199,
+    "index": 4249,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4200,
+    "index": 4250,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4201,
+    "index": 4251,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4202,
+    "index": 4252,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4203,
+    "index": 4253,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4204,
+    "index": 4254,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4205,
+    "index": 4255,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4206,
+    "index": 4256,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4207,
+    "index": 4257,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4208,
+    "index": 4258,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43665,42 +44136,42 @@
     ]
   },
   {
-    "index": 4209,
+    "index": 4259,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4210,
+    "index": 4260,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4211,
+    "index": 4261,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4212,
+    "index": 4262,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4213,
+    "index": 4263,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4214,
+    "index": 4264,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4215,
+    "index": 4265,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4216,
+    "index": 4266,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43718,7 +44189,7 @@
     ]
   },
   {
-    "index": 4217,
+    "index": 4267,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43736,27 +44207,27 @@
     ]
   },
   {
-    "index": 4218,
+    "index": 4268,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4219,
+    "index": 4269,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4220,
+    "index": 4270,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4221,
+    "index": 4271,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4222,
+    "index": 4272,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43774,12 +44245,12 @@
     ]
   },
   {
-    "index": 4223,
+    "index": 4273,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4224,
+    "index": 4274,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43813,27 +44284,27 @@
     ]
   },
   {
-    "index": 4225,
+    "index": 4275,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4226,
+    "index": 4276,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4227,
+    "index": 4277,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4228,
+    "index": 4278,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4229,
+    "index": 4279,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43851,12 +44322,12 @@
     ]
   },
   {
-    "index": 4230,
+    "index": 4280,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4231,
+    "index": 4281,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43874,12 +44345,12 @@
     ]
   },
   {
-    "index": 4232,
+    "index": 4282,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4233,
+    "index": 4283,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": [
       {
@@ -43897,27 +44368,27 @@
     ]
   },
   {
-    "index": 4234,
+    "index": 4284,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4235,
+    "index": 4285,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4236,
+    "index": 4286,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4237,
+    "index": 4287,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   },
   {
-    "index": 4238,
+    "index": 4288,
     "file": "whitespace-continuations.test.ts",
     "diagnostics": []
   }

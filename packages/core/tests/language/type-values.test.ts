@@ -440,16 +440,16 @@ describe('Rill Language: Type Value Expressions', () => {
   });
 
   // ============================================================
-  // EC-5: Unknown dot property on type value → RILL-R009 (AC-20)
+  // EC-5: Unknown dot property on type value → RILL-R003 (AC-20)
   // ============================================================
 
   describe('Unknown dot property on type value (AC-20)', () => {
-    it('42.^type.unknownProp throws RILL-R009 (AC-20)', async () => {
+    it('42.^type.unknownProp throws RILL-R003 (AC-20)', async () => {
       try {
         await run('42.^type.unknownProp');
         expect.fail('Should have thrown');
       } catch (err) {
-        expect(err).toHaveProperty('errorId', 'RILL-R009');
+        expect(err).toHaveProperty('errorId', 'RILL-R003');
       }
     });
   });

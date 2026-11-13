@@ -53,8 +53,42 @@ describe('union(...) types', () => {
 
     it('prints its members through signature', async () => {
       expect(await run('union(string, number).signature')).toBe(
-        'union(string, number)'
+        'union(number, string)'
       );
+      expect(await run('union(number, string).signature')).toBe(
+        'union(number, string)'
+      );
+    });
+
+    it('prints string literals in code-unit order', async () => {
+      expect(await run('union("f", "c").signature')).toBe('union("c", "f")');
+    });
+
+    it('prints type members before atoms, bools, numbers, and strings', async () => {
+      expect(await run('union("x", list, #a, 1, true).signature')).toBe(
+        'union(list, #a, true, 1, "x")'
+      );
+    });
+
+    it('sorts the error_code word as a type member', async () => {
+      expect(await run('union(#ok, error_code).signature')).toBe(
+        'union(error_code, #ok)'
+      );
+    });
+
+    it('names the canonical order in the assertion halt message', async () => {
+      await expectHalt(() => run('"x" -> :union("f", "c")'), {
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'expected union("c", "f")',
+      });
+    });
+
+    it('still fills defaults for a union of dict shapes after printing order changes', async () => {
+      expect(
+        await run(
+          '|v: union(dict(a: string, b: string = "x"), dict(a: string))| { $v.b }\n=> $f\n$f(dict[a: "q"])'
+        )
+      ).toBe('x');
     });
 
     it('has the name union', async () => {
@@ -86,7 +120,7 @@ describe('union(...) types', () => {
     it('halts TYPE_MISMATCH naming the union for a non-member', async () => {
       await expectHalt(() => run('true -> :union(string, number)'), {
         code: 'TYPE_MISMATCH',
-        messagePattern: 'union(string, number)',
+        messagePattern: 'union(number, string)',
       });
     });
 
@@ -314,13 +348,13 @@ describe('union(...) types', () => {
   describe('property access', () => {
     it('halts for .len on a union', async () => {
       await expect(run('union(1, 2).len')).rejects.toMatchObject({
-        errorId: 'RILL-R009',
+        errorId: 'RILL-R003',
       });
     });
 
     it('halts for .has on a union', async () => {
       await expect(run('union(1, 2).has(1)')).rejects.toMatchObject({
-        errorId: 'RILL-R009',
+        errorId: 'RILL-R003',
       });
     });
   });

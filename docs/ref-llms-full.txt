@@ -352,6 +352,11 @@ In rill, `{ ... }` is a block (closure body, loop body, etc.), not a dict litera
     Right: use<ext:app> => $app
            $app.fetch($url)
 
+## Callable reflection
+
+    Wrong: $fn.^input                      # removed; halts naming the replacement
+    Right: $fn.^type.inner                 # ordered[x: number]
+
 ## Union types
 
     Wrong: 42 -> :string|number
@@ -636,7 +641,7 @@ Every value carries a status sidecar. Read with `.!`:
 | Probe | Returns |
 |---|---|
 | `$v.!` | bool: is this an invalid value? |
-| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)`; `.^type` reports that union |
+| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)`; `.^type` reports it, printed `union(error_code, #ok)` |
 | `$v.!message` | string: human-readable description |
 | `$v.!provider` | string: component that produced the error |
 | `$v.!trace` | list: trace frames |
@@ -933,6 +938,7 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     dict[b: "b"] -> dict(b: string, a: string = "a")   # dict[a: "a", b: "b"]
 
 Only `-> type` conversion fills defaults. `:` assertion does NOT hydrate defaults. Nested fields recurse.
+Under a union, the narrowest matching member fills defaults, whatever the written order.
 
 ## Datetime and duration
 
@@ -953,6 +959,20 @@ Returns a type value for runtime inspection.
     list[1, 2].^type.name           # "list"
     list[1, 2].^type.signature      # "list(number)"
 
+Read what a type holds with `.inner` and what a function or stream yields with `.outer`:
+
+    list(number).inner              # number
+    dict(a: number).inner           # dict[a: number]
+    tuple(string).inner             # tuple[string]
+    union("b", "a").inner           # list["a", "b"] (canonical order)
+    union(1, "a").inner => $u
+    $u.^type.signature              # "list(union(number, string))"
+    string.inner ?? any             # any; leaf types halt RILL-R003 without ??
+    string.?inner                   # false
+    |x: number|{ $x }:string => $f
+    $f.^type.outer                  # string
+    dict(a: string = "x").defaults  # dict[a: "x"]
+
 Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
 
     42 => $x:union(string, number)
@@ -962,8 +982,8 @@ Under a declared union, `.^type` reports the declaration and `.^effective` the o
 Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
 `1 => $x:any` locks as number.
 
-A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and `[i]`, `.name`, `.$k` on a declared collection. A capture locks to the carried declaration.
-Computed results (operators, methods like `.head`, calls, computed key `.("a")`) take their own type.
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and every element or field read on a declared collection: `[i]`, `.name`, `.$k`, `.(expr)`, `.(a || b)`, and pipe selection `"a" -> $d`. A capture locks to the carried declaration.
+Computed results (operators, methods like `.head`, calls) take their own type.
 A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
 Host boundary: `toNative` reports the own type.
 Migrate `$v.^type == number` to `$v.^effective == number` or `$v -> :?number` under a declared union.
@@ -1064,16 +1084,16 @@ Return type assertion (halts with `#TYPE_MISMATCH` on mismatch):
 
 ## Callable reflection
 
-`.^input` and `.^output` work on every callable type.
+`.^type.inner` and `.^type.outer` work on every callable type.
 
     |x: number, y: string| ($x) => $fn
-    $fn.^input                             # ordered(x: number, y: string)
-    $fn.^output                            # any (no return type declared)
+    $fn.^type.inner                        # ordered[x: number, y: string]
+    $fn.^type.outer                        # any (no return type declared)
 
     |x: number|{ $x * 2 }:number => $fn2
-    $fn2.^output                           # number
+    $fn2.^type.outer                       # number
 
-`.^input` returns ordered dict mapping param names to type values. `.^output` returns the declared return type (`any` if undeclared). Works on script closures, built-ins, host functions.
+`.^type.inner` returns an ordered of param names to types. `.^type.outer` returns the declared return type (`any` if undeclared). `.^type.defaults` lists only the params that have a default. Works on script closures, built-ins, host functions.
 
 Description shorthand (bare string in `^(...)` expands to `description: <string>`):
 
