@@ -535,3 +535,32 @@ describe('type value properties read directly on an expression', () => {
     });
   });
 });
+
+describe('stream type written as an expression', () => {
+  it('reads the chunk type through inner', async () => {
+    await expectEqual('stream(number):string => $t\n$t.inner', 'number');
+  });
+
+  it('reads the resolution type through outer', async () => {
+    await expectEqual('stream(number):string => $t\n$t.outer', 'string');
+  });
+
+  it('equals the stream type a closure declares', async () => {
+    await expectEqual(STREAM_TYPE, 'stream(number):string');
+  });
+
+  it('prints its resolution type in the signature', async () => {
+    expect(await run('stream(number):string.signature')).toBe(
+      'stream(number):string'
+    );
+    expect(await run('stream():string => $t\n$t.signature')).toBe(
+      'stream(any):string'
+    );
+  });
+
+  it('keeps stream(T) without a resolution type unchanged', async () => {
+    expect(await run('stream(number) => $t\n$t.signature')).toBe(
+      'stream(number)'
+    );
+  });
+});

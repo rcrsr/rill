@@ -214,11 +214,10 @@ The string representation of structural types follows this format:
 
 ### Stream Reflection
 
-A stream type answers `.inner` with its chunk type and `.outer` with its resolution type; each is `any` when unconstrained. The closure below declares `stream(number):string`, and `.^type.outer` reads that type:
+A stream type answers `.inner` with its chunk type and `.outer` with its resolution type; each is `any` when unconstrained:
 
 ```rill
-|v: number|{ $v }:stream(number):string => $fn
-$fn.^type.outer => $t
+stream(number):string => $t
 list[$t.inner, $t.outer]
 # Result: list[number, string]
 ```
