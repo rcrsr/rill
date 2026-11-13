@@ -69,7 +69,8 @@ The symbolic id is `<concept>.<rule>`.
 - **Rule** is a kebab-case slug of 1 to 3 words, unique within its concept.
 - A built-in method's concept is `<receiver>.<method>`, such as `string.trim`. No rule id may equal
   a concept id, so the concept `string` never has a rule slug `trim`.
-- A chapter folder is never part of an id. Moving a file changes its URL and nothing else.
+- A chapter folder is never part of an id. A chapter MAY group its files in subfolders, which
+  are never part of an id either. Moving a file changes its URL and nothing else.
 - A slug never changes meaning. A changed rule takes a new slug. The old one moves to Notes as
   superseded and is never reused.
 
