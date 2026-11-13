@@ -31,7 +31,7 @@
     "pretest": "tsx scripts/generate-version.ts",
     "test": "vitest run",
     "coverage": "tsx scripts/generate-version.ts && vitest run --coverage",
-    "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/ ../../README.md",
+    "test:examples": "tsx ../../scripts/test-examples.ts ../../docs/ ../../reference/ ../../README.md",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc -p tsconfig.test.json",
     "lint": "oxlint --config ../../.oxlintrc.json --type-aware src/ tests/",

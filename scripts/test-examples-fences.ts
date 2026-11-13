@@ -12,6 +12,8 @@ export interface CodeBlock {
   lineNumber: number;
   file: string;
   expectedResult?: string;
+  /** Issue number from a `rill pending=N` info string; the block is skipped. */
+  pendingIssue?: number;
 }
 
 export function extractRillBlocks(
@@ -22,6 +24,7 @@ export function extractRillBlocks(
   const lines = content.split('\n');
   let inBlock = false;
   let blockStart = 0;
+  let pendingIssue: number | undefined;
   let blockLines: string[] = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -29,6 +32,8 @@ export function extractRillBlocks(
 
     if (line.trim().startsWith('```rill')) {
       inBlock = true;
+      const pendingMatch = line.trim().match(/^```rill\s+pending=(\d+)\s*$/);
+      pendingIssue = pendingMatch ? Number(pendingMatch[1]) : undefined;
       blockStart = i + 1; // 1-indexed line number
       blockLines = [];
     } else if (inBlock && line.trim() === '```') {
@@ -46,6 +51,7 @@ export function extractRillBlocks(
         lineNumber: blockStart + 1, // Line after the opening fence
         file: filePath,
         ...(expectedResult !== undefined ? { expectedResult } : {}),
+        ...(pendingIssue !== undefined ? { pendingIssue } : {}),
       });
     } else if (inBlock) {
       blockLines.push(line);
