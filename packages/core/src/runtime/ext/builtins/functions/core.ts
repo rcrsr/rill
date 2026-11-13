@@ -14,6 +14,7 @@ import {
 import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
+import { setPipe } from '../../../core/types/declared.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import {
   MAX_ITER,
@@ -358,7 +359,7 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
               );
             }
             const childCtx = createChildContext(ctx);
-            childCtx.pipeValue = current;
+            setPipe(childCtx, current, undefined);
             const nextSeed = await invokeCallable(
               closure,
               [current],

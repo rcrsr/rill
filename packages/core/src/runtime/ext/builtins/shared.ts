@@ -1,4 +1,10 @@
 import type { RillValue } from '../../core/types/structures.js';
+import {
+  iterationElement,
+  recordArgDeclared,
+  setArgsDeclared,
+  setPipe,
+} from '../../core/types/declared.js';
 import type { RuntimeContext } from '../../core/types/runtime.js';
 import type { SourceLocation } from '../../../types.js';
 import type { EvalState } from '../../core/eval/state.js';
@@ -363,4 +369,33 @@ export function makeGenericIterator(
     };
   };
   return step(seed);
+}
+
+/**
+ * Bind one collection element into a per-element body context and build the
+ * body's call args. The element's declared type is the declared list's
+ * element type when the collection argument (position `collectionIndex` of the
+ * marshalled `record`) is a declared list; every other collection, and every
+ * stream or iterator, carries nothing. `extra` args (a fold accumulator)
+ * follow the element and carry nothing.
+ *
+ * @internal
+ */
+export function bindElement(
+  childCtx: RuntimeContext,
+  element: RillValue,
+  record: object,
+  extra: readonly RillValue[] = [],
+  collectionIndex = 0
+): RillValue[] {
+  const declared = iterationElement(recordArgDeclared(record, collectionIndex));
+  setPipe(childCtx, element, declared);
+  const callArgs: RillValue[] = [element, ...extra];
+  if (declared !== undefined) {
+    setArgsDeclared(
+      callArgs,
+      callArgs.map((_, i) => (i === 0 ? declared : undefined))
+    );
+  }
+  return callArgs;
 }

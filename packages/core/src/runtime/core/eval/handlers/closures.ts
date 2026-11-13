@@ -14,6 +14,7 @@ import type {
   RillCallable,
   ScriptCallable,
   ApplicationCallable,
+  RillParam,
 } from '../../callable.js';
 import {
   declaredParams,
@@ -23,7 +24,11 @@ import {
 } from '../../callable.js';
 import { markExtensionThrow } from '../../extension-throw.js';
 import type { RuntimeContext } from '../../types/runtime.js';
-import type { RillValue, RillStream } from '../../types/structures.js';
+import type {
+  RillValue,
+  RillStream,
+  TypeStructure,
+} from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { isObjectRecord, isStream } from '../../types/guards.js';
 import { structureMatches, formatStructure } from '../../types/operations.js';
@@ -62,8 +67,16 @@ import {
   propagateExtensionIdentity,
 } from '../../policy/identity.js';
 import type { DispatchContext } from '../../types/runtime.js';
+import {
+  argDeclaredAt,
+  declarationOf,
+  setArgsDeclared,
+  copyArgsDeclared,
+  setPipe,
+  transferArgsDeclared,
+} from '../../types/declared.js';
 import { checkAborted, maybeYield, DEFAULT_MAX_ITERATIONS } from '../shared.js';
-import { evaluateExpression } from './core.js';
+import { evaluateExpression, evaluateExpressionCarried } from './core.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { assertType } from './types.js';
 import {
@@ -164,6 +177,16 @@ export const argumentsBinder = new ArgumentsBinder();
  * Cached on `s.invocationStrategy` to avoid reallocating the strategy plus
  * its two closures on every call-site invocation.
  */
+/**
+ * Args array whose declarations the next dispatched call should inherit.
+ * The strategy rebuilds the args array from a bound map, so the sidecar
+ * cannot follow it; invokeCallable sets this just before `invoke` and the
+ * caller below consumes it synchronously, before any await.
+ * `CallableInvocationStrategy.invoke` must therefore not await before it
+ * calls the caller callback, or another call could overwrite this slot.
+ */
+let pendingArgsSource: readonly (RillValue | undefined)[] | undefined;
+
 function getInvocationStrategy(s: EvalState): CallableInvocationStrategy {
   if (s.invocationStrategy) return s.invocationStrategy;
   const strategy = new CallableInvocationStrategy(
@@ -175,6 +198,9 @@ function getInvocationStrategy(s: EvalState): CallableInvocationStrategy {
       location: SourceLocation | undefined,
       functionName?: string
     ) => {
+      const source = pendingArgsSource;
+      pendingArgsSource = undefined;
+      if (source !== undefined) copyArgsDeclared(source, args);
       if (callable.kind === 'script') {
         return invokeScriptCallable(s, callable, args, location);
       }
@@ -219,12 +245,14 @@ export async function evaluateArgs(
 ): Promise<RillValue[]> {
   const savedPipeValue = s.ctx.pipeValue;
   const args: RillValue[] = [];
+  const declared: (TypeStructure | undefined)[] = [];
   const sourceId = s.ctx.sourceId;
   try {
     for (const arg of argExprs) {
       const isSpread = arg.type === 'SpreadArg';
       const expr = isSpread ? arg.expression : arg;
-      const evaluated = await evaluateExpression(s, expr);
+      const carried = await evaluateExpressionCarried(s, expr);
+      const evaluated = carried.value;
       let gated: RillValue;
       if (hasStatusSidecar(evaluated)) {
         gated = haltSlowPath(
@@ -237,7 +265,10 @@ export async function evaluateArgs(
         gated = evaluated;
       }
       args.push(gated);
+      // A spread argument takes its own type.
+      declared.push(isSpread ? undefined : carried.declared);
     }
+    setArgsDeclared(args, declared);
     return args;
   } finally {
     // Restore pipeValue on every exit path. When an argument expression
@@ -401,6 +432,13 @@ export async function invokeCallable(
           haltSite
         );
         effectiveArgs = [piped, ...args.slice(1)];
+        // The transformed first argument takes its own type.
+        setArgsDeclared(
+          effectiveArgs,
+          effectiveArgs.map((_, i) =>
+            i === 0 ? undefined : argDeclaredAt(args, i)
+          )
+        );
       }
     }
 
@@ -415,12 +453,15 @@ export async function invokeCallable(
           ])
         ),
       };
-      result = await getInvocationStrategy(s).invoke(
+      pendingArgsSource = effectiveArgs;
+      const invoking = getInvocationStrategy(s).invoke(
         callable,
         bound,
         callLocation,
         functionName
       );
+      pendingArgsSource = undefined;
+      result = await invoking;
     } else {
       // No call-site location: dispatch directly without a frame.
       result = await dispatchByKind(
@@ -518,15 +559,19 @@ async function invokeFnCallable(
   // (RILL-R045) and a defaults-only callable would take the dict as its first
   // param (RILL-R001). The `isProperty` flag is the receiver contract locked
   // by tests/runtime/host-integration.test.ts.
-  const effectiveArgs =
-    callable.boundDict && callable.isProperty && args.length === 0
-      ? [callable.boundDict]
-      : args;
+  const injectedBoundDict =
+    callable.boundDict !== undefined &&
+    callable.isProperty === true &&
+    args.length === 0;
+  const effectiveArgs = injectedBoundDict ? [callable.boundDict] : args;
 
   const fnArgs = marshalArgs(effectiveArgs, callable.params, {
     functionName,
     location: callLocation,
   });
+  if (!injectedBoundDict) {
+    transferArgsDeclared(effectiveArgs, fnArgs);
+  }
 
   let result: RillValue;
   try {
@@ -646,11 +691,12 @@ export function createCallableContext(
     variables: new Map(),
     variableTypes: new Map(),
     pipeValue: hasExplicitParams ? null : s.ctx.pipeValue,
+    pipeDeclared: hasExplicitParams ? undefined : s.ctx.pipeDeclared,
     sourceId: defScope.sourceId ?? s.ctx.sourceId,
     sourceText: defScope.sourceText ?? s.ctx.sourceText,
   };
   if (callable.boundDict) {
-    callableCtx.pipeValue = callable.boundDict;
+    setPipe(callableCtx, callable.boundDict, undefined);
   }
   // This context is spread from the caller's rather than built by
   // createChildContext, so it gets no policy binding from there. Without
@@ -658,6 +704,36 @@ export function createCallableContext(
   // unfiltered, and seq/fan/filter/fold bodies all run through here.
   inheritPolicyState(s.ctx, callableCtx);
   return callableCtx;
+}
+
+/**
+ * Record each bound parameter's declared type on the callable context. A
+ * param's declaration is its parameter type unless that is `any` or absent,
+ * else the argument's carried type. Named params lock in `variableTypes`; the
+ * `$` param sets the pipe slot. Params with no declaration are left alone, so
+ * they keep locking to the inferred kind on first capture.
+ */
+export function bindParamDeclarations(
+  callableCtx: RuntimeContext,
+  params: readonly RillParam[],
+  args: readonly (RillValue | undefined)[]
+): void {
+  for (let i = 0; i < params.length; i++) {
+    const param = params[i];
+    if (param === undefined) continue;
+    const arg = args[i];
+    const declared =
+      declarationOf(param.type) ??
+      (arg !== undefined ? argDeclaredAt(args, i) : undefined);
+    if (declared === undefined) continue;
+    if (param.name === '$') {
+      if (callableCtx.variables.has('$')) {
+        setPipe(callableCtx, callableCtx.pipeValue, declared);
+      }
+    } else if (callableCtx.variables.has(param.name)) {
+      callableCtx.variableTypes.set(param.name, declared);
+    }
+  }
 }
 
 /** Push chunk to active stream channel, or throw YieldSignal if not streaming. */
@@ -744,8 +820,9 @@ async function invokeRegularScriptCallable(
   ) {
     callableCtx.variables.set(only.name, onlyArg);
     if (only.name === '$') {
-      callableCtx.pipeValue = onlyArg;
+      setPipe(callableCtx, onlyArg, undefined);
     }
+    bindParamDeclarations(callableCtx, params, args);
   } else {
     const record = marshalArgs(args, params, {
       functionName: '<anonymous>',
@@ -755,9 +832,10 @@ async function invokeRegularScriptCallable(
     for (const [name, value] of Object.entries(record)) {
       callableCtx.variables.set(name, value);
       if (syncsPipe && name === '$') {
-        callableCtx.pipeValue = value;
+        setPipe(callableCtx, value, undefined);
       }
     }
+    bindParamDeclarations(callableCtx, params, args);
   }
   if (callable.body.type === 'Block' && callable.body.statements.length === 0) {
     throwFatalHostHalt(

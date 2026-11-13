@@ -35,6 +35,7 @@ import type {
 import type { RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
+import { setPipe } from '../../types/declared.js';
 import { BreakSignal, ReturnSignal } from '../../signals.js';
 import {
   throwCatchableHostHalt,
@@ -236,7 +237,7 @@ export async function evaluateWhileLoop(
       } finally {
         s.ctx = savedCtx;
       }
-      s.ctx.pipeValue = value;
+      setPipe(s.ctx, value, undefined);
 
       // Re-evaluate condition for next iteration
       const nextCondition = await evaluateExpression(s, node.condition);
@@ -253,7 +254,7 @@ export async function evaluateWhileLoop(
       }
       conditionResult = nextCondition;
       // Restore pipeValue after condition evaluation
-      s.ctx.pipeValue = value;
+      setPipe(s.ctx, value, undefined);
     }
   } catch (e) {
     if (e instanceof BreakSignal) {
@@ -323,7 +324,7 @@ export async function evaluateDoWhileLoop(
       } finally {
         s.ctx = savedCtx;
       }
-      s.ctx.pipeValue = value;
+      setPipe(s.ctx, value, undefined);
 
       const conditionValue = await evaluateBody(s, node.condition);
       // Condition must be boolean

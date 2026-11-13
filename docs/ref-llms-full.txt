@@ -43,6 +43,8 @@ Conditions must be boolean. No coercion. Negation also requires boolean.
     "hello" => $x
     42 => $x        # ERROR: cannot assign number to string variable
 
+The lock is the declared type the value carries, else its own type: `1 => $x:union(number, string)` then `"a" => $x` is OK. `1 => $x:any` locks as number.
+
 ### 5. No variable shadowing
 
 Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodies cannot mutate outer state.
@@ -634,7 +636,7 @@ Every value carries a status sidecar. Read with `.!`:
 | Probe | Returns |
 |---|---|
 | `$v.!` | bool: is this an invalid value? |
-| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)` |
+| `$v.!code` | atom: `#ok` on valid values, else an error code; always a member of `union(#ok, error_code)`; `.^type` reports that union |
 | `$v.!message` | string: human-readable description |
 | `$v.!provider` | string: component that produced the error |
 | `$v.!trace` | list: trace frames |
@@ -951,9 +953,24 @@ Returns a type value for runtime inspection.
     list[1, 2].^type.name           # "list"
     list[1, 2].^type.signature      # "list(number)"
 
+Under a declared union, `.^type` reports the declaration and `.^effective` the own type:
+
+    42 => $x:union(string, number)
+    $x.^type.name                   # "union"
+    $x.^effective.name              # "number"
+
+Dispatch on `.^effective.name`, not `.^type.name`. `any` declares nothing:
+`1 => $x:any` locks as number.
+
+A declaration carries through `$`, plain and inline captures, grouped `( )`, `pass`, destructure, closure params, iteration over a declared `list(E)`, and `[i]`, `.name`, `.$k` on a declared collection. A capture locks to the carried declaration.
+Computed results (operators, methods like `.head`, calls, computed key `.("a")`) take their own type.
+A bare `list`, `list(any)`, or `union(list(number), string)` projects no element type. A bare kind such as `:list` makes `.^type` report `list` and `.^effective` report `list(number)`.
+Host boundary: `toNative` reports the own type.
+Migrate `$v.^type == number` to `$v.^effective == number` or `$v -> :?number` under a declared union.
+
 Equality:
 
-    $val.^type == list(number)      # true if $val is list(number)
+    $val.^type == list(number)      # true if $val is list(number) with no declaration (own type)
     $val.^type == $other.^type      # compare structural types
 
 ---

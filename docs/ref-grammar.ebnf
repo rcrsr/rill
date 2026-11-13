@@ -335,7 +335,9 @@ annotated-expr = annotation , primary ;
 (* Annotation access: read annotation values from closures.
    .^key reads the annotation named "key" from a closure value.
    Chained with method calls: $fn.^output, $fn.^description.
-   Returns the annotation value or errors if not present.
+   .^type reports the declared type, else the own type, on any value.
+   .^effective reports the own type on any value.
+   Other keys read closure annotations; a missing key errors.
    Example: $fn.^output         -- read "output" annotation
    Example: $fn.^description    -- read "description" annotation *)
 annotation-access = "." , "^" , identifier ;

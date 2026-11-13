@@ -9,7 +9,6 @@
 
 import type {
   DestructureNode,
-  DestructNode,
   SliceNode,
   ListLiteralNode,
   DictLiteralNode,
@@ -24,7 +23,8 @@ import {
   throwCatchableHostHalt,
   throwFatalHostHalt,
 } from '../../types/halt.js';
-import type { RillValue } from '../../types/structures.js';
+import type { RillValue, TypeStructure } from '../../types/structures.js';
+import { projectElement } from '../../types/declared.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import { findElementTypeMismatch } from '../../types/operations.js';
 import { isPlainDict, isStream } from '../../types/guards.js';
@@ -62,7 +62,8 @@ import {
 export async function evaluateDestructure(
   s: EvalState,
   node: Pick<DestructureNode, 'elements' | 'span'>,
-  input: RillValue
+  input: RillValue,
+  inputDeclared?: TypeStructure
 ): Promise<RillValue> {
   const isList = Array.isArray(input);
   const isDictInput = isFieldReceiver(input);
@@ -146,7 +147,8 @@ export async function evaluateDestructure(
         elem.name,
         dictValue,
         dictResolved?.structure,
-        elem.span.start
+        elem.span.start,
+        projectElement(inputDeclared, elem.key)
       );
     }
   } else {
@@ -187,7 +189,12 @@ export async function evaluateDestructure(
       if (elem.kind === 'skip') continue;
 
       if (elem.kind === 'nested' && elem.nested) {
-        await evaluateDestructure(s, elem.nested, value);
+        await evaluateDestructure(
+          s,
+          elem.nested,
+          value,
+          projectElement(inputDeclared, i)
+        );
         continue;
       }
 
@@ -214,7 +221,8 @@ export async function evaluateDestructure(
         elem.name,
         value,
         listResolved?.structure,
-        elem.span.start
+        elem.span.start,
+        projectElement(inputDeclared, i)
       );
     }
   }
@@ -443,21 +451,6 @@ function applySlice(
     picked.push(item);
   }
   return picked;
-}
-
-/**
- * Evaluate destruct operator: destruct<$a, $b, ...>
- * Same semantics as evaluateDestructure but for the keyword-based syntax.
- * Delegates to evaluateDestructure since the pattern structure is identical.
- */
-export function evaluateDestruct(
-  s: EvalState,
-  node: DestructNode,
-  input: RillValue
-): Promise<RillValue> {
-  // DestructNode has the same elements structure as DestructureNode.
-  // Cast to DestructureNode-compatible shape for reuse.
-  return evaluateDestructure(s, node, input);
 }
 
 /**

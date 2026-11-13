@@ -22,7 +22,8 @@ import type {
   InvalidMeta,
 } from './types/runtime.js';
 import { bindDictCallables } from './types/runtime.js';
-import type { RillValue } from './types/structures.js';
+import type { RillValue, TypeStructure } from './types/structures.js';
+import { declarationOf } from './types/declared.js';
 import { inferType } from './types/registrations.js';
 import { setDictField } from './types/dict-keys.js';
 import {
@@ -700,6 +701,7 @@ export function createRuntimeContext(
     callbacks: mergedCallbacks,
     observability: options.observability ?? {},
     pipeValue: null,
+    pipeDeclared: undefined,
     timeout: options.timeout,
     autoExceptions,
     signal: lifecycle.signal,
@@ -815,6 +817,7 @@ export function createChildContext(
     callbacks: parent.callbacks,
     observability: parent.observability,
     pipeValue: parent.pipeValue,
+    pipeDeclared: parent.pipeDeclared,
     timeout: parent.timeout,
     autoExceptions: parent.autoExceptions,
     signal: parent.signal,
@@ -876,6 +879,34 @@ export function getVariable(
  */
 export function hasVariable(ctx: RuntimeContext, name: string): boolean {
   return ctx.hasVariable(name);
+}
+
+/**
+ * The scope that owns a variable: the first one in the parent chain that
+ * holds the name, or undefined when no scope does. A caller that needs both
+ * the value and the lock reads them from this scope in one walk.
+ */
+export function findVariableScope(
+  ctx: RuntimeContext,
+  name: string
+): RuntimeContext | undefined {
+  let scope: RuntimeContext | undefined = ctx;
+  while (scope !== undefined) {
+    if (scope.variables.has(name)) return scope;
+    scope = scope.parent;
+  }
+  return undefined;
+}
+
+/**
+ * Declared type a scope stores for one of its own variables. A kind-name
+ * string or `any` means no declaration.
+ */
+export function scopeVariableDeclared(
+  scope: RuntimeContext,
+  name: string
+): TypeStructure | undefined {
+  return declarationOf(scope.variableTypes.get(name));
 }
 
 /**

@@ -19,6 +19,7 @@ import {
 } from '../../callable.js';
 import { getVariable } from '../../context.js';
 import type { RillValue } from '../../types/structures.js';
+import { insertArgDeclared, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType } from '../../types/registrations.js';
 import { isStream } from '../../types/guards.js';
 import type { EvalState } from '../state.js';
@@ -126,6 +127,7 @@ export async function evaluateHostCall(
     // push was sufficient for the legacy empty-args path but is wrong
     // when existing args are present under the unified rule.
     args.unshift(s.ctx.pipeValue);
+    insertArgDeclared(args, 0, pipeDeclaredOf(s.ctx));
   }
   s.ctx.observability.onHostCall?.({ name: node.name, args });
   const startTime = performance.now();
@@ -232,6 +234,11 @@ export async function evaluateClosureCallWithPipe(
 
   const args = await evaluateArgs(s, node.args);
   if (args.length === 0 && pipeInput !== null && !declaresZeroParams(closure)) {
+    insertArgDeclared(
+      args,
+      args.length,
+      s.ctx.pipeValue === pipeInput ? pipeDeclaredOf(s.ctx) : undefined
+    );
     args.push(pipeInput);
   }
   return invokeCallable(s, closure, args, node.span.start, fullPath);

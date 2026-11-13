@@ -44,6 +44,8 @@ import {
 import { createTraceFrame } from '../../types/trace.js';
 import { atomName, toAtomValue } from '../../types/atom-registry.js';
 import type { EvalState } from '../state.js';
+import type { Carried } from '../../types/declared.js';
+import { STATUS_CODE_STRUCTURE } from '../../types/error-code.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
@@ -251,14 +253,33 @@ export async function evaluateRetryBlock(
  * - bare `.!`         -> bool: `false` when valid, `true` when invalid
  *                        (`$valid.!` is `false`).
  * - `.!code`          -> atom value, a member of `union(#ok, error_code)`.
- *                        The declared type is not carried: `.!code.^type`
- *                        reports `atom`.
+ *                        The declared type is carried: `.!code.^type`
+ *                        reports `union(#ok, error_code)`.
  * - `.!message`       -> string.
  * - `.!provider`      -> string.
  * - `.!trace`         -> list of trace-frame dicts.
  * - `.!<other>`       -> lookup in `status.raw`; missing key yields `""`.
  */
 export async function evaluateStatusProbe(
+  s: EvalState,
+  node: StatusProbeNode
+): Promise<RillValue> {
+  return (await evaluateStatusProbeCarried(s, node)).value;
+}
+
+/** Status probe paired with its declared type: only `.!code` carries one. */
+export async function evaluateStatusProbeCarried(
+  s: EvalState,
+  node: StatusProbeNode
+): Promise<Carried> {
+  const value = await evaluateStatusProbeValue(s, node);
+  return {
+    value,
+    declared: node.field === 'code' ? STATUS_CODE_STRUCTURE : undefined,
+  };
+}
+
+async function evaluateStatusProbeValue(
   s: EvalState,
   node: StatusProbeNode
 ): Promise<RillValue> {

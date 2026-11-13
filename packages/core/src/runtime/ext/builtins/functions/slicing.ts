@@ -22,6 +22,7 @@ import { getEvalState } from '../../../core/eval/state.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import {
   MAX_ITER,
+  bindElement,
   chunkSlice,
   makeListIterator,
   requireNonNegativeInteger,
@@ -591,10 +592,10 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
         for (const element of elements) {
           if (!triggered) {
             const childCtx = createChildContext(ctx);
-            childCtx.pipeValue = element;
+            const elementArgs = bindElement(childCtx, element, args);
             const testResult = await invokeCallable(
               predicate,
-              [element],
+              elementArgs,
               childCtx,
               location
             );
@@ -686,10 +687,10 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
             );
           }
           const childCtx = createChildContext(ctx);
-          childCtx.pipeValue = element;
+          const elementArgs = bindElement(childCtx, element, args);
           const testResult = await invokeCallable(
             predicate,
-            [element],
+            elementArgs,
             childCtx,
             location
           );

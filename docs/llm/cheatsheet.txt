@@ -33,6 +33,8 @@ Conditions must be boolean. No coercion. Negation also requires boolean.
     "hello" => $x
     42 => $x        # ERROR: cannot assign number to string variable
 
+The lock is the declared type the value carries, else its own type: `1 => $x:union(number, string)` then `"a" => $x` is OK. `1 => $x:any` locks as number.
+
 ### 5. No variable shadowing
 
 Child scopes can READ parent variables but cannot WRITE or redeclare. Loop bodies cannot mutate outer state.

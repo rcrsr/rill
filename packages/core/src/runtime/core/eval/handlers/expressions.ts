@@ -40,7 +40,8 @@ import { accessHaltGate, haltSlowPath } from './access.js';
 import { hasStatusSidecar } from '../../types/status.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { invokeCallable } from './closures.js';
-import { evaluatePostfixExpr, evaluatePipeChain } from './core.js';
+import { evaluatePostfixExpr, evaluatePipeChainCarried } from './core.js';
+import type { Carried } from '../../types/declared.js';
 
 /**
  * Find the type registration for a value by type name.
@@ -469,12 +470,23 @@ export async function evaluateGroupedExpr(
   s: EvalState,
   node: GroupedExprNode
 ): Promise<RillValue> {
+  return (await evaluateGroupedExprCarried(s, node)).value;
+}
+
+/**
+ * Grouped expression that also reports the declared type of the inner chain
+ * result.
+ */
+export async function evaluateGroupedExprCarried(
+  s: EvalState,
+  node: GroupedExprNode
+): Promise<Carried> {
   // Grouped expressions have their own scope (reads parent, writes local only)
   const childCtx = createChildContext(s.ctx);
   const savedCtx = s.ctx;
   s.ctx = childCtx;
   try {
-    return await evaluatePipeChain(s, node.expression);
+    return await evaluatePipeChainCarried(s, node.expression);
   } finally {
     s.ctx = savedCtx;
   }

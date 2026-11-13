@@ -329,7 +329,7 @@ $list.^type == list(number)
 # Result: true
 ```
 
-`.^type.name` returns the coarse type name string. `.^type` returns a type value; `.name` then accesses the dot-notation property on that type value (not annotation interception):
+`.^type.name` returns the coarse type name string; under a declared type it reports the declaration (see `.^effective` in [Type System](topic-type-system.md#declared-and-effective-types)). `.^type` returns a type value; `.name` then accesses the dot-notation property on that type value (not annotation interception):
 
 ```rill
 [1, 2, 3] => $list
@@ -554,13 +554,14 @@ Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruc
 
 ## Annotation Reflection
 
-Access annotation values using `.^key` syntax. Annotations attach to callables (script closures and host-provided functions). The key `type` is special-cased and works on any value; it returns the structural type.
+Access annotation values using `.^key` syntax. Annotations attach to callables (script closures and host-provided functions). The key `type` is special-cased and works on any value; it returns the declared type when the value carries one, else the own type.
 
 ### `.^key` Dispatch Table
 
 | Value | Key | Result |
 |-------|-----|--------|
-| Any value | `type` | Structural type value via `.^type` |
+| Any value | `type` | Declared type if carried, else the own type, via `.^type` |
+| Any value | `effective` | Own type via `.^effective`, ignoring any declaration |
 | Type value | `name` | Runtime error: RILL-R008 (use `.name` dot notation instead) |
 | Any callable | any other key | Callable annotation value |
 | Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
@@ -581,6 +582,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 | Key | Status | Reason |
 |-----|--------|--------|
 | `type` | Reserved | Intercepted at evaluation time for any value |
+| `effective` | Reserved | Intercepted at evaluation time for any value; returns the own type |
 | `input` | Active | Intercepted on any callable; returns parameter shape as `RillOrdered` |
 | `output` | Active | Intercepted on any callable; returns declared return type as `RillTypeValue` |
 | `description` | User-defined | Not reserved; common metadata key |
@@ -591,6 +593,7 @@ The parser rejects annotation keys that conflict with built-in dispatch semantic
 ^(type: "custom") name: string   # Error: annotation key "type" is reserved
 ^(input: "text") name: string    # Error: annotation key "input" is reserved
 ^(output: "text") name: string   # Error: annotation key "output" is reserved
+^(effective: "x") name: string   # Error: annotation key "effective" is reserved
 ```
 
 The `name` key is not reserved on closures. On type values, `.name` is a dot-notation property, not annotation access; use `.^type.name` to read a type value's name.
