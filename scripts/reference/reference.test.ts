@@ -3,6 +3,7 @@
  * against small reference trees written to a temp directory.
  */
 
+import { checkBlockLayout } from './layout.js';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -747,5 +748,44 @@ describe('query', () => {
       issues: [{ issue: 5, pending: 1 }],
       openDecisions: 1,
     });
+  });
+});
+
+describe('checkBlockLayout', () => {
+  const codes = (src: string): string[] =>
+    checkBlockLayout(src.split('\n')).map((i) => `${i.index}:${i.code}`);
+
+  it('accepts a one-line block and a conforming multiline block', () => {
+    expect(codes('3 -> { $ + 1 }')).toEqual([]);
+    expect(codes('3 -> {\n  $ + 1\n  $ * 10\n} -> .str')).toEqual([]);
+  });
+
+  it('accepts nested blocks indented two spaces per level', () => {
+    expect(codes('1 -> {\n  2 -> {\n    $ + 1\n  }\n}')).toEqual([]);
+  });
+
+  it('rejects content after an opening brace that stays open', () => {
+    expect(codes('3 -> { $ + 1\n  $ * 10\n}')).toEqual(['0:block-open']);
+  });
+
+  it('rejects content before a closing brace on a later line', () => {
+    expect(codes('3 -> {\n  $ + 1\n  $ * 10 }')).toEqual(['2:block-close']);
+  });
+
+  it('rejects a statement at the wrong indent', () => {
+    expect(codes('3 -> {\n$ + 1\n}')).toEqual(['1:block-indent']);
+    expect(codes('3 -> {\n    $ + 1\n}')).toEqual(['1:block-indent']);
+    expect(codes('3 -> {\n  $ + 1\n  }')).toEqual(['2:block-indent']);
+  });
+
+  it('allows deeper continuation lines and lines inside a group', () => {
+    expect(codes('3 -> {\n  $\n    -> { $ + 1 }\n}')).toEqual([]);
+    expect(codes('1 -> {\n  list[\n      1, 2\n  ]\n}')).toEqual([]);
+  });
+
+  it('ignores braces in strings, interpolation, and comments', () => {
+    expect(codes('"a { b" -> {\n  "x{$}y"\n}')).toEqual([]);
+    expect(codes('1 -> {  # opens {\n  $\n}')).toEqual([]);
+    expect(codes('"""\n{ not code\n""" -> .len')).toEqual([]);
   });
 });

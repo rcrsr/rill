@@ -4,6 +4,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { checkBlockLayout } from './layout.js';
 import {
   getList,
   getString,
@@ -458,6 +459,13 @@ function lintFences(file: ParsedFile, add: Add): void {
           'fence-result',
           'rill fence has neither # Result: nor # Error:'
         );
+      }
+      const raw = file.lines.slice(
+        f.line,
+        f.closed ? f.endLine - 1 : file.lines.length
+      );
+      for (const issue of checkBlockLayout(raw)) {
+        add(f.line + 1 + issue.index, 'error', issue.code, issue.message);
       }
     }
   }
