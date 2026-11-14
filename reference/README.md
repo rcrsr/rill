@@ -70,7 +70,7 @@ earlier one.
 | [variables](variables/) | Variables, `$` binding, scope, capture |
 | [expressions](expressions/) | Pipes, selection, dispatch, operators |
 | [callables](callables/) | Blocks, functions, parameters, invocation |
-| control-flow | Control statements and their options, loops |
+| [control-flow](control-flow/) | Control statements and their options, loops |
 | collections | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
 | errors | Invalid values, recovery, `assert`, `error` |
 | limits | Iteration, concurrency, call depth, timeouts |
