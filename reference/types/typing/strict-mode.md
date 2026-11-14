@@ -78,5 +78,5 @@ a `checkerMode` setting named `strict`, which raises the severity of two `use` r
 
 Open decision: #571, how the two meanings of `strict` take one name each, or merge.
 
-Open decision: #571, whether a naked block passed to a control construct or a collection operator
+Open decision: #571, whether a code block passed to a control construct or a collection operator
 counts as a bare `{ ... }` function.

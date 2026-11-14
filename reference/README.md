@@ -69,7 +69,7 @@ earlier one.
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |
 | variables | Variables, `$` binding, scope, capture |
 | [expressions](expressions/) | Pipes, selection, dispatch, operators |
-| callables | Blocks, functions, parameters, invocation |
+| [callables](callables/) | Blocks, functions, parameters, invocation |
 | control-flow | Control statements and their options, loops |
 | collections | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
 | errors | Invalid values, recovery, `assert`, `error` |
@@ -88,4 +88,5 @@ until they are. 0.24.0 does not ship while this list is non-empty.
 | [#563](https://github.com/rcrsr/rill/issues/563) | The type of the pairs `.entries` returns | `dict` |
 | [#569](https://github.com/rcrsr/rill/issues/569) | The halt for a typed capture that fails its assertion | `assertion`, `type-lock` |
 | [#571](https://github.com/rcrsr/rill/issues/571) | The name of strict mode and the scope of a bare block | `strict-mode` |
+| [#568](https://github.com/rcrsr/rill/issues/568) | What a read that does not select an entry does with a held block | `code-block` |
 | [#579](https://github.com/rcrsr/rill/issues/579) | The literal form of a duration | `duration` |

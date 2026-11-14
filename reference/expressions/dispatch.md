@@ -81,5 +81,5 @@ list[{ "got {$}" }] => $l
 On 0.23.0 `$l.("a")` on a list halts RILL-R003 where `"a" -> $l` halts RILL-R002. The
 parenthesized form is removed in 0.24.0 (#607), and `$l["a"]` halts RILL-R002 as dispatch does.
 
-Selection and dispatch are one topic split in two: dispatch runs held blocks and descends paths,
-which element reads never do.
+Selection and dispatch are one topic split in two: only dispatch binds `$` to the selector and
+descends paths. Both run a held block (`code-block.access`).

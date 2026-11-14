@@ -86,9 +86,13 @@ r[fn.value] A function type in front of a block makes a function {pending #571}
 `fn(x: number):string { "{$x}" }` MUST evaluate to a function whose type equals
 `fn(x: number):string`. The body MUST be a block.
 
+r[fn.bare-literal] fn in front of a block types it by its reads {pending #571}
+`fn { body }` MUST make a function typed as a block argument is (`fn.block-type`).
+`fn { 5 } => $x` MUST bind a function of type `fn():any`.
+
 r[fn.block-type] A bare block has the unnamed parameters its body reads {pending #571}
-A block passed as an argument, or alone in parentheses, MUST take its type from the
-unnamed parameters its body reads.
+A block passed as a whole argument MUST convert to a function, typed by the unnamed
+parameters its body reads. Any other block is a code block (`code-block`).
 
 r[fn.block-reads-none] A block that reads no unnamed parameter has no parameters {pending #571}
 A block that reads neither `$` nor `$@` MUST have `fn():any`.
@@ -98,9 +102,6 @@ A block that reads `$` and not `$@` MUST have `fn(any):any`.
 
 r[fn.block-reads-acc] A block that reads the accumulator takes two parameters {pending #571}
 A block that reads `$@`, with or without `$`, MUST have `fn(any, any):any`.
-
-r[fn.block-held] A block held in a dict or list is not a function {pending #571}
-A block that is a dict value or a list element MUST NOT take a function type from its body.
 
 r[fn.no-self] A fn() body does not read a parameter {pending #571}
 A function written `fn()` whose body reads `$` MUST be rejected where it is written.
