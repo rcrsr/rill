@@ -5,8 +5,8 @@ status: normative
 since: 0.24.0
 issues: [568, 571, 575]
 grammar: [block]
-errors: [RILL-R005]
-depends: [dispatch, selection, fn]
+errors: [RILL-R005, TYPE_MISMATCH]
+depends: [dispatch, selection, fn, assertion]
 tests: [block-scoping.test.ts, pipe-targets.test.ts, closure-auto-invoke.test.ts, conditionals.test.ts]
 ---
 
@@ -85,9 +85,25 @@ Each selection of a held block MUST run it again.
 
 ## Interactions
 
+r[code-block.assert] An assertion on a code block checks its result {pending #575}
+`{ body }:T` MUST run the block where its position runs it, then assert its result against
+`T`. A pipe target, a head block, a block in parentheses, a construct body, and a selected
+entry each assert on every run.
+
+r[code-block.check] A check on a code block tests its result {pending #575}
+`{ body }:?T` MUST run the block, then yield whether its result has type `T`.
+
+r[code-block.assert-scope] The assertion covers the whole block {pending #575}
+A `:T` or `:?T` after the closing brace MUST apply to the block's result, never to its last
+statement. `$a -> { ... }:number -> .x` MUST assert before `.x` reads the value.
+
+r[code-block.assert-construct] A construct body accepts an assertion {pending #575}
+`true ? { 5 }:number ! { 6 }` MUST parse, and MUST assert the branch that runs.
+
 Storing a function needs `fn` in front of the block: `fn { 5 } => $x` binds a function
-(`fn.bare-literal`), where `{ 5 } => $x` binds 5. A function written with `fn` as an entry is a value, and selecting it returns it uncalled
-(`dispatch.fn`). A block passed as a whole argument is a function, not a code block, and takes
+(`fn.bare-literal`), where `{ 5 } => $x` binds 5. A function written with `fn` as an entry is
+a value, and selecting it returns it uncalled (`dispatch.fn`). An assertion on a block passed
+as an argument sets the converted function's outer (`fn.block-outer`). A block passed as a whole argument is a function, not a code block, and takes
 the unnamed parameters its body reads (`fn.block-type`). Only `fold` and `acc` call such a
 function with the accumulator as `$@`.
 
@@ -96,6 +112,7 @@ function with the accumulator as `$@`.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | `$` or `$@` read where none is bound | RILL-R005 | Yes |
+| A code block's result fails its assertion {pending #575} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -126,6 +143,11 @@ $x
 # Result: 5
 ```
 
+```rill pending=575
+3 -> { $ + 1 }:number -> { $ * 2 }
+# Result: 8
+```
+
 ```rill pending=571
 fn { 5 } => $x
 $x()
@@ -141,7 +163,9 @@ $d.a }
 ## Notes
 
 On 0.23.0 a head block, a block alone in parentheses, and a collection entry are wrapped into a
-function: `{ 5 } => $x` binds a closure, `$d.a` returns one, and `3 -> { 5 }` yields 5.
+function: `{ 5 } => $x` binds a closure, `$d.a` returns one, and `3 -> { 5 }` yields 5. An
+assertion after a block tests the closure, so `3 -> { $ + 1 }:number` halts `#TYPE_MISMATCH`
+(got closure), `:?number` yields false, and `true ? { 5 }:number ! { 6 }` halts RILL-P001.
 
 Open decision: #568, what a read that does not select an entry does with a held block:
 iteration, `.values`, `.entries`, spread, equality, interpolation, host conversion, and the

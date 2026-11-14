@@ -94,6 +94,10 @@ r[fn.block-type] A bare block has the unnamed parameters its body reads {pending
 A block passed as a whole argument MUST convert to a function, typed by the unnamed
 parameters its body reads. Any other block is a code block (`code-block`).
 
+r[fn.block-outer] An assertion on an argument block is its outer {pending #571}
+`{ body }:T` passed as a whole argument MUST convert to a function whose outer is `T`, and
+each call MUST assert its result against `T`. `seq({ $ + 1 }:number)` passes `fn(any):number`.
+
 r[fn.block-reads-none] A block that reads no unnamed parameter has no parameters {pending #571}
 A block that reads neither `$` nor `$@` MUST have `fn():any`.
 
