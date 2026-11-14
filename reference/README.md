@@ -68,13 +68,13 @@ earlier one.
 | [values](values/) | The value model, equality, vacancy |
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |
 | [variables](variables/) | Variables, `$` binding, scope, capture |
-| [expressions](expressions/) | Pipes, selection, dispatch, operators |
+| [expressions](expressions/) | Pipes, selection, dispatch, existence, destructure, slice, spread, interpolation, operators |
 | [callables](callables/) | Blocks, functions, parameters, invocation |
 | [control-flow](control-flow/) | Control statements and their options, loops |
 | [collections](collections/) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
 | [errors](errors/) | Invalid values, recovery, `assert`, `error` |
 | limits | Iteration, concurrency, call depth, timeouts |
-| host-boundary | What a script observes of host functions and resources |
+| [host-boundary](host-boundary/) | `use`, and what a script observes of host functions and resources |
 | builtins | Built-in methods and functions |
 
 ## Open decisions
@@ -92,3 +92,7 @@ until they are. 0.24.0 does not ship while this list is non-empty.
 | [#579](https://github.com/rcrsr/rill/issues/579) | The literal form of a duration | `duration` |
 | [#613](https://github.com/rcrsr/rill/issues/613) | Whether `fan`, `filter`, and `sort` share the 10,000-element ceiling | `iteration` |
 | [#614](https://github.com/rcrsr/rill/issues/614) | Whether an `ordered` is a collection source | `sort` |
+| [#615](https://github.com/rcrsr/rill/issues/615) | Which of tuple, ordered, and iterator destructure, slice, and spread accept | `destruct`, `slice`, `spread` |
+| [#617](https://github.com/rcrsr/rill/issues/617) | Whether a capture inside an interpolation escapes to the enclosing scope | `interpolation` |
+| [#618](https://github.com/rcrsr/rill/issues/618) | Whether the type after `use<...>` is checked | `use` |
+| [#619](https://github.com/rcrsr/rill/issues/619) | Which `use<...>` failures `guard` catches | `use` |

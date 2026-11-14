@@ -192,6 +192,18 @@ defaults.required 704c2fe56b2e
 defaults.synthesis e8200f8bec23
 defaults.tuple-trailing f25323b128a4
 defaults.type-match b099e1f33efb
+destruct.bind 53370e79daaa capture.bind@771562a46f74 capture.rebind@d0ae2424696b type-lock.halt@33dbd80723fe
+destruct.count 32e82219f146
+destruct.keyed 265c898537b0
+destruct.missing 4fa39ef8cf27
+destruct.nest-positional e96b46807526
+destruct.nested 0ef94b8b884c
+destruct.no-mix 21923c505d07
+destruct.positional 8b1da4d4f949
+destruct.result 979409b161ac
+destruct.skip 86168bbe3c38
+destruct.target 7cc2b884121b
+destruct.typed 90ba74f7d4fc
 dict fa5b848e8a98 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 dict.any 71a5cc6bd21a
 dict.empty-parens 03dba1843c57
@@ -352,6 +364,14 @@ inference.shape-union 9929e689f406
 inference.shape-union-ordered 5a29e593a5ed
 inference.uniform a737257018f3
 inference.union-element 8eeac61a0bfd
+interpolation 8bc68d7d29d3 pipe.string@e11eeeaf2f49
+interpolation.brace-escape 6e5608da3dc5
+interpolation.dollar 0ab302e7a77c
+interpolation.expression e6e5f7c53b8a
+interpolation.non-empty b3e626dfdbe3
+interpolation.order 7bdb45c0246a
+interpolation.printed fdb3073b6dba string.from-bool@a2d54837dbaf string.from-collection@2e6b76a26a5b string.from-number@aa4ac6bcf48e
+interpolation.string 00f9ba88f50f
 introspection.annotations e07ad255220a
 introspection.bare 37f735d34b97
 introspection.bare-inner ee713b640625
@@ -555,6 +575,16 @@ seq.arguments 2d03d5190852
 seq.order cae8c8d7cea5 iteration.list@b614df3f4a13
 seq.result a54b118a68cf
 seq.result-type f5017357012d
+slice.bound-form 904c5ff793ad
+slice.clamp 306fb00a7f55
+slice.defaults ecb14d7e175c
+slice.empty ef23c5bb2e76
+slice.half-open c0cb17e149b5
+slice.integer 5eab3a8c3dd9
+slice.negative 3a009d81e481
+slice.separator a6cbc69b9ff1
+slice.source c9a3eff986c3
+slice.step-zero 41308f1e5ca4
 sort 4cc8aa35275e iteration.non-source@d0f6f730741a pipe.call-operand@f1a1b2193c9f
 sort.ascending 662284d77870
 sort.comparable 9998bd1e3b2d
@@ -566,6 +596,19 @@ sort.list 781161bb63c2 iteration.string@89b1c92e7911
 sort.ordered d584aee49b53
 sort.stable fbea85ff9a18
 sort.vacant-key 80736937d5a9
+spread ed95d4813db8 map.no-spread@08b2ae6aad46
+spread.arg-dict 60818904593b
+spread.arg-ordered a60effbc023a
+spread.arg-other 265a1a1c71e1
+spread.arg-positional 8d42dd030662
+spread.arg-tuple ca06a765a105
+spread.dict d0646332a6f3
+spread.dict-later dca48d858dcd
+spread.list 1a0af8fa2ecb
+spread.list-uniform 0fe0b7347088
+spread.one-argument e60c846f1c3a
+spread.operand c72f7d9eace7
+spread.piped 8148896d97d1
 statement.block-dollar 35d308739644
 statement.continuation 64a317c3fb8c
 statement.no-carry 4dadd2889ba7
@@ -707,6 +750,16 @@ union.position 103f75cebc9d
 union.reduce 0b805993ab3d
 union.single bb75e3563574
 union.variable 82407cbfe409
+use.adjacent c8bb82d1cbb7
+use.cycle d1891cf82b4d
+use.each-time b41b41e7fcaf
+use.id-value fe8cdfdea67c
+use.resolver-failure 459c278f3614
+use.scheme 413764867770
+use.source 181e9efd02b6
+use.source-dollar 0525ba22f867
+use.static-id 6a1e1b1fbabc
+use.value 5bee6cb4db6b
 vacancy 65b0e218fce5 carried-type.fallback@9a18ebc2b806 conditional.bool@e166d29a4597
 vacancy.empty 93cdf5149efe
 vacancy.empty-probe 0604f14c1ffc
