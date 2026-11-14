@@ -130,7 +130,7 @@ Only that directory is scanned. Citing an unknown or pending rule is an error.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | The value matches no member in an assertion | `#TYPE_MISMATCH` | Yes |
-| A capture's value matches no member | RILL-R001 | No |
+| A parameter's value matches no member | RILL-R001 | No |
 
 "Error" holds an error code (`#TYPE_MISMATCH`), an error id (`RILL-R001`), or both. Every code
 and id in the table MUST appear in the frontmatter `errors` list, without the `#`, and every entry

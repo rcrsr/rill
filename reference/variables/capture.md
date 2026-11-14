@@ -6,7 +6,7 @@ since: 0.24.0
 issues: []
 grammar: []
 errors: [RILL-R001]
-depends: [pipe, assertion, type-lock]
+depends: [statement, assertion, type-lock]
 tests: [capture-types.test.ts, lexer-capture-arrow.test.ts]
 ---
 
@@ -46,7 +46,7 @@ A capture into a bound variable MUST replace its value, subject to the variable'
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| The value does not match the capture's type or the variable's lock | RILL-R001 | No |
+| The value does not match the capture's type or the variable's lock | RILL-R001 | Yes |
 
 ## Examples
 

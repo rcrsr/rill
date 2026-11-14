@@ -95,7 +95,7 @@ chain binds and passes the value on (`capture`).
 |-----------|-------|-----------|
 | A number, bool, or atom literal is a target | RILL-P001 | No |
 | A variable target is undefined | RILL-R005 | Yes |
-| A script function target lacks an argument | RILL-R044 | Yes |
+| A script function target lacks an argument | RILL-R044 | No |
 
 ## Examples
 
