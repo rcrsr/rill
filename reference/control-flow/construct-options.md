@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [578]
 grammar: []
-errors: []
+errors: [RILL-P004, TYPE_MISMATCH]
 depends: [loop, pass]
 tests: []
 ---
@@ -36,9 +36,9 @@ A control statement's options MUST be written in parentheses after its keyword. 
 `keyword<...>` MUST be rejected with a message naming the parenthesized form.
 
 r[construct-options.dict] Options are a dict of the keyword's options type {pending #578}
-The options MUST be checked as a dict against the keyword's options type. An unknown option
-MUST be rejected, a required option MUST be present, and an option with a default MAY be
-absent.
+The options MUST be checked as a dict against the keyword's options type. An unknown option,
+a missing required option, or a value of the wrong type MUST halt with `#TYPE_MISMATCH`. An
+option with a default MAY be absent.
 
 r[construct-options.order] Options have no order {pending #578}
 Options MUST be accepted in any order.
@@ -48,7 +48,8 @@ An option value MUST be evaluated as an expression and checked against its field
 except where a literal is required.
 
 r[construct-options.literal-bound] Bounds are literals {pending #578}
-`limit` and `attempts` MUST be written integer literals. A spread MUST NOT supply either.
+`limit` and `attempts` MUST be written positive integer literals. A computed value, zero, or
+a spread that supplies either MUST be rejected with RILL-P004.
 
 r[construct-options.spread] A dict may be spread in {pending #578}
 `keyword(...$d)` MUST supply the fields of `$d` as options.
@@ -59,6 +60,13 @@ r[construct-options.space] A space before the parenthesis is legal {pending #578
 r[construct-options.none] No options means no parentheses
 The forms without options, `do { }`, `pass { }`, and `guard { }`, MUST keep their meaning.
 
+## Errors
+
+| Condition | Error | Catchable |
+|-----------|-------|-----------|
+| An unknown option, a missing required option, or a wrong value type | `#TYPE_MISMATCH` | Yes |
+| `limit` or `attempts` is not a written positive integer literal | RILL-P004 | No |
+
 ## Examples
 
 ```rill pending=578
@@ -66,7 +74,13 @@ The forms without options, `do { }`, `pass { }`, and `guard { }`, MUST keep thei
 # Result: 10
 ```
 
+```rill pending=578
+# Error: #TYPE_MISMATCH
+retry(attempts: 3, bogus: 1) { 1 }
+```
+
 ## Notes
 
 On 0.23.0 each keyword parses its options in angle brackets with its own grammar, and `retry`
-names its bound `limit`. `guard`, `retry`, and `timeout` are stated with errors and limits.
+names its bound `limit`. The parse error for the removed angle-bracket form has no error id
+yet. `guard`, `retry`, and `timeout` are stated with errors and limits.

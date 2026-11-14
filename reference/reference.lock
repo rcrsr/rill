@@ -83,7 +83,7 @@ bool.unordered 3b55c75110e5
 break.loop 77f3c77a4528
 break.nested de79f3da488d
 break.not-halt ec05571e1ef0
-break.return-body 23c89e6d85e2 statement.return@cfaa581542b6
+break.return-body 23c89e6d85e2 statement.return@231d6a34b48f
 break.return-each 14a36a5597f3
 break.seq e47b3a30461b
 break.unsupported 2ea2eb802674
@@ -107,7 +107,7 @@ carried-type.inferred-element a44c53e2217c
 carried-type.replace 92d0ac2c5056 assertion.any@c486fea6b8eb
 carried-type.reserved-key 482d6a7d0ebf
 carried-type.type-probe eaad72137ace
-code-block 00aa47048d38 dispatch.fn@b3dfba5720a1 fn.bare-literal@7764d6cb0b81 fn.block-outer@375fe3f56dac fn.block-type@e8dcdd7536d6 statement.result@4c84cfa0816c statement.return@cfaa581542b6
+code-block 4c330a1c749f break.return-body@23c89e6d85e2 dispatch.fn@b3dfba5720a1 fn.bare-literal@7764d6cb0b81 fn.block-outer@375fe3f56dac fn.block-type@e8dcdd7536d6 statement.result@4c84cfa0816c
 code-block.access ecc52b36f876
 code-block.assert ddf153eb53d5 assertion.mismatch@9dc0075657b2 assertion.pass@1a0a1da3896c
 code-block.assert-construct d705d782beca
@@ -133,8 +133,8 @@ conditional.chain f6e6d4a3bb8a
 conditional.dollar 02e039ee422d
 conditional.no-else 7f5fd8f0deba
 conditional.piped 933b1fa68341
-construct-options.dict bb15a5bef7f6
-construct-options.literal-bound d0cc1bf55ffd
+construct-options.dict 5c87097818e4
+construct-options.literal-bound e92b3597ff26
 construct-options.none cee8fe49f9ef
 construct-options.order 1d6b6fe441b6
 construct-options.parens 196a52e6e3da
@@ -412,6 +412,12 @@ invalid-value.origin f59e88d4cf82
 invalid-value.probe 024c35ff18e2
 invalid-value.status 7d727ece29c6
 invalid-value.valid-status 413a1a114f6b
+invocation 22c3ccc7a49e defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 pipe.call-operand@f1a1b2193c9f pipe.script-operand@83d274a88e63 scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
+invocation.arguments-first 506b39f747fd
+invocation.before-body 248c16d5ba59
+invocation.excess adc4936056b0
+invocation.positional 95d22ed507e2
+invocation.type 3b9d5f0b7e24
 iteration 89f61c671e5e break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@430d605ecfa7 pipe.call-operand@f1a1b2193c9f scope.iteration@6614cdd083b1
 iteration.callable a0543ec98142
 iteration.dict 574e84e3af53
@@ -631,7 +637,7 @@ statement.continuation 64a317c3fb8c
 statement.no-carry 4dadd2889ba7
 statement.order 98a74d8dbe9c
 statement.result 4c84cfa0816c
-statement.return cfaa581542b6
+statement.return 231d6a34b48f
 statement.variables f7af6b5ed81e
 stream.chunk 6198ae79278a
 stream.equality e4151d863b72

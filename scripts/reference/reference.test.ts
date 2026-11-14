@@ -266,6 +266,29 @@ describe('checkCorpus', () => {
     '## Syntax\n\n```ebnf\nitem = "a" , { "b" } ;\n```\n\nr[alpha.one] A rule\nIt MUST hold.\n\n## Errors\n\n| Condition | Error | Catchable |\n|-----------|-------|-----------|\n| A | `#TYPE_MISMATCH` | Yes |\n| B | RILL-R001 | No |\n'
   );
 
+  it('keeps README open decisions and concept Notes in sync', () => {
+    const readme = (concepts: string): string =>
+      '---\nchapters:\n  - one\n  - two\n---\n\n# Readme\n\n## Open decisions\n\n' +
+      '| Issue | Question | Concept |\n|---|---|---|\n' +
+      `| [#7](https://x/7) | Q | ${concepts} |\n`;
+    const noted = one + '\n## Notes\n\nOpen decision: #7, a detail.\n';
+    expect(
+      checkRepo({
+        'reference/README.md': readme('`alpha`'),
+        'reference/one/alpha.md': noted,
+      })
+    ).toEqual([]);
+    expect(
+      checkRepo({
+        'reference/README.md': readme('`beta`'),
+        'reference/one/alpha.md': noted,
+      })
+    ).toEqual(['open-decision-unlisted', 'open-decision-stale']);
+    expect(checkRepo({ 'reference/one/alpha.md': noted })).toEqual([
+      'open-decision-unlisted',
+    ]);
+  });
+
   it('accepts a consistent tree', () => {
     expect(checkRepo({ 'reference/one/alpha.md': one })).toEqual([]);
   });

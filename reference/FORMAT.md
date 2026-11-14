@@ -145,7 +145,10 @@ rule, and of each rule those owners cite. Whitespace changes do not change a has
 - `pnpm ref check --issues` confirms every pending issue is still open. It calls `gh`, so it runs
   locally and before a release, not in CI.
 - A decision not yet made is never a rule. The file names it in Notes as "Open decision: #N", and
-  `README.md` lists it under Open decisions.
+  `README.md` lists it under Open decisions in a row that names the concept. `pnpm ref check`
+  fails a note without such a row (`open-decision-unlisted`) and a row naming a concept whose
+  Notes lack it (`open-decision-stale`). A tracker issue whose rules are decided may also hold
+  open details; its row names only those details.
 
 ## Test citations
 

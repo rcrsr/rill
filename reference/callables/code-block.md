@@ -82,7 +82,7 @@ Each selection of a held block MUST run it again.
 ## Interactions
 
 A code block yields its last statement (`statement.result`), and `return` ends it early
-(`statement.return`).
+(`break.return-body`).
 
 Storing a function needs `fn` in front of the block: `fn { 5 } => $x` binds a function
 (`fn.bare-literal`), where `{ 5 } => $x` binds 5. A function written with `fn` as an entry is

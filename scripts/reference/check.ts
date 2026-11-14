@@ -283,6 +283,7 @@ export function checkCorpus(
   }
 
   checkCitations(corpus, options, add, out);
+  checkOpenDecisions(corpus, out);
 
   if (options.issueState) {
     checkIssues(corpus, options.issueState, add);
@@ -828,6 +829,81 @@ function checkCitations(
         'uncited-rule',
         `Built rule '${id}' has no citing test`
       );
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Open decisions
+// ---------------------------------------------------------------------------
+
+const OPEN_DECISION = /Open decision: #(\d+)/g;
+const DECISION_ROW = /^\|\s*\[#(\d+)\]\([^)]*\)\s*\|.*\|([^|]*)\|\s*$/;
+
+/** README Open decisions rows: issue number to its line and concept ids. */
+export function parseDecisionRows(
+  text: string
+): Map<number, { line: number; concepts: Set<string> }> {
+  const rows = new Map<number, { line: number; concepts: Set<string> }>();
+  let inSection = false;
+  text.split(/\r?\n/).forEach((raw, i) => {
+    if (raw.startsWith('## ')) inSection = raw.trim() === '## Open decisions';
+    if (!inSection) return;
+    const m = raw.match(DECISION_ROW);
+    if (!m) return;
+    const concepts = new Set(
+      [...m[2]!.matchAll(/`([a-z][a-z0-9-]*)`/g)].map((c) => c[1]!)
+    );
+    rows.set(Number(m[1]), { line: i + 1, concepts });
+  });
+  return rows;
+}
+
+/**
+ * Every `Open decision: #N` in a concept's Notes has a README row for #N that
+ * names the concept, and every concept a row names carries that note.
+ */
+function checkOpenDecisions(corpus: Corpus, out: Diagnostic[]): void {
+  const readme = path.join(corpus.referenceDir, 'README.md');
+  if (!fs.existsSync(readme)) return;
+  const readmePath = path
+    .relative(corpus.repoRoot, readme)
+    .split(path.sep)
+    .join('/');
+  const rows = parseDecisionRows(fs.readFileSync(readme, 'utf-8'));
+
+  const noted = new Map<number, Set<string>>();
+  for (const f of corpus.files) {
+    const id = getString(f.frontmatter, 'id');
+    if (!id) continue;
+    f.lines.forEach((text, i) => {
+      for (const m of text.matchAll(OPEN_DECISION)) {
+        const n = Number(m[1]);
+        let set = noted.get(n);
+        if (!set) noted.set(n, (set = new Set()));
+        set.add(id);
+        if (!rows.get(n)?.concepts.has(id)) {
+          out.push({
+            file: f.path,
+            line: i + 1,
+            severity: 'error',
+            code: 'open-decision-unlisted',
+            message: `README Open decisions has no row for #${n} naming '${id}'`,
+          });
+        }
+      }
+    });
+  }
+  for (const [n, row] of rows) {
+    for (const c of row.concepts) {
+      if (noted.get(n)?.has(c)) continue;
+      out.push({
+        file: readmePath,
+        line: row.line,
+        severity: 'error',
+        code: 'open-decision-stale',
+        message: `'${c}' has no "Open decision: #${n}" in its Notes`,
+      });
     }
   }
 }

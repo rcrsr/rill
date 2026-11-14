@@ -44,8 +44,9 @@ value.
 r[statement.result] A script or block yields its last statement
 A script and a block MUST yield the value of the last statement they run.
 
-r[statement.return] return ends the script or block early
-`v -> return` MUST end the innermost block, or the script at the top level, with `v`.
+r[statement.return] return at the top level ends the script
+`v -> return` in a top-level statement MUST end the script with `v`. Later statements MUST NOT
+run.
 
 r[statement.variables] Statements share values through variables
 A later statement MUST read an earlier result only through a variable bound by a capture.

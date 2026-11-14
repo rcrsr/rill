@@ -3,7 +3,7 @@ id: annotation
 title: Annotations
 status: normative
 since: 0.24.0
-issues: [620]
+issues: [571, 620]
 grammar: []
 errors: [RILL-P001, RILL-R081]
 depends: []
@@ -19,9 +19,9 @@ field of a structural type.
 
 ```text
 ^(note: "x") $a -> $f()           on a statement
-^(min: 0, max: 100) |x| ($x)      on a function
-^("adds one") |x| ($x + 1)        description shorthand
-|^(min: 0) x: number| ($x)        on a parameter
+^(min: 0, max: 100) fn(x) { $x }  on a function
+^("adds one") fn(x) { $x + 1 }    description shorthand
+fn(^(min: 0) x: number) { $x }   on a parameter
 dict(^("label") name: string)     on a field
 ```
 
@@ -80,9 +80,9 @@ annotations are read from the type (`introspection.annotations`).
 
 ## Examples
 
-```rill
+```rill pending=571
 5 => $n
-^(k: $n + 1) |x| ($x) => $f
+^(k: $n + 1) fn(x) { $x } => $f
 $f.^k
 # Result: 6
 ```
@@ -92,9 +92,9 @@ $f.^k
 # Result: 3
 ```
 
-```rill
+```rill pending=571
 # Error: Annotation key "type" is reserved
-^(type: "x") |x| ($x)
+^(type: "x") fn(x) { $x }
 ```
 
 ## Notes
