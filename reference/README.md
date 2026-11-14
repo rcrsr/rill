@@ -72,7 +72,7 @@ earlier one.
 | [callables](callables/) | Blocks, functions, parameters, invocation |
 | [control-flow](control-flow/) | Control statements and their options, loops |
 | collections | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
-| errors | Invalid values, recovery, `assert`, `error` |
+| [errors](errors/) | Invalid values, recovery, `assert`, `error` |
 | limits | Iteration, concurrency, call depth, timeouts |
 | host-boundary | What a script observes of host functions and resources |
 | builtins | Built-in methods and functions |
