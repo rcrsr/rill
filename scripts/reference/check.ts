@@ -242,6 +242,7 @@ export function checkCorpus(
 
   checkIds(corpus, add);
   checkDepends(corpus, add);
+  checkXrefs(corpus, add);
 
   checkGrammar(files, repoRoot, add);
   checkErrors(files, repoRoot, options.errorCodes, add);
@@ -479,6 +480,78 @@ function checkIds(corpus: Corpus, add: AddFor): void {
           'rule-concept-clash',
           `Rule id '${r.id}' equals a concept id`
         );
+      }
+    }
+  }
+}
+
+/**
+ * Cross-references. A backticked `concept.rule` outside Notes must name an
+ * existing rule or concept, so a renamed or removed rule cannot leave a stale
+ * link behind. Notes may name superseded ids, which by definition no longer
+ * exist. A built rule that cites a pending rule describes behavior that is not
+ * built yet, which is reported as a warning.
+ */
+function checkXrefs(corpus: Corpus, add: AddFor): void {
+  const concepts = new Set<string>();
+  const rules = new Map<string, ParsedFile['rules'][number]>();
+  for (const f of corpus.files) {
+    const id = getString(f.frontmatter, 'id');
+    if (id) concepts.add(id);
+    for (const r of f.rules) rules.set(r.id, r);
+  }
+  const token = /`([a-z][a-z0-9_-]*(?:\.[a-z0-9_-]+)+)`/g;
+
+  for (const f of corpus.files) {
+    if (!getString(f.frontmatter, 'id')) continue;
+    const notes = f.headings.find((h) => h.level === 2 && h.text === 'Notes');
+    const end = notes ? notes.line : f.lines.length + 1;
+    const inFence = (line: number): boolean =>
+      f.fences.some(
+        (x) => line >= x.line && line <= (x.closed ? x.endLine : f.lines.length)
+      );
+    const markerLines = new Set(f.rules.map((r) => r.line));
+    const owner = (line: number): ParsedFile['rules'][number] | undefined => {
+      let best: ParsedFile['rules'][number] | undefined;
+      for (const r of f.rules) {
+        if (r.line <= line && (!best || r.line > best.line)) best = r;
+      }
+      if (!best) return undefined;
+      const heading = f.headings.some(
+        (h) => h.line > best!.line && h.line <= line
+      );
+      return heading ? undefined : best;
+    };
+
+    for (let line = 1; line < end; line++) {
+      if (markerLines.has(line) || inFence(line)) continue;
+      const text = f.lines[line - 1] ?? '';
+      for (const m of text.matchAll(token)) {
+        const ref = m[1]!;
+        const concept = ref.slice(0, ref.lastIndexOf('.'));
+        if (!concepts.has(concept)) continue;
+        if (concepts.has(ref)) continue;
+        const target = rules.get(ref);
+        if (!target) {
+          add(
+            f,
+            line,
+            'error',
+            'xref-unknown',
+            `'${ref}' names no rule; concept '${concept}' has no rule with that slug`
+          );
+          continue;
+        }
+        const from = owner(line);
+        if (from && from.pending === null && target.pending !== null) {
+          add(
+            f,
+            line,
+            'warn',
+            'xref-pending',
+            `Built rule '${from.id}' cites '${ref}', which is pending #${target.pending}`
+          );
+        }
       }
     }
   }

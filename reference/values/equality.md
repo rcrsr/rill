@@ -47,8 +47,8 @@ r[equality.nested] Equality is deep
 Equality of collections MUST compare nested elements by these same rules.
 
 r[equality.kind] Values of different kinds are unequal
-`list[1] == tuple[1]` and `ordered[a: 1] == dict[a: 1]` MUST yield false where they do not
-halt under `equality.no-overlap`.
+A comparison of values of different kinds that completes MUST yield false, as
+`list[1] == tuple[1]` and `ordered[a: 1] == dict[a: 1]` do.
 
 r[equality.function] Functions compare by structure
 Two functions MUST be equal when their parameters, bodies, and the values of the variables

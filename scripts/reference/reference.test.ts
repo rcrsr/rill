@@ -789,3 +789,55 @@ describe('checkBlockLayout', () => {
     expect(codes('"""\n{ not code\n""" -> .len')).toEqual([]);
   });
 });
+
+describe('checkCorpus: cross-references', () => {
+  const target = concept(
+    'beta',
+    '',
+    '## Evaluation\n\nr[beta.built] A built rule\nIt MUST hold.\n\nr[beta.later] A pending rule {pending #7}\nIt MUST hold.\n'
+  );
+  const citing = (body: string): string => concept('alpha', '', body);
+
+  it('accepts a reference to an existing rule or concept', () => {
+    expect(
+      checkRepo({
+        'reference/one/alpha.md': citing(
+          '## Interactions\n\nSee `beta.built` and `beta`.\n'
+        ),
+        'reference/one/beta.md': target,
+      })
+    ).toEqual([]);
+  });
+
+  it('rejects a reference to a rule that does not exist', () => {
+    expect(
+      checkRepo({
+        'reference/one/alpha.md': citing(
+          '## Interactions\n\nSee `beta.gone`.\n'
+        ),
+        'reference/one/beta.md': target,
+      })
+    ).toContain('xref-unknown');
+  });
+
+  it('allows superseded ids in Notes and ignores fences', () => {
+    expect(
+      checkRepo({
+        'reference/one/alpha.md': citing(
+          '## Examples\n\n```text\n`beta.gone`\n```\n\n## Notes\n\nSuperseded: `beta.gone`.\n'
+        ),
+        'reference/one/beta.md': target,
+      })
+    ).toEqual([]);
+  });
+
+  it('warns when a built rule cites a pending rule', () => {
+    const codes = checkRepo({
+      'reference/one/alpha.md': citing(
+        '## Evaluation\n\nr[alpha.one] A built rule\nIt MUST follow `beta.later`.\n\nr[alpha.two] A pending rule {pending #7}\nIt MUST follow `beta.later`.\n'
+      ),
+      'reference/one/beta.md': target,
+    });
+    expect(codes).toEqual(['xref-pending']);
+  });
+});

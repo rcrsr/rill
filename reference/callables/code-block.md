@@ -87,7 +87,7 @@ Each selection of a held block MUST run it again.
 
 r[code-block.assert] An assertion on a code block checks its result {pending #575}
 `{ body }:T` MUST run the block where its position runs it, then assert its result against
-`T`. A pipe target, a head block, a block in parentheses, a construct body, and a selected
+`T` as any assertion does (`assertion.pass`, `assertion.mismatch`). A pipe target, a head block, a block in parentheses, a construct body, and a selected
 entry each assert on every run.
 
 r[code-block.check] A check on a code block tests its result {pending #575}

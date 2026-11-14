@@ -31,8 +31,7 @@ r[capture.pass-on] A capture passes the value on
 The chain after a capture MUST continue with `v`, so `5 => $x => $y` binds both to 5.
 
 r[capture.no-eval] A capture evaluates nothing
-A capture MUST NOT convert, call, or select. A code block before `=>` runs by its own rule
-(`code-block.head`), not because of the capture.
+A capture MUST NOT convert, call, or select.
 
 r[capture.assert] A typed capture asserts
 `v => $x:T` MUST assert `v` against `T` before binding, as `assertion` states, and MUST NOT
@@ -41,6 +40,10 @@ convert.
 r[capture.rebind] A later capture replaces the binding
 A capture into a bound variable MUST replace its value, subject to the variable's type lock
 (`type-lock`).
+
+## Interactions
+
+A code block before `=>` runs by its own rule (`code-block.head`), not because of the capture.
 
 ## Errors
 

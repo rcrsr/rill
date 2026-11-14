@@ -102,6 +102,19 @@ normative force, so avoid it in rule bodies.
 
 One marker states one testable fact. Two facts that can fail independently get two markers.
 
+## Ownership and cross-references
+
+Every fact has one owning rule. Other files cite it and never restate it.
+
+- A rule states only its own fact. When it depends on another concept's behavior, it cites
+  that rule by id in backticks, as in (`assertion.mismatch`), and does not repeat the behavior.
+- Interactions holds only facts that exist where two concepts meet. `code-block.assert` owns
+  "the assertion applies to the block's result"; `assertion` owns what the assertion does.
+- A backticked `concept.rule` outside Notes MUST name an existing rule. `pnpm ref check` fails
+  a stale reference (`xref-unknown`). Notes may name superseded ids.
+- A built rule that cites a pending rule describes behavior that is not built yet. `pnpm ref
+  check` warns (`xref-pending`). Move the citation to Interactions or make the rule pending.
+
 ## Build state
 
 - A rule without `{pending}` is built: `main` satisfies it, and a locked test cites it.
