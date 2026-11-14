@@ -143,6 +143,8 @@ in that list MUST appear in the table. See
 - A fence that must halt carries `# Error:` on its first line.
 - A fence that needs an unbuilt rule is ` ```rill pending=574 `. The harness skips it until the
   issue closes, and the checker then fails it until the tag is removed.
+- A block that spans lines opens with `{` at the end of a line, indents each statement two
+  spaces, and closes with `}` on its own line. A one-statement block stays on one line.
 - A ` ```text ` fence never runs. Use it for syntax shapes, not for code that should run.
 
 ## Notes

@@ -64,7 +64,7 @@ earlier one.
 |---------|--------|
 | [conventions](conventions/) | Notation and the vocabulary of halts |
 | lexical | Source text, tokens, comments, literals |
-| program | Scripts, frontmatter, statements, the return value |
+| [program](program/) | Scripts, frontmatter, statements, the return value |
 | values | The value model, equality, vacancy |
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |
 | variables | Variables, `$` binding, scope, capture |

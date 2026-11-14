@@ -122,8 +122,10 @@ function with the accumulator as `$@`.
 ```
 
 ```rill
-3 -> { "big" -> return
-"after" } -> .upper
+3 -> {
+  "big" -> return
+  "after"
+} -> .upper
 # Result: "BIG"
 ```
 
@@ -155,8 +157,10 @@ $x()
 ```
 
 ```rill pending=568
-7 -> { dict[a: { $ + 1 }] => $d
-$d.a }
+7 -> {
+  dict[a: { $ + 1 }] => $d
+  $d.a
+}
 # Result: 8
 ```
 

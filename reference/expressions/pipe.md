@@ -1,0 +1,131 @@
+---
+id: pipe
+title: Pipe
+status: normative
+since: 0.24.0
+issues: [567, 571]
+grammar: [pipe-chain]
+errors: [RILL-P001, RILL-R005, RILL-R044]
+depends: [statement, dispatch, conversion, assertion]
+tests: [pipe-targets.test.ts]
+---
+
+# Pipe
+
+A pipe `v -> target` evaluates its target with the incoming value `v`, by the kind of the target.
+
+## Syntax
+
+```ebnf
+pipe-chain = value-expr , [ "?" , body , [ "!" , body ] ] , { ( "->" , ( pipe-target | capture ) ) | ( "=>" , capture ) } , [ "->" , chain-terminator ] ;
+```
+
+```text
+"5" -> number         type: converts
+0 -> list["a", "b"]   data: selects
+3 -> { $ + 1 }        computation: takes the value as input
+5 -> "x{$}"           string: built with $ bound
+```
+
+## Static rules
+
+r[pipe.no-literal] A number, a bool, or an atom is not a target
+A number, bool, or atom literal after `->` MUST be rejected with RILL-P001.
+
+r[pipe.uses-value] A target uses the piped value {pending #567}
+A code block that does not read `$`, a string that does not interpolate `$`, and a function of
+no parameters MUST be rejected as targets before the script runs.
+
+r[pipe.data-no-dollar] A data literal target does not read $ {pending #567}
+A list, dict, tuple, or ordered literal used as a target MUST NOT read `$` at its top level. The
+message MUST name the block form, such as `3 -> { list[$, $] }`. A `$` inside a nested block
+does not count.
+
+## Evaluation
+
+r[pipe.left-to-right] A chain evaluates left to right
+Each `->` MUST evaluate its target with the value the chain has produced so far, and the chain
+MUST continue with the result.
+
+r[pipe.type] A type target converts
+`v -> T` MUST convert `v` to `T`, as `conversion` states.
+
+r[pipe.data] A data target selects
+`v -> c` for a list, dict, tuple, ordered, or map `c` MUST select with `v`, as `dispatch` states.
+
+r[pipe.block] A code block target runs with the value
+`v -> { body }` MUST run the block with `$` bound to `v`, as `code-block.pipe-target` states.
+
+r[pipe.function] A function target is called with the value
+`v -> $f` MUST call `$f` with `v` as its one argument.
+
+r[pipe.method] A method target applies to the value
+`v -> .m` and `v -> .m(args)` MUST call the method `m` on `v`.
+
+r[pipe.string] A string target is built with the value
+`v -> "..."` MUST evaluate the string with `$` bound to `v`.
+
+r[pipe.call-operand] A call target receives the value first
+`v -> f(args)` and `v -> f` MUST call `f` with `v` prepended to `args`, for a built-in or host
+function `f`.
+
+r[pipe.call-dollar] A written $ argument replaces the prepended operand
+When an argument of a call target is a top-level `$`, the value MUST NOT be prepended, and
+each such `$` MUST be `v`. `5 -> range(0, $)` MUST equal `range(0, 5)`.
+
+r[pipe.script-operand] A script function target receives the value first {pending #571}
+`v -> $h(args)` MUST call `$h` with `v` prepended to `args`, as a built-in call target does.
+
+r[pipe.grouped] A parenthesized target is a grouped expression
+`v -> (expr)` MUST evaluate `expr` with `$` bound to `v`.
+
+r[pipe.variable] A variable target acts as its value
+`v -> $x` MUST do what the value of `$x` calls for as a target. An undefined `$x` MUST halt
+with RILL-R005.
+
+## Interactions
+
+A conditional or a loop after `->` takes the value as its input, as the control-flow chapter
+states. `-> :T` and `-> :?T` assert and check rather than convert (`assertion`). A capture in a
+chain binds and passes the value on (`capture`).
+
+## Errors
+
+| Condition | Error | Catchable |
+|-----------|-------|-----------|
+| A number, bool, or atom literal is a target | RILL-P001 | No |
+| A variable target is undefined | RILL-R005 | Yes |
+| A script function target lacks an argument | RILL-R044 | Yes |
+
+## Examples
+
+```rill
+"5" -> number -> { $ + 1 }
+# Result: 6
+```
+
+```rill
+list[1, 2, 3] -> take(2)
+# Result: list[1, 2]
+```
+
+```rill
+3 -> range(0, $) -> seq({ $ })
+# Result: list[0, 1, 2]
+```
+
+```rill
+5 -> ($ > 3) ? "big" ! "small"
+# Result: "big"
+```
+
+```rill
+# Error: Expected pipe target
+5 -> 3
+```
+
+## Notes
+
+On 0.23.0 a target that ignores the value runs: `5 -> "x"` yields `"x"` and `3 -> { 5 }` yields
+5. `3 -> list[$, $]` builds `list[3, 3]` and indexes it with 3, halting RILL-R009. A script
+function does not receive the operand: `3 -> $h(4)` halts RILL-R044, and `3 -> $h($, 4)` works.
