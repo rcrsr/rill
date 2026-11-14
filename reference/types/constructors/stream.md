@@ -106,9 +106,8 @@ On 0.23.0 builds a type with an outer does not nest. `list(stream(number):string
 `union(stream(number):string, string)` halt RILL-P014, and `$s -> :?stream(string):number`
 halts RILL-P001. A variable holding the type, `$s -> :?$t`, works today.
 
-`$s -> :?stream(any)` is false for a stream of strings on 0.23.0 builds, and
-`stream(string):any` does not accept a stream the bare outer `stream(string)` accepts. The
-reference states no rule for chunk variance or an explicit `any` outer.
+`$s -> :?stream(any)` is false for a stream of strings on 0.23.0 builds, while
+`list(any)` accepts any list (#604). The reference states no rule for chunk variance.
 
 The 0.23.0 `.^chunk` and `.^output` probes are removed; `.inner` and `.outer` on the stream's
 type replace them.

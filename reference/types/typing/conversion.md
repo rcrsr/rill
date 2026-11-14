@@ -124,7 +124,7 @@ Until #566 is built, a pipe into a parameterized type converts the outer kind an
 types, so `list[1, 2] -> list(string)` halts `#TYPE_MISMATCH`. Until #574 is built, a pipe into a
 union halts RILL-R036.
 
-Known defect: conversion through a variable skips inner conversion, fill, and drop. With
+Known defect (#602): conversion through a variable skips inner conversion, fill, and drop. With
 `dict(a: string) => $T`, `dict[a: 1] -> $T` returns `dict[a: 1]` and does not assert the field, and
 `dict(a: number, b: number = 5) => $T` does not fill `b`.
 

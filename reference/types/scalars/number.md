@@ -144,7 +144,7 @@ A number MUST satisfy `:number`. A value of any other type MUST halt `:number` w
 
 ## Notes
 
-A literal of about 309 or more digits reads as infinity in the current runtime, which breaks
-`number.finite`. The conversion `"Infinity" -> number` halts RILL-R038.
+A literal past the double range reads as infinity in the current runtime, which breaks
+`number.finite` (#603). The conversion `"Infinity" -> number` halts RILL-R038.
 
 Until #560 lands, `==` between a number and a non-number yields false.

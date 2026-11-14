@@ -8,7 +8,6 @@ chapters:
   - variables
   - expressions
   - callables
-  - dispatch
   - control-flow
   - collections
   - errors
@@ -69,9 +68,8 @@ earlier one.
 | values | The value model, equality, vacancy |
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |
 | variables | Variables, `$` binding, scope, capture |
-| expressions | Pipes, access, operators |
+| [expressions](expressions/) | Pipes, selection, dispatch, operators |
 | callables | Blocks, functions, parameters, invocation |
-| dispatch | Element selection and collection dispatch |
 | control-flow | Control statements and their options, loops |
 | collections | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
 | errors | Invalid values, recovery, `assert`, `error` |
