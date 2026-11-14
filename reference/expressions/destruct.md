@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [616]
 grammar: [destructure, destruct-pattern]
-errors: [RILL-P001, RILL-R001, RILL-R002, RILL-R009]
+errors: [RILL-P001, RILL-P026, RILL-R001, RILL-R002, RILL-R009]
 depends: [pipe, selection]
 tests: [destruct-slice-keyword.test.ts, extraction.test.ts]
 ---
@@ -38,7 +38,8 @@ r[destruct.target] destruct is a pipe target
 RILL-P001.
 
 r[destruct.no-mix] A pattern is positional or keyed, not both {pending #616}
-A pattern that mixes `$name` or `_` elements with `key: $name` elements MUST be rejected.
+A pattern that mixes `$name` or `_` elements with `key: $name` elements MUST be rejected with
+RILL-P026.
 
 r[destruct.nest-positional] Only a positional element nests
 A nested `destruct<...>` MUST appear as a positional element. `key: destruct<...>` MUST be
@@ -83,6 +84,7 @@ r[destruct.result] destruct yields its input
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | `destruct` at a statement head, or a keyed nested pattern | RILL-P001 | No |
+| A pattern mixes positional and keyed elements {pending #616} | RILL-P026 | No |
 | The source kind does not fit the pattern | RILL-R002 | Yes |
 | The pattern and list lengths differ | RILL-R002 | Yes |
 | A keyed element names a missing key | RILL-R009 | Yes |

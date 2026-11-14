@@ -71,6 +71,15 @@ r[code-block.access] Access runs a held block with the enclosing $ {pending #568
 `$c.name`, `$c.$k`, and `$c[sel]` that select a held block MUST run it with `$` bound to the
 enclosing `$`, and yield its result.
 
+r[code-block.access-target] In a pipe target the enclosing $ is the piped value {pending #568}
+Access written as a pipe target MUST run a held block with `$` bound to the piped value.
+With `dict[n: 2, double: { $.n * 2 }] => $d`, `$d -> $d.double` MUST yield 4.
+
+r[code-block.non-selecting] A read that selects no entry halts on a held block {pending #568}
+Iteration, `.values`, `.entries`, `.first`, spread, equality, interpolation, and host conversion
+that reach a held block MUST halt with `#TYPE_MISMATCH` naming the entry. `.^type` and a type
+lock MUST see a held entry as `fn()`.
+
 r[code-block.each-time] A held block runs on every selection
 Each selection of a held block MUST run it again.
 
@@ -106,6 +115,7 @@ r[code-block.assert-construct] A construct body accepts an assertion {pending #5
 |-----------|-------|-----------|
 | `$` or `$@` read where none is bound | RILL-R005 | Yes |
 | A code block's result fails its assertion {pending #575} | `#TYPE_MISMATCH` | Yes |
+| A read that selects no entry reaches a held block {pending #568} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -166,6 +176,3 @@ assertion after a block tests the closure, so `3 -> { $ + 1 }:number` halts `#TY
 
 Superseded: `code-block.ignores-input`, now stated by `pipe.uses-value`.
 
-Open decision: #568, what a read that does not select an entry does with a held block:
-iteration, `.values`, `.entries`, spread, equality, interpolation, host conversion, and the
-entry's type in `.^type` and a type lock.

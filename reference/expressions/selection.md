@@ -45,8 +45,8 @@ r[selection.variable] The variable form is the bracket form with a variable
 `$c.$k` MUST select as `$c[$k]` does. An undefined `$k` MUST halt with RILL-R005.
 
 r[selection.no-paren] The parenthesized selector is removed {pending #607}
-`$c.(expr)` and `$c.?(expr)` MUST be rejected at parse time, with a message naming `$c[expr]`
-and `$c.?[expr]`.
+`$c.(expr)`, `$c.?(expr)`, the alternatives form `$c.(a || b)`, and the block form `$c.{ ... }`
+MUST be rejected at parse time, with a message naming `$c[expr]` and `$c.?[expr]`.
 
 r[selection.string] A string has no index form
 `$s[0]`, `$s.$k`, and `0 -> $s` MUST halt with RILL-R002, for a string `$s`.
@@ -78,10 +78,6 @@ r[selection.default] A fallback replaces a missing selection
 r[selection.bracket-default] A fallback replaces a missing bracket selection {pending #601}
 `$c[sel] ?? d` MUST yield `d` when the key or index is missing.
 
-r[selection.ordered-type] An ordered selector is a string {pending #576}
-An ordered selector that is not a string, a number position included, MUST halt with
-`#TYPE_MISMATCH`, as a dict selector does.
-
 r[selection.key-type] A dict selector is a string {pending #576}
 A dict selector that is not a string MUST halt with `#TYPE_MISMATCH`. Selection converts nothing.
 
@@ -92,7 +88,7 @@ r[selection.map-forms] A map selects by its key type {pending #599}
 `.$k`, `[sel]`, and dispatch on a map MUST select the value at the key `sel`.
 
 r[selection.map-name] A map has no named fields {pending #599}
-`$m.a` MUST halt.
+`$m.a` MUST halt with RILL-R003, as `.name` does on any receiver that has no named fields.
 
 r[selection.map-type] A map selector has the key type {pending #599}
 A map selector that is not the key type MUST halt with `#TYPE_MISMATCH`.
@@ -122,7 +118,8 @@ Element typing follows `carried-type.element`. The existence check `.?` is state
 | `.name` or `.at` on a receiver that has none | RILL-R003 | Yes |
 | A variable selector is undefined | RILL-R005 | Yes |
 | An index is not an integer | `#INVALID_INPUT` | Yes |
-| A dict, ordered, or map selector has the wrong type {pending #576} | `#TYPE_MISMATCH` | Yes |
+| A dict selector is not a string {pending #576} | `#TYPE_MISMATCH` | Yes |
+| A map selector has the wrong key type {pending #599} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -166,5 +163,3 @@ On 0.23.0 a dict selector that is a number matches a number key, so `1 -> dict[1
 on a list yields `0`, and `$s.(0) ?? 1` on a string yields `1`, because those halts are catchable
 by the fallback. `0 -> list[{ 5 }]` yields the block uncalled, `$t[0]` on a tuple yields a held
 block uncalled, and `fn` values do not parse inside a dict literal.
-
-The error id for the map name halt is set when #599 is built.

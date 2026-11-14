@@ -89,11 +89,6 @@ canonical order.
 
 ## Interactions
 
-r[defaults.fn-match] A function carrying defaults satisfies a type that omits them
-A function whose parameters declare defaults MUST satisfy a function type that omits those
-defaults. A function without defaults MUST NOT satisfy a type that declares them. When both declare
-a default for a parameter, the defaults MUST be equal.
-
 r[defaults.equality] Type equality compares defaults
 Two types that differ only by a present or absent default MUST compare unequal.
 
@@ -142,8 +137,9 @@ Defaults live in the type, so changing one changes the type. Reading a default f
 stated by `introspection`. The `|x: number = 3|` closure parameter form is removed in 0.24.0 and
 replaced by the `fn` form.
 
-Open decision: #631, whether a function whose parameters carry defaults matches a function type
-that omits them.
+Superseded: `defaults.fn-match`. A function has a function type only when its defaults equal the
+type's (`structural-typing.function`, `fn.equality`). On 0.23.0 a function whose parameters declare
+defaults satisfies a type that omits them.
 
 Open decision: #595, whether `.defaults` reads a tuple position's default. Today `.defaults` on a
 tuple type halts RILL-R003.

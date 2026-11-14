@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [599]
 grammar: []
-errors: [INVALID_INPUT, TYPE_MISMATCH, RILL-R036]
+errors: [INVALID_INPUT, RILL-P027, RILL-R036, TYPE_MISMATCH]
 depends: [type-value, type-form, any, union, list, tuple, dict]
 tests: []
 ---
@@ -55,7 +55,8 @@ r[map.key-bare] A bare identifier key is a parse error {pending #599}
 `map[a: 1]` MUST be a parse error, because `a` is a name and a key is a value.
 
 r[map.duplicate-parse] A duplicate literal key is a parse error {pending #599}
-Two keys written as equal literals in one `map[...]` MUST be rejected at parse time.
+Two keys written as equal literals in one `map[...]` MUST be rejected at parse time with
+RILL-P027.
 
 ## Evaluation
 
@@ -124,7 +125,8 @@ r[map.inner-unspecified] The inner of a bare map type is a tuple of any {pending
 Selection by key is stated in `selection`. `filter` over a map is stated in `filter.map`.
 
 r[map.no-spread] A map never spreads {pending #599}
-Spreading a map into a dict literal or an argument list MUST halt.
+Spreading a map MUST halt as a spread of the wrong kind does: RILL-R002 in a literal
+(`spread.dict`) and RILL-R001 in an argument list (`spread.arg-other`).
 
 r[map.from-dict] A dict converts to a string-keyed map {pending #599}
 `dict -> map(string, V)` MUST convert each value to `V`.
@@ -142,6 +144,7 @@ r[map.from-list] A list does not convert to a map {pending #599}
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| Two equal literal keys {pending #599} | RILL-P027 | No |
 | Two equal keys, not both literals {pending #599} | `#INVALID_INPUT` | Yes |
 | Keys of two kinds, or a non-scalar key {pending #599} | `#TYPE_MISMATCH` | Yes |
 | A map with a non-string key kind, or a list, converts {pending #599} | RILL-R036 | Yes |
@@ -170,5 +173,3 @@ has the string key `"1"`: a map key is a value, and a dict key is a name.
 
 A map crosses the host boundary as a JavaScript `Map` with atom keys as their names; that belongs
 to the host-boundary chapter.
-
-The error id for the halt of a map that spreads is set when #599 is built.

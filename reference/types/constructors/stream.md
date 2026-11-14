@@ -3,7 +3,7 @@ id: stream
 title: Stream types
 status: normative
 since: 0.24.0
-issues: [622]
+issues: [604, 622]
 grammar: []
 errors: [RILL-R036, TYPE_MISMATCH]
 depends: [type-value, structural-typing]
@@ -44,9 +44,10 @@ parameter type, and as an argument of another type.
 
 ## Evaluation
 
-r[stream.membership] A stream has a stream type when its chunk and resolution types match
-A stream value MUST have `stream(T):R` when its chunk type is `T` and its resolution type is
-`R`. A stream type with no outer MUST accept a stream with any resolution type.
+r[stream.accepts] A stream type accepts by its chunk and resolution types {pending #604}
+A stream value MUST have `stream(T):R` when `T` accepts its chunk type and `R` accepts its
+resolution type, as `list(T)` accepts by element type. `stream(any)` MUST accept every stream,
+and a stream type with no outer MUST accept any resolution type.
 
 r[stream.equality] Stream types are equal when both types are equal
 `stream(number):string` MUST equal `stream(number):string`. It MUST NOT equal
@@ -99,15 +100,15 @@ stream(number).outer == any
 
 ## Notes
 
+Superseded: `stream.membership`, now `stream.accepts`. On 0.23.0 the chunk type must match
+exactly, so `stream(any)` rejects a stream of strings (#604).
+
 Streams are stateful and single-use, and `$s == $s` halts RILL-R002 on 0.23.0 builds. Those
 facts belong to the stream value, not to its type.
 
 On 0.23.0 builds a type with an outer does not nest. `list(stream(number):string)` and
 `union(stream(number):string, string)` halt RILL-P014, and `$s -> :?stream(string):number`
 halts RILL-P001. A variable holding the type, `$s -> :?$t`, works today.
-
-`$s -> :?stream(any)` is false for a stream of strings on 0.23.0 builds, while
-`list(any)` accepts any list (#604). The reference states no rule for chunk variance.
 
 The 0.23.0 `.^chunk` and `.^output` probes are removed; `.inner` and `.outer` on the stream's
 type replace them.

@@ -366,6 +366,23 @@ describe('checkCorpus', () => {
     ).toContain('error-code');
   });
 
+  it('accepts an id missing from the registry only in pending rows', () => {
+    const file = (row: string): string =>
+      concept(
+        'alpha',
+        'errors: [RILL-P099]\n',
+        `## Errors\n\n| Condition | Error | Catchable |\n|---|---|---|\n${row}\n`
+      );
+    expect(
+      checkRepo({
+        'reference/one/alpha.md': file('| A {pending #5} | RILL-P099 | No |'),
+      })
+    ).toEqual([]);
+    expect(
+      checkRepo({ 'reference/one/alpha.md': file('| A | RILL-P099 | No |') })
+    ).toContain('error-id');
+  });
+
   it('requires listed test files to exist', () => {
     const withTest = one.replace('errors:', 'tests: [a.test.ts]\nerrors:');
     expect(checkRepo({ 'reference/one/alpha.md': withTest })).toContain(

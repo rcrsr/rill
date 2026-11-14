@@ -3,7 +3,7 @@ id: carried-type
 title: Carried types
 status: normative
 since: 0.24.0
-issues: [628]
+issues: [560, 628]
 grammar: []
 errors: [RILL-P001]
 depends: [type-value, structural-typing, any, union, inference, assertion]
@@ -53,8 +53,10 @@ r[carried-type.element] An element of a labeled collection carries the collectio
 Reading an element or field from a collection with an asserted type MUST give the element the
 asserted element or field type. This holds for `[i]`, `.name`, `.$k`, and iteration.
 
-r[carried-type.inferred-element] An element of an inferred collection carries its own type
-Reading an element from a collection with no carried type MUST give the element its own type.
+r[carried-type.collection-element] An element of an inferred collection carries its element type {pending #560}
+Reading an element from a collection with no carried type MUST give the element the collection's
+inferred element type. An element of `list[1, "a"]` carries `union(number, string)`, so `.^type`
+reports the union and `$ == "a"` compares without halting.
 
 r[carried-type.type-probe] The type probe reports the carried type
 `.^type` MUST report the most recent carried type the value has, and its own type when it
@@ -65,7 +67,8 @@ r[carried-type.effective-probe] The effective probe reports the own type
 carried type, `.^type` and `.^effective` MUST agree.
 
 r[carried-type.equality] A carried type does not change equality
-Two values with equal contents MUST compare equal whatever types they carry.
+Two values with equal contents MUST compare equal whatever types they carry, whenever the
+comparison completes.
 
 ## Interactions
 
@@ -104,6 +107,9 @@ $l[0] -> .^type -> .signature
 ```
 
 ## Notes
+
+Superseded: `carried-type.inferred-element`, now `carried-type.collection-element`. On 0.23.0 an
+element read from an inferred collection carries its own type.
 
 A host reads the own type through the host boundary, never the carried type.
 

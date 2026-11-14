@@ -85,7 +85,6 @@ until they are. 0.24.0 does not ship while this list is non-empty.
 | Issue | Question | Concept |
 |-------|----------|---------|
 | [#595](https://github.com/rcrsr/rill/issues/595) | Reading a default on a tuple position from the type | `defaults`, `introspection`, `tuple` |
-| [#568](https://github.com/rcrsr/rill/issues/568) | What a read that does not select an entry does with a held block | `code-block` |
 | [#579](https://github.com/rcrsr/rill/issues/579) | The literal form of a duration | `duration` |
 | [#613](https://github.com/rcrsr/rill/issues/613) | Whether `fan`, `filter`, and `sort` share the 10,000-element ceiling | `iteration` |
 | [#614](https://github.com/rcrsr/rill/issues/614) | Whether an `ordered` is a collection source | `sort` |
@@ -93,10 +92,8 @@ until they are. 0.24.0 does not ship while this list is non-empty.
 | [#617](https://github.com/rcrsr/rill/issues/617) | Whether a capture inside an interpolation escapes to the enclosing scope | `interpolation` |
 | [#618](https://github.com/rcrsr/rill/issues/618) | Whether the type after `use<...>` is checked | `use` |
 | [#619](https://github.com/rcrsr/rill/issues/619) | Which `use<...>` failures `guard` catches | `use` |
-| [#631](https://github.com/rcrsr/rill/issues/631) | Whether a function whose parameters carry defaults matches a type that omits them | `defaults` |
 | [#605](https://github.com/rcrsr/rill/issues/605) | Whether a function or an iterator converts to a string | `interpolation` |
 | [#612](https://github.com/rcrsr/rill/issues/612) | Whether an invalid value interpolates, and whether a collection literal holds one | `interpolation`, `invalid-value` |
-| [#621](https://github.com/rcrsr/rill/issues/621) | What `.?^key` yields on a value that cannot carry annotations | `annotation-access` |
 
 ## Deferred past 0.24.0
 

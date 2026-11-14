@@ -25,13 +25,15 @@ acc(source, seed, fn)
 
 r[acc.threading] acc threads the accumulator as fold does
 `acc` MUST bind `$`, `$@`, and its parameters, and order its calls, as `fold` does
-(`fold.accumulator`, `fold.order`, `fold.unnamed`, `fold.named`, `fold.seed-required`).
+(`fold.accumulator`, `fold.order`, `fold.unnamed`, `fold.seed-required`).
 
 r[acc.result] acc yields every accumulator after the seed
 `acc` MUST yield a list holding each call's result in source order. The seed MUST NOT be in
 the list, and an empty source MUST yield `list[]`.
 
 ## Interactions
+
+`acc` calls its function with the element and the accumulator, as `fold` does (`fold.arity`).
 
 `break` ends `acc` with the results collected before the breaking element (`break.seq`).
 

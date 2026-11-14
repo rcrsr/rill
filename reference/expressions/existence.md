@@ -3,7 +3,7 @@ id: existence
 title: Existence check
 status: normative
 since: 0.24.0
-issues: [576, 599, 607]
+issues: [599, 607]
 grammar: []
 errors: [INVALID_INPUT, TYPE_MISMATCH]
 depends: [selection]
@@ -41,10 +41,6 @@ r[existence.integer] The existence check needs an integer index
 r[existence.type] A type qualifier narrows the existence check
 `.?name&T` MUST yield true only when the field exists and has type `T`.
 
-r[existence.ordered-type] An existence check needs a string on an ordered {pending #576}
-`$o.?$k` with a selector that is not a string MUST halt with `#TYPE_MISMATCH`, as a map
-existence check does with a wrong key type.
-
 r[existence.map] A map existence check finds a key {pending #599}
 `$m.?[k]` MUST yield true when the map holds `k` and false otherwise, without halting.
 
@@ -56,7 +52,7 @@ r[existence.map-type] A map existence check needs the key type {pending #599}
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | An index is not an integer | `#INVALID_INPUT` | Yes |
-| An ordered or map selector has the wrong type {pending #576} | `#TYPE_MISMATCH` | Yes |
+| A map selector has the wrong key type {pending #599} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 

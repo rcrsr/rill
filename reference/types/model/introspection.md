@@ -3,7 +3,7 @@ id: introspection
 title: Type introspection
 status: normative
 since: 0.24.0
-issues: [565, 622, 624]
+issues: [622, 624, 633]
 errors: [RILL-R003]
 depends: [type-value, structural-typing, any, carried-type]
 tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts]
@@ -77,7 +77,7 @@ with none MUST return an empty dict.
 r[introspection.defaults-halt] A type with no named fields has no defaults
 `.defaults` on a list, union, stream, or scalar type MUST halt with RILL-R003.
 
-r[introspection.annotations] .annotations lists field annotations {pending #565}
+r[introspection.annotations] .annotations lists field annotations {pending #633}
 `.annotations` MUST list the annotations of a type's fields, as a property parallel to
 `.defaults`. The entries of `.inner` stay plain types.
 

@@ -43,6 +43,7 @@ export interface LockInput {
 }
 
 const RILL_ID = /^RILL-[A-Z]\d+$/;
+const PENDING_ROW = /\{pending #\d+\}/;
 const ERROR_CODE = /^[A-Z][A-Z0-9_]*$/;
 
 // ---------------------------------------------------------------------------
@@ -396,14 +397,19 @@ function checkErrors(
       getList(f.frontmatter, 'errors').map((e) => [e.replace(/^#/, ''), fmLine])
     );
     const tabled = new Map<string, number>();
+    const builtRow = new Set<string>();
     for (const row of f.errorRows) {
+      const pending = PENDING_ROW.test(f.lines[row.line - 1] ?? '');
       for (const id of row.ids) {
         if (!tabled.has(id)) tabled.set(id, row.line);
+        if (!pending) builtRow.add(id);
       }
     }
     for (const [id, line] of new Map([...listed, ...tabled])) {
       if (RILL_ID.test(id)) {
-        if (!registry.has(id)) {
+        // An id planned for an unbuilt rule may precede its registry entry.
+        const plannedOnly = tabled.has(id) && !builtRow.has(id);
+        if (!registry.has(id) && !plannedOnly) {
           add(
             f,
             line,

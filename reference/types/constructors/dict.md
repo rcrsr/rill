@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [563, 572, 576, 581, 600, 622]
 grammar: []
-errors: [TYPE_MISMATCH]
+errors: [RILL-P027, TYPE_MISMATCH]
 depends: [type-value, type-form]
 tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts]
 ---
@@ -50,7 +50,12 @@ equals `dict["1": "n"]`.
 
 r[dict.key-duplicate] A key written twice in one literal is rejected {pending #576}
 A literal that spells one key twice, including a number and the string with the same text,
-MUST be rejected at parse time.
+MUST be rejected at parse time with RILL-P027.
+
+r[dict.type-key-duplicate] A type that names one key twice is rejected {pending #581}
+A dict or ordered type that names one key twice, in any spelling, MUST be rejected at parse time
+with RILL-P027.
+`dict("a b": number, "a b": string)` MUST NOT parse.
 
 r[dict.key-spelling] A dict type accepts every key spelling a literal accepts {pending #581}
 A named field MUST be written as an identifier, a quoted string, a number, or a bool. The key
@@ -89,6 +94,8 @@ that holds a non-type follows `type-value.variable-halt`.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | Value has a field a named form does not name {pending #572} | `#TYPE_MISMATCH` | Yes |
+| A literal spells one key twice {pending #576} | RILL-P027 | No |
+| A type names one key twice {pending #581} | RILL-P027 | No |
 
 ## Examples
 

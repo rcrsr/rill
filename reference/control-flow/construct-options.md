@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [578, 580]
 grammar: []
-errors: [RILL-P004, TYPE_MISMATCH]
+errors: [INVALID_INPUT, RILL-P004, RILL-P025, TYPE_MISMATCH]
 depends: [loop, pass]
 tests: []
 ---
@@ -33,7 +33,7 @@ keyword(...$policy) { body }
 
 r[construct-options.parens] Options are written in parentheses {pending #578}
 A control statement's options MUST be written in parentheses after its keyword. The form
-`keyword<...>` MUST be rejected with a message naming the parenthesized form.
+`keyword<...>` MUST be rejected with RILL-P025 and a message naming the parenthesized form.
 
 r[construct-options.dict] Options are a dict of the keyword's options type {pending #578}
 The options MUST be checked as a dict against the keyword's options type. An unknown option,
@@ -52,7 +52,8 @@ r[construct-options.literal-bound] Bounds are literals {pending #578}
 a spread that supplies either MUST be rejected with RILL-P004.
 
 r[construct-options.spread] A dict may be spread in {pending #578}
-`keyword(...$d)` MUST supply the fields of `$d` as options.
+`keyword(...$d)` MUST supply the fields of `$d` as options. A spread field that repeats a written
+option MUST halt with `#INVALID_INPUT`.
 
 r[construct-options.space] A space before the parenthesis is legal {pending #578}
 `keyword (opts)` MUST parse as `keyword(opts)`.
@@ -70,6 +71,8 @@ end the body.
 |-----------|-------|-----------|
 | An unknown option, a missing required option, or a wrong value type | `#TYPE_MISMATCH` | Yes |
 | `limit` or `attempts` is not a written positive integer literal | RILL-P004 | No |
+| Options written in angle brackets {pending #578} | RILL-P025 | No |
+| A spread field repeats a written option {pending #578} | `#INVALID_INPUT` | Yes |
 
 ## Examples
 
@@ -86,5 +89,4 @@ retry(attempts: 3, bogus: 1) { 1 }
 ## Notes
 
 On 0.23.0 each keyword parses its options in angle brackets with its own grammar, and `retry`
-names its bound `limit`. The parse error for the removed angle-bracket form has no error id
-yet. `guard`, `retry`, and `timeout` are stated with errors and limits.
+names its bound `limit`. `guard`, `retry`, and `timeout` are stated with errors and limits.

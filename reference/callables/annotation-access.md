@@ -41,6 +41,9 @@ MUST halt with RILL-R003.
 r[annotation-access.presence] .?^key tests for an annotation {pending #621}
 `$f.?^key` MUST yield whether the function carries `key`, and MUST NOT halt.
 
+r[annotation-access.presence-other] .?^key on a value that cannot carry annotations is false {pending #621}
+`$v.?^key` MUST yield false when `$v` is not a function.
+
 ## Interactions
 
 Which annotations a function carries is stated in `annotation.attach`. Parameter annotations
@@ -83,6 +86,3 @@ $v.^a
 ## Notes
 
 On 0.23.0 parameter annotations are read as `$f.params.x.__annotations.key`.
-
-Open decision: #621, what `$v.?^key` yields on a value that cannot carry annotations: `false`, or
-RILL-R003.

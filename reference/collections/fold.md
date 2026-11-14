@@ -3,9 +3,9 @@ id: fold
 title: fold
 status: normative
 since: 0.24.0
-issues: []
+issues: [626]
 grammar: []
-errors: [RILL-R001, RILL-R044]
+errors: [RILL-R001, RILL-R044, RILL-R045]
 depends: [iteration]
 tests: [collection-operators.test.ts]
 ---
@@ -38,9 +38,10 @@ r[fold.unnamed] Two unnamed parameters type the element and the accumulator
 A function with two unnamed parameters MUST check the element against the first and the
 accumulator against the second. A mismatch MUST halt with RILL-R001.
 
-r[fold.named] A named parameter receives only the element
-A function with named parameters MUST receive the element as its first argument and no
-accumulator argument. A second named parameter without a default MUST halt with RILL-R044.
+r[fold.arity] fold calls its function with the element and the accumulator {pending #626}
+`fold` MUST call its function with two arguments, the element and then the accumulator, whether
+its parameters are named or unnamed. A function that does not take two arguments MUST halt with
+RILL-R045.
 
 r[fold.seed-required] The seed is required
 `fold` with only a function argument MUST halt with RILL-R044.
@@ -54,7 +55,8 @@ yields every step (`acc.result`).
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| No seed, or a second named parameter without a default | RILL-R044 | No |
+| No seed | RILL-R044 | No |
+| The function does not take two arguments {pending #626} | RILL-R045 | No |
 | An element or accumulator fails its unnamed parameter type | RILL-R001 | No |
 
 ## Examples
@@ -78,3 +80,8 @@ list[] -> fold(42, { $@ + $ })
 list[1, 2, 3] -> fold(0, |number, number| { $@ + $ })
 # Result: 6
 ```
+
+## Notes
+
+Superseded: `fold.named`, now `fold.arity`. On 0.23.0 a function with named parameters receives
+only the element, and a second named parameter without a default halts RILL-R044.

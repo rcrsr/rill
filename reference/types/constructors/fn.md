@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [623, 624, 626]
 grammar: []
-errors: []
+errors: [RILL-P028, RILL-P029]
 depends: [type-value, structural-typing]
 tests: []
 ---
@@ -52,10 +52,10 @@ A type name alone in the parentheses, as in `fn(number)`, MUST declare an unname
 
 r[fn.unnamed-limit] A function has at most two unnamed parameters {pending #623}
 The first unnamed parameter MUST be read as `$` and the second as `$@`. A third MUST be
-rejected.
+rejected with RILL-P028.
 
 r[fn.no-mix] Named and unnamed parameters do not mix {pending #623}
-A function type that mixes named and unnamed parameters MUST be rejected.
+A function type that mixes named and unnamed parameters MUST be rejected with RILL-P028.
 
 r[fn.outer] The outer is the result type {pending #623}
 `fn(x: number):string` MUST yield `string` from `.outer`, and `any` when no outer is written.
@@ -108,7 +108,15 @@ r[fn.block-reads-acc] A block that reads the accumulator takes two parameters {p
 A block that reads `$@`, with or without `$`, MUST have `fn(any, any):any`.
 
 r[fn.no-self] A fn() body does not read a parameter {pending #624}
-A function written `fn()` whose body reads `$` MUST be rejected where it is written.
+A function written `fn()` whose body reads `$` MUST be rejected where it is written, with
+RILL-P029.
+
+## Errors
+
+| Condition | Error | Catchable |
+|-----------|-------|-----------|
+| A third unnamed parameter, or named and unnamed parameters mixed {pending #623} | RILL-P028 | No |
+| A `fn()` body reads a parameter {pending #624} | RILL-P029 | No |
 
 ## Examples
 
@@ -148,5 +156,4 @@ each raises a parse error naming `fn`.
 The `.^input` and `.^output` probes are already removed (#596). Each halts RILL-R008 and
 names `.^type.inner` or `.^type.outer`, as `introspection` states.
 
-The rejection in `fn.no-self` and the errors for mixed or excess unnamed parameters have no
-error id yet. Invocation, arity, and dispatch are defined with callables, not here.
+Invocation, arity, and dispatch are defined with callables, not here.
