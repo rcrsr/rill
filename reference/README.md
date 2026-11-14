@@ -65,7 +65,7 @@ earlier one.
 | [conventions](conventions/) | Notation and the vocabulary of halts |
 | lexical | Source text, tokens, comments, literals |
 | [program](program/) | Scripts, frontmatter, statements, the return value |
-| values | The value model, equality, vacancy |
+| [values](values/) | The value model, equality, vacancy |
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |
 | [variables](variables/) | Variables, `$` binding, scope, capture |
 | [expressions](expressions/) | Pipes, selection, dispatch, operators |
