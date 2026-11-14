@@ -71,7 +71,7 @@ earlier one.
 | [expressions](expressions/) | Pipes, selection, dispatch, operators |
 | [callables](callables/) | Blocks, functions, parameters, invocation |
 | [control-flow](control-flow/) | Control statements and their options, loops |
-| collections | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
+| [collections](collections/) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
 | [errors](errors/) | Invalid values, recovery, `assert`, `error` |
 | limits | Iteration, concurrency, call depth, timeouts |
 | host-boundary | What a script observes of host functions and resources |
@@ -90,3 +90,5 @@ until they are. 0.24.0 does not ship while this list is non-empty.
 | [#571](https://github.com/rcrsr/rill/issues/571) | The name of strict mode and the scope of a bare block | `strict-mode` |
 | [#568](https://github.com/rcrsr/rill/issues/568) | What a read that does not select an entry does with a held block | `code-block` |
 | [#579](https://github.com/rcrsr/rill/issues/579) | The literal form of a duration | `duration` |
+| [#613](https://github.com/rcrsr/rill/issues/613) | Whether `fan`, `filter`, and `sort` share the 10,000-element ceiling | `iteration` |
+| [#614](https://github.com/rcrsr/rill/issues/614) | Whether an `ordered` is a collection source | `sort` |

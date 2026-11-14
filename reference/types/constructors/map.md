@@ -119,12 +119,9 @@ r[map.inner] The inner of a map type is a tuple of its parameters {pending #599}
 r[map.inner-unspecified] The inner of a bare map type is a tuple of any {pending #599}
 `map.inner` MUST return `tuple[any, any]`.
 
-r[map.filter] filter over a map yields a list of entries {pending #599}
-`filter` over a map MUST return a list of entries, each `tuple(K, V)`.
-
 ## Interactions
 
-Selection by key is stated in `selection`.
+Selection by key is stated in `selection`. `filter` over a map is stated in `filter.map`.
 
 r[map.no-spread] A map never spreads {pending #599}
 Spreading a map into a dict literal or an argument list MUST halt.
