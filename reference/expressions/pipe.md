@@ -3,7 +3,7 @@ id: pipe
 title: Pipe
 status: normative
 since: 0.24.0
-issues: [567, 571]
+issues: [567, 625]
 grammar: [pipe-chain]
 errors: [RILL-P001, RILL-R005, RILL-R044]
 depends: [statement, dispatch, conversion, assertion]
@@ -33,8 +33,10 @@ r[pipe.no-literal] A number, a bool, or an atom is not a target
 A number, bool, or atom literal after `->` MUST be rejected with RILL-P001.
 
 r[pipe.uses-value] A target uses the piped value {pending #567}
-A code block that does not read `$`, a string that does not interpolate `$`, and a function of
-no parameters MUST be rejected as targets before the script runs.
+A code block whose body does not read the pipe value and a string that does not interpolate `$`
+MUST be rejected as targets before the script runs. A body reads the pipe value when it writes
+`$`, starts a chain with a method such as `.upper`, or uses `pass`. A pipe into a function of no
+parameters MUST halt when it runs.
 
 r[pipe.data-no-dollar] A data literal target does not read $ {pending #567}
 A list, dict, tuple, or ordered literal used as a target MUST NOT read `$` at its top level. The
@@ -73,7 +75,7 @@ r[pipe.call-dollar] A written $ argument replaces the prepended operand
 When an argument of a call target is a top-level `$`, the value MUST NOT be prepended, and
 each such `$` MUST be `v`. `5 -> range(0, $)` MUST equal `range(0, 5)`.
 
-r[pipe.script-operand] A script function target receives the value first {pending #571}
+r[pipe.script-operand] A script function target receives the value first {pending #625}
 `v -> $h(args)` MUST call `$h` with `v` prepended to `args`, as a built-in call target does.
 
 r[pipe.grouped] A parenthesized target is a grouped expression

@@ -3,7 +3,7 @@ id: type-value
 title: Type values
 status: normative
 since: 0.24.0
-issues: [571]
+issues: [624]
 grammar: []
 errors: [RILL-R005, TYPE_MISMATCH]
 depends: [notation, halt, type-form, type-position]
@@ -95,7 +95,7 @@ string => $t
 list($n)
 ```
 
-```rill pending=571
+```rill pending=624
 number => $t
 fn(x: $t):any { $x } => $f
 string => $t

@@ -3,7 +3,7 @@ id: any
 title: The any type
 status: normative
 since: 0.24.0
-issues: [571]
+issues: [622]
 grammar: []
 errors: []
 depends: [type-value]
@@ -62,7 +62,7 @@ list.inner == any
 # Result: true
 ```
 
-```rill pending=571
+```rill pending=622
 dict() == dict
 # Result: true
 ```

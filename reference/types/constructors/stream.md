@@ -3,7 +3,7 @@ id: stream
 title: Stream types
 status: normative
 since: 0.24.0
-issues: [571]
+issues: [622]
 grammar: []
 errors: [RILL-R036, TYPE_MISMATCH]
 depends: [type-value, structural-typing]
@@ -35,10 +35,10 @@ r[stream.unspecified-outer] An omitted outer is unspecified
 `.outer` on `stream(number)` MUST return `any`. A bare `stream` MUST return `any` from both
 `.inner` and `.outer`.
 
-r[stream.unspecified] stream, stream(), and stream(any) are one type {pending #571}
+r[stream.unspecified] stream, stream(), and stream(any) are one type {pending #622}
 `stream`, `stream()`, and `stream(any)` MUST compare equal.
 
-r[stream.position] A stream type is written in every type position {pending #571}
+r[stream.position] A stream type is written in every type position {pending #622}
 `stream(T):R` MUST be accepted after an assertion colon, in a capture annotation, as a
 parameter type, and as an argument of another type.
 

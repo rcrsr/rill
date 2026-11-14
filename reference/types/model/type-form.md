@@ -3,7 +3,7 @@ id: type-form
 title: Type forms
 status: normative
 since: 0.24.0
-issues: [571]
+issues: [622]
 grammar: []
 errors: [RILL-P001, RILL-P003]
 depends: [notation, halt]
@@ -16,7 +16,7 @@ A type form is the one way a type is written: `name(inner):outer`, where the inn
 
 ## Syntax
 
-r[type-form.uniform] Every type is written name(inner):outer {pending #571}
+r[type-form.uniform] Every type is written name(inner):outer {pending #622}
 A type MUST be written in this form:
 
 ```text

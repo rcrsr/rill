@@ -3,9 +3,9 @@ id: capture
 title: Capture
 status: normative
 since: 0.24.0
-issues: []
+issues: [569]
 grammar: []
-errors: [RILL-R001]
+errors: [RILL-R001, TYPE_MISMATCH]
 depends: [statement, assertion, type-lock]
 tests: [capture-types.test.ts, lexer-capture-arrow.test.ts]
 ---
@@ -37,6 +37,10 @@ r[capture.assert] A typed capture asserts
 `v => $x:T` MUST assert `v` against `T` before binding, as `assertion` states, and MUST NOT
 convert.
 
+r[capture.mismatch] A typed capture that fails its assertion halts as an assertion does {pending #569}
+`v => $x:T` where `v` does not have `T` MUST halt with `#TYPE_MISMATCH`, the halt `v -> :T`
+raises. A capture that breaks the variable's type lock keeps RILL-R001 (`type-lock`).
+
 r[capture.rebind] A later capture replaces the binding
 A capture into a bound variable MUST replace its value, subject to the variable's type lock
 (`type-lock`).
@@ -49,7 +53,8 @@ A code block before `=>` runs by its own rule (`code-block.head`), not because o
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| The value does not match the capture's type or the variable's lock | RILL-R001 | Yes |
+| The value does not have the capture's type {pending #569} | `#TYPE_MISMATCH` | Yes |
+| The value breaks the variable's type lock | RILL-R001 | Yes |
 
 ## Examples
 
@@ -73,5 +78,4 @@ $x
 
 ## Notes
 
-Open decision: #569, which halt a typed capture raises when its assertion fails. On 0.23.0 it is
-RILL-R001 "cannot assign".
+On 0.23.0 a typed capture that fails its assertion halts RILL-R001 "cannot assign".

@@ -3,7 +3,7 @@ id: list
 title: List types
 status: normative
 since: 0.24.0
-issues: [571]
+issues: [622]
 grammar: [type-constructor]
 errors: [INVALID_INPUT]
 depends: [type-value, type-form]
@@ -35,10 +35,10 @@ r[list.argument-count] A wrong argument count halts
 
 ## Static rules
 
-r[list.no-outer] A list type takes no outer {pending #571}
+r[list.no-outer] A list type takes no outer {pending #622}
 A list type written with an outer, such as `list(number):string`, MUST be a parse error.
 
-r[list.unspecified] list, list(), and list(any) are one type {pending #571}
+r[list.unspecified] list, list(), and list(any) are one type {pending #622}
 `list()` MUST be accepted. `list`, `list()`, and `list(any)` MUST compare equal.
 
 ## Evaluation
@@ -89,7 +89,7 @@ list(list(string)).inner == list(string)
 # Result: true
 ```
 
-```rill pending=571
+```rill pending=622
 list() == list(any)
 # Result: true
 ```

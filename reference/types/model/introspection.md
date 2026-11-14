@@ -3,7 +3,7 @@ id: introspection
 title: Type introspection
 status: normative
 since: 0.24.0
-issues: [565, 571]
+issues: [565, 622, 624]
 errors: [RILL-R003]
 depends: [type-value, structural-typing, any, carried-type]
 tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts]
@@ -26,7 +26,7 @@ r[introspection.signature] A type value has a signature
 `.signature` MUST return the type written in canonical form, such as `"list(number)"`, and MUST
 NOT halt.
 
-r[introspection.bare] A bare type is its constructor with every parameter at its default {pending #571}
+r[introspection.bare] A bare type is its constructor with every parameter at its default {pending #622}
 Every type parameter MUST default to `any`. A bare type MUST equal its constructor with every
 parameter at that default: `list` is `list(any)`, and `stream` is `stream(any):any`.
 
@@ -131,7 +131,7 @@ union("b", "a").inner
 # Result: list["a", "b"]
 ```
 
-```rill pending=571
+```rill pending=624
 fn(a: string, b: number) { $a } => $f
 $f.^type.inner == ordered[a: string, b: number]
 # Result: true

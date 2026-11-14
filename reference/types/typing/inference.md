@@ -3,7 +3,7 @@ id: inference
 title: Type inference
 status: normative
 since: 0.24.0
-issues: [600, 562]
+issues: [562, 600]
 grammar: []
 errors: [RILL-R002]
 depends: [type-value, structural-typing, any, union, list, dict, tuple, ordered]

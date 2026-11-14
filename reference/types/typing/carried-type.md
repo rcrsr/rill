@@ -3,7 +3,7 @@ id: carried-type
 title: Carried types
 status: normative
 since: 0.24.0
-issues: [571]
+issues: [628]
 grammar: []
 errors: [RILL-P001]
 depends: [type-value, structural-typing, any, union, inference, assertion]
@@ -29,11 +29,11 @@ expression, and `pass`.
 r[carried-type.carriage-param] A carried type follows the value into a parameter
 A parameter that receives a value by call or by pipe MUST receive the carried type with it.
 
-r[carried-type.carriage-declared] A declared type follows the value like an asserted type {pending #571}
+r[carried-type.carriage-declared] A declared type follows the value like an asserted type {pending #628}
 A declared type MUST follow its value through the same paths as an asserted type, and a later
 assertion or declaration MUST replace it.
 
-r[carried-type.declared-probe] The type probe reports a declared type {pending #571}
+r[carried-type.declared-probe] The type probe reports a declared type {pending #628}
 `.^type` MUST report a declared type the value carries, and `.^effective` MUST ignore it.
 
 r[carried-type.replace] A new assertion replaces the type

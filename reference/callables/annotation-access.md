@@ -3,7 +3,7 @@ id: annotation-access
 title: Annotation access
 status: normative
 since: 0.24.0
-issues: [571, 621]
+issues: [621, 624]
 grammar: []
 errors: [RILL-R003, RILL-R008]
 depends: [annotation]
@@ -56,19 +56,19 @@ and `.^effective` read a value's type (`introspection.type-probe`, `carried-type
 
 ## Examples
 
-```rill pending=571
+```rill pending=624
 ^(min: 0, max: 100) fn(x) { $x } => $f
 tuple[$f.^min, $f.^max]
 # Result: tuple[0, 100]
 ```
 
-```rill pending=571
+```rill pending=624
 ^("adds one") fn(x) { $x + 1 } => $f
 $f.^description
 # Result: "adds one"
 ```
 
-```rill pending=571
+```rill pending=624
 fn(x) { $x } => $f
 $f.^unit ?? "none"
 # Result: "none"
@@ -83,3 +83,6 @@ $v.^a
 ## Notes
 
 On 0.23.0 parameter annotations are read as `$f.params.x.__annotations.key`.
+
+Open decision: #621, what `$v.?^key` yields on a value that cannot carry annotations: `false`, or
+RILL-R003.

@@ -3,7 +3,7 @@ id: tuple
 title: Tuple types
 status: normative
 since: 0.24.0
-issues: [571, 573]
+issues: [573, 622]
 grammar: []
 errors: [INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, type-form]
@@ -43,7 +43,7 @@ r[tuple.unnamed] A named argument halts
 r[tuple.bare] The bare tuple accepts any tuple
 `tuple` MUST accept every tuple value, whatever its length and element types.
 
-r[tuple.unspecified] tuple and tuple() are one type {pending #571}
+r[tuple.unspecified] tuple and tuple() are one type {pending #622}
 `tuple` and `tuple()` MUST compare equal.
 
 r[tuple.any-position] tuple(any) names one position holding any {pending #573}
@@ -52,7 +52,7 @@ r[tuple.any-position] tuple(any) names one position holding any {pending #573}
 
 ## Static rules
 
-r[tuple.no-outer] A tuple type takes no outer {pending #571}
+r[tuple.no-outer] A tuple type takes no outer {pending #622}
 A tuple type written with an outer, such as `tuple(number):string`, MUST be a parse error.
 
 r[tuple.default-trailing] Only trailing positions carry a default

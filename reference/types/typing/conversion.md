@@ -3,7 +3,7 @@ id: conversion
 title: Conversion
 status: normative
 since: 0.24.0
-issues: [566, 574]
+issues: [566, 574, 602]
 grammar: []
 errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044]
 depends: [type-value, structural-typing, any, union, defaults, carried-type, inference, list, dict, tuple, ordered]
@@ -51,8 +51,9 @@ r[conversion.value-fail] A string that is not a number halts with a value error
 r[conversion.any] A pipe into any halts
 `value -> any` MUST halt with RILL-R036.
 
-r[conversion.variable] A pipe into a variable that holds a type converts the kind
-A pipe into a variable that holds a type MUST convert the value to the outer kind of that type.
+r[conversion.variable] A pipe into a variable that holds a type converts as that type does {pending #602}
+`v -> $T` MUST convert exactly as a pipe into the type `$T` holds, inner conversion, fill, and
+drop included.
 
 r[conversion.variable-call] A pipe into a variable that holds a function calls it
 A pipe into a variable that holds a function MUST call it with the piped value.

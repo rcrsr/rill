@@ -93,3 +93,8 @@ while a grouped capture does not.
 
 On 0.23.0 a function interpolates as `"type(closure)"` (#605), and an invalid value as
 `"dict[]"` (#612).
+
+Open decision: #605, whether converting a function or an iterator to a string halts or yields a
+stated form.
+
+Open decision: #612, whether interpolating an invalid value halts.

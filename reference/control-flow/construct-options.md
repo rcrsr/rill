@@ -3,7 +3,7 @@ id: construct-options
 title: Construct options
 status: normative
 since: 0.24.0
-issues: [578]
+issues: [578, 580]
 grammar: []
 errors: [RILL-P004, TYPE_MISMATCH]
 depends: [loop, pass]
@@ -59,6 +59,10 @@ r[construct-options.space] A space before the parenthesis is legal {pending #578
 
 r[construct-options.none] No options means no parentheses
 The forms without options, `do { }`, `pass { }`, and `guard { }`, MUST keep their meaning.
+
+r[construct-options.timeout-limits] timeout takes total, idle, both, or neither {pending #580}
+`timeout` MUST accept `total`, `idle`, both, or neither. With both, the first limit reached MUST
+end the body.
 
 ## Errors
 

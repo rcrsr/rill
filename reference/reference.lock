@@ -20,7 +20,7 @@ annotation.reserved 1c783a27813a
 annotation.shorthand 775a2d4447b1
 annotation.stack c9e0be7ae374
 annotation.values 1a314342136c
-any 6ac6864f3c91 dict.empty-parens@03dba1843c57 fn.empty@662e39806488 introspection.bare@37f735d34b97 introspection.leaf@c3102e0c1886 list.unspecified@6c728a862c10 ordered.empty-parens@3e3e280e9a28 stream.unspecified@433f2a711db6 tuple.unspecified@1aa622df5c9b union.empty@1f0396741c84
+any 6ac6864f3c91 dict.empty-parens@537087decea9 fn.empty@bc536d0a2ca0 introspection.bare@a147cf024b92 introspection.leaf@c3102e0c1886 list.unspecified@8f7d765216f9 ordered.empty-parens@fd248de5b0b1 stream.unspecified@0e3f1e6c54e3 tuple.unspecified@4d971ad5e908 union.empty@1f0396741c84
 any.admits 7b4420687b3a
 any.assert 0df138bbb10d
 any.collection b7208d2d5fe1
@@ -33,7 +33,7 @@ assert.fail 8b58b422606f
 assert.non-catchable 6a005e13d63e halt.non-catchable@8eb8c26644b7
 assert.pass f9943a52d133
 assertion.any c486fea6b8eb
-assertion.bare-fn 8d4bd5e23700
+assertion.bare-fn 50bc7169d957
 assertion.bare-kind ce7953cbeae7
 assertion.binding 7c2ca9c39f26
 assertion.check 2b9639133d91
@@ -87,18 +87,19 @@ break.return-body 23c89e6d85e2 statement.return@231d6a34b48f
 break.return-each 14a36a5597f3
 break.seq e47b3a30461b
 break.unsupported 2ea2eb802674
-capture 3aabe5ed1f71 code-block.head@46b46bea7175
+capture ae6240755b09 code-block.head@46b46bea7175
 capture.assert a76c0ca450db
 capture.bind 771562a46f74
+capture.mismatch 0ae2cc018ae8
 capture.no-eval b68f61274416
 capture.pass-on 91196c2d5a6b
 capture.rebind d0ae2424696b
 carried-type dc4793bb5965 conversion.union@415487b22deb type-lock.asserted@3541fc32b0bf
 carried-type.carriage 619f46dafff7
-carried-type.carriage-declared 37eea1084278
+carried-type.carriage-declared 795306d1c9dd
 carried-type.carriage-param 06dc230524de
 carried-type.computed 4ced6eaf503b
-carried-type.declared-probe 7945b426fcae
+carried-type.declared-probe 7724a69ee0f5
 carried-type.effective-probe da1ca7bbf1a7
 carried-type.element 708e75eb72f7
 carried-type.equality 0fccc41283d6
@@ -107,7 +108,7 @@ carried-type.inferred-element a44c53e2217c
 carried-type.replace 92d0ac2c5056 assertion.any@c486fea6b8eb
 carried-type.reserved-key 482d6a7d0ebf
 carried-type.type-probe eaad72137ace
-code-block 4c330a1c749f break.return-body@23c89e6d85e2 dispatch.fn@b3dfba5720a1 fn.bare-literal@7764d6cb0b81 fn.block-outer@375fe3f56dac fn.block-type@e8dcdd7536d6 statement.result@4c84cfa0816c
+code-block abc6b3c46458 break.return-body@23c89e6d85e2 dispatch.fn@b3dfba5720a1 fn.bare-literal@a391a34699ca fn.block-outer@be72ae142ad7 fn.block-type@93aee32dd6d0 pipe.uses-value@7cda1d3bff5d statement.result@4c84cfa0816c
 code-block.access ecc52b36f876
 code-block.assert ddf153eb53d5 assertion.mismatch@9dc0075657b2 assertion.pass@1a0a1da3896c
 code-block.assert-construct d705d782beca
@@ -118,7 +119,6 @@ code-block.dispatch 8decd7894edc
 code-block.each-time 85492459e40a
 code-block.head 46b46bea7175
 code-block.held 372f67de1148
-code-block.ignores-input 49e3399b6418
 code-block.no-params 1c1a7753352f
 code-block.not-value ca2c5d3bdcf6
 code-block.parens d00e3acbaae0
@@ -140,6 +140,7 @@ construct-options.order 1d6b6fe441b6
 construct-options.parens 196a52e6e3da
 construct-options.space 41e48387924e
 construct-options.spread 14504286800f
+construct-options.timeout-limits ddfa04224087
 construct-options.values 4e5fac4f2791
 conversion.any d639008176d6
 conversion.deep 4b215ac24283
@@ -156,7 +157,7 @@ conversion.scalar 82e5c1778ac4 atom.from-string@013a2d860f57 atom.to-string@a4a3
 conversion.union 415487b22deb
 conversion.union-miss 59c0bce8424f
 conversion.value-fail 411bbbd33387
-conversion.variable a40b569685db
+conversion.variable b2bd415b376c
 conversion.variable-call 79cb61b4db5f
 datetime.cross-equality 193ea53779d4
 datetime.equality 4e78cf980aea
@@ -178,17 +179,17 @@ datetime.print df9f683980b7
 datetime.unknown-key 69aa6a35ba5d
 datetime.value c946ba174efd
 datetime.wrong-type 9585caa1d5dd
-declaration.atom 0850a3f6c586
-declaration.form d169cfc1cd2c
+declaration.atom 29569ec14a93
+declaration.form 17986d030859
 declaration.kind 743e4119b6fd
-declaration.leaf ecb12b077afc
-declaration.mismatch 02f5c904edb5
+declaration.leaf 3f2efa739309
+declaration.mismatch b6a6b1a497c0
 declaration.newline 4940ddd989bc
-declaration.scalar 0f636dc92006
-declaration.sets-type 765e432b8470 carried-type.carriage-declared@37eea1084278
-declaration.spacing 2debc2919077
-declaration.spellings e277a9a6e8a1
-declaration.unspecified e04f61d9f3e9
+declaration.scalar 0d34bb85d28a
+declaration.sets-type 79a9012e4ebd carried-type.carriage-declared@795306d1c9dd
+declaration.spacing 57c7e3d258fc
+declaration.spellings 74d6e01d1d6d
+declaration.unspecified 2cd8902c4f13
 declaration.written bd3669fb6801
 defaults.arg-hydrate 54df009dbca2
 defaults.equality 59da62824e1e
@@ -203,7 +204,7 @@ defaults.nested 4308e8623b6a
 defaults.non-literal aa98fbcbe35c
 defaults.operator f0b443d57f0e
 defaults.param 4bd0a3bd35c5
-defaults.param-form 3f405717ca7d
+defaults.param-form ad26f93e0517
 defaults.param-required 94b94909db07
 defaults.required 704c2fe56b2e
 defaults.synthesis e8200f8bec23
@@ -223,7 +224,8 @@ destruct.target 7cc2b884121b
 destruct.typed 90ba74f7d4fc
 dict fa5b848e8a98 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 dict.any 71a5cc6bd21a
-dict.empty-parens 03dba1843c57
+dict.empty-parens 537087decea9
+dict.entries-type d2fc8dda2113
 dict.field-default 2d46c2d66ea8
 dict.field-equality 59a0c468bdd0
 dict.field-inner cd37b043f41b
@@ -235,7 +237,7 @@ dict.key-print 1a4cf8a625cf
 dict.key-spelling 009f9a053949
 dict.key-string 768e6f41d4ee
 dict.named-membership bf387b3cf3d5
-dict.no-outer 61f8887c3609
+dict.no-outer 5c831748dc46
 dict.no-uniform b86b80e51011
 dispatch.block eea8f694c93e
 dispatch.block-held a85863739e1d
@@ -244,10 +246,10 @@ dispatch.block-literal 1a2de8ce51d4
 dispatch.fn b3dfba5720a1
 dispatch.map-block 234ca92e09b6
 dispatch.multi-key f319180e4904
-dispatch.ordered a89bc676c867
+dispatch.ordered fda571114890
 dispatch.path 5a324e95d596
 dispatch.select b43bf6dece5b
-dispatch.tuple ec06f4654cab
+dispatch.tuple a226dcdabd46
 duration.construct c247666dc907
 duration.cross-equality d905570a5b5a
 duration.equality b3b087dac628
@@ -317,30 +319,30 @@ filter.element 9fc7495950e6
 filter.keep 4dfefc2f4747
 filter.map 4100d2d447e0
 filter.options 9d8d2a71a7be fan.concurrency@da9c8948cfa0 fan.options-dict@6932795c473b fan.options-number@e1eb0f26d539 fan.options-positive@c5ec919ab770 fan.options-unknown@de8f23d23359
-fn.bare 2706b1336880
-fn.bare-literal 7764d6cb0b81 fn.block-type@e8dcdd7536d6
-fn.block-outer 375fe3f56dac
-fn.block-reads-acc fbfebb4bcea2
-fn.block-reads-none 5f35345d6f3e
-fn.block-reads-pipe 0d50d3a98d7e
-fn.block-type e8dcdd7536d6
-fn.empty 662e39806488
-fn.equality 3a3b8e412271
-fn.inner-named be4559f79b20
-fn.inner-type 40b27c88f1c4
-fn.inner-unnamed cb4b02bc42b6
-fn.name fb475f821b9c
-fn.named 979cec4bbe6b
-fn.no-closure 2c43f8b9726c
-fn.no-mix 247cc3397460
-fn.no-self 19116006d0d2
-fn.omitted fc5e94c13008
-fn.outer 8a0af7440986
-fn.position 3b26361a8d25
-fn.print 7d8d740547cc
-fn.unnamed cfcd864c5e21
-fn.unnamed-limit f822e7685607
-fn.value 66e6d187884a
+fn.bare 50d21497d91f
+fn.bare-literal a391a34699ca fn.block-type@93aee32dd6d0
+fn.block-outer be72ae142ad7
+fn.block-reads-acc 1850a4462f3b
+fn.block-reads-none 2e7cc7720e4c
+fn.block-reads-pipe 383431d11e5c
+fn.block-type 93aee32dd6d0
+fn.empty bc536d0a2ca0
+fn.equality 89ecb465048b
+fn.inner-named 97fb8a9d6c94
+fn.inner-type 7fad75b9ceac
+fn.inner-unnamed d415c2e33acb
+fn.name 78aea35262e3
+fn.named 45fc9b96756d
+fn.no-closure 3d8ce97eeff7
+fn.no-mix b3d523602937
+fn.no-self 45caf43e1b3b
+fn.omitted 1a2c8550bc21
+fn.outer 3446a89c3606
+fn.position 46ef9606aae8
+fn.print 8d00756eec9e
+fn.unnamed 9fd3078b8c41
+fn.unnamed-limit 67e5ab44ca6b
+fn.value 658d218c661c
 fold e47d52687ad4 acc.result@0d21f65369ea break.unsupported@2ea2eb802674
 fold.accumulator e19bdd8e9418
 fold.named 0686e7172a4c
@@ -390,7 +392,7 @@ interpolation.order 7bdb45c0246a
 interpolation.printed fdb3073b6dba string.from-bool@a2d54837dbaf string.from-collection@2e6b76a26a5b string.from-number@aa4ac6bcf48e
 interpolation.string 00f9ba88f50f
 introspection.annotations e07ad255220a
-introspection.bare 37f735d34b97
+introspection.bare a147cf024b92
 introspection.bare-inner ee713b640625
 introspection.bare-open d7ff36635b1a
 introspection.defaults d73456d0a7d7
@@ -412,7 +414,7 @@ invalid-value.origin f59e88d4cf82
 invalid-value.probe 024c35ff18e2
 invalid-value.status 7d727ece29c6
 invalid-value.valid-status 413a1a114f6b
-invocation 22c3ccc7a49e defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 pipe.call-operand@f1a1b2193c9f pipe.script-operand@83d274a88e63 scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
+invocation 22c3ccc7a49e defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 pipe.call-operand@f1a1b2193c9f pipe.script-operand@bcee214af70d scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
 invocation.arguments-first 506b39f747fd
 invocation.before-body 248c16d5ba59
 invocation.excess adc4936056b0
@@ -440,9 +442,9 @@ list.equality 5e1bc7cac600
 list.form 6e50a87ace56
 list.inner df1930a5b2d9
 list.membership b7adc98be4b0
-list.no-outer 849fae1ee35b
+list.no-outer 4ec744daed37
 list.print 9f843c264e5a inference.empty@d047fb333dc7
-list.unspecified 6c728a862c10
+list.unspecified 8f7d765216f9
 loop.accumulate 7080c69b7e01
 loop.bool 857e8d9a91e0
 loop.do-required cde369c28522
@@ -519,13 +521,13 @@ number.print-exponent bbcacfa268f6
 number.value 51a06e4cfb4e
 ordered 1afb2ba19173 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 ordered.any 4939367fe66c
-ordered.empty-parens 3e3e280e9a28
+ordered.empty-parens fd248de5b0b1
 ordered.exact f3b07a28292d
 ordered.field-inner 9b3eea08a977
 ordered.field-print 803005b1b1ef
 ordered.fields b85b597cb48b
 ordered.key-spelling affcffc3f8a0
-ordered.no-outer 7aca32a8267b
+ordered.no-outer 7561f5721da2
 ordered.no-uniform d52b47c28c66
 ordered.not-dict efe035f5b624
 ordered.order d6b024257b5b
@@ -546,10 +548,10 @@ pipe.grouped f6270fcf7eb8
 pipe.left-to-right ffb07af4ec06
 pipe.method 827cfdd62591
 pipe.no-literal 2292a8733c47
-pipe.script-operand 83d274a88e63
+pipe.script-operand bcee214af70d
 pipe.string e11eeeaf2f49
 pipe.type 8555462e2497
-pipe.uses-value 846069f9238a
+pipe.uses-value 7cda1d3bff5d
 pipe.variable 6f95dc9aaa5e
 retry.attempts 082c9ee5c2b9
 retry.attempts-name 626b546e297d
@@ -645,22 +647,22 @@ stream.inner f8518bceccc5
 stream.membership 0148a9ed0b70
 stream.no-conversion 2370eda89c72
 stream.outer 7be70875c978
-stream.position 004e1ddcc7c5
+stream.position e7ec5ebaba99
 stream.print e93e733ddbe5
 stream.resolution 24b98f7d700c
 stream.slots 07cc62513116
-stream.unspecified 433f2a711db6
+stream.unspecified 0e3f1e6c54e3
 stream.unspecified-outer 4cff11b9cb8d
-strict-mode.any f94c48e83e6a
-strict-mode.bare 5e7a1a2ef742
-strict-mode.contents 17ca81c93233
-strict-mode.default-mode de353ebf2448
-strict-mode.fn 4c49f4d4cf5b
-strict-mode.fn-unwritten 196b1846b388
-strict-mode.kind d264e4c05f5e
-strict-mode.leaf fccedc6fda4e
-strict-mode.unwritten 0028773dea4f
-strict-mode.whole-type befff09f9188
+strict-mode.any e9d907265c70
+strict-mode.bare 9d618e2bb401
+strict-mode.contents 2f47f2625105
+strict-mode.default-mode c26c190caa4a
+strict-mode.fn f976e104a385
+strict-mode.fn-unwritten 70baf6166932
+strict-mode.kind 473337e9dc96
+strict-mode.leaf 60e3956d9309
+strict-mode.unwritten 1823ab932ade
+strict-mode.whole-type 1402bd7a5564
 string.bad-escape 2fbee16294fc
 string.brace-escape f37758319dd6
 string.cross-equality d0093bdc5e84
@@ -692,7 +694,7 @@ structural-typing.equal 4dbb04f3ce7c
 structural-typing.equal-order feff5c53b758
 structural-typing.exact-dict 420450173ab2
 structural-typing.exact-position e161e4baa4b5
-structural-typing.function d85a4fe5c687
+structural-typing.function a3162e14d79d
 structural-typing.has c9a47b47ba3a
 structural-typing.missing 9f65eada49ab
 structural-typing.overlap-fields 27882909c0f3
@@ -708,7 +710,7 @@ tuple.bare ffddbd638c71
 tuple.default-trailing df2e154cb11a
 tuple.equality 64729ee2cb20
 tuple.inner b776a092093d
-tuple.no-outer cca0de428269
+tuple.no-outer 464dcdb9a985
 tuple.no-uniform 9d4a9b424f28
 tuple.not-list 919afe9ff7a9
 tuple.omitted-default 8751d4355571
@@ -717,17 +719,17 @@ tuple.position-type 5443f5714fad
 tuple.positions bb00e8c41af5
 tuple.print b092b90502af
 tuple.unnamed 9aacc5fdf173
-tuple.unspecified 1aa622df5c9b
+tuple.unspecified 4d971ad5e908
 type-form.argument-literal 81838b46aa46
 type-form.name cc6585b990ac
 type-form.slots cc274f2a4aab
-type-form.uniform e4406986a60d
+type-form.uniform 2540f14b4ed9
 type-form.unknown-name f737b9a5e716
 type-lock.annotation 8c1b087e0e9a
 type-lock.annotation-after d8a2b2e7c903
 type-lock.any 57b391258ade
 type-lock.asserted 3541fc32b0bf
-type-lock.declaration fcbc795dfa22
+type-lock.declaration f60f70fda4f5
 type-lock.dict a2b83713f95a
 type-lock.empty 33170b11e0a3
 type-lock.first c6130de8b5a7
@@ -768,7 +770,7 @@ union.keep-default 7a5ce089d1fa
 union.member-match ab6fe3e77cf8
 union.members 696c13b1b20f
 union.no-collection 4fc5f19e7aa0
-union.no-outer b3e38104c6b7
+union.no-outer 717b53305a93
 union.position 103f75cebc9d
 union.reduce 0b805993ab3d
 union.single bb75e3563574

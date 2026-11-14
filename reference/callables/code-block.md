@@ -3,7 +3,7 @@ id: code-block
 title: Code blocks
 status: normative
 since: 0.24.0
-issues: [568, 571, 575]
+issues: [568, 575, 624]
 grammar: [block]
 errors: [RILL-R005, TYPE_MISMATCH]
 depends: [dispatch, selection, fn, assertion]
@@ -30,11 +30,6 @@ stated in `fn.block-type`. Every other block is a code block.
 r[code-block.positions] A block outside a function literal or an argument is a code block
 A block MUST be a code block when it is a construct body, a pipe target, the head of a chain, a
 statement, alone in parentheses, or an entry of a collection literal.
-
-r[code-block.ignores-input] A pipe target block reads its input {pending #575}
-A code block after `->` whose body does not read the pipe value MUST be rejected before the
-script runs. A body reads the pipe value when it writes `$`, starts a chain with a method such
-as `.upper`, or uses `pass`.
 
 ## Evaluation
 
@@ -82,7 +77,7 @@ Each selection of a held block MUST run it again.
 ## Interactions
 
 A code block yields its last statement (`statement.result`), and `return` ends it early
-(`break.return-body`).
+(`break.return-body`). A block after `->` reads its input (`pipe.uses-value`).
 
 Storing a function needs `fn` in front of the block: `fn { 5 } => $x` binds a function
 (`fn.bare-literal`), where `{ 5 } => $x` binds 5. A function written with `fn` as an entry is
@@ -148,7 +143,7 @@ $x
 # Result: 8
 ```
 
-```rill pending=571
+```rill pending=624
 fn { 5 } => $x
 $x()
 # Result: 5
@@ -168,6 +163,8 @@ On 0.23.0 a head block, a block alone in parentheses, and a collection entry are
 function: `{ 5 } => $x` binds a closure, `$d.a` returns one, and `3 -> { 5 }` yields 5. An
 assertion after a block tests the closure, so `3 -> { $ + 1 }:number` halts `#TYPE_MISMATCH`
 (got closure), `:?number` yields false, and `true ? { 5 }:number ! { 6 }` halts RILL-P001.
+
+Superseded: `code-block.ignores-input`, now stated by `pipe.uses-value`.
 
 Open decision: #568, what a read that does not select an entry does with a held block:
 iteration, `.values`, `.entries`, spread, equality, interpolation, host conversion, and the

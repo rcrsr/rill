@@ -3,7 +3,7 @@ id: dispatch
 title: Dispatch
 status: normative
 since: 0.24.0
-issues: [568, 599]
+issues: [568, 599, 630]
 grammar: []
 errors: [RILL-R002]
 depends: [selection, dict, ordered, list, tuple, map, fn]
@@ -19,10 +19,10 @@ A dispatch pipe `sel -> $c` selects an element of a collection and runs it when 
 r[dispatch.select] A pipe into a collection selects
 For a valid selector, `sel -> $c` MUST select as `$c[sel]` does, on a dict and a list.
 
-r[dispatch.tuple] A pipe into a tuple selects by index {pending #568}
+r[dispatch.tuple] A pipe into a tuple selects by index {pending #630}
 `sel -> $t` MUST select as `$t[sel]` does, for a tuple `$t`.
 
-r[dispatch.ordered] A pipe into an ordered selects by key {pending #568}
+r[dispatch.ordered] A pipe into an ordered selects by key {pending #630}
 `sel -> $o` MUST select as `$o[sel]` does, for an ordered `$o`.
 
 r[dispatch.path] A list piped into nested collections descends one level per element

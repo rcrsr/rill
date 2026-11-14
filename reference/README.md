@@ -85,9 +85,6 @@ until they are. 0.24.0 does not ship while this list is non-empty.
 | Issue | Question | Concept |
 |-------|----------|---------|
 | [#595](https://github.com/rcrsr/rill/issues/595) | Reading a default on a tuple position from the type | `defaults`, `introspection`, `tuple` |
-| [#563](https://github.com/rcrsr/rill/issues/563) | The type of the pairs `.entries` returns | `dict` |
-| [#569](https://github.com/rcrsr/rill/issues/569) | The halt for a typed capture that fails its assertion | `assertion`, `capture`, `type-lock`, `union` |
-| [#571](https://github.com/rcrsr/rill/issues/571) | Details: the name of strict mode, the scope of a bare block, and whether a function with parameter defaults matches a type that omits them | `strict-mode`, `defaults` |
 | [#568](https://github.com/rcrsr/rill/issues/568) | What a read that does not select an entry does with a held block | `code-block` |
 | [#579](https://github.com/rcrsr/rill/issues/579) | The literal form of a duration | `duration` |
 | [#613](https://github.com/rcrsr/rill/issues/613) | Whether `fan`, `filter`, and `sort` share the 10,000-element ceiling | `iteration` |
@@ -96,3 +93,15 @@ until they are. 0.24.0 does not ship while this list is non-empty.
 | [#617](https://github.com/rcrsr/rill/issues/617) | Whether a capture inside an interpolation escapes to the enclosing scope | `interpolation` |
 | [#618](https://github.com/rcrsr/rill/issues/618) | Whether the type after `use<...>` is checked | `use` |
 | [#619](https://github.com/rcrsr/rill/issues/619) | Which `use<...>` failures `guard` catches | `use` |
+| [#631](https://github.com/rcrsr/rill/issues/631) | Whether a function whose parameters carry defaults matches a type that omits them | `defaults` |
+| [#605](https://github.com/rcrsr/rill/issues/605) | Whether a function or an iterator converts to a string | `interpolation` |
+| [#612](https://github.com/rcrsr/rill/issues/612) | Whether an invalid value interpolates, and whether a collection literal holds one | `interpolation`, `invalid-value` |
+| [#621](https://github.com/rcrsr/rill/issues/621) | What `.?^key` yields on a value that cannot carry annotations | `annotation-access` |
+
+## Deferred past 0.24.0
+
+Concepts stated here but not built for 0.24.0. Their open questions do not block the release.
+
+| Issue | Question | Concept |
+|-------|----------|---------|
+| [#629](https://github.com/rcrsr/rill/issues/629) | The name of strict mode, and whether it flags a block passed to a construct or an operator | `strict-mode` |

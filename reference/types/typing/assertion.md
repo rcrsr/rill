@@ -3,7 +3,7 @@ id: assertion
 title: Type assertions and checks
 status: normative
 since: 0.24.0
-issues: [571]
+issues: [623]
 grammar: [postfix-type-op, type-assertion, type-check, type-target]
 errors: [INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, type-form, structural-typing, any]
@@ -74,7 +74,7 @@ carries a type MUST leave it unchanged.
 r[assertion.bare-kind] A bare kind annotation labels the kind
 `:list` and `:dict` MUST set the bare kind as the asserted type.
 
-r[assertion.bare-fn] The bare fn annotation labels the kind {pending #571}
+r[assertion.bare-fn] The bare fn annotation labels the kind {pending #623}
 `:fn` MUST set the bare kind `fn`, as `:list` sets `list`.
 
 ## Interactions
@@ -125,8 +125,7 @@ dict[a: 1] -> :dict(a: number, b: number = 0)
 
 ## Notes
 
-How the asserted type travels is stated by `carried-type`. Open decision: #569, the halt a
-failing `=> $x:T` capture raises.
+How the asserted type travels is stated by `carried-type`.
 
 The annotation `:closure` labels the bare kind `closure` today; 0.24.0 replaces the kind name with `fn`.
 

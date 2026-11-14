@@ -3,7 +3,7 @@ id: invocation
 title: Invocation
 status: normative
 since: 0.24.0
-issues: [571]
+issues: [624]
 grammar: []
 errors: [RILL-R001, RILL-R045]
 depends: [fn, defaults, scope]
@@ -59,19 +59,19 @@ A parameter without an argument takes its default (`defaults.param`), or the cal
 
 ## Examples
 
-```rill pending=571
+```rill pending=624
 fn(a: number, b: number) { $a - $b } => $f
 $f(5, 2)
 # Result: 3
 ```
 
-```rill pending=571
+```rill pending=624
 # Error: Function expects 1 argument, got 2
 fn(a) { $a } => $f
 $f(1, 2)
 ```
 
-```rill pending=571
+```rill pending=624
 # Error: Parameter type mismatch: a expects number, got string
 fn(a: number) { $a } => $f
 $f("x")

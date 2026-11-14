@@ -3,7 +3,7 @@ id: dict
 title: Dict types
 status: normative
 since: 0.24.0
-issues: [571, 572, 576, 581, 600]
+issues: [563, 572, 576, 581, 600, 622]
 grammar: []
 errors: [TYPE_MISMATCH]
 depends: [type-value, type-form]
@@ -36,12 +36,12 @@ Every argument of a dict type MUST carry a field name.
 r[dict.no-uniform] A dict type has no uniform form {pending #600}
 The parse error for `dict(V)` MUST name `map(string, V)`.
 
-r[dict.empty-parens] dict and dict() are one type {pending #571}
+r[dict.empty-parens] dict and dict() are one type {pending #622}
 `dict` and `dict()` MUST compare equal.
 
 ## Static rules
 
-r[dict.no-outer] A dict type takes no outer {pending #571}
+r[dict.no-outer] A dict type takes no outer {pending #622}
 A dict type written with an outer, such as `dict(a: number):string`, MUST be a parse error.
 
 r[dict.key-string] A dict key is always a string {pending #576}
@@ -74,6 +74,10 @@ r[dict.field-inner] A dict type's inner is its fields
 
 r[dict.field-print] A dict type prints its fields
 A dict type MUST print as `dict(a: T, ...)`.
+
+r[dict.entries-type] A dict's entries are string-keyed tuples {pending #563}
+`.entries` on a dict or an ordered whose values have type `V` MUST return
+`list(tuple(string, V))`, one `tuple[key, value]` per entry.
 
 ## Interactions
 
@@ -131,8 +135,6 @@ The 0.23.0 runtime keeps a number or bool key as a typed key, so `dict[1: "n"] =
 is false and `.keys` returns `list[1]`. The type of an empty dict prints `dict()` today. The
 decided 0.24.0 meaning of `dict()` is the unspecified type, and the printed form of the empty
 dict's type is not yet stated.
-
-Open decision: #563, the type of the pairs `.entries` returns.
 
 `dict(a: number):string` parses today as an assertion of the type value against `string` and halts
 `#TYPE_MISMATCH` at run time.

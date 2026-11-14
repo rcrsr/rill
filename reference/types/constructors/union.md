@@ -3,7 +3,7 @@ id: union
 title: Union types
 status: normative
 since: 0.24.0
-issues: [571, 574]
+issues: [574, 622]
 grammar: [union-type, union-member, union-literal]
 errors: [RILL-P001, RILL-P003, RILL-R001, RILL-R003, RILL-R036, INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, atom]
@@ -35,7 +35,7 @@ What follows a colon in a type position MUST be a type. A literal there MUST rai
 
 ## Static rules
 
-r[union.no-outer] A union type takes no outer {pending #571}
+r[union.no-outer] A union type takes no outer {pending #622}
 A union type written with an outer, such as `union(number, string):string`, MUST be a parse error.
 
 r[union.members] A member is a type or a scalar literal
@@ -129,8 +129,7 @@ union(string, "a") == string
 
 ## Notes
 
-The 0.23.0 `A|B` separator is removed and raises RILL-P011. Open decision: #569, the halt for a
-typed capture whose value matches no member.
+The 0.23.0 `A|B` separator is removed and raises RILL-P011.
 
 `union(number, string):string` parses today as an assertion of the type value against `string` and halts
 `#TYPE_MISMATCH` at run time.

@@ -3,7 +3,7 @@ id: ordered
 title: Ordered types
 status: normative
 since: 0.24.0
-issues: [571, 581, 600]
+issues: [581, 600, 622]
 grammar: []
 errors: []
 depends: [type-value, type-form, dict]
@@ -30,12 +30,12 @@ Every argument of an ordered type MUST carry a field name.
 r[ordered.no-uniform] An ordered type has no uniform form {pending #600}
 The parse error for `ordered(V)` MUST name `map(string, V)`.
 
-r[ordered.empty-parens] ordered and ordered() are one type {pending #571}
+r[ordered.empty-parens] ordered and ordered() are one type {pending #622}
 `ordered` and `ordered()` MUST compare equal.
 
 ## Static rules
 
-r[ordered.no-outer] An ordered type takes no outer {pending #571}
+r[ordered.no-outer] An ordered type takes no outer {pending #622}
 An ordered type written with an outer, such as `ordered(a: number):string`, MUST be a parse error.
 
 r[ordered.key-spelling] An ordered type accepts every key spelling a literal accepts {pending #581}

@@ -837,6 +837,10 @@ function checkCitations(
 // Open decisions
 // ---------------------------------------------------------------------------
 
+const DECISION_SECTIONS = new Set([
+  '## Open decisions',
+  '## Deferred past 0.24.0',
+]);
 const OPEN_DECISION = /Open decision: #(\d+)/g;
 const DECISION_ROW = /^\|\s*\[#(\d+)\]\([^)]*\)\s*\|.*\|([^|]*)\|\s*$/;
 
@@ -847,7 +851,9 @@ export function parseDecisionRows(
   const rows = new Map<number, { line: number; concepts: Set<string> }>();
   let inSection = false;
   text.split(/\r?\n/).forEach((raw, i) => {
-    if (raw.startsWith('## ')) inSection = raw.trim() === '## Open decisions';
+    if (raw.startsWith('## ')) {
+      inSection = DECISION_SECTIONS.has(raw.trim());
+    }
     if (!inSection) return;
     const m = raw.match(DECISION_ROW);
     if (!m) return;

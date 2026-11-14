@@ -3,7 +3,7 @@ id: type-lock
 title: Type-locked variables
 status: normative
 since: 0.24.0
-issues: [571, 598]
+issues: [598, 628]
 grammar: []
 errors: [RILL-R001]
 depends: [type-value, structural-typing, any, union, assertion, carried-type, declaration, inference]
@@ -38,7 +38,7 @@ r[type-lock.empty] An empty collection locks its unspecified form {pending #598}
 An empty collection infers its unspecified form. `list[] => $x` MUST lock `$x` to `list` and
 admit any list.
 
-r[type-lock.declaration] A declaration locks a narrower type {pending #571}
+r[type-lock.declaration] A declaration locks a narrower type {pending #628}
 `list(number)[] => $x` MUST lock `$x` to `list(number)`, so `list["a"] => $x` MUST halt with
 RILL-R001.
 
@@ -108,7 +108,7 @@ $x
 # Result: list["a"]
 ```
 
-```rill pending=571
+```rill pending=628
 # Error: RILL-R001, $x is locked as list(number)
 list(number)[] => $x
 list["a"] => $x
@@ -134,4 +134,4 @@ failure at `-> :string` halts `#TYPE_MISMATCH`.
 
 Today the runtime locks only the kind of a collection, so `list[1] => $x` then `list["a"] => $x` succeeds. #598 builds the narrowest-type lock.
 
-Open decision: #569, which halt a typed capture raises.
+A typed capture that fails its own assertion halts as `capture.mismatch` states.

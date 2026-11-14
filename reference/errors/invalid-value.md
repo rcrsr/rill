@@ -70,3 +70,6 @@ $r + 1
 
 On 0.23.0 an invalid value placed in a collection or interpolated does not halt: `list[$r]`
 holds it, and `"{$r}"` yields `"dict[]"` (#612).
+
+Open decision: #612, whether a collection literal may hold an invalid value, and what `.!` reports
+on such a collection.
