@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [568, 599]
 grammar: []
-errors: [RILL-R002, RILL-R003]
+errors: [RILL-R002]
 depends: [selection, dict, ordered, list, tuple, map, fn]
 tests: [dict-dispatch.test.ts, list-dispatch.test.ts, hierarchical-dispatch.test.ts, unified-dispatch.test.ts]
 ---
@@ -17,16 +17,13 @@ A dispatch pipe `sel -> $c` selects an element of a collection and runs it when 
 ## Evaluation
 
 r[dispatch.select] A pipe into a collection selects
-For a valid selector, `sel -> $c` MUST select as `$c.(sel)` does, on a dict and a list.
-
-r[dispatch.differ] Dispatch and a computed key differ for a wrong selector
-`$l.("a")` on a list MUST halt with RILL-R003, where `"a" -> $l` halts with RILL-R002.
+For a valid selector, `sel -> $c` MUST select as `$c[sel]` does, on a dict and a list.
 
 r[dispatch.tuple] A pipe into a tuple selects by index {pending #568}
-`sel -> $t` MUST select as `$t.(sel)` does, for a tuple `$t`.
+`sel -> $t` MUST select as `$t[sel]` does, for a tuple `$t`.
 
 r[dispatch.ordered] A pipe into an ordered selects by key {pending #568}
-`sel -> $o` MUST select as `$o.(sel)` does, for an ordered `$o`.
+`sel -> $o` MUST select as `$o[sel]` does, for an ordered `$o`.
 
 r[dispatch.path] A list piped into nested collections descends one level per element
 `list["a", "b"] -> $d` MUST select `"a"` in `$d`, then `"b"` in that result.
@@ -56,7 +53,6 @@ A block held by a map entry MUST run with `$` bound to the key.
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| A computed key with a non-number on a list | RILL-R003 | Yes |
 | A non-number piped into a list | RILL-R002 | Yes |
 
 ## Examples
@@ -81,6 +77,9 @@ list[{ "got {$}" }] => $l
 
 `0 -> list[{ 5 }]` yields the block uncalled on 0.23.0, `0 -> tuple[{ 5 }]` fails to parse, and
 `fn` values do not parse inside a dict literal. A multi-key entry also parses as `list["a", "b"]: v`.
+
+On 0.23.0 `$l.("a")` on a list halts RILL-R003 where `"a" -> $l` halts RILL-R002. The
+parenthesized form is removed in 0.24.0 (#607), and `$l["a"]` halts RILL-R002 as dispatch does.
 
 Selection and dispatch are one topic split in two: dispatch runs held blocks and descends paths,
 which element reads never do.

@@ -51,7 +51,7 @@ r[carried-type.fallback] A fallback keeps the selected operand's type
 
 r[carried-type.element] An element of a labeled collection carries the collection's part
 Reading an element or field from a collection with an asserted type MUST give the element the
-asserted element or field type. This holds for `[i]`, `.name`, `.$k`, `.(expr)`, and iteration.
+asserted element or field type. This holds for `[i]`, `.name`, `.$k`, and iteration.
 
 r[carried-type.inferred-element] An element of an inferred collection carries its own type
 Reading an element from a collection with no carried type MUST give the element its own type.
