@@ -3,6 +3,23 @@
 acc 27d4586e2a2e break.seq@e47b3a30461b
 acc.result 0d21f65369ea
 acc.threading 7abe3823aa8f fold.accumulator@e19bdd8e9418 fold.named@0686e7172a4c fold.order@5265485c3760 fold.seed-required@ce6ea3aae1d0 fold.unnamed@03ced95fe53b
+annotation 1455b92fe73c introspection.type-probe@98d4ed5945dd
+annotation.direct e61aa4f1db13
+annotation.fallback 04bd31e1f425 vacancy.fallback@a8ddb8c219f9
+annotation.inert 085a07fc0f22
+annotation.key fbb35a86fb42
+annotation.limit-in-call 7562e390efe5
+annotation.missing db2b8f7c2690
+annotation.non-function eebed6b904cb
+annotation.param-read faeaa146d0d4 introspection.annotations@e07ad255220a
+annotation.positions 87659aeb21af
+annotation.presence c468d53c2c9e
+annotation.read a43dfcdf513c
+annotation.repeat-key baba8a6ebf2f
+annotation.reserved 1c783a27813a
+annotation.shorthand 775a2d4447b1
+annotation.stack c9e0be7ae374
+annotation.values da65e8c2b8a5
 any 6ac6864f3c91 dict.empty-parens@03dba1843c57 fn.empty@662e39806488 introspection.bare@37f735d34b97 introspection.leaf@c3102e0c1886 list.unspecified@6c728a862c10 ordered.empty-parens@3e3e280e9a28 stream.unspecified@433f2a711db6 tuple.unspecified@1aa622df5c9b union.empty@1f0396741c84
 any.admits 7b4420687b3a
 any.assert 0df138bbb10d
