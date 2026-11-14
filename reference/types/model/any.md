@@ -43,7 +43,7 @@ r[any.signature] The any type prints as any
 
 Empty parentheses on a compound type name the unspecified form; see `list.unspecified`,
 `dict.empty-parens`, `tuple.unspecified`, `ordered.empty-parens`, and `stream.unspecified`.
-`fn()` takes no parameters, and `union()` is rejected.
+`fn()` takes no parameters (`fn.empty`), and `union()` halts (`union.empty`).
 
 ## Examples
 

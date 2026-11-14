@@ -14,6 +14,13 @@ import {
   type ParsedFile,
   type Severity,
 } from './parse.js';
+import {
+  currentOwners,
+  findDrift,
+  ownerRule,
+  scanXrefs,
+  type Lock,
+} from './xref.js';
 
 export type IssueState = 'OPEN' | 'CLOSED' | 'UNKNOWN';
 
@@ -24,6 +31,15 @@ export interface CheckOptions {
   errorCodes: readonly string[];
   /** When set, every pending issue is looked up through it. */
   issueState?: ((issue: number) => IssueState) | undefined;
+  /** When set, the corpus is compared with the hash lock. */
+  lock?: LockInput | undefined;
+}
+
+export interface LockInput {
+  /** Absolute path of the lock file. */
+  path: string;
+  /** Parsed entries; undefined when the file does not exist. */
+  entries: Lock | undefined;
 }
 
 const RILL_ID = /^RILL-[A-Z]\d+$/;
@@ -243,6 +259,8 @@ export function checkCorpus(
   checkIds(corpus, add);
   checkDepends(corpus, add);
   checkXrefs(corpus, add);
+  checkInteractions(corpus, add);
+  if (options.lock) checkLock(corpus, options.lock, add, out);
 
   checkGrammar(files, repoRoot, add);
   checkErrors(files, repoRoot, options.errorCodes, add);
@@ -493,67 +511,180 @@ function checkIds(corpus: Corpus, add: AddFor): void {
  * built yet, which is reported as a warning.
  */
 function checkXrefs(corpus: Corpus, add: AddFor): void {
-  const concepts = new Set<string>();
-  const rules = new Map<string, ParsedFile['rules'][number]>();
-  for (const f of corpus.files) {
-    const id = getString(f.frontmatter, 'id');
-    if (id) concepts.add(id);
-    for (const r of f.rules) rules.set(r.id, r);
+  const scan = scanXrefs(corpus);
+  for (const u of scan.unknown) {
+    add(
+      u.file,
+      u.line,
+      'error',
+      'xref-unknown',
+      `'${u.ref}' names no rule; concept '${u.concept}' has no rule with that slug`
+    );
   }
-  const token = /`([a-z][a-z0-9_-]*(?:\.[a-z0-9_-]+)+)`/g;
+  for (const x of scan.xrefs) {
+    const target = scan.rules.get(x.ref)!;
+    if (
+      x.ownerRule &&
+      x.ownerRule.pending === null &&
+      target.pending !== null
+    ) {
+      add(
+        x.file,
+        x.line,
+        'warn',
+        'xref-pending',
+        `Built rule '${x.owner}' cites '${x.ref}', which is pending #${target.pending}`
+      );
+    }
+  }
+}
 
+const NORMATIVE = /\b(?:MUST|SHOULD|SHALL|MAY|REQUIRED)\b/;
+const BACKTICK = /`([^`]+)`/g;
+
+/** Splits prose into sentences, never inside a backtick span. */
+function sentences(text: string): string[] {
+  const out: string[] = [];
+  let tick = false;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charAt(i);
+    if (c === '`') tick = !tick;
+    if (tick || !/[.!?]/.test(c)) continue;
+    const next = text.slice(i + 1);
+    if (next === '' || /^\s+[A-Z`(]/.test(next)) {
+      out.push(text.slice(start, i + 1).trim());
+      start = i + 1;
+    }
+  }
+  const rest = text.slice(start).trim();
+  if (rest) out.push(rest);
+  return out;
+}
+
+/**
+ * Interactions prose outside rule bodies points at owners; it never owns a
+ * fact. A sentence there that states a requirement, or names no rule or
+ * concept, restates a fact some rule should own.
+ */
+function checkInteractions(corpus: Corpus, add: AddFor): void {
+  const scan = scanXrefs(corpus);
+  const names = (s: string): boolean =>
+    [...s.matchAll(BACKTICK)].some(
+      (m) => scan.rules.has(m[1]!) || scan.concepts.has(m[1]!)
+    );
   for (const f of corpus.files) {
-    if (!getString(f.frontmatter, 'id')) continue;
-    const notes = f.headings.find((h) => h.level === 2 && h.text === 'Notes');
-    const end = notes ? notes.line : f.lines.length + 1;
-    const inFence = (line: number): boolean =>
-      f.fences.some(
-        (x) => line >= x.line && line <= (x.closed ? x.endLine : f.lines.length)
-      );
-    const markerLines = new Set(f.rules.map((r) => r.line));
-    const owner = (line: number): ParsedFile['rules'][number] | undefined => {
-      let best: ParsedFile['rules'][number] | undefined;
-      for (const r of f.rules) {
-        if (r.line <= line && (!best || r.line > best.line)) best = r;
-      }
-      if (!best) return undefined;
-      const heading = f.headings.some(
-        (h) => h.line > best!.line && h.line <= line
-      );
-      return heading ? undefined : best;
-    };
-
-    for (let line = 1; line < end; line++) {
-      if (markerLines.has(line) || inFence(line)) continue;
-      const text = f.lines[line - 1] ?? '';
-      for (const m of text.matchAll(token)) {
-        const ref = m[1]!;
-        const concept = ref.slice(0, ref.lastIndexOf('.'));
-        if (!concepts.has(concept)) continue;
-        if (concepts.has(ref)) continue;
-        const target = rules.get(ref);
-        if (!target) {
+    const head = f.headings.find(
+      (h) => h.level === 2 && h.text === 'Interactions'
+    );
+    if (!head) continue;
+    const next = f.headings.find((h) => h.line > head.line && h.level <= 2);
+    const end = next ? next.line : f.lines.length + 1;
+    let para: Array<{ line: number; text: string }> = [];
+    const flush = (): void => {
+      if (para.length === 0) return;
+      const text = para.map((p) => p.text.trim()).join(' ');
+      const line = para[0]!.line;
+      para = [];
+      if (/^[|-]/.test(text)) return;
+      for (const s of sentences(text)) {
+        if (NORMATIVE.test(s)) {
           add(
             f,
             line,
             'error',
-            'xref-unknown',
-            `'${ref}' names no rule; concept '${concept}' has no rule with that slug`
+            'interaction-normative',
+            `Interactions prose states a requirement: "${s}". Make it a rule, or cite the rule that owns it`
           );
-          continue;
-        }
-        const from = owner(line);
-        if (from && from.pending === null && target.pending !== null) {
+        } else if (!names(s)) {
           add(
             f,
             line,
-            'warn',
-            'xref-pending',
-            `Built rule '${from.id}' cites '${ref}', which is pending #${target.pending}`
+            'error',
+            'interaction-uncited',
+            `Interactions sentence names no rule or concept: "${s}". Cite the owner, or move the fact into a rule`
           );
         }
       }
+    };
+    for (let line = head.line + 1; line < end; line++) {
+      const text = f.lines[line - 1] ?? '';
+      const inRule = ownerRule(f, line) !== undefined;
+      if (inRule || f.inFence[line - 1] || text.trim() === '') {
+        flush();
+        continue;
+      }
+      para.push({ line, text });
     }
+    flush();
+  }
+}
+
+/**
+ * Compares the corpus with the hash lock. A changed, added, or removed owner
+ * means the lock is stale. An unchanged owner citing a rule that changed
+ * since its last review has drifted.
+ */
+function checkLock(
+  corpus: Corpus,
+  lock: LockInput,
+  add: AddFor,
+  out: Diagnostic[]
+): void {
+  const lockRel = path
+    .relative(corpus.repoRoot, lock.path)
+    .split(path.sep)
+    .join('/');
+  const fix = 'run `pnpm ref lock`';
+  if (!lock.entries) {
+    out.push({
+      file: lockRel,
+      line: 1,
+      severity: 'error',
+      code: 'lock-missing',
+      message: `No hash lock; ${fix}`,
+    });
+    return;
+  }
+  const owners = currentOwners(corpus);
+  for (const [owner, state] of owners) {
+    const entry = lock.entries.get(owner);
+    if (!entry) {
+      add(
+        state.file,
+        state.line,
+        'error',
+        'lock-stale',
+        `'${owner}' is not in the lock; ${fix}`
+      );
+    } else if (entry.hash !== state.hash) {
+      add(
+        state.file,
+        state.line,
+        'error',
+        'lock-stale',
+        `'${owner}' changed since the lock; ${fix}`
+      );
+    }
+  }
+  for (const owner of lock.entries.keys()) {
+    if (owners.has(owner)) continue;
+    out.push({
+      file: lockRel,
+      line: 1,
+      severity: 'error',
+      code: 'lock-stale',
+      message: `'${owner}' is in the lock but no longer exists; ${fix}`,
+    });
+  }
+  for (const d of findDrift(owners, lock.entries)) {
+    add(
+      d.file,
+      d.line,
+      'error',
+      'xref-drift',
+      `'${d.owner}' cites '${d.ref}', which changed since '${d.owner}' was reviewed. Review it, then run \`pnpm ref lock --reviewed ${d.owner}\``
+    );
   }
 }
 

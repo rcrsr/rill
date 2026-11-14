@@ -355,6 +355,7 @@ function lintRules(file: ParsedFile, add: Add): void {
         `Rule '${r.id}' body has no MUST, MUST NOT, or MAY`
       );
     }
+    lintTrailingProse(file, r, add);
     for (const b of r.bodyLines) {
       if (file.inFence[b.line - 1]) continue;
       if (/\bmust\b/.test(stripInlineCode(b.text))) {
@@ -367,6 +368,41 @@ function lintRules(file: ParsedFile, add: Add): void {
       }
     }
   }
+}
+
+/**
+ * A rule body runs to the next marker or heading, so prose written after a
+ * rule's last paragraph joins its body. A later paragraph with no RFC 2119
+ * keyword is such stray prose; tables, lists, and fences are exempt.
+ */
+function lintTrailingProse(file: ParsedFile, r: RuleMarker, add: Add): void {
+  let para: RuleMarker['bodyLines'] = [];
+  let index = 0;
+  const flush = (): void => {
+    if (para.length === 0) return;
+    const first = para[0]!;
+    const text = para.map((p) => p.text).join(' ');
+    para = [];
+    index++;
+    if (index === 1 || /^\s*[|-]|^\s{4}/.test(first.text)) return;
+    if (/\b(MUST|MAY)\b/.test(text)) return;
+    add(
+      first.line,
+      'error',
+      'rule-trailing-prose',
+      `Paragraph in rule '${r.id}' has no MUST or MAY; move it above the rules or into its own rule`
+    );
+  };
+  for (const b of r.bodyLines) {
+    if (file.inFence[b.line - 1]) {
+      flush();
+      index++;
+      continue;
+    }
+    if (b.text.trim() === '') flush();
+    else para.push(b);
+  }
+  flush();
 }
 
 function lintMarker(r: RuleMarker, fileId: string | undefined, add: Add): void {

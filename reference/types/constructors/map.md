@@ -124,6 +124,8 @@ r[map.filter] filter over a map yields a list of entries {pending #599}
 
 ## Interactions
 
+Selection by key is stated in `selection`.
+
 r[map.no-spread] A map never spreads {pending #599}
 Spreading a map into a dict literal or an argument list MUST halt.
 
@@ -138,8 +140,6 @@ r[map.to-dict-key] A map with another key kind does not convert to a dict {pendi
 
 r[map.from-list] A list does not convert to a map {pending #599}
 `list -> map` MUST raise RILL-R036.
-
-Selection by key is stated in `selection`.
 
 ## Errors
 

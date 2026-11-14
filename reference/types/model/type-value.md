@@ -28,7 +28,7 @@ r[type-value.metatype] The type of a type value is type
 
 r[type-value.equality] Two type values compare equal when each accepts the other
 `==` between two type values MUST yield true exactly when every value that has one type also
-has the other. The `structural-typing` concept defines the relation.
+has the other (`structural-typing.equal`).
 
 r[type-value.contexts] A type form yields one type value in every position
 A type form MUST yield the same type value whether it sits in a type position or evaluates

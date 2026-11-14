@@ -70,8 +70,8 @@ r[tuple.not-list] A tuple value does not have a list type
 `tuple[1, 2] -> :?list(number)` MUST yield false.
 
 r[tuple.equality] Tuple types are equal when their positions are equal in order
-`tuple(number, string)` MUST NOT equal `tuple(string, number)`. A position default is part of
-the type, so `tuple(number, string = "x")` MUST NOT equal `tuple(number, string)`.
+`tuple(number, string)` MUST NOT equal `tuple(string, number)`, and two tuple types MUST be
+equal when their positions are equal in order.
 
 r[tuple.inner] A tuple type's inner is a tuple of its position types
 `.inner` MUST return a tuple holding one type per position.

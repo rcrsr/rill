@@ -40,13 +40,11 @@ value MUST raise the halt the invalid value holds, at the place of access.
 r[invalid-value.hold] Holding an invalid value is not access
 A capture, a variable read, a `??` test, and a status probe MUST NOT raise the held halt.
 
-r[invalid-value.fallback] ?? replaces an invalid value
-`v ?? d` MUST yield `d` when `v` is invalid (`vacancy.fallback`).
-
 ## Interactions
 
-The type of `.!code` is `union(error_code, #ok)` (`error-code.status`). Which halts become
-invalid values is stated in `guard` and `halt.catchable`.
+`??` replaces an invalid value, since an invalid value is vacant (`vacancy.vacant`). The type
+of `.!code` is `union(error_code, #ok)` (`error-code.status`). Which halts become invalid
+values is stated in `guard` and `halt.catchable`.
 
 ## Examples
 

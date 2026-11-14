@@ -66,7 +66,6 @@ r[equality.methods] .eq, .ne, and .has follow the operators
 ## Interactions
 
 A carried type decides whether a comparison halts, never its result (`carried-type.equality`).
-Ordering comparisons, `<` and `>`, are stated with the operators.
 
 ## Errors
 

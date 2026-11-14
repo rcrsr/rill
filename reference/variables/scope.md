@@ -56,8 +56,8 @@ at call time.
 ## Interactions
 
 The same-scope rebinding rule, and its type lock, is stated in `capture.rebind` and
-`type-lock`. A loop accumulates through `$`, `fold`, or `acc`, never by rebinding an outer
-variable.
+`type-lock`. A loop accumulates through `$` (`loop.accumulate`), never by rebinding an outer variable
+(`scope.no-rebind`).
 
 ## Errors
 

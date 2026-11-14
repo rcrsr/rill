@@ -85,8 +85,8 @@ with RILL-R005.
 
 ## Interactions
 
-A conditional or a loop after `->` takes the value as its input, as the control-flow chapter
-states. `-> :T` and `-> :?T` assert and check rather than convert (`assertion`). A capture in a
+A conditional or a loop after `->` takes the value as its input (`conditional.piped`,
+`loop.seed`). `-> :T` and `-> :?T` assert and check rather than convert (`assertion`). A capture in a
 chain binds and passes the value on (`capture`).
 
 ## Errors

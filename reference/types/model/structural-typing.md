@@ -30,19 +30,10 @@ r[structural-typing.accepts] A type accepts another when every value of it has t
 member that another member accepts, so `union(list, list(number))` reduces to `list`.
 
 r[structural-typing.equal] Two types are equal when each accepts the other
-`==` between two type values MUST test equality under this relation.
+Two types MUST be equal exactly when each accepts the other.
 
 r[structural-typing.equal-order] Dict types ignore field order
 `dict(a: number, b: string)` MUST equal `dict(b: string, a: number)`.
-
-r[structural-typing.order-ordered] Ordered types differ when their field order differs
-`ordered(a: number, b: string)` MUST NOT equal `ordered(b: string, a: number)`.
-
-r[structural-typing.order-tuple] Tuple types differ when their position order differs
-`tuple(number, string)` MUST NOT equal `tuple(string, number)`.
-
-r[structural-typing.equal-default] A field default is part of its type
-`dict(a: number = 1)` MUST NOT equal `dict(a: number)`.
 
 r[structural-typing.empty] An empty collection has every type of its kind
 `list[]` MUST have `list(T)` for every `T`. `inference.empty` states its own type.

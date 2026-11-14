@@ -114,6 +114,26 @@ Every fact has one owning rule. Other files cite it and never restate it.
   a stale reference (`xref-unknown`). Notes may name superseded ids.
 - A built rule that cites a pending rule describes behavior that is not built yet. `pnpm ref
   check` warns (`xref-pending`). Move the citation to Interactions or make the rule pending.
+- Interactions prose outside rule bodies only points at owners. Each sentence names a rule or
+  concept in backticks and states no requirement. `pnpm ref check` fails an uncited sentence
+  (`interaction-uncited`) and a MUST or MAY in that prose (`interaction-normative`).
+- A rule body runs to the next marker or heading, so a paragraph written after the last rule
+  joins that rule. `pnpm ref lint` fails a later body paragraph with no MUST or MAY
+  (`rule-trailing-prose`). Put pointer prose above the rules of its section.
+- `pnpm ref query --dependents <id>` lists every rule and prose block that cites a rule, or
+  every citation of a concept's rules plus the concepts that name it in `depends`.
+
+## Hash lock
+
+`reference/reference.lock` records a hash of every rule, of every concept's prose that cites a
+rule, and of each rule those owners cite. Whitespace changes do not change a hash.
+
+- `pnpm ref check` fails a rule added, removed, or changed since the lock (`lock-stale`).
+  Run `pnpm ref lock` and commit the lock with the change.
+- When a cited rule changes, each owner citing it keeps the old hash and fails as
+  `xref-drift`. Read the owner, fix it if the change affects it, then run
+  `pnpm ref lock --reviewed <owner>`. A concept id accepts its prose and all its rules.
+- Editing an owner's own text counts as its review. `--all` accepts every owner at once.
 
 ## Build state
 

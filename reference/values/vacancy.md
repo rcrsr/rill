@@ -44,21 +44,11 @@ r[vacancy.missing] ?? replaces a missing selection
 `??` after a selection MUST yield the fallback when the key or index is missing, as
 `selection.default` states.
 
-r[vacancy.status] The status probe reads validity without halting
-`v.!` MUST yield true for an invalid value and false for a valid one, and MUST NOT halt.
-
-r[vacancy.access-invalid] Accessing an invalid value halts
-A field read, an index read, a method call, or a comparison on an invalid value MUST halt with
-the halt the value carries.
-
-r[vacancy.no-condition] Vacancy is never a condition
-A condition MUST be a bool. Emptiness and validity are tested with `.empty` and `.!`.
-
 ## Interactions
 
-`??` does not require the fallback to share the value's type: `dict[] ?? 1` yields 1. The
-fallback keeps its own type (`carried-type.fallback`). The invalid value and its status fields
-are stated in the errors chapter.
+The fallback need not share the value's type, and keeps its own (`carried-type.fallback`).
+Invalid values, their status probe, and the halt on access are stated in `invalid-value`.
+A condition is never a vacancy test (`conditional.bool`); test with `.empty` or `.!`.
 
 ## Errors
 

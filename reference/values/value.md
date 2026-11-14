@@ -46,7 +46,7 @@ errors chapter states.
 
 ## Interactions
 
-Each kind's own rules are in the types chapter. `equality` states when two values are equal,
+`equality` states when two values are equal,
 and `vacancy` states which values `??` replaces. A value's type is reported by `.^type`
 (`carried-type`).
 

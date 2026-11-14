@@ -52,8 +52,8 @@ admits:
 | `ordered(a: A, ...)`, or `any` | `ordered[a: A, ...]`, or `any` | `union(ordered, type)` |
 | `union(m1, m2, ...)` | `list[m1, m2, ...]` | `list(union(type, string, number, bool, atom))` |
 
-A field with a default keeps its type in `.inner`; the default is not part of the entry. The
-members of a union follow `union.canonical-order`.
+A field with a default MUST keep its type in `.inner`, without the default. The members of a
+union MUST follow `union.canonical-order`.
 
 r[introspection.literal-member] A literal union member appears as its value
 `.inner` on a union MUST list a literal member as the literal value, not as a type.

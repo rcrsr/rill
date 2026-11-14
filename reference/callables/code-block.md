@@ -65,10 +65,6 @@ r[code-block.unbound] Reading an unbound $ halts
 Reading `$` or `$@` in a code block where the enclosing scope binds none MUST halt with
 RILL-R005.
 
-r[code-block.result] A block yields its last statement
-A code block MUST yield the value of the last statement it runs. `return` MUST end the block
-early with the returned value.
-
 r[code-block.held] A collection entry holds the block uncalled {pending #568}
 A code block written as a dict value, an ordered value, a map value, a list element, or a
 tuple element MUST be held as a code block. It MUST NOT convert to a function.
@@ -85,10 +81,19 @@ Each selection of a held block MUST run it again.
 
 ## Interactions
 
+A code block yields its last statement (`statement.result`), and `return` ends it early
+(`statement.return`).
+
+Storing a function needs `fn` in front of the block: `fn { 5 } => $x` binds a function
+(`fn.bare-literal`), where `{ 5 } => $x` binds 5. A function written with `fn` as an entry is
+a value, and selecting it returns it uncalled (`dispatch.fn`). A block passed as a whole
+argument is a function, not a code block, and takes the unnamed parameters its body reads
+(`fn.block-type`). An assertion on such a block sets the function's outer (`fn.block-outer`).
+
 r[code-block.assert] An assertion on a code block checks its result {pending #575}
 `{ body }:T` MUST run the block where its position runs it, then assert its result against
-`T` as any assertion does (`assertion.pass`, `assertion.mismatch`). A pipe target, a head block, a block in parentheses, a construct body, and a selected
-entry each assert on every run.
+`T` as any assertion does (`assertion.pass`, `assertion.mismatch`). A pipe target, a head
+block, a block in parentheses, a construct body, and a selected entry each assert on every run.
 
 r[code-block.check] A check on a code block tests its result {pending #575}
 `{ body }:?T` MUST run the block, then yield whether its result has type `T`.
@@ -99,13 +104,6 @@ statement. `$a -> { ... }:number -> .x` MUST assert before `.x` reads the value.
 
 r[code-block.assert-construct] A construct body accepts an assertion {pending #575}
 `true ? { 5 }:number ! { 6 }` MUST parse, and MUST assert the branch that runs.
-
-Storing a function needs `fn` in front of the block: `fn { 5 } => $x` binds a function
-(`fn.bare-literal`), where `{ 5 } => $x` binds 5. A function written with `fn` as an entry is
-a value, and selecting it returns it uncalled (`dispatch.fn`). An assertion on a block passed
-as an argument sets the converted function's outer (`fn.block-outer`). A block passed as a whole argument is a function, not a code block, and takes
-the unnamed parameters its body reads (`fn.block-type`). Only `fold` and `acc` call such a
-function with the accumulator as `$@`.
 
 ## Errors
 

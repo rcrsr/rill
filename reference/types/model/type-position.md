@@ -38,7 +38,7 @@ A `$` variable MAY be written in any type position in place of a type form. The
 
 ## Interactions
 
-A union MAY be written in every type position, as `union.position` states. A type form
+A union can be written in every type position (`union.position`). A type form
 written outside a type position evaluates as an expression and yields a type value
 (`type-value.expression`).
 

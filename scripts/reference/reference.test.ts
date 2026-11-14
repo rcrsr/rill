@@ -23,6 +23,14 @@ import {
   type Corpus,
 } from './parse.js';
 import {
+  currentOwners,
+  findDependents,
+  findDrift,
+  parseLock,
+  formatLock,
+  updateLock,
+} from './xref.js';
+import {
   buildReport,
   findConcept,
   pendingRules,
@@ -839,5 +847,140 @@ describe('checkCorpus: cross-references', () => {
       'reference/one/beta.md': target,
     });
     expect(codes).toEqual(['xref-pending']);
+  });
+});
+
+describe('checkCorpus: Interactions audit', () => {
+  const target = concept(
+    'beta',
+    '',
+    '## Evaluation\n\nr[beta.built] A built rule\nIt MUST hold.\n'
+  );
+
+  it('accepts sentences that cite a rule or concept', () => {
+    expect(
+      checkRepo({
+        'reference/one/alpha.md': concept(
+          'alpha',
+          '',
+          '## Interactions\n\nIt holds (`beta.built`). See `beta`.\n'
+        ),
+        'reference/one/beta.md': target,
+      })
+    ).toEqual([]);
+  });
+
+  it('rejects an uncited sentence and a normative sentence', () => {
+    expect(
+      checkRepo({
+        'reference/one/alpha.md': concept(
+          'alpha',
+          '',
+          '## Interactions\n\nIt holds everywhere. It MUST hold (`beta.built`).\n'
+        ),
+        'reference/one/beta.md': target,
+      })
+    ).toEqual(['interaction-uncited', 'interaction-normative']);
+  });
+
+  it('skips rule bodies inside Interactions', () => {
+    expect(
+      checkRepo({
+        'reference/one/alpha.md': concept(
+          'alpha',
+          '',
+          '## Interactions\n\nr[alpha.meet] Where they meet\nIt MUST hold.\n'
+        ),
+      })
+    ).toEqual([]);
+  });
+});
+
+describe('lintFile: trailing prose', () => {
+  it('rejects a keyword-free paragraph after a rule body', () => {
+    expect(
+      lintText(
+        concept(
+          'thing',
+          '',
+          '## Evaluation\n\nr[thing.one] First rule\nIt MUST hold.\n\nSee elsewhere.\n'
+        )
+      )
+    ).toContain('error:rule-trailing-prose');
+  });
+
+  it('accepts a second normative paragraph and a table', () => {
+    expect(
+      lintText(
+        concept(
+          'thing',
+          '',
+          '## Evaluation\n\nr[thing.one] First rule\nIt MUST hold.\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\nIt MAY also hold.\n'
+        )
+      )
+    ).not.toContain('error:rule-trailing-prose');
+  });
+});
+
+describe('dependents and the hash lock', () => {
+  const files = (body: string): Record<string, string> => ({
+    'reference/one/alpha.md': concept(
+      'alpha',
+      '',
+      '## Evaluation\n\nr[alpha.one] Cites beta\nIt MUST follow `beta.built`.\n\n## Interactions\n\nSee `beta.built`.\n'
+    ),
+    'reference/one/beta.md': concept(
+      'beta',
+      '',
+      `## Evaluation\n\nr[beta.built] A built rule\n${body}\n`
+    ),
+  });
+  const corpusOf = (body: string): Corpus => {
+    const root = makeRepo(files(body));
+    return loadCorpus(root, path.join(root, 'reference'));
+  };
+
+  it('lists the rules and prose that cite a rule', () => {
+    const deps = findDependents(corpusOf('It MUST hold.'), 'beta.built');
+    expect(deps?.map((d) => d.owner)).toEqual(['alpha.one', 'alpha']);
+    expect(
+      findDependents(corpusOf('It MUST hold.'), 'beta.gone')
+    ).toBeUndefined();
+  });
+
+  it('flags citers of a changed rule until they are reviewed', () => {
+    const before = currentOwners(corpusOf('It MUST hold.'));
+    const lock = parseLock(
+      formatLock(updateLock(before, new Map(), () => false))
+    );
+    expect(findDrift(before, lock)).toEqual([]);
+
+    const after = currentOwners(corpusOf('It MUST hold twice.'));
+    const relocked = updateLock(after, lock, () => false);
+    expect(findDrift(after, relocked).map((d) => d.owner)).toEqual([
+      'alpha.one',
+      'alpha',
+    ]);
+    const reviewed = updateLock(after, relocked, (o) => o === 'alpha.one');
+    expect(findDrift(after, reviewed).map((d) => d.owner)).toEqual(['alpha']);
+  });
+
+  it('reports a missing and a stale lock', () => {
+    const root = makeRepo(files('It MUST hold.'));
+    const corpus = loadCorpus(root, path.join(root, 'reference'));
+    const lockPath = path.join(root, 'reference/reference.lock');
+    const codes = (entries?: ReturnType<typeof parseLock>) =>
+      checkCorpus(corpus, {
+        ...baseOptions,
+        lock: { path: lockPath, entries },
+      })
+        .filter((d) => d.code.startsWith('lock') || d.code === 'xref-drift')
+        .map((d) => d.code);
+    expect(codes()).toEqual(['lock-missing']);
+    const fresh = updateLock(currentOwners(corpus), new Map(), () => false);
+    expect(codes(fresh)).toEqual([]);
+    fresh.set('gone.rule', { hash: 'x', cites: new Map() });
+    fresh.get('beta.built')!.hash = 'changed';
+    expect(codes(fresh).sort()).toEqual(['lock-stale', 'lock-stale']);
   });
 });
