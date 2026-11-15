@@ -14,6 +14,7 @@ import type { ListLiteralNode } from '../../../../types.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 import { findElementTypeMismatch } from '../../types/operations.js';
+import { inferType } from '../../types/registrations.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getNodeLocation } from '../shared.js';
@@ -42,7 +43,7 @@ export async function evaluateListLiteralDispatch(
         fn: 'evaluateListLiteralDispatch',
       },
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `List index must be number, got ${typeof input}`,
+      `List index must be number, got ${inferType(input)}`,
       { input, expectedType: 'number' }
     );
   }

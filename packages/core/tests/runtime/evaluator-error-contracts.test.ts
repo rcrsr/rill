@@ -1487,3 +1487,26 @@ describe('Rill Runtime: nested list literal inference cost', () => {
     expect(Array.isArray(result)).toBe(true);
   });
 });
+
+describe('list dispatch with a non-number key', () => {
+  it('names the key kind, not the JavaScript type', async () => {
+    await expectHalt(() => run('"a" -> list[10, 20]'), {
+      code: 'RILL_R002',
+      messagePattern: 'List index must be number, got string',
+    });
+  });
+
+  it('names bool rather than boolean', async () => {
+    await expectHalt(() => run('true -> list[10, 20]'), {
+      code: 'RILL_R002',
+      messagePattern: 'List index must be number, got bool',
+    });
+  });
+
+  it('names a tuple key as tuple, not object', async () => {
+    await expectHalt(() => run('tuple[1] -> list[10, 20]'), {
+      code: 'RILL_R002',
+      messagePattern: 'List index must be number, got tuple',
+    });
+  });
+});
