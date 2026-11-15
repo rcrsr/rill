@@ -28,9 +28,9 @@ import { evaluateBodyExpression } from './control-flow.js';
 import { matchesErrorId } from './core.js';
 import {
   isFieldKey,
-  locateField,
   projectLocated,
   throwFieldMiss,
+  locateOrRecover,
 } from './field-access.js';
 
 // ============================================================
@@ -41,7 +41,9 @@ import {
  * Select the element `key` names from a plain dict or a list.
  *
  * A list key must be a number and a fractional one halts. A miss resolves to
- * `defaultValue` when given, otherwise halts. With `resolve` set to `'keep'` a
+ * `defaultValue` when given, otherwise halts. Only an absent string key or an
+ * out-of-range list index recovers: a number or bool key on a dict, and a key
+ * that is not a string, number or bool, halt even with a default. With `resolve` set to `'keep'` a
  * selected callable is returned as stored for the caller to resolve; otherwise
  * it is invoked with `key` as its input.
  *
@@ -53,7 +55,7 @@ import {
  * @param resolve - Whether a selected callable is invoked
  * @returns The element with its projected declared type
  * @throws RuntimeHaltSignal (catchable) on a non-number list key, a fractional
- *   index, or a miss without a default
+ *   index, a wrong-typed key, or a miss without a default
  */
 export async function selectElement(
   s: EvalState,
@@ -79,43 +81,39 @@ export async function selectElement(
     );
   }
 
-  const fieldKey = isFieldKey(key) ? key : undefined;
-  const located =
-    fieldKey === undefined ? undefined : locateField(collection, fieldKey);
-  if (located !== undefined && located.found) {
-    if (resolve === 'invoke' && isCallable(located.value)) {
-      const value = await invokeSelected(s, located.value, key, location);
-      return { value, declared: undefined };
-    }
-    return {
-      value: located.value,
-      declared: projectLocated(declared, located),
-    };
-  }
-
-  // A fractional list index halts even when a default is given.
-  if (
-    fieldKey !== undefined &&
-    located !== undefined &&
-    located.miss === 'non-integer'
-  ) {
-    return throwFieldMiss(collection, fieldKey, located.miss, site);
-  }
-  if (defaultValue) {
+  const haltDispatchMiss = (): never =>
+    throwCatchableHostHalt(
+      site,
+      ERROR_ATOMS[ERROR_IDS.RILL_R009],
+      `Dict dispatch: key '${formatValue(key)}' not found`,
+      { key }
+    );
+  // A key that cannot address a field is a wrong key, not a missing one.
+  if (!isFieldKey(key)) return haltDispatchMiss();
+  const found = locateOrRecover(
+    collection,
+    key,
+    defaultValue !== null,
+    (miss) =>
+      // A fractional or list-position miss names its own container; any
+      // other miss on a dict names the dispatch key.
+      miss === 'non-integer' || isList
+        ? throwFieldMiss(collection, key, miss, site)
+        : haltDispatchMiss()
+  );
+  if (found === undefined) {
+    // locateOrRecover recovers only when a default was supplied.
+    if (defaultValue === null) return haltDispatchMiss();
     return {
       value: await evaluateBodyExpression(s, defaultValue),
       declared: undefined,
     };
   }
-  if (isList && fieldKey !== undefined && located !== undefined) {
-    return throwFieldMiss(collection, fieldKey, located.miss, site);
+  if (resolve === 'invoke' && isCallable(found.value)) {
+    const value = await invokeSelected(s, found.value, key, location);
+    return { value, declared: undefined };
   }
-  return throwCatchableHostHalt(
-    site,
-    ERROR_ATOMS[ERROR_IDS.RILL_R009],
-    `Dict dispatch: key '${formatValue(key)}' not found`,
-    { key }
-  );
+  return { value: found.value, declared: projectLocated(declared, found) };
 }
 
 /**

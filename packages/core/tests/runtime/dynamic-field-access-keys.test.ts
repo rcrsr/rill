@@ -47,8 +47,29 @@ describe('Dynamic field access keys', () => {
       });
     });
 
-    it('falls back with ?? on a missing typed key', async () => {
-      expect(await run('dict[1: "x"] => $d\n2 => $k\n$d.$k ?? "dflt"')).toBe(
+    it('halts on a missing typed number key even with ??', async () => {
+      await expectHalt(
+        () => run('dict[1: "x"] => $d\n2 => $k\n$d.$k ?? "dflt"'),
+        { code: 'RILL_R009', messagePattern: 'Undefined dict key: 2' }
+      );
+    });
+
+    it('halts on a number key on a plain dict even with ??', async () => {
+      await expectHalt(
+        () => run('dict[a: 1] => $d\n1 => $k\n$d.$k ?? "dflt"'),
+        { code: 'RILL_R002' }
+      );
+    });
+
+    it('halts on a bool key on a plain dict even with ??', async () => {
+      await expectHalt(
+        () => run('dict[a: 1] => $d\ntrue => $k\n$d.$k ?? "dflt"'),
+        { code: 'RILL_R002' }
+      );
+    });
+
+    it('falls back with ?? on an absent string key', async () => {
+      expect(await run('dict[a: 1] => $d\n"z" => $k\n$d.$k ?? "dflt"')).toBe(
         'dflt'
       );
     });
@@ -148,7 +169,11 @@ describe('Dynamic field access keys', () => {
         code: 'RILL_R009',
         messagePattern: 'Undefined dict key: 2',
       });
-      expect(await run('dict[1: "x"] => $d\n$d.(2) ?? "dflt"')).toBe('dflt');
+      await expectHalt(() => run('dict[1: "x"] => $d\n$d.(2) ?? "dflt"'), {
+        code: 'RILL_R009',
+        messagePattern: 'Undefined dict key: 2',
+      });
+      expect(await run('dict[a: 1] => $d\n$d.("z") ?? "dflt"')).toBe('dflt');
     });
 
     it('reads a typed bool key', async () => {

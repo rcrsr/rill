@@ -80,7 +80,7 @@ import { invokeCallable } from './closures.js';
 export type FieldKey = string | number | boolean;
 
 /** Why a lookup found nothing. */
-type FieldMiss =
+export type FieldMiss =
   | 'absent'
   | 'out-of-range'
   | 'no-fields'
@@ -220,6 +220,33 @@ export function locateField(receiver: RillValue, key: FieldKey): FieldLocation {
     : NOT_FOUND('not-indexable');
 }
 
+/**
+ * Locate `key` on `receiver`, or settle the miss. The one place that decides
+ * whether a lookup miss recovers.
+ *
+ * Returns the found element. When `allowMissing` is set and the miss is
+ * recoverable, returns undefined so the caller applies its default. Any other
+ * miss goes to `onMiss`, which must halt.
+ *
+ * A miss recovers unless it is a fractional index, or the receiver is a dict
+ * or stream read with a number or bool key. Such a key is a wrong key, not an
+ * absent one, so only an absent string key recovers on those receivers.
+ */
+export function locateOrRecover(
+  receiver: RillValue,
+  key: FieldKey,
+  allowMissing: boolean,
+  onMiss: (miss: FieldMiss) => never
+): FoundField | undefined {
+  const located = locateField(receiver, key);
+  if (located.found) return located;
+  const recovers =
+    located.miss !== 'non-integer' &&
+    (!isFieldReceiver(receiver) || typeof key === 'string');
+  if (allowMissing && recovers) return undefined;
+  return onMiss(located.miss);
+}
+
 // ============================================================
 // READ
 // ============================================================
@@ -331,26 +358,27 @@ export async function readField(
   key: FieldKey,
   request: FieldReadRequest
 ): Promise<Carried> {
-  const located = locateField(receiver, key);
   const site: TypeHaltSite = {
     location: request.location,
     sourceId: s.ctx.sourceId,
     fn: request.fn,
   };
-  if (!located.found) {
-    if (located.miss === 'non-integer' && typeof key === 'number') {
-      return throwNonIntegerIndex(receiver, key, site);
+  const located = locateOrRecover(
+    receiver,
+    key,
+    request.allowMissing,
+    (miss) => {
+      if (miss === 'absent' && isTypeValue(receiver)) {
+        return throwMissingTypeProperty(
+          site,
+          receiver,
+          request.names ?? String(key)
+        );
+      }
+      return throwFieldMiss(receiver, key, miss, site, request.names);
     }
-    if (request.allowMissing) return { value: null, declared: undefined };
-    if (located.miss === 'absent' && isTypeValue(receiver)) {
-      return throwMissingTypeProperty(
-        site,
-        receiver,
-        request.names ?? String(key)
-      );
-    }
-    return throwFieldMiss(receiver, key, located.miss, site, request.names);
-  }
+  );
+  if (located === undefined) return { value: null, declared: undefined };
 
   const stored = located.value;
   if (

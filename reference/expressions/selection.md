@@ -77,15 +77,17 @@ r[selection.default] A fallback replaces a missing selection
 
 r[selection.bracket-default] A fallback replaces a missing bracket selection
 `$c[sel] ?? d` MUST yield `d` when `$c` and `sel` both evaluate and the final lookup misses. A miss is an
-out-of-range index or an absent key of any valid key type, so `dict[a: 1][1] ?? 0` and `$d[true] ?? 0` yield `0`.
-Variable, postfix, parenthesized, literal, and method-call receivers behave alike. A wrong key type still halts with RILL-R002. This states current behavior: a non-string dict key that is absent
-yields the fallback. The pending rule `selection.key-type` governs the target behavior for a non-string dict selector.
+out-of-range list, tuple, or ordered index, or an absent string key. A number or bool key on a dict or stream is a wrong
+key, not a missing one, so `dict[a: 1][1] ?? 0` and `$d[true] ?? 0` halt with RILL-R009, as they do without `??`. Through
+`.$k` or `.(expr)` on a plain dict the same key halts with RILL-R002, and a key that is not a field key (tuple, dict,
+closure) in pipe selection halts. Variable, postfix, parenthesized, literal, and method-call receivers behave alike. A wrong
+key type still halts with RILL-R002. Only the future `map` type recovers a missing number key {pending #599}.
 
 r[selection.default-last-step] A fallback recovers only the last step of a chain
 `??` MUST recover a miss only on the right-most step of an access chain, for fields, annotations, brackets, and existence checks.
 `$d.x.y ?? 0` with `.x` missing, `$d.b[1] ?? 0` with `.b` missing, and `$d[$d.zz] ?? 0` with `.zz` missing MUST halt with RILL-R009. `$d.x.?b ?? d` with `.x` missing MUST halt with RILL-R009 (RILL-R008 for a missing annotation),
-because the existence check is the right-most step and `??` never recovers an earlier one. A non-string key on a stream
-with `??` keeps its RILL-R009 halt; only plain dicts recover an absent non-string key.
+because the existence check is the right-most step and `??` never recovers an earlier one. A number or bool key on a dict or
+stream halts and is never recovered; see `selection.bracket-default`.
 
 r[selection.key-type] A dict selector is a string {pending #576}
 A dict selector that is not a string MUST halt with `#TYPE_MISMATCH`. Selection converts nothing.
@@ -159,6 +161,12 @@ map[200: "ok", 404: "missing"][404]
 ```rill
 dict[a: 1] => $d
 $d.x.y ?? 0
+# Error: RILL-R009
+```
+
+```rill
+dict[a: 1] => $d
+$d[1] ?? 0
 # Error: RILL-R009
 ```
 

@@ -638,12 +638,20 @@ describe('Default Value Operator (??)', () => {
       await expectHalt(() => run(`${DICT}$d["b"]`), { code: 'RILL_R009' });
     });
 
-    it('recovers an absent number key on a dict', async () => {
-      expect(await run(`${DICT}$d[1] ?? 0`)).toBe(0);
+    it('halts on an absent number key on a dict even with a default', async () => {
+      await expectHalt(() => run(`${DICT}$d[1] ?? 0`), { code: 'RILL_R009' });
     });
 
-    it('recovers an absent bool key on a dict', async () => {
-      expect(await run(`${DICT}$d[true] ?? 0`)).toBe(0);
+    it('halts on an absent bool key on a dict even with a default', async () => {
+      await expectHalt(() => run(`${DICT}$d[true] ?? 0`), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts on an absent number key on a typed-key dict even with a default', async () => {
+      await expectHalt(() => run('dict[1: "x"] => $d\n$d[2] ?? 0'), {
+        code: 'RILL_R009',
+      });
     });
 
     it('returns a present number key on a dict', async () => {
