@@ -224,4 +224,36 @@ describe('Existence Check', () => {
       expect(result).toEqual({ a: 1 });
     });
   });
+
+  describe('A missing step before .? halts', () => {
+    it.each([
+      ['dict[a: 1] => $d\n$d.x.?y', "Dict has no field 'x'"],
+      ['dict[a: 1] => $d\n$d["x"].?y', 'Undefined dict key: x'],
+      ['list[1] => $l\n$l[5].?y', 'List index out of bounds: 5'],
+      ['dict[a: 1] -> $.x.?y', "Dict has no field 'x'"],
+    ])('%s halts RILL-R009', async (source, message) => {
+      await expect(run(source)).rejects.toMatchObject({
+        errorId: 'RILL-R009',
+        message: expect.stringContaining(message),
+      });
+    });
+
+    it('tests the last step when every earlier step exists', async () => {
+      expect(await run('dict[a: dict[y: 1]] => $d\n$d.a.?y')).toBe(true);
+      expect(await run('dict[a: 5] => $d\n$d.a.?y')).toBe(false);
+      expect(await run('dict[a: 1] => $d\n$d.?x')).toBe(false);
+    });
+
+    it('is catchable under guard', async () => {
+      expect(
+        await run(
+          'dict[a: 1] => $d\nguard { $d.x.?y } => $r\n$r.!code == #RILL_R009'
+        )
+      ).toBe(true);
+    });
+
+    it('leaves ?? recovery across a missing step unchanged', async () => {
+      expect(await run('dict[a: 1] => $d\n$d.x.y ?? 0')).toBe(0);
+    });
+  });
 });

@@ -305,6 +305,7 @@ error.interpolation d6109c97e3c9
 error.non-catchable 5384696a5840 halt.non-catchable@8eb8c26644b7
 error.string ad262088c62d
 existence.bracket b64ea6053798
+existence.chain 2782e18dc1fa
 existence.found e543db21d88e
 existence.index 2a5509ce5f92
 existence.integer 7852fe326328

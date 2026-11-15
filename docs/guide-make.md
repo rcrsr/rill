@@ -562,7 +562,7 @@ $article.?description => $desc3
 | `??` | Tighter than `=>`, `->` | Always group: `(expr ?? default) => $var` |
 | `=>` | Captures the result of the left-hand pipe chain | `a -> b => $x` captures the result of `a -> b` |
 | `?` / `!` | Ternary binds loosely | `expr ? "yes" ! "no"` — no grouping needed |
-| `.?` | Safe access returns empty string on missing key | `$dict.?missing_key` returns `""`, not an error |
+| `.?` | Tests only the last step and yields a bool | `$dict.?missing_key` is `false`; `$dict.missing.?key` halts `RILL-R009` |
 
 ---
 

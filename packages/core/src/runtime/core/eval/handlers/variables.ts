@@ -653,8 +653,7 @@ export async function evaluateVariableCarried(
         // Declared type flows from the receiver unless a property-style
         // callable ran or the receiver is a type value.
         const read = await readField(s, value, field, {
-          allowMissing:
-            node.defaultValue !== null || node.existenceCheck !== null,
+          allowMissing: node.defaultValue !== null,
           location: getNodeLocation(s, node),
           fn: 'evaluateVariableAsync',
           receiverDeclared,
@@ -668,7 +667,7 @@ export async function evaluateVariableCarried(
         access,
         value,
         node,
-        node.defaultValue !== null || node.existenceCheck !== null,
+        node.defaultValue !== null,
         receiverDeclared
       );
       value = read.value;
@@ -679,7 +678,7 @@ export async function evaluateVariableCarried(
         access,
         value,
         node,
-        node.defaultValue !== null || node.existenceCheck !== null,
+        node.defaultValue !== null,
         receiverDeclared
       );
       value = read.value;
@@ -690,7 +689,7 @@ export async function evaluateVariableCarried(
         access,
         value,
         node,
-        node.defaultValue !== null || node.existenceCheck !== null,
+        node.defaultValue !== null,
         receiverDeclared
       );
       value = read.value;
