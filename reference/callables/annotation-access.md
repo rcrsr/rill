@@ -3,7 +3,7 @@ id: annotation-access
 title: Annotation access
 status: normative
 since: 0.24.0
-issues: [621, 624]
+issues: [624]
 grammar: []
 errors: [RILL-R003, RILL-R008]
 depends: [annotation]
@@ -38,10 +38,10 @@ r[annotation-access.non-function] Only functions carry readable annotations
 `$v.^key`, for any key other than `type` and `effective`, on a value that is not a function
 MUST halt with RILL-R003.
 
-r[annotation-access.presence] .?^key tests for an annotation {pending #621}
+r[annotation-access.presence] .?^key tests for an annotation
 `$f.?^key` MUST yield whether the function carries `key`, and MUST NOT halt.
 
-r[annotation-access.presence-other] .?^key on a value that cannot carry annotations is false {pending #621}
+r[annotation-access.presence-other] .?^key on a value that cannot carry annotations is false
 `$v.?^key` MUST yield false when `$v` is not a function.
 
 ## Interactions
@@ -81,6 +81,12 @@ $f.^unit ?? "none"
 # Error: annotation not found: ^a
 5 => $v
 $v.^a
+```
+
+```rill
+5 => $v
+$v.?^a
+# Result: false
 ```
 
 ## Notes

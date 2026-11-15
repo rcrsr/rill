@@ -3,8 +3,8 @@ id: destruct
 title: Destructure
 status: normative
 since: 0.24.0
-issues: [615, 616]
-grammar: [destructure, destruct-pattern]
+issues: [615]
+grammar: [destructure, positional-list, positional-pattern, keyed-list, keyed-pattern]
 errors: [RILL-P001, RILL-P026, RILL-R001, RILL-R002, RILL-R009]
 depends: [pipe, selection]
 tests: [destruct-slice-keyword.test.ts, extraction.test.ts]
@@ -17,11 +17,13 @@ tests: [destruct-slice-keyword.test.ts, extraction.test.ts]
 ## Syntax
 
 ```ebnf
-destructure = "destruct" , "<" , [ destruct-pattern , { "," , destruct-pattern } ] , ">" ;
-destruct-pattern = "$" , identifier , [ ":" , capture-type ]
-                 | identifier , ":" , "$" , identifier , [ ":" , capture-type ]
-                 | "_"
-                 | destructure ;
+destructure = "destruct" , "<" , [ positional-list | keyed-list ] , ">" ;
+positional-list = positional-pattern , { "," , positional-pattern } ;
+positional-pattern = "$" , identifier , [ ":" , capture-type ]
+                   | "_"
+                   | destructure ;
+keyed-list = keyed-pattern , { "," , keyed-pattern } ;
+keyed-pattern = identifier , ":" , "$" , identifier , [ ":" , capture-type ] ;
 ```
 
 ```text
@@ -37,7 +39,7 @@ r[destruct.target] destruct is a pipe target
 `destruct<...>` MUST be written after `->`. At the head of a statement it MUST be rejected with
 RILL-P001.
 
-r[destruct.no-mix] A pattern is positional or keyed, not both {pending #616}
+r[destruct.no-mix] A pattern is positional or keyed, not both
 A pattern that mixes `$name` or `_` elements with `key: $name` elements MUST be rejected with
 RILL-P026.
 
@@ -84,7 +86,7 @@ r[destruct.result] destruct yields its input
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | `destruct` at a statement head, or a keyed nested pattern | RILL-P001 | No |
-| A pattern mixes positional and keyed elements {pending #616} | RILL-P026 | No |
+| A pattern mixes positional and keyed elements | RILL-P026 | No |
 | The source kind does not fit the pattern | RILL-R002 | Yes |
 | The pattern and list lengths differ | RILL-R002 | Yes |
 | A keyed element names a missing key | RILL-R009 | Yes |
@@ -115,10 +117,13 @@ $a + $d
 list[1, 2, 3] -> destruct<$a, $b>
 ```
 
+```rill
+# Error: Destructure pattern cannot mix positional and keyed elements
+list[1, 2] -> destruct<$a, b: $b>
+```
+
 ## Notes
 
 Superseded: `destruct.positional`, now `destruct.positional-source`, and `destruct.keyed`, now
 `destruct.keyed-source`. On 0.23.0 a positional pattern takes only a list and a keyed pattern
 only a dict, and the halt says "got object" for a tuple.
-
-On 0.23.0 a positional pattern binds a `key: $name` element by position (#616).

@@ -434,10 +434,10 @@ Extract elements from lists or dicts into variables. Returns the original value 
 ```
 
 **Errors:**
-
 ```text
 [1, 2] -> destruct<$a, $b, $c>           # Error: pattern has 3 elements, list has 2
 [name: "x"] -> destruct<name: $n, age: $a>  # Error: key 'age' not found
+[1, 2] -> destruct<$a, k: $b>            # Error: RILL-P026, positional and keyed elements mixed
 ```
 
 ### Type-Annotated Destructure

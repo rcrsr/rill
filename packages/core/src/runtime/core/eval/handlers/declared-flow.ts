@@ -168,7 +168,8 @@ async function applyPostfixStepsCarried(
         method.index,
         getNodeLocation(s, method),
         fn,
-        declared
+        declared,
+        false
       );
       value = element.value;
       declared = element.declared;

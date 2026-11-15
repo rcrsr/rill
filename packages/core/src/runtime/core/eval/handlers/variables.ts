@@ -74,7 +74,7 @@ import {
   evaluateMethod,
   evaluateAnnotationAccess,
 } from './closures.js';
-import { resolveTypeRef } from './types.js';
+import { resolveTypeRef, assertType } from './types.js';
 import type { FieldKey } from './field-access.js';
 import {
   evaluateFieldAccessVariable,
@@ -257,6 +257,12 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
  * `location` and `fn` are supplied by the caller so trace frames match the
  * calling context exactly (e.g. 'evaluateVariableAsync' for the $var[i]
  * path).
+ *
+ * When `allowMissing` is true (the access carries a `??` default), an
+ * out-of-range index or an absent string key resolves to null so the default
+ * applies. Every other failure still halts: a wrong selector type, a
+ * non-integer index, a non-string key on a dict, and any error raised while
+ * evaluating the selector expression.
  */
 export async function applyBracketIndexCarried(
   s: EvalState,
@@ -264,7 +270,8 @@ export async function applyBracketIndexCarried(
   indexExpr: ExpressionNode,
   location: SourceLocation | undefined,
   fn: string,
-  receiverDeclared?: TypeStructure
+  receiverDeclared: TypeStructure | undefined,
+  allowMissing: boolean
 ): Promise<Carried> {
   const site: TypeHaltSite = { location, sourceId: s.ctx.sourceId, fn };
   // Bracket-index expressions are parsed inline while building a live
@@ -282,6 +289,13 @@ export async function applyBracketIndexCarried(
   const key = bracketKey(receiver, indexValue, site);
   const located = locateField(receiver, key);
   if (!located.found) {
+    if (
+      allowMissing &&
+      (located.miss === 'out-of-range' ||
+        (located.miss === 'absent' && typeof key === 'string'))
+    ) {
+      return { value: null, declared: undefined };
+    }
     // A dict names a missing key `Undefined dict key`, whatever the key type.
     if (isFieldReceiver(receiver)) {
       return throwCatchableHostHalt(
@@ -372,6 +386,17 @@ export async function evaluateExistenceCheck(
     return await matchesType(value);
   }
 
+  // `.?^key` reports whether a callable stores the annotation. Non-callables
+  // (streams, type values, invalid values) carry none, so the answer is
+  // false. Reads never fall back to defaults, so an unset key is false.
+  if (finalAccess.kind === 'annotation') {
+    if (!isCallable(value)) return false;
+    if (!Object.hasOwn(value.annotations, finalAccess.key)) return false;
+    const stored = value.annotations[finalAccess.key];
+    if (stored === undefined) return false;
+    return await matchesType(stored);
+  }
+
   const site = {
     location: getNodeLocation(s, node),
     sourceId: s.ctx.sourceId,
@@ -424,7 +449,7 @@ export async function evaluateExistenceCheck(
     }
     key = keyValue;
   } else {
-    // For other access kinds (block, alternatives, annotation), not supported
+    // Block and alternatives accesses are not existence-checkable.
     return throwCatchableHostHalt(
       site,
       ERROR_ATOMS[ERROR_IDS.RILL_R002],
@@ -570,7 +595,8 @@ export async function evaluateVariableCarried(
         access.expression,
         getNodeLocation(s, node),
         'evaluateVariableAsync',
-        declared
+        declared,
+        node.defaultValue !== null
       );
       value = element.value;
       declared = element.declared;
@@ -775,6 +801,7 @@ async function evaluateCapture(
       (name: string) => getVariable(s.ctx, name),
       node.span.start
     );
+    assertType(s, input, resolved.structure, node.span.start);
     setVariable(
       s,
       node.name,

@@ -444,11 +444,18 @@ const MISSES: readonly Miss[] = [
   },
 ];
 
-/**
- * Forms whose miss a `??` default does not recover. A destructure has no
- * default syntax at all.
- */
-const NO_DEFAULT: ReadonlySet<Form> = new Set(['bracket', 'destructure']);
+/** Forms whose miss a `??` default does not recover. A destructure has no default syntax at all. */
+const NO_DEFAULT: ReadonlySet<Form> = new Set(['destructure']);
+
+/** A bracket default recovers only an out-of-range index or an absent string key. */
+const BRACKET_NON_STRING_KEY = 'dict missing typed number key';
+
+function recoversThrough(c: { receiver: Miss; form: Form }): boolean {
+  if (c.form === 'bracket' && c.receiver.label === BRACKET_NON_STRING_KEY) {
+    return false;
+  }
+  return c.receiver.recovers;
+}
 
 const MISS_CASES = MISSES.flatMap((receiver) =>
   receiver.forms.map((form) => ({
@@ -477,8 +484,10 @@ describe('element lookup: miss behaviour', () => {
     (c) => {
       it('resolves to the default only when the miss is recoverable', async () => {
         const source = scriptFor(c.receiver, c.form, 'default', U);
-        if (c.receiver.recovers) {
+        if (recoversThrough(c)) {
           expect(await run(source)).toBe(5);
+        } else if (c.receiver.recovers) {
+          await expectHalt(() => run(source), { code: 'RILL_R009' });
         } else {
           await expectHalt(() => run(source), { code: 'INVALID_INPUT' });
         }
@@ -486,22 +495,21 @@ describe('element lookup: miss behaviour', () => {
     }
   );
 
-  describe.each(MISS_CASES.filter((c) => c.form === 'bracket'))(
-    '$receiver.label through $form with a default that does not apply',
-    (c) => {
-      it('still halts with the form message', async () => {
-        const expected = c.expected;
-        if (expected === undefined || !('halt' in expected)) {
-          throw new Error('row declares no halt');
-        }
-        const source = scriptFor(c.receiver, c.form, 'default', U);
-        await expectHalt(() => run(source), {
-          code: expected.halt,
-          messagePattern: expected.message,
-        });
+  describe.each(
+    MISS_CASES.filter((c) => c.form === 'bracket' && !recoversThrough(c))
+  )('$receiver.label through $form with a default that does not apply', (c) => {
+    it('still halts with the form message', async () => {
+      const expected = c.expected;
+      if (expected === undefined || !('halt' in expected)) {
+        throw new Error('row declares no halt');
+      }
+      const source = scriptFor(c.receiver, c.form, 'default', U);
+      await expectHalt(() => run(source), {
+        code: expected.halt,
+        messagePattern: expected.message,
       });
-    }
-  );
+    });
+  });
 
   it('takes the own type for a default that replaces a miss', async () => {
     const src = `dict[a: 1] => $c:dict(a: ${U})\n`;

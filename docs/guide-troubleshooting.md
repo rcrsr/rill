@@ -136,11 +136,11 @@ $list[5]
 # Error: RILL-R009
 ```
 
-**Fix:** Supply a default with `??` on `.at(i)`, or check the length first. `.at(5)` without `??` halts the same way.
+**Fix:** Supply a default with `??` on the index, or check the length first. `.at(5)` without `??` halts the same way.
 
 ```rill
 ["a", "b"] => $list
-$list -> .at(5) ?? "default"
+$list[5] ?? "default"
 # Result: "default"
 ```
 

@@ -208,12 +208,12 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.$key` | Variable as key |
 | `$data.($i + 1)` | Computed key |
 | `$data.(a \|\| b)` | Alternative keys |
-| `$data.field ?? default` | Default if missing |
+| `$data.field ?? default`, `$data[i] ?? default` | Default if a key or index is missing |
 | `$data.?field` | Existence check (literal) |
 | `$data.?$key` | Existence check (variable) |
 | `$data.?($expr)` | Existence check (computed) |
 | `$data.?field&type` | Existence + type check |
-| `$data.^key` | Annotation reflection |
+| `$data.^key`, `$data.?^key` | Annotation reflection; `.?^key` is a presence check yielding bool |
 
 | Form | Reaches or halts |
 |------|------------------|
@@ -603,7 +603,7 @@ Extract portions using Python-style `start:stop:step`:
 "hello" -> slice<1:4>                    # "ell"
 ```
 
-Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:union(string, number)>`. The runtime validates each extracted element against the declared type. See [Operators](topic-operators.md) for detailed extraction operator documentation.
+Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:union(string, number)>`. The runtime validates each extracted element against the declared type. A destructure pattern is all positional or all keyed; mixing the two is parse error RILL-P026. See [Operators](topic-operators.md) for detailed extraction operator documentation.
 
 ---
 
@@ -628,7 +628,7 @@ $fn.^min     # 0
 $fn.^max     # 100
 ```
 
-Annotations apply only to the closure directly targeted by `^(...)`; a nested closure does not inherit an outer annotation. Accessing an undefined key throws `RUNTIME_UNDEFINED_ANNOTATION`.
+Annotations apply only to the closure directly targeted by `^(...)`; a nested closure does not inherit an outer annotation. Stacked `^(...)` blocks before one target merge. Accessing an undefined key throws `RUNTIME_UNDEFINED_ANNOTATION`; `.?^key` yields `false` instead of halting.
 
 ### Reserved Annotation Keys
 
@@ -694,7 +694,7 @@ $f.^input
 | `tuple()` | Positional (`T`) | Before field type |
 | `list()` | N/A | Not supported (RILL-P001) |
 
-Multiple `^()` blocks on one field merge into one annotation map.
+Multiple `^()` blocks before any target merge into one annotation map.
 
 | Condition | Error |
 |-----------|-------|

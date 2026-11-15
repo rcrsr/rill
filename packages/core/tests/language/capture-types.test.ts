@@ -16,15 +16,13 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
     it('rejects number captured as string', async () => {
       await expectHalt(() => run('42 => $s:string'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
 
     it('rejects bool captured as string', async () => {
       await expectHalt(() => run('true => $s:string'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
   });
@@ -44,8 +42,7 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
     it('rejects string captured as number', async () => {
       await expectHalt(() => run('"42" => $n:number'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
   });
@@ -61,15 +58,13 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
     it('rejects string captured as bool', async () => {
       await expectHalt(() => run('"true" => $b:bool'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
 
     it('rejects number captured as bool', async () => {
       await expectHalt(() => run('1 => $b:bool'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
   });
@@ -85,15 +80,13 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
     it('rejects dict captured as list', async () => {
       await expectHalt(() => run('dict[a: 1] => $t:list'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
 
     it('rejects string captured as list', async () => {
       await expectHalt(() => run('"abc" => $t:list'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
   });
@@ -112,8 +105,7 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
     it('rejects tuple captured as dict', async () => {
       await expectHalt(() => run('list[1, 2] => $d:dict'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
   });
@@ -129,8 +121,7 @@ describe('Rill Runtime: Capture Type Assertions', () => {
 
     it('rejects string captured as closure', async () => {
       await expectHalt(() => run('"fn" => $fn:closure'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
   });
@@ -145,8 +136,7 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     it('rejects wrong type in for loop', async () => {
       const script = `list["a", "b"] -> seq({ $ => $n:number })`;
       await expectHalt(() => run(script), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
 
@@ -170,8 +160,7 @@ describe('Rill Runtime: Capture Type Assertions', () => {
     it('rejects wrong type in middle of chain', async () => {
       const script = `42 => $s:string -> string`;
       await expectHalt(() => run(script), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
   });
@@ -182,6 +171,23 @@ describe('Rill Runtime: Capture Type Assertions', () => {
       expect(await run('42 => $v\n$v')).toBe(42);
       expect(await run('true => $v\n$v')).toBe(true);
       expect(await run('list[1, 2] => $v\n$v')).toEqual([1, 2]);
+    });
+
+    it('runs the type assertion before the lock check', async () => {
+      await expectHalt(() => run('"a" => $x\n5 => $x:string'), {
+        code: 'TYPE_MISMATCH',
+      });
+      await expectHalt(() => run('"a" => $x\n5 => $x:number'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
+    });
+
+    it('keeps RILL-R001 for a typed destructure element mismatch', async () => {
+      await expectHalt(() => run('list["a"] -> destruct<$n:number>'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
     });
 
     it('type-locks variable after first assignment', async () => {
@@ -222,8 +228,7 @@ $s`);
 
     it('AC-13 rejection: $t = number, capture rejects string value', async () => {
       await expectHalt(() => run('number => $t\n"hello" => $x:$t'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
+        code: 'TYPE_MISMATCH',
       });
     });
 

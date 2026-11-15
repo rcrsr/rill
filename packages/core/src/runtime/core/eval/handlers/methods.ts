@@ -390,9 +390,6 @@ export async function evaluateAnnotationAccess(
     );
   }
 
-  if (key === 'description') {
-    return value.annotations['description'] ?? '';
-  }
   const annotationValue = Object.hasOwn(value.annotations, key)
     ? value.annotations[key]
     : undefined;

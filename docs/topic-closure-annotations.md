@@ -295,7 +295,7 @@ $add(3, 4)    # 7
 
 Closures support annotation reflection via `.^key` syntax. Annotations attach metadata to closures for runtime introspection.
 
-**Type Restriction:** Only closures support annotation reflection. Accessing `.^key` on primitives throws `RUNTIME_TYPE_ERROR`.
+**Type Restriction:** Only closures support annotation reflection. Accessing `.^key` on primitives throws `RUNTIME_TYPE_ERROR`; `.?^key` yields `false` instead.
 
 ### Basic Annotation Access
 
@@ -388,7 +388,17 @@ $fn.^description    # "doubles input"
 $fn.^version    # Error: RUNTIME_UNDEFINED_ANNOTATION
 ```
 
-Only the closure immediately following `^(...)` carries the annotation.
+Nesting does not copy an annotation inward: only the closure immediately following `^(...)` carries it.
+
+### Stacked Annotation Blocks
+
+Several `^(...)` blocks before one target merge into one annotation map:
+
+```rill
+^(first: 1) ^(second: 2) |x|($x) => $fn
+tuple[$fn.^first, $fn.^second]
+# Result: tuple[1, 2]
+```
 
 ### Error Cases
 
@@ -406,7 +416,17 @@ $fn.^missing   # Error: RUNTIME_UNDEFINED_ANNOTATION
 $str.^key      # Error: RUNTIME_TYPE_ERROR
 ```
 
-All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ERROR` when accessing `.^key`.
+All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ERROR` when accessing `.^key`. The presence check `.?^key` never halts on them.
+
+### Presence Check
+
+`.?^key` tests whether a closure carries an annotation and yields a bool. It yields `false` for a missing key and for a value that is not a function:
+
+```rill
+^(timeout: 30) |x|($x) => $fn
+tuple[$fn.?^timeout, $fn.?^retries, "text".?^timeout]
+# Result: tuple[true, false, false]
+```
 
 ---
 
@@ -523,7 +543,7 @@ list(^("label") string)   # Error: RILL-P001
 | `ordered` field | `ordered(^("label") x: string)` | `TypeStructure.fields[index].annotations` |
 | `tuple` element | `tuple(^("x") number)` | `TypeStructure.elements[index].annotations` |
 
-All four positions use the same `^()` syntax and the same description shorthand. Annotation values follow the same rules in all positions: bare strings expand to `description`, multiple blocks merge, and values are full expressions.
+All four positions use the same `^()` syntax and the same description shorthand. Annotation values follow the same rules in all positions: bare strings expand to `description`, multiple blocks before a target merge, and values are full expressions.
 
 ### Closure Parameter Annotations on the Type Structure
 

@@ -861,8 +861,8 @@ describe('Callable reflection via ^ operator', () => {
       expect(result).toBe('Says hello');
     });
 
-    it('returns an empty string when annotations.description is absent (AC-23)', async () => {
-      const result = await run('$myFn.^description', {
+    it('halts RILL-R008 when annotations.description is absent', async () => {
+      const result = run('$myFn.^description', {
         variables: {
           myFn: callableLiteral({
             __type: 'callable' as const,
@@ -875,8 +875,7 @@ describe('Callable reflection via ^ operator', () => {
           }),
         },
       });
-      // No description annotation: ^description returns ""
-      expect(result).toBe('');
+      await expect(result).rejects.toMatchObject({ errorId: 'RILL-R008' });
     });
 
     it('does not throw RILL-R003 when ^ applied to callable (AC-4)', async () => {
@@ -891,11 +890,11 @@ describe('Callable reflection via ^ operator', () => {
               fn: () => null,
               params: [],
               returnType: anyTypeValue,
-              annotations: {},
+              annotations: { description: 'Says hello' },
             }),
           },
         })
-      ).resolves.toBeDefined();
+      ).resolves.toBe('Says hello');
     });
   });
 

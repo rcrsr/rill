@@ -165,8 +165,16 @@ $x
 ```
 
 ```rill
-# Error: Type mismatch: cannot assign bool to $x:union(number, string)
+# Error: #TYPE_MISMATCH: Type assertion failed: expected union(number, string), got bool
 true => $x:union(string, number)
+```
+
+A capture that fails its annotation halts `#TYPE_MISMATCH`; a capture that breaks an existing type lock halts `RILL-R001`. Both are catchable:
+
+```rill
+guard { true => $x:union(string, number) } => $r
+$r.!code
+# Result: #TYPE_MISMATCH
 ```
 
 ### Inline Capture with Type

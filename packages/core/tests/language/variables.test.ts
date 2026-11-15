@@ -77,9 +77,8 @@ describe('Rill Runtime: Variables', () => {
 
     it('=> type mismatch errors', async () => {
       await expectHalt(() => run('42 => $x:string'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
-        messagePattern: 'cannot assign number to $x:string',
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'Type assertion failed',
       });
     });
 

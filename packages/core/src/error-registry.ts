@@ -64,6 +64,7 @@ export const ERROR_IDS = {
   RILL_P022: 'RILL-P022',
   RILL_P023: 'RILL-P023',
   RILL_P024: 'RILL-P024',
+  RILL_P026: 'RILL-P026',
   RILL_R001: 'RILL-R001',
   RILL_R002: 'RILL-R002',
   RILL_R003: 'RILL-R003',
@@ -790,6 +791,27 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
       },
     ],
   },
+  {
+    errorId: ERROR_IDS.RILL_P026,
+    category: 'parse',
+    description: 'Destructure mixes positional and keyed elements',
+    messageTemplate:
+      'Destructure pattern cannot mix positional and keyed elements',
+    cause:
+      "A destructure pattern lists both positional elements ('$a', '_', or a nested destruct) and keyed elements ('key: $b'). A pattern matches either a list by position or a dict by key, not both.",
+    resolution:
+      'Use only positional elements to destructure a list, or only keyed elements to destructure a dict.',
+    examples: [
+      {
+        description: 'Positional and keyed elements in one pattern',
+        code: 'list[1, 2] -> destruct<$a, b: $c>',
+      },
+      {
+        description: 'Keyed element followed by a skip',
+        code: 'dict[a: 1] -> destruct<a: $x, _>',
+      },
+    ],
+  },
 
   // Runtime Errors (RILL-R0xx)
   {
@@ -799,7 +821,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       'Function {function} expects parameter {param} (position {position}) to be {expected}, got {actual}',
     cause:
-      'An argument does not match the declared parameter type, the call has the wrong arity or a spread binding error, a typed or type-locked variable receives a value of another type, a script reassigns an outer variable, or the call target is not callable.',
+      'An argument does not match the declared parameter type, the call has the wrong arity or a spread binding error, a type-locked variable or a typed destructure element receives a value of another type, a script reassigns an outer variable, or the call target is not callable.',
     resolution:
       'Pass a value of the correct type, or convert it before passing. Check the function signature for expected types and arity, keep variable types stable after first assignment, capture to a new name instead of reassigning an outer variable, and call only callable values.',
     examples: [
@@ -808,8 +830,8 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
         code: '|x: number| $x * 2\n"5" -> $()',
       },
       {
-        description: 'String assigned to number-locked variable',
-        code: '"a" => $x:number  # Error: string does not match number',
+        description: 'Number assigned to string-locked variable',
+        code: '"a" => $x\n5 => $x  # Error: $x is locked to string',
       },
     ],
   },

@@ -129,9 +129,6 @@ $x
 
 ## Notes
 
-A capture that fails its own annotation, as in `3 => $x:string`, halts RILL-R001 today. The same
-failure at `-> :string` halts `#TYPE_MISMATCH`.
-
 Today the runtime locks only the kind of a collection, so `list[1] => $x` then `list["a"] => $x` succeeds. #598 builds the narrowest-type lock.
 
 A typed capture that fails its own assertion halts as `capture.mismatch` states.

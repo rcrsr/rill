@@ -138,6 +138,45 @@ describe('Rill Language: destruct<> and slice<> Keyword Forms', () => {
     });
   });
 
+  describe('destruct<> mixed pattern', () => {
+    function parseError(source: string): ParseError {
+      try {
+        parse(source);
+      } catch (e) {
+        if (e instanceof ParseError) return e;
+        throw e;
+      }
+      throw new Error('expected a ParseError');
+    }
+
+    it.each([
+      ['list[1, 2] -> destruct<$a, b: $c>', 'b: $c'],
+      ['dict[a: 1] -> destruct<a: $x, $y>', '$y'],
+      ['dict[a: 1] -> destruct<a: $x, _>', '_>'],
+      ['dict[a: 1] -> destruct<_, a: $x>', 'a: $x'],
+      ['list[list[1, 2]] -> destruct<destruct<$a, k: $b>>', 'k: $b'],
+      ['dict[a: 1] -> destruct<a: $x, destruct<$b>>', 'destruct<$b>'],
+    ])('rejects mixed pattern %s at the offending element', (source, at) => {
+      const err = parseError(source);
+      expect(err.errorId).toBe('RILL-P026');
+      expect(err.location?.column).toBe(source.lastIndexOf(at) + 1);
+    });
+
+    it('keeps RILL-P001 for a nested destruct as a dict value', () => {
+      expect(
+        parseError('dict[a: 1] -> destruct<a: destruct<$b>>').errorId
+      ).toBe('RILL-P001');
+    });
+
+    it.each([
+      'list[1, 2] -> destruct<$a, _>',
+      'dict[a: 1, b: 2] -> destruct<a: $x, b: $y>',
+      'list[1] -> destruct<>',
+    ])('parses uniform pattern %s', (source) => {
+      expect(() => parse(source)).not.toThrow();
+    });
+  });
+
   describe('destruct<> evaluation', () => {
     it('destruct<$a, $b> binds first two elements (AC-7)', async () => {
       const { context } = await runWithContext(

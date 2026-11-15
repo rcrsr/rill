@@ -198,7 +198,7 @@ Use `??` for safe access with default:
 
 ```rill
 ["a"] => $list
-$list[0] ?? "default"  # "a"
+$list[5] ?? "default"  # "default"
 ```
 
 ```rill

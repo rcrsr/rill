@@ -1171,51 +1171,98 @@ describe('Rill Runtime: Annotations', () => {
       );
     });
 
-    it('only inner (second) annotation attaches when two precede one closure (BC-2)', async () => {
-      // Two consecutive ^(...) before one closure: only the immediately preceding annotation attaches
+    it('stacked annotation blocks before one closure merge', async () => {
       const script = `
         ^(first: 1) ^(second: 2) |x|($x) => $fn
-        $fn.^second
+        [$fn.^first, $fn.^second]
+      `;
+      expect(await run(script)).toEqual([1, 2]);
+    });
+
+    it('later key wins when stacked blocks repeat a key', async () => {
+      const script = `
+        ^(k: 1) ^(k: 2) |x|($x) => $fn
+        $fn.^k
       `;
       expect(await run(script)).toBe(2);
     });
 
-    it('outer (first) annotation does not attach to closure when two annotations present (BC-2)', async () => {
-      // The outer annotation is discarded; only the inner annotation attaches
+    it('three stacked annotation blocks all merge', async () => {
       const script = `
-        ^(first: 1) ^(second: 2) |x|($x) => $fn
-        $fn.^first
+        ^(a: 1) ^(b: 2) ^(c: 3) |x|($x) => $fn
+        [$fn.^a, $fn.^b, $fn.^c]
       `;
-      await expect(run(script)).rejects.toThrow(/Annotation 'first' not found/);
+      expect(await run(script)).toEqual([1, 2, 3]);
     });
 
-    it('unannotated block-closure .^description returns empty string', async () => {
-      // Block-closure with no annotation: ^description returns "" rather than throwing
+    it('stacked statement annotations parse to one AnnotatedStatement', () => {
+      const ast = parse('^(a: 1) ^(b: 2) "x"');
+      const stmt = ast.statements[0] as {
+        type: string;
+        annotations: { name?: string }[];
+        statement: { type: string };
+        span: { start: { column: number } };
+      };
+      expect(stmt.type).toBe('AnnotatedStatement');
+      expect(stmt.annotations).toHaveLength(2);
+      expect(stmt.annotations.map((n) => n.name)).toEqual(['a', 'b']);
+      expect(stmt.statement.type).toBe('Statement');
+      expect(stmt.span.start.column).toBe(1);
+    });
+
+    it('stacked expression annotations parse to one AnnotatedExpr', () => {
+      const ast = parse('dict[f: ^(a: 1) ^(b: 2) |x| { $x }]');
+      const found: {
+        annotations: { name?: string }[];
+        expression: { type: string };
+      }[] = [];
+      const walk = (node: unknown): void => {
+        if (Array.isArray(node)) {
+          node.forEach(walk);
+        } else if (node !== null && typeof node === 'object') {
+          const rec = node as Record<string, unknown>;
+          if (rec['type'] === 'AnnotatedExpr') {
+            found.push(rec as unknown as (typeof found)[number]);
+          }
+          Object.values(rec).forEach(walk);
+        }
+      };
+      walk(ast);
+      expect(found).toHaveLength(1);
+      expect(found[0]!.annotations.map((n) => n.name)).toEqual(['a', 'b']);
+      expect(found[0]!.expression.type).toBe('Closure');
+    });
+
+    it('stacked parameter annotation blocks merge', async () => {
+      const result = await run(
+        '|^(a: 1) ^(b: 2) x: number|{ $x } => $fn\n$fn.^type'
+      );
+      const shape = result as {
+        structure: { params: { annotations?: Record<string, unknown> }[] };
+      };
+      const annotations = shape.structure.params[0]!.annotations;
+      expect(annotations).toEqual({ a: 1, b: 2 });
+      expect(Object.keys(annotations ?? {})).toEqual(['a', 'b']);
+    });
+
+    it('unannotated block-closure .^description halts RILL-R008', async () => {
       const script = `
         { $ * 2 } => $fn
         $fn.^description
       `;
-      expect(await run(script)).toBe('');
+      await expect(run(script)).rejects.toMatchObject({
+        errorId: 'RILL-R008',
+      });
     });
 
-    it('unannotated .^description returns a typed empty string, not a missing-annotation halt', async () => {
+    it('unannotated .^description halts like any missing annotation', async () => {
       const script = `
         |x| ($x) => $f
         $f.^description
       `;
-      expect(await run(script)).toBe('');
-
-      const isStringScript = `
-        |x| ($x) => $f
-        $f.^description:?string
-      `;
-      expect(await run(isStringScript)).toBe(true);
-
-      const emptyScript = `
-        |x| ($x) => $f
-        $f.^description -> .empty
-      `;
-      expect(await run(emptyScript)).toBe(true);
+      await expect(run(script)).rejects.toMatchObject({
+        errorId: 'RILL-R008',
+      });
 
       const coalesceScript = `
         |x| ($x) => $f
@@ -1460,6 +1507,51 @@ describe('Rill Runtime: Annotations', () => {
 
     it('is a reserved annotation key', () => {
       expect(() => parse('^(effective: 1) "x"')).toThrow(ParseError);
+    });
+  });
+
+  describe('.?^key annotation presence', () => {
+    it('is true for a stored annotation and false without it', async () => {
+      expect(await run('^(a: 1) |x|($x) => $f\n$f.?^a')).toBe(true);
+      expect(await run('|x|($x) => $f\n$f.?^a')).toBe(false);
+    });
+
+    it('is false for non-callable values', async () => {
+      expect(await run('5 => $v\n$v.?^a')).toBe(false);
+      expect(await run('dict[a: 1] => $d\n$d.?^a')).toBe(false);
+    });
+
+    it('is false for description unless stored', async () => {
+      expect(await run('|x|($x) => $f\n$f.?^description')).toBe(false);
+      expect(await run('^("d") |x|($x) => $f\n$f.?^description')).toBe(true);
+    });
+
+    it('requires the stored value to match a type suffix', async () => {
+      expect(await run('^(a: 1) |x|($x) => $f\n$f.?^a&number')).toBe(true);
+      expect(await run('^(a: 1) |x|($x) => $f\n$f.?^a&string')).toBe(false);
+    });
+
+    it('works as a pipe target', async () => {
+      expect(await run('^(a: 1) |x|($x) => $f\n$f -> .?^a')).toBe(true);
+    });
+
+    it('is false for type when not stored', async () => {
+      expect(await run('|x|($x) => $f\n$f.?^type')).toBe(false);
+    });
+
+    it('is true for an annotation on a host callable', async () => {
+      const hostFn: ApplicationCallable = {
+        ...createHostCallable({
+          __type: 'callable',
+          kind: 'application',
+          params: [],
+          fn: () => null,
+          isProperty: false,
+        }),
+        annotations: { a: 1 },
+      };
+      expect(await run('$fn.?^a', { variables: { fn: hostFn } })).toBe(true);
+      expect(await run('$fn.?^b', { variables: { fn: hostFn } })).toBe(false);
     });
   });
 });

@@ -3,7 +3,7 @@ id: annotation
 title: Annotations
 status: normative
 since: 0.24.0
-issues: [620, 624]
+issues: [624]
 grammar: []
 errors: [RILL-P001, RILL-R081]
 depends: []
@@ -54,7 +54,7 @@ evaluated.
 r[annotation.repeat-key] A later key replaces an earlier one
 When one key appears twice, the value written later MUST win.
 
-r[annotation.stack] Stacked blocks merge {pending #620}
+r[annotation.stack] Stacked blocks merge
 Two or more `^(...)` blocks before one target MUST merge into one annotation map, in every
 position.
 

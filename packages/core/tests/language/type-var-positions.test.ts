@@ -121,9 +121,8 @@ describe('Type Variable Positions', () => {
 
     it('AC-13: $t bound to number — capture rejects string value', async () => {
       await expectHalt(() => run('number => $t\n"hello" => $x:$t'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
-        messagePattern: 'cannot assign string to $x:number',
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'Type assertion failed',
       });
     });
 
@@ -137,9 +136,8 @@ describe('Type Variable Positions', () => {
 
     it('AC-13: $t bound to bool — capture rejects number value', async () => {
       await expectHalt(() => run('bool => $t\n42 => $x:$t'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
-        messagePattern: 'cannot assign number to $x:bool',
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'Type assertion failed',
       });
     });
 

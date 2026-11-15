@@ -14,7 +14,7 @@ This document catalogs all error conditions in rill with descriptions, common ca
 **Navigation:**
 
 - [Lexer Errors (RILL-L001 - RILL-L005)](#lexer-errors)
-- [Parse Errors (RILL-P001 - RILL-P024)](#parse-errors)
+- [Parse Errors (RILL-P001 - RILL-P026)](#parse-errors)
 - [Runtime Errors (RILL-R001 - RILL-R091)](#runtime-errors)
 - [Check Errors (RILL-C001 - RILL-C004)](#check-errors)
 
@@ -513,6 +513,26 @@ log(1)
 
 ---
 
+### rill-p026
+
+**Description:** Destructure mixes positional and keyed elements
+
+**Cause:** A destructure pattern lists both positional elements ('$a', '_', or a nested destruct) and keyed elements ('key: $b'). A pattern matches either a list by position or a dict by key, not both.
+
+**Resolution:** Use only positional elements to destructure a list, or only keyed elements to destructure a dict.
+
+**Example:**
+
+```text
+# Positional and keyed elements in one pattern
+list[1, 2] -> destruct<$a, b: $c>
+
+# Keyed element followed by a skip
+dict[a: 1] -> destruct<a: $x, _>
+```
+
+---
+
 ## Runtime Errors
 
 Runtime errors occur during script execution when operations fail due to type mismatches, undefined references, or violated constraints.
@@ -521,7 +541,7 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Description:** Argument or binding mismatch
 
-**Cause:** An argument does not match the declared parameter type, the call has the wrong arity or a spread binding error, a typed or type-locked variable receives a value of another type, a script reassigns an outer variable, or the call target is not callable.
+**Cause:** An argument does not match the declared parameter type, the call has the wrong arity or a spread binding error, a type-locked variable or a typed destructure element receives a value of another type, a script reassigns an outer variable, or the call target is not callable.
 
 **Resolution:** Pass a value of the correct type, or convert it before passing. Check the function signature for expected types and arity, keep variable types stable after first assignment, capture to a new name instead of reassigning an outer variable, and call only callable values.
 
@@ -532,8 +552,9 @@ Runtime errors occur during script execution when operations fail due to type mi
 |x: number| $x * 2
 "5" -> $()
 
-# String assigned to number-locked variable
-"a" => $x:number  # Error: string does not match number
+# Number assigned to string-locked variable
+"a" => $x
+5 => $x  # Error: $x is locked to string
 ```
 
 ---

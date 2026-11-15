@@ -797,11 +797,13 @@ pipe-error    = "error" , [ string ] ;
    - enumerate([10, 20])   -> [[index: 0, value: 10], [index: 1, value: 20]]
    - enumerate([a: 1])     -> [[index: 0, key: "a", value: 1]] *)
 
-destructure       = "destruct" , "<" , [ destruct-pattern , { "," , destruct-pattern } ] , ">" ;
-destruct-pattern     = "$" , identifier , [ ":" , capture-type ]  (* variable *)
-                  | identifier , ":" , "$" , identifier , [ ":" , capture-type ]  (* key: $var *)
+destructure       = "destruct" , "<" , [ positional-list | keyed-list ] , ">" ;
+positional-list   = positional-pattern , { "," , positional-pattern } ;
+positional-pattern = "$" , identifier , [ ":" , capture-type ]  (* variable *)
                   | "_"                                         (* skip placeholder *)
                   | destructure ;                               (* nested pattern *)
+keyed-list        = keyed-pattern , { "," , keyed-pattern } ;
+keyed-pattern     = identifier , ":" , "$" , identifier , [ ":" , capture-type ] ;  (* key: $var *)
 
 slice             = "slice" , "<" , [ slice-bound ] , ":" , [ slice-bound ] , [ ":" , [ slice-bound ] ] , ">" ;
 slice-bound       = number | variable | grouped-expr ;

@@ -3,7 +3,7 @@ id: selection
 title: Selection
 status: normative
 since: 0.24.0
-issues: [576, 599, 601, 607]
+issues: [576, 599, 607]
 grammar: []
 errors: [INVALID_INPUT, TYPE_MISMATCH, RILL-R002, RILL-R003, RILL-R005, RILL-R009]
 depends: [dict, ordered, list, tuple, map, string, carried-type]
@@ -75,7 +75,7 @@ A key a dict or an ordered lacks MUST halt with RILL-R009.
 r[selection.default] A fallback replaces a missing selection
 `$d.b ?? d`, `$d.$k ?? d`, `k -> $d ?? d`, and `$l.at(n) ?? d` MUST yield `d` when the selection is missing.
 
-r[selection.bracket-default] A fallback replaces a missing bracket selection {pending #601}
+r[selection.bracket-default] A fallback replaces a missing bracket selection
 `$c[sel] ?? d` MUST yield `d` when the key or index is missing.
 
 r[selection.key-type] A dict selector is a string {pending #576}
@@ -133,7 +133,7 @@ $hits
 
 ```rill
 dict[a: 1] => $d
-list[($d["b"]) ?? 0, $d.b ?? 0, "b" -> $d ?? 0]
+list[$d["b"] ?? 0, $d.b ?? 0, list[1][5] ?? 0]
 # Result: list[0, 0, 0]
 ```
 
@@ -151,9 +151,6 @@ map[200: "ok", 404: "missing"][404]
 
 The 0.23.0 forms `$c.(expr)` and `$c.?(expr)` are removed in 0.24.0 (#607). Write `$c[expr]`
 and `$c.?[expr]`.
-
-On 0.23.0 a `??` after a bracket read does not recover a missing key or index (`$d["b"] ?? 5`
-halts RILL-R009); parenthesize the read. Tracked in #601.
 
 On 0.23.0 an ordered also selects by number position: `$o[0]`, `$o[-1]`, `$o.(1)`, and `$o.?(0)`
 yields true. A bool selector on an ordered halts RILL-R002.

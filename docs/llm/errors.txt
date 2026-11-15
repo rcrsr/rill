@@ -70,7 +70,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
                                    #       non-finite or fractional-month .multiply result, .total_ms on calendar duration;
                                    #       vector dimension mismatch for .similarity/.dot/.distance
     #PROTOCOL  #DISPOSED
-    #TYPE_MISMATCH                 # failed `:type` assertion;
+    #TYPE_MISMATCH                 # failed `:type` assertion or typed capture failing its type;
                                    # also: `sort` key extractor mixed types,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
