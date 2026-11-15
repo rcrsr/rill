@@ -191,7 +191,7 @@ describe('vector internals are not readable or iterable', () => {
   });
 
   it('halts when iterating a vector with seq', async () => {
-    await expectErrorId('make_vec() => $v\n$v -> seq({ $ })', 'RILL-R003');
+    await expectErrorId('make_vec() => $v\n$v -> seq({ $ })', 'RILL-R002');
   });
 
   it('rejects iterating a datetime with seq', async () => {
@@ -451,10 +451,24 @@ describe('method-call and path forms reject blocked keys', () => {
     expect(await run(`${TYPE}"structure" => $k\n$t.?($k)`)).toBe(false);
   });
 
-  it('rejects destructuring the stream resolve function', async () => {
+  it('rejects keyed destructuring of a stream', async () => {
     await expectErrorId(
       `${STREAM}$s -> destruct<__rill_stream_resolve: $x>`,
-      'RILL-R009'
+      'RILL-R002'
+    );
+  });
+
+  it('rejects a dict carrying the stream resolve brand key', async () => {
+    await expectErrorId(
+      'dict["__rill_stream_resolve": 7] -> destruct<__rill_stream_resolve: $x>',
+      'RILL-R002'
+    );
+  });
+
+  it('rejects an ordered carrying the stream resolve brand key', async () => {
+    await expectErrorId(
+      'ordered["__rill_stream_resolve": 7] -> destruct<__rill_stream_resolve: $x>',
+      'RILL-R002'
     );
   });
 

@@ -150,6 +150,9 @@ Destructure (`destruct<>`):
     list[1, 2, 3] -> destruct<$a, $b, $c>          # $a=1, $b=2, $c=3
     dict[x: 1, y: 2] -> destruct<x: $a, y: $b>     # $a=1, $b=2
     list[1, 2, 3] -> destruct<$first, _, $third>   # _ skips
+    tuple[1, 2] -> destruct<$a, $b>                # tuple, positional
+    ordered[x: 1, y: 2] -> destruct<x: $a, y: $b>  # ordered, keyed
+    $stream -> destruct<$a>                        # stream and iterator halt RILL-R002
 
 Mixing positional and keyed destructure elements is parse error RILL-P026.
 A typed element that fails its type halts `#TYPE_MISMATCH`: `dict[a: "x"] -> destruct<a: $q:number>`.
@@ -160,6 +163,7 @@ Slice (`slice<start:stop:step>`):
     list[0,1,2,3,4] -> slice<-2:>      # list[3, 4]
     list[0,1,2,3,4] -> slice<::-1>     # list[4,3,2,1,0]
     "hello" -> slice<1:4>              # "ell"
+    tuple[0,1,2,3] -> slice<1:3>       # tuple[1, 2]
 
 ## List spread
 
@@ -167,6 +171,8 @@ Slice (`slice<start:stop:step>`):
     list[...$a, 3]                     # list[1, 2, 3]
     list[...$a, ...$b]                 # concatenate
     list[...($nums -> fan({ $ * 2 }))] # spread expression result
+    list[...tuple[1, 2], 3]            # tuple spread: list[1, 2, 3]
+    list[...range(0, 3)]               # iterator halts RILL-R002
 
 ## Argument unpacking
 

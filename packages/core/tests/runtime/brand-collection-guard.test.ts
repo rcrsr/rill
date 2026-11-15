@@ -42,10 +42,8 @@
  * `describe` block below rather than the shared `BRANDS` table: vector is
  * not constructable from rill syntax (it only arrives via a host-provided
  * variable, mirroring `tests/language/anonymous-typed-closure.test.ts`),
- * and `getIterableElements` guards it directly with `RILL-R003` rather
- * than the `RILL-R002` the other three brands share with a bare number
- * receiver for `seq`/`fold`/`filter`/`take`, so it does not fit the same
- * parity assertions.
+ * and its methods halt `RILL-R003`, so it does not fit the same parity
+ * assertions.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -237,21 +235,16 @@ describe('brand-value guards against the generic dict path', () => {
     });
   });
 
-  // sort(dict, ...) guards datetime/duration/ordered/vector receivers
-  // directly in ext/builtins/functions/collections.ts (throwTypeHalt,
-  // #TYPE_MISMATCH), a file outside this task's target files. atom/
-  // typevalue are not yet guarded there and still leak into the dict-sort
-  // path; that gap is tracked separately (see Implementation Notes) rather
-  // than fixed here, since fixing it would mean editing a file this task
-  // is scoped not to touch.
-  describe('sort: pre-existing datetime/duration guard (regression only)', () => {
-    it('halts #TYPE_MISMATCH for a datetime receiver', async () => {
-      await expectHalt(() => run('now() -> sort'), { code: 'TYPE_MISMATCH' });
+  // sort shares the collection-source check, so a datetime or duration
+  // receiver halts RILL-R002 like every other collection operator.
+  describe('sort: datetime and duration are not sources', () => {
+    it('halts RILL-R002 for a datetime receiver', async () => {
+      await expectHalt(() => run('now() -> sort'), { code: 'RILL_R002' });
     });
 
-    it('halts #TYPE_MISMATCH for a duration receiver', async () => {
+    it('halts RILL-R002 for a duration receiver', async () => {
       await expectHalt(() => run('duration(1) -> sort'), {
-        code: 'TYPE_MISMATCH',
+        code: 'RILL_R002',
       });
     });
   });

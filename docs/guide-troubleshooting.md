@@ -181,12 +181,12 @@ $list -> .empty ? "nothing" ! ($list -> .head)
 
 ## Spread Type Mismatch
 
-List spread requires a list operand. Dict spread requires a dict operand.
+List spread requires a list or tuple operand. Dict spread requires a dict operand.
 
 ```text
 "hello" => $str
 [...$str]
-# Error: Spread in list literal requires list, got string
+# Error: RILL-R002
 ```
 
 **Fix:** Ensure the spread operand matches the container type.

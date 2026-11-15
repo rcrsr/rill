@@ -3,9 +3,9 @@ id: sort
 title: sort
 status: normative
 since: 0.24.0
-issues: [614]
+issues: []
 grammar: []
-errors: [INVALID_INPUT, TYPE_MISMATCH]
+errors: [INVALID_INPUT, RILL-R002, RILL-R010, TYPE_MISMATCH]
 depends: [iteration]
 tests: [sort.test.ts]
 ---
@@ -49,15 +49,15 @@ A `key_fn` result that is vacant MUST halt with `#INVALID_INPUT`.
 r[sort.key-callable] key_fn is callable
 A `key_fn` that is not callable MUST halt with `#TYPE_MISMATCH`.
 
-r[sort.list] A list, string, or iterator sorts to a list
-`sort` over a list, a string, or an iterator MUST yield a list. A string MUST sort its
+r[sort.to-list] A list, tuple, string, iterator, or stream sorts to a list
+`sort` over a list, a tuple, a string, an iterator, or a stream MUST yield a list. A string MUST sort its
 code-point elements (`iteration.string`).
 
 r[sort.dict] A dict sorts to an ordered
 `sort` over a dict MUST yield an `ordered` whose fields follow the sorted entries. Without
 `key_fn`, an entry's key MUST be its dict key. With `key_fn`, `$` MUST be the entry dict.
 
-r[sort.ordered-source] An ordered sorts to an ordered {pending #614}
+r[sort.ordered-source] An ordered sorts to an ordered
 `sort` over an ordered MUST sort its entries and yield an `ordered`, as `sort.dict` does for a
 dict.
 
@@ -73,7 +73,8 @@ sorted result (`pipe.call-operand`).
 | Two keys have no order | `#TYPE_MISMATCH` | Yes |
 | `key_fn` returns a vacant value | `#INVALID_INPUT` | Yes |
 | `key_fn` is not callable | `#TYPE_MISMATCH` | Yes |
-| The source is an ordered | `#TYPE_MISMATCH` | Yes |
+| The source is not a list, tuple, string, dict, ordered, iterator, or stream | RILL-R002 | Yes |
+| The source holds more than 10,000 elements | RILL-R010 | No |
 
 ## Examples
 
@@ -98,11 +99,27 @@ list[tuple[2, "b"], tuple[1, "z"], tuple[2, "a"]] -> sort
 ```
 
 ```rill
+ordered[b: 2, a: 1] -> sort
+# Result: ordered[a: 1, b: 2]
+```
+
+```rill
+tuple[3, 1, 2] -> sort
+# Result: list[1, 2, 3]
+```
+
+```rill
+guard { now() -> sort } => $r
+$r.!code -> string
+# Result: "RILL_R002"
+```
+
+```rill
 # Error: sort: cannot compare bool with bool
 list[true, false] -> sort
 ```
 
 ## Notes
 
-Superseded: `sort.ordered`, now `sort.ordered-source`. On 0.23.0 `sort` over an ordered halts
+Superseded: `sort.list`, now `sort.to-list`, and `sort.ordered`, now `sort.ordered-source`. On 0.23.0 `sort` over an ordered halts
 `#TYPE_MISMATCH`.

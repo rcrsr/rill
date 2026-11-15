@@ -214,13 +214,13 @@ defaults.synthesis e8200f8bec23
 defaults.tuple-trailing f25323b128a4
 defaults.type-match b099e1f33efb
 destruct.bind 53370e79daaa capture.bind@771562a46f74 capture.rebind@d0ae2424696b type-lock.halt@33dbd80723fe
-destruct.count 32e82219f146
-destruct.keyed-source 0934133c7679
-destruct.missing 4fa39ef8cf27
+destruct.keyed-source 6d00545c764d
+destruct.length a5d51a624d57
+destruct.missing-field 6e90b1c2153d
 destruct.nest-positional e96b46807526
 destruct.nested 0ef94b8b884c
 destruct.no-mix ea90305e9283
-destruct.positional-source 35433510c126
+destruct.positional-source f3d9ee610685
 destruct.result 979409b161ac
 destruct.skip 86168bbe3c38
 destruct.target 7cc2b884121b
@@ -434,9 +434,9 @@ invocation.before-body 248c16d5ba59
 invocation.excess adc4936056b0
 invocation.positional 95d22ed507e2
 invocation.type 3b9d5f0b7e24
-iteration 89f61c671e5e break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@430d605ecfa7 pipe.call-operand@f1a1b2193c9f scope.iteration@6614cdd083b1
+iteration acfca9c04ff1 break.return-each@14a36a5597f3 break.seq@e47b3a30461b break.unsupported@2ea2eb802674 map.iteration@430d605ecfa7 pipe.call-operand@f1a1b2193c9f scope.iteration@6614cdd083b1
 iteration.callable a0543ec98142
-iteration.ceiling ae78bb2a7b19
+iteration.ceiling ba8fa1118415
 iteration.dict 574e84e3af53
 iteration.dollar 3aff6a0f1b89
 iteration.empty 0414be0f2e3f
@@ -444,13 +444,13 @@ iteration.expansion a19b6b147ac0
 iteration.halt 2165d687a3ac
 iteration.iterator 2d350f2e9dbe
 iteration.list b614df3f4a13
-iteration.ordered 4479971572ed
-iteration.other-source 73569e7cff19
+iteration.ordered dbafe7a1811b
+iteration.other-source 5708ff8211d4
 iteration.sequential-limit f2ab28bfb904
-iteration.source-kinds c97a3326defb
+iteration.source-kinds 545ea43f2946
 iteration.stream 6f2c2ae58f1d value.stream@840cdafa18cd
 iteration.string 89b1c92e7911
-iteration.tuple 297a09d9626d
+iteration.tuple d651f9b75b66
 list 1d06f1028879 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 list.argument c095b936d9af
 list.argument-count f196f166f68a
@@ -620,23 +620,23 @@ seq.result-type f5017357012d
 slice.bound-form 904c5ff793ad
 slice.clamp 306fb00a7f55
 slice.defaults ecb14d7e175c
-slice.empty ef23c5bb2e76
+slice.empty-result 19131fd36058
 slice.half-open c0cb17e149b5
 slice.integer 5eab3a8c3dd9
 slice.negative 3a009d81e481
 slice.separator a6cbc69b9ff1
-slice.sources 485bcfa31308
+slice.sources 89b31e045c6b
 slice.step-zero 41308f1e5ca4
-sort 081600843d93 iteration.tuple@297a09d9626d pipe.call-operand@f1a1b2193c9f
+sort 946cfc44d0ea iteration.tuple@d651f9b75b66 pipe.call-operand@f1a1b2193c9f
 sort.ascending 662284d77870
 sort.comparable 9998bd1e3b2d
 sort.dict abbf3f2fa53e
 sort.incomparable f026ff930d01
 sort.key-callable 0c230a881f88
 sort.key-fn c7f037af6928
-sort.list 781161bb63c2 iteration.string@89b1c92e7911
-sort.ordered-source da20be2c5d62 sort.dict@abbf3f2fa53e
+sort.ordered-source debcf2259409 sort.dict@abbf3f2fa53e
 sort.stable fbea85ff9a18
+sort.to-list 90ec9e8ab5af iteration.string@89b1c92e7911
 sort.vacant-key 80736937d5a9
 spread ed95d4813db8 map.no-spread@701e2df33f21
 spread.arg-dict 60818904593b
@@ -646,7 +646,7 @@ spread.arg-positional 8d42dd030662
 spread.arg-tuple ca06a765a105
 spread.dict d0646332a6f3
 spread.dict-later dca48d858dcd
-spread.list-source 17e9cee3a611
+spread.list-source 5e7a131717ad
 spread.list-uniform 0fe0b7347088
 spread.one-argument e60c846f1c3a
 spread.operand c72f7d9eace7

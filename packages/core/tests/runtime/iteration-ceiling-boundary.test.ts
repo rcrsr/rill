@@ -238,3 +238,164 @@ describe('repeat() count validation', () => {
     expect(await run('guard { repeat(1, 1.5) } => $r\n$r.!')).toBe(true);
   });
 });
+
+describe('in-memory collection ceiling for fan, filter, and sort', () => {
+  const OVER = 10001;
+  const OVER_MESSAGE = (op: string): RegExp =>
+    new RegExp(`${op}: iteration exceeded 10000 iterations`);
+
+  it.each([
+    ['fan', 'range(0, 10000) -> fan({ $ }) -> .len', 10000],
+    ['filter', 'range(0, 10000) -> filter({ $ >= 0 }) -> .len', 10000],
+    ['sort', 'range(0, 10000) -> sort -> .len', 10000],
+  ])('%s over exactly 10000 elements completes', async (_op, script, len) => {
+    expect(await run(script)).toBe(len);
+  });
+
+  it.each([
+    ['fan', 'fan({ $ })'],
+    ['filter', 'filter({ $ >= 0 })'],
+    ['sort', 'sort'],
+  ])('%s over 10001 elements halts fatal RILL-R010', async (op, tail) => {
+    await expectHalt(
+      () => run(`list_of_items() -> ${tail}`, { functions: overList() }),
+      {
+        code: 'RILL_R010',
+        hostErrorId: 'RILL-R010',
+        messagePattern: OVER_MESSAGE(op),
+      }
+    );
+  });
+
+  it.each([
+    ['fan', 'fan({ $ })'],
+    ['filter', 'filter({ $ >= 0 })'],
+    ['sort', 'sort'],
+  ])('guard does not recover %s over 10001 elements', async (op, tail) => {
+    await expectHalt(
+      () =>
+        run(`guard { list_of_items() -> ${tail} } => $r\n$r`, {
+          functions: overList(),
+        }),
+      {
+        code: 'RILL_R010',
+        hostErrorId: 'RILL-R010',
+        messagePattern: OVER_MESSAGE(op),
+      }
+    );
+  });
+
+  it('halts sort over a dict with 10001 keys', async () => {
+    const dictFn: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: (): RillValue => {
+        const entries: Record<string, RillValue> = {};
+        for (let i = 0; i < OVER; i++) {
+          Object.defineProperty(entries, `k${i}`, {
+            value: i,
+            enumerable: true,
+            configurable: true,
+            writable: true,
+          });
+        }
+        return entries;
+      },
+    };
+    await expectHalt(
+      () => run('big_dict() -> sort', { functions: { big_dict: dictFn } }),
+      {
+        code: 'RILL_R010',
+        hostErrorId: 'RILL-R010',
+        messagePattern: OVER_MESSAGE('sort'),
+      }
+    );
+  });
+
+  it.each([
+    ['fan', 'fan({ count_call($) })'],
+    ['filter', 'filter({ count_call($) })'],
+  ])('%s over 10001 elements runs the body 0 times', async (_op, tail) => {
+    let calls = 0;
+    const functions: Record<string, RillFunction> = {
+      ...overList(),
+      count_call: {
+        params: [
+          {
+            name: 'x',
+            type: { kind: 'any' },
+            defaultValue: undefined,
+            annotations: {},
+          },
+        ],
+        returnType: anyTypeValue,
+        fn: (): RillValue => {
+          calls++;
+          return true;
+        },
+      },
+    };
+    await expectHalt(() => run(`list_of_items() -> ${tail}`, { functions }), {
+      code: 'RILL_R010',
+      hostErrorId: 'RILL-R010',
+    });
+    expect(calls).toBe(0);
+  });
+
+  /** Host function returning a plain list of 10001 numbers. */
+  function overList(): Record<string, RillFunction> {
+    return {
+      list_of_items: {
+        params: [],
+        returnType: anyTypeValue,
+        fn: (): RillValue => Array.from({ length: OVER }, (_, i) => i),
+      },
+    };
+  }
+});
+
+describe('up-front ceiling check on in-memory sources', () => {
+  const OVER = 10001;
+
+  it('seq over an oversized list halts before the body runs', async () => {
+    let bodyRuns = 0;
+    const tick: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: (): RillValue => {
+        bodyRuns++;
+        return 1;
+      },
+    };
+    await expectHalt(
+      () =>
+        run('$items -> seq({ tick() -> break })', {
+          variables: { items: Array.from({ length: OVER }, () => 1) },
+          functions: { tick },
+        }),
+      { code: 'RILL_R010', hostErrorId: 'RILL-R010' }
+    );
+    expect(bodyRuns).toBe(0);
+  });
+
+  it('acc over an oversized list halts before the body runs', async () => {
+    let bodyRuns = 0;
+    const tick: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: (): RillValue => {
+        bodyRuns++;
+        return 1;
+      },
+    };
+    await expectHalt(
+      () =>
+        run('$items -> acc(0, { tick() -> break })', {
+          variables: { items: Array.from({ length: OVER }, () => 1) },
+          functions: { tick },
+        }),
+      { code: 'RILL_R010', hostErrorId: 'RILL-R010' }
+    );
+    expect(bodyRuns).toBe(0);
+  });
+});

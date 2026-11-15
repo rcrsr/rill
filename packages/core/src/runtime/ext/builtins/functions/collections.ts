@@ -1,19 +1,20 @@
 import type { RillFunction } from '../../../core/callable.js';
 import {
-  toCallable,
   isCallable,
   isDict,
   isScriptCallable,
 } from '../../../core/callable.js';
 import {
-  isDatetime,
-  isDuration,
   isIterator,
   isOrdered,
+  isPlainDict,
   isStream,
-  isVector,
+  positionalElements,
 } from '../../../core/types/guards.js';
-import type { MetadataContext } from '../../../core/types/runtime.js';
+import type {
+  MetadataContext,
+  RuntimeContext,
+} from '../../../core/types/runtime.js';
 import type { SourceLocation } from '../../../../source-location.js';
 import {
   rejectBreakAsHalt,
@@ -33,35 +34,13 @@ import { BreakSignal } from '../../../core/signals.js';
 import { createChildContext } from '../../../core/context.js';
 import {
   getIterableElements,
+  isKeyedSource,
   walkStreamOrIteratorElements,
 } from '../../../core/eval/handlers/collections.js';
+import { typedKeyCount } from '../../../core/types/dict-keys.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import { MAX_ITER, bindElement, chunkSlice } from '../shared.js';
-import { typedKeyEntries } from '../../../core/types/dict-keys.js';
-
-/**
- * Default key extractor for sort(dict, ...).
- * Receives a { key, value } entry dict and returns the key string.
- * Constructed once at module load; not re-allocated per call.
- */
-const DICT_DEFAULT_KEY_FN = toCallable({
-  params: [
-    {
-      name: 'entry',
-      type: { kind: 'any' },
-      defaultValue: undefined,
-      annotations: {},
-    },
-  ],
-  returnType: anyTypeValue,
-  fn: (args) => {
-    const entry = args['entry'] ?? null;
-    if (isDict(entry) && 'key' in entry) {
-      return entry['key'] ?? null;
-    }
-    return null;
-  },
-});
+import { DEFAULT_MAX_ITERATIONS } from '../../../core/eval/shared.js';
+import { bindElement, chunkSlice } from '../shared.js';
 
 /** Halt-site descriptor shared by the collection built-ins' host halts. */
 function buildSite(
@@ -75,6 +54,60 @@ function buildSite(
     fn,
     preserveHostShape: true,
   };
+}
+
+/** Halt with RILL-R010 when a source exceeds the iteration ceiling. */
+function haltOverCeiling(
+  fn: string,
+  ctx: MetadataContext,
+  location: SourceLocation | undefined,
+  iterations: number
+): never {
+  return throwFatalHostHalt(
+    buildSite(fn, ctx, location),
+    ERROR_ATOMS[ERROR_IDS.RILL_R010],
+    `${fn}: iteration exceeded ${DEFAULT_MAX_ITERATIONS} iterations`,
+    { limit: DEFAULT_MAX_ITERATIONS, iterations }
+  );
+}
+
+/**
+ * Element count of an in-memory source (list, tuple, ordered, plain dict)
+ * known before any copy is allocated; undefined for strings, streams, and
+ * iterators.
+ */
+function sourceSize(input: RillValue): number | undefined {
+  const positional = positionalElements(input);
+  if (positional !== undefined) return positional.length;
+  if (isOrdered(input)) return input.entries.length;
+  if (isPlainDict(input) && !isIterator(input)) {
+    return Object.keys(input).length + typedKeyCount(input);
+  }
+  return undefined;
+}
+
+/**
+ * Materialize an in-memory collection source and enforce the iteration
+ * ceiling before any body or key function runs.
+ */
+async function materializeSource(
+  fn: string,
+  input: RillValue,
+  ctx: RuntimeContext,
+  location: SourceLocation | undefined
+): Promise<RillValue[]> {
+  const node = {
+    span: { start: location ?? { line: 0, column: 0, offset: 0 } },
+  };
+  const size = sourceSize(input);
+  if (size !== undefined && size > DEFAULT_MAX_ITERATIONS) {
+    haltOverCeiling(fn, ctx, location, size);
+  }
+  const elements = await getIterableElements(input, ctx, node);
+  if (elements.length > DEFAULT_MAX_ITERATIONS) {
+    haltOverCeiling(fn, ctx, location, elements.length);
+  }
+  return elements;
 }
 
 /** Collection built-in functions: seq, fan, acc, fold, filter, sort. */
@@ -144,26 +177,12 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return results;
       }
 
-      const elements = await getIterableElements(input, ctx, node);
+      const elements = await materializeSource('seq', input, ctx, location);
 
       const results: RillValue[] = [];
-      let iterCount = 0;
 
       try {
         for (const element of elements) {
-          iterCount++;
-          if (iterCount > MAX_ITER) {
-            throwFatalHostHalt(
-              buildSite('seq', ctx, location),
-              ERROR_ATOMS[ERROR_IDS.RILL_R010],
-              `seq: iteration exceeded ${MAX_ITER} iterations`,
-              {
-                limit: MAX_ITER,
-                iterations: iterCount,
-              }
-            );
-          }
-
           const childCtx = createChildContext(ctx);
           const elementArgs = bindElement(childCtx, element, args);
           const closureToInvoke = isScriptCallable(body)
@@ -275,10 +294,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         }
       }
 
-      const node = {
-        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
-      };
-      const elements = await getIterableElements(input, ctx, node);
+      const elements = await materializeSource('fan', input, ctx, location);
 
       if (elements.length === 0) {
         return [];
@@ -414,27 +430,13 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return lazyResults;
       }
 
-      const elements = await getIterableElements(input, ctx, node);
+      const elements = await materializeSource('acc', input, ctx, location);
 
       const results: RillValue[] = [];
       let accumulator: RillValue = seed;
-      let iterCount = 0;
 
       try {
         for (const element of elements) {
-          iterCount++;
-          if (iterCount > MAX_ITER) {
-            throwFatalHostHalt(
-              buildSite('acc', ctx, location),
-              ERROR_ATOMS[ERROR_IDS.RILL_R010],
-              `acc: iteration exceeded ${MAX_ITER} iterations`,
-              {
-                limit: MAX_ITER,
-                iterations: iterCount,
-              }
-            );
-          }
-
           const childCtx = createChildContext(ctx);
           childCtx.variables.set('@', accumulator);
           const closureToInvoke = isScriptCallable(body)
@@ -509,13 +511,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      const node = {
-        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
-      };
-      const elements = await getIterableElements(input, ctx, node);
+      const elements = await materializeSource('fold', input, ctx, location);
 
       let accumulator: RillValue = seed;
-      let iterCount = 0;
 
       const site = {
         location,
@@ -524,19 +522,6 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
       };
 
       for (const element of elements) {
-        iterCount++;
-        if (iterCount > MAX_ITER) {
-          throwFatalHostHalt(
-            buildSite('fold', ctx, location),
-            ERROR_ATOMS[ERROR_IDS.RILL_R010],
-            `fold: iteration exceeded ${MAX_ITER} iterations`,
-            {
-              limit: MAX_ITER,
-              iterations: iterCount,
-            }
-          );
-        }
-
         const childCtx = createChildContext(ctx);
         childCtx.variables.set('@', accumulator);
         const closureToInvoke = isScriptCallable(body)
@@ -657,10 +642,7 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         }
       }
 
-      const node = {
-        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
-      };
-      const elements = await getIterableElements(input, ctx, node);
+      const elements = await materializeSource('filter', input, ctx, location);
 
       if (elements.length === 0) {
         return [];
@@ -735,8 +717,9 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
    *
    * List form: sort(list) -> list[T] sorted ascending by element value.
    *            sort(list, key_fn) -> list[T] sorted by key_fn(element).
-   * Dict form:  sort(dict) -> ordered[[key, value]] sorted by key.
-   *             sort(dict, key_fn) -> ordered[[key, value]] sorted by key_fn({key, value}).
+   * Keyed form (ordered or dict): sort(src) -> ordered sorted by key.
+   *             sort(src, key_fn) -> ordered sorted by key_fn({key, value}).
+   * Tuple, string, stream, and iterator sources sort to a list.
    *
    * Error conditions:
    *   TYPE_MISMATCH  — mixed-type keys produced by extractor
@@ -785,49 +768,21 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      // Brand guard — datetime/duration/ordered/vector are plain objects
-      // but not dict-sortable.
-      if (
-        isDatetime(input) ||
-        isDuration(input) ||
-        isOrdered(input) ||
-        isVector(input)
-      ) {
-        throwTypeHalt(
-          site,
-          'TYPE_MISMATCH',
-          `sort: cannot sort ${inferType(input)}`,
-          'runtime'
-        );
-      }
+      const elements = await materializeSource('sort', input, ctx, location);
+      const keyedSource = isKeyedSource(input);
 
-      // ── Dict path ─────────────────────────────────────────────────────────
-      // Streams are dict-shaped (next, __rill_stream, ...) but must fall
-      // through to the list path below, which materializes their chunks via
-      // getIterableElements instead of sorting the stream's internal fields.
-      if (isDict(input) && !isStream(input) && !isIterator(input)) {
-        const dictInput = input as Record<string, RillValue>;
-        // Combine string keys with number/boolean (typed) keys; the extractor
-        // sees each key with its real type so `{ $.key }` sorts numerically.
-        const entries: [string | number | boolean, RillValue][] = [
-          ...Object.entries(dictInput),
-          ...typedKeyEntries(dictInput).map(
-            (e) => [e.key, e.value] as [string | number | boolean, RillValue]
-          ),
-        ];
-        const keyFn = keyFnArg ?? DICT_DEFAULT_KEY_FN;
-
-        // Pre-extract sort keys asynchronously (extractor halts propagate naturally).
-        const keyed = await Promise.all(
-          entries.map(async ([k, v]) => {
-            const entry: RillValue = { key: k, value: v };
+      // Keyed sources yield { key, value } entries; the default key is the
+      // entry key. Other sources sort by the element itself.
+      const keyed = await Promise.all(
+        elements.map(async (el) => {
+          let key: RillValue = el;
+          if (keyFnArg) {
             const childCtx = createChildContext(ctx, {
               forkCallDepth: true,
             });
-            const entryArgs = bindElement(childCtx, entry, args);
-            let key: RillValue;
+            const elArgs = bindElement(childCtx, el, args);
             try {
-              key = await invokeCallable(keyFn, entryArgs, childCtx, location);
+              key = await invokeCallable(keyFnArg, elArgs, childCtx, location);
             } catch (e) {
               rejectBreakAsHalt(e, site);
               throw e;
@@ -840,73 +795,8 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
                 'runtime'
               );
             }
-            // Ordered keys are strings; stringify any typed key for the result.
-            return { pair: [String(k), v] as [string, RillValue], key };
-          })
-        );
-
-        // Synchronous stable sort on pre-extracted keys.
-        keyed.sort((a, b) => {
-          const cmp = resolvedCompareValue(a.key, b.key);
-          if (cmp === undefined) {
-            throwTypeHalt(
-              site,
-              'TYPE_MISMATCH',
-              `sort: cannot compare ${inferType(a.key)} with ${inferType(b.key)}`,
-              'runtime'
-            );
-          }
-          return cmp;
-        });
-
-        return createOrdered(keyed.map(({ pair }) => pair));
-      }
-
-      // ── List path ─────────────────────────────────────────────────────────
-      const node = {
-        span: { start: location ?? { line: 0, column: 0, offset: 0 } },
-      };
-      const elements = await getIterableElements(input, ctx, node);
-
-      if (!keyFnArg) {
-        // Default identity: compare elements directly via resolvedCompareValue.
-        const keyed = elements.map((el) => ({ el, key: el }));
-        keyed.sort((a, b) => {
-          const cmp = resolvedCompareValue(a.key, b.key);
-          if (cmp === undefined) {
-            throwTypeHalt(
-              site,
-              'TYPE_MISMATCH',
-              `sort: cannot compare ${inferType(a.key)} with ${inferType(b.key)}`,
-              'runtime'
-            );
-          }
-          return cmp;
-        });
-        return keyed.map(({ el }) => el);
-      }
-
-      // With key_fn: pre-extract sort keys asynchronously (extractor halts propagate naturally).
-      const keyed = await Promise.all(
-        elements.map(async (el) => {
-          const childCtx = createChildContext(ctx, {
-            forkCallDepth: true,
-          });
-          const elArgs = bindElement(childCtx, el, args);
-          let key: RillValue;
-          try {
-            key = await invokeCallable(keyFnArg, elArgs, childCtx, location);
-          } catch (e) {
-            rejectBreakAsHalt(e, site);
-            throw e;
-          }
-          if (isVacant(key)) {
-            throwTypeHalt(
-              site,
-              'INVALID_INPUT',
-              'sort: key extractor returned vacant value',
-              'runtime'
-            );
+          } else if (keyedSource && isDict(el)) {
+            key = el['key'] ?? null;
           }
           return { el, key };
         })
@@ -926,7 +816,22 @@ export const COLLECTION_FUNCTIONS: Record<string, RillFunction> = {
         return cmp;
       });
 
-      return keyed.map(({ el }) => el);
+      if (!keyedSource) {
+        return keyed.map(({ el }) => el);
+      }
+      return createOrdered(
+        keyed.map(({ el }): [string, RillValue] => {
+          const entry = isDict(el) ? el : {};
+          const entryKey = entry['key'];
+          const keyText =
+            typeof entryKey === 'string' ||
+            typeof entryKey === 'number' ||
+            typeof entryKey === 'boolean'
+              ? String(entryKey)
+              : '';
+          return [keyText, entry['value'] ?? null];
+        })
+      );
     },
   },
 };

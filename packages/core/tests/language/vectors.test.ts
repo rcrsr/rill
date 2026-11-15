@@ -213,48 +213,52 @@ describe('Rill Runtime: Vector Type', () => {
   });
 
   describe('collection operations [EC-32]', () => {
-    it('throws RILL-R003 for each on vector', async () => {
+    it('throws RILL-R002 for each on vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      await expect(
-        run('$v -> seq({ $ * 2 })', {
-          variables: { v: vec },
-        })
-      ).rejects.toThrow(
-        'Collection operators require list, string, dict, iterator, or stream, got vector'
+      const error = await run('$v -> seq({ $ * 2 })', {
+        variables: { v: vec },
+      }).catch((e: unknown) => e as Error);
+      expect(error).toMatchObject({ errorId: 'RILL-R002' });
+      expect((error as Error).message).toContain(
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got vector'
       );
+      expect((error as Error).message).not.toContain('object');
     });
 
-    it('throws RILL-R003 for map on vector', async () => {
+    it('throws RILL-R002 for map on vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      await expect(
-        run('$v -> fan({ $ * 2 })', {
-          variables: { v: vec },
-        })
-      ).rejects.toThrow(
-        'Collection operators require list, string, dict, iterator, or stream, got vector'
+      const error = await run('$v -> fan({ $ * 2 })', {
+        variables: { v: vec },
+      }).catch((e: unknown) => e as Error);
+      expect(error).toMatchObject({ errorId: 'RILL-R002' });
+      expect((error as Error).message).toContain(
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got vector'
       );
+      expect((error as Error).message).not.toContain('object');
     });
 
-    it('throws RILL-R003 for filter on vector', async () => {
+    it('throws RILL-R002 for filter on vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      await expect(
-        run('$v -> filter({ $ > 1.5 })', {
-          variables: { v: vec },
-        })
-      ).rejects.toThrow(
-        'Collection operators require list, string, dict, iterator, or stream, got vector'
+      const error = await run('$v -> filter({ $ > 1.5 })', {
+        variables: { v: vec },
+      }).catch((e: unknown) => e as Error);
+      expect(error).toMatchObject({ errorId: 'RILL-R002' });
+      expect((error as Error).message).toContain(
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got vector'
       );
+      expect((error as Error).message).not.toContain('object');
     });
 
-    it('throws RILL-R003 for fold on vector', async () => {
+    it('throws RILL-R002 for fold on vector', async () => {
       const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      await expect(
-        run('$v -> fold(0, { $@ + $ })', {
-          variables: { v: vec },
-        })
-      ).rejects.toThrow(
-        'Collection operators require list, string, dict, iterator, or stream, got vector'
+      const error = await run('$v -> fold(0, { $@ + $ })', {
+        variables: { v: vec },
+      }).catch((e: unknown) => e as Error);
+      expect(error).toMatchObject({ errorId: 'RILL-R002' });
+      expect((error as Error).message).toContain(
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got vector'
       );
+      expect((error as Error).message).not.toContain('object');
     });
   });
 

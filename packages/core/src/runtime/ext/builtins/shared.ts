@@ -11,7 +11,10 @@ import type { EvalState } from '../../core/eval/state.js';
 import { callable, isCallable } from '../../core/callable.js';
 import { isDict, isStream } from '../../core/types/guards.js';
 import { typedKeyEntries } from '../../core/types/dict-keys.js';
-import { checkAborted } from '../../core/eval/shared.js';
+import {
+  DEFAULT_MAX_ITERATIONS,
+  checkAborted,
+} from '../../core/eval/shared.js';
 import { invokeCallable as invokeCallableState } from '../../core/eval/handlers/closures.js';
 import { validateStreamChunk } from '../../core/eval/handlers/collections.js';
 import { accessHaltGate } from '../../core/eval/handlers/access.js';
@@ -69,17 +72,17 @@ export function requireNonNegativeInteger(
  * That head step is a positioning step, not an element, so it counts toward
  * neither `cap` nor the raw-step budget below — otherwise take() returns one
  * element short, skip() keeps one too many, and a stream of exactly
- * MAX_ITER chunks trips the budget. Iterators (range, cycle, iterate) carry a
+ * DEFAULT_MAX_ITERATIONS chunks trips the budget. Iterators (range, cycle, iterate) carry a
  * value in their head step and are unaffected: every step they emit is a
  * produced element. This mirrors expandStream/expandIterator, which push a
  * step's value only when it is not undefined.
  *
- * Bounded by raw steps taken (MAX_ITER), not just `produced`; only the
+ * Bounded by raw steps taken (DEFAULT_MAX_ITERATIONS), not just `produced`; only the
  * stream's own pending head is exempt, every later step counts whether or not
  * it carries a value: a
  * user-authored iterator that returns `{done: false, next: ...}` with no
  * `value` field never increments `produced` and would otherwise loop
- * forever. Mirrors the expandIterator/expandStream MAX_ITER guard. Raised as
+ * forever. Mirrors the expandIterator/expandStream DEFAULT_MAX_ITERATIONS guard. Raised as
  * a catchable #RILL_R010, matching batch/window/start_when/stop_when
  * (functions/slicing.ts): a guard block can recover from a runaway
  * take()/skip() input.
@@ -114,11 +117,11 @@ export async function walkIteratorSteps(
     checkAborted(evaluator);
     const view = getStepView(current);
     if (view['done'] === true) break;
-    if (steps >= MAX_ITER) {
+    if (steps >= DEFAULT_MAX_ITERATIONS) {
       throwCatchableHostHalt(
         site,
         'RILL_R010',
-        `Iterator/stream exceeded ${MAX_ITER} step limit without producing ${cap} value(s)`
+        `Iterator/stream exceeded ${DEFAULT_MAX_ITERATIONS} step limit without producing ${cap} value(s)`
       );
     }
     if (headExempt) {
@@ -325,13 +328,6 @@ export function makeDictIterator(
     next: callable(() => makeDictIterator(dict, index + 1)),
   };
 }
-
-/**
- * Iteration step cap shared by unbounded collection operators.
- * Enforced as a hard cap (halts with #RILL_R010 when exceeded) by seq, acc,
- * fold, iterate, batch, window, start_when, stop_when, and take.
- */
-export const MAX_ITER = 10000;
 
 /**
  * Describes one step produced by a makeGenericIterator step function.

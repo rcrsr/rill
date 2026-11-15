@@ -13,22 +13,19 @@
  */
 
 import type { SourceLocation } from '../../../../types.js';
-import type { RillValue } from '../../types/structures.js';
+import type { RillOrdered, RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import {
-  isAtom,
-  isDatetime,
-  isDuration,
   isIterator,
   isOrdered,
+  isPlainDict,
   isStream,
-  isTypeValue,
-  isVector,
+  positionalElements,
 } from '../../types/guards.js';
 import type { RillStream } from '../../types/structures.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { BreakSignal } from '../../signals.js';
-import { isCallable, isDict } from '../../callable.js';
+import { isCallable } from '../../callable.js';
 import { orderedDictEntries } from '../../types/dict-keys.js';
 import { invokeStreamDispose } from '../../types/constructors.js';
 import {
@@ -43,6 +40,7 @@ import {
   checkAborted,
   DEFAULT_MAX_ITERATIONS,
   isFieldReceiver,
+  throwSourceKindHalt,
 } from '../shared.js';
 import { invokeCallable } from './closures.js';
 import { accessHaltGate } from './access.js';
@@ -84,10 +82,22 @@ function isStreamStepDone(step: Record<string, RillValue>): boolean {
 // ============================================================
 
 /**
- * Get elements from an iterable value (list, string, dict, iterator, or stream).
+ * True for a keyed collection source: an ordered, or a plain dict that is not
+ * an iterator.
+ */
+export function isKeyedSource(
+  value: RillValue
+): value is RillOrdered | Record<string, RillValue> {
+  return isOrdered(value) || (isPlainDict(value) && !isIterator(value));
+}
+
+/**
+ * Get elements from a collection source: list, tuple, string (code points),
+ * stream, iterator, ordered, or plain dict.
  *
- * Raises RILL-R003 for vector input.
- * Raises RILL-R002 for non-iterable input.
+ * An ordered yields one dict[key, value] per entry in its own order; a plain
+ * dict yields the same shape in canonical key order. Any other value raises
+ * RILL-R002 naming its kind.
  *
  * @param input - The value to iterate over
  * @param ctx - Runtime context (used by iterator/stream expansion)
@@ -101,33 +111,12 @@ export async function getIterableElements(
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
-  // Vector guard [RILL-R003] — catchable: user supplied wrong type
-  if (isVector(input)) {
-    throwCatchableHostHalt(
-      {
-        location: node.span.start,
-        sourceId: ctx.sourceId,
-        fn: 'getIterableElements',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R003],
-      'Collection operators require list, string, dict, iterator, or stream, got vector'
-    );
-  }
-  // Datetime/Duration guard: these are plain objects but not iterable
-  // catchable: user supplied wrong type
-  if (isDatetime(input) || isDuration(input)) {
-    throwCatchableHostHalt(
-      {
-        location: node.span.start,
-        sourceId: ctx.sourceId,
-        fn: 'getIterableElements',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
-    );
-  }
   if (Array.isArray(input)) {
     return input;
+  }
+  const positional = positionalElements(input);
+  if (positional !== undefined) {
+    return [...positional];
   }
   if (typeof input === 'string') {
     return Array.from(input);
@@ -141,33 +130,10 @@ export async function getIterableElements(
   if (isIterator(input)) {
     return expandIterator(input, evaluator, node, limit);
   }
-  // Ordered guard: ordered values are plain objects but not dict-iterable
-  // catchable: user supplied wrong type
   if (isOrdered(input)) {
-    throwCatchableHostHalt(
-      {
-        location: node.span.start,
-        sourceId: ctx.sourceId,
-        fn: 'getIterableElements',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
-    );
+    return input.entries.map(([key, value]) => ({ key, value }));
   }
-  // Atom/type-value guard: these are plain objects but not dict-iterable
-  // catchable: user supplied wrong type
-  if (isAtom(input) || isTypeValue(input)) {
-    throwCatchableHostHalt(
-      {
-        location: node.span.start,
-        sourceId: ctx.sourceId,
-        fn: 'getIterableElements',
-      },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
-    );
-  }
-  if (isDict(input)) {
+  if (isPlainDict(input)) {
     // Dict iteration: canonical key order (sorted string keys, then number
     // keys ascending, then boolean keys), each element is { key, value }.
     return orderedDictEntries(input).map((e) => ({
@@ -175,15 +141,16 @@ export async function getIterableElements(
       value: e.value,
     }));
   }
-  // Non-iterable [RILL-R002] — catchable: user supplied wrong type
-  return throwCatchableHostHalt(
+  return throwSourceKindHalt(
     {
       location: node.span.start,
       sourceId: ctx.sourceId,
       fn: 'getIterableElements',
     },
-    ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `Collection operators require list, string, dict, iterator, or stream, got ${inferType(input)}`
+    'Collection operators',
+    ['list', 'tuple', 'string', 'dict', 'ordered', 'iterator', 'stream'],
+    input,
+    'require'
   );
 }
 

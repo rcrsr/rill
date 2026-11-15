@@ -3,7 +3,7 @@ id: destruct
 title: Destructure
 status: normative
 since: 0.24.0
-issues: [615]
+issues: []
 grammar: [destructure, positional-list, positional-pattern, keyed-list, keyed-pattern]
 errors: [RILL-P001, RILL-P026, RILL-R001, RILL-R002, RILL-R009, TYPE_MISMATCH]
 depends: [pipe, selection]
@@ -49,13 +49,13 @@ rejected with RILL-P001.
 
 ## Evaluation
 
-r[destruct.positional-source] A positional pattern takes a list or a tuple {pending #615}
+r[destruct.positional-source] A positional pattern takes a list or a tuple
 A positional pattern MUST bind each element of a list or a tuple, in order. Any other source, an
 iterator included, MUST halt with RILL-R002 naming the source's kind.
 
-r[destruct.count] A positional pattern matches the list length
-A positional pattern whose element count differs from the list's length MUST halt with
-RILL-R002. `destruct<>` matches only an empty list.
+r[destruct.length] A positional pattern matches the list or tuple length
+A positional pattern whose element count differs from the length of the list or tuple MUST
+halt with RILL-R002. `destruct<>` matches only an empty list or tuple.
 
 r[destruct.skip] _ skips an element
 `_` MUST consume one element without binding it.
@@ -63,12 +63,12 @@ r[destruct.skip] _ skips an element
 r[destruct.nested] A nested pattern destructures its element
 A nested `destruct<...>` MUST destructure its element by the same rules.
 
-r[destruct.keyed-source] A keyed pattern takes a dict or an ordered {pending #615}
+r[destruct.keyed-source] A keyed pattern takes a dict or an ordered
 `key: $name` MUST bind the field `key` of a dict or an ordered. A pattern MAY name a subset of
 the fields. Any other source MUST halt with RILL-R002 naming the source's kind.
 
-r[destruct.missing] A missing key halts
-A keyed element whose key the dict lacks MUST halt with RILL-R009.
+r[destruct.missing-field] A missing key halts
+A keyed element whose key the dict or ordered lacks MUST halt with RILL-R009.
 
 r[destruct.bind] Each element binds as a capture
 Each `$name` MUST bind as `=> $name` would in the enclosing scope, with the same rebinding and
@@ -89,7 +89,7 @@ r[destruct.result] destruct yields its input
 | `destruct` at a statement head, or a keyed nested pattern | RILL-P001 | No |
 | A pattern mixes positional and keyed elements | RILL-P026 | No |
 | The source kind does not fit the pattern | RILL-R002 | Yes |
-| The pattern and list lengths differ | RILL-R002 | Yes |
+| The pattern and list or tuple lengths differ | RILL-R002 | Yes |
 | A keyed element names a missing key | RILL-R009 | Yes |
 | A typed element fails its type | `#TYPE_MISMATCH` | Yes |
 | An element breaks an existing type lock | RILL-R001 | Yes |
@@ -115,6 +115,23 @@ $a + $d
 ```
 
 ```rill
+tuple[1, 2] -> destruct<$a, $b>
+$a + $b
+# Result: 3
+```
+
+```rill
+ordered[a: 1, b: 2] -> destruct<b: $x>
+$x
+# Result: 2
+```
+
+```rill
+# Error: RILL-R002
+range(0, 3) -> destruct<$a, $b, $c>
+```
+
+```rill
 # Error: Destructure pattern has 2 elements, list has 3
 list[1, 2, 3] -> destruct<$a, $b>
 ```
@@ -126,6 +143,7 @@ list[1, 2] -> destruct<$a, b: $b>
 
 ## Notes
 
-Superseded: `destruct.positional`, now `destruct.positional-source`, and `destruct.keyed`, now
-`destruct.keyed-source`. On 0.23.0 a positional pattern takes only a list and a keyed pattern
+Superseded: `destruct.positional`, now `destruct.positional-source`, `destruct.keyed`, now
+`destruct.keyed-source`, `destruct.count`, now `destruct.length`, and `destruct.missing`, now
+`destruct.missing-field`. On 0.23.0 a positional pattern takes only a list and a keyed pattern
 only a dict, and the halt says "got object" for a tuple.

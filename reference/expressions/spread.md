@@ -3,7 +3,7 @@ id: spread
 title: Spread
 status: normative
 since: 0.24.0
-issues: [615]
+issues: []
 grammar: [spread-arg]
 errors: [RILL-P004, RILL-P007, RILL-R001, RILL-R002, RILL-R044]
 depends: [pipe]
@@ -22,7 +22,7 @@ spread-arg    = "..." , [ pipe-chain ] ;
 ```
 
 ```text
-list[0, ...$a, 3]          elements of a list
+list[0, ...$a, 3]          elements of a list or tuple
 dict[...$d, b: 2]          fields of a dict or ordered
 $f(...dict[a: 1, b: 2])    arguments by name
 $f(...tuple[1, 2])         arguments by position
@@ -40,7 +40,7 @@ A second spread in one argument list MUST be rejected with RILL-P007.
 
 ## Evaluation
 
-r[spread.list-source] A list or tuple literal spreads a list or a tuple {pending #615}
+r[spread.list-source] A list or tuple literal spreads a list or a tuple
 In `list[...]` and `tuple[...]`, `...v` MUST insert the elements of the list or tuple `v` in
 order. Any other value, an iterator included, MUST halt with RILL-R002 naming its kind.
 
@@ -98,6 +98,12 @@ A map never spreads (`map.no-spread`).
 list[2, 3] => $mid
 list[1, ...$mid, 4]
 # Result: list[1, 2, 3, 4]
+```
+
+```rill
+tuple[0, 1] => $t
+list[...$t, 2, 3]
+# Result: list[0, 1, 2, 3]
 ```
 
 ```rill

@@ -167,7 +167,7 @@ Use parentheses to override.
 | `filter` | `filter(list, closure)` | Keep items where body returns `true` |
 | `fold` | `fold(list, init, closure)` | Reduce to single value; `$@` = accumulator |
 | `acc` | `acc(list, init, closure)` | Like `fold` but emits accumulator at each step |
-| `sort` | `sort(list, key_fn?)` | Stable ascending sort; dict input returns `ordered`; iterators are materialized and sorted |
+| `sort` | `sort(list, key_fn?)` | Stable ascending sort; dict and ordered input return `ordered`, tuple input returns `list`; iterators are materialized; over 10,000 elements halts `RILL-R010` (fatal) |
 | `take` | `take(list, n: int) -> list[T]` | First n elements; `n < 0` halts `#INVALID_INPUT`; a result over 10,000 halts `RILL_R010` (catchable) |
 | `skip` | `skip(list, n: int) -> list[T]` | Drop first n elements; `n < 0` halts `#INVALID_INPUT`; n past length → empty |
 | `cycle` | `cycle(list) -> iterator[T]` | Repeat input indefinitely as iterator; empty input → empty; bound at consumer |
@@ -478,7 +478,9 @@ Invalid annotation keys produce a runtime error.
 | `fan` | parallel | all body results | no |
 | `filter` | parallel | matching elements only | no |
 | `fold(init, ...)` | sequential | final accumulator only | no |
-| `sort` | eager | sorted list, or `ordered` for dict input | no |
+| `sort` | eager | sorted list, or `ordered` for dict or ordered input | no |
+
+Sources: list, tuple, string, dict, ordered, iterator, stream. Any other value halts catchable RILL-R002 naming the kind. A source over 10,000 elements halts fatally with RILL-R010 in seq, fan, filter, fold, acc, and sort before any body runs, so `break` cannot stop it early; bound it with `take(n)`. Streams and iterators pull lazily in seq and acc, so `break` still bounds them. take, batch, window, start_when, and stop_when cap output at 10,000 with a catchable RILL-R010. A tuple iterates like a list; an ordered binds `$.key` and `$.value` in insertion order.
 
 `$@` is the accumulator in `fold` and `acc`. See `stdlib` for `sort` details (key extractor, multi-key tuple projection, descending via `.reverse`).
 
@@ -1149,6 +1151,9 @@ Destructure (`destruct<>`):
     list[1, 2, 3] -> destruct<$a, $b, $c>          # $a=1, $b=2, $c=3
     dict[x: 1, y: 2] -> destruct<x: $a, y: $b>     # $a=1, $b=2
     list[1, 2, 3] -> destruct<$first, _, $third>   # _ skips
+    tuple[1, 2] -> destruct<$a, $b>                # tuple, positional
+    ordered[x: 1, y: 2] -> destruct<x: $a, y: $b>  # ordered, keyed
+    $stream -> destruct<$a>                        # stream and iterator halt RILL-R002
 
 Mixing positional and keyed destructure elements is parse error RILL-P026.
 A typed element that fails its type halts `#TYPE_MISMATCH`: `dict[a: "x"] -> destruct<a: $q:number>`.
@@ -1159,6 +1164,7 @@ Slice (`slice<start:stop:step>`):
     list[0,1,2,3,4] -> slice<-2:>      # list[3, 4]
     list[0,1,2,3,4] -> slice<::-1>     # list[4,3,2,1,0]
     "hello" -> slice<1:4>              # "ell"
+    tuple[0,1,2,3] -> slice<1:3>       # tuple[1, 2]
 
 ## List spread
 
@@ -1166,6 +1172,8 @@ Slice (`slice<start:stop:step>`):
     list[...$a, 3]                     # list[1, 2, 3]
     list[...$a, ...$b]                 # concatenate
     list[...($nums -> fan({ $ * 2 }))] # spread expression result
+    list[...tuple[1, 2], 3]            # tuple spread: list[1, 2, 3]
+    list[...range(0, 3)]               # iterator halts RILL-R002
 
 ## Argument unpacking
 
@@ -1280,7 +1288,7 @@ Example:
 | `datetime(...)` | construct datetime (ISO string or named components) |
 | `duration(y, m, d, h)` | construct duration |
 | `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
-| `sort(dict, key_fn?)` | stable ascending sort of dict entries; returns `ordered[[key, value]]` |
+| `sort(dict, key_fn?)` | stable ascending sort of dict or ordered entries; returns `ordered[[key, value]]` |
 
 The other built-ins (`seq`, `fan`, `acc`, `fold`, `filter`, `take`, `skip`, `cycle`, `batch`, `window`, `start_when`, `stop_when`, `iterate`, `debounce`, `throttle`, `sample`) are covered in the `iterate` through `stop_when` sections below and in the control-flow fragment.
 
@@ -1302,13 +1310,14 @@ atom is not a function. Convert a string to an atom through the pipe: "TIMEOUT" 
 
 ## sort
 
-Stable ascending sort. List sort returns `list`. Dict sort returns `ordered` because rill dicts iterate in a canonical order, so a sorted dict is materialized as ordered key-value entries.
+Stable ascending sort. List and tuple sort return `list`. Dict and ordered sort return `ordered` because rill dicts iterate in a canonical order, so a sorted dict is materialized as ordered key-value entries.
 
     list[3, 1, 2] -> sort                          # list[1, 2, 3]
     list["banana", "fig", "apple"] -> sort({ $ -> .len })   # list["fig", "apple", "banana"]
 
     dict[c: 3, a: 1, b: 2] -> sort                 # ordered[a: 1, b: 2, c: 3]
     dict[c: 3, a: 1, b: 2] -> sort({ $.value })    # ordered[a: 1, b: 2, c: 3]
+    ordered[b: 2, a: 1] -> sort                    # ordered[a: 1, b: 2]
 
 Multi-key sort uses `tuple[...]` projection. Tuples compare lexicographically left to right.
 
@@ -1322,7 +1331,7 @@ Descending order: pipe through `.reverse` after sort. `.reverse` is list-only; d
 
     list[3,1,2] -> sort[0]  # 1  (index a pipe-target result)
 
-`sort` materializes iterators and sorts them like a list. An iterator past 10,000 elements halts fatally with `RILL_R010`.
+`sort` materializes iterators and sorts them like a list. Any source past 10,000 elements halts fatally with `RILL-R010`.
 
     range(0, 5) -> sort                            # list[0, 1, 2, 3, 4]
 

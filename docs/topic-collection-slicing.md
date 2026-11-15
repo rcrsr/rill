@@ -365,6 +365,7 @@ range(1, 11) -> start_when({ $ >= 3 }) -> stop_when({ $ >= 7 })
 |-----------|-------|
 | `predicate` is not callable | `#RILL_R040` |
 | `predicate` returns a non-bool value | `#TYPE_MISMATCH` |
+| Output exceeds 10,000 elements | Catchable halt: `#RILL_R010` |
 
 ```text
 # Error: #RILL_R040 — predicate must be callable
@@ -416,6 +417,7 @@ range(1, 11) -> stop_when($atFive)
 |-----------|-------|
 | `predicate` is not callable | `#RILL_R040` |
 | `predicate` returns a non-bool value | `#TYPE_MISMATCH` |
+| Output exceeds 10,000 elements | Catchable halt: `#RILL_R010` |
 
 ```text
 # Error: #TYPE_MISMATCH — predicate must return bool
@@ -430,7 +432,7 @@ range(1, 11) -> stop_when($atFive)
 
 `debounce` suppresses rapid emissions and emits only the latest chunk after a period of silence equal to `duration`. When a new chunk arrives before the silence window expires, the previous candidate is discarded and the timer resets.
 
-`debounce` is stream-only. Passing a list halts with `#INVALID_INPUT`.
+`debounce` is stream-only. Any input that is not a stream or iterator halts with `#INVALID_INPUT`.
 
 ```text
 # Conceptual: only the last chunk in a rapid burst passes
@@ -453,7 +455,7 @@ The current implementation materializes the input synchronously as one batch. Be
 
 | Condition | Error |
 |-----------|-------|
-| Input is a list | Catchable halt: `#INVALID_INPUT` |
+| Input is not a stream or iterator | Catchable halt: `#INVALID_INPUT` |
 | `duration` argument is not a duration | Non-catchable halt: `RILL-R001` parameter type mismatch |
 | Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
 
@@ -475,7 +477,7 @@ $stream -> debounce(500)
 
 `throttle` limits output to at most one chunk per `duration` interval. The first chunk in each interval passes through. Subsequent chunks that arrive within the same interval are discarded.
 
-`throttle` is stream-only. Passing a list halts with `#INVALID_INPUT`.
+`throttle` is stream-only. Any input that is not a stream or iterator halts with `#INVALID_INPUT`.
 
 ```text
 # Conceptual: at most one chunk per 100 ms interval
@@ -497,7 +499,7 @@ Under the synchronous batch path, `ctx.nowMs` does not advance between chunks. A
 
 | Condition | Error |
 |-----------|-------|
-| Input is a list | Catchable halt: `#INVALID_INPUT` |
+| Input is not a stream or iterator | Catchable halt: `#INVALID_INPUT` |
 | `duration` argument is not a duration | Non-catchable halt: `RILL-R001` parameter type mismatch |
 | Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
 
@@ -514,7 +516,7 @@ Under the synchronous batch path, `ctx.nowMs` does not advance between chunks. A
 
 `sample` emits the latest chunk seen at each fixed `duration` interval. Chunks arriving between checkpoints update the "latest seen" value. Each checkpoint emits that latest value if any chunk arrived since the last checkpoint.
 
-`sample` is stream-only. Passing a list halts with `#INVALID_INPUT`.
+`sample` is stream-only. Any input that is not a stream or iterator halts with `#INVALID_INPUT`.
 
 ```text
 # Conceptual: emit latest chunk every 250 ms
@@ -544,7 +546,7 @@ Under the synchronous batch path, `ctx.nowMs` does not advance between chunks. A
 
 | Condition | Error |
 |-----------|-------|
-| Input is a list | Catchable halt: `#INVALID_INPUT` |
+| Input is not a stream or iterator | Catchable halt: `#INVALID_INPUT` |
 | `duration` argument is not a duration | Non-catchable halt: `RILL-R001` parameter type mismatch |
 | Iteration exceeds 10,000 chunks | Non-catchable halt: `RILL_R010` |
 

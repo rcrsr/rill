@@ -35,12 +35,26 @@ import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { createVector, type RillValue } from '@rcrsr/rill';
 import { isOrdered, orderedEntries } from '../helpers/ordered.js';
 
 // Helper: extract key-order from an ordered value
 function orderedKeys(value: unknown): string[] {
   if (!isOrdered(value)) throw new Error('Not an ordered value');
   return (value as { entries: [string, unknown][] }).entries.map(([k]) => k);
+}
+
+// Helper: run a script expected to halt and return the thrown error
+async function rejection(
+  script: string,
+  variables?: Record<string, RillValue>
+): Promise<Error> {
+  try {
+    await run(script, variables ? { variables } : undefined);
+  } catch (error) {
+    return error as Error;
+  }
+  throw new Error('Expected script to halt');
 }
 
 describe('Rill Language: sort primitive', () => {
@@ -157,6 +171,28 @@ describe('Rill Language: sort primitive', () => {
     });
   });
 
+  // ── Tuple and Ordered Sources ─────────────────────────────────────────────
+
+  describe('Tuple and Ordered Sources', () => {
+    it('tuple[3, 1] -> sort returns list[1, 3]', async () => {
+      expect(await run('tuple[3, 1] -> sort')).toEqual([1, 3]);
+    });
+
+    it('ordered -> sort returns an ordered sorted by key', async () => {
+      const result = await run('ordered[b: 1, a: 2] -> sort');
+      expect(isOrdered(result)).toBe(true);
+      expect(orderedKeys(result)).toEqual(['a', 'b']);
+    });
+
+    it('ordered with key_fn keeps own order on tied keys', async () => {
+      const result = await run(
+        'ordered[b: 1, a: 1, c: 0] -> sort({ $.value })'
+      );
+      expect(isOrdered(result)).toBe(true);
+      expect(orderedKeys(result)).toEqual(['c', 'b', 'a']);
+    });
+  });
+
   // ── Error Cases ────────────────────────────────────────────────────────────
 
   describe('Error Cases', () => {
@@ -222,10 +258,26 @@ describe('Rill Language: sort primitive', () => {
       ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R010' }));
     });
 
-    it('datetime input halts with #TYPE_MISMATCH instead of sorting as a dict', async () => {
-      await expectHalt(() => run('datetime("2026-01-01") -> sort'), {
-        code: 'TYPE_MISMATCH',
-      });
+    it('datetime input halts with RILL-R002 naming the kind', async () => {
+      const error = await rejection('datetime("2026-01-01") -> sort');
+      expect(error).toMatchObject({ errorId: 'RILL-R002' });
+      expect(error.message).toContain('got datetime');
+      expect(error.message).not.toContain('object');
+    });
+
+    it('vector input to sort halts with RILL-R002 naming the kind', async () => {
+      const vec = createVector(new Float32Array([1.0, 2.0]), 'model-a');
+      const error = await rejection('$v -> sort', { v: vec });
+      expect(error).toMatchObject({ errorId: 'RILL-R002' });
+      expect(error.message).toContain('got vector');
+      expect(error.message).not.toContain('object');
+    });
+
+    it('number input to sort halts with RILL-R002 naming the kind', async () => {
+      const error = await rejection('42 -> sort');
+      expect(error).toMatchObject({ errorId: 'RILL-R002' });
+      expect(error.message).toContain('got number');
+      expect(error.message).not.toContain('object');
     });
 
     it('datetime input to seq halts with RILL-R002 instead of iterating as a dict', async () => {
@@ -237,14 +289,11 @@ describe('Rill Language: sort primitive', () => {
       );
     });
 
-    it('ordered input to seq halts with RILL-R002 instead of iterating as a dict', async () => {
-      // [SPEC] ordered values are plain objects but not dict-iterable; the
-      // isOrdered guard in getIterableElements halts before the generic
-      // dict path would silently mis-iterate them (same pattern as the
-      // datetime guard assertion above).
-      await expect(run('ordered[a: 1] -> seq({ $ })')).rejects.toThrow(
-        expect.objectContaining({ errorId: 'RILL-R002' })
-      );
+    it('ordered input to seq iterates entry dicts in own order', async () => {
+      expect(await run('ordered[b: 2, a: 1] -> seq({ $ })')).toEqual([
+        { key: 'b', value: 2 },
+        { key: 'a', value: 1 },
+      ]);
     });
   });
 });

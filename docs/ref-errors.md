@@ -517,9 +517,9 @@ log(1)
 
 **Description:** Destructure mixes positional and keyed elements
 
-**Cause:** A destructure pattern lists both positional elements ('$a', '_', or a nested destruct) and keyed elements ('key: $b'). A pattern matches either a list by position or a dict by key, not both.
+**Cause:** A destructure pattern lists both positional elements ('$a', '_', or a nested destruct) and keyed elements ('key: $b'). A pattern matches either a list or tuple by position, or a dict or ordered by key, not both.
 
-**Resolution:** Use only positional elements to destructure a list, or only keyed elements to destructure a dict.
+**Resolution:** Use only positional elements to destructure a list or tuple, or only keyed elements to destructure a dict or ordered.
 
 **Example:**
 
@@ -563,7 +563,7 @@ Runtime errors occur during script execution when operations fail due to type mi
 
 **Description:** Operation not valid for its operands or context
 
-**Cause:** An operation received an operand, key, or receiver of the wrong type or shape. Rill does not perform implicit type coercion. Families: an operator applied to incompatible operand types, including division or modulo by zero and logical or negation operators on non-bool values; a list literal with mixed element types; ordering two durations whose calendar and clock components disagree; a list[...] dispatch with a non-number index, a missing index, or a spread that is not a list; a non-bool condition in a conditional, while, do-while, or assert; a non-string message in an `error` statement; an index or key of the wrong type, or a receiver that cannot be indexed (for example "Cannot index string" or "Cannot index iterator"); a destructure pattern that does not match the shape of the value; a call or dispatch on a non-callable target, or property access on a non-dict value; a spread of the wrong type in a list, dict, or annotation literal; a collection operator applied to an input that is not a list, string, dict, iterator, or stream; and an iterator or stream protocol violation, such as a `.next` that is not a closure or does not return the expected step. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
+**Cause:** An operation received an operand, key, or receiver of the wrong type or shape. Rill does not perform implicit type coercion. Families: an operator applied to incompatible operand types, including division or modulo by zero and logical or negation operators on non-bool values; a list literal with mixed element types; ordering two durations whose calendar and clock components disagree; a list[...] dispatch with a non-number index, a missing index, or a spread that is not a list or tuple; a non-bool condition in a conditional, while, do-while, or assert; a non-string message in an `error` statement; an index or key of the wrong type, or a receiver that cannot be indexed (for example "Cannot index string" or "Cannot index iterator"); a destructure pattern that does not match the shape of the value; a call or dispatch on a non-callable target, or property access on a non-dict value; a spread of the wrong type in a list, dict, or annotation literal; a collection operator applied to a source that is not a list, tuple, string, dict, ordered, iterator, or stream; and an iterator or stream protocol violation, such as a `.next` that is not a closure or does not return the expected step. The same code is raised when a script uses a reserved brand key (such as `__type` or `__rill_atom`) as a dict or ordered field name or as an annotation key, because such a key would let user data masquerade as a branded runtime value.
 
 **Resolution:** Ensure both operands are compatible types. Convert values explicitly if needed using type-specific methods. Rename any field or annotation key that collides with a reserved brand key.
 

@@ -47,24 +47,24 @@ describe('collections handlers', () => {
       });
     });
 
-    describe('RILL-R003: vector input rejected', () => {
+    describe('RILL-R002: vector input rejected', () => {
       it('raises error for vector input to seq', async () => {
         const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
         await expectHalt(
           () => run('$v -> seq({ $ })', { variables: { v: vec } }),
           {
-            code: 'RILL_R003',
-            hostErrorId: 'RILL-R003',
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
             messagePattern: 'Collection operators require',
           }
         );
       });
 
-      it('raises RILL-R003 for vector input', async () => {
+      it('raises RILL-R002 for vector input', async () => {
         const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
         await expectHalt(
           () => run('$v -> seq({ $ })', { variables: { v: vec } }),
-          { code: 'RILL_R003', hostErrorId: 'RILL-R003' }
+          { code: 'RILL_R002', hostErrorId: 'RILL-R002' }
         );
       });
 
@@ -73,8 +73,8 @@ describe('collections handlers', () => {
         await expectHalt(
           () => run('$v -> fan({ $ })', { variables: { v: vec } }),
           {
-            code: 'RILL_R003',
-            hostErrorId: 'RILL-R003',
+            code: 'RILL_R002',
+            hostErrorId: 'RILL-R002',
             messagePattern: 'Collection operators require',
           }
         );

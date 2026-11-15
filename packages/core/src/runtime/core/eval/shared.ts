@@ -12,6 +12,8 @@ import type { ASTNode, SourceLocation } from '../../../types.js';
 import type { RillValue } from '../types/structures.js';
 import type { TimeoutScheduler } from '../types/runtime.js';
 import { isPlainDict, isStream } from '../types/guards.js';
+import { inferType } from '../types/registrations.js';
+import type { RillTypeName } from '../../../value-types.js';
 import {
   throwAbortHalt,
   throwAutoExceptionHalt,
@@ -246,7 +248,7 @@ export function withTimeout<T>(
 }
 
 /** Fields a script may read from a stream: the iterator step protocol. */
-export const STREAM_STEP_FIELDS: ReadonlySet<string> = new Set([
+const STREAM_STEP_FIELDS: ReadonlySet<string> = new Set([
   'done',
   'value',
   'next',
@@ -289,5 +291,34 @@ export function isDictKeyScalar(value: RillValue): value is DictKeyScalar {
     typeof value === 'string' ||
     typeof value === 'number' ||
     typeof value === 'boolean'
+  );
+}
+
+/** Join kind names as "a", "a or b", or "a, b, or c". */
+function joinKinds(kinds: readonly string[]): string {
+  const last = kinds.at(-1);
+  if (kinds.length <= 2 || last === undefined) return kinds.join(' or ');
+  return `${kinds.slice(0, -1).join(', ')}, or ${last}`;
+}
+
+/**
+ * Halt with a catchable RILL-R002 when a collection source has the wrong kind.
+ * The message names the accepted kinds and the inferred kind of `value`;
+ * the inferred kind is also carried as `raw.got`. Pass `verb` as `'require'`
+ * when `subject` is plural.
+ */
+export function throwSourceKindHalt(
+  site: TypeHaltSite,
+  subject: string,
+  accepted: readonly RillTypeName[],
+  value: RillValue,
+  verb: 'requires' | 'require' = 'requires'
+): never {
+  const got = inferType(value);
+  return throwCatchableHostHalt(
+    site,
+    ERROR_ATOMS[ERROR_IDS.RILL_R002],
+    `${subject} ${verb} ${joinKinds(accepted)}, got ${got}`,
+    { got }
   );
 }

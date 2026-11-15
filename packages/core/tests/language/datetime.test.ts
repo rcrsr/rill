@@ -571,7 +571,7 @@ describe('Rill Language: Datetime Type', () => {
   describe('collection errors', () => {
     it('each on datetime halts with collection error [AC-E11, EC-6]', async () => {
       await expect(run(`datetime("${REF_ISO}") -> seq({ $ })`)).rejects.toThrow(
-        'Collection operators require list, string, dict, iterator, or stream, got datetime'
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got datetime'
       );
     });
 
