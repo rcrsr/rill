@@ -447,13 +447,7 @@ const MISSES: readonly Miss[] = [
 /** Forms whose miss a `??` default does not recover. A destructure has no default syntax at all. */
 const NO_DEFAULT: ReadonlySet<Form> = new Set(['destructure']);
 
-/** A bracket default recovers only an out-of-range index or an absent string key. */
-const BRACKET_NON_STRING_KEY = 'dict missing typed number key';
-
 function recoversThrough(c: { receiver: Miss; form: Form }): boolean {
-  if (c.form === 'bracket' && c.receiver.label === BRACKET_NON_STRING_KEY) {
-    return false;
-  }
   return c.receiver.recovers;
 }
 
@@ -524,6 +518,85 @@ describe('element lookup: miss behaviour', () => {
 // ============================================================
 // EXISTENCE, LITERAL LIST DISPATCH, SELECTED CALLABLES, KEY IDENTITY
 // ============================================================
+
+describe('element lookup: bracket default covers only the right-most access', () => {
+  // The same lookup through a variable receiver and a postfix receiver.
+  const RECEIVERS = [
+    {
+      label: 'variable receiver',
+      dict: 'dict[a: 1] => $d\n$d',
+      numDict: 'dict[1: "x"] => $d\n$d',
+      list: 'list[1, 2] => $l\n$l',
+    },
+    {
+      label: 'postfix receiver',
+      dict: 'dict[a: 1] => $d\n($d)',
+      numDict: 'dict[1: "x"] => $d\n($d)',
+      list: 'list[1, 2] => $l\n($l)',
+    },
+    {
+      label: 'literal receiver',
+      dict: 'dict[a: 1]',
+      numDict: 'dict[1: "x"]',
+      list: 'list[1, 2]',
+    },
+  ] as const;
+
+  describe.each(RECEIVERS)('through a $label', (r) => {
+    it('returns the default for an absent number key', async () => {
+      expect(await run(`${r.dict}[2] ?? 0`)).toBe(0);
+    });
+
+    it('returns the default for an absent bool key', async () => {
+      expect(await run(`${r.numDict}[true] ?? 0`)).toBe(0);
+    });
+
+    it('returns the element for a present number key', async () => {
+      expect(await run(`${r.numDict}[1] ?? 0`)).toBe('x');
+    });
+
+    it('returns the default for an out-of-range index', async () => {
+      expect(await run(`${r.list}[9] ?? 0`)).toBe(0);
+    });
+
+    it('halts when the selector reads a missing field', async () => {
+      await expectHalt(() => run(`${r.dict}[dict[a: 1].zz] ?? 0`), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts when a miss precedes the right-most bracket', async () => {
+      await expectHalt(() => run(`${r.dict}["x"]["b"] ?? 0`), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts for a wrong key type', async () => {
+      await expectHalt(() => run(`${r.list}["x"] ?? 0`), {
+        code: 'RILL_R002',
+      });
+    });
+  });
+
+  it('halts a selector error through a method-call receiver', async () => {
+    await expectHalt(() => run('dict[a: 1] => $d\n$d -> .keys()[$d.zz] ?? 0'), {
+      code: 'RILL_R009',
+    });
+  });
+
+  it('recovers an out-of-range index through a method-call receiver', async () => {
+    expect(await run('dict[a: 1] => $d\n$d -> .keys()[5] ?? 0')).toBe(0);
+  });
+
+  it('halts when the field before a bracket is missing', async () => {
+    await expectHalt(() => run('dict[a: 1] => $d\n$d -> .b[1] ?? 0'), {
+      code: 'RILL_R009',
+    });
+    await expectHalt(() => run('dict[a: 1] => $d\n$d.b[1] ?? 0'), {
+      code: 'RILL_R009',
+    });
+  });
+});
 
 describe('element lookup: existence check', () => {
   const dynamicHits = HIT_CASES.filter(

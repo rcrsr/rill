@@ -8,7 +8,7 @@ annotation-access b24477449da8 annotation.attach@31bfd3e68c4d introspection.anno
 annotation-access.fallback 04bd31e1f425 vacancy.fallback@a8ddb8c219f9
 annotation-access.missing db2b8f7c2690
 annotation-access.non-function eebed6b904cb
-annotation-access.presence 746f190e1f5c
+annotation-access.presence 39e8aad16b17
 annotation-access.presence-other fcf1d3efb0bf
 annotation-access.read a43dfcdf513c
 annotation.attach 31bfd3e68c4d
@@ -224,7 +224,7 @@ destruct.positional-source 35433510c126
 destruct.result 979409b161ac
 destruct.skip 86168bbe3c38
 destruct.target 7cc2b884121b
-destruct.typed 90ba74f7d4fc
+destruct.typed 1fb13796760d capture.mismatch@616241654040 type-lock.halt@33dbd80723fe
 dict f65e5dd624aa type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 dict.any 71a5cc6bd21a
 dict.empty-parens 537087decea9
@@ -588,9 +588,10 @@ scope.recursion 2c74c0bb9aee
 scope.siblings b9765c9736cc
 selection 928b11ff9ee1 carried-type.element@708e75eb72f7
 selection.at 7ee8cd577174
-selection.bracket-default d5aa1da4b21f
+selection.bracket-default ea712a3204a0 selection.key-type@def96f05f81e
 selection.computed 173483f7594b
 selection.default 40b9bbb857e8
+selection.default-last-step 27cae9541951
 selection.forms a2195df12c20
 selection.index-integer c6a1fc84549e
 selection.index-type 5b4e0534e78f
@@ -808,7 +809,7 @@ vacancy 65b0e218fce5 carried-type.fallback@9a18ebc2b806 conditional.bool@e166d29
 vacancy.empty 93cdf5149efe
 vacancy.empty-probe 0604f14c1ffc
 vacancy.fallback a8ddb8c219f9
-vacancy.missing d47737c93cdf selection.default@40b9bbb857e8
+vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@27cae9541951
 vacancy.vacant 93e05a6e4241
 vacancy.zero-false 62d3ba62eb32
 value.always 04f8d3b96b4e

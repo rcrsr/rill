@@ -14,6 +14,7 @@ import {
 } from '@rcrsr/rill';
 import { run, runWithContext } from '../helpers/runtime.js';
 import { createHostCallable } from '../helpers/structure.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Runtime: Annotations', () => {
   describe('Parsing', () => {
@@ -1279,12 +1280,15 @@ describe('Rill Runtime: Annotations', () => {
       expect(await run(script)).toBe('hi');
     });
 
-    it('unrelated absent annotation key still halts with RILL-R003', async () => {
+    it('unrelated absent annotation key still halts with RILL-R008', async () => {
       const script = `
         |x| ($x) => $f
         $f.^doc
       `;
-      await expect(run(script)).rejects.toThrow(/Annotation 'doc' not found/);
+      await expectHalt(() => run(script), {
+        code: 'RILL_R008',
+        messagePattern: /Annotation 'doc' not found/,
+      });
     });
 
     it('nested closure annotation not found (EC-6)', async () => {

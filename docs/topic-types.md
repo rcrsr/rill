@@ -294,6 +294,8 @@ Multi-key errors:
 $d.missing ?? ""           # "" (safe default)
 ```
 
+`??` also recovers an absent key of any valid key type at a bracket: `dict[a: 1][1] ?? 0` yields `0`. It recovers only the last step of a chain, so `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`.
+
 ### Type-Aware Dispatch
 
 Dict dispatch uses type-aware matching. Keys are matched by both value and type:

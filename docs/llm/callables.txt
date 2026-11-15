@@ -152,6 +152,7 @@ Destructure (`destruct<>`):
     list[1, 2, 3] -> destruct<$first, _, $third>   # _ skips
 
 Mixing positional and keyed destructure elements is parse error RILL-P026.
+A typed element that fails its type halts `#TYPE_MISMATCH`: `dict[a: "x"] -> destruct<a: $q:number>`.
 
 Slice (`slice<start:stop:step>`):
 

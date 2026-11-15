@@ -46,7 +46,12 @@ import type { TypeStructure, RillValue } from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
 import { declarationOf, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
-import { isOrdered, isTuple, isIterator } from '../../types/guards.js';
+import {
+  isOrdered,
+  isTuple,
+  isIterator,
+  isPlainDict,
+} from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import {
   getVariable,
@@ -258,11 +263,12 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
  * calling context exactly (e.g. 'evaluateVariableAsync' for the $var[i]
  * path).
  *
- * When `allowMissing` is true (the access carries a `??` default), an
- * out-of-range index or an absent string key resolves to null so the default
- * applies. Every other failure still halts: a wrong selector type, a
- * non-integer index, a non-string key on a dict, and any error raised while
- * evaluating the selector expression.
+ * `allowMissing` is true only when this is the right-most access of a chain
+ * that carries a `??` default. The receiver and the selector have then both
+ * evaluated successfully, and a final lookup miss (an out-of-range index, or an
+ * absent key of any valid key type) resolves to null so the default applies.
+ * Every other failure still halts: a wrong selector type, a non-integer index,
+ * and any error raised while evaluating the selector expression.
  */
 export async function applyBracketIndexCarried(
   s: EvalState,
@@ -289,10 +295,13 @@ export async function applyBracketIndexCarried(
   const key = bracketKey(receiver, indexValue, site);
   const located = locateField(receiver, key);
   if (!located.found) {
+    // A dict without typed keys reports a number or bool key as not
+    // indexable; for a bracket read that is an absent key all the same.
     if (
       allowMissing &&
       (located.miss === 'out-of-range' ||
-        (located.miss === 'absent' && typeof key === 'string'))
+        located.miss === 'absent' ||
+        (located.miss === 'not-indexable' && isPlainDict(receiver)))
     ) {
       return { value: null, declared: undefined };
     }
@@ -546,7 +555,14 @@ export async function evaluateVariableCarried(
   }
 
   // Apply access chain ($.field, $var.field, etc.)
-  for (const access of node.accessChain) {
+  for (const [step, access] of node.accessChain.entries()) {
+    // Only the right-most step may recover a miss through the `??` default.
+    // With an existence check, the right-most step is the `.?` access, so no
+    // chain step recovers.
+    const recoverable =
+      node.defaultValue !== null &&
+      !node.existenceCheck &&
+      step === node.accessChain.length - 1;
     // An intermediate step's LHS short-circuits to the default only when
     // it is null or carries an invalid status — a structurally empty but
     // valid value (empty list, empty dict, empty string) must still flow
@@ -596,7 +612,7 @@ export async function evaluateVariableCarried(
         getNodeLocation(s, node),
         'evaluateVariableAsync',
         declared,
-        node.defaultValue !== null
+        recoverable
       );
       value = element.value;
       declared = element.declared;
@@ -620,7 +636,7 @@ export async function evaluateVariableCarried(
           );
         } else {
           // .params on non-callable: throw or return null based on default value
-          if (node.defaultValue !== null) {
+          if (recoverable) {
             value = null;
           } else {
             throwCatchableHostHalt(
@@ -653,7 +669,7 @@ export async function evaluateVariableCarried(
         // Declared type flows from the receiver unless a property-style
         // callable ran or the receiver is a type value.
         const read = await readField(s, value, field, {
-          allowMissing: node.defaultValue !== null,
+          allowMissing: recoverable,
           location: getNodeLocation(s, node),
           fn: 'evaluateVariableAsync',
           receiverDeclared,
@@ -667,7 +683,7 @@ export async function evaluateVariableCarried(
         access,
         value,
         node,
-        node.defaultValue !== null,
+        recoverable,
         receiverDeclared
       );
       value = read.value;
@@ -678,7 +694,7 @@ export async function evaluateVariableCarried(
         access,
         value,
         node,
-        node.defaultValue !== null,
+        recoverable,
         receiverDeclared
       );
       value = read.value;
@@ -689,7 +705,7 @@ export async function evaluateVariableCarried(
         access,
         value,
         node,
-        node.defaultValue !== null,
+        recoverable,
         receiverDeclared
       );
       value = read.value;
@@ -697,7 +713,8 @@ export async function evaluateVariableCarried(
     } else if (access.kind === 'annotation') {
       // Annotation reflection: .^key
       // Delegates to evaluateAnnotationAccess from methods.ts
-      // Convert RUNTIME_UNDEFINED_ANNOTATION to null ONLY if defaultValue exists (for ?? coalescing)
+      // A missing annotation (RILL-R008) becomes null only for the right-most
+      // step of a chain with a default, so `??` can coalesce it.
       try {
         value = await evaluateAnnotationAccess(
           s,
@@ -707,15 +724,15 @@ export async function evaluateVariableCarried(
           receiverDeclared
         );
       } catch (e) {
-        // evaluateAnnotationAccess throws RuntimeHaltSignal with atom RILL_R008
-        // instead of RuntimeError. Both forms are accepted so ?? coalescing
-        // works in variable access chains.
+        // A non-function receiver halts with RILL-R003 and a missing key with
+        // RILL-R008; only the missing key is recovered, and both the halt
+        // signal and the legacy error form are accepted.
         const isR008 =
           (e instanceof RuntimeError && e.errorId === ERROR_IDS.RILL_R008) ||
           (e instanceof RuntimeHaltSignal &&
             atomName(getStatus(e.value).code) ===
               ERROR_ATOMS[ERROR_IDS.RILL_R008]);
-        if (isR008 && node.defaultValue !== null) {
+        if (isR008 && recoverable) {
           // Convert missing annotation to null for ?? coalescing
           value = null;
         } else {

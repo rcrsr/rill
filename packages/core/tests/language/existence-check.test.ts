@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Existence Check', () => {
   describe('Basic Existence Check (.?field)', () => {
@@ -252,8 +253,26 @@ describe('Existence Check', () => {
       ).toBe(true);
     });
 
-    it('leaves ?? recovery across a missing step unchanged', async () => {
-      expect(await run('dict[a: 1] => $d\n$d.x.y ?? 0')).toBe(0);
+    it('halts a ?? default across a missing earlier step', async () => {
+      await expectHalt(() => run('dict[a: 1] => $d\n$d.x.y ?? 0'), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it.each([
+      ['variable', 'dict[a: 1] => $d\n$d.x.?b ?? true', 'RILL_R009'],
+      ['bracket', 'dict[a: 1] => $d\n$d["x"].?b ?? true', 'RILL_R009'],
+      ['annotation', '|x| ($x) => $f\n$f.^zz.?b ?? true', 'RILL_R008'],
+      ['pipe variable', 'dict[a: 1] -> $.x.?b ?? true', 'RILL_R009'],
+    ])(
+      'halts a ?? default across a missing step before .? (%s)',
+      async (_n, src, code) => {
+        await expectHalt(() => run(src), { code });
+      }
+    );
+
+    it('recovers a ?? default on a missing right-most step', async () => {
+      expect(await run('dict[a: 1] => $d\n$d.y ?? 0')).toBe(0);
     });
   });
 });

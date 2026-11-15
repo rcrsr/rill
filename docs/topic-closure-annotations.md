@@ -295,7 +295,7 @@ $add(3, 4)    # 7
 
 Closures support annotation reflection via `.^key` syntax. Annotations attach metadata to closures for runtime introspection.
 
-**Type Restriction:** Only closures support annotation reflection. Accessing `.^key` on primitives throws `RUNTIME_TYPE_ERROR`; `.?^key` yields `false` instead.
+**Type Restriction:** Only closures support annotation reflection. Accessing `.^key` on a non-function value halts `RILL-R003`; `.?^key` yields `false` instead. The keys `type` and `effective` are the exception: `.^type` and `.^effective` read on any value.
 
 ### Basic Annotation Access
 
@@ -385,7 +385,7 @@ $fn.^description    # "doubles input"
 "" -> {
   |x|($x) => $fn
 }
-$fn.^version    # Error: RUNTIME_UNDEFINED_ANNOTATION
+$fn.^version    # Error: RILL-R008
 ```
 
 Nesting does not copy an annotation inward: only the closure immediately following `^(...)` carries it.
@@ -406,17 +406,17 @@ tuple[$fn.^first, $fn.^second]
 
 ```rill
 |x|($x) => $fn
-$fn.^missing   # Error: RUNTIME_UNDEFINED_ANNOTATION
+$fn.^missing   # Error: Annotation 'missing' not found
 ```
 
 **Non-Closure Type:**
 
 ```text
 "hello" => $str
-$str.^key      # Error: RUNTIME_TYPE_ERROR
+$str.^key      # Error: RILL-R003
 ```
 
-All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ERROR` when accessing `.^key`. The presence check `.?^key` never halts on them.
+All primitive types (string, number, boolean, list, dict) halt `RILL-R003` when accessing `.^key` (other than `type` and `effective`). The presence check `.?^key` never halts on them.
 
 ### Presence Check
 
@@ -427,6 +427,8 @@ All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ER
 tuple[$fn.?^timeout, $fn.?^retries, "text".?^timeout]
 # Result: tuple[true, false, false]
 ```
+
+`.?^key` tests stored annotations only. `$f.?^type` and `$f.?^effective` are `false` unless the closure stores those keys, even though `.^type` and `.^effective` read on any value.
 
 ---
 

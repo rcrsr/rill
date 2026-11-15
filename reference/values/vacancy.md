@@ -42,7 +42,7 @@ r[vacancy.fallback] ?? replaces a vacant value
 
 r[vacancy.missing] ?? replaces a missing selection
 `??` after a selection MUST yield the fallback when the key or index is missing, as
-`selection.default` states.
+`selection.default` states. Only a miss on the last step of an access chain is replaced (`selection.default-last-step`).
 
 ## Interactions
 

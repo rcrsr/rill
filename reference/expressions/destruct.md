@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [615]
 grammar: [destructure, positional-list, positional-pattern, keyed-list, keyed-pattern]
-errors: [RILL-P001, RILL-P026, RILL-R001, RILL-R002, RILL-R009]
+errors: [RILL-P001, RILL-P026, RILL-R001, RILL-R002, RILL-R009, TYPE_MISMATCH]
 depends: [pipe, selection]
 tests: [destruct-slice-keyword.test.ts, extraction.test.ts]
 ---
@@ -76,7 +76,8 @@ type lock rules (`capture.bind`, `capture.rebind`, `type-lock.halt`).
 
 r[destruct.typed] A typed element asserts
 `$name:T` MUST assert the element against `T` before binding. A mismatch MUST halt with
-RILL-R001.
+`#TYPE_MISMATCH`, as a typed capture does (`capture.mismatch`). An element that breaks the type lock of an
+existing variable, with no annotation, MUST halt with RILL-R001 (`type-lock.halt`).
 
 r[destruct.result] destruct yields its input
 `v -> destruct<...>` MUST yield `v` unchanged.
@@ -90,7 +91,8 @@ r[destruct.result] destruct yields its input
 | The source kind does not fit the pattern | RILL-R002 | Yes |
 | The pattern and list lengths differ | RILL-R002 | Yes |
 | A keyed element names a missing key | RILL-R009 | Yes |
-| A typed element fails its type | RILL-R001 | Yes |
+| A typed element fails its type | `#TYPE_MISMATCH` | Yes |
+| An element breaks an existing type lock | RILL-R001 | Yes |
 
 ## Examples
 

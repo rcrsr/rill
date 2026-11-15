@@ -76,7 +76,16 @@ r[selection.default] A fallback replaces a missing selection
 `$d.b ?? d`, `$d.$k ?? d`, `k -> $d ?? d`, and `$l.at(n) ?? d` MUST yield `d` when the selection is missing.
 
 r[selection.bracket-default] A fallback replaces a missing bracket selection
-`$c[sel] ?? d` MUST yield `d` when the key or index is missing.
+`$c[sel] ?? d` MUST yield `d` when `$c` and `sel` both evaluate and the final lookup misses. A miss is an
+out-of-range index or an absent key of any valid key type, so `dict[a: 1][1] ?? 0` and `$d[true] ?? 0` yield `0`.
+Variable, postfix, parenthesized, literal, and method-call receivers behave alike. A wrong key type still halts with RILL-R002. This states current behavior: a non-string dict key that is absent
+yields the fallback. The pending rule `selection.key-type` governs the target behavior for a non-string dict selector.
+
+r[selection.default-last-step] A fallback recovers only the last step of a chain
+`??` MUST recover a miss only on the right-most step of an access chain, for fields, annotations, brackets, and existence checks.
+`$d.x.y ?? 0` with `.x` missing, `$d.b[1] ?? 0` with `.b` missing, and `$d[$d.zz] ?? 0` with `.zz` missing MUST halt with RILL-R009. `$d.x.?b ?? d` with `.x` missing MUST halt with RILL-R009 (RILL-R008 for a missing annotation),
+because the existence check is the right-most step and `??` never recovers an earlier one. A non-string key on a stream
+with `??` keeps its RILL-R009 halt; only plain dicts recover an absent non-string key.
 
 r[selection.key-type] A dict selector is a string {pending #576}
 A dict selector that is not a string MUST halt with `#TYPE_MISMATCH`. Selection converts nothing.
@@ -145,6 +154,12 @@ list["x", "y"][5]
 ```rill pending=599
 map[200: "ok", 404: "missing"][404]
 # Result: "missing"
+```
+
+```rill
+dict[a: 1] => $d
+$d.x.y ?? 0
+# Error: Dict has no field 'x'
 ```
 
 ## Notes

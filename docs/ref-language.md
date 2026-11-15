@@ -208,7 +208,7 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.$key` | Variable as key |
 | `$data.($i + 1)` | Computed key |
 | `$data.(a \|\| b)` | Alternative keys |
-| `$data.field ?? default`, `$data[i] ?? default` | Default if a key or index is missing |
+| `$data.field ?? default`, `$data[i] ?? default` | Default if the final key or index is missing; a miss on an earlier step still halts `RILL-R009` |
 | `$data.?field` | Existence check (literal) |
 | `$data.?$key` | Existence check (variable) |
 | `$data.?($expr)` | Existence check (computed) |
@@ -603,7 +603,7 @@ Extract portions using Python-style `start:stop:step`:
 "hello" -> slice<1:4>                    # "ell"
 ```
 
-Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:union(string, number)>`. The runtime validates each extracted element against the declared type. A destructure pattern is all positional or all keyed; mixing the two is parse error RILL-P026. See [Operators](topic-operators.md) for detailed extraction operator documentation.
+Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:union(string, number)>`. The runtime validates each extracted element against the declared type; a mismatch halts `#TYPE_MISMATCH` with `Type assertion failed: expected ..., got ...`, as a typed capture does. A destructure into an already type-locked variable without an annotation that breaks the lock halts `RILL-R001`. A destructure pattern is all positional or all keyed; mixing the two is parse error RILL-P026. See [Operators](topic-operators.md) for detailed extraction operator documentation.
 
 ---
 
@@ -619,7 +619,7 @@ Access annotation values using `.^key` syntax. Annotations attach to callables (
 | Any value | `effective` | Own type via `.^effective`, ignoring any declaration |
 | Type value | `name` | Runtime error: RILL-R008 (use `.name` dot notation instead) |
 | Any callable | any other key | Callable annotation value |
-| Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
+| Anything else | any key | Runtime error: `RILL-R003` |
 
 ```rill
 ^(min: 0, max: 100) |x|($x) => $fn
@@ -628,7 +628,7 @@ $fn.^min     # 0
 $fn.^max     # 100
 ```
 
-Annotations apply only to the closure directly targeted by `^(...)`; a nested closure does not inherit an outer annotation. Stacked `^(...)` blocks before one target merge. Accessing an undefined key throws `RUNTIME_UNDEFINED_ANNOTATION`; `.?^key` yields `false` instead of halting.
+Annotations apply only to the closure directly targeted by `^(...)`; a nested closure does not inherit an outer annotation. Stacked `^(...)` blocks before one target merge. Accessing an undefined key halts `RILL-R008`; `.?^key` yields `false` instead of halting. `.?^key` tests stored annotations only, so `$f.?^type` and `$f.?^effective` are `false` unless the function stores those keys, although `.^type` and `.^effective` read on any value.
 
 ### Reserved Annotation Keys
 
@@ -970,8 +970,8 @@ Runtime and parse errors include structured error codes for programmatic handlin
 | `RUNTIME_UNDEFINED_VARIABLE` | Variable not defined |
 | `RUNTIME_UNDEFINED_FUNCTION` | Function not defined |
 | `RUNTIME_UNDEFINED_METHOD` | Method not defined (built-in only) |
-| `RUNTIME_UNDEFINED_ANNOTATION` | Annotation key not defined |
-| `RUNTIME_TYPE_ERROR` | Type mismatch |
+| `RILL-R008` | Annotation key not defined |
+| `RILL-R003` | Annotation read on a non-function value |
 | `RUNTIME_TIMEOUT` | Operation timed out |
 | `RUNTIME_ABORTED` | Execution cancelled |
 | `RUNTIME_INVALID_PATTERN` | Invalid regex pattern |

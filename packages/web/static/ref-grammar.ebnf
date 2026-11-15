@@ -177,6 +177,7 @@ postfix-expr  = primary
                           | bracket-access
                           | status-probe
                           | existence-check
+                          | annotation-existence
                           | postfix-type-op } ;
               (* invoke: trailing "(" args ")" applied to a primary that is callable
                  (e.g. host-name(...) is parsed via host-call; bare invocation chains
@@ -341,6 +342,12 @@ annotated-expr = annotation , primary ;
    Example: $fn.^type           -- read the declared type
    Example: $fn.^description    -- read "description" annotation *)
 annotation-access = "." , "^" , identifier ;
+
+(* Annotation existence: $fn.?^key returns bool.
+   Tests stored annotations only: $fn.?^type and $fn.?^effective are false
+   unless the closure stores those keys, although .^type and .^effective read.
+   On a value that is not a closure the result is false; it never halts. *)
+annotation-existence = ".?" , "^" , identifier ;
 
 use-expr      = "use" "<" use-id ">" [ ":" , ( type-ref | use-closure-annotation ) ] ;
               (* Semantic: resolves a module by scheme and path.
@@ -581,6 +588,7 @@ default-value = "??" , body ;
    $data.?field&string means "does field exist and is it a string?" -> bool
    Variable existence: $data.?$keyName checks existence using variable value.
    Computed existence: $data.?($expr) checks existence using expression result.
+   $fn.?^key tests a stored annotation (see annotation-existence).
    ".?field" is valid as a postfix operator and as a pipe target ($x -> .?field),
    but not at statement head. *)
 existence-check = ".?" , ( identifier

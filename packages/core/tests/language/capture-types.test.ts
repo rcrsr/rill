@@ -183,8 +183,24 @@ describe('Rill Runtime: Capture Type Assertions', () => {
       });
     });
 
-    it('keeps RILL-R001 for a typed destructure element mismatch', async () => {
+    it('halts #TYPE_MISMATCH for a typed destructure element mismatch', async () => {
       await expectHalt(() => run('list["a"] -> destruct<$n:number>'), {
+        code: 'TYPE_MISMATCH',
+      });
+      await expectHalt(() => run('dict[a: "x"] -> destruct<a: $q:number>'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('keeps RILL-R001 for a destructure into a type-locked variable', async () => {
+      await expectHalt(() => run('"a" => $n\nlist[5] -> destruct<$n>'), {
+        code: 'RILL_R001',
+        hostErrorId: 'RILL-R001',
+      });
+    });
+
+    it('keeps RILL-R001 for a dict destructure into a type-locked variable', async () => {
+      await expectHalt(() => run('"a" => $n\ndict[a: 5] -> destruct<a: $n>'), {
         code: 'RILL_R001',
         hostErrorId: 'RILL-R001',
       });

@@ -638,13 +638,45 @@ describe('Default Value Operator (??)', () => {
       await expectHalt(() => run(`${DICT}$d["b"]`), { code: 'RILL_R009' });
     });
 
-    it('halts on a non-string dict key even with a default', async () => {
-      await expectHalt(() => run(`${DICT}$d[1] ?? 0`), { code: 'RILL_R009' });
+    it('recovers an absent number key on a dict', async () => {
+      expect(await run(`${DICT}$d[1] ?? 0`)).toBe(0);
+    });
+
+    it('recovers an absent bool key on a dict', async () => {
+      expect(await run(`${DICT}$d[true] ?? 0`)).toBe(0);
+    });
+
+    it('returns a present number key on a dict', async () => {
+      expect(await run('dict[1: "x"] => $d\n$d[1] ?? 0')).toBe('x');
     });
 
     it('halts when the selector expression fails', async () => {
       await expectHalt(() => run(`${DICT}$d[$nope] ?? 0`), {
         code: 'RILL_R005',
+      });
+    });
+
+    it('halts when the selector reads a missing field', async () => {
+      await expectHalt(() => run(`${DICT}$d[$d.zz] ?? 0`), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts when an earlier annotation step is missing', async () => {
+      await expectHalt(() => run('|x| ($x) => $f\n$f.^doc.x ?? 0'), {
+        code: 'RILL_R008',
+      });
+    });
+
+    it('halts when an earlier pipe-variable step is missing', async () => {
+      await expectHalt(() => run('dict[a: 1] -> $.b.c ?? 0'), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts when an earlier field step is missing', async () => {
+      await expectHalt(() => run(`${DICT}$d.b[1] ?? 0`), {
+        code: 'RILL_R009',
       });
     });
 
@@ -688,8 +720,15 @@ describe('Default Value Operator (??)', () => {
       expect(await run('ordered[a: 1] => $o\n$o["b"] ?? 0')).toBe(0);
     });
 
-    it('recovers a miss in a nested bracket chain', async () => {
-      expect(await run('dict[a: dict[b: 1]] => $d\n$d["x"]["b"] ?? 0')).toBe(0);
+    it('halts a miss on an earlier bracket step of a chain', async () => {
+      await expectHalt(
+        () => run('dict[a: dict[b: 1]] => $d\n$d["x"]["b"] ?? 0'),
+        { code: 'RILL_R009' }
+      );
+    });
+
+    it('recovers a miss on the right-most bracket step of a chain', async () => {
+      expect(await run('dict[a: dict[b: 1]] => $d\n$d["a"]["x"] ?? 0')).toBe(0);
     });
 
     it('applies the default to an empty present value', async () => {

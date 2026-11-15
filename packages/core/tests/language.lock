@@ -6,7 +6,7 @@
 #
 # 103 files.
 e40d3d9453fe3b3886f5e26443218272bc9c58edb18e6b784421a8b50b266160  packages/core/tests/language/access-halt.test.ts
-b90a53d5ad52efa09bd6c5fbee8a78f4cea237b007b8a752e716573da38ffe85  packages/core/tests/language/annotations.test.ts
+94c6361e07f8b47eee15fdacbfff98d3f24772faa3ba8f74787863799817981a  packages/core/tests/language/annotations.test.ts
 8f14c344dbc270cde7e4f66ea4dbaac082d8cc0f5a3a7badf0fe6e6ae8cdb01e  packages/core/tests/language/anonymous-typed-closure-reflection.test.ts
 e872cfed8454e0ae867e90e64d7ba4c12525c1ae0dfd5fc571f68770c030b0ce  packages/core/tests/language/anonymous-typed-closure.test.ts
 7f0692c761ca29da590eab5e594dea432488ed0180fd847a15de4b918605c8fd  packages/core/tests/language/args.test.ts
@@ -17,7 +17,7 @@ bc7319046983e414375a542e25279b6c60d812eac108dfba07d68ca08a93f2c1  packages/core/
 3494dea880680a2b9d530a743db1a33bc28b08522b60d8546a50187bf3582754  packages/core/tests/language/bare-syntax.test.ts
 043149c6c092cbf0a5743a4f56f65b43878d8136f530005bb4ec860cea2c21e2  packages/core/tests/language/block-scoping.test.ts
 d677c7610d0f1cfbfe23cbc291616dd5c8cbfb08b1e503d7a3c7c209bed59a6e  packages/core/tests/language/boolean.test.ts
-f35f8a2ea0898919ddcf757b513f4c9747261667ba8d9c3dab533c15365d32d0  packages/core/tests/language/capture-types.test.ts
+51a1776d21136ee76b4ff1d00662fa746d4d2d457cfa047d4b23ab6b77f1e01f  packages/core/tests/language/capture-types.test.ts
 0f02358373176ba61380e1e0555da93be2a107c674b2cdf5abecd888532044f4  packages/core/tests/language/chain.test.ts
 8fe0d7a2349590f24d7e2bdc5a361c14e262be72946f7110b47258a1b07e085a  packages/core/tests/language/closure-annotation-defaults.test.ts
 302744180a0da48177eb97796002488254b2a949c81ad3cc0083dcc132a0c558  packages/core/tests/language/closure-auto-invoke.test.ts
@@ -33,7 +33,7 @@ b35edcbbc868b307464f6a374a1edf76054dff66e3bd4849c6a271f1d2356800  packages/core/
 d527a445e4adfc8b6b2e690d910f8c1d783b63541312a19102d523569c6717d6  packages/core/tests/language/conversion.test.ts
 85f7c685b5d265efe590e08b8d21a619b7a6cafc7851ad57f81a2c9dfd488464  packages/core/tests/language/datetime.test.ts
 c4120907877b9ad497dbd61a37af3b07f0d270c3bc5566edaa6e737b784b39e5  packages/core/tests/language/declared-types.test.ts
-4bb8bf4d9db49b6c28b1cea06a33222cc696bb889c2f5ae8b18d6ea03dea9369  packages/core/tests/language/default-value-operator.test.ts
+fd0a9e1f45068976d070041a3e4a931f44099a98d3bb2f13616067b387c772b4  packages/core/tests/language/default-value-operator.test.ts
 00e0a0474134d574e79859e1dc8943601a5e50c8cad1e0db604aeafe6d6fd18e  packages/core/tests/language/destruct-slice-keyword.test.ts
 b836ced1c077b9af89fd71cc8932a56f83cc48e17aa1f5133e3c964d6b0b0de8  packages/core/tests/language/dict-dispatch.test.ts
 ee792b853c002918fc6cdde9a788af66d88b2d8a91aeddb629f70d55b46219bc  packages/core/tests/language/dict-field-annotations.test.ts
@@ -45,7 +45,7 @@ ee792b853c002918fc6cdde9a788af66d88b2d8a91aeddb629f70d55b46219bc  packages/core/
 086400a682c817d436f1fe90f96bbfb3d9abee76e5b00318689a9d6578b9b962  packages/core/tests/language/error-code-type.test.ts
 dbb24e53ce61f201146505ed39c04c3588ec585890b190e4f9f4ccfd55317d13  packages/core/tests/language/error.test.ts
 aa20a64341536a57c4a9c3fab1c657897f73998eb32231e09f90d6249e2c257f  packages/core/tests/language/existence-check-dynamic.test.ts
-1807b5dcbf9243fe18dcad40388e38ad5adf426af98dc08b6d846dd967c2f6f7  packages/core/tests/language/existence-check.test.ts
+fc5aa9b09cffd03d540fb06481c211881ac07ec90b67b2388c319312da298140  packages/core/tests/language/existence-check.test.ts
 0ebc80f1ad066ada894beacbd17669f57f3e92c737f064550fdb61601dcb66de  packages/core/tests/language/expressions.test.ts
 404a4feb8558a1cc0410215e7069c5dd13320aa8af90a75e2bc4cea53441b7d8  packages/core/tests/language/extraction.test.ts
 8404933a2906ab4933edb51715298329d254add516323342a634a206ab1cb549  packages/core/tests/language/frontmatter.test.ts
@@ -66,7 +66,7 @@ a850c17c85b46c6d905cd81a99e3b0e90827eb59de19cea8a2ef23913b4acf6e  packages/core/
 6db1af69deca82e877be47c1b1419a2315fdba0fd4ccf535466850e4fd3864c8  packages/core/tests/language/loops.test.ts
 f0d85ec1442237b5d4dddff69f30dcfc6433f51c48dcfe82c0d8ef231908995a  packages/core/tests/language/methods.test.ts
 0790543a2b74c4c56541ff2121250e2fcf17578b4ed3db723ce7fecff67f9734  packages/core/tests/language/ordered-access.test.ts
-c0375fd34e4f4d72ed6e5bd2282843603eaa5741ab24e8b56573a06f43789ef6  packages/core/tests/language/parameterized-destruct.test.ts
+ed87174b9632676d8ad45cc056198407a0986755bf4e0b53235bc524aaf07a6a  packages/core/tests/language/parameterized-destruct.test.ts
 e9aef3f1e4683b421fb6af2f3cfbcc5df192112d841fcea27c68d16acff54726  packages/core/tests/language/parameterized-existence.test.ts
 ddfab8792de6a77b9b36f918fad7d4653dba751eb3baf3f893c64dd07e358453  packages/core/tests/language/parser-recovery.test.ts
 8d9ec79cc75ade1edd686af00c2e49e8bb62bc289263320316b09c0ca0408bd0  packages/core/tests/language/parser-spans.test.ts
@@ -83,7 +83,7 @@ eb53d81150ab657eb0fc0fd7f1aba2c929d9faeeebc940c9fa3cdb1ae70296af  packages/core/
 0928c23385451e6aa9192ebaccd812ad31e0e2a7a8c643cbe5f69ac999c1e95d  packages/core/tests/language/statement-boundaries.test.ts
 e40bcd948d58b2e0a9468e7a5a36b88c1192ea774358965a6b17f9407e6e680e  packages/core/tests/language/status-probe.test.ts
 4c4e2d91c4d5c33fa3f87b1b6224a92f32d7d0daef21f90e0f8d711cf790bffc  packages/core/tests/language/stream-type-parsing.test.ts
-f35827b6f87c48492a73728dc2dee098f4a25402bee4c50823803e299fee3414  packages/core/tests/language/streams.test.ts
+ce119ed340bc7f9ee9941152ea07f71b702ec2e7a6505d915a054128db1f71e9  packages/core/tests/language/streams.test.ts
 dd30d9395fc1ff333fd88ce01e892d772c777a6fb0df8c7f25e77232257d6733  packages/core/tests/language/string-dict-keys.test.ts
 2a754f6286ad6b7676f732143028425899eeb9dac181b03a12cc8003c8e103c7  packages/core/tests/language/strings.test.ts
 705d3b76f2c46f716b04a3e18993f055e560efcbef9e83d46a9ea5c7d47853da  packages/core/tests/language/structural-type-boundaries.test.ts

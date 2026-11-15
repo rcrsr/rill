@@ -4,7 +4,7 @@ title: Annotation access
 status: normative
 since: 0.24.0
 issues: [624]
-grammar: []
+grammar: [annotation-access, annotation-existence]
 errors: [RILL-R003, RILL-R008]
 depends: [annotation]
 tests: [annotations.test.ts]
@@ -15,6 +15,11 @@ tests: [annotations.test.ts]
 `$f.^key` reads the annotation a function carries under `key`.
 
 ## Syntax
+
+```ebnf
+annotation-access = "." , "^" , identifier ;
+annotation-existence = ".?" , "^" , identifier ;
+```
 
 ```text
 $f.^key           read
@@ -39,7 +44,7 @@ r[annotation-access.non-function] Only functions carry readable annotations
 MUST halt with RILL-R003.
 
 r[annotation-access.presence] .?^key tests for an annotation
-`$f.?^key` MUST yield whether the function carries `key`, and MUST NOT halt.
+`$f.?^key` MUST yield whether the function carries `key` in its stored annotations, and MUST NOT halt. It does not consult the probes `type` and `effective`, so `$f.?^type` and `$f.?^effective` MUST yield false unless the function stores those keys, although `$f.^type` and `$f.^effective` read.
 
 r[annotation-access.presence-other] .?^key on a value that cannot carry annotations is false
 `$v.?^key` MUST yield false when `$v` is not a function.
@@ -86,6 +91,12 @@ $v.^a
 ```rill
 5 => $v
 $v.?^a
+# Result: false
+```
+
+```rill
+|x|($x) => $f
+$f.?^type
 # Result: false
 ```
 
