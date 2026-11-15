@@ -3,7 +3,7 @@ id: slice
 title: Slice
 status: normative
 since: 0.24.0
-issues: []
+issues: [615]
 grammar: [slice, slice-bound]
 errors: [INVALID_INPUT, RILL-P001, RILL-R002]
 depends: [pipe, selection]
@@ -38,9 +38,9 @@ A bound written in any other form, such as a string literal, MUST be rejected wi
 
 ## Evaluation
 
-r[slice.source] A slice takes a list or a string
-A list MUST slice to a list, and a string MUST slice to a string of its code points. Any other
-source MUST halt with RILL-R002.
+r[slice.sources] A slice takes a list, a tuple, or a string {pending #615}
+A list MUST slice to a list, a tuple to a tuple, and a string to a string of its code points.
+Any other source, an ordered or an iterator included, MUST halt with RILL-R002 naming its kind.
 
 r[slice.half-open] start is included and stop is not
 The result MUST hold the elements at `start`, `start + step`, and onward, stopping before
@@ -105,4 +105,4 @@ list[1, 2] -> slice<::0>
 
 ## Notes
 
-Open decision: #615. A tuple is not a slice source on 0.23.0.
+Superseded: `slice.source`, now `slice.sources`. On 0.23.0 a tuple does not slice.

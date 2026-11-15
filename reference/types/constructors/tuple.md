@@ -125,9 +125,6 @@ tuple[1, 2] -> :?tuple(number)
 On 0.23.0 a one-argument `tuple(T)` is a uniform form: `tuple[1, 2, 3] -> :?tuple(number)` is
 true, and `tuple[1].^type == tuple(number)` is false. #573 removes that reading.
 
-Open decision: #595, whether `.defaults` on a tuple type returns the position defaults. It
-halts RILL-R003 today, and `dict` and `ordered` types answer it.
-
 The type of an empty tuple prints `tuple()` today. #571 makes `tuple()` the unspecified type, so
 a zero-position tuple type has no stated spelling yet.
 

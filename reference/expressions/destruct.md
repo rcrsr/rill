@@ -3,7 +3,7 @@ id: destruct
 title: Destructure
 status: normative
 since: 0.24.0
-issues: [616]
+issues: [615, 616]
 grammar: [destructure, destruct-pattern]
 errors: [RILL-P001, RILL-P026, RILL-R001, RILL-R002, RILL-R009]
 depends: [pipe, selection]
@@ -47,9 +47,9 @@ rejected with RILL-P001.
 
 ## Evaluation
 
-r[destruct.positional] A positional pattern takes a list
-A positional pattern MUST bind each element of a list, in order. A source other than a list
-MUST halt with RILL-R002.
+r[destruct.positional-source] A positional pattern takes a list or a tuple {pending #615}
+A positional pattern MUST bind each element of a list or a tuple, in order. Any other source, an
+iterator included, MUST halt with RILL-R002 naming the source's kind.
 
 r[destruct.count] A positional pattern matches the list length
 A positional pattern whose element count differs from the list's length MUST halt with
@@ -61,9 +61,9 @@ r[destruct.skip] _ skips an element
 r[destruct.nested] A nested pattern destructures its element
 A nested `destruct<...>` MUST destructure its element by the same rules.
 
-r[destruct.keyed] A keyed pattern takes a dict
-`key: $name` MUST bind the dict field `key`. A pattern MAY name a subset of the fields. A
-source other than a dict MUST halt with RILL-R002.
+r[destruct.keyed-source] A keyed pattern takes a dict or an ordered {pending #615}
+`key: $name` MUST bind the field `key` of a dict or an ordered. A pattern MAY name a subset of
+the fields. Any other source MUST halt with RILL-R002 naming the source's kind.
 
 r[destruct.missing] A missing key halts
 A keyed element whose key the dict lacks MUST halt with RILL-R009.
@@ -117,7 +117,8 @@ list[1, 2, 3] -> destruct<$a, $b>
 
 ## Notes
 
-Open decision: #615. A tuple, an ordered, and a string are not destructure sources on 0.23.0,
-so values of mixed types cannot be taken apart by position.
+Superseded: `destruct.positional`, now `destruct.positional-source`, and `destruct.keyed`, now
+`destruct.keyed-source`. On 0.23.0 a positional pattern takes only a list and a keyed pattern
+only a dict, and the halt says "got object" for a tuple.
 
 On 0.23.0 a positional pattern binds a `key: $name` element by position (#616).

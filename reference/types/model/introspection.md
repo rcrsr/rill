@@ -3,7 +3,7 @@ id: introspection
 title: Type introspection
 status: normative
 since: 0.24.0
-issues: [622, 624, 633]
+issues: [595, 622, 624, 633]
 errors: [RILL-R003]
 depends: [type-value, structural-typing, any, carried-type]
 tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts]
@@ -74,6 +74,11 @@ r[introspection.defaults] .defaults lists the fields that declare a default
 values, keyed by field or parameter name. A field without a default MUST NOT appear, and a type
 with none MUST return an empty dict.
 
+r[introspection.defaults-tuple] .defaults on a tuple type maps positions to defaults {pending #595}
+`.defaults` on a tuple type MUST return a map from position to default value.
+`tuple(number, string = "x", bool = true).defaults` MUST equal `map[1: "x", 2: true]`, and a
+tuple type with no defaults MUST return an empty map.
+
 r[introspection.defaults-halt] A type with no named fields has no defaults
 `.defaults` on a list, union, stream, or scalar type MUST halt with RILL-R003.
 
@@ -141,10 +146,6 @@ $f.^type.inner == ordered[a: string, b: number]
 
 Removed probes halt naming `.^type.inner` or `.^type.outer`: `.^input` and `.^output` on a
 function (RILL-R008), `.^chunk` and `.^output` on a stream (RILL-R003).
-
-Open decision: #595. A default on a tuple position cannot be read from the type, because
-`.defaults` is keyed by name and `.defaults` on a tuple type halts RILL-R003 today. The
-`.inner` of a tuple type omits positional defaults, and `.signature` prints them.
 
 On `main`, `list == list(any)` and `stream == stream(any):any` are false; #571 makes a bare type
 equal its defaulted form.

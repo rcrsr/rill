@@ -3,9 +3,9 @@ id: use
 title: use
 status: normative
 since: 0.24.0
-issues: []
+issues: [618, 619]
 grammar: [use-expr, use-id]
-errors: [RILL-P007, RILL-P022, RILL-R005, RILL-R054, RILL-R055, RILL-R056, RILL-R058]
+errors: [RILL-P007, RILL-P022, RILL-R005, RILL-R054, RILL-R055, RILL-R056, RILL-R058, TYPE_MISMATCH]
 depends: [pipe, scope]
 tests: [use-expr.test.ts]
 ---
@@ -75,6 +75,18 @@ r[use.resolver-failure] A failing resolver halts
 A resolver that fails, returns a malformed result, or returns a value that is not a rill value
 MUST halt with RILL-R056. A source module that does not parse MUST halt with RILL-R056.
 
+r[use.type] A type after use asserts the result {pending #618}
+`use<id>:T` MUST assert the result against `T` as `-> :T` does. A mismatch MUST halt with
+`#TYPE_MISMATCH`, and the result MUST carry `T`.
+
+r[use.module-halt] A halt inside a module is not caught at the use site {pending #619}
+A halt raised while a source module runs MUST pass through `use<...>` and every `guard` around
+it uncaught.
+
+r[use.resolution-catchable] Resolution failures are catchable {pending #619}
+RILL-R054, RILL-R056, and RILL-R058 MUST be catchable, a source module that does not parse
+included.
+
 ## Errors
 
 | Condition | Error | Catchable |
@@ -85,7 +97,8 @@ MUST halt with RILL-R056. A source module that does not parse MUST halt with RIL
 | No resolver for the scheme | RILL-R054 | Yes |
 | A resource that uses itself | RILL-R055 | No |
 | The resolver fails or returns a non-rill value | RILL-R056 | Yes |
-| A source module reads `$` with nothing piped | RILL-R005 | Yes |
+| A source module reads `$` with nothing piped {pending #619} | RILL-R005 | No |
+| The result does not have the type after `use<...>` {pending #618} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 
@@ -95,11 +108,3 @@ $app.search("rill")
 
 "hello" -> use<host:shout>
 ```
-
-## Notes
-
-Open decision: #618. The type after `use<...>` is not checked on 0.23.0.
-
-Open decision: #619. Whether `guard` catches a `use<...>` failure depends on its cause on
-0.23.0. A source that does not parse halts `RILL-R056` uncaught, and a halt raised while a
-module runs escapes `guard`.

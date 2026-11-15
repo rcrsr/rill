@@ -3,7 +3,7 @@ id: iteration
 title: Iteration
 status: normative
 since: 0.24.0
-issues: [624]
+issues: [613, 614, 624]
 grammar: []
 errors: [RILL-R002, RILL-R010, TYPE_MISMATCH]
 depends: [scope, pipe, break]
@@ -26,11 +26,18 @@ The operators are `seq`, `fan`, `filter`, `fold`, `acc`, and `sort`.
 
 ## Evaluation
 
-r[iteration.sources] Lists, strings, dicts, iterators, and streams are sources
-A list, a string, a dict, an iterator, and a stream MUST be accepted as a source.
+r[iteration.source-kinds] Lists, tuples, strings, dicts, ordereds, iterators, and streams are sources {pending #614}
+A list, a tuple, a string, a dict, an ordered, an iterator, and a stream MUST be accepted as a
+source.
 
-r[iteration.non-source] Any other value is not a source
-A source of any other kind, a tuple and an ordered included, MUST halt with RILL-R002.
+r[iteration.other-source] Any other value is not a source {pending #614}
+A source of any other kind MUST halt with RILL-R002 in every operator, `sort` included.
+
+r[iteration.tuple] A tuple yields its elements in order {pending #614}
+A tuple MUST yield its elements from first to last.
+
+r[iteration.ordered] An ordered yields entry dicts in its own order {pending #614}
+An ordered MUST yield one `dict[key: k, value: v]` per entry, in its own order.
 
 r[iteration.list] A list yields its elements in order
 A list MUST yield its elements from first to last.
@@ -56,6 +63,10 @@ Reading an iterator or a stream MUST halt with RILL-R010 when it would yield a 1
 r[iteration.sequential-limit] seq, fold, and acc call at most 10,000 times
 `seq`, `fold`, and `acc` MUST halt with RILL-R010 when the source holds more than 10,000
 elements, whatever its kind.
+
+r[iteration.ceiling] fan, filter, and sort share the 10,000-element ceiling {pending #613}
+`fan`, `filter`, and `sort` MUST halt with RILL-R010 when the source holds more than 10,000
+elements, as `seq`, `fold`, and `acc` do.
 
 r[iteration.callable] The function argument is callable
 A function argument that is not callable MUST halt with `#TYPE_MISMATCH`.
@@ -105,8 +116,13 @@ seq(list[1, 2], fn(x: number) { $x * 10 })
 ```
 
 ```rill
-# Error: Collection operators require list, string, dict, iterator, or stream, got tuple
-tuple[1, 2] -> seq({ $ })
+# Error: Collection operators require
+5 -> seq({ $ })
+```
+
+```rill pending=614
+tuple[1, 2] -> seq({ $ * 10 })
+# Result: list[10, 20]
 ```
 
 ```rill
@@ -116,7 +132,9 @@ range(0, 10001) -> seq({ $ })
 
 ## Notes
 
-Open decision: #613. `fan`, `filter`, and `sort` accept a list or string of more than 10,000
-elements, while `seq`, `fold`, and `acc` halt. `fan` instead halts past 11,000 calls in flight.
+The limit on `fan` calls in flight is a host limit, stated with limits, not here.
+
+Superseded: `iteration.sources`, now `iteration.source-kinds`, and `iteration.non-source`, now
+`iteration.other-source`. On 0.23.0 a tuple and an ordered halt RILL-R002 as sources.
 
 On 0.23.0 a dict with number keys yields them as numbers, sorted numerically (#576).

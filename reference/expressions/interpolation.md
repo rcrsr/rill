@@ -3,7 +3,7 @@ id: interpolation
 title: Interpolation
 status: normative
 since: 0.24.0
-issues: []
+issues: [617]
 grammar: [interpolation, brace-escape]
 errors: [RILL-L005, RILL-P004, RILL-R005]
 depends: [pipe]
@@ -38,6 +38,10 @@ evaluated.
 
 r[interpolation.expression] Any expression may be interpolated
 An interpolation MUST accept any expression, including a pipe chain and a nested string.
+
+r[interpolation.scope] An interpolation is a child scope {pending #617}
+Each interpolation MUST run in a child scope, as a group does (`scope.child`). A capture inside
+it MUST NOT bind in the enclosing scope.
 
 r[interpolation.dollar] $ is the enclosing $
 `$` inside an interpolation MUST be the `$` bound where the string stands. With none bound,
@@ -88,13 +92,5 @@ A pipe into a string literal binds `$` for its interpolations (`pipe.string`).
 
 ## Notes
 
-Open decision: #617. A capture inside an interpolation binds in the enclosing scope on 0.23.0,
-while a grouped capture does not.
-
 On 0.23.0 a function interpolates as `"type(closure)"` (#605), and an invalid value as
 `"dict[]"` (#612).
-
-Open decision: #605, whether converting a function or an iterator to a string halts or yields a
-stated form.
-
-Open decision: #612, whether interpolating an invalid value halts.

@@ -3,7 +3,7 @@ id: sort
 title: sort
 status: normative
 since: 0.24.0
-issues: []
+issues: [614]
 grammar: []
 errors: [INVALID_INPUT, TYPE_MISMATCH]
 depends: [iteration]
@@ -57,12 +57,13 @@ r[sort.dict] A dict sorts to an ordered
 `sort` over a dict MUST yield an `ordered` whose fields follow the sorted entries. Without
 `key_fn`, an entry's key MUST be its dict key. With `key_fn`, `$` MUST be the entry dict.
 
-r[sort.ordered] An ordered does not sort
-`sort` over an ordered MUST halt with `#TYPE_MISMATCH`.
+r[sort.ordered-source] An ordered sorts to an ordered {pending #614}
+`sort` over an ordered MUST sort its entries and yield an `ordered`, as `sort.dict` does for a
+dict.
 
 ## Interactions
 
-A tuple source halts as any non-source does (`iteration.non-source`). `sort[0]` indexes the
+A tuple is a source and yields its elements (`iteration.tuple`). `sort[0]` indexes the
 sorted result (`pipe.call-operand`).
 
 ## Errors
@@ -103,5 +104,5 @@ list[true, false] -> sort
 
 ## Notes
 
-Open decision: #614. A dict sorts to an `ordered`, which no collection operator accepts as a
-source.
+Superseded: `sort.ordered`, now `sort.ordered-source`. On 0.23.0 `sort` over an ordered halts
+`#TYPE_MISMATCH`.

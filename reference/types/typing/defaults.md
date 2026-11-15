@@ -140,6 +140,3 @@ replaced by the `fn` form.
 Superseded: `defaults.fn-match`. A function has a function type only when its defaults equal the
 type's (`structural-typing.function`, `fn.equality`). On 0.23.0 a function whose parameters declare
 defaults satisfies a type that omits them.
-
-Open decision: #595, whether `.defaults` reads a tuple position's default. Today `.defaults` on a
-tuple type halts RILL-R003.

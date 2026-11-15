@@ -3,7 +3,7 @@ id: spread
 title: Spread
 status: normative
 since: 0.24.0
-issues: []
+issues: [615]
 grammar: [spread-arg]
 errors: [RILL-P004, RILL-P007, RILL-R001, RILL-R002, RILL-R044]
 depends: [pipe]
@@ -40,9 +40,9 @@ A second spread in one argument list MUST be rejected with RILL-P007.
 
 ## Evaluation
 
-r[spread.list] A list or tuple literal spreads a list
-In `list[...]` and `tuple[...]`, `...v` MUST insert the elements of the list `v` in order. Any
-other value MUST halt with RILL-R002.
+r[spread.list-source] A list or tuple literal spreads a list or a tuple {pending #615}
+In `list[...]` and `tuple[...]`, `...v` MUST insert the elements of the list or tuple `v` in
+order. Any other value, an iterator included, MUST halt with RILL-R002 naming its kind.
 
 r[spread.list-uniform] A spread list stays uniform
 The spread elements MUST join the list's element type check, so `list[1, ...$strings]` halts
@@ -120,5 +120,5 @@ tuple[5, 1] -> $sub(...)
 
 ## Notes
 
-Open decision: #615. A tuple, an ordered, and an iterator do not spread into a list or tuple
-literal on 0.23.0, and the error names `object`.
+Superseded: `spread.list`, now `spread.list-source`. On 0.23.0 a tuple does not spread into a
+list literal.

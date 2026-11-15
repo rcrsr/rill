@@ -3,7 +3,7 @@ id: duration
 title: Durations
 status: normative
 since: 0.24.0
-issues: [560]
+issues: [560, 579]
 grammar: []
 errors: [RILL-R001, RILL-R002, INVALID_INPUT, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
@@ -42,6 +42,18 @@ halts.
 r[duration.unknown-key] An unknown component name halts
 A spread key that names no parameter MUST halt with RILL-R001.
 
+r[duration.no-positional] A positional number is not a component {pending #579}
+`duration(500)` and every other positional number argument MUST halt with RILL-R001. Components
+are passed by name.
+
+r[duration.from-string] A string argument is parsed in the printed form {pending #579}
+`duration(s)` with a string `s` MUST parse it as one or more non-negative integers, each followed
+by `y`, `mo`, `d`, `h`, `m`, `s`, or `ms`, in that order and each at most once.
+`duration("1m30s")` MUST equal `duration(...dict[minutes: 1, seconds: 30])`.
+
+r[duration.string-malformed] A string that does not parse halts {pending #579}
+A string argument that is not in the printed form MUST halt with `#INVALID_INPUT`.
+
 r[duration.print] A duration prints its non-zero components
 A duration MUST print as its non-zero components in the order years, months, days, hours,
 minutes, seconds, milliseconds, each followed by `y`, `mo`, `d`, `h`, `m`, `s`, or `ms`. A
@@ -49,6 +61,9 @@ duration of 25 hours prints `1d1h`.
 
 r[duration.print-zero] The zero duration prints 0ms
 The zero duration MUST print as `0ms`.
+
+r[duration.round-trip] A printed duration parses back {pending #579}
+For every duration `$d`, `duration("{$d}")` MUST equal `$d`.
 
 r[duration.equality] Two durations are equal when both components are equal
 `==` between two durations MUST yield true exactly when their month counts and their
@@ -83,6 +98,8 @@ A duration MUST satisfy `:duration`. A value of any other type MUST halt `:durat
 | A component is negative or `months` is fractional | `#INVALID_INPUT` | Yes |
 | A component is not a finite number | `#TYPE_MISMATCH` | Yes |
 | A spread key names no parameter | RILL-R001 | Yes |
+| A positional number argument {pending #579} | RILL-R001 | Yes |
+| A string argument is not in the printed form {pending #579} | `#INVALID_INPUT` | Yes |
 | Durations disagree on months and milliseconds when ordered | RILL-R002 | Yes |
 | A duration is ordered against a non-duration or used in arithmetic | RILL-R002 | Yes |
 | A non-duration is asserted as `:duration` | `#TYPE_MISMATCH` | Yes |
@@ -112,10 +129,8 @@ duration(...dict[months: 1]) < duration(...dict[days: 30])
 
 ## Notes
 
-Open decision: #579. The named-component spread is the only form this file states. The
-positional form `duration(500)` fills the `years` component and means 500 years, and no
-decision fixes a shorter literal, a conversion from a string or dict, or a changed parameter
-order.
+On 0.23.0 a positional number fills the `years` component, so `duration(500)` means 500 years,
+and a string argument halts `#TYPE_MISMATCH`.
 
 The built-in methods, such as `.add`, `.multiply`, and `.total_ms`, belong to the built-in
 methods chapter.

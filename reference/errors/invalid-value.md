@@ -3,7 +3,7 @@ id: invalid-value
 title: Invalid values
 status: normative
 since: 0.24.0
-issues: []
+issues: [612]
 grammar: []
 errors: []
 depends: []
@@ -40,6 +40,13 @@ value MUST raise the halt the invalid value holds, at the place of access.
 r[invalid-value.hold] Holding an invalid value is not access
 A capture, a variable read, a `??` test, and a status probe MUST NOT raise the held halt.
 
+r[invalid-value.interpolate] Interpolating an invalid value raises its halt {pending #612}
+An interpolation whose value is invalid MUST raise the halt it holds.
+
+r[invalid-value.collection] A collection literal does not hold an invalid value {pending #612}
+An invalid value written as an element, a field, or an entry of a list, dict, tuple, ordered, or
+map literal MUST raise the halt it holds.
+
 ## Interactions
 
 `??` replaces an invalid value, since an invalid value is vacant (`vacancy.vacant`). The type
@@ -70,6 +77,3 @@ $r + 1
 
 On 0.23.0 an invalid value placed in a collection or interpolated does not halt: `list[$r]`
 holds it, and `"{$r}"` yields `"dict[]"` (#612).
-
-Open decision: #612, whether a collection literal may hold an invalid value, and what `.!` reports
-on such a collection.

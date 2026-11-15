@@ -50,6 +50,9 @@ default is part of the type.
 r[fn.unnamed] An unnamed parameter binds the pipe value {pending #623}
 A type name alone in the parentheses, as in `fn(number)`, MUST declare an unnamed parameter.
 
+r[fn.unnamed-no-default] An unnamed parameter carries no default {pending #623}
+`fn(number = 1)` MUST be rejected with RILL-P028. Only a named parameter MAY carry a default.
+
 r[fn.unnamed-limit] A function has at most two unnamed parameters {pending #623}
 The first unnamed parameter MUST be read as `$` and the second as `$@`. A third MUST be
 rejected with RILL-P028.
@@ -115,7 +118,7 @@ RILL-P029.
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| A third unnamed parameter, or named and unnamed parameters mixed {pending #623} | RILL-P028 | No |
+| A third unnamed parameter, mixed parameters, or an unnamed default {pending #623} | RILL-P028 | No |
 | A `fn()` body reads a parameter {pending #624} | RILL-P029 | No |
 
 ## Examples

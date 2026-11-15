@@ -82,18 +82,7 @@ earlier one.
 Questions that belong to 0.24.0 but are not decided yet. The reference states no rule for them
 until they are. 0.24.0 does not ship while this list is non-empty.
 
-| Issue | Question | Concept |
-|-------|----------|---------|
-| [#595](https://github.com/rcrsr/rill/issues/595) | Reading a default on a tuple position from the type | `defaults`, `introspection`, `tuple` |
-| [#579](https://github.com/rcrsr/rill/issues/579) | The literal form of a duration | `duration` |
-| [#613](https://github.com/rcrsr/rill/issues/613) | Whether `fan`, `filter`, and `sort` share the 10,000-element ceiling | `iteration` |
-| [#614](https://github.com/rcrsr/rill/issues/614) | Whether an `ordered` is a collection source | `sort` |
-| [#615](https://github.com/rcrsr/rill/issues/615) | Which of tuple, ordered, and iterator destructure, slice, and spread accept | `destruct`, `slice`, `spread` |
-| [#617](https://github.com/rcrsr/rill/issues/617) | Whether a capture inside an interpolation escapes to the enclosing scope | `interpolation` |
-| [#618](https://github.com/rcrsr/rill/issues/618) | Whether the type after `use<...>` is checked | `use` |
-| [#619](https://github.com/rcrsr/rill/issues/619) | Which `use<...>` failures `guard` catches | `use` |
-| [#605](https://github.com/rcrsr/rill/issues/605) | Whether a function or an iterator converts to a string | `interpolation` |
-| [#612](https://github.com/rcrsr/rill/issues/612) | Whether an invalid value interpolates, and whether a collection literal holds one | `interpolation`, `invalid-value` |
+None. Every 0.24.0 question is decided.
 
 ## Deferred past 0.24.0
 
