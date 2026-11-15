@@ -156,7 +156,7 @@ $nums -> .len              # 3
 
 ### List Spread
 
-Inline elements from another list using `...` spread syntax:
+Inline elements from a list or tuple using `...` spread syntax:
 
 ```rill
 [1, 2] => $a
@@ -172,11 +172,11 @@ Spread expressions evaluate before inlining:
 [...($nums -> fan({ $ * 2 }))]  # list[2, 4, 6]
 ```
 
-Spreading a non-list throws an error:
+Spreading any other value halts with RILL-R002:
 
 ```text
 "hello" => $str
-[...$str]              # Error: Spread in list literal requires list, got string
+[...$str]              # Error: RILL-R002
 ```
 
 **Access methods:**

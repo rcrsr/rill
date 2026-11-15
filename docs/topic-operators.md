@@ -396,9 +396,9 @@ See [Types](topic-types.md) for full type documentation.
 
 ### Destructure `destruct<>`
 
-Extract elements from lists or dicts into variables. Returns the original value unchanged.
+Extract elements from lists, tuples, or dicts (keyed patterns also accept ordered) into variables. Other sources halt with RILL-R002.
 
-**List destructuring** (pattern count must match list length):
+**List destructuring** (pattern count must match element count):
 
 ```rill
 [1, 2, 3] -> destruct<$a, $b, $c>
@@ -477,7 +477,7 @@ $a
 
 ### Slice `slice<>`
 
-Extract a portion using Python-style `start:stop:step`. Works on lists and strings.
+Extract a portion using Python-style `start:stop:step`. Works on lists, tuples, and strings; other sources halt with RILL-R002.
 
 **Basic slicing:**
 

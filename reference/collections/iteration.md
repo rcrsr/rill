@@ -3,7 +3,7 @@ id: iteration
 title: Iteration
 status: normative
 since: 0.24.0
-issues: [613, 614, 624]
+issues: [624]
 grammar: []
 errors: [RILL-R002, RILL-R010, TYPE_MISMATCH]
 depends: [scope, pipe, break]
@@ -26,17 +26,17 @@ The operators are `seq`, `fan`, `filter`, `fold`, `acc`, and `sort`.
 
 ## Evaluation
 
-r[iteration.source-kinds] Lists, tuples, strings, dicts, ordereds, iterators, and streams are sources {pending #614}
+r[iteration.source-kinds] Lists, tuples, strings, dicts, ordereds, iterators, and streams are sources
 A list, a tuple, a string, a dict, an ordered, an iterator, and a stream MUST be accepted as a
 source.
 
-r[iteration.other-source] Any other value is not a source {pending #614}
+r[iteration.other-source] Any other value is not a source
 A source of any other kind MUST halt with RILL-R002 in every operator, `sort` included.
 
-r[iteration.tuple] A tuple yields its elements in order {pending #614}
+r[iteration.tuple] A tuple yields its elements in order
 A tuple MUST yield its elements from first to last.
 
-r[iteration.ordered] An ordered yields entry dicts in its own order {pending #614}
+r[iteration.ordered] An ordered yields entry dicts in its own order
 An ordered MUST yield one `dict[key: k, value: v]` per entry, in its own order.
 
 r[iteration.list] A list yields its elements in order
@@ -64,7 +64,7 @@ r[iteration.sequential-limit] seq, fold, and acc call at most 10,000 times
 `seq`, `fold`, and `acc` MUST halt with RILL-R010 when the source holds more than 10,000
 elements, whatever its kind.
 
-r[iteration.ceiling] fan, filter, and sort share the 10,000-element ceiling {pending #613}
+r[iteration.ceiling] fan, filter, and sort share the 10,000-element ceiling
 `fan`, `filter`, and `sort` MUST halt with RILL-R010 when the source holds more than 10,000
 elements, as `seq`, `fold`, and `acc` do.
 
@@ -93,9 +93,9 @@ A map's entries are stated in `map.iteration`.
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| The source is not a list, string, dict, iterator, or stream | RILL-R002 | Yes |
+| The source is not a list, tuple, string, dict, ordered, iterator, or stream | RILL-R002 | Yes |
 | An iterator or stream yields more than 10,000 elements | RILL-R010 | No |
-| `seq`, `fold`, or `acc` over more than 10,000 elements | RILL-R010 | No |
+| An operator's source holds more than 10,000 elements | RILL-R010 | No |
 | The function argument is not callable | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
@@ -120,14 +120,25 @@ seq(list[1, 2], fn(x: number) { $x * 10 })
 5 -> seq({ $ })
 ```
 
-```rill pending=614
+```rill
 tuple[1, 2] -> seq({ $ * 10 })
 # Result: list[10, 20]
 ```
 
 ```rill
+ordered[b: 1, a: 2] -> seq({ "{$.key}={$.value}" })
+# Result: list["b=1", "a=2"]
+```
+
+```rill
 # Error: Iterator expansion exceeded 10000 iterations
 range(0, 10001) -> seq({ $ })
+```
+
+```rill
+# Error: iteration exceeded 10000 iterations
+range(0, 10000) -> seq({ $ }) => $big
+guard { list[...$big, 0] -> fan({ $ }) }
 ```
 
 ## Notes

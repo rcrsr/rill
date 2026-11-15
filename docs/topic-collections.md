@@ -17,6 +17,8 @@ rill provides six core collection operators for transforming, filtering, reducin
 
 All six operators are host-callable functions. They share similar invocation patterns but differ in execution model and output.
 
+Every operator accepts these sources: list, tuple, string, dict, ordered, iterator, and stream. Any other value halts with a catchable RILL-R002 that names the source kind. A source holding more than 10,000 elements halts fatally with RILL-R010 for every operator; bound it with `take(n)`.
+
 > **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](topic-variables.md)). Use `fold` or `acc` with accumulators instead.
 
 ```rill
@@ -533,7 +535,7 @@ An empty stream returns `[]`.
 # Result: ["fig", "apple", "banana"]
 ```
 
-### Dict Form
+### Dict and Ordered Form
 
 Dict sort returns an `ordered` collection. The default key is the entry key, compared by its own native type — number keys sort numerically (`1, 2, 10`) and string keys sort lexically (`"1", "10", "2"`). A dict whose keys mix types halts with `#TYPE_MISMATCH`, so sort mixed-type keys with an explicit key function.
 
@@ -545,6 +547,13 @@ Dict sort returns an `ordered` collection. The default key is the entry key, com
 # Explicit key_fn: sort entries by their numeric value
 [c: 3, a: 1, b: 2] -> sort({ $.value })
 # Result: ordered[a: 1, b: 2, c: 3]
+```
+
+An ordered sorts the same way and returns an ordered. A tuple sorts to a list.
+
+```rill
+ordered[b: 2, a: 1] -> sort
+# Result: ordered[a: 1, b: 2]
 ```
 
 ### Multi-Key Sorting
@@ -589,7 +598,7 @@ This is the same postfix `[i]` that follows `-> .reverse[0]`.
 
 ### Iterator Materialization
 
-`sort` accepts iterators by materializing them, so `range(0, 5) -> sort` sorts `[0, 1, 2, 3, 4]` like a list. An iterator past the 10,000-element ceiling halts fatally with `RILL_R010`.
+`sort` accepts iterators by materializing them, so `range(0, 5) -> sort` sorts `[0, 1, 2, 3, 4]` like a list.
 
 ```rill
 range(0, 5) -> sort
@@ -612,7 +621,7 @@ Empty list returns `[]`. Empty dict returns an empty `ordered`.
 | `#TYPE_MISMATCH` | Key extractor returns mixed types (e.g., number and string) | See [Error Handling](topic-error-handling.md) |
 | `#INVALID_INPUT` | Key extractor returns a vacant value | See [Error Handling](topic-error-handling.md) |
 | `#TYPE_MISMATCH` | `key_fn` argument is not callable | See [Error Handling](topic-error-handling.md) |
-| `RILL_R010` | Iterator input exceeds 10,000 elements (fatal) | See [Error Handling](topic-error-handling.md) |
+| `RILL-R010` | Source holds more than 10,000 elements (fatal) | See [Error Handling](topic-error-handling.md) |
 
 ---
 
@@ -752,9 +761,8 @@ Combine operators for multi-stage transformations.
 | Case | Example | Error |
 |------|---------|-------|
 | Non-callable body | `[1,2] -> seq(42)` | `#TYPE_MISMATCH` (catchable) |
-| Non-iterable input | `42 -> seq({ $ })` | RILL-R002 |
-| Vector input | `$vec -> seq({ $ })` | RILL-R003 |
-| Iteration exceeds 10,000 | `range(0, 10001) -> seq({ $ })` | RILL-R010 |
+| Non-source input (number, bool, vector, datetime, duration) | `42 -> seq({ $ })` | RILL-R002 (catchable) |
+| Source exceeds 10,000 elements | `range(0, 10001) -> seq({ $ })` | RILL-R010 (fatal) |
 | Options not a dict | `[1] -> filter({ $ > 0 }, 42)` | `#TYPE_MISMATCH` (catchable) |
 | Concurrency not a number | `[1] -> fan({ $ }, dict[concurrency: "a"])` | `#TYPE_MISMATCH` (catchable) |
 | Concurrency not positive integer | `[1] -> fan({ $ }, dict[concurrency: -1])` | `#INVALID_INPUT` (catchable) |
@@ -788,6 +796,24 @@ Iterates over entries with `key` and `value` fields.
 ```rill
 [a: 1, b: 2] -> seq({ "{$.key}={$.value}" })
 # Result: ["a=1", "b=2"]
+```
+
+### Tuples
+
+Iterates over elements like a list.
+
+```rill
+tuple[1, "a"] -> seq({ "{$}" })
+# Result: ["1", "a"]
+```
+
+### Ordereds
+
+Iterates over entries with `key` and `value` fields, in insertion order.
+
+```rill
+ordered[b: 1, a: 2] -> seq({ $.key })
+# Result: ["b", "a"]
 ```
 
 ---

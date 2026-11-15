@@ -96,6 +96,42 @@ describe('Rill Runtime: Extraction Operators', () => {
       });
     });
 
+    describe('Tuple and ordered sources', () => {
+      it('binds a tuple positionally', async () => {
+        const { context } = await runWithContext(
+          `tuple[1, 2] -> destruct<$a, $b>`
+        );
+        expect(context.variables.get('a')).toBe(1);
+        expect(context.variables.get('b')).toBe(2);
+      });
+
+      it('binds an ordered by key', async () => {
+        const { context } = await runWithContext(
+          `ordered[a: 1, b: 2] -> destruct<a: $x, b: $y>`
+        );
+        expect(context.variables.get('x')).toBe(1);
+        expect(context.variables.get('y')).toBe(2);
+      });
+
+      it('rejects an iterator, naming the kind', async () => {
+        const error = await run(`range(0, 2) -> destruct<$a, $b>`).catch(
+          (e: unknown) => e as Error
+        );
+        expect(error).toMatchObject({ errorId: 'RILL-R002' });
+        expect((error as Error).message).toContain('got iterator');
+        expect((error as Error).message).not.toContain('object');
+      });
+
+      it('names the tuple in a length mismatch', async () => {
+        const error = await run(`tuple[1, 2] -> destruct<$a>`).catch(
+          (e: unknown) => e as Error
+        );
+        expect(error).toMatchObject({ errorId: 'RILL-R002' });
+        expect((error as Error).message).toContain('tuple has 2');
+        expect((error as Error).message).not.toContain('object');
+      });
+    });
+
     describe('Type errors', () => {
       it('throws when destructuring non-list as positional', async () => {
         await expect(run(`"hello" -> destruct<$a, $b>`)).rejects.toThrow(
@@ -146,6 +182,24 @@ describe('Rill Runtime: Extraction Operators', () => {
       it('supports trailing :: as start with empty stop and a step', async () => {
         const result = await run(`list[1, 2, 3, 4, 5] -> slice<1::2>`);
         expect(result).toEqual([2, 4]);
+      });
+    });
+
+    describe('Tuple and ordered slicing', () => {
+      it('slices a tuple with a negative step into a tuple', async () => {
+        expect(await run(`tuple[0, 1, 2, 3] -> slice<::-2>`)).toMatchObject({
+          __rill_tuple: true,
+          entries: [3, 1],
+        });
+      });
+
+      it('rejects slicing an ordered, naming the kind', async () => {
+        const error = await run(`ordered[a: 1] -> slice<0:1>`).catch(
+          (e: unknown) => e as Error
+        );
+        expect(error).toMatchObject({ errorId: 'RILL-R002' });
+        expect((error as Error).message).toContain('got ordered');
+        expect((error as Error).message).not.toContain('object');
       });
     });
 

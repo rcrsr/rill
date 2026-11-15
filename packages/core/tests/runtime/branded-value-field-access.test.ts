@@ -191,7 +191,7 @@ describe('vector internals are not readable or iterable', () => {
   });
 
   it('halts when iterating a vector with seq', async () => {
-    await expectErrorId('make_vec() => $v\n$v -> seq({ $ })', 'RILL-R003');
+    await expectErrorId('make_vec() => $v\n$v -> seq({ $ })', 'RILL-R002');
   });
 
   it('rejects iterating a datetime with seq', async () => {
@@ -454,7 +454,7 @@ describe('method-call and path forms reject blocked keys', () => {
   it('rejects destructuring the stream resolve function', async () => {
     await expectErrorId(
       `${STREAM}$s -> destruct<__rill_stream_resolve: $x>`,
-      'RILL-R009'
+      'RILL-R002'
     );
   });
 

@@ -15,12 +15,9 @@ import { anyTypeValue, structureToTypeValue } from '../../../core/values.js';
 import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { setPipe } from '../../../core/types/declared.js';
+import { DEFAULT_MAX_ITERATIONS } from '../../../core/eval/shared.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
-import {
-  MAX_ITER,
-  makeGenericIterator,
-  requireNonNegativeInteger,
-} from '../shared.js';
+import { makeGenericIterator, requireNonNegativeInteger } from '../shared.js';
 import { orderedDictEntries } from '../../../core/types/dict-keys.js';
 
 /** Core built-in functions: identity, log, json, enumerate, range, repeat, chain, iterate. */
@@ -297,12 +294,12 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
    * Pipe form:  $seed -> iterate(closure)   (pipe value supplies the seed)
    *
    * The stream is unbounded; bound it externally with take(n), stop_when,
-   * or let RILL_R010 enforce the MAX_ITER ceiling.
+   * or let RILL_R010 enforce the DEFAULT_MAX_ITERATIONS ceiling.
    *
    * Error contracts:
    *   Closure throws catchable halt   → propagates (catchable)
    *   Closure throws non-catchable    → propagates (non-catchable)
-   *   Iteration exceeds MAX_ITER      → RILL_R010 (non-catchable)
+   *   Iteration exceeds DEFAULT_MAX_ITERATIONS      → RILL_R010 (non-catchable)
    *   Closure not invocable           → RILL_R006 (catchable)
    */
   iterate: {
@@ -351,11 +348,11 @@ export const CORE_FUNCTIONS: Record<string, RillFunction> = {
           done: false,
           next: callable(async () => {
             stepCount++;
-            if (stepCount > MAX_ITER) {
+            if (stepCount > DEFAULT_MAX_ITERATIONS) {
               throwFatalHostHalt(
                 site,
                 ERROR_ATOMS[ERROR_IDS.RILL_R010],
-                `iterate: iteration exceeded ${MAX_ITER} limit`
+                `iterate: iteration exceeded ${DEFAULT_MAX_ITERATIONS} limit`
               );
             }
             const childCtx = createChildContext(ctx);

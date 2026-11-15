@@ -214,14 +214,14 @@ describe('Rill Runtime: Literals', () => {
       it('throws runtime error when spreading string value (AC-11)', async () => {
         const script = '"hello" => $str\nlist[...$str]';
         await expect(run(script)).rejects.toThrow(
-          'Spread in list literal requires list, got string'
+          'Spread in list literal requires list or tuple, got string'
         );
       });
 
       it('throws runtime error when spreading number value (AC-12)', async () => {
         const script = '42 => $num\nlist[...$num]';
         await expect(run(script)).rejects.toThrow(
-          'Spread in list literal requires list, got number'
+          'Spread in list literal requires list or tuple, got number'
         );
       });
 
@@ -232,10 +232,39 @@ describe('Rill Runtime: Literals', () => {
         );
       });
 
+      it('spreads a tuple into a list', async () => {
+        expect(await run('list[...tuple[1, 2]]')).toEqual([1, 2]);
+      });
+
+      it('spreads a tuple into a tuple', async () => {
+        expect(await run('tuple[...tuple[1]]')).toMatchObject({
+          __rill_tuple: true,
+          entries: [1],
+        });
+      });
+
+      it('rejects spreading an ordered, naming the kind', async () => {
+        const error = await run('list[...ordered[a: 1]]').catch(
+          (e: unknown) => e as Error
+        );
+        expect(error).toMatchObject({ errorId: 'RILL-R002' });
+        expect((error as Error).message).toContain('got ordered');
+        expect((error as Error).message).not.toContain('object');
+      });
+
+      it('rejects spreading an iterator, naming the kind', async () => {
+        const error = await run('list[...range(0, 2)]').catch(
+          (e: unknown) => e as Error
+        );
+        expect(error).toMatchObject({ errorId: 'RILL-R002' });
+        expect((error as Error).message).toContain('got iterator');
+        expect((error as Error).message).not.toContain('object');
+      });
+
       it('throws runtime type error for non-list spread (EC-3)', async () => {
         const script = 'true => $bool\nlist[...$bool]';
         await expect(run(script)).rejects.toThrow(
-          'Spread in list literal requires list, got boolean'
+          'Spread in list literal requires list or tuple, got bool'
         );
       });
     });

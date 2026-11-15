@@ -582,7 +582,7 @@ When constructs appear without explicit input, `$` is used implicitly:
 
 ### Destructure `destruct<>`
 
-Extract elements from lists or dicts into variables:
+Extract elements from lists, tuples, or dicts (keyed patterns also accept ordered) into variables:
 
 ```rill
 [1, 2, 3] -> destruct<$a, $b, $c>
@@ -594,7 +594,7 @@ Extract elements from lists or dicts into variables:
 
 ### Slice `slice<>`
 
-Extract portions using Python-style `start:stop:step`:
+Extract portions of lists, tuples, and strings using Python-style `start:stop:step`:
 
 ```rill
 [0, 1, 2, 3, 4] -> slice<0:3>        # list[0, 1, 2]

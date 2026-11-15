@@ -412,6 +412,96 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
     });
   });
 
+  // ── Tuple and Ordered Sources ─────────────────────────────────────────────
+
+  describe('Tuple and ordered sources', () => {
+    it('seq iterates a tuple in order', async () => {
+      expect(await run('tuple[1, 2, 3] -> seq({ $ * 2 })')).toEqual([2, 4, 6]);
+    });
+
+    it('fan maps a tuple', async () => {
+      expect(await run('tuple[1, 2, 3] -> fan({ $ * 2 })')).toEqual([2, 4, 6]);
+    });
+
+    it('filter keeps matching tuple elements', async () => {
+      expect(await run('tuple[1, 2, 3] -> filter({ $ > 1 })')).toEqual([2, 3]);
+    });
+
+    it('fold reduces a tuple', async () => {
+      expect(await run('tuple[1, 2, 3] -> fold(0, { $@ + $ })')).toBe(6);
+    });
+
+    it('acc returns running totals over a tuple', async () => {
+      expect(await run('tuple[1, 2, 3] -> acc(0, { $@ + $ })')).toEqual([
+        1, 3, 6,
+      ]);
+    });
+
+    it('seq yields entry dicts of an ordered in own order', async () => {
+      expect(await run('ordered[b: 2, a: 1] -> seq({ $ })')).toEqual([
+        { key: 'b', value: 2 },
+        { key: 'a', value: 1 },
+      ]);
+    });
+
+    it('fan yields entry dicts of an ordered in own order', async () => {
+      expect(await run('ordered[b: 2, a: 1] -> fan({ $.key })')).toEqual([
+        'b',
+        'a',
+      ]);
+    });
+
+    it('filter selects ordered entries by value', async () => {
+      expect(
+        await run('ordered[b: 2, a: 1] -> filter({ $.value > 1 })')
+      ).toEqual([{ key: 'b', value: 2 }]);
+    });
+
+    it('fold reduces ordered entries', async () => {
+      expect(
+        await run('ordered[b: 2, a: 1] -> fold(0, { $@ + $.value })')
+      ).toBe(3);
+    });
+
+    it('acc returns running totals over ordered entries', async () => {
+      expect(
+        await run('ordered[b: 2, a: 1] -> acc(0, { $@ + $.value })')
+      ).toEqual([2, 3]);
+    });
+  });
+
+  // ── Non-source Rejection ──────────────────────────────────────────────────
+
+  describe('Non-source rejection names the kind', () => {
+    const operators = [
+      'seq({ $ })',
+      'fan({ $ })',
+      'filter({ true })',
+      'fold(0, { $@ })',
+      'acc(0, { $@ })',
+      'sort',
+    ];
+    const sources: Array<[string, string]> = [
+      ['number', '42'],
+      ['vector', '$v'],
+      ['datetime', 'datetime("2026-01-01")'],
+    ];
+
+    for (const operator of operators) {
+      for (const [kind, expr] of sources) {
+        it(`${operator.split('(')[0]} on ${kind} halts RILL-R002`, async () => {
+          const vec = createVector(new Float32Array([1.0, 2.0]), 'model-a');
+          const error = await run(`${expr} -> ${operator}`, {
+            variables: { v: vec },
+          }).catch((e: unknown) => e as Error);
+          expect(error).toMatchObject({ errorId: 'RILL-R002' });
+          expect((error as Error).message).toContain(`got ${kind}`);
+          expect((error as Error).message).not.toContain('object');
+        });
+      }
+    }
+  });
+
   // ── Context Isolation ─────────────────────────────────────────────────────
 
   describe('Context Isolation', () => {

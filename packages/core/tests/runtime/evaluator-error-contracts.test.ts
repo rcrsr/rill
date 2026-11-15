@@ -21,6 +21,7 @@ import {
   atomName,
   getStatus,
   inferStructure,
+  isTuple,
   RuntimeError,
   type RillValue,
 } from '@rcrsr/rill';
@@ -1074,7 +1075,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         }
       });
 
-      it('names the received type when destructuring a tuple with a list pattern', async () => {
+      it('names the tuple kind in the count-mismatch message when destructuring a tuple', async () => {
         try {
           await run('tuple[1, 2] -> destruct<$a, $b, $c>');
           expect.fail('Should have thrown');
@@ -1082,7 +1083,7 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
           expect(runtimeErr.errorId).toBe('RILL-R002');
-          expect(runtimeErr.message).toContain('requires list, got tuple');
+          expect(runtimeErr.message).toContain('tuple has 2');
         }
       });
     });
@@ -1096,7 +1097,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
           expect(runtimeErr.errorId).toBe('RILL-R002');
-          expect(runtimeErr.message).toContain('Slice requires list or string');
+          expect(runtimeErr.message).toContain(
+            'Slice requires list, tuple, or string'
+          );
         }
       });
 
@@ -1108,7 +1111,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
           expect(err).toBeInstanceOf(RuntimeError);
           const runtimeErr = err as RuntimeError;
           expect(runtimeErr.errorId).toBe('RILL-R002');
-          expect(runtimeErr.message).toContain('Slice requires list or string');
+          expect(runtimeErr.message).toContain(
+            'Slice requires list, tuple, or string'
+          );
         }
       });
 
@@ -1124,18 +1129,10 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         }
       });
 
-      it('names the received type when slicing a tuple', async () => {
-        try {
-          await run('tuple[1, 2, 3] -> slice<0:2>');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R002');
-          expect(runtimeErr.message).toContain(
-            'Slice requires list or string, got tuple'
-          );
-        }
+      it('slices a tuple and returns a tuple', async () => {
+        const result = await run('tuple[1, 2, 3] -> slice<0:2>');
+        expect(isTuple(result)).toBe(true);
+        expect(result).toEqual(await run('tuple[1, 2]'));
       });
 
       it('allows slice on list', async () => {

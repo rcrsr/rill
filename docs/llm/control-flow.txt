@@ -89,7 +89,9 @@ Invalid annotation keys produce a runtime error.
 | `fan` | parallel | all body results | no |
 | `filter` | parallel | matching elements only | no |
 | `fold(init, ...)` | sequential | final accumulator only | no |
-| `sort` | eager | sorted list, or `ordered` for dict input | no |
+| `sort` | eager | sorted list, or `ordered` for dict or ordered input | no |
+
+Sources: list, tuple, string, dict, ordered, iterator, stream. Any other value halts catchable RILL-R002 naming the kind. A source over 10,000 elements halts fatally with RILL-R010 in every operator; bound it with `take(n)`. A tuple iterates like a list; an ordered binds `$.key` and `$.value` in insertion order.
 
 `$@` is the accumulator in `fold` and `acc`. See `stdlib` for `sort` details (key extractor, multi-key tuple projection, descending via `.reverse`).
 

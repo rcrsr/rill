@@ -19,9 +19,9 @@ import { invokeCallable } from '../../../core/eval/index.js';
 import { createChildContext } from '../../../core/context.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 import { getEvalState } from '../../../core/eval/state.js';
+import { DEFAULT_MAX_ITERATIONS } from '../../../core/eval/shared.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import {
-  MAX_ITER,
   bindElement,
   chunkSlice,
   makeListIterator,
@@ -48,7 +48,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    * Negative or non-integer n halts with #INVALID_INPUT.
    * Iterator/stream inputs are walked lazily with cap n; a walk past the step
    * limit halts with a catchable #RILL_R010. List and materialized inputs halt
-   * with a catchable #RILL_R010 when min(n, length) exceeds MAX_ITER.
+   * with a catchable #RILL_R010 when min(n, length) exceeds DEFAULT_MAX_ITERATIONS.
    * n === 0 validates the input type like any other n, disposes a stream
    * input without pulling from it, and returns [].
    */
@@ -88,11 +88,11 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       const n = requireNonNegativeInteger(nRaw, 'take', 'n', site);
 
       const assertWithinLimit = (length: number): void => {
-        if (Math.min(n, length) > MAX_ITER) {
+        if (Math.min(n, length) > DEFAULT_MAX_ITERATIONS) {
           throwCatchableHostHalt(
             site,
             ERROR_ATOMS[ERROR_IDS.RILL_R010],
-            `take: element count exceeded ${MAX_ITER} limit`
+            `take: element count exceeded ${DEFAULT_MAX_ITERATIONS} limit`
           );
         }
       };
@@ -243,7 +243,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
   /**
    * Cycle through input elements repeatedly, producing a lazy iterator of T.
    * Empty input yields an empty iterator (no error, no infinite loop).
-   * Yield count past MAX_ITER is enforced at the consumer boundary via
+   * Yield count past DEFAULT_MAX_ITERATIONS is enforced at the consumer boundary via
    * expandIterator / expandStream raising #RILL_R010.
    */
   cycle: {
@@ -300,7 +300,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    *                               idle-triggered early-flush applies only to
    *                               future async streaming paths (Path A — static
    *                               clock limitation).
-   * Chunk count is capped at MAX_ITER → #RILL_R010.
+   * Chunk count is capped at DEFAULT_MAX_ITERATIONS → #RILL_R010.
    * BreakSignal and ControlSignal are re-thrown.
    */
   batch: {
@@ -417,14 +417,14 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
           ? chunks.slice(0, -1)
           : chunks;
 
-      // Cap chunk count at MAX_ITER
+      // Cap chunk count at DEFAULT_MAX_ITERATIONS
       const result: RillValue[] = [];
       for (const chunk of effectiveChunks) {
-        if (result.length >= MAX_ITER) {
+        if (result.length >= DEFAULT_MAX_ITERATIONS) {
           throwCatchableHostHalt(
             site,
             'RILL_R010',
-            `batch: chunk count exceeded ${MAX_ITER} limit`
+            `batch: chunk count exceeded ${DEFAULT_MAX_ITERATIONS} limit`
           );
         }
         result.push(chunk);
@@ -439,7 +439,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    * Default step = n (non-overlapping). Validates n > 0 and step > 0;
    * halts with #INVALID_INPUT otherwise.
    * The last window may be shorter than n (partial tail emitted).
-   * Window count is capped at MAX_ITER → #RILL_R010.
+   * Window count is capped at DEFAULT_MAX_ITERATIONS → #RILL_R010.
    */
   window: {
     params: [
@@ -521,11 +521,11 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
       let start = 0;
 
       while (start < elements.length) {
-        if (windows.length >= MAX_ITER) {
+        if (windows.length >= DEFAULT_MAX_ITERATIONS) {
           throwCatchableHostHalt(
             site,
             'RILL_R010',
-            `window: window count exceeded ${MAX_ITER} limit`
+            `window: window count exceeded ${DEFAULT_MAX_ITERATIONS} limit`
           );
         }
         windows.push(elements.slice(start, start + n));
@@ -542,7 +542,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    * Once triggered, predicate is never re-evaluated.
    * Validates predicate is callable → #RILL_R040.
    * Predicate result must be bool → #TYPE_MISMATCH.
-   * Yield count is capped at MAX_ITER → #RILL_R010.
+   * Yield count is capped at DEFAULT_MAX_ITERATIONS → #RILL_R010.
    * BreakSignal and ControlSignal are re-thrown.
    */
   start_when: {
@@ -610,11 +610,11 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
             triggered = true;
           }
           yieldCount++;
-          if (yieldCount > MAX_ITER) {
+          if (yieldCount > DEFAULT_MAX_ITERATIONS) {
             throwCatchableHostHalt(
               site,
               'RILL_R010',
-              `start_when: yield count exceeded ${MAX_ITER} limit`
+              `start_when: yield count exceeded ${DEFAULT_MAX_ITERATIONS} limit`
             );
           }
           result.push(element);
@@ -633,7 +633,7 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
    * returns true. Elements after the first match are discarded.
    * Validates predicate is callable → #RILL_R040.
    * Predicate result must be bool → #TYPE_MISMATCH.
-   * Yield count is capped at MAX_ITER → #RILL_R010.
+   * Yield count is capped at DEFAULT_MAX_ITERATIONS → #RILL_R010.
    * BreakSignal and ControlSignal are re-thrown.
    */
   stop_when: {
@@ -679,11 +679,11 @@ export const SLICING_FUNCTIONS: Record<string, RillFunction> = {
 
       try {
         for (const element of elements) {
-          if (result.length >= MAX_ITER) {
+          if (result.length >= DEFAULT_MAX_ITERATIONS) {
             throwCatchableHostHalt(
               site,
               'RILL_R010',
-              `stop_when: yield count exceeded ${MAX_ITER} limit`
+              `stop_when: yield count exceeded ${DEFAULT_MAX_ITERATIONS} limit`
             );
           }
           const childCtx = createChildContext(ctx);

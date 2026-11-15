@@ -27,8 +27,14 @@ import type { RillValue, TypeStructure } from '../../types/structures.js';
 import { locateField, projectLocated } from './field-access.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import { findElementTypeMismatch } from '../../types/operations.js';
-import { isPlainDict, isStream } from '../../types/guards.js';
-import { isOrdered, orderedValueEntries } from '../../types/guards.js';
+import {
+  isIterator,
+  isOrdered,
+  isPlainDict,
+  isTuple,
+  orderedValueEntries,
+  positionalElements,
+} from '../../types/guards.js';
 import { inferType } from '../../types/registrations.js';
 import { getVariable } from '../../context.js';
 import type { EvalState } from '../state.js';
@@ -40,8 +46,7 @@ import {
   setDictField,
   isDictKeyScalar,
   type DictKeyScalar,
-  isFieldReceiver,
-  STREAM_STEP_FIELDS,
+  throwSourceKindHalt,
 } from '../shared.js';
 import { setTypedKey, orderedDictEntries } from '../../types/dict-keys.js';
 import {
@@ -64,23 +69,21 @@ export async function evaluateDestructure(
   input: RillValue,
   inputDeclared?: TypeStructure
 ): Promise<RillValue> {
-  const isList = Array.isArray(input);
-  const isDictInput = isFieldReceiver(input);
-
   const firstNonSkip = node.elements.find((e) => e.kind !== 'skip');
   const isKeyPattern = firstNonSkip?.kind === 'keyValue';
 
   if (isKeyPattern) {
     // Dict destructure pattern
-    if (!isDictInput) {
-      throwCatchableHostHalt(
+    if (!isOrdered(input) && !(isPlainDict(input) && !isIterator(input))) {
+      throwSourceKindHalt(
         {
           location: node.span.start,
           sourceId: s.ctx.sourceId,
           fn: 'evaluateDestructure',
         },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Key destructure requires dict, got ${isList ? 'list' : typeof input}`
+        'Key destructure',
+        ['dict', 'ordered'],
+        input
       );
     }
 
@@ -111,10 +114,9 @@ export async function evaluateDestructure(
         );
       }
 
-      const dictInput = input as Record<string, RillValue>;
       // Own-key gate: an inherited member (constructor, __proto__, ...) must
       // not satisfy a destructure key.
-      const located = locateField(dictInput, elem.key);
+      const located = locateField(input, elem.key);
       if (!located.found) {
         throwCatchableHostHalt(
           {
@@ -126,11 +128,9 @@ export async function evaluateDestructure(
           `Key '${elem.key}' not found in dict`,
           {
             key: elem.key,
-            availableKeys: isStream(dictInput)
-              ? [...STREAM_STEP_FIELDS].filter((k) =>
-                  Object.hasOwn(dictInput, k)
-                )
-              : Object.keys(dictInput),
+            availableKeys: isOrdered(input)
+              ? orderedValueEntries(input).map(([k]) => k)
+              : Object.keys(input),
           }
         );
       }
@@ -155,19 +155,20 @@ export async function evaluateDestructure(
     }
   } else {
     // List destructure pattern
-    if (!isList) {
-      throwCatchableHostHalt(
+    const listInput = positionalElements(input);
+    if (listInput === undefined) {
+      throwSourceKindHalt(
         {
           location: node.span.start,
           sourceId: s.ctx.sourceId,
           fn: 'evaluateDestructure',
         },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Positional destructure requires list, got ${inferType(input)}`
+        'Positional destructure',
+        ['list', 'tuple'],
+        input
       );
     }
 
-    const listInput = input;
     if (node.elements.length !== listInput.length) {
       throwCatchableHostHalt(
         {
@@ -176,7 +177,7 @@ export async function evaluateDestructure(
           fn: 'evaluateDestructure',
         },
         ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Destructure pattern has ${node.elements.length} elements, list has ${listInput.length}`
+        `Destructure pattern has ${node.elements.length} elements, ${inferType(input)} has ${listInput.length}`
       );
     }
 
@@ -185,7 +186,7 @@ export async function evaluateDestructure(
       if (elem === undefined || elem.kind === 'skip') continue;
 
       // The length check above puts every position in range.
-      const located = locateField(listInput, i);
+      const located = locateField(input, i);
       if (!located.found) continue;
 
       if (elem.kind === 'nested' && elem.nested) {
@@ -248,18 +249,18 @@ export async function evaluateSlice(
   node: SliceNode,
   input: RillValue
 ): Promise<RillValue> {
-  const isList = Array.isArray(input);
-  const isString = typeof input === 'string';
+  const positional = positionalElements(input);
 
-  if (!isList && !isString) {
-    throwCatchableHostHalt(
+  if (positional === undefined && typeof input !== 'string') {
+    throwSourceKindHalt(
       {
         location: node.span.start,
         sourceId: s.ctx.sourceId,
         fn: 'evaluateSlice',
       },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      `Slice requires list or string, got ${inferType(input)}`
+      'Slice',
+      ['list', 'tuple', 'string'],
+      input
     );
   }
 
@@ -273,9 +274,18 @@ export async function evaluateSlice(
     ? await evaluateSliceBound(s, node.step, node.span.start)
     : null;
 
-  if (isList) {
-    return applySlice(s, input, input.length, startBound, stopBound, stepBound);
+  if (positional !== undefined) {
+    const picked = applySlice(
+      s,
+      positional,
+      positional.length,
+      startBound,
+      stopBound,
+      stepBound
+    );
+    return isTuple(input) ? createTuple(picked) : picked;
   }
+  if (typeof input !== 'string') return input;
   return applySlice(s, input, input.length, startBound, stopBound, stepBound);
 }
 
@@ -345,7 +355,7 @@ async function evaluateSliceBound(
  */
 function applySlice(
   s: EvalState,
-  input: RillValue[],
+  input: readonly RillValue[],
   len: number,
   start: number | null,
   stop: number | null,
@@ -361,7 +371,7 @@ function applySlice(
 ): string;
 function applySlice(
   s: EvalState,
-  input: RillValue[] | string,
+  input: readonly RillValue[] | string,
   len: number,
   start: number | null,
   stop: number | null,
@@ -553,18 +563,19 @@ export async function evaluateListLiteralElements(
   for (const elem of rawElements) {
     if (elem.type === 'ListSpread') {
       const spreadValue = await evaluateExpression(s, elem.expression);
-      if (Array.isArray(spreadValue)) {
-        result.push(...spreadValue);
+      const spreadElements = positionalElements(spreadValue);
+      if (spreadElements !== undefined) {
+        result.push(...spreadElements);
       } else {
-        throwCatchableHostHalt(
+        throwSourceKindHalt(
           {
             location: elem.span?.start,
             sourceId: s.ctx.sourceId,
             fn: 'evaluateListLiteralElements',
           },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Spread in list literal requires list, got ${typeof spreadValue}`,
-          { got: typeof spreadValue }
+          'Spread in list literal',
+          ['list', 'tuple'],
+          spreadValue
         );
       }
     } else {
@@ -614,15 +625,15 @@ async function evaluateDictLiteralEntries(
           }
         }
       } else {
-        throwCatchableHostHalt(
+        throwSourceKindHalt(
           {
             location: entry.span?.start,
             sourceId: s.ctx.sourceId,
             fn: 'evaluateDictLiteralEntries',
           },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          `Spread in dict/ordered literal requires dict or ordered, got ${inferType(spreadValue)}`,
-          { got: inferType(spreadValue) }
+          'Spread in dict/ordered literal',
+          ['dict', 'ordered'],
+          spreadValue
         );
       }
       continue;

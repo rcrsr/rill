@@ -163,6 +163,18 @@ export function orderedValueEntries(value: RillOrdered): [string, RillValue][] {
   return value.entries.map(([key, v]) => [key, v]);
 }
 
+/**
+ * Positional elements of a value: the list itself for a list, the entries of
+ * a tuple, otherwise undefined.
+ */
+export function positionalElements(
+  value: RillValue
+): readonly RillValue[] | undefined {
+  if (Array.isArray(value)) return value;
+  if (isTuple(value)) return value.entries;
+  return undefined;
+}
+
 /** Type guard for any callable */
 export function isCallable(value: RillValue): value is CallableMarker {
   return (

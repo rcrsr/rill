@@ -342,15 +342,32 @@ describe('Rill Runtime: Call-Depth Ceiling', () => {
     });
 
     it('completes at exactly the ceiling and halts one past it', async () => {
-      const options = (count: number) => ({
-        maxCallDepth: 2,
-        functions: itemsFn(count),
+      // Nested fans keep every source at or below the iteration ceiling while
+      // the in-flight total (outer bodies plus inner bodies) crosses it.
+      const nested = (outer: number, inner: number) => ({
+        maxCallDepth: 5,
+        functions: {
+          outer: itemsFn(outer)['items']!,
+          inner: itemsFn(inner)['items']!,
+        },
       });
-      const script = 'items() -> fan({ $ }) -> .len';
-      expect(await run(script, options(10001))).toBe(10001);
+      const script =
+        'outer() -> fan({ inner() -> fan({ $ }) -> .len }) -> .len';
+      expect(await run(script, nested(2, 5000))).toBe(2);
       await expectHaltMessage(
-        () => run(script, options(10002)),
-        /Calls in flight exceeded 10002/
+        () => run(script, nested(2, 5001)),
+        /Calls in flight exceeded 10005/
+      );
+    });
+
+    it('halts a fan over 10001 elements at the iteration ceiling', async () => {
+      await expectHaltMessage(
+        () =>
+          run('items() -> fan({ $ })', {
+            maxCallDepth: 2,
+            functions: itemsFn(10001),
+          }),
+        /fan: iteration exceeded/
       );
     });
 
