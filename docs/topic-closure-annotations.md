@@ -406,7 +406,7 @@ tuple[$fn.^first, $fn.^second]
 
 ```rill
 |x|($x) => $fn
-$fn.^missing   # Error: Annotation 'missing' not found
+$fn.^missing   # Error: RILL-R008
 ```
 
 **Non-Closure Type:**

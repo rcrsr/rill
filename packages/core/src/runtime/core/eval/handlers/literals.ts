@@ -841,7 +841,7 @@ export async function evaluateDictDispatch(
     return await evaluateBodyExpression(s, node.defaultValue);
   }
 
-  // No match and no default - throw RUNTIME_PROPERTY_NOT_FOUND
+  // No match and no default - halt with RILL-R009 (key not found)
   const location = node.span?.start;
   return throwCatchableHostHalt(
     { location, sourceId: s.ctx.sourceId, fn: 'evaluateDictDispatch' },

@@ -582,24 +582,23 @@ Two additional behaviors apply during recursive hydration:
 - **Nested synthesis** — A missing named field with no explicit default is synthesized as an empty collection when all its children declare `defaultValue`. The runtime seeds the empty collection and fills each child.
 - **Explicit default hydration** — When a field's declared `defaultValue` is itself a collection, the runtime hydrates it through the field's nested type. Child defaults fill any fields the explicit default omits.
 
-If any required child field lacks a `defaultValue`, the type check at Stage 3 catches the missing field and throws `RUNTIME_TYPE_ERROR`.
+If any required child field lacks a `defaultValue`, the type check at Stage 3 catches the missing field and halts with `RILL-R001`.
 
 ### Type Mismatch Errors
 
-When argument types don't match, the runtime throws `RuntimeError` with code `RUNTIME_TYPE_ERROR`:
+When argument types don't match, the runtime halts with `RILL-R001`:
 
 ```typescript
 // Script: repeat(42, 3)
-// Error: Function 'repeat' expects parameter 'str' (position 0) to be string, got number
+// Error (RILL-R001): Parameter type mismatch: str expects string, got number at 1:1
 ```
 
-Error details include:
+The halt message names:
 
-- Function name
-- Parameter name
-- Parameter position
-- Expected type
-- Actual type received
+- The parameter
+- The expected type
+- The actual type received
+- The source location
 
 ### RillFunction Interface
 

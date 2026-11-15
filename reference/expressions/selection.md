@@ -159,7 +159,7 @@ map[200: "ok", 404: "missing"][404]
 ```rill
 dict[a: 1] => $d
 $d.x.y ?? 0
-# Error: Dict has no field 'x'
+# Error: RILL-R009
 ```
 
 ## Notes

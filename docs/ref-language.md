@@ -417,7 +417,7 @@ Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `[k1, k2]: 
 | `[0, 1, ...] -> $list` | Sequential navigation through nested lists |
 | `[k, 0, k2] -> $mixed` | Mixed dict keys and list indexes |
 
-Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). Type mismatch throws `RUNTIME_TYPE_ERROR`.
+Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). A key of the wrong type for the current value (a string key on a list, or a boolean key on a dict) halts with `RILL-R002`; a missing key or an out-of-range index halts with `RILL-R009`.
 
 Terminal closures receive `$` bound to the final path key.
 
@@ -960,26 +960,27 @@ The complete formal grammar is in [grammar.ebnf](ref-grammar.ebnf).
 
 ## Error Codes
 
-Runtime and parse errors include structured error codes for programmatic handling.
+Lexer, parse, runtime, and check errors carry structured `RILL-Xnnn` codes for programmatic handling. A runtime halt may also carry an atom such as `#INVALID_INPUT`, which `guard` and `??` can match.
 
 | Code | Description |
 |------|-------------|
-| `PARSE_UNEXPECTED_TOKEN` | Unexpected token in source |
-| `PARSE_INVALID_SYNTAX` | Invalid syntax |
-| `PARSE_INVALID_TYPE` | Invalid type annotation |
-| `RUNTIME_UNDEFINED_VARIABLE` | Variable not defined |
-| `RUNTIME_UNDEFINED_FUNCTION` | Function not defined |
-| `RUNTIME_UNDEFINED_METHOD` | Method not defined (built-in only) |
+| `RILL-P001` | Unexpected token or invalid syntax |
+| `RILL-R001` | Argument or binding type mismatch |
+| `RILL-R002` | Operation not valid for its operands, including non-boolean conditions |
+| `RILL-R003` | Method receiver type mismatch, or annotation read on a non-function value |
+| `RILL-R005` | Variable not defined |
+| `RILL-R006` | Function not defined |
+| `RILL-R007` | Method not defined |
 | `RILL-R008` | Annotation key not defined |
-| `RILL-R003` | Annotation read on a non-function value |
-| `RUNTIME_TIMEOUT` | Operation timed out |
-| `RUNTIME_ABORTED` | Execution cancelled |
-| `RUNTIME_INVALID_PATTERN` | Invalid regex pattern |
-| `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
-| `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
-| `RUNTIME_ERROR_RAISED` | Error statement executed |
+| `RILL-R009` | Dict key or list index not found |
+| `RILL-R010` | Iteration limit exceeded |
+| `RILL-R012` | Host call timed out (catchable) |
+| `RILL-R015` | Assertion failed (condition false) |
+| `RILL-R016` | Error statement executed |
+| `#INVALID_INPUT` | Invalid regex pattern passed to a string method |
+| `#DISPOSED` | Execution cancelled by the host (uncatchable) |
 
-See [Host Integration](integration-host.md) for error handling details.
+[Error Reference](ref-errors.md) lists every code with causes and resolutions. See [Host Integration](integration-host.md) for error handling details.
 
 ---
 
