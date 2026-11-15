@@ -17,7 +17,7 @@ import {
   type RuleMarker,
 } from './parse.js';
 
-export interface Xref {
+interface Xref {
   file: ParsedFile;
   line: number;
   /** Cited rule id. */
@@ -28,7 +28,7 @@ export interface Xref {
   ownerRule: RuleMarker | undefined;
 }
 
-export interface UnknownRef {
+interface UnknownRef {
   file: ParsedFile;
   line: number;
   ref: string;
@@ -45,7 +45,7 @@ export interface XrefScan {
 const TOKEN = /`([a-z][a-z0-9_-]*(?:\.[a-z0-9_-]+)+)`/g;
 
 /** End line (exclusive) of the scanned part of a file: the Notes heading. */
-export function scanEnd(file: ParsedFile): number {
+function scanEnd(file: ParsedFile): number {
   const notes = file.headings.find((h) => h.level === 2 && h.text === 'Notes');
   return notes ? notes.line : file.lines.length + 1;
 }
@@ -180,7 +180,7 @@ const LOCK_HEADER = [
   '# <owner> <hash> [<cited-rule>@<hash> ...]',
 ];
 
-export interface LockEntry {
+interface LockEntry {
   hash: string;
   cites: Map<string, string>;
 }
@@ -193,7 +193,7 @@ function digest(text: string): string {
 }
 
 /** Hash of a rule: its full form, its build state, and its body. */
-export function ruleHash(rule: RuleMarker): string {
+function ruleHash(rule: RuleMarker): string {
   return digest(`${rule.fullForm}\n${rule.pending ?? ''}\n${rule.body}`);
 }
 

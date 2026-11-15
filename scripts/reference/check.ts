@@ -35,7 +35,7 @@ export interface CheckOptions {
   lock?: LockInput | undefined;
 }
 
-export interface LockInput {
+interface LockInput {
   /** Absolute path of the lock file. */
   path: string;
   /** Parsed entries; undefined when the file does not exist. */
@@ -851,7 +851,7 @@ const OPEN_DECISION = /Open decision: #(\d+)/g;
 const DECISION_ROW = /^\|\s*\[#(\d+)\]\([^)]*\)\s*\|.*\|([^|]*)\|\s*$/;
 
 /** README Open decisions rows: issue number to its line and concept ids. */
-export function parseDecisionRows(
+function parseDecisionRows(
   text: string
 ): Map<number, { line: number; concepts: Set<string> }> {
   const rows = new Map<number, { line: number; concepts: Set<string> }>();
