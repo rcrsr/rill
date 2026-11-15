@@ -68,6 +68,8 @@ interface Row {
   readonly postfix?: string;
   /** Existence answer where it departs from the read (documented exceptions). */
   readonly exists?: boolean;
+  /** A dict or stream read with a number or bool key: `??` does not recover. */
+  readonly strictKey?: boolean;
 }
 
 const NON_DICT = (key: string): Expected => ({
@@ -263,12 +265,21 @@ const ROWS: readonly Row[] = [
     setup: 'dict[1: "one"] => $r',
     key: '2',
     read: { halt: 'RILL_R009', message: 'Undefined dict key: 2' },
+    strictKey: true,
   },
   {
     label: 'dict without typed keys, number key',
     setup: 'dict[a: 1] => $r',
     key: '1',
     read: { halt: 'RILL_R002', message: 'Cannot index dict' },
+    strictKey: true,
+  },
+  {
+    label: 'stream, number key',
+    setup: 'make_stream() => $r',
+    key: '0',
+    read: { halt: 'RILL_R002', message: 'Cannot index stream' },
+    strictKey: true,
   },
 ];
 
@@ -310,15 +321,20 @@ function existenceOutcome(read: Expected, override?: boolean): Expected {
 }
 
 /** `??` result for a read: the sentinel exactly when the read halts. */
-function coalesceOutcome(read: Expected): Expected {
-  return isValue(read) || isFractional(read) ? read : { value: SENTINEL };
+function coalesceOutcome(read: Expected, strictKey?: boolean): Expected {
+  return isValue(read) || isFractional(read) || strictKey === true
+    ? read
+    : { value: SENTINEL };
 }
 
 const LITERAL_ROWS = ROWS.filter((row) => row.name !== undefined);
 const METHOD_ROWS = ROWS.filter((row) => row.method !== undefined);
 const POSTFIX_ROWS = ROWS.filter((row) => row.postfix !== undefined);
 const AGREEMENT_ROWS = ROWS.filter(
-  (row) => row.exists === undefined && !isFractional(row.read)
+  (row) =>
+    row.exists === undefined &&
+    !isFractional(row.read) &&
+    row.strictKey !== true
 );
 
 describe('field read forms agree', () => {
@@ -350,7 +366,7 @@ describe('field read forms agree', () => {
     it('returns the sentinel from ?? exactly when the read halts', async () => {
       await expectOutcome(
         `${keyed}$r.$k ?? "${SENTINEL}"`,
-        coalesceOutcome(row.read)
+        coalesceOutcome(row.read, row.strictKey)
       );
     });
   });
@@ -597,5 +613,25 @@ describe('pipe selection from a declared collection', () => {
         `dict[a: 1] => $d:dict(a: ${U})\n"z" -> $d ?? 5 => $v\n$v.^type == number`
       )
     ).toBe(true);
+  });
+});
+
+describe('field read forms agree: stream keys under ??', () => {
+  it('halts a number key through the bracket form with a default', async () => {
+    await expectHalt(
+      () =>
+        run(`make_stream() => $r\n$r[0] ?? "${SENTINEL}"`, {
+          functions: FUNCTIONS,
+        }),
+      { code: 'RILL_R009' }
+    );
+  });
+
+  it('recovers an absent string key through the bracket form', async () => {
+    expect(
+      await run(`make_stream() => $r\n$r["zz"] ?? "${SENTINEL}"`, {
+        functions: FUNCTIONS,
+      })
+    ).toBe(SENTINEL);
   });
 });

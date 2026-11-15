@@ -588,10 +588,10 @@ scope.recursion 2c74c0bb9aee
 scope.siblings b9765c9736cc
 selection 928b11ff9ee1 carried-type.element@708e75eb72f7
 selection.at 7ee8cd577174
-selection.bracket-default ea712a3204a0 selection.key-type@def96f05f81e
+selection.bracket-default 5312a42ee3e0
 selection.computed 173483f7594b
 selection.default 40b9bbb857e8
-selection.default-last-step 27cae9541951
+selection.default-last-step ac885bfdaa65 selection.bracket-default@5312a42ee3e0
 selection.forms a2195df12c20
 selection.index-integer c6a1fc84549e
 selection.index-type 5b4e0534e78f
@@ -809,7 +809,7 @@ vacancy 65b0e218fce5 carried-type.fallback@9a18ebc2b806 conditional.bool@e166d29
 vacancy.empty 93cdf5149efe
 vacancy.empty-probe 0604f14c1ffc
 vacancy.fallback a8ddb8c219f9
-vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@27cae9541951
+vacancy.missing 037dd8f22fe9 selection.default@40b9bbb857e8 selection.default-last-step@ac885bfdaa65
 vacancy.vacant 93e05a6e4241
 vacancy.zero-false 62d3ba62eb32
 value.always 04f8d3b96b4e

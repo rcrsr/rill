@@ -46,12 +46,7 @@ import type { TypeStructure, RillValue } from '../../types/structures.js';
 import type { Carried } from '../../types/declared.js';
 import { declarationOf, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
-import {
-  isOrdered,
-  isTuple,
-  isIterator,
-  isPlainDict,
-} from '../../types/guards.js';
+import { isOrdered, isTuple, isIterator } from '../../types/guards.js';
 import { formatStructure, structureMatches } from '../../types/operations.js';
 import {
   getVariable,
@@ -89,6 +84,7 @@ import {
   locateField,
   projectLocated,
   readField,
+  locateOrRecover,
   throwFieldMiss,
   throwNonIntegerIndex,
 } from './field-access.js';
@@ -266,8 +262,9 @@ export function evaluateVariable(s: EvalState, node: VariableNode): RillValue {
  * `allowMissing` is true only when this is the right-most access of a chain
  * that carries a `??` default. The receiver and the selector have then both
  * evaluated successfully, and a final lookup miss (an out-of-range index, or an
- * absent key of any valid key type) resolves to null so the default applies.
- * Every other failure still halts: a wrong selector type, a non-integer index,
+ * absent string key) resolves to null so the default applies.
+ * Every other failure still halts: a wrong selector type, a number or
+ * bool key on a dict (including a dict with typed keys), a non-integer index,
  * and any error raised while evaluating the selector expression.
  */
 export async function applyBracketIndexCarried(
@@ -293,18 +290,7 @@ export async function applyBracketIndexCarried(
   }
   const indexValue = await evaluatePipeChain(s, indexExpr);
   const key = bracketKey(receiver, indexValue, site);
-  const located = locateField(receiver, key);
-  if (!located.found) {
-    // A dict without typed keys reports a number or bool key as not
-    // indexable; for a bracket read that is an absent key all the same.
-    if (
-      allowMissing &&
-      (located.miss === 'out-of-range' ||
-        located.miss === 'absent' ||
-        (located.miss === 'not-indexable' && isPlainDict(receiver)))
-    ) {
-      return { value: null, declared: undefined };
-    }
+  const located = locateOrRecover(receiver, key, allowMissing, (miss) => {
     // A dict names a missing key `Undefined dict key`, whatever the key type.
     if (isFieldReceiver(receiver)) {
       return throwCatchableHostHalt(
@@ -313,8 +299,9 @@ export async function applyBracketIndexCarried(
         `Undefined dict key: ${key}`
       );
     }
-    return throwFieldMiss(receiver, key, located.miss, site);
-  }
+    return throwFieldMiss(receiver, key, miss, site);
+  });
+  if (located === undefined) return { value: null, declared: undefined };
   return {
     value: located.value,
     declared: projectLocated(receiverDeclared, located),

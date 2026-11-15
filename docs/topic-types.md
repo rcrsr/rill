@@ -294,7 +294,15 @@ Multi-key errors:
 $d.missing ?? ""           # "" (safe default)
 ```
 
-`??` also recovers an absent key of any valid key type at a bracket: `dict[a: 1][1] ?? 0` yields `0`. It recovers only the last step of a chain, so `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`.
+`??` on a dict recovers only an absent string key. A number or bool key is a wrong key, so it halts with or without `??`:
+
+```rill
+dict[a: 1] => $d
+$d[1] ?? 0
+# Error: RILL-R009
+```
+
+`??` recovers only the last step of a chain, so `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`.
 
 ### Type-Aware Dispatch
 

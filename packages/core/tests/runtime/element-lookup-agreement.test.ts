@@ -293,7 +293,7 @@ type Expected =
 
 interface Miss extends Receiver {
   readonly expected: Partial<Record<Form, Expected>>;
-  /** True when `?? 5` recovers the miss in every form that accepts it. */
+  /** True when `?? 5` recovers the miss in every form that accepts it; false when the miss halts even with a default. */
   readonly recovers: boolean;
 }
 
@@ -434,7 +434,7 @@ const MISSES: readonly Miss[] = [
     key: '2',
     name: '',
     forms: ['variable key', 'computed key', 'bracket', 'pipe selection'],
-    recovers: true,
+    recovers: false,
     expected: {
       'variable key': R009('Undefined dict key: 2'),
       'computed key': R009('Undefined dict key: 2'),
@@ -446,10 +446,6 @@ const MISSES: readonly Miss[] = [
 
 /** Forms whose miss a `??` default does not recover. A destructure has no default syntax at all. */
 const NO_DEFAULT: ReadonlySet<Form> = new Set(['destructure']);
-
-function recoversThrough(c: { receiver: Miss; form: Form }): boolean {
-  return c.receiver.recovers;
-}
 
 const MISS_CASES = MISSES.flatMap((receiver) =>
   receiver.forms.map((form) => ({
@@ -478,19 +474,20 @@ describe('element lookup: miss behaviour', () => {
     (c) => {
       it('resolves to the default only when the miss is recoverable', async () => {
         const source = scriptFor(c.receiver, c.form, 'default', U);
-        if (recoversThrough(c)) {
+        const expected = c.expected;
+        if (c.receiver.recovers) {
           expect(await run(source)).toBe(5);
-        } else if (c.receiver.recovers) {
-          await expectHalt(() => run(source), { code: 'RILL_R009' });
+        } else if (expected !== undefined && 'halt' in expected) {
+          await expectHalt(() => run(source), { code: expected.halt });
         } else {
-          await expectHalt(() => run(source), { code: 'INVALID_INPUT' });
+          throw new Error('row declares no halt');
         }
       });
     }
   );
 
   describe.each(
-    MISS_CASES.filter((c) => c.form === 'bracket' && !recoversThrough(c))
+    MISS_CASES.filter((c) => c.form === 'bracket' && !c.receiver.recovers)
   )('$receiver.label through $form with a default that does not apply', (c) => {
     it('still halts with the form message', async () => {
       const expected = c.expected;
@@ -543,12 +540,30 @@ describe('element lookup: bracket default covers only the right-most access', ()
   ] as const;
 
   describe.each(RECEIVERS)('through a $label', (r) => {
-    it('returns the default for an absent number key', async () => {
-      expect(await run(`${r.dict}[2] ?? 0`)).toBe(0);
+    it('returns the default for an absent string key', async () => {
+      expect(await run(`${r.dict}["z"] ?? 0`)).toBe(0);
     });
 
-    it('returns the default for an absent bool key', async () => {
-      expect(await run(`${r.numDict}[true] ?? 0`)).toBe(0);
+    it('halts for an absent number key on a dict', async () => {
+      await expectHalt(() => run(`${r.dict}[2] ?? 0`), { code: 'RILL_R009' });
+    });
+
+    it('halts for an absent bool key on a dict', async () => {
+      await expectHalt(() => run(`${r.dict}[true] ?? 0`), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts for an absent number key on a typed-key dict', async () => {
+      await expectHalt(() => run(`${r.numDict}[2] ?? 0`), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts for an absent bool key on a typed-key dict', async () => {
+      await expectHalt(() => run(`${r.numDict}[true] ?? 0`), {
+        code: 'RILL_R009',
+      });
     });
 
     it('returns the element for a present number key', async () => {
@@ -743,5 +758,33 @@ describe('element lookup: type value receiver', () => {
         code: 'RILL_R003',
       });
     }
+  });
+});
+
+describe('element lookup: dispatch with a key that cannot address a field', () => {
+  const KEYS = [
+    ['a tuple', 'tuple[1]'],
+    ['a dict', 'dict[a: 1]'],
+    ['a closure', '|x| ($x)'],
+  ] as const;
+
+  describe.each(KEYS)('%s key', (_label, key) => {
+    it('halts without a default', async () => {
+      await expectHalt(() => run(`dict[a: 1] => $d\n${key} -> $d`), {
+        code: 'RILL_R009',
+        messagePattern: 'Dict dispatch',
+      });
+    });
+
+    it('halts with a default', async () => {
+      await expectHalt(() => run(`dict[a: 1] => $d\n${key} -> $d ?? 9`), {
+        code: 'RILL_R009',
+        messagePattern: 'Dict dispatch',
+      });
+    });
+  });
+
+  it('still recovers an absent string key with a default', async () => {
+    expect(await run('dict[a: 1] => $d\n"z" -> $d ?? 9')).toBe(9);
   });
 });
