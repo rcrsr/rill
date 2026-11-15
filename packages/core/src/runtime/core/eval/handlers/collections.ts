@@ -149,7 +149,8 @@ export async function getIterableElements(
     },
     'Collection operators',
     ['list', 'tuple', 'string', 'dict', 'ordered', 'iterator', 'stream'],
-    input
+    input,
+    'require'
   );
 }
 

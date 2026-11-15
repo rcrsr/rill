@@ -304,19 +304,21 @@ function joinKinds(kinds: readonly string[]): string {
 /**
  * Halt with a catchable RILL-R002 when a collection source has the wrong kind.
  * The message names the accepted kinds and the inferred kind of `value`;
- * the inferred kind is also carried as `raw.got`.
+ * the inferred kind is also carried as `raw.got`. Pass `verb` as `'require'`
+ * when `subject` is plural.
  */
 export function throwSourceKindHalt(
   site: TypeHaltSite,
   subject: string,
   accepted: readonly RillTypeName[],
-  value: RillValue
+  value: RillValue,
+  verb: 'requires' | 'require' = 'requires'
 ): never {
   const got = inferType(value);
   return throwCatchableHostHalt(
     site,
     ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `${subject} requires ${joinKinds(accepted)}, got ${got}`,
+    `${subject} ${verb} ${joinKinds(accepted)}, got ${got}`,
     { got }
   );
 }

@@ -220,7 +220,7 @@ describe('Rill Runtime: Vector Type', () => {
       }).catch((e: unknown) => e as Error);
       expect(error).toMatchObject({ errorId: 'RILL-R002' });
       expect((error as Error).message).toContain(
-        'Collection operators requires list, tuple, string, dict, ordered, iterator, or stream, got vector'
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got vector'
       );
       expect((error as Error).message).not.toContain('object');
     });
@@ -232,7 +232,7 @@ describe('Rill Runtime: Vector Type', () => {
       }).catch((e: unknown) => e as Error);
       expect(error).toMatchObject({ errorId: 'RILL-R002' });
       expect((error as Error).message).toContain(
-        'Collection operators requires list, tuple, string, dict, ordered, iterator, or stream, got vector'
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got vector'
       );
       expect((error as Error).message).not.toContain('object');
     });
@@ -244,7 +244,7 @@ describe('Rill Runtime: Vector Type', () => {
       }).catch((e: unknown) => e as Error);
       expect(error).toMatchObject({ errorId: 'RILL-R002' });
       expect((error as Error).message).toContain(
-        'Collection operators requires list, tuple, string, dict, ordered, iterator, or stream, got vector'
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got vector'
       );
       expect((error as Error).message).not.toContain('object');
     });
@@ -256,7 +256,7 @@ describe('Rill Runtime: Vector Type', () => {
       }).catch((e: unknown) => e as Error);
       expect(error).toMatchObject({ errorId: 'RILL-R002' });
       expect((error as Error).message).toContain(
-        'Collection operators requires list, tuple, string, dict, ordered, iterator, or stream, got vector'
+        'Collection operators require list, tuple, string, dict, ordered, iterator, or stream, got vector'
       );
       expect((error as Error).message).not.toContain('object');
     });
