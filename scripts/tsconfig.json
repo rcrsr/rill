@@ -9,5 +9,5 @@
       "@rcrsr/rill": ["../packages/core/src/index.ts"]
     }
   },
-  "include": ["*.ts"]
+  "include": ["*.ts", "reference/*.ts"]
 }

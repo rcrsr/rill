@@ -667,10 +667,14 @@ $input -> .trim -> .lower -> .split(" ")
 
 ### Indent block contents
 
+A block that spans lines opens with `{` at the end of a line, indents each statement two spaces, and closes with `}` on its own line. The chain may continue after the `}`. A block that fits on one line stays on one line.
+
 ```rill
-"first" => $a
-"second" => $b
-"{$a} {$b}"
+"world" -> {
+  "hello" => $greeting
+  "{$greeting} {$}"
+} -> .upper
+# Result: "HELLO WORLD"
 ```
 
 ### Align related captures

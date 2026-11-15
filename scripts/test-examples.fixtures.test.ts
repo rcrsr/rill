@@ -165,7 +165,49 @@ describe('test-examples.ts fixture: skip-ratio-guard.md', () => {
       kind: 'skip-ratio-exceeded',
       skipped: 3,
       total: 4,
-      threshold: 0.0035,
+      threshold: 0.001,
     });
+  });
+});
+
+describe('test-examples.ts fixture: pending fences', () => {
+  it('leaves pending skips out of the skip-ratio guard counts in --json output', () => {
+    const { status, stdout } = runCli([
+      '--json',
+      path.join(fixturesDir, 'reference', 'pending-skip-ratio.md'),
+    ]);
+
+    expect(status).toBe(1);
+    expect(parseJsonLines(stdout)[0]).toMatchObject({
+      kind: 'skip-ratio-exceeded',
+      skipped: 3,
+      total: 4,
+    });
+  });
+
+  it('skips a rill pending=N fence under reference/ and runs the plain fence', () => {
+    const run = runCli([
+      path.join(fixturesDir, 'reference', 'pending-fence.md'),
+    ]);
+
+    expect(run.status).toBe(0);
+    expect(parseSummary(run)).toEqual({
+      passed: 1,
+      failed: 0,
+      skipped: 1,
+      total: 2,
+    });
+  });
+
+  it('fails a rill pending=N fence outside reference/', () => {
+    const { status, stdout } = runCli([
+      '--json',
+      path.join(fixturesDir, 'pending-outside-reference.md'),
+    ]);
+
+    expect(status).toBe(1);
+    const failures = parseJsonLines(stdout);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]?.['message']).toMatch(/only under reference/);
   });
 });

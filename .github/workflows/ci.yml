@@ -5,7 +5,7 @@ name: CI
 # required context is never reported and the PR blocks forever; a job-level
 # `if:` gate reports "skipped", which never satisfies a required context. See
 # packages/dev/REPO-STANDARDS.md STD-CI-7. Filtering `**/*.md` would also skip
-# test:examples, which executes every rill snippet in docs/ and README.md.
+# test:examples, which executes every rill snippet in docs/, reference/ and README.md.
 #
 # Every `uses:` in this repository pins a commit SHA with the release it belongs
 # to in a trailing comment, per STD-CI-8. A major tag such as `@v5` is mutable:
@@ -105,6 +105,13 @@ jobs:
       # generated core files from the step above to resolve `@rcrsr/rill`.
       - name: Typecheck scripts
         run: pnpm typecheck:scripts
+
+      # Lints and cross-checks reference/. The CLI imports `@rcrsr/rill` for
+      # the core error-code set, so it needs the generated core files too.
+      # The --issues flag stays a maintainer-only local run: it needs gh
+      # credentials and reads host state.
+      - name: Check reference
+        run: pnpm check:reference
 
       # Fixture-md driven regression coverage for scripts/test-examples.ts:
       # exercises marker-line splitting and the unapplied-callable check
