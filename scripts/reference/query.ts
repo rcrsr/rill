@@ -5,6 +5,7 @@
 
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { parseDecisionRows } from './check.js';
 import { getString, type Corpus, type ParsedFile } from './parse.js';
 
 export interface RuleRecord {
@@ -39,6 +40,7 @@ export interface Report {
   chapters: ChapterCount[];
   issues: Array<{ issue: number; pending: number }>;
   openDecisions: number;
+  deferredDecisions: number;
 }
 
 function listRules(corpus: Corpus): RuleRecord[] {
@@ -105,20 +107,23 @@ export function pendingRules(corpus: Corpus, issue?: number): RuleRecord[] {
   );
 }
 
-/** Counts rows of the README Open decisions table. */
-function countOpenDecisions(referenceDir: string): number {
+/**
+ * Counts README decision rows by section: `open` rows block release, while
+ * `deferred` rows (the Deferred past 0.24.0 table) do not.
+ */
+function countDecisions(referenceDir: string): {
+  open: number;
+  deferred: number;
+} {
+  const counts = { open: 0, deferred: 0 };
   const readme = path.join(referenceDir, 'README.md');
-  if (!fs.existsSync(readme)) return 0;
-  const lines = fs.readFileSync(readme, 'utf-8').split(/\r?\n/);
-  const start = lines.findIndex((l) => /^##\s+Open decisions\s*$/.test(l));
-  if (start < 0) return 0;
-  let count = 0;
-  for (let i = start + 1; i < lines.length; i++) {
-    const line = lines[i]!;
-    if (/^##\s/.test(line)) break;
-    if (/^\|\s*\[?#\d+/.test(line)) count++;
+  if (!fs.existsSync(readme)) return counts;
+  for (const row of parseDecisionRows(
+    fs.readFileSync(readme, 'utf-8')
+  ).values()) {
+    counts[row.status] += 1;
   }
-  return count;
+  return counts;
 }
 
 export function buildReport(corpus: Corpus): Report {
@@ -142,6 +147,7 @@ export function buildReport(corpus: Corpus): Report {
   for (const r of rules) {
     if (r.issue !== null) byIssue.set(r.issue, (byIssue.get(r.issue) ?? 0) + 1);
   }
+  const decisions = countDecisions(corpus.referenceDir);
   return {
     total: {
       built: rules.filter((r) => r.state === 'built').length,
@@ -151,7 +157,8 @@ export function buildReport(corpus: Corpus): Report {
     issues: [...byIssue]
       .map(([issue, pending]) => ({ issue, pending }))
       .sort((a, b) => a.issue - b.issue),
-    openDecisions: countOpenDecisions(corpus.referenceDir),
+    openDecisions: decisions.open,
+    deferredDecisions: decisions.deferred,
   };
 }
 
@@ -197,5 +204,6 @@ export function formatReport(r: Report): string {
       : r.issues.map((i) => `  #${i.issue}: ${i.pending}`)),
     '',
     `open decisions: ${r.openDecisions}`,
+    `deferred decisions: ${r.deferredDecisions}`,
   ].join('\n');
 }

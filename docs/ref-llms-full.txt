@@ -1543,7 +1543,7 @@ Valid:
       dict[id: $.id, total: $total]
     } -> log
 
-Invalid:
+Discouraged (style only; parses and runs):
 
     $order -> { $.items -> fold(0, { $@ + $.price }) => $total
       dict[id: $.id, total: $total] }

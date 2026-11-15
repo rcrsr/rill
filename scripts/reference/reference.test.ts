@@ -737,6 +737,7 @@ describe('cli', () => {
       'chapters',
       'issues',
       'openDecisions',
+      'deferredDecisions',
     ]);
   });
 });
@@ -769,7 +770,7 @@ describe('query', () => {
     const root = makeRepo({
       'reference/one/alpha.md': text,
       'reference/README.md':
-        '---\nchapters:\n  - one\n  - two\n---\n\n## Open decisions\n\n| Issue | Q |\n|---|---|\n| [#9](u) | x |\n',
+        '---\nchapters:\n  - one\n  - two\n---\n\n## Open decisions\n\n| Issue | Q | Concept |\n|---|---|---|\n| [#9](u) | x | `alpha` |\n',
     });
     return loadCorpus(root, path.join(root, 'reference'));
   };
@@ -795,7 +796,19 @@ describe('query', () => {
       chapters: [{ chapter: 'one', built: 1, pending: 1 }],
       issues: [{ issue: 5, pending: 1 }],
       openDecisions: 1,
+      deferredDecisions: 0,
     });
+  });
+
+  it('counts a Deferred row as deferred, not open', () => {
+    const root = makeRepo({
+      'reference/one/alpha.md': text,
+      'reference/README.md':
+        '---\nchapters:\n  - one\n---\n\n## Open decisions\n\nNone.\n\n## Deferred past 0.24.0\n\n| Issue | Q | Concept |\n|---|---|---|\n| [#9](u) | x | `alpha` |\n',
+    });
+    const report = buildReport(loadCorpus(root, path.join(root, 'reference')));
+    expect(report.openDecisions).toBe(0);
+    expect(report.deferredDecisions).toBe(1);
   });
 });
 
@@ -1003,6 +1016,26 @@ describe('dependents and the hash lock', () => {
     ]);
     const reviewed = updateLock(after, relocked, (o) => o === 'alpha.one');
     expect(findDrift(after, reviewed).map((d) => d.owner)).toEqual(['alpha']);
+  });
+
+  it('keeps drift when only the citing owner changes without review', () => {
+    const before = currentOwners(corpusOf('It MUST hold.'));
+    const lock = updateLock(before, new Map(), () => false);
+    const root = makeRepo({
+      ...files('It MUST hold twice.'),
+      'reference/one/alpha.md': concept(
+        'alpha',
+        '',
+        '## Evaluation\n\nr[alpha.one] Cites beta\nIt MUST follow `beta.built` now.\n\n## Interactions\n\nSee `beta.built`.\n'
+      ),
+    });
+    const after = currentOwners(loadCorpus(root, path.join(root, 'reference')));
+    const relocked = updateLock(after, lock, () => false);
+    expect(relocked.get('alpha.one')?.hash).toBe(after.get('alpha.one')?.hash);
+    expect(findDrift(after, relocked).map((d) => d.owner)).toEqual([
+      'alpha.one',
+      'alpha',
+    ]);
   });
 
   it('reports a missing and a stale lock', () => {

@@ -38,8 +38,8 @@ read the [Guide](../docs/guide-getting-started.md). For the TypeScript embedding
 | `packages/core/tests/language/` | Proof that the runtime satisfies each built rule. A test cites the rules it proves. |
 | `docs/` | Guides and lookup tables for the released version. They link rules and never restate them as their own. |
 
-A rule without a `{pending}` tag is built: the current runtime satisfies it, and at least one
-locked test cites it. A disagreement between a built rule and the runtime is a runtime defect.
+A rule without a `{pending}` tag is built: the current runtime satisfies it. Test citation is incomplete
+during the pilot and is being added incrementally, so a built rule may not yet have a locked test citing it. A disagreement between a built rule and the runtime is a runtime defect.
 
 ## Reading a rule
 
@@ -63,19 +63,19 @@ earlier one.
 | Chapter | Covers |
 |---------|--------|
 | [conventions](conventions/) | Notation and the vocabulary of halts |
-| lexical | Source text, tokens, comments, literals |
+| lexical (not yet written) | Source text, tokens, comments, literals |
 | [program](program/) | Scripts, frontmatter, statements, annotations, the return value |
 | [values](values/) | The value model, equality, vacancy |
 | [types](types/) | Type values, type forms, built-in types, maps, declarations, assertions, carried types, type locks, conversion |
 | [variables](variables/) | Variables, `$` binding, scope, capture |
-| [expressions](expressions/) | Pipes, selection, dispatch, existence, destructure, slice, spread, interpolation, operators |
+| [expressions](expressions/) | Pipes, selection, dispatch, existence, destructure, slice, spread, interpolation |
 | [callables](callables/) | Blocks, functions, parameters, invocation |
 | [control-flow](control-flow/) | Control statements and their options, loops |
 | [collections](collections/) | `seq`, `fan`, `filter`, `fold`, `acc`, `sort`, slicing |
 | [errors](errors/) | Invalid values, recovery, `assert`, `error` |
-| limits | Iteration, concurrency, call depth, timeouts |
+| limits (not yet written) | Iteration, concurrency, call depth, timeouts |
 | [host-boundary](host-boundary/) | `use`, and what a script observes of host functions and resources |
-| builtins | Built-in methods and functions |
+| builtins (not yet written) | Built-in methods and functions |
 
 ## Open decisions
 

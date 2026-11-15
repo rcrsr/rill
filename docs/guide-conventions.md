@@ -667,7 +667,7 @@ $input -> .trim -> .lower -> .split(" ")
 
 ### Indent block contents
 
-A block that spans lines opens with `{` at the end of a line, indents each statement two spaces, and closes with `}` on its own line. A block that fits on one line stays on one line.
+A block that spans lines opens with `{` at the end of a line, indents each statement two spaces, and closes with `}` on its own line. The chain may continue after the `}`. A block that fits on one line stays on one line.
 
 ```rill
 "world" -> {

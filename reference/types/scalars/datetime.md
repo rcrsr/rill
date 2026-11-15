@@ -121,7 +121,7 @@ datetime("2026-03-13") + 1
 ## Notes
 
 The component, formatting, and arithmetic methods, such as `.iso`, `.add`, and `.diff`, belong
-to the built-in methods chapter, as does `now()`.
+to the built-in methods chapter, as does `now()`. That chapter is not yet written.
 
 Until #560 lands, `==` between a datetime and a non-datetime yields false.
 

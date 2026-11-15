@@ -843,30 +843,42 @@ function checkCitations(
 // Open decisions
 // ---------------------------------------------------------------------------
 
-const DECISION_SECTIONS = new Set([
-  '## Open decisions',
-  '## Deferred past 0.24.0',
+const DECISION_SECTIONS = new Map<string, DecisionStatus>([
+  ['## Open decisions', 'open'],
+  ['## Deferred past 0.24.0', 'deferred'],
 ]);
 const OPEN_DECISION = /Open decision: #(\d+)/g;
 const DECISION_ROW = /^\|\s*\[#(\d+)\]\([^)]*\)\s*\|.*\|([^|]*)\|\s*$/;
 
-/** README Open decisions rows: issue number to its line and concept ids. */
-function parseDecisionRows(
+/** Which README decision section a row sits in. */
+export type DecisionStatus = 'open' | 'deferred';
+
+/**
+ * README decision rows from the Open decisions and Deferred sections: issue
+ * number to its line, concept ids, and the section it came from.
+ */
+export function parseDecisionRows(
   text: string
-): Map<number, { line: number; concepts: Set<string> }> {
-  const rows = new Map<number, { line: number; concepts: Set<string> }>();
-  let inSection = false;
+): Map<
+  number,
+  { line: number; concepts: Set<string>; status: DecisionStatus }
+> {
+  const rows = new Map<
+    number,
+    { line: number; concepts: Set<string>; status: DecisionStatus }
+  >();
+  let status: DecisionStatus | undefined;
   text.split(/\r?\n/).forEach((raw, i) => {
     if (raw.startsWith('## ')) {
-      inSection = DECISION_SECTIONS.has(raw.trim());
+      status = DECISION_SECTIONS.get(raw.trim());
     }
-    if (!inSection) return;
+    if (status === undefined) return;
     const m = raw.match(DECISION_ROW);
     if (!m) return;
     const concepts = new Set(
       [...m[2]!.matchAll(/`([a-z][a-z0-9-]*)`/g)].map((c) => c[1]!)
     );
-    rows.set(Number(m[1]), { line: i + 1, concepts });
+    rows.set(Number(m[1]), { line: i + 1, concepts, status });
   });
   return rows;
 }

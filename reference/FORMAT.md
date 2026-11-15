@@ -137,8 +137,8 @@ rule, and of each rule those owners cite. Whitespace changes do not change a has
 
 ## Build state
 
-- A rule without `{pending}` is built: `main` satisfies it, and a locked test cites it.
-  During the pilot an uncited built rule is reported, not failed. `pnpm ref check --strict`
+- A rule without `{pending}` is built: `main` satisfies it. Test citation is incomplete
+  during the pilot and is being added incrementally. An uncited built rule is reported, not failed. `pnpm ref check --strict`
   fails it, and becomes the CI gate once the test backfill completes.
 - A `{pending #N}` rule needs no test. The PR that builds it removes the tag, adds the citing test,
   and removes any locked test that pinned the old behavior.

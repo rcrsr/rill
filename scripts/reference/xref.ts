@@ -310,7 +310,7 @@ export function findDrift(
   const out: Drift[] = [];
   for (const [owner, state] of owners) {
     const entry = lock.get(owner);
-    if (!entry || entry.hash !== state.hash) continue;
+    if (!entry) continue;
     for (const [ref, hash] of state.cites) {
       const recorded = entry.cites.get(ref);
       if (recorded !== undefined && recorded !== hash) {
@@ -329,7 +329,8 @@ export function findDrift(
 /**
  * Rebuilds the lock. Every owner takes its current hash. An owner keeps the
  * cited hashes it was reviewed against, so its drift stays reported, unless
- * it is new, its own text changed, or `reviewed` accepts it.
+ * it is new or `reviewed` accepts it. A changed owner text alone does not
+ * erase drift.
  */
 export function updateLock(
   owners: Map<string, OwnerState>,
@@ -339,7 +340,7 @@ export function updateLock(
   const next: Lock = new Map();
   for (const [owner, state] of owners) {
     const old = previous.get(owner);
-    const accept = !old || old.hash !== state.hash || reviewed(owner);
+    const accept = !old || reviewed(owner);
     const cites = new Map<string, string>();
     for (const [ref, hash] of state.cites) {
       cites.set(ref, accept ? hash : (old.cites.get(ref) ?? hash));

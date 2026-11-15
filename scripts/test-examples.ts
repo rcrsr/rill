@@ -79,8 +79,18 @@ function lastStatementEndsInCapture(ast: ScriptNode): boolean {
   return lastPipe?.type === 'Capture';
 }
 
+// The repo's reference/ tree, plus the fixture tree that exercises the same
+// behavior; an unrelated directory that happens to be named `reference` is not.
+const REFERENCE_DIRS = [
+  path.resolve(import.meta.dirname, '../reference'),
+  path.resolve(import.meta.dirname, 'fixtures/test-examples/reference'),
+];
+
 function isReferencePath(file: string): boolean {
-  return path.resolve(file).split(path.sep).includes('reference');
+  return REFERENCE_DIRS.some((dir) => {
+    const rel = path.relative(dir, path.resolve(file));
+    return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+  });
 }
 
 async function testBlock(block: CodeBlock): Promise<TestResult> {
@@ -301,13 +311,11 @@ async function main(): Promise<void> {
   // detection in analyzeBlock() is over-matching again (e.g. back to treating
   // any block that merely contains "# Error:" or "# ..." anywhere as fully
   // skippable, instead of only a trailing run of marker lines). The threshold
-  // is pinned just above the ratio measured immediately after that fix landed
-  // (2 skipped of about 660 fences, 0.30%, across docs/ + README.md), so a
-  // regression back toward whole-block skipping fails the run instead of
-  // silently widening. Pinned tight enough that a single additional skip
-  // already trips the guard at the current corpus size, rather than requiring
-  // the count to double first.
-  const SKIP_RATIO_THRESHOLD = 0.0035; // 0.35%
+  // is pinned just below one skip in the current corpus (about 943 guarded
+  // fences, none skipped outside pending reference fences, so one skip is
+  // about 0.106%), so a single additional skip trips the guard instead of
+  // requiring the count to multiply first. Re-pin when the corpus grows.
+  const SKIP_RATIO_THRESHOLD = 0.001; // 0.10%
   // Pending reference fences skip by design and stay out of the guard.
   const isPendingSkip = (r: TestResult): boolean =>
     r.skipped === true && r.block.pendingIssue !== undefined;
