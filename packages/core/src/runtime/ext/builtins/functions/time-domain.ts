@@ -2,7 +2,11 @@ import type { RillFunction } from '../../../core/callable.js';
 import { throwCatchableHostHalt } from '../../../core/types/halt.js';
 import type { RillValue } from '../../../core/types/structures.js';
 import { inferType } from '../../../core/types/registrations.js';
-import { isDuration } from '../../../core/types/guards.js';
+import {
+  isDuration,
+  isIterator,
+  isStream,
+} from '../../../core/types/guards.js';
 import { anyTypeValue } from '../../../core/values.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 
@@ -12,10 +16,9 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
    * Suppress rapid stream emissions; emit the latest chunk after `duration`
    * of silence since the last observed chunk.
    *
-   * Stream-only: rejects list input with #INVALID_INPUT.
+   * Stream-only: rejects any non-stream, non-iterator input with #INVALID_INPUT.
    * `duration` arg must be a duration value.
-   * Iteration ceiling enforced via getIterableElements.
-   * Upstream halt propagates through getIterableElements.
+   * Expansion is capped at the default iteration ceiling; the expansion halt propagates.
    *
    * Semantics: of all observed chunks, emit only those not followed by
    * another chunk within `duration.ms`. With all chunks at the same virtual
@@ -49,12 +52,12 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'debounce',
       };
 
-      // reject list input
-      if (Array.isArray(input)) {
+      // reject anything that is not a stream or iterator
+      if (!isStream(input) && !isIterator(input)) {
         throwCatchableHostHalt(
           site,
           'INVALID_INPUT',
-          'debounce: requires a stream or iterator input, got list'
+          `debounce: requires a stream or iterator input, got ${inferType(input)}`
         );
       }
 
@@ -72,7 +75,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
 
-      // Iteration cap enforced by the getIterableElements limit; halts propagate
+      // Expansion is capped at the default iteration ceiling; its halt propagates
       const elements = await getIterableElements(input, ctx, node);
 
       if (elements.length === 0) {
@@ -103,10 +106,9 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
    * The first chunk in each interval passes; subsequent chunks in the same
    * interval are suppressed.
    *
-   * Stream-only: rejects list input with #INVALID_INPUT.
+   * Stream-only: rejects any non-stream, non-iterator input with #INVALID_INPUT.
    * `duration` arg must be a duration value.
-   * Iteration ceiling enforced via getIterableElements.
-   * Upstream halt propagates through getIterableElements.
+   * Expansion is capped at the default iteration ceiling; the expansion halt propagates.
    *
    * throttle = first-of-interval.
    */
@@ -136,12 +138,12 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'throttle',
       };
 
-      // reject list input
-      if (Array.isArray(input)) {
+      // reject anything that is not a stream or iterator
+      if (!isStream(input) && !isIterator(input)) {
         throwCatchableHostHalt(
           site,
           'INVALID_INPUT',
-          'throttle: requires a stream or iterator input, got list'
+          `throttle: requires a stream or iterator input, got ${inferType(input)}`
         );
       }
 
@@ -159,7 +161,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
 
-      // Iteration cap enforced by the getIterableElements limit; halts propagate
+      // Expansion is capped at the default iteration ceiling; its halt propagates
       const elements = await getIterableElements(input, ctx, node);
 
       if (elements.length === 0) {
@@ -186,10 +188,9 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
   /**
    * Emit the latest seen chunk at fixed `duration` intervals.
    *
-   * Stream-only: rejects list input with #INVALID_INPUT.
+   * Stream-only: rejects any non-stream, non-iterator input with #INVALID_INPUT.
    * `duration` arg must be a duration value.
-   * Iteration ceiling enforced via getIterableElements.
-   * Upstream halt propagates through getIterableElements.
+   * Expansion is capped at the default iteration ceiling; the expansion halt propagates.
    *
    * sample = latest-at-interval. Under batch (synchronous) semantics all
    * chunks arrive at once, so the last chunk is emitted as the single sample.
@@ -220,12 +221,12 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         fn: 'sample',
       };
 
-      // reject list input
-      if (Array.isArray(input)) {
+      // reject anything that is not a stream or iterator
+      if (!isStream(input) && !isIterator(input)) {
         throwCatchableHostHalt(
           site,
           'INVALID_INPUT',
-          'sample: requires a stream or iterator input, got list'
+          `sample: requires a stream or iterator input, got ${inferType(input)}`
         );
       }
 
@@ -242,7 +243,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
 
-      // Iteration cap enforced by the getIterableElements limit; halts propagate
+      // Expansion is capped at the default iteration ceiling; its halt propagates
       const elements = await getIterableElements(input, ctx, node);
 
       const latest = elements.at(-1);

@@ -353,3 +353,49 @@ describe('in-memory collection ceiling for fan, filter, and sort', () => {
     };
   }
 });
+
+describe('up-front ceiling check on in-memory sources', () => {
+  const OVER = 10001;
+
+  it('seq over an oversized list halts before the body runs', async () => {
+    let bodyRuns = 0;
+    const tick: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: (): RillValue => {
+        bodyRuns++;
+        return 1;
+      },
+    };
+    await expectHalt(
+      () =>
+        run('$items -> seq({ tick() -> break })', {
+          variables: { items: Array.from({ length: OVER }, () => 1) },
+          functions: { tick },
+        }),
+      { code: 'RILL_R010', hostErrorId: 'RILL-R010' }
+    );
+    expect(bodyRuns).toBe(0);
+  });
+
+  it('acc over an oversized list halts before the body runs', async () => {
+    let bodyRuns = 0;
+    const tick: RillFunction = {
+      params: [],
+      returnType: anyTypeValue,
+      fn: (): RillValue => {
+        bodyRuns++;
+        return 1;
+      },
+    };
+    await expectHalt(
+      () =>
+        run('$items -> acc(0, { tick() -> break })', {
+          variables: { items: Array.from({ length: OVER }, () => 1) },
+          functions: { tick },
+        }),
+      { code: 'RILL_R010', hostErrorId: 'RILL-R010' }
+    );
+    expect(bodyRuns).toBe(0);
+  });
+});

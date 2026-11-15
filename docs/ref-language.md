@@ -766,7 +766,7 @@ Place `^(...)` at the statement level to attach metadata to a statement. For loo
 0 -> while ($ < 50) do<limit: 100> { $ + 1 }
 ```
 
-**Collection operators** do not accept `^(limit: N)` inside the call. The parser rejects this form (RILL-R081). Collection operators (`seq`, `fan`, `filter`, `fold`, `acc`) enforce a built-in 10,000-chunk iteration ceiling; use `break` inside the body to stop earlier.
+**Collection operators** do not accept `^(limit: N)` inside the call. The parser rejects this form (RILL-R081). Collection operators (`seq`, `fan`, `filter`, `fold`, `acc`, `sort`) enforce a built-in 10,000-chunk iteration ceiling; use `break` to stop a stream or iterator early in `seq` or `acc`, and bound other sources with `take(n)`.
 
 ```text
 # Rejected — RILL-R081: ^(limit: N) is not accepted inside collection operators

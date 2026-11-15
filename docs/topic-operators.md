@@ -396,7 +396,7 @@ See [Types](topic-types.md) for full type documentation.
 
 ### Destructure `destruct<>`
 
-Extract elements from lists, tuples, or dicts (keyed patterns also accept ordered) into variables. Other sources halt with RILL-R002.
+Extract elements from lists, tuples, or dicts (keyed patterns also accept ordered) into variables. Other sources halt with RILL-R002. Returns the original value unchanged.
 
 **List destructuring** (pattern count must match element count):
 

@@ -91,7 +91,7 @@ Invalid annotation keys produce a runtime error.
 | `fold(init, ...)` | sequential | final accumulator only | no |
 | `sort` | eager | sorted list, or `ordered` for dict or ordered input | no |
 
-Sources: list, tuple, string, dict, ordered, iterator, stream. Any other value halts catchable RILL-R002 naming the kind. A source over 10,000 elements halts fatally with RILL-R010 in every operator; bound it with `take(n)`. A tuple iterates like a list; an ordered binds `$.key` and `$.value` in insertion order.
+Sources: list, tuple, string, dict, ordered, iterator, stream. Any other value halts catchable RILL-R002 naming the kind. A source over 10,000 elements halts fatally with RILL-R010 in seq, fan, filter, fold, acc, and sort before any body runs, so `break` cannot stop it early; bound it with `take(n)`. Streams and iterators pull lazily in seq and acc, so `break` still bounds them. take, batch, window, start_when, and stop_when cap output at 10,000 with a catchable RILL-R010. A tuple iterates like a list; an ordered binds `$.key` and `$.value` in insertion order.
 
 `$@` is the accumulator in `fold` and `acc`. See `stdlib` for `sort` details (key extractor, multi-key tuple projection, descending via `.reverse`).
 

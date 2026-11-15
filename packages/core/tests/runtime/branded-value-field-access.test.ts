@@ -451,9 +451,23 @@ describe('method-call and path forms reject blocked keys', () => {
     expect(await run(`${TYPE}"structure" => $k\n$t.?($k)`)).toBe(false);
   });
 
-  it('rejects destructuring the stream resolve function', async () => {
+  it('rejects keyed destructuring of a stream', async () => {
     await expectErrorId(
       `${STREAM}$s -> destruct<__rill_stream_resolve: $x>`,
+      'RILL-R002'
+    );
+  });
+
+  it('rejects a dict carrying the stream resolve brand key', async () => {
+    await expectErrorId(
+      'dict["__rill_stream_resolve": 7] -> destruct<__rill_stream_resolve: $x>',
+      'RILL-R002'
+    );
+  });
+
+  it('rejects an ordered carrying the stream resolve brand key', async () => {
+    await expectErrorId(
+      'ordered["__rill_stream_resolve": 7] -> destruct<__rill_stream_resolve: $x>',
       'RILL-R002'
     );
   });

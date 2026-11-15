@@ -17,7 +17,7 @@ rill provides six core collection operators for transforming, filtering, reducin
 
 All six operators are host-callable functions. They share similar invocation patterns but differ in execution model and output.
 
-Every operator accepts these sources: list, tuple, string, dict, ordered, iterator, and stream. Any other value halts with a catchable RILL-R002 that names the source kind. A source holding more than 10,000 elements halts fatally with RILL-R010 for every operator; bound it with `take(n)`.
+Every operator accepts these sources: list, tuple, string, dict, ordered, iterator, and stream. Any other value halts with a catchable RILL-R002 that names the source kind. A source holding more than 10,000 elements halts fatally with RILL-R010 in `seq`, `fan`, `filter`, `fold`, `acc`, and `sort`; bound it with `take(n)`. The slicing operators `take`, `batch`, `window`, `start_when`, and `stop_when` instead cap their output at 10,000 elements and halt with a catchable RILL-R010 that `guard` recovers.
 
 > **Important:** Loop bodies cannot modify outer-scope variables (see [Variables](topic-variables.md)). Use `fold` or `acc` with accumulators instead.
 
@@ -621,6 +621,7 @@ Empty list returns `[]`. Empty dict returns an empty `ordered`.
 | `#TYPE_MISMATCH` | Key extractor returns mixed types (e.g., number and string) | See [Error Handling](topic-error-handling.md) |
 | `#INVALID_INPUT` | Key extractor returns a vacant value | See [Error Handling](topic-error-handling.md) |
 | `#TYPE_MISMATCH` | `key_fn` argument is not callable | See [Error Handling](topic-error-handling.md) |
+| `RILL-R002` | Source is not a list, tuple, string, dict, ordered, iterator, or stream (catchable) | See [Error Handling](topic-error-handling.md) |
 | `RILL-R010` | Source holds more than 10,000 elements (fatal) | See [Error Handling](topic-error-handling.md) |
 
 ---
@@ -712,6 +713,8 @@ $app.events() -> seq({
 ### Iteration Ceiling
 
 Exactly 10,000 chunks complete without error. The 10,001st chunk triggers RILL-R010 and halts execution. Use `break` inside the body to consume at most N chunks and stay within bounds.
+
+This applies to streams and iterators, which `seq` and `acc` pull lazily. A list, tuple, string, ordered, or dict over 10,000 elements halts with fatal RILL-R010 before any body runs, so `break` cannot stop it early. See [Iterators](topic-iterators.md) for the iterator case.
 
 ```text
 use<ext:app> => $app

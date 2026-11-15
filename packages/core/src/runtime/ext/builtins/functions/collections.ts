@@ -4,7 +4,13 @@ import {
   isDict,
   isScriptCallable,
 } from '../../../core/callable.js';
-import { isIterator, isStream } from '../../../core/types/guards.js';
+import {
+  isIterator,
+  isOrdered,
+  isPlainDict,
+  isStream,
+  positionalElements,
+} from '../../../core/types/guards.js';
 import type {
   MetadataContext,
   RuntimeContext,
@@ -31,6 +37,7 @@ import {
   isKeyedSource,
   walkStreamOrIteratorElements,
 } from '../../../core/eval/handlers/collections.js';
+import { typedKeyCount } from '../../../core/types/dict-keys.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../../error-registry.js';
 import { DEFAULT_MAX_ITERATIONS } from '../../../core/eval/shared.js';
 import { bindElement, chunkSlice } from '../shared.js';
@@ -49,6 +56,36 @@ function buildSite(
   };
 }
 
+/** Halt with RILL-R010 when a source exceeds the iteration ceiling. */
+function haltOverCeiling(
+  fn: string,
+  ctx: MetadataContext,
+  location: SourceLocation | undefined,
+  iterations: number
+): never {
+  return throwFatalHostHalt(
+    buildSite(fn, ctx, location),
+    ERROR_ATOMS[ERROR_IDS.RILL_R010],
+    `${fn}: iteration exceeded ${DEFAULT_MAX_ITERATIONS} iterations`,
+    { limit: DEFAULT_MAX_ITERATIONS, iterations }
+  );
+}
+
+/**
+ * Element count of an in-memory source (list, tuple, ordered, plain dict)
+ * known before any copy is allocated; undefined for strings, streams, and
+ * iterators.
+ */
+function sourceSize(input: RillValue): number | undefined {
+  const positional = positionalElements(input);
+  if (positional !== undefined) return positional.length;
+  if (isOrdered(input)) return input.entries.length;
+  if (isPlainDict(input) && !isIterator(input)) {
+    return Object.keys(input).length + typedKeyCount(input);
+  }
+  return undefined;
+}
+
 /**
  * Materialize an in-memory collection source and enforce the iteration
  * ceiling before any body or key function runs.
@@ -62,14 +99,13 @@ async function materializeSource(
   const node = {
     span: { start: location ?? { line: 0, column: 0, offset: 0 } },
   };
+  const size = sourceSize(input);
+  if (size !== undefined && size > DEFAULT_MAX_ITERATIONS) {
+    haltOverCeiling(fn, ctx, location, size);
+  }
   const elements = await getIterableElements(input, ctx, node);
   if (elements.length > DEFAULT_MAX_ITERATIONS) {
-    throwFatalHostHalt(
-      buildSite(fn, ctx, location),
-      ERROR_ATOMS[ERROR_IDS.RILL_R010],
-      `${fn}: iteration exceeded ${DEFAULT_MAX_ITERATIONS} iterations`,
-      { limit: DEFAULT_MAX_ITERATIONS, iterations: elements.length }
-    );
+    haltOverCeiling(fn, ctx, location, elements.length);
   }
   return elements;
 }

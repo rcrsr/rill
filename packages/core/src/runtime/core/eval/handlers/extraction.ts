@@ -28,7 +28,6 @@ import { locateField, projectLocated } from './field-access.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
 import { findElementTypeMismatch } from '../../types/operations.js';
 import {
-  isIterator,
   isOrdered,
   isPlainDict,
   isTuple,
@@ -42,6 +41,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { resolveTypeRef, assertType } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
+import { isKeyedSource } from './collections.js';
 import {
   setDictField,
   isDictKeyScalar,
@@ -74,7 +74,7 @@ export async function evaluateDestructure(
 
   if (isKeyPattern) {
     // Dict destructure pattern
-    if (!isOrdered(input) && !(isPlainDict(input) && !isIterator(input))) {
+    if (!isKeyedSource(input)) {
       throwSourceKindHalt(
         {
           location: node.span.start,
@@ -249,10 +249,21 @@ export async function evaluateSlice(
   node: SliceNode,
   input: RillValue
 ): Promise<RillValue> {
-  const positional = positionalElements(input);
+  if (typeof input === 'string') {
+    const bounds = await evaluateSliceBounds(s, node);
+    return applySlice(
+      s,
+      input,
+      input.length,
+      bounds.start,
+      bounds.stop,
+      bounds.step
+    );
+  }
 
-  if (positional === undefined && typeof input !== 'string') {
-    throwSourceKindHalt(
+  const positional = positionalElements(input);
+  if (positional === undefined) {
+    return throwSourceKindHalt(
       {
         location: node.span.start,
         sourceId: s.ctx.sourceId,
@@ -264,29 +275,37 @@ export async function evaluateSlice(
     );
   }
 
-  const startBound = node.start
+  const bounds = await evaluateSliceBounds(s, node);
+  const picked = applySlice(
+    s,
+    positional,
+    positional.length,
+    bounds.start,
+    bounds.stop,
+    bounds.step
+  );
+  return isTuple(input) ? createTuple(picked) : picked;
+}
+
+/** Evaluate the start, stop, and step bounds of a slice node in order. */
+async function evaluateSliceBounds(
+  s: EvalState,
+  node: SliceNode
+): Promise<{
+  readonly start: number | null;
+  readonly stop: number | null;
+  readonly step: number | null;
+}> {
+  const start = node.start
     ? await evaluateSliceBound(s, node.start, node.span.start)
     : null;
-  const stopBound = node.stop
+  const stop = node.stop
     ? await evaluateSliceBound(s, node.stop, node.span.start)
     : null;
-  const stepBound = node.step
+  const step = node.step
     ? await evaluateSliceBound(s, node.step, node.span.start)
     : null;
-
-  if (positional !== undefined) {
-    const picked = applySlice(
-      s,
-      positional,
-      positional.length,
-      startBound,
-      stopBound,
-      stepBound
-    );
-    return isTuple(input) ? createTuple(picked) : picked;
-  }
-  if (typeof input !== 'string') return input;
-  return applySlice(s, input, input.length, startBound, stopBound, stepBound);
+  return { start, stop, step };
 }
 
 /**

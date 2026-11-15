@@ -13,7 +13,7 @@
  */
 
 import type { SourceLocation } from '../../../../types.js';
-import type { RillValue } from '../../types/structures.js';
+import type { RillOrdered, RillValue } from '../../types/structures.js';
 import { inferType } from '../../types/registrations.js';
 import {
   isIterator,
@@ -85,7 +85,9 @@ function isStreamStepDone(step: Record<string, RillValue>): boolean {
  * True for a keyed collection source: an ordered, or a plain dict that is not
  * an iterator.
  */
-export function isKeyedSource(value: RillValue): boolean {
+export function isKeyedSource(
+  value: RillValue
+): value is RillOrdered | Record<string, RillValue> {
   return isOrdered(value) || (isPlainDict(value) && !isIterator(value));
 }
 
@@ -109,6 +111,9 @@ export async function getIterableElements(
   node: { span: { start: SourceLocation } },
   limit: number = DEFAULT_MAX_ITERATIONS
 ): Promise<RillValue[]> {
+  if (Array.isArray(input)) {
+    return input;
+  }
   const positional = positionalElements(input);
   if (positional !== undefined) {
     return [...positional];
