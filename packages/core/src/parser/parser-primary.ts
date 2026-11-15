@@ -525,6 +525,15 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
     const annotations = this.parseAnnotationArgs();
     expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
     const expression = this.parsePrimary();
+    // Stacked annotation blocks merge into one node, outer keys first.
+    if (expression.type === 'AnnotatedExpr') {
+      return {
+        type: 'AnnotatedExpr',
+        annotations: annotations.concat(expression.annotations),
+        expression: expression.expression,
+        span: makeSpan(start, previous(this.state).span.end),
+      } satisfies AnnotatedExprNode;
+    }
     return {
       type: 'AnnotatedExpr',
       annotations,

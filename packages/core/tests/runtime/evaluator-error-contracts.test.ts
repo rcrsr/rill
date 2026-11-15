@@ -972,16 +972,11 @@ describe('Rill Runtime: Evaluator Base Class', () => {
         expect(result).toBe('second');
       });
 
-      it('throws for explicit type annotation mismatch', async () => {
-        try {
-          await run('42 => $x:string');
-          expect.fail('Should have thrown');
-        } catch (err) {
-          expect(err).toBeInstanceOf(RuntimeError);
-          const runtimeErr = err as RuntimeError;
-          expect(runtimeErr.errorId).toBe('RILL-R001');
-          expect(runtimeErr.message).toContain('Type mismatch');
-        }
+      it('halts #TYPE_MISMATCH for explicit type annotation mismatch', async () => {
+        await expectHalt(() => run('42 => $x:string'), {
+          code: 'TYPE_MISMATCH',
+          messagePattern: 'Type assertion failed',
+        });
       });
     });
   });

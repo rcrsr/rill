@@ -194,14 +194,19 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
     if (expectHalt) {
       // Baseline assertion is halt-only — marker text is inconsistent across
       // docs, so we don't require it to match. When the marker does carry a
-      // strict rill error code, assert the caught message contains it as a
-      // cheap strengthening.
+      // strict rill error code, assert the halt's error id matches it (hyphen
+      // form, `RILL-R009`), falling back to a message substring match.
       const expectedToken = expectedErrorCodeToken(executableCode);
-      if (expectedToken && !errorMessage.includes(expectedToken)) {
+      const caughtId = readErrorId(err);
+      if (
+        expectedToken &&
+        caughtId !== expectedToken.replace('_', '-') &&
+        !errorMessage.includes(expectedToken)
+      ) {
         return {
           block,
           success: false,
-          error: `Expected halt to mention ${expectedToken}, but got: ${errorMessage}`,
+          error: `Expected halt to mention ${expectedToken}, but got: ${errorMessage} (errorId: ${caughtId ?? 'none'})`,
           errorColumn,
         };
       }
@@ -216,6 +221,14 @@ async function testBlock(block: CodeBlock): Promise<TestResult> {
 
     return { block, success: false, error: errorMessage, errorColumn };
   }
+}
+
+// Both RillError and RuntimeHaltSignal expose `errorId` in hyphen form.
+function readErrorId(err: unknown): string | undefined {
+  if (typeof err !== 'object' || err === null || !('errorId' in err)) {
+    return undefined;
+  }
+  return typeof err.errorId === 'string' ? err.errorId : undefined;
 }
 
 function formatLocation(block: CodeBlock): string {

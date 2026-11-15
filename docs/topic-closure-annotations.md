@@ -295,7 +295,7 @@ $add(3, 4)    # 7
 
 Closures support annotation reflection via `.^key` syntax. Annotations attach metadata to closures for runtime introspection.
 
-**Type Restriction:** Only closures support annotation reflection. Accessing `.^key` on primitives throws `RUNTIME_TYPE_ERROR`.
+**Type Restriction:** Only closures support annotation reflection. Accessing `.^key` on a non-function value halts `RILL-R003`; `.?^key` yields `false` instead. The keys `type` and `effective` are the exception: `.^type` and `.^effective` read on any value.
 
 ### Basic Annotation Access
 
@@ -385,10 +385,20 @@ $fn.^description    # "doubles input"
 "" -> {
   |x|($x) => $fn
 }
-$fn.^version    # Error: RUNTIME_UNDEFINED_ANNOTATION
+$fn.^version    # Error: RILL-R008
 ```
 
-Only the closure immediately following `^(...)` carries the annotation.
+Nesting does not copy an annotation inward: only the closure immediately following `^(...)` carries it.
+
+### Stacked Annotation Blocks
+
+Several `^(...)` blocks before one target merge into one annotation map:
+
+```rill
+^(first: 1) ^(second: 2) |x|($x) => $fn
+tuple[$fn.^first, $fn.^second]
+# Result: tuple[1, 2]
+```
 
 ### Error Cases
 
@@ -396,17 +406,29 @@ Only the closure immediately following `^(...)` carries the annotation.
 
 ```rill
 |x|($x) => $fn
-$fn.^missing   # Error: RUNTIME_UNDEFINED_ANNOTATION
+$fn.^missing   # Error: RILL-R008
 ```
 
 **Non-Closure Type:**
 
 ```text
 "hello" => $str
-$str.^key      # Error: RUNTIME_TYPE_ERROR
+$str.^key      # Error: RILL-R003
 ```
 
-All primitive types (string, number, boolean, list, dict) throw `RUNTIME_TYPE_ERROR` when accessing `.^key`.
+All primitive types (string, number, boolean, list, dict) halt `RILL-R003` when accessing `.^key` (other than `type` and `effective`). The presence check `.?^key` never halts on them.
+
+### Presence Check
+
+`.?^key` tests whether a closure carries an annotation and yields a bool. It yields `false` for a missing key and for a value that is not a function:
+
+```rill
+^(timeout: 30) |x|($x) => $fn
+tuple[$fn.?^timeout, $fn.?^retries, "text".?^timeout]
+# Result: tuple[true, false, false]
+```
+
+`.?^key` tests stored annotations only. `$f.?^type` and `$f.?^effective` are `false` unless the closure stores those keys, even though `.^type` and `.^effective` read on any value.
 
 ---
 
@@ -523,7 +545,7 @@ list(^("label") string)   # Error: RILL-P001
 | `ordered` field | `ordered(^("label") x: string)` | `TypeStructure.fields[index].annotations` |
 | `tuple` element | `tuple(^("x") number)` | `TypeStructure.elements[index].annotations` |
 
-All four positions use the same `^()` syntax and the same description shorthand. Annotation values follow the same rules in all positions: bare strings expand to `description`, multiple blocks merge, and values are full expressions.
+All four positions use the same `^()` syntax and the same description shorthand. Annotation values follow the same rules in all positions: bare strings expand to `description`, multiple blocks before a target merge, and values are full expressions.
 
 ### Closure Parameter Annotations on the Type Structure
 

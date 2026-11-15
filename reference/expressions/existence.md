@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: [599, 607]
 grammar: []
-errors: [INVALID_INPUT, TYPE_MISMATCH]
+errors: [RILL-R009, INVALID_INPUT, TYPE_MISMATCH]
 depends: [selection]
 tests: [existence-check.test.ts, existence-check-dynamic.test.ts]
 ---
@@ -32,6 +32,10 @@ r[existence.bracket] The existence check takes a selector expression {pending #6
 r[existence.missing] The existence check never halts for a missing key
 `.?name` and `.?$k` MUST yield false, without halting, when the selection is missing or the receiver is a scalar.
 
+r[existence.chain] The existence check tests only its own step
+A step before `.?` that selects a missing key or index MUST halt with RILL-R009, by every
+selection form. `$d.x.?y` with `x` missing MUST halt, as `$d["x"].?y` does.
+
 r[existence.index] The existence check reads an index
 On a list and a tuple, `.?$k` MUST yield true, for `$k` holding a number for `-len` to `len - 1`.
 
@@ -51,6 +55,7 @@ r[existence.map-type] A map existence check needs the key type {pending #599}
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| A step before `.?` is missing | RILL-R009 | Yes |
 | An index is not an integer | `#INVALID_INPUT` | Yes |
 | A map selector has the wrong key type {pending #599} | `#TYPE_MISMATCH` | Yes |
 
@@ -67,6 +72,12 @@ list[$d.?a, $d.?$z, $d.?a&number, $d.?a&string]
 list[10, 20] => $l
 list[-1, 2] -> seq({ $l.?$ })
 # Result: list[true, false]
+```
+
+```rill
+# Error: Dict has no field 'x'
+dict[a: 1] => $d
+$d.x.?y
 ```
 
 ## Notes

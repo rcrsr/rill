@@ -16,6 +16,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { run, runWithContext } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
   // ============================================================
@@ -47,17 +48,16 @@ describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
   });
 
   // ============================================================
-  // AC-2, EC-3: destruct<$a:list(string)> on list of numbers → RILL-R001
+  // AC-2, EC-3: destruct<$a:list(string)> on list of numbers → #TYPE_MISMATCH
   // Input: a 1-element list where the element is list(number)
   // ============================================================
 
-  describe('destruct<$a:list(string)> on list of numbers → RILL-R001 (AC-2, EC-3)', () => {
-    it('throws RILL-R001 when element is list of numbers', async () => {
-      await expect(
-        run('list[list[1, 2, 3]] -> destruct<$a:list(string)>')
-      ).rejects.toMatchObject({
-        errorId: 'RILL-R001',
-      });
+  describe('destruct<$a:list(string)> on list of numbers → #TYPE_MISMATCH (AC-2, EC-3)', () => {
+    it('halts with #TYPE_MISMATCH when element is list of numbers', async () => {
+      await expectHalt(
+        () => run('list[list[1, 2, 3]] -> destruct<$a:list(string)>'),
+        { code: 'TYPE_MISMATCH' }
+      );
     });
 
     it('error message names list(string) expected type (EC-3)', async () => {
@@ -87,12 +87,11 @@ describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
       expect(result).toEqual([{ name: 'bob' }]);
     });
 
-    it('throws RILL-R001 when dict field type does not match', async () => {
-      await expect(
-        run('list[dict[name: 42]] -> destruct<$a:dict(name: string)>')
-      ).rejects.toMatchObject({
-        errorId: 'RILL-R001',
-      });
+    it('halts with #TYPE_MISMATCH when dict field type does not match', async () => {
+      await expectHalt(
+        () => run('list[dict[name: 42]] -> destruct<$a:dict(name: string)>'),
+        { code: 'TYPE_MISMATCH' }
+      );
     });
   });
 
@@ -132,16 +131,15 @@ describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
   });
 
   // ============================================================
-  // AC-36, EC-4: destruct<$a:union(string, number)> on bool → RILL-R001
+  // AC-36, EC-4: destruct<$a:union(string, number)> on bool → #TYPE_MISMATCH
   // ============================================================
 
-  describe('destruct<$a:union(string, number)> on bool → RILL-R001 (AC-36, EC-4)', () => {
-    it('throws RILL-R001 when element is bool', async () => {
-      await expect(
-        run('list[true] -> destruct<$a:union(string, number)>')
-      ).rejects.toMatchObject({
-        errorId: 'RILL-R001',
-      });
+  describe('destruct<$a:union(string, number)> on bool → #TYPE_MISMATCH (AC-36, EC-4)', () => {
+    it('halts with #TYPE_MISMATCH when element is bool', async () => {
+      await expectHalt(
+        () => run('list[true] -> destruct<$a:union(string, number)>'),
+        { code: 'TYPE_MISMATCH' }
+      );
     });
 
     it('error message names union(number, string) expected type (EC-4)', async () => {
@@ -169,19 +167,15 @@ describe('Rill Language: Parameterized destruct<> Type Annotations', () => {
       expect(context.variables.get('a')).toBe('hello');
     });
 
-    it('rejects number element with :string annotation', async () => {
-      await expect(
-        run('list[42] -> destruct<$a:string>')
-      ).rejects.toMatchObject({
-        errorId: 'RILL-R001',
+    it('halts #TYPE_MISMATCH for number element with :string annotation', async () => {
+      await expectHalt(() => run('list[42] -> destruct<$a:string>'), {
+        code: 'TYPE_MISMATCH',
       });
     });
 
-    it('rejects bool element with :string annotation', async () => {
-      await expect(
-        run('list[true] -> destruct<$a:string>')
-      ).rejects.toMatchObject({
-        errorId: 'RILL-R001',
+    it('halts #TYPE_MISMATCH for bool element with :string annotation', async () => {
+      await expectHalt(() => run('list[true] -> destruct<$a:string>'), {
+        code: 'TYPE_MISMATCH',
       });
     });
 

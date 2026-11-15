@@ -125,7 +125,7 @@ describe('Rill Language: error_code type', () => {
 
     it('halts when the code of a valid value is asserted', async () => {
       await expectHalt(() => run('"x".!code => $c:error_code'), {
-        code: 'RILL_R001',
+        code: 'TYPE_MISMATCH',
       });
     });
   });

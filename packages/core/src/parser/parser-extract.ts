@@ -61,6 +61,7 @@ Parser.prototype.parseDestructure = function (this: Parser): DestructureNode {
   }
 
   expect(this.state, TOKEN_TYPES.GT, 'Expected >', ERROR_IDS.RILL_P005);
+  assertUniformPattern(elements);
 
   return {
     type: 'Destructure',
@@ -154,6 +155,21 @@ function parseDestructPatternImpl(this: Parser): DestructPatternNode {
   };
 }
 
+/** Halts when a pattern mixes keyed elements with positional ones. */
+function assertUniformPattern(elements: readonly DestructPatternNode[]): void {
+  const first = elements[0];
+  if (first === undefined) return;
+  const keyed = first.kind === 'keyValue';
+  const offender = elements.find((el) => (el.kind === 'keyValue') !== keyed);
+  if (offender !== undefined) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P026,
+      'Destructure pattern cannot mix positional and keyed elements',
+      offender.span.start
+    );
+  }
+}
+
 // ============================================================
 // DESTRUCT (keyword form)
 // ============================================================
@@ -178,6 +194,7 @@ Parser.prototype.parseDestructTarget = function (this: Parser): DestructNode {
     "expected '>' to close destruct form",
     ERROR_IDS.RILL_P005
   );
+  assertUniformPattern(elements);
 
   return {
     type: 'Destruct',

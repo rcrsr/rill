@@ -866,7 +866,7 @@ describe('Rill Language: Structural Type Default Values', () => {
     it('capture type still halts when a required field is missing', async () => {
       await expectHaltMessage(
         () => run('dict[b: 1] => $x:dict(a: number, b: number = 0)\n$x'),
-        /cannot assign dict to \$x/
+        /Type assertion failed/
       );
     });
 

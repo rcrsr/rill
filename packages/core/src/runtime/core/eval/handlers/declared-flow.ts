@@ -142,45 +142,67 @@ async function evaluateOwnPrimary(
  * Apply postfix steps to a carried receiver. Bracket access projects the
  * element type; a plain own-field read projects the field type; annotation
  * access, method calls and invokes take their own type.
+ *
+ * When `hasDefault` is true (the chain carries a `??` default), only the
+ * right-most step may recover a miss: a bracket step resolves an absent key or
+ * out-of-range index to null, and a field or annotation step resolves its
+ * missing-member halt to null. A miss on an earlier step, and any halt raised
+ * while evaluating a bracket selector, still halts.
  */
 async function applyPostfixStepsCarried(
   s: EvalState,
   methods: PostfixExprNode['methods'],
   start: Carried,
-  fn: string
+  fn: string,
+  hasDefault: boolean
 ): Promise<Carried> {
   let value = start.value;
   let declared = start.declared;
-  for (const method of methods) {
-    if (method.type === 'AnnotationAccess') {
-      value = await evaluateAnnotationAccess(
-        s,
-        value,
-        method.key,
-        method.span.start,
-        declared
-      );
-      declared = undefined;
-    } else if (method.type === 'IndexAccess') {
-      const element = await applyBracketIndexCarried(
-        s,
-        value,
-        method.index,
-        getNodeLocation(s, method),
-        fn,
-        declared
-      );
-      value = element.value;
-      declared = element.declared;
-    } else {
-      const located =
-        declared !== undefined && method.type === 'MethodCall'
-          ? locateOwnFieldRead(s, method, value)
-          : undefined;
-      const projected =
-        located === undefined ? undefined : projectLocated(declared, located);
-      value = await evaluateMethod(s, method, value);
-      declared = projected;
+  for (const [position, method] of methods.entries()) {
+    const recoverable = hasDefault && position === methods.length - 1;
+    try {
+      if (method.type === 'AnnotationAccess') {
+        value = await evaluateAnnotationAccess(
+          s,
+          value,
+          method.key,
+          method.span.start,
+          declared
+        );
+        declared = undefined;
+      } else if (method.type === 'IndexAccess') {
+        const element = await applyBracketIndexCarried(
+          s,
+          value,
+          method.index,
+          getNodeLocation(s, method),
+          fn,
+          declared,
+          recoverable
+        );
+        value = element.value;
+        declared = element.declared;
+      } else {
+        const located =
+          declared !== undefined && method.type === 'MethodCall'
+            ? locateOwnFieldRead(s, method, value)
+            : undefined;
+        const projected =
+          located === undefined ? undefined : projectLocated(declared, located);
+        value = await evaluateMethod(s, method, value);
+        declared = projected;
+      }
+    } catch (error) {
+      if (
+        recoverable &&
+        method.type !== 'IndexAccess' &&
+        isRecoverableMissing(error)
+      ) {
+        value = null;
+        declared = undefined;
+      } else {
+        throw error;
+      }
     }
   }
   return { value, declared };
@@ -199,28 +221,21 @@ export async function evaluatePostfixExprCarried(
   s: EvalState,
   expr: PostfixExprNode
 ): Promise<Carried> {
-  let result: Carried;
-  try {
-    const primary = await evaluatePrimaryCarried(s, expr.primary);
-    result =
-      expr.methods.length === 0
-        ? primary
-        : await applyPostfixStepsCarried(
-            s,
-            expr.methods,
-            primary,
-            'evaluatePostfixExpr'
-          );
-  } catch (error) {
-    if (expr.defaultValue !== null && isRecoverableMissing(error)) {
-      return evaluateDefault(s, expr.defaultValue);
-    }
-    throw error;
-  }
+  const primary = await evaluatePrimaryCarried(s, expr.primary);
+  const result =
+    expr.methods.length === 0
+      ? primary
+      : await applyPostfixStepsCarried(
+          s,
+          expr.methods,
+          primary,
+          'evaluatePostfixExpr',
+          expr.defaultValue !== null
+        );
 
-  // The existence check and the default body run outside the try so a
+  // The existence check and the default body run after the steps so a
   // missing-field halt raised while evaluating the default body is not
-  // re-caught by the recovery above (which would evaluate it twice).
+  // recovered a second time.
   if (expr.existenceCheck) {
     return {
       value: await evaluateExistenceCheck(
@@ -253,72 +268,64 @@ async function evaluatePostfixTargetCarried(
   target: PostfixExprNode,
   input: Carried
 ): Promise<Carried> {
-  let result: Carried;
-  try {
-    const primary = target.primary;
-    const isSyntheticPipeVar =
-      primary.type === 'Variable' &&
-      primary.isPipeVar &&
-      primary.name === null &&
-      primary.accessChain.length === 0;
-    // Non-synthetic primaries only reach this node through the pipe-target
-    // parser's index and postfix-chain attachment paths. A StatusProbe (`.!`)
-    // wrapper is not a PipeTargetNode member and halts as unsupported.
-    let start: Carried;
-    if (isSyntheticPipeVar) {
-      start = input;
-    } else if (
-      primary.type === 'HostCall' ||
-      primary.type === 'TypeConstructor' ||
-      primary.type === 'TypeNameExpr' ||
-      primary.type === 'PassBlock' ||
-      primary.type === 'TimeoutBlock' ||
-      primary.type === 'WhileLoop' ||
-      primary.type === 'DoWhileLoop' ||
-      primary.type === 'TypeAssertion' ||
-      primary.type === 'TypeCheck'
-    ) {
-      start = await evaluatePipeTarget(s, primary, input);
-    } else if (primary.type === 'StatusProbe') {
-      return throwTypeHalt(
-        {
-          location: getNodeLocation(s, target),
-          sourceId: s.ctx.sourceId,
-          fn: '->',
-        },
-        'INVALID_INPUT',
-        `Unsupported pipe target type: ${primary.type}`,
-        'runtime',
-        { nodeType: primary.type },
-        'host'
-      );
-    } else {
-      return throwFatalHostHalt(
-        {
-          location: getNodeLocation(s, target),
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluatePipeChain',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Unexpected pipe target primary: ${primary.type}`
-      );
-    }
-    result =
-      target.methods.length === 0
-        ? start
-        : await applyPostfixStepsCarried(
-            s,
-            target.methods,
-            start,
-            'evaluatePipeChain'
-          );
-  } catch (error) {
-    // Mirrors evaluatePostfixExprCarried's recovery.
-    if (target.defaultValue !== null && isRecoverableMissing(error)) {
-      return evaluateDefault(s, target.defaultValue);
-    }
-    throw error;
+  const primary = target.primary;
+  const isSyntheticPipeVar =
+    primary.type === 'Variable' &&
+    primary.isPipeVar &&
+    primary.name === null &&
+    primary.accessChain.length === 0;
+  // Non-synthetic primaries only reach this node through the pipe-target
+  // parser's index and postfix-chain attachment paths. A StatusProbe (`.!`)
+  // wrapper is not a PipeTargetNode member and halts as unsupported.
+  let start: Carried;
+  if (isSyntheticPipeVar) {
+    start = input;
+  } else if (
+    primary.type === 'HostCall' ||
+    primary.type === 'TypeConstructor' ||
+    primary.type === 'TypeNameExpr' ||
+    primary.type === 'PassBlock' ||
+    primary.type === 'TimeoutBlock' ||
+    primary.type === 'WhileLoop' ||
+    primary.type === 'DoWhileLoop' ||
+    primary.type === 'TypeAssertion' ||
+    primary.type === 'TypeCheck'
+  ) {
+    start = await evaluatePipeTarget(s, primary, input);
+  } else if (primary.type === 'StatusProbe') {
+    return throwTypeHalt(
+      {
+        location: getNodeLocation(s, target),
+        sourceId: s.ctx.sourceId,
+        fn: '->',
+      },
+      'INVALID_INPUT',
+      `Unsupported pipe target type: ${primary.type}`,
+      'runtime',
+      { nodeType: primary.type },
+      'host'
+    );
+  } else {
+    return throwFatalHostHalt(
+      {
+        location: getNodeLocation(s, target),
+        sourceId: s.ctx.sourceId,
+        fn: 'evaluatePipeChain',
+      },
+      ERROR_ATOMS[ERROR_IDS.RILL_R002],
+      `Unexpected pipe target primary: ${primary.type}`
+    );
   }
+  const result =
+    target.methods.length === 0
+      ? start
+      : await applyPostfixStepsCarried(
+          s,
+          target.methods,
+          start,
+          'evaluatePipeChain',
+          target.defaultValue !== null
+        );
   if (target.existenceCheck) {
     return {
       value: await evaluateExistenceCheck(

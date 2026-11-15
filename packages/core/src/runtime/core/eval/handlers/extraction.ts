@@ -33,7 +33,7 @@ import { inferType } from '../../types/registrations.js';
 import { getVariable } from '../../context.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { resolveTypeRef } from './types.js';
+import { resolveTypeRef, assertType } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
 import {
@@ -141,6 +141,9 @@ export async function evaluateDestructure(
               getVariable(s.ctx, name)
             )
           : undefined;
+      if (dictResolved !== undefined) {
+        assertType(s, located.value, dictResolved.structure, elem.span.start);
+      }
       setVariable(
         s,
         elem.name,
@@ -213,6 +216,9 @@ export async function evaluateDestructure(
               getVariable(s.ctx, name)
             )
           : undefined;
+      if (listResolved !== undefined) {
+        assertType(s, located.value, listResolved.structure, elem.span.start);
+      }
       setVariable(
         s,
         elem.name,

@@ -208,12 +208,12 @@ See [Variables](topic-variables.md) for detailed documentation.
 | `$data.$key` | Variable as key |
 | `$data.($i + 1)` | Computed key |
 | `$data.(a \|\| b)` | Alternative keys |
-| `$data.field ?? default` | Default if missing |
+| `$data.field ?? default`, `$data[i] ?? default` | Default if the final key or index is missing; a miss on an earlier step still halts `RILL-R009` |
 | `$data.?field` | Existence check (literal) |
 | `$data.?$key` | Existence check (variable) |
 | `$data.?($expr)` | Existence check (computed) |
 | `$data.?field&type` | Existence + type check |
-| `$data.^key` | Annotation reflection |
+| `$data.^key`, `$data.?^key` | Annotation reflection; `.?^key` is a presence check yielding bool |
 
 | Form | Reaches or halts |
 |------|------------------|
@@ -417,7 +417,7 @@ Dict keys can be identifiers, numbers, or booleans. Multi-key syntax `[k1, k2]: 
 | `[0, 1, ...] -> $list` | Sequential navigation through nested lists |
 | `[k, 0, k2] -> $mixed` | Mixed dict keys and list indexes |
 
-Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). Type mismatch throws `RUNTIME_TYPE_ERROR`.
+Path element types: string keys for dict lookup, number indexes for list access (negative indexes supported). A key of the wrong type for the current value (a string key on a list, or a boolean key on a dict) halts with `RILL-R002`; a missing key or an out-of-range index halts with `RILL-R009`.
 
 Terminal closures receive `$` bound to the final path key.
 
@@ -603,7 +603,7 @@ Extract portions using Python-style `start:stop:step`:
 "hello" -> slice<1:4>                    # "ell"
 ```
 
-Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:union(string, number)>`. The runtime validates each extracted element against the declared type. See [Operators](topic-operators.md) for detailed extraction operator documentation.
+Capture variables accept type annotations: `destruct<$a:list(string)>`, `destruct<$a:union(string, number)>`. The runtime validates each extracted element against the declared type; a mismatch halts `#TYPE_MISMATCH` with `Type assertion failed: expected ..., got ...`, as a typed capture does. A destructure into an already type-locked variable without an annotation that breaks the lock halts `RILL-R001`. A destructure pattern is all positional or all keyed; mixing the two is parse error RILL-P026. See [Operators](topic-operators.md) for detailed extraction operator documentation.
 
 ---
 
@@ -619,7 +619,7 @@ Access annotation values using `.^key` syntax. Annotations attach to callables (
 | Any value | `effective` | Own type via `.^effective`, ignoring any declaration |
 | Type value | `name` | Runtime error: RILL-R008 (use `.name` dot notation instead) |
 | Any callable | any other key | Callable annotation value |
-| Anything else | any key | Runtime error: `RUNTIME_TYPE_ERROR` |
+| Anything else | any key | Runtime error: `RILL-R003` |
 
 ```rill
 ^(min: 0, max: 100) |x|($x) => $fn
@@ -628,7 +628,7 @@ $fn.^min     # 0
 $fn.^max     # 100
 ```
 
-Annotations apply only to the closure directly targeted by `^(...)`; a nested closure does not inherit an outer annotation. Accessing an undefined key throws `RUNTIME_UNDEFINED_ANNOTATION`.
+Annotations apply only to the closure directly targeted by `^(...)`; a nested closure does not inherit an outer annotation. Stacked `^(...)` blocks before one target merge. Accessing an undefined key halts `RILL-R008`; `.?^key` yields `false` instead of halting. `.?^key` tests stored annotations only, so `$f.?^type` and `$f.?^effective` are `false` unless the function stores those keys, although `.^type` and `.^effective` read on any value.
 
 ### Reserved Annotation Keys
 
@@ -694,7 +694,7 @@ $f.^input
 | `tuple()` | Positional (`T`) | Before field type |
 | `list()` | N/A | Not supported (RILL-P001) |
 
-Multiple `^()` blocks on one field merge into one annotation map.
+Multiple `^()` blocks before any target merge into one annotation map.
 
 | Condition | Error |
 |-----------|-------|
@@ -960,26 +960,27 @@ The complete formal grammar is in [grammar.ebnf](ref-grammar.ebnf).
 
 ## Error Codes
 
-Runtime and parse errors include structured error codes for programmatic handling.
+Lexer, parse, runtime, and check errors carry structured `RILL-Xnnn` codes for programmatic handling. A runtime halt may also carry an atom such as `#INVALID_INPUT`, which `guard` and `??` can match.
 
 | Code | Description |
 |------|-------------|
-| `PARSE_UNEXPECTED_TOKEN` | Unexpected token in source |
-| `PARSE_INVALID_SYNTAX` | Invalid syntax |
-| `PARSE_INVALID_TYPE` | Invalid type annotation |
-| `RUNTIME_UNDEFINED_VARIABLE` | Variable not defined |
-| `RUNTIME_UNDEFINED_FUNCTION` | Function not defined |
-| `RUNTIME_UNDEFINED_METHOD` | Method not defined (built-in only) |
-| `RUNTIME_UNDEFINED_ANNOTATION` | Annotation key not defined |
-| `RUNTIME_TYPE_ERROR` | Type mismatch |
-| `RUNTIME_TIMEOUT` | Operation timed out |
-| `RUNTIME_ABORTED` | Execution cancelled |
-| `RUNTIME_INVALID_PATTERN` | Invalid regex pattern |
-| `RUNTIME_AUTO_EXCEPTION` | Auto-exception triggered |
-| `RUNTIME_ASSERTION_FAILED` | Assertion failed (condition false) |
-| `RUNTIME_ERROR_RAISED` | Error statement executed |
+| `RILL-P001` | Unexpected token or invalid syntax |
+| `RILL-R001` | Argument or binding type mismatch |
+| `RILL-R002` | Operation not valid for its operands, including non-boolean conditions |
+| `RILL-R003` | Method receiver type mismatch, or annotation read on a non-function value |
+| `RILL-R005` | Variable not defined |
+| `RILL-R006` | Function not defined |
+| `RILL-R007` | Method not defined |
+| `RILL-R008` | Annotation key not defined |
+| `RILL-R009` | Dict key or list index not found |
+| `RILL-R010` | Iteration limit exceeded |
+| `RILL-R012` | Host call timed out (catchable) |
+| `RILL-R015` | Assertion failed (condition false) |
+| `RILL-R016` | Error statement executed |
+| `#INVALID_INPUT` | Invalid regex pattern passed to a string method |
+| `#DISPOSED` | Execution cancelled by the host (uncatchable) |
 
-See [Host Integration](integration-host.md) for error handling details.
+[Error Reference](ref-errors.md) lists every code with causes and resolutions. See [Host Integration](integration-host.md) for error handling details.
 
 ---
 

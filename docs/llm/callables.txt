@@ -102,6 +102,7 @@ Description shorthand (bare string in `^(...)` expands to `description: <string>
 
     ^("Get weather for city") |city: string| ($city) => $weather
     $weather.^description                  # "Get weather for city"
+    $weather.?^description                 # true
 
     ^("Fetch profile", cache: true) |id| ($id) => $get_user
     $get_user.^description                 # "Fetch profile"
@@ -149,6 +150,9 @@ Destructure (`destruct<>`):
     list[1, 2, 3] -> destruct<$a, $b, $c>          # $a=1, $b=2, $c=3
     dict[x: 1, y: 2] -> destruct<x: $a, y: $b>     # $a=1, $b=2
     list[1, 2, 3] -> destruct<$first, _, $third>   # _ skips
+
+Mixing positional and keyed destructure elements is parse error RILL-P026.
+A typed element that fails its type halts `#TYPE_MISMATCH`: `dict[a: "x"] -> destruct<a: $q:number>`.
 
 Slice (`slice<start:stop:step>`):
 

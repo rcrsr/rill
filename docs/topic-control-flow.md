@@ -221,7 +221,7 @@ Use `do<limit: N>` as the construct option to set maximum iterations (default: 1
 # Result: 10
 ```
 
-Exceeding the limit throws `RuntimeError` with code `RUNTIME_LIMIT_EXCEEDED`.
+Exceeding the limit halts with `RILL-R010`.
 
 The `do<limit: N>` construct option applies only to that specific loop evaluation, not to the body closure.
 
@@ -482,12 +482,12 @@ $input
 
 ### Error Behavior
 
-Assert throws `RuntimeError` when:
+Assert halts when:
 
 | Condition | Error Code | Message |
 |-----------|-----------|---------|
-| Condition is `false` | `RUNTIME_ASSERTION_FAILED` | Custom message or "Assertion failed" |
-| Condition is not boolean | `RUNTIME_TYPE_ERROR` | "assert requires boolean condition, got {type}" |
+| Condition is `false` | `RILL-R015` | Custom message or "Assertion failed" |
+| Condition is not boolean | `RILL-R002` | "assert requires boolean condition, got {type}" |
 
 ```text
 # Non-boolean condition
@@ -622,14 +622,14 @@ true
 
 ### Error Behavior
 
-Error throws `RuntimeError` with code `RUNTIME_ERROR_RAISED`:
+Error halts with `RILL-R016`:
 
 | Pattern | Halts With | Message Source |
 |---------|-----------|----------------|
-| `error "msg"` | RUNTIME_ERROR_RAISED | String literal |
-| `$val -> error` | RUNTIME_ERROR_RAISED | Piped value (must be string) |
-| `error ""` | RUNTIME_ERROR_RAISED | Empty message |
-| `error 123` | Parse error | PARSE_INVALID_SYNTAX |
+| `error "msg"` | `RILL-R016` | String literal |
+| `$val -> error` | `RILL-R016` | Piped value (must be string) |
+| `error ""` | `RILL-R016` | Empty message |
+| `error 123` | Parse error | `RILL-P004` |
 
 All error responses include the source location from the error statement.
 

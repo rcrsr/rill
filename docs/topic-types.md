@@ -198,7 +198,7 @@ Use `??` for safe access with default:
 
 ```rill
 ["a"] => $list
-$list[0] ?? "default"  # "a"
+$list[5] ?? "default"  # "default"
 ```
 
 ```rill
@@ -293,6 +293,8 @@ Multi-key errors:
 [:] => $d
 $d.missing ?? ""           # "" (safe default)
 ```
+
+`??` also recovers an absent key of any valid key type at a bracket: `dict[a: 1][1] ?? 0` yields `0`. It recovers only the last step of a chain, so `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`.
 
 ### Type-Aware Dispatch
 

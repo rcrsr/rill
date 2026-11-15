@@ -7,7 +7,7 @@ Atoms, status sidecars, `guard`, `retry`, vacancy, and recovery patterns.
 | Failure | Caused by | Caught by |
 |---|---|---|
 | Runtime error (uncatchable) | `error`, `assert`, parameter type mismatch | nothing — propagates |
-| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index (`RILL-R009`), missing field (`RILL-R007`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
+| Access halt (catchable) | Accessing an **invalid value** (status sidecar populated, e.g. failed `:type` assertion, extension `ctx.invalidate`, divide-by-zero (`RILL-R002`), OOB index or missing field (`RILL-R009`), or failed conversion (`RILL-R038`)) | `guard { }`, `retry<limit: N> { }` |
 
 ## Assert and error
 
@@ -70,7 +70,7 @@ Built-in atom literals. The core error set is every built-in atom except #ok and
                                    #       non-finite or fractional-month .multiply result, .total_ms on calendar duration;
                                    #       vector dimension mismatch for .similarity/.dot/.distance
     #PROTOCOL  #DISPOSED
-    #TYPE_MISMATCH                 # failed `:type` assertion;
+    #TYPE_MISMATCH                 # failed `:type` assertion or typed capture or typed destructure element failing its type;
                                    # also: `sort` key extractor mixed types,
                                    #       `sort` `key_fn` not callable,
                                    #       tuple comparison length/type mismatch,
@@ -110,7 +110,7 @@ Filtered form (catches only matching codes):
 
 Every `on:` name must be in the core error set. A name outside it, and `on: list[]`, are parse errors (`RILL-P004`). A bare `guard { ... }` catches every catchable halt.
 
-`guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index (`RILL-R009`), missing field access (`RILL-R007`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
+`guard` does NOT catch halts from `error`, `assert`, or a parameter type mismatch. Those propagate. `guard` DOES catch divide-by-zero (`RILL-R002`), out-of-bounds index or missing field access (`RILL-R009`), failed conversion (`RILL-R038`), and a `filter` predicate that returns an invalid value (`RILL-R001`) — these behave like any other access halt.
 
 ## Retry
 
@@ -137,6 +137,8 @@ A value is **vacant** when empty (`""`, `0`, `false`, `list[]`, `dict[]`) or inv
     dict[a: 1] => $d
     $d.missing ?? "default"         # "default"
     $d.a ?? "default"               # 1
+
+`??` recovers only a miss on the last step of an access chain: an out-of-range index or an absent key of any valid key type. `dict[a: 1][1] ?? 0` yields `0`. A miss on an earlier step still halts `RILL-R009`: `$d.x.y ?? 0` with `.x` missing, `$d.b[1] ?? 0` with `.b` missing. `$d.x.?b ?? 0` with `.x` missing halts too. A wrong key type still halts `RILL-R002`.
 
     guard { "x":number } => $out
     $out ?? "fallback"              # "fallback" (invalid is vacant)

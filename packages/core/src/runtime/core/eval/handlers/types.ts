@@ -14,9 +14,10 @@
  * - buildCollectionType(name, args, resolveArg, evaluateDefault, location?) -> Promise<RillTypeValue>
  *
  * Error Handling:
- * - Type assertion failures throw RuntimeError(RUNTIME_TYPE_ERROR)
- * - Type constructor argument errors throw RuntimeError
- * - Closure sig literal errors throw RuntimeError
+ * - Type assertion failures halt with #TYPE_MISMATCH
+ * - Type constructor argument errors halt via the halt builders (#INVALID_INPUT,
+ *   #TYPE_MISMATCH, or RILL-R002 for reserved brand keys)
+ * - Closure sig literal errors halt via the halt builders
  *
  * @internal
  */

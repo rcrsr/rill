@@ -3,8 +3,8 @@ id: annotation-access
 title: Annotation access
 status: normative
 since: 0.24.0
-issues: [621, 624]
-grammar: []
+issues: [624]
+grammar: [annotation-access, annotation-existence]
 errors: [RILL-R003, RILL-R008]
 depends: [annotation]
 tests: [annotations.test.ts]
@@ -15,6 +15,11 @@ tests: [annotations.test.ts]
 `$f.^key` reads the annotation a function carries under `key`.
 
 ## Syntax
+
+```ebnf
+annotation-access = "." , "^" , identifier ;
+annotation-existence = ".?" , "^" , identifier ;
+```
 
 ```text
 $f.^key           read
@@ -38,10 +43,10 @@ r[annotation-access.non-function] Only functions carry readable annotations
 `$v.^key`, for any key other than `type` and `effective`, on a value that is not a function
 MUST halt with RILL-R003.
 
-r[annotation-access.presence] .?^key tests for an annotation {pending #621}
-`$f.?^key` MUST yield whether the function carries `key`, and MUST NOT halt.
+r[annotation-access.presence] .?^key tests for an annotation
+`$f.?^key` MUST yield whether the function carries `key` in its stored annotations, and MUST NOT halt. It does not consult the probes `type` and `effective`, so `$f.?^type` and `$f.?^effective` MUST yield false unless the function stores those keys, although `$f.^type` and `$f.^effective` read.
 
-r[annotation-access.presence-other] .?^key on a value that cannot carry annotations is false {pending #621}
+r[annotation-access.presence-other] .?^key on a value that cannot carry annotations is false
 `$v.?^key` MUST yield false when `$v` is not a function.
 
 ## Interactions
@@ -81,6 +86,18 @@ $f.^unit ?? "none"
 # Error: annotation not found: ^a
 5 => $v
 $v.^a
+```
+
+```rill
+5 => $v
+$v.?^a
+# Result: false
+```
+
+```rill
+|x|($x) => $f
+$f.?^type
+# Result: false
 ```
 
 ## Notes

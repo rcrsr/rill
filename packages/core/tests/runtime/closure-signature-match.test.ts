@@ -56,9 +56,8 @@ describe('closure signature structural match', () => {
       "unreachable"
     `;
     await expectHalt(() => run(script), {
-      code: 'RILL_R001',
-      hostErrorId: 'RILL-R001',
-      messagePattern: /Type mismatch/,
+      code: 'TYPE_MISMATCH',
+      messagePattern: /Type assertion failed/,
     });
   });
 

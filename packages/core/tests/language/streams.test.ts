@@ -74,6 +74,18 @@ function makeStreamFn(
 // SUCCESS CASES: AC-S1 through AC-S16
 // ============================================================
 
+describe('Streams: bracket access with a default', () => {
+  it('halts a number key on a stream even with a ?? default', async () => {
+    await expectHalt(
+      () =>
+        run('make_stream() => $s\n$s[1] ?? 0', {
+          functions: { make_stream: makeStreamFn([1, 2]) },
+        }),
+      { code: 'RILL_R009' }
+    );
+  });
+});
+
 describe('Streams: Success Cases', () => {
   // AC-S1: $s -> seq({ }) processes chunks sequentially, returns list
   describe('AC-S1: each on stream', () => {

@@ -11,7 +11,8 @@
  * - resolveExpressionValue(value) -> Promise<RillValue>
  *
  * Error Handling:
- * - Type mismatches in operators throw RuntimeError(RUNTIME_TYPE_ERROR)
+ * - Operator operand type mismatches halt with RILL-R002; non-finite arithmetic
+ *   results halt with #INVALID_INPUT
  * - Nested expression evaluation errors are propagated
  * - Closure auto-invoke errors are propagated
  *

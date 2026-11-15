@@ -434,10 +434,10 @@ Extract elements from lists or dicts into variables. Returns the original value 
 ```
 
 **Errors:**
-
 ```text
 [1, 2] -> destruct<$a, $b, $c>           # Error: pattern has 3 elements, list has 2
 [name: "x"] -> destruct<name: $n, age: $a>  # Error: key 'age' not found
+[1, 2] -> destruct<$a, k: $b>            # Error: RILL-P026, positional and keyed elements mixed
 ```
 
 ### Type-Annotated Destructure
@@ -715,6 +715,8 @@ $config.get_setting() ?? [:]     # default if method returns undefined
 ```
 
 Method calls evaluate fully before the default operator applies.
+
+`??` recovers only a miss on the last step of an access chain, for fields, annotations, and brackets. `$d.x.y ?? 0` with `.x` missing halts `RILL-R009`, as do `$d.b[1] ?? 0` with `.b` missing and `$d[$d.zz] ?? 0` with `.zz` missing. An existence check is the right-most step too, so `$d.x.?b ?? 0` with `.x` missing halts `RILL-R009`. A wrong key type still halts `RILL-R002`.
 
 ---
 

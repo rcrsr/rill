@@ -5,6 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 
 describe('Existence Check', () => {
   describe('Basic Existence Check (.?field)', () => {
@@ -222,6 +223,56 @@ describe('Existence Check', () => {
     it('is unaffected for a bare .? at end of statement', async () => {
       const result = await run(`list[dict[a: 1]][0].?`);
       expect(result).toEqual({ a: 1 });
+    });
+  });
+
+  describe('A missing step before .? halts', () => {
+    it.each([
+      ['dict[a: 1] => $d\n$d.x.?y', "Dict has no field 'x'"],
+      ['dict[a: 1] => $d\n$d["x"].?y', 'Undefined dict key: x'],
+      ['list[1] => $l\n$l[5].?y', 'List index out of bounds: 5'],
+      ['dict[a: 1] -> $.x.?y', "Dict has no field 'x'"],
+    ])('%s halts RILL-R009', async (source, message) => {
+      await expect(run(source)).rejects.toMatchObject({
+        errorId: 'RILL-R009',
+        message: expect.stringContaining(message),
+      });
+    });
+
+    it('tests the last step when every earlier step exists', async () => {
+      expect(await run('dict[a: dict[y: 1]] => $d\n$d.a.?y')).toBe(true);
+      expect(await run('dict[a: 5] => $d\n$d.a.?y')).toBe(false);
+      expect(await run('dict[a: 1] => $d\n$d.?x')).toBe(false);
+    });
+
+    it('is catchable under guard', async () => {
+      expect(
+        await run(
+          'dict[a: 1] => $d\nguard { $d.x.?y } => $r\n$r.!code == #RILL_R009'
+        )
+      ).toBe(true);
+    });
+
+    it('halts a ?? default across a missing earlier step', async () => {
+      await expectHalt(() => run('dict[a: 1] => $d\n$d.x.y ?? 0'), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it.each([
+      ['variable', 'dict[a: 1] => $d\n$d.x.?b ?? true', 'RILL_R009'],
+      ['bracket', 'dict[a: 1] => $d\n$d["x"].?b ?? true', 'RILL_R009'],
+      ['annotation', '|x| ($x) => $f\n$f.^zz.?b ?? true', 'RILL_R008'],
+      ['pipe variable', 'dict[a: 1] -> $.x.?b ?? true', 'RILL_R009'],
+    ])(
+      'halts a ?? default across a missing step before .? (%s)',
+      async (_n, src, code) => {
+        await expectHalt(() => run(src), { code });
+      }
+    );
+
+    it('recovers a ?? default on a missing right-most step', async () => {
+      expect(await run('dict[a: 1] => $d\n$d.y ?? 0')).toBe(0);
     });
   });
 });

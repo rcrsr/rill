@@ -3,11 +3,11 @@ id: capture
 title: Capture
 status: normative
 since: 0.24.0
-issues: [569]
+issues: []
 grammar: []
 errors: [RILL-R001, TYPE_MISMATCH]
 depends: [statement, assertion, type-lock]
-tests: [capture-types.test.ts, lexer-capture-arrow.test.ts]
+tests: [capture-types.test.ts, lexer-capture-arrow.test.ts, variables.test.ts, type-var-positions.test.ts, union-types.test.ts, error-code-type.test.ts, structural-type-defaults.test.ts]
 ---
 
 # Capture
@@ -37,7 +37,7 @@ r[capture.assert] A typed capture asserts
 `v => $x:T` MUST assert `v` against `T` before binding, as `assertion` states, and MUST NOT
 convert.
 
-r[capture.mismatch] A typed capture that fails its assertion halts as an assertion does {pending #569}
+r[capture.mismatch] A typed capture that fails its assertion halts as an assertion does
 `v => $x:T` where `v` does not have `T` MUST halt with `#TYPE_MISMATCH`, the halt `v -> :T`
 raises. A capture that breaks the variable's type lock keeps RILL-R001 (`type-lock`).
 
@@ -53,7 +53,7 @@ A code block before `=>` runs by its own rule (`code-block.head`), not because o
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
-| The value does not have the capture's type {pending #569} | `#TYPE_MISMATCH` | Yes |
+| The value does not have the capture's type | `#TYPE_MISMATCH` | Yes |
 | The value breaks the variable's type lock | RILL-R001 | Yes |
 
 ## Examples
@@ -72,10 +72,7 @@ $x
 ```
 
 ```rill
-# Error: Type mismatch
-"5" => $x:number
+guard { "5" => $x:number } => $r
+$r.!code == #TYPE_MISMATCH
+# Result: true
 ```
-
-## Notes
-
-On 0.23.0 a typed capture that fails its assertion halts RILL-R001 "cannot assign".

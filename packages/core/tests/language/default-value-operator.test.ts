@@ -12,6 +12,7 @@ import {
   toCallable,
 } from '@rcrsr/rill';
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
 import { isOrdered } from '../helpers/ordered.js';
 
 describe('Default Value Operator (??)', () => {
@@ -618,6 +619,124 @@ describe('Default Value Operator (??)', () => {
         $data.b ?? ($x + 1)
       `);
       expect(result).toBe(2);
+    });
+  });
+
+  describe('Bracket Access Recovery', () => {
+    const DICT = 'dict[a: 1] => $d\n';
+    const LIST = 'list[1, 2] => $l\n';
+
+    it('recovers an absent string key on a dict', async () => {
+      expect(await run(`${DICT}$d["b"] ?? 0`)).toBe(0);
+    });
+
+    it('returns the present dict value', async () => {
+      expect(await run(`${DICT}$d["a"] ?? 0`)).toBe(1);
+    });
+
+    it('halts on an absent dict key without a default', async () => {
+      await expectHalt(() => run(`${DICT}$d["b"]`), { code: 'RILL_R009' });
+    });
+
+    it('recovers an absent number key on a dict', async () => {
+      expect(await run(`${DICT}$d[1] ?? 0`)).toBe(0);
+    });
+
+    it('recovers an absent bool key on a dict', async () => {
+      expect(await run(`${DICT}$d[true] ?? 0`)).toBe(0);
+    });
+
+    it('returns a present number key on a dict', async () => {
+      expect(await run('dict[1: "x"] => $d\n$d[1] ?? 0')).toBe('x');
+    });
+
+    it('halts when the selector expression fails', async () => {
+      await expectHalt(() => run(`${DICT}$d[$nope] ?? 0`), {
+        code: 'RILL_R005',
+      });
+    });
+
+    it('halts when the selector reads a missing field', async () => {
+      await expectHalt(() => run(`${DICT}$d[$d.zz] ?? 0`), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts when an earlier annotation step is missing', async () => {
+      await expectHalt(() => run('|x| ($x) => $f\n$f.^doc.x ?? 0'), {
+        code: 'RILL_R008',
+      });
+    });
+
+    it('halts when an earlier pipe-variable step is missing', async () => {
+      await expectHalt(() => run('dict[a: 1] -> $.b.c ?? 0'), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('halts when an earlier field step is missing', async () => {
+      await expectHalt(() => run(`${DICT}$d.b[1] ?? 0`), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('recovers through a pipe-variable bracket', async () => {
+      expect(await run(`${DICT}$d -> $["b"] ?? 0`)).toBe(0);
+    });
+
+    it('recovers through a parenthesized receiver', async () => {
+      expect(await run(`${DICT}($d)["b"] ?? 0`)).toBe(0);
+    });
+
+    it('recovers an out-of-range list index', async () => {
+      expect(await run(`${LIST}$l[5] ?? 0`)).toBe(0);
+    });
+
+    it('recovers a negative index beyond the start', async () => {
+      expect(await run(`${LIST}$l[-3] ?? 0`)).toBe(0);
+    });
+
+    it('returns the present list element', async () => {
+      expect(await run(`${LIST}$l[1] ?? 0`)).toBe(2);
+    });
+
+    it('halts on a string index into a list even with a default', async () => {
+      await expectHalt(() => run(`${LIST}$l["x"] ?? 0`), {
+        code: 'RILL_R002',
+      });
+    });
+
+    it('halts on a non-integer list index even with a default', async () => {
+      await expectHalt(() => run(`${LIST}$l[1.5] ?? 0`), {
+        code: 'INVALID_INPUT',
+      });
+    });
+
+    it('recovers an out-of-range tuple index', async () => {
+      expect(await run('tuple[1, 2] => $t\n$t[9] ?? 0')).toBe(0);
+    });
+
+    it('recovers an absent ordered key', async () => {
+      expect(await run('ordered[a: 1] => $o\n$o["b"] ?? 0')).toBe(0);
+    });
+
+    it('halts a miss on an earlier bracket step of a chain', async () => {
+      await expectHalt(
+        () => run('dict[a: dict[b: 1]] => $d\n$d["x"]["b"] ?? 0'),
+        { code: 'RILL_R009' }
+      );
+    });
+
+    it('recovers a miss on the right-most bracket step of a chain', async () => {
+      expect(await run('dict[a: dict[b: 1]] => $d\n$d["a"]["x"] ?? 0')).toBe(0);
+    });
+
+    it('applies the default to an empty present value', async () => {
+      expect(await run('dict[a: ""] => $d\n$d["a"] ?? "z"')).toBe('z');
+    });
+
+    it('recovers a postfix index on a literal receiver', async () => {
+      expect(await run('list[1, 2][5] ?? 0')).toBe(0);
     });
   });
 });

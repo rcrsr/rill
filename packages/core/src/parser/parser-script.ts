@@ -510,11 +510,15 @@ Parser.prototype.parseAnnotatedStatement = function (
   // Parse the inner statement (which could also be annotated)
   const statement = this.parseStatement();
 
-  // If inner is already annotated, return it unchanged.
-  // The immediately-preceding annotation attaches to the closure;
-  // the outer annotation is discarded.
+  // Stacked annotation blocks merge: outer keys first, inner keys after,
+  // so a repeated key resolves to the innermost value.
   if (statement.type === 'AnnotatedStatement') {
-    return statement;
+    return {
+      type: 'AnnotatedStatement',
+      annotations: annotations.concat(statement.annotations),
+      statement: statement.statement,
+      span: makeSpan(start, statement.span.end),
+    };
   }
 
   return {

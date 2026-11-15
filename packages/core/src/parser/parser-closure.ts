@@ -457,11 +457,13 @@ Parser.prototype.parseClosureParam = function (this: Parser): ClosureParamNode {
   let annotations: AnnotationArg[] | undefined = undefined;
 
   // Parse parameter annotations before the name: ^(annots) name : type = default
-  if (check(this.state, TOKEN_TYPES.CARET)) {
+  // Multiple blocks merge in order.
+  while (check(this.state, TOKEN_TYPES.CARET)) {
     advance(this.state); // consume ^
     expect(this.state, TOKEN_TYPES.LPAREN, 'Expected ( after ^');
-    annotations = this.parseAnnotationArgs();
+    const block = this.parseAnnotationArgs();
     expect(this.state, TOKEN_TYPES.RPAREN, 'Expected )', ERROR_IDS.RILL_P005);
+    annotations = annotations ? annotations.concat(block) : block;
   }
 
   const nameToken = expectVariableName(this.state, 'Expected parameter name');

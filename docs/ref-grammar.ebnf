@@ -153,8 +153,8 @@ multiplicative = unary , { ( "*" | "/" | "%" ) , unary } ;
 unary         = [ "-" | "!" ] , postfix-expr ;
               (* Semantic: "!" requires boolean operand. No truthiness coercion.
                  !true -> false, !false -> true
-                 !"string" -> RUNTIME_TYPE_ERROR (Negation requires boolean, got string)
-                 !0 -> RUNTIME_TYPE_ERROR (Negation requires boolean, got number) *)
+                 !"string" -> RILL-R002 (Negation requires boolean, got string)
+                 !0 -> RILL-R002 (Negation requires boolean, got number) *)
 
 comparison-op = "==" | "!=" | "<" | ">" | "<=" | ">=" ;
 
@@ -166,7 +166,7 @@ chain-terminator = "break" | "return" | "yield" ;
 assert-statement = "assert" , expression , [ string ] ;
               (* Assert statement: validates boolean expression, halts on false.
                  Optional string provides custom error message.
-                 Constraint: expression must evaluate to boolean, else RUNTIME_TYPE_ERROR. *)
+                 Constraint: expression must evaluate to boolean, else RILL-R002. *)
 
 error-statement = "error" , string ;
 
@@ -177,6 +177,7 @@ postfix-expr  = primary
                           | bracket-access
                           | status-probe
                           | existence-check
+                          | annotation-existence
                           | postfix-type-op } ;
               (* invoke: trailing "(" args ")" applied to a primary that is callable
                  (e.g. host-name(...) is parsed via host-call; bare invocation chains
@@ -261,7 +262,7 @@ atom-literal  = "#" , identifier ;
      -> { pass }                   -- block returns $
 
    Semantic: pass requires pipe context. Using pass without $ bound
-   throws RUNTIME_UNDEFINED_VARIABLE: Variable '$' not defined *)
+   throws RILL-R005: Variable '$' not defined *)
 pass          = "pass" ;
 
 (* Pass with options: non-halting side-effect block.
@@ -341,6 +342,12 @@ annotated-expr = annotation , primary ;
    Example: $fn.^type           -- read the declared type
    Example: $fn.^description    -- read "description" annotation *)
 annotation-access = "." , "^" , identifier ;
+
+(* Annotation existence: $fn.?^key returns bool.
+   Tests stored annotations only: $fn.?^type and $fn.?^effective are false
+   unless the closure stores those keys, although .^type and .^effective read.
+   On a value that is not a closure the result is false; it never halts. *)
+annotation-existence = ".?" , "^" , identifier ;
 
 use-expr      = "use" "<" use-id ">" [ ":" , ( type-ref | use-closure-annotation ) ] ;
               (* Semantic: resolves a module by scheme and path.
@@ -468,7 +475,7 @@ list-element  = "..." , expression           (* spread: inline list elements *)
               (* List spread syntax: [1, ...$list, 2] inlines $list elements.
                  The spread expression must evaluate to a list at runtime.
                  Example: [1, 2] => $a; [...$a, 3] yields [1, 2, 3]
-                 Error: spreading non-list throws RUNTIME_TYPE_ERROR *)
+                 Error: spreading non-list throws RILL-R002 *)
 
 (* Dict literal: bare bracket form or keyword-prefixed form.
    Both [a: 1] and dict[a: 1] are valid and produce the same result.
@@ -581,6 +588,7 @@ default-value = "??" , body ;
    $data.?field&string means "does field exist and is it a string?" -> bool
    Variable existence: $data.?$keyName checks existence using variable value.
    Computed existence: $data.?($expr) checks existence using expression result.
+   $fn.?^key tests a stored annotation (see annotation-existence).
    ".?field" is valid as a postfix operator and as a pipe target ($x -> .?field),
    but not at statement head. *)
 existence-check = ".?" , ( identifier
@@ -797,11 +805,13 @@ pipe-error    = "error" , [ string ] ;
    - enumerate([10, 20])   -> [[index: 0, value: 10], [index: 1, value: 20]]
    - enumerate([a: 1])     -> [[index: 0, key: "a", value: 1]] *)
 
-destructure       = "destruct" , "<" , [ destruct-pattern , { "," , destruct-pattern } ] , ">" ;
-destruct-pattern     = "$" , identifier , [ ":" , capture-type ]  (* variable *)
-                  | identifier , ":" , "$" , identifier , [ ":" , capture-type ]  (* key: $var *)
+destructure       = "destruct" , "<" , [ positional-list | keyed-list ] , ">" ;
+positional-list   = positional-pattern , { "," , positional-pattern } ;
+positional-pattern = "$" , identifier , [ ":" , capture-type ]  (* variable *)
                   | "_"                                         (* skip placeholder *)
                   | destructure ;                               (* nested pattern *)
+keyed-list        = keyed-pattern , { "," , keyed-pattern } ;
+keyed-pattern     = identifier , ":" , "$" , identifier , [ ":" , capture-type ] ;  (* key: $var *)
 
 slice             = "slice" , "<" , [ slice-bound ] , ":" , [ slice-bound ] , [ ":" , [ slice-bound ] ] , ">" ;
 slice-bound       = number | variable | grouped-expr ;

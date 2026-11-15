@@ -162,9 +162,8 @@ describe('union(...) types', () => {
 
     it('halts R001 for a non-member literal', async () => {
       await expectHalt(() => run('"x" => $unit:union("c", "f")'), {
-        code: 'RILL_R001',
-        hostErrorId: 'RILL-R001',
-        messagePattern: 'Type mismatch',
+        code: 'TYPE_MISMATCH',
+        messagePattern: 'Type assertion failed',
       });
     });
 
