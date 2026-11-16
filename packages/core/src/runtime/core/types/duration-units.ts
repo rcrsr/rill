@@ -26,6 +26,8 @@ export interface DurationUnit {
   readonly field: 'months' | 'ms';
   readonly factor: number;
   readonly integerOnly: boolean;
+  /** Text form may carry a decimal count (digits, optional .digits). */
+  readonly decimalText: boolean;
 }
 
 export type DurationComponents = Readonly<Record<DurationUnitName, number>>;
@@ -42,6 +44,7 @@ export const DURATION_UNITS: readonly DurationUnit[] = [
     field: 'months',
     factor: 12,
     integerOnly: true,
+    decimalText: false,
   },
   {
     name: 'months',
@@ -49,6 +52,7 @@ export const DURATION_UNITS: readonly DurationUnit[] = [
     field: 'months',
     factor: 1,
     integerOnly: true,
+    decimalText: false,
   },
   {
     name: 'days',
@@ -56,6 +60,7 @@ export const DURATION_UNITS: readonly DurationUnit[] = [
     field: 'ms',
     factor: 86_400_000,
     integerOnly: false,
+    decimalText: false,
   },
   {
     name: 'hours',
@@ -63,6 +68,7 @@ export const DURATION_UNITS: readonly DurationUnit[] = [
     field: 'ms',
     factor: 3_600_000,
     integerOnly: false,
+    decimalText: false,
   },
   {
     name: 'minutes',
@@ -70,6 +76,7 @@ export const DURATION_UNITS: readonly DurationUnit[] = [
     field: 'ms',
     factor: 60_000,
     integerOnly: false,
+    decimalText: false,
   },
   {
     name: 'seconds',
@@ -77,8 +84,16 @@ export const DURATION_UNITS: readonly DurationUnit[] = [
     field: 'ms',
     factor: 1_000,
     integerOnly: false,
+    decimalText: false,
   },
-  { name: 'ms', suffix: 'ms', field: 'ms', factor: 1, integerOnly: false },
+  {
+    name: 'ms',
+    suffix: 'ms',
+    field: 'ms',
+    factor: 1,
+    integerOnly: false,
+    decimalText: true,
+  },
 ];
 
 /** Milliseconds per hour, read from the table. */
@@ -121,6 +136,25 @@ export function decomposeDuration(d: {
   return out;
 }
 
+/**
+ * Count text that parses back exactly: shortest round-trip digits, with any
+ * exponent form expanded to plain decimal (the grammar has no exponent).
+ */
+function formatCount(count: number): string {
+  const text = String(count);
+  const match = /^(\d+)(?:\.(\d+))?e([+-]\d+)$/.exec(text);
+  if (match === null) return text;
+  const intPart = match[1] ?? '';
+  const fracPart = match[2] ?? '';
+  const exp = Number(match[3]);
+  const digits = intPart + fracPart;
+  const pointAt = intPart.length + exp;
+  if (pointAt <= 0) return `0.${'0'.repeat(-pointAt)}${digits}`;
+  if (pointAt >= digits.length)
+    return digits + '0'.repeat(pointAt - digits.length);
+  return `${digits.slice(0, pointAt)}.${digits.slice(pointAt)}`;
+}
+
 /** Compact text: nonzero components concatenated, zero duration is "0ms". */
 export function formatDurationText(d: {
   readonly months: number;
@@ -130,7 +164,7 @@ export function formatDurationText(d: {
   let text = '';
   for (const unit of DURATION_UNITS) {
     const count = parts[unit.name];
-    if (count > 0) text += `${count}${unit.suffix}`;
+    if (count > 0) text += `${formatCount(count)}${unit.suffix}`;
   }
   return text === '' ? '0ms' : text;
 }
@@ -148,7 +182,8 @@ function isDigit(code: number): boolean {
 }
 
 /**
- * Parse duration text: one or more digit+suffix runs, suffixes in table order,
+ * Parse duration text: one or more digit+suffix runs (the ms count may carry
+ * a decimal part), suffixes in table order,
  * each at most once, longest suffix first. Returns undefined when malformed.
  * Pure: never halts.
  */
@@ -163,11 +198,20 @@ export function parseDurationText(
     const start = pos;
     while (pos < text.length && isDigit(text.charCodeAt(pos))) pos++;
     if (pos === start) return undefined;
+    let hasFraction = false;
+    if (text.charCodeAt(pos) === 46) {
+      const fractionStart = pos + 1;
+      pos = fractionStart;
+      while (pos < text.length && isDigit(text.charCodeAt(pos))) pos++;
+      if (pos === fractionStart) return undefined;
+      hasFraction = true;
+    }
     const count = Number(text.slice(start, pos));
     if (!(count <= Number.MAX_SAFE_INTEGER)) return undefined;
     const rest = text.slice(pos);
     const unit = SUFFIXES_LONGEST_FIRST.find((u) => rest.startsWith(u.suffix));
     if (unit === undefined) return undefined;
+    if (hasFraction && !unit.decimalText) return undefined;
     const index = DURATION_UNITS.indexOf(unit);
     if (index < nextIndex) return undefined;
     nextIndex = index + 1;

@@ -14,6 +14,7 @@
 
 import type { ApplicationCallable, CallableFn, RillParam } from './callable.js';
 import { anyTypeValue } from './types/any-type.js';
+import { markInternalFn } from './activity.js';
 
 const EMPTY_PARAMS: readonly RillParam[] = Object.freeze([]);
 
@@ -47,4 +48,16 @@ export function callable(
     fn,
     isProperty,
   };
+}
+
+/**
+ * Create an application callable for runtime machinery (iterator and stream
+ * steps). Its return never counts as host activity for `timeout<idle:>`.
+ */
+export function internalCallable(
+  fn: CallableFn,
+  isProperty = false
+): ApplicationCallable {
+  markInternalFn(fn);
+  return callable(fn, isProperty);
 }

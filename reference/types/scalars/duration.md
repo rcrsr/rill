@@ -47,8 +47,10 @@ r[duration.no-positional] A positional number is not a component
 are passed by name.
 
 r[duration.from-string] A string argument is parsed in the printed form
-`duration(s)` with a string `s` MUST parse it as one or more non-negative integers, each followed
-by `y`, `mo`, `d`, `h`, `m`, `s`, or `ms`, in that order and each at most once.
+`duration(s)` with a string `s` MUST parse it as one or more non-negative counts, each followed
+by `y`, `mo`, `d`, `h`, `m`, `s`, or `ms`, in that order and each at most once. Every count MUST
+be an integer except the `ms` count, which MAY be a decimal of digits, a point, and digits
+(`0.5ms`, `1s500.5ms`); a leading or trailing point, an exponent, and a sign are malformed.
 `duration("1m30s")` MUST equal `duration(...dict[minutes: 1, seconds: 30])`.
 
 r[duration.string-malformed] A string that does not parse halts

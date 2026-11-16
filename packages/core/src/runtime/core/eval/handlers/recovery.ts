@@ -48,6 +48,7 @@ import type { Carried } from '../../types/declared.js';
 import { STATUS_CODE_STRUCTURE } from '../../types/error-code.js';
 import { RuntimeHaltSignal, formatAccessSite } from './access.js';
 import { isDuration } from '../../types/guards.js';
+import { requireFixedDuration } from '../../types/duration-limit.js';
 import { inferType } from '../../types/registrations.js';
 import {
   getHostShape,
@@ -370,7 +371,7 @@ export async function evaluateTimeoutBlock(
         `timeout<${limit}:> duration must be a duration value, got ${inferType(value)}`
       );
     }
-    limits.set(limit, value.ms);
+    limits.set(limit, requireFixedDuration(value, `timeout<${limit}:>`, site));
   }
 
   // Build a fresh controller for this timeout scope; chain it to the
@@ -390,6 +391,7 @@ export async function evaluateTimeoutBlock(
   const sched = s.ctx.scheduler ?? defaultScheduler;
   let timerHandle: ReturnType<typeof setTimeout> | undefined;
   let idleTicker: { reset(): void; cancel(): void } | undefined;
+  const savedListeners = s.ctx.activityListeners;
   let fired: TimeoutLimit | undefined;
 
   // Records the first limit to fire and aborts the body.
@@ -418,13 +420,20 @@ export async function evaluateTimeoutBlock(
     }
     const idleMs = limits.get('idle');
     if (idleMs !== undefined) {
-      // Idle bound: the timer fires if the body does not complete within
-      // idleMs; the stream path resets it on each chunk.
+      // Idle bound: the timer fires after idleMs with no activity (a stream
+      // chunk arriving or a host call returning).
       idleTicker = createIdleTicker({
         ctx: s.ctx,
         idleMs,
         onIdle: () => onExpire('idle'),
       });
+      // Activity anywhere in the body, nested timeouts included, restarts
+      // the idle window.
+      const ticker = idleTicker;
+      // The body sees its own listener set: enclosing timeouts' listeners
+      // plus this one. A sibling branch keeps the set it already inherited.
+      (s.ctx as { activityListeners: Set<() => void> }).activityListeners =
+        new Set([...savedListeners, (): void => ticker.reset()]);
     }
 
     const result = await evaluateBody(s, node.body);
@@ -469,6 +478,8 @@ export async function evaluateTimeoutBlock(
     // Always restore the original signal and clean up timers.
     (s.ctx as { signal: AbortSignal | undefined }).signal = savedSignal;
     sched.clearTimeout(timerHandle);
+    (s.ctx as { activityListeners: Set<() => void> }).activityListeners =
+      savedListeners;
     idleTicker?.cancel();
   }
 }
@@ -498,7 +509,7 @@ function isAbortHalt(e: unknown): boolean {
  *
  * Usage pattern:
  * 1. Call `createIdleTicker` to arm the initial idle timer.
- * 2. Call `ticker.reset()` whenever an activity chunk arrives to restart
+ * 2. Call `ticker.reset()` on activity (stream chunk or host return) to restart
  *    the idle window.
  * 3. Call `ticker.cancel()` when the body completes successfully to
  *    prevent the callback from firing after the fact.

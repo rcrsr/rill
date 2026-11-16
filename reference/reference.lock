@@ -143,6 +143,8 @@ construct-options.order 1d6b6fe441b6
 construct-options.parens 8ddaad32696a
 construct-options.space 41e48387924e
 construct-options.spread 363569976dca
+construct-options.timeout-fixed-duration 7407da20a63c
+construct-options.timeout-idle-activity ff699ac8a2cf
 construct-options.timeout-limits 48fae22e61a1
 construct-options.values 4e5fac4f2791
 conversion.any d639008176d6
@@ -260,7 +262,7 @@ duration cfa83b8b16bf equality.no-overlap@39f213f599cf
 duration.construct c247666dc907
 duration.equality b3b087dac628
 duration.fractional-months 62a7bc1432aa
-duration.from-string a33c5085037a
+duration.from-string 0193e8280640
 duration.membership ef072ee6acc9
 duration.negative fb6422129850
 duration.no-arithmetic 9931212f7c77

@@ -501,6 +501,23 @@ describe('Rill Language: Duration Type', () => {
       }
     );
 
+    fromString(
+      'accepts a decimal ms count equal to the spread form',
+      async () => {
+        const result = await run(
+          'duration("0.5ms") == duration(...dict[ms: 0.5])'
+        );
+        expect(result).toBe(true);
+      }
+    );
+
+    roundTrip('round-trips fractional ms through interpolation', async () => {
+      const result = await run(
+        'duration(...dict[ms: 0.5]) => $d\nduration("{$d}") == $d'
+      );
+      expect(result).toBe(true);
+    });
+
     it('halts INVALID_INPUT when a string and components are both given', async () => {
       await expectHalt(() => run('duration("1h", 0, 0, 0, 5)'), {
         code: 'INVALID_INPUT',

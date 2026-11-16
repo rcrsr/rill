@@ -245,6 +245,7 @@ When the idle timer expires and the buffer is non-empty, the partial batch flush
 | Empty input | Returns `[]` (no chunks produced) |
 | `n` is 0 or negative | Halts with `#INVALID_INPUT` |
 | `idle_flush` is not a duration | Catchable halt: `TYPE_MISMATCH` |
+| `idle_flush`, or the duration of `debounce`, `throttle`, or `sample`, has a months part | Catchable halt: `INVALID_INPUT`; see [timeout](topic-control-flow.md#timeout-blocks) |
 | Output exceeds 10,000 chunks | Catchable halt: `RILL_R010` |
 
 ```rill

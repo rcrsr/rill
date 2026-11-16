@@ -165,7 +165,7 @@ export function isApplicationCallable(
   return isCallable(value) && value.kind === 'application';
 }
 
-export { callable } from './callable-factory.js';
+export { callable, internalCallable } from './callable-factory.js';
 
 /**
  * Convert a RillFunction to an ApplicationCallable.

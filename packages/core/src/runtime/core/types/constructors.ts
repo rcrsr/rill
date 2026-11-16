@@ -30,7 +30,8 @@ import {
   isVector,
 } from './guards.js';
 import { copyTypedKeys, setDictField } from './dict-keys.js';
-import { callable } from '../callable-factory.js';
+import { internalCallable } from '../callable-factory.js';
+import { notifyActivity } from '../activity.js';
 import { RuntimeError } from '../../../types.js';
 import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
 import {
@@ -177,7 +178,7 @@ export function createRillStream(options: {
       const doneStep: RillStream = {
         __rill_stream: true,
         done: true,
-        next: callable(() => {
+        next: internalCallable(() => {
           throwAlreadyConsumed();
         }),
       };
@@ -188,7 +189,7 @@ export function createRillStream(options: {
       __rill_stream: true,
       done: false,
       value: iterResult.value,
-      next: callable(async () => {
+      next: internalCallable(async (_args, ctx) => {
         if (stale) {
           throwAlreadyConsumed();
         }
@@ -197,6 +198,7 @@ export function createRillStream(options: {
         }
         stale = true;
         const next = await iterator.next();
+        notifyActivity(ctx.activityListeners);
         return makeStep(next);
       }),
     };
@@ -209,12 +211,13 @@ export function createRillStream(options: {
   const stream: RillStream = {
     __rill_stream: true,
     done: false,
-    next: callable(async () => {
+    next: internalCallable(async (_args, ctx) => {
       if (initialized) {
         throwAlreadyConsumed();
       }
       initialized = true;
       const first = await iterator.next();
+      notifyActivity(ctx.activityListeners);
       return makeStep(first);
     }),
   };

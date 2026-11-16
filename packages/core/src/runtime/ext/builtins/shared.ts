@@ -8,7 +8,7 @@ import {
 import type { RuntimeContext } from '../../core/types/runtime.js';
 import type { SourceLocation } from '../../../types.js';
 import type { EvalState } from '../../core/eval/state.js';
-import { callable, isCallable } from '../../core/callable.js';
+import { internalCallable, isCallable } from '../../core/callable.js';
 import { isDict, isStream } from '../../core/types/guards.js';
 import { typedKeyEntries } from '../../core/types/dict-keys.js';
 import {
@@ -261,12 +261,15 @@ export type RillMethod = (
 export function makeListIterator(list: RillValue[], index: number): RillValue {
   const value = list[index];
   if (value === undefined) {
-    return { done: true, next: callable(() => makeListIterator(list, index)) };
+    return {
+      done: true,
+      next: internalCallable(() => makeListIterator(list, index)),
+    };
   }
   return {
     value,
     done: false,
-    next: callable(() => makeListIterator(list, index + 1)),
+    next: internalCallable(() => makeListIterator(list, index + 1)),
   };
 }
 
@@ -293,13 +296,13 @@ function makeCodePointIterator(codePoints: string[], index: number): RillValue {
   if (value === undefined) {
     return {
       done: true,
-      next: callable(() => makeCodePointIterator(codePoints, index)),
+      next: internalCallable(() => makeCodePointIterator(codePoints, index)),
     };
   }
   return {
     value,
     done: false,
-    next: callable(() => makeCodePointIterator(codePoints, index + 1)),
+    next: internalCallable(() => makeCodePointIterator(codePoints, index + 1)),
   };
 }
 
@@ -324,13 +327,13 @@ export function makeDictIterator(
   if (entry === undefined) {
     return {
       done: true,
-      next: callable(() => makeDictIterator(dict, index)),
+      next: internalCallable(() => makeDictIterator(dict, index)),
     };
   }
   return {
     value: { key: entry.key, value: entry.value },
     done: false,
-    next: callable(() => makeDictIterator(dict, index + 1)),
+    next: internalCallable(() => makeDictIterator(dict, index + 1)),
   };
 }
 
@@ -361,12 +364,12 @@ export function makeGenericIterator(
   const step = (current: number): RillValue => {
     const result = fn(current);
     if (result.done) {
-      return { done: true, next: callable(() => step(current)) };
+      return { done: true, next: internalCallable(() => step(current)) };
     }
     return {
       value: result.value,
       done: false,
-      next: callable(() => step(result.next)),
+      next: internalCallable(() => step(result.next)),
     };
   };
   return step(seed);

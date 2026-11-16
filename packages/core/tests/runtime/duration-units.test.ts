@@ -62,7 +62,42 @@ describe('parseDurationText', () => {
   });
 });
 
+describe('parseDurationText decimal ms', () => {
+  it('accepts a decimal ms count alone or after other units', () => {
+    expect(parseDurationText('0.5ms')).toEqual({ months: 0, ms: 0.5 });
+    expect(parseDurationText('1s500.5ms')).toEqual({ months: 0, ms: 1500.5 });
+  });
+
+  it('rejects a decimal on every other unit', () => {
+    for (const text of ['1.5y', '1.5mo', '1.5d', '1.5h', '1.5m', '1.5s']) {
+      expect(parseDurationText(text)).toBeUndefined();
+    }
+  });
+
+  it('rejects malformed decimal ms text', () => {
+    for (const text of [
+      '1.ms',
+      '.5ms',
+      '1e3ms',
+      '1.5e3ms',
+      '+1.5ms',
+      '1..5ms',
+    ]) {
+      expect(parseDurationText(text)).toBeUndefined();
+    }
+  });
+});
+
 describe('formatDurationText', () => {
+  it('prints fractional ms and never emits exponent form', () => {
+    expect(formatDurationText({ months: 0, ms: 0.5 })).toBe('0.5ms');
+    expect(formatDurationText({ months: 0, ms: 1500.5 })).toBe('1s500.5ms');
+    expect(formatDurationText({ months: 0, ms: 1e-7 })).toBe('0.0000001ms');
+    expect(formatDurationText({ months: 0, ms: 1.5e-9 })).toBe(
+      '0.0000000015ms'
+    );
+  });
+
   it('prints the zero duration as 0ms', () => {
     expect(formatDurationText({ months: 0, ms: 0 })).toBe('0ms');
   });
@@ -123,5 +158,24 @@ describe('duration text round trip', () => {
         ms: 0,
       }
     );
+  });
+
+  it('parses what it formats for fractional and noisy ms', () => {
+    const values = [
+      0.5,
+      0.1 + 0.2,
+      1e-7,
+      1.5e-9,
+      5e-324,
+      1000.1,
+      86400000.25,
+      3 * 1.1,
+      1 * 1.5,
+    ];
+    for (const ms of values) {
+      const text = formatDurationText({ months: 0, ms });
+      expect(text).not.toMatch(/e/);
+      expect(parseDurationText(text)).toEqual({ months: 0, ms });
+    }
   });
 });

@@ -26,7 +26,14 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { parse, type CallableFn, type RuntimeContext } from '@rcrsr/rill';
+import {
+  anyTypeValue,
+  parse,
+  type CallableFn,
+  type RillFunction,
+  type RuntimeContext,
+  type TimeoutScheduler,
+} from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import { run } from '../helpers/runtime.js';
@@ -186,11 +193,86 @@ describe('timeout<total: d, idle: d> arms both limits', () => {
 // AC-15 / EC-2: #TIMEOUT_IDLE fires when body is inactive too long
 // ---------------------------------------------------------------------------
 
+describe('timeout<idle:> restarts on activity', () => {
+  const { it: ruleIt } = rule('construct-options.timeout-idle-activity');
+
+  /** Scheduler that records each requested delay; it never fires. */
+  function makeRecordingScheduler(): {
+    scheduler: TimeoutScheduler;
+    requested: number[];
+  } {
+    const requested: number[] = [];
+    return {
+      requested,
+      scheduler: {
+        setTimeout: (_fn, ms) => {
+          requested.push(ms);
+          return 0 as unknown as ReturnType<typeof setTimeout>;
+        },
+        clearTimeout: () => {},
+      },
+    };
+  }
+
+  const returnsAtOnce: RillFunction = {
+    params: [],
+    returnType: anyTypeValue,
+    fn: () => 'ok',
+  };
+
+  ruleIt('re-arms the idle timer each time a host call returns', async () => {
+    const recording = makeRecordingScheduler();
+    const result = await run(
+      'timeout<idle: duration("50ms")> { quick() -> quick() -> quick() }',
+      { functions: { quick: returnsAtOnce }, scheduler: recording.scheduler }
+    );
+    expect(result).toBe('ok');
+    expect(recording.requested).toEqual([50, 50, 50, 50]);
+  });
+
+  ruleIt('does not re-arm the idle timer for pure computation', async () => {
+    const recording = makeRecordingScheduler();
+    const result = await run(
+      'timeout<idle: duration("50ms")> { (1 + 2) * 3 }',
+      { scheduler: recording.scheduler }
+    );
+    expect(result).toBe(9);
+    expect(recording.requested).toEqual([50]);
+  });
+
+  ruleIt('re-arms every enclosing idle timer from a nested body', async () => {
+    const recording = makeRecordingScheduler();
+    await run(
+      'timeout<idle: duration("50ms")> { timeout<idle: duration("70ms")> { quick() } }',
+      { functions: { quick: returnsAtOnce }, scheduler: recording.scheduler }
+    );
+    expect(recording.requested).toEqual([50, 70, 50, 70]);
+  });
+});
+
+describe('timeout limits need a fixed-length duration', () => {
+  const { it: ruleIt } = rule('construct-options.timeout-fixed-duration');
+
+  ruleIt('halts #INVALID_INPUT for a total with a months part', async () => {
+    await expectHalt(() => run('timeout<total: duration("1mo")> { 1 }'), {
+      code: 'INVALID_INPUT',
+      messagePattern: /total/,
+    });
+  });
+
+  ruleIt('halts #INVALID_INPUT for an idle with a years part', async () => {
+    await expectHalt(() => run('timeout<idle: duration("1y")> { 1 }'), {
+      code: 'INVALID_INPUT',
+      messagePattern: /idle/,
+    });
+  });
+});
+
 describe('AC-15 / EC-2: timeout<idle:> fires #TIMEOUT_IDLE', () => {
   it('produces #TIMEOUT_IDLE when body does not complete within idle window', async () => {
-    // For idle mode, the idle ticker fires if the body does not complete within
-    // idleMs. Without pass<> stream chunk resets, idle behaves like a total
-    // timeout. A signal-aware host function aborts when the idle timer fires.
+    // A host call that never returns is a body with no activity, so the idle
+    // timer is never restarted and fires. A signal-aware host function
+    // aborts when the idle timer fires.
     const result = await run(
       'guard { timeout<idle: duration("50ms")> { idle_slow() } }',
       { functions: { idle_slow: makeSlowFn() } }

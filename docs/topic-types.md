@@ -901,7 +901,7 @@ Two families of units construct duration values:
 | Fixed units | `duration(...dict[days: 1, hours: 2])` | Collapses to ms; exact arithmetic |
 | Calendar units | `duration(...dict[months: 3, years: 1])` | Collapses years to months; variable-length |
 | Raw milliseconds | `duration(...dict[ms: 86400000])` | Direct ms count |
-| Printed form | `duration("1d2h")` | Malformed text halts with `#INVALID_INPUT`; a positional number halts with `RILL-R001` |
+| Printed form | `duration("1d2h")` | Only the `ms` count may be a decimal (`"1s500.5ms"`); malformed text halts with `#INVALID_INPUT`; a positional number halts with `RILL-R001` |
 
 ```text
 duration(...dict[days: 1, hours: 2]) -> .display

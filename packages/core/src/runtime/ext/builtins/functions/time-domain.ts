@@ -7,6 +7,7 @@ import {
   isIterator,
   isStream,
 } from '../../../core/types/guards.js';
+import { requireFixedDuration } from '../../../core/types/duration-limit.js';
 import { anyTypeValue } from '../../../core/values.js';
 import { getIterableElements } from '../../../core/eval/handlers/collections.js';
 
@@ -21,7 +22,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
    * Expansion is capped at the default iteration ceiling; the expansion halt propagates.
    *
    * Semantics: of all observed chunks, emit only those not followed by
-   * another chunk within `duration.ms`. With all chunks at the same virtual
+   * another chunk within its duration. With all chunks at the same virtual
    * timestamp (deterministic clock), only the last chunk passes.
    *
    * debounce = emit latest after silence.
@@ -70,7 +71,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      const durationMs = durArg.ms;
+      const durationMs = requireFixedDuration(durArg, 'debounce', site);
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
@@ -156,7 +157,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
-      const durationMs = durArg.ms;
+      const durationMs = requireFixedDuration(durArg, 'throttle', site);
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };
@@ -239,6 +240,7 @@ export const TIME_DOMAIN_FUNCTIONS: Record<string, RillFunction> = {
         );
       }
 
+      requireFixedDuration(durArg, 'sample', site);
       const node = {
         span: { start: location ?? { line: 0, column: 0, offset: 0 } },
       };

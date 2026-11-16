@@ -17,6 +17,7 @@ import {
   type ApplicationCallable,
   type RillFunction,
 } from './callable.js';
+import { markInternalFn } from './activity.js';
 
 // Parsed once at registration time, not per context creation.
 const BUILTIN_FN_CACHE = new Map<string, ApplicationCallable>();
@@ -28,6 +29,7 @@ export function registerBuiltinFunctions(
 ): void {
   BUILTIN_FN_CACHE.clear();
   for (const [name, entry] of Object.entries(fns)) {
+    markInternalFn(entry.fn);
     BUILTIN_FN_CACHE.set(name, toCallable(entry));
   }
   registered = true;

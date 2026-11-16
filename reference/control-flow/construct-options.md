@@ -65,6 +65,19 @@ r[construct-options.timeout-limits] timeout takes total, idle, both, or neither
 `timeout` MUST accept `total`, `idle`, both, or neither. With both, the first limit reached MUST
 end the body.
 
+r[construct-options.timeout-idle-activity] idle restarts on activity
+`timeout<idle: D>` MUST restart its timer when a stream chunk arrives in the body or a host
+function call returns. That activity MUST restart the idle limit of every enclosing `timeout`. A
+body doing neither, such as a pure computation, MUST count as idle. Only a host call that returns
+counts; a call that halts does not. Activity in a concurrent sibling branch outside the `timeout`
+body MUST NOT restart the limit.
+
+r[construct-options.timeout-fixed-duration] a time bound needs a fixed length
+A duration with a nonzero months part has no fixed length. A `timeout` limit or a time-domain
+operator option that turns a duration into wall time, such as `debounce`, `throttle`, `sample`, or
+the `idle_flush` option of `batch`, MUST halt `#INVALID_INPUT` naming the option for such a
+duration.
+
 ## Errors
 
 | Condition | Error | Catchable |
@@ -73,6 +86,7 @@ end the body.
 | `limit` or `attempts` is not a written positive integer literal | RILL-P004 | No |
 | Options written in angle brackets {pending #578} | RILL-P025 | No |
 | A spread field repeats a written option {pending #578} | `#INVALID_INPUT` | Yes |
+| A time bound's duration has a months part | `#INVALID_INPUT` | Yes |
 
 ## Examples
 

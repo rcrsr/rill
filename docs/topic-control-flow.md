@@ -827,7 +827,7 @@ Two limits are available, singly or together:
 | Option | Bounds | Expiry atom |
 |------|--------|-------------|
 | `total: duration` | Wall-time from block entry | `#RILL_R082` |
-| `idle: duration` | Inactivity: time since last stream chunk | `#RILL_R083` |
+| `idle: duration` | Inactivity: time since the last stream chunk or host call return | `#RILL_R083` |
 
 One head may carry both limits, in either order. The first limit to fire ends the body, and the halt carries that limit's atom. A repeated key is a parse error. `timeout<>` with neither limit arms nothing and has no effect; the checker reports it as `TIMEOUT_TRIVIAL`.
 
@@ -856,13 +856,11 @@ timeout<idle: duration("200ms")> {
 }
 ```
 
-The idle timer resets each time the body emits a stream chunk. If no chunk arrives within 200 ms, the block aborts and raises a catchable halt carrying `#RILL_R083`. Wrap with `guard` to surface the halt as an invalid value.
-
-For non-streaming bodies, `idle` behaves like `total`: the timer fires if the body does not complete within the idle window.
+The idle timer restarts each time a stream chunk arrives in the body or a host function call returns, and the restart reaches the idle limit of every enclosing `timeout`. A body doing neither, such as a pure computation, counts as idle. If 200 ms pass with no activity, the block aborts and raises a catchable halt carrying `#RILL_R083`. Wrap with `guard` to surface the halt as an invalid value.
 
 ### Duration Argument
 
-The duration expression must evaluate to a `duration` value. A non-duration argument halts with `#INVALID_INPUT`:
+The duration expression must evaluate to a `duration` value. A non-duration argument halts with `#INVALID_INPUT`, and so does a duration with a months part (`duration("1mo")`, `duration("1y")`), which has no fixed length:
 
 ```text
 # Error: #INVALID_INPUT — duration must be a duration value

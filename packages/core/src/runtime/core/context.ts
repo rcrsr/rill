@@ -11,6 +11,7 @@ import {
   isRillTypeName,
 } from '../../types.js';
 import { getBuiltinFunctionCache } from './builtin-registry.js';
+import { markInternalFn } from './activity.js';
 import { BUILT_IN_TYPES } from './types/registrations.js';
 import type { TypeDefinition } from './types/registrations.js';
 import { formatStructure } from './types/operations.js';
@@ -648,6 +649,7 @@ export function createRuntimeContext(
         isProperty: false,
         fn: fn.fn,
       };
+      markInternalFn(fn.fn);
       setDictField(dict, name, appCallable);
     }
 
@@ -717,6 +719,7 @@ export function createRuntimeContext(
     callDepth: { value: 0 },
     maxCallDepth: options.maxCallDepth ?? 1000,
     callsInFlight: { value: 0, tripped: false },
+    activityListeners: new Set<() => void>(),
     annotationStack: [],
     callStack: [],
     metadata: options.metadata,
@@ -838,6 +841,7 @@ export function createChildContext(
         : parent.callDepth,
     maxCallDepth: parent.maxCallDepth,
     callsInFlight: parent.callsInFlight,
+    activityListeners: parent.activityListeners,
     annotationStack: parent.annotationStack,
     callStack: parent.callStack,
     metadata: parent.metadata,
