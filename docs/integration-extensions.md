@@ -114,7 +114,7 @@ See [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-ato
 
 ## Returning Invalid Values
 
-Use `ctx.invalidate` to return an invalid value instead of throwing. Invalid values propagate through pipes until the script tests them with `.?` or `.!`.
+Use `ctx.invalidate` to return an invalid value instead of throwing. A script handles an invalid value with capture, `??`, `.?`, or `.!`; using it in a pipe, an operator, an interpolation, or a collection literal halts.
 
 ```typescript
 fn: async (args, ctx) => {

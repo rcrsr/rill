@@ -62,14 +62,13 @@ Not all operations behave the same when applied to an invalid value. The access 
 | Arithmetic | `$x + 1` |
 | Type assertion | `$x :string` |
 | Interpolation | `"{$x}"` |
-| Collection literal entry | `list[$x]`, `dict[a: $x]` |
+| Collection literal entry | `list[$x]`, `tuple[$x]`, `dict[a: $x]`, `ordered[a: $x]` |
 
 **Non-access forms pass the invalid value through unchanged:**
 
 | Form | Example |
 |------|---------|
 | Capture | `$x => $y` |
-| Conditional | `$x -> ? "yes" ! "no"` |
 | Status probe | `$x.!` |
 | Presence check | `$x.?field` |
 | Default operator | `$x ?? fallback` |
