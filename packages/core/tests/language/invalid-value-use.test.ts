@@ -4,7 +4,7 @@
  * Interpolating an invalid value into a string, or placing one in a
  * collection literal, halts with the code the invalid value holds. Probing
  * the value with `.!` or `.!code` does not halt. Closures and iterators have
- * no string form, so interpolating either halts RILL-R036.
+ * no string form, so interpolating either, at any depth, halts RILL-R036.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -63,6 +63,40 @@ describe('Invalid value in string interpolation', () => {
       hostErrorId: 'RILL-R036',
       messagePattern: /cannot convert iterator to string/,
     });
+  });
+
+  it.each([
+    ['list', '"{list[$f]}"', /cannot convert list to string: contains closure/],
+    [
+      'dict',
+      '"{dict[a: $f]}"',
+      /cannot convert dict to string: contains closure/,
+    ],
+    [
+      'tuple',
+      '"{tuple[$it]}"',
+      /cannot convert tuple to string: contains iterator/,
+    ],
+    [
+      'ordered',
+      '"{ordered[a: $f]}"',
+      /cannot convert ordered to string: contains closure/,
+    ],
+  ])(
+    'halts RILL-R036 when a %s holding a callable is interpolated',
+    async (_name, interp, messagePattern) => {
+      await expectHalt(
+        () => runRecovered(`|a|($a) => $f\nrange(0, 3) => $it\n${interp}`),
+        { code: 'RILL_R036', hostErrorId: 'RILL-R036', messagePattern }
+      );
+    }
+  );
+
+  it('guard around a nested interpolation yields the R036 code', async () => {
+    const result = await runRecovered(
+      '|a|($a) => $f\nguard { "{list[$f]}" } => $r\n$r.!code == #RILL_R036'
+    );
+    expect(result).toBe(true);
   });
 });
 

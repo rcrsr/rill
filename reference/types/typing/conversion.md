@@ -49,6 +49,10 @@ r[conversion.no-string-form] A function or an iterator has no string form
 `v -> string` for a function or an iterator MUST halt with RILL-R036, and so MUST interpolating
 one (`interpolation.printed`).
 
+r[conversion.no-string-nested] A collection holding a function or an iterator has no string form
+`v -> string` MUST halt with RILL-R036 when `v` is a list, dict, tuple or ordered that holds a
+function or an iterator at any depth, and so MUST interpolating `v` (`interpolation.printed`).
+
 r[conversion.value-fail] A string that is not a number halts with a value error
 `"abc" -> number` MUST halt with RILL-R038. The scalar files state the other value failures.
 
@@ -117,6 +121,11 @@ dict[a: 1, c: 2] -> $T
 ```rill
 # Error: cannot convert iterator to string
 range(0, 3) -> string
+```
+
+```rill
+# Error: RILL-R036 a collection holding an iterator has no string form
+list[list[range(0, 3)]] -> string
 ```
 
 ```rill pending=566

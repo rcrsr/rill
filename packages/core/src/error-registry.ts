@@ -1440,9 +1440,9 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Incompatible convert source/target',
     messageTemplate: 'cannot convert {source} to {target}',
     cause:
-      'The `-> type` form does not support conversion between the given source and target types. -> string has no route from a function or an iterator, and interpolating one halts the same way. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> bool, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.',
+      'The `-> type` form does not support conversion between the given source and target types. -> string has no route from a function or an iterator, or from a list, dict, tuple, or ordered that holds one at any depth, and interpolating one halts the same way. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> bool, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.',
     resolution:
-      'Check the target type. A function or an iterator has no string form; read its type with .^type instead. For -> number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.',
+      'Check the target type. A function or an iterator, or a collection that holds one, has no string form; read its type with .^type instead. For -> number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.',
     examples: [
       {
         description: 'String to list conversion',

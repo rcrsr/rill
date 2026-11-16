@@ -45,7 +45,7 @@ import {
   formatValue,
   inferType,
 } from '../../types/registrations.js';
-import { isTypeValue, isVector, isIterator } from '../../types/guards.js';
+import { isTypeValue, isVector } from '../../types/guards.js';
 import {
   anyTypeValue,
   isReservedBrandKey,
@@ -97,7 +97,7 @@ import {
   rejectParameterizedClosure,
 } from './element-dispatch.js';
 import { accessHaltGateFast } from './access.js';
-import { applyConversion } from './conversion.js';
+import { describeNoStringForm } from './conversion.js';
 import { copyExtensionIdentity } from '../../policy/identity.js';
 import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { assertUsableAnnotationKey } from './annotations.js';
@@ -355,6 +355,8 @@ export async function evaluatePassBlock(
  * Interpolation expressions are evaluated with the current pipe value preserved.
  *
  * String parts are concatenated with interpolated values formatted via formatValue().
+ * A function or iterator nested at any depth in an interpolated value halts
+ * with RILL-R036.
  * Errors from interpolation expression evaluation propagate to caller.
  *
  * Returns `{ value, interpolated }` where `interpolated` is `true` iff at least one
@@ -395,9 +397,19 @@ export async function evaluateString(
           'cannot coerce vector to string'
         );
       }
-      // Functions and iterators have no string form; the conversion path halts.
-      if (isCallable(value) || isIterator(value)) {
-        applyConversion(s, value, 'string', part);
+      // A function or iterator at any depth has no string form; halt.
+      const noStringForm = describeNoStringForm(value);
+      if (noStringForm) {
+        throwCatchableHostHalt(
+          {
+            location: getNodeLocation(s, part),
+            sourceId: s.ctx.sourceId,
+            fn: 'evaluateString',
+          },
+          ERROR_ATOMS[ERROR_IDS.RILL_R036],
+          noStringForm.message,
+          noStringForm.raw
+        );
       }
       result += formatValue(value);
     }

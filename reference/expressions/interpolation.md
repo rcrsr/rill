@@ -5,7 +5,7 @@ status: normative
 since: 0.24.0
 issues: []
 grammar: [interpolation, brace-escape]
-errors: [RILL-L005, RILL-P004, RILL-R005]
+errors: [RILL-L005, RILL-P004, RILL-R005, RILL-R036]
 depends: [pipe]
 tests: [interpolation.test.ts, interpolation-locations.test.ts, interpolation-scope.test.ts]
 ---
@@ -57,7 +57,7 @@ with its `#`, and a type value as its signature.
 
 ## Interactions
 
-A pipe into a string literal binds `$` for its interpolations (`pipe.string`). A function or an iterator has no printed form (`conversion.no-string-form`). An invalid value raises the halt it holds (`invalid-value.interpolate`).
+A pipe into a string literal binds `$` for its interpolations (`pipe.string`). A function or an iterator has no printed form, alone (`conversion.no-string-form`) or inside a collection at any depth (`conversion.no-string-nested`). An invalid value raises the halt it holds (`invalid-value.interpolate`).
 
 ## Errors
 
@@ -66,6 +66,7 @@ A pipe into a string literal binds `$` for its interpolations (`pipe.string`). A
 | An empty interpolation | RILL-P004 | No |
 | A backslash before a brace | RILL-L005 | No |
 | `{$}` with no `$` bound | RILL-R005 | Yes |
+| The value is a function or an iterator, or a collection that holds one at any depth | RILL-R036 | Yes |
 
 ## Examples
 
@@ -94,4 +95,9 @@ A pipe into a string literal binds `$` for its interpolations (`pipe.string`). A
 # Error: Undefined variable
 "{5 => $q}"
 $q
+```
+
+```rill
+# Error: RILL-R036 a collection holding an iterator has no printed form
+"{list[range(0, 3)]}"
 ```
