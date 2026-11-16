@@ -52,6 +52,7 @@ import type {
   SourceSpan,
 } from '@rcrsr/rill';
 
+import { opensScope } from '../opens-scope.js';
 import { traverseForRules } from './traversal.js';
 import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
 
@@ -65,7 +66,7 @@ export interface CaptureEntry {
   readonly closureDepth: number;
   /** Count of Closure/collection-op ancestors strictly above this node. */
   readonly closureOrOpDepth: number;
-  /** Count of Closure/Block/GroupedExpr/collection-op ancestors strictly above this node. */
+  /** Count of Closure/Block/GroupedExpr/Interpolation/collection-op ancestors strictly above this node. */
   readonly bindingScopeDepth: number;
 }
 
@@ -79,7 +80,7 @@ export interface ReferenceEntry {
   readonly node: ASTNode;
   /** Count of Closure/collection-op ancestors strictly above this node. */
   readonly closureOrOpDepth: number;
-  /** Count of Closure/Block/GroupedExpr/collection-op ancestors strictly above this node. */
+  /** Count of Closure/Block/GroupedExpr/Interpolation/collection-op ancestors strictly above this node. */
   readonly bindingScopeDepth: number;
   /**
    * Source span of the reference site itself, when it is narrower than
@@ -385,7 +386,7 @@ export function collectFacts(root: ASTNode): AstFacts {
         currentClosureDepth++;
         currentClosureOrOpDepth++;
         currentBindingScopeDepth++;
-      } else if (node.type === 'Block' || node.type === 'GroupedExpr') {
+      } else if (opensScope(node)) {
         currentBindingScopeDepth++;
         if (collectionOpBlockBodies.has(node)) {
           currentClosureOrOpDepth++;
@@ -494,7 +495,7 @@ export function collectFacts(root: ASTNode): AstFacts {
         currentClosureDepth--;
         currentClosureOrOpDepth--;
         currentBindingScopeDepth--;
-      } else if (node.type === 'Block' || node.type === 'GroupedExpr') {
+      } else if (opensScope(node)) {
         currentBindingScopeDepth--;
         if (collectionOpBlockBodies.has(node)) {
           currentClosureOrOpDepth--;

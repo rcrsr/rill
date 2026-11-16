@@ -198,7 +198,7 @@ $fn(42)
 
 ## Scope Rules
 
-Blocks, loops, conditionals, and grouped expressions create child scopes.
+Blocks, loops, conditionals, grouped expressions, and string interpolations create child scopes.
 
 ### Three Rules
 

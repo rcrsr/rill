@@ -3,7 +3,7 @@ id: conversion
 title: Conversion
 status: normative
 since: 0.24.0
-issues: [566, 574, 605]
+issues: [566, 574]
 grammar: []
 errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044]
 depends: [type-value, structural-typing, any, union, defaults, carried-type, inference, list, dict, tuple, ordered]
@@ -45,7 +45,7 @@ A dict converted to `ordered` with no signature MUST raise RILL-R037.
 r[conversion.missing] A conversion that does not exist halts
 A source and target with no conversion between them MUST halt with RILL-R036. `5 -> list` halts.
 
-r[conversion.no-string-form] A function or an iterator has no string form {pending #605}
+r[conversion.no-string-form] A function or an iterator has no string form
 `v -> string` for a function or an iterator MUST halt with RILL-R036, and so MUST interpolating
 one (`interpolation.printed`).
 
@@ -112,6 +112,11 @@ list[1, 2] -> tuple(number, number)
 dict(a: number, b: number = 5) => $T
 dict[a: 1, c: 2] -> $T
 # Result: dict[a: 1, b: 5]
+```
+
+```rill
+# Error: cannot convert iterator to string
+range(0, 3) -> string
 ```
 
 ```rill pending=566

@@ -126,6 +126,8 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     ⁴ true → 1, false → 0
     ⁵ 0 → false, 1 → true; all other values halt with RILL-R036
 
+    closure and iterator have no -> string; converting or interpolating one halts RILL-R036
+
 ## Default values in type constructors
 
     dict(a: string, b: string = "x")

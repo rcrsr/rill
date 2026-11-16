@@ -61,6 +61,8 @@ Not all operations behave the same when applied to an invalid value. The access 
 | Pipe | `$x -> fn` |
 | Arithmetic | `$x + 1` |
 | Type assertion | `$x :string` |
+| Interpolation | `"{$x}"` |
+| Collection literal entry | `list[$x]`, `dict[a: $x]` |
 
 **Non-access forms pass the invalid value through unchanged:**
 

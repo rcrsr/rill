@@ -308,6 +308,13 @@ describe('closureOrOpDepth and bindingScopeDepth', () => {
 
     expect(facts.script.captureLog[0]?.bindingScopeDepth).toBe(1);
   });
+
+  it('sets bindingScopeDepth above 0 for a capture inside a string interpolation', () => {
+    const source = '"a {1 => $x} b"\n';
+    const facts = collectFacts(parse(source));
+
+    expect(facts.script.captureLog[0]?.bindingScopeDepth).toBeGreaterThan(0);
+  });
 });
 
 // ============================================================

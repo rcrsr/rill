@@ -539,9 +539,20 @@ describe('Rill Language: -> Conversion Operator', () => {
       );
     });
 
-    it('converts closure to string via formatValue (AC-32, BC-7)', async () => {
-      const result = await run('||(42) -> string');
-      expect(result).toBe('type(closure)');
+    it('throws RILL-R036: closure -> string (no string form)', async () => {
+      await expectHalt(() => run('||(42) -> string'), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert closure to string/,
+      });
+    });
+
+    it('throws RILL-R036: iterator -> string (no string form)', async () => {
+      await expectHalt(() => run('range(0, 3) -> string'), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert iterator to string/,
+      });
     });
 
     it('converts "-3.14" to number -3.14 (AC-33, BC-8 negative decimal)', async () => {

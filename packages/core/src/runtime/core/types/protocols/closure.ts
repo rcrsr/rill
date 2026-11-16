@@ -43,14 +43,6 @@ function eqClosure(a: RillValue, b: RillValue): boolean {
 }
 
 // ============================================================
-// CONVERT-TO
-// ============================================================
-
-const closureConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (_v: RillValue): RillValue => 'type(closure)',
-};
-
-// ============================================================
 // TYPE DEFINITION
 // ============================================================
 
@@ -63,7 +55,6 @@ export const closureType: TypeDefinition = {
   protocol: {
     format: formatClosure,
     eq: eqClosure,
-    convertTo: closureConvertTo,
     serialize: throwNotSerializable('closure'),
   },
 };

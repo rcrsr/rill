@@ -45,7 +45,12 @@ import {
 } from '../../types/halt.js';
 import type { EvalState } from '../state.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
-import { getNodeLocation, checkAborted, maybeYield } from '../shared.js';
+import {
+  getNodeLocation,
+  checkAborted,
+  maybeYield,
+  withChildScope,
+} from '../shared.js';
 import {
   evaluateAnnotations,
   getIterationLimit,
@@ -119,27 +124,17 @@ export async function evaluateConditional(
     thenCtx.pipeValue = savedPipeValue;
     // Use evaluateBody (not evaluateBodyExpression) so ReturnSignal
     // propagates up to the containing block rather than being caught here
-    const savedCtx = s.ctx;
-    s.ctx = thenCtx;
-    try {
-      return await evaluateBody(s, node.thenBranch);
-    } finally {
-      s.ctx = savedCtx;
-    }
+    return withChildScope(s, thenCtx, () => evaluateBody(s, node.thenBranch));
   } else if (node.elseBranch) {
     // Create child scope for else branch (reads parent, writes local only)
     const elseCtx = createChildContext(s.ctx);
     elseCtx.pipeValue = savedPipeValue;
-    const savedCtx = s.ctx;
-    s.ctx = elseCtx;
-    try {
-      if (node.elseBranch.type === 'Conditional') {
-        return await evaluateConditional(s, node.elseBranch);
-      }
-      return await evaluateBody(s, node.elseBranch);
-    } finally {
-      s.ctx = savedCtx;
-    }
+    const elseBranch = node.elseBranch;
+    return withChildScope(s, elseCtx, () =>
+      elseBranch.type === 'Conditional'
+        ? evaluateConditional(s, elseBranch)
+        : evaluateBody(s, elseBranch)
+    );
   }
 
   // No else branch and condition was false: fall through to the (possibly
@@ -230,13 +225,9 @@ export async function evaluateWhileLoop(
       // Create child scope for this iteration
       const iterCtx = createChildContext(s.ctx);
       iterCtx.pipeValue = value;
-      const savedCtx = s.ctx;
-      s.ctx = iterCtx;
-      try {
-        value = await evaluateBody(s, node.body);
-      } finally {
-        s.ctx = savedCtx;
-      }
+      value = await withChildScope(s, iterCtx, () =>
+        evaluateBody(s, node.body)
+      );
       setPipe(s.ctx, value, undefined);
 
       // Re-evaluate condition for next iteration
@@ -317,13 +308,9 @@ export async function evaluateDoWhileLoop(
 
       const iterCtx = createChildContext(s.ctx);
       iterCtx.pipeValue = value;
-      const savedCtx = s.ctx;
-      s.ctx = iterCtx;
-      try {
-        value = await evaluateBody(s, node.body);
-      } finally {
-        s.ctx = savedCtx;
-      }
+      value = await withChildScope(s, iterCtx, () =>
+        evaluateBody(s, node.body)
+      );
       setPipe(s.ctx, value, undefined);
 
       const conditionValue = await evaluateBody(s, node.condition);
@@ -404,13 +391,9 @@ async function evaluateBlockBody(
     });
     stmtCtx.pipeValue = parentPipeValue; // Always parent's $, not previous sibling's
 
-    const savedCtx = s.ctx;
-    s.ctx = stmtCtx;
-    try {
-      lastValue = await executeStatement(s, stmt);
-    } finally {
-      s.ctx = savedCtx;
-    }
+    lastValue = await withChildScope(s, stmtCtx, () =>
+      executeStatement(s, stmt)
+    );
   }
 
   return lastValue; // Last sibling's result is block result

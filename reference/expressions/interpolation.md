@@ -3,11 +3,11 @@ id: interpolation
 title: Interpolation
 status: normative
 since: 0.24.0
-issues: [617]
+issues: []
 grammar: [interpolation, brace-escape]
 errors: [RILL-L005, RILL-P004, RILL-R005]
 depends: [pipe]
-tests: [interpolation.test.ts, interpolation-locations.test.ts]
+tests: [interpolation.test.ts, interpolation-locations.test.ts, interpolation-scope.test.ts]
 ---
 
 # Interpolation
@@ -39,7 +39,7 @@ evaluated.
 r[interpolation.expression] Any expression may be interpolated
 An interpolation MUST accept any expression, including a pipe chain and a nested string.
 
-r[interpolation.scope] An interpolation is a child scope {pending #617}
+r[interpolation.scope] An interpolation is a child scope
 Each interpolation MUST run in a child scope, as a group does (`scope.child`). A capture inside
 it MUST NOT bind in the enclosing scope.
 
@@ -57,7 +57,7 @@ with its `#`, and a type value as its signature.
 
 ## Interactions
 
-A pipe into a string literal binds `$` for its interpolations (`pipe.string`).
+A pipe into a string literal binds `$` for its interpolations (`pipe.string`). A function or an iterator has no printed form (`conversion.no-string-form`). An invalid value raises the halt it holds (`invalid-value.interpolate`).
 
 ## Errors
 
@@ -90,7 +90,8 @@ A pipe into a string literal binds `$` for its interpolations (`pipe.string`).
 # Result: 9
 ```
 
-## Notes
-
-On 0.23.0 a function interpolates as `"type(closure)"` (#605), and an invalid value as
-`"dict[]"` (#612).
+```rill
+# Error: Undefined variable
+"{5 => $q}"
+$q
+```

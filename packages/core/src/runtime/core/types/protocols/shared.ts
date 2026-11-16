@@ -34,13 +34,12 @@ import {
 } from '../guards.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { setDictField } from '../dict-keys.js';
-import { isInvalid, appendTraceFrame } from '../status.js';
+import { isInvalid } from '../status.js';
 import {
-  RuntimeHaltSignal,
+  throwAccessHalt,
   throwFatalHostHalt,
   type TypeHaltSite,
 } from '../halt.js';
-import { createTraceFrame, TRACE_KINDS } from '../trace.js';
 
 // ============================================================
 // LATE-BINDING: formatNested
@@ -182,33 +181,14 @@ export function compareElements<T>(
   return true;
 }
 
-/**
- * Halt on a nested invalid value reached while deep-comparing container
- * elements. Mirrors the top-level `accessHaltGate` behavior (append an
- * access-kind trace frame, throw a catchable RuntimeHaltSignal carrying the
- * invalid value) so `dict[a: $x] == dict[a: $y]`, where `$x`/`$y` are
- * distinct invalid values, halts instead of comparing by the shared `{}`
- * structural shape.
- */
-function haltOnNestedInvalid(v: RillValue): void {
-  if (!isInvalid(v)) return;
-  const frame = createTraceFrame({
-    site: '<unknown>',
-    kind: TRACE_KINDS.ACCESS,
-    fn: '==',
-  });
-  const next = appendTraceFrame(v, frame);
-  throw new RuntimeHaltSignal(next, true);
-}
-
 /** Element comparator for tuple and list entries: handles undefined, delegates to deepEquals. */
 export function compareByDeepEquals(
   a: RillValue | undefined,
   b: RillValue | undefined
 ): boolean {
   if (a === undefined || b === undefined) return a === b;
-  haltOnNestedInvalid(a);
-  haltOnNestedInvalid(b);
+  if (isInvalid(a)) throwAccessHalt(a, '<unknown>', '==');
+  if (isInvalid(b)) throwAccessHalt(b, '<unknown>', '==');
   return resolvedDeepEquals(a, b);
 }
 
@@ -219,8 +199,8 @@ export function compareOrderedEntry(
 ): boolean {
   if (aEntry === undefined || bEntry === undefined) return false;
   if (aEntry[0] !== bEntry[0]) return false;
-  haltOnNestedInvalid(aEntry[1]);
-  haltOnNestedInvalid(bEntry[1]);
+  if (isInvalid(aEntry[1])) throwAccessHalt(aEntry[1], '<unknown>', '==');
+  if (isInvalid(bEntry[1])) throwAccessHalt(bEntry[1], '<unknown>', '==');
   return resolvedDeepEquals(aEntry[1], bEntry[1]);
 }
 

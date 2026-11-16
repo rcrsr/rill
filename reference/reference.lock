@@ -154,7 +154,7 @@ conversion.fill 0cc06ccbc6f2 defaults.fill@1c3e396558aa defaults.required@704c2f
 conversion.list-tuple ef801da23c73
 conversion.missing f98bb007434c
 conversion.no-signature b899c99c7c8b
-conversion.no-string-form 2e472d03c1de interpolation.printed@fdb3073b6dba
+conversion.no-string-form d673fef041e6 interpolation.printed@fdb3073b6dba
 conversion.ordered-dict 519188d5b030
 conversion.pipe b31bebe73638 assertion.unchanged@d5063326e3a7
 conversion.scalar 82e5c1778ac4 atom.from-string@013a2d860f57 atom.to-string@a4a3cd7d5805 bool.from-number@afce697c38d8 bool.from-string@387862b2c2a8 number.from-bool@6305e49e7045 number.from-string@1d7ed899cb56 string.from-bool@a2d54837dbaf string.from-collection@2e6b76a26a5b string.from-number@aa4ac6bcf48e
@@ -392,14 +392,14 @@ inference.shape-union 9929e689f406
 inference.shape-union-ordered 5a29e593a5ed
 inference.uniform a737257018f3
 inference.union-element 8eeac61a0bfd
-interpolation 8bc68d7d29d3 pipe.string@e11eeeaf2f49
+interpolation ea29cf9fdead conversion.no-string-form@d673fef041e6 invalid-value.interpolate@c5addb31436e pipe.string@e11eeeaf2f49
 interpolation.brace-escape 6e5608da3dc5
 interpolation.dollar 0ab302e7a77c
 interpolation.expression e6e5f7c53b8a
 interpolation.non-empty b3e626dfdbe3
 interpolation.order 7bdb45c0246a
 interpolation.printed fdb3073b6dba string.from-bool@a2d54837dbaf string.from-collection@2e6b76a26a5b string.from-number@aa4ac6bcf48e
-interpolation.scope 5dacec74baf9 scope.child@fb0f345c5707
+interpolation.scope 225c87dc5412 scope.child@fb0f345c5707
 interpolation.string 00f9ba88f50f
 introspection.annotations 2e9f0d61f82d
 introspection.bare a147cf024b92
@@ -420,9 +420,10 @@ introspection.signature d11d5cc8fffc
 introspection.type-probe 98d4ed5945dd carried-type.effective-probe@da1ca7bbf1a7 carried-type.type-probe@eaad72137ace
 invalid-value 94bba088c0f7 error-code.status@6c04aa70d1af halt.catchable@929ad6135c87 vacancy.vacant@93e05a6e4241
 invalid-value.access 6b0c47fbf977
-invalid-value.collection 84012795c138
+invalid-value.collection b164fa8d8e42
 invalid-value.hold 57118413b4f8
-invalid-value.interpolate 3f60b6a1b967
+invalid-value.interpolate c5addb31436e
+invalid-value.map c5311582a3f6
 invalid-value.origin f59e88d4cf82
 invalid-value.probe 024c35ff18e2
 invalid-value.status 7d727ece29c6

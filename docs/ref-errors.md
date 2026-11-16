@@ -1193,9 +1193,9 @@ $ahi.parser([input: $text])  # Downstream returns 503
 
 **Description:** Incompatible convert source/target
 
-**Cause:** The `-> type` form does not support conversion between the given source and target types. -> string accepts any source type. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> boolean, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.
+**Cause:** The `-> type` form does not support conversion between the given source and target types. -> string has no route from a function or an iterator, and interpolating one halts the same way. -> number accepts only string (must be numeric) and bool (produces 0 or 1). Other targets (-> bool, -> list, -> dict, -> tuple, -> ordered) have their own accepted sources.
 
-**Resolution:** Check the target type. Use -> string to convert any value to its string representation. For -> number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.
+**Resolution:** Check the target type. A function or an iterator has no string form; read its type with .^type instead. For -> number, only string and bool sources are accepted. Verify the source type matches the accepted sources for the target type.
 
 **Example:**
 

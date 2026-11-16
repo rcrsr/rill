@@ -473,9 +473,9 @@ list          = "[" , "]"
 list-element  = "..." , expression           (* spread: inline list elements *)
               | expression ;                 (* regular element *)
               (* List spread syntax: [1, ...$list, 2] inlines $list elements.
-                 The spread expression must evaluate to a list at runtime.
+                 The spread expression must evaluate to a list or tuple at runtime.
                  Example: [1, 2] => $a; [...$a, 3] yields [1, 2, 3]
-                 Error: spreading non-list throws RILL-R002 *)
+                 Error: spreading any other value halts RILL-R002 *)
 
 (* Dict literal: bare bracket form or keyword-prefixed form.
    Both [a: 1] and dict[a: 1] are valid and produce the same result.
@@ -791,12 +791,12 @@ pipe-error    = "error" , [ string ] ;
    They return the extracted values while optionally binding to variables.
 
    Destructure: extract elements into variables
-   - [1, 2, 3] -> destruct<$a, $b, $c>
-   - [name: "x"] -> destruct<name: $n>
+   - [1, 2, 3] -> destruct<$a, $b, $c>   (list or tuple)
+   - [name: "x"] -> destruct<name: $n>   (dict or ordered)
    - Skip:  [1, 2, 3] -> destruct<$a, _, $c>
    - Nested: [[1, 2], 3] -> destruct<destruct<$a, $b>, $c>
 
-   Slice: extract portions using Python-style start:stop:step
+   Slice: extract portions of lists, tuples, and strings using Python-style start:stop:step
    - [1, 2, 3, 4, 5] -> slice<1:4>     -> [2, 3, 4]
    - [1, 2, 3, 4, 5] -> slice<::-1>    -> [5, 4, 3, 2, 1]
    - "hello" -> slice<1:4>                 -> "ell"

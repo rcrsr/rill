@@ -3,6 +3,19 @@ import { parseWithRecovery } from '@rcrsr/rill';
 import { findVisibleBinding, resolveScopeAt } from './resolve-scope.js';
 
 describe('resolveScopeAt', () => {
+  it('does not expose a capture made inside a string interpolation after the string', () => {
+    const source = '"a {1 => $x} b" => $s\n$s\n';
+    const parsed = parseWithRecovery(source);
+    expect(parsed.success).toBe(true);
+
+    const names = resolveScopeAt(parsed, source.lastIndexOf('$s')).map(
+      (binding) => binding.name
+    );
+
+    expect(names).toContain('s');
+    expect(names).not.toContain('x');
+  });
+
   it('resolves a name captured after a closure body reads it (late binding, not a definition-time snapshot)', () => {
     const source = `|x| ($x + $y) => $double
 5 => $y

@@ -45,7 +45,7 @@ import {
   formatValue,
   inferType,
 } from '../../types/registrations.js';
-import { isTypeValue, isVector } from '../../types/guards.js';
+import { isTypeValue, isVector, isIterator } from '../../types/guards.js';
 import {
   anyTypeValue,
   isReservedBrandKey,
@@ -78,6 +78,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import {
   getNodeLocation,
   setDictField,
+  withChildScope,
   isDictKeyScalar,
   type DictKeyScalar,
 } from '../shared.js';
@@ -95,6 +96,8 @@ import {
   invokeSelected,
   rejectParameterizedClosure,
 } from './element-dispatch.js';
+import { accessHaltGateFast } from './access.js';
+import { applyConversion } from './conversion.js';
 import { copyExtensionIdentity } from '../../policy/identity.js';
 import { evaluateBody, evaluateBodyExpression } from './control-flow.js';
 import { assertUsableAnnotationKey } from './annotations.js';
@@ -364,17 +367,22 @@ export async function evaluateString(
 ): Promise<{ value: string; interpolated: boolean }> {
   let result = '';
   let interpolated = false;
-  // Save pipeValue since interpolation expressions can modify it
-  const savedPipeValue = s.ctx.pipeValue;
   for (const part of node.parts) {
     if (typeof part === 'string') {
       result += part;
     } else {
       interpolated = true;
-      // InterpolationNode: evaluate the expression
-      // Restore pipeValue before each interpolation so they all see the same value
-      s.ctx.pipeValue = savedPipeValue;
-      const value = await evaluateExpression(s, part.expression);
+      // Each interpolation runs in its own child scope, so a capture inside
+      // one part is not visible to later parts or to the code after the string.
+      const raw = await withChildScope(s, createChildContext(s.ctx), () =>
+        evaluateExpression(s, part.expression)
+      );
+      const value = accessHaltGateFast(
+        raw,
+        'evaluateString',
+        () => getNodeLocation(s, part),
+        s.ctx.sourceId
+      );
       // Vector coercion guard
       if (isVector(value)) {
         throwCatchableHostHalt(
@@ -387,12 +395,39 @@ export async function evaluateString(
           'cannot coerce vector to string'
         );
       }
+      // Functions and iterators have no string form; the conversion path halts.
+      if (isCallable(value) || isIterator(value)) {
+        applyConversion(s, value, 'string', part);
+      }
       result += formatValue(value);
     }
   }
-  // Restore pipeValue after string evaluation
-  s.ctx.pipeValue = savedPipeValue;
   return { value: result, interpolated };
+}
+
+/**
+ * Evaluate a dict entry value: a block or closure literal becomes a closure,
+ * any other expression is evaluated. The result passes the invalid-value gate
+ * so a collection never stores an invalid value.
+ */
+async function evaluateDictEntryValue(
+  s: EvalState,
+  valueNode: ExpressionNode
+): Promise<RillValue> {
+  let value: RillValue;
+  if (isBlockExpr(valueNode)) {
+    value = createBlockClosure(s, valueNode.head.primary);
+  } else if (isClosureExpr(valueNode)) {
+    value = await createClosure(s, valueNode.head.primary);
+  } else {
+    value = await evaluateExpression(s, valueNode);
+  }
+  return accessHaltGateFast(
+    value,
+    'evaluateDict',
+    () => valueNode.span?.start,
+    s.ctx.sourceId
+  );
 }
 
 /**
@@ -443,16 +478,7 @@ export async function evaluateDictMultiKeyFromList(
   }
 
   // Evaluate value once
-  let evaluatedValue: RillValue;
-  if (isBlockExpr(value)) {
-    const blockNode = value.head.primary;
-    evaluatedValue = createBlockClosure(s, blockNode);
-  } else if (isClosureExpr(value)) {
-    const fnLit = value.head.primary;
-    evaluatedValue = await createClosure(s, fnLit);
-  } else {
-    evaluatedValue = await evaluateExpression(s, value);
-  }
+  const evaluatedValue = await evaluateDictEntryValue(s, value);
 
   // Create entry for each key, preserving the key's original type (number and
   // boolean keys are routed to the sidecar by the caller).
@@ -563,7 +589,12 @@ export async function evaluateDict(
     // always carries keyForm, so the two cannot collide). A later key with the
     // same name overrides the spread value in place.
     if (entry.key === '...' && entry.keyForm === undefined) {
-      const spreadValue = await evaluateExpression(s, entry.value);
+      const spreadValue = accessHaltGateFast(
+        await evaluateExpression(s, entry.value),
+        'evaluateDict',
+        () => entry.span.start,
+        s.ctx.sourceId
+      );
       const pairs: [DictKeyScalar, RillValue][] = [];
       if (isOrdered(spreadValue)) {
         for (const pair of orderedValueEntries(spreadValue)) {
@@ -587,7 +618,13 @@ export async function evaluateDict(
           { got: inferType(spreadValue) }
         );
       }
-      for (const [k, v] of pairs) {
+      for (const [k, rawValue] of pairs) {
+        const v = accessHaltGateFast(
+          rawValue,
+          'evaluateDict',
+          () => entry.span.start,
+          s.ctx.sourceId
+        );
         if (typeof k === 'number' || typeof k === 'boolean') {
           setTypedKey(result, k, v);
         } else {
@@ -631,21 +668,11 @@ export async function evaluateDict(
           assertUsableDictKey(s, stringKey, entry.span);
 
           // Evaluate value and store with resolved key
-          if (isBlockExpr(entry.value)) {
-            const blockNode = entry.value.head.primary;
-            const closure = createBlockClosure(s, blockNode);
-            setDictField(result, stringKey, closure);
-          } else if (isClosureExpr(entry.value)) {
-            const fnLit = entry.value.head.primary;
-            const closure = await createClosure(s, fnLit);
-            setDictField(result, stringKey, closure);
-          } else {
-            setDictField(
-              result,
-              stringKey,
-              await evaluateExpression(s, entry.value)
-            );
-          }
+          setDictField(
+            result,
+            stringKey,
+            await evaluateDictEntryValue(s, entry.value)
+          );
 
           continue;
         }
@@ -677,21 +704,11 @@ export async function evaluateDict(
         assertUsableDictKey(s, stringKey, entry.span);
 
         // Evaluate value and store with resolved key
-        if (isBlockExpr(entry.value)) {
-          const blockNode = entry.value.head.primary;
-          const closure = createBlockClosure(s, blockNode);
-          setDictField(result, stringKey, closure);
-        } else if (isClosureExpr(entry.value)) {
-          const fnLit = entry.value.head.primary;
-          const closure = await createClosure(s, fnLit);
-          setDictField(result, stringKey, closure);
-        } else {
-          setDictField(
-            result,
-            stringKey,
-            await evaluateExpression(s, entry.value)
-          );
-        }
+        setDictField(
+          result,
+          stringKey,
+          await evaluateDictEntryValue(s, entry.value)
+        );
 
         continue;
       }
@@ -735,15 +752,7 @@ export async function evaluateDict(
       }
     };
 
-    if (isBlockExpr(entry.value)) {
-      const blockNode = entry.value.head.primary;
-      store(createBlockClosure(s, blockNode));
-    } else if (isClosureExpr(entry.value)) {
-      const fnLit = entry.value.head.primary;
-      store(await createClosure(s, fnLit));
-    } else {
-      store(await evaluateExpression(s, entry.value));
-    }
+    store(await evaluateDictEntryValue(s, entry.value));
   }
 
   // Bind all callables to the containing dict. Use setDictField so a field

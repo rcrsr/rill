@@ -795,3 +795,24 @@ export function rejectBreakAsHalt(e: unknown, site: TypeHaltSite): void {
     );
   }
 }
+
+/**
+ * Halts on an invalid value reached at an access site.
+ *
+ * Appends an `access`-kind trace frame (`site`, `fn`) to the value's status
+ * sidecar and throws a catchable `RuntimeHaltSignal` carrying the extended
+ * invalid value, so `guard` / `retry` may recover it.
+ *
+ * @param value - Invalid value being accessed.
+ * @param site  - Pre-formatted access site (`file:line:col` or `<unknown>`).
+ * @param fn    - Operator symbol, host fn name, or method name.
+ * @throws RuntimeHaltSignal (catchable).
+ */
+export function throwAccessHalt(
+  value: RillValue,
+  site: string,
+  fn: string
+): never {
+  const frame = createTraceFrame({ site, kind: TRACE_KINDS.ACCESS, fn });
+  throw new RuntimeHaltSignal(appendTraceFrame(value, frame), true);
+}

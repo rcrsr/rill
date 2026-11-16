@@ -302,13 +302,8 @@ describe('Non-access invalid-value halts', () => {
     return result;
   }
 
-  // String interpolation of an invalid value is deliberately NOT gated:
-  // `tests/language/trace-frames.test.ts` AC-13 locks the opposite
-  // contract (interpolating `$x` stringifies the invalid via
-  // `formatValue`, performing no access, so the halt comes from the
-  // enclosing statement, not the interpolation itself). Adding a
-  // halt-on-interpolation gate here would regress that protected test;
-  // this sub-site is out of scope for this fix.
+  // String interpolation of an invalid value halts with the held code, as
+  // does placing one in a collection literal; `tests/language/` covers both.
 
   it('== on an invalid operand halts catchably rather than comparing the dict-shaped sidecar', async () => {
     const src = `
@@ -329,11 +324,23 @@ describe('Non-access invalid-value halts', () => {
   });
 
   it('json() on a nested invalid value halts catchably instead of emitting {}', async () => {
-    const src = `
-      guard<on: list[#NOT_A_CODE]> { 1 } => $x
-      guard { json(dict[a: $x]) }
-    `;
-    const result = await runRecovered(src);
+    // A dict literal holding an invalid value now halts at construction, so
+    // the nested invalid is built by a host function.
+    const ctx = createRuntimeContext({
+      functions: {
+        nested: {
+          returnType: anyTypeValue,
+          params: [],
+          fn: () => ({
+            a: ctx.invalidate(new Error('inner'), {
+              code: 'CONFLICT',
+              provider: 'test',
+            }),
+          }),
+        },
+      },
+    });
+    const { result } = await execute(parse('guard { json(nested()) }'), ctx);
     expect(isInvalid(result as never)).toBe(true);
   });
 
