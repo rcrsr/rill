@@ -19,7 +19,6 @@ import {
   throwNotSerializable,
   requireReceiver,
   resolvedCompareValue,
-  resolvedInferElementType,
 } from './shared.js';
 
 // ============================================================
@@ -112,15 +111,11 @@ function eqTuple(a: RillValue, b: RillValue): boolean {
 // ============================================================
 
 function tupleToList(v: RillValue): RillValue {
-  const entries = (
+  return (
     isTuple(v)
       ? v
       : requireReceiver(v, isTuple, { fn: 'tuple-to-list' }, 'tuple')
   ).entries;
-  // Validate homogeneity: all entries must share the same structural type,
-  // matching the check the list-literal path applies.
-  resolvedInferElementType(entries);
-  return entries;
 }
 
 const tupleConvertTo: Record<string, (v: RillValue) => RillValue> = {

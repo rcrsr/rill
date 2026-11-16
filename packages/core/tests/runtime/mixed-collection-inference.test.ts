@@ -5,9 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  atomName,
   commonType,
-  getStatus,
   inferStructure,
   toNative,
   type RillValue,
@@ -79,11 +77,9 @@ describe('Mixed-collection inference: host-injected mixed list', () => {
     ]);
   });
 
-  it('recovers a list literal mixing the list with a string as #RILL_R002', async () => {
-    const result = await run('guard { list[$m, "x"] }', {
-      variables: variables(),
-    });
-    expect(atomName(getStatus(result).code)).toBe('RILL_R002');
+  it('accepts a list literal mixing the list with a string', async () => {
+    const result = await run('list[$m, "x"]', { variables: variables() });
+    expect(result).toEqual([[1, 'a'], 'x']);
   });
 
   it('halts TYPE_MISMATCH, not R002, on a narrower list assertion', async () => {
@@ -123,10 +119,14 @@ describe('Mixed-collection inference: inferred element types', () => {
     });
   });
 
-  it('falls back to a bare list element for nested lists with different elements', () => {
-    const type = inferStructure([[1, 'a'], [true]]);
-    expect(type).toMatchObject({ kind: 'list', element: { kind: 'list' } });
-    expect(type).toEqual({ kind: 'list', element: { kind: 'list' } });
+  it('infers a union of the inner list types for nested lists with different elements', () => {
+    expect(inferStructure([[1, 'a'], [true]])).toEqual({
+      kind: 'list',
+      element: union(
+        { kind: 'list', element: union(num, str) },
+        { kind: 'list', element: bool }
+      ),
+    });
   });
 
   it('merges two unions only when structurally equal', () => {
@@ -141,27 +141,25 @@ describe('Mixed-collection inference: inferred element types', () => {
   });
 });
 
-describe('Mixed-collection inference: strict sites still halt', () => {
-  it('halts a mixed list literal', async () => {
-    await expectHalt(() => run('list[1, "a"]'), { code: 'RILL_R002' });
+describe('Mixed-collection inference: mixed sites do not halt', () => {
+  it('accepts a mixed list literal', async () => {
+    expect(await run('list[1, "a"]')).toEqual([1, 'a']);
   });
 
-  it('halts spreading a mixed list into a list literal', async () => {
-    await expectHalt(() => run('list[...$m]', { variables: { m: mixed() } }), {
-      code: 'RILL_R002',
-    });
+  it('accepts spreading a mixed list into a list literal', async () => {
+    expect(await run('list[...$m]', { variables: { m: mixed() } })).toEqual([
+      1,
+      'a',
+    ]);
   });
 
-  it('halts tuple-to-list conversion of mixed elements', async () => {
-    await expectHalt(() => run('tuple[1, "a"] -> list'), {
-      code: 'RILL_R002',
-    });
+  it('accepts tuple-to-list conversion of mixed elements', async () => {
+    expect(await run('tuple[1, "a"] -> list')).toEqual([1, 'a']);
   });
 
-  it('halts comparing an inner list with a mixed list literal', async () => {
-    await expectHalt(
-      () => run('union(1, "a") => $t\n$t.inner == list[1, "a"]'),
-      { code: 'RILL_R002' }
+  it('compares an inner list with a mixed list literal', async () => {
+    expect(await run('union(1, "a") => $t\n$t.inner == list[1, "a"]')).toBe(
+      true
     );
   });
 });

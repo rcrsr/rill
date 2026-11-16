@@ -3,11 +3,11 @@ id: stream
 title: Stream types
 status: normative
 since: 0.24.0
-issues: [604, 622]
+issues: [604]
 grammar: []
-errors: [RILL-R036, TYPE_MISMATCH]
+errors: [RILL-P006, RILL-R036, TYPE_MISMATCH]
 depends: [type-value, structural-typing]
-tests: [stream-type-parsing.test.ts, streams.test.ts, type-inner-outer.test.ts]
+tests: [stream-type-parsing.test.ts, streams.test.ts, type-inner-outer.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
 ---
 
 # Stream types
@@ -35,10 +35,10 @@ r[stream.unspecified-outer] An omitted outer is unspecified
 `.outer` on `stream(number)` MUST return `any`. A bare `stream` MUST return `any` from both
 `.inner` and `.outer`.
 
-r[stream.unspecified] stream, stream(), and stream(any) are one type {pending #622}
+r[stream.unspecified] stream, stream(), and stream(any) are one type
 `stream`, `stream()`, and `stream(any)` MUST compare equal.
 
-r[stream.position] A stream type is written in every type position {pending #622}
+r[stream.position] A stream type is written in every type position
 `stream(T):R` MUST be accepted after an assertion colon, in a capture annotation, as a
 parameter type, and as an argument of another type.
 
@@ -73,6 +73,7 @@ a collection type, such as `list(string)`, MUST halt with RILL-R036.
 |-----------|-------|-----------|
 | Assertion value is not a stream of the asserted type | `#TYPE_MISMATCH` | Yes |
 | Pipe of a stream into a collection type | RILL-R036 | Yes |
+| Outer on a type that takes none | RILL-P006 | No |
 
 ## Examples
 
@@ -105,10 +106,6 @@ exactly, so `stream(any)` rejects a stream of strings (#604).
 
 Streams are stateful and single-use, and `$s == $s` halts RILL-R002 on 0.23.0 builds. Those
 facts belong to the stream value, not to its type.
-
-On 0.23.0 builds a type with an outer does not nest. `list(stream(number):string)` and
-`union(stream(number):string, string)` halt RILL-P014, and `$s -> :?stream(string):number`
-halts RILL-P001. A variable holding the type, `$s -> :?$t`, works today.
 
 The 0.23.0 `.^chunk` and `.^output` probes are removed; `.inner` and `.outer` on the stream's
 type replace them.

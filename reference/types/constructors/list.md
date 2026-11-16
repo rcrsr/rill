@@ -3,11 +3,11 @@ id: list
 title: List types
 status: normative
 since: 0.24.0
-issues: [622]
+issues: []
 grammar: [type-constructor]
-errors: [INVALID_INPUT]
+errors: [RILL-P006, INVALID_INPUT]
 depends: [type-value, type-form]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts]
+tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
 ---
 
 # List types
@@ -35,10 +35,10 @@ r[list.argument-count] A wrong argument count halts
 
 ## Static rules
 
-r[list.no-outer] A list type takes no outer {pending #622}
+r[list.no-outer] A list type takes no outer
 A list type written with an outer, such as `list(number):string`, MUST be a parse error.
 
-r[list.unspecified] list, list(), and list(any) are one type {pending #622}
+r[list.unspecified] list, list(), and list(any) are one type
 `list()` MUST be accepted. `list`, `list()`, and `list(any)` MUST compare equal.
 
 ## Evaluation
@@ -71,6 +71,7 @@ that holds a non-type follows `type-value.variable-halt`.
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
 | More or fewer than one argument, or a named argument | `#INVALID_INPUT` | Yes |
+| Outer on a type that takes none | RILL-P006 | No |
 
 ## Examples
 
@@ -89,16 +90,16 @@ list(list(string)).inner == list(string)
 # Result: true
 ```
 
-```rill pending=622
+```rill
 list() == list(any)
 # Result: true
 ```
 
 ## Notes
 
-Literal `list[1, "a"]` halts RILL-R002 on 0.23.0 builds, and a list of lists with different
-element kinds infers the bare `list(list)`. The decided 0.24.0 inference gives both a union
-element type, `list(union(number, string))`, and is not built yet. `list(stream(number):string)`
+A list whose elements differ in type infers a union element type: `list[1, "a"]` infers
+`list(union(number, string))`, and a list of lists with different element types infers
+`list(union(list(number), list(string)))`. `list(stream(number):string)`
 halts RILL-P014 until a type with an outer nests inside another type.
 
 `list(number):string` parses today as an assertion of the type value against `string` and halts

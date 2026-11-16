@@ -39,7 +39,7 @@ type TypeStructure =
   | { kind: 'duration' }
   | { kind: 'list'; element?: TypeStructure }
   | { kind: 'dict'; fields?: Record<string, RillFieldDef>; valueType?: TypeStructure }
-  | { kind: 'tuple'; elements?: RillFieldDef[]; valueType?: TypeStructure }
+  | { kind: 'tuple'; elements?: RillFieldDef[] }
   | { kind: 'ordered'; fields?: RillFieldDef[] }
   | { kind: 'vector'; dimensions: number }
   | { kind: 'closure'; params?: RillFieldDef[]; ret?: TypeStructure }
@@ -116,7 +116,6 @@ function getFieldDescription(
 export type { TypeStructure, RillFieldDef, RillFieldDescriptor };
 export {
   inferStructure,
-  inferElementType,
   commonType,
   structureEquals,
   structureMatches,
@@ -151,39 +150,37 @@ Returns the structural type descriptor for any rill value. Primitive values retu
 
 Pure function. Result is a frozen object.
 
-### `inferElementType`
-
-```typescript
-inferElementType(elements: RillValue[]): TypeStructure
-```
-
-Infers the element type for a list by folding element types left-to-right using `commonType`. Starts with the first element's type and folds each subsequent element's type via `commonType`. When `commonType` returns `null`, throws `RILL-R002`.
-
-| Input | Result |
-|-------|--------|
-| Empty array | `{ kind: 'any' }` |
-| Uniform-type array | Structural type of the common element |
-| Same-compound elements with differing sub-structure | Bare compound type (e.g., `{ kind: 'list' }`) |
-| Mixed top-level types | Throws `RILL-R002` |
-
 ### `commonType`
 
 ```typescript
 commonType(a: TypeStructure, b: TypeStructure): TypeStructure | null
 ```
 
-Returns the most specific shared type for two `TypeStructure` values. Used inside `inferElementType` to fold element types.
+Returns the most specific shared type for two `TypeStructure` values, or `null` when they share none. The runtime uses it while inferring a list's element type. Callers keep both inputs as members of a union when it returns `null`.
 
 Cascade order:
 
 | Step | Condition | Result |
 |------|-----------|--------|
-| Any-narrowing | Either input is `{ kind: 'any' }` | The concrete (non-any) type |
+| Any-narrowing | Either input is `{ kind: 'any' }` | The other input |
+| Different kinds | Top-level `kind` values differ | `null` |
 | Structural match | `structureEquals(a, b)` is true | `a` |
-| Bare type fallback | Same compound `kind` but structurally unequal | Bare compound type with sub-fields omitted (e.g., `{ kind: 'list' }`) |
-| Incompatible | Top-level `kind` values differ | `null` (caller raises `RILL-R002`) |
+| Lists | Both are `list` | A list of the merged element types, or `null` when those share none |
+| Dict and ordered | Both are `dict` or both `ordered`, and their values share one type | A uniform `valueType` of that type, or `null` |
+| Other | Anything else that differs structurally, including two tuples | `null` |
+
+| Input | Result |
+|-------|--------|
+| `number` and `string` | `null` |
+| `list(number)` and `list(string)` | `null` |
+| `dict(a: number)` and `dict(b: number)` | `{ kind: 'dict', valueType: { kind: 'number' } }` |
+| `dict(a: number)` and `dict(a: string)` | `null` |
 
 Pure function, no side effects.
+
+### List Element Inference
+
+`inferStructure` infers a list's element type without halting on mixed elements. An empty list has element type `any`. Each element type merges into the first member it shares a `commonType` with, and otherwise becomes a new member. The members reduce to a union that drops any member another member accepts. Mixed elements therefore yield a union, as in `list[1, "a"]`, whose type is `list(union(number, string))`. See [Type System](topic-type-system.md) for the script-level rules.
 
 ### `structureEquals`
 
@@ -236,7 +233,7 @@ Formats a structural type descriptor as a human-readable string.
 | `{ kind: 'list', element: { kind: 'number' } }` | `"list(number)"` |
 | `{ kind: 'dict', valueType: { kind: 'string' } }` | `"dict(string)"` |
 | `{ kind: 'closure', params: [{ name: 'x', type: { kind: 'number' } }] }` | `"closure"` |
-| `{ kind: 'tuple', elements: [{ name: 'x', type: { kind: 'number' } }] }` | `"tuple(x: number)"` |
+| `{ kind: 'tuple', elements: [{ type: { kind: 'number' } }] }` | `"tuple(number)"` |
 
 ### `buildFieldDescriptor`
 

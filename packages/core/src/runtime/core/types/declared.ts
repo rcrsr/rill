@@ -46,7 +46,7 @@ export function declarationOf(
 /**
  * Project the declared type of an element read from a declared collection:
  * list(E) -> E; tuple by index, dict by name, ordered by name or index. A
- * uniform valueType wins over positions and fields, as in the matcher; with
+ * uniform dict or ordered valueType wins over fields, as in the matcher; with
  * none set, an unmatched key projects nothing. Index keys are non-negative.
  * Unions and bare kinds project nothing.
  */
@@ -59,13 +59,12 @@ export function projectElement(
     return declarationOf(collection.element);
   }
   if (isStructureKind(collection, 'tuple')) {
-    // The matcher checks valueType first and ignores positions when both
-    // are set; project the same way. Callers pass a non-negative index.
-    if (collection.valueType === undefined && typeof key === 'number') {
+    // Callers pass a non-negative index.
+    if (typeof key === 'number') {
       const element = collection.elements?.[key];
       if (element !== undefined) return declarationOf(element.type);
     }
-    return declarationOf(collection.valueType);
+    return undefined;
   }
   if (isStructureKind(collection, 'dict')) {
     const fields = collection.fields;

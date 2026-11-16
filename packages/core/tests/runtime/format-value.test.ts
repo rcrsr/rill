@@ -499,14 +499,14 @@ describe('toNative', () => {
     it('AC-22: converts empty list', () => {
       const r = toNative([]);
       expect(r.rillTypeName).toBe('list');
-      expect(r.rillTypeSignature).toBe('list(any)');
+      expect(r.rillTypeSignature).toBe('list');
       expect(r.value).toEqual([]);
     });
 
     it('AC-23: converts empty dict', () => {
       const r = toNative({});
       expect(r.rillTypeName).toBe('dict');
-      expect(r.rillTypeSignature).toBe('dict()');
+      expect(r.rillTypeSignature).toBe('dict');
       expect(r.value).toEqual({});
     });
   });
@@ -748,8 +748,7 @@ describe('Script-level integration', () => {
   describe('AC-11: json([1, closure, 3]) throws RuntimeError', () => {
     it('json on list containing closure rejects', async () => {
       await expectHalt(() => run('list[1, ||{ "fn" }, 3] -> json'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
+        code: 'INVALID_INPUT',
       });
     });
   });

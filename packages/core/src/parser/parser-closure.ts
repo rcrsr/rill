@@ -9,6 +9,7 @@ import type {
   AnnotationArg,
   ClosureNode,
   ClosureParamNode,
+  FieldArg,
   LiteralNode,
   BodyNode,
   TypeConstructorNode,
@@ -28,7 +29,7 @@ import {
 } from './state.js';
 import { expectVariableName } from './helpers.js';
 import {
-  appendStreamResolution,
+  parseOuterType,
   parseFieldArgList,
   parseScriptTypeRef,
 } from './parser-types.js';
@@ -61,6 +62,17 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
   const start = current(parser.state).span.start;
   advance(parser.state); // consume 'stream'
 
+  // A bare stream with an outer: stream:R is stream(any):R.
+  const bareArgs: FieldArg[] = [];
+  if (parseOuterType(parser.state, 'stream', bareArgs)) {
+    return {
+      type: 'TypeConstructor',
+      constructorName: 'stream',
+      args: bareArgs,
+      span: makeSpan(start, previous(parser.state).span.end),
+    };
+  }
+
   if (!check(parser.state, TOKEN_TYPES.LPAREN)) {
     throw new ParseError(
       ERROR_IDS.RILL_P006,
@@ -84,19 +96,23 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
 
   // Check for resolution type: stream(T):R
   if (check(parser.state, TOKEN_TYPES.COLON)) {
-    advance(parser.state); // consume ':'
-    skipNewlines(parser.state);
-
     // Guard: resolution type must start with a valid type name
-    if (!check(parser.state, TOKEN_TYPES.IDENTIFIER)) {
+    if (peek(parser.state, 1).type !== TOKEN_TYPES.IDENTIFIER) {
       throw new ParseError(
         ERROR_IDS.RILL_P006,
         "Expected type name after ':' in stream type",
-        current(parser.state).span.start
+        peek(parser.state, 1).span.start
       );
     }
 
-    appendStreamResolution(parser, args);
+    if (
+      !parseOuterType(parser.state, 'stream', args, {
+        parseLiteral: () => parser.parseLiteral(),
+      })
+    ) {
+      advance(parser.state); // consume ':'
+      parseScriptTypeRef(parser); // raises for a non-type name
+    }
 
     return {
       type: 'TypeConstructor',

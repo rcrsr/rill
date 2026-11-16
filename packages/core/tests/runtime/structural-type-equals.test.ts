@@ -370,7 +370,7 @@ describe('structureEquals', () => {
       }
     });
 
-    it('returns bare list for list(number) vs list(string) [AC-20]', () => {
+    it('returns null for list(number) vs list(string) [AC-20]', () => {
       const listNum: TypeStructure = {
         kind: 'list',
         element: { kind: 'number' },
@@ -379,8 +379,7 @@ describe('structureEquals', () => {
         kind: 'list',
         element: { kind: 'string' },
       };
-      const result = commonType(listNum, listStr);
-      expect(result).toEqual({ kind: 'list' });
+      expect(commonType(listNum, listStr)).toBeNull();
     });
   });
 

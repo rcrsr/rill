@@ -116,19 +116,6 @@ describe('compareStructuredFields', () => {
       expect(result).toBe('tupleElements');
     });
 
-    it('dispatches to onValueType when both tuples have valueType', () => {
-      const a: TypeStructure = {
-        kind: 'tuple',
-        valueType: { kind: 'number' },
-      };
-      const b: TypeStructure = {
-        kind: 'tuple',
-        valueType: { kind: 'number' },
-      };
-      const result = compareStructuredFields(a, b, labelCallbacks, 'fallback');
-      expect(result).toBe('valueType');
-    });
-
     it('dispatches to onBothEmpty for bare tuples', () => {
       const a: TypeStructure = { kind: 'tuple' };
       const b: TypeStructure = { kind: 'tuple' };

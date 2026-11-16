@@ -142,7 +142,7 @@ Use explicit boolean checks when needed:
 
 Ordered sequences of values. The bare `[...]` form and the keyword `list[...]` form are equivalent; `list[...]` is canonical (used in output and the LLM reference).
 
-When list elements share a compound type but differ in sub-structure, rill infers the bare compound type. See [Type Inference Cascade](topic-type-system.md#type-inference-cascade).
+When list elements differ in type, rill infers a union element type. See [Element Type Inference](topic-type-system.md#element-type-inference).
 
 ```rill
 [1, 2, 3]         # bare form
@@ -602,18 +602,16 @@ Use tuples with explicit spread `...` to pass positional args in `fan`:
 [tuple[1, 2], tuple[3, 4]] -> fan({ $mul(...) })    # list[2, 12]
 ```
 
-### Uniform Value Type
+### One Position per Argument
 
-`tuple(T)` asserts that every entry in the tuple matches type T. The tuple is returned unchanged.
+`tuple(T)` names exactly one position. Each argument adds one position, so `tuple(number, number)` names two.
 
 ```rill
-tuple[1, 2, 3] -> tuple(number)
-# Result: tuple[1, 2, 3]
+tuple[1, 2, 3] -> tuple(number, number)
+# Result: tuple[1, 2]
 ```
 
-An empty tuple passes; there are no values to violate the constraint.
-
-**Breaking change:** The single-positional-argument form `tuple(T)` now defines a uniform value type, not a 1-element structural tuple. Use `tuple(T1, T2)` (two or more positional args) for structural tuples with specific element types.
+Conversion keeps the named positions and drops the rest. For a sequence of any length with one element type, use `list(T)`. See [Type Form](topic-type-system.md#type-form) for the `tuple(T)` rule.
 
 ### Field Annotations
 

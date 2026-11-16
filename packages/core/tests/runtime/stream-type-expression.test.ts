@@ -42,10 +42,10 @@ describe('stream type expression', () => {
   });
 
   describe('current behavior (known limits)', () => {
-    it('halts RILL-P014 for a stream resolution type inside a type argument', async () => {
-      await expect(run('list(stream(number):string)')).rejects.toMatchObject({
-        errorId: 'RILL-P014',
-      });
+    it('accepts a stream resolution type inside a type argument', async () => {
+      expect(await run('list(stream(number):string) => $t\n$t.signature')).toBe(
+        'list(stream(number):string)'
+      );
     });
 
     it('treats a newline after the colon as an assertion', async () => {

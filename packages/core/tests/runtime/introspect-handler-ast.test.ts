@@ -58,6 +58,21 @@ describe('introspectHandlerFromAST', () => {
       });
     });
 
+    it('prints unspecified container parameter types as bare names', () => {
+      const ast = parse(
+        '|a: list(any), b: stream(any):any, c: stream(number):any, d: dict(), e: tuple(any)| { $a } => $run'
+      );
+      const result = introspectHandlerFromAST(ast, 'run');
+      expect(result).not.toBeNull();
+      expect(result!.params.map((p) => p.type)).toEqual([
+        'list',
+        'stream',
+        'stream(number)',
+        'dict',
+        'tuple(any)',
+      ]);
+    });
+
     it('uses any for untyped parameters', () => {
       const ast = parse('|x| { $x } => $run');
       const result = introspectHandlerFromAST(ast, 'run');

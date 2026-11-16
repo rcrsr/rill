@@ -28,7 +28,7 @@ import {
   isVector,
   getStreamTypeSidecar,
 } from './guards.js';
-import { throwCatchableHostHalt, throwTypeHalt } from './halt.js';
+import { throwTypeHalt } from './halt.js';
 import {
   inferType as registryInferType,
   formatValue as registryFormatValue,
@@ -39,7 +39,8 @@ import type { DefaultMismatch } from './field-defaults.js';
 import { quoteRillString } from './format-string.js';
 import { typedKeyEntries, setDictField } from './dict-keys.js';
 import { formatUnion } from './error-code.js';
-import { ERROR_ATOMS, ERROR_IDS } from '../../../error-registry.js';
+// oxlint-disable-next-line import/no-cycle -- unions.ts imports this file; the edge is used only at call time, never at module init
+import { normalizeUnion } from './unions.js';
 
 /** isCallable guard widened to narrow to full RillCallable (not just CallableMarker); a CallableMarker implies RillCallable by construction. */
 function isCallable(value: RillValue): value is RillCallable {
@@ -113,13 +114,6 @@ export function compareStructuredFields<T>(
   }
 
   if (isStructureKind(a, 'tuple') && isStructureKind(b, 'tuple')) {
-    const aValue = a.valueType;
-    const bValue = b.valueType;
-    if (aValue !== undefined || bValue !== undefined) {
-      if (aValue === undefined || bValue === undefined)
-        return callbacks.onValueTypeMismatch();
-      return callbacks.onValueType(aValue, bValue);
-    }
     if (a.elements === undefined && b.elements === undefined) {
       return callbacks.onBothEmpty();
     }
@@ -278,6 +272,9 @@ const equalsCallbacks: FieldComparisonCallbacks<boolean> = {
   onOrderedFields: (a, b) => compareSequentialFields(a, b, true),
 };
 
+/** The unspecified type slot: an absent element, chunk, or ret reads as `any`. */
+const ANY_STRUCTURE: TypeStructure = Object.freeze({ kind: 'any' });
+
 /** Compare two structural types for equality. */
 export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
   if (a.kind !== b.kind) return false;
@@ -300,9 +297,11 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
   }
 
   if (isStructureKind(a, 'list') && isStructureKind(b, 'list')) {
-    if (a.element === undefined && b.element === undefined) return true;
-    if (a.element === undefined || b.element === undefined) return false;
-    return structureEquals(a.element, b.element);
+    // An absent element is unspecified and equals `any`.
+    return structureEquals(
+      a.element ?? ANY_STRUCTURE,
+      b.element ?? ANY_STRUCTURE
+    );
   }
 
   // Delegate dict/tuple/ordered to compareStructuredFields
@@ -335,20 +334,17 @@ export function structureEquals(a: TypeStructure, b: TypeStructure): boolean {
   if (isStructureKind(a, 'stream') && isStructureKind(b, 'stream')) {
     const aStream = a;
     const bStream = b;
-    const chunkEq =
-      aStream.chunk === undefined && bStream.chunk === undefined
-        ? true
-        : aStream.chunk !== undefined && bStream.chunk !== undefined
-          ? structureEquals(aStream.chunk, bStream.chunk)
-          : false;
-    if (!chunkEq) return false;
-    const retEq =
-      aStream.ret === undefined && bStream.ret === undefined
-        ? true
-        : aStream.ret !== undefined && bStream.ret !== undefined
-          ? structureEquals(aStream.ret, bStream.ret)
-          : false;
-    return retEq;
+    // An absent chunk or ret is unspecified and equals `any`.
+    return (
+      structureEquals(
+        aStream.chunk ?? ANY_STRUCTURE,
+        bStream.chunk ?? ANY_STRUCTURE
+      ) &&
+      structureEquals(
+        aStream.ret ?? ANY_STRUCTURE,
+        bStream.ret ?? ANY_STRUCTURE
+      )
+    );
   }
 
   if (isStructureKind(a, 'closure') && isStructureKind(b, 'closure')) {
@@ -395,11 +391,8 @@ function createMatchesCallbacks(
   return {
     onValueType(valueType) {
       // Uniform valueType: check all values match the type.
-      // Order matters: isOrdered/isTuple before isDict because
-      // ordered and tuple values also satisfy isDict.
-      if (isTuple(value)) {
-        return value.entries.every((v) => structureMatches(v, valueType));
-      }
+      // Order matters: isOrdered before isDict because ordered values
+      // also satisfy isDict.
       if (isOrdered(value)) {
         return value.entries.every(([, v]) => structureMatches(v, valueType));
       }
@@ -659,6 +652,13 @@ export function defaultMismatch(
   };
 }
 
+/** True when a type slot is omitted or `any`: both read as unspecified. */
+function isUnspecified(
+  slot: TypeStructure | undefined
+): slot is undefined | { kind: 'any' } {
+  return slot === undefined || slot.kind === 'any';
+}
+
 /** Format a structural type descriptor as a human-readable string. */
 export function formatStructure(type: TypeStructure): string {
   if (
@@ -676,8 +676,10 @@ export function formatStructure(type: TypeStructure): string {
     return type.kind;
   }
 
+  // An unspecified container prints as its bare name, so equal types print
+  // alike: list, list(), and list(any) all print `list`.
   if (isStructureKind(type, 'list')) {
-    if (type.element === undefined) return 'list';
+    if (isUnspecified(type.element)) return 'list';
     return `list(${formatStructure(type.element)})`;
   }
 
@@ -694,11 +696,12 @@ export function formatStructure(type: TypeStructure): string {
   }
 
   if (isStructureKind(type, 'stream')) {
-    if (type.chunk === undefined && type.ret === undefined) return 'stream';
+    if (isUnspecified(type.chunk) && isUnspecified(type.ret)) return 'stream';
     const chunkStr =
       type.chunk !== undefined ? formatStructure(type.chunk) : 'any';
-    const retStr =
-      type.ret !== undefined ? `:${formatStructure(type.ret)}` : '';
+    const retStr = isUnspecified(type.ret)
+      ? ''
+      : `:${formatStructure(type.ret)}`;
     return `stream(${chunkStr})${retStr}`;
   }
 
@@ -746,74 +749,46 @@ function paramToFieldDef(
 
 /**
  * Infer the element type of a list. Never halts on mixed elements.
- * Empty arrays return { kind: 'any' }. Elements of one kind merge through
- * commonType; elements of several kinds yield a union of the distinct kinds
- * in first-seen order.
+ * Empty arrays return { kind: 'any' }. Each element merges into the first
+ * member it shares a common type with, else becomes a new member; the
+ * members then reduce through normalizeUnion, so a member another member
+ * accepts is dropped. One pass keeps nested lists linear per level.
  */
 function inferElementType(elements: RillValue[]): TypeStructure {
-  return scanElementTypes(elements).type;
-}
-
-/**
- * Non-throwing homogeneity check for list elements. Compares top-level
- * kinds only. Returns the mismatch message, or undefined when all elements
- * share a kind.
- */
-export function findElementTypeMismatch(
-  elements: RillValue[]
-): string | undefined {
-  return scanElementTypes(elements).mismatch;
-}
-
-/**
- * Strict homogeneity check: halts catchably with #RILL_R002 when list
- * elements differ in top-level kind. Wired as the late-bound check behind
- * tuple-to-list conversion.
- */
-export function assertUniformElementKinds(elements: RillValue[]): void {
-  const mismatch = findElementTypeMismatch(elements);
-  if (mismatch !== undefined) {
-    throwCatchableHostHalt(
-      { fn: 'inferElementType' },
-      ERROR_ATOMS[ERROR_IDS.RILL_R002],
-      mismatch
-    );
-  }
-}
-
-/**
- * Single pass over list elements: element type, plus the mismatch message
- * for the first element whose kind differs from the elements before it. One
- * pass keeps nested lists linear per level; inferring each element twice
- * would double the work at every nesting level.
- */
-function scanElementTypes(elements: RillValue[]): {
-  type: TypeStructure;
-  mismatch: string | undefined;
-} {
   const members: TypeStructure[] = [];
-  let mismatch: string | undefined;
-  for (let i = 0; i < elements.length; i++) {
-    const elem = elements[i];
+  for (const elem of elements) {
     if (elem === undefined) continue;
     const elemType = inferStructure(elem);
-    const slot = members.findIndex((m) => m.kind === elemType.kind);
-    if (slot === -1) {
-      const first = members[0];
-      if (first !== undefined && mismatch === undefined) {
-        mismatch = `List elements must be the same type: expected ${formatStructure(first)}, got ${formatStructure(elemType)} at index ${i}`;
-      }
-      members.push(elemType);
-      continue;
+    let merged = false;
+    for (const [slot, existing] of members.entries()) {
+      const common = commonType(existing, elemType);
+      if (common === null) continue;
+      members[slot] = common;
+      merged = true;
+      break;
     }
-    const existing = members[slot];
-    if (existing === undefined) continue;
-    members[slot] = commonType(existing, elemType) ?? { kind: existing.kind };
+    if (!merged) members.push(elemType);
   }
-  const only = members[0];
-  if (only === undefined) return { type: { kind: 'any' }, mismatch };
-  if (members.length === 1) return { type: only, mismatch };
-  return { type: { kind: 'union', members }, mismatch };
+  // A merge can make two members equal; keep the first of each.
+  const distinct = members.filter(
+    (m, i) =>
+      !members.slice(0, i).some((earlier) => structureEquals(earlier, m))
+  );
+  const only = distinct[0];
+  if (only === undefined) return { kind: 'any' };
+  if (distinct.length === 1) return only;
+  const normalized = normalizeUnion(distinct);
+  if ('rejection' in normalized) {
+    return throwTypeHalt(
+      { fn: 'inferElementType' },
+      'INVALID_INPUT',
+      normalized.rejection,
+      'runtime',
+      undefined,
+      'host'
+    );
+  }
+  return normalized.structure;
 }
 
 /** Infer the structural type descriptor for any Rill value. */
@@ -833,7 +808,10 @@ export function inferStructure(value: RillValue): TypeStructure {
   if (Array.isArray(value)) {
     return { kind: 'list', element: inferElementType(value) };
   }
+  // An empty tuple, ordered, or dict infers the unspecified type, as an
+  // empty list does, so its printed type parses back to itself.
   if (isTuple(value)) {
+    if (value.entries.length === 0) return { kind: 'tuple' };
     return {
       kind: 'tuple',
       elements: value.entries.map((e): RillFieldDef => ({
@@ -842,6 +820,7 @@ export function inferStructure(value: RillValue): TypeStructure {
     };
   }
   if (isOrdered(value)) {
+    if (value.entries.length === 0) return { kind: 'ordered' };
     return {
       kind: 'ordered',
       fields: value.entries.map(([k, v]): RillFieldDef => ({
@@ -903,6 +882,7 @@ export function inferStructure(value: RillValue): TypeStructure {
     for (const { key, value: v } of typedKeyEntries(dict)) {
       setDictField(fields, String(key), { type: inferStructure(v) });
     }
+    if (Object.keys(fields).length === 0) return { kind: 'dict' };
     return { kind: 'dict', fields };
   }
   return throwTypeHalt(
@@ -922,119 +902,80 @@ export function inferStructure(value: RillValue): TypeStructure {
 // ============================================================
 
 /**
- * Merge uniform value types from two sides of the same compound type.
- * Sub-case A: both carry valueType -> recurse commonType.
- * Sub-case B: both carry structural fields -> extract value types, merge all.
- * Returns the merged TypeStructure on success, undefined when no uniform merge applies.
+ * Merge the field types of two keyed compounds into one uniform value type.
+ * Returns the merged TypeStructure, or undefined when the field types share
+ * no common type (or neither side has fields).
  */
 function mergeUniformValueType(
-  aValue: TypeStructure | undefined,
-  bValue: TypeStructure | undefined,
-  aFields: RillFieldDef[] | undefined,
-  bFields: RillFieldDef[] | undefined
+  aFields: RillFieldDef[],
+  bFields: RillFieldDef[]
 ): TypeStructure | undefined {
-  // Sub-case A: both carry valueType
-  if (aValue !== undefined && bValue !== undefined) {
-    const merged = commonType(aValue, bValue);
-    if (merged !== null) return merged;
-    return undefined;
+  const allTypes = aFields.concat(bFields);
+  const first = allTypes[0];
+  if (first === undefined) return undefined;
+  let merged: TypeStructure = first.type;
+  for (let i = 1; i < allTypes.length; i++) {
+    const member = allTypes[i]?.type;
+    if (member === undefined) continue;
+    const next = commonType(merged, member);
+    if (next === null) return undefined;
+    merged = next;
   }
-
-  // Sub-case B: both carry structural fields
-  if (aFields !== undefined && bFields !== undefined) {
-    const allTypes = aFields.concat(bFields);
-    const first = allTypes[0];
-    if (first === undefined) return undefined;
-    let merged: TypeStructure = first.type;
-    for (let i = 1; i < allTypes.length; i++) {
-      const member = allTypes[i]?.type;
-      if (member === undefined) continue;
-      const next = commonType(merged, member);
-      if (next === null) return undefined;
-      merged = next;
-    }
-    return merged;
-  }
-
-  return undefined;
+  return merged;
 }
 
 /**
+ * Callbacks for compareStructuredFields that yield the uniform value type
+ * two dict or ordered structures share, or null when they share none.
+ * Tuples are positional, so differing tuples have no common type.
+ */
+const commonValueTypeCallbacks: FieldComparisonCallbacks<TypeStructure | null> =
+  {
+    onValueType: (aVT, bVT) => commonType(aVT, bVT),
+    onValueTypeMismatch: () => null,
+    onBothEmpty: () => null,
+    onFieldPresenceMismatch: () => null,
+    onDictFields: (a, b) =>
+      mergeUniformValueType(Object.values(a), Object.values(b)) ?? null,
+    onTupleElements: () => null,
+    onOrderedFields: (a, b) => mergeUniformValueType(a, b) ?? null,
+  };
+
+/**
  * Return the most specific shared type for two TypeStructure values.
- * Returns null when types are incompatible at the top level.
+ * Returns null when the two share no common type; the caller keeps both
+ * as members of a union.
  *
  * Cascade priority:
  * 1. Any-narrowing: if either side is `any`, return the other
- * 2. Structural match: delegate to structureEquals; on true, return a
- * 3. Recursive list: merge inner element types
- * 3b. Uniform valueType: merge dict/tuple/ordered value types
- * 4. Bare type fallback: same compound type but structural mismatch
- *    (two unions that differ structurally have no common type: null)
- * 5. Incompatible: different top-level types return null
+ * 2. Different kinds: null
+ * 3. Structural match: return a
+ * 4. Lists: merge element types, null when they share none
+ * 5. Dict/ordered: merge to a uniform value type, null when none applies
+ * 6. Anything else that differs structurally: null
  */
 export function commonType(
   a: TypeStructure,
   b: TypeStructure
 ): TypeStructure | null {
-  // 1. Any-narrowing
   if (a.kind === 'any') return b;
   if (b.kind === 'any') return a;
-
-  // 5. Incompatible top-level types (checked early to short-circuit)
   if (a.kind !== b.kind) return null;
-
-  // 2. Structural match
   if (structureEquals(a, b)) return a;
 
-  // 3. Recursive list element merging
   if (isStructureKind(a, 'list') && isStructureKind(b, 'list')) {
-    if (a.element !== undefined && b.element !== undefined) {
-      const inner = commonType(a.element, b.element);
-      if (inner !== null) return { kind: 'list', element: inner };
-    }
-    return { kind: 'list' };
-  }
-
-  // 3b. Uniform valueType merging for dict/tuple/ordered
-  if (isStructureKind(a, 'dict') && isStructureKind(b, 'dict')) {
-    const merged = mergeUniformValueType(
-      a.valueType,
-      b.valueType,
-      a.fields ? Object.values(a.fields) : undefined,
-      b.fields ? Object.values(b.fields) : undefined
+    const inner = commonType(
+      a.element ?? ANY_STRUCTURE,
+      b.element ?? ANY_STRUCTURE
     );
-    if (merged !== undefined) return { kind: 'dict', valueType: merged };
+    return inner === null ? null : { kind: 'list', element: inner };
   }
 
-  if (isStructureKind(a, 'tuple') && isStructureKind(b, 'tuple')) {
-    const merged = mergeUniformValueType(
-      a.valueType,
-      b.valueType,
-      a.elements,
-      b.elements
-    );
-    if (merged !== undefined) return { kind: 'tuple', valueType: merged };
+  const merged = compareStructuredFields(a, b, commonValueTypeCallbacks, null);
+  if (merged === null) return null;
+  if (isStructureKind(a, 'dict')) return { kind: 'dict', valueType: merged };
+  if (isStructureKind(a, 'ordered')) {
+    return { kind: 'ordered', valueType: merged };
   }
-
-  if (isStructureKind(a, 'ordered') && isStructureKind(b, 'ordered')) {
-    const merged = mergeUniformValueType(
-      a.valueType,
-      b.valueType,
-      a.fields,
-      b.fields
-    );
-    if (merged !== undefined) return { kind: 'ordered', valueType: merged };
-  }
-
-  // 4. Bare type fallback for compound types.
-  if (
-    a.kind === 'closure' ||
-    a.kind === 'dict' ||
-    a.kind === 'tuple' ||
-    a.kind === 'ordered'
-  ) {
-    return { kind: a.kind };
-  }
-
   return null;
 }

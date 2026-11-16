@@ -3,11 +3,11 @@ id: type-form
 title: Type forms
 status: normative
 since: 0.24.0
-issues: [622]
+issues: []
 grammar: []
-errors: [RILL-P001, RILL-P003]
+errors: [RILL-P001, RILL-P003, RILL-P006]
 depends: [notation, halt]
-tests: [type-var-positions.test.ts, type-ref-arg-unification.test.ts]
+tests: [type-var-positions.test.ts, type-ref-arg-unification.test.ts, type-form-outer.test.ts]
 ---
 
 # Type forms
@@ -16,7 +16,7 @@ A type form is the one way a type is written: `name(inner):outer`, where the inn
 
 ## Syntax
 
-r[type-form.uniform] Every type is written name(inner):outer {pending #622}
+r[type-form.uniform] Every type is written name(inner):outer
 A type MUST be written in this form:
 
 ```text
@@ -51,6 +51,7 @@ including a `$` variable written in its place, is stated by `type-value`.
 |-----------|-------|-----------|
 | A type form names an unknown type | RILL-P003 | No |
 | An inner holds a value, not a type form | RILL-P001 | No |
+| Outer on a type that takes none | RILL-P006 | No |
 
 ## Examples
 
@@ -64,3 +65,7 @@ list(unknown_name)
 Until #571 lands, `docs/ref-grammar.ebnf` spells type forms as `type-ref` and
 `type-ref-member`, which accept a narrower form and include a `$` variable in the production.
 Each type's concept notes how its own spelling differs.
+
+Inside an inner, `name:` starts a named field, so `dict(stream: number)` has a field named
+`stream`, not a stream with an outer. A bare stream with an outer inside an inner is written
+`stream():number`.

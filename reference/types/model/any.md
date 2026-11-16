@@ -3,7 +3,7 @@ id: any
 title: The any type
 status: normative
 since: 0.24.0
-issues: [622]
+issues: []
 grammar: []
 errors: []
 depends: [type-value]
@@ -62,14 +62,11 @@ list.inner == any
 # Result: true
 ```
 
-```rill pending=622
+```rill
 dict() == dict
 # Result: true
 ```
 
 ## Notes
-
-The current runtime evaluates `dict()` to a type that does not equal bare `dict`, and `list()`
-halts `#INVALID_INPUT`.
 
 `any` is the one spelling for a position that accepts every value.

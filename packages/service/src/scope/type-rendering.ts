@@ -37,6 +37,18 @@ function fieldArgToString(arg: FieldArg): string {
   return literal === undefined ? named : `${named} = ${literal}`;
 }
 
+/** True for an unnamed `any` argument with no default: an unspecified slot. */
+function isAnyArg(arg: FieldArg | undefined): boolean {
+  return (
+    arg !== undefined &&
+    arg.name === undefined &&
+    arg.defaultValue === undefined &&
+    arg.value.kind === 'static' &&
+    arg.value.typeName === 'any' &&
+    (arg.value.args === undefined || arg.value.args.length === 0)
+  );
+}
+
 /**
  * Converts a `TypeRef` to a human-readable type string. Parameterized types
  * render as `name(arg, arg, ...)`, with each named arg as `name: <type>`,
@@ -49,8 +61,23 @@ export function typeRefToString(ref: TypeRef | null): string {
       if (ref.args === undefined || ref.args.length === 0) {
         return ref.typeName;
       }
-      const args = ref.args.map(fieldArgToString).join(', ');
-      return `${ref.typeName}(${args})`;
+      // A stream carries its outer type in args[1]: stream(chunk):outer.
+      // An unspecified outer is dropped, and a list or stream with every
+      // slot unspecified prints as its bare name.
+      const rawOuter = ref.typeName === 'stream' ? ref.args[1] : undefined;
+      const outer = isAnyArg(rawOuter) ? undefined : rawOuter;
+      const inner = rawOuter === undefined ? ref.args : ref.args.slice(0, 1);
+      if (
+        (ref.typeName === 'list' || ref.typeName === 'stream') &&
+        outer === undefined &&
+        inner.every(isAnyArg)
+      ) {
+        return ref.typeName;
+      }
+      const args = inner.map(fieldArgToString).join(', ');
+      const outerStr =
+        outer === undefined ? '' : `:${typeRefToString(outer.value)}`;
+      return `${ref.typeName}(${args})${outerStr}`;
     }
     case 'dynamic':
       return 'any';

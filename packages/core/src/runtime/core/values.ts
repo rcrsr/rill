@@ -295,7 +295,7 @@ export function hasCollectionFields(type: TypeStructure): boolean {
     return !!type.fields || !!type.valueType;
   }
   if (isStructureKind(type, 'tuple')) {
-    return !!type.elements || !!type.valueType;
+    return !!type.elements;
   }
   return false;
 }
