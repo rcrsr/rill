@@ -57,7 +57,7 @@ with its `#`, and a type value as its signature.
 
 ## Interactions
 
-A pipe into a string literal binds `$` for its interpolations (`pipe.string`). A function or an iterator has no printed form, alone (`conversion.no-string-form`) or inside a collection at any depth (`conversion.no-string-nested`). An invalid value raises the halt it holds (`invalid-value.interpolate`).
+A pipe into a string literal binds `$` for its interpolations (`pipe.string`). A function or an iterator has no printed form, alone (`conversion.no-string-form`) or inside a collection at any depth (`conversion.no-string-nested`), and neither has a vector (`conversion.no-string-vector`). A datetime or a duration inserts its printed form at any depth, though `-> string` halts on one (`conversion.no-string-time`). An invalid value raises the halt it holds (`invalid-value.interpolate`).
 
 ## Errors
 
@@ -66,7 +66,7 @@ A pipe into a string literal binds `$` for its interpolations (`pipe.string`). A
 | An empty interpolation | RILL-P004 | No |
 | A backslash before a brace | RILL-L005 | No |
 | `{$}` with no `$` bound | RILL-R005 | Yes |
-| The value is a function or an iterator, or a collection that holds one at any depth | RILL-R036 | Yes |
+| The value is a function, an iterator, or a vector, or a collection that holds one at any depth | RILL-R036 | Yes |
 
 ## Examples
 

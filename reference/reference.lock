@@ -156,9 +156,11 @@ conversion.missing f98bb007434c
 conversion.no-signature b899c99c7c8b
 conversion.no-string-form d673fef041e6 interpolation.printed@fdb3073b6dba
 conversion.no-string-nested c8125a4057fe interpolation.printed@fdb3073b6dba
+conversion.no-string-time 683aaf33a9fa string.from-time@1dbd24ad86ed
+conversion.no-string-vector bc4a6c616350 interpolation.printed@fdb3073b6dba
 conversion.ordered-dict 519188d5b030
 conversion.pipe b31bebe73638 assertion.unchanged@d5063326e3a7
-conversion.scalar 82e5c1778ac4 atom.from-string@013a2d860f57 atom.to-string@a4a3cd7d5805 bool.from-number@afce697c38d8 bool.from-string@387862b2c2a8 number.from-bool@6305e49e7045 number.from-string@1d7ed899cb56 string.from-bool@a2d54837dbaf string.from-collection@4ee3861dbc1d string.from-number@aa4ac6bcf48e
+conversion.scalar 82e5c1778ac4 atom.from-string@013a2d860f57 atom.to-string@a4a3cd7d5805 bool.from-number@afce697c38d8 bool.from-string@387862b2c2a8 number.from-bool@6305e49e7045 number.from-string@1d7ed899cb56 string.from-bool@a2d54837dbaf string.from-collection@4778d11e7f7a string.from-number@aa4ac6bcf48e
 conversion.union 415487b22deb
 conversion.union-miss 59c0bce8424f
 conversion.value-fail 411bbbd33387
@@ -393,13 +395,13 @@ inference.shape-union 9929e689f406
 inference.shape-union-ordered 5a29e593a5ed
 inference.uniform a737257018f3
 inference.union-element 8eeac61a0bfd
-interpolation 5a7a726f3759 conversion.no-string-form@d673fef041e6 conversion.no-string-nested@c8125a4057fe invalid-value.interpolate@c5addb31436e pipe.string@e11eeeaf2f49
+interpolation 1d821f6f50f0 conversion.no-string-form@d673fef041e6 conversion.no-string-nested@c8125a4057fe conversion.no-string-time@683aaf33a9fa conversion.no-string-vector@bc4a6c616350 invalid-value.interpolate@c5addb31436e pipe.string@e11eeeaf2f49
 interpolation.brace-escape 6e5608da3dc5
 interpolation.dollar 0ab302e7a77c
 interpolation.expression e6e5f7c53b8a
 interpolation.non-empty b3e626dfdbe3
 interpolation.order 7bdb45c0246a
-interpolation.printed fdb3073b6dba string.from-bool@a2d54837dbaf string.from-collection@4ee3861dbc1d string.from-number@aa4ac6bcf48e
+interpolation.printed fdb3073b6dba string.from-bool@a2d54837dbaf string.from-collection@4778d11e7f7a string.from-number@aa4ac6bcf48e
 interpolation.scope 225c87dc5412 scope.child@fb0f345c5707
 interpolation.string 00f9ba88f50f
 introspection.annotations 2e9f0d61f82d
@@ -690,7 +692,7 @@ string.empty-interpolation 3a51cfee184b
 string.equality 3a43772daed2
 string.escape ddf4684bc06c
 string.from-bool a2d54837dbaf
-string.from-collection 4ee3861dbc1d conversion.no-string-nested@c8125a4057fe
+string.from-collection 4778d11e7f7a conversion.no-string-nested@c8125a4057fe conversion.no-string-time@683aaf33a9fa conversion.no-string-vector@bc4a6c616350
 string.from-number aa4ac6bcf48e
 string.from-time 1dbd24ad86ed
 string.interpolation 2a8079956f1e

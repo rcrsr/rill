@@ -32,6 +32,7 @@ import {
 } from '../../../core/types/index-access.js';
 import { resolvedCompareValue } from '../../../core/types/protocols/shared.js';
 import { invokeCallable as invokeCallableState } from '../../../core/eval/index.js';
+import { describeNoStringForm } from '../../../core/eval/handlers/conversion.js';
 import {
   type RillMethod,
   makeListIterator,
@@ -211,8 +212,18 @@ export const mSplit: RillMethod = (receiver, args) => {
 };
 
 /** Join list elements with separator */
-export const mJoin: RillMethod = (receiver, args) => {
+export const mJoin: RillMethod = (receiver, args, ctx, location) => {
   const sep = typeof args[0] === 'string' ? args[0] : ',';
+  // A function, iterator, or vector at any depth has no printed form.
+  const noStringForm = describeNoStringForm(receiver, 'print');
+  if (noStringForm !== undefined) {
+    throwCatchableHostHalt(
+      { location, sourceId: ctx.sourceId, fn: 'join' },
+      ERROR_ATOMS[ERROR_IDS.RILL_R036],
+      noStringForm.message,
+      noStringForm.raw
+    );
+  }
   if (!Array.isArray(receiver)) return formatValue(receiver);
   return receiver.map(formatValue).join(sep);
 };

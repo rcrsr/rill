@@ -39,14 +39,6 @@ function eqVector(a: RillValue, b: RillValue): boolean {
 }
 
 // ============================================================
-// CONVERT-TO
-// ============================================================
-
-const vectorConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (v: RillValue): RillValue => formatVector(v),
-};
-
-// ============================================================
 // TYPE DEFINITION
 // ============================================================
 
@@ -59,7 +51,6 @@ export const vectorType: TypeDefinition = {
   protocol: {
     format: formatVector,
     eq: eqVector,
-    convertTo: vectorConvertTo,
     serialize: throwNotSerializable('vector'),
   },
 };

@@ -890,7 +890,7 @@ The `-> type` operator converts a value to the target type. Same-type conversion
 ⁴ `true` maps to `1`, `false` maps to `0`.
 ⁵ `0` maps to `false`, `1` maps to `true`; all other values halt with `RILL-R036`.
 
-A closure or an iterator has no `-> string` conversion, and neither has a list, dict, tuple, or ordered that holds one at any depth. Converting one, or interpolating one in a string, halts with `RILL-R036`.
+A closure, an iterator, or a vector has no `-> string` conversion, and neither has a list, dict, tuple, or ordered that holds one at any depth. Converting one, interpolating one in a string, or joining one with `.join` halts with `RILL-R036`. A datetime or a duration interpolates as its printed form, but `-> string` on one, or on a collection that holds one, halts with `RILL-R036`.
 
 **Structural conversion with signatures:** `-> dict(sig)`, `-> ordered(sig)`, and `-> tuple(sig)` accept a structural type signature as the conversion target. The source value must match the target kind (dict-to-dict, tuple-to-tuple, or list-to-tuple). Fields present in the signature but absent from the source are hydrated with the signature's default values. See [Type System](topic-type-system.md) for structural type and default value documentation.
 

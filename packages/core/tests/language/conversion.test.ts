@@ -617,6 +617,52 @@ describe('Rill Language: -> Conversion Operator', () => {
       });
     });
 
+    const TIME_PRELUDE =
+      'datetime(...dict[year: 2024, month: 1, day: 2]) => $d\nduration(...dict[seconds: 5]) => $u\n';
+
+    it.each([
+      [
+        'list holding a datetime',
+        'list[$d] -> string',
+        /cannot convert list to string: contains datetime/,
+      ],
+      [
+        'dict holding a duration',
+        'dict[a: $u] -> string',
+        /cannot convert dict to string: contains duration/,
+      ],
+    ])(
+      'halts RILL-R036: %s -> string',
+      async (_name, script, messagePattern) => {
+        await expectHalt(() => run(`${TIME_PRELUDE}${script}`), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+          messagePattern,
+        });
+      }
+    );
+
+    it('prints a nested datetime and duration in interpolation', async () => {
+      expect(await run(`${TIME_PRELUDE}"{list[$d, $d]}"`)).toBe(
+        'list[2024-01-02T00:00:00.000Z, 2024-01-02T00:00:00.000Z]'
+      );
+      expect(await run(`${TIME_PRELUDE}"{dict[a: $u]}"`)).toBe('dict[a: 5s]');
+    });
+
+    it('halts RILL-R036 when join meets a closure', async () => {
+      await expectHalt(() => run(`${NESTED_PRELUDE}list[$f] -> .join(",")`), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert list to string: contains closure/,
+      });
+    });
+
+    it('joins a list holding a datetime by its printed form', async () => {
+      expect(await run(`${TIME_PRELUDE}list[$d] -> .join(",")`)).toBe(
+        '2024-01-02T00:00:00.000Z'
+      );
+    });
+
     it('still converts a plain list to its string form', async () => {
       expect(await run('list[1, 2] -> string')).toBe('list[1, 2]');
     });

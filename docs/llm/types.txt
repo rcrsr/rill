@@ -126,7 +126,8 @@ Explicit conversion between compatible types. Halts with `RILL-R036` on invalid 
     ⁴ true → 1, false → 0
     ⁵ 0 → false, 1 → true; all other values halt with RILL-R036
 
-    closure and iterator have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting or interpolating one halts RILL-R036
+    closure, iterator, and vector have no -> string, nor does a list, dict, tuple, or ordered holding one at any depth; converting, interpolating, or .join-ing one halts RILL-R036
+    datetime and duration interpolate as their printed form, but -> string on one, or on a collection holding one, halts RILL-R036
 
 ## Default values in type constructors
 

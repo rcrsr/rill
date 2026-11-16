@@ -45,7 +45,7 @@ import {
   formatValue,
   inferType,
 } from '../../types/registrations.js';
-import { isTypeValue, isVector } from '../../types/guards.js';
+import { isTypeValue } from '../../types/guards.js';
 import {
   anyTypeValue,
   isReservedBrandKey,
@@ -385,20 +385,8 @@ export async function evaluateString(
         () => getNodeLocation(s, part),
         s.ctx.sourceId
       );
-      // Vector coercion guard
-      if (isVector(value)) {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, part),
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateString',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R003],
-          'cannot coerce vector to string'
-        );
-      }
-      // A function or iterator at any depth has no string form; halt.
-      const noStringForm = describeNoStringForm(value);
+      // A function, iterator, or vector at any depth has no printed form.
+      const noStringForm = describeNoStringForm(value, 'print');
       if (noStringForm) {
         throwCatchableHostHalt(
           {

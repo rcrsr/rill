@@ -18,8 +18,8 @@
  * | bool    | error  | error  | error   | error          | error           | valid    | no-op               |
  *
  * Error Contracts:
- * - RILL-R036: Incompatible source/target type, or a function or iterator
- *   inside a collection converted to string
+ * - RILL-R036: Incompatible source/target type, or a function, iterator,
+ *   vector, datetime, or duration inside a collection converted to string
  * - RILL-R037: dict -> ordered without structural signature
  * - RILL-R038: Non-parseable string to number
  *
@@ -177,9 +177,10 @@ export function applyConversion(
     );
   }
 
-  // A function or iterator has no string form, at the top level or nested
+  // A function, iterator, vector, datetime, or duration has no string form,
+  // at the top level or nested
   if (targetType === 'string') {
-    const d = describeNoStringForm(input);
+    const d = describeNoStringForm(input, 'convert');
     if (d !== undefined) {
       throwCatchableHostHalt(
         {
@@ -287,15 +288,20 @@ export function applyConversion(
 }
 
 /**
- * Find the first function or iterator in `value`, walking depth-first in
- * element order (list elements, tuple entries, ordered entry values, dict
+ * Find the first value with no string form in `value`, walking depth-first
+ * in element order (list elements, tuple entries, ordered entry values, dict
  * values in canonical order). Returns the halt message and raw payload, or
  * undefined when the value has a string form.
+ *
+ * A function, an iterator, and a vector never have one. Under `convert`
+ * (`-> string`) a datetime and a duration have none either; under `print`
+ * (interpolation, `join`) they print.
  */
 export function describeNoStringForm(
-  value: RillValue
+  value: RillValue,
+  mode: NoStringFormMode
 ): { message: string; raw: { source: string; target: 'string' } } | undefined {
-  const offender = findNoStringFormKind(value);
+  const offender = findNoStringFormKind(value, mode);
   if (offender === undefined) {
     return undefined;
   }
@@ -312,11 +318,28 @@ export function describeNoStringForm(
   };
 }
 
+/** `convert` is `-> string`; `print` is interpolation and `join`. */
+export type NoStringFormMode = 'convert' | 'print';
+
+const NO_STRING_FORM_ALWAYS: ReadonlySet<string> = new Set([
+  'closure',
+  'iterator',
+  'vector',
+]);
+const NO_STRING_FORM_CONVERT: ReadonlySet<string> = new Set([
+  'datetime',
+  'duration',
+]);
+
 function findNoStringFormKind(
-  value: RillValue
-): { kind: 'closure' | 'iterator'; node: RillValue } | undefined {
+  value: RillValue,
+  mode: NoStringFormMode
+): { kind: string; node: RillValue } | undefined {
   const typeName = inferTypeName(value);
-  if (typeName === 'closure' || typeName === 'iterator') {
+  if (
+    NO_STRING_FORM_ALWAYS.has(typeName) ||
+    (mode === 'convert' && NO_STRING_FORM_CONVERT.has(typeName))
+  ) {
     return { kind: typeName, node: value };
   }
   let children: ReadonlyArray<RillValue> = [];
@@ -330,7 +353,7 @@ function findNoStringFormKind(
     children = orderedDictEntries(value).map((entry) => entry.value);
   }
   for (const child of children) {
-    const found = findNoStringFormKind(child);
+    const found = findNoStringFormKind(child, mode);
     if (found !== undefined) {
       return found;
     }
