@@ -144,15 +144,14 @@ list(number):string    # RILL-P006: list takes no outer type
 
 ### Element Type Inference
 
-A list literal takes its element type from the elements it holds. Three steps run in order:
+A list literal takes its element type from the elements it holds. Two steps run in order:
 
 1. **One structure.** All elements share one structure, and that structure is the element type.
-2. **Uniform merge.** Keyed elements differ in keys and agree on value types, so the element type is the uniform form, `dict(number)` below.
-3. **Union.** Otherwise the element type is the union of the element types present. A member that another member accepts is dropped.
+2. **Union.** Otherwise the element type is the set of maximal element types present. A member that another member accepts is dropped. Dicts, ordereds, and tuples that differ stay separate members.
 
 ```rill
 list[dict[a: 1], dict[b: 2]].^type.signature
-# Result: "list(dict(number))"
+# Result: "list(union(dict(a: number), dict(b: number)))"
 ```
 
 ```rill
@@ -160,7 +159,12 @@ list[1, "a"].^type.signature
 # Result: "list(union(number, string))"
 ```
 
-Mixed elements do not halt. A union is a set, so element order does not change the type: `list["a", 1].^type == list[1, "a"].^type` is `true`.
+Mixed elements do not halt. A union is a set, so element order and count do not change the type: `list["a", 1].^type == list[1, "a"].^type` is `true`. Dict elements follow the same rule:
+
+```rill
+list[dict[a: 1], dict[b: 2]].^type == list[dict[b: 2], dict[a: 1], dict[b: 5]].^type
+# Result: true
+```
 
 ```rill
 list[list["a", 1], list["a"]].^type.signature

@@ -387,11 +387,12 @@ inference.empty-sibling 5426333b0235
 inference.fields 8616d219ed19
 inference.literal-union 4b9f058d4366
 inference.nested-union 81ef897e93b6
+inference.order-independent cf5cd4b4a85e
 inference.positions 4eb86cc7b25b
 inference.recursive d42c0f27dd3c
 inference.scalar 0477317ecab2
-inference.shape-union 9929e689f406
-inference.shape-union-ordered 5a29e593a5ed
+inference.shape-union ea494999abd5
+inference.shape-union-ordered aaca1b188e6b
 inference.uniform a737257018f3
 inference.union-element 8eeac61a0bfd
 interpolation 1d821f6f50f0 conversion.no-string-form@d673fef041e6 conversion.no-string-nested@c8125a4057fe conversion.no-string-time@683aaf33a9fa conversion.no-string-vector@bc4a6c616350 invalid-value.interpolate@c5addb31436e pipe.string@e11eeeaf2f49

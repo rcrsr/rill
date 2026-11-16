@@ -62,9 +62,14 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
   const start = current(parser.state).span.start;
   advance(parser.state); // consume 'stream'
 
+  const outerOpts = {
+    parseLiteral: () => parser.parseLiteral(),
+    parseAnnotations: () => parser.parseAnnotationArgs(),
+  };
+
   // A bare stream with an outer: stream:R is stream(any):R.
   const bareArgs: FieldArg[] = [];
-  if (parseOuterType(parser.state, 'stream', bareArgs)) {
+  if (parseOuterType(parser.state, 'stream', bareArgs, outerOpts)) {
     return {
       type: 'TypeConstructor',
       constructorName: 'stream',
@@ -105,11 +110,7 @@ function parseStreamTypeConstructor(parser: Parser): TypeConstructorNode {
       );
     }
 
-    if (
-      !parseOuterType(parser.state, 'stream', args, {
-        parseLiteral: () => parser.parseLiteral(),
-      })
-    ) {
+    if (!parseOuterType(parser.state, 'stream', args, outerOpts)) {
       advance(parser.state); // consume ':'
       parseScriptTypeRef(parser); // raises for a non-type name
     }

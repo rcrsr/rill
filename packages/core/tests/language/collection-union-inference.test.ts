@@ -19,7 +19,9 @@ describe('Rill Language: collection union inference', () => {
     'inference.literal-union',
     'inference.nested-union',
     'inference.dict-iteration',
-    'inference.recursive'
+    'inference.recursive',
+    'inference.shape-union',
+    'inference.shape-union-ordered'
   );
 
   describe('list literals', () => {
@@ -97,9 +99,19 @@ describe('Rill Language: collection union inference', () => {
       expect(await run('list[list[1], list["a"]] -> :?list(list)')).toBe(true);
     });
 
-    it('dicts that differ only in keys keep the uniform value type', async () => {
+    it('dicts that differ only in keys infer a union of their shapes', async () => {
       expect(
-        await run('list[dict[a: 1], dict[b: 2]].^type == list(dict(number))')
+        await run(
+          'list[dict[a: 1], dict[b: 2]].^type == list(union(dict(a: number), dict(b: number)))'
+        )
+      ).toBe(true);
+    });
+
+    it('ordereds that differ only in keys infer a union of their shapes', async () => {
+      expect(
+        await run(
+          'list[ordered[a: 1], ordered[b: 2]].^type == list(union(ordered(a: number), ordered(b: number)))'
+        )
       ).toBe(true);
     });
 

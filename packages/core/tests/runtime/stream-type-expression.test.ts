@@ -41,6 +41,79 @@ describe('stream type expression', () => {
     });
   });
 
+  describe('unspecified slots in a type check', () => {
+    const make = `
+      || {
+        1 -> yield
+        "done"
+      } :stream(number):string => $gen
+      $gen() => $s
+    `;
+
+    it.each([
+      'stream:string',
+      'stream(any):string',
+      'stream(number):any',
+      'stream(any):any',
+      'stream(any)',
+      'stream',
+    ])('matches a stream(number):string value against :?%s', async (type) => {
+      expect(await run(`${make}\n$s :?${type}`)).toBe(true);
+    });
+
+    it('rejects a stream(number):string value against :?stream(string)', async () => {
+      expect(await run(`${make}\n$s :?stream(string)`)).toBe(false);
+    });
+  });
+
+  describe('bare outer with field defaults and annotations', () => {
+    it('parses stream:dict(a: number = 1)', async () => {
+      expect(await run('stream:dict(a: number = 1) => $t\n$t.signature')).toBe(
+        'stream(any):dict(a: number = 1)'
+      );
+    });
+
+    it('parses stream(number):dict(a: number = 1)', async () => {
+      expect(
+        await run('stream(number):dict(a: number = 1) => $t\n$t.signature')
+      ).toBe('stream(number):dict(a: number = 1)');
+    });
+
+    it('parses a bare stream outer in a closure return position', async () => {
+      expect(
+        await run(
+          `|| { 1 -> yield
+          dict[a: 1] } :stream:dict(a: number = 1) => $f
+          $f.^type.signature`
+        )
+      ).toContain('stream');
+    });
+
+    it('parses stream:tuple with an annotated position', async () => {
+      await expect(
+        run('stream:tuple(^("d") number) => $t\n$t.signature')
+      ).resolves.toContain('stream');
+    });
+  });
+
+  describe('outer type diagnostics', () => {
+    it.each(['stream(number):string|number', 'stream:string|number'])(
+      'raises RILL-P011 naming the union outer for %s',
+      async (src) => {
+        await expect(run(src)).rejects.toMatchObject({
+          errorId: 'RILL-P011',
+          message: expect.stringContaining('union(string, number)') as string,
+        });
+      }
+    );
+
+    it('raises RILL-P006 for an outer after two chunk types', async () => {
+      await expect(run('stream(number, string):bool')).rejects.toMatchObject({
+        errorId: 'RILL-P006',
+      });
+    });
+  });
+
   describe('current behavior (known limits)', () => {
     it('accepts a stream resolution type inside a type argument', async () => {
       expect(await run('list(stream(number):string) => $t\n$t.signature')).toBe(

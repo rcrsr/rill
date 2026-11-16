@@ -166,21 +166,20 @@ Cascade order:
 | Different kinds | Top-level `kind` values differ | `null` |
 | Structural match | `structureEquals(a, b)` is true | `a` |
 | Lists | Both are `list` | A list of the merged element types, or `null` when those share none |
-| Dict and ordered | Both are `dict` or both `ordered`, and their values share one type | A uniform `valueType` of that type, or `null` |
-| Other | Anything else that differs structurally, including two tuples | `null` |
+| Other | Anything else that differs structurally, including differing dicts, ordereds, and tuples | `null` |
 
 | Input | Result |
 |-------|--------|
 | `number` and `string` | `null` |
 | `list(number)` and `list(string)` | `null` |
-| `dict(a: number)` and `dict(b: number)` | `{ kind: 'dict', valueType: { kind: 'number' } }` |
+| `dict(a: number)` and `dict(b: number)` | `null` |
 | `dict(a: number)` and `dict(a: string)` | `null` |
 
 Pure function, no side effects.
 
 ### List Element Inference
 
-`inferStructure` infers a list's element type without halting on mixed elements. An empty list has element type `any`. Each element type merges into the first member it shares a `commonType` with, and otherwise becomes a new member. The members reduce to a union that drops any member another member accepts. Mixed elements therefore yield a union, as in `list[1, "a"]`, whose type is `list(union(number, string))`. See [Type System](topic-type-system.md) for the script-level rules.
+`inferStructure` infers a list's element type without halting on mixed elements. An empty list has element type `any`. The result is the set of maximal element types: a member that another member accepts is dropped, and differing dicts, ordereds, and tuples stay separate members. The set does not depend on element order or count. Mixed elements therefore yield a union, as in `list[1, "a"]`, whose type is `list(union(number, string))`. `list[dict[a: 1], dict[b: 2]]` infers `list(union(dict(a: number), dict(b: number)))`. See [Type System](topic-type-system.md) for the script-level rules.
 
 ### `structureEquals`
 

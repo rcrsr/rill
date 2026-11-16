@@ -131,6 +131,3 @@ union(string, "a") == string
 ## Notes
 
 The 0.23.0 `A|B` separator is removed and raises RILL-P011.
-
-`union(number, string):string` parses today as an assertion of the type value against `string` and halts
-`#TYPE_MISMATCH` at run time.

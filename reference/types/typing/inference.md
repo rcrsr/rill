@@ -3,7 +3,7 @@ id: inference
 title: Type inference
 status: normative
 since: 0.24.0
-issues: [600]
+issues: []
 grammar: []
 errors: []
 depends: [type-value, structural-typing, any, union, list, dict, tuple, ordered]
@@ -41,13 +41,18 @@ r[inference.empty-sibling] An empty list yields to its populated siblings
 An empty collection among populated siblings MUST yield to the siblings' type, so
 `list[list[1], list[]]` infers `list(list(number))`.
 
-r[inference.shape-union] Dicts that differ in keys infer a union of their shapes {pending #600}
+r[inference.shape-union] Dicts that differ in keys infer a union of their shapes
 Dict elements with different keys MUST infer `list(union(...))` over their shapes, so
 `list[dict[a: 1], dict[b: 2]]` infers `list(union(dict(a: number), dict(b: number)))`.
 
-r[inference.shape-union-ordered] Ordered values that differ in keys infer a union {pending #600}
+r[inference.shape-union-ordered] Ordered values that differ in keys infer a union
 Ordered elements with different keys MUST infer `list(union(...))` over their shapes, so
 `list[ordered[a: 1], ordered[b: 2]]` infers `list(union(ordered(a: number), ordered(b: number)))`.
+
+r[inference.order-independent] A list's element type does not depend on element order or count
+A list's inferred element type MUST NOT depend on the order or count of its elements, for dict and
+ordered elements as for scalars. `list[dict[a: 1], dict[b: 2], dict[a: 3]]` and
+`list[dict[a: 1], dict[a: 3], dict[b: 2]]` both infer `list(union(dict(a: number), dict(b: number)))`.
 
 r[inference.union-element] A list of mixed elements infers a union of their types
 When elements share no one type, the list MUST infer `list(union(...))` over the element types
@@ -87,7 +92,7 @@ dict[a: 1, b: "x"] -> .values -> .^type -> .signature
 # Result: "list(union(number, string))"
 ```
 
-```rill pending=600
+```rill
 list[dict[a: 1], dict[b: 2]] -> .^type -> .signature
 # Result: "list(union(dict(a: number), dict(b: number)))"
 ```
@@ -100,9 +105,7 @@ list[1, "a"] -> .^type -> .signature
 ## Notes
 
 Union members are a set: `list["a", 1]` and `list[1, "a"]` have equal types, and the printed member
-order is canonical. A list of dicts with different keys and one shared value type infers the uniform
-type: `list[dict[a: 1], dict[b: 2]]` infers `list(dict(number))`, and `list[ordered[a: 1], ordered[b: 2]]`
-infers `list(ordered(number))`. Superseded rule id: `inference.uniform-value`.
+order is canonical.
 
 An inferred type only describes. A mixed list passes `:list` and halts `#TYPE_MISMATCH` against a
 narrower assertion such as `:list(number)`.

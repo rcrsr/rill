@@ -101,6 +101,3 @@ A list whose elements differ in type infers a union element type: `list[1, "a"]`
 `list(union(number, string))`, and a list of lists with different element types infers
 `list(union(list(number), list(string)))`. `list(stream(number):string)`
 halts RILL-P014 until a type with an outer nests inside another type.
-
-`list(number):string` parses today as an assertion of the type value against `string` and halts
-`#TYPE_MISMATCH` at run time.

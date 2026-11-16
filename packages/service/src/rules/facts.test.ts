@@ -360,3 +360,47 @@ describe('collectFacts single-visit invariant', () => {
     expect(facts.bySubtree.size).toBe(nodeCount);
   });
 });
+
+// ============================================================
+// mixedListVars / mixedDictVars
+// ============================================================
+
+describe('mixedListVars and mixedDictVars', () => {
+  const facts = (source: string) => collectFacts(parse(source)).script;
+
+  it('collects a name captured once from a mixed list literal', () => {
+    const script = facts('list[list[1], list["a"]] => $l\n');
+    expect([...script.mixedListVars]).toEqual(['l']);
+    expect(script.mixedDictVars.size).toBe(0);
+  });
+
+  it('collects a name captured once from a mixed-value dict literal', () => {
+    const script = facts('dict[a: 1, b: "x"] => $d\n');
+    expect([...script.mixedDictVars]).toEqual(['d']);
+    expect(script.mixedListVars.size).toBe(0);
+  });
+
+  it('skips a name captured twice', () => {
+    const script = facts('list[list[1], list["a"]] => $l\n5 => $l\n');
+    expect(script.mixedListVars.size).toBe(0);
+  });
+
+  it('skips a name rebound by a destructure', () => {
+    const script = facts(
+      'list[list[1], list["a"]] => $l\nlist[1, 2] -> destruct<$l, $m>\n'
+    );
+    expect(script.mixedListVars.size).toBe(0);
+  });
+
+  it('skips a name that is also a closure parameter', () => {
+    const script = facts('list[list[1], list["a"]] => $l\n|l| ($l) => $f\n');
+    expect(script.mixedListVars.size).toBe(0);
+  });
+
+  it('skips a literal that is not mixed or has further pipes', () => {
+    const script = facts(
+      'list[list[1], list[2]] => $a\nlist[list[1], list["a"]] -> .len => $b\n'
+    );
+    expect(script.mixedListVars.size).toBe(0);
+  });
+});

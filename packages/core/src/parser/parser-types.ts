@@ -142,7 +142,8 @@ function throwRemovedSeparator(
   state: ParserState,
   firstText: string,
   inParamList: boolean,
-  opts: Parameters<typeof parseSingleType>[1]
+  opts: Parameters<typeof parseSingleType>[1],
+  asOuter = false
 ): never {
   const location = current(state).span.start;
   const texts = [firstText];
@@ -160,9 +161,10 @@ function throwRemovedSeparator(
     texts.length > 1 && texts.every((t) => t !== '')
       ? `union(${texts.join(', ')})`
       : 'unions as union(...)';
+  const hint = asOuter ? `${rewrite} as the outer type` : rewrite;
   throw new ParseError(
     ERROR_IDS.RILL_P011,
-    `${REMOVED_SEPARATOR_PREFIX}${rewrite}`,
+    `${REMOVED_SEPARATOR_PREFIX}${hint}`,
     location
   );
 }
@@ -198,6 +200,7 @@ function parseTypeRefImpl(
 function parseSingleType(
   state: ParserState,
   opts?: {
+    allowTrailingPipe?: boolean;
     parseLiteral?: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
   }
@@ -486,6 +489,7 @@ export function parseOuterType(
   typeName: string,
   args: FieldArg[],
   opts?: {
+    allowTrailingPipe?: boolean;
     parseLiteral?: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
   }
@@ -499,8 +503,34 @@ export function parseOuterType(
       current(state).span.start
     );
   }
+  if (args.length > 1) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P006,
+      'stream takes no outer type after more than one chunk type',
+      current(state).span.start
+    );
+  }
   advance(state); // consume ':'
+  const outerStart = current(state).span.start.offset;
   const outer = parseSingleType(state, buildTypeRefOpts(opts));
+  const inParamList = opts?.allowTrailingPipe === true;
+  if (
+    check(state, TOKEN_TYPES.PIPE_BAR) &&
+    startsTypeMember(state, 1) &&
+    pipeIsRemovedSeparator(state, inParamList)
+  ) {
+    const outerText = state.source.slice(
+      outerStart,
+      previous(state).span.end.offset
+    );
+    throwRemovedSeparator(
+      state,
+      outerText,
+      inParamList,
+      buildTypeRefOpts(opts),
+      true
+    );
+  }
   if (args.length === 0) {
     args.push({ value: { kind: 'static', typeName: 'any' } });
   }

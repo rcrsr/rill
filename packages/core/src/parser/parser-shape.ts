@@ -98,9 +98,17 @@ Parser.prototype.parseTypeConstructor = function (
 
   // A bare constructor name with an outer: stream:R is stream(any):R, and
   // any other constructor rejects the outer.
+  const parseLiteral = () => this.parseLiteral();
+  const opts: {
+    parseLiteral: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  } = { parseLiteral };
+  if (constructorName !== 'list' && constructorName !== 'union') {
+    opts.parseAnnotations = () => this.parseAnnotationArgs();
+  }
   if (!check(this.state, TOKEN_TYPES.LPAREN)) {
     const bareArgs: FieldArg[] = [];
-    parseOuterType(this.state, constructorName, bareArgs);
+    parseOuterType(this.state, constructorName, bareArgs, opts);
     return {
       type: 'TypeConstructor',
       constructorName,
@@ -110,14 +118,6 @@ Parser.prototype.parseTypeConstructor = function (
   }
   expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
 
-  const parseLiteral = () => this.parseLiteral();
-  const opts: {
-    parseLiteral: () => LiteralNode;
-    parseAnnotations?: () => AnnotationArg[];
-  } = { parseLiteral };
-  if (constructorName !== 'list' && constructorName !== 'union') {
-    opts.parseAnnotations = () => this.parseAnnotationArgs();
-  }
   const args: FieldArg[] =
     constructorName === 'union'
       ? parseUnionMembers(this.state, opts).map((value) => ({ value }))

@@ -4,7 +4,7 @@
  * Tests for uniform value type syntax on dict and ordered:
  * - dict(closure), ordered(closure) assertions
  * - Nested uniform types: dict(list(number))
- * - Type inference cascade for lists of dicts
+ * - Type inference for lists of dicts: differing keys infer a union of shapes
  * - Error contracts for mixed/invalid args
  *
  * AC = Acceptance Criterion, EC = Error Contract from the
@@ -65,9 +65,9 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       expect(result).toEqual({ a: 1, b: 's' });
     });
 
-    it('list of dicts infers list(dict(number)) via uniform merge [AC-6]', async () => {
+    it('list of dicts with different keys infers a union of shapes [AC-6]', async () => {
       const sig = await run('list[dict[a: 1], dict[b: 2]].^type.signature');
-      expect(sig).toBe('list(dict(number))');
+      expect(sig).toBe('list(union(dict(a: number), dict(b: number)))');
     });
 
     it('structural dict assertion unchanged [AC-7]', async () => {

@@ -163,3 +163,93 @@ describe('Mixed-collection inference: mixed sites do not halt', () => {
     );
   });
 });
+
+function permutations<T>(items: readonly T[]): T[][] {
+  if (items.length <= 1) return [[...items]];
+  return items.flatMap((item, i) =>
+    permutations([...items.slice(0, i), ...items.slice(i + 1)]).map((rest) => [
+      item,
+      ...rest,
+    ])
+  );
+}
+
+describe('Mixed-collection inference: order and duplicate independence', () => {
+  const pools: readonly string[][] = [
+    ['dict[a: 1]', 'dict[b: 2]', 'dict[c: 3]'],
+    ['ordered[a: 1]', 'ordered[b: 2]', 'ordered[c: 3]'],
+    ['list[]', 'list[1]', 'list["a"]'],
+    ['list[list[]]', 'list[list[1]]', 'list[1]'],
+    [
+      'dict[a: list[], b: list[1]]',
+      'dict[a: list["s"], b: list[]]',
+      'dict[a: list[1], b: list[]]',
+    ],
+    ['dict[a: list[]]', 'dict[b: list[1]]', 'dict[c: list["s"]]'],
+  ];
+
+  it.each(pools)(
+    'infers the same type for every ordering of %s, %s, %s',
+    async (...pool) => {
+      const signatures = new Set<string>();
+      for (const order of permutations(pool)) {
+        const literal = `list[${order.join(', ')}]`;
+        signatures.add((await run(`${literal}.^type.signature`)) as string);
+        const reference = `list[${pool.join(', ')}]`;
+        expect(await run(`${literal}.^type == ${reference}.^type`)).toBe(true);
+      }
+      expect(signatures.size).toBe(1);
+    }
+  );
+
+  it('leaves the type unchanged when a duplicate shape is appended', async () => {
+    const base = await run('list[dict[a: 5], dict[b: 2]].^type.signature');
+    const dup = await run(
+      'list[dict[a: 5], dict[b: 2], dict[a: 5]].^type.signature'
+    );
+    expect(dup).toBe(base);
+  });
+
+  it('infers a three-member union of dict shapes', async () => {
+    expect(
+      await run(
+        'list[dict[a: 1], dict[b: 2], dict[c: 3]].^type == list(union(dict(a: number), dict(b: number), dict(c: number)))'
+      )
+    ).toBe(true);
+  });
+});
+
+describe('Mixed-collection inference: commonType of keyed compounds', () => {
+  it('returns null for dicts with different fields', () => {
+    const a: TypeStructure = {
+      kind: 'dict',
+      fields: { a: { type: num } },
+    };
+    const b: TypeStructure = {
+      kind: 'dict',
+      fields: { b: { type: num } },
+    };
+    expect(commonType(a, b)).toBeNull();
+  });
+
+  it('returns null for ordereds with different fields', () => {
+    const a: TypeStructure = {
+      kind: 'ordered',
+      fields: [{ name: 'a', type: num }],
+    };
+    const b: TypeStructure = {
+      kind: 'ordered',
+      fields: [{ name: 'b', type: num }],
+    };
+    expect(commonType(a, b)).toBeNull();
+  });
+
+  it('refines list(any) with list(number) to list(number)', () => {
+    expect(
+      commonType(
+        { kind: 'list', element: { kind: 'any' } },
+        { kind: 'list', element: num }
+      )
+    ).toEqual({ kind: 'list', element: num });
+  });
+});

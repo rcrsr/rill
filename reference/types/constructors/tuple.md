@@ -128,6 +128,3 @@ and drops the extras, while `:tuple(number)` assertion halts on a longer tuple.
 
 An empty tuple infers the unspecified type, as an empty list does, so `tuple[].^type == tuple()`
 is true and its type prints `tuple`.
-
-`tuple(number):string` parses today as an assertion of the type value against `string` and halts
-`#TYPE_MISMATCH` at run time.

@@ -252,8 +252,8 @@ const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
  * walk their element/field/chunk sub-structures through this same function,
  * so a nested closure (e.g. a callback list's element type)
  * collapses too, not just one carried directly by a param or return type.
- * `stream`'s resolution type (`ret`) is omitted rather than recursed into —
- * see the `stream` branch below for why.
+ * `stream`'s chunk and resolution type (`ret`) are both serialized through
+ * this same function.
  */
 function serializeSignatureType(structure: TypeStructure): string {
   if (isStructureKind(structure, 'union')) {
@@ -283,7 +283,10 @@ function serializeSignatureType(structure: TypeStructure): string {
   }
 
   if (isStructureKind(structure, 'stream')) {
-    if (structure.chunk === undefined) return 'stream';
+    if (structure.chunk === undefined) {
+      if (structure.ret === undefined) return 'stream';
+      return `stream(any):${serializeSignatureType(structure.ret)}`;
+    }
     const chunk = `stream(${serializeSignatureType(structure.chunk)})`;
     if (structure.ret === undefined) return chunk;
     return `${chunk}:${serializeSignatureType(structure.ret)}`;
@@ -603,8 +606,8 @@ function typeRefToString(ref: TypeRef | null): string {
 /**
  * Convert a TypeConstructorNode (`list(...)`, `dict(...)`, `stream(...)`, etc.)
  * to its source-grammar display form. Stream constructors render as
- * `stream(<chunk>):<ret>` to match the `:stream(T):R` annotation, falling back
- * to `stream(<chunk>)` when no resolution arg is present.
+ * `stream(<chunk>):<ret>` to match the `:stream(T):R` annotation. An
+ * unspecified stream prints as bare `stream`.
  */
 function typeConstructorToString(node: TypeConstructorNode): string {
   return typeRefToString({

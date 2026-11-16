@@ -142,6 +142,3 @@ Superseded rule ids: `dict.forms`, `dict.mixed`, `dict.uniform-count`, `dict.val
 The 0.23.0 runtime keeps a number or bool key as a typed key, so `dict[1: "n"] == dict["1": "n"]`
 is false and `.keys` returns `list[1]`. An empty dict infers the unspecified type, as an empty
 list does, so `dict[].^type == dict()` is true and its type prints `dict`.
-
-`dict(a: number):string` parses today as an assertion of the type value against `string` and halts
-`#TYPE_MISMATCH` at run time.

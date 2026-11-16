@@ -540,13 +540,12 @@ export function structureMatches(
   if (isStructureKind(type, 'stream')) {
     if (!isStream(value)) return false;
     const { chunk, ret } = type;
-    if (chunk === undefined && ret === undefined) return true;
-    if (chunk !== undefined) {
+    if (chunk !== undefined && !isUnspecified(chunk)) {
       const valueChunk = getStreamTypeSidecar(value, 'chunk');
       if (valueChunk !== undefined && !structureEquals(valueChunk, chunk))
         return false;
     }
-    if (ret !== undefined) {
+    if (ret !== undefined && !isUnspecified(ret)) {
       const valueRet = getStreamTypeSidecar(value, 'ret');
       if (valueRet !== undefined && !structureEquals(valueRet, ret))
         return false;
@@ -749,10 +748,11 @@ function paramToFieldDef(
 
 /**
  * Infer the element type of a list. Never halts on mixed elements.
- * Empty arrays return { kind: 'any' }. Each element merges into the first
- * member it shares a common type with, else becomes a new member; the
- * members then reduce through normalizeUnion, so a member another member
- * accepts is dropped. One pass keeps nested lists linear per level.
+ * Empty arrays return { kind: 'any' }. The result is the set of maximal
+ * element types: an empty list at any list depth yields to a populated
+ * sibling, and members with no common type (dicts, ordereds, or tuples with
+ * different fields) stay separate union members. The result does not depend
+ * on element order or duplicates.
  */
 function inferElementType(elements: RillValue[]): TypeStructure {
   const members: TypeStructure[] = [];
@@ -769,15 +769,10 @@ function inferElementType(elements: RillValue[]): TypeStructure {
     }
     if (!merged) members.push(elemType);
   }
-  // A merge can make two members equal; keep the first of each.
-  const distinct = members.filter(
-    (m, i) =>
-      !members.slice(0, i).some((earlier) => structureEquals(earlier, m))
-  );
-  const only = distinct[0];
+  const only = members[0];
   if (only === undefined) return { kind: 'any' };
-  if (distinct.length === 1) return only;
-  const normalized = normalizeUnion(distinct);
+  if (members.length === 1) return only;
+  const normalized = normalizeUnion(members);
   if ('rejection' in normalized) {
     return throwTypeHalt(
       { fn: 'inferElementType' },
@@ -902,46 +897,6 @@ export function inferStructure(value: RillValue): TypeStructure {
 // ============================================================
 
 /**
- * Merge the field types of two keyed compounds into one uniform value type.
- * Returns the merged TypeStructure, or undefined when the field types share
- * no common type (or neither side has fields).
- */
-function mergeUniformValueType(
-  aFields: RillFieldDef[],
-  bFields: RillFieldDef[]
-): TypeStructure | undefined {
-  const allTypes = aFields.concat(bFields);
-  const first = allTypes[0];
-  if (first === undefined) return undefined;
-  let merged: TypeStructure = first.type;
-  for (let i = 1; i < allTypes.length; i++) {
-    const member = allTypes[i]?.type;
-    if (member === undefined) continue;
-    const next = commonType(merged, member);
-    if (next === null) return undefined;
-    merged = next;
-  }
-  return merged;
-}
-
-/**
- * Callbacks for compareStructuredFields that yield the uniform value type
- * two dict or ordered structures share, or null when they share none.
- * Tuples are positional, so differing tuples have no common type.
- */
-const commonValueTypeCallbacks: FieldComparisonCallbacks<TypeStructure | null> =
-  {
-    onValueType: (aVT, bVT) => commonType(aVT, bVT),
-    onValueTypeMismatch: () => null,
-    onBothEmpty: () => null,
-    onFieldPresenceMismatch: () => null,
-    onDictFields: (a, b) =>
-      mergeUniformValueType(Object.values(a), Object.values(b)) ?? null,
-    onTupleElements: () => null,
-    onOrderedFields: (a, b) => mergeUniformValueType(a, b) ?? null,
-  };
-
-/**
  * Return the most specific shared type for two TypeStructure values.
  * Returns null when the two share no common type; the caller keeps both
  * as members of a union.
@@ -951,8 +906,8 @@ const commonValueTypeCallbacks: FieldComparisonCallbacks<TypeStructure | null> =
  * 2. Different kinds: null
  * 3. Structural match: return a
  * 4. Lists: merge element types, null when they share none
- * 5. Dict/ordered: merge to a uniform value type, null when none applies
- * 6. Anything else that differs structurally: null
+ * 5. Anything else that differs structurally: null. Dicts, ordereds, and
+ *    tuples with different fields share no common type.
  */
 export function commonType(
   a: TypeStructure,
@@ -969,13 +924,6 @@ export function commonType(
       b.element ?? ANY_STRUCTURE
     );
     return inner === null ? null : { kind: 'list', element: inner };
-  }
-
-  const merged = compareStructuredFields(a, b, commonValueTypeCallbacks, null);
-  if (merged === null) return null;
-  if (isStructureKind(a, 'dict')) return { kind: 'dict', valueType: merged };
-  if (isStructureKind(a, 'ordered')) {
-    return { kind: 'ordered', valueType: merged };
   }
   return null;
 }

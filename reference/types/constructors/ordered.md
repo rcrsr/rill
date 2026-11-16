@@ -114,6 +114,3 @@ Superseded rule ids: `ordered.argument-naming`, `ordered.field-naming`, `ordered
 
 Converting a dict to the uniform form, `dict[a: 3] -> ordered(number)`, halts RILL-R037 on
 0.23.0 builds; the named form `ordered(a: number)` converts.
-
-`ordered(a: number):string` parses today as an assertion of the type value against `string` and halts
-`#TYPE_MISMATCH` at run time.
