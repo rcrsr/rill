@@ -250,6 +250,14 @@ export interface TypeHaltSite {
    * absent means the halt converts at the host boundary as it always has.
    */
   readonly preserveHostShape?: true | undefined;
+  /**
+   * Extra host-error fields seeded into the carrier when `preserveHostShape`
+   * is set: the module key the error belongs to, hidden context extras, and
+   * the original thrown value to surface as `err.cause`.
+   */
+  readonly hostShape?:
+    | Partial<Pick<HostErrorShape, 'sourceId' | 'contextExtras' | 'cause'>>
+    | undefined;
 }
 
 // ============================================================
@@ -266,6 +274,8 @@ export interface HostErrorShape {
   readonly location: SourceLocation | undefined;
   readonly sourceId: string | undefined;
   readonly contextExtras: Readonly<Record<string, unknown>> | undefined;
+  /** Original thrown value, copied onto the rebuilt error's `cause`. */
+  readonly cause?: unknown;
 }
 
 /**
@@ -321,6 +331,7 @@ export function fillHostShape(
     contextExtras:
       prior.contextExtras ??
       (prior.sourceId === undefined ? patch.contextExtras : undefined),
+    cause: prior.cause,
   };
   if (
     next.location === prior.location &&
@@ -347,8 +358,9 @@ function buildHostRaw(
   if (site.preserveHostShape === true) {
     const shape: HostErrorShape = Object.freeze({
       location: site.location,
-      sourceId: undefined,
-      contextExtras: undefined,
+      sourceId: site.hostShape?.sourceId,
+      contextExtras: site.hostShape?.contextExtras,
+      cause: site.hostShape?.cause,
     });
     Reflect.set(built, HOST_SHAPE_KEY, shape);
   }

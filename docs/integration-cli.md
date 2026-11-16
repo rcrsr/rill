@@ -6,7 +6,7 @@
 |------|---------|
 | [`rill-exec`](#rill-exec) | Execute a rill script file with positional arguments |
 | [`rill-eval`](#rill-eval) | Evaluate a single rill expression (no file context) |
-| [`rill-check`](#rill-check) | Static analysis and lint validation with 47 rules |
+| [`rill-check`](#rill-check) | Static analysis and lint validation |
 | [`rill-run`](#rill-run) | Config-driven execution with extensions and modules |
 
 ## rill-exec
@@ -162,6 +162,8 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `USE_UNTYPED_HOST_REF` | types | warning | Untyped host reference in `use` expression |
 | `VALIDATE_EXTERNAL` | types | info | External data lacks type validation |
 | `TUPLE_ONE_POSITION` | types | info | `tuple(T)` names exactly one position |
+| `TEMPORAL_LITERAL` | types | warning | `duration("...")` or `datetime("...")` with a string literal that cannot parse, so the call halts `#INVALID_INPUT` |
+| `EQUALITY_NO_OVERLAP` | types | warning | `==`, `!=`, `.eq`, or `.ne` between operands whose types never overlap, so the comparison halts `#TYPE_MISMATCH` |
 | `MIXED_ELEMENT_TYPE_READ` | types | info | `.^type` read from a list literal of distinct compound shapes, or from an iterated dict literal of distinct value shapes |
 | `ATOM_CASE_MISMATCH` | errors | warning | Atom differs from a builtin only by case |
 | `ATOM_NOT_ERROR_CODE` | errors | warning | `.!code` compared to an atom that is not `#ok` or a core error code |
@@ -171,6 +173,7 @@ Rule states: `"on"` (enabled), `"off"` (disabled), `"warn"` (downgrade to warnin
 | `GUARD_OVER_TRY_CATCH` | errors | info | Branching on `.!` is manual try/catch |
 | `PRESENCE_OVER_NULL_GUARD` | errors | info | Nil-checking conditional instead of `??` |
 | `RETRY_TRIVIAL` | errors | warning | `retry<limit: N>` with N <= 1 has no effect |
+| `TIMEOUT_TRIVIAL` | errors | warning | `timeout<>` with no `total:` or `idle:` limit has no effect |
 | `STATUS_PROBE_NO_FIELD` | errors | info | Bare `.!` only yields a boolean invalid-test, not the status record |
 | `CAPTURE_INLINE_CHAIN` | flow | info | Capture breaks a pipe chain |
 | `CAPTURE_BEFORE_BRANCH` | flow | info | Capture value before branching |

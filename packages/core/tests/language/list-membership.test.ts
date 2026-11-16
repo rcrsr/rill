@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Runtime Tests: List Membership Methods
  * Tests for .has(), .has_any(), .has_all() methods
@@ -6,6 +7,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { run } from '../helpers/runtime.js';
+import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 describe('Rill Runtime: List Membership Methods', () => {
   describe('.has()', () => {
@@ -62,33 +65,72 @@ describe('Rill Runtime: List Membership Methods', () => {
         ).toBe(false);
       });
 
-      it('returns false for key not in list', async () => {
-        expect(
-          await run('list[dict[a: 1], dict[a: 2]] -> .has(dict[b: 1])')
-        ).toBe(false);
-      });
+      rule('equality.methods').it(
+        'halts when the dict shape cannot match the element shape',
+        async () => {
+          await expectHalt(
+            () => run('list[dict[a: 1], dict[a: 2]] -> .has(dict[b: 1])'),
+            { code: 'TYPE_MISMATCH' }
+          );
+        }
+      );
     });
 
     describe('type safety', () => {
-      it('returns false for type mismatch (AC-18)', async () => {
-        expect(await run('list[1, 2, 3] -> .has("2")')).toBe(false);
-      });
+      rule('equality.methods').it(
+        'halts when a string is sought in a number list',
+        async () => {
+          await expectHalt(() => run('list[1, 2, 3] -> .has("2")'), {
+            code: 'TYPE_MISMATCH',
+          });
+        }
+      );
 
-      it('distinguishes string from number', async () => {
-        expect(await run('list["1", "2", "3"] -> .has(1)')).toBe(false);
-      });
+      rule('equality.methods').it(
+        'halts when a literal string is sought in a literal number list',
+        async () => {
+          await expectHalt(() => run('list[1, 2].has("a")'), {
+            code: 'TYPE_MISMATCH',
+          });
+        }
+      );
+
+      rule('equality.methods').it(
+        'halts when a number is sought in a string list',
+        async () => {
+          await expectHalt(() => run('list["1", "2", "3"] -> .has(1)'), {
+            code: 'TYPE_MISMATCH',
+          });
+        }
+      );
+
+      rule('equality.methods').it(
+        'checks a mixed list against its inferred element type',
+        async () => {
+          expect(await run('list[1, "a"] -> .has("a")')).toBe(true);
+          expect(await run('list[1, "a"] -> .has(1)')).toBe(true);
+          expect(await run('list[1, "a"] -> .has("b")')).toBe(false);
+          await expectHalt(() => run('list[1, "a"] -> .has(true)'), {
+            code: 'TYPE_MISMATCH',
+          });
+        }
+      );
 
       it('finds matching string type', async () => {
         expect(await run('list["1", "2", "3"] -> .has("2")')).toBe(true);
       });
 
-      it('distinguishes true from 1', async () => {
-        expect(await run('list[true, false] -> .has(1)')).toBe(false);
-      });
-
-      it('distinguishes false from 0', async () => {
-        expect(await run('list[true, false] -> .has(0)')).toBe(false);
-      });
+      rule('equality.methods').it(
+        'halts when a number is sought in a bool list',
+        async () => {
+          await expectHalt(() => run('list[true, false] -> .has(1)'), {
+            code: 'TYPE_MISMATCH',
+          });
+          await expectHalt(() => run('list[true, false] -> .has(0)'), {
+            code: 'TYPE_MISMATCH',
+          });
+        }
+      );
     });
 
     describe('error handling', () => {
@@ -220,10 +262,21 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     describe('type safety', () => {
-      it('respects type differences', async () => {
-        expect(await run('list[1, 2, 3] -> .has_any(list["1", "2"])')).toBe(
-          false
-        );
+      rule('equality.methods').it(
+        'halts when candidate and element types cannot overlap',
+        async () => {
+          await expectHalt(
+            () => run('list[1, 2, 3] -> .has_any(list["1", "2"])'),
+            { code: 'TYPE_MISMATCH' }
+          );
+          await expectHalt(() => run('list[1].has_any(list["a"])'), {
+            code: 'TYPE_MISMATCH',
+          });
+        }
+      );
+
+      it('accepts candidates that overlap a mixed element type', async () => {
+        expect(await run('list[1, "a"] -> .has_any(list["a"])')).toBe(true);
       });
 
       it('finds matching types', async () => {
@@ -366,6 +419,15 @@ describe('Rill Runtime: List Membership Methods', () => {
     });
 
     describe('type safety', () => {
+      rule('equality.methods').it(
+        'halts when candidate and element types cannot overlap',
+        async () => {
+          await expectHalt(() => run('list[1] -> .has_all(list["a"])'), {
+            code: 'TYPE_MISMATCH',
+          });
+        }
+      );
+
       it('requires all types to match', async () => {
         expect(
           await run('list["1", "2", "3"] -> .has_all(list["1", "2"])')

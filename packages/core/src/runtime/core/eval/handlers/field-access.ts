@@ -338,11 +338,12 @@ export function throwFieldMiss(
 /** Declared type of a located element, projected from its receiver's type. */
 export function projectLocated(
   receiverDeclared: TypeStructure | undefined,
+  receiver: RillValue,
   located: FoundField
 ): TypeStructure | undefined {
   return located.key === undefined
     ? undefined
-    : projectElement(receiverDeclared, located.key);
+    : projectElement(receiverDeclared, located.key, receiver);
 }
 
 /**
@@ -397,7 +398,7 @@ export async function readField(
   }
   return {
     value: stored,
-    declared: projectLocated(request.receiverDeclared, located),
+    declared: projectLocated(request.receiverDeclared, receiver, located),
   };
 }
 

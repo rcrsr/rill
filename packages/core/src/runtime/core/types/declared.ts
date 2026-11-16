@@ -9,6 +9,7 @@
 
 import { isStructureKind } from './guards.js';
 import type { ControlFlowContext } from './runtime.js';
+import { inferStructure } from './operations.js';
 import type { RillValue, TypeStructure } from './structures.js';
 
 // ============================================================
@@ -48,13 +49,15 @@ export function declarationOf(
  * list(E) -> E; tuple by index, dict by name, ordered by name or index. A
  * uniform dict or ordered valueType wins over fields, as in the matcher; with
  * none set, an unmatched key projects nothing. Index keys are non-negative.
- * Unions and bare kinds project nothing.
+ * Unions and bare kinds project nothing. With no carried type and a list
+ * `receiver`, the element carries the type inferred from the list's contents.
  */
 export function projectElement(
   collection: TypeStructure | undefined,
-  key: string | number | boolean
+  key: string | number | boolean,
+  receiver: RillValue
 ): TypeStructure | undefined {
-  if (collection === undefined) return undefined;
+  if (collection === undefined) return inferredListElement(receiver);
   if (isStructureKind(collection, 'list')) {
     return declarationOf(collection.element);
   }
@@ -92,16 +95,37 @@ export function projectElement(
   return undefined;
 }
 
+const inferredElements = new WeakMap<object, TypeStructure | undefined>();
+
 /**
- * Declared element type for iteration; only list(E) carries one. Iteration
+ * Element type inferred from a list's contents, memoized per list identity
+ * (lists are immutable) so repeated indexed reads infer once. Non-lists and
+ * lists with no inferable element type project nothing.
+ */
+function inferredListElement(value: RillValue): TypeStructure | undefined {
+  if (!Array.isArray(value)) return undefined;
+  if (inferredElements.has(value)) return inferredElements.get(value);
+  const inferred = inferStructure(value);
+  const element = isStructureKind(inferred, 'list')
+    ? declarationOf(inferred.element)
+    : undefined;
+  inferredElements.set(value, element);
+  return element;
+}
+
+/**
+ * Declared element type for iteration; only lists carry one: list(E) from the
+ * carried type, else the type inferred from the list's contents. Iteration
  * visits every element rather than looking one up, so it takes the same
  * projection a list index does.
  */
 export function iterationElement(
-  collection: TypeStructure | undefined
+  collection: TypeStructure | undefined,
+  value: RillValue
 ): TypeStructure | undefined {
-  return collection !== undefined && isStructureKind(collection, 'list')
-    ? projectElement(collection, 0)
+  if (collection === undefined) return inferredListElement(value);
+  return isStructureKind(collection, 'list')
+    ? projectElement(collection, 0, value)
     : undefined;
 }
 

@@ -173,7 +173,7 @@ Wrap a host fetch in `timeout<>` inside `guard` to recover from slow responses w
 
 ```text
 use<ext:app> => $app
-guard { timeout<total: duration(0,0,0,0,0,0,500)> { $app.fetch("https://api.example.com") } } ?? "cached"
+guard { timeout<total: duration("500ms")> { $app.fetch("https://api.example.com") } } ?? "cached"
 ```
 
 ### Fire-and-Forget with `pass<async: true>`

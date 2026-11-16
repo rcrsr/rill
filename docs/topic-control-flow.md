@@ -19,8 +19,7 @@ rill provides singular control flow with no exceptions and no try/catch. Errors 
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
 | `retry<limit: N> { body }` | Retry body up to N times on caught halt |
-| `timeout<total: duration> { body }` | Bound body to a wall-time limit; expiry → `#RILL_R082` |
-| `timeout<idle: duration> { body }` | Bound body to an inactivity limit; expiry → `#RILL_R083` |
+| `timeout<total: d, idle: d> { body }` | Bound body by a wall-time limit, an inactivity limit, or both; expiry → `#RILL_R082` (total) or `#RILL_R083` (idle) |
 
 ---
 
@@ -751,13 +750,13 @@ range(1, 4) -> seq({ $ * 10 }) -> pass { log($) }
 # Result: 10 (body halt suppressed)
 ```
 
-`on_error` accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and any other `on_error` value raise `RILL-P004` at parse time. Non-catchable halts (`error`, `assert`) and `ControlSignal` (`break`, `return`) always propagate out of either body form. See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the full reference.
+`on_error` accepts only `#IGNORE`. Empty `pass<>`, unknown option keys, and any other `on_error` value raise `RILL-P004` at parse time. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) always propagate out of either body form. See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the full reference.
 
 ---
 
 ## Operational Recovery with `guard`
 
-`guard { body }` executes its body. When the body raises a catchable halt (a runtime error such as division by zero, or a failing extension call), `guard` replaces the halt with an invalid value instead of stopping execution. Halts from `error` and `assert` are never caught and stop the script. The invalid value carries a `:atom` value identifying the failure.
+`guard { body }` executes its body. When the body raises a catchable halt (a runtime error such as division by zero, or a failing extension call), `guard` replaces the halt with an invalid value instead of stopping execution. Halts from non-catchable sources (for example `error`, `assert`, and a halt inside a module loaded by `use<>`) are never caught and stop the script. The invalid value carries a `:atom` value identifying the failure.
 
 ```text
 use<ext:app> => $app
@@ -797,7 +796,7 @@ use<ext:app> => $app
 retry<limit: 3> { $app.fetch("https://api.example.com/data") } => $result
 ```
 
-`retry` is strictly bounded; N must be a literal integer. `retry` catches the same catchable halts as `guard`; non-catchable halts (`error`, `assert`) propagate without retry.
+`retry` is strictly bounded; N must be a literal integer. `retry` catches the same catchable halts as `guard`; non-catchable halts (for example `error` and `assert`) propagate without retry.
 
 ```text
 use<ext:app> => $app
@@ -823,30 +822,36 @@ See [Error Handling](topic-error-handling.md) for retry with backoff patterns.
 
 Timeout blocks bound the execution time of a body. On expiry, the body is cancelled and the block raises a catchable halt. Wrap with `guard` to convert the halt into an invalid value, then use `??` for a fallback.
 
-Two forms are available:
+Two limits are available, singly or together:
 
-| Form | Bounds | Expiry atom |
+| Option | Bounds | Expiry atom |
 |------|--------|-------------|
-| `timeout<total: duration> { body }` | Wall-time from block entry | `#RILL_R082` |
-| `timeout<idle: duration> { body }` | Inactivity: time since last stream chunk | `#RILL_R083` |
+| `total: duration` | Wall-time from block entry | `#RILL_R082` |
+| `idle: duration` | Inactivity: time since last stream chunk | `#RILL_R083` |
 
-`total` and `idle` are mutually exclusive. Specifying both in one head is a parse error.
+One head may carry both limits, in either order. The first limit to fire ends the body, and the halt carries that limit's atom. A repeated key is a parse error. `timeout<>` with neither limit arms nothing and has no effect; the checker reports it as `TIMEOUT_TRIVIAL`.
+
+```text
+timeout<total: duration("5s"), idle: duration("500ms")> {
+  $stream -> seq({ $ })
+}
+```
 
 ### Wall-Time Bound (`total`)
 
 ```text
 use<ext:app> => $app
-timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
+timeout<total: duration("500ms")> {
   $app.fetch("https://api.example.com/data")
 }
 ```
 
-The body must finish within 500 ms. If it does not, the block aborts the body and raises a catchable halt carrying `#RILL_R082`. Wrap with `guard` (see below) to convert it into an invalid value.
+The body must finish within 500 ms. If it does not, the block aborts the body and raises a catchable halt carrying `#RILL_R082`. Wrap with `guard` to convert it into an invalid value.
 
 ### Inactivity Bound (`idle`)
 
 ```text
-timeout<idle: duration(0, 0, 0, 0, 0, 0, 200)> {
+timeout<idle: duration("200ms")> {
   $stream -> seq({ $ })
 }
 ```
@@ -864,39 +869,9 @@ The duration expression must evaluate to a `duration` value. A non-duration argu
 timeout<total: 500> { "x" }
 ```
 
-Construct a duration using the `duration()` built-in:
+See [Duration](topic-types.md#duration) for the ways to construct a duration value.
 
-```text
-# 500 ms: duration(years, months, weeks, days, hours, minutes, ms)
-duration(0, 0, 0, 0, 0, 0, 500) => $d_500ms
-```
-
-### Recovery via `guard`
-
-Wrap the timeout block with `guard` to catch expiry as an invalid value:
-
-```text
-use<ext:app> => $app
-guard {
-  timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
-    $app.fetch("https://api.example.com/slow")
-  }
-} => $result
-$result.! ? "timed out" ! $result
-```
-
-Use `??` after the `guard` expression for a simple fallback:
-
-```text
-use<ext:app> => $app
-guard {
-  timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
-    $app.fetch("https://api.example.com/slow")
-  }
-} ?? "fallback response"
-```
-
-`timeout` without `guard` still produces a catchable halt. Direct use of `??` on a `timeout<>` expression does not intercept expiry halts. Always wrap with `guard` first.
+Recover from expiry with `guard` and `??`; see [Timeout Recovery](topic-error-handling.md#timeout-recovery).
 
 ### Nesting
 
@@ -904,8 +879,8 @@ Timeout blocks may be nested. The outer timer fires independently of the inner t
 
 ```text
 use<ext:app> => $app
-timeout<total: duration(0, 0, 0, 0, 0, 0, 1000)> {
-  timeout<total: duration(0, 0, 0, 0, 0, 0, 200)> {
+timeout<total: duration("1s")> {
+  timeout<total: duration("200ms")> {
     $app.fetch("https://api.example.com/fast")
   }
 }
@@ -932,8 +907,7 @@ When the outer timer fires before the inner body completes, the outer expiry tak
 | `$val -> error` | Any | Always halt with piped error message (must be string) |
 | `guard { body }` | Any | Replace halt with invalid value |
 | `retry<limit: N> { body }` | Any | Retry up to N times on caught halt |
-| `timeout<total: duration> { body }` | Block | Abort body on wall-time expiry; catchable halt `#RILL_R082` (use `guard` to recover) |
-| `timeout<idle: duration> { body }` | Block | Abort body on inactivity; catchable halt `#RILL_R083` (use `guard` to recover) |
+| `timeout<total: d, idle: d> { body }` | Block | Abort body on the first limit to fire; catchable halt `#RILL_R082` (total) or `#RILL_R083` (idle); use `guard` to recover |
 
 ---
 

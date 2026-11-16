@@ -1,8 +1,8 @@
 # rill Language Service API
 
-*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a 47-rule static checker*
+*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker*
 
-`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 47 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
+`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 50 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
 ## Subpath Exports
 

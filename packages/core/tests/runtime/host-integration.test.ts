@@ -1551,7 +1551,7 @@ describe('Zero-parameter callable() factory delivery', () => {
     it('toNativeValue produces {months, ms} shape for duration (AC-B8)', async () => {
       // duration(years, months, days, hours, minutes, seconds, ms)
       // 1 day, 2 hours = 0 months, (1*86400000 + 2*3600000) ms
-      const result = await run('duration(0, 0, 1, 2)');
+      const result = await run('duration("1d2h")');
       const native = toNative(result);
       expect(native.rillTypeName).toBe('duration');
       const value = native.value as { months: number; ms: number };
@@ -1564,8 +1564,8 @@ describe('Zero-parameter callable() factory delivery', () => {
     });
 
     it('duration with months produces correct native months field', async () => {
-      // duration(1, 6) = 1 year, 6 months = 18 months total, 0 ms
-      const result = await run('duration(1, 6)');
+      // duration("1y6mo") = 1 year, 6 months = 18 months total, 0 ms
+      const result = await run('duration("1y6mo")');
       const native = toNative(result);
       const value = native.value as { months: number; ms: number };
       expect(value.months).toBe(18);
@@ -1817,7 +1817,7 @@ describe('Host function return-value validation (RILL-R085)', () => {
     });
 
     it('accepts a duration', async () => {
-      const result = await echoThrough('duration(1, 2)');
+      const result = await echoThrough('duration("1y2mo")');
       expect(result).toHaveProperty('__rill_duration', true);
     });
 

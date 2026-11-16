@@ -75,8 +75,6 @@ import {
   mDtLocalOffset,
   mDtAdd,
   mDtDiff,
-  mDtEq,
-  mDtNe,
   mDtLt,
   mDtGt,
   mDtLe,
@@ -267,8 +265,8 @@ export const DATETIME_METHODS = Object.freeze({
   diff: buildMethodEntry('diff', '|other: any|:duration', mDtDiff, true),
 
   // Comparison methods
-  eq: buildMethodEntry('eq', SIG_EQ, mDtEq, true),
-  ne: buildMethodEntry('ne', SIG_NE, mDtNe, true),
+  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
   lt: buildMethodEntry('lt', SIG_CMP, mDtLt, true),
   gt: buildMethodEntry('gt', SIG_CMP, mDtGt, true),
   le: buildMethodEntry('le', SIG_CMP, mDtLe, true),

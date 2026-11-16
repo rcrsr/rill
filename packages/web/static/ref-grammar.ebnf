@@ -225,7 +225,7 @@ primary       = literal
               | loop
               | guard-block         (* guard { body } / guard<on: #X> { body } / guard<on: list[#X, #Y]> { body } *)
               | retry-block         (* retry<limit: N> { body } / retry<limit: N, on: #X> { body } / retry<limit: N, on: list[#X, #Y]> { body } *)
-              | timeout-block       (* timeout<total: duration> { body } / timeout<idle: duration> { body } *)
+              | timeout-block       (* timeout<total: duration, idle: duration> { body } — both options optional, any order *)
               | block
               | grouped-expr
               | annotated-expr      (* ^(key: val) expr — annotation on expression *)
@@ -295,36 +295,41 @@ pass-option      = identifier , ":" , ( atom-literal | literal ) ;
                  "async" and "on_error" may appear together in any order.
                  Unknown keys are rejected at parse time (RILL-P004). *)
 
-(* Timeout block: scoped wall-time or idle-inactivity limit.
-   Exactly ONE of "total" or "idle" must be present; both together is a parse error (RILL-P004).
+(* Timeout block: scoped wall-time and/or idle-inactivity limit.
+   Both options are optional, unordered, and may appear at most once each.
+   A repeated or unknown key is a parse error (RILL-P004). timeout<> with
+   neither limit arms nothing; the checker reports it as TIMEOUT_TRIVIAL.
 
-   timeout<total: duration> { body }
+   total: duration
      - Starts a countdown from block entry.
      - When the countdown expires before the body completes, halts with #RILL_R082.
-     - The halt is catchable: wrap with guard or use ?? to recover.
 
-   timeout<idle: duration> { body }
+   idle: duration
      - Resets the timer each time a stream chunk is emitted inside body.
      - When no chunk arrives within the idle window, halts with #RILL_R083.
-     - The halt is catchable: wrap with guard or use ?? to recover.
+
+   With both options, the first limit to fire ends the body and the halt
+   carries that limit's atom.
+
+   The halt is catchable: wrap with guard, then use ?? to recover.
 
    Nesting: timeout blocks may be nested. Each creates a scoped AbortController
    chained to ctx.signal. The innermost expiry fires first; the outer block
    continues only if the inner block's body completes before the outer timer.
 
    Examples:
-     timeout<total: duration(...dict[ms: 500])> { $app.slow() }
-     guard { timeout<total: duration(...dict[ms: 500])> { $app.slow() } } ?? "timed out"
-     timeout<idle: duration(...dict[ms: 200])> { $stream -> seq({ $ }) } *)
+     timeout<total: duration("500ms")> { $app.slow() }
+     timeout<total: duration("5s"), idle: duration("200ms")> { $stream -> seq({ $ }) }
+     guard { timeout<total: duration("500ms")> { $app.slow() } } ?? "timed out" *)
 
-timeout-block = "timeout" , "<" , timeout-option , ">" , block ;
+timeout-block = "timeout" , "<" , [ timeout-option , [ "," , timeout-option ] ] , ">" , block ;
 timeout-option = ( "total" | "idle" ) , ":" , expression ;
-              (* "total" and "idle" are mutually exclusive; both in one timeout<> is RILL-P004.
-                 The expression must evaluate to a duration value at runtime; a non-duration
-                 value produces a catchable `#INVALID_INPUT` halt.
+              (* Each key appears at most once. The expression is a primary, so wrap
+                 richer expressions in parentheses. It must evaluate to a duration value
+                 at runtime; a non-duration value produces a catchable `#INVALID_INPUT` halt.
                  Examples:
-                   timeout<total: duration(...dict[ms: 500])>
-                   timeout<idle: duration(...dict[ms: 200])> *)
+                   timeout<total: duration("500ms")>
+                   timeout<idle: duration("200ms")> *)
 
 (* Annotated expression: attach metadata to any primary expression.
    ^(key: value, ...) expression
@@ -741,7 +746,7 @@ pipe-target   = host-call       (* $ -> greet("world") — call with explicit ar
               | pipe-error         (* 42 -> error "msg" or 42 -> error — message optional *)
               | use-expr           (* $ -> use<scheme:resource> — resolver import *)
               | pass-block         (* $ -> pass<on_error: #IGNORE> { body } *)
-              | timeout-block      (* $ -> timeout<total: 5s> { body } *)
+              | timeout-block      (* $ -> timeout<total: duration("5s")> { body } *)
               | "pass" , block     (* $ -> pass { body } — bare pass without a block halts RILL-P004 *)
               | existence-check    (* $x -> .?field — presence probe on $ *)
               | string             (* $ -> "hello {$}" — template with interpolation *)

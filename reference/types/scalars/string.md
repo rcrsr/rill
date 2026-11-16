@@ -3,7 +3,7 @@ id: string
 title: Strings
 status: normative
 since: 0.24.0
-issues: [560]
+issues: []
 grammar: [string, char, escape, brace-escape, interpolation]
 errors: [RILL-L001, RILL-L004, RILL-L005, RILL-P004, RILL-R002, RILL-R036, TYPE_MISMATCH]
 depends: [notation, halt, type-value]
@@ -84,15 +84,13 @@ proper prefix orders first.
 
 ## Interactions
 
+Equality against a non-string value follows `equality.no-overlap`.
+
 r[string.no-arithmetic] A string is not an arithmetic operand
 An arithmetic operator with a string operand MUST halt with RILL-R002. `+` MUST NOT concatenate.
 
 r[string.cross-order] Ordering a string against another type halts
 `<`, `>`, `<=`, and `>=` between a string and a non-string MUST halt with RILL-R002.
-
-r[string.cross-equality] Equality against a non-string halts {pending #560}
-`==` and `!=` between a string and an operand whose type does not overlap `string` MUST halt
-with `#TYPE_MISMATCH`.
 
 r[string.from-number] A number converts to its printed form
 `number -> string` MUST yield the string a number prints as. `5 -> string` ⇒ `"5"`.
@@ -122,7 +120,6 @@ A string MUST satisfy `:string`; any other value MUST halt it with `#TYPE_MISMAT
 | An arithmetic operand is a string, or an ordering operator mixes a string with a non-string | RILL-R002 | Yes |
 | A datetime or duration is converted to string | RILL-R036 | Yes |
 | A non-string is asserted as `:string` | `#TYPE_MISMATCH` | Yes |
-| A string is compared for equality with a non-string {pending #560} | `#TYPE_MISMATCH` | Yes |
 
 ## Examples
 

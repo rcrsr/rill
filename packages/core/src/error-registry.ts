@@ -1676,7 +1676,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'No resolver registered for scheme',
     messageTemplate: "No resolver registered for scheme '{scheme}'",
     cause:
-      'A use<> expression referenced a scheme with no registered resolver.',
+      'A use<> expression referenced a scheme with no registered resolver. The halt is catchable by guard and retry.',
     resolution:
       'Register a resolver for the scheme via RuntimeOptions.resolvers. Example: resolvers: { myScheme: myResolver }.',
     examples: [
@@ -1693,7 +1693,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     messageTemplate:
       'Circular resolution detected: {key} is already being resolved',
     cause:
-      'A use<> resolver returned source that re-entered the same scheme:resource key.',
+      'A use<> resolver returned source that re-entered the same scheme:resource key. The halt is not catchable by guard or retry.',
     resolution:
       'Remove the circular dependency from module sources. Ensure module A does not directly or indirectly use<module:A>.',
     examples: [
@@ -1709,7 +1709,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'Resolver threw, or returned a malformed result',
     messageTemplate: "Resolver error for '{scheme}:{resource}': {message}",
     cause:
-      'The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, a `value`/`text` field that is absent or the wrong type, or a `value` that is a function, symbol, bigint, or contains such a non-rill value nested in a dict or list).',
+      'The registered resolver function for the given scheme either threw an exception, or returned a result that is not a valid resolver result (e.g. missing or unrecognized `kind`, a `value`/`text` field that is absent or the wrong type, or a `value` that is a function, symbol, bigint, or contains such a non-rill value nested in a dict or list), or the returned source failed to parse. The halt is catchable by guard and retry.',
     resolution:
       'Inspect the original error message in the RILL-R056 detail and fix the resolver implementation.',
     examples: [
@@ -1725,7 +1725,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: 'use<> identifier must resolve to string',
     messageTemplate: 'use<> identifier must resolve to string, got {type}',
     cause:
-      'Variable or computed form of use<> evaluated to a non-string value.',
+      'Variable or computed form of use<> evaluated to a non-string value. The halt is catchable by guard and retry.',
     resolution:
       'Ensure the variable or expression inside use<> evaluates to a string of the form "scheme:resource".',
     examples: [
@@ -1741,7 +1741,7 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     description: "use<> identifier must contain ':' scheme separator",
     messageTemplate: "use<> identifier must contain ':' scheme separator",
     cause:
-      'The dynamic use<> string did not contain a colon separating scheme from resource.',
+      'The dynamic use<> string did not contain a colon separating scheme from resource. The halt is catchable by guard and retry.',
     resolution:
       'Ensure the string has the format "scheme:resource". Example: "module:greetings".',
     examples: [
@@ -2188,11 +2188,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     cause:
       'The timeout<total: duration> block body did not complete within the wall-time bound.',
     resolution:
-      'Recover via guard { timeout<total: d> { body } } or ?? fallback. Increase duration or optimize body.',
+      'Recover via guard { timeout<total: d> { body } } ?? fallback. Increase duration or optimize body.',
     examples: [
       {
         description: 'Total timeout with guard recovery',
-        code: 'guard { timeout<total: 500ms> { $app.slow() } }',
+        code: 'guard { timeout<total: duration("500ms")> { $app.slow() } } ?? "fallback"',
       },
     ],
   },
@@ -2204,11 +2204,11 @@ const ERROR_DEFINITIONS: ErrorDefinition[] = [
     cause:
       'The timeout<idle: duration> block body produced no output chunk within the idle bound.',
     resolution:
-      'Recover via guard { timeout<idle: d> { body } } or ?? fallback. Reduce idle duration or ensure body emits chunks.',
+      'Recover via guard { timeout<idle: d> { body } } ?? fallback. Reduce idle duration or ensure body emits chunks.',
     examples: [
       {
         description: 'Idle timeout with guard recovery',
-        code: 'guard { timeout<idle: 200ms> { $stream } }',
+        code: 'guard { timeout<idle: duration("200ms")> { $stream } } ?? "fallback"',
       },
     ],
   },

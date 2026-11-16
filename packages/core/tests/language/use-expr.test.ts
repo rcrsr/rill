@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: use<> Expressions
  * Tests for use<scheme:resource> resolution syntax
@@ -16,6 +17,7 @@ import {
 import type { SchemeResolver, ResolverResult, RillValue } from '@rcrsr/rill';
 
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 // ============================================================
@@ -830,6 +832,141 @@ describe('Rill Language: use<> Expressions', () => {
           parseSource,
         });
         expect(result).toBe(3);
+      });
+    });
+  });
+
+  describe('Halts escaping a module are not recoverable by the caller', () => {
+    const MISMATCH = '"a" -> :number';
+    const badModule = (text: string) => ({
+      resolvers: { m: sourceResolver(text) },
+      parseSource,
+    });
+
+    function counterFn(counter: { calls: number }) {
+      return {
+        params: [] as never,
+        returnType: { __type: 'any' } as never,
+        fn: () => {
+          counter.calls += 1;
+          return 'counted';
+        },
+      };
+    }
+
+    rule('use.module-halt').it(
+      'guard does not catch an unmapped-atom halt from a module',
+      async () => {
+        await expectHalt(
+          () => run(`guard { use<m:bad> }`, badModule(MISMATCH)),
+          {
+            code: 'TYPE_MISMATCH',
+          }
+        );
+      }
+    );
+
+    rule('use.module-halt').it(
+      'retry runs a failing module body exactly once',
+      async () => {
+        const counter = { calls: 0 };
+        await expectHalt(
+          () =>
+            run('retry<limit: 3> { count_calls() -> use<m:bad> }', {
+              ...badModule(MISMATCH),
+              functions: { count_calls: counterFn(counter) },
+            }),
+          { code: 'TYPE_MISMATCH' }
+        );
+        expect(counter.calls).toBe(1);
+      }
+    );
+
+    rule('use.module-halt').it(
+      'timeout does not catch a halt from a module',
+      async () => {
+        await expectHalt(
+          () =>
+            run(
+              'timeout<total: duration("500ms")> { use<m:bad> }',
+              badModule(MISMATCH)
+            ),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
+
+    rule('use.module-halt').it(
+      'pass<on_error: #IGNORE> does not ignore a halt from a module',
+      async () => {
+        await expectHalt(
+          () =>
+            run(
+              '5 -> pass<on_error: #IGNORE> { use<m:bad> }',
+              badModule(MISMATCH)
+            ),
+          { code: 'TYPE_MISMATCH' }
+        );
+      }
+    );
+
+    it('a module reading $ with nothing piped halts RILL-R005 past guard', async () => {
+      await expectHalt(() => run('guard { use<m:bad> }', badModule('$')), {
+        code: 'RILL_R005',
+        hostErrorId: 'RILL-R005',
+      });
+    });
+
+    it('a guard inside the module catches its own halt', async () => {
+      const result = await run(
+        'use<m:ok>',
+        badModule('guard { "a" -> :number } => $r\n"recovered"')
+      );
+      expect(result).toBe('recovered');
+    });
+
+    rule('use.resolution-catchable').it(
+      'guard catches RILL-R056 for an unparseable module',
+      async () => {
+        const result = await run(
+          'guard { use<m:bad> } => $r\n$r.!code -> .eq(#RILL_R056)',
+          badModule('??? invalid syntax')
+        );
+        expect(result).toBe(true);
+      }
+    );
+
+    rule('use.resolution-catchable').it(
+      'guard catches RILL-R054 for an unregistered scheme',
+      async () => {
+        const result = await run(
+          'guard { use<nope:x> } => $r\n$r.!code -> .eq(#RILL_R054)'
+        );
+        expect(result).toBe(true);
+      }
+    );
+
+    rule('use.resolution-catchable').it(
+      'guard catches RILL-R058 for a missing scheme separator',
+      async () => {
+        const result = await run(
+          '"nocolon" => $id\nguard { use<$id> } => $r\n$r.!code -> .eq(#RILL_R058)'
+        );
+        expect(result).toBe(true);
+      }
+    );
+
+    it('RILL-R055 is not caught by guard around the use', async () => {
+      await expectHalt(() => run('guard { use<m:a> }', badModule('use<m:a>')), {
+        code: 'RILL_R055',
+        hostErrorId: 'RILL-R055',
+      });
+    });
+
+    it('RILL-R055 is not caught by a guard inside the module', async () => {
+      await expectHalt(() => run('use<m:a>', badModule('guard { use<m:a> }')), {
+        code: 'RILL_R055',
+        hostErrorId: 'RILL-R055',
       });
     });
   });

@@ -102,9 +102,9 @@ describe('AVOID_REASSIGNMENT', () => {
 
   it.each([
     '1 -> ($ == 1) ? { 5 => $y } ! { 6 => $y }\n2 => $y\n',
-    'timeout<total: duration(0,0,0,0,0,0,500)> { 1 => $y }\n2 => $y\n',
+    'timeout<total: duration("500ms")> { 1 => $y }\n2 => $y\n',
     '1 -> ($ == 1) ? { 1 => $y } ! ($ == 2) ? { 2 => $y } ! { 3 => $y }\n4 => $y\n',
-    'timeout<total: duration(0,0,0,0,0,0,500)> { 1 => $y }\ntimeout<total: duration(0,0,0,0,0,0,500)> { 2 => $y }\n',
+    'timeout<total: duration("500ms")> { 1 => $y }\ntimeout<total: duration("500ms")> { 2 => $y }\n',
     'guard { 1 => $y }\n2 => $y\n',
     'retry<limit: 2> { 1 => $y }\n2 => $y\n',
     'guard { 1 => $y }\nguard { 2 => $y }\n',
@@ -122,7 +122,7 @@ describe('AVOID_REASSIGNMENT', () => {
   it.each([
     '1 => $x\n1 -> ($ == 1) ? { 2 => $x }\n',
     '1 => $x\n1 -> ($ == 1) ? { 3 => $z } ! { 2 => $x }\n',
-    '1 => $x\ntimeout<total: duration(0,0,0,0,0,0,500)> { 2 => $x }\n',
+    '1 => $x\ntimeout<total: duration("500ms")> { 2 => $x }\n',
     '1 => $x\nguard { 2 => $x }\n',
     '1 => $x\nretry<limit: 2> { 2 => $x }\n',
   ])(

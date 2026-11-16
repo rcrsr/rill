@@ -3,7 +3,8 @@
  *
  * TypeDefinition for the 'duration' built-in type.
  * Allowed imports: ../structures.js, ../guards.js, ./shared.js,
- * ../operations.js, ../callable.js, ../halt.js, ../../../types.js
+ * ../operations.js, ../callable.js, ../halt.js, ../duration-units.js,
+ * ../../../types.js
  *
  * MUST NOT import from ../registrations.js or sibling protocols/*.
  */
@@ -12,6 +13,7 @@ import type { RillValue } from '../structures.js';
 import type { TypeDefinition } from './types.js';
 import { isDuration } from '../guards.js';
 import { throwTypeHalt, throwCatchableHostHalt } from '../halt.js';
+import { formatDurationText } from '../duration-units.js';
 import { requireDuration } from './shared.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 
@@ -19,41 +21,10 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 // FORMAT
 // ============================================================
 
-/**
- * Format a duration as a compact display string.
- * Omits zero components. Zero duration = "0ms".
- *
- * Calendar decomposition: years = floor(months / 12), remaining months.
- * Clock decomposition: days, hours, minutes, seconds, ms from the ms field.
- */
+/** Format a duration as a compact display string ("0ms" for zero). */
 function formatDuration(v: RillValue): string {
   const dur = isDuration(v) ? v : requireDuration(v, { fn: 'format-duration' });
-  const parts: string[] = [];
-
-  // Calendar components
-  const years = Math.floor(dur.months / 12);
-  const remainingMonths = dur.months % 12;
-  if (years > 0) parts.push(`${years}y`);
-  if (remainingMonths > 0) parts.push(`${remainingMonths}mo`);
-
-  // Clock components: decompose ms field
-  let remainder = dur.ms;
-  const days = Math.floor(remainder / 86400000);
-  remainder -= days * 86400000;
-  const hours = Math.floor(remainder / 3600000);
-  remainder -= hours * 3600000;
-  const minutes = Math.floor(remainder / 60000);
-  remainder -= minutes * 60000;
-  const seconds = Math.floor(remainder / 1000);
-  remainder -= seconds * 1000;
-
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  if (seconds > 0) parts.push(`${seconds}s`);
-  if (remainder > 0) parts.push(`${remainder}ms`);
-
-  return parts.length === 0 ? '0ms' : parts.join('');
+  return formatDurationText(dur);
 }
 
 // ============================================================

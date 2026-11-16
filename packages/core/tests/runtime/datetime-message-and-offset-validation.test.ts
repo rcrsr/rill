@@ -83,7 +83,7 @@ describe('.iso()/.local_iso offset validity (#431c)', () => {
 
 describe('duration/datetime argument type halts', () => {
   const cases: [string, string, string][] = [
-    ['duration("x")', 'TYPE_MISMATCH', 'duration'],
+    ['duration(...dict[years: "x"])', 'TYPE_MISMATCH', 'duration'],
     [
       'datetime(1.5)',
       'TYPE_MISMATCH',
@@ -94,7 +94,7 @@ describe('duration/datetime argument type halts', () => {
       'TYPE_MISMATCH',
       'Invalid datetime component hour: x',
     ],
-    ['duration(-1)', 'INVALID_INPUT', 'duration'],
+    ['duration(...dict[years: -1])', 'INVALID_INPUT', 'duration'],
   ];
 
   for (const [expr, atom, text] of cases) {
@@ -113,7 +113,7 @@ describe('duration/datetime argument type halts', () => {
 });
 
 describe('duration ordering compare recovery', () => {
-  const expr = 'duration(1, 0, 0) < duration(0, 0, 1)';
+  const expr = 'duration("1y") < duration("1d")';
 
   it('guard recovers a mixed-month duration compare with RILL_R002', async () => {
     const result = await run(

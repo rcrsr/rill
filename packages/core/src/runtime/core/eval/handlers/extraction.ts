@@ -150,7 +150,7 @@ export async function evaluateDestructure(
         located.value,
         dictResolved?.structure,
         elem.span.start,
-        projectLocated(inputDeclared, located)
+        projectLocated(inputDeclared, input, located)
       );
     }
   } else {
@@ -194,7 +194,7 @@ export async function evaluateDestructure(
           s,
           elem.nested,
           located.value,
-          projectLocated(inputDeclared, located)
+          projectLocated(inputDeclared, input, located)
         );
         continue;
       }
@@ -226,7 +226,7 @@ export async function evaluateDestructure(
         located.value,
         listResolved?.structure,
         elem.span.start,
-        projectLocated(inputDeclared, located)
+        projectLocated(inputDeclared, input, located)
       );
     }
   }

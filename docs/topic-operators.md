@@ -280,6 +280,18 @@ All comparisons are by value, not reference:
 "hello" == "hello"                     # true
 ```
 
+`==` and `!=` halt with `#TYPE_MISMATCH` when the operand types cannot overlap. Values of overlapping types that differ in kind compare unequal. An empty list overlaps a list of numbers, so the comparison runs:
+
+```rill
+list[] == list[1]
+# Result: false
+```
+
+```rill
+# Error: #TYPE_MISMATCH
+1 == "1"
+```
+
 ### Comparison Methods
 
 Methods provide readable alternatives in conditionals:

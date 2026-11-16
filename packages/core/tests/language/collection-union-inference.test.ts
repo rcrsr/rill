@@ -25,6 +25,16 @@ describe('Rill Language: collection union inference', () => {
   );
 
   describe('list literals', () => {
+    it('gives each iterated element of a mixed list the union element type', async () => {
+      const result = await run(
+        'list[1, "a"] -> seq({ $.^type -> .signature })'
+      );
+      expect(result).toEqual([
+        'union(number, string)',
+        'union(number, string)',
+      ]);
+    });
+
     it('list[1, "a"] runs without halting', async () => {
       expect(await run('list[1, "a"]')).toEqual([1, 'a']);
     });

@@ -1097,7 +1097,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
   // [SPEC] EC-20 — Not implemented; deferred with async streaming support.
   //
   // [DEVIATION] duration() supports positional args only. All tests use
-  // duration(0, 0, 0, 0, 0, 0, X) for X milliseconds. (See duration.test.ts.)
+  // duration("Xms") for X milliseconds. (See duration.test.ts.)
 
   describe('Phase 2: batch idle_flush option (IR-8, AC-8, AC-17, EC-18)', () => {
     // ── AC-8: batch with valid idle_flush succeeds, same output as without ──
@@ -1106,7 +1106,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
       // idle_flush is recognised and validated; since input is fully materialised
       // synchronously the output equals plain batch(n) output.
       const withIdleFlush = await run(
-        'range(1, 11) -> batch(3, dict[idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])'
+        'range(1, 11) -> batch(3, dict[idle_flush: duration("50ms")])'
       );
       const withoutIdleFlush = await run('range(1, 11) -> batch(3)');
       expect(withIdleFlush).toEqual(withoutIdleFlush);
@@ -1115,14 +1115,14 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     it('AC-8: batch with idle_flush on list input produces same chunks as plain batch', async () => {
       const withIdleFlush = await run(
-        'list[1, 2, 3, 4, 5] -> batch(2, dict[idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])'
+        'list[1, 2, 3, 4, 5] -> batch(2, dict[idle_flush: duration("50ms")])'
       );
       expect(withIdleFlush).toEqual([[1, 2], [3, 4], [5]]);
     });
 
     it('AC-8: batch with idle_flush combined with drop_partial works correctly', async () => {
       const result = await run(
-        'range(1, 11) -> batch(3, dict[drop_partial: true, idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])'
+        'range(1, 11) -> batch(3, dict[drop_partial: true, idle_flush: duration("50ms")])'
       );
       expect(result).toEqual([
         [1, 2, 3],
@@ -1133,7 +1133,7 @@ describe('Rill Language: Collection Operators — new callable syntax', () => {
 
     it('AC-8: batch with idle_flush on empty input returns empty list', async () => {
       const result = await run(
-        'list[] -> batch(3, dict[idle_flush: duration(0, 0, 0, 0, 0, 0, 50)])'
+        'list[] -> batch(3, dict[idle_flush: duration("50ms")])'
       );
       expect(result).toEqual([]);
     });

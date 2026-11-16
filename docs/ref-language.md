@@ -63,8 +63,7 @@ See [Operators](topic-operators.md) for detailed documentation.
 | `pass<on_error: #IGNORE> { body }` | Same as `pass { body }` but suppresses catchable halts in the body |
 | `pass<async: true> { body }` | Fire-and-forget: dispatches body without blocking; pipe value flows through immediately |
 | `pass<async: true, on_error: #IGNORE> { body }` | Fire-and-forget with error suppression in the body |
-| `timeout<total: duration> { body }` | Bound body to wall-time limit; expiry halts with `#RILL_R082` (catchable) |
-| `timeout<idle: duration> { body }` | Bound body to inactivity limit; expiry halts with `#RILL_R083` (catchable) |
+| `timeout<total: d, idle: d> { body }` | Bound body by a wall-time limit, an inactivity limit, or both; the first to fire halts with `#RILL_R082` (total) or `#RILL_R083` (idle), catchable |
 | `assert cond` / `assert cond "msg"` | Validate condition, halt on failure |
 | `error "msg"` / `$val -> error` | Halt execution with error message |
 | `guard { body }` | Run body; replace halt with invalid value |
@@ -553,7 +552,7 @@ Methods marked "runtime checked" accept any receiver at parse time and halt at r
 | `repeat` | `value: any, count: number` | `iterator` | Repeat value n times |
 | `chain` | `value: any, transform: any` | `any` | Apply closure(s) sequentially |
 | `datetime` | `input\|year, month, day, ...\|unix` | `datetime` | Construct datetime from ISO string, named components, or unix ms |
-| `duration` | `years?, months?, days?, hours?, minutes?, seconds?, ms?` | `duration` | Construct duration from named unit parameters |
+| `duration` | a printed-form string, or named components via `...dict[...]` | `duration` | Construct duration from a printed form such as `"1h30m"` or from named unit components |
 | `now` | (none) | `datetime` | Current UTC instant |
 | `sort` | `list[T], key_fn?: (item: T) => Comparable` | `list[T]` | Sort list; stable, ascending by default |
 | `sort` | `dict[K, V], key_fn?: (entry: [key: K, value: V]) => Comparable` | `ordered[[key: K, value: V]]` | Sort dict entries; returns ordered key-value pairs |

@@ -1,6 +1,11 @@
 import type { SourceLocation } from '../../../../types.js';
 import { throwTypeHalt } from '../../../core/types/halt.js';
 import type { RillValue } from '../../../core/types/structures.js';
+import {
+  DURATION_UNITS,
+  MS_PER_HOUR,
+  parseDurationText,
+} from '../../../core/types/duration-units.js';
 import { formatValue, inferType } from '../../../core/types/registrations.js';
 
 // ============================================================
@@ -73,6 +78,19 @@ export function componentsToUnix(
   return unix;
 }
 
+/** Message for an out-of-range integer component, or undefined when valid. */
+function componentError(
+  name: string,
+  value: number,
+  min: number,
+  max: number
+): string | undefined {
+  if (!Number.isInteger(value) || value < min || value > max) {
+    return `Invalid datetime component ${name}: ${value}`;
+  }
+  return undefined;
+}
+
 function validateComponent(
   name: string,
   value: number,
@@ -80,15 +98,77 @@ function validateComponent(
   max: number,
   location?: SourceLocation
 ): void {
-  if (!Number.isInteger(value) || value < min || value > max) {
+  const message = componentError(name, value, min, max);
+  if (message !== undefined) {
     throwTypeHalt(
       { location, fn: 'datetime' },
       'INVALID_INPUT',
-      `Invalid datetime component ${name}: ${value}`,
+      message,
       'runtime',
       { component: name }
     );
   }
+}
+
+/** Failure of {@link parseIsoDatetime}; `component` names a range-checked field. */
+export interface IsoDatetimeFailure {
+  readonly message: string;
+  readonly component?: string | undefined;
+}
+
+/**
+ * Parse an ISO 8601 datetime or date string to unix milliseconds. Pure:
+ * returns the failure message instead of halting.
+ */
+export function parseIsoDatetime(input: string): number | IsoDatetimeFailure {
+  const invalid = { message: `Invalid ISO 8601 string: ${input}` };
+  if (!ISO_8601_RE.test(input)) return invalid;
+
+  // Validate the calendar portion (YYYY-MM-DD) explicitly: Date.parse
+  // accepts impossible dates like 2024-02-30 by rolling them forward.
+  // The year field may carry a leading sign and more than 4 digits (see
+  // ISO_8601_RE), so every fixed offset below the year is shifted by
+  // yearOffset, the number of characters beyond the default 4-digit year.
+  const yearStr = input.slice(0, input.indexOf('-', 1));
+  const yearOffset = yearStr.length - 4;
+  const y = Number(yearStr);
+  const mo = Number(input.slice(5 + yearOffset, 7 + yearOffset));
+  const da = Number(input.slice(8 + yearOffset, 10 + yearOffset));
+  const checks: [string, number, number, number][] = [
+    ['month', mo, 1, 12],
+    ['day', da, 1, maxDayInMonth(y, mo)],
+  ];
+
+  // An offset-less datetime-with-time (has a time part but no trailing Z
+  // or +HH:MM/-HH:MM offset) is otherwise parsed in the host's local
+  // timezone by Date.parse, which is non-deterministic across
+  // environments. Anchor it to UTC instead, matching the date-only form.
+  const hasTime = input.length > 10 + yearOffset;
+
+  // Validate the time-of-day portion explicitly: Date.parse accepts
+  // out-of-range values like T24:00:00 and rolls them into the next day,
+  // whereas the named-component form rejects hour 24 outright.
+  if (hasTime) {
+    const hasSeconds = input[16 + yearOffset] === ':';
+    checks.push(
+      ['hour', Number(input.slice(11 + yearOffset, 13 + yearOffset)), 0, 23],
+      ['minute', Number(input.slice(14 + yearOffset, 16 + yearOffset)), 0, 59],
+      [
+        'second',
+        hasSeconds ? Number(input.slice(17 + yearOffset, 19 + yearOffset)) : 0,
+        0,
+        59,
+      ]
+    );
+  }
+  for (const [name, value, min, max] of checks) {
+    const message = componentError(name, value, min, max);
+    if (message !== undefined) return { message, component: name };
+  }
+
+  const hasOffset = /(?:Z|[+-]\d{2}:\d{2})$/.test(input);
+  const ms = Date.parse(hasTime && !hasOffset ? `${input}Z` : input);
+  return Number.isNaN(ms) ? invalid : ms;
 }
 
 /** Read an optional numeric component; absent defaults to 0, non-number halts. */
@@ -188,61 +268,19 @@ export function constructDatetime(
 
   // Form 1: ISO 8601 string
   if (hasInput && typeof input === 'string') {
-    // Reject non-ISO formats
-    if (!ISO_8601_RE.test(input)) {
+    const parsed = parseIsoDatetime(input);
+    if (typeof parsed !== 'number') {
       throwTypeHalt(
         { location, fn: 'datetime' },
         'INVALID_INPUT',
-        `Invalid ISO 8601 string: ${input}`,
-        'runtime'
+        parsed.message,
+        'runtime',
+        parsed.component === undefined
+          ? undefined
+          : { component: parsed.component }
       );
     }
-    // Validate the calendar portion (YYYY-MM-DD) explicitly: Date.parse
-    // accepts impossible dates like 2024-02-30 by rolling them forward.
-    // The year field may carry a leading sign and more than 4 digits (see
-    // ISO_8601_RE), so every fixed offset below the year is shifted by
-    // yearOffset, the number of characters beyond the default 4-digit year.
-    const yearStr = input.slice(0, input.indexOf('-', 1));
-    const yearOffset = yearStr.length - 4;
-    const y = Number(yearStr);
-    const mo = Number(input.slice(5 + yearOffset, 7 + yearOffset));
-    const da = Number(input.slice(8 + yearOffset, 10 + yearOffset));
-    validateComponent('month', mo, 1, 12, location);
-    validateComponent('day', da, 1, maxDayInMonth(y, mo), location);
-
-    // An offset-less datetime-with-time (has a time part but no trailing Z
-    // or +HH:MM/-HH:MM offset) is otherwise parsed in the host's local
-    // timezone by Date.parse, which is non-deterministic across
-    // environments. Anchor it to UTC instead, matching the date-only form.
-    const hasTime = input.length > 10 + yearOffset;
-
-    // Validate the time-of-day portion explicitly: Date.parse accepts
-    // out-of-range values like T24:00:00 and rolls them into the next day,
-    // whereas the named-component form rejects hour 24 outright.
-    if (hasTime) {
-      const hh = Number(input.slice(11 + yearOffset, 13 + yearOffset));
-      const mm = Number(input.slice(14 + yearOffset, 16 + yearOffset));
-      const hasSeconds = input[16 + yearOffset] === ':';
-      const ss = hasSeconds
-        ? Number(input.slice(17 + yearOffset, 19 + yearOffset))
-        : 0;
-      validateComponent('hour', hh, 0, 23, location);
-      validateComponent('minute', mm, 0, 59, location);
-      validateComponent('second', ss, 0, 59, location);
-    }
-    const hasOffset = /(?:Z|[+-]\d{2}:\d{2})$/.test(input);
-    const normalizedInput = hasTime && !hasOffset ? `${input}Z` : input;
-
-    const ms = Date.parse(normalizedInput);
-    if (Number.isNaN(ms)) {
-      throwTypeHalt(
-        { location, fn: 'datetime' },
-        'INVALID_INPUT',
-        `Invalid ISO 8601 string: ${input}`,
-        'runtime'
-      );
-    }
-    return { __rill_datetime: true, unix: ms };
+    return { __rill_datetime: true, unix: parsed };
   }
 
   // Form 1 non-string: halt
@@ -353,14 +391,9 @@ export function constructDatetime(
 // ============================================================
 
 /** Valid duration named parameter keys */
-const DURATION_PARAM_KEYS = new Set([
-  'years',
-  'months',
-  'days',
-  'hours',
-  'minutes',
-  'seconds',
-  'ms',
+const DURATION_PARAM_KEYS: ReadonlySet<string> = new Set([
+  'input',
+  ...DURATION_UNITS.map((u) => u.name),
 ]);
 
 /**
@@ -433,56 +466,47 @@ export function constructDuration(
     }
   }
 
-  const years =
-    args['years'] !== undefined && args['years'] !== null && args['years'] !== 0
-      ? validateDurationParam('years', args['years'], location, true)
-      : 0;
-  const months =
-    args['months'] !== undefined &&
-    args['months'] !== null &&
-    args['months'] !== 0
-      ? validateDurationParam('months', args['months'], location, true)
-      : 0;
-  const days =
-    args['days'] !== undefined && args['days'] !== null && args['days'] !== 0
-      ? validateDurationParam('days', args['days'], location)
-      : 0;
-  const hours =
-    args['hours'] !== undefined && args['hours'] !== null && args['hours'] !== 0
-      ? validateDurationParam('hours', args['hours'], location)
-      : 0;
-  const minutes =
-    args['minutes'] !== undefined &&
-    args['minutes'] !== null &&
-    args['minutes'] !== 0
-      ? validateDurationParam('minutes', args['minutes'], location)
-      : 0;
-  const seconds =
-    args['seconds'] !== undefined &&
-    args['seconds'] !== null &&
-    args['seconds'] !== 0
-      ? validateDurationParam('seconds', args['seconds'], location)
-      : 0;
-  const ms =
-    args['ms'] !== undefined && args['ms'] !== null && args['ms'] !== 0
-      ? validateDurationParam('ms', args['ms'], location)
-      : 0;
+  const input = args['input'];
+  if (typeof input === 'string') {
+    const hasComponents = DURATION_UNITS.some((unit) => {
+      const value = args[unit.name];
+      return value !== undefined && value !== null && value !== 0;
+    });
+    if (hasComponents) {
+      throwTypeHalt(
+        { location, fn: 'duration' },
+        'INVALID_INPUT',
+        'duration() accepts string or named components',
+        'runtime'
+      );
+    }
+    const parsed = parseDurationText(input);
+    if (parsed === undefined) {
+      throwTypeHalt(
+        { location, fn: 'duration' },
+        'INVALID_INPUT',
+        `duration() cannot parse "${input}"`,
+        'runtime'
+      );
+    }
+    return { __rill_duration: true, months: parsed.months, ms: parsed.ms };
+  }
 
-  // Collapse calendar units to months field
-  const totalMonths = years * 12 + months;
-
-  // Collapse fixed units to ms field
-  const totalMs =
-    days * 86_400_000 +
-    hours * 3_600_000 +
-    minutes * 60_000 +
-    seconds * 1_000 +
-    ms;
+  // Collapse each unit into its target field via the unit table
+  const totals = { months: 0, ms: 0 };
+  for (const unit of DURATION_UNITS) {
+    const value = args[unit.name];
+    if (value !== undefined && value !== null && value !== 0) {
+      totals[unit.field] +=
+        validateDurationParam(unit.name, value, location, unit.integerOnly) *
+        unit.factor;
+    }
+  }
 
   return {
     __rill_duration: true,
-    months: totalMonths,
-    ms: totalMs,
+    months: totals.months,
+    ms: totals.ms,
   };
 }
 
@@ -526,7 +550,7 @@ function applyOffset(
   s: number;
   ms: number;
 } {
-  const shifted = new Date(utcMs + offsetHours * 3_600_000);
+  const shifted = new Date(utcMs + offsetHours * MS_PER_HOUR);
   return {
     y: shifted.getUTCFullYear(),
     mo: shifted.getUTCMonth() + 1,

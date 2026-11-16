@@ -85,7 +85,7 @@ Example:
 | `chain($fn)` | apply single closure; `chain(val, list[$f, $g])` applies in sequence; a non-closure transform halts with catchable `#RILL_R040` |
 | `now()` | current datetime |
 | `datetime(...)` | construct datetime (ISO string or named components) |
-| `duration(y, m, d, h)` | construct duration |
+| `duration("1h30m")` | construct duration from a printed form |
 | `sort(list, key_fn?)` | stable ascending sort of a list; returns `list` |
 | `sort(dict, key_fn?)` | stable ascending sort of dict or ordered entries; returns `ordered[[key, value]]` |
 
@@ -194,7 +194,7 @@ Groups elements into chunks of `n`. The last chunk may be shorter than `n` unles
 
     range(1, 11) -> batch(3)                               # stream[[1,2,3],[4,5,6],[7,8,9],[10]]
     range(1, 11) -> batch(3, dict[drop_partial: true])     # stream[[1,2,3],[4,5,6],[7,8,9]]
-    $stream -> batch(10, dict[idle_flush: duration(0,0,0,0,0,0,500)])   # flush after 500ms idle
+    $stream -> batch(10, dict[idle_flush: duration("500ms")])   # flush after 500ms idle
 
 `idle_flush` must be a `duration` value; a non-duration value halts with `#TYPE_MISMATCH`. Under synchronous batch execution, `idle_flush` is type-validated but produces no early-flush emissions (async-streaming wire-up deferred).
 
@@ -208,7 +208,7 @@ Passing a list halts with `#INVALID_INPUT`.
 
 Under synchronous batch semantics, `debounce` returns the last element (static-clock, all chunks in the same window).
 
-    $event_stream -> debounce(duration(0,0,0,0,0,0,200))   # latest after 200ms silence
+    $event_stream -> debounce(duration("200ms"))   # latest after 200ms silence
 
 ## throttle
 
@@ -220,7 +220,7 @@ Passing a list halts with `#INVALID_INPUT`.
 
 Under synchronous batch semantics, `throttle` returns the first element.
 
-    $event_stream -> throttle(duration(0,0,0,0,0,0,100))   # first per 100ms window
+    $event_stream -> throttle(duration("100ms"))   # first per 100ms window
 
 ## sample
 
@@ -232,7 +232,7 @@ Passing a list halts with `#INVALID_INPUT`.
 
 Under synchronous batch semantics, `sample` returns the last element.
 
-    $sensor_stream -> sample(duration(0,0,0,0,0,0,250))    # latest at 250ms intervals
+    $sensor_stream -> sample(duration("250ms"))    # latest at 250ms intervals
 
 Comparison:
 
@@ -279,7 +279,7 @@ Three distinct surfaces:
 
 `pass { body }` — pipe stage that runs `body` for side effects. Pipe value flows through unchanged. Halts in `body` propagate.
 
-`pass<on_error: #IGNORE> { body }` — same as `pass { body }` but suppresses catchable halts that occur inside `body`. Non-catchable halts (`error`, `assert`) and `ControlSignal` (`break`, `return`) still propagate.
+`pass<on_error: #IGNORE> { body }` — same as `pass { body }` but suppresses catchable halts that occur inside `body`. Non-catchable halts (for example `error` and `assert`) and `ControlSignal` (`break`, `return`) still propagate.
 
 `on_error: #IGNORE` is the only recognized option. Empty `pass<>`, unknown option keys, and any other `on_error` value raise `RILL-P004` at parse time.
 

@@ -253,3 +253,22 @@ describe('Mixed-collection inference: commonType of keyed compounds', () => {
     ).toEqual({ kind: 'list', element: num });
   });
 });
+
+describe('Mixed-collection inference: element carries its inferred type', () => {
+  it('gives an iterated element of a mixed list the union element type', async () => {
+    const result = await run('list[1, "a"] -> seq({ $.^type -> .signature })');
+    expect(result).toEqual(['union(number, string)', 'union(number, string)']);
+  });
+
+  it('gives an indexed element of a mixed list the union element type', async () => {
+    const result = await run('list[1, "a"] => $m\n$m[0].^type.signature');
+    expect(result).toBe('union(number, string)');
+  });
+
+  it('gives an element of a host-injected mixed list the union element type', async () => {
+    const result = await run('$m[1].^type.signature', {
+      variables: { m: mixed() },
+    });
+    expect(result).toBe('union(number, string)');
+  });
+});

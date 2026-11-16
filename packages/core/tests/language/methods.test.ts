@@ -517,6 +517,19 @@ describe('Rill Runtime: Built-in Methods', () => {
     it('returns true for equal booleans', async () => {
       expect(await run('true -> .eq(true)')).toBe(true);
     });
+
+    it('halts when the operand types cannot overlap', async () => {
+      await expectHalt(() => run('1 -> .eq("1")'), { code: 'TYPE_MISMATCH' });
+    });
+
+    it('follows the declared type of a union receiver', async () => {
+      await expect(
+        run('42 => $x:union(string, number)\n$x.eq("a")')
+      ).resolves.toBe(false);
+      await expect(
+        run('42 => $x:union(string, number)\n$x -> .eq("a")')
+      ).resolves.toBe(false);
+    });
   });
 
   describe('.ne', () => {
@@ -534,6 +547,10 @@ describe('Rill Runtime: Built-in Methods', () => {
 
     it('returns false for equal numbers', async () => {
       expect(await run('42 -> .ne(42)')).toBe(false);
+    });
+
+    it('halts when the operand types cannot overlap', async () => {
+      await expectHalt(() => run('1 -> .ne("1")'), { code: 'TYPE_MISMATCH' });
     });
   });
 

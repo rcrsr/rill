@@ -164,7 +164,7 @@ describe('Rill Language: declared types', () => {
 
     it('takes the own type for a timeout result', async () => {
       await expectLocked(
-        `${DECL}timeout<total: duration(0, 0, 0, 0, 0, 0, 200)> { $x } => $y\n"a" => $y`
+        `${DECL}timeout<total: duration("200ms")> { $x } => $y\n"a" => $y`
       );
     });
 

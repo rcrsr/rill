@@ -151,8 +151,8 @@ Constructed with function-call syntax.
     datetime("2024-01-15T00:00:00Z") -> .year         # 2024
     datetime(...dict[year: 2024, month: 1, day: 15])  # named components via spread
     now()                                              # current datetime
-    duration(0, 0, 0, 25) -> .days                     # (years, months, days, hours): 1.04
-    duration(1) -> .months                             # 12
+    duration("25h") -> .days                          # 1.04
+    duration("1y") -> .months                         # 12
 
 ## Type inspection `^type`
 

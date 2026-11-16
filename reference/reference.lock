@@ -50,9 +50,9 @@ assertion.position 2e7c23efe386
 assertion.short-form 7918b0e30fad
 assertion.unchanged d5063326e3a7
 assertion.variable fed79d94d6d4 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+atom 2397e0528c8a equality.no-overlap@39f213f599cf
 atom.closed-set 786427d5625b
 atom.comment ba74cf5b3c40
-atom.cross-equality 4c844cc12bf6
 atom.equality f2187e956a26
 atom.free 19d891531ef9
 atom.from-other edc545f4af24
@@ -67,9 +67,9 @@ atom.to-string a4a3cd7d5805
 atom.trailing-word 934fa69452d3
 atom.unordered 22539c6dd264
 atom.value 63c1b13148ff
+bool abe0725c4d1e equality.no-overlap@39f213f599cf
 bool.case d815210cafeb
 bool.condition a862ab8f90b8
-bool.cross-equality f5dbb2a2cc22
 bool.equality 8b37bdcd04a6
 bool.from-number afce697c38d8
 bool.from-string 387862b2c2a8
@@ -99,7 +99,7 @@ carried-type dc4793bb5965 conversion.union@415487b22deb type-lock.asserted@3541f
 carried-type.carriage 619f46dafff7
 carried-type.carriage-declared 795306d1c9dd
 carried-type.carriage-param 06dc230524de
-carried-type.collection-element 38c435dab1c3
+carried-type.collection-element 2fcc1e0df4d9
 carried-type.computed 4ced6eaf503b
 carried-type.declared-probe 7724a69ee0f5
 carried-type.effective-probe da1ca7bbf1a7
@@ -143,7 +143,7 @@ construct-options.order 1d6b6fe441b6
 construct-options.parens 8ddaad32696a
 construct-options.space 41e48387924e
 construct-options.spread 363569976dca
-construct-options.timeout-limits ddfa04224087
+construct-options.timeout-limits 48fae22e61a1
 construct-options.values 4e5fac4f2791
 conversion.any d639008176d6
 conversion.deep 4b215ac24283
@@ -165,7 +165,7 @@ conversion.union 415487b22deb
 conversion.union-miss 59c0bce8424f
 conversion.value-fail 411bbbd33387
 conversion.variable bbc49579c9e7
-datetime.cross-equality 193ea53779d4
+datetime 7e0422d00f4c equality.no-overlap@39f213f599cf
 datetime.equality 4e78cf980aea
 datetime.from-components 29c34903de70
 datetime.from-date f4ab145d2418
@@ -256,34 +256,34 @@ dispatch.ordered 3922f001c122
 dispatch.path 5a324e95d596
 dispatch.select b43bf6dece5b
 dispatch.tuple 2908349a89b3
+duration cfa83b8b16bf equality.no-overlap@39f213f599cf
 duration.construct c247666dc907
-duration.cross-equality d905570a5b5a
 duration.equality b3b087dac628
 duration.fractional-months 62a7bc1432aa
-duration.from-string cd0b7d36c9ab
+duration.from-string a33c5085037a
 duration.membership ef072ee6acc9
 duration.negative fb6422129850
 duration.no-arithmetic 9931212f7c77
-duration.no-positional c1c611a20115
+duration.no-positional 86e2337aa544
 duration.not-finite 9cc1c774d9ba
 duration.ordering ad0a26752d18
 duration.ordering-disagree 2e306e152793
 duration.print 73df419fc205
 duration.print-zero 87563ecd9b31
-duration.round-trip b62ddc74f594
-duration.string-malformed e1ada4a7318f
+duration.round-trip d5c97a172e42
+duration.string-malformed 8b2174fd7ba0
 duration.unknown-key 69aa6a35ba5d
 duration.value 27f61a90f6a3
 duration.years 9867c2f5c9ca
-equality cc1af5a06bcf carried-type.equality@e57cad672ddc
+equality 4ec09699ff9d carried-type.equality@e57cad672ddc
 equality.atom 505ad5a65ec2
 equality.content 654a7056b375
 equality.function 780a229ffda3
 equality.keyed d85d782acb49
-equality.kind 5a4e48852a1f
-equality.methods 78550e669237
+equality.kind 65342655309f equality.no-overlap@39f213f599cf
+equality.methods de4fddba65e2
 equality.nested 25b9a608b7d8
-equality.no-overlap 8d7ac75ff441
+equality.no-overlap 39f213f599cf
 equality.not 13deb566d9db
 equality.number d303dcc3beae
 equality.ordered-seq d60dae30c2f4
@@ -521,8 +521,8 @@ notation.keywords 4c583fa8816b
 notation.marker 5653ae3fe69c
 notation.pending e54a85500eed
 notation.result 4950eec5dc30
+number e9055499414f equality.no-overlap@39f213f599cf
 number.bare-point 142fad515b4d
-number.cross-equality 40ee7c78be83
 number.equality ed5f9eab2815
 number.finite d4b05f2414c4
 number.from-bool 6305e49e7045
@@ -534,7 +534,7 @@ number.literal 86cb2f92f979
 number.malformed 247ef493dd4c
 number.membership 526973115597
 number.no-coercion 9f7aea628c19
-number.no-equality-coercion 1679f2595bfa
+number.no-equality-coercion 29f712ee53f8 equality.no-overlap@39f213f599cf
 number.ordering 5576feb3fc7f
 number.precision 72e91dffc612
 number.print 48a1ee322f61
@@ -685,9 +685,9 @@ strict-mode.kind 473337e9dc96
 strict-mode.leaf 60e3956d9309
 strict-mode.unwritten 1823ab932ade
 strict-mode.whole-type 1402bd7a5564
+string 0bfc8e0b8182 equality.no-overlap@39f213f599cf
 string.bad-escape 2fbee16294fc
 string.brace-escape f37758319dd6
-string.cross-equality d0093bdc5e84
 string.cross-order 1ee5c4b8186e
 string.empty-interpolation 3a51cfee184b
 string.equality 3a43772daed2
@@ -719,11 +719,11 @@ structural-typing.exact-position e161e4baa4b5
 structural-typing.function a3162e14d79d
 structural-typing.has c9a47b47ba3a
 structural-typing.missing 9f65eada49ab
-structural-typing.overlap-fields 27882909c0f3
-structural-typing.overlap-kind 1f5d4272ba76
-structural-typing.overlap-list f5bc138925ad
-structural-typing.overlap-scalar 50b769e6a4d4
-structural-typing.overlap-union f6642be99e56
+structural-typing.overlap-fields 10ec669ce02c
+structural-typing.overlap-kind 8188af254ccc
+structural-typing.overlap-list 466e616ddd88
+structural-typing.overlap-scalar 1a7f2b54468e
+structural-typing.overlap-union daece0e2cc16
 structural-typing.present-typed 8e32e38e694b
 structural-typing.structural 797742672410
 tuple 39d4491d4bc3 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
@@ -801,8 +801,8 @@ use.adjacent c8bb82d1cbb7
 use.cycle d1891cf82b4d
 use.each-time b41b41e7fcaf
 use.id-value fe8cdfdea67c
-use.module-halt f9e60280b4aa
-use.resolution-catchable d5dd5b2ff908
+use.module-halt 24e33bb35dcf
+use.resolution-catchable 7a37f666b849
 use.resolver-failure 459c278f3614
 use.scheme 413764867770
 use.source 181e9efd02b6

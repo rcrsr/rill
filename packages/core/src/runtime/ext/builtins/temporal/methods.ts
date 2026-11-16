@@ -16,6 +16,10 @@ import {
   requireDatetime,
   requireDuration,
 } from '../../../core/types/protocols/shared.js';
+import {
+  decomposeDuration,
+  formatDurationText,
+} from '../../../core/types/duration-units.js';
 import type { RillMethod } from '../shared.js';
 import { orderedCompare } from '../methods/bodies.js';
 import {
@@ -305,22 +309,6 @@ export const mDtDiff: RillMethod = (receiver, args, ctx, location) => {
   };
 };
 
-/** .eq(other) - datetime equality */
-export const mDtEq: RillMethod = (receiver, args, ctx, location) => {
-  const dt = datetimeReceiver(receiver, 'eq', ctx, location);
-  const other = args[0] ?? null;
-  if (!isDatetime(other)) return false;
-  return dt.unix === other.unix;
-};
-
-/** .ne(other) - datetime inequality */
-export const mDtNe: RillMethod = (receiver, args, ctx, location) => {
-  const dt = datetimeReceiver(receiver, 'ne', ctx, location);
-  const other = args[0] ?? null;
-  if (!isDatetime(other)) return true;
-  return dt.unix !== other.unix;
-};
-
 /** .lt(other) - datetime less-than */
 export const mDtLt: RillMethod = (receiver, args, ctx, location) =>
   orderedCompare(receiver, args, ctx, location, 'lt') < 0;
@@ -348,37 +336,26 @@ export const mDurMonths: RillMethod = (receiver, _args, ctx, location) => {
 };
 
 /** .days property - floor(ms / 86400000) */
-export const mDurDays: RillMethod = (receiver, _args, ctx, location) => {
-  const dur = durationReceiver(receiver, 'days', ctx, location);
-  return Math.floor(dur.ms / 86_400_000);
-};
+export const mDurDays: RillMethod = (receiver, _args, ctx, location) =>
+  decomposeDuration(durationReceiver(receiver, 'days', ctx, location)).days;
 
 /** .hours property - remainder after days */
-export const mDurHours: RillMethod = (receiver, _args, ctx, location) => {
-  const dur = durationReceiver(receiver, 'hours', ctx, location);
-  const afterDays = dur.ms % 86_400_000;
-  return Math.floor(afterDays / 3_600_000);
-};
+export const mDurHours: RillMethod = (receiver, _args, ctx, location) =>
+  decomposeDuration(durationReceiver(receiver, 'hours', ctx, location)).hours;
 
 /** .minutes property - remainder after hours */
-export const mDurMinutes: RillMethod = (receiver, _args, ctx, location) => {
-  const dur = durationReceiver(receiver, 'minutes', ctx, location);
-  const afterHours = dur.ms % 3_600_000;
-  return Math.floor(afterHours / 60_000);
-};
+export const mDurMinutes: RillMethod = (receiver, _args, ctx, location) =>
+  decomposeDuration(durationReceiver(receiver, 'minutes', ctx, location))
+    .minutes;
 
 /** .seconds property - remainder after minutes */
-export const mDurSeconds: RillMethod = (receiver, _args, ctx, location) => {
-  const dur = durationReceiver(receiver, 'seconds', ctx, location);
-  const afterMinutes = dur.ms % 60_000;
-  return Math.floor(afterMinutes / 1_000);
-};
+export const mDurSeconds: RillMethod = (receiver, _args, ctx, location) =>
+  decomposeDuration(durationReceiver(receiver, 'seconds', ctx, location))
+    .seconds;
 
 /** .ms property - remainder after seconds */
-export const mDurMs: RillMethod = (receiver, _args, ctx, location) => {
-  const dur = durationReceiver(receiver, 'ms', ctx, location);
-  return dur.ms % 1_000;
-};
+export const mDurMs: RillMethod = (receiver, _args, ctx, location) =>
+  decomposeDuration(durationReceiver(receiver, 'ms', ctx, location)).ms;
 
 /** .total_ms property - raw ms; halts when months > 0 */
 export const mDurTotalMs: RillMethod = (receiver, _args, ctx, location) => {
@@ -399,37 +376,8 @@ export const mDurTotalMs: RillMethod = (receiver, _args, ctx, location) => {
 };
 
 /** .display property - compact format omitting zero components */
-export const mDurDisplay: RillMethod = (receiver, _args, ctx, location) => {
-  const dur = durationReceiver(receiver, 'display', ctx, location);
-  const parts: string[] = [];
-
-  // Calendar portion
-  const years = Math.floor(dur.months / 12);
-  const remainingMonths = dur.months % 12;
-  if (years > 0) parts.push(`${years}y`);
-  if (remainingMonths > 0) parts.push(`${remainingMonths}mo`);
-
-  // Clock portion (largest-first decomposition)
-  let remaining = dur.ms;
-  const days = Math.floor(remaining / 86_400_000);
-  remaining = remaining % 86_400_000;
-  const hours = Math.floor(remaining / 3_600_000);
-  remaining = remaining % 3_600_000;
-  const minutes = Math.floor(remaining / 60_000);
-  remaining = remaining % 60_000;
-  const seconds = Math.floor(remaining / 1_000);
-  const ms = remaining % 1_000;
-
-  if (days > 0) parts.push(`${days}d`);
-  if (hours > 0) parts.push(`${hours}h`);
-  if (minutes > 0) parts.push(`${minutes}m`);
-  if (seconds > 0) parts.push(`${seconds}s`);
-  if (ms > 0) parts.push(`${ms}ms`);
-
-  // Zero duration displays as "0ms"
-  if (parts.length === 0) return '0ms';
-  return parts.join('');
-};
+export const mDurDisplay: RillMethod = (receiver, _args, ctx, location) =>
+  formatDurationText(durationReceiver(receiver, 'display', ctx, location));
 
 /** .zero property - returns duration(ms: 0) */
 export const mDurZero: RillMethod = (receiver, _args, ctx, location) => {

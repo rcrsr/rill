@@ -1,10 +1,11 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: timeout<> Block (Phase 1, Task 1.5)
  *
  * Covers:
  * - AC-1  / SC-1  : timeout<total:> completes within window; body result returned
  * - AC-12 / EC-1  : timeout<total:> fires #TIMEOUT_TOTAL when body runs too long
- * - AC-14 / EC-4  : both total: and idle: in same timeout<> is a parse error
+ * - both total: and idle: accepted in either order; duplicate key is a parse error
  * - AC-15 / EC-2  : timeout<idle:> fires #TIMEOUT_IDLE when body takes too long
  * - EC-3          : non-duration argument to timeout<total:> halts with INVALID_INPUT
  * - EC-5          : iteration ceiling (RILL-R010) propagates through timeout body
@@ -12,9 +13,7 @@
  * - AC-22 / BC-5  : timeout<total:> caught via guard + ?? fallback
  * - AC-23 / BC-6  : timeout<idle:> caught via guard + type inspection
  *
- * [DEVIATION] duration() only supports positional args (not named). All tests use
- * duration(0, 0, 0, 0, 0, 0, X) to specify X milliseconds.
- * Reference: packages/core/tests/language/duration.test.ts, line 6.
+ * All tests use the printed form duration("Xms") to specify X milliseconds.
  *
  * [DEVIATION] The timeout<> evaluator only interrupts host functions that observe
  * ctx.signal. Host functions that do not check signal will complete normally even
@@ -27,16 +26,12 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import {
-  parse,
-  ParseError,
-  type CallableFn,
-  type RuntimeContext,
-} from '@rcrsr/rill';
+import { parse, type CallableFn, type RuntimeContext } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 import { run } from '../helpers/runtime.js';
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 
 // ---------------------------------------------------------------------------
 // Signal-aware host function helpers
@@ -75,16 +70,14 @@ function makeSlowFn() {
 
 describe('AC-1 / SC-1: timeout<total:> completes within window', () => {
   it('returns body result when body finishes before deadline', async () => {
-    // duration(0, 0, 0, 0, 0, 0, 200) = 200ms
-    const result = await run(
-      'timeout<total: duration(0, 0, 0, 0, 0, 0, 200)> { 1 }'
-    );
+    // duration("200ms") = 200ms
+    const result = await run('timeout<total: duration("200ms")> { 1 }');
     expect(result).toBe(1);
   });
 
   it('returns captured variable from body', async () => {
     const result = await run(`
-      timeout<total: duration(0, 0, 0, 0, 0, 0, 200)> {
+      timeout<total: duration("200ms")> {
         42 => $x
         $x
       }
@@ -93,9 +86,7 @@ describe('AC-1 / SC-1: timeout<total:> completes within window', () => {
   });
 
   it('returns string result from body', async () => {
-    const result = await run(
-      'timeout<total: duration(0, 0, 0, 0, 0, 0, 200)> { "hello" }'
-    );
+    const result = await run('timeout<total: duration("200ms")> { "hello" }');
     expect(result).toBe('hello');
   });
 });
@@ -108,7 +99,7 @@ describe('AC-12 / EC-1: timeout<total:> fires #TIMEOUT_TOTAL', () => {
   it('produces #TIMEOUT_TOTAL when body uses signal-aware host delay', async () => {
     // Guard catches the catchable TIMEOUT_TOTAL halt and returns the invalid value.
     const result = await run(
-      'guard { timeout<total: duration(0, 0, 0, 0, 0, 0, 50)> { slow_op() } }',
+      'guard { timeout<total: duration("50ms")> { slow_op() } }',
       { functions: { slow_op: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
@@ -117,7 +108,7 @@ describe('AC-12 / EC-1: timeout<total:> fires #TIMEOUT_TOTAL', () => {
 
   it('#TIMEOUT_TOTAL atom code matches expected resolveAtom value', async () => {
     const result = await run(
-      'guard { timeout<total: duration(0, 0, 0, 0, 0, 0, 50)> { slow_fn() } }',
+      'guard { timeout<total: duration("50ms")> { slow_fn() } }',
       { functions: { slow_fn: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
@@ -128,27 +119,66 @@ describe('AC-12 / EC-1: timeout<total:> fires #TIMEOUT_TOTAL', () => {
 });
 
 // ---------------------------------------------------------------------------
-// AC-14 / EC-4: both total: and idle: is a parse error
+// Both limits, empty options, and option errors
 // ---------------------------------------------------------------------------
 
-describe('AC-14 / EC-4: timeout<total: d, idle: d> is a parse error', () => {
-  it('rejects timeout with both total: and idle: using numeric literals', () => {
-    // Using numeric literals avoids the duration() named-arg parse issue;
-    // the duplicate-key error fires before the body is parsed.
-    expect(() => parse('timeout<total: 100, idle: 50> { "x" }')).toThrow(
-      ParseError
+describe('timeout<total: d, idle: d> arms both limits', () => {
+  const { it: ruleIt } = rule('construct-options.timeout-limits');
+
+  ruleIt('accepts total then idle and returns the body result', async () => {
+    const result = await run(
+      'timeout<total: duration("200ms"), idle: duration("200ms")> { 1 }'
+    );
+    expect(result).toBe(1);
+  });
+
+  ruleIt('accepts idle then total and returns the body result', async () => {
+    const result = await run(
+      'timeout<idle: duration("200ms"), total: duration("200ms")> { 2 }'
+    );
+    expect(result).toBe(2);
+  });
+
+  ruleIt('halts #RILL_R083 when idle is the shorter limit', async () => {
+    const result = await run(
+      'guard { timeout<total: duration("5000ms"), idle: duration("50ms")> { slow_op() } }',
+      { functions: { slow_op: makeSlowFn() } }
+    );
+    expect(isInvalid(result as never)).toBe(true);
+    expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R083'));
+  });
+
+  ruleIt('halts #RILL_R082 when total is the shorter limit', async () => {
+    const result = await run(
+      'guard { timeout<idle: duration("5000ms"), total: duration("50ms")> { slow_op() } }',
+      { functions: { slow_op: makeSlowFn() } }
+    );
+    expect(isInvalid(result as never)).toBe(true);
+    expect(getStatus(result as never).code).toBe(resolveAtom('RILL_R082'));
+  });
+
+  ruleIt('returns the body result for timeout<> with no limit', async () => {
+    const result = await run('timeout<> { 7 }');
+    expect(result).toBe(7);
+  });
+
+  it('rejects a duplicate key with RILL-P004', () => {
+    expect(() =>
+      parse('timeout<total: duration("1ms"), total: duration("2ms")> { 1 }')
+    ).toThrow(expect.objectContaining({ errorId: 'RILL-P004' }));
+  });
+
+  it('rejects an unknown key with RILL-P004', () => {
+    expect(() => parse('timeout<limit: duration("1ms")> { 1 }')).toThrow(
+      expect.objectContaining({ errorId: 'RILL-P004' })
     );
   });
 
-  it('parse error message mentions the duplicate key constraint', () => {
-    try {
-      parse('timeout<total: 100, idle: 50> { "x" }');
-      expect.fail('Expected ParseError');
-    } catch (err) {
-      expect(err).toBeInstanceOf(ParseError);
-      const parseErr = err as ParseError;
-      expect(parseErr.message).toMatch(/total.*idle|idle.*total/);
-    }
+  it('halts #INVALID_INPUT naming the option for a non-duration idle value', async () => {
+    await expectHalt(() => run('timeout<idle: "x"> { 1 }'), {
+      code: 'INVALID_INPUT',
+      messagePattern: /idle/,
+    });
   });
 });
 
@@ -162,7 +192,7 @@ describe('AC-15 / EC-2: timeout<idle:> fires #TIMEOUT_IDLE', () => {
     // idleMs. Without pass<> stream chunk resets, idle behaves like a total
     // timeout. A signal-aware host function aborts when the idle timer fires.
     const result = await run(
-      'guard { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { idle_slow() } }',
+      'guard { timeout<idle: duration("50ms")> { idle_slow() } }',
       { functions: { idle_slow: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
@@ -172,7 +202,7 @@ describe('AC-15 / EC-2: timeout<idle:> fires #TIMEOUT_IDLE', () => {
   it('timeout<idle:> is catchable — guard catches #TIMEOUT_IDLE', async () => {
     // Same as above; verifies the guard path explicitly.
     const result = await run(
-      'guard { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { idle_slow() } }',
+      'guard { timeout<idle: duration("50ms")> { idle_slow() } }',
       { functions: { idle_slow: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
@@ -222,16 +252,14 @@ describe('EC-5: iteration ceiling RILL-R010 propagates through timeout body', ()
     // The timeout body re-throws it unchanged per §NOD.10.4.
     // Use a large duration literal (not duration() call — named args unsupported).
     await expect(
-      run(
-        'timeout<total: duration(0, 0, 0, 0, 0, 10)> { range(0, 10001) -> seq({ $ }) }'
-      )
+      run('timeout<total: duration("10s")> { range(0, 10001) -> seq({ $ }) }')
     ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R010' }));
   });
 
   it('RILL-R010 is not catchable — guard does not catch it', async () => {
     await expect(
       run(
-        'guard { timeout<total: duration(0, 0, 0, 0, 0, 10)> { range(0, 10001) -> seq({ $ }) } }'
+        'guard { timeout<total: duration("10s")> { range(0, 10001) -> seq({ $ }) } }'
       )
     ).rejects.toThrow(expect.objectContaining({ errorId: 'RILL-R010' }));
   });
@@ -249,8 +277,8 @@ describe('AC-20 / BC-3: nested timeouts — outer fires first', () => {
     // #TIMEOUT_TOTAL because expired=true. Guard catches it.
     const result = await run(
       `guard {
-        timeout<total: duration(0, 0, 0, 0, 0, 0, 80)> {
-          timeout<idle: duration(0, 0, 0, 0, 0, 5)> {
+        timeout<total: duration("80ms")> {
+          timeout<idle: duration("5s")> {
             outer_slow()
           }
         }
@@ -274,7 +302,7 @@ describe('AC-22 / BC-5: timeout<total:> recovery via guard + ??', () => {
     // the catchable RuntimeHaltSignal thrown by timeout is not intercepted by ??
     // (which only handles RILL_R007/R008 and isInvalid return values).
     const result = await run(
-      'guard { timeout<total: duration(0, 0, 0, 0, 0, 0, 50)> { slow_for_fallback() } } ?? "timeout"',
+      'guard { timeout<total: duration("50ms")> { slow_for_fallback() } } ?? "timeout"',
       { functions: { slow_for_fallback: makeSlowFn() } }
     );
     expect(result).toBe('timeout');
@@ -283,7 +311,7 @@ describe('AC-22 / BC-5: timeout<total:> recovery via guard + ??', () => {
 
   it('?? fallback is not invoked when timeout body completes in time', async () => {
     const result = await run(
-      'guard { timeout<total: duration(0, 0, 0, 0, 0, 0, 200)> { "ok" } } ?? "fallback"'
+      'guard { timeout<total: duration("200ms")> { "ok" } } ?? "fallback"'
     );
     expect(result).toBe('ok');
   });
@@ -296,7 +324,7 @@ describe('AC-22 / BC-5: timeout<total:> recovery via guard + ??', () => {
 describe('AC-23 / BC-6: timeout<idle:> invalid value inspectable via guard', () => {
   it('guard catches #TIMEOUT_IDLE and the invalid value is inspectable', async () => {
     const result = await run(
-      'guard { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { idle_for_guard() } }',
+      'guard { timeout<idle: duration("50ms")> { idle_for_guard() } }',
       { functions: { idle_for_guard: makeSlowFn() } }
     );
     expect(isInvalid(result as never)).toBe(true);
@@ -306,7 +334,7 @@ describe('AC-23 / BC-6: timeout<idle:> invalid value inspectable via guard', () 
 
   it('guard<on: list[#RILL_R083]> catches only the matching idle timeout', async () => {
     const result = await run(
-      'guard<on: list[#RILL_R083]> { timeout<idle: duration(0, 0, 0, 0, 0, 0, 50)> { guard_idle_fn() } } ?? "idle_timeout"',
+      'guard<on: list[#RILL_R083]> { timeout<idle: duration("50ms")> { guard_idle_fn() } } ?? "idle_timeout"',
       { functions: { guard_idle_fn: makeSlowFn() } }
     );
     expect(result).toBe('idle_timeout');

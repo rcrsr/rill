@@ -59,8 +59,8 @@ function isCallable(value: RillValue): value is RillCallable {
 export interface FieldComparisonCallbacks<T> {
   /** Both structures carry a uniform valueType */
   onValueType(aValueType: TypeStructure, bValueType: TypeStructure): T;
-  /** One structure has valueType, the other does not */
-  onValueTypeMismatch(): T;
+  /** One structure has valueType, the other does not; receives both operands */
+  onValueTypeMismatch(a: TypeStructure, b: TypeStructure): T;
   /** Neither structure has fields/elements */
   onBothEmpty(): T;
   /** One structure has fields/elements, the other does not */
@@ -101,7 +101,7 @@ export function compareStructuredFields<T>(
     const bValue = b.valueType;
     if (aValue !== undefined || bValue !== undefined) {
       if (aValue === undefined || bValue === undefined)
-        return callbacks.onValueTypeMismatch();
+        return callbacks.onValueTypeMismatch(a, b);
       return callbacks.onValueType(aValue, bValue);
     }
     if (a.fields === undefined && b.fields === undefined) {
@@ -128,7 +128,7 @@ export function compareStructuredFields<T>(
     const bValue = b.valueType;
     if (aValue !== undefined || bValue !== undefined) {
       if (aValue === undefined || bValue === undefined)
-        return callbacks.onValueTypeMismatch();
+        return callbacks.onValueTypeMismatch(a, b);
       return callbacks.onValueType(aValue, bValue);
     }
     if (a.fields === undefined && b.fields === undefined) {

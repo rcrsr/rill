@@ -203,20 +203,20 @@ export interface PassBlockNode extends BaseNode {
 }
 
 /**
- * TimeoutBlock: wall-time or inactivity bound wrapping a body.
+ * TimeoutBlock: wall-time and/or inactivity bound wrapping a body.
  * Syntax: timeout<total: duration> { body }
  *         timeout<idle: duration> { body }
+ *         timeout<total: duration, idle: duration> { body }
  *
  * Lexer emits TIMEOUT_LANGLE when `timeout` is followed immediately by `<`.
- * On expiry, raises a catchable halt carrying #RILL_R082 (kind: 'total')
- * or #RILL_R083 (kind: 'idle'). Recovery is via guard or `??`.
+ * On expiry, raises a catchable halt carrying #RILL_R082 (total) or
+ * #RILL_R083 (idle); the first limit to fire wins, and a tie fires total.
+ * `timeout<>` arms neither limit. Recovery is via guard or `??`.
  */
 export interface TimeoutBlockNode extends BaseNode {
   readonly type: 'TimeoutBlock';
-  /** Which bound applies: 'total' for wall-time, 'idle' for inactivity. */
-  readonly kind: 'total' | 'idle';
-  /** Duration expression evaluated at runtime. Must resolve to a duration value. */
-  readonly duration: ExpressionNode;
+  /** Raw dict parsed from the angle-bracket head, e.g. `<total: $d>`. */
+  readonly options: DictNode;
   /** Non-empty body block to execute under the timeout. */
   readonly body: BlockNode;
 }

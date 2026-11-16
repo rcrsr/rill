@@ -21,7 +21,13 @@ import type {
   RillTypeValue,
   TypeStructure,
 } from '../../types/structures.js';
-import { insertArgDeclared, pipeDeclaredOf } from '../../types/declared.js';
+import {
+  argDeclaredAt,
+  insertArgDeclared,
+  pipeDeclaredOf,
+  setArgsDeclared,
+  transferArgsDeclared,
+} from '../../types/declared.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
 import { isTypeValue, isStream } from '../../types/guards.js';
 import { inferStructure, formatStructure } from '../../types/operations.js';
@@ -52,21 +58,29 @@ import { locateField, readField } from './field-access.js';
 /**
  * Call a built-in type method with the receiver prepended. Arguments go
  * through marshalArgs so arity and types are validated the same way for every
- * receiver; counts in arity errors exclude the receiver.
+ * receiver; counts in arity errors exclude the receiver. The receiver's and
+ * each argument's carried type ride the marshalled record to the method body.
  */
 async function invokeTypeMethod(
   s: EvalState,
   node: MethodCallNode,
   method: ApplicationCallable,
   receiver: RillValue,
-  args: readonly RillValue[]
+  args: readonly RillValue[],
+  receiverDeclared: TypeStructure | undefined
 ): Promise<RillValue> {
   const callLocation = getNodeLocation(s, node);
-  const methodArgs = marshalArgs([receiver, ...args], method.params, {
+  const callArgs: RillValue[] = [receiver, ...args];
+  setArgsDeclared(callArgs, [
+    receiverDeclared,
+    ...args.map((_, i) => argDeclaredAt(args, i)),
+  ]);
+  const methodArgs = marshalArgs(callArgs, method.params, {
     functionName: node.name,
     location: callLocation,
     receiverOffset: 1,
   });
+  transferArgsDeclared(callArgs, methodArgs);
   try {
     const result = method.fn(methodArgs, s.ctx, callLocation);
     return result instanceof Promise ? await result : result;
@@ -125,11 +139,15 @@ export function locateOwnFieldRead(
     : undefined;
 }
 
-/** Evaluate method call on receiver: value.method(args). */
+/**
+ * Evaluate method call on receiver: value.method(args). `declared` is the type
+ * the receiver carries, handed to built-in type methods that gate on it.
+ */
 export async function evaluateMethod(
   s: EvalState,
   node: MethodCallNode | InvokeNode,
-  receiver: RillValue
+  receiver: RillValue,
+  declared?: TypeStructure
 ): Promise<RillValue> {
   checkAborted(s, node);
 
@@ -162,7 +180,7 @@ export async function evaluateMethod(
   const typeDict = s.ctx.typeMethodDicts.get(typeName);
   const typeMethod = typeDict?.[node.name];
   if (typeMethod !== undefined && isApplicationCallable(typeMethod)) {
-    return invokeTypeMethod(s, node, typeMethod, receiver, args);
+    return invokeTypeMethod(s, node, typeMethod, receiver, args, declared);
   }
   // Locate the field once.
   const ownLocation = locateMethodOwnField(receiver, node.name);
@@ -236,7 +254,14 @@ export async function evaluateMethod(
         fallbackMethod !== undefined &&
         isApplicationCallable(fallbackMethod)
       ) {
-        return invokeTypeMethod(s, node, fallbackMethod, receiver, args);
+        return invokeTypeMethod(
+          s,
+          node,
+          fallbackMethod,
+          receiver,
+          args,
+          declared
+        );
       }
     }
   }

@@ -41,9 +41,7 @@
  * is not separately tested here as no unique debounce/throttle/sample-specific
  * behaviour is exercised.
  *
- * [DEVIATION] duration() supports positional args only (named args not yet
- * supported by the parser). All tests use duration(0, 0, 0, 0, 0, 0, X) for
- * X milliseconds. See packages/core/tests/language/duration.test.ts line 6.
+ * All tests use the printed form duration("Xms") for X milliseconds.
  */
 
 import { describe, expect, it } from 'vitest';
@@ -85,31 +83,24 @@ describe('debounce: static-clock semantics (AC-3, IR-4)', () => {
     // Under static-clock all chunks share timestamp 0.
     // Only the last chunk (4) has an infinite gap to its successor (no successor),
     // so only it passes the debounce gate.
-    const result = await run(
-      'range(0, 5) -> debounce(duration(0, 0, 0, 0, 0, 0, 50))'
-    );
+    const result = await run('range(0, 5) -> debounce(duration("50ms"))');
     expect(result).toEqual([4]);
   });
 
   it('single-element iterator passes through unchanged', async () => {
-    const result = await run(
-      'range(0, 1) -> debounce(duration(0, 0, 0, 0, 0, 0, 50))'
-    );
+    const result = await run('range(0, 1) -> debounce(duration("50ms"))');
     expect(result).toEqual([0]);
   });
 
   it('empty iterator returns empty list', async () => {
-    const result = await run(
-      'range(0, 0) -> debounce(duration(0, 0, 0, 0, 0, 0, 50))'
-    );
+    const result = await run('range(0, 0) -> debounce(duration("50ms"))');
     expect(result).toEqual([]);
   });
 
   it('stream input: only last chunk emitted', async () => {
-    const result = await run(
-      'make_stream() -> debounce(duration(0, 0, 0, 0, 0, 0, 50))',
-      { functions: { make_stream: makeStreamFn([10, 20, 30]) } }
-    );
+    const result = await run('make_stream() -> debounce(duration("50ms"))', {
+      functions: { make_stream: makeStreamFn([10, 20, 30]) },
+    });
     expect(result).toEqual([30]);
   });
 });
@@ -123,31 +114,24 @@ describe('throttle: static-clock semantics (AC-4, IR-5)', () => {
     // Under static-clock all chunks share timestamp 0.
     // The first chunk passes the gate (nextAllowedMs starts at -Infinity).
     // Subsequent chunks are blocked because timestamp 0 < nextAllowedMs.
-    const result = await run(
-      'range(0, 5) -> throttle(duration(0, 0, 0, 0, 0, 0, 100))'
-    );
+    const result = await run('range(0, 5) -> throttle(duration("100ms"))');
     expect(result).toEqual([0]);
   });
 
   it('single-element iterator passes through unchanged', async () => {
-    const result = await run(
-      'range(0, 1) -> throttle(duration(0, 0, 0, 0, 0, 0, 100))'
-    );
+    const result = await run('range(0, 1) -> throttle(duration("100ms"))');
     expect(result).toEqual([0]);
   });
 
   it('empty iterator returns empty list', async () => {
-    const result = await run(
-      'range(0, 0) -> throttle(duration(0, 0, 0, 0, 0, 0, 100))'
-    );
+    const result = await run('range(0, 0) -> throttle(duration("100ms"))');
     expect(result).toEqual([]);
   });
 
   it('stream input: only first chunk emitted', async () => {
-    const result = await run(
-      'make_stream() -> throttle(duration(0, 0, 0, 0, 0, 0, 100))',
-      { functions: { make_stream: makeStreamFn([10, 20, 30]) } }
-    );
+    const result = await run('make_stream() -> throttle(duration("100ms"))', {
+      functions: { make_stream: makeStreamFn([10, 20, 30]) },
+    });
     expect(result).toEqual([10]);
   });
 });
@@ -160,31 +144,24 @@ describe('sample: static-clock semantics (AC-5, IR-6)', () => {
   it('range(0, 5) -> sample emits only the last element', async () => {
     // Under static-clock all chunks fall in window 0.
     // The window's "latest seen" is the last element. One sample emitted.
-    const result = await run(
-      'range(0, 5) -> sample(duration(0, 0, 0, 0, 0, 0, 100))'
-    );
+    const result = await run('range(0, 5) -> sample(duration("100ms"))');
     expect(result).toEqual([4]);
   });
 
   it('single-element iterator passes through unchanged', async () => {
-    const result = await run(
-      'range(0, 1) -> sample(duration(0, 0, 0, 0, 0, 0, 100))'
-    );
+    const result = await run('range(0, 1) -> sample(duration("100ms"))');
     expect(result).toEqual([0]);
   });
 
   it('empty iterator returns empty list', async () => {
-    const result = await run(
-      'range(0, 0) -> sample(duration(0, 0, 0, 0, 0, 0, 100))'
-    );
+    const result = await run('range(0, 0) -> sample(duration("100ms"))');
     expect(result).toEqual([]);
   });
 
   it('stream input: only last chunk emitted', async () => {
-    const result = await run(
-      'make_stream() -> sample(duration(0, 0, 0, 0, 0, 0, 100))',
-      { functions: { make_stream: makeStreamFn([10, 20, 30]) } }
-    );
+    const result = await run('make_stream() -> sample(duration("100ms"))', {
+      functions: { make_stream: makeStreamFn([10, 20, 30]) },
+    });
     expect(result).toEqual([30]);
   });
 });
@@ -200,14 +177,12 @@ describe('AC-25: per-operator distinct semantics', () => {
     //   - throttle: first-of-interval = first element = 0
     //   - sample:   latest-at-interval = last element = 4
     const debounceResult = await run(
-      'range(0, 5) -> debounce(duration(0, 0, 0, 0, 0, 0, 50))'
+      'range(0, 5) -> debounce(duration("50ms"))'
     );
     const throttleResult = await run(
-      'range(0, 5) -> throttle(duration(0, 0, 0, 0, 0, 0, 100))'
+      'range(0, 5) -> throttle(duration("100ms"))'
     );
-    const sampleResult = await run(
-      'range(0, 5) -> sample(duration(0, 0, 0, 0, 0, 0, 100))'
-    );
+    const sampleResult = await run('range(0, 5) -> sample(duration("100ms"))');
 
     // debounce emits latest (last)
     expect(debounceResult).toEqual([4]);
@@ -229,24 +204,22 @@ describe('AC-25: per-operator distinct semantics', () => {
 
 describe('EC-10 / AC-10: list input raises #INVALID_INPUT', () => {
   it('debounce rejects list input', async () => {
-    await expectHalt(
-      () => run('list[1, 2, 3] -> debounce(duration(0, 0, 0, 0, 0, 0, 10))'),
-      { code: 'INVALID_INPUT' }
-    );
+    await expectHalt(() => run('list[1, 2, 3] -> debounce(duration("10ms"))'), {
+      code: 'INVALID_INPUT',
+    });
   });
 
   it('throttle rejects list input', async () => {
     await expectHalt(
-      () => run('list[1, 2, 3] -> throttle(duration(0, 0, 0, 0, 0, 0, 100))'),
+      () => run('list[1, 2, 3] -> throttle(duration("100ms"))'),
       { code: 'INVALID_INPUT' }
     );
   });
 
   it('sample rejects list input', async () => {
-    await expectHalt(
-      () => run('list[1, 2, 3] -> sample(duration(0, 0, 0, 0, 0, 0, 100))'),
-      { code: 'INVALID_INPUT' }
-    );
+    await expectHalt(() => run('list[1, 2, 3] -> sample(duration("100ms"))'), {
+      code: 'INVALID_INPUT',
+    });
   });
 });
 

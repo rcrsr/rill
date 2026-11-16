@@ -74,7 +74,7 @@ Not all operations behave the same when applied to an invalid value. The access 
 | Default operator | `$x ?? fallback` |
 | `guard` / `retry<limit: N>` wrapping | `guard { $x.name }` |
 
-Access halts are **catchable** by `guard` and `retry<limit: N>`. Halts from `error` and `assert` are **non-catchable** and propagate through any recovery block.
+Access halts are **catchable** by `guard` and `retry<limit: N>`. Halts from non-catchable sources (for example `error` and `assert`) propagate through any recovery block. A halt raised while a module loaded by `use<>` runs also passes through `use<>`, `guard`, and `retry<limit: N>`; see [Modules](integration-modules.md#halts-inside-a-module).
 
 ```rill
 "valid" => $v
@@ -170,10 +170,10 @@ rill defines these atoms. Every halt and every invalid value carries one of them
 | `#UNAVAILABLE` | Service or resource not available |
 | `#NOT_FOUND` | Requested resource does not exist |
 | `#CONFLICT` | State conflict (e.g. duplicate write) |
-| `#INVALID_INPUT` | Input failed validation; also: `sort` key extractor returns a vacant value; negative `n` for `take`/`skip`; `n <= 0` for `batch`/`window`; `step <= 0` for `window`; negative or non-integer count for `repeat()`, `.repeat`, `.pad_start` and `.pad_end`; non-positive or non-integer `concurrency` for `fan`/`filter`; unknown option key for `fan`/`filter`; zero `step` for `range`; non-integer index for `[]`, `.(n)`, `.at`, or list dispatch; zero `step` for `slice<>`; negative `.subtract` result, negative `.multiply` factor, non-finite or fractional-month `.multiply` result, and `.total_ms` on a calendar duration; vector dimension mismatch for `.similarity`/`.dot`/`.distance` |
+| `#INVALID_INPUT` | Input failed validation; also: `sort` key extractor returns a vacant value; negative `n` for `take`/`skip`; `n <= 0` for `batch`/`window`; `step <= 0` for `window`; negative or non-integer count for `repeat()`, `.repeat`, `.pad_start` and `.pad_end`; non-positive or non-integer `concurrency` for `fan`/`filter`; unknown option key for `fan`/`filter`; zero `step` for `range`; non-integer index for `[]`, `.(n)`, `.at`, or list dispatch; zero `step` for `slice<>`; a string argument to `duration()` not in printed form, negative `.subtract` result, negative `.multiply` factor, non-finite or fractional-month `.multiply` result, and `.total_ms` on a calendar duration; vector dimension mismatch for `.similarity`/`.dot`/`.distance` |
 | `#PROTOCOL` | Response shape violates documented contract (parse failure, schema mismatch) |
 | `#DISPOSED` | Extension was called after disposal |
-| `#TYPE_MISMATCH` | Failed `:type` assertion or conversion; also: `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, tuple comparison receives different-length or differently-typed tuples, or `start_when`/`stop_when` predicate returns a non-bool value; wrong-typed argument to `duration()`/`datetime()` or to datetime/duration methods such as `.add`, `.subtract`, `.multiply`, `.diff`; non-vector argument to `.similarity`/`.dot`/`.distance`; non-dict options for `fan`/`filter`; non-number `concurrency` for `fan`/`filter`; `filter` predicate returns a non-bool value; typed capture or typed destructure element that fails its type |
+| `#TYPE_MISMATCH` | Failed `:type` assertion or conversion; also: `==`, `!=`, `.eq`, `.ne`, `.has` between operands whose types cannot overlap, `sort` key extractor produces mixed types across elements, `sort` `key_fn` argument is non-callable, tuple comparison receives different-length or differently-typed tuples, or `start_when`/`stop_when` predicate returns a non-bool value; a non-number component in `duration(...dict[...])`, wrong-typed argument to `datetime()` or to datetime/duration methods such as `.add`, `.subtract`, `.multiply`, `.diff`; non-vector argument to `.similarity`/`.dot`/`.distance`; non-dict options for `fan`/`filter`; non-number `concurrency` for `fan`/`filter`; `filter` predicate returns a non-bool value; typed capture or typed destructure element that fails its type |
 | `#IGNORE` | Not an error code. Marker for `pass<on_error: #IGNORE> { body }` to suppress catchable halts in the body |
 
 `#ok` is lowercase because it is a reserved sentinel, not a user-visible error. Scripts and hosts cannot produce `#ok` as an error code. You can write `#ok` as a literal to compare against a sidecar code, or build the value with `"ok" -> atom`.
@@ -273,7 +273,7 @@ guard<on: list[]> { 1 / 0 }
 
 Omit `on:` and write `guard { ... }` to catch every catchable halt.
 
-`guard` does **not** catch halts from `error "..."` or `assert`. Those are non-catchable and always propagate.
+`guard` does **not** catch halts from non-catchable sources (for example `error "..."` and `assert`). Those always propagate. A halt inside a source module loaded by `use<>` also propagates; `guard` around `use<>` catches only resolution failures. See [Modules](integration-modules.md#halts-inside-a-module).
 
 ```text
 # Error: non-catchable — 'error' propagates through guard
@@ -314,7 +314,7 @@ Without `on_error: #IGNORE`, halts in the body propagate normally:
 
 | Signal | Behavior |
 |--------|----------|
-| Non-catchable halts (`error "..."`, `assert`) | Propagate; the pipeline halts |
+| Non-catchable halts (for example `error "..."` and `assert`) | Propagate; the pipeline halts |
 | `ControlSignal` (`break`, `return`) | Propagate to the enclosing construct |
 
 See [Collection Slicing](topic-collection-slicing.md#pass-body-forms) for the full reference of all three `pass` forms.
@@ -335,7 +335,7 @@ Wrap the timeout block in `guard` to prevent the halt from stopping execution:
 ```text
 use<ext:app> => $app
 guard {
-  timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
+  timeout<total: duration("500ms")> {
     $app.fetch("https://api.example.com/slow")
   }
 } ?? "fallback"
@@ -343,12 +343,23 @@ guard {
 
 The `??` operator after `guard` supplies the fallback when guard catches the expiry.
 
+One head carries both limits. The first to fire ends the body, and the halt carries that limit's atom:
+
+```text
+use<ext:app> => $app
+guard {
+  timeout<total: duration("5s"), idle: duration("500ms")> {
+    $app.fetch("https://api.example.com/slow")
+  }
+} ?? "fallback"
+```
+
 Branch on the specific atom to handle timeout distinctly from other errors:
 
 ```text
 use<ext:app> => $app
 guard {
-  timeout<total: duration(0, 0, 0, 0, 0, 0, 500)> {
+  timeout<total: duration("500ms")> {
     $app.fetch("https://api.example.com/slow")
   }
 } => $result

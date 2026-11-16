@@ -164,6 +164,8 @@ const ctx = createRuntimeContext({
 
 `extResolver` returns `{ kind: 'value', value: RillValue }`.
 
+For `kind: 'source'` results that fail to parse, see [Modules](integration-modules.md#halts-inside-a-module).
+
 ---
 
 ## Value Types

@@ -5,7 +5,7 @@
  * - `GuardBlock` (`guard { body }` / `guard<on: [...]> { body }`)
  * - `RetryBlock` (`retry<limit: N> { body }` / `retry<limit: N, on: [...]> { body }`)
  * - `StatusProbe` (`$x.!`, `$x.!code`, `$x.!message`, ...)
- * - `TimeoutBlock` (`timeout<total: d> { body }` / `timeout<idle: d> { body }`)
+ * - `TimeoutBlock` (`timeout<total: d, idle: d> { body }`, either or both limits)
  *
  * Interface requirements:
  * - Guard catches `RuntimeHaltSignal` at block boundary, appends a
@@ -20,7 +20,7 @@
  * - `error "..."` and `assert` raise non-catchable halts: guard /
  *   retry re-throw them unconditionally.
  * - TimeoutBlock creates a fresh AbortController, chains it to ctx.signal,
- *   arms a wall-time (total) or idle-tick (idle) timer, and on expiry
+ *   arms a wall-time (total) and/or idle-tick (idle) timer, and on expiry
  *   aborts the controller and throws a catchable halt carrying
  *   #RILL_R082 (total) or #RILL_R083 (idle).
  *
@@ -66,6 +66,7 @@ import {
 } from '../shared.js';
 import { evaluateBody } from './control-flow.js';
 import { evaluateExpression } from './core.js';
+import { evaluateDict } from './literals.js';
 
 // ============================================================
 // Minimum retry attempts (engineer-consistent choice)
@@ -325,16 +326,18 @@ async function evaluateStatusProbeValue(
 /**
  * Evaluate a timeout block.
  *
- * Validates that `node.duration` evaluates to a `duration` value.
- * Creates a fresh `AbortController` for the timeout scope, chains it to
- * `ctx.signal` via `AbortSignal.any` so either side can cancel. Arms a
- * `setTimeout` (total) or idle-tick (idle) timer via `ctx.scheduler` when
- * injected, falling back to the global scheduler.
+ * Evaluates `node.options` through the standard dict path and validates
+ * each present limit (`total`, `idle`) as a `duration`. Creates a fresh
+ * `AbortController` for the timeout scope, chains it to `ctx.signal` via
+ * `AbortSignal.any` so either side can cancel. Arms a `setTimeout` (total)
+ * and/or idle-tick (idle) timer via `ctx.scheduler` when injected, falling
+ * back to the global scheduler. With no limit the body runs unbounded.
  *
  * On expiry: the chained controller is aborted and a catchable
- * `RuntimeHaltSignal` carrying `#RILL_R082` (total) or `#RILL_R083` (idle) is
- * thrown. The host body runs under the chained signal so
- * cooperative host functions observing `ctx.signal` halt naturally.
+ * `RuntimeHaltSignal` carrying `#RILL_R082` (total) or `#RILL_R083` (idle)
+ * is thrown. The first limit to fire wins; total is armed first, so a tie
+ * fires total. The host body runs under the chained signal so cooperative
+ * host functions observing `ctx.signal` halt naturally.
  *
  * Non-catchable halts (RILL_R010, error, assert) and ControlSignal
  * subclasses propagate through unchanged.
@@ -343,24 +346,27 @@ export async function evaluateTimeoutBlock(
   s: EvalState,
   node: TimeoutBlockNode
 ): Promise<RillValue> {
-  // Evaluate the duration expression and validate its type.
-  const durationValue = await evaluateExpression(s, node.duration);
+  const site = {
+    location: getNodeLocation(s, node),
+    sourceId: s.ctx.sourceId,
+    fn: 'timeout',
+  };
 
-  if (!isDuration(durationValue)) {
-    throwCatchableHostHalt(
-      {
-        location: getNodeLocation(s, node),
-        sourceId: s.ctx.sourceId,
-        fn: 'timeout',
-      },
-      'INVALID_INPUT',
-      `timeout<${node.kind}:> duration must be a duration value, got ${inferType(durationValue)}`
-    );
+  // Evaluate the options dict and validate each present limit.
+  const opts = await evaluateDict(s, node.options);
+  const limits = new Map<TimeoutLimit, number>();
+  for (const limit of TIMEOUT_LIMITS) {
+    const value = opts[limit];
+    if (value === undefined) continue;
+    if (!isDuration(value)) {
+      throwCatchableHostHalt(
+        site,
+        'INVALID_INPUT',
+        `timeout<${limit}:> duration must be a duration value, got ${inferType(value)}`
+      );
+    }
+    limits.set(limit, value.ms);
   }
-
-  // Extract millisecond value from the validated duration.
-  const dur = durationValue;
-  const durationMs = dur.ms;
 
   // Build a fresh controller for this timeout scope; chain it to the
   // parent signal (if present) so either side can terminate the body.
@@ -376,37 +382,41 @@ export async function evaluateTimeoutBlock(
   const savedSignal = s.ctx.signal;
   (s.ctx as { signal: AbortSignal | undefined }).signal = chainedSignal;
 
-  const site = {
-    location: getNodeLocation(s, node),
-    sourceId: s.ctx.sourceId,
-    fn: 'timeout',
-  };
-
   const sched = s.ctx.scheduler ?? defaultScheduler;
   let timerHandle: ReturnType<typeof setTimeout> | undefined;
   let idleTicker: { reset(): void; cancel(): void } | undefined;
-  let expired = false;
+  let fired: TimeoutLimit | undefined;
 
-  // Callback that fires on expiry; produces the halt signal.
-  const onExpire = (): void => {
-    expired = true;
+  // Records the first limit to fire and aborts the body.
+  const onExpire = (limit: TimeoutLimit): void => {
+    if (fired !== undefined) return;
+    fired = limit;
     controller.abort();
   };
 
+  // Throws the catchable halt for the limit that fired.
+  const throwExpiry = (limit: TimeoutLimit): never =>
+    throwCatchableHostHalt(
+      site,
+      TIMEOUT_ATOMS[limit],
+      `timeout<${limit}:> exceeded after ${limits.get(limit)}ms`,
+      { durationMs: limits.get(limit) }
+    );
+
   try {
-    if (node.kind === 'total') {
+    const totalMs = limits.get('total');
+    if (totalMs !== undefined) {
       // Wall-time bound: single setTimeout for the full duration.
-      timerHandle = sched.setTimeout(onExpire, durationMs);
-    } else {
-      // Idle bound: idle-tick helper resets on each body chunk.
-      // The idle ticker is created here; the body must call
-      // ticker.reset() on each yielded chunk (future task 2.3
-      // wires the stream path). For non-stream bodies the timer
-      // fires if the body does not complete within idleMs.
+      timerHandle = sched.setTimeout(() => onExpire('total'), totalMs);
+    }
+    const idleMs = limits.get('idle');
+    if (idleMs !== undefined) {
+      // Idle bound: the timer fires if the body does not complete within
+      // idleMs; the stream path resets it on each chunk.
       idleTicker = createIdleTicker({
         ctx: s.ctx,
-        idleMs: durationMs,
-        onIdle: onExpire,
+        idleMs,
+        onIdle: () => onExpire('idle'),
       });
     }
 
@@ -415,17 +425,10 @@ export async function evaluateTimeoutBlock(
     // The body may complete after the timer fires (e.g. host code
     // ignores ctx.signal). Surface the timeout halt rather than the
     // late result so expiry is enforced consistently.
-    if (expired) {
+    if (fired !== undefined) {
       // A host abort that landed alongside the expiry wins over the timeout.
       if (parentSignal?.aborted === true) throwAbortHalt(site);
-      const atomCode =
-        node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
-      throwCatchableHostHalt(
-        site,
-        atomCode,
-        `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
-        { durationMs }
-      );
+      throwExpiry(fired);
     }
 
     return result;
@@ -438,16 +441,7 @@ export async function evaluateTimeoutBlock(
     if (parentSignal?.aborted === true && isAbortHalt(e)) throw e;
     // Our timer aborted the body: the abort halt becomes the catchable
     // timeout halt instead of the non-catchable #DISPOSED.
-    if (expired && isAbortHalt(e)) {
-      const atomCode =
-        node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
-      throwCatchableHostHalt(
-        site,
-        atomCode,
-        `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
-        { durationMs }
-      );
-    }
+    if (fired !== undefined && isAbortHalt(e)) throwExpiry(fired);
     // A halt carrying a host error shape stands in for a RuntimeError, so it
     // takes the expiry path below instead of this fatal rethrow.
     if (
@@ -459,18 +453,8 @@ export async function evaluateTimeoutBlock(
     }
 
     // If the controller was aborted due to our timer, produce the
-    // timeout invalid value. If the parent signal aborted (not us),
-    // re-throw the original error to preserve abort semantics.
-    if (expired) {
-      const atomCode =
-        node.kind === 'total' ? TIMEOUT_TOTAL_ATOM : TIMEOUT_IDLE_ATOM;
-      throwCatchableHostHalt(
-        site,
-        atomCode,
-        `timeout<${node.kind}:> exceeded after ${durationMs}ms`,
-        { durationMs }
-      );
-    }
+    // timeout invalid value.
+    if (fired !== undefined) throwExpiry(fired);
 
     // Otherwise re-throw (e.g. catchable halt from body, or parent abort).
     throw e;
@@ -577,13 +561,14 @@ function createIdleTicker(args: {
 // ============================================================
 
 /**
- * Atom name for total wall-time timeout (the `RILL_Rxxx` atom name).
- * Paired with RILL-R082 in error-registry.ts.
+ * Timeout limits in arming order: total is armed before idle, so a tie
+ * fires total. Each maps to its halt atom (RILL-R082 total, RILL-R083 idle).
  */
-const TIMEOUT_TOTAL_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R082];
+const TIMEOUT_ATOMS = {
+  total: ERROR_ATOMS[ERROR_IDS.RILL_R082],
+  idle: ERROR_ATOMS[ERROR_IDS.RILL_R083],
+} as const;
 
-/**
- * Atom name for idle inactivity timeout (the `RILL_Rxxx` atom name).
- * Paired with RILL-R083 in error-registry.ts.
- */
-const TIMEOUT_IDLE_ATOM = ERROR_ATOMS[ERROR_IDS.RILL_R083];
+type TimeoutLimit = keyof typeof TIMEOUT_ATOMS;
+
+const TIMEOUT_LIMITS: readonly TimeoutLimit[] = ['total', 'idle'];

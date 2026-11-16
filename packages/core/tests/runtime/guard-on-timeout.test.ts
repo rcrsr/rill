@@ -58,7 +58,7 @@ function expiringOptions(): {
   return { functions: { wait: makeWaitForExpiry(expired) }, scheduler };
 }
 
-const TIMEOUT = 'timeout<total: duration(0,0,1)> { wait() }';
+const TIMEOUT = 'timeout<total: duration("1d")> { wait() }';
 
 describe('guard<on:> around a timeout', () => {
   it('re-raises the timeout halt when the filter omits its code', async () => {

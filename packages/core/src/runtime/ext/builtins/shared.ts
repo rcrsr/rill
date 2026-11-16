@@ -1,4 +1,4 @@
-import type { RillValue } from '../../core/types/structures.js';
+import type { RillValue, TypeStructure } from '../../core/types/structures.js';
 import {
   iterationElement,
   recordArgDeclared,
@@ -237,12 +237,17 @@ export function isBmpOnly(str: string): boolean {
   return !/[\uD800-\uDBFF]/.test(str);
 }
 
-/** Internal type alias for built-in method implementations. */
+/**
+ * Internal type alias for built-in method implementations. `carried` holds the
+ * declared type of each call position, receiver first then the arguments;
+ * a position with no declared type reads as undefined.
+ */
 export type RillMethod = (
   receiver: RillValue,
   args: RillValue[],
   ctx: RuntimeContext,
-  location?: SourceLocation
+  location?: SourceLocation,
+  carried?: readonly (TypeStructure | undefined)[]
 ) => RillValue | Promise<RillValue>;
 
 // ============================================================
@@ -370,9 +375,10 @@ export function makeGenericIterator(
 /**
  * Bind one collection element into a per-element body context and build the
  * body's call args. The element's declared type is the declared list's
- * element type when the collection argument (position `collectionIndex` of the
- * marshalled `record`) is a declared list; every other collection, and every
- * stream or iterator, carries nothing. `extra` args (a fold accumulator)
+ * element type when the collection argument (`list`, position 0 of the
+ * marshalled `record`) is a declared list, else the element type inferred from
+ * a list's contents; every other collection, and every stream or iterator,
+ * carries nothing. `extra` args (a fold accumulator)
  * follow the element and carry nothing.
  *
  * @internal
@@ -380,11 +386,13 @@ export function makeGenericIterator(
 export function bindElement(
   childCtx: RuntimeContext,
   element: RillValue,
-  record: object,
-  extra: readonly RillValue[] = [],
-  collectionIndex = 0
+  record: Readonly<Record<string, RillValue>>,
+  extra: readonly RillValue[] = []
 ): RillValue[] {
-  const declared = iterationElement(recordArgDeclared(record, collectionIndex));
+  const declared = iterationElement(
+    recordArgDeclared(record, 0),
+    record['list'] ?? null
+  );
   setPipe(childCtx, element, declared);
   const callArgs: RillValue[] = [element, ...extra];
   if (declared !== undefined) {

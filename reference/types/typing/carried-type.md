@@ -3,11 +3,11 @@ id: carried-type
 title: Carried types
 status: normative
 since: 0.24.0
-issues: [560, 628]
+issues: [628]
 grammar: []
 errors: [RILL-P001]
 depends: [type-value, structural-typing, any, union, inference, assertion]
-tests: [declared-types.test.ts, type-assertions.test.ts, capture-types.test.ts]
+tests: [equality-gate.test.ts, declared-types.test.ts, type-assertions.test.ts, capture-types.test.ts]
 ---
 
 # Carried types
@@ -53,7 +53,7 @@ r[carried-type.element] An element of a labeled collection carries the collectio
 Reading an element or field from a collection with an asserted type MUST give the element the
 asserted element or field type. This holds for `[i]`, `.name`, `.$k`, and iteration.
 
-r[carried-type.collection-element] An element of an inferred collection carries its element type {pending #560}
+r[carried-type.collection-element] An element of an inferred collection carries its element type
 Reading an element from a collection with no carried type MUST give the element the collection's
 inferred element type. An element of `list[1, "a"]` carries `union(number, string)`, so `.^type`
 reports the union and `$ == "a"` compares without halting.

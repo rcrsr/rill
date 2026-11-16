@@ -358,14 +358,30 @@ describe('Rill Language: Datetime Type', () => {
       expect(result).toBe(false);
     });
 
-    it('cross-type comparison returns false [EC-5]', async () => {
-      const result = await run(`datetime("${REF_ISO}") == 42`);
-      expect(result).toBe(false);
+    it('.eq and .ne compare datetimes by instant', async () => {
+      const same = `datetime("${REF_ISO}")`;
+      expect(await run(`${same} -> .eq(datetime("${REF_ISO}"))`)).toBe(true);
+      expect(await run(`${same} -> .ne(datetime(...dict[unix: 0]))`)).toBe(
+        true
+      );
     });
 
-    it('cross-type comparison with string returns false [EC-5]', async () => {
-      const result = await run(`datetime("${REF_ISO}") == "${REF_ISO}"`);
-      expect(result).toBe(false);
+    it('.eq against a non-datetime halts with TYPE_MISMATCH', async () => {
+      await expectHalt(() => run(`datetime("${REF_ISO}") -> .eq(42)`), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('cross-type comparison halts with TYPE_MISMATCH', async () => {
+      await expectHalt(() => run(`datetime("${REF_ISO}") == 42`), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('cross-type comparison with string halts with TYPE_MISMATCH', async () => {
+      await expectHalt(() => run(`datetime("${REF_ISO}") == "${REF_ISO}"`), {
+        code: 'TYPE_MISMATCH',
+      });
     });
   });
 

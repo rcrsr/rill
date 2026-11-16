@@ -57,7 +57,7 @@ const BRANDS: Record<string, { expr: string; dictFallbackErrorId: string }> = {
   atom: { expr: '#IGNORE', dictFallbackErrorId: 'RILL-R003' },
   typevalue: { expr: '42.^type', dictFallbackErrorId: 'RILL-R003' },
   datetime: { expr: 'now()', dictFallbackErrorId: 'RILL-R003' },
-  duration: { expr: 'duration(1)', dictFallbackErrorId: 'RILL-R003' },
+  duration: { expr: 'duration("1y")', dictFallbackErrorId: 'RILL-R003' },
 };
 
 /** Run source and capture the rejection, failing the test if it resolves. */
@@ -243,7 +243,7 @@ describe('brand-value guards against the generic dict path', () => {
     });
 
     it('halts RILL-R002 for a duration receiver', async () => {
-      await expectHalt(() => run('duration(1) -> sort'), {
+      await expectHalt(() => run('duration("1y") -> sort'), {
         code: 'RILL_R002',
       });
     });

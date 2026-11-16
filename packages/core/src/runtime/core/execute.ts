@@ -683,6 +683,7 @@ function convertHaltToRuntimeError(
     shape !== undefined ? undefined : stmt.span,
     shape !== undefined ? shape.sourceId : sourceId
   );
+  if (shape?.cause !== undefined) err.cause = shape.cause;
   Object.defineProperty(err, 'haltValue', {
     value: signal.value,
     enumerable: false,

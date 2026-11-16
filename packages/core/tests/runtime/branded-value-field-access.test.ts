@@ -217,7 +217,7 @@ describe('datetime internals are not readable', () => {
 });
 
 describe('duration internals are not readable', () => {
-  const DUR = 'duration(0, 2) => $d\n';
+  const DUR = 'duration("2mo") => $d\n';
 
   it('rejects literal, variable and quoted internal keys', async () => {
     await expectErrorId(`${DUR}$d.__rill_duration`, 'RILL-R003');
@@ -371,7 +371,7 @@ describe('legitimate field access is preserved', () => {
     expect(await val('datetime("2026-03-13T08:00:00Z") => $d\n$d.unix')).toBe(
       1773388800000
     );
-    expect(await val('duration(0, 2) => $d\n$d.months')).toBe(2);
+    expect(await val('duration("2mo") => $d\n$d.months')).toBe(2);
     expect(await val('make_vec() => $v\n$v.model')).toBe('test-model');
   });
 

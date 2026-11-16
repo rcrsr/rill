@@ -31,6 +31,7 @@ import type {
 import { RuntimeError } from '../../../../types.js';
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import {
+  pipeDeclaredOf,
   setArgsDeclared,
   setPipe,
   type Carried,
@@ -422,7 +423,7 @@ export async function evaluatePrimary(
           { variable: '$' }
         );
       }
-      return evaluateMethod(s, primary, s.ctx.pipeValue);
+      return evaluateMethod(s, primary, s.ctx.pipeValue, pipeDeclaredOf(s.ctx));
 
     case 'Conditional':
       return evaluateConditional(s, primary);
@@ -753,7 +754,7 @@ async function evaluatePipeTargetValue(
       return evaluatePipeInvoke(s, target, input);
 
     case 'MethodCall':
-      return evaluateMethod(s, target, input);
+      return evaluateMethod(s, target, input, carried.declared);
 
     case 'Conditional':
       return evaluateConditional(s, target);

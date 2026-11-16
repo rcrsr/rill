@@ -133,7 +133,10 @@ export async function selectElement(
     const value = await invokeSelected(s, found.value, key, location);
     return { value, declared: undefined };
   }
-  return { value: found.value, declared: projectLocated(declared, found) };
+  return {
+    value: found.value,
+    declared: projectLocated(declared, collection, found),
+  };
 }
 
 /**

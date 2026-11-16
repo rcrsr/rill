@@ -31,8 +31,8 @@ describe('executeRill datetime/duration envelope', () => {
   });
 
   it('serializes a duration with its rillTypeName, months, and ms fields', async () => {
-    // duration(0, 0, 0, 2) = 2 hours = 7200000 ms
-    const result = await executeRill('duration(0, 0, 0, 2)');
+    // duration("2h") = 2 hours = 7200000 ms
+    const result = await executeRill('duration("2h")');
 
     expect(result.status).toBe('success');
     expect(result.error).toBe(null);

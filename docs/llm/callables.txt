@@ -193,6 +193,6 @@ Slice (`slice<start:stop:step>`):
     $g.hello("World")                  # call module member
     use<ext:qdrant.search>             # load extension member
 
-`use<>` returns the resolved value (dict, closure, or any rill type). Hosts register resolvers; scripts cannot.
+`use<>` returns the resolved value (dict, closure, or any rill type). Hosts register resolvers; scripts cannot. A `guard` around `use<>` catches resolution failures only; halts inside the module propagate.
 
 See `control-flow` for iterators and lazy sequences.

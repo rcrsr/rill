@@ -329,7 +329,7 @@ export function selectByBracketKey(
   if (located === undefined) return { value: null, declared: undefined };
   return {
     value: located.value,
-    declared: projectLocated(receiverDeclared, located),
+    declared: projectLocated(receiverDeclared, receiver, located),
   };
 }
 
@@ -676,7 +676,7 @@ export async function evaluateVariableCarried(
           hasParens: false,
           span: node.span,
         };
-        value = await evaluateMethod(s, methodNode, value);
+        value = await evaluateMethod(s, methodNode, value, receiverDeclared);
       } else {
         // Declared type flows from the receiver unless a property-style
         // callable ran or the receiver is a type value.

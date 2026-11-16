@@ -44,6 +44,8 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { invokeCallable } from './closures.js';
 import { evaluatePostfixExpr, evaluatePipeChainCarried } from './core.js';
 import type { Carried } from '../../types/declared.js';
+import { requireOverlap } from '../../types/overlap.js';
+import { evaluatePostfixExprCarried } from './declared-flow.js';
 
 /**
  * Find the type registration for a value by type name.
@@ -166,15 +168,21 @@ export async function evaluateBinaryExpr(
     return right;
   }
 
+  // Equality: operands carry their declared types into the overlap check
+  if (op === '==' || op === '!=') {
+    const left = await resolveCarried(
+      s,
+      await evaluateExprHeadCarried(s, node.left)
+    );
+    const right = await resolveCarried(
+      s,
+      await evaluateExprHeadCarried(s, node.right)
+    );
+    return evaluateEquality(s, left, right, op, node);
+  }
+
   // Comparison operators - work on any values, return boolean
-  if (
-    op === '==' ||
-    op === '!=' ||
-    op === '<' ||
-    op === '>' ||
-    op === '<=' ||
-    op === '>='
-  ) {
+  if (op === '<' || op === '>' || op === '<=' || op === '>=') {
     const rawLeft = await evaluateExprHead(s, node.left);
     const left = await resolveExpressionValue(s, rawLeft);
     const rawRight = await evaluateExprHead(s, node.right);
@@ -294,6 +302,64 @@ export async function evaluateBinaryExpr(
 }
 
 /**
+ * Evaluate == / != between two carried operands.
+ *
+ * Halt order: access-halt gate, RILL-R002 when either operand type has no
+ * eq protocol, #TYPE_MISMATCH when the operand types cannot overlap, then
+ * protocol.eq. A carried type never changes an equality result.
+ */
+function evaluateEquality(
+  s: EvalState,
+  left: Carried,
+  right: Carried,
+  op: '==' | '!=',
+  node: BinaryExprNode
+): boolean {
+  const gatedLeft = accessHaltGate(left.value, {
+    location: node.left.span.start,
+    sourceId: s.ctx.sourceId,
+    fn: op,
+  });
+  const gatedRight = accessHaltGate(right.value, {
+    location: node.right.span.start,
+    sourceId: s.ctx.sourceId,
+    fn: op,
+  });
+  const leftName = inferType(gatedLeft);
+  const rightName = inferType(gatedRight);
+  const leftReg = findRegistration(leftName);
+  const rightReg = findRegistration(rightName);
+  for (const [name, reg] of [
+    [leftName, leftReg],
+    [rightName, rightReg],
+  ] as const) {
+    if (!reg || !reg.protocol.eq) {
+      throwCatchableHostHalt(
+        {
+          location: node.span.start,
+          sourceId: s.ctx.sourceId,
+          fn: 'evaluateBinaryComparison',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R002],
+        `Cannot compare ${name} using ${op}`
+      );
+    }
+  }
+  requireOverlap(
+    { value: gatedLeft, declared: left.declared },
+    { value: gatedRight, declared: right.declared },
+    {
+      location: node.span.start,
+      sourceId: s.ctx.sourceId,
+      fn: op,
+    },
+    op
+  );
+  const eqResult = leftReg?.protocol.eq?.(gatedLeft, gatedRight) ?? false;
+  return op === '==' ? eqResult : !eqResult;
+}
+
+/**
  * Evaluate comparison between two values via protocol dispatch.
  *
  * - == / != dispatch to protocol.eq; absent eq raises RILL-R002.
@@ -306,42 +372,11 @@ function evaluateBinaryComparison(
   s: EvalState,
   left: RillValue,
   right: RillValue,
-  op: '==' | '!=' | '<' | '>' | '<=' | '>=',
+  op: '<' | '>' | '<=' | '>=',
   node: BinaryExprNode
 ): boolean {
   const typeName = inferType(left);
   const reg = findRegistration(typeName);
-
-  if (op === '==' || op === '!=') {
-    // Access-halt gate at the operator site: an invalid operand halts
-    // before dispatching to the comparison protocol, rather than
-    // silently comparing the sidecar-carrying dict shape. Gating here
-    // (not inside the shared deepEquals/protocol.eq primitive) keeps
-    // the change scoped to this operator.
-    const gatedLeft = accessHaltGate(left, {
-      location: node.left.span.start,
-      sourceId: s.ctx.sourceId,
-      fn: op,
-    });
-    const gatedRight = accessHaltGate(right, {
-      location: node.right.span.start,
-      sourceId: s.ctx.sourceId,
-      fn: op,
-    });
-    if (!reg || !reg.protocol.eq) {
-      throwCatchableHostHalt(
-        {
-          location: node.span.start,
-          sourceId: s.ctx.sourceId,
-          fn: 'evaluateBinaryComparison',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        `Cannot compare ${typeName} using ${op}`
-      );
-    }
-    const eqResult = reg.protocol.eq(gatedLeft, gatedRight);
-    return op === '==' ? eqResult : !eqResult;
-  }
 
   // Ordering ops: <, >, <=, >=
   const rightTypeName = inferType(right);
@@ -462,6 +497,24 @@ function evaluateExprHead(s: EvalState, node: ArithHead): Promise<RillValue> {
     ERROR_ATOMS[ERROR_IDS.RILL_R002],
     'Unsupported expression head'
   );
+}
+
+/**
+ * Evaluate an expression head with its declared type. Postfix heads report
+ * the type they carry; binary and unary results take their own type.
+ */
+async function evaluateExprHeadCarried(
+  s: EvalState,
+  node: ArithHead
+): Promise<Carried> {
+  if (node.type === 'PostfixExpr') return evaluatePostfixExprCarried(s, node);
+  return { value: await evaluateExprHead(s, node), declared: undefined };
+}
+
+/** Auto-invoke a carried closure; an invoked result carries no declared type. */
+async function resolveCarried(s: EvalState, c: Carried): Promise<Carried> {
+  const value = await resolveExpressionValue(s, c.value);
+  return value === c.value ? c : { value, declared: undefined };
 }
 
 /**
