@@ -41,7 +41,7 @@ $lt.^type.name
 | `list(T)` | `list(number)` | List-of-number type |
 | `dict(T)` | `dict(number)` | Uniform dict type (all values same type) |
 | `ordered(T)` | `ordered(string)` | Uniform ordered type (all values same type) |
-| `tuple(T)` | `tuple(number)` | Uniform tuple type (all entries same type) |
+| `tuple(T)` | `tuple(number)` | Tuple of exactly one position |
 | `dict(k: T, ...)` | `dict(a: number, b: string)` | Dict type (fields alpha-sorted in output) |
 | `tuple(T, T2, ...)` | `tuple(number, string)` | Positional tuple type |
 | `ordered(k: T, ...)` | `ordered(a: number, b: string)` | Named ordered type |
@@ -123,69 +123,73 @@ $fn(tuple[])
 
 A tuple annotation with trailing defaults fills all missing positions when the caller passes an empty tuple. When the annotation is a union, see [Defaults Under a Union](#defaults-under-a-union).
 
-### Type Inference Cascade
+### Type Form
 
-When rill infers the element type of a list literal, it uses a three-level cascade:
+Every type is written `name(inner):outer`. The inner and the outer are both optional.
 
-1. **Structural match** — all elements share the same full structural type. The list retains that type.
-2. **Uniform merge** — elements share the same compound kind and all their sub-values share a common type. The list retains the uniform form (e.g., `list(dict(number))`).
-3. **Bare type fallback** — elements share the same compound kind (e.g., all lists, all closures) but differ in sub-structure. The list uses the bare compound type, stripping the sub-structure.
+```rill
+list[list() == list(any), dict() == dict, tuple() == tuple]
+# Result: list[true, true, true]
+```
+
+Empty parentheses and a bare name both mean unspecified, so `list()` equals `list(any)`.
+
+Only `stream` takes an outer, and an outer nests inline, as in `list(stream(number):string)`. A bare name takes one too: `stream:number` is `stream(any):number`. Inside parentheses, `name:` starts a named field, so `dict(stream: number)` has a field called `stream`; write `stream():number` there. An outer on `list`, `dict`, `tuple`, `ordered`, or `union` halts with RILL-P006:
+
+```text
+list(number):string    # RILL-P006: list takes no outer type
+```
+
+`tuple(T)` names exactly one position. `tuple(number, string)` names two. A sequence of any length with one element type is `list(T)`, not a tuple. `dict(T)` and `ordered(T)` keep their uniform value form.
+
+### Element Type Inference
+
+A list literal takes its element type from the elements it holds. Two steps run in order:
+
+1. **One structure.** All elements share one structure, and that structure is the element type.
+2. **Union.** Otherwise the element type is the set of maximal element types present. A member that another member accepts is dropped. Dicts, ordereds, and tuples that differ stay separate members.
 
 ```rill
 list[dict[a: 1], dict[b: 2]].^type.signature
-# Result: "list(dict(number))"
+# Result: "list(union(dict(a: number), dict(b: number)))"
 ```
-
-Both dicts have number values, so the uniform merge succeeds and produces `dict(number)` as the element type.
 
 ```rill
-[list[1,2], list["a","b"]].^type.signature
-# Result: "list(list)"
+list[1, "a"].^type.signature
+# Result: "list(union(number, string))"
 ```
 
-The inner lists are `list(number)` and `list(string)`. They share the `list` kind but differ in element type, so the cascade falls back to bare `list`, producing `list(list)`.
+Mixed elements do not halt. A union is a set, so element order and count do not change the type: `list["a", 1].^type == list[1, "a"].^type` is `true`. Dict elements follow the same rule:
 
 ```rill
-[|x|($x), |a, b|($a)].^type.signature
-# Result: "list(closure)"
+list[dict[a: 1], dict[b: 2]].^type == list[dict[b: 2], dict[a: 1], dict[b: 5]].^type
+# Result: true
 ```
 
-The closures have different arities, so the cascade falls back to bare `closure`.
+```rill
+list[list["a", 1], list["a"]].^type.signature
+# Result: "list(list(union(number, string)))"
+```
 
-**Any-narrowing** applies when one element is an empty collection. An empty list has type `list(any)`. Paired with a concrete element type, the cascade narrows `any` to that type:
+`list(string)` is accepted by `list(union(number, string))`, so it is dropped.
+
+An empty collection yields to its populated sibling:
 
 ```rill
 [list[], list[1,2]].^type.signature
 # Result: "list(list(number))"
 ```
 
-`list[]` contributes `list(any)`. `list[1,2]` contributes `list(number)`. The `any` narrows to `number`, yielding `list(list(number))`.
+`seq`, `fan`, `filter`, `acc`, and dict `.values` results follow the same rule. When neither of two members accepts the other, both stay.
 
-The cascade is recursive. If the bare fallback at one level produces a bare type, the next level applies the same rules:
-
-```rill
-[list[list[1]], list[list["a"]]].^type.signature
-# Result: "list(list(list))"
-```
-
-The outer list sees two `list(list(?))` elements where the inner element types differ, so the cascade produces `list(list(list))`.
-
-A list literal whose top-level kinds differ halts RILL-R002. A list the runtime builds from differing values (a union's `.inner`, dict `.values`, a `seq` result) infers a union element type instead:
+An inferred type describes what is there, and a declaration enforces. A declared element type rejects a mixed list:
 
 ```rill
-union(1, "a").inner => $u
-$u.^type.signature
-# Result: "list(union(number, string))"
+list[1, "a"] -> :list(number)
+# Error: #TYPE_MISMATCH Type assertion failed
 ```
 
-```rill
-union(1, "a").inner => $u
-$u -> .reverse => $r
-$r
-# Result: list["a", 1]
-```
-
-Runtime-built lists of the same kind that differ in sub-structure still fall back to the bare kind, as in `list(list)`.
+An assertion to the bare `list` still passes, and `list[list[1], list["a"]] -> :?list(list)` is `true`.
 
 ### Metatype Fixed Point
 
@@ -211,16 +215,15 @@ The string representation of structural types follows this format:
 |-------|---------------|
 | Any value | `"any"` |
 | Primitive | `"string"`, `"number"`, `"bool"` |
-| List | `"list(number)"`, `"list(any)"`, `"list(list(number))"` |
+| List | `"list(number)"`, `"list(list(number))"` |
 | Dict (uniform) | `"dict(number)"` (all values same type) |
 | Ordered (uniform) | `"ordered(string)"` (all values same type) |
-| Tuple (uniform) | `"tuple(closure)"` (all entries same type) |
 | Dict | `"dict(a: number, b: string)"` (fields alphabetically sorted) |
 | Tuple | `"tuple(number, string, bool)"` (positional) |
 | Ordered | `"ordered(a: number, b: string)"` (named, order-sensitive) |
 | Closure | `"\|x: number\| :string"` (pipe-delimited params with colon-return) |
 | Stream | `"stream(string):number"` (chunk type and resolution type) |
-| Bare stream (no constraints) | `"stream"` |
+| Unspecified container | `"list"`, `"dict"`, `"tuple"`, `"ordered"`, `"stream"`: `list[].^type` and `list(any)` both print `"list"` |
 | Bare list (no element type) | `"list"` |
 | Bare dict (no fields) | `"dict"` |
 | Bare tuple (no elements) | `"tuple"` |

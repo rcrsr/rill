@@ -47,6 +47,8 @@ import type {
   CaptureNode,
   ClosureCallNode,
   ClosureNode,
+  DestructNode,
+  DestructureNode,
   DictEntryNode,
   PipeChainNode,
   SourceSpan,
@@ -55,6 +57,11 @@ import type {
 import { opensScope } from '../opens-scope.js';
 import { traverseForRules } from './traversal.js';
 import { getCollectionOpBody, isCollectionOpCall } from './collection-ops.js';
+import {
+  isMixedCompoundList,
+  isMixedValueDict,
+  unwrapBareLiteral,
+} from './literal-shape.js';
 
 // ============================================================
 // PUBLIC TYPES
@@ -129,6 +136,10 @@ export interface ScriptFacts {
   readonly referenceLog: readonly ReferenceEntry[];
   /** Variable names captured from a stream-returning closure or a `:stream` annotation. */
   readonly streamVars: ReadonlySet<string>;
+  /** Variables captured exactly once from a bare mixed-compound list literal, never a closure parameter. */
+  readonly mixedListVars: ReadonlySet<string>;
+  /** Variables captured exactly once from a bare mixed-value dict literal, never a closure parameter. */
+  readonly mixedDictVars: ReadonlySet<string>;
   /** First zero-accessChain ClosureCall per callee name, in source order. */
   readonly firstClosureCall: ReadonlyMap<string, ClosureCallNode>;
   /** First collection-op pipe applied to a bare-variable head, per variable name, in source order. */
@@ -328,6 +339,21 @@ interface Accumulator {
   hasBracketAccess: boolean;
 }
 
+/** Add every variable name bound by a destructure pattern (including nested ones) to `counts`. */
+function countDestructureTargets(
+  node: DestructureNode | DestructNode,
+  counts: Map<string, number>
+): void {
+  for (const element of node.elements) {
+    if (element.name !== null) {
+      counts.set(element.name, (counts.get(element.name) ?? 0) + 1);
+    }
+    if (element.nested !== null) {
+      countDestructureTargets(element.nested, counts);
+    }
+  }
+}
+
 /**
  * Walk `root` exactly once (via `traverseForRules`), accumulating the
  * boolean subtree facts, capture log, and stream-usage maps described in
@@ -338,10 +364,13 @@ export function collectFacts(root: ASTNode): AstFacts {
   const captureLog: CaptureEntry[] = [];
   const referenceLog: ReferenceEntry[] = [];
   const streamVars = new Set<string>();
+  const mixedListCandidates = new Set<string>();
+  const mixedDictCandidates = new Set<string>();
   const firstClosureCall = new Map<string, ClosureCallNode>();
   const firstPipeIteration = new Map<string, ASTNode>();
   let hasDynamicFieldAccess = false;
   const paramNames = new Set<string>();
+  const destructureCounts = new Map<string, number>();
   const literalFieldAccessNames = new Set<string>();
   const dictBoundClosures = new Set<ASTNode>();
 
@@ -453,6 +482,16 @@ export function collectFacts(root: ASTNode): AstFacts {
           }
         }
 
+        const [onlyPipe] = node.pipes;
+        if (node.pipes.length === 1 && onlyPipe?.type === 'Capture') {
+          const literal = unwrapBareLiteral(node.head);
+          if (isMixedCompoundList(literal)) {
+            mixedListCandidates.add(onlyPipe.name);
+          } else if (isMixedValueDict(literal)) {
+            mixedDictCandidates.add(onlyPipe.name);
+          }
+        }
+
         const varName = getPipeHeadVariableName(node);
         if (varName !== null && !firstPipeIteration.has(varName)) {
           for (const pipe of node.pipes) {
@@ -476,6 +515,10 @@ export function collectFacts(root: ASTNode): AstFacts {
 
       if (node.type === 'ClosureParam') {
         paramNames.add(node.name);
+      }
+
+      if (node.type === 'Destructure' || node.type === 'Destruct') {
+        countDestructureTargets(node, destructureCounts);
       }
 
       if (node.type === 'DictEntry') {
@@ -557,12 +600,26 @@ export function collectFacts(root: ASTNode): AstFacts {
     },
   });
 
+  // A destructure target rebinds a name just as a capture does, so it counts
+  // toward the single-capture requirement.
+  const captureCounts = new Map<string, number>(destructureCounts);
+  for (const entry of captureLog) {
+    const name = entry.node.name;
+    captureCounts.set(name, (captureCounts.get(name) ?? 0) + 1);
+  }
+  const qualifies = (name: string): boolean =>
+    captureCounts.get(name) === 1 && !paramNames.has(name);
+  const mixedListVars = new Set([...mixedListCandidates].filter(qualifies));
+  const mixedDictVars = new Set([...mixedDictCandidates].filter(qualifies));
+
   return {
     bySubtree,
     script: {
       captureLog,
       referenceLog,
       streamVars,
+      mixedListVars,
+      mixedDictVars,
       firstClosureCall,
       firstPipeIteration,
       hasDynamicFieldAccess,

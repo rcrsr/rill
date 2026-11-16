@@ -3,11 +3,11 @@ id: dict
 title: Dict types
 status: normative
 since: 0.24.0
-issues: [563, 572, 576, 581, 600, 622]
+issues: [563, 572, 576, 581, 600]
 grammar: []
-errors: [RILL-P027, TYPE_MISMATCH]
+errors: [RILL-P006, RILL-P027, TYPE_MISMATCH]
 depends: [type-value, type-form]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts]
+tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
 ---
 
 # Dict types
@@ -36,12 +36,12 @@ Every argument of a dict type MUST carry a field name.
 r[dict.no-uniform] A dict type has no uniform form {pending #600}
 The parse error for `dict(V)` MUST name `map(string, V)`.
 
-r[dict.empty-parens] dict and dict() are one type {pending #622}
+r[dict.empty-parens] dict and dict() are one type
 `dict` and `dict()` MUST compare equal.
 
 ## Static rules
 
-r[dict.no-outer] A dict type takes no outer {pending #622}
+r[dict.no-outer] A dict type takes no outer
 A dict type written with an outer, such as `dict(a: number):string`, MUST be a parse error.
 
 r[dict.key-string] A dict key is always a string {pending #576}
@@ -93,6 +93,7 @@ that holds a non-type follows `type-value.variable-halt`.
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| Outer on a type that takes none | RILL-P006 | No |
 | Value has a field a named form does not name {pending #572} | `#TYPE_MISMATCH` | Yes |
 | A literal spells one key twice {pending #576} | RILL-P027 | No |
 | A type names one key twice {pending #581} | RILL-P027 | No |
@@ -139,9 +140,5 @@ Superseded rule ids: `dict.forms`, `dict.mixed`, `dict.uniform-count`, `dict.val
 `dict.equality`, `dict.inner`, `dict.print`, `dict.unspecified`.
 
 The 0.23.0 runtime keeps a number or bool key as a typed key, so `dict[1: "n"] == dict["1": "n"]`
-is false and `.keys` returns `list[1]`. The type of an empty dict prints `dict()` today. The
-decided 0.24.0 meaning of `dict()` is the unspecified type, and the printed form of the empty
-dict's type is not yet stated.
-
-`dict(a: number):string` parses today as an assertion of the type value against `string` and halts
-`#TYPE_MISMATCH` at run time.
+is false and `.keys` returns `list[1]`. An empty dict infers the unspecified type, as an empty
+list does, so `dict[].^type == dict()` is true and its type prints `dict`.

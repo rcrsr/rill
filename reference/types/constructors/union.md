@@ -3,11 +3,11 @@ id: union
 title: Union types
 status: normative
 since: 0.24.0
-issues: [574, 622]
+issues: [574]
 grammar: [union-type, union-member, union-literal]
-errors: [RILL-P001, RILL-P003, RILL-R001, RILL-R003, RILL-R036, INVALID_INPUT, TYPE_MISMATCH]
+errors: [RILL-P001, RILL-P003, RILL-P006, RILL-R001, RILL-R003, RILL-R036, INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, atom]
-tests: [union-types.test.ts, type-inner-outer.test.ts]
+tests: [union-types.test.ts, type-inner-outer.test.ts, type-form-outer.test.ts]
 ---
 
 # Union types
@@ -35,7 +35,7 @@ What follows a colon in a type position MUST be a type. A literal there MUST rai
 
 ## Static rules
 
-r[union.no-outer] A union type takes no outer {pending #622}
+r[union.no-outer] A union type takes no outer
 A union type written with an outer, such as `union(number, string):string`, MUST be a parse error.
 
 r[union.members] A member is a type or a scalar literal
@@ -100,6 +100,7 @@ a union follows `defaults.hydration-union` and `defaults.hydration-tie`.
 | Assertion value matches no member | `#TYPE_MISMATCH` | Yes |
 | Bare `union` without members | RILL-P003 | No |
 | Bare literal after a colon | RILL-P001 | No |
+| Outer on a type that takes none | RILL-P006 | No |
 | Parameter value matches no member | RILL-R001 | No |
 | Pipe into a union a value with no member | RILL-R036 | Yes |
 | `.len` read on a union type | RILL-R003 | Yes |
@@ -130,6 +131,3 @@ union(string, "a") == string
 ## Notes
 
 The 0.23.0 `A|B` separator is removed and raises RILL-P011.
-
-`union(number, string):string` parses today as an assertion of the type value against `string` and halts
-`#TYPE_MISMATCH` at run time.

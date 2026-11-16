@@ -131,34 +131,6 @@ export function resolvedCompareValue(
 }
 
 // ============================================================
-// LATE-BINDING: element-kind check
-// ============================================================
-
-/**
- * Late-bound strict element-kind check.
- * Wired by initInferElementType(assertUniformElementKinds) after
- * registrations.ts builds the type dispatcher. Halts with RILL-R002 on
- * elements of differing kinds.
- */
-let _inferElementType: ((elements: RillValue[]) => unknown) | undefined;
-
-export function initInferElementType(
-  fn: (elements: RillValue[]) => unknown
-): void {
-  _inferElementType = fn;
-}
-
-/** Validate that a set of elements share a common structural type. */
-export function resolvedInferElementType(elements: RillValue[]): void {
-  if (_inferElementType === undefined) {
-    throw new Error(
-      'inferElementType called before initInferElementType: bootstrap order violation'
-    );
-  }
-  _inferElementType(elements);
-}
-
-// ============================================================
 // COMPARISON UTILITIES
 // ============================================================
 

@@ -138,9 +138,10 @@ Pipe a list of keys/indexes:
     list[] -> dict[a: 1]                                       # dict[a: 1] (empty path = unchanged)
     list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"   # "default"
 
-Lists require same-type elements. For mixed paths, use property access:
+A path may mix keys and indexes, since `list[1, "a"]` is legal with type `list(union(number, string))`. Property access reaches the same value:
 
     dict[users: list[dict[name: "Alice"]]] => $d
+    list["users", 0, "name"] -> $d                              # "Alice" (mixed path)
     $d.users[0].name                                            # "Alice"
 
 ## Extraction operators

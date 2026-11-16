@@ -301,8 +301,8 @@ Type constructors are primary expressions that produce structural type values. T
 | Constructor | Syntax | Example |
 |-------------|--------|---------|
 | List type | `list(T)` | `list(number)`, `list(list(string))` |
+| Unspecified inner | `list()` | `list()` equals `list(any)`; `dict()` equals `dict` |
 | Dict type (uniform) | `dict(T)` | `dict(number)` |
-| Tuple type (uniform) | `tuple(T)` | `tuple(number)` |
 | Ordered type (uniform) | `ordered(T)` | `ordered(string)` |
 | Dict type | `dict(k: T [= literal], ...)` | `dict(a: number, b: string = "x")` |
 | Tuple type | `tuple(T, T2 [= literal], ...)` | `tuple(number, string = "x")` |
@@ -687,14 +687,14 @@ $f.^input
 
 ### Field Annotations in Type Constructors
 
-`dict`, `ordered`, and `tuple` type constructors support `^()` annotations on individual fields. The `list()` constructor does NOT support field annotations.
+`dict`, `ordered`, and `tuple` type constructors support `^()` annotations on individual fields. The `list(...)` constructor does NOT support field annotations.
 
 | Container | Field kind | Annotation position |
 |-----------|-----------|---------------------|
-| `dict()` | Named (`k: T`) | Before field name |
-| `ordered()` | Named (`k: T`) | Before field name |
-| `tuple()` | Positional (`T`) | Before field type |
-| `list()` | N/A | Not supported (RILL-P001) |
+| `dict(...)` | Named (`k: T`) | Before field name |
+| `ordered(...)` | Named (`k: T`) | Before field name |
+| `tuple(...)` | Positional (`T`) | Before field type |
+| `list(...)` | N/A | Not supported (RILL-P001) |
 
 Multiple `^()` blocks before any target merge into one annotation map.
 
@@ -704,7 +704,7 @@ Multiple `^()` blocks before any target merge into one annotation map.
 | `^()` with no following field | RILL-P014 |
 | Missing `,` or `)` after annotated field | RILL-P014 |
 | Unclosed `^(` | RILL-P005 |
-| `^()` on `list()` field | RILL-P001 |
+| `^()` on `list(...)` field | RILL-P001 |
 
 See [Closure Annotations](topic-closure-annotations.md) for parameter annotations, the `.params` reflection API, the description shorthand, and dict/ordered/tuple field-annotation examples.
 

@@ -27,7 +27,6 @@
  */
 
 import type { ASTNode } from '../../../../types.js';
-import { RuntimeError } from '../../../../types.js';
 import {
   RuntimeHaltSignal,
   throwCatchableHostHalt,
@@ -73,7 +72,8 @@ import { assertType } from './types.js';
  * Convert a value to a resolved type target. The single conversion path for
  * `-> type(...)` and `-> $var` when `$var` holds a type value.
  *
- * - dict/ordered/tuple with explicit `fields`/`elements` (and no `valueType`):
+ * - dict/ordered with explicit `fields` (and no `valueType`), tuple with
+ *   explicit `elements`:
  *   structural conversion (assert inner, fill defaults, drop extras)
  * - Every other type: convert by type name, then assert the structure
  */
@@ -98,11 +98,7 @@ export function convertToType(
   ) {
     return convertToOrderedWithSig(s, input, structure.fields, node);
   }
-  if (
-    isStructureKind(structure, 'tuple') &&
-    structure.elements !== undefined &&
-    !structure.valueType
-  ) {
+  if (isStructureKind(structure, 'tuple') && structure.elements !== undefined) {
     return convertToTupleWithSig(s, input, structure.elements, node);
   }
   const result = applyConversion(s, input, target.typeName, node);
@@ -253,22 +249,6 @@ export function applyConversion(
         ERROR_ATOMS[ERROR_IDS.RILL_R038],
         message,
         { value: input }
-      );
-    }
-
-    // Heterogeneous tuple -> list conversions raise RILL-R002 from the
-    // protocol's homogeneity check. Preserve that error id and message
-    // instead of falling through to the generic RILL-R036 remap below,
-    // for parity with the list-literal path's error.
-    if (err instanceof RuntimeError && err.errorId === ERROR_IDS.RILL_R002) {
-      throwCatchableHostHalt(
-        {
-          location: getNodeLocation(s, node),
-          sourceId: s.ctx.sourceId,
-          fn: 'convertType',
-        },
-        ERROR_ATOMS[ERROR_IDS.RILL_R002],
-        err.rawMessage
       );
     }
 

@@ -232,20 +232,6 @@ const CASES: readonly RecoverableCase[] = [
     message: 'Invalid datetime component unix: x',
   },
   {
-    name: 'mixed-type list literal',
-    source: 'list[1, "a"]',
-    code: '#RILL_R002',
-    message:
-      'List elements must be the same type: expected number, got string at index 1',
-  },
-  {
-    name: 'mixed-type list literal with a list element',
-    source: 'list[1] => $x\nlist[$x, "a"]',
-    code: '#RILL_R002',
-    message:
-      'List elements must be the same type: expected list(number), got string at index 1',
-  },
-  {
     name: 'slice with a zero step',
     source: 'list[1, 2, 3] -> slice<::0>',
     code: '#INVALID_INPUT',

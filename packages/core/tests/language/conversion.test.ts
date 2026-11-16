@@ -65,31 +65,16 @@ describe('Rill Language: -> Conversion Operator', () => {
       expect(result).toEqual([1, 2]);
     });
 
-    it('halts with RILL-R002 converting a heterogeneous tuple to list', async () => {
-      await expect(run('tuple[1, "a"] -> list')).rejects.toHaveProperty(
-        'errorId',
-        'RILL-R002'
-      );
+    it('converts a heterogeneous tuple to a mixed list', async () => {
+      expect(await run('tuple[1, "a"] -> list')).toEqual([1, 'a']);
     });
 
-    it('reports the same message as the equivalent heterogeneous list literal', async () => {
-      let tupleMessage: string | undefined;
-      let listMessage: string | undefined;
-      try {
-        await run('tuple[1, "a"] -> list');
-      } catch (err) {
-        tupleMessage = (err as Error).message;
-      }
-      try {
-        await run('list[1, "a"]');
-      } catch (err) {
-        listMessage = (err as Error).message;
-      }
-      expect(tupleMessage).toBeDefined();
-      expect(listMessage).toBeDefined();
-      // The tuple->list halt carries a source location suffix that the bare
-      // list-literal RuntimeError does not; compare the shared message body.
-      expect(tupleMessage).toContain(listMessage);
+    it('infers a union element type for the converted heterogeneous list', async () => {
+      expect(
+        await run(
+          '(tuple[1, "a"] -> list).^type == list(union(number, string))'
+        )
+      ).toBe(true);
     });
   });
 
@@ -759,13 +744,12 @@ describe('Rill Language: -> Conversion Operator', () => {
   });
 
   describe('ordered() zero-fields target (AC-BC-3)', () => {
-    it('dict[a: 1] -> ordered() preserves existing parser/runtime behavior', async () => {
-      // Current behavior: parser accepts ordered() with zero fields;
-      // runtime produces an empty ordered value (all signature fields
-      // iterated, none present; extras omitted). Document the contract.
-      const result = await run('dict[a: 1] -> ordered()');
-      expect(isOrdered(result)).toBe(true);
-      expect(orderedEntries(result)).toEqual([]);
+    it('dict[a: 1] -> ordered() halts like the bare ordered target', async () => {
+      // ordered() is the unspecified ordered type, so it carries no field
+      // signature to convert into.
+      await expect(run('dict[a: 1] -> ordered()')).rejects.toThrow(
+        /requires structural type signature/
+      );
     });
   });
 

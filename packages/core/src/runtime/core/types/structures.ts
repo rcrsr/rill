@@ -58,7 +58,6 @@ export type TypeStructure =
   | {
       kind: 'tuple';
       elements?: RillFieldDef[] | undefined;
-      valueType?: TypeStructure | undefined;
     }
   | {
       kind: 'ordered';

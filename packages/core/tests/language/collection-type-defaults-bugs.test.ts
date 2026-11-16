@@ -147,12 +147,12 @@ describe('Rill Language: Ordered Errors, Nested Tuple Hydration, Conversion Cont
       );
     });
 
-    it('tuple(number) produces uniform tuple type (Task 1.5)', async () => {
-      // 1 positional arg: uniform path with valueType
+    it('tuple(number) produces a one-position tuple type', async () => {
       const result = (await run('tuple(number)')) as any;
       expect(result.__rill_type).toBe(true);
       expect(result.typeName).toBe('tuple');
-      expect(result.structure.valueType).toEqual({ kind: 'number' });
+      expect(result.structure.valueType).toBeUndefined();
+      expect(result.structure.elements).toEqual([{ type: { kind: 'number' } }]);
     });
   });
 

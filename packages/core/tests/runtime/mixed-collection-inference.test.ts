@@ -5,9 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  atomName,
   commonType,
-  getStatus,
   inferStructure,
   toNative,
   type RillValue,
@@ -79,11 +77,9 @@ describe('Mixed-collection inference: host-injected mixed list', () => {
     ]);
   });
 
-  it('recovers a list literal mixing the list with a string as #RILL_R002', async () => {
-    const result = await run('guard { list[$m, "x"] }', {
-      variables: variables(),
-    });
-    expect(atomName(getStatus(result).code)).toBe('RILL_R002');
+  it('accepts a list literal mixing the list with a string', async () => {
+    const result = await run('list[$m, "x"]', { variables: variables() });
+    expect(result).toEqual([[1, 'a'], 'x']);
   });
 
   it('halts TYPE_MISMATCH, not R002, on a narrower list assertion', async () => {
@@ -123,10 +119,14 @@ describe('Mixed-collection inference: inferred element types', () => {
     });
   });
 
-  it('falls back to a bare list element for nested lists with different elements', () => {
-    const type = inferStructure([[1, 'a'], [true]]);
-    expect(type).toMatchObject({ kind: 'list', element: { kind: 'list' } });
-    expect(type).toEqual({ kind: 'list', element: { kind: 'list' } });
+  it('infers a union of the inner list types for nested lists with different elements', () => {
+    expect(inferStructure([[1, 'a'], [true]])).toEqual({
+      kind: 'list',
+      element: union(
+        { kind: 'list', element: union(num, str) },
+        { kind: 'list', element: bool }
+      ),
+    });
   });
 
   it('merges two unions only when structurally equal', () => {
@@ -141,27 +141,115 @@ describe('Mixed-collection inference: inferred element types', () => {
   });
 });
 
-describe('Mixed-collection inference: strict sites still halt', () => {
-  it('halts a mixed list literal', async () => {
-    await expectHalt(() => run('list[1, "a"]'), { code: 'RILL_R002' });
+describe('Mixed-collection inference: mixed sites do not halt', () => {
+  it('accepts a mixed list literal', async () => {
+    expect(await run('list[1, "a"]')).toEqual([1, 'a']);
   });
 
-  it('halts spreading a mixed list into a list literal', async () => {
-    await expectHalt(() => run('list[...$m]', { variables: { m: mixed() } }), {
-      code: 'RILL_R002',
-    });
+  it('accepts spreading a mixed list into a list literal', async () => {
+    expect(await run('list[...$m]', { variables: { m: mixed() } })).toEqual([
+      1,
+      'a',
+    ]);
   });
 
-  it('halts tuple-to-list conversion of mixed elements', async () => {
-    await expectHalt(() => run('tuple[1, "a"] -> list'), {
-      code: 'RILL_R002',
-    });
+  it('accepts tuple-to-list conversion of mixed elements', async () => {
+    expect(await run('tuple[1, "a"] -> list')).toEqual([1, 'a']);
   });
 
-  it('halts comparing an inner list with a mixed list literal', async () => {
-    await expectHalt(
-      () => run('union(1, "a") => $t\n$t.inner == list[1, "a"]'),
-      { code: 'RILL_R002' }
+  it('compares an inner list with a mixed list literal', async () => {
+    expect(await run('union(1, "a") => $t\n$t.inner == list[1, "a"]')).toBe(
+      true
     );
+  });
+});
+
+function permutations<T>(items: readonly T[]): T[][] {
+  if (items.length <= 1) return [[...items]];
+  return items.flatMap((item, i) =>
+    permutations([...items.slice(0, i), ...items.slice(i + 1)]).map((rest) => [
+      item,
+      ...rest,
+    ])
+  );
+}
+
+describe('Mixed-collection inference: order and duplicate independence', () => {
+  const pools: readonly string[][] = [
+    ['dict[a: 1]', 'dict[b: 2]', 'dict[c: 3]'],
+    ['ordered[a: 1]', 'ordered[b: 2]', 'ordered[c: 3]'],
+    ['list[]', 'list[1]', 'list["a"]'],
+    ['list[list[]]', 'list[list[1]]', 'list[1]'],
+    [
+      'dict[a: list[], b: list[1]]',
+      'dict[a: list["s"], b: list[]]',
+      'dict[a: list[1], b: list[]]',
+    ],
+    ['dict[a: list[]]', 'dict[b: list[1]]', 'dict[c: list["s"]]'],
+  ];
+
+  it.each(pools)(
+    'infers the same type for every ordering of %s, %s, %s',
+    async (...pool) => {
+      const signatures = new Set<string>();
+      for (const order of permutations(pool)) {
+        const literal = `list[${order.join(', ')}]`;
+        signatures.add((await run(`${literal}.^type.signature`)) as string);
+        const reference = `list[${pool.join(', ')}]`;
+        expect(await run(`${literal}.^type == ${reference}.^type`)).toBe(true);
+      }
+      expect(signatures.size).toBe(1);
+    }
+  );
+
+  it('leaves the type unchanged when a duplicate shape is appended', async () => {
+    const base = await run('list[dict[a: 5], dict[b: 2]].^type.signature');
+    const dup = await run(
+      'list[dict[a: 5], dict[b: 2], dict[a: 5]].^type.signature'
+    );
+    expect(dup).toBe(base);
+  });
+
+  it('infers a three-member union of dict shapes', async () => {
+    expect(
+      await run(
+        'list[dict[a: 1], dict[b: 2], dict[c: 3]].^type == list(union(dict(a: number), dict(b: number), dict(c: number)))'
+      )
+    ).toBe(true);
+  });
+});
+
+describe('Mixed-collection inference: commonType of keyed compounds', () => {
+  it('returns null for dicts with different fields', () => {
+    const a: TypeStructure = {
+      kind: 'dict',
+      fields: { a: { type: num } },
+    };
+    const b: TypeStructure = {
+      kind: 'dict',
+      fields: { b: { type: num } },
+    };
+    expect(commonType(a, b)).toBeNull();
+  });
+
+  it('returns null for ordereds with different fields', () => {
+    const a: TypeStructure = {
+      kind: 'ordered',
+      fields: [{ name: 'a', type: num }],
+    };
+    const b: TypeStructure = {
+      kind: 'ordered',
+      fields: [{ name: 'b', type: num }],
+    };
+    expect(commonType(a, b)).toBeNull();
+  });
+
+  it('refines list(any) with list(number) to list(number)', () => {
+    expect(
+      commonType(
+        { kind: 'list', element: { kind: 'any' } },
+        { kind: 'list', element: num }
+      )
+    ).toEqual({ kind: 'list', element: num });
   });
 });

@@ -3,11 +3,11 @@ id: tuple
 title: Tuple types
 status: normative
 since: 0.24.0
-issues: [573, 622]
+issues: []
 grammar: []
-errors: [INVALID_INPUT, TYPE_MISMATCH]
+errors: [RILL-P006, INVALID_INPUT, TYPE_MISMATCH]
 depends: [type-value, type-form]
-tests: [structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, type-assertions.test.ts]
+tests: [tuple-positions.test.ts, structural-type-identity.test.ts, structural-type-boundaries.test.ts, structural-type-defaults.test.ts, type-inner-outer.test.ts, type-assertions.test.ts, unspecified-type-args.test.ts, type-form-outer.test.ts]
 ---
 
 # Tuple types
@@ -29,11 +29,11 @@ r[tuple.positions] A tuple type has one position per argument
 `tuple(number, string)` MUST name exactly two positions. A tuple value MUST have it only when
 it has a number at position 0 and a string at position 1, and no other position.
 
-r[tuple.one-position] A single argument names one position {pending #573}
+r[tuple.one-position] A single argument names one position
 `tuple(number)` MUST name exactly one number. `tuple[1, 2] -> :?tuple(number)` MUST yield
 false, and `tuple[] -> :?tuple(number)` MUST yield false.
 
-r[tuple.no-uniform] A tuple type has no uniform form {pending #573}
+r[tuple.no-uniform] A tuple type has no uniform form
 A sequence of any length with one element type MUST be written `list(T)`. No spelling of
 `tuple` MUST mean "any length, every element `T`".
 
@@ -43,16 +43,16 @@ r[tuple.unnamed] A named argument halts
 r[tuple.bare] The bare tuple accepts any tuple
 `tuple` MUST accept every tuple value, whatever its length and element types.
 
-r[tuple.unspecified] tuple and tuple() are one type {pending #622}
+r[tuple.unspecified] tuple and tuple() are one type
 `tuple` and `tuple()` MUST compare equal.
 
-r[tuple.any-position] tuple(any) names one position holding any {pending #573}
+r[tuple.any-position] tuple(any) names one position holding any
 `tuple(any)` MUST NOT equal `tuple`. `tuple[1] -> :?tuple(any)` MUST yield true, and
 `tuple[1, 2] -> :?tuple(any)` MUST yield false.
 
 ## Static rules
 
-r[tuple.no-outer] A tuple type takes no outer {pending #622}
+r[tuple.no-outer] A tuple type takes no outer
 A tuple type written with an outer, such as `tuple(number):string`, MUST be a parse error.
 
 r[tuple.default-trailing] Only trailing positions carry a default
@@ -89,6 +89,7 @@ that holds a non-type follows `type-value.variable-halt`.
 
 | Condition | Error | Catchable |
 |-----------|-------|-----------|
+| Outer on a type that takes none | RILL-P006 | No |
 | Named argument | `#INVALID_INPUT` | Yes |
 | Position without a default after one with a default | `#INVALID_INPUT` | Yes |
 | Default does not have its position's type | `#TYPE_MISMATCH` | Yes |
@@ -115,18 +116,15 @@ tuple(number, string).inner[0] == number
 # Result: true
 ```
 
-```rill pending=573
+```rill
 tuple[1, 2] -> :?tuple(number)
 # Result: false
 ```
 
 ## Notes
 
-On 0.23.0 a one-argument `tuple(T)` is a uniform form: `tuple[1, 2, 3] -> :?tuple(number)` is
-true, and `tuple[1].^type == tuple(number)` is false. #573 removes that reading.
+`tuple[1, 2, 3] -> tuple(number)` converts to `tuple[1]`: conversion keeps the named position
+and drops the extras, while `:tuple(number)` assertion halts on a longer tuple.
 
-The type of an empty tuple prints `tuple()` today. #571 makes `tuple()` the unspecified type, so
-a zero-position tuple type has no stated spelling yet.
-
-`tuple(number):string` parses today as an assertion of the type value against `string` and halts
-`#TYPE_MISMATCH` at run time.
+An empty tuple infers the unspecified type, as an empty list does, so `tuple[].^type == tuple()`
+is true and its type prints `tuple`.

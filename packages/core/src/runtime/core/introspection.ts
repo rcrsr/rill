@@ -252,8 +252,8 @@ const signatureFieldCallbacks: FieldComparisonCallbacks<string | null> = {
  * walk their element/field/chunk sub-structures through this same function,
  * so a nested closure (e.g. a callback list's element type)
  * collapses too, not just one carried directly by a param or return type.
- * `stream`'s resolution type (`ret`) is omitted rather than recursed into —
- * see the `stream` branch below for why.
+ * `stream`'s chunk and resolution type (`ret`) are both serialized through
+ * this same function.
  */
 function serializeSignatureType(structure: TypeStructure): string {
   if (isStructureKind(structure, 'union')) {
@@ -283,13 +283,13 @@ function serializeSignatureType(structure: TypeStructure): string {
   }
 
   if (isStructureKind(structure, 'stream')) {
-    // The `stream(<chunk>):<ret>` resolution-type suffix is accepted in
-    // expression position and after a closure body, but not in a type-argument
-    // position, so a stream type nested in a signature cannot be re-parsed
-    // with its resolution type. The resolution type is omitted rather than
-    // collapsing the whole `stream(...)` to `any`.
-    if (structure.chunk === undefined) return 'stream';
-    return `stream(${serializeSignatureType(structure.chunk)})`;
+    if (structure.chunk === undefined) {
+      if (structure.ret === undefined) return 'stream';
+      return `stream(any):${serializeSignatureType(structure.ret)}`;
+    }
+    const chunk = `stream(${serializeSignatureType(structure.chunk)})`;
+    if (structure.ret === undefined) return chunk;
+    return `${chunk}:${serializeSignatureType(structure.ret)}`;
   }
 
   return formatStructure(structure);
@@ -534,6 +534,18 @@ function fieldArgToString(arg: FieldArg): string {
   return named;
 }
 
+/** True for an unnamed `any` argument with no default: an unspecified slot. */
+function isAnyArg(arg: FieldArg | undefined): boolean {
+  return (
+    arg !== undefined &&
+    arg.name === undefined &&
+    arg.defaultValue === undefined &&
+    arg.value.kind === 'static' &&
+    arg.value.typeName === 'any' &&
+    (arg.value.args === undefined || arg.value.args.length === 0)
+  );
+}
+
 /**
  * Convert a TypeRef to a human-readable type string. Parameterized types are
  * rendered as `name(arg, arg, ...)` with each named arg as `name: <type>`,
@@ -548,12 +560,27 @@ function typeRefToString(ref: TypeRef | null): string {
       if (ref.args === undefined || ref.args.length === 0) {
         return ref.typeName;
       }
-      const args = ref.args
+      // A stream carries its outer type in args[1]: stream(chunk):outer.
+      // An unspecified outer is dropped, and a list or stream with every
+      // slot unspecified prints as its bare name.
+      const rawOuter = ref.typeName === 'stream' ? ref.args[1] : undefined;
+      const outer = isAnyArg(rawOuter) ? undefined : rawOuter;
+      const inner = rawOuter === undefined ? ref.args : ref.args.slice(0, 1);
+      if (
+        (ref.typeName === 'list' || ref.typeName === 'stream') &&
+        outer === undefined &&
+        inner.every(isAnyArg)
+      ) {
+        return ref.typeName;
+      }
+      const args = inner
         .map((arg) => {
           return fieldArgToString(arg);
         })
         .join(', ');
-      return `${ref.typeName}(${args})`;
+      const outerStr =
+        outer === undefined ? '' : `:${typeRefToString(outer.value)}`;
+      return `${ref.typeName}(${args})${outerStr}`;
     }
     case 'dynamic':
       return 'any';
@@ -579,25 +606,15 @@ function typeRefToString(ref: TypeRef | null): string {
 /**
  * Convert a TypeConstructorNode (`list(...)`, `dict(...)`, `stream(...)`, etc.)
  * to its source-grammar display form. Stream constructors render as
- * `stream(<chunk>):<ret>` to match the `:stream(T):R` annotation, falling back
- * to `stream(<chunk>)` when no resolution arg is present.
+ * `stream(<chunk>):<ret>` to match the `:stream(T):R` annotation. An
+ * unspecified stream prints as bare `stream`.
  */
 function typeConstructorToString(node: TypeConstructorNode): string {
-  if (node.constructorName === 'stream') {
-    const chunkArg = node.args[0];
-    const retArg = node.args[1];
-    const chunkStr =
-      chunkArg !== undefined ? typeRefToString(chunkArg.value) : 'any';
-    const retSuffix =
-      retArg !== undefined ? `:${typeRefToString(retArg.value)}` : '';
-    return `stream(${chunkStr})${retSuffix}`;
-  }
-  const args = node.args
-    .map((arg) => {
-      return fieldArgToString(arg);
-    })
-    .join(', ');
-  return `${node.constructorName}(${args})`;
+  return typeRefToString({
+    kind: 'static',
+    typeName: node.constructorName,
+    args: node.args,
+  });
 }
 
 /**

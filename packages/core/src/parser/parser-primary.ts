@@ -48,7 +48,7 @@ import {
   describeToken,
 } from './helpers.js';
 import { parseScriptTypeRef, throwBareUnion } from './parser-types.js';
-import { isTypeConstructorName } from './parser-shape.js';
+import { atTypeConstructor } from './parser-shape.js';
 import { parseSpreadOrArg } from './parser-functions.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { isRillTypeName } from '../types.js';
@@ -706,11 +706,7 @@ function parsePrimaryImpl(this: Parser): PrimaryNode {
   }
 
   // Type constructor: list(...), dict(...), tuple(...), ordered(...), stream(...)
-  if (
-    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    isTypeConstructorName(current(this.state).value) &&
-    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
-  ) {
+  if (atTypeConstructor(this.state)) {
     const name = current(this.state).value;
     return this.parseTypeConstructor(name);
   }

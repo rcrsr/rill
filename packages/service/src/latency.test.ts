@@ -68,7 +68,7 @@ import {
 // semanticTokens is the binding constraint at 0.217 loaded, so 0.5 is ~2.3x
 // headroom over it. Everything else sits below 0.082 and has far more.
 const P95_BUDGET_X_PARSE = 0.5;
-// runRules aggregates every bundled rule (~41) over the script, so it does
+// runRules aggregates every bundled rule (~47) over the script, so it does
 // proportionately more work than the single-pass providers.
 //
 // This fixture is FLAT (no deeply nested collection-op bodies), and on flat

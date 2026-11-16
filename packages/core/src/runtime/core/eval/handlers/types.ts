@@ -334,35 +334,7 @@ async function buildCollectionType(
     }
   }
 
-  // Uniform path: exactly 1 positional -> valueType
-  const tupleSole = args[0];
-  if (
-    tupleSole !== undefined &&
-    args.length === 1 &&
-    tupleSole.name === undefined
-  ) {
-    const valueType = await resolveArg(tupleSole);
-    // Default type mismatch on uniform single-arg path
-    if (tupleSole.defaultValue !== undefined) {
-      const defaultVal = await evaluateDefault(tupleSole.defaultValue);
-      requireDefaultMatch(
-        s,
-        'tuple',
-        `tuple element`,
-        defaultVal,
-        valueType,
-        location
-      );
-    }
-    const structure: TypeStructure = { kind: 'tuple', valueType };
-    return Object.freeze({
-      __rill_type: true as const,
-      typeName: 'tuple',
-      structure,
-    });
-  }
-
-  // Structural path: 2+ positional -> elements
+  // Positional path: one element per argument
   const elements: RillFieldDef[] = [];
   for (const arg of args) {
     const resolvedType = await resolveArg(arg);
@@ -534,11 +506,15 @@ export async function resolveTypeRef(
       args,
       async (arg: FieldArg): Promise<TypeStructure> => {
         const resolved = await resolveTypeRef(s, arg.value, getVariableFn);
-        return resolved.structure;
+        return resolved.structure.kind === 'any' &&
+          resolved.typeName !== ('any' as RillTypeName)
+          ? { kind: resolved.typeName }
+          : resolved.structure;
       },
       (node: LiteralNode): Promise<RillValue> => {
         return evaluatePrimary(s, node);
-      }
+      },
+      location
     );
   }
 
@@ -770,32 +746,6 @@ export async function evaluateTypeConstructor(
   const name = node.constructorName;
   const location = node.span.start;
 
-  // Stream type constructor: extract chunk type (arg 0) and ret type (arg 1)
-  if (name === 'stream') {
-    const streamStructure: {
-      kind: 'stream';
-      chunk?: TypeStructure;
-      ret?: TypeStructure;
-    } = { kind: 'stream' };
-    if (node.args.length > 0 && node.args[0] !== undefined) {
-      const chunkResolved = await resolveTypeRef(
-        s,
-        node.args[0].value,
-        (varName) => getVariable(s.ctx, varName)
-      );
-      streamStructure.chunk = chunkResolved.structure;
-    }
-    if (node.args.length > 1 && node.args[1] !== undefined) {
-      const retResolved = await resolveTypeRef(
-        s,
-        node.args[1].value,
-        (varName) => getVariable(s.ctx, varName)
-      );
-      streamStructure.ret = retResolved.structure;
-    }
-    return structureToTypeValue(streamStructure);
-  }
-
   if (name === 'union') {
     const resolved = await resolveTypeRef(
       s,
@@ -805,22 +755,10 @@ export async function evaluateTypeConstructor(
     return resolved;
   }
 
-  return buildCollectionType(
+  return resolveTypeRef(
     s,
-    name,
-    node.args,
-    async (arg: FieldArg): Promise<TypeStructure> => {
-      const resolved = await resolveTypeRef(s, arg.value, (varName) =>
-        getVariable(s.ctx, varName)
-      );
-      return resolved.structure.kind === 'any' &&
-        resolved.typeName !== ('any' as RillTypeName)
-        ? { kind: resolved.typeName }
-        : resolved.structure;
-    },
-    (literal: LiteralNode): Promise<RillValue> => {
-      return evaluatePrimary(s, literal);
-    },
+    { kind: 'static', typeName: name, args: node.args },
+    (varName) => getVariable(s.ctx, varName),
     location
   );
 }

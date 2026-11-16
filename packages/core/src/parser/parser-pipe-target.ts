@@ -47,7 +47,7 @@ import {
   describeToken,
 } from './helpers.js';
 import { parseScriptTypeRef, throwBareUnion } from './parser-types.js';
-import { isTypeConstructorName } from './parser-shape.js';
+import { atTypeConstructor } from './parser-shape.js';
 import { ERROR_IDS } from '../error-registry.js';
 import { isRillTypeName } from '../types.js';
 import {
@@ -536,11 +536,7 @@ Parser.prototype.parsePipeTarget = function (this: Parser): PipeTargetNode {
   // Parameterized type constructor as pipe target:
   //   -> list(...), -> dict(...), -> tuple(...), -> ordered(...), -> stream(...)
   // Mirrors the primary-expression dispatch in parsePrimary (see parseTypeConstructor).
-  if (
-    check(this.state, TOKEN_TYPES.IDENTIFIER) &&
-    isTypeConstructorName(current(this.state).value) &&
-    this.state.tokens[this.state.pos + 1]?.type === TOKEN_TYPES.LPAREN
-  ) {
+  if (atTypeConstructor(this.state)) {
     const name = current(this.state).value;
     return attachPipeTargetIndex.call(this, this.parseTypeConstructor(name));
   }

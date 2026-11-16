@@ -13,11 +13,20 @@ import type {
   AnnotationArg,
 } from '../types.js';
 import { ParseError, TOKEN_TYPES } from '../types.js';
-import { advance, expect, current, makeSpan, previous } from './state.js';
+import {
+  advance,
+  check,
+  expect,
+  current,
+  makeSpan,
+  peek,
+  previous,
+  type ParserState,
+} from './state.js';
 import {
   parseFieldArgList,
-  appendStreamResolution,
-  atStreamResolutionSuffix,
+  atOuterType,
+  parseOuterType,
   parseUnionMembers,
 } from './parser-types.js';
 import { ERROR_IDS } from '../error-registry.js';
@@ -45,10 +54,23 @@ const TYPE_CONSTRUCTOR_NAMES: ReadonlySet<string> = new Set<string>([
   'union',
 ]);
 
-export function isTypeConstructorName(
-  name: string
-): name is TypeConstructorName {
+function isTypeConstructorName(name: string): name is TypeConstructorName {
   return TYPE_CONSTRUCTOR_NAMES.has(name);
+}
+
+/**
+ * True when the cursor starts a type constructor in expression position:
+ * a constructor name followed by `(`, or a bare constructor name followed by
+ * an outer type (`stream:number`). A bare `union` is left to the bare-union
+ * error.
+ * @internal
+ */
+export function atTypeConstructor(state: ParserState): boolean {
+  const tok = current(state);
+  if (tok.type !== TOKEN_TYPES.IDENTIFIER) return false;
+  if (!isTypeConstructorName(tok.value)) return false;
+  if (peek(state, 1).type === TOKEN_TYPES.LPAREN) return true;
+  return tok.value !== 'union' && atOuterType(state, 1);
 }
 
 /**
@@ -73,8 +95,9 @@ Parser.prototype.parseTypeConstructor = function (
 
   // Consume the constructor name identifier token
   advance(this.state);
-  expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
 
+  // A bare constructor name with an outer: stream:R is stream(any):R, and
+  // any other constructor rejects the outer.
   const parseLiteral = () => this.parseLiteral();
   const opts: {
     parseLiteral: () => LiteralNode;
@@ -83,6 +106,18 @@ Parser.prototype.parseTypeConstructor = function (
   if (constructorName !== 'list' && constructorName !== 'union') {
     opts.parseAnnotations = () => this.parseAnnotationArgs();
   }
+  if (!check(this.state, TOKEN_TYPES.LPAREN)) {
+    const bareArgs: FieldArg[] = [];
+    parseOuterType(this.state, constructorName, bareArgs, opts);
+    return {
+      type: 'TypeConstructor',
+      constructorName,
+      args: bareArgs,
+      span: makeSpan(start, previous(this.state).span.end),
+    };
+  }
+  expect(this.state, TOKEN_TYPES.LPAREN, 'Expected (');
+
   const args: FieldArg[] =
     constructorName === 'union'
       ? parseUnionMembers(this.state, opts).map((value) => ({ value }))
@@ -95,12 +130,9 @@ Parser.prototype.parseTypeConstructor = function (
     ERROR_IDS.RILL_P005
   );
 
-  // A stream type carries its resolution type after a colon: stream(T):R.
-  // Only a type name directly after the colon is the resolution type, so an
-  // assertion against a variable type (`:$t`) keeps its meaning.
-  if (constructorName === 'stream' && atStreamResolutionSuffix(this.state)) {
-    advance(this.state); // consume ':'
-    appendStreamResolution(this, args);
+  // An outer type after the parentheses: stream(T):R keeps it, any other
+  // constructor rejects it. A `:$t` assertion is not an outer.
+  if (parseOuterType(this.state, constructorName, args, opts)) {
     return {
       type: 'TypeConstructor',
       constructorName,

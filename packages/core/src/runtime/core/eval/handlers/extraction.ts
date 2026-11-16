@@ -26,7 +26,6 @@ import {
 import type { RillValue, TypeStructure } from '../../types/structures.js';
 import { locateField, projectLocated } from './field-access.js';
 import { createOrdered, createTuple } from '../../types/constructors.js';
-import { findElementTypeMismatch } from '../../types/operations.js';
 import {
   isOrdered,
   isPlainDict,
@@ -510,19 +509,6 @@ export async function evaluateCollectionLiteral(
   switch (node.type) {
     case 'ListLiteral': {
       const listItems = await evaluateListLiteralElements(s, node.elements);
-      // Validate homogeneity: all elements must share the same structural type
-      const mismatch = findElementTypeMismatch(listItems);
-      if (mismatch !== undefined) {
-        throwCatchableHostHalt(
-          {
-            location: node.span?.start,
-            sourceId: s.ctx.sourceId,
-            fn: 'evaluateCollectionLiteral',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R002],
-          mismatch
-        );
-      }
       return listItems;
     }
 

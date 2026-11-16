@@ -215,7 +215,7 @@ status-probe  = ".!" , [ identifier ] ;
 
 primary       = literal
               | atom-literal        (* #NAME — symbolic constant, e.g. #FORBIDDEN, #QUOTA_EXCEEDED *)
-              | type-constructor    (* list(T), dict(k:T), tuple(T...), ordered(k:T), stream(T):R, union(T, ...) *)
+              | type-constructor    (* list(T), dict(k:T), tuple(T, T2), ordered(k:T), stream(T):R, union(T, ...) *)
               | closure-sig-lit     (* |p: T| -> R — closure signature type expression *)
               | type-name           (* type name as value — produces structural type value e.g. list(number), dict *)
               | variable
@@ -911,12 +911,23 @@ type-name     = "string" | "number" | "bool" | "closure"
      string                          -- single type
      list(number)                    -- parameterized type
      dict(number)                    -- uniform value type (all values same type)
+     list()                          -- unspecified element type, same as list(any)
+     stream(string):number           -- chunk type and outer (resolution) type
      union(string, number)           -- union of two types
      union("c", "f")                 -- union of two string literals
      $myType                         -- dynamic type from variable
      dict(a: number = 5)             -- parameterized with default (annotation context) *)
 type-ref          = type-ref-member ;
-type-ref-member   = type-name , [ "(" , field-arg-list , ")" ] | "$" , identifier | union-type ;
+type-ref-member   = "stream" , [ "(" , [ field-arg-list ] , ")" ] , [ ":" , type-ref ]
+                  | type-name , [ "(" , [ field-arg-list ] , ")" ]
+                  | "$" , identifier
+                  | union-type ;
+              (* Only stream takes an outer type, after the parentheses or after
+                 the bare name: stream:number is stream(any):number. An outer
+                 written after list, dict, tuple, ordered, or union halts with
+                 RILL-P006. A ":" not followed by a type name is not an outer.
+                 Inside a field-arg-list, "name :" starts a named field, so a
+                 bare stream with an outer is written stream():R there. *)
 
 (* union-type: a type that accepts a value matching any member.
    A member is a type-ref or a scalar literal; a literal member matches by equality.
@@ -978,10 +989,15 @@ field-arg        = [ annotation ] , identifier , ":" , type-ref , [ "=" , litera
    tuple(number, string, bool)     -- positional tuple type
    ordered(x: number, y: string)   -- ordered container type
 
-   Uniform value type form (single positional arg for dict, tuple, ordered):
+   Uniform value type form (single positional arg for dict, ordered):
    dict(number)                    -- all dict values must be number
-   tuple(number)                   -- all tuple entries must be number
    ordered(string)                 -- all ordered values must be string
+   tuple(T) is not uniform: one argument names exactly one position.
+   Use list(T) for a sequence of any length with one element type.
+
+   Empty parentheses mean unspecified:
+   list()                          -- same as list(any)
+   dict()                          -- same as dict
 
    Default values (= literal) fill missing fields during -> type conversion:
    dict(a: number, b: string = "x")       -- b defaults to "x"

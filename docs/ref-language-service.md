@@ -1,8 +1,8 @@
 # rill Language Service API
 
-*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a 45-rule static checker*
+*Editor tooling: outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a 47-rule static checker*
 
-`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 45 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
+`@rcrsr/rill-language-service` ships editor-tooling providers (outline, semantic tokens, formatting, scope resolution, hover, go-to-definition, completion, and a static checker with 47 rule codes) built on `@rcrsr/rill`'s parser and AST. Its version is held exactly equal to `@rcrsr/rill`'s version, character-for-character.
 
 ## Subpath Exports
 
@@ -182,7 +182,7 @@ type CompletionKind = 'variable' | 'function' | 'keyword';
 function createDefaultConfig(): CheckConfig
 ```
 
-Pure function. Returns a `CheckConfig` with all 45 registered rules set to `'on'` at each rule's own default severity, and `checkerMode` left undefined.
+Pure function. Returns a `CheckConfig` with all registered rules set to `'on'` at each rule's own default severity, and `checkerMode` left undefined.
 
 ### `validateConfig`
 
@@ -198,7 +198,7 @@ Pure function. Validates a `CheckConfig` and returns an array of `ValidationErro
 function validateRuleCodes(codes: readonly string[]): ValidationError[] | null
 ```
 
-Pure function. Validates each code in `codes` against the 45 codes in `RULES`. Returns a `ValidationError` with `code: 'UNKNOWN_RULE_CODE'` for each unrecognized entry, or `null` when every code is known.
+Pure function. Validates each code in `codes` against every code in `RULES`. Returns a `ValidationError` with `code: 'UNKNOWN_RULE_CODE'` for each unrecognized entry, or `null` when every code is known.
 
 ```typescript
 interface ValidationError {
@@ -219,7 +219,7 @@ function runRules(
 ): Diagnostic[]
 ```
 
-Runs the static checker's 45 registered rules over `parsed.ast` in two linear passes. First a bottom-up fact-collection pass, then a top-down rule-dispatch pass. Total node visits equal 2n, independent of nesting depth, and no rule re-walks a subtree. `source` is required because formatting rules, the naming-convention fix, and diagnostic context lines all read the raw source text. The optional fourth `rules` parameter defaults to the shared `RULES` registry; pass a subset for testing or a custom rule set. The fact-collection pass populates a capture tracker and the `assertedHostCalls` set once, shared across every rule in the dispatch pass. Diagnostics are returned sorted by line, then column. `runRules` owns final severity resolution, applying each rule's `on`/`off`/`warn` state and then `config.severity` as a global override. Tolerates recovery nodes without throwing. A single rule that throws is isolated: its contribution is skipped and every other rule still reports. Measures a p95 near 42 milliseconds on a flat 2,000-line document on typical developer hardware, roughly 6x the single-pass providers. It runs 45 rules across two passes, not a separate walk per rule. On flat input the two-pass engine costs about 20% more than the per-rule sub-walks it replaced, because a shallow subtree is cheap to re-walk. On deeply nested input it is 153x faster, because nothing re-walks a subtree at all. The wider 350 ms ceiling in `latency.test.ts` is a shared-CI-runner flake guard, not a latency claim.
+Runs the static checker's registered rules over `parsed.ast` in two linear passes. First a bottom-up fact-collection pass, then a top-down rule-dispatch pass. Total node visits equal 2n, independent of nesting depth, and no rule re-walks a subtree. `source` is required because formatting rules, the naming-convention fix, and diagnostic context lines all read the raw source text. The optional fourth `rules` parameter defaults to the shared `RULES` registry; pass a subset for testing or a custom rule set. The fact-collection pass populates a capture tracker and the `assertedHostCalls` set once, shared across every rule in the dispatch pass. Diagnostics are returned sorted by line, then column. `runRules` owns final severity resolution, applying each rule's `on`/`off`/`warn` state and then `config.severity` as a global override. Tolerates recovery nodes without throwing. A single rule that throws is isolated: its contribution is skipped and every other rule still reports. Measures a p95 near 42 milliseconds on a flat 2,000-line document on typical developer hardware, roughly 6x the single-pass providers. It runs every registered rule across two passes, not a separate walk per rule. On flat input the two-pass engine costs about 20% more than the per-rule sub-walks it replaced, because a shallow subtree is cheap to re-walk. On deeply nested input it is 153x faster, because nothing re-walks a subtree at all. The guard in `latency.test.ts` fails when the median of paired `runRules` to parse time ratios exceeds 1.5x, so it tracks the cost relative to parsing rather than an absolute time.
 
 ```typescript
 interface Diagnostic {
@@ -265,11 +265,15 @@ type RuleState = 'on' | 'off' | 'warn';
 const RULES: readonly Rule[]
 ```
 
-Frozen registry of all 45 built-in rules. See [Lint Rules](integration-cli.md#lint-rules) for the full list of rule codes, categories, defaults, and descriptions. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
+Frozen registry of all built-in rules. See [Lint Rules](integration-cli.md#lint-rules) for the full list of rule codes, categories, defaults, and descriptions. Importing `/rules` triggers each rule module's self-registration before `RULES` is snapshotted and frozen. Registry order carries no consumer-visible meaning; `runRules` sorts diagnostics independently by location.
 
 The atom rules read `BUILTIN_ATOMS` and `ERROR_CODES` from `@rcrsr/rill`. `ATOM_CASE_MISMATCH` fires on an atom literal that differs from a builtin atom only by case, such as `#timeout`. `ATOM_NOT_ERROR_CODE` fires on `==` or `!=` between `.!code` and an atom that is neither `#ok` nor in `ERROR_CODES`. `ATOM_DISCARDED` fires on a statement that is a lone atom and not the last statement of its script or block, or the only statement of a script, which is usually a comment missing its space after `#`. `ON_LIST_SINGLE` fires on `guard` or `retry` with `on: list[#X]` holding one code and suggests `on: #X`.
 
 `CONDITION_TYPE` fires when the condition of a conditional, `while`, `do ... while`, or `assert` is a bare non-boolean literal. The message names the literal's rill type. The runtime halts the same conditions with `RILL-R002`. It performs no type inference and does not flag variables, host calls, method calls, or comparisons.
+
+`TUPLE_ONE_POSITION` fires on `tuple(T)` with one argument in a type position, including nested inside union members and other type arguments. A one-argument tuple type names exactly one position. The message suggests `:tuple` to accept a tuple of any length or `list(T)` for a sequence. It does not flag `tuple` with no arguments, `tuple` with two or more arguments, or a tuple value such as `tuple[1]`.
+
+`MIXED_ELEMENT_TYPE_READ` fires when `.^type` or `.^effective` is read from a list literal of distinct compound shapes, or from a dict literal of distinct value shapes iterated by `seq`, `fan`, `filter`, `acc`, `.values`, or `.entries`. The receiver may be the literal, a pipe from it, or a variable captured once from it. The read reports a union element type, and the message suggests a type check such as `:?list(list)` when only the kind matters. It does not flag lists of uniform shape or any receiver that is not a plain literal.
 
 `FOLD_INTERMEDIATES` fires on an adjacent `acc(...) -> .tail` pair. The running-totals list is built for every step, then thrown away except for the last element. `fold(...)` computes the same final value directly. Only adjacent operator-consumer pairs in one pipe chain are recognized. The capture-then-subscript form (`acc(...) => $t` followed later by `$t[-1]`) needs whole-script analysis and stays silent.
 

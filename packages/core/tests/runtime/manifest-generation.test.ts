@@ -1026,7 +1026,7 @@ describe('Rill Runtime: Manifest Generation', () => {
       expect(() => parse(manifest)).not.toThrow();
     });
 
-    it('a closure nested inside a stream ret type collapses to closure and still parses', () => {
+    it('a closure nested inside a stream ret type collapses to closure and keeps the outer', () => {
       const ctx = createRuntimeContext({
         functions: {
           fn: {
@@ -1052,8 +1052,7 @@ describe('Rill Runtime: Manifest Generation', () => {
         },
       });
       const manifest = generateManifest(ctx);
-      expect(manifest).toContain('s: stream(number)');
-      expect(manifest).not.toContain('stream(number):');
+      expect(manifest).toContain('s: stream(number):closure');
       expect(() => parse(manifest)).not.toThrow();
     });
 

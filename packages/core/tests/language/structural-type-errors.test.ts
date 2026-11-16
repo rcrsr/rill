@@ -7,7 +7,7 @@
  *
  * Implementation notes:
  * - list(), dict(), tuple() constructor errors all use RILL-R004 (not RILL-P005).
- * - Mixed-type list construction and list spread both use RILL-R002.
+ * - Mixed-type list construction infers a union element type and does not halt.
  * - list(1, 2) with 2 args errors on argument count before type check.
  */
 
@@ -19,45 +19,34 @@ import { expectHalt } from '../helpers/halt.js';
 
 describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
-  // AC-40: Mixed list elements throw RILL-R002
+  // AC-40: Mixed list elements infer a union element type
   // ============================================================
 
   describe('Mixed list elements (AC-40)', () => {
-    it('throws on list with mixed number and string elements', async () => {
-      await expectHalt(() => run('list[1, "hello", 3]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: 'List elements must be the same type',
-      });
+    it('infers a union for mixed number and string elements', async () => {
+      expect(
+        await run('list[1, "hello", 3].^type == list(union(number, string))')
+      ).toBe(true);
     });
 
-    it('throws on list with mixed string and number elements', async () => {
-      await expectHalt(() => run('list["a", 1]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: 'List elements must be the same type',
-      });
+    it('infers an equal type regardless of element order', async () => {
+      expect(await run('list["a", 1].^type == list[1, "a"].^type')).toBe(true);
     });
 
-    it('throws on list with mixed bool and number elements', async () => {
-      await expectHalt(() => run('list[true, 1]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: 'List elements must be the same type',
-      });
+    it('infers a union for mixed bool and number elements', async () => {
+      expect(
+        await run('list[true, 1].^type == list(union(bool, number))')
+      ).toBe(true);
     });
   });
 
   // ============================================================
-  // AC-41: list() with no arguments throws RILL-R004
+  // AC-41: list() with no arguments is the unspecified list type
   // ============================================================
 
   describe('list() with no arguments (AC-41)', () => {
-    it('throws when list() is called with no arguments', async () => {
-      await expectHalt(() => run('list()'), {
-        code: 'INVALID_INPUT',
-        messagePattern: 'list() requires exactly 1 type argument',
-      });
+    it('evaluates list() as the unspecified list type', async () => {
+      expect(await run('list() == list')).toBe(true);
     });
   });
 
@@ -224,12 +213,12 @@ describe('Rill Language: Structural Type Error Contracts', () => {
   // ============================================================
 
   describe('Type Inference Cascade Error Contracts', () => {
-    it('throws RILL-R002 for list vs string mismatch [AC-12]', async () => {
-      await expectHalt(() => run('list[list[1], "hello"]'), {
-        code: 'RILL_R002',
-        hostErrorId: 'RILL-R002',
-        messagePattern: 'List elements must be the same type',
-      });
+    it('infers a union for list vs string elements [AC-12]', async () => {
+      expect(
+        await run(
+          'list[list[1], "hello"].^type == list(union(list(number), string))'
+        )
+      ).toBe(true);
     });
   });
 

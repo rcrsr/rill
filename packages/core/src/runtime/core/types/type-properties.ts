@@ -117,9 +117,6 @@ function orderedInner(
 function tupleInner(
   type: Extract<TypeStructure, { kind: 'tuple' }>
 ): RillValue {
-  if (type.valueType !== undefined) {
-    return createTuple([structureToTypeValue(type.valueType)]);
-  }
   if (type.elements === undefined) return anyTypeValue;
   return createTuple(type.elements.map((e) => structureToTypeValue(e.type)));
 }

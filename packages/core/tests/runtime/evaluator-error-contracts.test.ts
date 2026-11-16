@@ -18,7 +18,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   anyTypeValue,
-  atomName,
   getStatus,
   inferStructure,
   isTuple,
@@ -1438,22 +1437,9 @@ describe('Rill Runtime: Evaluator Base Class', () => {
   });
 });
 
-describe('Rill Runtime: Mixed-type list literal halt', () => {
-  it('guard recovers a mixed-type list literal as invalid with #RILL_R002', async () => {
-    const result = await run('guard { list[1, "a"] }');
-    expect(atomName(getStatus(result).code)).toBe('RILL_R002');
-  });
-
-  it('surfaces an uncaught mixed-type list literal as RuntimeError with haltValue', async () => {
-    try {
-      await run('list[1, "a"]');
-      expect.fail('Should have thrown');
-    } catch (err) {
-      expect(err).toBeInstanceOf(RuntimeError);
-      const runtimeErr = err as RuntimeError & { haltValue?: unknown };
-      expect(runtimeErr.errorId).toBe('RILL-R002');
-      expect(runtimeErr.haltValue).toBeDefined();
-    }
+describe('Rill Runtime: Mixed-type list literal', () => {
+  it('does not halt on a mixed-type list literal', async () => {
+    expect(await run('list[1, "a"]')).toEqual([1, 'a']);
   });
 
   it('infers a union element type for mixed elements instead of halting', () => {

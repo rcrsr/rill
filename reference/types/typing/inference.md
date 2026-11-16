@@ -3,11 +3,11 @@ id: inference
 title: Type inference
 status: normative
 since: 0.24.0
-issues: [562, 600]
+issues: []
 grammar: []
-errors: [RILL-R002]
+errors: []
 depends: [type-value, structural-typing, any, union, list, dict, tuple, ordered]
-tests: [collection-literals.test.ts, collection-operators.test.ts, type-values.test.ts]
+tests: [collection-literals.test.ts, collection-operators.test.ts, collection-union-inference.test.ts, type-values.test.ts]
 ---
 
 # Type inference
@@ -19,7 +19,7 @@ Inference gives a value with no carried type the most precise type that describe
 r[inference.scalar] A scalar infers its own kind
 A string, number, bool, or atom value MUST infer `string`, `number`, `bool`, or `atom`.
 
-r[inference.describes] Inference describes and never rejects {pending #562}
+r[inference.describes] Inference describes and never rejects
 Inference MUST NOT reject a well-formed value because its parts differ. Strictness comes from an
 assertion or a declaration, as `assertion` and `declaration` state.
 
@@ -41,43 +41,39 @@ r[inference.empty-sibling] An empty list yields to its populated siblings
 An empty collection among populated siblings MUST yield to the siblings' type, so
 `list[list[1], list[]]` infers `list(list(number))`.
 
-r[inference.shape-union] Dicts that differ in keys infer a union of their shapes {pending #600}
+r[inference.shape-union] Dicts that differ in keys infer a union of their shapes
 Dict elements with different keys MUST infer `list(union(...))` over their shapes, so
 `list[dict[a: 1], dict[b: 2]]` infers `list(union(dict(a: number), dict(b: number)))`.
 
-r[inference.shape-union-ordered] Ordered values that differ in keys infer a union {pending #600}
+r[inference.shape-union-ordered] Ordered values that differ in keys infer a union
 Ordered elements with different keys MUST infer `list(union(...))` over their shapes, so
 `list[ordered[a: 1], ordered[b: 2]]` infers `list(union(ordered(a: number), ordered(b: number)))`.
+
+r[inference.order-independent] A list's element type does not depend on element order or count
+A list's inferred element type MUST NOT depend on the order or count of its elements, for dict and
+ordered elements as for scalars. `list[dict[a: 1], dict[b: 2], dict[a: 3]]` and
+`list[dict[a: 1], dict[a: 3], dict[b: 2]]` both infer `list(union(dict(a: number), dict(b: number)))`.
 
 r[inference.union-element] A list of mixed elements infers a union of their types
 When elements share no one type, the list MUST infer `list(union(...))` over the element types
 present, reduced by the union rules. This holds for a list built by `seq`, `fan`, `acc`, `.values`,
 and any other operation that builds a list at run time.
 
-r[inference.literal-union] A mixed list literal infers a union {pending #562}
+r[inference.literal-union] A mixed list literal infers a union
 A list literal whose elements differ in type MUST infer `list(union(...))` and MUST NOT halt.
 `list[1, "a"]` ⇒ a list of type `list(union(number, string))`.
 
-r[inference.nested-union] Mixed compound elements keep their detail {pending #562}
+r[inference.nested-union] Mixed compound elements keep their detail
 `list[list[1], list["a"]]` MUST infer `list(union(list(number), list(string)))`. The inferred type
 MUST NOT drop the inner types of the elements.
 
-r[inference.dict-iteration] Dict iteration infers its entry union {pending #562}
+r[inference.dict-iteration] Dict iteration infers its entry union
 Iterating a dict whose fields differ in type MUST yield entries typed `dict(key: string, value: T)`,
 and the result list MUST infer the reduced union of those entries.
 
-r[inference.recursive] The union rule recurses through nested collections {pending #562}
+r[inference.recursive] The union rule recurses through nested collections
 The union rule MUST apply at every depth, so `list[list["a", 1], list["a"]]` infers
 `list(list(union(string, number)))`.
-
-## Errors
-
-| Condition | Error | Catchable |
-|-----------|-------|-----------|
-| A list literal has elements of differing types | RILL-R002 | Yes |
-
-The row describes the behavior until `inference.literal-union` is built; `inference.describes`
-holds from the same point.
 
 ## Examples
 
@@ -96,23 +92,20 @@ dict[a: 1, b: "x"] -> .values -> .^type -> .signature
 # Result: "list(union(number, string))"
 ```
 
-```rill pending=600
+```rill
 list[dict[a: 1], dict[b: 2]] -> .^type -> .signature
 # Result: "list(union(dict(a: number), dict(b: number)))"
 ```
 
-```rill pending=562
+```rill
 list[1, "a"] -> .^type -> .signature
 # Result: "list(union(number, string))"
 ```
 
 ## Notes
 
-Today a list of dicts with different keys infers the uniform type: `list[dict[a: 1], dict[b: 2]]` infers
-`list(dict(number))`, and `list[ordered[a: 1], ordered[b: 2]]` infers `list(ordered(number))`. Superseded rule id: `inference.uniform-value`.
+Union members are a set: `list["a", 1]` and `list[1, "a"]` have equal types, and the printed member
+order is canonical.
 
-Known conflict: a literal `list[1, "a"]` halts RILL-R002 today, while every other mixed list infers
-`list(union(...))`. `inference.literal-union` removes the conflict.
-
-Compound elements that differ, such as `list[list[1], list["a"]]`, infer `list(list)` today, and
-`dict` entries from iteration infer `list(dict)`.
+An inferred type only describes. A mixed list passes `:list` and halts `#TYPE_MISMATCH` against a
+narrower assertion such as `:list(number)`.

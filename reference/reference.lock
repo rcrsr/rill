@@ -21,7 +21,7 @@ annotation.reserved 1c783a27813a
 annotation.shorthand 775a2d4447b1
 annotation.stack 2490423f9120
 annotation.values 1a314342136c
-any 6ac6864f3c91 dict.empty-parens@537087decea9 fn.empty@bc536d0a2ca0 introspection.bare@a147cf024b92 introspection.leaf@c3102e0c1886 list.unspecified@8f7d765216f9 ordered.empty-parens@fd248de5b0b1 stream.unspecified@0e3f1e6c54e3 tuple.unspecified@4d971ad5e908 union.empty@1f0396741c84
+any 6ac6864f3c91 dict.empty-parens@c8b91cfc3a0e fn.empty@bc536d0a2ca0 introspection.bare@4675364a5ade introspection.leaf@c3102e0c1886 list.unspecified@546466e216ff ordered.empty-parens@dee46359e906 stream.unspecified@6d472df28d3e tuple.unspecified@171dd6d58c4c union.empty@1f0396741c84
 any.admits 7b4420687b3a
 any.assert 0df138bbb10d
 any.collection b7208d2d5fe1
@@ -227,9 +227,9 @@ destruct.result 979409b161ac
 destruct.skip 86168bbe3c38
 destruct.target 7cc2b884121b
 destruct.typed 1fb13796760d capture.mismatch@616241654040 type-lock.halt@33dbd80723fe
-dict f65e5dd624aa type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+dict 8b0ce5804e2d type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 dict.any 71a5cc6bd21a
-dict.empty-parens 537087decea9
+dict.empty-parens c8b91cfc3a0e
 dict.entries-type d2fc8dda2113
 dict.field-default 2d46c2d66ea8
 dict.field-equality 59a0c468bdd0
@@ -242,7 +242,7 @@ dict.key-print 1a4cf8a625cf
 dict.key-spelling 009f9a053949
 dict.key-string 768e6f41d4ee
 dict.named-membership bf387b3cf3d5
-dict.no-outer 5c831748dc46
+dict.no-outer 62f0b3f59f69
 dict.no-uniform b86b80e51011
 dict.type-key-duplicate ef0109541cfa
 dispatch.block eea8f694c93e
@@ -380,19 +380,19 @@ halt.non-catchable 8eb8c26644b7
 halt.parse 6d138afba141
 halt.signals 8be052dc02e2
 halt.table f8ef9cf52762
-inference 14943beeecb9 inference.describes@740d75fd2e7b inference.literal-union@7a923b3b1981
-inference.describes 740d75fd2e7b
-inference.dict-iteration de3c979c7589
+inference.describes 306f89e5178c
+inference.dict-iteration 307bade8ba08
 inference.empty d047fb333dc7
 inference.empty-sibling 5426333b0235
 inference.fields 8616d219ed19
-inference.literal-union 7a923b3b1981
-inference.nested-union 9936af5beffc
+inference.literal-union 4b9f058d4366
+inference.nested-union 81ef897e93b6
+inference.order-independent cf5cd4b4a85e
 inference.positions 4eb86cc7b25b
-inference.recursive 5edf2d1e9b24
+inference.recursive d42c0f27dd3c
 inference.scalar 0477317ecab2
-inference.shape-union 9929e689f406
-inference.shape-union-ordered 5a29e593a5ed
+inference.shape-union ea494999abd5
+inference.shape-union-ordered aaca1b188e6b
 inference.uniform a737257018f3
 inference.union-element 8eeac61a0bfd
 interpolation 1d821f6f50f0 conversion.no-string-form@d673fef041e6 conversion.no-string-nested@c8125a4057fe conversion.no-string-time@683aaf33a9fa conversion.no-string-vector@bc4a6c616350 invalid-value.interpolate@c5addb31436e pipe.string@e11eeeaf2f49
@@ -405,7 +405,7 @@ interpolation.printed fdb3073b6dba string.from-bool@a2d54837dbaf string.from-col
 interpolation.scope 225c87dc5412 scope.child@fb0f345c5707
 interpolation.string 00f9ba88f50f
 introspection.annotations 2e9f0d61f82d
-introspection.bare a147cf024b92
+introspection.bare 4675364a5ade
 introspection.bare-inner ee713b640625
 introspection.bare-open d7ff36635b1a
 introspection.defaults d73456d0a7d7
@@ -419,6 +419,7 @@ introspection.name fbdd8f53f35e
 introspection.no-outer 6dda50772827
 introspection.outer d24037c1b427
 introspection.presence 0bcfe8c44eaa
+introspection.print-bare ec061f0989a2
 introspection.signature d11d5cc8fffc
 introspection.type-probe 98d4ed5945dd carried-type.effective-probe@da1ca7bbf1a7 carried-type.type-probe@eaad72137ace
 invalid-value 94bba088c0f7 error-code.status@6c04aa70d1af halt.catchable@929ad6135c87 vacancy.vacant@93e05a6e4241
@@ -454,7 +455,7 @@ iteration.source-kinds 545ea43f2946
 iteration.stream 6f2c2ae58f1d value.stream@840cdafa18cd
 iteration.string 89b1c92e7911
 iteration.tuple d651f9b75b66
-list 1d06f1028879 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+list 542c42b9c4c1 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 list.argument c095b936d9af
 list.argument-count f196f166f68a
 list.element-union d15824b73a27
@@ -462,9 +463,9 @@ list.equality 5e1bc7cac600
 list.form 6e50a87ace56
 list.inner df1930a5b2d9
 list.membership b7adc98be4b0
-list.no-outer 4ec744daed37
+list.no-outer f24347f57047
 list.print 9f843c264e5a inference.empty@d047fb333dc7
-list.unspecified 8f7d765216f9
+list.unspecified 546466e216ff
 loop.accumulate 7080c69b7e01
 loop.bool 857e8d9a91e0
 loop.do-required cde369c28522
@@ -539,15 +540,15 @@ number.precision 72e91dffc612
 number.print 48a1ee322f61
 number.print-exponent bbcacfa268f6
 number.value 51a06e4cfb4e
-ordered 1afb2ba19173 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+ordered b2bdbae0ad3a type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
 ordered.any 4939367fe66c
-ordered.empty-parens fd248de5b0b1
+ordered.empty-parens dee46359e906
 ordered.exact f3b07a28292d
 ordered.field-inner 9b3eea08a977
 ordered.field-print 803005b1b1ef
 ordered.fields b85b597cb48b
 ordered.key-spelling affcffc3f8a0
-ordered.no-outer 7561f5721da2
+ordered.no-outer 22b1f36e7c6c
 ordered.no-uniform d52b47c28c66
 ordered.not-dict efe035f5b624
 ordered.order d6b024257b5b
@@ -668,11 +669,11 @@ stream.equality e4151d863b72
 stream.inner f8518bceccc5
 stream.no-conversion 2370eda89c72
 stream.outer 7be70875c978
-stream.position e7ec5ebaba99
+stream.position a7de75169539
 stream.print e93e733ddbe5
 stream.resolution 24b98f7d700c
 stream.slots 07cc62513116
-stream.unspecified 0e3f1e6c54e3
+stream.unspecified 6d472df28d3e
 stream.unspecified-outer 4cff11b9cb8d
 strict-mode.any e9d907265c70
 strict-mode.bare 9d618e2bb401
@@ -725,26 +726,26 @@ structural-typing.overlap-scalar 50b769e6a4d4
 structural-typing.overlap-union f6642be99e56
 structural-typing.present-typed 8e32e38e694b
 structural-typing.structural 797742672410
-tuple 53c666428954 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
-tuple.any-position 4c6593accada
+tuple 39d4491d4bc3 type-form.unknown-name@f737b9a5e716 type-value.variable-halt@c06892807f3b
+tuple.any-position 6a86bee75040
 tuple.bare ffddbd638c71
 tuple.default-trailing df2e154cb11a
 tuple.equality 64729ee2cb20
 tuple.inner b776a092093d
-tuple.no-outer 464dcdb9a985
-tuple.no-uniform 9d4a9b424f28
+tuple.no-outer d8b4910fd70c
+tuple.no-uniform df1522a0607b
 tuple.not-list 919afe9ff7a9
 tuple.omitted-default 8751d4355571
-tuple.one-position d2f341f950f5
+tuple.one-position 60d48e0440e1
 tuple.position-type 5443f5714fad
 tuple.positions bb00e8c41af5
 tuple.print b092b90502af
 tuple.unnamed 9aacc5fdf173
-tuple.unspecified 4d971ad5e908
+tuple.unspecified 171dd6d58c4c
 type-form.argument-literal 81838b46aa46
 type-form.name cc6585b990ac
 type-form.slots cc274f2a4aab
-type-form.uniform 2540f14b4ed9
+type-form.uniform e59801d69670
 type-form.unknown-name f737b9a5e716
 type-lock.annotation 8c1b087e0e9a
 type-lock.annotation-after d8a2b2e7c903
@@ -777,7 +778,7 @@ type-value.resolve-early 57b2a63959fd
 type-value.variable a16617887855 type-position.variable@d3c3ff1935c0
 type-value.variable-halt c06892807f3b
 type-value.variable-undefined 5a01698c9a5c
-union 6e43a244d783 conversion.union@415487b22deb conversion.union-miss@59c0bce8424f defaults.hydration-tie@30b8fe06af36 defaults.hydration-union@8d0580dfa977
+union 474b30835ad5 conversion.union@415487b22deb conversion.union-miss@59c0bce8424f defaults.hydration-tie@30b8fe06af36 defaults.hydration-union@8d0580dfa977
 union.bare 70561bf4137b
 union.canonical-order f8185ab53429
 union.colon-literal d4d60883f80a
@@ -791,7 +792,7 @@ union.keep-default 7a5ce089d1fa
 union.member-match ab6fe3e77cf8
 union.members 696c13b1b20f
 union.no-collection 4fc5f19e7aa0
-union.no-outer 717b53305a93
+union.no-outer 858b2c1fad5f
 union.position 103f75cebc9d
 union.reduce 0b805993ab3d
 union.single bb75e3563574

@@ -820,14 +820,16 @@ const greet: RillFunctionShorthand = {
 | Type names | `string`, `number`, `bool`, `any` |
 | Unions | `union(string, number)` |
 | Literal members | `union("c", "f")` |
-| List type | `list(string)` |
+| List type | `list(string)`, or `list()` for an unspecified element type |
 | Built-in type `error_code` | `list(error_code)` |
 | Named dict type | `dict(k: string)` |
-| Tuple type | `tuple(number, string)` |
+| Tuple type | `tuple(number, string)`; `tuple(number)` is exactly one position |
 | Literal defaults | `n: number = -3`, `s: string = "x"`, `b: bool = true` |
 | Field defaults | `d: dict(a: number, b: number = 0)`, `t: tuple(string, number = 0)` |
 | Parameter annotations | `^(description: "text") name: string` |
 | Function annotations | `^(category: "io") \|a: string\|` before the parameter list |
+
+An outer type on `list`, `dict`, or `tuple`, such as `list(number):string`, fails with `RILL-R091` and the message `list takes no outer type`. In script, the same text halts `RILL-P006`.
 
 Annotation values in a signature are string-valued. `||` declares no parameters.
 
@@ -1410,5 +1412,5 @@ try {
 - [Extensions](integration-extensions.md): Reusable function packages
 - [Modules](integration-modules.md): Module convention
 - [Host API Types](ref-host-api-types.md): TypeStructure, TypeDefinition, TypeProtocol
-- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 45 rule codes
+- [Language Service API](ref-language-service.md): Editor-tooling providers and a static checker with 47 rule codes
 

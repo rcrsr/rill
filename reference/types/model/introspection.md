@@ -3,10 +3,10 @@ id: introspection
 title: Type introspection
 status: normative
 since: 0.24.0
-issues: [595, 622, 624, 633]
+issues: [595, 624, 633]
 errors: [RILL-R003]
 depends: [type-value, structural-typing, any, carried-type]
-tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts]
+tests: [type-inner-outer.test.ts, type-values.test.ts, declared-types.test.ts, unspecified-type-args.test.ts]
 ---
 
 # Type introspection
@@ -26,9 +26,15 @@ r[introspection.signature] A type value has a signature
 `.signature` MUST return the type written in canonical form, such as `"list(number)"`, and MUST
 NOT halt.
 
-r[introspection.bare] A bare type is its constructor with every parameter at its default {pending #622}
+r[introspection.bare] A bare type is its constructor with every parameter at its default
 Every type parameter MUST default to `any`. A bare type MUST equal its constructor with every
 parameter at that default: `list` is `list(any)`, and `stream` is `stream(any):any`.
+
+r[introspection.print-bare] An unspecified container type prints as its bare name
+A `list`, `dict`, `tuple`, `ordered`, or `stream` type whose every parameter is unspecified MUST
+print as its bare name, however it was written or inferred: `list()`, `list(any)`, and the type of
+`list[]` all print `list`, and `stream(any):any` prints `stream`. A stream type with a chunk and an
+unspecified outer MUST print as `stream(T)`.
 
 r[introspection.bare-open] An open parameter list defaults as a whole
 A constructor with an open parameter list, `dict`, `ordered`, `tuple`, or a function type, MUST
@@ -147,5 +153,5 @@ $f.^type.inner == ordered[a: string, b: number]
 Removed probes halt naming `.^type.inner` or `.^type.outer`: `.^input` and `.^output` on a
 function (RILL-R008), `.^chunk` and `.^output` on a stream (RILL-R003).
 
-On `main`, `list == list(any)` and `stream == stream(any):any` are false; #571 makes a bare type
-equal its defaulted form.
+The 0.23.0 runtime printed the type of `list[]` as `list(any)` and an empty dict's type as
+`dict()`; both now print the bare name.

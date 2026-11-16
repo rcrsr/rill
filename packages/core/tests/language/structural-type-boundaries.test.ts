@@ -26,9 +26,9 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe('list');
     });
 
-    it('[].^type.signature returns "list(any)"', async () => {
+    it('[].^type.signature returns "list"', async () => {
       const result = await run('list[].^type.signature');
-      expect(result).toBe('list(any)');
+      expect(result).toBe('list');
     });
   });
 
@@ -47,9 +47,9 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe('dict');
     });
 
-    it('[:].^type.signature returns "dict()"', async () => {
+    it('[:].^type.signature returns "dict"', async () => {
       const result = await run('dict[].^type.signature');
-      expect(result).toBe('dict()');
+      expect(result).toBe('dict');
     });
   });
 
@@ -69,11 +69,10 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe('ordered');
     });
 
-    it('ordered[].^type.signature returns "ordered()"', async () => {
+    it('ordered[].^type.signature returns "ordered"', async () => {
       const result = await run('ordered[].^type.signature');
-      expect(result).toBe('ordered()');
+      expect(result).toBe('ordered');
     });
-    // Note: ordered() with empty fields still formats as ordered() since fields array is present (empty)
   });
 
   // ============================================================
@@ -140,12 +139,15 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe(true);
     });
 
-    it('list[list[1,2], list["a","b"]] infers list(list) bare fallback (AC-3)', async () => {
+    it('list[list[1,2], list["a","b"]] infers a union of the inner list types (AC-3)', async () => {
       const name = await run('list[list[1, 2], list["a", "b"]].^type.name');
       expect(name).toBe('list');
 
-      const sig = await run('list[list[1, 2], list["a", "b"]].^type.signature');
-      expect(sig).toBe('list(list)');
+      expect(
+        await run(
+          'list[list[1, 2], list["a", "b"]].^type == list(union(list(number), list(string)))'
+        )
+      ).toBe(true);
     });
 
     it('list[list[1,2], list[3]] infers list(list(number)) (AC-4)', async () => {
@@ -162,11 +164,11 @@ describe('Rill Language: Structural Type Boundary Conditions', () => {
       expect(result).toBe(true);
     });
 
-    it('list[list[list[1]], list[list["a"]]] infers list(list(list)) recursive cascade (AC-8)', async () => {
-      const sig = await run(
-        'list[list[list[1]], list[list["a"]]].^type.signature'
+    it('list[list[list[1]], list[list["a"]]] infers a union of the nested list types (AC-8)', async () => {
+      const result = await run(
+        'list[list[list[1]], list[list["a"]]].^type == list(union(list(list(number)), list(list(string))))'
       );
-      expect(sig).toBe('list(list(list))');
+      expect(result).toBe(true);
     });
 
     it('list[list[], list[]] infers list(list(any)) both empty (AC-16)', async () => {

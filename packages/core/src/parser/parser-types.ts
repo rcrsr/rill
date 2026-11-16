@@ -142,7 +142,8 @@ function throwRemovedSeparator(
   state: ParserState,
   firstText: string,
   inParamList: boolean,
-  opts: Parameters<typeof parseSingleType>[1]
+  opts: Parameters<typeof parseSingleType>[1],
+  asOuter = false
 ): never {
   const location = current(state).span.start;
   const texts = [firstText];
@@ -160,9 +161,10 @@ function throwRemovedSeparator(
     texts.length > 1 && texts.every((t) => t !== '')
       ? `union(${texts.join(', ')})`
       : 'unions as union(...)';
+  const hint = asOuter ? `${rewrite} as the outer type` : rewrite;
   throw new ParseError(
     ERROR_IDS.RILL_P011,
-    `${REMOVED_SEPARATOR_PREFIX}${rewrite}`,
+    `${REMOVED_SEPARATOR_PREFIX}${hint}`,
     location
   );
 }
@@ -198,6 +200,7 @@ function parseTypeRefImpl(
 function parseSingleType(
   state: ParserState,
   opts?: {
+    allowTrailingPipe?: boolean;
     parseLiteral?: () => LiteralNode;
     parseAnnotations?: () => AnnotationArg[];
   }
@@ -230,6 +233,11 @@ function parseSingleType(
   // Check for parameterized form: type-name "(" type-ref-arg-list ")"
   if (!check(state, TOKEN_TYPES.LPAREN)) {
     if (typeName === 'union') throwBareUnion(nameToken.span.start);
+    // A bare name takes an outer as well: stream:R is stream(any):R.
+    const args: FieldArg[] = [];
+    if (parseOuterType(state, typeName, args, opts)) {
+      return { kind: 'static', typeName, args };
+    }
     return { kind: 'static', typeName };
   }
 
@@ -238,11 +246,13 @@ function parseSingleType(
   if (typeName === 'union') {
     const members = parseUnionMembers(state, opts);
     advance(state); // consume ")"
+    parseOuterType(state, typeName, [], opts);
     return { kind: 'union', members };
   }
 
   const args = parseFieldArgList(state, buildTypeRefOpts(opts));
   advance(state); // consume ")"
+  parseOuterType(state, typeName, args, opts);
 
   return { kind: 'static', typeName, args };
 }
@@ -461,28 +471,91 @@ export function parseFieldArgList(
 }
 
 /**
- * True when the cursor sits on `:<type-name>`, the resolution-type suffix of
- * a stream type. A `:$t` or `:<non-type>` is not a suffix.
+ * Handle the outer type of a type form: `name(inner):outer` or `name:outer`.
+ *
+ * Call with the cursor just past the closing `)`, or just past the type name
+ * when it has no parentheses. When the next tokens are
+ * `:` followed by a type name, the outer is consumed: a `stream` keeps it in
+ * args[1] (chunk type in args[0], an `any` placeholder when the chunk is
+ * empty); every type that takes no outer raises RILL-P006. A `:$t` or
+ * `:<non-type>` is not an outer, so an assertion keeps its meaning.
+ *
+ * @returns true when an outer was consumed into `args`
+ * @throws ParseError RILL-P006 for an outer on a type that takes none
  * @internal
  */
-export function atStreamResolutionSuffix(state: ParserState): boolean {
-  return (
-    check(state, TOKEN_TYPES.COLON) &&
-    peek(state, 1).type === TOKEN_TYPES.IDENTIFIER &&
-    isRillTypeName(peek(state, 1).value)
-  );
-}
-
-/**
- * Parse the resolution type of `stream(T):R` (cursor on R, colon already
- * consumed) and append it to `args`. Chunk type sits in args[0], resolution
- * in args[1]; an empty chunk gets an `any` placeholder to keep positions.
- * @internal
- */
-export function appendStreamResolution(parser: Parser, args: FieldArg[]): void {
-  const resolutionType = parseScriptTypeRef(parser);
+export function parseOuterType(
+  state: ParserState,
+  typeName: string,
+  args: FieldArg[],
+  opts?: {
+    allowTrailingPipe?: boolean;
+    parseLiteral?: () => LiteralNode;
+    parseAnnotations?: () => AnnotationArg[];
+  }
+): boolean {
+  if (!atOuterType(state)) return false;
+  if (typeName !== 'stream') {
+    if (!NO_OUTER_TYPES.includes(typeName)) return false;
+    throw new ParseError(
+      ERROR_IDS.RILL_P006,
+      `${typeName} takes no outer type`,
+      current(state).span.start
+    );
+  }
+  if (args.length > 1) {
+    throw new ParseError(
+      ERROR_IDS.RILL_P006,
+      'stream takes no outer type after more than one chunk type',
+      current(state).span.start
+    );
+  }
+  advance(state); // consume ':'
+  const outerStart = current(state).span.start.offset;
+  const outer = parseSingleType(state, buildTypeRefOpts(opts));
+  const inParamList = opts?.allowTrailingPipe === true;
+  if (
+    check(state, TOKEN_TYPES.PIPE_BAR) &&
+    startsTypeMember(state, 1) &&
+    pipeIsRemovedSeparator(state, inParamList)
+  ) {
+    const outerText = state.source.slice(
+      outerStart,
+      previous(state).span.end.offset
+    );
+    throwRemovedSeparator(
+      state,
+      outerText,
+      inParamList,
+      buildTypeRefOpts(opts),
+      true
+    );
+  }
   if (args.length === 0) {
     args.push({ value: { kind: 'static', typeName: 'any' } });
   }
-  args.push({ value: resolutionType });
+  args.push({ value: outer });
+  return true;
 }
+
+/**
+ * True when the cursor sits on `:<type-name>`, the start of an outer type.
+ * A `:$t` or `:<non-type>` is an assertion, not an outer.
+ * @internal
+ */
+export function atOuterType(state: ParserState, offset = 0): boolean {
+  return (
+    peek(state, offset).type === TOKEN_TYPES.COLON &&
+    peek(state, offset + 1).type === TOKEN_TYPES.IDENTIFIER &&
+    isRillTypeName(peek(state, offset + 1).value)
+  );
+}
+
+/** Type names whose form takes no outer type. */
+const NO_OUTER_TYPES: readonly string[] = [
+  'list',
+  'dict',
+  'tuple',
+  'ordered',
+  'union',
+];

@@ -707,26 +707,32 @@ describe('Rill Runtime: Closure Semantics', () => {
       expect(result).toBe('list(|a: number, b: string| :any)');
     });
 
-    it('AC-17: list[|x|($x), |a, b|($a)] infers list(closure) (arity differs)', async () => {
-      // Different param counts -> bare closure fallback
+    it('AC-17: list[|x|($x), |a, b|($a)] infers a union of both closure types (arity differs)', async () => {
+      // Different param counts -> distinct union members
       const result = await run('list[|x|($x), |a, b|($a)].^type.signature');
-      expect(result).toBe('list(closure)');
+      expect(result).toMatch(/^list\(union\(/);
+      expect(result).toContain('|x: any| :any');
+      expect(result).toContain('|a: any, b: any| :any');
     });
 
-    it('AC-18: list[|x: number|($x + 1), |y: number|($y + 1)] infers list(closure) (param names differ)', async () => {
-      // Same types but different param names -> bare closure fallback
+    it('AC-18: list[|x: number|($x + 1), |y: number|($y + 1)] infers a union of both closure types (param names differ)', async () => {
+      // Same types but different param names -> distinct union members
       const result = await run(
         'list[|x: number|($x + 1), |y: number|($y + 1)].^type.signature'
       );
-      expect(result).toBe('list(closure)');
+      expect(result).toMatch(/^list\(union\(/);
+      expect(result).toContain('|x: number| :any');
+      expect(result).toContain('|y: number| :any');
     });
 
-    it('AC-19: list[|x: number|($x), |x: string|($x)] infers list(closure) (param types differ)', async () => {
-      // Same param name but different types -> bare closure fallback
+    it('AC-19: list[|x: number|($x), |x: string|($x)] infers a union of both closure types (param types differ)', async () => {
+      // Same param name but different types -> distinct union members
       const result = await run(
         'list[|x: number|($x), |x: string|($x)].^type.signature'
       );
-      expect(result).toBe('list(closure)');
+      expect(result).toMatch(/^list\(union\(/);
+      expect(result).toContain('|x: number| :any');
+      expect(result).toContain('|x: string| :any');
     });
   });
 

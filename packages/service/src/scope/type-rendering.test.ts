@@ -78,4 +78,29 @@ describe('typeRefToString', () => {
     };
     expect(typeRefToString(ref)).toBe('union("a", 1, #ok)');
   });
+
+  it('renders every unspecified container as its bare name', () => {
+    const any = { value: { kind: 'static', typeName: 'any' } } as const;
+    const num = { value: { kind: 'static', typeName: 'number' } } as const;
+    const cases: Array<[TypeRef, string]> = [
+      [{ kind: 'static', typeName: 'list', args: [any] }, 'list'],
+      [{ kind: 'static', typeName: 'stream', args: [any] }, 'stream'],
+      [{ kind: 'static', typeName: 'stream', args: [any, any] }, 'stream'],
+      [
+        { kind: 'static', typeName: 'stream', args: [num, any] },
+        'stream(number)',
+      ],
+      [
+        { kind: 'static', typeName: 'stream', args: [any, num] },
+        'stream(any):number',
+      ],
+      [{ kind: 'static', typeName: 'dict', args: [] }, 'dict'],
+      [{ kind: 'static', typeName: 'tuple', args: [] }, 'tuple'],
+      [{ kind: 'static', typeName: 'ordered', args: [] }, 'ordered'],
+      [{ kind: 'static', typeName: 'tuple', args: [any] }, 'tuple(any)'],
+    ];
+    for (const [ref, printed] of cases) {
+      expect(typeRefToString(ref)).toBe(printed);
+    }
+  });
 });

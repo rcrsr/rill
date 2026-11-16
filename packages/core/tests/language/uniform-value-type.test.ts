@@ -1,10 +1,10 @@
 /**
  * Rill Language Tests: Uniform Value Type Assertions
  *
- * Tests for uniform value type syntax on dict, ordered, and tuple:
- * - dict(closure), ordered(closure), tuple(number) assertions
+ * Tests for uniform value type syntax on dict and ordered:
+ * - dict(closure), ordered(closure) assertions
  * - Nested uniform types: dict(list(number))
- * - Type inference cascade for lists of dicts
+ * - Type inference for lists of dicts: differing keys infer a union of shapes
  * - Error contracts for mixed/invalid args
  *
  * AC = Acceptance Criterion, EC = Error Contract from the
@@ -44,11 +44,11 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       expect(result).toHaveProperty('entries');
     });
 
-    it('tuple(number) passes when all entries are numbers [AC-3]', async () => {
+    it('tuple(number) keeps only the first position', async () => {
       const result = await run('tuple[1, 2, 3] -> tuple(number)');
       expect(result).toEqual({
         __rill_tuple: true,
-        entries: [1, 2, 3],
+        entries: [1],
       });
     });
 
@@ -65,9 +65,9 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       expect(result).toEqual({ a: 1, b: 's' });
     });
 
-    it('list of dicts infers list(dict(number)) via uniform merge [AC-6]', async () => {
+    it('list of dicts with different keys infers a union of shapes [AC-6]', async () => {
       const sig = await run('list[dict[a: 1], dict[b: 2]].^type.signature');
-      expect(sig).toBe('list(dict(number))');
+      expect(sig).toBe('list(union(dict(a: number), dict(b: number)))');
     });
 
     it('structural dict assertion unchanged [AC-7]', async () => {
@@ -112,11 +112,10 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       );
     });
 
-    it('tuple[1, "a"] fails tuple(number) [AC-13, EC-3]', async () => {
-      await expectHaltMessage(
-        () => run('tuple[1, "a"] -> tuple(number)'),
-        'Type assertion failed'
-      );
+    it('tuple["a", 1] fails tuple(number) on the first position', async () => {
+      await expectHalt(() => run('tuple["a", 1] -> tuple(number)'), {
+        code: 'TYPE_MISMATCH',
+      });
     });
 
     it('dict(string, number) halts for 2 positional args [AC-14, EC-2]', async () => {
@@ -156,11 +155,9 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       expect(result).toEqual({});
     });
 
-    it('empty tuple passes tuple(number) [AC-16]', async () => {
-      const result = await run('tuple[] -> tuple(number)');
-      expect(result).toEqual({
-        __rill_tuple: true,
-        entries: [],
+    it('empty tuple halts tuple(number) for the missing position', async () => {
+      await expectHalt(() => run('tuple[] -> tuple(number)'), {
+        code: 'RILL_R044',
       });
     });
 
@@ -170,9 +167,11 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       expect((result as { entries: unknown[] }).entries).toHaveLength(0);
     });
 
-    it('conflicting dict value types infer list(dict) bare [AC-18]', async () => {
-      const sig = await run('list[dict[a: 1], dict[a: "s"]].^type.signature');
-      expect(sig).toBe('list(dict)');
+    it('conflicting dict value types infer a union of the dict types [AC-18]', async () => {
+      const result = await run(
+        'list[dict[a: 1], dict[a: "s"]].^type == list(union(dict(a: number), dict(a: string)))'
+      );
+      expect(result).toBe(true);
     });
 
     it('dynamic key extract from dict(closure) carries no uniform type [AC-20]', async () => {
@@ -213,11 +212,6 @@ describe('Rill Language: Uniform Value Type Assertions', () => {
       expect(result.structure.valueType).toEqual({ kind: 'string' });
       // Uniform types have no per-field annotations
       expect(result.structure.fields).toBeUndefined();
-    });
-
-    it('tuple(number) uniform assertion passes without annotations', async () => {
-      const result = await run('tuple[1, 2] -> tuple(number)');
-      expect(result).toEqual({ __rill_tuple: true, entries: [1, 2] });
     });
 
     it('ordered(number) uniform assertion passes without annotations', async () => {

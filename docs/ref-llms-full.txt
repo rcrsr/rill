@@ -860,7 +860,11 @@ Structural types with field/element constraints.
     list(string)                    # list of strings
     dict(name: string, age: number) # dict with these fields
     tuple(number, string)           # positional tuple
+    tuple(number)                   # exactly one number; any length is list(number)
     ordered(x: number, y: number)   # named ordered args
+    list()                          # empty parens mean unspecified: same as list(any)
+
+An outer type (`:string` after the parentheses or a bare name) attaches only to `stream`: `stream:number` is `stream(any):number`. `list(number):string` and `list:string` halt `RILL-P006`.
 
 ## Asserting dict shapes
 
@@ -970,6 +974,9 @@ Returns a type value for runtime inspection.
     42.^type.name                   # "number"
     list[1, 2].^type.name           # "list"
     list[1, 2].^type.signature      # "list(number)"
+    list[1, "a"].^type.signature    # "list(union(number, string))"
+
+A mixed list is legal and infers `list(union(...))` over the element types whatever their order. A declared element type such as `:list(number)` rejects it with `#TYPE_MISMATCH`.
 
 Read what a type holds with `.inner` and what a function or stream yields with `.outer`:
 
@@ -1147,9 +1154,10 @@ Pipe a list of keys/indexes:
     list[] -> dict[a: 1]                                       # dict[a: 1] (empty path = unchanged)
     list["a", "missing"] -> dict[a: dict[x: 1]] ?? "default"   # "default"
 
-Lists require same-type elements. For mixed paths, use property access:
+A path may mix keys and indexes, since `list[1, "a"]` is legal with type `list(union(number, string))`. Property access reaches the same value:
 
     dict[users: list[dict[name: "Alice"]]] => $d
+    list["users", 0, "name"] -> $d                              # "Alice" (mixed path)
     $d.users[0].name                                            # "Alice"
 
 ## Extraction operators
