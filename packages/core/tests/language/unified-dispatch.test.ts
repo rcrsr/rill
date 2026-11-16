@@ -272,7 +272,7 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Cannot dispatch to/i,
+            messagePattern: /cannot pipe into \$val: it holds a string/,
           }
         );
       });
@@ -289,7 +289,7 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Cannot dispatch to/i,
+            messagePattern: /cannot pipe into \$val: it holds a number/,
           }
         );
       });
@@ -306,7 +306,7 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /Cannot dispatch to/i,
+            messagePattern: /cannot pipe into \$val: it holds a bool/,
           }
         );
       });
@@ -322,9 +322,65 @@ describe('Unified Dispatch', () => {
           {
             code: 'RILL_R002',
             hostErrorId: 'RILL-R002',
-            messagePattern: /number/i,
+            messagePattern: /cannot pipe into \$num: it holds a number/,
           }
         );
+      });
+
+      it('names the selected value when the target has an access chain', async () => {
+        await expectHalt(
+          () =>
+            run(`
+            dict[x: 1] => $d
+            3 -> $d.x
+          `),
+          {
+            code: 'RILL_R002',
+            messagePattern:
+              /cannot pipe into a value selected from \$d: it is a number/,
+          }
+        );
+      });
+    });
+  });
+
+  describe('Tuple and Ordered Variable Dispatch', () => {
+    it('selects a tuple element by position', async () => {
+      expect(await run('tuple[10, 20] => $t\n1 -> $t')).toBe(20);
+    });
+
+    it('selects a tuple element by negative position', async () => {
+      expect(await run('tuple[10, 20] => $t\n-1 -> $t')).toBe(20);
+    });
+
+    it('halts RILL-R009 for a tuple position out of bounds', async () => {
+      await expectHalt(() => run('tuple[10, 20] => $t\n5 -> $t'), {
+        code: 'RILL_R009',
+      });
+    });
+
+    it('returns the default for a tuple position out of bounds', async () => {
+      expect(await run('tuple[10, 20] => $t\n5 -> $t ?? 0')).toBe(0);
+    });
+
+    it('halts RILL-R002 for a string key on a tuple', async () => {
+      await expectHalt(() => run('tuple[10, 20] => $t\n"a" -> $t'), {
+        code: 'RILL_R002',
+        messagePattern: /Tuple index must be number/,
+      });
+    });
+
+    it('selects an ordered entry by name', async () => {
+      expect(await run('ordered[a: 1, b: 2] => $o\n"b" -> $o')).toBe(2);
+    });
+
+    it('returns the default for an absent ordered name', async () => {
+      expect(await run('ordered[a: 1] => $o\n"z" -> $o ?? 0')).toBe(0);
+    });
+
+    it('halts RILL-R009 for an absent ordered name', async () => {
+      await expectHalt(() => run('ordered[a: 1] => $o\n"z" -> $o'), {
+        code: 'RILL_R009',
       });
     });
   });

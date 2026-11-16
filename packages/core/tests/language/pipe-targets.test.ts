@@ -177,11 +177,10 @@ list[1, 2, 3] -> seq({ $double() })`;
       expect(await run(script)).toEqual([2, 4, 6]);
     });
 
-    it('calls closure with explicit args replaces pipe value', async () => {
-      // When explicit args are provided, they replace the pipe value
-      const script = `|a| { $a } => $fn
-"ignored" -> $fn("used")`;
-      expect(await run(script)).toBe('used');
+    it('calls closure with explicit args receiving the piped value first', async () => {
+      const script = `|a, b| { "{$a}-{$b}" } => $fn
+"piped" -> $fn("used")`;
+      expect(await run(script)).toBe('piped-used');
     });
   });
 
@@ -363,6 +362,38 @@ $fn(3)`;
   // ============================================================
   // PIPE BINDING RULE (IR-8)
   // ============================================================
+
+  describe('Piped Value as First Closure Argument', () => {
+    it('prepends the piped value before written arguments', async () => {
+      const script = `|a, b| { list[$a, $b] } => $h
+3 -> $h(4)`;
+      expect(await run(script)).toEqual([3, 4]);
+    });
+
+    it('leaves arguments unchanged when a top-level $ places the value', async () => {
+      const script = `|a, b| { list[$a, $b] } => $h
+3 -> $h($, 4)`;
+      expect(await run(script)).toEqual([3, 4]);
+    });
+
+    it('prepends when $ appears only inside a nested block argument', async () => {
+      const script = `|a, f, c| { list[$a, $c] } => $h
+3 -> $h({ $ + 1 }, 5)`;
+      expect(await run(script)).toEqual([3, 5]);
+    });
+
+    it('does not prepend to a zero-param closure', async () => {
+      const script = `|| { "none" } => $h
+3 -> $h()`;
+      expect(await run(script)).toBe('none');
+    });
+
+    it('uses only written arguments for a call in primary position', async () => {
+      const script = `|a, b| { list[$a, $b] } => $h
+5 -> { $h(1, 2) }`;
+      expect(await run(script)).toEqual([1, 2]);
+    });
+  });
 
   describe('Pipe Binding Rule (IR-8)', () => {
     // Helper: 3-param host function that returns its args as a list

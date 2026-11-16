@@ -99,7 +99,8 @@ import {
  *
  * Implements the unified pipe-rule scanner.
  *
- * SCOPE: HostCall only — PipeInvoke and MethodCall are intentionally excluded.
+ * SCOPE: host and script call targets (HostCall and ClosureCall) — PipeInvoke
+ * and MethodCall are intentionally excluded.
  *
  *   - PipeInvoke (`$fn -> $arg`): the `input` parameter IS the piped value.
  *     The callable is invoked with the piped value bound to its first

@@ -290,12 +290,12 @@ describe('Rill Runtime: Late-Bound Closures', () => {
       expect(await run(script)).toBe(20);
     });
 
-    it('pipe-style dict closure with explicit args ignores pipe value', async () => {
+    it('pipe-style dict closure receives the piped value as its first argument', async () => {
       const script = `
-        dict[double: |x| { $x * 2 }] => $math
-        999 -> $math.double(7)
+        dict[mul: |x, y| { $x * $y }] => $math
+        3 -> $math.mul(7)
       `;
-      expect(await run(script)).toBe(14);
+      expect(await run(script)).toBe(21);
     });
   });
 

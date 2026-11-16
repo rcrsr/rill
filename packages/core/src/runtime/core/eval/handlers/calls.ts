@@ -8,6 +8,8 @@ import type {
   HostCallNode,
   ClosureCallNode,
   PipeInvokeNode,
+  ExpressionNode,
+  SpreadArgNode,
 } from '../../../../types.js';
 import type { RillCallable } from '../../callable.js';
 import {
@@ -18,7 +20,7 @@ import {
   marshalArgs,
 } from '../../callable.js';
 import { getVariable } from '../../context.js';
-import type { RillValue } from '../../types/structures.js';
+import type { RillValue, TypeStructure } from '../../types/structures.js';
 import { insertArgDeclared, pipeDeclaredOf } from '../../types/declared.js';
 import { inferType } from '../../types/registrations.js';
 import { isStream } from '../../types/guards.js';
@@ -41,6 +43,31 @@ import {
   invokeStream,
 } from './closures.js';
 import { locateField } from './field-access.js';
+
+/**
+ * Bind the piped value as the first argument of a call target.
+ *
+ * No-op when there is no piped value or the callable takes no parameters.
+ * In pipe-target position the value is prepended unless a top-level `$`
+ * already places it; in primary position it is inserted only when no
+ * arguments were written.
+ */
+function bindPipeOperand(
+  args: RillValue[],
+  argNodes: readonly (ExpressionNode | SpreadArgNode)[],
+  operand: RillValue | null,
+  declared: TypeStructure | undefined,
+  inPipeTarget: boolean,
+  zeroParams: boolean
+): void {
+  if (operand === null || zeroParams) return;
+  const shouldPrepend = inPipeTarget
+    ? !hasTopLevelDollarInAST(argNodes)
+    : args.length === 0;
+  if (!shouldPrepend) return;
+  args.unshift(operand);
+  insertArgDeclared(args, 0, declared);
+}
 
 /** Evaluate host function call: functionName(args).
  *
@@ -114,21 +141,14 @@ export async function evaluateHostCall(
   }
 
   const args = await evaluateArgs(s, node.args);
-  const isTypedZeroParam = declaredParams(fn, node.name).length === 0;
-  // pipe-binding rule.
-  // In pipe-target position: auto-prepend when no top-level `$` in args.
-  // In primary-expression position: preserve legacy guard (args.length === 0)
-  // so that host calls inside blocks/conditionals are not affected.
-  const shouldPrepend = inPipeTarget
-    ? !hasTopLevelDollarInAST(node.args)
-    : args.length === 0;
-  if (shouldPrepend && s.ctx.pipeValue !== null && !isTypedZeroParam) {
-    // unshift inserts at position 0 so the piped value is the first arg.
-    // push was sufficient for the legacy empty-args path but is wrong
-    // when existing args are present under the unified rule.
-    args.unshift(s.ctx.pipeValue);
-    insertArgDeclared(args, 0, pipeDeclaredOf(s.ctx));
-  }
+  bindPipeOperand(
+    args,
+    node.args,
+    s.ctx.pipeValue,
+    pipeDeclaredOf(s.ctx),
+    inPipeTarget,
+    declaredParams(fn, node.name).length === 0
+  );
   s.ctx.observability.onHostCall?.({ name: node.name, args });
   const startTime = performance.now();
 
@@ -154,7 +174,8 @@ export function evaluateClosureCall(
 export async function evaluateClosureCallWithPipe(
   s: EvalState,
   node: ClosureCallNode,
-  pipeInput: RillValue
+  pipeInput: RillValue,
+  inPipeTarget = false
 ): Promise<RillValue> {
   let value: RillValue | undefined = getVariable(s.ctx, node.name);
   if (value === undefined || value === null) {
@@ -233,14 +254,16 @@ export async function evaluateClosureCallWithPipe(
   }
 
   const args = await evaluateArgs(s, node.args);
-  if (args.length === 0 && pipeInput !== null && !declaresZeroParams(closure)) {
-    insertArgDeclared(
-      args,
-      args.length,
-      s.ctx.pipeValue === pipeInput ? pipeDeclaredOf(s.ctx) : undefined
-    );
-    args.push(pipeInput);
-  }
+  bindPipeOperand(
+    args,
+    node.args,
+    pipeInput,
+    s.ctx.pipeValue === pipeInput ? pipeDeclaredOf(s.ctx) : undefined,
+    inPipeTarget,
+    // A primary-position call with written args never prepends; skip the
+    // parameter inspection so an undeclared callable halts at invocation.
+    (!inPipeTarget && args.length > 0) || declaresZeroParams(closure)
+  );
   return invokeCallable(s, closure, args, node.span.start, fullPath);
 }
 

@@ -168,13 +168,12 @@ describe('Rill Runtime: Closure Semantics', () => {
       expect(await run(script)).toBe(6);
     });
 
-    it('traditional closure ignores pipe value', async () => {
+    it('traditional closure receives the piped value as its first argument', async () => {
       const script = `
-        |x| { $x + 1 } => $add
+        |x, y| { $x + $y } => $add
         999 -> $add(5)
       `;
-      // Explicit arg (5) used, pipe value (999) ignored
-      expect(await run(script)).toBe(6);
+      expect(await run(script)).toBe(1004);
     });
 
     it('explicit param closure does not inherit caller pipeValue', async () => {
@@ -183,7 +182,7 @@ describe('Rill Runtime: Closure Semantics', () => {
       await expect(
         run(`
         |a, b, c| { $c + $ } => $fn
-        "caller-pipe-value" -> $fn(1, 2, 3)
+        "caller-pipe-value" -> $fn(2, 3)
       `)
       ).rejects.toThrow('Undefined variable: $');
     });
