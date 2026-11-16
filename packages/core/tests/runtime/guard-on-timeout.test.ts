@@ -79,3 +79,25 @@ describe('guard<on:> around a timeout', () => {
     expect(await run(source, expiringOptions())).toBe(true);
   });
 });
+
+describe('timeout expiry messages', () => {
+  it('renders the total-limit registry template', async () => {
+    await expectHalt(
+      () => run('timeout<total: duration("1d")> { wait() }', expiringOptions()),
+      {
+        code: 'RILL_R082',
+        messagePattern: /^timeout<total:> exceeded after 86400000ms/,
+      }
+    );
+  });
+
+  it('renders the idle-limit registry template', async () => {
+    await expectHalt(
+      () => run('timeout<idle: duration("1d")> { wait() }', expiringOptions()),
+      {
+        code: 'RILL_R083',
+        messagePattern: /^timeout<idle:> exceeded: no activity for 86400000ms/,
+      }
+    );
+  });
+});

@@ -103,6 +103,13 @@ import {
 // the 5 basic types) because no basic type covers vectors.
 // ============================================================
 
+// Equality methods follow the == operator, so every table whose values
+// support == carries them. Defined once and spread into each table.
+const EQUALITY_METHODS = {
+  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
+  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+};
+
 export const STRING_METHODS = Object.freeze({
   len: buildMethodEntry('len', SIG_LEN, mLen),
   trim: buildMethodEntry('trim', '||:string', mTrim),
@@ -146,8 +153,7 @@ export const STRING_METHODS = Object.freeze({
     '|length: number, fill: string = " "|:string',
     mPadEnd
   ),
-  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
-  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+  ...EQUALITY_METHODS,
   lt: buildMethodEntry('lt', SIG_CMP, mLt),
   gt: buildMethodEntry('gt', SIG_CMP, mGt),
   le: buildMethodEntry('le', SIG_CMP, mLe),
@@ -162,8 +168,7 @@ export const LIST_METHODS = Object.freeze({
   at: buildMethodEntry('at', SIG_AT, mAt, true),
   join: buildMethodEntry('join', '|separator: string = ","|:string', mJoin),
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
-  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
-  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+  ...EQUALITY_METHODS,
   has: buildMethodEntry('has', '|value: any|:bool', mHas, true),
   has_any: buildMethodEntry(
     'has_any',
@@ -184,16 +189,14 @@ export const DICT_METHODS = Object.freeze({
   len: buildMethodEntry('len', SIG_LEN, mLen),
   first: buildMethodEntry('first', SIG_FIRST, mFirst, true),
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
-  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
-  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+  ...EQUALITY_METHODS,
   keys: buildMethodEntry('keys', '||:list', mKeys, true),
   values: buildMethodEntry('values', '||:list', mValues, true),
   entries: buildMethodEntry('entries', '||:list', mEntries, true),
 });
 
 export const NUMBER_METHODS = Object.freeze({
-  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
-  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+  ...EQUALITY_METHODS,
   lt: buildMethodEntry('lt', SIG_CMP, mLt),
   gt: buildMethodEntry('gt', SIG_CMP, mGt),
   le: buildMethodEntry('le', SIG_CMP, mLe),
@@ -201,8 +204,7 @@ export const NUMBER_METHODS = Object.freeze({
 });
 
 export const BOOL_METHODS = Object.freeze({
-  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
-  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+  ...EQUALITY_METHODS,
 });
 
 // [ASSUMPTION] vector is a 6th group beyond the 5 specified basic types.
@@ -226,6 +228,7 @@ export const VECTOR_METHODS = Object.freeze({
   ),
   norm: buildMethodEntry('norm', '||:number', mNorm, true),
   normalize: buildMethodEntry('normalize', '||:any', mNormalize, true),
+  ...EQUALITY_METHODS,
 });
 
 // Datetime methods: properties, string formatters, local properties, arithmetic.
@@ -265,8 +268,7 @@ export const DATETIME_METHODS = Object.freeze({
   diff: buildMethodEntry('diff', '|other: any|:duration', mDtDiff, true),
 
   // Comparison methods
-  eq: buildMethodEntry('eq', SIG_EQ, mEq, true),
-  ne: buildMethodEntry('ne', SIG_NE, mNe, true),
+  ...EQUALITY_METHODS,
   lt: buildMethodEntry('lt', SIG_CMP, mDtLt, true),
   gt: buildMethodEntry('gt', SIG_CMP, mDtGt, true),
   le: buildMethodEntry('le', SIG_CMP, mDtLe, true),
@@ -302,10 +304,13 @@ export const DURATION_METHODS = Object.freeze({
     mDurMultiply,
     true
   ),
+
+  ...EQUALITY_METHODS,
 });
 
 export const TUPLE_METHODS = Object.freeze({
   empty: buildMethodEntry('empty', SIG_EMPTY, mEmpty),
+  ...EQUALITY_METHODS,
 });
 
 export const ORDERED_METHODS = Object.freeze({
@@ -314,4 +319,5 @@ export const ORDERED_METHODS = Object.freeze({
   keys: buildMethodEntry('keys', '||:list', mKeys, true),
   values: buildMethodEntry('values', '||:list', mValues, true),
   entries: buildMethodEntry('entries', '||:list', mEntries, true),
+  ...EQUALITY_METHODS,
 });

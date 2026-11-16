@@ -55,7 +55,12 @@ import {
   throwCatchableHostHalt,
   throwFatalHostHalt,
 } from '../../types/halt.js';
-import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
+import {
+  ERROR_IDS,
+  ERROR_ATOMS,
+  ERROR_REGISTRY,
+  renderMessage,
+} from '../../../../error-registry.js';
 import type { RuntimeContext } from '../../types/runtime.js';
 import { ControlSignal } from '../../signals.js';
 import {
@@ -399,7 +404,9 @@ export async function evaluateTimeoutBlock(
     throwCatchableHostHalt(
       site,
       TIMEOUT_ATOMS[limit],
-      `timeout<${limit}:> exceeded after ${limits.get(limit)}ms`,
+      renderMessage(TIMEOUT_TEMPLATES[limit], {
+        durationMs: limits.get(limit),
+      }),
       { durationMs: limits.get(limit) }
     );
 
@@ -570,5 +577,19 @@ const TIMEOUT_ATOMS = {
 } as const;
 
 type TimeoutLimit = keyof typeof TIMEOUT_ATOMS;
+
+/** Registry message templates for each timeout limit's expiry halt. */
+function templateFor(id: string): string {
+  const template = ERROR_REGISTRY.get(id)?.messageTemplate;
+  if (template === undefined) {
+    throw new TypeError(`Unknown error ID: ${id}`);
+  }
+  return template;
+}
+
+const TIMEOUT_TEMPLATES: Readonly<Record<TimeoutLimit, string>> = {
+  total: templateFor(ERROR_IDS.RILL_R082),
+  idle: templateFor(ERROR_IDS.RILL_R083),
+};
 
 const TIMEOUT_LIMITS: readonly TimeoutLimit[] = ['total', 'idle'];

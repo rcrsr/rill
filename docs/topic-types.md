@@ -931,6 +931,8 @@ Fixed-unit durations decompose their `ms` field using remainder arithmetic:
 | `.months` | number | Calendar months count |
 | `.total_ms` | number | Raw ms field; halts on calendar durations |
 
+Durations also carry `.eq` and `.ne`, which compare as `==` does: months and milliseconds must both match.
+
 ```text
 duration(...dict[hours: 25]) -> .days
 # Result: 1
