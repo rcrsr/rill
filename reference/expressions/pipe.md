@@ -76,7 +76,9 @@ When an argument of a call target is a top-level `$`, the value MUST NOT be prep
 each such `$` MUST be `v`. `5 -> range(0, $)` MUST equal `range(0, 5)`.
 
 r[pipe.script-operand] A script function target receives the value first
-`v -> $h(args)` MUST call `$h` with `v` prepended to `args`, as `pipe.call-operand` states.
+`v -> $h(args)` MUST call `$h` with `v` prepended to `args`, as `pipe.call-operand` states. A spread
+argument, as in `v -> $h(...$t)`, is the exception: `v` is not prepended, and the spread supplies
+every argument.
 
 r[pipe.grouped] A parenthesized target is a grouped expression
 `v -> (expr)` MUST evaluate `expr` with `$` bound to `v`.
@@ -88,7 +90,9 @@ with RILL-R005.
 r[pipe.variable-kind] A variable that holds no target kind halts
 `v -> $x` MUST halt with RILL-R002 when `$x` holds a value that is not a function, a type, or a
 data value `pipe.data` names. The message MUST name the variable and the kind it holds, as in
-`cannot pipe into $n: it holds a number`.
+`cannot pipe into $n: it holds a number`. When the target selects through an access chain, as in
+`3 -> $d.a`, the message MUST name the variable and the kind of the selected value, as in
+`cannot pipe into a value selected from $d: it is a number`.
 
 ## Interactions
 

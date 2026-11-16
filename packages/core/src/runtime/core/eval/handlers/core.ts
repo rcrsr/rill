@@ -641,7 +641,7 @@ export async function evaluatePipeTarget(
 
 /**
  * Variable pipe target: invoke a callable, convert through a type value, or
- * select an element from a list or dict. A selection carries the element's
+ * select an element from a list, dict, tuple or ordered value. A selection carries the element's
  * declared type; invocation and conversion take their own type.
  */
 async function evaluateVariablePipeTarget(

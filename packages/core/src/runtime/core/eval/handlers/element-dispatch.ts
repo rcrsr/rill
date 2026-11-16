@@ -53,11 +53,12 @@ import {
  * it is invoked with `key` as its input.
  *
  * @param collection - Plain dict, list, tuple or ordered value to select from
- * @param key - Dispatch key (dict field or typed key; list position)
+ * @param key - Dispatch key (dict field or typed key; list, tuple or ordered position)
  * @param declared - Declared type of `collection`, if any
  * @param defaultValue - Default body for a miss, or null
  * @param location - Source location for error reporting
- * @param resolve - Whether a selected callable is invoked
+ * @param resolve - Whether a selected callable is invoked; applies to dict and
+ *   list only, since a tuple or ordered value returns the stored element as is
  * @returns The element with its projected declared type
  * @throws RuntimeHaltSignal (catchable) on a non-number list key, a fractional
  *   index, a wrong-typed key, or a miss without a default

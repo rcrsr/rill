@@ -53,10 +53,10 @@ r[selection.string] A string has no index form
 `pipe.variable-kind` states.
 
 r[selection.index-type] A list or tuple selector is a number
-A non-number selector at `[]` on a list or a tuple, or in dispatch on a list, MUST halt with RILL-R002.
+A non-number selector at `[]` on a list or a tuple, or in dispatch on a list or a tuple, MUST halt with RILL-R002.
 
 r[selection.no-mask] A fallback does not mask a wrong index type
-`??` MUST NOT mask the halt of a non-number selector at `[]` on a list or a tuple, or in dispatch on a list.
+`??` MUST NOT mask the halt of a non-number selector at `[]` on a list or a tuple, or in dispatch on a list or a tuple.
 
 r[selection.index-integer] An index is an integer
 A non-integer index at `[]`, `.$k`, `.at`, or dispatch on a list, a tuple, an ordered, or a string `.at` MUST halt with `#INVALID_INPUT`.

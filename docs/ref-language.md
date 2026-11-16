@@ -466,7 +466,9 @@ The index must be an integer; a non-integer number halts with `#INVALID_INPUT` a
 | List index not an integer | `#INVALID_INPUT` | `{Kind} index must be an integer, got {index}` |
 | List dispatch with a non-number | RILL-R002 | `List index must be number, got {type}` |
 | Variable list dispatch with a non-number | RILL-R002 | `List dispatch requires number index, got {type}` |
+| Tuple dispatch with a non-number | RILL-R002 | `Tuple index must be number, got {type}` |
 | Pipe into a variable that holds no target | RILL-R002 | `cannot pipe into ${name}: it holds a {type}` |
+| Pipe into a value selected from a variable | RILL-R002 | `cannot pipe into a value selected from ${name}: it is a {type}` |
 
 ### Core Methods
 
