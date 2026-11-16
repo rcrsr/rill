@@ -3,7 +3,7 @@ id: conversion
 title: Conversion
 status: normative
 since: 0.24.0
-issues: [566, 574, 602, 605]
+issues: [566, 574, 605]
 grammar: []
 errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044]
 depends: [type-value, structural-typing, any, union, defaults, carried-type, inference, list, dict, tuple, ordered]
@@ -55,12 +55,8 @@ r[conversion.value-fail] A string that is not a number halts with a value error
 r[conversion.any] A pipe into any halts
 `value -> any` MUST halt with RILL-R036.
 
-r[conversion.variable] A pipe into a variable that holds a type converts as that type does {pending #602}
-`v -> $T` MUST convert exactly as a pipe into the type `$T` holds, inner conversion, fill, and
-drop included.
-
-r[conversion.variable-call] A pipe into a variable that holds a function calls it
-A pipe into a variable that holds a function MUST call it with the piped value.
+r[conversion.variable] A pipe into a variable that holds a type converts as that type does
+`v -> $T` MUST yield what `v -> T` yields, and halt as it halts, for the type `T` that `$T` holds.
 
 r[conversion.deep] Conversion converts each part of a parameterized target {pending #566}
 A conversion MUST convert each element, field, and position of a parameterized target by the same
@@ -112,6 +108,12 @@ list[1, 2] -> tuple(number, number)
 # Result: tuple[1, 2]
 ```
 
+```rill
+dict(a: number, b: number = 5) => $T
+dict[a: 1, c: 2] -> $T
+# Result: dict[a: 1, b: 5]
+```
+
 ```rill pending=566
 list[1, 2] -> list(string)
 # Result: list["1", "2"]
@@ -129,9 +131,9 @@ Until #566 is built, a pipe into a parameterized type converts the outer kind an
 types, so `list[1, 2] -> list(string)` halts `#TYPE_MISMATCH`. Until #574 is built, a pipe into a
 union halts RILL-R036.
 
-Known defect (#602): conversion through a variable skips inner conversion, fill, and drop. With
-`dict(a: string) => $T`, `dict[a: 1] -> $T` returns `dict[a: 1]` and does not assert the field, and
-`dict(a: number, b: number = 5) => $T` does not fill `b`.
+On 0.23.0 a conversion through a variable skips fill and drop, and does not check field types.
+
+`conversion.variable-call` is superseded by `pipe.function`.
 
 The instance methods `.str` and `.num` are removed, so `-> string` and `-> number` are the only
 conversions of a scalar.

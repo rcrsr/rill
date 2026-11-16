@@ -103,14 +103,20 @@ When a callable is called with no arguments, the piped value is prepended automa
 # Result: 10
 ```
 
-#### Auto-prepend — host function with existing args
+#### Auto-prepend — existing args
 
-When a host function is called with existing args and no top-level `$`, the piped value is prepended as the first argument. The existing args shift right. This applies to built-in and host-provided functions in pipe-target position.
+When a function is called with existing args and no top-level `$`, the piped value is prepended as the first argument. The existing args shift right. This applies to built-in, host, and script functions in pipe-target position.
 
 ```rill
 [1, 2, 3] -> fold(0, { $@ + $ })
 # fold([1, 2, 3], 0, { $@ + $ }) — list auto-prepended
 # Result: 6
+```
+
+```rill
+|a, b|($a - $b) => $sub
+10 -> $sub(3)
+# Result: 7
 ```
 
 #### Explicit placement with `$`

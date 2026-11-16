@@ -35,7 +35,13 @@ import {
   setPipe,
   type Carried,
 } from '../../types/declared.js';
-import { isTuple, isTypeValue, isPlainDict } from '../../types/guards.js';
+import {
+  isOrdered,
+  isTuple,
+  isTypeValue,
+  isPlainDict,
+} from '../../types/guards.js';
+import { inferType } from '../../types/registrations.js';
 import {
   declaredParams,
   isCallable,
@@ -108,7 +114,7 @@ import {
   evaluateBinaryExpr,
 } from './expressions.js';
 import { evaluateCollectionLiteral, evaluateSlice } from './extraction.js';
-import { applyConversion, applyConstructorConversion } from './conversion.js';
+import { applyConversion, convertToType } from './conversion.js';
 import { evaluateListLiteralDispatch } from './list-dispatch.js';
 import {
   evaluateHierarchicalDispatch,
@@ -635,7 +641,7 @@ export async function evaluatePipeTarget(
 
 /**
  * Variable pipe target: invoke a callable, convert through a type value, or
- * select an element from a list or dict. A selection carries the element's
+ * select an element from a list, dict, tuple or ordered value. A selection carries the element's
  * declared type; invocation and conversion take their own type.
  */
 async function evaluateVariablePipeTarget(
@@ -661,19 +667,19 @@ async function evaluateVariablePipeTarget(
     };
   }
 
-  // Type value dispatch: delegate to applyConversion. Detection uses the
+  // Type value dispatch: delegate to convertToType. Detection uses the
   // __rill_type flag on RillTypeValue, not structural duck typing, and must
   // precede the dict checks since RillTypeValue is a plain object.
   if (isTypeValue(value)) {
     return {
-      value: applyConversion(s, input, value.typeName, target),
+      value: convertToType(s, input, value, target),
       declared: undefined,
     };
   }
 
-  if (isPlainDict(value) || (Array.isArray(value) && !isTuple(value))) {
-    // A list (not tuple) input navigates the path it holds.
-    if (Array.isArray(input) && !isTuple(input)) {
+  if (isPlainDict(value) || Array.isArray(value)) {
+    // A list input navigates the path it holds.
+    if (Array.isArray(input)) {
       return await evaluateHierarchicalDispatch(
         s,
         data,
@@ -693,13 +699,28 @@ async function evaluateVariablePipeTarget(
     );
   }
 
-  // Non-dispatchable type in pipe context - error
-  const valueType =
-    typeof value === 'object' && value !== null
-      ? Array.isArray(value)
-        ? 'tuple'
-        : 'dict'
-      : typeof value;
+  // A tuple or ordered value selects one element; a list input does not
+  // descend into it.
+  if (isTuple(value) || isOrdered(value)) {
+    return await selectElement(
+      s,
+      value,
+      input,
+      data.declared,
+      target.defaultValue,
+      getNodeLocation(s, target),
+      'keep'
+    );
+  }
+
+  // Non-dispatchable value in pipe context
+  const type = inferType(value);
+  const article = /^[aeiou]/.test(type) ? 'an' : 'a';
+  const name = target.name ?? '';
+  const message =
+    target.accessChain.length > 0
+      ? `cannot pipe into a value selected from $${name}: it is ${article} ${type}`
+      : `cannot pipe into $${name}: it holds ${article} ${type}`;
   return throwCatchableHostHalt(
     {
       location: getNodeLocation(s, target),
@@ -707,7 +728,7 @@ async function evaluateVariablePipeTarget(
       fn: 'evaluateVariablePipeTarget',
     },
     ERROR_ATOMS[ERROR_IDS.RILL_R002],
-    `Cannot dispatch to ${valueType}`
+    message
   );
 }
 
@@ -726,7 +747,7 @@ async function evaluatePipeTargetValue(
       return evaluateHostCall(s, target, true);
 
     case 'ClosureCall':
-      return evaluateClosureCallWithPipe(s, target, input);
+      return evaluateClosureCallWithPipe(s, target, input, true);
 
     case 'PipeInvoke':
       return evaluatePipeInvoke(s, target, input);
@@ -861,9 +882,14 @@ async function evaluatePipeTargetValue(
 
     case 'TypeConstructor': {
       // Pipe target: `-> type(...)` (parameterized type constructor).
-      // Delegate to applyConstructorConversion, which handles structural
-      // signatures (dict/ordered/tuple with fields) and uniform types.
-      return applyConstructorConversion(s, input, target, target);
+      // Resolve the constructor once, then share the type-value conversion
+      // path (structural dict/ordered/tuple and uniform types).
+      return convertToType(
+        s,
+        input,
+        await evaluateTypeConstructor(s, target),
+        target
+      );
     }
 
     case 'UseExpr': {

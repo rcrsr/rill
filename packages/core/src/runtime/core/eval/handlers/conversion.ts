@@ -2,8 +2,9 @@
  * `-> type` conversion helpers
  *
  * Converts the pipe value to a target type according to the compatibility
- * matrix. Used by `-> type` (bare type keyword), `-> type(...)` (parameterized
- * type constructor), and `-> $var` when `$var` is bound to a type value.
+ * matrix. `-> type` (bare type keyword) calls applyConversion directly;
+ * `-> type(...)` (parameterized type constructor) and `-> $var` (bound to a
+ * type value) share one path, convertToType, so both behave identically.
  *
  * Compatibility matrix:
  * | Source  | list   | dict   | tuple   | ordered(sig)   | number          | string   | bool                |
@@ -24,7 +25,7 @@
  * @internal
  */
 
-import type { ASTNode, TypeConstructorNode } from '../../../../types.js';
+import type { ASTNode } from '../../../../types.js';
 import { RuntimeError } from '../../../../types.js';
 import {
   RuntimeHaltSignal,
@@ -36,6 +37,7 @@ import type {
   RillValue,
   TypeStructure,
   RillFieldDef,
+  RillTypeValue,
 } from '../../types/structures.js';
 import { inferType, inferTypeName } from '../../types/registrations.js';
 import {
@@ -64,52 +66,46 @@ import type { RillTypeName } from '../../../../types.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { getStatus } from '../../types/status.js';
 import { getNodeLocation } from '../shared.js';
-import { evaluateTypeConstructor, assertType } from './types.js';
+import { assertType } from './types.js';
 
 /**
- * Apply conversion for a parameterized type constructor target
- * (`-> list(T)`, `-> dict(...)`, `-> ordered(...)`, `-> tuple(...)`, ...).
+ * Convert a value to a resolved type target. The single conversion path for
+ * `-> type(...)` and `-> $var` when `$var` holds a type value.
  *
- * Handles the uniform vs structural dispatch and delegates to the
- * structural conversion helpers for dict/ordered/tuple with fields.
+ * - dict/ordered/tuple with explicit `fields`/`elements` (and no `valueType`):
+ *   structural conversion (assert inner, fill defaults, drop extras)
+ * - Every other type: convert by type name, then assert the structure
  */
-export async function applyConstructorConversion(
+export function convertToType(
   s: EvalState,
   input: RillValue,
-  typeRef: TypeConstructorNode,
+  target: RillTypeValue,
   node: ASTNode
-): Promise<RillValue> {
-  // For dict/ordered/tuple, evaluate the type constructor to determine
-  // uniform (valueType) vs structural (fields/elements) dispatch.
+): RillValue {
+  const { structure } = target;
   if (
-    typeRef.constructorName === 'ordered' ||
-    typeRef.constructorName === 'dict' ||
-    typeRef.constructorName === 'tuple'
+    isStructureKind(structure, 'dict') &&
+    structure.fields !== undefined &&
+    !structure.valueType
   ) {
-    const typeValue = await evaluateTypeConstructor(s, typeRef);
-    const structure = typeValue.structure;
-
-    // Uniform types (valueType present): use general convert-then-assert path
-    if ('valueType' in structure && structure.valueType) {
-      const result = applyConversion(s, input, typeRef.constructorName, node);
-      assertType(s, result, structure, node.span.start);
-      return result;
-    }
-
-    // Structural types (fields/elements present): use structural-specific handlers
-    if (typeRef.constructorName === 'ordered') {
-      return convertToOrderedWithSig(s, input, typeRef, node);
-    }
-    if (typeRef.constructorName === 'dict') {
-      return convertToDictWithSig(s, input, typeRef, node);
-    }
-    return convertToTupleWithSig(s, input, typeRef, node);
+    return convertToDictWithSig(s, input, structure.fields, node);
   }
-
-  // Non-dict/ordered/tuple constructors: convert first, then assert structural type
-  const typeValue = await evaluateTypeConstructor(s, typeRef);
-  const result = applyConversion(s, input, typeRef.constructorName, node);
-  assertType(s, result, typeValue.structure, node.span.start);
+  if (
+    isStructureKind(structure, 'ordered') &&
+    structure.fields !== undefined &&
+    !structure.valueType
+  ) {
+    return convertToOrderedWithSig(s, input, structure.fields, node);
+  }
+  if (
+    isStructureKind(structure, 'tuple') &&
+    structure.elements !== undefined &&
+    !structure.valueType
+  ) {
+    return convertToTupleWithSig(s, input, structure.elements, node);
+  }
+  const result = applyConversion(s, input, target.typeName, node);
+  assertType(s, result, structure, node.span.start);
   return result;
 }
 
@@ -290,12 +286,12 @@ function orderedEntriesToDict(
  * - Missing field without default: emits RILL-R044
  * - Extra keys not in signature: omitted from result
  */
-async function convertToOrderedWithSig(
+function convertToOrderedWithSig(
   s: EvalState,
   input: RillValue,
-  sigNode: TypeConstructorNode,
+  resolvedFields: readonly RillFieldDef[],
   node: ASTNode
-): Promise<RillValue> {
+): RillValue {
   let dictInput: Record<string, RillValue>;
   if (isOrdered(input)) {
     dictInput = orderedEntriesToDict(input.entries);
@@ -315,14 +311,6 @@ async function convertToOrderedWithSig(
   }
 
   const sourceType = isOrdered(input) ? 'ordered' : 'dict';
-
-  // Evaluate the full type constructor to get resolved fields with defaults.
-  const typeValue = await evaluateTypeConstructor(s, sigNode);
-  const { structure: orderedStructure } = typeValue;
-  let resolvedFields: RillFieldDef[] = [];
-  if (isStructureKind(orderedStructure, 'ordered')) {
-    resolvedFields = orderedStructure.fields ?? [];
-  }
 
   const entries: [string, RillValue][] = [];
 
@@ -381,12 +369,12 @@ async function convertToOrderedWithSig(
  * - Extra keys not in signature: omitted from result
  * - Recurses into nested dict-typed fields for nested hydration
  */
-async function convertToDictWithSig(
+function convertToDictWithSig(
   s: EvalState,
   input: RillValue,
-  sigNode: TypeConstructorNode,
+  resolvedFields: Readonly<Record<string, RillFieldDef>>,
   node: ASTNode
-): Promise<RillValue> {
+): RillValue {
   let dictInput: Record<string, RillValue>;
   if (isOrdered(input)) {
     dictInput = orderedEntriesToDict(input.entries);
@@ -407,75 +395,55 @@ async function convertToDictWithSig(
 
   const sourceType = isOrdered(input) ? 'ordered' : 'dict';
 
-  // Evaluate the full type constructor to get resolved fields with defaults.
-  const typeValue = await evaluateTypeConstructor(s, sigNode);
-  const { structure: dictStructure } = typeValue;
-  let resolvedFields: Record<string, RillFieldDef> = {};
-  if (isStructureKind(dictStructure, 'dict')) {
-    resolvedFields = dictStructure.fields ?? {};
-  }
   const result: Record<string, RillValue> = {};
 
-  for (const arg of sigNode.args) {
-    if (arg.name === undefined) {
-      continue;
-    }
-    const fieldName = arg.name;
-    const resolvedField = resolvedFields[fieldName];
+  for (const [fieldName, resolvedField] of Object.entries(resolvedFields)) {
     const presentValue = Object.hasOwn(dictInput, fieldName)
       ? dictInput[fieldName]
       : undefined;
 
     if (presentValue !== undefined) {
-      // Field present in input: use it, recursing if the field type is a nested dict
-      let fieldValue: RillValue = presentValue;
-      if (resolvedField !== undefined) {
-        fieldValue = hydrateNested(s, fieldValue, resolvedField.type, node);
-        assertType(s, fieldValue, resolvedField.type, node.span.start);
-      }
+      const fieldValue = hydrateNested(
+        s,
+        presentValue,
+        resolvedField.type,
+        node
+      );
+      assertType(s, fieldValue, resolvedField.type, node.span.start);
       setDictField(result, fieldName, fieldValue);
+    } else if (resolvedField.defaultValue !== undefined) {
+      setDictField(
+        result,
+        fieldName,
+        hydrateNested(
+          s,
+          copyValue(resolvedField.defaultValue),
+          resolvedField.type,
+          node
+        )
+      );
+    } else if (hasCollectionFields(resolvedField.type)) {
+      setDictField(
+        result,
+        fieldName,
+        hydrateNested(
+          s,
+          emptyForType(resolvedField.type),
+          resolvedField.type,
+          node
+        )
+      );
     } else {
-      // Field missing from input: use default if available, else error
-      if (
-        resolvedField !== undefined &&
-        resolvedField.defaultValue !== undefined
-      ) {
-        setDictField(
-          result,
-          fieldName,
-          hydrateNested(
-            s,
-            copyValue(resolvedField.defaultValue),
-            resolvedField.type,
-            node
-          )
-        );
-      } else if (
-        resolvedField !== undefined &&
-        hasCollectionFields(resolvedField.type)
-      ) {
-        setDictField(
-          result,
-          fieldName,
-          hydrateNested(
-            s,
-            emptyForType(resolvedField.type),
-            resolvedField.type,
-            node
-          )
-        );
-      } else {
-        throwCatchableHostHalt(
-          {
-            location: getNodeLocation(s, node),
-            sourceId: s.ctx.sourceId,
-            fn: 'convertToDictWithSig',
-          },
-          ERROR_ATOMS[ERROR_IDS.RILL_R044],
-          `cannot convert ${sourceType} to dict: missing required field '${fieldName}'`,
-          { source: sourceType, target: 'dict' }
-        );
-      }
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'convertToDictWithSig',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R044],
+        `cannot convert ${sourceType} to dict: missing required field '${fieldName}'`,
+        { source: sourceType, target: 'dict' }
+      );
     }
   }
 
@@ -491,12 +459,12 @@ async function convertToDictWithSig(
  * - Missing element without default: emits RILL-R044 with position
  * - Extra elements beyond signature length: omitted from result
  */
-async function convertToTupleWithSig(
+function convertToTupleWithSig(
   s: EvalState,
   input: RillValue,
-  sigNode: TypeConstructorNode,
+  resolvedElements: readonly RillFieldDef[],
   node: ASTNode
-): Promise<RillValue> {
+): RillValue {
   const isTupleInput = isTuple(input);
   const isListInput =
     Array.isArray(input) && !isTupleInput && !isOrdered(input);
@@ -511,14 +479,6 @@ async function convertToTupleWithSig(
       `cannot convert ${inferType(input)} to tuple`,
       { source: inferType(input), target: 'tuple' }
     );
-  }
-
-  // Evaluate the full type constructor to get resolved elements with defaults.
-  const typeValue = await evaluateTypeConstructor(s, sigNode);
-  const { structure: tupleStructure } = typeValue;
-  let resolvedElements: RillFieldDef[] = [];
-  if (isStructureKind(tupleStructure, 'tuple')) {
-    resolvedElements = tupleStructure.elements ?? [];
   }
 
   const inputEntries: RillValue[] = isTupleInput ? input.entries : input;

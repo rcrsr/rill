@@ -193,6 +193,48 @@ describe('Rill Language: -> Conversion Operator', () => {
       const result = await run('list => $t\nlist[1, 2] -> $t');
       expect(result).toEqual([1, 2]);
     });
+
+    it('fills a missing field default through a held dict type', async () => {
+      const result = await run(
+        'dict(a: number, b: number = 5) => $t\ndict[a: 1] -> $t'
+      );
+      expect(result).toEqual({ a: 1, b: 5 });
+    });
+
+    it('drops extra keys through a held dict type', async () => {
+      const result = await run('dict(a: number) => $t\ndict[a: 1, z: 9] -> $t');
+      expect(result).toEqual({ a: 1 });
+    });
+
+    it('asserts the inner field type through a held dict type', async () => {
+      await expectHalt(() => run('dict(a: number) => $t\ndict[a: "x"] -> $t'), {
+        code: 'TYPE_MISMATCH',
+      });
+    });
+
+    it('orders fields by declaration through a held ordered type', async () => {
+      const result = await run(
+        'ordered(b: number, a: number) => $t\ndict[a: 1, b: 2] -> $t'
+      );
+      expect(orderedEntries(result)).toEqual([
+        ['b', 2],
+        ['a', 1],
+      ]);
+    });
+
+    it('fills a missing tuple element default through a held tuple type', async () => {
+      const result = await run(
+        'tuple(number, number = 9) => $t\nlist[1] -> $t'
+      );
+      expect((result as { entries: unknown[] }).entries).toEqual([1, 9]);
+    });
+
+    it('halts R044 for a missing required field through a held dict type', async () => {
+      await expectHalt(() => run('dict(a: number) => $t\ndict[] -> $t'), {
+        code: 'RILL_R044',
+        messagePattern: /missing required field 'a'/,
+      });
+    });
   });
 
   // ============================================================
@@ -275,7 +317,7 @@ describe('Rill Language: -> Conversion Operator', () => {
       // produces the generic dispatch error since the syntax does not mark
       // conversion intent explicitly.
       await expect(run('5 => $n\n"hello" -> $n')).rejects.toThrow(
-        /Cannot dispatch to number/
+        /cannot pipe into \$n: it holds a number/
       );
     });
 

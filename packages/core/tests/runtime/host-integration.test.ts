@@ -561,7 +561,7 @@ describe('Rill Runtime: Host Integration', () => {
     });
 
     it('application callable can be invoked after capture', async () => {
-      const result = await run('getGreeter() => $greet -> $greet("World")', {
+      const result = await run('getGreeter() => $greet\n$greet("World")', {
         functions: {
           getGreeter: {
             returnType: anyTypeValue,
@@ -605,6 +605,34 @@ describe('Rill Runtime: Host Integration', () => {
         },
       });
       expect(result).toBe('Hello, World!');
+    });
+
+    it('application callable reached as $app.fn(arg) in a pipe target receives the piped value first', async () => {
+      const result = await run('"piped" -> $app.join("written")', {
+        variables: {
+          app: {
+            join: toCallable({
+              params: [
+                {
+                  name: 'a',
+                  type: { kind: 'any' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+                {
+                  name: 'b',
+                  type: { kind: 'any' },
+                  defaultValue: undefined,
+                  annotations: {},
+                },
+              ],
+              returnType: anyTypeValue,
+              fn: (args) => `${args['a']}-${args['b']}`,
+            }),
+          },
+        },
+      });
+      expect(result).toBe('piped-written');
     });
 
     it('property-style callable auto-invokes on dict access', async () => {
@@ -1366,7 +1394,7 @@ describe('AC-6: Named-param closure does not modify $', () => {
     await run(
       `
       |x| { capture() } => $fn
-      99 -> $fn(42)
+      99 -> $fn()
     `,
       {
         functions: {

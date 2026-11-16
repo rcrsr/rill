@@ -112,9 +112,17 @@ const NAMED: readonly Form[] = [
 ];
 
 /** An ordered value has no method form: `-> .b` is not an element read. */
-const ORDERED_NAMED: readonly Form[] = NAMED.filter(
-  (form) => form !== 'pipe method'
-);
+const ORDERED_NAMED: readonly Form[] = [
+  ...NAMED.filter((form) => form !== 'pipe method'),
+  'pipe selection',
+];
+
+const POSITIONAL: readonly Form[] = [
+  'variable key',
+  'computed key',
+  'bracket',
+  'pipe selection',
+];
 
 const HITS: readonly Hit[] = [
   {
@@ -151,7 +159,7 @@ const HITS: readonly Hit[] = [
     setup: `ordered[a: 1, b: "x"] => $c:ordered(a: number, b: ${U})`,
     key: '1',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket'],
+    forms: POSITIONAL,
     value: 'x',
     type: U,
   },
@@ -160,7 +168,7 @@ const HITS: readonly Hit[] = [
     setup: `ordered[a: 1, b: "x"] => $c:ordered(a: number, b: ${U})`,
     key: '-1',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket'],
+    forms: POSITIONAL,
     value: 'x',
     type: U,
   },
@@ -201,7 +209,7 @@ const HITS: readonly Hit[] = [
     setup: `tuple[1, "a"] => $c:tuple(number, ${U})`,
     key: '1',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket'],
+    forms: POSITIONAL,
     value: 'a',
     type: U,
   },
@@ -210,7 +218,7 @@ const HITS: readonly Hit[] = [
     setup: `tuple[1, "a"] => $c:tuple(number, ${U})`,
     key: '-1',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket'],
+    forms: POSITIONAL,
     value: 'a',
     type: U,
   },
@@ -219,7 +227,7 @@ const HITS: readonly Hit[] = [
     setup: `tuple[1, "a"] => $c:tuple(number, ${U})`,
     key: '0',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket'],
+    forms: POSITIONAL,
     value: 1,
     type: 'number',
   },
@@ -337,6 +345,7 @@ const MISSES: readonly Miss[] = [
       'computed key': R009('Undefined ordered key: z'),
       alternatives: R009("Dict has none of the fields 'y', 'z'"),
       bracket: R009('Undefined ordered key: z'),
+      'pipe selection': R009('Undefined ordered key: z'),
     },
   },
   {
@@ -344,12 +353,13 @@ const MISSES: readonly Miss[] = [
     setup: `ordered[a: 1] => $c:ordered(a: ${U})`,
     key: '5',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket'],
+    forms: POSITIONAL,
     recovers: true,
     expected: {
       'variable key': R009('Ordered index out of bounds: 5'),
       'computed key': R009('Ordered index out of bounds: 5'),
       bracket: R009('Ordered index out of bounds: 5'),
+      'pipe selection': R009('Ordered index out of bounds: 5'),
     },
   },
   {
@@ -420,12 +430,13 @@ const MISSES: readonly Miss[] = [
     setup: `tuple[1, "a"] => $c:tuple(number, ${U})`,
     key: '5',
     name: '',
-    forms: ['variable key', 'computed key', 'bracket'],
+    forms: POSITIONAL,
     recovers: true,
     expected: {
       'variable key': R009('Tuple index out of bounds: 5'),
       'computed key': R009('Tuple index out of bounds: 5'),
       bracket: R009('Tuple index out of bounds: 5'),
+      'pipe selection': R009('Tuple index out of bounds: 5'),
     },
   },
   {

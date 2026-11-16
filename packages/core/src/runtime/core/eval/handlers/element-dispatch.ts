@@ -18,7 +18,7 @@ import type { RillValue, TypeStructure } from '../../types/structures.js';
 import type { RillCallable } from '../../callable.js';
 import { declaredParams, isCallable } from '../../callable.js';
 import { formatValue, inferType } from '../../types/registrations.js';
-import { isPlainDict, isTuple } from '../../types/guards.js';
+import { isOrdered, isPlainDict, isTuple } from '../../types/guards.js';
 import { throwCatchableHostHalt } from '../../types/halt.js';
 import type { TypeHaltSite } from '../../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -26,6 +26,7 @@ import type { EvalState } from '../state.js';
 import { invokeCallable } from './closures.js';
 import { evaluateBodyExpression } from './control-flow.js';
 import { matchesErrorId } from './core.js';
+import { selectByBracketKey } from './variables.js';
 import {
   isFieldKey,
   projectLocated,
@@ -38,7 +39,11 @@ import {
 // ============================================================
 
 /**
- * Select the element `key` names from a plain dict or a list.
+ * Select the element `key` names from a plain dict, a list, a tuple or an
+ * ordered value.
+ *
+ * A tuple or ordered receiver selects exactly as bracket access does, and the
+ * stored value is returned as is, never invoked.
  *
  * A list key must be a number and a fractional one halts. A miss resolves to
  * `defaultValue` when given, otherwise halts. Only an absent string key or an
@@ -47,12 +52,13 @@ import {
  * selected callable is returned as stored for the caller to resolve; otherwise
  * it is invoked with `key` as its input.
  *
- * @param collection - Plain dict or list to select from
- * @param key - Dispatch key (dict field or typed key; list position)
+ * @param collection - Plain dict, list, tuple or ordered value to select from
+ * @param key - Dispatch key (dict field or typed key; list, tuple or ordered position)
  * @param declared - Declared type of `collection`, if any
  * @param defaultValue - Default body for a miss, or null
  * @param location - Source location for error reporting
- * @param resolve - Whether a selected callable is invoked
+ * @param resolve - Whether a selected callable is invoked; applies to dict and
+ *   list only, since a tuple or ordered value returns the stored element as is
  * @returns The element with its projected declared type
  * @throws RuntimeHaltSignal (catchable) on a non-number list key, a fractional
  *   index, a wrong-typed key, or a miss without a default
@@ -72,6 +78,20 @@ export async function selectElement(
     sourceId: s.ctx.sourceId,
     fn: 'selectElement',
   };
+  if (isTuple(collection) || isOrdered(collection)) {
+    const selected = selectByBracketKey(
+      collection,
+      key,
+      site,
+      declared,
+      defaultValue !== null
+    );
+    if (selected.value !== null || defaultValue === null) return selected;
+    return {
+      value: await evaluateBodyExpression(s, defaultValue),
+      declared: undefined,
+    };
+  }
   if (isList && typeof key !== 'number') {
     throwCatchableHostHalt(
       site,

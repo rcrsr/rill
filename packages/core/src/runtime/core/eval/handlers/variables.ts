@@ -289,6 +289,31 @@ export async function applyBracketIndexCarried(
     );
   }
   const indexValue = await evaluatePipeChain(s, indexExpr);
+  return selectByBracketKey(
+    receiver,
+    indexValue,
+    site,
+    receiverDeclared,
+    allowMissing
+  );
+}
+
+/**
+ * Select the element an already-evaluated index names from a list, tuple,
+ * ordered or dict receiver: validate the key (bracketKey), locate the element
+ * and project its declared type from `receiverDeclared`. Returns
+ * `{ value: null }` on a recoverable miss when `allowMissing` is set; every
+ * other failure halts.
+ *
+ * Shared by bracket access and pipe selection so both halt identically.
+ */
+export function selectByBracketKey(
+  receiver: RillValue,
+  indexValue: RillValue,
+  site: TypeHaltSite,
+  receiverDeclared: TypeStructure | undefined,
+  allowMissing: boolean
+): Carried {
   const key = bracketKey(receiver, indexValue, site);
   const located = locateOrRecover(receiver, key, allowMissing, (miss) => {
     // A dict names a missing key `Undefined dict key`, whatever the key type.
