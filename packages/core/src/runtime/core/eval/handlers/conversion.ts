@@ -18,7 +18,8 @@
  * | bool    | error  | error  | error   | error          | error           | valid    | no-op               |
  *
  * Error Contracts:
- * - RILL-R036: Incompatible source/target type
+ * - RILL-R036: Incompatible source/target type, or a function, iterator,
+ *   vector, datetime, or duration inside a collection converted to string
  * - RILL-R037: dict -> ordered without structural signature
  * - RILL-R038: Non-parseable string to number
  *
@@ -58,7 +59,7 @@ import type {
   HydrationPolicy,
 } from '../../callable.js';
 import { hydrateStructure } from '../../callable.js';
-import { setDictField } from '../../types/dict-keys.js';
+import { setDictField, orderedDictEntries } from '../../types/dict-keys.js';
 import { BUILT_IN_TYPES } from '../../types/registrations.js';
 
 import type { EvalState } from '../state.js';
@@ -134,6 +135,8 @@ function isProtocolConversionHalt(err: RuntimeHaltSignal): boolean {
  * - dict -> :>ordered without structural sig raises RILL-R037
  * - String-to-number parse failure raises RILL-R038
  * - Missing convertTo target raises RILL-R036
+ * - `-> string` of a value that is, or contains at any depth, a function or
+ *   iterator raises RILL-R036 before the converter runs
  */
 export function applyConversion(
   s: EvalState,
@@ -172,6 +175,24 @@ export function applyConversion(
       ERROR_ATOMS[ERROR_IDS.RILL_R037],
       'dict to ordered conversion requires structural type signature'
     );
+  }
+
+  // A function, iterator, vector, datetime, or duration has no string form,
+  // at the top level or nested
+  if (targetType === 'string') {
+    const d = describeNoStringForm(input, 'convert');
+    if (d !== undefined) {
+      throwCatchableHostHalt(
+        {
+          location: getNodeLocation(s, node),
+          sourceId: s.ctx.sourceId,
+          fn: 'convertType',
+        },
+        ERROR_ATOMS[ERROR_IDS.RILL_R036],
+        d.message,
+        d.raw
+      );
+    }
   }
 
   // Find source type registration and dispatch via protocol.convertTo
@@ -264,6 +285,80 @@ export function applyConversion(
       { source: sourceType, target: targetType }
     );
   }
+}
+
+/**
+ * Find the first value with no string form in `value`, walking depth-first
+ * in element order (list elements, tuple entries, ordered entry values, dict
+ * values in canonical order). Returns the halt message and raw payload, or
+ * undefined when the value has a string form.
+ *
+ * A function, an iterator, and a vector never have one. Under `convert`
+ * (`-> string`) a datetime and a duration have none either; under `print`
+ * (interpolation, `join`) they print.
+ */
+export function describeNoStringForm(
+  value: RillValue,
+  mode: NoStringFormMode
+): { message: string; raw: { source: string; target: 'string' } } | undefined {
+  const offender = findNoStringFormKind(value, mode);
+  if (offender === undefined) {
+    return undefined;
+  }
+  const outerType = inferTypeName(value);
+  if (value === offender.node) {
+    return {
+      message: `cannot convert ${offender.kind} to string`,
+      raw: { source: offender.kind, target: 'string' },
+    };
+  }
+  return {
+    message: `cannot convert ${outerType} to string: contains ${offender.kind}`,
+    raw: { source: outerType, target: 'string' },
+  };
+}
+
+/** `convert` is `-> string`; `print` is interpolation and `join`. */
+export type NoStringFormMode = 'convert' | 'print';
+
+const NO_STRING_FORM_ALWAYS: ReadonlySet<string> = new Set([
+  'closure',
+  'iterator',
+  'vector',
+]);
+const NO_STRING_FORM_CONVERT: ReadonlySet<string> = new Set([
+  'datetime',
+  'duration',
+]);
+
+function findNoStringFormKind(
+  value: RillValue,
+  mode: NoStringFormMode
+): { kind: string; node: RillValue } | undefined {
+  const typeName = inferTypeName(value);
+  if (
+    NO_STRING_FORM_ALWAYS.has(typeName) ||
+    (mode === 'convert' && NO_STRING_FORM_CONVERT.has(typeName))
+  ) {
+    return { kind: typeName, node: value };
+  }
+  let children: ReadonlyArray<RillValue> = [];
+  if (Array.isArray(value)) {
+    children = value;
+  } else if (isTuple(value)) {
+    children = value.entries;
+  } else if (isOrdered(value)) {
+    children = value.entries.map((entry) => entry[1]);
+  } else if (isPlainDict(value)) {
+    children = orderedDictEntries(value).map((entry) => entry.value);
+  }
+  for (const child of children) {
+    const found = findNoStringFormKind(child, mode);
+    if (found !== undefined) {
+      return found;
+    }
+  }
+  return undefined;
 }
 
 /** Copy ordered entries into a plain dict, keeping a `__proto__` key own. */

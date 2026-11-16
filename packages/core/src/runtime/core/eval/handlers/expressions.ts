@@ -37,6 +37,7 @@ import { BUILT_IN_TYPES } from '../../types/registrations.js';
 import { createChildContext } from '../../context.js';
 import { isCallable } from '../../callable.js';
 import type { EvalState } from '../state.js';
+import { withChildScope } from '../shared.js';
 import { accessHaltGate, haltSlowPath } from './access.js';
 import { hasStatusSidecar } from '../../types/status.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
@@ -478,17 +479,13 @@ export async function evaluateGroupedExpr(
  * Grouped expression that also reports the declared type of the inner chain
  * result.
  */
-export async function evaluateGroupedExprCarried(
+export function evaluateGroupedExprCarried(
   s: EvalState,
   node: GroupedExprNode
 ): Promise<Carried> {
   // Grouped expressions have their own scope (reads parent, writes local only)
   const childCtx = createChildContext(s.ctx);
-  const savedCtx = s.ctx;
-  s.ctx = childCtx;
-  try {
-    return await evaluatePipeChainCarried(s, node.expression);
-  } finally {
-    s.ctx = savedCtx;
-  }
+  return withChildScope(s, childCtx, () =>
+    evaluatePipeChainCarried(s, node.expression)
+  );
 }

@@ -3,11 +3,11 @@ id: conversion
 title: Conversion
 status: normative
 since: 0.24.0
-issues: [566, 574, 605]
+issues: [566, 574]
 grammar: []
 errors: [RILL-R036, RILL-R037, RILL-R038, RILL-R044]
 depends: [type-value, structural-typing, any, union, defaults, carried-type, inference, list, dict, tuple, ordered]
-tests: [conversion.test.ts, structural-type-defaults.test.ts]
+tests: [conversion.test.ts, structural-type-defaults.test.ts, vectors.test.ts]
 ---
 
 # Conversion
@@ -45,9 +45,21 @@ A dict converted to `ordered` with no signature MUST raise RILL-R037.
 r[conversion.missing] A conversion that does not exist halts
 A source and target with no conversion between them MUST halt with RILL-R036. `5 -> list` halts.
 
-r[conversion.no-string-form] A function or an iterator has no string form {pending #605}
+r[conversion.no-string-form] A function or an iterator has no string form
 `v -> string` for a function or an iterator MUST halt with RILL-R036, and so MUST interpolating
 one (`interpolation.printed`).
+
+r[conversion.no-string-nested] A collection holding a function or an iterator has no string form
+`v -> string` MUST halt with RILL-R036 when `v` is a list, dict, tuple or ordered that holds a
+function or an iterator at any depth, and so MUST interpolating `v` (`interpolation.printed`).
+
+r[conversion.no-string-vector] A vector has no string form
+`v -> string` MUST halt with RILL-R036 when `v` is a vector, or a list, dict, tuple or ordered that
+holds one at any depth, and so MUST interpolating `v` (`interpolation.printed`).
+
+r[conversion.no-string-time] A nested datetime or duration has no string route
+`v -> string` MUST halt with RILL-R036 when `v` is a list, dict, tuple or ordered that holds a
+datetime or a duration at any depth, as `string.from-time` halts at the top level.
 
 r[conversion.value-fail] A string that is not a number halts with a value error
 `"abc" -> number` MUST halt with RILL-R038. The scalar files state the other value failures.
@@ -112,6 +124,16 @@ list[1, 2] -> tuple(number, number)
 dict(a: number, b: number = 5) => $T
 dict[a: 1, c: 2] -> $T
 # Result: dict[a: 1, b: 5]
+```
+
+```rill
+# Error: cannot convert iterator to string
+range(0, 3) -> string
+```
+
+```rill
+# Error: RILL-R036 a collection holding an iterator has no string form
+list[list[range(0, 3)]] -> string
 ```
 
 ```rill pending=566

@@ -125,6 +125,16 @@ describe('formatValue', () => {
       expect(formatValue([])).toBe('list[]');
     });
 
+    it('formats a list holding a callable', async () => {
+      const closure = await run('||(1)');
+      expect(formatValue([closure])).toBe('list[type(closure)]');
+    });
+
+    it('formats a dict holding an iterator', async () => {
+      const iterator = await run('range(0, 3)');
+      expect(formatValue({ a: iterator })).toBe('dict[a: type(iterator)]');
+    });
+
     it('formats list with string elements', () => {
       expect(formatValue(['a', 'b'])).toBe('list["a", "b"]');
     });

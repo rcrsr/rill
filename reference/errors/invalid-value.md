@@ -3,11 +3,11 @@ id: invalid-value
 title: Invalid values
 status: normative
 since: 0.24.0
-issues: [612]
+issues: [599]
 grammar: []
 errors: []
 depends: []
-tests: [status-probe.test.ts, guard-retry.test.ts, vacancy-coerce.test.ts]
+tests: [status-probe.test.ts, guard-retry.test.ts, vacancy-coerce.test.ts, invalid-value-use.test.ts]
 ---
 
 # Invalid values
@@ -40,12 +40,15 @@ value MUST raise the halt the invalid value holds, at the place of access.
 r[invalid-value.hold] Holding an invalid value is not access
 A capture, a variable read, a `??` test, and a status probe MUST NOT raise the held halt.
 
-r[invalid-value.interpolate] Interpolating an invalid value raises its halt {pending #612}
+r[invalid-value.interpolate] Interpolating an invalid value raises its halt
 An interpolation whose value is invalid MUST raise the halt it holds.
 
-r[invalid-value.collection] A collection literal does not hold an invalid value {pending #612}
-An invalid value written as an element, a field, or an entry of a list, dict, tuple, ordered, or
-map literal MUST raise the halt it holds.
+r[invalid-value.collection] A collection literal does not hold an invalid value
+An invalid value written as an element, a field, or a position of a list, dict, tuple, or ordered
+literal MUST raise the halt it holds.
+
+r[invalid-value.map] A map literal does not hold an invalid value {pending #599}
+An invalid value written as an entry of a map literal MUST raise the halt it holds.
 
 ## Interactions
 
@@ -73,7 +76,14 @@ guard { 1 / 0 } => $r
 $r + 1
 ```
 
-## Notes
+```rill
+# Error: Division by zero
+guard { 1 / 0 } => $r
+"{$r}"
+```
 
-On 0.23.0 an invalid value placed in a collection or interpolated does not halt: `list[$r]`
-holds it, and `"{$r}"` yields `"dict[]"` (#612).
+```rill
+# Error: Division by zero
+guard { 1 / 0 } => $r
+list[$r]
+```

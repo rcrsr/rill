@@ -4,6 +4,10 @@ import type { ASTNode, ClosureNode, HostCallNode } from '@rcrsr/rill';
 import { collectFacts, capturesInSubtree } from './facts.js';
 import { traverseForRules } from './traversal.js';
 import { resolveOpBody } from './collection-ops.js';
+import { runRules } from './run-rules.js';
+import { avoidReassignment } from './avoid-reassignment.js';
+import { captureInlineChain } from './capture-inline-chain.js';
+import { makeConfig, toParseResult } from './test-support.js';
 
 // ============================================================
 // FIXTURE HELPERS
@@ -307,6 +311,28 @@ describe('closureOrOpDepth and bindingScopeDepth', () => {
     const facts = collectFacts(root);
 
     expect(facts.script.captureLog[0]?.bindingScopeDepth).toBe(1);
+  });
+
+  it('sets bindingScopeDepth above 0 for a capture inside a string interpolation', () => {
+    const source = '"a {1 => $x} b"\n';
+    const facts = collectFacts(parse(source));
+
+    expect(facts.script.captureLog[0]?.bindingScopeDepth).toBeGreaterThan(0);
+  });
+
+  it('does not report reassignment for a name captured only inside an earlier interpolation', () => {
+    const source = '"{1 => $q}" => $s\n2 => $q\n$q\n';
+
+    const result = runRules(toParseResult(source), source, makeConfig(), [
+      avoidReassignment,
+      captureInlineChain,
+    ]);
+
+    // Line 2 followed by a bare `$q` is a genuine inline-chain candidate on
+    // its own; the interpolation capture must add nothing else.
+    expect(result.map((d) => [d.code, d.location.line])).toEqual([
+      ['CAPTURE_INLINE_CHAIN', 2],
+    ]);
   });
 });
 

@@ -275,6 +275,14 @@ describe('types/registrations', () => {
       expect(typeof dictReg!.protocol.convertTo).toBe('object');
     });
 
+    it('closure and iterator have no string conversion', () => {
+      for (const name of ['closure', 'iterator']) {
+        const reg = BUILT_IN_TYPES.find((t) => t.name === name);
+        expect(reg).toBeDefined();
+        expect(reg!.protocol.convertTo?.['string']).toBeUndefined();
+      }
+    });
+
     it('field_descriptor has no convertTo (undefined)', () => {
       const fdReg = BUILT_IN_TYPES.find((t) => t.name === 'field_descriptor');
       expect(fdReg).toBeDefined();

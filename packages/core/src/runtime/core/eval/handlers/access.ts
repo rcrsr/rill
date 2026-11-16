@@ -31,13 +31,8 @@
  */
 
 import type { SourceLocation } from '../../../../types.js';
-import {
-  appendTraceFrame,
-  hasStatusSidecar,
-  isInvalid,
-} from '../../types/status.js';
-import { createTraceFrame } from '../../types/trace.js';
-import { RuntimeHaltSignal } from '../../types/halt.js';
+import { hasStatusSidecar, isInvalid } from '../../types/status.js';
+import { RuntimeHaltSignal, throwAccessHalt } from '../../types/halt.js';
 import type { RillValue } from '../../types/structures.js';
 
 // ============================================================
@@ -106,13 +101,11 @@ export function accessHaltGate(value: RillValue, site: AccessSite): RillValue {
   if (!isInvalid(value)) {
     return value;
   }
-  const frame = createTraceFrame({
-    site: formatAccessSite(site.location, site.sourceId),
-    kind: 'access',
-    fn: site.fn,
-  });
-  const next = appendTraceFrame(value, frame);
-  throw new RuntimeHaltSignal(next, true);
+  return throwAccessHalt(
+    value,
+    formatAccessSite(site.location, site.sourceId),
+    site.fn
+  );
 }
 
 /**
@@ -150,13 +143,7 @@ export function accessHaltGateFast(
   if (!isInvalid(value)) {
     return value;
   }
-  const frame = createTraceFrame({
-    site: formatAccessSite(locFn(), sourceId),
-    kind: 'access',
-    fn,
-  });
-  const next = appendTraceFrame(value, frame);
-  throw new RuntimeHaltSignal(next, true);
+  return throwAccessHalt(value, formatAccessSite(locFn(), sourceId), fn);
 }
 
 /**
@@ -187,11 +174,9 @@ export function haltSlowPath(
   if (!isInvalid(value)) {
     return value;
   }
-  const frame = createTraceFrame({
-    site: formatAccessSite(node.span.start, sourceId),
-    kind: 'access',
-    fn,
-  });
-  const next = appendTraceFrame(value, frame);
-  throw new RuntimeHaltSignal(next, true);
+  return throwAccessHalt(
+    value,
+    formatAccessSite(node.span.start, sourceId),
+    fn
+  );
 }

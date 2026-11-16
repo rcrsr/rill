@@ -12,7 +12,7 @@ import {
 import { describe, expect, it } from 'vitest';
 
 import { run, runWithContext } from '../helpers/runtime.js';
-import { expectHaltMessage } from '../helpers/halt.js';
+import { expectHalt, expectHaltMessage } from '../helpers/halt.js';
 
 describe('Rill Runtime: Vector Type', () => {
   describe('.^type typeName [AC-9]', () => {
@@ -192,23 +192,38 @@ describe('Rill Runtime: Vector Type', () => {
     });
   });
 
-  describe('string interpolation [AC-22, EC-31]', () => {
-    it('throws RILL-R003 for vector in string interpolation', async () => {
-      const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      await expect(
-        run('"Vector: {$v}"', {
-          variables: { v: vec },
-        })
-      ).rejects.toThrow('cannot coerce vector to string');
-    });
+  describe('string form', () => {
+    const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
 
-    it('throws RILL-R003 for vector in string concatenation', async () => {
-      const vec = createVector(new Float32Array([1.0, 2.0, 3.0]), 'model-a');
-      await expect(
-        run('"Prefix: {$v} suffix"', {
-          variables: { v: vec },
-        })
-      ).rejects.toThrow('cannot coerce vector to string');
+    it.each([
+      ['interpolation', '"Vector: {$v}"', /cannot convert vector to string/],
+      [
+        'interpolation with surrounding text',
+        '"Prefix: {$v} suffix"',
+        /cannot convert vector to string/,
+      ],
+      ['conversion', '$v -> string', /cannot convert vector to string/],
+      [
+        'nested conversion',
+        'list[$v] -> string',
+        /cannot convert list to string: contains vector/,
+      ],
+      [
+        'nested interpolation',
+        '"{dict[a: $v]}"',
+        /cannot convert dict to string: contains vector/,
+      ],
+      [
+        'join',
+        'list[$v] -> .join(",")',
+        /cannot convert list to string: contains vector/,
+      ],
+    ])('halts RILL-R036: %s', async (_name, script, messagePattern) => {
+      await expectHalt(() => run(script, { variables: { v: vec } }), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern,
+      });
     });
   });
 

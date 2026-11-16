@@ -101,7 +101,8 @@ r[string.from-bool] A bool converts to its word
 `true -> string` MUST yield `"true"` and `false -> string` MUST yield `"false"`.
 
 r[string.from-collection] A collection converts to its printed form
-A list, dict, tuple, or ordered piped into `string` MUST yield its printed form.
+A list, dict, tuple, or ordered piped into `string` MUST yield its printed form, except as `conversion.no-string-nested`,
+`conversion.no-string-vector`, and `conversion.no-string-time` state.
 `list[1] -> string` ⇒ `"list[1]"`.
 
 r[string.from-time] A datetime and a duration have no route

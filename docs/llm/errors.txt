@@ -167,6 +167,11 @@ Check before access:
 
     $v.! ? "invalid" ! $v.upper
 
+An invalid value also halts when interpolated or written into a collection literal. Resolve it first:
+
+    "{$r ?? "none"}"
+    list[$r ?? 0]
+
 Guard then inspect:
 
     guard { $v.upper } => $out

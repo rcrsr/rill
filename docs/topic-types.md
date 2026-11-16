@@ -58,6 +58,8 @@ true => $ok
 "upper: {$name -> .upper}"           # Method chain
 ```
 
+For how interpolation scopes variables, see [Scope Rules](topic-variables.md#scope-rules); for how it treats invalid values, see [Access vs Non-Access](topic-error-handling.md#access-vs-non-access); for which values convert to a string, see the conversion matrix in [Operators](topic-operators.md#conversion-operator---type).
+
 ### Multiline Strings
 
 Multiline strings use triple-quote syntax:

@@ -22,14 +22,6 @@ function formatIterator(_v: RillValue): string {
 }
 
 // ============================================================
-// CONVERT-TO
-// ============================================================
-
-const iteratorConvertTo: Record<string, (v: RillValue) => RillValue> = {
-  string: (_v: RillValue): RillValue => 'type(iterator)',
-};
-
-// ============================================================
 // TYPE DEFINITION
 // ============================================================
 
@@ -41,7 +33,6 @@ export const iteratorType: TypeDefinition = {
   methods: {},
   protocol: {
     format: formatIterator,
-    convertTo: iteratorConvertTo,
     serialize: throwNotSerializable('iterator'),
   },
 };

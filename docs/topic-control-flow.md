@@ -770,7 +770,7 @@ The `.?` operator tests whether `$result` is valid. The `.!code` probe reads the
 
 ### Invalid Value
 
-An invalid value is a first-class rill value that carries a `:atom` value. It is not an exception. It propagates through pipes and dict fields without halting, until an explicit check uses `.?` or `.!`.
+An invalid value is a first-class rill value that carries a `:atom` value. It is not an exception. Capture, `??`, and the `.!` and `.?` probes handle it without halting; using it in a pipe, an operator, an interpolation, or a collection literal halts. See [Access vs Non-Access](topic-error-handling.md#access-vs-non-access).
 
 ```text
 use<ext:app> => $app
@@ -781,7 +781,7 @@ $r.!              # bool: true if invalid
 $r.?              # bool: true if valid
 ```
 
-Using an invalid value as an operand in arithmetic or type assertions halts execution. Test with `.?` before use.
+Using an invalid value in a pipe, an operator, an interpolation, or a collection literal halts execution. Test with `.?` before use. See [Access vs Non-Access](topic-error-handling.md#access-vs-non-access).
 
 See [Error Handling](topic-error-handling.md) for full patterns and [Error Reference](ref-errors.md) for error codes. The atoms that serve as codes are listed in [Built-in Atoms and the Core Error Set](topic-error-handling.md#built-in-atoms-and-the-core-error-set).
 

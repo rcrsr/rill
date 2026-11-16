@@ -4,9 +4,10 @@
  */
 
 import { walkAst } from '@rcrsr/rill';
-import type { ASTNode, ParseResult } from '@rcrsr/rill';
+import type { ParseResult } from '@rcrsr/rill';
 import type { SourceSpan, TypeRef } from '@rcrsr/rill';
 
+import { opensScope } from '../opens-scope.js';
 import { dictKeyName, dictKeySpan } from '../dict-key.js';
 import { spanContainsOffset } from './span-helpers.js';
 import type { Binding, BindingKind } from './types.js';
@@ -148,18 +149,6 @@ function computeScopeState(parsed: ParseResult, offset: number): ScopeState {
     }
   }
   return { bindings, insideClosureBody };
-}
-
-/**
- * Determines whether `node` opens a new scope frame. Closures, grouped
- * expressions, and every block (including `pass` bodies) do.
- */
-function opensScope(node: ASTNode): boolean {
-  return (
-    node.type === 'Closure' ||
-    node.type === 'GroupedExpr' ||
-    node.type === 'Block'
-  );
 }
 
 function createBinding(

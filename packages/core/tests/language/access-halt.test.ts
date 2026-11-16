@@ -26,6 +26,7 @@ import {
   parseWithRecovery,
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
+import { expectHalt } from '../helpers/halt.js';
 import { resolveAtom } from '../../src/runtime/core/types/atom-registry.js';
 
 /** Runs a script through parseWithRecovery + execute and returns its value. */
@@ -156,15 +157,12 @@ describe('Access-halt gate (FR-ERR-14)', () => {
       expect(result).toBe('fallback');
     });
 
-    it('list inclusion stores an invalid by reference without halting', async () => {
+    it('list inclusion halts with the held code of the invalid element', async () => {
       const src = `
         guard<on: list[#NOT_A_CODE]> { 1 } => $x
         list[$x]
       `;
-      const list = (await runRecovered(src)) as unknown[];
-      expect(Array.isArray(list)).toBe(true);
-      expect(list).toHaveLength(1);
-      expect(isInvalid(list[0] as never)).toBe(true);
+      await expectHalt(() => runRecovered(src), { code: 'R001' });
     });
   });
 

@@ -22,12 +22,31 @@ import {
 } from '../types/halt.js';
 import { ERROR_IDS, ERROR_ATOMS } from '../../../error-registry.js';
 import type { EvalState } from './state.js';
+import type { RuntimeContext } from '../types/runtime.js';
 
 /**
  * Default maximum iteration count for iterators and loops, and the headroom
  * added to maxCallDepth for the run-wide in-flight call ceiling.
  */
 export const DEFAULT_MAX_ITERATIONS = 10000;
+
+/**
+ * Run `run` with `ctx` installed as the evaluator's active context, then
+ * restore the previous context, even when `run` throws.
+ */
+export async function withChildScope<T>(
+  s: EvalState,
+  ctx: RuntimeContext,
+  run: () => Promise<T>
+): Promise<T> {
+  const saved = s.ctx;
+  s.ctx = ctx;
+  try {
+    return await run();
+  } finally {
+    s.ctx = saved;
+  }
+}
 
 /**
  * Get source location from an AST node.

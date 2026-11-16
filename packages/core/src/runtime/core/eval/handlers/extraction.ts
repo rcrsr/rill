@@ -41,6 +41,7 @@ import { ERROR_IDS, ERROR_ATOMS } from '../../../../error-registry.js';
 import { resolveTypeRef, assertType } from './types.js';
 import { setVariable, evaluateVariable } from './variables.js';
 import { evaluateExpression } from './core.js';
+import { accessHaltGateFast } from './access.js';
 import { isKeyedSource } from './collections.js';
 import {
   setDictField,
@@ -581,10 +582,24 @@ export async function evaluateListLiteralElements(
   const result: RillValue[] = [];
   for (const elem of rawElements) {
     if (elem.type === 'ListSpread') {
-      const spreadValue = await evaluateExpression(s, elem.expression);
+      const spreadValue = accessHaltGateFast(
+        await evaluateExpression(s, elem.expression),
+        'evaluateListLiteralElements',
+        () => elem.span?.start,
+        s.ctx.sourceId
+      );
       const spreadElements = positionalElements(spreadValue);
       if (spreadElements !== undefined) {
-        result.push(...spreadElements);
+        for (const spreadElement of spreadElements) {
+          result.push(
+            accessHaltGateFast(
+              spreadElement,
+              'evaluateListLiteralElements',
+              () => elem.span?.start,
+              s.ctx.sourceId
+            )
+          );
+        }
       } else {
         throwSourceKindHalt(
           {
@@ -598,7 +613,14 @@ export async function evaluateListLiteralElements(
         );
       }
     } else {
-      result.push(await evaluateExpression(s, elem));
+      result.push(
+        accessHaltGateFast(
+          await evaluateExpression(s, elem),
+          'evaluateListLiteralElements',
+          () => elem.span?.start,
+          s.ctx.sourceId
+        )
+      );
     }
   }
   return result;
@@ -621,8 +643,18 @@ async function evaluateDictLiteralEntries(
   // position — matching plain-object/Map override semantics — instead of
   // being appended again at the end.
   const merged = new Map<string, [DictKeyScalar, RillValue]>();
-  const setMergedEntry = (key: DictKeyScalar, value: RillValue): void => {
-    merged.set(`${typeof key}:${String(key)}`, [key, value]);
+  const setMergedEntry = (
+    key: DictKeyScalar,
+    value: RillValue,
+    location: SourceLocation | undefined
+  ): void => {
+    const gated = accessHaltGateFast(
+      value,
+      'evaluateDictLiteralEntries',
+      () => location,
+      s.ctx.sourceId
+    );
+    merged.set(`${typeof key}:${String(key)}`, [key, gated]);
   };
 
   for (const entry of entries) {
@@ -632,15 +664,20 @@ async function evaluateDictLiteralEntries(
     // literal key '...' and no keyForm (a real `["...": x]` string key
     // always carries keyForm, so this check cannot collide with it).
     if (key === '...' && entry.keyForm === undefined) {
-      const spreadValue = await evaluateExpression(s, entry.value);
+      const spreadValue = accessHaltGateFast(
+        await evaluateExpression(s, entry.value),
+        'evaluateDictLiteralEntries',
+        () => entry.span?.start,
+        s.ctx.sourceId
+      );
       if (isOrdered(spreadValue)) {
         for (const [k, v] of orderedValueEntries(spreadValue)) {
-          setMergedEntry(k, v);
+          setMergedEntry(k, v, entry.span?.start);
         }
       } else if (isPlainDict(spreadValue)) {
         for (const { key: k, value: v } of orderedDictEntries(spreadValue)) {
           if (isDictKeyScalar(k)) {
-            setMergedEntry(k, v);
+            setMergedEntry(k, v, entry.span?.start);
           }
         }
       } else {
@@ -708,14 +745,14 @@ async function evaluateDictLiteralEntries(
           if (typeof k === 'string') {
             assertUsableDictKey(s, k, entry.span);
           }
-          setMergedEntry(k, v);
+          setMergedEntry(k, v, entry.span?.start);
         }
         continue;
       }
     }
 
     const value = await evaluateExpression(s, entry.value);
-    setMergedEntry(stringKey, value);
+    setMergedEntry(stringKey, value, entry.span?.start);
   }
   return [...merged.values()];
 }

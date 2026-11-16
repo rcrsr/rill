@@ -539,9 +539,137 @@ describe('Rill Language: -> Conversion Operator', () => {
       );
     });
 
-    it('converts closure to string via formatValue (AC-32, BC-7)', async () => {
-      const result = await run('||(42) -> string');
-      expect(result).toBe('type(closure)');
+    it('throws RILL-R036: closure -> string (no string form)', async () => {
+      await expectHalt(() => run('||(42) -> string'), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert closure to string/,
+      });
+    });
+
+    it('throws RILL-R036: iterator -> string (no string form)', async () => {
+      await expectHalt(() => run('range(0, 3) -> string'), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert iterator to string/,
+      });
+    });
+
+    const NESTED_PRELUDE = '||(42) => $f\nrange(0, 3) => $it\n';
+
+    it.each([
+      [
+        'list holding a closure',
+        'list[$f] -> string',
+        /cannot convert list to string: contains closure/,
+      ],
+      [
+        'dict holding a closure',
+        'dict[a: $f] -> string',
+        /cannot convert dict to string: contains closure/,
+      ],
+      [
+        'tuple holding an iterator',
+        'tuple[$it] -> string',
+        /cannot convert tuple to string: contains iterator/,
+      ],
+      [
+        'ordered holding a closure',
+        'ordered[a: $f] -> string',
+        /cannot convert ordered to string: contains closure/,
+      ],
+      [
+        'deeply nested iterator',
+        'list[dict[a: list[$it]]] -> string',
+        /cannot convert list to string: contains iterator/,
+      ],
+      [
+        'dict with a typed key',
+        'dict[1: $f] -> string',
+        /cannot convert dict to string: contains closure/,
+      ],
+      [
+        'string-typed $T route',
+        'string => $T\nlist[$f] -> $T',
+        /cannot convert list to string: contains closure/,
+      ],
+      [
+        'list holding an iterator names iterator',
+        'list[$it] -> string',
+        /contains iterator/,
+      ],
+    ])(
+      'halts RILL-R036: %s -> string',
+      async (_name, script, messagePattern) => {
+        await expectHalt(() => run(`${NESTED_PRELUDE}${script}`), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+          messagePattern,
+        });
+      }
+    );
+
+    it('does not name closure when a list holds an iterator', async () => {
+      await expectHalt(() => run(`${NESTED_PRELUDE}list[$it] -> string`), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /^(?!.*closure)/,
+      });
+    });
+
+    const TIME_PRELUDE =
+      'datetime(...dict[year: 2024, month: 1, day: 2]) => $d\nduration(...dict[seconds: 5]) => $u\n';
+
+    it.each([
+      [
+        'list holding a datetime',
+        'list[$d] -> string',
+        /cannot convert list to string: contains datetime/,
+      ],
+      [
+        'dict holding a duration',
+        'dict[a: $u] -> string',
+        /cannot convert dict to string: contains duration/,
+      ],
+    ])(
+      'halts RILL-R036: %s -> string',
+      async (_name, script, messagePattern) => {
+        await expectHalt(() => run(`${TIME_PRELUDE}${script}`), {
+          code: 'RILL_R036',
+          hostErrorId: 'RILL-R036',
+          messagePattern,
+        });
+      }
+    );
+
+    it('prints a nested datetime and duration in interpolation', async () => {
+      expect(await run(`${TIME_PRELUDE}"{list[$d, $d]}"`)).toBe(
+        'list[2024-01-02T00:00:00.000Z, 2024-01-02T00:00:00.000Z]'
+      );
+      expect(await run(`${TIME_PRELUDE}"{dict[a: $u]}"`)).toBe('dict[a: 5s]');
+    });
+
+    it('halts RILL-R036 when join meets a closure', async () => {
+      await expectHalt(() => run(`${NESTED_PRELUDE}list[$f] -> .join(",")`), {
+        code: 'RILL_R036',
+        hostErrorId: 'RILL-R036',
+        messagePattern: /cannot convert list to string: contains closure/,
+      });
+    });
+
+    it('joins a list holding a datetime by its printed form', async () => {
+      expect(await run(`${TIME_PRELUDE}list[$d] -> .join(",")`)).toBe(
+        '2024-01-02T00:00:00.000Z'
+      );
+    });
+
+    it('still converts a plain list to its string form', async () => {
+      expect(await run('list[1, 2] -> string')).toBe('list[1, 2]');
+    });
+
+    it('still converts empty list and dict to string', async () => {
+      expect(await run('list[] -> string')).toBe('list[]');
+      expect(await run('dict[] -> string')).toBe('dict[]');
     });
 
     it('converts "-3.14" to number -3.14 (AC-33, BC-8 negative decimal)', async () => {

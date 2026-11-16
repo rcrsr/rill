@@ -865,8 +865,8 @@ async function invokeRegularScriptCallable(
     // boundary. `evaluateBodyExpression` here runs a script-authored
     // closure body, not a host/extension function, so the origin is
     // `access` (the existing kind used elsewhere for propagating a halt
-    // across a non-host runtime boundary, e.g. `protocols/shared.ts`'s
-    // `haltOnNestedInvalid`) rather than `host`.
+    // across a non-host runtime boundary, e.g. the nested-invalid halt in
+    // `protocols/shared.ts`) rather than `host`.
     markExtensionThrow(e);
     if (e instanceof RuntimeHaltSignal) {
       const enriched = appendTraceFrame(

@@ -21,6 +21,7 @@ import {
   execute,
   parseWithRecovery,
   RuntimeError,
+  RuntimeHaltSignal,
 } from '@rcrsr/rill';
 import { getStatus, isInvalid } from '../../src/runtime/core/types/status.js';
 
@@ -30,6 +31,19 @@ async function runRecovered(src: string): Promise<unknown> {
   const ctx = createRuntimeContext({});
   const { result } = await execute(parsed.ast, ctx);
   return result;
+}
+
+/** Runs a script expected to halt and returns the invalid value the halt carries. */
+async function runHeldHalt(src: string): Promise<unknown> {
+  let caught: unknown;
+  try {
+    await runRecovered(src);
+  } catch (e) {
+    caught = e;
+  }
+  if (caught instanceof RuntimeHaltSignal) return caught.value;
+  expect(caught).toBeInstanceOf(RuntimeError);
+  return (caught as RuntimeError).haltValue;
 }
 
 describe('Trace frame ordering (SM6)', () => {
@@ -136,19 +150,16 @@ describe('FR-ERR-18: Frames survive capture and container inclusion', () => {
     expect(trace.some((f) => f.kind === 'host')).toBe(true);
   });
 
-  it('list inclusion preserves frames on the included element', async () => {
-    // Materialise the list literal with the invalid element; read the
-    // element back via guard and probe its trace. Accessing `.!trace`
-    // on the element does not halt and returns the preserved trace.
+  it('list inclusion halts and the held halt keeps its host frame plus an access frame', async () => {
     const src = `
       guard<on: list[#NOT_A_CODE]> { 1 } => $x
-      list[$x] => $batch
-      $x.!trace
+      list[$x]
     `;
-    const trace = (await runRecovered(src)) as Array<{ kind: string }>;
-    expect(Array.isArray(trace)).toBe(true);
-    expect(trace.length).toBeGreaterThanOrEqual(1);
+    const held = await runHeldHalt(src);
+    expect(isInvalid(held as never)).toBe(true);
+    const trace = getStatus(held as never).trace;
     expect(trace[0]!.kind).toBe('host');
+    expect(trace.some((f) => f.kind === 'access')).toBe(true);
   });
 });
 
@@ -257,28 +268,18 @@ describe('Wrap frame (FR-ERR-13; IR-3, IR-5)', () => {
     expect(haltStatus.raw['message']).toBe('');
   });
 
-  it('AC-13: `error "{$x}"` with invalid $x halts with RILL_R016 status; wrap frame attached', async () => {
-    // `$x` holds an invalid (guard<on: list[#NOT_A_CODE]> { 1 } recovery). Interpolating $x stringifies
-    // the invalid via formatValue (no access is performed), so the error
-    // halt is RILL_R016 with interpolated=true. The wrap frame carries
-    // the RILL_R016 prior status dict per IR-3.
+  it('`error "{$x}"` with invalid $x raises the held halt of $x with no wrap frame', async () => {
+    // Interpolating an invalid value halts with its held code before the
+    // error statement runs, so no wrap frame is attached.
     const src = `
       guard<on: list[#NOT_A_CODE]> { 1 } => $x
       error "wrapped: {$x}"
     `;
-    const { err, haltStatus } = await runExpectingErrorHalt(src);
-
-    expect(err.errorId).toBe('RILL-R016');
-    // The halt's own status code is RILL_R016 (atom form).
-    // The wrap frame carries the same prior status dict (pre-wrap snapshot).
-    const frames = haltStatus.trace;
-    const wrapFrame = frames.find((f) => f.kind === 'wrap');
-    expect(wrapFrame).toBeDefined();
-    const wrapped = wrapFrame!.wrapped as Record<string, unknown>;
-    expect(typeof wrapped['code']).toBe('string');
-    expect(wrapped['provider']).toBe('runtime');
-    // Message contains the stringified invalid.
-    expect(typeof wrapped['message']).toBe('string');
-    expect((wrapped['message'] as string).startsWith('wrapped: ')).toBe(true);
+    const held = await runHeldHalt(src);
+    expect(isInvalid(held as never)).toBe(true);
+    const status = getStatus(held as never);
+    expect(status.code.name).toBe('R001');
+    expect(status.trace.some((f) => f.kind === 'wrap')).toBe(false);
+    expect(status.trace[0]!.kind).toBe('host');
   });
 });

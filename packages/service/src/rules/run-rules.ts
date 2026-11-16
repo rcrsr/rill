@@ -207,7 +207,8 @@ export function runRules(
 
   const enter = (node: ASTNode): void => {
     // Track closure scope entry.
-    if (node.type === 'Closure') {
+    if (node.type === 'Closure' || node.type === 'Interpolation') {
+      // A string interpolation is a child scope at runtime, like a closure.
       ruleContext.scopeStack.push(node);
     } else if (node.type === 'Block' && scopedBodyBlocks.has(node)) {
       // A scoped body Block (loop or pass) is its own scope, distinct from
@@ -272,7 +273,7 @@ export function runRules(
   };
 
   const exit = (node: ASTNode): void => {
-    if (node.type === 'Closure') {
+    if (node.type === 'Closure' || node.type === 'Interpolation') {
       ruleContext.scopeStack.pop();
     } else if (node.type === 'Block' && scopedBodyBlocks.has(node)) {
       ruleContext.scopeStack.pop();
