@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- tests are registered through rule(...).it, which the plugin does not recognise */
 /**
  * Rill Language Tests: type value properties (inner, outer, defaults)
  *
@@ -10,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { expectHalt } from '../helpers/halt.js';
+import { rule } from '../helpers/rule.js';
 import { run } from '../helpers/runtime.js';
 
 /** Assert that `source` evaluates to a value equal to `expected` (rill `==`). */
@@ -562,5 +564,39 @@ describe('stream type written as an expression', () => {
     expect(await run('stream(number) => $t\n$t.signature')).toBe(
       'stream(number)'
     );
+  });
+});
+
+describe('stream type acceptance', () => {
+  const { it: ruleIt } = rule('stream.accepts');
+
+  const GEN = '|| { 1 -> yield\n "done" }:stream(number):string => $gen';
+
+  async function accepts(typeName: string): Promise<unknown> {
+    return run(`${GEN}\n$gen() => $s\n$s :?${typeName}`);
+  }
+
+  ruleIt.each([
+    'stream(any)',
+    'stream',
+    'stream(number)',
+    'stream:string',
+    'stream(any):any',
+    'stream(number):string',
+  ])('accepts a stream(number):string value as %s', async (typeName) => {
+    expect(await accepts(typeName)).toBe(true);
+  });
+
+  ruleIt.each(['stream(string)', 'stream(number):number'])(
+    'rejects a stream(number):string value as %s',
+    async (typeName) => {
+      expect(await accepts(typeName)).toBe(false);
+    }
+  );
+
+  ruleIt('accepts a stream of strings as stream(any)', async () => {
+    const script =
+      '|| { "a" -> yield\n "done" }:stream(string):string => $gen\n$gen() => $s\n$s :?stream(any)';
+    expect(await run(script)).toBe(true);
   });
 });
