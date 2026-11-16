@@ -161,8 +161,7 @@ conversion.scalar 82e5c1778ac4 atom.from-string@013a2d860f57 atom.to-string@a4a3
 conversion.union 415487b22deb
 conversion.union-miss 59c0bce8424f
 conversion.value-fail 411bbbd33387
-conversion.variable b2bd415b376c
-conversion.variable-call 79cb61b4db5f
+conversion.variable bbc49579c9e7
 datetime.cross-equality 193ea53779d4
 datetime.equality 4e78cf980aea
 datetime.from-components 29c34903de70
@@ -250,10 +249,10 @@ dispatch.block-literal 1a2de8ce51d4
 dispatch.fn b3dfba5720a1
 dispatch.map-block 234ca92e09b6
 dispatch.multi-key f319180e4904
-dispatch.ordered fda571114890
+dispatch.ordered 3922f001c122
 dispatch.path 5a324e95d596
 dispatch.select b43bf6dece5b
-dispatch.tuple a226dcdabd46
+dispatch.tuple 2908349a89b3
 duration.construct c247666dc907
 duration.cross-equality d905570a5b5a
 duration.equality b3b087dac628
@@ -428,7 +427,7 @@ invalid-value.origin f59e88d4cf82
 invalid-value.probe 024c35ff18e2
 invalid-value.status 7d727ece29c6
 invalid-value.valid-status 413a1a114f6b
-invocation 22c3ccc7a49e defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 pipe.call-operand@f1a1b2193c9f pipe.script-operand@bcee214af70d scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
+invocation 22c3ccc7a49e defaults.param@4bd0a3bd35c5 defaults.param-required@94b94909db07 halt.non-catchable@8eb8c26644b7 pipe.call-operand@f1a1b2193c9f pipe.script-operand@f9e04397ab89 scope.child@fb0f345c5707 scope.late-binding@80ad28cdc782 spread.arg-dict@60818904593b spread.arg-tuple@ca06a765a105
 invocation.arguments-first 506b39f747fd
 invocation.before-body 248c16d5ba59
 invocation.excess adc4936056b0
@@ -554,7 +553,7 @@ pass.halts 0d9009ce6827
 pass.identity daaa2d6b9355
 pass.ignore 255923507376
 pass.target-body 03087cb442a9
-pipe df7998683e87 conditional.piped@933b1fa68341 loop.seed@ece9a46ff7a0
+pipe fd4ad0281d8b conditional.piped@933b1fa68341 loop.seed@ece9a46ff7a0
 pipe.block 00f69bfcf9d1 code-block.pipe-target@10cd486fec05
 pipe.call-dollar 8d7657f4dc08
 pipe.call-operand f1a1b2193c9f
@@ -565,11 +564,12 @@ pipe.grouped f6270fcf7eb8
 pipe.left-to-right ffb07af4ec06
 pipe.method 827cfdd62591
 pipe.no-literal 2292a8733c47
-pipe.script-operand bcee214af70d
+pipe.script-operand f9e04397ab89 pipe.call-operand@f1a1b2193c9f
 pipe.string e11eeeaf2f49
 pipe.type 8555462e2497
 pipe.uses-value 7cda1d3bff5d
 pipe.variable 6f95dc9aaa5e
+pipe.variable-kind 8d7821486b54 pipe.data@faa3632d051e
 retry.attempts 082c9ee5c2b9
 retry.attempts-name 626b546e297d
 retry.exhaust f6b05f39b670
@@ -592,7 +592,7 @@ selection.bracket-default 5312a42ee3e0
 selection.computed 173483f7594b
 selection.default 40b9bbb857e8
 selection.default-last-step ac885bfdaa65 selection.bracket-default@5312a42ee3e0
-selection.forms a2195df12c20
+selection.forms 39994787f2d5
 selection.index-integer c6a1fc84549e
 selection.index-type 5b4e0534e78f
 selection.key-no-mask 74fe59dc2a82
@@ -610,7 +610,7 @@ selection.no-mask 08454b616e98
 selection.no-name 8fc222705f4d
 selection.no-paren c92da2fdf244
 selection.range 9cb420804046
-selection.string 31ef0ec4c01c
+selection.string 0b0752019113 pipe.variable-kind@8d7821486b54
 selection.variable dff77378d874
 seq 31d255ee1898 break.seq@e47b3a30461b
 seq.arguments 2d03d5190852

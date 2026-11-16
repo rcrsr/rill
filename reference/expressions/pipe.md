@@ -3,11 +3,11 @@ id: pipe
 title: Pipe
 status: normative
 since: 0.24.0
-issues: [567, 625]
+issues: [567]
 grammar: [pipe-chain]
-errors: [RILL-P001, RILL-R005, RILL-R044]
+errors: [RILL-P001, RILL-R002, RILL-R005]
 depends: [statement, dispatch, conversion, assertion]
-tests: [pipe-targets.test.ts]
+tests: [pipe-targets.test.ts, unified-dispatch.test.ts, conversion.test.ts, closure-semantics.test.ts, late-bound-closures.test.ts]
 ---
 
 # Pipe
@@ -75,8 +75,8 @@ r[pipe.call-dollar] A written $ argument replaces the prepended operand
 When an argument of a call target is a top-level `$`, the value MUST NOT be prepended, and
 each such `$` MUST be `v`. `5 -> range(0, $)` MUST equal `range(0, 5)`.
 
-r[pipe.script-operand] A script function target receives the value first {pending #625}
-`v -> $h(args)` MUST call `$h` with `v` prepended to `args`, as a built-in call target does.
+r[pipe.script-operand] A script function target receives the value first
+`v -> $h(args)` MUST call `$h` with `v` prepended to `args`, as `pipe.call-operand` states.
 
 r[pipe.grouped] A parenthesized target is a grouped expression
 `v -> (expr)` MUST evaluate `expr` with `$` bound to `v`.
@@ -85,11 +85,17 @@ r[pipe.variable] A variable target acts as its value
 `v -> $x` MUST do what the value of `$x` calls for as a target. An undefined `$x` MUST halt
 with RILL-R005.
 
+r[pipe.variable-kind] A variable that holds no target kind halts
+`v -> $x` MUST halt with RILL-R002 when `$x` holds a value that is not a function, a type, or a
+data value `pipe.data` names. The message MUST name the variable and the kind it holds, as in
+`cannot pipe into $n: it holds a number`.
+
 ## Interactions
 
 A conditional or a loop after `->` takes the value as its input (`conditional.piped`,
 `loop.seed`). `-> :T` and `-> :?T` assert and check rather than convert (`assertion`). A capture in a
-chain binds and passes the value on (`capture`).
+chain binds and passes the value on (`capture`). A function target binds its arguments as
+`invocation` states.
 
 ## Errors
 
@@ -97,7 +103,7 @@ chain binds and passes the value on (`capture`).
 |-----------|-------|-----------|
 | A number, bool, or atom literal is a target | RILL-P001 | No |
 | A variable target is undefined | RILL-R005 | Yes |
-| A script function target lacks an argument | RILL-R044 | No |
+| A variable target holds no target kind | RILL-R002 | Yes |
 
 ## Examples
 
@@ -126,8 +132,15 @@ list[1, 2, 3] -> take(2)
 5 -> 3
 ```
 
+```rill
+3 => $n
+# Error: cannot pipe into $n
+5 -> $n
+```
+
 ## Notes
 
 On 0.23.0 a target that ignores the value runs: `5 -> "x"` yields `"x"` and `3 -> { 5 }` yields
 5. `3 -> list[$, $]` builds `list[3, 3]` and indexes it with 3, halting RILL-R009. A script
 function does not receive the operand: `3 -> $h(4)` halts RILL-R044, and `3 -> $h($, 4)` works.
+On 0.23.0 `5 -> $n` for a number `$n` halts RILL-R002 `Cannot dispatch to number`.

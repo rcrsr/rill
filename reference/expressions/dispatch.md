@@ -3,7 +3,7 @@ id: dispatch
 title: Dispatch
 status: normative
 since: 0.24.0
-issues: [568, 599, 630]
+issues: [568, 599]
 grammar: []
 errors: [RILL-R002]
 depends: [selection, dict, ordered, list, tuple, map, fn]
@@ -19,10 +19,10 @@ A dispatch pipe `sel -> $c` selects an element of a collection and runs it when 
 r[dispatch.select] A pipe into a collection selects
 For a valid selector, `sel -> $c` MUST select as `$c[sel]` does, on a dict and a list.
 
-r[dispatch.tuple] A pipe into a tuple selects by index {pending #630}
+r[dispatch.tuple] A pipe into a tuple selects by index
 `sel -> $t` MUST select as `$t[sel]` does, for a tuple `$t`.
 
-r[dispatch.ordered] A pipe into an ordered selects by key {pending #630}
+r[dispatch.ordered] A pipe into an ordered selects by key
 `sel -> $o` MUST select as `$o[sel]` does, for an ordered `$o`.
 
 r[dispatch.path] A list piped into nested collections descends one level per element
@@ -73,6 +73,12 @@ list[{ "got {$}" }] => $l
 # Result: "got 0"
 ```
 
+```rill
+tuple["a", "b"] => $t
+1 -> $t
+# Result: "b"
+```
+
 ## Notes
 
 `0 -> list[{ 5 }]` yields the block uncalled on 0.23.0, `0 -> tuple[{ 5 }]` fails to parse, and
@@ -80,6 +86,8 @@ list[{ "got {$}" }] => $l
 
 On 0.23.0 `$l.("a")` on a list halts RILL-R003 where `"a" -> $l` halts RILL-R002. The
 parenthesized form is removed in 0.24.0 (#607), and `$l["a"]` halts RILL-R002 as dispatch does.
+
+On 0.23.0 a pipe into a tuple or ordered variable halts RILL-R002.
 
 Selection and dispatch are one topic split in two: only dispatch binds `$` to the selector and
 descends paths. Both run a held block (`code-block.access`).
